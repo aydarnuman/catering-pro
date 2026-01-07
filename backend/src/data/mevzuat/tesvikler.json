@@ -1,0 +1,75 @@
+{
+  "guncelleme_tarihi": "2026-01-01",
+  
+  "istihdam_tesvikleri": {
+    "genc_istihdam_17103": {
+      "aciklama": "18-29 yaş arası ilk defa sigortalı olan gençler",
+      "destek": "SGK işveren payının tamamı Hazine tarafından karşılanır",
+      "sure": "12 ay (kadınlarda 18 ay)",
+      "sartlar": [
+        "İşe alım tarihinden önceki 3 ayda ortalama sigortalı sayısına ilave olarak işe alınması",
+        "İŞKUR'a kayıtlı işsiz olması"
+      ]
+    },
+    "engelli_istihdam": {
+      "aciklama": "Engelli çalıştırma teşviki",
+      "destek": "SGK işveren priminin tamamı Hazine tarafından karşılanır",
+      "kontenjan": "50+ çalışanlı işyerlerinde %3 engelli çalıştırma zorunluluğu"
+    },
+    "kadin_istihdam": {
+      "aciklama": "Kadın istihdamı teşviki",
+      "destek": "SGK işveren payının yarısı 24-54 ay Hazine tarafından karşılanır",
+      "sartlar": [
+        "İŞKUR'a kayıtlı olması",
+        "İşe alım tarihinden önceki 6 ayda sigortalı olmaması"
+      ]
+    },
+    "5_puanlik_indirim": {
+      "aciklama": "Tüm işverenlere uygulanan prim indirimi",
+      "destek": "SGK işveren priminden 5 puan indirim",
+      "sartlar": [
+        "SGK prim borcunun bulunmaması",
+        "Belgelerin zamanında verilmesi"
+      ]
+    }
+  },
+  
+  "sgk_eksik_gun_kodlari": {
+    "01": "İstirahat (rapor)",
+    "02": "Ücretsiz/aylıksız izin",
+    "03": "Disiplin cezası",
+    "04": "Gözaltı",
+    "05": "Tutukluluk",
+    "06": "Kısmi istihdam",
+    "07": "Ev hizmetleri (puantaj)",
+    "08": "Grev",
+    "09": "Lokavt",
+    "10": "Genel hayatı etkileyen olaylar",
+    "11": "Doğal afet",
+    "12": "Birden fazla",
+    "13": "Diğer",
+    "14": "Devamsızlık",
+    "15": "Fesih tarihinde",
+    "16": "Kısa çalışma ödeneği",
+    "17": "Yarım çalışma ödeneği",
+    "18": "Doğum sonrası yarım çalışma",
+    "19": "Doğum öncesi ücretsiz izin",
+    "20": "Doğum sonrası ücretsiz izin",
+    "21": "Yol izni",
+    "22": "Diğer ücretsiz izin"
+  },
+  
+  "onemli_sureler": {
+    "sgk_islem_sureleri": {
+      "ise_giris_bildirimi": "İşe başlamadan önce veya işe başladığı gün",
+      "isten_cikis_bildirimi": "İşten ayrılış tarihinden itibaren 10 gün",
+      "aylik_prim_bildirge": "Takip eden ayın 26'sına kadar",
+      "prim_odeme": "Takip eden ayın son gününe kadar"
+    },
+    "is_kanunu_sureleri": {
+      "yillik_izin_kullanimi": "Hak edilen yılı takip eden yıl içinde",
+      "ihbar_suresi_kullanimi": "Peşin ödenerek derhal fesih mümkün"
+    }
+  }
+}
+

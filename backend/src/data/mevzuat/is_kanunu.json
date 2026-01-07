@@ -1,0 +1,73 @@
+{
+  "guncelleme_tarihi": "2026-01-01",
+  "kanun_no": "4857",
+  "kanun_adi": "İş Kanunu",
+  "resmi_gazete": "10.06.2003 tarih ve 25134 sayılı",
+  
+  "kidem_tazminati": {
+    "hesaplama": "Her tam yıl için 30 günlük brüt ücret",
+    "tavan_2026_ocak": 35058.58,
+    "tavan_aciklama": "Devlet memuru en yüksek aylığının (ek gösterge dahil) hizmet borçlanması kapsamında belirlenen tavan",
+    "hak_kazanma_sartlari": [
+      "En az 1 yıl çalışmış olmak",
+      "İşveren tarafından haklı neden olmaksızın fesih",
+      "İşçi tarafından haklı nedenle fesih (24. madde)",
+      "Askerlik nedeniyle ayrılma",
+      "Emeklilik",
+      "Kadın işçinin evlilik nedeniyle 1 yıl içinde ayrılması",
+      "Ölüm"
+    ],
+    "hak_kazandiramayan_durumlar": [
+      "İşçinin kendi isteğiyle istifası",
+      "İşveren tarafından haklı nedenle fesih (25/II)",
+      "1 yıldan az çalışma"
+    ]
+  },
+  
+  "ihbar_tazminati": {
+    "sureler": [
+      { "kidem": "0-6 ay", "sure_hafta": 2, "gun": 14 },
+      { "kidem": "6-18 ay", "sure_hafta": 4, "gun": 28 },
+      { "kidem": "18-36 ay", "sure_hafta": 6, "gun": 42 },
+      { "kidem": "36+ ay", "sure_hafta": 8, "gun": 56 }
+    ],
+    "aciklama": "İhbar süresine uymayan taraf, karşı tarafa ihbar tazminatı öder"
+  },
+  
+  "yillik_izin": {
+    "hak_edis_suresi": "1 yıl çalışma",
+    "sureler": [
+      { "kidem": "1-5 yıl", "gun": 14 },
+      { "kidem": "5-15 yıl", "gun": 20 },
+      { "kidem": "15+ yıl", "gun": 26 }
+    ],
+    "18_yas_alti": "20 günden az olamaz",
+    "50_yas_ustu": "20 günden az olamaz",
+    "onemli": [
+      "Yıllık izin ücreti peşin ödenir",
+      "Kullanılmayan izin paraya çevrilemez (iş sözleşmesi devam ederken)",
+      "İş sözleşmesi sona erdiğinde kullanılmayan izinler ücret olarak ödenir"
+    ]
+  },
+  
+  "fazla_mesai": {
+    "haftalik_calisma": 45,
+    "gunluk_maksimum": 11,
+    "fazla_mesai_ucreti": "Normal saat ücretinin %50 fazlası",
+    "yillik_fazla_mesai_limiti": 270,
+    "serbest_zaman": "Her 1 saat fazla mesai için 1.5 saat serbest zaman verilebilir"
+  },
+  
+  "deneme_suresi": {
+    "sure": "En fazla 2 ay",
+    "toplu_sozlesmede": "En fazla 4 ay",
+    "fesih": "Deneme süresinde her iki taraf da tazminatsız feshedebilir"
+  },
+  
+  "fesih_bildirimi": {
+    "madde_17": "Belirsiz süreli sözleşmelerde fesih bildirimi",
+    "madde_24": "İşçinin haklı nedenle fesih hakkı",
+    "madde_25": "İşverenin haklı nedenle fesih hakkı"
+  }
+}
+

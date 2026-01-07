@@ -1,0 +1,613 @@
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import {
+  Paper,
+  Stack,
+  Group,
+  Text,
+  Button,
+  TextInput,
+  Select,
+  Badge,
+  ActionIcon,
+  ScrollArea,
+  Avatar,
+  Loader,
+  Divider,
+  SimpleGrid,
+  Card,
+  ThemeIcon,
+  Tooltip,
+  Switch,
+  Collapse,
+  Box
+} from '@mantine/core';
+import {
+  IconRobot,
+  IconUser,
+  IconSend,
+  IconSettings,
+  IconRefresh,
+  IconCopy,
+  IconBrain,
+  IconSparkles,
+  IconTool,
+  IconChevronDown,
+  IconChevronUp,
+  IconDatabase,
+  IconFileInvoice,
+  IconUsers,
+  IconClipboardList,
+  IconChartBar
+} from '@tabler/icons-react';
+
+// Tip tanımları
+interface ChatMessage {
+  id: string;
+  type: 'user' | 'ai';
+  content: string;
+  timestamp: Date;
+  toolsUsed?: string[];
+  iterations?: number;
+}
+
+interface PromptTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+}
+
+interface AIChatProps {
+  defaultDepartment?: string;
+  compact?: boolean;
+}
+
+// Tool ikon mapping
+const toolIcons: Record<string, React.ReactNode> = {
+  'satin_alma': <IconClipboardList size={12} />,
+  'cari': <IconUsers size={12} />,
+  'fatura': <IconFileInvoice size={12} />,
+  'ihale': <IconDatabase size={12} />,
+  'rapor': <IconChartBar size={12} />
+};
+
+const getToolIcon = (toolName: string) => {
+  const module = toolName.split('_')[0];
+  return toolIcons[module] || <IconTool size={12} />;
+};
+
+const getToolDisplayName = (toolName: string) => {
+  const parts = toolName.split('_');
+  const module = parts[0];
+  const action = parts.slice(1).join(' ');
+  
+  const moduleNames: Record<string, string> = {
+    'satin_alma': 'Satın Alma',
+    'cari': 'Cariler',
+    'fatura': 'Faturalar',
+    'ihale': 'İhaleler',
+    'rapor': 'Raporlar'
+  };
+  
+  return `${moduleNames[module] || module}: ${action}`;
+};
+
+export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false }: AIChatProps) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [useAgent, setUseAgent] = useState(true); // Varsayılan olarak Agent kullan
+  const [selectedPrompt, setSelectedPrompt] = useState('default');
+  const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
+  const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Session ID - tarayıcı oturumu boyunca aynı kalır, hafıza için kullanılır
+  const [sessionId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('ai_session_id');
+      if (stored) return stored;
+      const newId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      sessionStorage.setItem('ai_session_id', newId);
+      return newId;
+    }
+    return `session_${Date.now()}`;
+  });
+
+  // Departmana göre önerilen sorular
+  const departmentQuestions: Record<string, string[]> = {
+    'PERSONEL': [
+      '👥 Toplam personel maliyetimiz ne kadar?',
+      '💰 40.000 TL net maaşın brüt ve toplam maliyeti ne?',
+      '📊 Bu ay izinli kaç kişi var?',
+      '🧮 Ahmet\'in kıdem tazminatını hesapla',
+      '📋 Aktif personelleri listele',
+      '💵 Ocak ayı bordro özeti göster'
+    ],
+    'TÜM SİSTEM': [
+    '📊 Bu ay KYK için ne kadar harcama yapıldı?',
+    '📦 Bekleyen siparişler hangileri?',
+    '💰 En çok alım yaptığımız tedarikçi kim?',
+    '📅 Yaklaşan ihaleler neler?',
+    '⚠️ Kritik uyarılar var mı?',
+    '📈 Geçen ayla karşılaştırma yap'
+    ]
+  };
+
+  // Departmana göre hızlı komutlar
+  const departmentCommands: Record<string, Array<{label: string; value: string}>> = {
+    'PERSONEL': [
+      { label: '👥 Personel istatistikleri', value: 'Personel istatistiklerini göster' },
+      { label: '💰 Bordro hesapla', value: 'Tüm personelin bordrosunu hesapla' },
+      { label: '📅 İzin bakiyesi', value: 'Personellerin izin bakiyelerini listele' },
+      { label: '🧮 Maliyet analizi', value: 'Toplam personel maliyeti analizi yap' }
+    ],
+    'TÜM SİSTEM': [
+    { label: '🆕 Yeni sipariş oluştur', value: 'KYK için Metro\'dan 100 kg süt siparişi oluştur' },
+    { label: '📊 Sistem özeti', value: 'Sistem özeti göster' },
+    { label: '📋 Proje harcamaları', value: 'Proje bazlı harcama raporu göster' },
+    { label: '🏢 Tedarikçi analizi', value: 'En çok alım yaptığımız tedarikçileri listele' }
+    ]
+  };
+
+  const suggestedQuestions = departmentQuestions[defaultDepartment] || departmentQuestions['TÜM SİSTEM'];
+  const quickCommands = departmentCommands[defaultDepartment] || departmentCommands['TÜM SİSTEM'];
+
+  // Prompt şablonlarını yükle
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/ai/templates');
+        const data = await response.json();
+        
+        if (data.success) {
+          setPromptTemplates(data.templates);
+        }
+      } catch (error) {
+        console.error('Failed to fetch templates:', error);
+      }
+    };
+
+    fetchTemplates();
+  }, []);
+
+  // Mesajları scroll et
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() || isLoading) return;
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      type: 'user',
+      content: inputValue.trim(),
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputValue('');
+    setIsLoading(true);
+
+    try {
+      // Mesaj geçmişini hazırla (son 10 mesaj)
+      const history = messages.slice(-10).map(m => ({
+        role: m.type === 'user' ? 'user' : 'assistant',
+        content: m.content
+      }));
+
+      // AI Agent veya Chat endpoint'i kullan
+      const endpoint = useAgent ? '/api/ai/agent' : '/api/ai/chat';
+      const body = useAgent 
+        ? { 
+            message: userMessage.content, 
+            history,
+            sessionId,           // Hafıza için session ID
+            department: defaultDepartment  // Departman bilgisi
+          }
+        : { question: userMessage.content, department: defaultDepartment, promptTemplate: selectedPrompt };
+
+      const response = await fetch(`http://localhost:3001${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'API hatası');
+      }
+
+      const aiMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'ai',
+        content: data.response,
+        timestamp: new Date(),
+        toolsUsed: data.toolsUsed || [],
+        iterations: data.iterations
+      };
+
+      setMessages(prev => [...prev, aiMessage]);
+    } catch (error) {
+      console.error('AI API Error:', error);
+      const errorMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'ai',
+        content: `Üzgünüm, bir hata oluştu: ${(error instanceof Error) ? error.message : 'Bilinmeyen hata'}\n\nLütfen tekrar deneyin.`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSuggestedQuestion = (question: string) => {
+    setInputValue(question);
+  };
+
+  const copyMessage = (content: string) => {
+    navigator.clipboard.writeText(content);
+  };
+
+  const clearChat = () => {
+    setMessages([]);
+  };
+
+  const toggleExpanded = (id: string) => {
+    setExpandedMessages(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  if (compact) {
+    return (
+      <Stack gap={0} h="100%" style={{ display: 'flex', flexDirection: 'column' }}>
+        {/* Messages Area */}
+        <ScrollArea flex={1} p="sm" style={{ minHeight: 0 }}>
+          <Stack gap="sm">
+            {messages.length === 0 ? (
+              <Stack gap="sm" align="center" py="md">
+                <Text size="sm" c="dimmed" ta="center">
+                  Merhaba! 👋 Size nasıl yardımcı olabilirim?
+                </Text>
+                <Stack gap={4} w="100%">
+                  {suggestedQuestions.slice(0, 4).map((question, index) => (
+                    <Paper 
+                      key={index} 
+                      p="xs" 
+                      radius="sm" 
+                      withBorder 
+                      style={{ cursor: 'pointer', fontSize: '12px' }}
+                      onClick={() => handleSuggestedQuestion(question)}
+                    >
+                      <Text size="xs">{question}</Text>
+                    </Paper>
+                  ))}
+                </Stack>
+              </Stack>
+            ) : (
+              messages.map((message) => (
+                <Group key={message.id} align="flex-start" gap="xs" wrap="nowrap">
+                  <Avatar size="sm" color={message.type === 'user' ? 'blue' : 'violet'} radius="xl">
+                    {message.type === 'user' ? <IconUser size={14} /> : <IconRobot size={14} />}
+                  </Avatar>
+                  <Paper 
+                    p="xs" 
+                    bg={message.type === 'user' ? 'blue.0' : 'gray.0'} 
+                    radius="md" 
+                    style={{ flex: 1, maxWidth: 'calc(100% - 40px)' }}
+                  >
+                    <Text size="xs" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                      {message.content}
+                    </Text>
+                    {message.toolsUsed && message.toolsUsed.length > 0 && (
+                      <Group gap={4} mt={4}>
+                        {message.toolsUsed.slice(0, 3).map((tool, i) => (
+                          <Badge key={i} size="xs" variant="dot" color="violet">
+                            {tool.split('_').slice(0, 2).join(' ')}
+                          </Badge>
+                        ))}
+                        {message.toolsUsed.length > 3 && (
+                          <Badge size="xs" variant="light" color="gray">
+                            +{message.toolsUsed.length - 3}
+                          </Badge>
+                        )}
+                      </Group>
+                    )}
+                  </Paper>
+                </Group>
+              ))
+            )}
+            {isLoading && (
+            <Group gap="xs">
+                <Avatar size="sm" color="violet" radius="xl">
+                <IconRobot size={14} />
+                </Avatar>
+                <Paper p="xs" bg="gray.0" radius="md">
+                  <Group gap="xs">
+                    <Loader size="xs" color="violet" />
+                    <Text size="xs" c="dimmed">Düşünüyor...</Text>
+            </Group>
+                </Paper>
+          </Group>
+            )}
+            <div ref={messagesEndRef} />
+          </Stack>
+        </ScrollArea>
+
+        {/* Input Area */}
+        <Box p="sm" style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}>
+          <Group gap="xs">
+            <TextInput
+              flex={1}
+              placeholder="Mesaj yazın..."
+              value={inputValue}
+              onChange={(e) => setInputValue(e.currentTarget.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              size="sm"
+              radius="xl"
+              styles={{
+                input: {
+                  paddingLeft: 16,
+                  paddingRight: 16,
+                }
+              }}
+            />
+            <ActionIcon 
+              size="lg"
+              radius="xl"
+              variant="gradient"
+              gradient={{ from: 'violet', to: 'grape' }}
+              onClick={handleSendMessage}
+              loading={isLoading}
+              disabled={!inputValue.trim()}
+            >
+              <IconSend size={16} />
+            </ActionIcon>
+          </Group>
+        </Box>
+        </Stack>
+    );
+  }
+
+  return (
+    <Paper p="xl" radius="md" withBorder style={{ height: 'calc(100vh - 200px)', minHeight: 600 }}>
+      <Stack gap="md" h="100%">
+        {/* Header */}
+        <Group justify="space-between">
+          <Group gap="xs">
+            <ThemeIcon size="lg" color="violet" variant="gradient" gradient={{ from: 'violet', to: 'purple' }}>
+              <IconBrain size={20} />
+            </ThemeIcon>
+            <div>
+              <Text size="lg" fw={600}>🤖 AI Agent</Text>
+              <Text size="xs" c="dimmed">Tüm sisteme erişebilen akıllı asistan</Text>
+            </div>
+          </Group>
+          
+          <Group gap="md">
+            <Group gap="xs">
+              <Text size="xs" c="dimmed">Agent Modu</Text>
+              <Switch
+                checked={useAgent}
+                onChange={(e) => setUseAgent(e.currentTarget.checked)}
+                color="violet"
+                size="sm"
+              />
+            </Group>
+            
+            {!useAgent && (
+              <Select
+                data={promptTemplates.map(t => ({ value: t.id, label: t.name }))}
+                value={selectedPrompt}
+                onChange={(value) => setSelectedPrompt(value || 'default')}
+                size="xs"
+                w={150}
+              />
+            )}
+            
+            <Tooltip label="Ayarlar">
+              <ActionIcon variant="subtle" color="gray" component="a" href="/ayarlar/ai">
+                <IconSettings size={16} />
+              </ActionIcon>
+            </Tooltip>
+            <Tooltip label="Sohbeti Temizle">
+              <ActionIcon variant="subtle" color="red" onClick={clearChat}>
+                <IconRefresh size={16} />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
+        </Group>
+
+        <Divider />
+
+        {/* Messages */}
+        <ScrollArea flex={1} type="auto">
+          <Stack gap="md" p="sm">
+            {messages.length === 0 ? (
+              <Stack gap="lg" align="center" py="xl">
+                <ThemeIcon size={80} color="violet" variant="light" radius="xl">
+                  <IconSparkles size={40} />
+                </ThemeIcon>
+                <div style={{ textAlign: 'center' }}>
+                  <Text size="xl" fw={600} mb={4}>Merhaba! Ben AI Agent 🤖</Text>
+                  <Text c="dimmed" size="sm" maw={500}>
+                    Tüm sisteme erişebilirim: Siparişler, cariler, faturalar, ihaleler ve raporlar.
+                    Veri sorgulayabilir, yeni kayıtlar oluşturabilir ve analiz yapabilirim.
+                  </Text>
+                </div>
+
+                {/* Önerilen Sorular */}
+                <Stack gap="xs" w="100%" maw={600}>
+                  <Text size="sm" fw={500} c="dimmed">💡 Önerilen Sorular:</Text>
+                  <SimpleGrid cols={2} spacing="xs">
+                    {suggestedQuestions.map((question, index) => (
+                      <Card 
+                        key={index} 
+                        p="sm" 
+                        radius="md" 
+                        withBorder 
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => handleSuggestedQuestion(question)}
+                      >
+                        <Text size="sm">{question}</Text>
+                      </Card>
+                    ))}
+                  </SimpleGrid>
+                </Stack>
+
+                {/* Hızlı Komutlar */}
+                <Stack gap="xs" w="100%" maw={600}>
+                  <Text size="sm" fw={500} c="dimmed">⚡ Hızlı Komutlar:</Text>
+                  <Group gap="xs">
+                    {quickCommands.map((cmd, index) => (
+                      <Badge
+                        key={index}
+                        size="lg"
+                        variant="light"
+                        color="violet"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => handleSuggestedQuestion(cmd.value)}
+                      >
+                        {cmd.label}
+                      </Badge>
+                    ))}
+                  </Group>
+                </Stack>
+              </Stack>
+            ) : (
+              messages.map((message) => (
+                <Group key={message.id} align="flex-start" gap="md">
+                  <Avatar 
+                    color={message.type === 'user' ? 'blue' : 'violet'} 
+                    radius="xl"
+                  >
+                    {message.type === 'user' ? <IconUser size={18} /> : <IconRobot size={18} />}
+                  </Avatar>
+                  
+                  <Stack gap="xs" flex={1}>
+                    <Group gap="xs">
+                      <Text size="sm" fw={500}>
+                        {message.type === 'user' ? 'Sen' : 'AI Agent'}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {message.timestamp.toLocaleTimeString('tr-TR')}
+                      </Text>
+                      {message.toolsUsed && message.toolsUsed.length > 0 && (
+                        <Badge 
+                          size="xs" 
+                          variant="light" 
+                          color="violet"
+                          leftSection={<IconTool size={10} />}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => toggleExpanded(message.id)}
+                        >
+                          {message.toolsUsed.length} tool kullanıldı
+                          {expandedMessages.has(message.id) ? <IconChevronUp size={10} /> : <IconChevronDown size={10} />}
+                        </Badge>
+                      )}
+                      {message.iterations && message.iterations > 1 && (
+                        <Badge size="xs" variant="outline" color="gray">
+                          {message.iterations} iterasyon
+                        </Badge>
+                      )}
+                    </Group>
+                    
+                    {/* Tool detayları */}
+                    {message.toolsUsed && message.toolsUsed.length > 0 && (
+                      <Collapse in={expandedMessages.has(message.id)}>
+                        <Paper p="xs" bg="gray.0" radius="sm" mb="xs">
+                          <Text size="xs" fw={500} mb={4}>🔧 Kullanılan Araçlar:</Text>
+                          <Group gap={4}>
+                            {message.toolsUsed.map((tool, i) => (
+                              <Badge key={i} size="sm" variant="dot" color="violet" leftSection={getToolIcon(tool)}>
+                                {getToolDisplayName(tool)}
+                              </Badge>
+                            ))}
+                          </Group>
+                        </Paper>
+                      </Collapse>
+                    )}
+                    
+                    <Paper 
+                      p="md" 
+                      bg={message.type === 'user' ? 'blue.0' : 'violet.0'} 
+                      radius="md"
+                    >
+                      <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
+                        {message.content}
+                      </Text>
+                    </Paper>
+
+                    <Group gap="xs">
+                      <Tooltip label="Kopyala">
+                        <ActionIcon 
+                          size="sm" 
+                          variant="subtle" 
+                          color="gray"
+                          onClick={() => copyMessage(message.content)}
+                        >
+                          <IconCopy size={12} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
+                  </Stack>
+                </Group>
+              ))
+            )}
+            
+            {isLoading && (
+              <Group gap="md">
+                <Avatar color="violet" radius="xl">
+                  <IconRobot size={18} />
+                </Avatar>
+                <Paper p="md" bg="violet.0" radius="md" flex={1}>
+                  <Group gap="xs">
+                    <Loader size="sm" color="violet" />
+                    <Text size="sm" c="dimmed">AI Agent çalışıyor... Verilere erişiliyor...</Text>
+                  </Group>
+                </Paper>
+              </Group>
+            )}
+            
+            <div ref={messagesEndRef} />
+          </Stack>
+        </ScrollArea>
+
+        {/* Input */}
+        <Group gap="xs">
+          <TextInput
+            flex={1}
+            placeholder={useAgent ? "Soru sorun, komut verin veya işlem yaptırın..." : "Sorunuzu yazın..."}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.currentTarget.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+            disabled={isLoading}
+            size="md"
+          />
+          <Button
+            color="violet"
+            onClick={handleSendMessage}
+            loading={isLoading}
+            disabled={!inputValue.trim()}
+            leftSection={<IconSend size={16} />}
+            size="md"
+          >
+            Gönder
+          </Button>
+        </Group>
+      </Stack>
+    </Paper>
+  );
+}

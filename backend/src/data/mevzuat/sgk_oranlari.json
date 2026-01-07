@@ -1,0 +1,57 @@
+{
+  "guncelleme_tarihi": "2026-01-01",
+  "gecerlilik_baslangic": "2026-01-01",
+  "kaynak": "5510 Sayılı Sosyal Sigortalar ve Genel Sağlık Sigortası Kanunu",
+  
+  "prim_oranlari": {
+    "isci_paylari": {
+      "sgk_primi": {
+        "oran": 14,
+        "aciklama": "Kısa vadeli sigorta kolları + Uzun vadeli sigorta kolları + Genel sağlık sigortası"
+      },
+      "issizlik_sigortasi": {
+        "oran": 1,
+        "aciklama": "4447 sayılı kanun gereği"
+      },
+      "toplam": 15
+    },
+    "isveren_paylari": {
+      "sgk_primi": {
+        "oran": 15.5,
+        "aciklama": "Kısa vadeli %2 + Uzun vadeli %11 + GSS %7.5 - %5 indirim"
+      },
+      "issizlik_sigortasi": {
+        "oran": 2,
+        "aciklama": "4447 sayılı kanun gereği"
+      },
+      "toplam": 17.5
+    }
+  },
+  
+  "5_puanlik_indirim": {
+    "aciklama": "5510 sayılı Kanunun 81/ı maddesi gereği işveren SGK priminden 5 puan indirim",
+    "sartlar": [
+      "Prim borcu bulunmaması",
+      "Aylık prim belgelerinin zamanında verilmesi",
+      "Primlerin zamanında ödenmesi"
+    ]
+  },
+  
+  "sgk_taban_tavan": {
+    "taban": {
+      "aciklama": "Asgari ücret",
+      "2026_ocak": 22104
+    },
+    "tavan": {
+      "aciklama": "Asgari ücretin 7.5 katı",
+      "2026_ocak": 165780
+    }
+  },
+  
+  "onemli_notlar": [
+    "Tehlike sınıfına göre kısa vadeli sigorta primi %1-6.5 arasında değişir",
+    "Yemek ve catering sektörü genellikle %2 tehlike sınıfındadır",
+    "SGK teşviklerinden yararlanma şartları için sgk.gov.tr kontrol edilmeli"
+  ]
+}
+

@@ -1,0 +1,82 @@
+{
+  "guncelleme_tarihi": "2026-02-01",
+  "kaynak": "4734 sayılı Kamu İhale Kanunu, 4735 sayılı Kamu İhale Sözleşmeleri Kanunu",
+  
+  "esik_degerler_2026": {
+    "gecerlilik": "01.02.2026 tarihinden itibaren",
+    "yeniden_degerleme_orani": 27.67,
+    
+    "mal_hizmet_alimlari": {
+      "genel_butce": 18734124,
+      "diger_idareler": 31223308
+    },
+    "yapim_isleri": {
+      "tum_idareler": 686924429
+    },
+    "dogrudan_temin_limiti": {
+      "buyuksehir_icinde": 1021827,
+      "buyuksehir_disinda": 340648
+    },
+    "pazarlik_usulu_21f": 3406508
+  },
+  
+  "ihale_usulleri": {
+    "acik_ihale": {
+      "aciklama": "Bütün isteklilerin teklif verebildiği usul",
+      "ilan_suresi": "En az 40 gün (eşik değer üstü), 14-25 gün (eşik değer altı)"
+    },
+    "belli_istekliler": {
+      "aciklama": "Ön yeterlik değerlendirmesi sonucu yeterli bulunan isteklilerin davet edildiği usul"
+    },
+    "pazarlik_usulu": {
+      "aciklama": "21. maddede belirtilen hallerde uygulanır",
+      "21_b": "Doğal afetler, salgın hastalık, can/mal kaybı tehlikesi",
+      "21_f": "Yaklaşık maliyeti eşik değerin 1/10'una kadar olan işler"
+    },
+    "dogrudan_temin": {
+      "aciklama": "22. maddede belirtilen hallerde ihale yapılmadan alım",
+      "limit": "Büyükşehir içinde 1.021.827 TL (2026)"
+    }
+  },
+  
+  "yemek_ihalesi_ozel": {
+    "hizmet_alimi_tipi": "Personel çalıştırılmasına dayalı hizmet alımı",
+    "onemli_hususlar": [
+      "Yemek gramajları teknik şartnamede net belirtilmeli",
+      "Kalori hesapları yapılmalı",
+      "Gıda güvenliği sertifikaları istenmeli",
+      "HACCP belgesi zorunlu",
+      "İş deneyim belgesi aranır (benzer iş tanımı önemli)",
+      "Birim fiyat sözleşme yaygın"
+    ],
+    "benzer_is_tanimlari": [
+      "Yemek pişirme ve dağıtım hizmetleri",
+      "Catering hizmetleri", 
+      "Toplu yemek üretimi",
+      "Tabldot yemek hizmetleri"
+    ],
+    "fiyat_disi_unsurlar": [
+      "Kalite yönetim sistemi belgesi",
+      "ISO 22000 gıda güvenliği",
+      "Çevre yönetim sistemi",
+      "İş deneyim belgesi tutarı"
+    ]
+  },
+  
+  "itiraz_sureleri": {
+    "ihale_ilan": "İlan tarihinden itibaren 10 gün",
+    "on_yeterlik": "Sonuç bildiriminden itibaren 5 gün",
+    "kesinlesen_ihale": "Kesinleşen ihale kararı bildiriminden itibaren 10 gün",
+    "sozlesme_imza": "Sözleşme imzalandıktan sonra itiraz kabul edilmez"
+  },
+  
+  "yasaklilik": {
+    "sureler": {
+      "ihaleye_fesat": "1-2 yıl",
+      "yasak_fiil": "1-2 yıl",
+      "sozlesme_feshi": "1-2 yıl"
+    },
+    "kontrol": "EKAP üzerinden yasaklılık sorgulaması yapılır"
+  }
+}
+

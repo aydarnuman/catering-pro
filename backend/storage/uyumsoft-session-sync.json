@@ -1,0 +1,47 @@
+{
+  "lastSync": "2026-01-06T13:35:40.779Z",
+  "syncCount": 83,
+  "lastFaturaCount": 206,
+  "history": [
+    {
+      "date": "2026-01-06T13:35:40.781Z",
+      "faturaCount": 206
+    },
+    {
+      "date": "2026-01-06T12:24:03.727Z",
+      "faturaCount": 206
+    },
+    {
+      "date": "2026-01-06T11:11:32.127Z",
+      "faturaCount": 206
+    },
+    {
+      "date": "2026-01-06T10:07:15.592Z",
+      "faturaCount": 206
+    },
+    {
+      "date": "2026-01-06T10:02:37.415Z",
+      "faturaCount": 206
+    },
+    {
+      "date": "2026-01-06T09:43:00.855Z",
+      "faturaCount": 207
+    },
+    {
+      "date": "2026-01-06T09:40:08.379Z",
+      "faturaCount": 207
+    },
+    {
+      "date": "2026-01-06T09:39:03.886Z",
+      "faturaCount": 207
+    },
+    {
+      "date": "2026-01-06T09:36:57.251Z",
+      "faturaCount": 207
+    },
+    {
+      "date": "2026-01-06T09:34:24.922Z",
+      "faturaCount": 207
+    }
+  ]
+}

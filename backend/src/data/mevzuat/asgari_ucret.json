@@ -1,0 +1,46 @@
+{
+  "guncelleme_tarihi": "2026-01-01",
+  "kaynak": "Asgari Ücret Tespit Komisyonu Kararı",
+  
+  "2026": {
+    "ocak_haziran": {
+      "brut": 22104,
+      "sgk_isci": 3094.56,
+      "issizlik_isci": 221.04,
+      "gelir_vergisi_matrahi": 18788.40,
+      "gelir_vergisi": 2818.26,
+      "damga_vergisi": 168.49,
+      "net": 17801.65,
+      "asgari_gecim_indirimi": 0,
+      "net_ele_gecen": 17801.65,
+      "isveren_sgk": 3426.12,
+      "isveren_issizlik": 442.08,
+      "isveren_toplam_maliyet": 25972.20
+    }
+  },
+  
+  "gecmis_donemler": {
+    "2025_temmuz_aralik": { "brut": 20002.50, "net": 17002 },
+    "2025_ocak_haziran": { "brut": 17002, "net": 14462 },
+    "2024_temmuz_aralik": { "brut": 17002, "net": 14462 },
+    "2024_ocak_haziran": { "brut": 14000, "net": 11402 }
+  },
+  
+  "onemli_bilgiler": [
+    "Asgari ücret yılda 2 kez belirlenir (Ocak ve Temmuz)",
+    "2026 Temmuz zammı henüz açıklanmadı",
+    "Asgari ücret üzerinden SGK prim tavanı hesaplanır (7.5 katı)",
+    "16 yaş altı asgari ücret uygulaması kaldırılmıştır"
+  ],
+  
+  "vergi_dilimleri_2026": {
+    "dilim_1": { "limit": 158000, "oran": 15 },
+    "dilim_2": { "limit": 330000, "oran": 20 },
+    "dilim_3": { "limit": 800000, "oran": 27 },
+    "dilim_4": { "limit": 4300000, "oran": 35 },
+    "dilim_5": { "limit": null, "oran": 40 }
+  },
+  
+  "damga_vergisi_orani": 0.00759
+}
+

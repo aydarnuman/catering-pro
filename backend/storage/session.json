@@ -1,0 +1,39 @@
+{
+  "id": "sess_1767680135575_xy18di",
+  "cookies": [
+    {
+      "name": "auth",
+      "value": "CfDJ8Bmy_VlxSWRMghu8Fq_tC3P3_vbvHfX9mEsdXzXFWyiGJshGbUGlGKeIdjulHeXd3VWv1o3BcbIVPLwpD3gsH1b52HUOnsdsJNtke19-Tyi8vjWo35-jx_gqbFu42vntLjeuHDbuD_a7t_NEngeAjah7UtRo83qjsAwDdq69EiMpQtGbhYBVikCE1MfsEMDdCUiqVoDhYJT_pNUAlpNQzlZh5ZrJJFI5lah9E5hNI_upmwtJnGNc1J3tRFYUdtEmmNI7Uh1OBSdZMSnHp0kT630PMnrl_q0WmiIKETG5c8m6v28Mh1wQYUCGqoh3E_7xlkElB6TMVKViuec-AaYGZ7cI7Wef4jz0prChDn1gsRbLXCoFjS8ioy7smVuUzgp5Q0mVKxSyAF7DW7PaTeE6LZuw6SVbZA1Fc91XoPWxjyNjoGnQ1rR5FNWdE1qGINEWhP6aBLkfMJ69tPfQllLfew2aBL5t8oTD000q6kQdSLzIiVyjv0XTpRoqiXRvGQtJtz3KpHdYlJyn2Pzq0HxeeiozqjMYfzX-Gh24leGISd-N9fQwxuxvW9muwqtdeM0T3B7PMybDFwJ3pIlSIbS1esUFnPJ6qO88VzH275c5zgB1qolsRSnpuBMrQrLkgPPOvsczpz_8oM4O8gjw7qBadU4giwSOfcCtRpYF3CJvN33s_GUf1kb1LmUv_HropQDQVQ",
+      "domain": "www.ihalebul.com",
+      "path": "/",
+      "expires": 1768889726.49624,
+      "size": 714,
+      "httpOnly": true,
+      "secure": true,
+      "session": false,
+      "sameSite": "Lax",
+      "priority": "Medium",
+      "sameParty": false,
+      "sourceScheme": "Secure"
+    },
+    {
+      "name": "csrf",
+      "value": "CfDJ8Bmy_VlxSWRMghu8Fq_tC3OVxMafaKduWhRgr91imhmuD4b61wUKs_O8evBIXNMNayUnLsmrBVRA1eC-5gNPuQbJSUg6Hcf0yWgqC_w6Qb_n-mP_h9POSKSHw8KljSm-dRys6fCxRMzY2T7feRT2Bj0",
+      "domain": "www.ihalebul.com",
+      "path": "/",
+      "expires": -1,
+      "size": 159,
+      "httpOnly": true,
+      "secure": true,
+      "session": true,
+      "sameSite": "Lax",
+      "priority": "Medium",
+      "sameParty": false,
+      "sourceScheme": "Secure"
+    }
+  ],
+  "username": "aydarnuman",
+  "createdAt": 1767680135575,
+  "expiresAt": 1767733985504,
+  "lastUsedAt": 1767705185504
+}

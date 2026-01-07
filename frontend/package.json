@@ -1,0 +1,40 @@
+{
+  "name": "catering-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@emotion/cache": "^11.14.0",
+    "@emotion/react": "^11.14.0",
+    "@mantine/charts": "^7.17.0",
+    "@mantine/core": "^7.17.0",
+    "@mantine/dates": "^7.17.8",
+    "@mantine/dropzone": "^7.17.0",
+    "@mantine/form": "^8.3.9",
+    "@mantine/hooks": "^7.17.0",
+    "@mantine/notifications": "^7.17.0",
+    "@tabler/icons-react": "^3.35.0",
+    "@tanstack/react-query": "^5.17.0",
+    "accounting": "^0.4.1",
+    "axios": "^1.13.2",
+    "dayjs": "^1.11.19",
+    "next": "^15.5.7",
+    "next-auth": "^5.0.0-beta.25",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.15.4",
+    "swr": "^2.3.7",
+    "zustand": "^4.4.7"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.10",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "typescript": "^5"
+  }
+}
