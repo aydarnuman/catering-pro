@@ -13,7 +13,9 @@ import {
   confirmImport,
   getSchema,
   getAllSchemas,
-  getSupportedFormats
+  getSupportedFormats,
+  analyzeMenuDocument,
+  saveMenuAsRecipes
 } from '../services/import-service.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -193,6 +195,77 @@ router.post('/cancel', (req, res) => {
     
   } catch (error) {
     console.error('❌ Import iptal hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/import/menu-analyze
+ * Menü dokümanını (PDF/Excel/PNG) analiz et ve yemekleri çıkar
+ */
+router.post('/menu-analyze', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Dosya yüklenmedi' });
+    }
+    
+    console.log(`🍽️ Menü analizi: ${req.file.originalname}`);
+    
+    // AI ile menü analizi
+    const result = await analyzeMenuDocument(
+      req.file.path,
+      req.file.originalname
+    );
+    
+    // Geçici dosya bilgisini ekle
+    result.tempFile = req.file.filename;
+    
+    res.json(result);
+    
+  } catch (error) {
+    // Hata durumunda dosyayı sil
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    
+    console.error('❌ Menü analiz hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/import/menu-save
+ * Analiz edilen menüyü reçetelere kaydet
+ */
+router.post('/menu-save', async (req, res) => {
+  try {
+    const { yemekler, tempFile, options = {} } = req.body;
+    
+    if (!yemekler || !Array.isArray(yemekler) || yemekler.length === 0) {
+      return res.status(400).json({ error: 'Kaydedilecek yemek listesi gerekli' });
+    }
+    
+    console.log(`📥 Menü kaydediliyor: ${yemekler.length} yemek`);
+    
+    // Reçetelere kaydet
+    const result = await saveMenuAsRecipes(yemekler, options);
+    
+    // Geçici dosyayı sil
+    if (tempFile) {
+      const tempPath = path.join(UPLOAD_DIR, tempFile);
+      if (fs.existsSync(tempPath)) {
+        fs.unlinkSync(tempPath);
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `${result.inserted} yemek reçetelere eklendi`,
+      ...result
+    });
+    
+  } catch (error) {
+    console.error('❌ Menü kayıt hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });

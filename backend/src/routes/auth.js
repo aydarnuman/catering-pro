@@ -1,3 +1,10 @@
+/**
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: Kimlik doğrulama işlemleri
+ */
+
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -5,7 +12,62 @@ import { query } from '../database.js';
 
 const router = express.Router();
 
-// Login
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: Kullanıcı girişi
+ *     description: Email ve şifre ile giriş yaparak JWT token alır
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: admin@example.com
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: "123456"
+ *     responses:
+ *       200:
+ *         description: Giriş başarılı
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 token:
+ *                   type: string
+ *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     email:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                       enum: [admin, user]
+ *       400:
+ *         description: Email veya şifre eksik
+ *       401:
+ *         description: Geçersiz email veya şifre
+ */
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -58,7 +120,57 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Register (sadece admin kullanabilir)
+/**
+ * @swagger
+ * /api/auth/register:
+ *   post:
+ *     summary: Yeni kullanıcı kaydı
+ *     description: Yeni kullanıcı hesabı oluşturur (Admin yetkisi gerektirebilir)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - name
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: user@example.com
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 minLength: 6
+ *                 example: "secure123"
+ *               name:
+ *                 type: string
+ *                 example: "Ahmet Yılmaz"
+ *               role:
+ *                 type: string
+ *                 enum: [admin, user]
+ *                 default: user
+ *     responses:
+ *       200:
+ *         description: Kullanıcı oluşturuldu
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *       400:
+ *         description: Eksik alan veya email zaten kullanımda
+ */
 router.post('/register', async (req, res) => {
   try {
     const { email, password, name, role = 'user' } = req.body;
@@ -100,7 +212,41 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Mevcut kullanıcı
+/**
+ * @swagger
+ * /api/auth/me:
+ *   get:
+ *     summary: Mevcut kullanıcı bilgisi
+ *     description: JWT token ile giriş yapmış kullanıcının bilgilerini döner
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Kullanıcı bilgileri
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     email:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *       401:
+ *         description: Token gerekli veya geçersiz
+ *       404:
+ *         description: Kullanıcı bulunamadı
+ */
 router.get('/me', async (req, res) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');

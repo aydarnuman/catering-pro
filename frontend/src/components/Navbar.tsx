@@ -13,7 +13,8 @@ import {
   Badge,
   Menu,
   Divider,
-  ThemeIcon
+  ThemeIcon,
+  Tooltip
 } from '@mantine/core';
 import {
   IconSun,
@@ -38,7 +39,9 @@ import {
   IconBuildingBank,
   IconChartPie,
   IconRobot,
-  IconBuilding
+  IconBuilding,
+  IconToolsKitchen2,
+  IconShieldLock
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -52,11 +55,11 @@ export function Navbar() {
   const isIhaleMerkezi = pathname === '/tenders' || pathname === '/upload' || pathname === '/tracking';
   const isMuhasebe = pathname.startsWith('/muhasebe');
   const isAyarlar = pathname.startsWith('/ayarlar');
-  const isAIChat = pathname === '/ai-chat';
+  const isPlanlama = pathname.startsWith('/planlama');
+  const isAdmin = pathname.startsWith('/admin');
 
   return (
     <>
-      {/* Desktop/Mobile Header */}
       <Box
         style={(theme) => ({
           borderBottom: `1px solid ${
@@ -308,6 +311,79 @@ export function Navbar() {
               </Menu.Dropdown>
             </Menu>
 
+            {/* Planlama Dropdown */}
+            <Menu 
+              shadow="md" 
+              width={220} 
+              position="bottom-start"
+              transitionProps={{ transition: 'pop-top-left' }}
+            >
+              <Menu.Target>
+                <Button
+                  rightSection={<IconChevronDown size={16} />}
+                  leftSection={<IconRobot size={18} />}
+                  variant={isPlanlama ? 'filled' : 'subtle'}
+                  color={isPlanlama ? 'violet' : 'gray'}
+                >
+                  Planlama
+                </Button>
+              </Menu.Target>
+
+              <Menu.Dropdown>
+                <Menu.Label>AI Destekli Planlama</Menu.Label>
+                
+                <Menu.Item
+                  component={Link}
+                  href="/planlama/piyasa-robotu"
+                  leftSection={<IconRobot size={18} color="var(--mantine-color-violet-6)" />}
+                  style={{
+                    backgroundColor: pathname === '/planlama/piyasa-robotu' ? 'var(--mantine-color-violet-light)' : undefined,
+                  }}
+                >
+                  <Group justify="space-between" w="100%">
+                    <div>
+                      <Text size="sm" fw={500}>Piyasa Robotu</Text>
+                      <Text size="xs" c="dimmed">Fiyat Araştırma</Text>
+                    </div>
+                    {pathname === '/planlama/piyasa-robotu' && (
+                      <Badge size="xs" color="violet" variant="filled">Aktif</Badge>
+                    )}
+                  </Group>
+                </Menu.Item>
+
+                <Menu.Divider />
+
+                <Menu.Item
+                  component={Link}
+                  href="/muhasebe/menu-planlama"
+                  leftSection={<IconToolsKitchen2 size={18} color="var(--mantine-color-orange-6)" />}
+                  style={{
+                    backgroundColor: pathname === '/muhasebe/menu-planlama' ? 'var(--mantine-color-orange-light)' : undefined,
+                  }}
+                >
+                  <Group justify="space-between" w="100%">
+                    <div>
+                      <Text size="sm" fw={500}>Menü Planlama</Text>
+                      <Text size="xs" c="dimmed">Reçete & Maliyet</Text>
+                    </div>
+                    {pathname === '/muhasebe/menu-planlama' && (
+                      <Badge size="xs" color="orange" variant="filled">Aktif</Badge>
+                    )}
+                  </Group>
+                </Menu.Item>
+
+                <Menu.Divider />
+                <Menu.Label c="dimmed">Yakında</Menu.Label>
+
+                <Menu.Item
+                  leftSection={<IconReportMoney size={18} />}
+                  disabled
+                >
+                  <Text size="sm" c="dimmed">Maliyet Analizi</Text>
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+
             {/* Ayarlar */}
             <Button
               component={Link}
@@ -322,6 +398,19 @@ export function Navbar() {
 
           {/* Right Section */}
           <Group gap="xs">
+            {/* Admin Button */}
+            <Tooltip label="Admin Panel">
+              <ActionIcon
+                component={Link}
+                href="/admin"
+                variant={isAdmin ? 'filled' : 'subtle'}
+                color={isAdmin ? 'red' : 'gray'}
+                size="lg"
+              >
+                <IconShieldLock size={20} />
+              </ActionIcon>
+            </Tooltip>
+
             <ActionIcon
               variant="subtle"
               onClick={() => toggleColorScheme()}
@@ -345,7 +434,6 @@ export function Navbar() {
         {opened && (
           <Box hiddenFrom="sm" pb="md" px="md">
             <Stack gap="xs">
-              {/* Ana Sayfa */}
               <Button
                 component={Link}
                 href="/"
@@ -359,7 +447,6 @@ export function Navbar() {
 
               <Divider label="İhale Merkezi" labelPosition="center" />
 
-              {/* İhale Listesi */}
               <Button
                 component={Link}
                 href="/tenders"
@@ -371,7 +458,6 @@ export function Navbar() {
                 İhale Listesi
               </Button>
 
-              {/* Yükle & Analiz */}
               <Button
                 component={Link}
                 href="/upload"
@@ -384,7 +470,6 @@ export function Navbar() {
                 Yükle & Analiz (AI)
               </Button>
 
-              {/* İhale Takibim */}
               <Button
                 component={Link}
                 href="/tracking"
@@ -399,7 +484,6 @@ export function Navbar() {
 
               <Divider label="Muhasebe" labelPosition="center" />
 
-              {/* Muhasebe Dashboard */}
               <Button
                 component={Link}
                 href="/muhasebe"
@@ -412,7 +496,6 @@ export function Navbar() {
                 Dashboard
               </Button>
 
-              {/* Finans Merkezi */}
               <Button
                 component={Link}
                 href="/muhasebe/finans"
@@ -425,7 +508,6 @@ export function Navbar() {
                 Finans Merkezi
               </Button>
 
-              {/* Cariler */}
               <Button
                 component={Link}
                 href="/muhasebe/cariler"
@@ -438,7 +520,6 @@ export function Navbar() {
                 Cari Hesaplar
               </Button>
 
-              {/* Faturalar */}
               <Button
                 component={Link}
                 href="/muhasebe/faturalar"
@@ -451,19 +532,44 @@ export function Navbar() {
                 Faturalar
               </Button>
 
-              <Divider />
+              <Divider label="Planlama" labelPosition="center" />
 
-              {/* Ayarlar */}
+              <Button
+                component={Link}
+                href="/planlama/piyasa-robotu"
+                leftSection={<IconRobot size={18} />}
+                variant={pathname === '/planlama/piyasa-robotu' ? 'filled' : 'light'}
+                color="violet"
+                fullWidth
+                onClick={() => setOpened(false)}
+              >
+                Piyasa Robotu
+              </Button>
+
+              <Divider label="Sistem" labelPosition="center" />
+
               <Button
                 component={Link}
                 href="/ayarlar"
                 leftSection={<IconSettings size={18} />}
                 variant={isAyarlar ? 'filled' : 'light'}
-                color={isAyarlar ? 'orange' : 'gray'}
+                color="orange"
                 fullWidth
                 onClick={() => setOpened(false)}
               >
                 Ayarlar
+              </Button>
+
+              <Button
+                component={Link}
+                href="/admin"
+                leftSection={<IconShieldLock size={18} />}
+                variant={isAdmin ? 'filled' : 'light'}
+                color="red"
+                fullWidth
+                onClick={() => setOpened(false)}
+              >
+                Admin Panel
               </Button>
             </Stack>
           </Box>

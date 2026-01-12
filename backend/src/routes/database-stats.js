@@ -1,119 +1,227 @@
 import express from 'express';
-import { query } from '../database.js';
+import { query, pool } from '../database.js';
 
 const router = express.Router();
 
-// Veritabanı istatistikleri
+// Güvenli sorgu - hata durumunda varsayılan değer döner
+const safeQuery = async (sql, defaultValue = null) => {
+  try {
+    const result = await query(sql);
+    return result.rows;
+  } catch (e) {
+    console.log(`Query skipped: ${e.message}`);
+    return defaultValue;
+  }
+};
+
+// Veritabanı özet istatistikleri
 router.get('/summary', async (req, res) => {
   try {
     // Fatura istatistikleri
-    const invoiceStats = await query(`
+    const invoiceStats = await safeQuery(`
       SELECT 
         (SELECT COUNT(*) FROM invoices) as manual_invoices,
-        (SELECT COUNT(*) FROM uyumsoft_invoices) as uyumsoft_invoices,
-        (SELECT SUM(total_amount) FROM invoices WHERE status = 'paid') as paid_amount,
-        (SELECT SUM(payable_amount) FROM uyumsoft_invoices WHERE status != 'cancelled') as uyumsoft_amount
-    `);
+        (SELECT COUNT(*) FROM uyumsoft_invoices) as uyumsoft_invoices
+    `, [{ manual_invoices: 0, uyumsoft_invoices: 0 }]);
 
     // İhale istatistikleri
-    const tenderStats = await query(`
+    const tenderStats = await safeQuery(`
       SELECT 
         COUNT(*) as total,
-        COUNT(*) FILTER (WHERE status = 'active') as active,
-        COUNT(*) FILTER (WHERE status = 'closed') as closed,
-        COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') as new_this_week
+        COUNT(*) FILTER (WHERE status = 'active') as active
       FROM tenders
-    `);
-
-    // Döküman istatistikleri
-    const documentStats = await query(`
-      SELECT 
-        COUNT(*) as total,
-        COUNT(*) FILTER (WHERE file_type = 'pdf') as pdf,
-        COUNT(*) FILTER (WHERE file_type = 'excel') as excel,
-        COUNT(*) FILTER (WHERE file_type = 'word') as word,
-        SUM(file_size) as total_size
-      FROM documents
-    `);
-
-    // Tablo boyutları
-    const tableSizes = await query(`
-      SELECT 
-        schemaname,
-        tablename,
-        pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size,
-        (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = tablename) as columns
-      FROM pg_tables 
-      WHERE schemaname = 'public' 
-        AND tablename IN ('invoices', 'invoice_items', 'uyumsoft_invoices', 'tenders', 'documents', 'sync_logs')
-      ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
-    `);
-
-    // Kayıt sayıları
-    const recordCounts = await query(`
-      SELECT 
-        'invoices' as table_name, COUNT(*) as count, MAX(created_at) as last_update FROM invoices
-      UNION ALL
-      SELECT 
-        'uyumsoft_invoices', COUNT(*), MAX(created_at) FROM uyumsoft_invoices  
-      UNION ALL
-      SELECT 
-        'tenders', COUNT(*), MAX(created_at) FROM tenders
-      UNION ALL
-      SELECT 
-        'documents', COUNT(*), MAX(created_at) FROM documents
-      UNION ALL
-      SELECT 
-        'sync_logs', COUNT(*), MAX(created_at) FROM sync_logs
-    `);
+    `, [{ total: 0, active: 0 }]);
 
     // Veritabanı toplam boyutu
-    const dbSize = await query(`
+    const dbSize = await safeQuery(`
       SELECT pg_database_size(current_database()) as size,
              pg_size_pretty(pg_database_size(current_database())) as size_pretty
-    `);
+    `, [{ size: 0, size_pretty: '0 MB' }]);
 
     res.json({
       success: true,
       data: {
         invoices: {
-          manual: parseInt(invoiceStats.rows[0].manual_invoices || 0),
-          uyumsoft: parseInt(invoiceStats.rows[0].uyumsoft_invoices || 0),
-          total: parseInt(invoiceStats.rows[0].manual_invoices || 0) + parseInt(invoiceStats.rows[0].uyumsoft_invoices || 0),
-          paidAmount: parseFloat(invoiceStats.rows[0].paid_amount || 0),
-          uyumsoftAmount: parseFloat(invoiceStats.rows[0].uyumsoft_amount || 0)
+          manual: parseInt(invoiceStats[0]?.manual_invoices || 0),
+          uyumsoft: parseInt(invoiceStats[0]?.uyumsoft_invoices || 0)
         },
         tenders: {
-          total: parseInt(tenderStats.rows[0].total || 0),
-          active: parseInt(tenderStats.rows[0].active || 0),
-          closed: parseInt(tenderStats.rows[0].closed || 0),
-          newThisWeek: parseInt(tenderStats.rows[0].new_this_week || 0)
+          total: parseInt(tenderStats[0]?.total || 0),
+          active: parseInt(tenderStats[0]?.active || 0)
         },
-        documents: {
-          total: parseInt(documentStats.rows[0].total || 0),
-          pdf: parseInt(documentStats.rows[0].pdf || 0),
-          excel: parseInt(documentStats.rows[0].excel || 0),
-          word: parseInt(documentStats.rows[0].word || 0),
-          totalSize: parseInt(documentStats.rows[0].total_size || 0)
-        },
-        tables: recordCounts.rows.map(row => ({
-          name: row.table_name,
-          count: parseInt(row.count || 0),
-          lastUpdate: row.last_update
-        })),
-        tableSizes: tableSizes.rows,
         database: {
-          size: parseInt(dbSize.rows[0].size || 0),
-          sizePretty: dbSize.rows[0].size_pretty || '0 MB'
+          size: parseInt(dbSize[0]?.size || 0),
+          sizePretty: dbSize[0]?.size_pretty || '0 MB'
         }
       }
     });
     
   } catch (error) {
     console.error('Database stats error:', error);
-    res.status(500).json({ 
-      error: error.message,
-      success: false 
+    res.status(500).json({ error: error.message, success: false });
+  }
+});
+
+// Admin Dashboard için detaylı istatistikler
+router.get('/admin-stats', async (req, res) => {
+  const startTime = Date.now();
+  
+  try {
+    // Tablo sayılarını tek tek al (hata vereni atla)
+    const tablolar = [];
+    
+    const tableQueries = [
+      { ad: 'cariler', sql: 'SELECT COUNT(*) as c FROM cariler' },
+      { ad: 'personel', sql: 'SELECT COUNT(*) as c FROM personel' },
+      { ad: 'invoices', sql: 'SELECT COUNT(*) as c FROM invoices' },
+      { ad: 'tenders', sql: 'SELECT COUNT(*) as c FROM tenders' },
+      { ad: 'stok_kartlari', sql: 'SELECT COUNT(*) as c FROM stok_kartlari' },
+      { ad: 'kasa_banka', sql: 'SELECT COUNT(*) as c FROM kasa_banka' },
+      { ad: 'demirbas', sql: 'SELECT COUNT(*) as c FROM demirbas' },
+      { ad: 'users', sql: 'SELECT COUNT(*) as c FROM users' }
+    ];
+
+    for (const t of tableQueries) {
+      const result = await safeQuery(t.sql, [{ c: 0 }]);
+      if (result) {
+        tablolar.push({ ad: t.ad, kayit: parseInt(result[0]?.c || 0) });
+      }
+    }
+
+    // Tablolar'ı kayıt sayısına göre sırala
+    tablolar.sort((a, b) => b.kayit - a.kayit);
+
+    // Veritabanı boyutu
+    const dbSizeRows = await safeQuery(`
+      SELECT 
+        pg_database_size(current_database()) as bytes,
+        pg_size_pretty(pg_database_size(current_database())) as formatted
+    `, [{ bytes: 0, formatted: '0 MB' }]);
+
+    // Aktif bağlantılar
+    const connectionsRows = await safeQuery(`
+      SELECT 
+        count(*) as total,
+        count(*) FILTER (WHERE state = 'active') as active,
+        count(*) FILTER (WHERE state = 'idle') as idle
+      FROM pg_stat_activity 
+      WHERE datname = current_database()
+    `, [{ total: 0, active: 0, idle: 0 }]);
+
+    // Bugünkü aktiviteler
+    const todayFatura = await safeQuery(`SELECT COUNT(*) as c FROM invoices WHERE DATE(created_at) = CURRENT_DATE`, [{ c: 0 }]);
+    const todayIhale = await safeQuery(`SELECT COUNT(*) as c FROM tenders WHERE DATE(created_at) = CURRENT_DATE`, [{ c: 0 }]);
+    const todayCari = await safeQuery(`SELECT COUNT(*) as c FROM cariler WHERE DATE(created_at) = CURRENT_DATE`, [{ c: 0 }]);
+    const todayPersonel = await safeQuery(`SELECT COUNT(*) as c FROM personel WHERE DATE(created_at) = CURRENT_DATE`, [{ c: 0 }]);
+
+    // Son aktiviteler
+    const recentActivities = await safeQuery(`
+      SELECT 
+        'sync' as tip,
+        sync_type as baslik,
+        status,
+        created_at as tarih,
+        COALESCE(records_synced, 0) as detay
+      FROM sync_logs 
+      ORDER BY created_at DESC 
+      LIMIT 5
+    `, []);
+
+    const responseTime = Date.now() - startTime;
+
+    res.json({
+      success: true,
+      data: {
+        tablolar,
+        veritabani: {
+          boyut: dbSizeRows[0]?.formatted || '0 MB',
+          bytes: parseInt(dbSizeRows[0]?.bytes || 0)
+        },
+        baglanti: {
+          toplam: parseInt(connectionsRows[0]?.total || 0),
+          aktif: parseInt(connectionsRows[0]?.active || 0),
+          bekleyen: parseInt(connectionsRows[0]?.idle || 0)
+        },
+        bugun: {
+          fatura: parseInt(todayFatura[0]?.c || 0),
+          ihale: parseInt(todayIhale[0]?.c || 0),
+          cari: parseInt(todayCari[0]?.c || 0),
+          personel: parseInt(todayPersonel[0]?.c || 0)
+        },
+        sonAktiviteler: recentActivities || [],
+        performans: {
+          responseTime,
+          timestamp: new Date().toISOString()
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Admin Stats error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Sistem health check detaylı
+router.get('/health-detailed', async (req, res) => {
+  const startTime = Date.now();
+  
+  try {
+    // DB ping
+    const dbStart = Date.now();
+    const dbResult = await query('SELECT NOW() as time, version() as version');
+    const dbResponseTime = Date.now() - dbStart;
+
+    // Uptime
+    let uptime = { days: 0, hours: 0, minutes: 0, formatted: '-', startTime: null };
+    try {
+      const uptimeResult = await query(`SELECT pg_postmaster_start_time() as start_time`);
+      const serverStart = new Date(uptimeResult.rows[0].start_time);
+      const uptimeMs = Date.now() - serverStart.getTime();
+      
+      const days = Math.floor(uptimeMs / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((uptimeMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((uptimeMs % (1000 * 60 * 60)) / (1000 * 60));
+
+      uptime = {
+        days,
+        hours,
+        minutes,
+        formatted: `${days}g ${hours}s ${minutes}dk`,
+        startTime: serverStart.toISOString()
+      };
+    } catch (e) {
+      // Uptime alınamazsa varsayılan kullan
+    }
+
+    res.json({
+      success: true,
+      data: {
+        status: 'healthy',
+        database: {
+          connected: true,
+          responseTime: dbResponseTime,
+          version: dbResult.rows[0].version.split(' ').slice(0, 2).join(' '),
+          serverTime: dbResult.rows[0].time
+        },
+        uptime,
+        api: {
+          responseTime: Date.now() - startTime,
+          version: '1.0.0'
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Health Detailed error:', error);
+    res.status(500).json({
+      success: false,
+      data: {
+        status: 'unhealthy',
+        database: { connected: false, error: error.message },
+        uptime: { formatted: '-' },
+        api: { responseTime: Date.now() - startTime }
+      }
     });
   }
 });

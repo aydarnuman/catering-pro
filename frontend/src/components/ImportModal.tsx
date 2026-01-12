@@ -38,7 +38,7 @@ import { notifications } from '@mantine/notifications';
 interface ImportModalProps {
   opened: boolean;
   onClose: () => void;
-  defaultType?: 'personel' | 'stok' | 'cari' | 'fatura';
+  defaultType?: 'personel' | 'stok' | 'cari' | 'fatura' | 'bordro';
   onSuccess?: () => void;
 }
 
@@ -66,7 +66,8 @@ const typeLabels: Record<string, string> = {
   personel: 'Personel',
   fatura: 'Fatura',
   cari: 'Cari Hesap',
-  stok: 'Stok'
+  stok: 'Stok',
+  bordro: 'Bordro'
 };
 
 const formatIcons: Record<string, JSX.Element> = {
@@ -258,6 +259,7 @@ export function ImportModal({ opened, onClose, defaultType = 'personel', onSucce
               onChange={(val) => setTargetType(val || 'personel')}
               data={[
                 { value: 'personel', label: '👥 Personel' },
+                { value: 'bordro', label: '💰 Bordro (Maaş Tablosu)' },
                 { value: 'stok', label: '📦 Stok' },
                 { value: 'cari', label: '🏢 Cari Hesap' },
                 { value: 'fatura', label: '🧾 Fatura' }

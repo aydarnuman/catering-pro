@@ -573,7 +573,7 @@ export default function CarilerPage() {
                                 variant="light" 
                                 color={bakiye > 0 ? 'green' : 'red'}
                               >
-                                {bakiye > 0 ? 'Alacaklı' : 'Borçlu'}
+                                {bakiye > 0 ? 'TAHSİL EDİLECEK' : 'ÖDENECEK'}
                               </Badge>
                             )}
                             {bakiye === 0 && (

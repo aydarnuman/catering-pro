@@ -1,4 +1,5 @@
 const API_URL = 'http://localhost:3001/api/satin-alma';
+const PROJELER_API_URL = 'http://localhost:3001/api/projeler';
 
 // ==================== TİPLER ====================
 
@@ -6,11 +7,25 @@ export interface Proje {
   id: number;
   kod: string;
   ad: string;
+  // Satın Alma alanları
   adres?: string;
   yetkili?: string;
   telefon?: string;
   renk: string;
   aktif: boolean;
+  // Personel alanları
+  musteri?: string;
+  lokasyon?: string;
+  durum?: string;
+  butce?: number;
+  baslangic_tarihi?: string;
+  bitis_tarihi?: string;
+  aciklama?: string;
+  // Hesaplanan
+  personel_sayisi?: number;
+  toplam_maas?: number;
+  siparis_sayisi?: number;
+  toplam_harcama?: number;
 }
 
 export interface SiparisKalem {
@@ -52,35 +67,39 @@ export interface SiparisOzet {
   bu_ay_harcama: number;
 }
 
-// ==================== PROJELER API ====================
+// ==================== PROJELER API (MERKEZİ) ====================
 
 export const projelerAPI = {
   list: async (): Promise<{ success: boolean; data: Proje[] }> => {
-    const res = await fetch(`${API_URL}/projeler`);
-    return res.json();
+    // Merkezi Proje API kullan
+    const res = await fetch(`${PROJELER_API_URL}?aktif=true`);
+    const data = await res.json();
+    return { success: res.ok, data };
   },
 
   create: async (data: Partial<Proje>): Promise<{ success: boolean; data: Proje }> => {
-    const res = await fetch(`${API_URL}/projeler`, {
+    const res = await fetch(PROJELER_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    return res.json();
+    const result = await res.json();
+    return { success: res.ok, data: result };
   },
 
   update: async (id: number, data: Partial<Proje>): Promise<{ success: boolean; data: Proje }> => {
-    const res = await fetch(`${API_URL}/projeler/${id}`, {
+    const res = await fetch(`${PROJELER_API_URL}/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    return res.json();
+    const result = await res.json();
+    return { success: res.ok, data: result };
   },
 
   delete: async (id: number): Promise<{ success: boolean }> => {
-    const res = await fetch(`${API_URL}/projeler/${id}`, { method: 'DELETE' });
-    return res.json();
+    const res = await fetch(`${PROJELER_API_URL}/${id}`, { method: 'DELETE' });
+    return { success: res.ok };
   }
 };
 

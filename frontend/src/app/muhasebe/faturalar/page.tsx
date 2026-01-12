@@ -60,8 +60,10 @@ import {
   IconCloudDownload,
   IconInfoCircle,
   IconReload,
-  IconAlertCircle
+  IconAlertCircle,
+  IconPackage
 } from '@tabler/icons-react';
+import { useRouter } from 'next/navigation';
 import 'dayjs/locale/tr';
 import { invoiceAPI, uyumsoftAPI, convertToFrontendFormat, convertToAPIFormat } from '@/lib/invoice-api';
 import { DataActions } from '@/components/DataActions';
@@ -119,6 +121,8 @@ interface UyumsoftFatura {
   faturaTipi: string;
   isNew?: boolean;
   isSeen?: boolean;
+  stokIslendi?: boolean;
+  stokIslemTarihi?: string;
 }
 
 interface UyumsoftStatus {
@@ -155,6 +159,7 @@ const birimler = ['Adet', 'Kg', 'Lt', 'Metre', 'Paket', 'Koli', 'Porsiyon', 'Gü
 const kdvOranlari = [0, 1, 10, 20];
 
 export default function FaturalarPage() {
+  const router = useRouter();
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
   const [opened, { open, close }] = useDisclosure(false);
@@ -1051,7 +1056,12 @@ export default function FaturalarPage() {
                         <Table.Td><Text size="sm" c="dimmed">{formatDate(fatura.faturaTarihi)}</Text></Table.Td>
                         <Table.Td><Text size="sm" c="dimmed">-</Text></Table.Td>
                         <Table.Td>
-                          <Badge size="xs" variant="light" color="violet">Uyumsoft</Badge>
+                          <Group gap={4}>
+                            <Badge size="xs" variant="light" color="violet">Uyumsoft</Badge>
+                            {fatura.stokIslendi && (
+                              <Badge size="xs" variant="filled" color="green">Stok ✓</Badge>
+                            )}
+                          </Group>
                         </Table.Td>
                         <Table.Td>
                           <Badge color="blue" variant="light" size="xs">E-Fatura</Badge>
@@ -1077,6 +1087,24 @@ export default function FaturalarPage() {
                                   };
                                 }
                               }}>Yazdır</Menu.Item>
+                              <Menu.Divider />
+                              {fatura.stokIslendi ? (
+                                <Menu.Item 
+                                  leftSection={<IconCheck style={{ width: rem(14), height: rem(14) }} />} 
+                                  color="green"
+                                  disabled
+                                >
+                                  Stoğa İşlendi ✓
+                                </Menu.Item>
+                              ) : (
+                                <Menu.Item 
+                                  leftSection={<IconPackage style={{ width: rem(14), height: rem(14) }} />} 
+                                  color="teal"
+                                  onClick={() => router.push(`/muhasebe/stok?fatura=${fatura.ettn}`)}
+                                >
+                                  Stoğa İşle
+                                </Menu.Item>
+                              )}
                             </Menu.Dropdown>
                           </Menu>
                         </Table.Td>

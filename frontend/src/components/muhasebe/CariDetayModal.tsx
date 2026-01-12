@@ -95,10 +95,33 @@ export default function CariDetayModal({ opened, onClose, cari, onEdit, onMutaba
     }
   }, [cari, opened]);
 
+  // Filtreler değiştiğinde tekrar yükle
+  useEffect(() => {
+    if (cari && opened) {
+      loadCariHareketler();
+    }
+  }, [dateRange, filterType]);
+
   const loadCariHareketler = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/cariler/${cari?.id}/hareketler`);
+      // URL parametrelerini oluştur
+      const params = new URLSearchParams();
+      
+      if (dateRange[0]) {
+        params.append('baslangic', dateRange[0].toISOString().split('T')[0]);
+      }
+      if (dateRange[1]) {
+        params.append('bitis', dateRange[1].toISOString().split('T')[0]);
+      }
+      if (filterType && filterType !== 'all') {
+        params.append('tip', filterType);
+      }
+      
+      const queryString = params.toString();
+      const url = `http://localhost:3001/api/cariler/${cari?.id}/hareketler${queryString ? `?${queryString}` : ''}`;
+      
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setHareketler(data.data || []);
@@ -131,6 +154,124 @@ export default function CariDetayModal({ opened, onClose, cari, onEdit, onMutaba
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('tr-TR');
+  };
+
+  // Excel'e aktar
+  const exportToExcel = () => {
+    if (hareketler.length === 0) {
+      notifications.show({
+        title: 'Uyarı',
+        message: 'Dışa aktarılacak veri bulunamadı',
+        color: 'yellow'
+      });
+      return;
+    }
+
+    // CSV formatında oluştur
+    const headers = ['Tarih', 'Belge No', 'Açıklama', 'Vade', 'Borç', 'Alacak', 'Bakiye'];
+    const rows = hareketler.map(h => [
+      formatDate(h.tarih),
+      h.belge_no,
+      h.aciklama,
+      h.vade_tarihi ? formatDate(h.vade_tarihi) : '',
+      h.borc.toFixed(2),
+      h.alacak.toFixed(2),
+      h.bakiye.toFixed(2)
+    ]);
+
+    const csvContent = [
+      `${cari?.unvan} - Cari Ekstre`,
+      '',
+      headers.join(';'),
+      ...rows.map(row => row.join(';'))
+    ].join('\n');
+
+    // BOM ekle (Türkçe karakterler için)
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${cari?.unvan}_ekstre_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    notifications.show({
+      title: 'Başarılı',
+      message: 'Excel dosyası indirildi',
+      color: 'green'
+    });
+  };
+
+  // Yazdır
+  const handlePrint = () => {
+    if (hareketler.length === 0) {
+      notifications.show({
+        title: 'Uyarı',
+        message: 'Yazdırılacak veri bulunamadı',
+        color: 'yellow'
+      });
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${cari?.unvan} - Ekstre</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h1 { font-size: 18px; margin-bottom: 5px; }
+          h2 { font-size: 14px; color: #666; margin-bottom: 20px; }
+          table { width: 100%; border-collapse: collapse; font-size: 12px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f5f5f5; }
+          .borc { color: #c92a2a; }
+          .alacak { color: #2f9e44; }
+          .bakiye-positive { color: #2f9e44; font-weight: bold; }
+          .bakiye-negative { color: #c92a2a; font-weight: bold; }
+          .right { text-align: right; }
+          @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+        </style>
+      </head>
+      <body>
+        <h1>${cari?.unvan}</h1>
+        <h2>Cari Ekstre - ${new Date().toLocaleDateString('tr-TR')}</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Tarih</th>
+              <th>Belge No</th>
+              <th>Açıklama</th>
+              <th>Vade</th>
+              <th class="right">Borç</th>
+              <th class="right">Alacak</th>
+              <th class="right">Bakiye</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${hareketler.map(h => `
+              <tr>
+                <td>${formatDate(h.tarih)}</td>
+                <td>${h.belge_no}</td>
+                <td>${h.aciklama}</td>
+                <td>${h.vade_tarihi ? formatDate(h.vade_tarihi) : '-'}</td>
+                <td class="right borc">${h.borc > 0 ? h.borc.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺' : ''}</td>
+                <td class="right alacak">${h.alacak > 0 ? h.alacak.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺' : ''}</td>
+                <td class="right ${h.bakiye >= 0 ? 'bakiye-positive' : 'bakiye-negative'}">${h.bakiye.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.print();
   };
 
   // Belge numarasına tıklandığında fatura detayını göster
@@ -314,7 +455,7 @@ export default function CariDetayModal({ opened, onClose, cari, onEdit, onMutaba
                       const fark = ozet.alacak - ozet.borc;
                       return (
                         <Table.Tr key={index}>
-                          <Table.Td fw={500}>{ozet.ay}</Table.Td>
+                          <Table.Td><Text fw={500}>{ozet.ay}</Text></Table.Td>
                           <Table.Td style={{textAlign: 'right'}}>
                             {ozet.borc > 0 && <Text span c="red">{formatMoney(ozet.borc)}</Text>}
                           </Table.Td>
@@ -380,8 +521,20 @@ export default function CariDetayModal({ opened, onClose, cari, onEdit, onMutaba
                   value={filterType}
                   onChange={setFilterType}
                 />
-                <Button variant="light" leftSection={<IconDownload size={16} />}>Excel</Button>
-                <Button variant="light" leftSection={<IconPrinter size={16} />}>Yazdır</Button>
+                <Button 
+                  variant="light" 
+                  leftSection={<IconDownload size={16} />}
+                  onClick={() => exportToExcel()}
+                >
+                  Excel
+                </Button>
+                <Button 
+                  variant="light" 
+                  leftSection={<IconPrinter size={16} />}
+                  onClick={() => handlePrint()}
+                >
+                  Yazdır
+                </Button>
               </Group>
 
               <Table.ScrollContainer minWidth={700}>
@@ -451,31 +604,107 @@ export default function CariDetayModal({ opened, onClose, cari, onEdit, onMutaba
 
           <Tabs.Panel value="gelir-gider" pt="md">
             <Stack gap="md">
+              {/* Özet Kartları */}
+              <SimpleGrid cols={{ base: 1, sm: 3 }}>
+                <Paper withBorder p="md">
+                  <Text size="xs" c="dimmed">Toplam Gelir (Son 6 Ay)</Text>
+                  <Text size="xl" fw={700} c="green">
+                    {formatMoney(aylikOzet.slice(0, 6).reduce((sum, o) => sum + Number(o.alacak || 0), 0))}
+                  </Text>
+                </Paper>
+                <Paper withBorder p="md">
+                  <Text size="xs" c="dimmed">Toplam Gider (Son 6 Ay)</Text>
+                  <Text size="xl" fw={700} c="red">
+                    {formatMoney(aylikOzet.slice(0, 6).reduce((sum, o) => sum + Number(o.borc || 0), 0))}
+                  </Text>
+                </Paper>
+                <Paper withBorder p="md">
+                  <Text size="xs" c="dimmed">Net Durum</Text>
+                  <Text size="xl" fw={700} c={aylikOzet.slice(0, 6).reduce((sum, o) => sum + Number(o.alacak || 0) - Number(o.borc || 0), 0) >= 0 ? 'green' : 'red'}>
+                    {formatMoney(aylikOzet.slice(0, 6).reduce((sum, o) => sum + Number(o.alacak || 0) - Number(o.borc || 0), 0))}
+                  </Text>
+                </Paper>
+              </SimpleGrid>
+
               <SimpleGrid cols={2}>
                 <Card withBorder>
-                  <Title order={5} mb="md">Son 6 Ay Gelirler</Title>
+                  <Title order={5} mb="md" c="green">Gelirler (Alacaklar)</Title>
                   <Stack gap="xs">
-                    {[1,2,3].map((i) => (
-                      <Group key={i} justify="space-between">
-                        <Text size="sm">Satış Faturası #{i}</Text>
-                        <Text size="sm" c="green" fw={500}>+₺5,000</Text>
-                      </Group>
-                    ))}
+                    {hareketler
+                      .filter(h => h.alacak > 0)
+                      .slice(0, 10)
+                      .map((hareket) => (
+                        <Group key={hareket.id} justify="space-between">
+                          <div>
+                            <Text size="sm" fw={500}>{hareket.belge_no}</Text>
+                            <Text size="xs" c="dimmed">{formatDate(hareket.tarih)}</Text>
+                          </div>
+                          <Text size="sm" c="green" fw={500}>+{formatMoney(hareket.alacak)}</Text>
+                        </Group>
+                      ))}
+                    {hareketler.filter(h => h.alacak > 0).length === 0 && (
+                      <Text size="sm" c="dimmed" ta="center">Gelir hareketi yok</Text>
+                    )}
                   </Stack>
                 </Card>
                 
                 <Card withBorder>
-                  <Title order={5} mb="md">Son 6 Ay Giderler</Title>
+                  <Title order={5} mb="md" c="red">Giderler (Borçlar)</Title>
                   <Stack gap="xs">
-                    {aylikOzet.slice(0, 3).map((ozet, i) => (
-                      <Group key={i} justify="space-between">
-                        <Text size="sm">{ozet.ay}</Text>
-                        <Text size="sm" c="red" fw={500}>-{formatMoney(ozet.borc)}</Text>
-                      </Group>
-                    ))}
+                    {hareketler
+                      .filter(h => h.borc > 0)
+                      .slice(0, 10)
+                      .map((hareket) => (
+                        <Group key={hareket.id} justify="space-between">
+                          <div>
+                            <Text size="sm" fw={500}>{hareket.belge_no}</Text>
+                            <Text size="xs" c="dimmed">{formatDate(hareket.tarih)}</Text>
+                          </div>
+                          <Text size="sm" c="red" fw={500}>-{formatMoney(hareket.borc)}</Text>
+                        </Group>
+                      ))}
+                    {hareketler.filter(h => h.borc > 0).length === 0 && (
+                      <Text size="sm" c="dimmed" ta="center">Gider hareketi yok</Text>
+                    )}
                   </Stack>
                 </Card>
               </SimpleGrid>
+
+              {/* Aylık Özet Grafiği */}
+              <Card withBorder>
+                <Title order={5} mb="md">Aylık Gelir/Gider Karşılaştırması</Title>
+                <Table striped>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Dönem</Table.Th>
+                      <Table.Th style={{ textAlign: 'right' }}>Gelir</Table.Th>
+                      <Table.Th style={{ textAlign: 'right' }}>Gider</Table.Th>
+                      <Table.Th style={{ textAlign: 'right' }}>Net</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {aylikOzet.slice(0, 6).map((ozet, index) => {
+                      const net = Number(ozet.alacak || 0) - Number(ozet.borc || 0);
+                      return (
+                        <Table.Tr key={index}>
+                          <Table.Td><Text fw={500}>{ozet.ay}</Text></Table.Td>
+                          <Table.Td style={{ textAlign: 'right' }}>
+                            <Text c="green">{formatMoney(ozet.alacak || 0)}</Text>
+                          </Table.Td>
+                          <Table.Td style={{ textAlign: 'right' }}>
+                            <Text c="red">{formatMoney(ozet.borc || 0)}</Text>
+                          </Table.Td>
+                          <Table.Td style={{ textAlign: 'right' }}>
+                            <Text c={net >= 0 ? 'green' : 'red'} fw={600}>
+                              {formatMoney(net)}
+                            </Text>
+                          </Table.Td>
+                        </Table.Tr>
+                      );
+                    })}
+                  </Table.Tbody>
+                </Table>
+              </Card>
             </Stack>
           </Tabs.Panel>
 

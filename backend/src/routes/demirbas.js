@@ -362,6 +362,7 @@ router.get('/', async (req, res) => {
         k.renk as kategori_renk,
         k.ikon as kategori_ikon,
         l.ad as lokasyon_ad,
+        pr.ad as proje_ad,
         p.ad || ' ' || p.soyad as zimmetli_personel,
         p.departman as zimmetli_departman,
         c.unvan as tedarikci,
@@ -374,6 +375,7 @@ router.get('/', async (req, res) => {
       FROM demirbaslar d
       LEFT JOIN demirbas_kategoriler k ON k.id = d.kategori_id
       LEFT JOIN demirbas_lokasyonlar l ON l.id = d.lokasyon_id
+      LEFT JOIN projeler pr ON pr.id = d.proje_id
       LEFT JOIN personeller p ON p.id = d.zimmetli_personel_id
       LEFT JOIN cariler c ON c.id = d.tedarikci_id
       WHERE ${whereConditions.join(' AND ')}
@@ -475,7 +477,7 @@ router.post('/', async (req, res) => {
       kod, barkod, ad, kategori_id, marka, model, seri_no,
       alis_tarihi, alis_fiyati, tedarikci_id, fatura_no, fatura_id,
       garanti_suresi, garanti_bitis, amortisman_yontemi, faydali_omur, hurda_degeri,
-      lokasyon_id, lokasyon_detay, aciklama, resim_url, teknik_ozellik, muhasebe_hesap_kodu
+      lokasyon_id, lokasyon_detay, proje_id, aciklama, resim_url, teknik_ozellik, muhasebe_hesap_kodu
     } = req.body;
     
     // Kod otomatik oluştur (eğer boşsa)
@@ -502,13 +504,13 @@ router.post('/', async (req, res) => {
         kod, barkod, ad, kategori_id, marka, model, seri_no,
         alis_tarihi, alis_fiyati, tedarikci_id, fatura_no, fatura_id,
         garanti_suresi, garanti_bitis, amortisman_yontemi, faydali_omur, hurda_degeri,
-        lokasyon_id, lokasyon_detay, aciklama, resim_url, teknik_ozellik, muhasebe_hesap_kodu,
+        lokasyon_id, lokasyon_detay, proje_id, aciklama, resim_url, teknik_ozellik, muhasebe_hesap_kodu,
         durum
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7,
         $8, $9, $10, $11, $12,
         $13, $14, $15, $16, $17,
-        $18, $19, $20, $21, $22, $23,
+        $18, $19, $20, $21, $22, $23, $24,
         'aktif'
       )
       RETURNING *
@@ -516,7 +518,7 @@ router.post('/', async (req, res) => {
       demirbasKod, barkod, ad, kategori_id, marka, model, seri_no,
       alis_tarihi, alis_fiyati || 0, tedarikci_id, fatura_no, fatura_id,
       garanti_suresi, garantiBitis, amortisman_yontemi || 'dogrusal', faydali_omur || 5, hurda_degeri || 0,
-      lokasyon_id, lokasyon_detay, aciklama, resim_url, teknik_ozellik, muhasebe_hesap_kodu
+      lokasyon_id, lokasyon_detay, proje_id || null, aciklama, resim_url, teknik_ozellik, muhasebe_hesap_kodu
     ]);
     
     // Giriş hareketi oluştur
@@ -539,7 +541,7 @@ router.put('/:id', async (req, res) => {
     const {
       ad, kategori_id, marka, model, seri_no, barkod,
       garanti_suresi, garanti_bitis, amortisman_yontemi, faydali_omur, hurda_degeri,
-      lokasyon_id, lokasyon_detay, aciklama, resim_url, teknik_ozellik, muhasebe_hesap_kodu
+      lokasyon_id, lokasyon_detay, proje_id, aciklama, resim_url, teknik_ozellik, muhasebe_hesap_kodu
     } = req.body;
     
     const result = await pool.query(`
@@ -557,17 +559,18 @@ router.put('/:id', async (req, res) => {
         hurda_degeri = COALESCE($11, hurda_degeri),
         lokasyon_id = COALESCE($12, lokasyon_id),
         lokasyon_detay = COALESCE($13, lokasyon_detay),
-        aciklama = COALESCE($14, aciklama),
-        resim_url = COALESCE($15, resim_url),
-        teknik_ozellik = COALESCE($16, teknik_ozellik),
-        muhasebe_hesap_kodu = COALESCE($17, muhasebe_hesap_kodu),
+        proje_id = $14,
+        aciklama = COALESCE($15, aciklama),
+        resim_url = COALESCE($16, resim_url),
+        teknik_ozellik = COALESCE($17, teknik_ozellik),
+        muhasebe_hesap_kodu = COALESCE($18, muhasebe_hesap_kodu),
         updated_at = NOW()
-      WHERE id = $18
+      WHERE id = $19
       RETURNING *
     `, [
       ad, kategori_id, marka, model, seri_no, barkod,
       garanti_suresi, garanti_bitis, amortisman_yontemi, faydali_omur, hurda_degeri,
-      lokasyon_id, lokasyon_detay, aciklama, resim_url, teknik_ozellik, muhasebe_hesap_kodu,
+      lokasyon_id, lokasyon_detay, proje_id || null, aciklama, resim_url, teknik_ozellik, muhasebe_hesap_kodu,
       id
     ]);
     

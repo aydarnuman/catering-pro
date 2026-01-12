@@ -70,15 +70,15 @@ CREATE TABLE IF NOT EXISTS cek_senetler (
 );
 
 -- İndeksler
-CREATE INDEX idx_cek_senet_tip ON cek_senetler(tip);
-CREATE INDEX idx_cek_senet_yonu ON cek_senetler(yonu);
-CREATE INDEX idx_cek_senet_durum ON cek_senetler(durum);
-CREATE INDEX idx_cek_senet_vade ON cek_senetler(vade_tarihi);
-CREATE INDEX idx_cek_senet_cari ON cek_senetler(cari_id);
-CREATE INDEX idx_cek_senet_belge ON cek_senetler(belge_no);
+CREATE INDEX IF NOT EXISTS idx_cek_senet_tip ON cek_senetler(tip);
+CREATE INDEX IF NOT EXISTS idx_cek_senet_yonu ON cek_senetler(yonu);
+CREATE INDEX IF NOT EXISTS idx_cek_senet_durum ON cek_senetler(durum);
+CREATE INDEX IF NOT EXISTS idx_cek_senet_vade ON cek_senetler(vade_tarihi);
+CREATE INDEX IF NOT EXISTS idx_cek_senet_cari ON cek_senetler(cari_id);
+CREATE INDEX IF NOT EXISTS idx_cek_senet_belge ON cek_senetler(belge_no);
 
 -- Beklemedeki çekler için partial index
-CREATE INDEX idx_cek_senet_beklemede ON cek_senetler(vade_tarihi) 
+CREATE INDEX IF NOT EXISTS idx_cek_senet_beklemede ON cek_senetler(vade_tarihi) 
     WHERE durum = 'beklemede';
 
 -- ====================================================
@@ -116,8 +116,8 @@ CREATE TABLE IF NOT EXISTS cek_senet_hareketler (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_cek_senet_hareket_cek ON cek_senet_hareketler(cek_senet_id);
-CREATE INDEX idx_cek_senet_hareket_tarih ON cek_senet_hareketler(islem_tarihi DESC);
+CREATE INDEX IF NOT EXISTS idx_cek_senet_hareket_cek ON cek_senet_hareketler(cek_senet_id);
+CREATE INDEX IF NOT EXISTS idx_cek_senet_hareket_tarih ON cek_senet_hareketler(islem_tarihi DESC);
 
 -- ====================================================
 -- 3. GÖRÜNÜMLER (VIEWS)

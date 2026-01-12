@@ -28,7 +28,7 @@ import { ImportModal } from './ImportModal';
 import { ExportModal } from './ExportModal';
 
 interface DataActionsProps {
-  type: 'personel' | 'fatura' | 'cari' | 'stok';
+  type: 'personel' | 'fatura' | 'cari' | 'stok' | 'bordro';
   filters?: Record<string, string>;
   onImportSuccess?: () => void;
   // Sayfa bazlı veriler (export seçenekleri için)
@@ -43,7 +43,8 @@ const typeLabels: Record<string, string> = {
   personel: 'Personel',
   fatura: 'Fatura',
   cari: 'Cari',
-  stok: 'Stok'
+  stok: 'Stok',
+  bordro: 'Bordro'
 };
 
 export function DataActions({ 

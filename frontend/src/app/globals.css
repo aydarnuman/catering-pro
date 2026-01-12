@@ -103,6 +103,26 @@ html {
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
 }
 
+/* Settings card hover effect */
+.settings-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+/* Hover red for menu items - click to delete */
+.hover-red {
+  transition: all 0.15s ease;
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+
+.hover-red:hover {
+  background: rgba(250, 82, 82, 0.1);
+  color: #fa5252;
+  text-decoration: line-through;
+}
+
 /* Link styles */
 a {
   color: inherit;

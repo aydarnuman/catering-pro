@@ -532,7 +532,11 @@ router.get('/invoices', async (req, res) => {
     } = req.query;
 
     let sql = `
-      SELECT * FROM uyumsoft_invoices
+      SELECT ui.*, 
+        CASE WHEN fsi.id IS NOT NULL THEN true ELSE false END as stok_islendi,
+        fsi.islem_tarihi as stok_islem_tarihi
+      FROM uyumsoft_invoices ui
+      LEFT JOIN fatura_stok_islem fsi ON ui.ettn = fsi.ettn
       WHERE 1=1
     `;
     
@@ -596,7 +600,9 @@ router.get('/invoices', async (req, res) => {
       isNew: row.is_new,
       isSeen: row.is_seen,
       isVerified: row.is_verified,
-      dbId: row.id // Veritabanı ID'si
+      dbId: row.id, // Veritabanı ID'si
+      stokIslendi: row.stok_islendi || false,
+      stokIslemTarihi: row.stok_islem_tarihi
     }));
 
     return res.json({

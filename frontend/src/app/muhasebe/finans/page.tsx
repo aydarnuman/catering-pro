@@ -1,36 +1,35 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Title,
   Text,
-  Paper,
   Group,
   Stack,
-  Grid,
-  Button,
-  Badge,
+  Paper,
+  SimpleGrid,
   Tabs,
-  Card,
-  ActionIcon,
+  Table,
+  Badge,
+  Button,
+  Modal,
   TextInput,
   NumberInput,
   Select,
   Textarea,
-  Modal,
-  Table,
-  Menu,
-  Loader,
-  Alert,
+  ActionIcon,
   ThemeIcon,
-  Progress,
-  Tooltip,
-  SimpleGrid,
-  Divider,
   Box,
+  Divider,
+  Progress,
+  Center,
+  Loader,
+  Menu,
+  Tooltip,
+  Card,
   RingProgress,
-  Center
+  Grid,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
@@ -38,81 +37,92 @@ import {
   IconPlus,
   IconWallet,
   IconBuildingBank,
+  IconCreditCard,
+  IconReceipt,
   IconArrowUpRight,
   IconArrowDownRight,
   IconArrowsExchange,
-  IconReceipt,
-  IconFileText,
-  IconEdit,
-  IconTrash,
-  IconSearch,
-  IconFilter,
-  IconRefresh,
-  IconAlertCircle,
-  IconCheck,
-  IconClock,
-  IconCalendar,
-  IconCash,
-  IconCreditCard,
   IconChartBar,
+  IconChartPie,
   IconTrendingUp,
   IconTrendingDown,
-  IconDotsVertical,
-  IconEye,
-  IconDownload,
+  IconCash,
   IconReportMoney,
-  IconExclamationCircle,
-  IconChecks,
-  IconX,
-  IconChevronRight
+  IconCalendar,
+  IconDots,
+  IconEdit,
+  IconTrash,
+  IconCheck,
+  IconClock,
+  IconAlertCircle,
+  IconBuilding,
+  IconFileInvoice,
+  IconRefresh,
+  IconChevronRight,
+  IconEye,
 } from '@tabler/icons-react';
 
 const API_URL = 'http://localhost:3001/api';
 
-// Tipler
+// ==================== INTERFACES ====================
+
 interface Hesap {
   id: number;
-  hesap_tipi: 'kasa' | 'banka';
-  hesap_adi: string;
-  banka_adi?: string;
-  sube?: string;
-  hesap_no?: string;
-  iban?: string;
-  para_birimi: string;
+  ad: string;
+  tip: 'kasa' | 'banka' | 'kredi_karti';
   bakiye: number;
-  kredi_limiti?: number;
-  aktif: boolean;
+  banka_adi?: string;
+  iban?: string;
+  // Kredi kartı için
+  limit?: number;
+  ekstre_kesim?: number;
+  son_odeme_gun?: number;
 }
 
 interface Hareket {
   id: number;
   hesap_id: number;
-  hareket_tipi: 'giris' | 'cikis' | 'transfer';
+  hesap_adi?: string;
+  tip: 'gelir' | 'gider';
   tutar: number;
-  onceki_bakiye: number;
-  sonraki_bakiye: number;
-  aciklama?: string;
-  belge_no?: string;
   tarih: string;
-  saat?: string;
-  hesap?: { id: number; hesap_adi: string; hesap_tipi: string };
-  karsi_hesap?: { id: number; hesap_adi: string };
-  cari?: { id: number; unvan: string };
+  aciklama?: string;
+  kategori?: string;
+  cari_id?: number;
+  cari_adi?: string;
+  odeme_yontemi?: string;
+  taksit_sayisi?: number;
 }
 
 interface CekSenet {
   id: number;
   tip: 'cek' | 'senet';
-  yonu: 'alinan' | 'verilen';
-  durum: string;
-  belge_no: string;
+  yon: 'alacak' | 'borc';
   tutar: number;
-  doviz: string;
-  kesim_tarihi: string;
   vade_tarihi: string;
+  duzenleme_tarihi: string;
+  cari_id?: number;
+  cari_adi?: string;
+  aciklama?: string;
+  durum: 'beklemede' | 'tahsil_edildi' | 'odendi' | 'iade' | 'protesto';
   banka_adi?: string;
-  kesen_unvan: string;
-  cari?: { id: number; unvan: string };
+  seri_no?: string;
+}
+
+interface Proje {
+  id: number;
+  ad: string;
+}
+
+interface ProjeHareket {
+  id: number;
+  proje_id: number;
+  tip: 'gelir' | 'gider';
+  kategori: string;
+  tutar: number;
+  tarih: string;
+  aciklama?: string;
+  referans_tip?: string;
 }
 
 interface Cari {
@@ -121,189 +131,166 @@ interface Cari {
   tip: string;
 }
 
-interface Ozet {
-  kasa_toplam: number;
-  banka_toplam: number;
-  genel_toplam: number;
-  alinan_cek_toplam: number;
-  alinan_cek_adet: number;
-  verilen_cek_toplam: number;
-  verilen_cek_adet: number;
-  alinan_senet_toplam: number;
-  alinan_senet_adet: number;
-  verilen_senet_toplam: number;
-  verilen_senet_adet: number;
-  vadesi_gecmis_toplam: number;
-  vadesi_gecmis_adet: number;
-  bu_hafta_vadeli_toplam: number;
-  bu_hafta_vadeli_adet: number;
-}
+// ==================== HELPERS ====================
 
-// Para formatı
 const formatMoney = (value: number) => {
   return new Intl.NumberFormat('tr-TR', {
     style: 'currency',
     currency: 'TRY',
-    minimumFractionDigits: 2
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(value);
 };
 
-// Tarih formatı
-const formatDate = (dateStr: string) => {
-  return new Date(dateStr).toLocaleDateString('tr-TR');
+const formatDate = (date: string) => {
+  return new Date(date).toLocaleDateString('tr-TR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
 };
 
+// ==================== MAIN COMPONENT ====================
+
 export default function FinansMerkeziPage() {
-  // State
   const [activeTab, setActiveTab] = useState<string | null>('ozet');
   const [loading, setLoading] = useState(true);
-  const [ozet, setOzet] = useState<Ozet | null>(null);
+  
+  // Data States
   const [hesaplar, setHesaplar] = useState<Hesap[]>([]);
   const [hareketler, setHareketler] = useState<Hareket[]>([]);
   const [cekSenetler, setCekSenetler] = useState<CekSenet[]>([]);
+  const [projeler, setProjeler] = useState<Proje[]>([]);
   const [cariler, setCariler] = useState<Cari[]>([]);
-
-  // Modal states
+  
+  // Proje Analiz States
+  const [selectedProje, setSelectedProje] = useState<number | null>(null);
+  const [projeYil, setProjeYil] = useState(new Date().getFullYear());
+  const [projeAy, setProjeAy] = useState(new Date().getMonth() + 1);
+  const [projeHareketler, setProjeHareketler] = useState<ProjeHareket[]>([]);
+  
+  // Modal States
   const [hesapModalOpen, setHesapModalOpen] = useState(false);
   const [hareketModalOpen, setHareketModalOpen] = useState(false);
-  const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [cekSenetModalOpen, setCekSenetModalOpen] = useState(false);
-  const [tahsilModalOpen, setTahsilModalOpen] = useState(false);
-
-  // Form states
-  const [selectedHesap, setSelectedHesap] = useState<Hesap | null>(null);
-  const [selectedCekSenet, setSelectedCekSenet] = useState<CekSenet | null>(null);
-  const [hareketTipi, setHareketTipi] = useState<'giris' | 'cikis'>('giris');
-
-  // Hesap form
+  const [projeHareketModalOpen, setProjeHareketModalOpen] = useState(false);
+  
+  // Kategori Detay Modal
+  const [kategoriDetayModal, setKategoriDetayModal] = useState<{
+    open: boolean;
+    kategori: string;
+    baslik: string;
+  }>({ open: false, kategori: '', baslik: '' });
+  
+  // Form States
   const [hesapForm, setHesapForm] = useState({
-    hesap_tipi: 'kasa' as 'kasa' | 'banka',
-    hesap_adi: '',
+    ad: '',
+    tip: 'kasa' as 'kasa' | 'banka' | 'kredi_karti',
     banka_adi: '',
-    sube: '',
-    hesap_no: '',
     iban: '',
-    para_birimi: 'TRY',
-    bakiye: 0,
-    kredi_limiti: 0
+    limit: 0,
+    ekstre_kesim: 1,
+    son_odeme_gun: 15,
   });
-
-  // Hareket form
+  
   const [hareketForm, setHareketForm] = useState({
-    hesap_id: '',
+    hesap_id: 0,
+    tip: 'gider' as 'gelir' | 'gider',
     tutar: 0,
-    aciklama: '',
-    belge_no: '',
     tarih: new Date(),
-    cari_id: ''
-  });
-
-  // Transfer form
-  const [transferForm, setTransferForm] = useState({
-    kaynak_hesap_id: '',
-    hedef_hesap_id: '',
-    tutar: 0,
     aciklama: '',
-    tarih: new Date()
+    kategori: '',
+    cari_id: null as number | null,
+    odeme_yontemi: 'nakit',
+    taksit_sayisi: 1,
   });
 
-  // Çek/Senet form
-  const [cekSenetForm, setCekSenetForm] = useState({
-    tip: 'cek' as 'cek' | 'senet',
-    yonu: 'alinan' as 'alinan' | 'verilen',
-    belge_no: '',
-    tutar: 0,
-    kesim_tarihi: new Date(),
-    vade_tarihi: new Date(),
-    banka_adi: '',
-    sube_adi: '',
-    hesap_no: '',
-    kesen_unvan: '',
-    cari_id: ''
-  });
+  // ==================== DATA LOADING ====================
 
-  // Filtreler
-  const [cekSenetFiltre, setCekSenetFiltre] = useState({
-    tip: '',
-    yonu: '',
-    durum: 'beklemede'
-  });
-
-  // Data yükleme
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
-    
-    // Carileri ayrı yükle - her zaman çalışsın
     try {
-      const carilerRes = await fetch(`${API_URL}/cariler`);
-      if (carilerRes.ok) {
-        const result = await carilerRes.json();
-        const carilerData = result.data || result || [];
-        console.log('Cariler yüklendi:', carilerData.length, 'adet');
-        setCariler(carilerData);
-      }
-    } catch (err) {
-      console.error('Cariler yükleme hatası:', err);
-    }
-    
-    // Diğer verileri yükle
-    try {
-      const [ozetRes, hesaplarRes, hareketlerRes, cekSenetRes] = await Promise.all([
-        fetch(`${API_URL}/kasa-banka/ozet`),
+      const [hesapRes, hareketRes, cekRes, projeRes, cariRes] = await Promise.all([
         fetch(`${API_URL}/kasa-banka/hesaplar`),
         fetch(`${API_URL}/kasa-banka/hareketler?limit=50`),
-        fetch(`${API_URL}/kasa-banka/cek-senet?limit=100`)
+        fetch(`${API_URL}/kasa-banka/cek-senetler`),
+        fetch(`${API_URL}/projeler?durum=aktif`),
+        fetch(`${API_URL}/kasa-banka/cariler`),
       ]);
-
-      if (ozetRes.ok) setOzet(await ozetRes.json());
-      if (hesaplarRes.ok) setHesaplar(await hesaplarRes.json());
-      if (hareketlerRes.ok) setHareketler(await hareketlerRes.json());
-      if (cekSenetRes.ok) setCekSenetler(await cekSenetRes.json());
+      
+      if (hesapRes.ok) setHesaplar(await hesapRes.json());
+      if (hareketRes.ok) setHareketler(await hareketRes.json());
+      if (cekRes.ok) setCekSenetler(await cekRes.json());
+      if (projeRes.ok) setProjeler(await projeRes.json());
+      if (cariRes.ok) setCariler(await cariRes.json());
     } catch (error) {
       console.error('Veri yükleme hatası:', error);
-      notifications.show({
-        title: 'Hata',
-        message: 'Veriler yüklenirken bir hata oluştu',
-        color: 'red'
-      });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  };
+  }, []);
+
+  const loadProjeHareketler = useCallback(async () => {
+    if (!selectedProje) return;
+    try {
+      const res = await fetch(
+        `${API_URL}/proje-hareketler/${selectedProje}?yil=${projeYil}&ay=${projeAy}`
+      );
+      if (res.ok) {
+        setProjeHareketler(await res.json());
+      }
+    } catch (error) {
+      console.error('Proje hareketleri yükleme hatası:', error);
+    }
+  }, [selectedProje, projeYil, projeAy]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
-  // Hesap kaydet
+  useEffect(() => {
+    if (selectedProje) {
+      loadProjeHareketler();
+    }
+  }, [selectedProje, projeYil, projeAy, loadProjeHareketler]);
+
+  // ==================== CALCULATIONS ====================
+
+  const kasaBakiye = hesaplar.filter(h => h.tip === 'kasa').reduce((sum, h) => sum + h.bakiye, 0);
+  const bankaBakiye = hesaplar.filter(h => h.tip === 'banka').reduce((sum, h) => sum + h.bakiye, 0);
+  const kkBorcToplam = hesaplar.filter(h => h.tip === 'kredi_karti').reduce((sum, h) => sum + Math.abs(h.bakiye), 0);
+  const toplamVarlik = kasaBakiye + bankaBakiye - kkBorcToplam;
+  
+  const bekleyenCekler = cekSenetler.filter(c => c.tip === 'cek' && c.durum === 'beklemede');
+  const bekleyenSenetler = cekSenetler.filter(c => c.tip === 'senet' && c.durum === 'beklemede');
+  const bekleyenAlacak = cekSenetler.filter(c => c.yon === 'alacak' && c.durum === 'beklemede').reduce((sum, c) => sum + c.tutar, 0);
+  const bekleyenBorc = cekSenetler.filter(c => c.yon === 'borc' && c.durum === 'beklemede').reduce((sum, c) => sum + c.tutar, 0);
+
+  // Proje hesaplamaları
+  const projeGelir = projeHareketler.filter(h => h.tip === 'gelir').reduce((sum, h) => sum + h.tutar, 0);
+  const projeGider = projeHareketler.filter(h => h.tip === 'gider').reduce((sum, h) => sum + h.tutar, 0);
+  const projeNet = projeGelir - projeGider;
+
+  // ==================== HANDLERS ====================
+
   const handleSaveHesap = async () => {
     try {
-      const method = selectedHesap ? 'PUT' : 'POST';
-      const url = selectedHesap 
-        ? `${API_URL}/kasa-banka/hesaplar/${selectedHesap.id}`
-        : `${API_URL}/kasa-banka/hesaplar`;
-
-      const res = await fetch(url, {
-        method,
+      const res = await fetch(`${API_URL}/kasa-banka/hesaplar`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(hesapForm)
+        body: JSON.stringify(hesapForm),
       });
-
       if (res.ok) {
-        notifications.show({
-          title: 'Başarılı',
-          message: `Hesap ${selectedHesap ? 'güncellendi' : 'oluşturuldu'}`,
-          color: 'green'
-        });
+        notifications.show({ message: '✓ Hesap eklendi', color: 'green' });
         setHesapModalOpen(false);
-        resetHesapForm();
         loadData();
+        setHesapForm({ ad: '', tip: 'kasa', banka_adi: '', iban: '', limit: 0, ekstre_kesim: 1, son_odeme_gun: 15 });
       }
     } catch (error) {
-      notifications.show({ title: 'Hata', message: 'İşlem başarısız', color: 'red' });
+      notifications.show({ message: '✗ Hata oluştu', color: 'red' });
     }
   };
 
-  // Hareket kaydet
   const handleSaveHareket = async () => {
     try {
       const res = await fetch(`${API_URL}/kasa-banka/hareketler`, {
@@ -311,218 +298,72 @@ export default function FinansMerkeziPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...hareketForm,
-          hareket_tipi: hareketTipi,
           tarih: hareketForm.tarih.toISOString().split('T')[0],
-          cari_id: hareketForm.cari_id || null
-        })
+        }),
       });
-
       if (res.ok) {
-        notifications.show({
-          title: 'Başarılı',
-          message: hareketTipi === 'giris' ? 'Giriş kaydedildi' : 'Çıkış kaydedildi',
-          color: 'green'
-        });
+        notifications.show({ message: '✓ Hareket kaydedildi', color: 'green' });
         setHareketModalOpen(false);
-        resetHareketForm();
         loadData();
       }
     } catch (error) {
-      notifications.show({ title: 'Hata', message: 'İşlem başarısız', color: 'red' });
+      notifications.show({ message: '✗ Hata oluştu', color: 'red' });
     }
   };
 
-  // Transfer kaydet
-  const handleSaveTransfer = async () => {
+  const handleSaveProjeHareket = async () => {
+    if (!selectedProje) return;
     try {
-      const res = await fetch(`${API_URL}/kasa-banka/transfer`, {
+      const res = await fetch(`${API_URL}/proje-hareketler`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...transferForm,
-          tarih: transferForm.tarih.toISOString().split('T')[0]
-        })
+          proje_id: selectedProje,
+          ...hareketForm,
+          tarih: hareketForm.tarih.toISOString().split('T')[0],
+        }),
       });
-
       if (res.ok) {
-        notifications.show({
-          title: 'Başarılı',
-          message: 'Transfer gerçekleştirildi',
-          color: 'green'
-        });
-        setTransferModalOpen(false);
-        resetTransferForm();
-        loadData();
+        notifications.show({ message: '✓ Hareket eklendi', color: 'green' });
+        setProjeHareketModalOpen(false);
+        loadProjeHareketler();
       }
     } catch (error) {
-      notifications.show({ title: 'Hata', message: 'Transfer başarısız', color: 'red' });
+      notifications.show({ message: '✗ Hata oluştu', color: 'red' });
     }
   };
 
-  // Çek/Senet kaydet
-  const handleSaveCekSenet = async () => {
-    try {
-      const res = await fetch(`${API_URL}/kasa-banka/cek-senet`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...cekSenetForm,
-          kesim_tarihi: cekSenetForm.kesim_tarihi.toISOString().split('T')[0],
-          vade_tarihi: cekSenetForm.vade_tarihi.toISOString().split('T')[0],
-          cari_id: cekSenetForm.cari_id || null
-        })
-      });
-
-      if (res.ok) {
-        notifications.show({
-          title: 'Başarılı',
-          message: `${cekSenetForm.tip === 'cek' ? 'Çek' : 'Senet'} kaydedildi`,
-          color: 'green'
-        });
-        setCekSenetModalOpen(false);
-        resetCekSenetForm();
-        loadData();
-      }
-    } catch (error) {
-      notifications.show({ title: 'Hata', message: 'İşlem başarısız', color: 'red' });
-    }
-  };
-
-  // Çek/Senet tahsil et
-  const handleTahsil = async () => {
-    if (!selectedCekSenet) return;
-    try {
-      const res = await fetch(`${API_URL}/kasa-banka/cek-senet/${selectedCekSenet.id}/tahsil`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          hesap_id: hareketForm.hesap_id,
-          tarih: new Date().toISOString().split('T')[0]
-        })
-      });
-
-      if (res.ok) {
-        notifications.show({
-          title: 'Başarılı',
-          message: selectedCekSenet.yonu === 'alinan' ? 'Tahsilat yapıldı' : 'Ödeme yapıldı',
-          color: 'green'
-        });
-        setTahsilModalOpen(false);
-        setSelectedCekSenet(null);
-        loadData();
-      }
-    } catch (error) {
-      notifications.show({ title: 'Hata', message: 'İşlem başarısız', color: 'red' });
-    }
-  };
-
-  // Reset functions
-  const resetHesapForm = () => {
-    setHesapForm({
-      hesap_tipi: 'kasa',
-      hesap_adi: '',
-      banka_adi: '',
-      sube: '',
-      hesap_no: '',
-      iban: '',
-      para_birimi: 'TRY',
-      bakiye: 0,
-      kredi_limiti: 0
-    });
-    setSelectedHesap(null);
-  };
-
-  const resetHareketForm = () => {
-    setHareketForm({
-      hesap_id: '',
-      tutar: 0,
-      aciklama: '',
-      belge_no: '',
-      tarih: new Date(),
-      cari_id: ''
-    });
-  };
-
-  const resetTransferForm = () => {
-    setTransferForm({
-      kaynak_hesap_id: '',
-      hedef_hesap_id: '',
-      tutar: 0,
-      aciklama: '',
-      tarih: new Date()
-    });
-  };
-
-  const resetCekSenetForm = () => {
-    setCekSenetForm({
-      tip: 'cek',
-      yonu: 'alinan',
-      belge_no: '',
-      tutar: 0,
-      kesim_tarihi: new Date(),
-      vade_tarihi: new Date(),
-      banka_adi: '',
-      sube_adi: '',
-      hesap_no: '',
-      kesen_unvan: '',
-      cari_id: ''
-    });
-  };
-
-  // Hesap düzenleme
-  const handleEditHesap = (hesap: Hesap) => {
-    setSelectedHesap(hesap);
-    setHesapForm({
-      hesap_tipi: hesap.hesap_tipi,
-      hesap_adi: hesap.hesap_adi,
-      banka_adi: hesap.banka_adi || '',
-      sube: hesap.sube || '',
-      hesap_no: hesap.hesap_no || '',
-      iban: hesap.iban || '',
-      para_birimi: hesap.para_birimi,
-      bakiye: hesap.bakiye,
-      kredi_limiti: hesap.kredi_limiti || 0
-    });
-    setHesapModalOpen(true);
-  };
-
-  // Filtrelenmiş çek/senetler
-  const filteredCekSenetler = cekSenetler.filter(cs => {
-    if (cekSenetFiltre.tip && cs.tip !== cekSenetFiltre.tip) return false;
-    if (cekSenetFiltre.yonu && cs.yonu !== cekSenetFiltre.yonu) return false;
-    if (cekSenetFiltre.durum && cs.durum !== cekSenetFiltre.durum) return false;
-    return true;
-  });
-
-  // Kasa ve banka hesaplarını ayır
-  const kasalar = hesaplar.filter(h => h.hesap_tipi === 'kasa' && h.aktif);
-  const bankalar = hesaplar.filter(h => h.hesap_tipi === 'banka' && h.aktif);
+  // ==================== LOADING STATE ====================
 
   if (loading) {
     return (
-      <Container size="xl" py="xl">
-        <Center h={400}>
-          <Stack align="center" gap="md">
-            <Loader size="lg" />
-            <Text c="dimmed">Veriler yükleniyor...</Text>
-          </Stack>
-        </Center>
-      </Container>
+      <Center h="80vh">
+        <Stack align="center" gap="md">
+          <Loader size="lg" type="bars" />
+          <Text c="dimmed">Yükleniyor...</Text>
+        </Stack>
+      </Center>
     );
   }
 
+  // ==================== RENDER ====================
+
   return (
-    <Container size="xl" py="xl">
+    <Container size="xl" py="md">
       {/* Header */}
       <Group justify="space-between" mb="xl">
         <div>
-          <Title order={1} mb={4}>💰 Finans Merkezi</Title>
-          <Text c="dimmed">Kasa, Banka, Hareketler ve Çek/Senet Yönetimi</Text>
+          <Title order={2} fw={700} c="dark.7">
+            💼 Finans Merkezi
+          </Title>
+          <Text c="dimmed" size="sm">
+            Şirket mali durumu ve nakit akışı yönetimi
+          </Text>
         </div>
         <Group>
-          <Button
+          <Button 
+            variant="light" 
             leftSection={<IconRefresh size={18} />}
-            variant="light"
             onClick={loadData}
           >
             Yenile
@@ -530,1036 +371,1239 @@ export default function FinansMerkeziPage() {
         </Group>
       </Group>
 
-      {/* Özet Kartları (Her zaman görünür) */}
-      <SimpleGrid cols={{ base: 2, sm: 3, md: 5 }} mb="xl">
-        <Paper p="md" radius="md" withBorder>
-          <Group justify="space-between">
-            <div>
-              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Toplam Nakit</Text>
-              <Text size="xl" fw={700} c="blue">{formatMoney(ozet?.genel_toplam || 0)}</Text>
-            </div>
-            <ThemeIcon size={48} radius="md" variant="light" color="blue">
-              <IconWallet size={26} />
-            </ThemeIcon>
-          </Group>
-        </Paper>
-
-        <Paper p="md" radius="md" withBorder>
-          <Group justify="space-between">
-            <div>
-              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Kasalar</Text>
-              <Text size="xl" fw={700} c="green">{formatMoney(ozet?.kasa_toplam || 0)}</Text>
-            </div>
-            <ThemeIcon size={48} radius="md" variant="light" color="green">
-              <IconCash size={26} />
-            </ThemeIcon>
-          </Group>
-        </Paper>
-
-        <Paper p="md" radius="md" withBorder>
-          <Group justify="space-between">
-            <div>
-              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Bankalar</Text>
-              <Text size="xl" fw={700} c="cyan">{formatMoney(ozet?.banka_toplam || 0)}</Text>
-            </div>
-            <ThemeIcon size={48} radius="md" variant="light" color="cyan">
-              <IconBuildingBank size={26} />
-            </ThemeIcon>
-          </Group>
-        </Paper>
-
-        <Paper p="md" radius="md" withBorder>
-          <Group justify="space-between">
-            <div>
-              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Alacak (Çek/Senet)</Text>
-              <Text size="xl" fw={700} c="teal">
-                {formatMoney((ozet?.alinan_cek_toplam || 0) + (ozet?.alinan_senet_toplam || 0))}
-              </Text>
-            </div>
-            <ThemeIcon size={48} radius="md" variant="light" color="teal">
-              <IconArrowUpRight size={26} />
-            </ThemeIcon>
-          </Group>
-        </Paper>
-
-        <Paper p="md" radius="md" withBorder>
-          <Group justify="space-between">
-            <div>
-              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Borç (Çek/Senet)</Text>
-              <Text size="xl" fw={700} c="red">
-                {formatMoney((ozet?.verilen_cek_toplam || 0) + (ozet?.verilen_senet_toplam || 0))}
-              </Text>
-            </div>
-            <ThemeIcon size={48} radius="md" variant="light" color="red">
-              <IconArrowDownRight size={26} />
-            </ThemeIcon>
-          </Group>
-        </Paper>
-      </SimpleGrid>
-
       {/* Tabs */}
       <Tabs value={activeTab} onChange={setActiveTab}>
         <Tabs.List mb="lg">
-          <Tabs.Tab value="ozet" leftSection={<IconChartBar size={16} />}>
+          <Tabs.Tab value="ozet" leftSection={<IconChartPie size={18} />} fw={500}>
             Özet
           </Tabs.Tab>
-          <Tabs.Tab value="hesaplar" leftSection={<IconBuildingBank size={16} />}>
+          <Tabs.Tab value="hesaplar" leftSection={<IconWallet size={18} />} fw={500}>
             Hesaplar
           </Tabs.Tab>
-          <Tabs.Tab value="hareketler" leftSection={<IconArrowsExchange size={16} />}>
-            Hareketler
-          </Tabs.Tab>
-          <Tabs.Tab value="cek-senet" leftSection={<IconReceipt size={16} />}>
+          <Tabs.Tab value="cek-senet" leftSection={<IconReceipt size={18} />} fw={500}>
             Çek/Senet
+          </Tabs.Tab>
+          <Tabs.Tab value="proje-karlilik" leftSection={<IconChartBar size={18} />} fw={500}>
+            Proje Analiz
           </Tabs.Tab>
         </Tabs.List>
 
-        {/* ÖZET TAB */}
+        {/* ==================== ÖZET TAB ==================== */}
         <Tabs.Panel value="ozet">
-          <Grid>
-            {/* Sol Kolon - Dikkat Gerektiren */}
-            <Grid.Col span={{ base: 12, md: 6 }}>
-              <Paper p="lg" radius="md" withBorder>
-                <Title order={4} mb="md">⚠️ Dikkat Gerektiren</Title>
-                
-                {(ozet?.vadesi_gecmis_adet || 0) > 0 && (
-                  <Alert color="red" mb="sm" icon={<IconExclamationCircle />}>
-                    <Group justify="space-between">
-                      <div>
-                        <Text fw={500}>Vadesi Geçmiş Çek/Senet</Text>
-                        <Text size="sm" c="dimmed">
-                          {ozet?.vadesi_gecmis_adet} adet - {formatMoney(ozet?.vadesi_gecmis_toplam || 0)}
-                        </Text>
-                      </div>
-                      <Button size="xs" variant="light" color="red" onClick={() => setActiveTab('cek-senet')}>
-                        Detay
-                      </Button>
-                    </Group>
-                  </Alert>
-                )}
-
-                {(ozet?.bu_hafta_vadeli_adet || 0) > 0 && (
-                  <Alert color="yellow" mb="sm" icon={<IconClock />}>
-                    <Group justify="space-between">
-                      <div>
-                        <Text fw={500}>Bu Hafta Vadesi Dolan</Text>
-                        <Text size="sm" c="dimmed">
-                          {ozet?.bu_hafta_vadeli_adet} adet - {formatMoney(ozet?.bu_hafta_vadeli_toplam || 0)}
-                        </Text>
-                      </div>
-                      <Button size="xs" variant="light" color="yellow" onClick={() => setActiveTab('cek-senet')}>
-                        Detay
-                      </Button>
-                    </Group>
-                  </Alert>
-                )}
-
-                {(ozet?.vadesi_gecmis_adet || 0) === 0 && (ozet?.bu_hafta_vadeli_adet || 0) === 0 && (
-                  <Alert color="green" icon={<IconCheck />}>
-                    Tüm çek ve senetler güncel! Vadesi geçmiş veya yaklaşan ödeme yok.
-                  </Alert>
-                )}
-              </Paper>
-
-              {/* Çek/Senet Özeti */}
-              <Paper p="lg" radius="md" withBorder mt="md">
-                <Title order={4} mb="md">📝 Çek/Senet Durumu</Title>
-                <SimpleGrid cols={2}>
-                  <Card withBorder p="sm">
-                    <Text size="xs" c="dimmed">Alınan Çekler</Text>
-                    <Text fw={700} size="lg" c="teal">{formatMoney(ozet?.alinan_cek_toplam || 0)}</Text>
-                    <Text size="xs" c="dimmed">{ozet?.alinan_cek_adet || 0} adet beklemede</Text>
-                  </Card>
-                  <Card withBorder p="sm">
-                    <Text size="xs" c="dimmed">Verilen Çekler</Text>
-                    <Text fw={700} size="lg" c="red">{formatMoney(ozet?.verilen_cek_toplam || 0)}</Text>
-                    <Text size="xs" c="dimmed">{ozet?.verilen_cek_adet || 0} adet beklemede</Text>
-                  </Card>
-                  <Card withBorder p="sm">
-                    <Text size="xs" c="dimmed">Alınan Senetler</Text>
-                    <Text fw={700} size="lg" c="teal">{formatMoney(ozet?.alinan_senet_toplam || 0)}</Text>
-                    <Text size="xs" c="dimmed">{ozet?.alinan_senet_adet || 0} adet beklemede</Text>
-                  </Card>
-                  <Card withBorder p="sm">
-                    <Text size="xs" c="dimmed">Verilen Senetler</Text>
-                    <Text fw={700} size="lg" c="red">{formatMoney(ozet?.verilen_senet_toplam || 0)}</Text>
-                    <Text size="xs" c="dimmed">{ozet?.verilen_senet_adet || 0} adet beklemede</Text>
-                  </Card>
-                </SimpleGrid>
-              </Paper>
-            </Grid.Col>
-
-            {/* Sağ Kolon - Son İşlemler */}
-            <Grid.Col span={{ base: 12, md: 6 }}>
-              <Paper p="lg" radius="md" withBorder>
-                <Group justify="space-between" mb="md">
-                  <Title order={4}>📋 Son İşlemler</Title>
-                  <Button size="xs" variant="light" onClick={() => setActiveTab('hareketler')}>
-                    Tümünü Gör
-                  </Button>
+          <Stack gap="lg">
+            {/* Ana Metrikler */}
+            <SimpleGrid cols={{ base: 2, sm: 4 }}>
+              {/* Kasa */}
+              <Paper
+                p="lg"
+                radius="lg"
+                style={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                }}
+              >
+                <Group justify="space-between" mb="xs">
+                  <Text size="sm" fw={500} opacity={0.9}>💵 Kasa</Text>
+                  <ThemeIcon size={36} radius="xl" variant="white" color="violet">
+                    <IconCash size={20} />
+                  </ThemeIcon>
                 </Group>
+                <Text fw={700} size="xl">{formatMoney(kasaBakiye)}</Text>
+                <Text size="xs" opacity={0.8}>{hesaplar.filter(h => h.tip === 'kasa').length} hesap</Text>
+              </Paper>
 
-                <Stack gap="xs">
-                  {hareketler.slice(0, 8).map((hareket) => (
-                    <Paper key={hareket.id} p="sm" withBorder radius="sm">
-                      <Group justify="space-between">
-                        <Group gap="sm">
-                          <ThemeIcon
-                            size="sm"
-                            radius="xl"
-                            color={
-                              hareket.hareket_tipi === 'giris' ? 'green' :
-                              hareket.hareket_tipi === 'cikis' ? 'red' : 'blue'
-                            }
-                            variant="light"
-                          >
-                            {hareket.hareket_tipi === 'giris' ? <IconArrowUpRight size={14} /> :
-                             hareket.hareket_tipi === 'cikis' ? <IconArrowDownRight size={14} /> :
-                             <IconArrowsExchange size={14} />}
-                          </ThemeIcon>
-                          <div>
-                            <Text size="sm" fw={500} lineClamp={1}>
-                              {hareket.aciklama || (
-                                hareket.hareket_tipi === 'transfer' 
-                                  ? `Transfer → ${hareket.karsi_hesap?.hesap_adi}`
-                                  : hareket.hareket_tipi === 'giris' ? 'Giriş' : 'Çıkış'
-                              )}
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                              {hareket.hesap?.hesap_adi} • {formatDate(hareket.tarih)}
-                            </Text>
-                          </div>
-                        </Group>
-                        <Text 
-                          fw={600} 
-                          c={hareket.hareket_tipi === 'giris' ? 'green' : hareket.hareket_tipi === 'cikis' ? 'red' : 'blue'}
-                        >
-                          {hareket.hareket_tipi === 'giris' ? '+' : hareket.hareket_tipi === 'cikis' ? '-' : ''}
-                          {formatMoney(hareket.tutar)}
-                        </Text>
+              {/* Banka */}
+              <Paper
+                p="lg"
+                radius="lg"
+                style={{
+                  background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+                  color: 'white',
+                }}
+              >
+                <Group justify="space-between" mb="xs">
+                  <Text size="sm" fw={500} opacity={0.9}>🏦 Banka</Text>
+                  <ThemeIcon size={36} radius="xl" variant="white" color="teal">
+                    <IconBuildingBank size={20} />
+                  </ThemeIcon>
+                </Group>
+                <Text fw={700} size="xl">{formatMoney(bankaBakiye)}</Text>
+                <Text size="xs" opacity={0.8}>{hesaplar.filter(h => h.tip === 'banka').length} hesap</Text>
+              </Paper>
+
+              {/* Kredi Kartı Borcu */}
+              <Paper
+                p="lg"
+                radius="lg"
+                style={{
+                  background: 'linear-gradient(135deg, #eb3349 0%, #f45c43 100%)',
+                  color: 'white',
+                }}
+              >
+                <Group justify="space-between" mb="xs">
+                  <Text size="sm" fw={500} opacity={0.9}>💳 KK Borç</Text>
+                  <ThemeIcon size={36} radius="xl" variant="white" color="red">
+                    <IconCreditCard size={20} />
+                  </ThemeIcon>
+                </Group>
+                <Text fw={700} size="xl">{formatMoney(kkBorcToplam)}</Text>
+                <Text size="xs" opacity={0.8}>{hesaplar.filter(h => h.tip === 'kredi_karti').length} kart</Text>
+              </Paper>
+
+              {/* Toplam Varlık */}
+              <Paper
+                p="lg"
+                radius="lg"
+                style={{
+                  background: toplamVarlik >= 0 
+                    ? 'linear-gradient(135deg, #0093E9 0%, #80D0C7 100%)'
+                    : 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)',
+                  color: 'white',
+                }}
+              >
+                <Group justify="space-between" mb="xs">
+                  <Text size="sm" fw={500} opacity={0.9}>💰 Net Varlık</Text>
+                  <ThemeIcon size={36} radius="xl" variant="white" color={toplamVarlik >= 0 ? 'cyan' : 'red'}>
+                    <IconReportMoney size={20} />
+                  </ThemeIcon>
+                </Group>
+                <Text fw={700} size="xl">{formatMoney(toplamVarlik)}</Text>
+                <Text size="xs" opacity={0.8}>Kasa + Banka - KK</Text>
+              </Paper>
+            </SimpleGrid>
+
+            {/* İkinci Satır */}
+            <Grid>
+              {/* Bekleyen İşlemler */}
+              <Grid.Col span={{ base: 12, md: 4 }}>
+                <Paper withBorder p="lg" radius="lg" h="100%">
+                  <Group justify="space-between" mb="md">
+                    <Text fw={600} size="sm">⏳ Bekleyen İşlemler</Text>
+                    <Badge variant="light" color="orange">{bekleyenCekler.length + bekleyenSenetler.length}</Badge>
+                  </Group>
+                  <Stack gap="sm">
+                    <Group justify="space-between" p="sm" style={{ background: 'var(--mantine-color-blue-0)', borderRadius: 8 }}>
+                      <Group gap="xs">
+                        <Text size="sm">📄</Text>
+                        <Text size="sm">Bekleyen Çekler</Text>
                       </Group>
+                      <div style={{ textAlign: 'right' }}>
+                        <Text size="sm" fw={600}>{bekleyenCekler.length} adet</Text>
+                        <Text size="xs" c="dimmed">{formatMoney(bekleyenCekler.reduce((s, c) => s + c.tutar, 0))}</Text>
+                      </div>
+                    </Group>
+                    <Group justify="space-between" p="sm" style={{ background: 'var(--mantine-color-grape-0)', borderRadius: 8 }}>
+                      <Group gap="xs">
+                        <Text size="sm">📋</Text>
+                        <Text size="sm">Bekleyen Senetler</Text>
+                      </Group>
+                      <div style={{ textAlign: 'right' }}>
+                        <Text size="sm" fw={600}>{bekleyenSenetler.length} adet</Text>
+                        <Text size="xs" c="dimmed">{formatMoney(bekleyenSenetler.reduce((s, c) => s + c.tutar, 0))}</Text>
+                      </div>
+                    </Group>
+                    <Divider my="xs" />
+                    <Group justify="space-between">
+                      <Text size="sm" c="teal.7">📥 Alacak</Text>
+                      <Text size="sm" fw={600} c="teal.7">+{formatMoney(bekleyenAlacak)}</Text>
+                    </Group>
+                    <Group justify="space-between">
+                      <Text size="sm" c="red.7">📤 Borç</Text>
+                      <Text size="sm" fw={600} c="red.7">-{formatMoney(bekleyenBorc)}</Text>
+                    </Group>
+                  </Stack>
+                </Paper>
+              </Grid.Col>
+
+              {/* Son Hareketler */}
+              <Grid.Col span={{ base: 12, md: 8 }}>
+                <Paper withBorder p="lg" radius="lg" h="100%">
+                  <Group justify="space-between" mb="md">
+                    <Text fw={600} size="sm">📊 Son Hareketler</Text>
+                    <Button variant="subtle" size="xs" rightSection={<IconChevronRight size={14} />} onClick={() => setActiveTab('hesaplar')}>
+                      Tümünü Gör
+                    </Button>
+                  </Group>
+                  <Table striped highlightOnHover>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Tarih</Table.Th>
+                        <Table.Th>Hesap</Table.Th>
+                        <Table.Th>Açıklama</Table.Th>
+                        <Table.Th ta="right">Tutar</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {hareketler.slice(0, 5).map((h) => (
+                        <Table.Tr key={h.id}>
+                          <Table.Td>
+                            <Text size="sm">{formatDate(h.tarih)}</Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge variant="light" size="sm">
+                              {h.hesap_adi || 'Hesap'}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="sm" lineClamp={1}>{h.aciklama || '-'}</Text>
+                          </Table.Td>
+                          <Table.Td ta="right">
+                            <Text fw={600} c={h.tip === 'gelir' ? 'teal' : 'red'}>
+                              {h.tip === 'gelir' ? '+' : '-'}{formatMoney(h.tutar)}
+                            </Text>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                      {hareketler.length === 0 && (
+                        <Table.Tr>
+                          <Table.Td colSpan={4} ta="center" c="dimmed" py="lg">
+                            Henüz hareket yok
+                          </Table.Td>
+                        </Table.Tr>
+                      )}
+                    </Table.Tbody>
+                  </Table>
+                </Paper>
+              </Grid.Col>
+            </Grid>
+
+            {/* Proje Analiz Özeti */}
+            <Paper withBorder p="lg" radius="lg">
+              <Group justify="space-between" mb="md">
+                <Text fw={600} size="sm">📊 Proje Analiz Özeti</Text>
+                <Button variant="subtle" size="xs" rightSection={<IconChevronRight size={14} />} onClick={() => setActiveTab('proje-karlilik')}>
+                  Detaylı Görünüm
+                </Button>
+              </Group>
+              {projeler.length > 0 ? (
+                <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
+                  {projeler.slice(0, 6).map((proje) => (
+                    <Paper key={proje.id} withBorder p="md" radius="md" bg="gray.0">
+                      <Group justify="space-between" mb="xs">
+                        <Text size="sm" fw={500} lineClamp={1}>{proje.ad}</Text>
+                        <IconChevronRight size={14} color="gray" />
+                      </Group>
+                      <Text size="xs" c="dimmed">Detay için tıklayın</Text>
                     </Paper>
                   ))}
-                  {hareketler.length === 0 && (
-                    <Text c="dimmed" ta="center" py="xl">Henüz hareket yok</Text>
-                  )}
-                </Stack>
-              </Paper>
-            </Grid.Col>
-          </Grid>
+                </SimpleGrid>
+              ) : (
+                <Center py="xl">
+                  <Text c="dimmed">Aktif proje bulunamadı</Text>
+                </Center>
+              )}
+            </Paper>
+          </Stack>
         </Tabs.Panel>
 
-        {/* HESAPLAR TAB */}
+        {/* ==================== HESAPLAR TAB ==================== */}
         <Tabs.Panel value="hesaplar">
-          <Group justify="space-between" mb="md">
-            <div />
-            <Group>
-              <Button
-                leftSection={<IconArrowsExchange size={18} />}
-                variant="light"
-                onClick={() => setTransferModalOpen(true)}
-              >
-                Transfer
-              </Button>
-              <Button
-                leftSection={<IconPlus size={18} />}
-                onClick={() => {
-                  resetHesapForm();
-                  setHesapModalOpen(true);
-                }}
-              >
-                Yeni Hesap
+          <Stack gap="lg">
+            {/* Üst Bar */}
+            <Group justify="space-between">
+              <Group>
+                <Button leftSection={<IconPlus size={18} />} onClick={() => setHesapModalOpen(true)}>
+                  Hesap Ekle
+                </Button>
+                <Button variant="light" leftSection={<IconArrowsExchange size={18} />}>
+                  Transfer
+                </Button>
+              </Group>
+              <Button variant="light" leftSection={<IconPlus size={18} />} color="green" onClick={() => setHareketModalOpen(true)}>
+                Hareket Ekle
               </Button>
             </Group>
-          </Group>
 
-          {/* Kasalar */}
-          <Title order={4} mb="md">💵 Kasalar</Title>
-          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} mb="xl">
-            {kasalar.map((kasa) => (
-              <Card key={kasa.id} withBorder shadow="sm" radius="md">
-                <Group justify="space-between" mb="sm">
-                  <Group gap="sm">
-                    <ThemeIcon size="lg" variant="light" color="green">
-                      <IconCash size={20} />
-                    </ThemeIcon>
-                    <Text fw={600}>{kasa.hesap_adi}</Text>
+            {/* Hesap Listeleri */}
+            <Grid>
+              {/* Kasalar */}
+              <Grid.Col span={{ base: 12, md: 4 }}>
+                <Paper withBorder p="md" radius="lg">
+                  <Group justify="space-between" mb="md">
+                    <Group gap="xs">
+                      <ThemeIcon size={28} radius="md" variant="light" color="violet">
+                        <IconCash size={16} />
+                      </ThemeIcon>
+                      <Text fw={600}>Kasalar</Text>
+                    </Group>
+                    <Text fw={700} c="violet">{formatMoney(kasaBakiye)}</Text>
                   </Group>
-                  <Menu shadow="md" width={160}>
-                    <Menu.Target>
-                      <ActionIcon variant="subtle" color="gray">
-                        <IconDotsVertical size={18} />
-                      </ActionIcon>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                      <Menu.Item 
-                        leftSection={<IconArrowUpRight size={16} />}
-                        onClick={() => {
-                          setHareketForm({ ...hareketForm, hesap_id: String(kasa.id) });
-                          setHareketTipi('giris');
-                          setHareketModalOpen(true);
-                        }}
-                      >
-                        Giriş
-                      </Menu.Item>
-                      <Menu.Item 
-                        leftSection={<IconArrowDownRight size={16} />}
-                        onClick={() => {
-                          setHareketForm({ ...hareketForm, hesap_id: String(kasa.id) });
-                          setHareketTipi('cikis');
-                          setHareketModalOpen(true);
-                        }}
-                      >
-                        Çıkış
-                      </Menu.Item>
-                      <Menu.Divider />
-                      <Menu.Item 
-                        leftSection={<IconEdit size={16} />}
-                        onClick={() => handleEditHesap(kasa)}
-                      >
-                        Düzenle
-                      </Menu.Item>
-                    </Menu.Dropdown>
-                  </Menu>
-                </Group>
-                <Text size="2rem" fw={700} c={kasa.bakiye >= 0 ? 'green' : 'red'}>
-                  {formatMoney(kasa.bakiye)}
-                </Text>
-              </Card>
-            ))}
-            {kasalar.length === 0 && (
-              <Paper p="xl" withBorder>
-                <Text c="dimmed" ta="center">Henüz kasa eklenmemiş</Text>
-              </Paper>
-            )}
-          </SimpleGrid>
-
-          {/* Bankalar */}
-          <Title order={4} mb="md">🏦 Banka Hesapları</Title>
-          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
-            {bankalar.map((banka) => (
-              <Card key={banka.id} withBorder shadow="sm" radius="md">
-                <Group justify="space-between" mb="sm">
-                  <Group gap="sm">
-                    <ThemeIcon size="lg" variant="light" color="cyan">
-                      <IconBuildingBank size={20} />
-                    </ThemeIcon>
-                    <div>
-                      <Text fw={600}>{banka.hesap_adi}</Text>
-                      {banka.banka_adi && (
-                        <Text size="xs" c="dimmed">{banka.banka_adi}</Text>
-                      )}
-                    </div>
-                  </Group>
-                  <Menu shadow="md" width={160}>
-                    <Menu.Target>
-                      <ActionIcon variant="subtle" color="gray">
-                        <IconDotsVertical size={18} />
-                      </ActionIcon>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                      <Menu.Item 
-                        leftSection={<IconArrowUpRight size={16} />}
-                        onClick={() => {
-                          setHareketForm({ ...hareketForm, hesap_id: String(banka.id) });
-                          setHareketTipi('giris');
-                          setHareketModalOpen(true);
-                        }}
-                      >
-                        Giriş
-                      </Menu.Item>
-                      <Menu.Item 
-                        leftSection={<IconArrowDownRight size={16} />}
-                        onClick={() => {
-                          setHareketForm({ ...hareketForm, hesap_id: String(banka.id) });
-                          setHareketTipi('cikis');
-                          setHareketModalOpen(true);
-                        }}
-                      >
-                        Çıkış
-                      </Menu.Item>
-                      <Menu.Divider />
-                      <Menu.Item 
-                        leftSection={<IconEdit size={16} />}
-                        onClick={() => handleEditHesap(banka)}
-                      >
-                        Düzenle
-                      </Menu.Item>
-                    </Menu.Dropdown>
-                  </Menu>
-                </Group>
-                <Text size="2rem" fw={700} c={banka.bakiye >= 0 ? 'cyan' : 'red'}>
-                  {formatMoney(banka.bakiye)}
-                </Text>
-                {banka.iban && (
-                  <Text size="xs" c="dimmed" mt="xs">{banka.iban}</Text>
-                )}
-              </Card>
-            ))}
-            {bankalar.length === 0 && (
-              <Paper p="xl" withBorder>
-                <Text c="dimmed" ta="center">Henüz banka hesabı eklenmemiş</Text>
-              </Paper>
-            )}
-          </SimpleGrid>
-        </Tabs.Panel>
-
-        {/* HAREKETLER TAB */}
-        <Tabs.Panel value="hareketler">
-          <Group justify="space-between" mb="md">
-            <div />
-            <Group>
-              <Button
-                leftSection={<IconArrowUpRight size={18} />}
-                color="green"
-                variant="light"
-                onClick={() => {
-                  setHareketTipi('giris');
-                  resetHareketForm();
-                  setHareketModalOpen(true);
-                }}
-              >
-                Giriş
-              </Button>
-              <Button
-                leftSection={<IconArrowDownRight size={18} />}
-                color="red"
-                variant="light"
-                onClick={() => {
-                  setHareketTipi('cikis');
-                  resetHareketForm();
-                  setHareketModalOpen(true);
-                }}
-              >
-                Çıkış
-              </Button>
-              <Button
-                leftSection={<IconArrowsExchange size={18} />}
-                onClick={() => setTransferModalOpen(true)}
-              >
-                Transfer
-              </Button>
-            </Group>
-          </Group>
-
-          <Paper withBorder radius="md">
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Tarih</Table.Th>
-                  <Table.Th>Tip</Table.Th>
-                  <Table.Th>Hesap</Table.Th>
-                  <Table.Th>Açıklama</Table.Th>
-                  <Table.Th ta="right">Tutar</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {hareketler.map((hareket) => (
-                  <Table.Tr key={hareket.id}>
-                    <Table.Td>
-                      <Text size="sm">{formatDate(hareket.tarih)}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Badge
-                        color={
-                          hareket.hareket_tipi === 'giris' ? 'green' :
-                          hareket.hareket_tipi === 'cikis' ? 'red' : 'blue'
-                        }
-                        variant="light"
-                        leftSection={
-                          hareket.hareket_tipi === 'giris' ? <IconArrowUpRight size={12} /> :
-                          hareket.hareket_tipi === 'cikis' ? <IconArrowDownRight size={12} /> :
-                          <IconArrowsExchange size={12} />
-                        }
-                      >
-                        {hareket.hareket_tipi === 'giris' ? 'Giriş' :
-                         hareket.hareket_tipi === 'cikis' ? 'Çıkış' : 'Transfer'}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm">{hareket.hesap?.hesap_adi || '-'}</Text>
-                      {hareket.karsi_hesap && (
-                        <Text size="xs" c="dimmed">→ {hareket.karsi_hesap.hesap_adi}</Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm" lineClamp={1}>{hareket.aciklama || '-'}</Text>
-                      {hareket.cari && (
-                        <Text size="xs" c="dimmed">{hareket.cari.unvan}</Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td ta="right">
-                      <Text
-                        fw={600}
-                        c={hareket.hareket_tipi === 'giris' ? 'green' : hareket.hareket_tipi === 'cikis' ? 'red' : 'blue'}
-                      >
-                        {hareket.hareket_tipi === 'giris' ? '+' : hareket.hareket_tipi === 'cikis' ? '-' : ''}
-                        {formatMoney(hareket.tutar)}
-                      </Text>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-            {hareketler.length === 0 && (
-              <Text c="dimmed" ta="center" py="xl">Henüz hareket yok</Text>
-            )}
-          </Paper>
-        </Tabs.Panel>
-
-        {/* ÇEK/SENET TAB */}
-        <Tabs.Panel value="cek-senet">
-          <Group justify="space-between" mb="md">
-            <Group>
-              <Select
-                placeholder="Tip"
-                data={[
-                  { value: '', label: 'Tümü' },
-                  { value: 'cek', label: 'Çek' },
-                  { value: 'senet', label: 'Senet' }
-                ]}
-                value={cekSenetFiltre.tip}
-                onChange={(v) => setCekSenetFiltre({ ...cekSenetFiltre, tip: v || '' })}
-                w={120}
-              />
-              <Select
-                placeholder="Yönü"
-                data={[
-                  { value: '', label: 'Tümü' },
-                  { value: 'alinan', label: 'Alınan' },
-                  { value: 'verilen', label: 'Verilen' }
-                ]}
-                value={cekSenetFiltre.yonu}
-                onChange={(v) => setCekSenetFiltre({ ...cekSenetFiltre, yonu: v || '' })}
-                w={120}
-              />
-              <Select
-                placeholder="Durum"
-                data={[
-                  { value: '', label: 'Tümü' },
-                  { value: 'beklemede', label: 'Beklemede' },
-                  { value: 'tahsil_edildi', label: 'Tahsil Edildi' },
-                  { value: 'odendi', label: 'Ödendi' },
-                  { value: 'ciro_edildi', label: 'Ciro Edildi' },
-                  { value: 'iade_edildi', label: 'İade Edildi' }
-                ]}
-                value={cekSenetFiltre.durum}
-                onChange={(v) => setCekSenetFiltre({ ...cekSenetFiltre, durum: v || '' })}
-                w={140}
-              />
-            </Group>
-            <Group>
-              <Button
-                leftSection={<IconPlus size={18} />}
-                onClick={() => {
-                  resetCekSenetForm();
-                  setCekSenetModalOpen(true);
-                }}
-              >
-                Yeni Çek/Senet
-              </Button>
-            </Group>
-          </Group>
-
-          <Paper withBorder radius="md">
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Belge No</Table.Th>
-                  <Table.Th>Tip</Table.Th>
-                  <Table.Th>Yönü</Table.Th>
-                  <Table.Th>Kişi/Firma</Table.Th>
-                  <Table.Th>Vade Tarihi</Table.Th>
-                  <Table.Th ta="right">Tutar</Table.Th>
-                  <Table.Th>Durum</Table.Th>
-                  <Table.Th ta="center">İşlem</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {filteredCekSenetler.map((cs) => {
-                  const vadeGecmis = new Date(cs.vade_tarihi) < new Date();
-                  const vadeBuHafta = new Date(cs.vade_tarihi) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-                  
-                  return (
-                    <Table.Tr key={cs.id}>
-                      <Table.Td>
-                        <Text size="sm" fw={500}>{cs.belge_no}</Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Badge color={cs.tip === 'cek' ? 'blue' : 'violet'} variant="light">
-                          {cs.tip === 'cek' ? 'Çek' : 'Senet'}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td>
-                        <Badge color={cs.yonu === 'alinan' ? 'teal' : 'orange'} variant="light">
-                          {cs.yonu === 'alinan' ? 'Alınan' : 'Verilen'}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm">{cs.cari?.unvan || cs.kesen_unvan}</Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Group gap="xs">
-                          <Text size="sm" c={vadeGecmis && cs.durum === 'beklemede' ? 'red' : undefined}>
-                            {formatDate(cs.vade_tarihi)}
-                          </Text>
-                          {cs.durum === 'beklemede' && vadeGecmis && (
-                            <Badge color="red" size="xs">Gecikmiş</Badge>
-                          )}
-                          {cs.durum === 'beklemede' && !vadeGecmis && vadeBuHafta && (
-                            <Badge color="yellow" size="xs">Bu hafta</Badge>
-                          )}
+                  <Stack gap="xs">
+                    {hesaplar.filter(h => h.tip === 'kasa').map((hesap) => (
+                      <Paper key={hesap.id} withBorder p="sm" radius="md" bg="gray.0">
+                        <Group justify="space-between">
+                          <Text size="sm">{hesap.ad}</Text>
+                          <Text size="sm" fw={600}>{formatMoney(hesap.bakiye)}</Text>
                         </Group>
-                      </Table.Td>
+                      </Paper>
+                    ))}
+                    {hesaplar.filter(h => h.tip === 'kasa').length === 0 && (
+                      <Text size="sm" c="dimmed" ta="center" py="md">Kasa hesabı yok</Text>
+                    )}
+                  </Stack>
+                </Paper>
+              </Grid.Col>
+
+              {/* Bankalar */}
+              <Grid.Col span={{ base: 12, md: 4 }}>
+                <Paper withBorder p="md" radius="lg">
+                  <Group justify="space-between" mb="md">
+                    <Group gap="xs">
+                      <ThemeIcon size={28} radius="md" variant="light" color="teal">
+                        <IconBuildingBank size={16} />
+                      </ThemeIcon>
+                      <Text fw={600}>Bankalar</Text>
+                    </Group>
+                    <Text fw={700} c="teal">{formatMoney(bankaBakiye)}</Text>
+                  </Group>
+                  <Stack gap="xs">
+                    {hesaplar.filter(h => h.tip === 'banka').map((hesap) => (
+                      <Paper key={hesap.id} withBorder p="sm" radius="md" bg="gray.0">
+                        <Group justify="space-between">
+                          <div>
+                            <Text size="sm" fw={500}>{hesap.ad}</Text>
+                            {hesap.banka_adi && <Text size="xs" c="dimmed">{hesap.banka_adi}</Text>}
+                          </div>
+                          <Text size="sm" fw={600}>{formatMoney(hesap.bakiye)}</Text>
+                        </Group>
+                      </Paper>
+                    ))}
+                    {hesaplar.filter(h => h.tip === 'banka').length === 0 && (
+                      <Text size="sm" c="dimmed" ta="center" py="md">Banka hesabı yok</Text>
+                    )}
+                  </Stack>
+                </Paper>
+              </Grid.Col>
+
+              {/* Kredi Kartları */}
+              <Grid.Col span={{ base: 12, md: 4 }}>
+                <Paper withBorder p="md" radius="lg">
+                  <Group justify="space-between" mb="md">
+                    <Group gap="xs">
+                      <ThemeIcon size={28} radius="md" variant="light" color="red">
+                        <IconCreditCard size={16} />
+                      </ThemeIcon>
+                      <Text fw={600}>Kredi Kartları</Text>
+                    </Group>
+                    <Text fw={700} c="red">{formatMoney(kkBorcToplam)}</Text>
+                  </Group>
+                  <Stack gap="xs">
+                    {hesaplar.filter(h => h.tip === 'kredi_karti').map((hesap) => (
+                      <Paper key={hesap.id} withBorder p="sm" radius="md" bg="gray.0">
+                        <Group justify="space-between" mb="xs">
+                          <Text size="sm" fw={500}>{hesap.ad}</Text>
+                          <Text size="sm" fw={600} c="red">{formatMoney(Math.abs(hesap.bakiye))}</Text>
+                        </Group>
+                        {hesap.limit && (
+                          <div>
+                            <Group justify="space-between" mb={4}>
+                              <Text size="xs" c="dimmed">Limit: {formatMoney(hesap.limit)}</Text>
+                              <Text size="xs" c="dimmed">{Math.round((Math.abs(hesap.bakiye) / hesap.limit) * 100)}%</Text>
+                            </Group>
+                            <Progress value={(Math.abs(hesap.bakiye) / hesap.limit) * 100} color="red" size="sm" />
+                          </div>
+                        )}
+                      </Paper>
+                    ))}
+                    {hesaplar.filter(h => h.tip === 'kredi_karti').length === 0 && (
+                      <Text size="sm" c="dimmed" ta="center" py="md">Kredi kartı yok</Text>
+                    )}
+                  </Stack>
+                </Paper>
+              </Grid.Col>
+            </Grid>
+
+            {/* Son Hareketler */}
+            <Paper withBorder p="lg" radius="lg">
+              <Text fw={600} mb="md">📋 Tüm Hareketler</Text>
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Tarih</Table.Th>
+                    <Table.Th>Hesap</Table.Th>
+                    <Table.Th>Kategori</Table.Th>
+                    <Table.Th>Açıklama</Table.Th>
+                    <Table.Th>Cari</Table.Th>
+                    <Table.Th ta="right">Tutar</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {hareketler.map((h) => (
+                    <Table.Tr key={h.id}>
+                      <Table.Td>{formatDate(h.tarih)}</Table.Td>
+                      <Table.Td><Badge variant="light" size="sm">{h.hesap_adi}</Badge></Table.Td>
+                      <Table.Td><Text size="sm">{h.kategori || '-'}</Text></Table.Td>
+                      <Table.Td><Text size="sm" lineClamp={1}>{h.aciklama || '-'}</Text></Table.Td>
+                      <Table.Td><Text size="sm">{h.cari_adi || '-'}</Text></Table.Td>
                       <Table.Td ta="right">
-                        <Text fw={600} c={cs.yonu === 'alinan' ? 'teal' : 'orange'}>
-                          {formatMoney(cs.tutar)}
+                        <Text fw={600} c={h.tip === 'gelir' ? 'teal' : 'red'}>
+                          {h.tip === 'gelir' ? '+' : '-'}{formatMoney(h.tutar)}
                         </Text>
                       </Table.Td>
+                    </Table.Tr>
+                  ))}
+                  {hareketler.length === 0 && (
+                    <Table.Tr>
+                      <Table.Td colSpan={6} ta="center" py="xl" c="dimmed">
+                        Henüz hareket yok
+                      </Table.Td>
+                    </Table.Tr>
+                  )}
+                </Table.Tbody>
+              </Table>
+            </Paper>
+          </Stack>
+        </Tabs.Panel>
+
+        {/* ==================== ÇEK/SENET TAB ==================== */}
+        <Tabs.Panel value="cek-senet">
+          <Stack gap="lg">
+            <Group justify="space-between">
+              <Group>
+                <Button leftSection={<IconPlus size={18} />} onClick={() => setCekSenetModalOpen(true)}>
+                  Çek/Senet Ekle
+                </Button>
+              </Group>
+              <Group>
+                <Badge size="lg" variant="light" color="blue">
+                  Bekleyen: {formatMoney(bekleyenAlacak + bekleyenBorc)}
+                </Badge>
+              </Group>
+            </Group>
+
+            {/* Özet Kartlar */}
+            <SimpleGrid cols={{ base: 2, sm: 4 }}>
+              <Paper withBorder p="md" radius="lg" style={{ borderLeft: '4px solid var(--mantine-color-teal-6)' }}>
+                <Text size="xs" c="dimmed">Alacak Çekler</Text>
+                <Text fw={700} size="lg" c="teal">{formatMoney(cekSenetler.filter(c => c.tip === 'cek' && c.yon === 'alacak' && c.durum === 'beklemede').reduce((s, c) => s + c.tutar, 0))}</Text>
+              </Paper>
+              <Paper withBorder p="md" radius="lg" style={{ borderLeft: '4px solid var(--mantine-color-red-6)' }}>
+                <Text size="xs" c="dimmed">Borç Çekler</Text>
+                <Text fw={700} size="lg" c="red">{formatMoney(cekSenetler.filter(c => c.tip === 'cek' && c.yon === 'borc' && c.durum === 'beklemede').reduce((s, c) => s + c.tutar, 0))}</Text>
+              </Paper>
+              <Paper withBorder p="md" radius="lg" style={{ borderLeft: '4px solid var(--mantine-color-grape-6)' }}>
+                <Text size="xs" c="dimmed">Alacak Senetler</Text>
+                <Text fw={700} size="lg" c="grape">{formatMoney(cekSenetler.filter(c => c.tip === 'senet' && c.yon === 'alacak' && c.durum === 'beklemede').reduce((s, c) => s + c.tutar, 0))}</Text>
+              </Paper>
+              <Paper withBorder p="md" radius="lg" style={{ borderLeft: '4px solid var(--mantine-color-orange-6)' }}>
+                <Text size="xs" c="dimmed">Borç Senetler</Text>
+                <Text fw={700} size="lg" c="orange">{formatMoney(cekSenetler.filter(c => c.tip === 'senet' && c.yon === 'borc' && c.durum === 'beklemede').reduce((s, c) => s + c.tutar, 0))}</Text>
+              </Paper>
+            </SimpleGrid>
+
+            {/* Çek/Senet Listesi */}
+            <Paper withBorder p="lg" radius="lg">
+              <Text fw={600} mb="md">📋 Çek/Senet Listesi</Text>
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Tip</Table.Th>
+                    <Table.Th>Yön</Table.Th>
+                    <Table.Th>Cari</Table.Th>
+                    <Table.Th>Vade</Table.Th>
+                    <Table.Th ta="right">Tutar</Table.Th>
+                    <Table.Th ta="center">Durum</Table.Th>
+                    <Table.Th ta="center">İşlem</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {cekSenetler.map((cs) => (
+                    <Table.Tr key={cs.id}>
                       <Table.Td>
-                        <Badge
+                        <Badge color={cs.tip === 'cek' ? 'blue' : 'grape'} variant="light">
+                          {cs.tip === 'cek' ? '📄 Çek' : '📋 Senet'}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge color={cs.yon === 'alacak' ? 'teal' : 'red'} variant="outline" size="sm">
+                          {cs.yon === 'alacak' ? '📥 Alacak' : '📤 Borç'}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td><Text size="sm">{cs.cari_adi || '-'}</Text></Table.Td>
+                      <Table.Td><Text size="sm">{formatDate(cs.vade_tarihi)}</Text></Table.Td>
+                      <Table.Td ta="right">
+                        <Text fw={600}>{formatMoney(cs.tutar)}</Text>
+                      </Table.Td>
+                      <Table.Td ta="center">
+                        <Badge 
                           color={
-                            cs.durum === 'beklemede' ? 'gray' :
+                            cs.durum === 'beklemede' ? 'orange' :
                             cs.durum === 'tahsil_edildi' || cs.durum === 'odendi' ? 'green' :
-                            cs.durum === 'ciro_edildi' ? 'blue' : 'red'
+                            'red'
                           }
                           variant="light"
                         >
-                          {cs.durum === 'beklemede' ? 'Beklemede' :
-                           cs.durum === 'tahsil_edildi' ? 'Tahsil Edildi' :
-                           cs.durum === 'odendi' ? 'Ödendi' :
-                           cs.durum === 'ciro_edildi' ? 'Ciro Edildi' : 'İade'}
+                          {cs.durum === 'beklemede' ? '⏳ Bekliyor' :
+                           cs.durum === 'tahsil_edildi' ? '✅ Tahsil' :
+                           cs.durum === 'odendi' ? '✅ Ödendi' :
+                           cs.durum === 'iade' ? '↩️ İade' : '❌ Protesto'}
                         </Badge>
                       </Table.Td>
                       <Table.Td ta="center">
-                        {cs.durum === 'beklemede' && (
-                          <Button
-                            size="xs"
-                            variant="light"
-                            color={cs.yonu === 'alinan' ? 'green' : 'orange'}
-                            onClick={() => {
-                              setSelectedCekSenet(cs);
-                              setTahsilModalOpen(true);
-                            }}
-                          >
-                            {cs.yonu === 'alinan' ? 'Tahsil Et' : 'Öde'}
-                          </Button>
-                        )}
+                        <Menu shadow="md" width={150}>
+                          <Menu.Target>
+                            <ActionIcon variant="subtle" color="gray">
+                              <IconDots size={16} />
+                            </ActionIcon>
+                          </Menu.Target>
+                          <Menu.Dropdown>
+                            <Menu.Item leftSection={<IconCheck size={14} />}>Tahsil Et</Menu.Item>
+                            <Menu.Item leftSection={<IconArrowsExchange size={14} />}>Ciro Et</Menu.Item>
+                            <Menu.Item leftSection={<IconAlertCircle size={14} />} color="red">İade/Protesto</Menu.Item>
+                          </Menu.Dropdown>
+                        </Menu>
                       </Table.Td>
                     </Table.Tr>
-                  );
-                })}
-              </Table.Tbody>
-            </Table>
-            {filteredCekSenetler.length === 0 && (
-              <Text c="dimmed" ta="center" py="xl">Kayıt bulunamadı</Text>
+                  ))}
+                  {cekSenetler.length === 0 && (
+                    <Table.Tr>
+                      <Table.Td colSpan={7} ta="center" py="xl" c="dimmed">
+                        Henüz çek/senet yok
+                      </Table.Td>
+                    </Table.Tr>
+                  )}
+                </Table.Tbody>
+              </Table>
+            </Paper>
+          </Stack>
+        </Tabs.Panel>
+
+        {/* ==================== PROJE KARLILIK TAB ==================== */}
+        <Tabs.Panel value="proje-karlilik">
+          <Stack gap="lg">
+            {/* Filtre Bar */}
+            <Paper withBorder p="md" radius="lg" bg="gray.0">
+              <Group justify="space-between">
+                <Group>
+                  <Select
+                    placeholder="Proje Seç"
+                    data={projeler.map(p => ({ value: String(p.id), label: p.ad }))}
+                    value={selectedProje ? String(selectedProje) : null}
+                    onChange={(v) => setSelectedProje(v ? parseInt(v) : null)}
+                    w={250}
+                    leftSection={<IconBuilding size={16} />}
+                  />
+                  <Select
+                    data={Array.from({ length: 5 }, (_, i) => ({
+                      value: String(new Date().getFullYear() - 2 + i),
+                      label: String(new Date().getFullYear() - 2 + i)
+                    }))}
+                    value={String(projeYil)}
+                    onChange={(v) => setProjeYil(parseInt(v || String(new Date().getFullYear())))}
+                    w={100}
+                  />
+                  <Select
+                    data={[
+                      { value: '1', label: 'Ocak' }, { value: '2', label: 'Şubat' },
+                      { value: '3', label: 'Mart' }, { value: '4', label: 'Nisan' },
+                      { value: '5', label: 'Mayıs' }, { value: '6', label: 'Haziran' },
+                      { value: '7', label: 'Temmuz' }, { value: '8', label: 'Ağustos' },
+                      { value: '9', label: 'Eylül' }, { value: '10', label: 'Ekim' },
+                      { value: '11', label: 'Kasım' }, { value: '12', label: 'Aralık' }
+                    ]}
+                    value={String(projeAy)}
+                    onChange={(v) => setProjeAy(parseInt(v || '1'))}
+                    w={130}
+                  />
+                </Group>
+                <Button
+                  leftSection={<IconPlus size={16} />}
+                  variant="light"
+                  disabled={!selectedProje}
+                  onClick={() => setProjeHareketModalOpen(true)}
+                >
+                  Gelir/Gider Ekle
+                </Button>
+              </Group>
+            </Paper>
+
+            {selectedProje ? (
+              <>
+                {/* Özet Kartlar */}
+                <SimpleGrid cols={{ base: 1, sm: 3 }}>
+                  <Paper
+                    p="lg"
+                    radius="lg"
+                    style={{
+                      background: 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)',
+                      color: 'white',
+                    }}
+                  >
+                    <Group justify="space-between" mb="xs">
+                      <Text size="sm" fw={500} opacity={0.9}>📉 Toplam Gider</Text>
+                      <IconTrendingDown size={24} opacity={0.7} />
+                    </Group>
+                    <Text fw={700} size="xl">{formatMoney(projeGider)}</Text>
+                  </Paper>
+
+                  <Paper
+                    p="lg"
+                    radius="lg"
+                    style={{
+                      background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+                      color: 'white',
+                    }}
+                  >
+                    <Group justify="space-between" mb="xs">
+                      <Text size="sm" fw={500} opacity={0.9}>📈 Toplam Gelir</Text>
+                      <IconTrendingUp size={24} opacity={0.7} />
+                    </Group>
+                    <Text fw={700} size="xl">{formatMoney(projeGelir)}</Text>
+                  </Paper>
+
+                  <Paper
+                    p="lg"
+                    radius="lg"
+                    style={{
+                      background: projeNet >= 0
+                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                        : 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                      color: 'white',
+                    }}
+                  >
+                    <Group justify="space-between" mb="xs">
+                      <Text size="sm" fw={500} opacity={0.9}>💰 Net Kar/Zarar</Text>
+                      <IconReportMoney size={24} opacity={0.7} />
+                    </Group>
+                    <Text fw={700} size="xl">{projeNet >= 0 ? '+' : ''}{formatMoney(projeNet)}</Text>
+                  </Paper>
+                </SimpleGrid>
+
+                {/* Kategori Detay */}
+                <Grid>
+                  <Grid.Col span={{ base: 12, md: 6 }}>
+                    <Paper withBorder p="lg" radius="lg">
+                      <Text fw={600} mb="md" c="red.7">📉 Gider Kalemleri</Text>
+                      <Stack gap="xs">
+                        {/* Personel Giderleri */}
+                        <Paper 
+                          withBorder p="md" radius="md" bg="red.0"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setKategoriDetayModal({ open: true, kategori: 'personel', baslik: '👥 Personel Giderleri Detayı' })}
+                        >
+                          <Group justify="space-between">
+                            <Group gap="xs">
+                              <Text>👥</Text>
+                              <div>
+                                <Text size="sm" fw={500}>Personel Giderleri</Text>
+                                <Badge size="xs" color="green" variant="light">OTOMATİK</Badge>
+                              </div>
+                            </Group>
+                            <Group gap="xs">
+                              <Text fw={600} c="red.7">
+                                {formatMoney(projeHareketler.filter(h => 
+                                  h.tip === 'gider' && 
+                                  ['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori)
+                                ).reduce((s, h) => s + h.tutar, 0))}
+                              </Text>
+                              <IconChevronRight size={16} color="gray" />
+                            </Group>
+                          </Group>
+                        </Paper>
+                        {/* Diğer Giderler */}
+                        <Paper 
+                          withBorder p="md" radius="md" bg="gray.0"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setKategoriDetayModal({ open: true, kategori: 'diger_gider', baslik: '📦 Diğer Giderler Detayı' })}
+                        >
+                          <Group justify="space-between">
+                            <Group gap="xs">
+                              <Text>📦</Text>
+                              <Text size="sm" fw={500}>Diğer Giderler</Text>
+                            </Group>
+                            <Group gap="xs">
+                              <Text fw={600} c="red.7">
+                                {formatMoney(projeHareketler.filter(h => 
+                                  h.tip === 'gider' && 
+                                  !['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori)
+                                ).reduce((s, h) => s + h.tutar, 0))}
+                              </Text>
+                              <IconChevronRight size={16} color="gray" />
+                            </Group>
+                          </Group>
+                        </Paper>
+                      </Stack>
+                    </Paper>
+                  </Grid.Col>
+
+                  <Grid.Col span={{ base: 12, md: 6 }}>
+                    <Paper withBorder p="lg" radius="lg">
+                      <Text fw={600} mb="md" c="teal.7">📈 Gelir Kalemleri</Text>
+                      <Stack gap="xs">
+                        {/* Hakediş */}
+                        <Paper 
+                          withBorder p="md" radius="md" bg="teal.0"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setKategoriDetayModal({ open: true, kategori: 'hakedis', baslik: '💰 Hakediş Detayı' })}
+                        >
+                          <Group justify="space-between">
+                            <Group gap="xs">
+                              <Text>💰</Text>
+                              <Text size="sm" fw={500}>Hakediş</Text>
+                            </Group>
+                            <Group gap="xs">
+                              <Text fw={600} c="teal.7">
+                                +{formatMoney(projeHareketler.filter(h => h.kategori === 'hakedis').reduce((s, h) => s + h.tutar, 0))}
+                              </Text>
+                              <IconChevronRight size={16} color="gray" />
+                            </Group>
+                          </Group>
+                        </Paper>
+                        {/* Diğer Gelirler */}
+                        <Paper 
+                          withBorder p="md" radius="md" bg="gray.0"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setKategoriDetayModal({ open: true, kategori: 'diger_gelir', baslik: '📦 Diğer Gelirler Detayı' })}
+                        >
+                          <Group justify="space-between">
+                            <Group gap="xs">
+                              <Text>📦</Text>
+                              <Text size="sm" fw={500}>Diğer Gelirler</Text>
+                            </Group>
+                            <Group gap="xs">
+                              <Text fw={600} c="teal.7">
+                                +{formatMoney(projeHareketler.filter(h => h.tip === 'gelir' && h.kategori !== 'hakedis').reduce((s, h) => s + h.tutar, 0))}
+                              </Text>
+                              <IconChevronRight size={16} color="gray" />
+                            </Group>
+                          </Group>
+                        </Paper>
+                      </Stack>
+                    </Paper>
+                  </Grid.Col>
+                </Grid>
+
+                {/* Hareket Listesi */}
+                <Paper withBorder p="lg" radius="lg">
+                  <Text fw={600} mb="md">📋 Hareket Listesi</Text>
+                  <Table striped highlightOnHover>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Tarih</Table.Th>
+                        <Table.Th>Kategori</Table.Th>
+                        <Table.Th>Açıklama</Table.Th>
+                        <Table.Th ta="right">Tutar</Table.Th>
+                        <Table.Th ta="center">Kaynak</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {projeHareketler.map((h) => (
+                        <Table.Tr key={h.id}>
+                          <Table.Td>{formatDate(h.tarih)}</Table.Td>
+                          <Table.Td>
+                            <Badge color={h.tip === 'gelir' ? 'teal' : 'red'} variant="light" size="sm">
+                              {h.kategori === 'hakedis' ? '💰 Hakediş' :
+                               h.kategori === 'personel_maas' ? '💵 Maaş' :
+                               h.kategori === 'personel_sgk' ? '🏛️ SGK' :
+                               h.kategori === 'personel_vergi' ? '📋 Vergi' :
+                               `📦 ${h.kategori}`}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td><Text size="sm" lineClamp={1}>{h.aciklama || '-'}</Text></Table.Td>
+                          <Table.Td ta="right">
+                            <Text fw={600} c={h.tip === 'gelir' ? 'teal' : 'red'}>
+                              {h.tip === 'gelir' ? '+' : '-'}{formatMoney(h.tutar)}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td ta="center">
+                            <Badge variant="dot" color={h.referans_tip === 'bordro' ? 'green' : 'blue'} size="sm">
+                              {h.referans_tip === 'bordro' ? 'Personel' : 'Manuel'}
+                            </Badge>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                      {projeHareketler.length === 0 && (
+                        <Table.Tr>
+                          <Table.Td colSpan={5} ta="center" py="xl">
+                            <Stack align="center" gap="xs">
+                              <ThemeIcon size={40} variant="light" color="gray" radius="xl">
+                                <IconReportMoney size={20} />
+                              </ThemeIcon>
+                              <Text c="dimmed">Bu dönemde hareket yok</Text>
+                            </Stack>
+                          </Table.Td>
+                        </Table.Tr>
+                      )}
+                    </Table.Tbody>
+                  </Table>
+                </Paper>
+              </>
+            ) : (
+              <Paper withBorder p="xl" radius="lg">
+                <Center py="xl">
+                  <Stack align="center" gap="md">
+                    <ThemeIcon size={60} variant="light" color="grape" radius="xl">
+                      <IconBuilding size={30} />
+                    </ThemeIcon>
+                    <Text fw={600} size="lg">Proje Seçin</Text>
+                    <Text c="dimmed" ta="center">Analiz için yukarıdan bir proje seçin</Text>
+                  </Stack>
+                </Center>
+              </Paper>
             )}
-          </Paper>
+          </Stack>
         </Tabs.Panel>
       </Tabs>
 
-      {/* MODALS */}
+      {/* ==================== MODALS ==================== */}
 
-      {/* Hesap Modal */}
+      {/* Hesap Ekleme Modal */}
       <Modal
         opened={hesapModalOpen}
-        onClose={() => { setHesapModalOpen(false); resetHesapForm(); }}
-        title={selectedHesap ? 'Hesap Düzenle' : 'Yeni Hesap Ekle'}
+        onClose={() => setHesapModalOpen(false)}
+        title={<Text fw={600}>💼 Yeni Hesap Ekle</Text>}
         size="md"
       >
         <Stack>
           <Select
             label="Hesap Tipi"
-            required
             data={[
               { value: 'kasa', label: '💵 Kasa' },
-              { value: 'banka', label: '🏦 Banka' }
+              { value: 'banka', label: '🏦 Banka' },
+              { value: 'kredi_karti', label: '💳 Kredi Kartı' },
             ]}
-            value={hesapForm.hesap_tipi}
-            onChange={(v) => setHesapForm({ ...hesapForm, hesap_tipi: v as 'kasa' | 'banka' })}
+            value={hesapForm.tip}
+            onChange={(v) => setHesapForm({ ...hesapForm, tip: v as any })}
           />
           <TextInput
             label="Hesap Adı"
-            required
-            placeholder="Örn: Ana Kasa, Ziraat İşletme"
-            value={hesapForm.hesap_adi}
-            onChange={(e) => setHesapForm({ ...hesapForm, hesap_adi: e.target.value })}
+            placeholder="örn: Ana Kasa, İş Bankası"
+            value={hesapForm.ad}
+            onChange={(e) => setHesapForm({ ...hesapForm, ad: e.target.value })}
           />
-          {hesapForm.hesap_tipi === 'banka' && (
+          {hesapForm.tip !== 'kasa' && (
+            <TextInput
+              label="Banka Adı"
+              placeholder="örn: İş Bankası"
+              value={hesapForm.banka_adi}
+              onChange={(e) => setHesapForm({ ...hesapForm, banka_adi: e.target.value })}
+            />
+          )}
+          {hesapForm.tip === 'banka' && (
+            <TextInput
+              label="IBAN"
+              placeholder="TR..."
+              value={hesapForm.iban}
+              onChange={(e) => setHesapForm({ ...hesapForm, iban: e.target.value })}
+            />
+          )}
+          {hesapForm.tip === 'kredi_karti' && (
             <>
-              <TextInput
-                label="Banka Adı"
-                placeholder="Örn: Ziraat Bankası"
-                value={hesapForm.banka_adi}
-                onChange={(e) => setHesapForm({ ...hesapForm, banka_adi: e.target.value })}
+              <NumberInput
+                label="Limit"
+                placeholder="50000"
+                value={hesapForm.limit}
+                onChange={(v) => setHesapForm({ ...hesapForm, limit: Number(v) || 0 })}
+                thousandSeparator="."
+                decimalSeparator=","
               />
-              <Grid>
-                <Grid.Col span={6}>
-                  <TextInput
-                    label="Şube"
-                    placeholder="Şube adı"
-                    value={hesapForm.sube}
-                    onChange={(e) => setHesapForm({ ...hesapForm, sube: e.target.value })}
-                  />
-                </Grid.Col>
-                <Grid.Col span={6}>
-                  <TextInput
-                    label="Hesap No"
-                    placeholder="Hesap numarası"
-                    value={hesapForm.hesap_no}
-                    onChange={(e) => setHesapForm({ ...hesapForm, hesap_no: e.target.value })}
-                  />
-                </Grid.Col>
-              </Grid>
-              <TextInput
-                label="IBAN"
-                placeholder="TR00 0000 0000 0000 0000 0000 00"
-                value={hesapForm.iban}
-                onChange={(e) => setHesapForm({ ...hesapForm, iban: e.target.value })}
-              />
+              <Group grow>
+                <NumberInput
+                  label="Ekstre Kesim Günü"
+                  value={hesapForm.ekstre_kesim}
+                  onChange={(v) => setHesapForm({ ...hesapForm, ekstre_kesim: Number(v) || 1 })}
+                  min={1}
+                  max={31}
+                />
+                <NumberInput
+                  label="Son Ödeme Günü"
+                  value={hesapForm.son_odeme_gun}
+                  onChange={(v) => setHesapForm({ ...hesapForm, son_odeme_gun: Number(v) || 15 })}
+                  min={1}
+                  max={31}
+                />
+              </Group>
             </>
           )}
-          <NumberInput
-            label="Açılış Bakiyesi"
-            placeholder="0"
-            value={hesapForm.bakiye}
-            onChange={(v) => setHesapForm({ ...hesapForm, bakiye: Number(v) || 0 })}
-            thousandSeparator="."
-            decimalSeparator=","
-            prefix="₺ "
-          />
           <Group justify="flex-end" mt="md">
-            <Button variant="light" onClick={() => { setHesapModalOpen(false); resetHesapForm(); }}>
-              İptal
-            </Button>
-            <Button onClick={handleSaveHesap}>
-              {selectedHesap ? 'Güncelle' : 'Kaydet'}
-            </Button>
+            <Button variant="light" onClick={() => setHesapModalOpen(false)}>İptal</Button>
+            <Button onClick={handleSaveHesap}>Kaydet</Button>
           </Group>
         </Stack>
       </Modal>
 
-      {/* Hareket Modal */}
+      {/* Hareket Ekleme Modal */}
       <Modal
         opened={hareketModalOpen}
-        onClose={() => { setHareketModalOpen(false); resetHareketForm(); }}
-        title={hareketTipi === 'giris' ? '↗️ Yeni Giriş' : '↘️ Yeni Çıkış'}
+        onClose={() => setHareketModalOpen(false)}
+        title={<Text fw={600}>💸 Yeni Hareket</Text>}
         size="md"
       >
         <Stack>
           <Select
+            label="İşlem Tipi"
+            data={[
+              { value: 'gelir', label: '📥 Gelir (Tahsilat)' },
+              { value: 'gider', label: '📤 Gider (Ödeme)' },
+            ]}
+            value={hareketForm.tip}
+            onChange={(v) => setHareketForm({ ...hareketForm, tip: v as any })}
+          />
+          <Select
+            label="Ödeme Yöntemi"
+            data={[
+              { value: 'nakit', label: '💵 Nakit (Kasa)' },
+              { value: 'banka', label: '🏦 Banka (Havale/EFT)' },
+              { value: 'kredi_karti', label: '💳 Kredi Kartı' },
+              { value: 'cek', label: '📄 Çek' },
+              { value: 'senet', label: '📋 Senet' },
+            ]}
+            value={hareketForm.odeme_yontemi}
+            onChange={(v) => setHareketForm({ ...hareketForm, odeme_yontemi: v || 'nakit' })}
+          />
+          <Select
             label="Hesap"
-            required
             placeholder="Hesap seçin"
-            data={hesaplar.filter(h => h.aktif).map(h => ({
-              value: String(h.id),
-              label: `${h.hesap_tipi === 'kasa' ? '💵' : '🏦'} ${h.hesap_adi} (${formatMoney(h.bakiye)})`
-            }))}
-            value={hareketForm.hesap_id}
-            onChange={(v) => setHareketForm({ ...hareketForm, hesap_id: v || '' })}
+            data={hesaplar
+              .filter(h => {
+                if (hareketForm.odeme_yontemi === 'nakit') return h.tip === 'kasa';
+                if (hareketForm.odeme_yontemi === 'banka') return h.tip === 'banka';
+                if (hareketForm.odeme_yontemi === 'kredi_karti') return h.tip === 'kredi_karti';
+                return true;
+              })
+              .map(h => ({ value: String(h.id), label: h.ad }))}
+            value={hareketForm.hesap_id ? String(hareketForm.hesap_id) : null}
+            onChange={(v) => setHareketForm({ ...hareketForm, hesap_id: v ? parseInt(v) : 0 })}
           />
           <NumberInput
             label="Tutar"
-            required
             placeholder="0"
             value={hareketForm.tutar}
             onChange={(v) => setHareketForm({ ...hareketForm, tutar: Number(v) || 0 })}
             thousandSeparator="."
             decimalSeparator=","
-            prefix="₺ "
-            min={0}
+            leftSection="₺"
+          />
+          {hareketForm.odeme_yontemi === 'kredi_karti' && (
+            <Select
+              label="Taksit"
+              data={[
+                { value: '1', label: 'Tek Çekim' },
+                { value: '2', label: '2 Taksit' },
+                { value: '3', label: '3 Taksit' },
+                { value: '6', label: '6 Taksit' },
+                { value: '9', label: '9 Taksit' },
+                { value: '12', label: '12 Taksit' },
+              ]}
+              value={String(hareketForm.taksit_sayisi)}
+              onChange={(v) => setHareketForm({ ...hareketForm, taksit_sayisi: parseInt(v || '1') })}
+            />
+          )}
+          <DateInput
+            label="Tarih"
+            value={hareketForm.tarih}
+            onChange={(v) => setHareketForm({ ...hareketForm, tarih: v || new Date() })}
+            locale="tr"
           />
           <Select
             label="Cari (Opsiyonel)"
             placeholder="Cari seçin"
+            data={cariler.map(c => ({ value: String(c.id), label: c.unvan }))}
+            value={hareketForm.cari_id ? String(hareketForm.cari_id) : null}
+            onChange={(v) => setHareketForm({ ...hareketForm, cari_id: v ? parseInt(v) : null })}
             clearable
             searchable
-            data={cariler.map(c => ({
-              value: String(c.id),
-              label: c.unvan
-            }))}
-            value={hareketForm.cari_id}
-            onChange={(v) => setHareketForm({ ...hareketForm, cari_id: v || '' })}
           />
           <Textarea
             label="Açıklama"
-            placeholder="İşlem açıklaması"
+            placeholder="Açıklama girin"
             value={hareketForm.aciklama}
             onChange={(e) => setHareketForm({ ...hareketForm, aciklama: e.target.value })}
           />
-          <Grid>
-            <Grid.Col span={6}>
-              <TextInput
-                label="Belge No"
-                placeholder="Fiş/Makbuz no"
-                value={hareketForm.belge_no}
-                onChange={(e) => setHareketForm({ ...hareketForm, belge_no: e.target.value })}
-              />
-            </Grid.Col>
-            <Grid.Col span={6}>
-              <DateInput
-                label="Tarih"
-                value={hareketForm.tarih}
-                onChange={(v) => setHareketForm({ ...hareketForm, tarih: v || new Date() })}
-                locale="tr"
-              />
-            </Grid.Col>
-          </Grid>
           <Group justify="flex-end" mt="md">
-            <Button variant="light" onClick={() => { setHareketModalOpen(false); resetHareketForm(); }}>
-              İptal
-            </Button>
-            <Button 
-              color={hareketTipi === 'giris' ? 'green' : 'red'}
-              onClick={handleSaveHareket}
-            >
-              {hareketTipi === 'giris' ? 'Girişi Kaydet' : 'Çıkışı Kaydet'}
+            <Button variant="light" onClick={() => setHareketModalOpen(false)}>İptal</Button>
+            <Button color={hareketForm.tip === 'gelir' ? 'teal' : 'red'} onClick={handleSaveHareket}>
+              {hareketForm.tip === 'gelir' ? '📥 Gelir Kaydet' : '📤 Gider Kaydet'}
             </Button>
           </Group>
         </Stack>
       </Modal>
 
-      {/* Transfer Modal */}
+      {/* Proje Hareket Modal */}
       <Modal
-        opened={transferModalOpen}
-        onClose={() => { setTransferModalOpen(false); resetTransferForm(); }}
-        title="🔄 Hesaplar Arası Transfer"
+        opened={projeHareketModalOpen}
+        onClose={() => setProjeHareketModalOpen(false)}
+        title={<Text fw={600}>📊 Proje Gelir/Gider Ekle</Text>}
         size="md"
       >
         <Stack>
           <Select
-            label="Kaynak Hesap"
-            required
-            placeholder="Nereden?"
-            data={hesaplar.filter(h => h.aktif).map(h => ({
-              value: String(h.id),
-              label: `${h.hesap_tipi === 'kasa' ? '💵' : '🏦'} ${h.hesap_adi} (${formatMoney(h.bakiye)})`
-            }))}
-            value={transferForm.kaynak_hesap_id}
-            onChange={(v) => setTransferForm({ ...transferForm, kaynak_hesap_id: v || '' })}
+            label="İşlem Tipi"
+            data={[
+              { value: 'gelir', label: '📈 Gelir' },
+              { value: 'gider', label: '📉 Gider' },
+            ]}
+            value={hareketForm.tip}
+            onChange={(v) => setHareketForm({ ...hareketForm, tip: v as any })}
           />
           <Select
-            label="Hedef Hesap"
-            required
-            placeholder="Nereye?"
-            data={hesaplar.filter(h => h.aktif && String(h.id) !== transferForm.kaynak_hesap_id).map(h => ({
-              value: String(h.id),
-              label: `${h.hesap_tipi === 'kasa' ? '💵' : '🏦'} ${h.hesap_adi} (${formatMoney(h.bakiye)})`
-            }))}
-            value={transferForm.hedef_hesap_id}
-            onChange={(v) => setTransferForm({ ...transferForm, hedef_hesap_id: v || '' })}
+            label="Kategori"
+            data={hareketForm.tip === 'gelir' 
+              ? [
+                  { value: 'hakedis', label: '💰 Hakediş' },
+                  { value: 'diger', label: '📦 Diğer Gelir' },
+                ]
+              : [
+                  { value: 'malzeme', label: '📦 Malzeme' },
+                  { value: 'taseron', label: '👷 Taşeron' },
+                  { value: 'kira', label: '🏠 Kira' },
+                  { value: 'diger', label: '📋 Diğer Gider' },
+                ]
+            }
+            value={hareketForm.kategori}
+            onChange={(v) => setHareketForm({ ...hareketForm, kategori: v || '' })}
           />
           <NumberInput
             label="Tutar"
-            required
-            placeholder="0"
-            value={transferForm.tutar}
-            onChange={(v) => setTransferForm({ ...transferForm, tutar: Number(v) || 0 })}
+            value={hareketForm.tutar}
+            onChange={(v) => setHareketForm({ ...hareketForm, tutar: Number(v) || 0 })}
             thousandSeparator="."
             decimalSeparator=","
-            prefix="₺ "
-            min={0}
-          />
-          <Textarea
-            label="Açıklama"
-            placeholder="Transfer açıklaması"
-            value={transferForm.aciklama}
-            onChange={(e) => setTransferForm({ ...transferForm, aciklama: e.target.value })}
+            leftSection="₺"
           />
           <DateInput
             label="Tarih"
-            value={transferForm.tarih}
-            onChange={(v) => setTransferForm({ ...transferForm, tarih: v || new Date() })}
+            value={hareketForm.tarih}
+            onChange={(v) => setHareketForm({ ...hareketForm, tarih: v || new Date() })}
             locale="tr"
           />
-          <Group justify="flex-end" mt="md">
-            <Button variant="light" onClick={() => { setTransferModalOpen(false); resetTransferForm(); }}>
-              İptal
-            </Button>
-            <Button onClick={handleSaveTransfer}>
-              Transfer Yap
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
-
-      {/* Çek/Senet Modal */}
-      <Modal
-        opened={cekSenetModalOpen}
-        onClose={() => { setCekSenetModalOpen(false); resetCekSenetForm(); }}
-        title="📝 Yeni Çek/Senet Ekle"
-        size="lg"
-      >
-        <Stack>
-          <Grid>
-            <Grid.Col span={6}>
-              <Select
-                label="Tip"
-                required
-                data={[
-                  { value: 'cek', label: '📄 Çek' },
-                  { value: 'senet', label: '📜 Senet' }
-                ]}
-                value={cekSenetForm.tip}
-                onChange={(v) => setCekSenetForm({ ...cekSenetForm, tip: v as 'cek' | 'senet' })}
-              />
-            </Grid.Col>
-            <Grid.Col span={6}>
-              <Select
-                label="Yönü"
-                required
-                data={[
-                  { value: 'alinan', label: '↗️ Alınan' },
-                  { value: 'verilen', label: '↘️ Verilen' }
-                ]}
-                value={cekSenetForm.yonu}
-                onChange={(v) => setCekSenetForm({ ...cekSenetForm, yonu: v as 'alinan' | 'verilen' })}
-              />
-            </Grid.Col>
-          </Grid>
-          <Grid>
-            <Grid.Col span={6}>
-              <TextInput
-                label="Belge No"
-                required
-                placeholder="Çek/Senet numarası"
-                value={cekSenetForm.belge_no}
-                onChange={(e) => setCekSenetForm({ ...cekSenetForm, belge_no: e.target.value })}
-              />
-            </Grid.Col>
-            <Grid.Col span={6}>
-              <NumberInput
-                label="Tutar"
-                required
-                placeholder="0"
-                value={cekSenetForm.tutar}
-                onChange={(v) => setCekSenetForm({ ...cekSenetForm, tutar: Number(v) || 0 })}
-                thousandSeparator="."
-                decimalSeparator=","
-                prefix="₺ "
-                min={0}
-              />
-            </Grid.Col>
-          </Grid>
-          <TextInput
-            label="Kesen/Düzenleyen"
-            required
-            placeholder="Kişi veya firma adı"
-            value={cekSenetForm.kesen_unvan}
-            onChange={(e) => setCekSenetForm({ ...cekSenetForm, kesen_unvan: e.target.value })}
+          <Textarea
+            label="Açıklama"
+            value={hareketForm.aciklama}
+            onChange={(e) => setHareketForm({ ...hareketForm, aciklama: e.target.value })}
           />
-          <Select
-            label="Cari (Opsiyonel)"
-            placeholder="Cari seçin"
-            clearable
-            searchable
-            data={cariler.map(c => ({
-              value: String(c.id),
-              label: c.unvan
-            }))}
-            value={cekSenetForm.cari_id}
-            onChange={(v) => setCekSenetForm({ ...cekSenetForm, cari_id: v || '' })}
-          />
-          <Grid>
-            <Grid.Col span={6}>
-              <DateInput
-                label="Kesim Tarihi"
-                required
-                value={cekSenetForm.kesim_tarihi}
-                onChange={(v) => setCekSenetForm({ ...cekSenetForm, kesim_tarihi: v || new Date() })}
-                locale="tr"
-              />
-            </Grid.Col>
-            <Grid.Col span={6}>
-              <DateInput
-                label="Vade Tarihi"
-                required
-                value={cekSenetForm.vade_tarihi}
-                onChange={(v) => setCekSenetForm({ ...cekSenetForm, vade_tarihi: v || new Date() })}
-                locale="tr"
-              />
-            </Grid.Col>
-          </Grid>
-          {cekSenetForm.tip === 'cek' && (
-            <Grid>
-              <Grid.Col span={6}>
-                <TextInput
-                  label="Banka Adı"
-                  placeholder="Çekin bankası"
-                  value={cekSenetForm.banka_adi}
-                  onChange={(e) => setCekSenetForm({ ...cekSenetForm, banka_adi: e.target.value })}
-                />
-              </Grid.Col>
-              <Grid.Col span={6}>
-                <TextInput
-                  label="Hesap No"
-                  placeholder="Banka hesap no"
-                  value={cekSenetForm.hesap_no}
-                  onChange={(e) => setCekSenetForm({ ...cekSenetForm, hesap_no: e.target.value })}
-                />
-              </Grid.Col>
-            </Grid>
-          )}
           <Group justify="flex-end" mt="md">
-            <Button variant="light" onClick={() => { setCekSenetModalOpen(false); resetCekSenetForm(); }}>
-              İptal
-            </Button>
-            <Button onClick={handleSaveCekSenet}>
+            <Button variant="light" onClick={() => setProjeHareketModalOpen(false)}>İptal</Button>
+            <Button color={hareketForm.tip === 'gelir' ? 'teal' : 'red'} onClick={handleSaveProjeHareket}>
               Kaydet
             </Button>
           </Group>
         </Stack>
       </Modal>
 
-      {/* Tahsil/Ödeme Modal */}
+      {/* Kategori Detay Modal */}
       <Modal
-        opened={tahsilModalOpen}
-        onClose={() => { setTahsilModalOpen(false); setSelectedCekSenet(null); }}
-        title={selectedCekSenet?.yonu === 'alinan' ? '✅ Çek/Senet Tahsilatı' : '✅ Çek/Senet Ödemesi'}
-        size="sm"
+        opened={kategoriDetayModal.open}
+        onClose={() => setKategoriDetayModal({ ...kategoriDetayModal, open: false })}
+        title={<Text fw={600}>{kategoriDetayModal.baslik}</Text>}
+        size="lg"
       >
         <Stack>
-          {selectedCekSenet && (
-            <Paper p="md" withBorder bg="gray.0">
-              <Group justify="space-between">
-                <div>
-                  <Text size="sm" c="dimmed">Belge No</Text>
-                  <Text fw={500}>{selectedCekSenet.belge_no}</Text>
-                </div>
-                <div>
-                  <Text size="sm" c="dimmed">Tutar</Text>
-                  <Text fw={700} size="lg" c={selectedCekSenet.yonu === 'alinan' ? 'teal' : 'orange'}>
-                    {formatMoney(selectedCekSenet.tutar)}
+          {/* Personel Giderleri Detayı */}
+          {kategoriDetayModal.kategori === 'personel' && (
+            <>
+              {/* Özet Kartlar */}
+              <SimpleGrid cols={3}>
+                <Paper withBorder p="md" radius="md" style={{ borderLeft: '4px solid var(--mantine-color-blue-6)' }}>
+                  <Text size="xs" c="dimmed">💵 Net Maaşlar</Text>
+                  <Text fw={700} size="lg" c="blue.7">
+                    {formatMoney(projeHareketler.filter(h => h.kategori === 'personel_maas').reduce((s, h) => s + h.tutar, 0))}
                   </Text>
-                </div>
-              </Group>
-            </Paper>
+                </Paper>
+                <Paper withBorder p="md" radius="md" style={{ borderLeft: '4px solid var(--mantine-color-orange-6)' }}>
+                  <Text size="xs" c="dimmed">🏛️ SGK Primleri</Text>
+                  <Text fw={700} size="lg" c="orange.7">
+                    {formatMoney(projeHareketler.filter(h => h.kategori === 'personel_sgk').reduce((s, h) => s + h.tutar, 0))}
+                  </Text>
+                </Paper>
+                <Paper withBorder p="md" radius="md" style={{ borderLeft: '4px solid var(--mantine-color-red-6)' }}>
+                  <Text size="xs" c="dimmed">📋 Vergiler</Text>
+                  <Text fw={700} size="lg" c="red.7">
+                    {formatMoney(projeHareketler.filter(h => h.kategori === 'personel_vergi').reduce((s, h) => s + h.tutar, 0))}
+                  </Text>
+                </Paper>
+              </SimpleGrid>
+              
+              {/* Toplam */}
+              <Paper withBorder p="md" radius="md" bg="red.0">
+                <Group justify="space-between">
+                  <Text fw={600}>👥 Toplam Personel Gideri</Text>
+                  <Text fw={700} size="xl" c="red.7">
+                    {formatMoney(projeHareketler.filter(h => 
+                      ['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori)
+                    ).reduce((s, h) => s + h.tutar, 0))}
+                  </Text>
+                </Group>
+              </Paper>
+              
+              {/* Liste */}
+              <Paper withBorder radius="md">
+                <Table striped highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Tarih</Table.Th>
+                      <Table.Th>Kategori</Table.Th>
+                      <Table.Th>Açıklama</Table.Th>
+                      <Table.Th ta="right">Tutar</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {projeHareketler
+                      .filter(h => ['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori))
+                      .map((h) => (
+                        <Table.Tr key={h.id}>
+                          <Table.Td>{formatDate(h.tarih)}</Table.Td>
+                          <Table.Td>
+                            <Badge size="sm" color={
+                              h.kategori === 'personel_maas' ? 'blue' :
+                              h.kategori === 'personel_sgk' ? 'orange' : 'red'
+                            } variant="light">
+                              {h.kategori === 'personel_maas' ? '💵 Maaş' :
+                               h.kategori === 'personel_sgk' ? '🏛️ SGK' : '📋 Vergi'}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td><Text size="sm">{h.aciklama || '-'}</Text></Table.Td>
+                          <Table.Td ta="right"><Text fw={600} c="red">{formatMoney(h.tutar)}</Text></Table.Td>
+                        </Table.Tr>
+                      ))}
+                    {projeHareketler.filter(h => ['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori)).length === 0 && (
+                      <Table.Tr>
+                        <Table.Td colSpan={4} ta="center" py="xl" c="dimmed">Bu dönemde personel gideri yok</Table.Td>
+                      </Table.Tr>
+                    )}
+                  </Table.Tbody>
+                </Table>
+              </Paper>
+              
+              <Button variant="light" onClick={() => window.location.href = '/muhasebe/personel'}>
+                Personel Sayfasına Git →
+              </Button>
+            </>
           )}
-          <Select
-            label={selectedCekSenet?.yonu === 'alinan' ? 'Tahsilat Hesabı' : 'Ödeme Hesabı'}
-            required
-            placeholder="Hesap seçin"
-            data={hesaplar.filter(h => h.aktif).map(h => ({
-              value: String(h.id),
-              label: `${h.hesap_tipi === 'kasa' ? '💵' : '🏦'} ${h.hesap_adi}`
-            }))}
-            value={hareketForm.hesap_id}
-            onChange={(v) => setHareketForm({ ...hareketForm, hesap_id: v || '' })}
-          />
-          <Group justify="flex-end" mt="md">
-            <Button variant="light" onClick={() => { setTahsilModalOpen(false); setSelectedCekSenet(null); }}>
-              İptal
-            </Button>
-            <Button 
-              color={selectedCekSenet?.yonu === 'alinan' ? 'green' : 'orange'}
-              onClick={handleTahsil}
-            >
-              {selectedCekSenet?.yonu === 'alinan' ? 'Tahsil Et' : 'Öde'}
-            </Button>
-          </Group>
+
+          {/* Hakediş Detayı */}
+          {kategoriDetayModal.kategori === 'hakedis' && (
+            <>
+              <Paper withBorder p="md" radius="md" bg="teal.0">
+                <Group justify="space-between">
+                  <Text fw={600}>💰 Toplam Hakediş</Text>
+                  <Text fw={700} size="xl" c="teal.7">
+                    +{formatMoney(projeHareketler.filter(h => h.kategori === 'hakedis').reduce((s, h) => s + h.tutar, 0))}
+                  </Text>
+                </Group>
+              </Paper>
+              
+              <Paper withBorder radius="md">
+                <Table striped highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Tarih</Table.Th>
+                      <Table.Th>Açıklama</Table.Th>
+                      <Table.Th ta="right">Tutar</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {projeHareketler
+                      .filter(h => h.kategori === 'hakedis')
+                      .map((h) => (
+                        <Table.Tr key={h.id}>
+                          <Table.Td>{formatDate(h.tarih)}</Table.Td>
+                          <Table.Td><Text size="sm">{h.aciklama || '-'}</Text></Table.Td>
+                          <Table.Td ta="right"><Text fw={600} c="teal">+{formatMoney(h.tutar)}</Text></Table.Td>
+                        </Table.Tr>
+                      ))}
+                    {projeHareketler.filter(h => h.kategori === 'hakedis').length === 0 && (
+                      <Table.Tr>
+                        <Table.Td colSpan={3} ta="center" py="xl" c="dimmed">Bu dönemde hakediş kaydı yok</Table.Td>
+                      </Table.Tr>
+                    )}
+                  </Table.Tbody>
+                </Table>
+              </Paper>
+            </>
+          )}
+
+          {/* Diğer Giderler Detayı */}
+          {kategoriDetayModal.kategori === 'diger_gider' && (
+            <>
+              <Paper withBorder p="md" radius="md" bg="red.0">
+                <Group justify="space-between">
+                  <Text fw={600}>📦 Toplam Diğer Gider</Text>
+                  <Text fw={700} size="xl" c="red.7">
+                    {formatMoney(projeHareketler.filter(h => 
+                      h.tip === 'gider' && !['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori)
+                    ).reduce((s, h) => s + h.tutar, 0))}
+                  </Text>
+                </Group>
+              </Paper>
+              
+              <Paper withBorder radius="md">
+                <Table striped highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Tarih</Table.Th>
+                      <Table.Th>Kategori</Table.Th>
+                      <Table.Th>Açıklama</Table.Th>
+                      <Table.Th ta="right">Tutar</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {projeHareketler
+                      .filter(h => h.tip === 'gider' && !['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori))
+                      .map((h) => (
+                        <Table.Tr key={h.id}>
+                          <Table.Td>{formatDate(h.tarih)}</Table.Td>
+                          <Table.Td><Badge size="sm" variant="light">{h.kategori}</Badge></Table.Td>
+                          <Table.Td><Text size="sm">{h.aciklama || '-'}</Text></Table.Td>
+                          <Table.Td ta="right"><Text fw={600} c="red">{formatMoney(h.tutar)}</Text></Table.Td>
+                        </Table.Tr>
+                      ))}
+                    {projeHareketler.filter(h => h.tip === 'gider' && !['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori)).length === 0 && (
+                      <Table.Tr>
+                        <Table.Td colSpan={4} ta="center" py="xl" c="dimmed">Bu dönemde diğer gider kaydı yok</Table.Td>
+                      </Table.Tr>
+                    )}
+                  </Table.Tbody>
+                </Table>
+              </Paper>
+            </>
+          )}
+
+          {/* Diğer Gelirler Detayı */}
+          {kategoriDetayModal.kategori === 'diger_gelir' && (
+            <>
+              <Paper withBorder p="md" radius="md" bg="teal.0">
+                <Group justify="space-between">
+                  <Text fw={600}>📦 Toplam Diğer Gelir</Text>
+                  <Text fw={700} size="xl" c="teal.7">
+                    +{formatMoney(projeHareketler.filter(h => h.tip === 'gelir' && h.kategori !== 'hakedis').reduce((s, h) => s + h.tutar, 0))}
+                  </Text>
+                </Group>
+              </Paper>
+              
+              <Paper withBorder radius="md">
+                <Table striped highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Tarih</Table.Th>
+                      <Table.Th>Kategori</Table.Th>
+                      <Table.Th>Açıklama</Table.Th>
+                      <Table.Th ta="right">Tutar</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {projeHareketler
+                      .filter(h => h.tip === 'gelir' && h.kategori !== 'hakedis')
+                      .map((h) => (
+                        <Table.Tr key={h.id}>
+                          <Table.Td>{formatDate(h.tarih)}</Table.Td>
+                          <Table.Td><Badge size="sm" variant="light" color="teal">{h.kategori}</Badge></Table.Td>
+                          <Table.Td><Text size="sm">{h.aciklama || '-'}</Text></Table.Td>
+                          <Table.Td ta="right"><Text fw={600} c="teal">+{formatMoney(h.tutar)}</Text></Table.Td>
+                        </Table.Tr>
+                      ))}
+                    {projeHareketler.filter(h => h.tip === 'gelir' && h.kategori !== 'hakedis').length === 0 && (
+                      <Table.Tr>
+                        <Table.Td colSpan={4} ta="center" py="xl" c="dimmed">Bu dönemde diğer gelir kaydı yok</Table.Td>
+                      </Table.Tr>
+                    )}
+                  </Table.Tbody>
+                </Table>
+              </Paper>
+            </>
+          )}
         </Stack>
       </Modal>
     </Container>
   );
 }
-

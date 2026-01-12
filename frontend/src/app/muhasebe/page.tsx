@@ -38,6 +38,8 @@ import {
   IconAlertCircle,
   IconCheck
 } from '@tabler/icons-react';
+import ProjeCard from '@/components/muhasebe/ProjeCard';
+import ProjeYonetimModal from '@/components/muhasebe/ProjeYonetimModal';
 import {
   AreaChart,
   Area,
@@ -95,6 +97,7 @@ const bekleyenFaturalar = [
 export default function MuhasebeDashboard() {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
+  const [projeModalOpen, setProjeModalOpen] = useState(false);
 
   // Para formatı
   const formatMoney = (value: number) => {
@@ -208,6 +211,15 @@ export default function MuhasebeDashboard() {
               </Card>
             ))}
           </SimpleGrid>
+
+          {/* Proje Merkezi Kartı */}
+          <ProjeCard onYonetClick={() => setProjeModalOpen(true)} />
+
+          {/* Proje Yönetim Modal */}
+          <ProjeYonetimModal 
+            opened={projeModalOpen} 
+            onClose={() => setProjeModalOpen(false)} 
+          />
 
           {/* Charts Row */}
           <SimpleGrid cols={{ base: 1, lg: 2 }}>

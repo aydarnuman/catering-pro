@@ -4,9 +4,18 @@ node_modules/
 # Environment
 .env
 .env.local
+.env.*
+
+# Credentials (KRİTİK - asla commit etme!)
+google-credentials.json
+*credentials*.json
+*.pem
+*.key
 
 # Logs
 *.log
+logs/*
+!logs/.gitkeep
 
 # Build
 dist/
@@ -17,9 +26,18 @@ build/
 uploads/*
 !uploads/.gitkeep
 
+# Temp
+temp/*
+!temp/.gitkeep
+
 # OS
 .DS_Store
 
 # IDE
 .vscode/
 .idea/
+
+# Hassas session dosyaları
+backend/storage/session.json
+backend/storage/uyumsoft-session.json
+backend/storage/uyumsoft-session-sync.json

@@ -62,8 +62,10 @@ import {
   IconChevronDown,
   IconClipboardList,
   IconHistory,
-  IconCalendar
+  IconCalendar,
+  IconShoppingCart
 } from '@tabler/icons-react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   BarChart,
   Bar,
@@ -146,6 +148,8 @@ interface Birim {
 const COLORS = ['#4dabf7', '#51cf66', '#ff922b', '#ff6b6b', '#845ef7', '#339af0', '#20c997', '#f06595'];
 
 export default function StokPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
   const [opened, { open, close }] = useDisclosure(false);
@@ -213,6 +217,16 @@ export default function StokPage() {
   const [stokCikisModalOpened, setStokCikisModalOpened] = useState(false);
   const [sayimModalOpened, setSayimModalOpened] = useState(false);
   const [hareketlerModalOpened, setHareketlerModalOpened] = useState(false);
+  
+  // Stok girişi form state
+  const [girisForm, setGirisForm] = useState({
+    stok_kart_id: null as number | null,
+    depo_id: null as number | null,
+    miktar: 0,
+    birim_fiyat: 0,
+    giris_tipi: 'SATIN_ALMA',
+    aciklama: ''
+  });
   
   // Stok çıkışı form state
   const [cikisForm, setCikisForm] = useState({
@@ -805,6 +819,59 @@ export default function StokPage() {
     }
   };
 
+  // Stok girişi yap
+  const handleStokGiris = async () => {
+    if (!girisForm.stok_kart_id || !girisForm.depo_id || girisForm.miktar <= 0) {
+      notifications.show({
+        title: 'Hata',
+        message: 'Lütfen ürün, depo ve miktar seçin',
+        color: 'red'
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/stok/hareketler/giris`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stok_kart_id: girisForm.stok_kart_id,
+          depo_id: girisForm.depo_id,
+          miktar: girisForm.miktar,
+          birim_fiyat: girisForm.birim_fiyat || 0,
+          belge_no: `GRS-${Date.now()}`,
+          belge_tarihi: new Date().toISOString().split('T')[0],
+          aciklama: `${girisForm.giris_tipi}: ${girisForm.aciklama}`
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        notifications.show({
+          title: 'Başarılı',
+          message: 'Stok girişi yapıldı',
+          color: 'green',
+          icon: <IconCheck />
+        });
+        setStokGirisModalOpened(false);
+        setGirisForm({ stok_kart_id: null, depo_id: null, miktar: 0, birim_fiyat: 0, giris_tipi: 'SATIN_ALMA', aciklama: '' });
+        loadData();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (err: any) {
+      notifications.show({
+        title: 'Hata',
+        message: err.message || 'Stok girişi başarısız',
+        color: 'red'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Stok çıkışı yap
   const handleStokCikis = async () => {
     if (!cikisForm.stok_kart_id || !cikisForm.depo_id || cikisForm.miktar <= 0) {
@@ -952,6 +1019,45 @@ export default function StokPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // URL'de fatura parametresi varsa modalı aç ve o faturayı seç
+  useEffect(() => {
+    const faturaParam = searchParams.get('fatura');
+    if (faturaParam && depolar.length > 0) {
+      // Önce faturaları yükle, sonra ilgili faturayı seç
+      const loadAndSelectFatura = async () => {
+        setFaturaLoading(true);
+        try {
+          const response = await fetch(`${API_URL}/stok/faturalar?limit=100`);
+          const result = await response.json();
+          if (result.success) {
+            setFaturalar(result.data);
+            // Gelen faturalardan parametredeki ETTN'i bul
+            const targetFatura = result.data.find((f: any) => f.ettn === faturaParam);
+            if (targetFatura) {
+              setSelectedFatura(targetFatura);
+              setFaturaModalOpened(true);
+              // Fatura kalemlerini yükle
+              loadFaturaKalemler(faturaParam);
+            } else {
+              notifications.show({
+                title: 'Uyarı',
+                message: 'Fatura bulunamadı veya zaten işlenmiş',
+                color: 'yellow'
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Fatura yükleme hatası:', error);
+        } finally {
+          setFaturaLoading(false);
+        }
+      };
+      loadAndSelectFatura();
+      // URL'den parametreyi temizle
+      router.replace('/muhasebe/stok');
+    }
+  }, [searchParams, depolar]);
 
   // Hareketler modalı açıldığında verileri yükle
   useEffect(() => {
@@ -1226,11 +1332,21 @@ export default function StokPage() {
                 {/* Silme butonu */}
                 {Number(depo.urun_sayisi || 0) === 0 && (
                   <ActionIcon
-                    variant="filled"
+                    variant="light"
                     color="red"
-                    size="xs"
-                    radius="xl"
-                    style={{ position: 'absolute', top: -5, right: -5 }}
+                    size="sm"
+                    radius="md"
+                    style={{ 
+                      position: 'absolute', 
+                      top: -8, 
+                      right: -8,
+                      backdropFilter: 'blur(8px)',
+                      backgroundColor: 'rgba(255, 82, 82, 0.15)',
+                      border: '1px solid rgba(255, 82, 82, 0.3)',
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 2px 8px rgba(255, 82, 82, 0.2)'
+                    }}
+                    className="depo-delete-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       if (confirm(`"${depo.ad}" deposunu silmek istediğinizden emin misiniz?`)) {
@@ -1238,7 +1354,7 @@ export default function StokPage() {
                       }
                     }}
                   >
-                    <IconX size={10} />
+                    <IconX size={14} />
                   </ActionIcon>
                 )}
               </Box>
@@ -1386,9 +1502,14 @@ export default function StokPage() {
                           />
                         </Table.Td>
                         <Table.Td>
-                          <Badge variant="light">{item.kod}</Badge>
+                          <Group gap={4}>
+                            <Badge variant="light">{item.kod}</Badge>
+                            {item.kod?.startsWith('FAT-') && (
+                              <Badge size="xs" variant="dot" color="violet">Faturadan</Badge>
+                            )}
+                          </Group>
                         </Table.Td>
-                        <Table.Td fw={500}>{item.ad}</Table.Td>
+                        <Table.Td><Text fw={500}>{item.ad}</Text></Table.Td>
                         <Table.Td>{item.kategori}</Table.Td>
                         <Table.Td>
                           {formatMiktar(item.toplam_stok)} {item.birim}
@@ -1412,6 +1533,17 @@ export default function StokPage() {
                         <Table.Td>{formatMoney(item.toplam_stok * item.son_alis_fiyat)}</Table.Td>
                         <Table.Td>
                           <Group gap="xs">
+                            {(item.durum === 'kritik' || item.durum === 'dusuk') && (
+                              <ActionIcon 
+                                variant="filled" 
+                                color="blue" 
+                                size="sm"
+                                onClick={() => router.push(`/muhasebe/satin-alma?urun=${encodeURIComponent(item.ad)}&miktar=${item.min_stok - item.toplam_stok}`)}
+                                title="Sipariş Ver"
+                              >
+                                <IconShoppingCart size={16} />
+                              </ActionIcon>
+                            )}
                             <ActionIcon 
                               variant="subtle" 
                               color="green" 
@@ -1616,6 +1748,81 @@ export default function StokPage() {
           <Group justify="flex-end">
             <Button variant="light" onClick={closeTransfer}>İptal</Button>
             <Button onClick={handleTransfer} loading={loading}>Transfer Yap</Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Stok Girişi Modal */}
+      <Modal
+        opened={stokGirisModalOpened}
+        onClose={() => setStokGirisModalOpened(false)}
+        title={<Group gap="xs"><IconTrendingUp size={20} color="green" /><Text fw={600}>Stok Girişi</Text></Group>}
+        size="md"
+      >
+        <Stack gap="md">
+          <Select
+            label="Giriş Türü"
+            placeholder="Seçin"
+            data={[
+              { value: 'SATIN_ALMA', label: '🛒 Satın Alma' },
+              { value: 'URETIM', label: '🏭 Üretim' },
+              { value: 'TRANSFER', label: '🔄 Transfer Girişi' },
+              { value: 'SAYIM_FAZLASI', label: '📊 Sayım Fazlası' },
+              { value: 'DIGER', label: '📋 Diğer' }
+            ]}
+            value={girisForm.giris_tipi}
+            onChange={(val) => setGirisForm({ ...girisForm, giris_tipi: val || 'SATIN_ALMA' })}
+          />
+          <Select
+            label="Depo"
+            placeholder="Giriş yapılacak depo"
+            data={depolar.map(d => ({ value: String(d.id), label: d.ad }))}
+            value={girisForm.depo_id ? String(girisForm.depo_id) : null}
+            onChange={(val) => setGirisForm({ ...girisForm, depo_id: val ? parseInt(val) : null })}
+            required
+          />
+          <Select
+            label="Ürün"
+            placeholder="Giriş yapılacak ürün"
+            searchable
+            data={stoklar.map(s => ({ value: String(s.id), label: `${s.kod} - ${s.ad}` }))}
+            value={girisForm.stok_kart_id ? String(girisForm.stok_kart_id) : null}
+            onChange={(val) => setGirisForm({ ...girisForm, stok_kart_id: val ? parseInt(val) : null })}
+            required
+          />
+          <Group grow>
+            <NumberInput
+              label="Miktar"
+              placeholder="Giriş miktarı"
+              value={girisForm.miktar}
+              onChange={(val) => setGirisForm({ ...girisForm, miktar: Number(val) || 0 })}
+              min={0.001}
+              decimalScale={3}
+              required
+            />
+            <NumberInput
+              label="Birim Fiyat"
+              placeholder="₺"
+              value={girisForm.birim_fiyat}
+              onChange={(val) => setGirisForm({ ...girisForm, birim_fiyat: Number(val) || 0 })}
+              min={0}
+              decimalScale={2}
+              prefix="₺"
+              thousandSeparator="."
+              decimalSeparator=","
+            />
+          </Group>
+          <Textarea
+            label="Açıklama"
+            placeholder="Giriş açıklaması..."
+            value={girisForm.aciklama}
+            onChange={(e) => setGirisForm({ ...girisForm, aciklama: e.target.value })}
+          />
+          <Group justify="flex-end">
+            <Button variant="light" onClick={() => setStokGirisModalOpened(false)}>İptal</Button>
+            <Button color="green" onClick={handleStokGiris} loading={loading} leftSection={<IconTrendingUp size={16} />}>
+              Giriş Yap
+            </Button>
           </Group>
         </Stack>
       </Modal>
@@ -2051,7 +2258,9 @@ export default function StokPage() {
                       <Group gap="xs">
                         <Select
                           placeholder="Stok kartı seç"
-                          data={stoklar.map(s => ({ value: s.id.toString(), label: `${s.kod} - ${s.ad}` }))}
+                          data={stoklar
+                            .filter(s => !s.kod?.startsWith('FAT-')) // Faturadan otomatik oluşturulanları hariç tut
+                            .map(s => ({ value: s.id.toString(), label: `${s.kod} - ${s.ad}` }))}
                           value={kalemEslestirme[kalem.sira]?.toString() || null}
                           onChange={(val) => setKalemEslestirme(prev => ({
                             ...prev,

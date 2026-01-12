@@ -633,5 +633,262 @@ router.get('/stats/departman', async (req, res) => {
   }
 });
 
+// =====================================================
+// GÖREVLER - LİSTELE
+// =====================================================
+router.get('/gorevler', async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT * FROM gorevler 
+      WHERE aktif = TRUE 
+      ORDER BY sira ASC, ad ASC
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Görevler listeleme hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =====================================================
+// GÖREVLER - EKLE
+// =====================================================
+router.post('/gorevler', async (req, res) => {
+  try {
+    const { ad, kod, aciklama, renk, ikon, saat_ucreti, gunluk_ucret, sira } = req.body;
+    
+    if (!ad) {
+      return res.status(400).json({ error: 'Görev adı zorunludur' });
+    }
+    
+    const result = await query(`
+      INSERT INTO gorevler (ad, kod, aciklama, renk, ikon, saat_ucreti, gunluk_ucret, sira)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `, [ad, kod, aciklama, renk || '#6366f1', ikon || 'briefcase', saat_ucreti || 0, gunluk_ucret || 0, sira || 0]);
+    
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Görev ekleme hatası:', error);
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'Bu görev adı zaten mevcut' });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =====================================================
+// GÖREVLER - GÜNCELLE
+// =====================================================
+router.put('/gorevler/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ad, kod, aciklama, renk, ikon, saat_ucreti, gunluk_ucret, sira, aktif } = req.body;
+    
+    const result = await query(`
+      UPDATE gorevler SET
+        ad = COALESCE($2, ad),
+        kod = $3,
+        aciklama = $4,
+        renk = COALESCE($5, renk),
+        ikon = COALESCE($6, ikon),
+        saat_ucreti = COALESCE($7, saat_ucreti),
+        gunluk_ucret = COALESCE($8, gunluk_ucret),
+        sira = COALESCE($9, sira),
+        aktif = COALESCE($10, aktif),
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `, [id, ad, kod, aciklama, renk, ikon, saat_ucreti, gunluk_ucret, sira, aktif]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Görev bulunamadı' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Görev güncelleme hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =====================================================
+// GÖREVLER - SİL
+// =====================================================
+router.delete('/gorevler/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Kullanımda mı kontrol et
+    const usage = await query(`
+      SELECT COUNT(*) as count FROM proje_personelleri WHERE gorev_id = $1
+    `, [id]);
+    
+    if (parseInt(usage.rows[0].count) > 0) {
+      // Kullanımdaysa pasife çek
+      await query('UPDATE gorevler SET aktif = FALSE WHERE id = $1', [id]);
+      return res.json({ success: true, message: 'Görev kullanımda olduğu için pasife alındı' });
+    }
+    
+    await query('DELETE FROM gorevler WHERE id = $1', [id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Görev silme hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =====================================================
+// TAZMİNAT - ÇIKIŞ SEBEPLERİ
+// =====================================================
+import { 
+  CIKIS_SEBEPLERI, 
+  YASAL_BILGILER,
+  hesaplaTazminat, 
+  kaydetTazminatHesabi, 
+  personelCikisYap,
+  hesaplaTazminatRiski 
+} from '../services/tazminat-service.js';
+
+router.get('/tazminat/sebepler', async (req, res) => {
+  try {
+    res.json(CIKIS_SEBEPLERI);
+  } catch (error) {
+    console.error('Çıkış sebepleri hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =====================================================
+// TAZMİNAT - YASAL BİLGİLER
+// =====================================================
+router.get('/tazminat/yasal-bilgiler', async (req, res) => {
+  try {
+    res.json(YASAL_BILGILER);
+  } catch (error) {
+    console.error('Yasal bilgiler hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =====================================================
+// TAZMİNAT - HESAPLA
+// =====================================================
+router.post('/tazminat/hesapla', async (req, res) => {
+  try {
+    const { personelId, cikisTarihi, cikisSebebi, kalanIzinGun } = req.body;
+    
+    if (!personelId || !cikisTarihi || !cikisSebebi) {
+      return res.status(400).json({ error: 'personelId, cikisTarihi ve cikisSebebi gerekli' });
+    }
+    
+    const hesap = await hesaplaTazminat(personelId, cikisTarihi, cikisSebebi, kalanIzinGun);
+    res.json(hesap);
+  } catch (error) {
+    console.error('Tazminat hesaplama hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =====================================================
+// TAZMİNAT - KAYDET VE İŞTEN ÇIKAR
+// =====================================================
+router.post('/tazminat/kaydet', async (req, res) => {
+  try {
+    const { personelId, cikisTarihi, cikisSebebi, kalanIzinGun, notlar, istenCikar } = req.body;
+    
+    // Önce hesapla
+    const hesap = await hesaplaTazminat(personelId, cikisTarihi, cikisSebebi, kalanIzinGun);
+    
+    // Kaydet
+    const tazminatId = await kaydetTazminatHesabi(hesap, notlar);
+    
+    // İşten çıkar
+    if (istenCikar) {
+      await personelCikisYap(personelId, cikisTarihi, cikisSebebi, tazminatId);
+    }
+    
+    res.json({ 
+      success: true, 
+      tazminatId,
+      hesap 
+    });
+  } catch (error) {
+    console.error('Tazminat kaydetme hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =====================================================
+// TAZMİNAT - RİSK ANALİZİ
+// =====================================================
+router.get('/tazminat/risk', async (req, res) => {
+  try {
+    const { projeId } = req.query;
+    const risk = await hesaplaTazminatRiski(projeId ? parseInt(projeId) : null);
+    res.json(risk);
+  } catch (error) {
+    console.error('Tazminat risk hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =====================================================
+// TAZMİNAT - GEÇMİŞ HESAPLAR
+// =====================================================
+router.get('/tazminat/gecmis', async (req, res) => {
+  try {
+    const { personelId, limit = 50 } = req.query;
+    
+    let sql = `
+      SELECT 
+        th.*,
+        p.ad || ' ' || p.soyad as personel_adi
+      FROM tazminat_hesaplari th
+      JOIN personeller p ON p.id = th.personel_id
+    `;
+    
+    const params = [];
+    if (personelId) {
+      sql += ` WHERE th.personel_id = $1`;
+      params.push(personelId);
+    }
+    
+    sql += ` ORDER BY th.created_at DESC LIMIT ${parseInt(limit)}`;
+    
+    const result = await query(sql, params);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Tazminat geçmiş hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =====================================================
+// TAZMİNAT - KALAN İZİN GÜNCELLE
+// =====================================================
+router.put('/:id/izin-gun', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { kalanIzinGun } = req.body;
+    
+    const result = await query(`
+      UPDATE personeller 
+      SET kalan_izin_gun = $2, updated_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `, [id, kalanIzinGun]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Personel bulunamadı' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('İzin güncelleme hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
 

@@ -1,0 +1,25 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/.618ac170c378bb374bf5dfaf63fcfd05a0506d0a-audit.json",
+    "files": [
+        {
+            "date": 1768054424745,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-10.log",
+            "hash": "1d8579d4d180f173fa344ebf903a10fd40e08f2102fe84b19f85b0fd304f0c81"
+        },
+        {
+            "date": 1768082844311,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-11.log",
+            "hash": "13582207fd19b9d0315d30ce2f0d23eae40e7d969cc0a4c5017b667e37618899"
+        },
+        {
+            "date": 1768165648735,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-12.log",
+            "hash": "6569c82afcd2861898eeab8ceeca3d96ad870cf31dd955c3acff3607c636333e"
+        }
+    ],
+    "hashType": "sha256"
+}

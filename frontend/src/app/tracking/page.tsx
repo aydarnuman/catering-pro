@@ -20,10 +20,12 @@ import {
   Textarea,
   Select,
   Divider,
-  Progress,
   Alert,
   Tooltip,
-  TextInput
+  TextInput,
+  Tabs,
+  ScrollArea,
+  Table
 } from '@mantine/core';
 import {
   IconBookmark,
@@ -32,7 +34,6 @@ import {
   IconBuilding,
   IconDotsVertical,
   IconTrash,
-  IconEdit,
   IconEye,
   IconNote,
   IconClock,
@@ -43,10 +44,27 @@ import {
   IconFilter,
   IconFileAnalytics,
   IconChevronRight,
-  IconDownload
+  IconDownload,
+  IconSettings,
+  IconClipboardList,
+  IconReceipt
 } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
+import TeklifModal from '@/components/teklif/TeklifModal';
+
+interface AnalysisData {
+  ihale_basligi?: string;
+  kurum?: string;
+  tarih?: string;
+  bedel?: string;
+  sure?: string;
+  teknik_sartlar?: string[];
+  birim_fiyatlar?: any[];
+  notlar?: string[];
+  tam_metin?: string;
+  iletisim?: any;
+}
 
 interface SavedTender {
   id: string;
@@ -61,6 +79,7 @@ interface SavedTender {
   dokuman_sayisi: number;
   teknik_sart_sayisi: number;
   birim_fiyat_sayisi: number;
+  analiz_data?: AnalysisData;
 }
 
 const statusConfig = {
@@ -76,9 +95,10 @@ export default function TrackingPage() {
   const [loading, setLoading] = useState(true);
   const [selectedTender, setSelectedTender] = useState<SavedTender | null>(null);
   const [detailOpened, { open: openDetail, close: closeDetail }] = useDisclosure(false);
-  const [noteOpened, { open: openNote, close: closeNote }] = useDisclosure(false);
+  const [teklifOpened, { open: openTeklif, close: closeTeklif }] = useDisclosure(false);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [userNote, setUserNote] = useState('');
 
   // LocalStorage'dan verileri yükle
   useEffect(() => {
@@ -101,6 +121,9 @@ export default function TrackingPage() {
       t.id === id ? { ...t, status: newStatus } : t
     );
     saveTenders(updated);
+    if (selectedTender?.id === id) {
+      setSelectedTender({ ...selectedTender, status: newStatus });
+    }
     notifications.show({
       title: 'Durum Güncellendi',
       message: `İhale durumu "${statusConfig[newStatus].label}" olarak değiştirildi`,
@@ -114,7 +137,9 @@ export default function TrackingPage() {
       t.id === id ? { ...t, notlar: note } : t
     );
     saveTenders(updated);
-    closeNote();
+    if (selectedTender?.id === id) {
+      setSelectedTender({ ...selectedTender, notlar: note });
+    }
     notifications.show({
       title: 'Not Kaydedildi',
       message: 'İhale notu güncellendi',
@@ -126,11 +151,43 @@ export default function TrackingPage() {
   const deleteTender = (id: string) => {
     const updated = tenders.filter(t => t.id !== id);
     saveTenders(updated);
+    closeDetail();
     notifications.show({
       title: 'İhale Silindi',
       message: 'İhale takip listesinden kaldırıldı',
       color: 'red',
     });
+  };
+
+  // JSON indir
+  const downloadJSON = (tender: SavedTender) => {
+    const exportData = {
+      ihale_bilgileri: {
+        baslik: tender.ihale_basligi,
+        kurum: tender.kurum,
+        tarih: tender.tarih,
+        bedel: tender.bedel,
+        sure: tender.sure,
+        durum: statusConfig[tender.status].label
+      },
+      analiz_data: tender.analiz_data,
+      kullanici_notu: tender.notlar,
+      kayit_tarihi: tender.created_at
+    };
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ihale-${tender.id}.json`;
+    link.click();
+  };
+
+  // Detay modalı açıldığında notu yükle
+  const handleOpenDetail = (tender: SavedTender) => {
+    setSelectedTender(tender);
+    setUserNote(tender.notlar || '');
+    openDetail();
   };
 
   // Filtreleme
@@ -163,6 +220,24 @@ export default function TrackingPage() {
     } catch {
       return null;
     }
+  };
+
+  // Analiz verilerini al
+  const getAnalysisData = (tender: SavedTender): AnalysisData => {
+    if (tender.analiz_data) {
+      return tender.analiz_data;
+    }
+    return {
+      ihale_basligi: tender.ihale_basligi,
+      kurum: tender.kurum,
+      tarih: tender.tarih,
+      bedel: tender.bedel,
+      sure: tender.sure,
+      teknik_sartlar: [],
+      birim_fiyatlar: [],
+      notlar: [],
+      tam_metin: ''
+    };
   };
 
   if (loading) {
@@ -340,20 +415,8 @@ export default function TrackingPage() {
                           </Menu.Item>
                           <Menu.Divider />
                           <Menu.Item 
-                            leftSection={<IconNote size={14} />}
-                            onClick={() => {
-                              setSelectedTender(tender);
-                              openNote();
-                            }}
-                          >
-                            Not Ekle
-                          </Menu.Item>
-                          <Menu.Item 
                             leftSection={<IconEye size={14} />}
-                            onClick={() => {
-                              setSelectedTender(tender);
-                              openDetail();
-                            }}
+                            onClick={() => handleOpenDetail(tender)}
                           >
                             Detayları Gör
                           </Menu.Item>
@@ -435,10 +498,7 @@ export default function TrackingPage() {
                         variant="light" 
                         size="xs"
                         rightSection={<IconChevronRight size={14} />}
-                        onClick={() => {
-                          setSelectedTender(tender);
-                          openDetail();
-                        }}
+                        onClick={() => handleOpenDetail(tender)}
                       >
                         Detay
                       </Button>
@@ -465,101 +525,246 @@ export default function TrackingPage() {
       <Modal 
         opened={detailOpened} 
         onClose={closeDetail} 
-        title={<Text fw={600}>İhale Detayı</Text>}
-        size="lg"
+        title={<Text fw={600} size="lg">📋 İhale Detayı</Text>}
+        size="xl"
+        centered
       >
-        {selectedTender && (
-          <Stack gap="md">
-            <div>
-              <Text size="xs" c="dimmed" tt="uppercase">İhale Başlığı</Text>
-              <Text fw={500}>{selectedTender.ihale_basligi || '-'}</Text>
-            </div>
-            <div>
-              <Text size="xs" c="dimmed" tt="uppercase">Kurum</Text>
-              <Text>{selectedTender.kurum || '-'}</Text>
-            </div>
-            <Group grow>
-              <div>
-                <Text size="xs" c="dimmed" tt="uppercase">Tarih</Text>
-                <Text>{selectedTender.tarih || '-'}</Text>
-              </div>
-              <div>
-                <Text size="xs" c="dimmed" tt="uppercase">Bedel</Text>
-                <Text c="green" fw={600}>{selectedTender.bedel || '-'}</Text>
-              </div>
-            </Group>
-            <Group grow>
-              <div>
-                <Text size="xs" c="dimmed" tt="uppercase">Süre</Text>
-                <Text>{selectedTender.sure || '-'}</Text>
-              </div>
-              <div>
-                <Text size="xs" c="dimmed" tt="uppercase">Durum</Text>
-                <Badge color={statusConfig[selectedTender.status].color}>
-                  {statusConfig[selectedTender.status].label}
-                </Badge>
-              </div>
-            </Group>
-            <Divider />
-            <Group grow>
-              <Paper p="sm" withBorder ta="center">
-                <Text size="xl" fw={700} c="blue">{selectedTender.teknik_sart_sayisi || 0}</Text>
-                <Text size="xs" c="dimmed">Teknik Şart</Text>
-              </Paper>
-              <Paper p="sm" withBorder ta="center">
-                <Text size="xl" fw={700} c="green">{selectedTender.birim_fiyat_sayisi || 0}</Text>
-                <Text size="xs" c="dimmed">Birim Fiyat</Text>
-              </Paper>
-              <Paper p="sm" withBorder ta="center">
-                <Text size="xl" fw={700} c="orange">{selectedTender.dokuman_sayisi || 0}</Text>
-                <Text size="xs" c="dimmed">Döküman</Text>
-              </Paper>
-            </Group>
-            {selectedTender.notlar && (
-              <div>
-                <Text size="xs" c="dimmed" tt="uppercase">Notlar</Text>
-                <Paper p="sm" bg="gray.0" radius="sm">
-                  <Text size="sm">{selectedTender.notlar}</Text>
-                </Paper>
-              </div>
-            )}
-            <Text size="xs" c="dimmed">
-              Kaydedilme: {new Date(selectedTender.created_at).toLocaleDateString('tr-TR')}
-            </Text>
-          </Stack>
-        )}
+        {selectedTender && (() => {
+          const analysisData = getAnalysisData(selectedTender);
+          
+          return (
+            <Stack gap="md">
+              {/* Üst Bar - Durum ve Aksiyonlar */}
+              <Group justify="space-between">
+                <Select
+                  value={selectedTender.status}
+                  onChange={(value) => value && updateStatus(selectedTender.id, value as SavedTender['status'])}
+                  data={[
+                    { value: 'bekliyor', label: '🟡 Bekliyor' },
+                    { value: 'basvuruldu', label: '🔵 Başvuruldu' },
+                    { value: 'kazanildi', label: '🟢 Kazanıldı' },
+                    { value: 'kaybedildi', label: '🔴 Kaybedildi' },
+                    { value: 'iptal', label: '⚫ İptal' },
+                  ]}
+                  w={160}
+                />
+                <Group gap="xs">
+                  <Button 
+                    variant="gradient"
+                    gradient={{ from: 'teal', to: 'cyan' }}
+                    size="xs"
+                    leftSection={<IconReceipt size={14} />}
+                    onClick={() => {
+                      closeDetail();
+                      openTeklif();
+                    }}
+                  >
+                    Teklif Oluştur
+                  </Button>
+                  <Button 
+                    variant="light" 
+                    size="xs"
+                    leftSection={<IconDownload size={14} />}
+                    onClick={() => downloadJSON(selectedTender)}
+                  >
+                    JSON
+                  </Button>
+                  <Button 
+                    variant="light" 
+                    color="red"
+                    size="xs"
+                    leftSection={<IconTrash size={14} />}
+                    onClick={() => deleteTender(selectedTender.id)}
+                  >
+                    Sil
+                  </Button>
+                </Group>
+              </Group>
+
+              {/* Özet Kartları */}
+              <Box p="md" bg="gray.0" style={{ borderRadius: 'var(--mantine-radius-md)' }}>
+                <SimpleGrid cols={{ base: 2, sm: 3, md: 5 }} spacing="md">
+                  <Paper p="sm" withBorder radius="md">
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={600}>İhale Başlığı</Text>
+                    <Text size="sm" fw={500} lineClamp={2}>{selectedTender.ihale_basligi || '-'}</Text>
+                  </Paper>
+                  <Paper p="sm" withBorder radius="md">
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={600}>Kurum</Text>
+                    <Text size="sm" fw={500} lineClamp={2}>{selectedTender.kurum || '-'}</Text>
+                  </Paper>
+                  <Paper p="sm" withBorder radius="md">
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={600}>İhale Tarihi</Text>
+                    <Text size="sm" fw={500}>{selectedTender.tarih || '-'}</Text>
+                  </Paper>
+                  <Paper p="sm" withBorder radius="md" style={{ borderColor: 'var(--mantine-color-green-5)' }}>
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={600}>Tahmini Bedel</Text>
+                    <Text size="sm" fw={700} c="green">{selectedTender.bedel || '-'}</Text>
+                  </Paper>
+                  <Paper p="sm" withBorder radius="md">
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={600}>İş Süresi</Text>
+                    <Text size="sm" fw={500}>{selectedTender.sure || '-'}</Text>
+                  </Paper>
+                </SimpleGrid>
+              </Box>
+
+              {/* Sekmeli İçerik */}
+              <Tabs defaultValue="teknik" variant="outline">
+                <Tabs.List grow>
+                  <Tabs.Tab value="teknik" leftSection={<IconSettings size={16} />}>
+                    Teknik Şartlar ({analysisData.teknik_sartlar?.length || 0})
+                  </Tabs.Tab>
+                  <Tabs.Tab value="fiyat" leftSection={<IconCoin size={16} />}>
+                    Birim Fiyatlar ({analysisData.birim_fiyatlar?.length || 0})
+                  </Tabs.Tab>
+                  <Tabs.Tab value="ainotlar" leftSection={<IconNote size={16} />}>
+                    AI Notları ({analysisData.notlar?.length || 0})
+                  </Tabs.Tab>
+                  <Tabs.Tab value="metin" leftSection={<IconClipboardList size={16} />}>
+                    Tam Metin
+                  </Tabs.Tab>
+                </Tabs.List>
+
+                {/* Teknik Şartlar */}
+                <Tabs.Panel value="teknik" pt="md">
+                  {analysisData.teknik_sartlar && analysisData.teknik_sartlar.length > 0 ? (
+                    <ScrollArea h={250} type="auto" offsetScrollbars>
+                      <Stack gap="xs">
+                        {analysisData.teknik_sartlar.map((sart, i) => (
+                          <Paper key={i} p="sm" withBorder radius="sm" bg="gray.0">
+                            <Group gap="xs" wrap="nowrap">
+                              <Badge size="sm" variant="light" color="blue" circle>{i + 1}</Badge>
+                              <Text size="sm">{sart}</Text>
+                            </Group>
+                          </Paper>
+                        ))}
+                      </Stack>
+                    </ScrollArea>
+                  ) : (
+                    <Text c="dimmed" ta="center" py="xl">Teknik şart bulunamadı</Text>
+                  )}
+                </Tabs.Panel>
+
+                {/* Birim Fiyatlar */}
+                <Tabs.Panel value="fiyat" pt="md">
+                  {analysisData.birim_fiyatlar && analysisData.birim_fiyatlar.length > 0 ? (
+                    <ScrollArea h={250} type="auto" offsetScrollbars>
+                      <Table striped highlightOnHover withTableBorder>
+                        <Table.Thead>
+                          <Table.Tr>
+                            <Table.Th w={50}>#</Table.Th>
+                            <Table.Th>Kalem / Açıklama</Table.Th>
+                            <Table.Th>Birim</Table.Th>
+                            <Table.Th>Miktar</Table.Th>
+                            <Table.Th ta="right">Fiyat</Table.Th>
+                          </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                          {analysisData.birim_fiyatlar.map((item: any, i) => (
+                            <Table.Tr key={i}>
+                              <Table.Td>{i + 1}</Table.Td>
+                              <Table.Td>{item.kalem || item.aciklama || item.urun || '-'}</Table.Td>
+                              <Table.Td>{item.birim || '-'}</Table.Td>
+                              <Table.Td>{item.miktar || '-'}</Table.Td>
+                              <Table.Td ta="right">
+                                <Badge color="green" variant="light">
+                                  {item.fiyat || item.tutar || item.birim_fiyat || '-'}
+                                </Badge>
+                              </Table.Td>
+                            </Table.Tr>
+                          ))}
+                        </Table.Tbody>
+                      </Table>
+                    </ScrollArea>
+                  ) : (
+                    <Text c="dimmed" ta="center" py="xl">Birim fiyat bulunamadı</Text>
+                  )}
+                </Tabs.Panel>
+
+                {/* AI Notları */}
+                <Tabs.Panel value="ainotlar" pt="md">
+                  {analysisData.notlar && analysisData.notlar.length > 0 ? (
+                    <ScrollArea h={250} type="auto" offsetScrollbars>
+                      <Stack gap="xs">
+                        {analysisData.notlar.map((not, i) => (
+                          <Paper key={i} p="sm" withBorder radius="sm">
+                            <Group gap="xs" wrap="nowrap" align="flex-start">
+                              <ThemeIcon size="sm" color="orange" variant="light" mt={2}>
+                                <IconNote size={12} />
+                              </ThemeIcon>
+                              <Text size="sm">{not}</Text>
+                            </Group>
+                          </Paper>
+                        ))}
+                      </Stack>
+                    </ScrollArea>
+                  ) : (
+                    <Text c="dimmed" ta="center" py="xl">AI notu bulunamadı</Text>
+                  )}
+                </Tabs.Panel>
+
+                {/* Tam Metin */}
+                <Tabs.Panel value="metin" pt="md">
+                  {analysisData.tam_metin ? (
+                    <ScrollArea h={250} type="auto" offsetScrollbars>
+                      <Paper p="md" withBorder bg="gray.0">
+                        <Text size="sm" style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+                          {analysisData.tam_metin}
+                        </Text>
+                      </Paper>
+                    </ScrollArea>
+                  ) : (
+                    <Text c="dimmed" ta="center" py="xl">Tam metin bulunamadı</Text>
+                  )}
+                </Tabs.Panel>
+              </Tabs>
+
+              <Divider />
+
+              {/* Kullanıcı Notu */}
+              <Box>
+                <Text size="sm" fw={600} mb="xs">📝 Kendi Notlarım</Text>
+                <Textarea
+                  placeholder="Bu ihale hakkında notlarınız..."
+                  minRows={3}
+                  value={userNote}
+                  onChange={(e) => setUserNote(e.target.value)}
+                />
+                <Group justify="flex-end" mt="sm">
+                  <Button 
+                    size="sm"
+                    onClick={() => updateNote(selectedTender.id, userNote)}
+                    disabled={userNote === selectedTender.notlar}
+                  >
+                    Notu Kaydet
+                  </Button>
+                </Group>
+              </Box>
+
+              {/* Alt Bilgi */}
+              <Text size="xs" c="dimmed" ta="right">
+                Kaydedilme: {new Date(selectedTender.created_at).toLocaleDateString('tr-TR', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </Text>
+            </Stack>
+          );
+        })()}
       </Modal>
 
-      {/* Not Modal */}
-      <Modal 
-        opened={noteOpened} 
-        onClose={closeNote} 
-        title={<Text fw={600}>Not Ekle/Düzenle</Text>}
-      >
-        {selectedTender && (
-          <Stack gap="md">
-            <Textarea
-              label="Not"
-              placeholder="Bu ihale hakkında notlarınız..."
-              minRows={4}
-              defaultValue={selectedTender.notlar}
-              id="tender-note"
-            />
-            <Group justify="flex-end">
-              <Button variant="default" onClick={closeNote}>İptal</Button>
-              <Button 
-                onClick={() => {
-                  const noteEl = document.getElementById('tender-note') as HTMLTextAreaElement;
-                  updateNote(selectedTender.id, noteEl?.value || '');
-                }}
-              >
-                Kaydet
-              </Button>
-            </Group>
-          </Stack>
-        )}
-      </Modal>
+      {/* Teklif Modal */}
+      {selectedTender && (
+        <TeklifModal
+          opened={teklifOpened}
+          onClose={closeTeklif}
+          ihaleBasligi={selectedTender.ihale_basligi || 'İsimsiz İhale'}
+          ihaleBedeli={selectedTender.bedel}
+          birimFiyatlar={selectedTender.analiz_data?.birim_fiyatlar}
+        />
+      )}
     </Box>
   );
 }
-

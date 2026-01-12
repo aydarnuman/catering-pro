@@ -27,6 +27,7 @@ const pathToDepartment: Record<string, string> = {
   '/muhasebe/gelir-gider': 'GELİR_GİDER',
   '/muhasebe/kasa-banka': 'KASA_BANKA',
   '/muhasebe/raporlar': 'RAPOR',
+  '/muhasebe/menu-planlama': 'MENU_PLANLAMA',
   '/tenders': 'İHALE',
   '/upload': 'İHALE',
   '/tracking': 'İHALE',
@@ -42,6 +43,7 @@ const departmentInfo: Record<string, { title: string; color: string; icon: strin
   'GELİR_GİDER': { title: 'Mali Danışman', color: 'cyan', icon: '💰' },
   'KASA_BANKA': { title: 'Finans Asistanı', color: 'indigo', icon: '🏦' },
   'RAPOR': { title: 'Rapor Analisti', color: 'grape', icon: '📊' },
+  'MENU_PLANLAMA': { title: 'Menü & Reçete Asistanı', color: 'orange', icon: '👨‍🍳' },
   'İHALE': { title: 'İhale Analisti', color: 'red', icon: '📋' },
   'TÜM SİSTEM': { title: 'AI Asistan', color: 'violet', icon: '🤖' },
 };

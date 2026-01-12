@@ -1,0 +1,193 @@
+# CATERING PRO - Proje Bağlamı ve Geliştirme Kuralları
+
+## 🎯 Proje Özeti
+Hazır yemek sektörü için kurumsal iş yönetim sistemi (ERP-benzeri). ~10 aktif kullanıcı hedefleniyor.
+
+## 🏗️ Teknoloji Yığını
+
+### Backend
+- **Runtime:** Node.js + Express.js
+- **Database:** PostgreSQL (Supabase hosted)
+- **ORM:** Raw SQL (pg driver)
+- **AI:** Gemini API (döküman analizi) + Claude API (asistan)
+- **Auth:** JWT + bcrypt
+- **Port:** 3001
+
+### Frontend
+- **Framework:** Next.js 14 (App Router)
+- **UI:** Tailwind CSS + custom components
+- **State:** React hooks (useState, useEffect)
+- **Auth:** NextAuth.js
+- **Port:** 3000
+
+### Deployment
+- **Platform:** Railway (hedef)
+- **Storage:** Supabase Storage / local uploads
+
+---
+
+## 📁 Proje Yapısı
+
+```
+CATERİNG/
+├── backend/
+│   └── src/
+│       ├── routes/          # API endpoints (RESTful)
+│       │   ├── auth.js      # Login/register
+│       │   ├── tenders.js   # İhale yönetimi
+│       │   ├── cariler.js   # Cari hesaplar
+│       │   ├── stok.js      # Stok yönetimi
+│       │   ├── personel.js  # Personel/HR
+│       │   ├── bordro.js    # Bordro sistemi
+│       │   ├── invoices.js  # Fatura yönetimi
+│       │   ├── muhasebe/    # Gelir-gider, kasa-banka
+│       │   ├── planlama.js  # Menü planlama
+│       │   └── ai.js        # AI asistan endpoint'leri
+│       ├── services/        # Business logic
+│       │   ├── gemini.js    # Döküman AI analizi
+│       │   ├── claude.js    # Konuşma AI
+│       │   └── *-service.js # Domain servisleri
+│       ├── scraper/         # ihalebul.com scraper
+│       ├── migrations/      # SQL migration dosyaları
+│       ├── database.js      # DB connection pool
+│       └── server.js        # Express app entry
+├── frontend/
+│   └── src/
+│       ├── app/             # Next.js App Router pages
+│       │   ├── tenders/     # İhale modülü
+│       │   ├── muhasebe/    # Muhasebe modülü
+│       │   ├── planlama/    # Üretim planlama
+│       │   ├── ai-chat/     # AI asistan
+│       │   └── admin/       # Yönetim paneli
+│       ├── components/      # Reusable UI components
+│       ├── hooks/           # Custom React hooks
+│       ├── lib/             # Utility functions
+│       └── types/           # TypeScript types
+└── database/
+    └── migrations/          # Versiyonlu SQL
+```
+
+---
+
+## 🗃️ Veritabanı Şeması (Ana Tablolar)
+
+### İhale Modülü
+- `tenders` - İhale kayıtları (external_id, title, tender_date, city, estimated_cost)
+- `documents` - İhale dökümanları + AI analiz sonuçları
+- `scraper_logs` - Scraper çalışma logları
+
+### Muhasebe Modülü
+- `cariler` - Müşteri/Tedarikçi (tip, unvan, vergi_no, borc, alacak, bakiye)
+- `invoices` - Faturalar
+- `gelir_giderler` - Gelir/gider kayıtları
+- `kasa_banka_hesaplari` - Nakit hesaplar
+- `kasa_banka_hareketleri` - Para hareketleri
+- `stok_kartlari` - Ürün/malzeme kartları
+- `stok_hareketleri` - Stok giriş/çıkış
+
+### HR/Bordro Modülü
+- `personeller` - Çalışan bilgileri (tc_kimlik, ad, soyad, maas, ise_giris_tarihi)
+- `personel_odemeleri` - Maaş ödemeleri
+- `bordro` - Aylık bordro kayıtları
+- `izinler` - İzin takibi
+- `tazminatlar` - Kıdem/ihbar hesaplamaları
+
+### Planlama Modülü
+- `receteler` - Yemek reçeteleri
+- `menuler` - Günlük/haftalık menüler
+- `projeler` - Müşteri projeleri (ihaleler)
+- `sartnameler` - Gramaj şartnameleri
+
+### Entegrasyon
+- `sync_logs` - Harici sistem sync logları
+- `ai_memory` - AI konuşma hafızası
+
+---
+
+## 🔧 Geliştirme Kuralları
+
+### Kod Stili
+1. **Backend:** CommonJS (require/module.exports), async/await
+2. **Frontend:** TypeScript tercih, functional components
+3. **SQL:** Parameterized queries ($1, $2...), injection koruması
+4. **Hata Yönetimi:** try-catch + meaningful error messages
+
+### API Tasarımı
+```javascript
+// Standard response format
+{ success: true, data: {...} }
+{ success: false, error: "Hata mesajı" }
+
+// Pagination
+GET /api/endpoint?page=1&limit=20
+
+// Filtering
+GET /api/tenders?city=Ankara&status=active
+```
+
+### Veritabanı Kuralları
+1. Migration dosyaları: `XXX_aciklama.sql` (sıralı numara)
+2. Foreign key'ler: `ON DELETE CASCADE` veya `SET NULL`
+3. Tarih alanları: `TIMESTAMP` veya `DATE`
+4. Para alanları: `DECIMAL(15,2)`
+5. Trigger'lar: Bakiye/miktar otomatik güncelleme
+
+### Frontend Kuralları
+1. Pages: `app/modul/page.tsx`
+2. Components: `components/ModulAdi/ComponentAdi.tsx`
+3. API calls: fetch + try-catch
+4. Loading states: Her async işlemde
+
+---
+
+## 🔌 Entegrasyonlar
+
+### Aktif
+- **ihalebul.com** - Puppeteer scraper (login + pagination)
+- **Gemini AI** - Döküman OCR + analiz
+- **Claude AI** - Konuşma asistanı
+
+### Planlanan
+- **Uyumsoft** - Muhasebe yazılımı sync
+- **e-Fatura** - GİB entegrasyonu
+
+---
+
+## ⚠️ Önemli Notlar
+
+1. **Türkçe Karakter:** Tüm string işlemlerinde UTF-8
+2. **Tarih Format:** ISO 8601 (YYYY-MM-DD)
+3. **Para Birimi:** TRY (Türk Lirası)
+4. **Timezone:** Europe/Istanbul
+5. **Decimal Hassasiyet:** 2 basamak (para), 3 basamak (miktar)
+
+---
+
+## 🚫 Yapılmaması Gerekenler
+
+1. Raw SQL'de string concatenation (SQL injection riski)
+2. Hardcoded credentials (.env kullan)
+3. console.log production'da (proper logging)
+4. Senkron dosya işlemleri (async kullan)
+5. Global state (component-level state tercih)
+
+---
+
+## 📝 Commit Mesajı Formatı
+
+```
+feat: Yeni özellik eklendi
+fix: Bug düzeltmesi
+refactor: Kod iyileştirmesi
+docs: Dokümantasyon
+chore: Bakım işleri
+```
+
+---
+
+## 🎯 Öncelikli Geliştirme Alanları
+
+1. **Stok Yönetimi** - Depo bazlı takip
+2. **Menü Planlama** - Reçete-gramaj entegrasyonu
+3. **Raporlama** - Dashboard ve export
+4. **Mobile** - Responsive iyileştirmeler

@@ -11,6 +11,8 @@ import ihaleTools from './ihale-tools.js';
 import raporTools from './rapor-tools.js';
 import { personelToolDefinitions, personelToolImplementations } from './personel-tools.js';
 import { webToolDefinitions, webToolImplementations } from './web-tools.js';
+import { piyasaToolDefinitions, piyasaToolImplementations } from './piyasa-tools.js';
+import { menuToolDefinitions, menuToolImplementations } from './menu-tools.js';
 
 class AIToolsRegistry {
   constructor() {
@@ -29,6 +31,46 @@ class AIToolsRegistry {
     
     // Web/Mevzuat modülü
     this.registerWebModule();
+    
+    // Piyasa modülü
+    this.registerPiyasaModule();
+    
+    // Menü planlama modülü
+    this.registerMenuModule();
+  }
+  
+  /**
+   * Piyasa modülünü register et
+   */
+  registerPiyasaModule() {
+    console.log('🔧 [AI Tools] piyasa modülü register ediliyor...');
+    
+    for (const toolDef of piyasaToolDefinitions) {
+      const handler = piyasaToolImplementations[toolDef.name];
+      if (handler) {
+        this.tools.set(toolDef.name, handler.bind(piyasaToolImplementations));
+        this.toolDefinitions.push(toolDef);
+      }
+    }
+    
+    console.log(`✅ [AI Tools] piyasa: ${piyasaToolDefinitions.length} tool eklendi`);
+  }
+  
+  /**
+   * Menü planlama modülünü register et
+   */
+  registerMenuModule() {
+    console.log('🔧 [AI Tools] menu modülü register ediliyor...');
+    
+    for (const toolDef of menuToolDefinitions) {
+      const handler = menuToolImplementations[toolDef.name];
+      if (handler) {
+        this.tools.set(toolDef.name, handler.bind(menuToolImplementations));
+        this.toolDefinitions.push(toolDef);
+      }
+    }
+    
+    console.log(`✅ [AI Tools] menu: ${menuToolDefinitions.length} tool eklendi`);
   }
   
   /**
@@ -136,7 +178,9 @@ class AIToolsRegistry {
         'fatura - Fatura ve e-fatura yönetimi',
         'ihale - İhale takip ve analiz',
         'rapor - Raporlama ve analitik',
-        'personel - Personel, bordro, izin ve kıdem yönetimi'
+        'personel - Personel, bordro, izin ve kıdem yönetimi',
+        'piyasa - Piyasa fiyat araştırma ve takip',
+        'menu - Reçete ve menü planlama, maliyet hesaplama'
       ],
       totalTools: this.tools.size,
       capabilities: [
@@ -149,6 +193,9 @@ class AIToolsRegistry {
         'Kıdem ve ihbar tazminatı hesaplama',
         'İzin yönetimi ve bakiye sorgulama',
         'SGK, vergi ve mevzuat bilgisi',
+        'Reçete oluşturma ve maliyet hesaplama',
+        'Menü planlama ve optimizasyon',
+        'Besin değeri analizi',
         'Analiz ve öneriler'
       ]
     };

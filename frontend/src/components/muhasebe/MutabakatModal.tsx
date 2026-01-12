@@ -109,6 +109,7 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
   
   // Açık/kapalı fatura detayları
   const [expandedFatura, setExpandedFatura] = useState<number | null>(null);
+  
 
   // Verileri yükle
   useEffect(() => {
@@ -213,7 +214,7 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
               <Table.Tr style={{ backgroundColor: 'var(--mantine-color-blue-0)' }}>
                 <Table.Td>{formatDate(ekstreData.donem.baslangic)}</Table.Td>
                 <Table.Td>-</Table.Td>
-                <Table.Td fw={500}>📅 Dönem Başı Devir</Table.Td>
+                <Table.Td><Text fw={500}>📅 Dönem Başı Devir</Text></Table.Td>
                 <Table.Td ta="right">-</Table.Td>
                 <Table.Td ta="right">-</Table.Td>
                 <Table.Td ta="right" fw={600}>{formatMoney(ekstreData.acilis_bakiyesi)}</Table.Td>
@@ -427,7 +428,7 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
           <Table verticalSpacing="md">
             <Table.Tbody>
               <Table.Tr>
-                <Table.Td fw={500}>Dönem Başı Bakiye</Table.Td>
+                <Table.Td><Text fw={500}>Dönem Başı Bakiye</Text></Table.Td>
                 <Table.Td ta="right" fw={600} c={donemselData.acilis_bakiyesi >= 0 ? 'green' : 'red'}>
                   {formatMoney(donemselData.acilis_bakiyesi)}
                 </Table.Td>
@@ -478,7 +479,7 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
               </Table.Tr>
 
               <Table.Tr style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
-                <Table.Td fw={700} size="lg">DÖNEM SONU BAKİYE</Table.Td>
+                <Table.Td><Text fw={700} size="lg">DÖNEM SONU BAKİYE</Text></Table.Td>
                 <Table.Td ta="right">
                   <Text fw={700} size="xl" c={donemselData.kapanis_bakiyesi >= 0 ? 'green' : 'red'}>
                     {formatMoney(donemselData.kapanis_bakiyesi)}
@@ -495,25 +496,6 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
           </Table>
         </Paper>
 
-        {/* Onay Alanı */}
-        <Paper withBorder p="md" radius="md" bg="gray.0">
-          <Group justify="space-between">
-            <Stack gap={4}>
-              <Text size="sm" fw={500}>Mutabakat Onayı</Text>
-              <Text size="xs" c="dimmed">
-                Yukarıdaki bakiye bilgilerini onaylıyorum.
-              </Text>
-            </Stack>
-            <Group>
-              <Button variant="outline" color="red" leftSection={<IconX size={16} />}>
-                Uyuşmazlık Bildir
-              </Button>
-              <Button color="green" leftSection={<IconCheck size={16} />}>
-                Onayla
-              </Button>
-            </Group>
-          </Group>
-        </Paper>
       </Stack>
     );
   };
@@ -614,6 +596,62 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
             </Tabs.Panel>
           </Box>
         </Tabs>
+        
+        {/* Mutabakat Onay Alanı - Sadece Bakiye Teyidi */}
+        <Divider my="md" />
+        <Paper withBorder p="md" radius="md" bg="gray.0">
+          <Group justify="space-between">
+            <Stack gap={4}>
+              <Text size="sm" fw={600}>📋 Bakiye Durumu</Text>
+              <Text size="xs" c="dimmed">
+                Bu cari ile {aylar.find(a => a.value === selectedAy)?.label} {selectedYil} dönemi bakiyesi
+              </Text>
+            </Stack>
+            <Paper withBorder p="md" radius="md" bg="white">
+              <Text size="xs" c="dimmed" ta="center">Kapanış Bakiyesi</Text>
+              <Text fw={700} size="xl" c={ekstreData?.kapanis_bakiyesi >= 0 ? 'teal.7' : 'red.7'} ta="center">
+                {formatMoney(ekstreData?.kapanis_bakiyesi || 0)}
+              </Text>
+              <Text size="xs" c="dimmed" ta="center">
+                {(ekstreData?.kapanis_bakiyesi || 0) < 0 ? '(Borcunuz var)' : '(Alacağınız var)'}
+              </Text>
+            </Paper>
+          </Group>
+          
+          <Divider my="md" />
+          
+          <Group justify="flex-end">
+            <Button 
+              variant="outline" 
+              color="red" 
+              leftSection={<IconX size={16} />}
+              onClick={() => {
+                notifications.show({
+                  title: 'Uyuşmazlık',
+                  message: 'Bakiye tutmuyor olarak işaretlendi',
+                  color: 'red'
+                });
+              }}
+            >
+              Uyuşmazlık Bildir
+            </Button>
+            <Button 
+              color="green" 
+              leftSection={<IconCheck size={16} />}
+              onClick={() => {
+                notifications.show({
+                  title: 'Mutabakat Onaylandı',
+                  message: `${cari?.unvan} ile bakiye teyit edildi`,
+                  color: 'green',
+                  icon: <IconCheck size={16} />
+                });
+                onClose();
+              }}
+            >
+              Bakiyeyi Onayla
+            </Button>
+          </Group>
+        </Paper>
       </Stack>
     </Modal>
   );

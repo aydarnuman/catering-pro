@@ -1,13 +1,47 @@
 /**
- * Cariler (Müşteri/Tedarikçi) API
+ * @swagger
+ * tags:
+ *   name: Cariler
+ *   description: Müşteri ve tedarikçi yönetimi
  */
 
 import express from 'express';
 import { query } from '../database.js';
+import { logError, logAPI } from '../utils/logger.js';
 
 const router = express.Router();
 
-// Tüm carileri listele
+/**
+ * @swagger
+ * /api/cariler:
+ *   get:
+ *     summary: Tüm carileri listele
+ *     description: Filtreleme ve arama seçenekleriyle cari listesi döner
+ *     tags: [Cariler]
+ *     parameters:
+ *       - in: query
+ *         name: tip
+ *         schema:
+ *           type: string
+ *           enum: [musteri, tedarikci, her_ikisi]
+ *         description: Cari tipi filtresi
+ *       - in: query
+ *         name: aktif
+ *         schema:
+ *           type: boolean
+ *           default: true
+ *         description: Aktif/pasif filtresi
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Ünvan veya vergi no ile arama
+ *     responses:
+ *       200:
+ *         description: Cari listesi başarıyla döndü
+ *       500:
+ *         description: Sunucu hatası
+ */
 router.get('/', async (req, res) => {
   try {
     const { tip, aktif = true, search } = req.query;
@@ -45,12 +79,29 @@ router.get('/', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Cariler listesi hatası:', error);
+    logError('Cariler Liste', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Tek cari getir
+/**
+ * @swagger
+ * /api/cariler/{id}:
+ *   get:
+ *     summary: Tek cari getir
+ *     tags: [Cariler]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Cari detayı
+ *       404:
+ *         description: Cari bulunamadı
+ */
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -70,12 +121,32 @@ router.get('/:id', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Cari detay hatası:', error);
+    logError('Cari Detay', error, { cariId: req.params.id });
     res.status(500).json({ error: error.message });
   }
 });
 
-// Yeni cari oluştur
+/**
+ * @swagger
+ * /api/cariler:
+ *   post:
+ *     summary: Yeni cari oluştur
+ *     tags: [Cariler]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - tip
+ *               - unvan
+ *     responses:
+ *       201:
+ *         description: Cari başarıyla oluşturuldu
+ *       400:
+ *         description: Geçersiz veri
+ */
 router.post('/', async (req, res) => {
   try {
     const {
@@ -97,7 +168,6 @@ router.post('/', async (req, res) => {
       notlar
     } = req.body;
     
-    // Zorunlu alanlar kontrolü
     if (!tip || !unvan) {
       return res.status(400).json({ 
         error: 'Tip ve ünvan zorunludur' 
@@ -118,6 +188,8 @@ router.post('/', async (req, res) => {
       borc, alacak, kredi_limiti, banka_adi, iban, notlar
     ]);
     
+    logAPI('Cariler', 'Yeni cari oluşturuldu', { cariId: result.rows[0].id, unvan });
+    
     res.status(201).json({
       success: true,
       data: result.rows[0],
@@ -125,9 +197,8 @@ router.post('/', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Cari oluşturma hatası:', error);
+    logError('Cari Oluşturma', error, { unvan: req.body.unvan });
     
-    // Duplicate key hatası
     if (error.code === '23505') {
       return res.status(400).json({ 
         error: 'Bu vergi numarası zaten kayıtlı' 
@@ -138,15 +209,31 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Cari güncelle
+/**
+ * @swagger
+ * /api/cariler/{id}:
+ *   put:
+ *     summary: Cari güncelle
+ *     tags: [Cariler]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Cari güncellendi
+ *       404:
+ *         description: Cari bulunamadı
+ */
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
     
-    // ID'yi update'lerden çıkar
     delete updates.id;
-    delete updates.bakiye; // Computed field
+    delete updates.bakiye;
     delete updates.created_at;
     delete updates.updated_at;
     
@@ -156,7 +243,6 @@ router.put('/:id', async (req, res) => {
       });
     }
     
-    // Dinamik UPDATE sorgusu oluştur
     const setClause = Object.keys(updates).map(
       (key, index) => `${key} = $${index + 2}`
     ).join(', ');
@@ -173,6 +259,8 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Cari bulunamadı' });
     }
     
+    logAPI('Cariler', 'Cari güncellendi', { cariId: id });
+    
     res.json({
       success: true,
       data: result.rows[0],
@@ -180,12 +268,27 @@ router.put('/:id', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Cari güncelleme hatası:', error);
+    logError('Cari Güncelleme', error, { cariId: req.params.id });
     res.status(500).json({ error: error.message });
   }
 });
 
-// Cari hareketlerini getir
+/**
+ * @swagger
+ * /api/cariler/{id}/hareketler:
+ *   get:
+ *     summary: Cari hareketleri
+ *     tags: [Cariler]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Hareket listesi
+ */
 router.get('/:id/hareketler', async (req, res) => {
   try {
     const { id } = req.params;
@@ -240,7 +343,7 @@ router.get('/:id/hareketler', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Cari hareketleri getirme hatası:', error);
+    logError('Cari Hareketler', error, { cariId: req.params.id });
     res.status(500).json({
       success: false,
       error: 'Cari hareketleri alınırken bir hata oluştu'
@@ -248,7 +351,13 @@ router.get('/:id/hareketler', async (req, res) => {
   }
 });
 
-// Cari aylık özet
+/**
+ * @swagger
+ * /api/cariler/{id}/aylik-ozet:
+ *   get:
+ *     summary: Cari aylık özet
+ *     tags: [Cariler]
+ */
 router.get('/:id/aylik-ozet', async (req, res) => {
   try {
     const { id } = req.params;
@@ -300,7 +409,7 @@ router.get('/:id/aylik-ozet', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Aylık özet hatası:', error);
+    logError('Cari Aylık Özet', error, { cariId: req.params.id });
     res.status(500).json({
       success: false,
       error: 'Aylık özet alınırken bir hata oluştu'
@@ -308,12 +417,17 @@ router.get('/:id/aylik-ozet', async (req, res) => {
   }
 });
 
-// Cari sil
+/**
+ * @swagger
+ * /api/cariler/{id}:
+ *   delete:
+ *     summary: Cari sil (soft delete)
+ *     tags: [Cariler]
+ */
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Soft delete - sadece aktif flag'ini false yap
     const result = await query(
       'UPDATE cariler SET aktif = false, updated_at = NOW() WHERE id = $1 RETURNING *',
       [id]
@@ -323,24 +437,31 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Cari bulunamadı' });
     }
     
+    logAPI('Cariler', 'Cari silindi (pasif)', { cariId: id });
+    
     res.json({
       success: true,
       message: 'Cari silindi (pasif edildi)'
     });
     
   } catch (error) {
-    console.error('Cari silme hatası:', error);
+    logError('Cari Silme', error, { cariId: req.params.id });
     res.status(500).json({ error: error.message });
   }
 });
 
-// Cari hesap ekstresi
+/**
+ * @swagger
+ * /api/cariler/{id}/ekstre:
+ *   get:
+ *     summary: Cari hesap ekstresi
+ *     tags: [Cariler]
+ */
 router.get('/:id/ekstre', async (req, res) => {
   try {
     const { id } = req.params;
     const { startDate, endDate } = req.query;
     
-    // Cari bilgilerini al
     const cariResult = await query(
       'SELECT * FROM cariler WHERE id = $1',
       [id]
@@ -350,7 +471,6 @@ router.get('/:id/ekstre', async (req, res) => {
       return res.status(404).json({ error: 'Cari bulunamadı' });
     }
     
-    // Fatura hareketlerini al
     let invoiceSql = `
       SELECT 
         'fatura' as kaynak,
@@ -389,7 +509,6 @@ router.get('/:id/ekstre', async (req, res) => {
     
     const invoiceResult = await query(invoiceSql, params);
     
-    // Bakiye hesapla
     const toplamBorc = invoiceResult.rows.reduce((sum, row) => sum + parseFloat(row.borc || 0), 0);
     const toplamAlacak = invoiceResult.rows.reduce((sum, row) => sum + parseFloat(row.alacak || 0), 0);
     const bakiye = toplamAlacak - toplamBorc;
@@ -408,7 +527,7 @@ router.get('/:id/ekstre', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Cari ekstre hatası:', error);
+    logError('Cari Ekstre', error, { cariId: req.params.id });
     res.status(500).json({ error: error.message });
   }
 });

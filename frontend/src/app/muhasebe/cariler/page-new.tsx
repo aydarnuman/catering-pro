@@ -439,7 +439,7 @@ export default function CarilerPage() {
                 ) : (
                   filteredCariler.map((cari) => (
                     <Table.Tr key={cari.id}>
-                      <Table.Td fw={500}>{cari.unvan}</Table.Td>
+                      <Table.Td><Text fw={500}>{cari.unvan}</Text></Table.Td>
                       <Table.Td>
                         <Badge
                           variant="light"

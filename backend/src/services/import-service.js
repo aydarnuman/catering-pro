@@ -53,12 +53,45 @@ const TABLE_SCHEMAS = {
       telefon: { type: 'string', description: 'Telefon numarası' },
       departman: { type: 'string', description: 'Departman/Birim' },
       pozisyon: { type: 'string', description: 'Görev/Pozisyon' },
-      maas: { type: 'number', description: 'Net Maaş (TL)' },
+      maas: { type: 'number', description: 'Brüt Maaş (TL)' },
       ise_giris_tarihi: { type: 'date', description: 'İşe Giriş Tarihi (YYYY-MM-DD)' },
       dogum_tarihi: { type: 'date', description: 'Doğum Tarihi (YYYY-MM-DD)' },
       adres: { type: 'string', description: 'Adres' },
       medeni_durum: { type: 'string', description: 'Medeni Durum (Evli/Bekar)' },
-      cocuk_sayisi: { type: 'number', description: 'Çocuk Sayısı' }
+      cocuk_sayisi: { type: 'number', description: 'Çocuk Sayısı' },
+      sgk_no: { type: 'string', description: 'SGK/Sigorta Numarası' }
+    }
+  },
+  bordro: {
+    table: 'bordro_kayitlari',
+    description: 'Aylık bordro/maaş kayıtları - her personel için aylık maaş hesabı',
+    fields: {
+      personel_id: { type: 'number', description: 'Personel ID (sistemdeki personel ile eşleştirilecek)' },
+      personel_adi: { type: 'string', required: true, description: 'Personel Ad Soyad (eşleştirme için)' },
+      tc_kimlik: { type: 'string', description: 'TC Kimlik No (eşleştirme için)' },
+      sgk_no: { type: 'string', description: 'SGK/Sigorta Numarası' },
+      yil: { type: 'number', required: true, description: 'Yıl (2024, 2025, ...)' },
+      ay: { type: 'number', required: true, description: 'Ay (1-12)' },
+      calisma_gunu: { type: 'number', description: 'Çalışılan gün sayısı' },
+      fazla_mesai_saat: { type: 'number', description: 'Fazla mesai saati' },
+      brut_maas: { type: 'number', required: true, description: 'Brüt Maaş/Ücret (TL)' },
+      fazla_mesai_ucret: { type: 'number', description: 'Fazla mesai ücreti (TL)' },
+      ikramiye: { type: 'number', description: 'İkramiye (TL)' },
+      prim: { type: 'number', description: 'Prim (TL)' },
+      yemek_yardimi: { type: 'number', description: 'Yemek yardımı (TL)' },
+      yol_yardimi: { type: 'number', description: 'Yol yardımı (TL)' },
+      brut_toplam: { type: 'number', description: 'Brüt Toplam (TL)' },
+      sgk_matrahi: { type: 'number', description: 'SGK Matrahı (TL)' },
+      sgk_isci: { type: 'number', description: 'SGK İşçi Payı kesintisi (TL)' },
+      issizlik_isci: { type: 'number', description: 'İşsizlik Sigortası İşçi Payı (TL)' },
+      vergi_matrahi: { type: 'number', description: 'Gelir Vergisi Matrahı (TL)' },
+      gelir_vergisi: { type: 'number', description: 'Gelir Vergisi kesintisi (TL)' },
+      damga_vergisi: { type: 'number', description: 'Damga Vergisi kesintisi (TL)' },
+      agi_tutari: { type: 'number', description: 'Asgari Geçim İndirimi (AGİ) (TL)' },
+      net_maas: { type: 'number', required: true, description: 'Net Maaş/Ücret Ödenecek (TL)' },
+      sgk_isveren: { type: 'number', description: 'SGK İşveren Payı (TL)' },
+      issizlik_isveren: { type: 'number', description: 'İşsizlik Sigortası İşveren Payı (TL)' },
+      toplam_maliyet: { type: 'number', description: 'Toplam İşveren Maliyeti (TL)' }
     }
   },
   stok: {
@@ -97,6 +130,39 @@ const TABLE_SCHEMAS = {
       vat_amount: { type: 'number', description: 'KDV Tutarı (TL)' },
       type: { type: 'string', description: 'Tip (SATIS/ALIS)' },
       status: { type: 'string', description: 'Durum (Bekliyor/Onaylandı)' }
+    }
+  },
+  
+  // MENÜ / REÇETE ANALİZİ
+  menu: {
+    table: 'receteler',
+    description: 'Menü listesi, yemek programı veya reçete dökümanından yemek çıkarma',
+    fields: {
+      ad: { type: 'string', required: true, description: 'Yemek adı' },
+      kategori: { type: 'string', required: true, description: 'Kategori (corba, ana_yemek, pilav_makarna, salata_meze, tatli, icecek, kahvaltilik)' },
+      kalori: { type: 'number', description: 'Kalori (kcal/porsiyon)' },
+      protein: { type: 'number', description: 'Protein (g/porsiyon)' },
+      karbonhidrat: { type: 'number', description: 'Karbonhidrat (g/porsiyon)' },
+      yag: { type: 'number', description: 'Yağ (g/porsiyon)' },
+      porsiyon_gramaj: { type: 'number', description: 'Porsiyon gramajı (g)' },
+      tarih: { type: 'date', description: 'Menü tarihi (varsa)' },
+      ogun: { type: 'string', description: 'Öğün tipi (kahvalti, ogle, aksam)' },
+      malzemeler: { type: 'array', description: 'Malzeme listesi (varsa)' }
+    }
+  },
+  
+  // ŞARTNAME GRAMAJ ANALİZİ
+  gramaj: {
+    table: 'sartname_porsiyon_gramajlari',
+    description: 'Şartname veya gramaj tablosundan porsiyon bilgisi çıkarma',
+    fields: {
+      yemek_turu: { type: 'string', required: true, description: 'Yemek türü/adı' },
+      kategori: { type: 'string', description: 'Kategori (corba, ana_yemek, vb.)' },
+      porsiyon_gramaj: { type: 'number', required: true, description: 'Porsiyon gramajı (g veya ml)' },
+      birim: { type: 'string', description: 'Birim (g, ml, adet)' },
+      min_gramaj: { type: 'number', description: 'Minimum gramaj (varsa)' },
+      max_gramaj: { type: 'number', description: 'Maksimum gramaj (varsa)' },
+      aciklama: { type: 'string', description: 'Açıklama/not' }
     }
   }
 };
@@ -148,6 +214,8 @@ async function extractWord(filePath) {
 
 /**
  * Excel'den yapılandırılmış veri çıkar
+ * NOT: Karmaşık Excel dosyaları için (birleştirilmiş hücreler, çok satırlı header'lar)
+ * ham veriyi AI'a gönderiyoruz - AI kendi analiz etsin
  */
 async function extractExcel(filePath) {
   const workbook = xlsx.readFile(filePath);
@@ -158,12 +226,42 @@ async function extractExcel(filePath) {
     const json = xlsx.utils.sheet_to_json(sheet, { header: 1 });
     
     if (json.length > 0) {
-      // İlk satır header
+      // Karmaşık Excel kontrolü: birleştirilmiş hücreler, çok satırlı header'lar
+      const firstRow = json[0] || [];
+      const nullCount = firstRow.filter(h => h === null || h === undefined).length;
+      const isComplex = nullCount > 3 || json.length < 5 || 
+        (json[1] && json[1].some(cell => typeof cell === 'string' && cell.length > 0));
+      
+      if (isComplex) {
+        // Karmaşık format: HAM VERİYİ AI'a gönder
+        // TÜM satırları al (max 200 satır - büyük dosyalar için)
+        const maxRows = Math.min(json.length, 200);
+        const rawRows = json.slice(0, maxRows).map((row, rowIdx) => {
+          return row.map((cell, colIdx) => ({
+            row: rowIdx,
+            col: colIdx,
+            value: cell
+          })).filter(c => c.value !== null && c.value !== undefined);
+        }).filter(row => row.length > 0);
+        
+        results.push({
+          sheetName,
+          isComplex: true,
+          rawData: rawRows,
+          totalRows: json.length,
+          // Ayrıca text formatında da gönder (AI için daha kolay)
+          textFormat: json.slice(0, maxRows).map((row, i) => 
+            `Satır ${i}: ${row.filter(c => c !== null && c !== undefined).join(' | ')}`
+          ).join('\n')
+        });
+      } else {
+        // Basit format: Normal işlem
       const headers = json[0];
       const rows = json.slice(1);
       
       results.push({
         sheetName,
+          isComplex: false,
         headers,
         rows: rows.map(row => {
           const obj = {};
@@ -173,6 +271,7 @@ async function extractExcel(filePath) {
           return obj;
         })
       });
+      }
     }
   });
   
@@ -250,8 +349,70 @@ async function analyzeAndMap(extractedData, targetType) {
   let prompt;
   
   if (isStructured) {
-    // Excel/CSV - zaten tablo formatında
     const firstSheet = extractedData.data[0];
+    
+    // Karmaşık Excel formatı mı?
+    if (firstSheet.isComplex) {
+      // KARMAŞIK FORMAT: Bordro, birleştirilmiş hücreler, çok satırlı header'lar
+      prompt = `
+Sen bir UZMAN veri analisti ve döküman tanıma uzmanısın. Aşağıdaki KARMAŞIK Excel/tablo verisini analiz et.
+
+Bu dosya muhtemelen:
+- Bordro/maaş tablosu
+- Birleştirilmiş hücreler içeren rapor
+- Çok satırlı header'lar
+- Her kayıt için birden fazla satır
+olabilir.
+
+HAM VERİ (satır satır):
+${firstSheet.textFormat}
+
+HEDEF ŞEMA (${targetType}):
+${schemaDescription}
+
+GÖREV:
+1. Önce dökümanın YAPISINI anla:
+   - Header'lar hangi satır(lar)da?
+   - Her kayıt kaç satır kaplıyor?
+   - Hangi sütunda hangi veri var?
+
+2. Tüm kayıtları çıkar ve hedef şemaya dönüştür:
+   - İsimleri tam_ad olarak al
+   - TC/Sigorta numaralarını tc_kimlik olarak al
+   - Maaş/ücret bilgilerini bul
+   - Tarihleri YYYY-MM-DD formatına çevir
+   - Sayıları virgülsüz yap
+
+3. Eğer bazı alanlar bulunamıyorsa, null bırak ama kaydı yine de dahil et.
+
+ÖNEMLİ: Bu bir ${targetType === 'personel' ? 'BORDRO/PERSONEL' : targetType.toUpperCase()} listesi. Her satırda/kayıtta bir kişi/öğe var.
+
+JSON formatında yanıt ver:
+\`\`\`json
+{
+  "detected_structure": {
+    "header_rows": [0, 1],
+    "data_start_row": 2,
+    "rows_per_record": 2,
+    "description": "Yapı açıklaması"
+  },
+  "mapping": {
+    "Adı-Soyadı veya sütun3": "tam_ad",
+    "T.C.Kimlik No veya sütun4": "tc_kimlik"
+  },
+  "records": [
+    { "tam_ad": "ALİ KIRÇAYIR", "tc_kimlik": "10508424666", "maas": 26005.5, ... },
+    ...
+  ],
+  "warnings": ["Uyarı mesajları..."],
+  "total": 25,
+  "valid": 25
+}
+\`\`\`
+`.trim();
+
+    } else {
+      // BASİT FORMAT: Normal tablo
     const sampleRows = firstSheet.rows.slice(0, 5);
     
     prompt = `
@@ -287,6 +448,7 @@ JSON formatında yanıt ver:
 }
 \`\`\`
 `.trim();
+    }
 
   } else {
     // PDF/Word/Text - serbest metin
@@ -456,11 +618,172 @@ export function getSupportedFormats() {
   return SUPPORTED_FORMATS;
 }
 
+/**
+ * MENÜ DOKÜMAN ANALİZİ
+ * PDF, Excel veya görsel menü listesinden yemekleri çıkarır
+ */
+export async function analyzeMenuDocument(filePath, originalFilename, options = {}) {
+  console.log(`🍽️ Menü analizi başlıyor: ${originalFilename}`);
+  
+  const ext = path.extname(originalFilename).toLowerCase();
+  
+  // Format kontrolü
+  if (!SUPPORTED_FORMATS[ext]) {
+    throw new Error(`Desteklenmeyen dosya formatı: ${ext}`);
+  }
+  
+  // 1. Metin/veri çıkar
+  const extractedData = await extractText(filePath, ext);
+  console.log(`✅ Veri çıkarıldı`);
+  
+  // 2. AI ile menü analizi
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  
+  const textContent = typeof extractedData === 'string' 
+    ? extractedData 
+    : (extractedData.type === 'structured' 
+        ? extractedData.data.map(s => s.textFormat || JSON.stringify(s.rows)).join('\n')
+        : JSON.stringify(extractedData));
+  
+  const prompt = `
+Sen bir yemek menüsü ve reçete analiz uzmanısın. 
+Aşağıdaki dökümanı analiz et ve içindeki TÜM yemekleri çıkar.
+
+DÖKÜMAN İÇERİĞİ:
+${textContent.substring(0, 8000)}
+
+GÖREV:
+1. Döküman tipini belirle (haftalık menü, aylık program, yemek listesi, reçete, şartname vb.)
+2. Tüm yemekleri bul ve kategorize et
+3. Varsa besin değerlerini, gramajları ve tarihleri çıkar
+
+KATEGORİLER:
+- corba: Çorbalar
+- ana_yemek: Et, tavuk, balık, sebze yemekleri, köfte vb.
+- pilav_makarna: Pilavlar, makarnalar, börekler
+- salata_meze: Salatalar, mezeler, cacık, turşu vb.
+- tatli: Tatlılar, komposto, meyve
+- icecek: Ayran, çay, meyve suyu vb.
+- kahvaltilik: Kahvaltı ürünleri
+
+JSON formatında yanıt ver:
+\`\`\`json
+{
+  "dokuman_tipi": "haftalik_menu | aylik_menu | recete_listesi | sartname | diger",
+  "tarih_araligi": "varsa tarih bilgisi",
+  "toplam_yemek": 15,
+  "yemekler": [
+    {
+      "ad": "Mercimek Çorbası",
+      "kategori": "corba",
+      "kalori": 180,
+      "protein": 12,
+      "karbonhidrat": 28,
+      "yag": 4,
+      "porsiyon_gramaj": 200,
+      "tarih": "2024-01-15",
+      "ogun": "ogle",
+      "malzemeler": ["mercimek", "soğan", "havuç"]
+    }
+  ],
+  "notlar": "Ek bilgiler..."
+}
+\`\`\`
+
+ÖNEMLİ:
+- Tüm yemekleri bul, hiçbirini atlama
+- Kategoriyi doğru belirle
+- Besin değerleri yoksa tahmini değer ver
+- Türkçe karakterleri koru
+`.trim();
+
+  console.log('🤖 AI menü analizi yapılıyor...');
+  const result = await model.generateContent(prompt);
+  const response = await result.response;
+  const text = response.text();
+  
+  // JSON çıkar
+  let analysisResult;
+  const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+  if (jsonMatch) {
+    analysisResult = JSON.parse(jsonMatch[1]);
+  } else {
+    try {
+      analysisResult = JSON.parse(text);
+    } catch {
+      analysisResult = { yemekler: [], notlar: 'AI yanıtı parse edilemedi', raw: text };
+    }
+  }
+  
+  console.log(`✅ Menü analizi tamamlandı: ${analysisResult.yemekler?.length || 0} yemek bulundu`);
+  
+  return {
+    success: true,
+    filename: originalFilename,
+    format: SUPPORTED_FORMATS[ext],
+    dokuman_tipi: analysisResult.dokuman_tipi,
+    tarih_araligi: analysisResult.tarih_araligi,
+    yemekler: analysisResult.yemekler || [],
+    stats: {
+      toplam: analysisResult.yemekler?.length || 0,
+      kategoriler: groupByCategory(analysisResult.yemekler || [])
+    },
+    notlar: analysisResult.notlar
+  };
+}
+
+/**
+ * Yemekleri kategoriye göre grupla
+ */
+function groupByCategory(yemekler) {
+  const groups = {};
+  yemekler.forEach(y => {
+    const kat = y.kategori || 'diger';
+    if (!groups[kat]) groups[kat] = 0;
+    groups[kat]++;
+  });
+  return groups;
+}
+
+/**
+ * Analiz edilen menüyü reçetelere kaydet
+ */
+export async function saveMenuAsRecipes(yemekler, options = {}) {
+  const results = { inserted: 0, skipped: 0, errors: [] };
+  
+  // Kategori ID'lerini al
+  const kategoriMap = {
+    corba: 1, ana_yemek: 2, pilav_makarna: 3, salata_meze: 4,
+    tatli: 5, icecek: 6, kahvaltilik: 7, kahvalti_paketi: 8
+  };
+  
+  for (const yemek of yemekler) {
+    try {
+      const kategoriId = kategoriMap[yemek.kategori] || 2; // default: ana_yemek
+      const kod = yemek.ad.substring(0,3).toUpperCase().replace(/[^A-ZĞÜŞİÖÇ]/gi,'X') + '-' + Date.now().toString().slice(-6);
+      
+      await query(`
+        INSERT INTO receteler (kod, ad, kategori_id, porsiyon_miktar, kalori, protein, karbonhidrat, yag, ai_olusturuldu)
+        VALUES ($1, $2, $3, 1, $4, $5, $6, $7, true)
+        ON CONFLICT (kod) DO NOTHING
+      `, [kod, yemek.ad, kategoriId, yemek.kalori, yemek.protein, yemek.karbonhidrat, yemek.yag]);
+      
+      results.inserted++;
+    } catch (error) {
+      results.errors.push({ yemek: yemek.ad, error: error.message });
+    }
+  }
+  
+  return results;
+}
+
 export default {
   processImport,
   confirmImport,
   getSchema,
   getAllSchemas,
-  getSupportedFormats
+  getSupportedFormats,
+  analyzeMenuDocument,
+  saveMenuAsRecipes
 };
 

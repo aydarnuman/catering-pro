@@ -29,11 +29,8 @@ import {
   Divider,
   Loader,
   Center,
-  MultiSelect,
-  Checkbox,
   Tooltip,
-  SegmentedControl,
-  Alert
+  SegmentedControl
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
@@ -42,8 +39,6 @@ import {
   IconPlus,
   IconSearch,
   IconUsers,
-  IconUser,
-  IconCash,
   IconCheck,
   IconEdit,
   IconTrash,
@@ -53,68 +48,33 @@ import {
   IconPhone,
   IconMail,
   IconId,
-  IconBriefcase,
-  IconCalendarStats,
   IconBuilding,
-  IconUserPlus,
-  IconUserMinus,
-  IconMapPin,
   IconRefresh,
-  IconAlertCircle,
-  IconChevronRight,
   IconReceipt,
-  IconCalculator,
-  IconCreditCard,
-  IconFileInvoice,
-  IconHeart,
-  IconBeach,
-  IconClockHour4,
-  IconCalendarEvent,
-  IconX,
-  IconCoin
+  IconCash,
+  IconFileUpload,
+  IconDownload,
+  IconUser
 } from '@tabler/icons-react';
 import { DataActions } from '@/components/DataActions';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell
-} from 'recharts';
+import { BordroImportModal } from '@/components/BordroImportModal';
 import 'dayjs/locale/tr';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
-// Tip tanımları
+// =====================================================
+// TİP TANIMLARI
+// =====================================================
+
 interface Proje {
   id: number;
   ad: string;
   kod: string | null;
-  aciklama: string | null;
   musteri: string | null;
   lokasyon: string | null;
-  baslangic_tarihi: string | null;
-  bitis_tarihi: string | null;
   durum: 'aktif' | 'pasif' | 'tamamlandi' | 'beklemede';
-  butce: number;
   personel_sayisi: number;
   toplam_maas: number;
-  created_at: string;
-}
-
-interface PersonelProje {
-  proje_id: number;
-  proje_ad: string;
-  proje_kod: string | null;
-  gorev: string | null;
-  baslangic_tarihi: string;
-  bitis_tarihi: string | null;
-  atama_id?: number;
 }
 
 interface Personel {
@@ -123,57 +83,37 @@ interface Personel {
   tc_kimlik: string;
   ad: string;
   soyad: string;
-  tam_ad?: string;
   telefon: string | null;
   email: string | null;
-  adres: string | null;
   departman: string | null;
   pozisyon: string | null;
   ise_giris_tarihi: string;
-  isten_cikis_tarihi: string | null;
   maas: number;
-  maas_tipi: string;
-  iban: string | null;
-  dogum_tarihi: string | null;
-  cinsiyet: string | null;
-  notlar: string | null;
-  acil_kisi: string | null;
-  acil_telefon: string | null;
+  bordro_maas: number;
   durum: 'aktif' | 'izinli' | 'pasif';
-  projeler: PersonelProje[];
-  created_at: string;
-  // Bordro için yeni alanlar
   medeni_durum?: string;
-  es_calisiyormu?: boolean;
   cocuk_sayisi?: number;
-  engel_derecesi?: number;
   sgk_no?: string;
-  yemek_yardimi?: number;
-  yol_yardimi?: number;
 }
 
-interface Bordro {
-  id: number;
-  personel_id: number;
-  ad?: string;
-  soyad?: string;
-  yil: number;
-  ay: number;
-  brut_maas: number;
-  brut_toplam: number;
-  sgk_isci: number;
-  issizlik_isci: number;
-  toplam_isci_sgk: number;
-  gelir_vergisi: number;
-  damga_vergisi: number;
-  agi_tutari: number;
-  net_maas: number;
-  sgk_isveren: number;
-  issizlik_isveren: number;
-  toplam_isveren_sgk: number;
-  toplam_maliyet: number;
-  odeme_durumu: string;
-  odeme_tarihi?: string;
+interface TahakkukBilgisi {
+  exists: boolean;
+  personel_sayisi?: number;
+  aylik_ucret_toplami?: number;
+  fazla_mesai_toplami?: number;
+  isveren_sgk_hissesi?: number;
+  isveren_issizlik?: number;
+  toplam_gider?: number;
+  odenecek_net_ucret?: number;
+  odenecek_sgk_primi?: number;
+  odenecek_sgd_primi?: number;
+  odenecek_gelir_vergisi?: number;
+  odenecek_damga_vergisi?: number;
+  odenecek_issizlik?: number;
+  toplam_odeme?: number;
+  toplam_sgk_primi?: number;
+  net_odenecek_sgk?: number;
+  kaynak_dosya?: string;
 }
 
 interface BordroOzet {
@@ -184,67 +124,63 @@ interface BordroOzet {
   toplam_sgk_isveren: number;
   toplam_gelir_vergisi: number;
   toplam_damga_vergisi: number;
-  toplam_agi: number;
   toplam_maliyet: number;
-  odenen: number;
-  bekleyen: number;
 }
 
-// İzin tipleri
-interface IzinTuru {
-  id: number;
-  kod: string;
-  ad: string;
-  ucretli: boolean;
-  renk: string;
-}
-
-interface IzinTalebi {
+interface MaasOdemePersonel {
   id: number;
   personel_id: number;
-  personel_ad: string;
-  personel_soyad: string;
-  departman: string;
-  izin_turu_id: number;
-  izin_turu_ad: string;
-  izin_turu_kod: string;
-  izin_renk: string;
-  ucretli: boolean;
-  baslangic_tarihi: string;
-  bitis_tarihi: string;
-  gun_sayisi: number;
-  aciklama: string;
-  durum: 'beklemede' | 'onaylandi' | 'reddedildi' | 'iptal';
-  onaylayan_ad?: string;
-  onaylayan_soyad?: string;
-  created_at: string;
+  ad: string;
+  soyad: string;
+  net_maas: number;
+  bordro_maas: number;
+  elden_fark: number;
+  avans: number;
+  prim: number;
+  fazla_mesai: number;
+  net_odenecek: number;
+  banka_odendi: boolean;
+  elden_odendi: boolean;
+  banka_odeme_tarihi: string | null;
+  elden_odeme_tarihi: string | null;
+  notlar: string | null;
 }
 
-interface IzinStats {
-  bekleyen: number;
-  bugun_izinli: number;
-  bu_yil_onaylanan: number;
-  bu_yil_toplam_gun: number;
+interface MaasOdemeOzet {
+  personel_sayisi: number;
+  toplam_bordro: number;
+  toplam_elden: number;
+  toplam_avans: number;
+  toplam_prim: number;
+  toplam_net: number;
+  banka_odenen: number;
+  elden_odenen: number;
+  odeme_gunu: number;
 }
 
-interface KidemHesap {
-  personel: { id: number; ad: string; soyad: string; net_maas: number; brut_maas: number };
-  calisma: { toplam_gun: number; toplam_yil: number };
-  kidem: { hakki_var: boolean; tavan: number; tazminat: number };
-  ihbar: { hakki_var: boolean; sure_gun: number; sure_hafta: number; tazminat: number };
-  izin: { yillik_hak: number; kullanilan: number; kalan: number; ucret: number };
-  toplam_tazminat: number;
+interface AylikOdeme {
+  id?: number;
+  proje_id: number;
+  yil: number;
+  ay: number;
+  maas_banka_odendi: boolean;
+  maas_banka_tarih: string | null;
+  maas_elden_odendi: boolean;
+  maas_elden_tarih: string | null;
+  sgk_odendi: boolean;
+  sgk_tarih: string | null;
+  gelir_vergisi_odendi: boolean;
+  gelir_vergisi_tarih: string | null;
+  damga_vergisi_odendi: boolean;
+  damga_vergisi_tarih: string | null;
+  issizlik_odendi: boolean;
+  issizlik_tarih: string | null;
 }
 
-interface Stats {
-  toplam_personel: number;
-  izinli_personel: number;
-  aktif_proje: number;
-  toplam_maas: number;
-  gorevli_personel: number;
-}
+// =====================================================
+// SABİTLER
+// =====================================================
 
-// Sabitler
 const departmanlar = ['Mutfak', 'Servis', 'Temizlik', 'Yönetim', 'Depo', 'Lojistik', 'Diğer'];
 const pozisyonlar: Record<string, string[]> = {
   'Mutfak': ['Şef', 'Aşçı', 'Aşçı Yardımcısı', 'Komi', 'Mutfak Personeli'],
@@ -256,470 +192,330 @@ const pozisyonlar: Record<string, string[]> = {
   'Diğer': ['Diğer']
 };
 
-const COLORS = ['#845ef7', '#20c997', '#339af0', '#ff6b6b', '#fcc419', '#51cf66', '#ff922b', '#a855f7'];
+const aylar = [
+  { value: '1', label: 'Ocak' },
+  { value: '2', label: 'Şubat' },
+  { value: '3', label: 'Mart' },
+  { value: '4', label: 'Nisan' },
+  { value: '5', label: 'Mayıs' },
+  { value: '6', label: 'Haziran' },
+  { value: '7', label: 'Temmuz' },
+  { value: '8', label: 'Ağustos' },
+  { value: '9', label: 'Eylül' },
+  { value: '10', label: 'Ekim' },
+  { value: '11', label: 'Kasım' },
+  { value: '12', label: 'Aralık' }
+];
+
+// =====================================================
+// ANA BİLEŞEN
+// =====================================================
 
 export default function PersonelPage() {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
-  
-  // State
+
+  // === TEMEL STATE ===
   const [loading, setLoading] = useState(true);
-  const [personeller, setPersoneller] = useState<Personel[]>([]);
   const [projeler, setProjeler] = useState<Proje[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [departmanStats, setDepartmanStats] = useState<{ departman: string; personel_sayisi: number; toplam_maas: number }[]>([]);
-  
-  const [selectedProje, setSelectedProje] = useState<string | null>(null);
+  const [selectedProje, setSelectedProje] = useState<number | null>(null);
+  const [personeller, setPersoneller] = useState<Personel[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>('personel');
   const [searchTerm, setSearchTerm] = useState('');
-  const [durumFilter, setDurumFilter] = useState<string>('aktif');
-  
-  const [selectedPersonel, setSelectedPersonel] = useState<Personel | null>(null);
-  const [editingPersonel, setEditingPersonel] = useState<Personel | null>(null);
-  const [editingProje, setEditingProje] = useState<Proje | null>(null);
-  
-  // Modals
-  const [personelModalOpened, { open: openPersonelModal, close: closePersonelModal }] = useDisclosure(false);
-  const [projeModalOpened, { open: openProjeModal, close: closeProjeModal }] = useDisclosure(false);
-  const [detailModalOpened, { open: openDetailModal, close: closeDetailModal }] = useDisclosure(false);
-  const [atamaModalOpened, { open: openAtamaModal, close: closeAtamaModal }] = useDisclosure(false);
-  
-  // Form states
-  const [personelForm, setPersonelForm] = useState({
-    ad: '', soyad: '', tc_kimlik: '', telefon: '', email: '', adres: '',
-    departman: '', pozisyon: '', ise_giris_tarihi: new Date(), maas: 0,
-    maas_tipi: 'aylik', iban: '', dogum_tarihi: null as Date | null, cinsiyet: '',
-    notlar: '', sicil_no: '', acil_kisi: '', acil_telefon: '', durum: 'aktif',
-    // Bordro için yeni alanlar
-    medeni_durum: 'bekar', es_calisiyormu: false, cocuk_sayisi: 0,
-    engel_derecesi: 0, sgk_no: '', yemek_yardimi: 0, yol_yardimi: 0
-  });
-  
-  // Bordro state
-  const [bordroList, setBordroList] = useState<Bordro[]>([]);
-  const [bordroOzet, setBordroOzet] = useState<BordroOzet | null>(null);
+
+  // === BORDRO STATE ===
   const [bordroYil, setBordroYil] = useState(new Date().getFullYear());
   const [bordroAy, setBordroAy] = useState(new Date().getMonth() + 1);
+  const [tahakkuk, setTahakkuk] = useState<TahakkukBilgisi | null>(null);
+  const [bordroOzet, setBordroOzet] = useState<BordroOzet | null>(null);
   const [bordroLoading, setBordroLoading] = useState(false);
-  
-  // Maaş önizleme hesabı (form için)
-  const [maasOnizleme, setMaasOnizleme] = useState<{
-    brut_maas: number;
-    sgk_isci: number;
-    issizlik_isci: number;
-    gelir_vergisi: number;
-    damga_vergisi: number;
-    agi_tutari: number;
-    net_maas: number;
-    sgk_isveren: number;
-    issizlik_isveren: number;
-    toplam_maliyet: number;
-  } | null>(null);
-  const [maasHesaplaniyor, setMaasHesaplaniyor] = useState(false);
-  
-  // Detay modalı için maliyet hesabı
-  const [detayMaliyet, setDetayMaliyet] = useState<{
-    brut_maas: number;
-    sgk_isci: number;
-    issizlik_isci: number;
-    gelir_vergisi: number;
-    damga_vergisi: number;
-    agi_tutari: number;
-    net_maas: number;
-    sgk_isveren: number;
-    issizlik_isveren: number;
-    toplam_maliyet: number;
-  } | null>(null);
-  
-  // İzin state'leri
-  const [izinTurleri, setIzinTurleri] = useState<IzinTuru[]>([]);
-  const [izinTalepleri, setIzinTalepleri] = useState<IzinTalebi[]>([]);
-  const [izinStats, setIzinStats] = useState<IzinStats | null>(null);
-  const [izinLoading, setIzinLoading] = useState(false);
-  const [izinModalOpened, { open: openIzinModal, close: closeIzinModal }] = useDisclosure(false);
-  const [kidemModalOpened, { open: openKidemModal, close: closeKidemModal }] = useDisclosure(false);
-  const [kidemHesap, setKidemHesap] = useState<KidemHesap | null>(null);
-  const [kidemPersonelId, setKidemPersonelId] = useState<number | null>(null);
-  
-  const [izinForm, setIzinForm] = useState({
-    personel_id: '',
-    izin_turu_id: '',
-    baslangic_tarihi: new Date(),
-    bitis_tarihi: new Date(),
-    aciklama: ''
+
+  // === MAAŞ ÖDEME STATE ===
+  const [maasOdemePersoneller, setMaasOdemePersoneller] = useState<MaasOdemePersonel[]>([]);
+  const [maasOdemeOzet, setMaasOdemeOzet] = useState<MaasOdemeOzet | null>(null);
+  const [maasOdemeLoading, setMaasOdemeLoading] = useState(false);
+  const [showOdemeDetay, setShowOdemeDetay] = useState(false);
+  const [tahakkukDetailOpen, setTahakkukDetailOpen] = useState(false);
+  const [aylikOdeme, setAylikOdeme] = useState<AylikOdeme | null>(null);
+  const [editingOdeme, setEditingOdeme] = useState<MaasOdemePersonel | null>(null);
+  const [odemeForm, setOdemeForm] = useState({ elden_fark: 0, avans: 0, prim: 0 });
+
+  // === MODAL STATE ===
+  const [bordroImportOpen, setBordroImportOpen] = useState(false);
+  const [personelModalOpened, { open: openPersonelModal, close: closePersonelModal }] = useDisclosure(false);
+  const [detailModalOpened, { open: openDetailModal, close: closeDetailModal }] = useDisclosure(false);
+  const [projeModalOpened, { open: openProjeModal, close: closeProjeModal }] = useDisclosure(false);
+
+  // === FORM STATE ===
+  const [editingPersonel, setEditingPersonel] = useState<Personel | null>(null);
+  const [selectedPersonel, setSelectedPersonel] = useState<Personel | null>(null);
+  const [editingProje, setEditingProje] = useState<Proje | null>(null);
+
+  const [personelForm, setPersonelForm] = useState({
+    ad: '', soyad: '', tc_kimlik: '', telefon: '', email: '',
+    departman: '', pozisyon: '', ise_giris_tarihi: new Date(), maas: 0, bordro_maas: 0,
+    durum: 'aktif', medeni_durum: 'bekar', cocuk_sayisi: 0, sgk_no: ''
   });
-  
+
   const [projeForm, setProjeForm] = useState({
-    ad: '', kod: '', aciklama: '', musteri: '', lokasyon: '',
-    baslangic_tarihi: null as Date | null, bitis_tarihi: null as Date | null,
-    butce: 0, durum: 'aktif'
+    ad: '', kod: '', musteri: '', lokasyon: '', durum: 'aktif'
   });
-  
-  const [atamaForm, setAtamaForm] = useState({
-    personel_ids: [] as string[],
-    gorev: '',
-    baslangic_tarihi: new Date()
-  });
-  const [atamaProjeId, setAtamaProjeId] = useState<number | null>(null);
 
-  // API Functions
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  // =====================================================
+  // VERİ ÇEKME FONKSİYONLARI
+  // =====================================================
+
+  const fetchProjeler = useCallback(async () => {
     try {
-      const [personelRes, projelerRes, statsRes, deptStatsRes] = await Promise.all([
-        fetch(`${API_URL}/api/personel${durumFilter ? `?durum=${durumFilter}` : ''}`),
-        fetch(`${API_URL}/api/personel/projeler`),
-        fetch(`${API_URL}/api/personel/stats/overview`),
-        fetch(`${API_URL}/api/personel/stats/departman`)
-      ]);
-
-      if (personelRes.ok) {
-        const data = await personelRes.json();
-        setPersoneller(data);
-      }
-      if (projelerRes.ok) {
-        const data = await projelerRes.json();
+      // Merkezi Proje API kullan
+      const res = await fetch(`${API_URL}/projeler?durum=aktif`);
+      if (res.ok) {
+        const data = await res.json();
         setProjeler(data);
-      }
-      if (statsRes.ok) {
-        const data = await statsRes.json();
-        setStats(data);
-      }
-      if (deptStatsRes.ok) {
-        const data = await deptStatsRes.json();
-        setDepartmanStats(data);
+        // İlk projeyi seç
+        if (data.length > 0 && !selectedProje) {
+          setSelectedProje(data[0].id);
+        }
       }
     } catch (error) {
-      console.error('Veri yükleme hatası:', error);
-      notifications.show({ title: 'Hata', message: 'Veriler yüklenemedi', color: 'red' });
+      console.error('Proje yükleme hatası:', error);
+    }
+  }, [selectedProje]);
+
+  const fetchPersoneller = useCallback(async () => {
+    if (!selectedProje) return;
+    setLoading(true);
+    try {
+      // Merkezi Proje API kullan
+      const res = await fetch(`${API_URL}/projeler/${selectedProje}/personeller`);
+      if (res.ok) {
+        const data = await res.json();
+        setPersoneller(data || []);
+      }
+    } catch (error) {
+      console.error('Personel yükleme hatası:', error);
     } finally {
       setLoading(false);
     }
-  }, [durumFilter]);
+  }, [selectedProje]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Bordro verilerini çek
   const fetchBordro = useCallback(async () => {
+    if (!selectedProje) return;
     setBordroLoading(true);
     try {
-      const [listRes, ozetRes] = await Promise.all([
-        fetch(`${API_URL}/api/bordro?yil=${bordroYil}&ay=${bordroAy}`),
-        fetch(`${API_URL}/api/bordro/ozet/${bordroYil}/${bordroAy}`)
+      const [tahakkukRes, ozetRes] = await Promise.all([
+        fetch(`${API_URL}/bordro-import/tahakkuk/${selectedProje}/${bordroYil}/${bordroAy}`),
+        fetch(`${API_URL}/bordro/ozet/${bordroYil}/${bordroAy}?proje_id=${selectedProje}`)
       ]);
 
-      if (listRes.ok) {
-        const data = await listRes.json();
-        setBordroList(data);
+      if (tahakkukRes.ok) {
+        setTahakkuk(await tahakkukRes.json());
       }
       if (ozetRes.ok) {
-        const data = await ozetRes.json();
-        setBordroOzet(data);
+        setBordroOzet(await ozetRes.json());
       }
     } catch (error) {
       console.error('Bordro yükleme hatası:', error);
     } finally {
       setBordroLoading(false);
     }
-  }, [bordroYil, bordroAy]);
+  }, [selectedProje, bordroYil, bordroAy]);
 
-  useEffect(() => {
-    if (activeTab === 'bordro') {
-      fetchBordro();
-    }
-  }, [activeTab, fetchBordro]);
-
-  // Maaş değiştiğinde gerçek hesaplama yap
-  useEffect(() => {
-    const hesaplaMaas = async () => {
-      if (personelForm.maas <= 0) {
-        setMaasOnizleme(null);
-        return;
-      }
-      
-      setMaasHesaplaniyor(true);
-      try {
-        // Net'ten brüt hesapla API'si
-        const response = await fetch(`${API_URL}/api/bordro/net-brut-hesapla`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            net_maas: personelForm.maas,
-            medeni_durum: personelForm.medeni_durum,
-            es_calisiyormu: personelForm.es_calisiyormu,
-            cocuk_sayisi: personelForm.cocuk_sayisi,
-            yemek_yardimi: personelForm.yemek_yardimi || 0,
-            yol_yardimi: personelForm.yol_yardimi || 0
-          })
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setMaasOnizleme(data);
-        }
-      } catch (error) {
-        console.error('Maaş hesaplama hatası:', error);
-      } finally {
-        setMaasHesaplaniyor(false);
-      }
-    };
-    
-    // Debounce - 500ms bekle
-    const timer = setTimeout(hesaplaMaas, 500);
-    return () => clearTimeout(timer);
-  }, [personelForm.maas, personelForm.medeni_durum, personelForm.es_calisiyormu, personelForm.cocuk_sayisi, personelForm.yemek_yardimi, personelForm.yol_yardimi]);
-
-  // Detay modalı açıldığında maliyet hesapla
-  useEffect(() => {
-    const hesaplaDetayMaliyet = async () => {
-      if (!selectedPersonel || selectedPersonel.maas <= 0) {
-        setDetayMaliyet(null);
-        return;
-      }
-      
-      try {
-        const response = await fetch(`${API_URL}/api/bordro/net-brut-hesapla`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            net_maas: selectedPersonel.maas,
-            medeni_durum: selectedPersonel.medeni_durum || 'bekar',
-            es_calisiyormu: selectedPersonel.es_calisiyormu || false,
-            cocuk_sayisi: selectedPersonel.cocuk_sayisi || 0,
-            yemek_yardimi: selectedPersonel.yemek_yardimi || 0,
-            yol_yardimi: selectedPersonel.yol_yardimi || 0
-          })
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setDetayMaliyet(data);
-        }
-      } catch (error) {
-        console.error('Detay maliyet hesaplama hatası:', error);
-      }
-    };
-    
-    if (detailModalOpened && selectedPersonel) {
-      hesaplaDetayMaliyet();
-    }
-  }, [detailModalOpened, selectedPersonel]);
-
-  // İzin verilerini çek
-  const fetchIzinData = useCallback(async () => {
-    setIzinLoading(true);
+  const fetchMaasOdeme = useCallback(async () => {
+    if (!selectedProje) return;
+    setMaasOdemeLoading(true);
     try {
-      const [turlerRes, taleplerRes, statsRes] = await Promise.all([
-        fetch(`${API_URL}/api/izin/turler`),
-        fetch(`${API_URL}/api/izin/talepler`),
-        fetch(`${API_URL}/api/izin/stats`)
-      ]);
-
-      if (turlerRes.ok) setIzinTurleri(await turlerRes.json());
-      if (taleplerRes.ok) setIzinTalepleri(await taleplerRes.json());
-      if (statsRes.ok) setIzinStats(await statsRes.json());
+      const res = await fetch(`${API_URL}/maas-odeme/ozet/${selectedProje}/${bordroYil}/${bordroAy}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMaasOdemePersoneller(data.personeller || []);
+        setMaasOdemeOzet(data.ozet || null);
+      }
     } catch (error) {
-      console.error('İzin verileri hatası:', error);
+      console.error('Maaş ödeme yükleme hatası:', error);
     } finally {
-      setIzinLoading(false);
+      setMaasOdemeLoading(false);
     }
-  }, []);
+  }, [selectedProje, bordroYil, bordroAy]);
 
-  useEffect(() => {
-    if (activeTab === 'izinler') {
-      fetchIzinData();
-    }
-  }, [activeTab, fetchIzinData]);
-
-  // İzin talebi oluştur
-  const handleCreateIzin = async () => {
-    if (!izinForm.personel_id || !izinForm.izin_turu_id) {
-      notifications.show({ title: 'Hata', message: 'Personel ve izin türü zorunludur', color: 'red' });
-      return;
-    }
-
+  const handleOlusturMaasOdeme = async () => {
+    if (!selectedProje) return;
     try {
-      const response = await fetch(`${API_URL}/api/izin/talepler`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...izinForm,
-          baslangic_tarihi: izinForm.baslangic_tarihi.toISOString().split('T')[0],
-          bitis_tarihi: izinForm.bitis_tarihi.toISOString().split('T')[0]
-        })
+      const res = await fetch(`${API_URL}/maas-odeme/olustur/${selectedProje}/${bordroYil}/${bordroAy}`, {
+        method: 'POST'
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'İşlem başarısız');
+      if (res.ok) {
+        notifications.show({ message: '✓ Maaş ödemeleri oluşturuldu', color: 'green', autoClose: 2000 });
+        fetchMaasOdeme();
       }
-
-      notifications.show({ title: 'Başarılı', message: 'İzin talebi oluşturuldu', color: 'green' });
-      closeIzinModal();
-      setIzinForm({ personel_id: '', izin_turu_id: '', baslangic_tarihi: new Date(), bitis_tarihi: new Date(), aciklama: '' });
-      fetchIzinData();
-    } catch (error: any) {
-      notifications.show({ title: 'Hata', message: error.message, color: 'red' });
+    } catch (error) {
+      notifications.show({ message: '✗ İşlem başarısız', color: 'red', autoClose: 2500 });
     }
   };
 
-  // İzin onayla/reddet
-  const handleIzinDurum = async (id: number, durum: 'onaylandi' | 'reddedildi') => {
+  const handleTopluOdeme = async (tip: 'banka' | 'elden', odendi: boolean) => {
+    if (!selectedProje) return;
     try {
-      const response = await fetch(`${API_URL}/api/izin/talepler/${id}/durum`, {
+      const res = await fetch(`${API_URL}/maas-odeme/toplu-odendi/${selectedProje}/${bordroYil}/${bordroAy}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ durum, onaylayan_id: 1 }) // TODO: Gerçek kullanıcı ID
+        body: JSON.stringify({ tip, odendi })
       });
-
-      if (!response.ok) throw new Error('İşlem başarısız');
-
-      notifications.show({ 
-        title: 'Başarılı', 
-        message: durum === 'onaylandi' ? 'İzin onaylandı' : 'İzin reddedildi', 
-        color: durum === 'onaylandi' ? 'green' : 'orange' 
-      });
-      fetchIzinData();
-    } catch (error: any) {
-      notifications.show({ title: 'Hata', message: error.message, color: 'red' });
-    }
-  };
-
-  // Kıdem hesapla
-  const handleKidemHesapla = async (personelId: number) => {
-    setKidemPersonelId(personelId);
-    try {
-      const response = await fetch(`${API_URL}/api/izin/kidem-hesapla`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ personel_id: personelId, cikis_nedeni: 'isten_cikarma' })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setKidemHesap(data);
-        openKidemModal();
+      if (res.ok) {
+        notifications.show({ 
+          message: `${tip === 'banka' ? '🏦' : '💵'} ${odendi ? '✓' : '○'}`, 
+          color: odendi ? 'green' : 'gray',
+          autoClose: 1500,
+          withCloseButton: false
+        });
+        fetchMaasOdeme();
+        fetchAylikOdeme();
       }
     } catch (error) {
-      console.error('Kıdem hesaplama hatası:', error);
+      notifications.show({ message: '✗ İşlem başarısız', color: 'red', autoClose: 2500 });
     }
   };
 
-  // Toplu bordro hesapla
-  const handleTopluBordro = async () => {
-    if (!confirm(`${bordroAy}/${bordroYil} dönemi için tüm aktif personellerin bordrosunu hesaplamak istiyor musunuz?`)) return;
-    
-    setBordroLoading(true);
+  const fetchAylikOdeme = useCallback(async () => {
+    if (!selectedProje) return;
     try {
-      const response = await fetch(`${API_URL}/api/bordro/toplu-hesapla`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ yil: bordroYil, ay: bordroAy })
-      });
+      const res = await fetch(`${API_URL}/maas-odeme/aylik-odeme/${selectedProje}/${bordroYil}/${bordroAy}`);
+      if (res.ok) {
+        setAylikOdeme(await res.json());
+      }
+    } catch (error) {
+      console.error('Aylık ödeme yükleme hatası:', error);
+    }
+  }, [selectedProje, bordroYil, bordroAy]);
 
-      if (!response.ok) throw new Error('Hesaplama başarısız');
+  const handleToggleOdeme = async (field: string, currentValue: boolean) => {
+    if (!selectedProje) return;
+    try {
+      const res = await fetch(`${API_URL}/maas-odeme/aylik-odeme/${selectedProje}/${bordroYil}/${bordroAy}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ field, odendi: !currentValue })
+      });
+      if (res.ok) {
+        const fieldNames: Record<string, string> = {
+          'maas_banka_odendi': 'Banka maaşları',
+          'maas_elden_odendi': 'Elden ödemeler',
+          'sgk_odendi': 'SGK primi',
+          'gelir_vergisi_odendi': 'Gelir vergisi',
+          'damga_vergisi_odendi': 'Damga vergisi',
+          'issizlik_odendi': 'İşsizlik sigortası'
+        };
+        notifications.show({ 
+          message: `${fieldNames[field]} ${!currentValue ? '✓' : '○'}`, 
+          color: !currentValue ? 'green' : 'gray',
+          autoClose: 1500,
+          withCloseButton: false
+        });
+        fetchAylikOdeme();
+      }
+    } catch (error) {
+      notifications.show({ message: '✗ İşlem başarısız', color: 'red', autoClose: 2500 });
+    }
+  };
+
+  const handleTumunuOde = async (odendi: boolean) => {
+    if (!selectedProje) return;
+    const fields = [
+      'maas_banka_odendi', 'maas_elden_odendi', 'sgk_odendi',
+      'gelir_vergisi_odendi', 'damga_vergisi_odendi', 'issizlik_odendi'
+    ];
+    try {
+      for (const field of fields) {
+        await fetch(`${API_URL}/maas-odeme/aylik-odeme/${selectedProje}/${bordroYil}/${bordroAy}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ field, odendi })
+        });
+      }
       
-      const result = await response.json();
+      // Tüm ödemeler tamamlandıysa proje_hareketler'e kayıt ekle
+      if (odendi && tahakkuk) {
+        const netMaas = parseFloat(String(tahakkuk.odenecek_net_ucret || 0));
+        const sgkPrimi = parseFloat(String(tahakkuk.odenecek_sgk_primi || 0)) + 
+                         parseFloat(String(tahakkuk.odenecek_sgd_primi || 0)) +
+                         parseFloat(String(tahakkuk.odenecek_issizlik || 0));
+        const vergi = parseFloat(String(tahakkuk.odenecek_gelir_vergisi || 0)) + 
+                      parseFloat(String(tahakkuk.odenecek_damga_vergisi || 0));
+        
+        await fetch(`${API_URL}/maas-odeme/finalize/${selectedProje}/${bordroYil}/${bordroAy}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ maas: netMaas, sgk: sgkPrimi, vergi })
+        });
+      }
+      
       notifications.show({ 
-        title: 'Başarılı', 
-        message: `${result.basarili} personel için bordro hesaplandı${result.hatali > 0 ? `, ${result.hatali} hata` : ''}`, 
-        color: result.hatali > 0 ? 'yellow' : 'green' 
+        message: odendi ? '✅ Tüm ödemeler tamamlandı' : '○ Tüm ödemeler sıfırlandı', 
+        color: odendi ? 'green' : 'gray',
+        autoClose: 2000
       });
-      fetchBordro();
-    } catch (error: any) {
-      notifications.show({ title: 'Hata', message: error.message, color: 'red' });
-    } finally {
-      setBordroLoading(false);
+      fetchAylikOdeme();
+    } catch (error) {
+      notifications.show({ message: '✗ İşlem başarısız', color: 'red', autoClose: 2500 });
     }
   };
 
-  // Toplu ödeme
-  const handleTopluOdeme = async () => {
-    const bekleyenler = bordroList.filter(b => b.odeme_durumu === 'beklemede');
-    if (bekleyenler.length === 0) {
-      notifications.show({ title: 'Uyarı', message: 'Bekleyen ödeme yok', color: 'yellow' });
-      return;
-    }
-    
-    if (!confirm(`${bekleyenler.length} personelin ödemesini "Ödendi" olarak işaretlemek istiyor musunuz?`)) return;
-    
+  // Personel ödeme düzenleme
+  const handleEditOdeme = (personel: MaasOdemePersonel) => {
+    setEditingOdeme(personel);
+    setOdemeForm({
+      elden_fark: personel.elden_fark || 0,
+      avans: personel.avans || 0,
+      prim: personel.prim || 0
+    });
+  };
+
+  const handleSaveOdeme = async () => {
+    if (!editingOdeme || !selectedProje) return;
     try {
-      const response = await fetch(`${API_URL}/api/bordro/toplu-odeme`, {
-        method: 'POST',
+      const res = await fetch(`${API_URL}/maas-odeme/personel-odeme/${editingOdeme.personel_id}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bordro_ids: bekleyenler.map(b => b.id), odeme_yontemi: 'banka' })
+        body: JSON.stringify({
+          proje_id: selectedProje,
+          yil: bordroYil,
+          ay: bordroAy,
+          ...odemeForm
+        })
       });
-
-      if (!response.ok) throw new Error('İşlem başarısız');
-      
-      const result = await response.json();
-      notifications.show({ title: 'Başarılı', message: `${result.basarili} ödeme tamamlandı`, color: 'green' });
-      fetchBordro();
-    } catch (error: any) {
-      notifications.show({ title: 'Hata', message: error.message, color: 'red' });
+      if (res.ok) {
+        notifications.show({ message: '✓ Ödeme güncellendi', color: 'green', autoClose: 2000 });
+        setEditingOdeme(null);
+        fetchMaasOdeme();
+      }
+    } catch (error) {
+      notifications.show({ message: '✗ Güncelleme başarısız', color: 'red', autoClose: 2500 });
     }
   };
 
-  // Para formatı
-  const formatMoney = (value: number) => {
-    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 0 }).format(value);
-  };
+  // === EFFECTS ===
+  useEffect(() => {
+    fetchProjeler();
+  }, [fetchProjeler]);
 
-  // Tarih formatı
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('tr-TR');
-  };
+  useEffect(() => {
+    if (selectedProje) {
+      fetchPersoneller();
+    }
+  }, [selectedProje, fetchPersoneller]);
 
-  // Çalışma süresi
-  const getCalismaSuresi = (tarih: string) => {
-    const giris = new Date(tarih);
-    const bugun = new Date();
-    const fark = bugun.getTime() - giris.getTime();
-    const yil = Math.floor(fark / (1000 * 60 * 60 * 24 * 365));
-    const ay = Math.floor((fark % (1000 * 60 * 60 * 24 * 365)) / (1000 * 60 * 60 * 24 * 30));
-    if (yil > 0) return `${yil} yıl ${ay} ay`;
-    return `${ay} ay`;
-  };
+  useEffect(() => {
+    if (selectedProje && activeTab === 'bordro') {
+      fetchBordro();
+      fetchMaasOdeme();
+      fetchAylikOdeme();
+    }
+  }, [selectedProje, activeTab, fetchBordro, fetchMaasOdeme, fetchAylikOdeme]);
 
-  // Filtreleme
-  const filteredPersoneller = personeller.filter(p => {
-    const matchesSearch = `${p.ad} ${p.soyad}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         p.pozisyon?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         p.tc_kimlik?.includes(searchTerm);
-    const matchesProje = !selectedProje || p.projeler?.some(pr => pr.proje_id.toString() === selectedProje);
-    return matchesSearch && matchesProje;
-  });
+  // =====================================================
+  // CRUD FONKSİYONLARI
+  // =====================================================
 
-  // Durum badge
-  const getDurumBadge = (durum: string) => {
-    const config: Record<string, { color: string; label: string }> = {
-      aktif: { color: 'green', label: 'Aktif' },
-      izinli: { color: 'yellow', label: 'İzinli' },
-      pasif: { color: 'gray', label: 'Pasif' },
-      tamamlandi: { color: 'blue', label: 'Tamamlandı' },
-      beklemede: { color: 'orange', label: 'Beklemede' }
-    };
-    const { color, label } = config[durum] || config.aktif;
-    return <Badge color={color} variant="light">{label}</Badge>;
-  };
-
-  // Avatar rengi
-  const getAvatarColor = (departman: string | null) => {
-    const colors: Record<string, string> = {
-      'Mutfak': 'orange',
-      'Servis': 'blue',
-      'Temizlik': 'green',
-      'Yönetim': 'violet',
-      'Depo': 'cyan',
-      'Lojistik': 'pink'
-    };
-    return colors[departman || ''] || 'gray';
-  };
-
-  // Personel kaydet
   const handleSavePersonel = async () => {
     if (!personelForm.ad || !personelForm.soyad || !personelForm.tc_kimlik) {
       notifications.show({ title: 'Hata', message: 'Ad, soyad ve TC kimlik zorunludur', color: 'red' });
@@ -727,37 +523,53 @@ export default function PersonelPage() {
     }
 
     try {
-      const url = editingPersonel 
-        ? `${API_URL}/api/personel/${editingPersonel.id}`
-        : `${API_URL}/api/personel`;
-      
-      const method = editingPersonel ? 'PUT' : 'POST';
-      
+      const url = editingPersonel
+        ? `${API_URL}/personel/${editingPersonel.id}`
+        : `${API_URL}/personel`;
+
       const response = await fetch(url, {
-        method,
+        method: editingPersonel ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...personelForm,
           ise_giris_tarihi: personelForm.ise_giris_tarihi.toISOString().split('T')[0],
-          dogum_tarihi: personelForm.dogum_tarihi?.toISOString().split('T')[0] || null
+          proje_id: selectedProje
         })
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'İşlem başarısız');
-      }
+      if (!response.ok) throw new Error('İşlem başarısız');
 
-      notifications.show({ title: 'Başarılı', message: `Personel ${editingPersonel ? 'güncellendi' : 'eklendi'}`, color: 'green', icon: <IconCheck size={16} /> });
+      notifications.show({
+        title: 'Başarılı',
+        message: `Personel ${editingPersonel ? 'güncellendi' : 'eklendi'}`,
+        color: 'green',
+        icon: <IconCheck size={16} />
+      });
+
       closePersonelModal();
       resetPersonelForm();
-      fetchData();
+      fetchPersoneller();
+      fetchProjeler();
     } catch (error: any) {
       notifications.show({ title: 'Hata', message: error.message, color: 'red' });
     }
   };
 
-  // Proje kaydet
+  const handleDeletePersonel = async (id: number) => {
+    if (!confirm('Bu personeli silmek istediğinizden emin misiniz?')) return;
+
+    try {
+      const response = await fetch(`${API_URL}/personel/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Silme başarısız');
+
+      notifications.show({ title: 'Silindi', message: 'Personel kaydı silindi', color: 'orange' });
+      fetchPersoneller();
+      fetchProjeler();
+    } catch (error: any) {
+      notifications.show({ title: 'Hata', message: error.message, color: 'red' });
+    }
+  };
+
   const handleSaveProje = async () => {
     if (!projeForm.ad) {
       notifications.show({ title: 'Hata', message: 'Proje adı zorunludur', color: 'red' });
@@ -765,140 +577,48 @@ export default function PersonelPage() {
     }
 
     try {
-      const url = editingProje 
-        ? `${API_URL}/api/personel/projeler/${editingProje.id}`
-        : `${API_URL}/api/personel/projeler`;
-      
-      const method = editingProje ? 'PUT' : 'POST';
-      
+      // Merkezi Proje API kullan
+      const url = editingProje
+        ? `${API_URL}/projeler/${editingProje.id}`
+        : `${API_URL}/projeler`;
+
       const response = await fetch(url, {
-        method,
+        method: editingProje ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...projeForm,
-          baslangic_tarihi: projeForm.baslangic_tarihi?.toISOString().split('T')[0] || null,
-          bitis_tarihi: projeForm.bitis_tarihi?.toISOString().split('T')[0] || null
-        })
+        body: JSON.stringify(projeForm)
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'İşlem başarısız');
-      }
+      if (!response.ok) throw new Error('İşlem başarısız');
 
-      notifications.show({ title: 'Başarılı', message: `Proje ${editingProje ? 'güncellendi' : 'eklendi'}`, color: 'green', icon: <IconCheck size={16} /> });
+      notifications.show({
+        title: 'Başarılı',
+        message: `Proje ${editingProje ? 'güncellendi' : 'eklendi'}`,
+        color: 'green'
+      });
+
       closeProjeModal();
       resetProjeForm();
-      fetchData();
+      fetchProjeler();
     } catch (error: any) {
       notifications.show({ title: 'Hata', message: error.message, color: 'red' });
     }
   };
 
-  // Personel sil
-  const handleDeletePersonel = async (id: number) => {
-    if (!confirm('Bu personeli silmek istediğinizden emin misiniz?')) return;
-    
-    try {
-      const response = await fetch(`${API_URL}/api/personel/${id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Silme başarısız');
-      
-      notifications.show({ title: 'Silindi', message: 'Personel kaydı silindi', color: 'orange' });
-      fetchData();
-    } catch (error: any) {
-      notifications.show({ title: 'Hata', message: error.message, color: 'red' });
-    }
-  };
-
-  // Proje sil
-  const handleDeleteProje = async (id: number) => {
-    if (!confirm('Bu projeyi silmek istediğinizden emin misiniz? Tüm personel atamaları da silinecek.')) return;
-    
-    try {
-      const response = await fetch(`${API_URL}/api/personel/projeler/${id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Silme başarısız');
-      
-      notifications.show({ title: 'Silindi', message: 'Proje silindi', color: 'orange' });
-      fetchData();
-    } catch (error: any) {
-      notifications.show({ title: 'Hata', message: error.message, color: 'red' });
-    }
-  };
-
-  // Personel ata
-  const handleAtamaSubmit = async () => {
-    if (!atamaProjeId || atamaForm.personel_ids.length === 0) {
-      notifications.show({ title: 'Hata', message: 'Proje ve en az bir personel seçmelisiniz', color: 'red' });
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_URL}/api/personel/projeler/${atamaProjeId}/personel/bulk`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          personel_ids: atamaForm.personel_ids.map(id => parseInt(id)),
-          gorev: atamaForm.gorev || null,
-          baslangic_tarihi: atamaForm.baslangic_tarihi.toISOString().split('T')[0]
-        })
-      });
-
-      if (!response.ok) throw new Error('Atama başarısız');
-      
-      const result = await response.json();
-      notifications.show({ 
-        title: 'Başarılı', 
-        message: `${result.success.length} personel atandı${result.errors.length > 0 ? `, ${result.errors.length} hata` : ''}`, 
-        color: result.errors.length > 0 ? 'yellow' : 'green' 
-      });
-      
-      closeAtamaModal();
-      setAtamaForm({ personel_ids: [], gorev: '', baslangic_tarihi: new Date() });
-      setAtamaProjeId(null);
-      fetchData();
-    } catch (error: any) {
-      notifications.show({ title: 'Hata', message: error.message, color: 'red' });
-    }
-  };
-
-  // Atama kaldır
-  const handleRemoveAtama = async (atamaId: number) => {
-    if (!confirm('Bu personeli projeden çıkarmak istediğinizden emin misiniz?')) return;
-    
-    try {
-      const response = await fetch(`${API_URL}/api/personel/atama/${atamaId}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('İşlem başarısız');
-      
-      notifications.show({ title: 'Başarılı', message: 'Personel projeden çıkarıldı', color: 'orange' });
-      fetchData();
-      closeDetailModal();
-    } catch (error: any) {
-      notifications.show({ title: 'Hata', message: error.message, color: 'red' });
-    }
-  };
-
-  // Form reset
+  // === RESET FONKSİYONLARI ===
   const resetPersonelForm = () => {
     setEditingPersonel(null);
     setPersonelForm({
-      ad: '', soyad: '', tc_kimlik: '', telefon: '', email: '', adres: '',
-      departman: '', pozisyon: '', ise_giris_tarihi: new Date(), maas: 0,
-      maas_tipi: 'aylik', iban: '', dogum_tarihi: null, cinsiyet: '',
-      notlar: '', sicil_no: '', acil_kisi: '', acil_telefon: '', durum: 'aktif',
-      medeni_durum: 'bekar', es_calisiyormu: false, cocuk_sayisi: 0,
-      engel_derecesi: 0, sgk_no: '', yemek_yardimi: 0, yol_yardimi: 0
+      ad: '', soyad: '', tc_kimlik: '', telefon: '', email: '',
+      departman: '', pozisyon: '', ise_giris_tarihi: new Date(), maas: 0, bordro_maas: 0,
+      durum: 'aktif', medeni_durum: 'bekar', cocuk_sayisi: 0, sgk_no: ''
     });
   };
 
   const resetProjeForm = () => {
     setEditingProje(null);
-    setProjeForm({
-      ad: '', kod: '', aciklama: '', musteri: '', lokasyon: '',
-      baslangic_tarihi: null, bitis_tarihi: null, butce: 0, durum: 'aktif'
-    });
+    setProjeForm({ ad: '', kod: '', musteri: '', lokasyon: '', durum: 'aktif' });
   };
 
-  // Edit handlers
   const handleEditPersonel = (p: Personel) => {
     setEditingPersonel(p);
     setPersonelForm({
@@ -907,55 +627,68 @@ export default function PersonelPage() {
       tc_kimlik: p.tc_kimlik,
       telefon: p.telefon || '',
       email: p.email || '',
-      adres: p.adres || '',
       departman: p.departman || '',
       pozisyon: p.pozisyon || '',
       ise_giris_tarihi: new Date(p.ise_giris_tarihi),
       maas: p.maas,
-      maas_tipi: p.maas_tipi || 'aylik',
-      iban: p.iban || '',
-      dogum_tarihi: p.dogum_tarihi ? new Date(p.dogum_tarihi) : null,
-      cinsiyet: p.cinsiyet || '',
-      notlar: p.notlar || '',
-      sicil_no: p.sicil_no || '',
-      acil_kisi: p.acil_kisi || '',
-      acil_telefon: p.acil_telefon || '',
+      bordro_maas: p.bordro_maas || 0,
       durum: p.durum || 'aktif',
       medeni_durum: p.medeni_durum || 'bekar',
-      es_calisiyormu: p.es_calisiyormu || false,
       cocuk_sayisi: p.cocuk_sayisi || 0,
-      engel_derecesi: p.engel_derecesi || 0,
-      sgk_no: p.sgk_no || '',
-      yemek_yardimi: p.yemek_yardimi || 0,
-      yol_yardimi: p.yol_yardimi || 0
+      sgk_no: p.sgk_no || ''
     });
     openPersonelModal();
   };
 
-  const handleEditProje = (p: Proje) => {
-    setEditingProje(p);
-    setProjeForm({
-      ad: p.ad,
-      kod: p.kod || '',
-      aciklama: p.aciklama || '',
-      musteri: p.musteri || '',
-      lokasyon: p.lokasyon || '',
-      baslangic_tarihi: p.baslangic_tarihi ? new Date(p.baslangic_tarihi) : null,
-      bitis_tarihi: p.bitis_tarihi ? new Date(p.bitis_tarihi) : null,
-      butce: p.butce,
-      durum: p.durum
-    });
-    openProjeModal();
+  // =====================================================
+  // YARDIMCI FONKSİYONLAR
+  // =====================================================
+
+  const formatMoney = (value: number) => {
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'TRY',
+      minimumFractionDigits: 2
+    }).format(value);
   };
 
-  // Atama açma
-  const openAtamaForProje = (projeId: number) => {
-    setAtamaProjeId(projeId);
-    setAtamaForm({ personel_ids: [], gorev: '', baslangic_tarihi: new Date() });
-    openAtamaModal();
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleDateString('tr-TR');
   };
 
-  if (loading) {
+  const getAvatarColor = (departman: string | null) => {
+    const colors: Record<string, string> = {
+      'Mutfak': 'orange', 'Servis': 'blue', 'Temizlik': 'green',
+      'Yönetim': 'violet', 'Depo': 'cyan', 'Lojistik': 'pink'
+    };
+    return colors[departman || ''] || 'gray';
+  };
+
+  const getDurumBadge = (durum: string) => {
+    const config: Record<string, { color: string; label: string }> = {
+      aktif: { color: 'green', label: 'Aktif' },
+      izinli: { color: 'yellow', label: 'İzinli' },
+      pasif: { color: 'gray', label: 'Pasif' }
+    };
+    const { color, label } = config[durum] || config.aktif;
+    return <Badge color={color} variant="light">{label}</Badge>;
+  };
+
+  // Filtrelenmiş personeller
+  const filteredPersoneller = personeller.filter(p =>
+    `${p.ad} ${p.soyad}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.pozisyon?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Seçili proje bilgisi
+  const selectedProjeData = projeler.find(p => p.id === selectedProje);
+
+  // =====================================================
+  // RENDER
+  // =====================================================
+
+  if (loading && projeler.length === 0) {
     return (
       <Center h="100vh">
         <Loader size="xl" color="violet" />
@@ -964,962 +697,841 @@ export default function PersonelPage() {
   }
 
   return (
-    <Box 
-      style={{ 
-        background: isDark 
-          ? 'linear-gradient(180deg, rgba(132,94,247,0.05) 0%, rgba(0,0,0,0) 100%)' 
+    <Box
+      style={{
+        background: isDark
+          ? 'linear-gradient(180deg, rgba(132,94,247,0.05) 0%, rgba(0,0,0,0) 100%)'
           : 'linear-gradient(180deg, rgba(132,94,247,0.08) 0%, rgba(255,255,255,0) 100%)',
-        minHeight: '100vh' 
+        minHeight: '100vh'
       }}
     >
       <Container size="xl" py="xl">
-        <Stack gap="xl">
-          {/* Header */}
+        <Stack gap="lg">
+
+          {/* ==================== BAŞLIK ==================== */}
           <Group justify="space-between" align="flex-end">
             <Box>
               <Title order={1} fw={700}>🧑‍💼 Personel Yönetimi</Title>
-              <Text c="dimmed" size="lg">Proje bazlı çalışan bilgilerini yönetin</Text>
+              <Text c="dimmed" size="lg">Proje bazlı personel ve bordro yönetimi</Text>
             </Box>
             <Group>
-              <Button 
-                leftSection={<IconRefresh size={18} />} 
-                variant="light" 
+              <Button
+                leftSection={<IconRefresh size={18} />}
+                variant="light"
                 color="gray"
-                onClick={fetchData}
+                onClick={() => { fetchProjeler(); fetchPersoneller(); }}
               >
                 Yenile
               </Button>
-              <Button 
-                leftSection={<IconBuilding size={18} />} 
-                variant="light" 
-                color="cyan"
+              <DataActions
+                type="personel"
+                onImportSuccess={() => { fetchProjeler(); fetchPersoneller(); }}
+              />
+            </Group>
+          </Group>
+
+          {/* ==================== PROJE KARTLARI ==================== */}
+          <Card withBorder shadow="sm" p="lg" radius="md">
+            <Group justify="space-between" mb="md">
+              <Text fw={600} size="lg">🏢 Projeler</Text>
+              <Button
+                variant="light"
+                color="violet"
+                size="sm"
+                leftSection={<IconPlus size={16} />}
                 onClick={() => { resetProjeForm(); openProjeModal(); }}
               >
                 Yeni Proje
               </Button>
-              <Button 
-                leftSection={<IconPlus size={18} />} 
-                variant="gradient" 
-                gradient={{ from: 'violet', to: 'grape' }} 
-                onClick={() => { resetPersonelForm(); openPersonelModal(); }}
-              >
-              Yeni Personel
-            </Button>
-            <DataActions 
-              type="personel" 
-              onImportSuccess={() => { fetchPersoneller(); fetchStats(); }}
-              projeler={projeler}
-              departmanlar={[...new Set(personeller.map(p => p.departman).filter(Boolean) as string[])]}
-            />
             </Group>
-          </Group>
 
-          {/* Stats Cards */}
-          {stats && (
-            <SimpleGrid cols={{ base: 2, md: 5 }}>
-            <Card withBorder shadow="sm" p="lg" radius="md">
-              <Group justify="space-between">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Toplam Personel</Text>
-                <ThemeIcon color="blue" variant="light" size="lg" radius="md"><IconUsers size={20} /></ThemeIcon>
-              </Group>
-                <Text fw={700} size="xl" mt="md">{stats.toplam_personel}</Text>
-            </Card>
-            <Card withBorder shadow="sm" p="lg" radius="md">
-              <Group justify="space-between">
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Görevli Personel</Text>
-                <ThemeIcon color="green" variant="light" size="lg" radius="md"><IconUser size={20} /></ThemeIcon>
-              </Group>
-                <Text fw={700} size="xl" mt="md" c="green">{stats.gorevli_personel}</Text>
-            </Card>
-            <Card withBorder shadow="sm" p="lg" radius="md">
-              <Group justify="space-between">
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Aktif Proje</Text>
-                  <ThemeIcon color="cyan" variant="light" size="lg" radius="md"><IconBuilding size={20} /></ThemeIcon>
-                </Group>
-                <Text fw={700} size="xl" mt="md" c="cyan">{stats.aktif_proje}</Text>
-              </Card>
-              <Card withBorder shadow="sm" p="lg" radius="md">
+            <SimpleGrid cols={{ base: 2, sm: 3, md: 4, lg: 5 }}>
+              {projeler.map((proje) => (
+                <Card
+                  key={proje.id}
+                  withBorder
+                  shadow={selectedProje === proje.id ? 'md' : 'xs'}
+                  p="md"
+                  radius="md"
+                  style={{
+                    cursor: 'pointer',
+                    borderColor: selectedProje === proje.id ? 'var(--mantine-color-violet-5)' : undefined,
+                    background: selectedProje === proje.id
+                      ? (isDark ? 'rgba(132,94,247,0.15)' : 'rgba(132,94,247,0.08)')
+                      : undefined,
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={() => setSelectedProje(proje.id)}
+                >
+                  <Group justify="space-between" mb="xs">
+                    <Text fw={600} size="sm" lineClamp={1}>{proje.ad}</Text>
+                    {selectedProje === proje.id && (
+                      <Badge size="xs" color="violet">Seçili</Badge>
+                    )}
+                  </Group>
+                  <Group gap="xs">
+                    <Badge variant="light" color="blue" size="sm">
+                      {proje.personel_sayisi} kişi
+                    </Badge>
+                  </Group>
+                  <Text size="xs" c="dimmed" mt="xs">
+                    {formatMoney(proje.toplam_maas || 0)}
+                  </Text>
+                </Card>
+              ))}
+
+              {projeler.length === 0 && (
+                <Card withBorder p="xl" radius="md" style={{ gridColumn: '1 / -1' }}>
+                  <Center>
+                    <Stack align="center" gap="sm">
+                      <ThemeIcon size="xl" color="gray" variant="light" radius="xl">
+                        <IconBuilding size={24} />
+                      </ThemeIcon>
+                      <Text c="dimmed">Henüz proje eklenmemiş</Text>
+                      <Button
+                        variant="light"
+                        size="sm"
+                        leftSection={<IconPlus size={16} />}
+                        onClick={() => { resetProjeForm(); openProjeModal(); }}
+                      >
+                        İlk Projeyi Ekle
+                      </Button>
+                    </Stack>
+                  </Center>
+                </Card>
+              )}
+            </SimpleGrid>
+          </Card>
+
+          {/* ==================== SEÇİLİ PROJE İÇERİĞİ ==================== */}
+          {selectedProje && selectedProjeData && (
+            <Card withBorder shadow="sm" radius="md">
+              {/* PROJE BAŞLIĞI */}
+              <Card.Section withBorder inheritPadding py="md">
                 <Group justify="space-between">
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Aylık Maaş</Text>
-                <ThemeIcon color="orange" variant="light" size="lg" radius="md"><IconCash size={20} /></ThemeIcon>
-              </Group>
-                <Text fw={700} size="xl" mt="md" c="orange">{formatMoney(stats.toplam_maas)}</Text>
-            </Card>
-            <Card withBorder shadow="sm" p="lg" radius="md">
-              <Group justify="space-between">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>İzinli</Text>
-                <ThemeIcon color="yellow" variant="light" size="lg" radius="md"><IconCalendarStats size={20} /></ThemeIcon>
-              </Group>
-                <Text fw={700} size="xl" mt="md" c="yellow">{stats.izinli_personel}</Text>
-            </Card>
-          </SimpleGrid>
-          )}
+                  <Group>
+                    <ThemeIcon size="lg" radius="xl" variant="gradient" gradient={{ from: 'violet', to: 'grape' }}>
+                      <IconBuilding size={20} />
+                    </ThemeIcon>
+                    <Box>
+                      <Text fw={700} size="lg">{selectedProjeData.ad}</Text>
+                      <Text size="sm" c="dimmed">
+                        {selectedProjeData.personel_sayisi} personel • {formatMoney(selectedProjeData.toplam_maas || 0)} maaş
+                      </Text>
+                    </Box>
+                  </Group>
+                </Group>
+              </Card.Section>
 
-          {/* Tabs */}
+              {/* TAB'LAR */}
               <Tabs value={activeTab} onChange={setActiveTab}>
                 <Tabs.List>
-              <Tabs.Tab value="personel" leftSection={<IconUsers size={16} />}>
-                Personeller ({personeller.length})
-              </Tabs.Tab>
-              <Tabs.Tab value="projeler" leftSection={<IconBuilding size={16} />}>
-                Projeler ({projeler.length})
-              </Tabs.Tab>
-              <Tabs.Tab value="izinler" leftSection={<IconBeach size={16} />}>
-                İzinler {izinStats?.bekleyen ? <Badge size="xs" color="orange" ml={4}>{izinStats.bekleyen}</Badge> : null}
-              </Tabs.Tab>
-              <Tabs.Tab value="bordro" leftSection={<IconReceipt size={16} />}>
-                Bordro
-              </Tabs.Tab>
-              <Tabs.Tab value="grafikler" leftSection={<IconBriefcase size={16} />}>
-                Grafikler
-              </Tabs.Tab>
+                  <Tabs.Tab value="personel" leftSection={<IconUsers size={16} />}>
+                    Personeller ({filteredPersoneller.length})
+                  </Tabs.Tab>
+                  <Tabs.Tab value="bordro" leftSection={<IconReceipt size={16} />}>
+                    Maaş ve Bordro
+                  </Tabs.Tab>
                 </Tabs.List>
 
-            {/* Personel Tab */}
-            <Tabs.Panel value="personel" pt="md">
-              <Card withBorder shadow="sm" p="lg" radius="md">
-                <Group justify="space-between" mb="md">
-                  <Group>
-                    <Select
-                      placeholder="Proje filtrele"
-                      clearable
-                      data={projeler.map(p => ({ value: p.id.toString(), label: p.ad }))}
-                      value={selectedProje}
-                      onChange={setSelectedProje}
-                      leftSection={<IconBuilding size={16} />}
-                      style={{ width: 200 }}
-                    />
-                    <SegmentedControl
-                      value={durumFilter}
-                      onChange={(v) => setDurumFilter(v)}
-                      data={[
-                        { label: 'Aktif', value: 'aktif' },
-                        { label: 'İzinli', value: 'izinli' },
-                        { label: 'Pasif', value: 'pasif' },
-                        { label: 'Tümü', value: '' }
-                      ]}
-                    />
-                  </Group>
-                  <TextInput 
-                    placeholder="Personel ara..." 
-                    leftSection={<IconSearch size={16} />} 
-                    value={searchTerm} 
-                    onChange={(e) => setSearchTerm(e.currentTarget.value)} 
-                    style={{ width: 250 }} 
-                  />
-            </Group>
-
-                <Table.ScrollContainer minWidth={1000}>
-              <Table verticalSpacing="sm" highlightOnHover>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Personel</Table.Th>
-                    <Table.Th>Departman</Table.Th>
-                    <Table.Th>Pozisyon</Table.Th>
-                        <Table.Th>Projeler</Table.Th>
-                    <Table.Th>İşe Giriş</Table.Th>
-                    <Table.Th>Durum</Table.Th>
-                    <Table.Th style={{ textAlign: 'right' }}>Maaş</Table.Th>
-                    <Table.Th style={{ textAlign: 'center', width: 80 }}>İşlem</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {filteredPersoneller.length === 0 ? (
-                        <Table.Tr>
-                          <Table.Td colSpan={8}>
-                            <Text ta="center" c="dimmed" py="xl">Personel bulunamadı</Text>
-                          </Table.Td>
-                        </Table.Tr>
-                  ) : (
-                    filteredPersoneller.map((personel) => (
-                      <Table.Tr key={personel.id}>
-                        <Table.Td>
-                          <Group gap="sm">
-                            <Avatar color={getAvatarColor(personel.departman)} radius="xl">
-                              {personel.ad[0]}{personel.soyad[0]}
-                            </Avatar>
-                            <div>
-                              <Text size="sm" fw={500}>{personel.ad} {personel.soyad}</Text>
-                                  <Text size="xs" c="dimmed">{personel.telefon || '-'}</Text>
-                            </div>
-                          </Group>
-                        </Table.Td>
-                        <Table.Td>
-                              <Badge variant="light" color={getAvatarColor(personel.departman)}>
-                                {personel.departman || 'Belirsiz'}
-                              </Badge>
-                        </Table.Td>
-                            <Table.Td><Text size="sm">{personel.pozisyon || '-'}</Text></Table.Td>
-                            <Table.Td>
-                              {personel.projeler && personel.projeler.length > 0 ? (
-                                <Group gap={4}>
-                                  {personel.projeler.slice(0, 2).map((pr, i) => (
-                                    <Badge key={i} size="xs" variant="dot" color="cyan">
-                                      {pr.proje_ad}
-                                    </Badge>
-                                  ))}
-                                  {personel.projeler.length > 2 && (
-                                    <Badge size="xs" variant="light" color="gray">
-                                      +{personel.projeler.length - 2}
-                                    </Badge>
-                                  )}
-                                </Group>
-                              ) : (
-                                <Text size="xs" c="dimmed">Atama yok</Text>
-                              )}
-                            </Table.Td>
-                            <Table.Td>
-                              <Text size="sm" c="dimmed">{formatDate(personel.ise_giris_tarihi)}</Text>
-                              <Text size="xs" c="dimmed">{getCalismaSuresi(personel.ise_giris_tarihi)}</Text>
-                            </Table.Td>
-                            <Table.Td>{getDurumBadge(personel.durum || 'aktif')}</Table.Td>
-                        <Table.Td style={{ textAlign: 'right' }}>
-                          <Text size="sm" fw={600}>{formatMoney(personel.maas)}</Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Menu position="bottom-end" shadow="md">
-                            <Menu.Target>
-                                  <ActionIcon variant="subtle" color="gray">
-                                    <IconDotsVertical size={16} />
-                                  </ActionIcon>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                                  <Menu.Item 
-                                    leftSection={<IconEye style={{ width: rem(14), height: rem(14) }} />} 
-                                    onClick={() => { setSelectedPersonel(personel); openDetailModal(); }}
-                                  >
-                                    Detay
-                                  </Menu.Item>
-                                  <Menu.Item 
-                                    leftSection={<IconEdit style={{ width: rem(14), height: rem(14) }} />} 
-                                    onClick={() => handleEditPersonel(personel)}
-                                  >
-                                    Düzenle
-                                  </Menu.Item>
-                              <Menu.Divider />
-                                  <Menu.Item 
-                                    color="red" 
-                                    leftSection={<IconTrash style={{ width: rem(14), height: rem(14) }} />} 
-                                    onClick={() => handleDeletePersonel(personel.id)}
-                                  >
-                                    Sil
-                                  </Menu.Item>
-                            </Menu.Dropdown>
-                          </Menu>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))
-                  )}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
-          </Card>
-            </Tabs.Panel>
-
-            {/* Projeler Tab */}
-            <Tabs.Panel value="projeler" pt="md">
-              <SimpleGrid cols={{ base: 1, md: 2, lg: 3 }}>
-                {projeler.map((proje) => (
-                  <Card key={proje.id} withBorder shadow="sm" p="lg" radius="md">
-                    <Group justify="space-between" mb="md">
-                      <Box>
-                        <Group gap="xs">
-                          <Text fw={600} size="lg">{proje.ad}</Text>
-                          {proje.kod && <Badge variant="light" size="sm">{proje.kod}</Badge>}
-                        </Group>
-                        <Group gap="xs" mt={4}>
-                          {getDurumBadge(proje.durum)}
-                          {proje.musteri && (
-                            <Text size="xs" c="dimmed">{proje.musteri}</Text>
-                          )}
-                        </Group>
-                      </Box>
-                      <Menu position="bottom-end" shadow="md">
-                        <Menu.Target>
-                          <ActionIcon variant="subtle" color="gray">
-                            <IconDotsVertical size={16} />
-                          </ActionIcon>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                          <Menu.Item 
-                            leftSection={<IconUserPlus style={{ width: rem(14), height: rem(14) }} />} 
-                            onClick={() => openAtamaForProje(proje.id)}
-                          >
-                            Personel Ata
-                          </Menu.Item>
-                          <Menu.Item 
-                            leftSection={<IconEdit style={{ width: rem(14), height: rem(14) }} />} 
-                            onClick={() => handleEditProje(proje)}
-                          >
-                            Düzenle
-                          </Menu.Item>
-                          <Menu.Divider />
-                          <Menu.Item 
-                            color="red" 
-                            leftSection={<IconTrash style={{ width: rem(14), height: rem(14) }} />} 
-                            onClick={() => handleDeleteProje(proje.id)}
-                          >
-                            Sil
-                          </Menu.Item>
-                        </Menu.Dropdown>
-                      </Menu>
-                    </Group>
-                    
-                    {proje.lokasyon && (
-                      <Group gap="xs" mb="sm">
-                        <IconMapPin size={14} style={{ color: 'var(--mantine-color-dimmed)' }} />
-                        <Text size="sm" c="dimmed">{proje.lokasyon}</Text>
-                      </Group>
-                    )}
-
-                    <SimpleGrid cols={2} mt="md">
-                      <Paper withBorder p="sm" radius="md">
-                        <Text size="xs" c="dimmed">Personel</Text>
-                        <Text fw={600} size="lg">{proje.personel_sayisi}</Text>
-                      </Paper>
-                      <Paper withBorder p="sm" radius="md">
-                        <Text size="xs" c="dimmed">Maaş Gideri</Text>
-                        <Text fw={600} size="sm" c="orange">{formatMoney(proje.toplam_maas)}</Text>
-                      </Paper>
-                    </SimpleGrid>
-
-                    {proje.butce > 0 && (
-                      <Paper withBorder p="sm" radius="md" mt="sm">
-                        <Text size="xs" c="dimmed">Bütçe</Text>
-                        <Text fw={600}>{formatMoney(proje.butce)}</Text>
-                      </Paper>
-                    )}
-
-                    <Button 
-                      variant="light" 
-                      fullWidth 
-                      mt="md"
-                      leftSection={<IconUserPlus size={16} />}
-                      onClick={() => openAtamaForProje(proje.id)}
-                    >
-                      Personel Ata
-                    </Button>
-                  </Card>
-                ))}
-
-                {projeler.length === 0 && (
-                  <Card withBorder shadow="sm" p="xl" radius="md" style={{ gridColumn: '1 / -1' }}>
-                    <Center>
-                      <Stack align="center" gap="md">
-                        <ThemeIcon size="xl" color="gray" variant="light" radius="xl">
-                          <IconBuilding size={24} />
-                        </ThemeIcon>
-                        <Text c="dimmed">Henüz proje eklenmemiş</Text>
-                        <Button 
-                          variant="light" 
-                          leftSection={<IconPlus size={16} />}
-                          onClick={() => { resetProjeForm(); openProjeModal(); }}
-                        >
-                          İlk Projeyi Ekle
-                        </Button>
-        </Stack>
-                    </Center>
-                  </Card>
-                )}
-              </SimpleGrid>
-            </Tabs.Panel>
-
-            {/* İzinler Tab */}
-            <Tabs.Panel value="izinler" pt="md">
-              <Stack gap="md">
-                {/* İstatistik Kartları */}
-                <SimpleGrid cols={{ base: 2, md: 4 }}>
-                  <Card withBorder shadow="sm" p="lg" radius="md">
+                {/* ==================== PERSONEL TAB ==================== */}
+                <Tabs.Panel value="personel" pt="md">
+                  <Stack gap="md">
+                    {/* Aksiyon Bar */}
                     <Group justify="space-between">
-                      <div>
-                        <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Bekleyen Talepler</Text>
-                        <Text fw={700} size="xl" c="orange">{izinStats?.bekleyen || 0}</Text>
-                      </div>
-                      <ThemeIcon color="orange" variant="light" size="lg" radius="md">
-                        <IconClockHour4 size={20} />
-                      </ThemeIcon>
+                      <TextInput
+                        placeholder="Personel ara..."
+                        leftSection={<IconSearch size={16} />}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.currentTarget.value)}
+                        style={{ width: 300 }}
+                      />
+                      <Button
+                        variant="gradient"
+                        gradient={{ from: 'violet', to: 'grape' }}
+                        leftSection={<IconPlus size={16} />}
+                        onClick={() => { resetPersonelForm(); openPersonelModal(); }}
+                      >
+                        Personel Ekle
+                      </Button>
                     </Group>
-                  </Card>
-                  <Card withBorder shadow="sm" p="lg" radius="md">
-                    <Group justify="space-between">
-                      <div>
-                        <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Bugün İzinli</Text>
-                        <Text fw={700} size="xl" c="blue">{izinStats?.bugun_izinli || 0}</Text>
-                      </div>
-                      <ThemeIcon color="blue" variant="light" size="lg" radius="md">
-                        <IconBeach size={20} />
-                      </ThemeIcon>
-                    </Group>
-                  </Card>
-                  <Card withBorder shadow="sm" p="lg" radius="md">
-                    <Group justify="space-between">
-                      <div>
-                        <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Bu Yıl Onaylanan</Text>
-                        <Text fw={700} size="xl" c="green">{izinStats?.bu_yil_onaylanan || 0}</Text>
-                      </div>
-                      <ThemeIcon color="green" variant="light" size="lg" radius="md">
-                        <IconCheck size={20} />
-                      </ThemeIcon>
-                    </Group>
-                  </Card>
-                  <Card withBorder shadow="sm" p="lg" radius="md">
-                    <Group justify="space-between">
-                      <div>
-                        <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Toplam İzin Günü</Text>
-                        <Text fw={700} size="xl">{izinStats?.bu_yil_toplam_gun || 0}</Text>
-                      </div>
-                      <ThemeIcon color="violet" variant="light" size="lg" radius="md">
-                        <IconCalendarEvent size={20} />
-                      </ThemeIcon>
-                    </Group>
-                  </Card>
-                </SimpleGrid>
 
-                {/* Butonlar */}
-                <Group>
-                  <Button 
-                    variant="gradient" 
-                    gradient={{ from: 'cyan', to: 'teal' }}
-                    leftSection={<IconPlus size={16} />}
-                    onClick={() => {
-                      setIzinForm({ personel_id: '', izin_turu_id: '', baslangic_tarihi: new Date(), bitis_tarihi: new Date(), aciklama: '' });
-                      openIzinModal();
-                    }}
-                  >
-                    Yeni İzin Talebi
-                  </Button>
-                  <Button 
-                    variant="light" 
-                    leftSection={<IconRefresh size={16} />}
-                    onClick={fetchIzinData}
-                    loading={izinLoading}
-                  >
-                    Yenile
-                  </Button>
-                </Group>
-
-                {/* İzin Talepleri Tablosu */}
-                <Card withBorder shadow="sm" p="lg" radius="md">
-                  <Text fw={600} size="lg" mb="md">İzin Talepleri</Text>
-                  
-                  {izinLoading ? (
-                    <Center py="xl"><Loader color="cyan" /></Center>
-                  ) : izinTalepleri.length === 0 ? (
-                    <Center py="xl">
-                      <Stack align="center" gap="md">
-                        <ThemeIcon size="xl" color="gray" variant="light" radius="xl">
-                          <IconBeach size={24} />
-                        </ThemeIcon>
-                        <Text c="dimmed">Henüz izin talebi yok</Text>
-                      </Stack>
-                    </Center>
-                  ) : (
-                    <Table.ScrollContainer minWidth={900}>
+                    {/* Personel Tablosu */}
+                    <Table.ScrollContainer minWidth={800}>
                       <Table verticalSpacing="sm" highlightOnHover>
                         <Table.Thead>
                           <Table.Tr>
                             <Table.Th>Personel</Table.Th>
-                            <Table.Th>İzin Türü</Table.Th>
-                            <Table.Th>Tarih Aralığı</Table.Th>
-                            <Table.Th style={{ textAlign: 'center' }}>Gün</Table.Th>
+                            <Table.Th>Departman</Table.Th>
+                            <Table.Th>Pozisyon</Table.Th>
+                            <Table.Th>İşe Giriş</Table.Th>
                             <Table.Th>Durum</Table.Th>
-                            <Table.Th>İşlem</Table.Th>
+                            <Table.Th style={{ textAlign: 'right' }}>
+                              <Tooltip label="Gerçek ödenen maaş (elden)">
+                                <Text size="sm" fw={600}>Net Maaş</Text>
+                              </Tooltip>
+                            </Table.Th>
+                            <Table.Th style={{ textAlign: 'right' }}>
+                              <Tooltip label="Resmi bordro maaşı (SGK'ya bildirilen)">
+                                <Text size="sm" fw={600} c="orange">Bordro</Text>
+                              </Tooltip>
+                            </Table.Th>
+                            <Table.Th style={{ textAlign: 'center', width: 80 }}>İşlem</Table.Th>
                           </Table.Tr>
                         </Table.Thead>
                         <Table.Tbody>
-                          {izinTalepleri.map((talep) => (
-                            <Table.Tr key={talep.id}>
-                              <Table.Td>
-                                <Group gap="sm">
-                                  <Avatar size="sm" color={getAvatarColor(talep.departman)} radius="xl">
-                                    {talep.personel_ad[0]}{talep.personel_soyad[0]}
-                                  </Avatar>
-                                  <div>
-                                    <Text size="sm" fw={500}>{talep.personel_ad} {talep.personel_soyad}</Text>
-                                    <Text size="xs" c="dimmed">{talep.departman || '-'}</Text>
-                                  </div>
-                                </Group>
-                              </Table.Td>
-                              <Table.Td>
-                                <Badge color={talep.izin_renk?.replace('#', '') || 'blue'} variant="light">
-                                  {talep.izin_turu_ad}
-                                </Badge>
-                                {!talep.ucretli && <Badge color="gray" variant="outline" size="xs" ml={4}>Ücretsiz</Badge>}
-                              </Table.Td>
-                              <Table.Td>
-                                <Text size="sm">{formatDate(talep.baslangic_tarihi)}</Text>
-                                <Text size="xs" c="dimmed">→ {formatDate(talep.bitis_tarihi)}</Text>
-                              </Table.Td>
-                              <Table.Td style={{ textAlign: 'center' }}>
-                                <Badge variant="filled" color="gray" size="lg">{talep.gun_sayisi}</Badge>
-                              </Table.Td>
-                              <Table.Td>
-                                <Badge 
-                                  color={
-                                    talep.durum === 'onaylandi' ? 'green' : 
-                                    talep.durum === 'reddedildi' ? 'red' : 
-                                    talep.durum === 'iptal' ? 'gray' : 'orange'
-                                  }
-                                  variant="light"
-                                >
-                                  {talep.durum === 'onaylandi' ? '✓ Onaylı' : 
-                                   talep.durum === 'reddedildi' ? '✗ Reddedildi' : 
-                                   talep.durum === 'iptal' ? 'İptal' : '⏳ Bekliyor'}
-                                </Badge>
-                              </Table.Td>
-                              <Table.Td>
-                                {talep.durum === 'beklemede' && (
-                                  <Group gap={4}>
-                                    <Tooltip label="Onayla">
-                                      <ActionIcon color="green" variant="light" onClick={() => handleIzinDurum(talep.id, 'onaylandi')}>
-                                        <IconCheck size={16} />
-                                      </ActionIcon>
-                                    </Tooltip>
-                                    <Tooltip label="Reddet">
-                                      <ActionIcon color="red" variant="light" onClick={() => handleIzinDurum(talep.id, 'reddedildi')}>
-                                        <IconX size={16} />
-                                      </ActionIcon>
-                                    </Tooltip>
-                                  </Group>
-                                )}
+                          {filteredPersoneller.length === 0 ? (
+                            <Table.Tr>
+                              <Table.Td colSpan={8}>
+                                <Center py="xl">
+                                  <Stack align="center" gap="sm">
+                                    <ThemeIcon size="xl" color="gray" variant="light" radius="xl">
+                                      <IconUser size={24} />
+                                    </ThemeIcon>
+                                    <Text c="dimmed">Bu projede personel bulunamadı</Text>
+                                  </Stack>
+                                </Center>
                               </Table.Td>
                             </Table.Tr>
-                          ))}
+                          ) : (
+                            filteredPersoneller.map((personel) => (
+                              <Table.Tr key={personel.id}>
+                                <Table.Td>
+                                  <Group gap="sm">
+                                    <Avatar color={getAvatarColor(personel.departman)} radius="xl">
+                                      {personel.ad[0]}{personel.soyad[0]}
+                                    </Avatar>
+                                    <div>
+                                      <Text size="sm" fw={500}>{personel.ad} {personel.soyad}</Text>
+                                      <Text size="xs" c="dimmed">{personel.telefon || '-'}</Text>
+                                    </div>
+                                  </Group>
+                                </Table.Td>
+                                <Table.Td>
+                                  <Badge variant="light" color={getAvatarColor(personel.departman)}>
+                                    {personel.departman || 'Belirsiz'}
+                                  </Badge>
+                                </Table.Td>
+                                <Table.Td><Text size="sm">{personel.pozisyon || '-'}</Text></Table.Td>
+                                <Table.Td><Text size="sm" c="dimmed">{formatDate(personel.ise_giris_tarihi)}</Text></Table.Td>
+                                <Table.Td>{getDurumBadge(personel.durum || 'aktif')}</Table.Td>
+                                <Table.Td style={{ textAlign: 'right' }}>
+                                  <Text size="sm" fw={600} c="green">{formatMoney(personel.maas)}</Text>
+                                </Table.Td>
+                                <Table.Td style={{ textAlign: 'right' }}>
+                                  <Text size="sm" fw={500} c="orange">{formatMoney(personel.bordro_maas || 0)}</Text>
+                                </Table.Td>
+                                <Table.Td>
+                                  <Menu position="bottom-end" shadow="md">
+                                    <Menu.Target>
+                                      <ActionIcon variant="subtle" color="gray">
+                                        <IconDotsVertical size={16} />
+                                      </ActionIcon>
+                                    </Menu.Target>
+                                    <Menu.Dropdown>
+                                      <Menu.Item
+                                        leftSection={<IconEye style={{ width: rem(14), height: rem(14) }} />}
+                                        onClick={() => { setSelectedPersonel(personel); openDetailModal(); }}
+                                      >
+                                        Detay
+                                      </Menu.Item>
+                                      <Menu.Item
+                                        leftSection={<IconEdit style={{ width: rem(14), height: rem(14) }} />}
+                                        onClick={() => handleEditPersonel(personel)}
+                                      >
+                                        Düzenle
+                                      </Menu.Item>
+                                      <Menu.Divider />
+                                      <Menu.Item
+                                        color="red"
+                                        leftSection={<IconTrash style={{ width: rem(14), height: rem(14) }} />}
+                                        onClick={() => handleDeletePersonel(personel.id)}
+                                      >
+                                        Sil
+                                      </Menu.Item>
+                                    </Menu.Dropdown>
+                                  </Menu>
+                                </Table.Td>
+                              </Table.Tr>
+                            ))
+                          )}
                         </Table.Tbody>
                       </Table>
                     </Table.ScrollContainer>
-                  )}
-                </Card>
+                  </Stack>
+                </Tabs.Panel>
 
-                {/* İzin Türleri Bilgisi */}
-                <Card withBorder shadow="sm" p="lg" radius="md">
-                  <Text fw={600} size="lg" mb="md">📋 İzin Türleri ve Haklar</Text>
-                  <SimpleGrid cols={{ base: 2, md: 4 }}>
-                    {izinTurleri.map((tur) => (
-                      <Paper key={tur.id} withBorder p="sm" radius="md">
-                        <Group gap="xs" mb="xs">
-                          <Box w={12} h={12} style={{ borderRadius: 4, backgroundColor: tur.renk }} />
-                          <Text size="sm" fw={500}>{tur.ad}</Text>
-                        </Group>
-                        <Badge size="xs" color={tur.ucretli ? 'green' : 'gray'} variant="light">
-                          {tur.ucretli ? 'Ücretli' : 'Ücretsiz'}
-                        </Badge>
-                      </Paper>
-                    ))}
-                  </SimpleGrid>
-                </Card>
-              </Stack>
-            </Tabs.Panel>
-
-            {/* Grafikler Tab */}
-            <Tabs.Panel value="grafikler" pt="md">
-              <SimpleGrid cols={{ base: 1, md: 2 }}>
-                <Card withBorder shadow="sm" p="lg" radius="md">
-                  <Text fw={600} size="lg" mb="md">Departman Bazlı Personel</Text>
-                  <Box h={300}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={departmanStats}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#333' : '#eee'} />
-                        <XAxis dataKey="departman" stroke={isDark ? '#888' : '#666'} fontSize={12} />
-                        <YAxis stroke={isDark ? '#888' : '#666'} fontSize={12} />
-                        <RechartsTooltip 
-                          contentStyle={{ 
-                            backgroundColor: isDark ? '#1a1b1e' : '#fff', 
-                            border: `1px solid ${isDark ? '#333' : '#ddd'}`, 
-                            borderRadius: '8px' 
-                          }} 
+                {/* ==================== BORDRO TAB ==================== */}
+                <Tabs.Panel value="bordro" pt="md">
+                  <Stack gap="md">
+                    {/* Dönem Seçimi ve Yükleme */}
+                    <Group justify="space-between">
+                      <Group>
+                        <Select
+                          label="Yıl"
+                          data={[2024, 2025, 2026, 2027].map(y => ({ value: y.toString(), label: y.toString() }))}
+                          value={bordroYil.toString()}
+                          onChange={(v) => setBordroYil(parseInt(v || '2026'))}
+                          style={{ width: 100 }}
                         />
-                        <Bar dataKey="personel_sayisi" fill="#845ef7" name="Personel Sayısı" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </Box>
-                </Card>
-
-                <Card withBorder shadow="sm" p="lg" radius="md">
-                  <Text fw={600} size="lg" mb="md">Proje Bazlı Personel Dağılımı</Text>
-                  <Box h={300}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={projeler.filter(p => p.personel_sayisi > 0)}
-                          dataKey="personel_sayisi"
-                          nameKey="ad"
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={100}
-                          label={({ name, value }) => `${name}: ${value}`}
+                        <Select
+                          label="Ay"
+                          data={aylar}
+                          value={bordroAy.toString()}
+                          onChange={(v) => setBordroAy(parseInt(v || '1'))}
+                          style={{ width: 120 }}
+                        />
+                        <Button
+                          variant="light"
+                          leftSection={<IconRefresh size={16} />}
+                          onClick={fetchBordro}
+                          loading={bordroLoading}
+                          mt={24}
                         >
-                          {projeler.map((_, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <RechartsTooltip 
-                          contentStyle={{ 
-                            backgroundColor: isDark ? '#1a1b1e' : '#fff', 
-                            border: `1px solid ${isDark ? '#333' : '#ddd'}`, 
-                            borderRadius: '8px' 
-                          }} 
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </Box>
-                </Card>
-
-                <Card withBorder shadow="sm" p="lg" radius="md" style={{ gridColumn: '1 / -1' }}>
-                  <Text fw={600} size="lg" mb="md">Departman Bazlı Maaş Gideri</Text>
-                  <Box h={250}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={departmanStats} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#333' : '#eee'} />
-                        <XAxis type="number" stroke={isDark ? '#888' : '#666'} fontSize={12} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
-                        <YAxis type="category" dataKey="departman" stroke={isDark ? '#888' : '#666'} fontSize={12} width={100} />
-                        <RechartsTooltip 
-                          contentStyle={{ 
-                            backgroundColor: isDark ? '#1a1b1e' : '#fff', 
-                            border: `1px solid ${isDark ? '#333' : '#ddd'}`, 
-                            borderRadius: '8px' 
-                          }}
-                          formatter={(value: number) => formatMoney(value)}
-                        />
-                        <Bar dataKey="toplam_maas" fill="#20c997" name="Toplam Maaş" radius={[0, 4, 4, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </Box>
-                </Card>
-              </SimpleGrid>
-            </Tabs.Panel>
-
-            {/* AI Asistan Tab */}
-            {/* Bordro Tab */}
-            <Tabs.Panel value="bordro" pt="md">
-              <Stack gap="md">
-                {/* Dönem Seçimi ve Butonlar */}
-                <Card withBorder shadow="sm" p="lg" radius="md">
-                  <Group justify="space-between">
-                    <Group>
-                      <Select
-                        label="Yıl"
-                        data={[2024, 2025, 2026].map(y => ({ value: y.toString(), label: y.toString() }))}
-                        value={bordroYil.toString()}
-                        onChange={(v) => setBordroYil(parseInt(v || '2026'))}
-                        style={{ width: 100 }}
-                      />
-                      <Select
-                        label="Ay"
-                        data={[
-                          { value: '1', label: 'Ocak' },
-                          { value: '2', label: 'Şubat' },
-                          { value: '3', label: 'Mart' },
-                          { value: '4', label: 'Nisan' },
-                          { value: '5', label: 'Mayıs' },
-                          { value: '6', label: 'Haziran' },
-                          { value: '7', label: 'Temmuz' },
-                          { value: '8', label: 'Ağustos' },
-                          { value: '9', label: 'Eylül' },
-                          { value: '10', label: 'Ekim' },
-                          { value: '11', label: 'Kasım' },
-                          { value: '12', label: 'Aralık' }
-                        ]}
-                        value={bordroAy.toString()}
-                        onChange={(v) => setBordroAy(parseInt(v || '1'))}
-                        style={{ width: 120 }}
-                      />
-                      <Button 
-                        variant="light" 
-                        leftSection={<IconRefresh size={16} />}
-                        onClick={fetchBordro}
-                        loading={bordroLoading}
+                          Yenile
+                        </Button>
+                      </Group>
+                      <Button
+                        variant="gradient"
+                        gradient={{ from: 'blue', to: 'cyan' }}
+                        leftSection={<IconFileUpload size={16} />}
+                        onClick={() => setBordroImportOpen(true)}
                         mt={24}
                       >
-                        Yenile
+                        📤 Tahakkuk Yükle
                       </Button>
                     </Group>
-                    <Group mt={24}>
-                      <Button 
-                        variant="gradient" 
-                        gradient={{ from: 'violet', to: 'grape' }}
-                        leftSection={<IconCalculator size={16} />}
-                        onClick={handleTopluBordro}
-                        loading={bordroLoading}
-                      >
-                        Toplu Bordro Hesapla
-                      </Button>
-                      <Button 
-                        variant="gradient" 
-                        gradient={{ from: 'teal', to: 'green' }}
-                        leftSection={<IconCreditCard size={16} />}
-                        onClick={handleTopluOdeme}
-                        disabled={bordroList.filter(b => b.odeme_durumu === 'beklemede').length === 0}
-                      >
-                        Toplu Ödeme Yap
-                      </Button>
-                    </Group>
-                  </Group>
-                </Card>
 
-                {/* Özet Kartlar */}
-                {bordroOzet && (
-                  <SimpleGrid cols={{ base: 2, md: 4 }}>
-                    <Card withBorder shadow="sm" p="lg" radius="md">
-                      <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Personel Sayısı</Text>
-                      <Text fw={700} size="xl" mt="xs">{bordroOzet.personel_sayisi}</Text>
-                    </Card>
-                    <Card withBorder shadow="sm" p="lg" radius="md">
-                      <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Toplam Net Maaş</Text>
-                      <Text fw={700} size="xl" mt="xs" c="green">{formatMoney(bordroOzet.toplam_net)}</Text>
-                    </Card>
-                    <Card withBorder shadow="sm" p="lg" radius="md">
-                      <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Toplam SGK (İşçi+İşveren)</Text>
-                      <Text fw={700} size="xl" mt="xs" c="orange">
-                        {formatMoney(bordroOzet.toplam_sgk_isci + bordroOzet.toplam_sgk_isveren)}
-                      </Text>
-                    </Card>
-                    <Card withBorder shadow="sm" p="lg" radius="md">
-                      <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Toplam Maliyet</Text>
-                      <Text fw={700} size="xl" mt="xs" c="red">{formatMoney(bordroOzet.toplam_maliyet)}</Text>
-                    </Card>
-                  </SimpleGrid>
-                )}
+                    {bordroLoading ? (
+                      <Center py="xl"><Loader color="violet" /></Center>
+                    ) : tahakkuk?.exists ? (
+                      /* ==================== TAHAKKUK BİLGİLERİ ==================== */
+                      <Stack gap="md">
+                        <Badge color="green" variant="light" size="lg">
+                          ✅ {aylar.find(a => a.value === bordroAy.toString())?.label} {bordroYil} Tahakkuk Yüklendi
+                        </Badge>
 
-                {/* Bordro Tablosu */}
-                <Card withBorder shadow="sm" p="lg" radius="md">
-                  <Group justify="space-between" mb="md">
-                    <Text fw={600} size="lg">
-                      {bordroAy}/{bordroYil} Dönemi Bordro Listesi
-                    </Text>
-                    <Group gap="xs">
-                      <Badge color="green" variant="light">
-                        Ödenen: {bordroOzet?.odenen || 0}
-                      </Badge>
-                      <Badge color="orange" variant="light">
-                        Bekleyen: {bordroOzet?.bekleyen || 0}
-                      </Badge>
-                    </Group>
-                  </Group>
+                        {/* ÖZET KARTLARI */}
+                        <SimpleGrid cols={{ base: 2, md: 5 }}>
+                          <Card withBorder p="md" radius="md">
+                            <Text size="xs" c="dimmed" tt="uppercase" fw={700}>👥 Personel</Text>
+                            <Text fw={700} size="xl">{tahakkuk.personel_sayisi || bordroOzet?.personel_sayisi || 0}</Text>
+                          </Card>
+                          <Card withBorder p="md" radius="md">
+                            <Text size="xs" c="dimmed" tt="uppercase" fw={700}>💵 Net Ücretler</Text>
+                            <Text fw={700} size="xl" c="green">{formatMoney(tahakkuk.odenecek_net_ucret || 0)}</Text>
+                          </Card>
+                          <Card withBorder p="md" radius="md">
+                            <Text size="xs" c="dimmed" tt="uppercase" fw={700}>📤 Elden Fark</Text>
+                            <Text fw={700} size="xl" c="orange">{formatMoney(maasOdemeOzet?.toplam_elden || 0)}</Text>
+                          </Card>
+                          <Card withBorder p="md" radius="md">
+                            <Text size="xs" c="dimmed" tt="uppercase" fw={700}>🏛️ SGK + Vergi</Text>
+                            <Text fw={700} size="xl" c="blue">{formatMoney(parseFloat(String(tahakkuk.toplam_gider || 0)) - parseFloat(String(tahakkuk.odenecek_net_ucret || 0)))}</Text>
+                          </Card>
+                          <Card withBorder p="md" radius="md" bg={isDark ? 'red.9' : 'red.0'}>
+                            <Text size="xs" c="dimmed" tt="uppercase" fw={700}>💰 Toplam Maliyet</Text>
+                            <Text fw={700} size="xl" c="red">{formatMoney(tahakkuk.toplam_gider || 0)}</Text>
+                          </Card>
+                        </SimpleGrid>
 
-                  {bordroLoading ? (
-                    <Center py="xl"><Loader color="violet" /></Center>
-                  ) : bordroList.length === 0 ? (
-                    <Center py="xl">
-                      <Stack align="center" gap="md">
-                        <ThemeIcon size="xl" color="gray" variant="light" radius="xl">
-                          <IconReceipt size={24} />
-                        </ThemeIcon>
-                        <Text c="dimmed">Bu dönem için bordro kaydı bulunamadı</Text>
-                        <Button 
-                          variant="light" 
-                          leftSection={<IconCalculator size={16} />}
-                          onClick={handleTopluBordro}
-                        >
-                          Bordro Hesapla
-                        </Button>
-                      </Stack>
-                    </Center>
-                  ) : (
-                    <Table.ScrollContainer minWidth={1200}>
-                      <Table verticalSpacing="sm" highlightOnHover>
-                        <Table.Thead>
-                          <Table.Tr>
-                            <Table.Th>Personel</Table.Th>
-                            <Table.Th style={{ textAlign: 'right' }}>Brüt Maaş</Table.Th>
-                            <Table.Th style={{ textAlign: 'right' }}>SGK (İşçi)</Table.Th>
-                            <Table.Th style={{ textAlign: 'right' }}>Gelir V.</Table.Th>
-                            <Table.Th style={{ textAlign: 'right' }}>Damga V.</Table.Th>
-                            <Table.Th style={{ textAlign: 'right' }}>AGİ</Table.Th>
-                            <Table.Th style={{ textAlign: 'right' }}>Net Maaş</Table.Th>
-                            <Table.Th style={{ textAlign: 'right' }}>İşveren SGK</Table.Th>
-                            <Table.Th style={{ textAlign: 'right' }}>Maliyet</Table.Th>
-                            <Table.Th>Durum</Table.Th>
-                          </Table.Tr>
-                        </Table.Thead>
-                        <Table.Tbody>
-                          {bordroList.map((bordro) => (
-                            <Table.Tr key={bordro.id}>
-                              <Table.Td>
-                                <Text size="sm" fw={500}>{bordro.ad} {bordro.soyad}</Text>
-                              </Table.Td>
-                              <Table.Td style={{ textAlign: 'right' }}>
-                                <Text size="sm">{formatMoney(bordro.brut_toplam)}</Text>
-                              </Table.Td>
-                              <Table.Td style={{ textAlign: 'right' }}>
-                                <Text size="sm" c="orange">{formatMoney(bordro.toplam_isci_sgk)}</Text>
-                              </Table.Td>
-                              <Table.Td style={{ textAlign: 'right' }}>
-                                <Text size="sm">{formatMoney(bordro.gelir_vergisi)}</Text>
-                              </Table.Td>
-                              <Table.Td style={{ textAlign: 'right' }}>
-                                <Text size="sm">{formatMoney(bordro.damga_vergisi)}</Text>
-                              </Table.Td>
-                              <Table.Td style={{ textAlign: 'right' }}>
-                                <Text size="sm" c="teal">+{formatMoney(bordro.agi_tutari)}</Text>
-                              </Table.Td>
-                              <Table.Td style={{ textAlign: 'right' }}>
-                                <Text size="sm" fw={600} c="green">{formatMoney(bordro.net_maas)}</Text>
-                              </Table.Td>
-                              <Table.Td style={{ textAlign: 'right' }}>
-                                <Text size="sm" c="orange">{formatMoney(bordro.toplam_isveren_sgk)}</Text>
-                              </Table.Td>
-                              <Table.Td style={{ textAlign: 'right' }}>
-                                <Text size="sm" fw={600} c="red">{formatMoney(bordro.toplam_maliyet)}</Text>
-                              </Table.Td>
-                              <Table.Td>
-                                <Badge 
-                                  color={bordro.odeme_durumu === 'odendi' ? 'green' : 'orange'} 
-                                  variant="light"
-                                >
-                                  {bordro.odeme_durumu === 'odendi' ? 'Ödendi' : 'Bekliyor'}
-                                </Badge>
-                              </Table.Td>
-                            </Table.Tr>
-                          ))}
-                        </Table.Tbody>
-                      </Table>
-                    </Table.ScrollContainer>
-                  )}
-                </Card>
+                        {/* Tahakkuk Detay Butonu */}
+                        <Group justify="center">
+                          <Button 
+                            variant="subtle" 
+                            size="xs" 
+                            leftSection={<IconEye size={14} />}
+                            onClick={() => setTahakkukDetailOpen(true)}
+                          >
+                            Tahakkuk Detayını Görüntüle
+                          </Button>
+                          {tahakkuk.kaynak_dosya && (
+                            <Text size="xs" c="dimmed">Kaynak: {tahakkuk.kaynak_dosya}</Text>
+                          )}
+                        </Group>
 
-                {/* SGK Bilgi Kartı */}
-                <Card withBorder shadow="sm" p="lg" radius="md">
-                  <Text fw={600} size="lg" mb="md">📋 SGK ve Vergi Oranları (2026)</Text>
-                  <SimpleGrid cols={{ base: 1, md: 3 }}>
-                    <Paper withBorder p="md" radius="md">
-                      <Text fw={600} mb="xs" c="blue">İşçi Kesintileri</Text>
-                      <Stack gap={4}>
-                        <Group justify="space-between">
-                          <Text size="sm">SGK Primi:</Text>
-                          <Text size="sm" fw={500}>%14</Text>
+                        {/* ==================== TÜM ÖDEMELER TAKİP ==================== */}
+                        <Divider my="md" label="💸 ÖDEME TAKİP" labelPosition="center" />
+                        
+                        {/* GENEL ÖDEME DURUMU */}
+                        {aylikOdeme && tahakkuk && (
+                          <Paper withBorder p="md" radius="md" mb="md" bg={
+                            aylikOdeme.maas_banka_odendi && aylikOdeme.maas_elden_odendi && 
+                            aylikOdeme.sgk_odendi && aylikOdeme.gelir_vergisi_odendi && 
+                            aylikOdeme.damga_vergisi_odendi && aylikOdeme.issizlik_odendi
+                              ? (isDark ? 'green.9' : 'green.1')
+                              : (isDark ? 'dark.6' : 'gray.0')
+                          }>
+                            <Group justify="space-between" mb="md">
+                              <Group gap="md">
+                                <Text fw={700} size="lg">
+                                  {aylar.find(a => a.value === bordroAy.toString())?.label} {bordroYil} Ödemeleri
+                                </Text>
+                                {aylikOdeme.maas_banka_odendi && aylikOdeme.maas_elden_odendi && 
+                                 aylikOdeme.sgk_odendi && aylikOdeme.gelir_vergisi_odendi && 
+                                 aylikOdeme.damga_vergisi_odendi && aylikOdeme.issizlik_odendi ? (
+                                  <Badge size="xl" color="green" variant="filled" leftSection="✅">
+                                    TÜM ÖDEMELER TAMAMLANDI
+                                  </Badge>
+                                ) : (
+                                  <Badge size="lg" color="orange" variant="light" leftSection="⏳">
+                                    {[
+                                      aylikOdeme.maas_banka_odendi,
+                                      aylikOdeme.maas_elden_odendi,
+                                      aylikOdeme.sgk_odendi,
+                                      aylikOdeme.gelir_vergisi_odendi,
+                                      aylikOdeme.damga_vergisi_odendi,
+                                      aylikOdeme.issizlik_odendi
+                                    ].filter(Boolean).length} / 6 Ödeme Yapıldı
+                                  </Badge>
+                                )}
+                              </Group>
+                              <Group gap="xs">
+                                {!(aylikOdeme.maas_banka_odendi && aylikOdeme.maas_elden_odendi && 
+                                   aylikOdeme.sgk_odendi && aylikOdeme.gelir_vergisi_odendi && 
+                                   aylikOdeme.damga_vergisi_odendi && aylikOdeme.issizlik_odendi) && (
+                                  <Button 
+                                    size="sm" 
+                                    variant="filled" 
+                                    color="green"
+                                    leftSection={<IconCheck size={16} />}
+                                    onClick={() => handleTumunuOde(true)}
+                                  >
+                                    Tümünü Öde
+                                  </Button>
+                                )}
+                                {(aylikOdeme.maas_banka_odendi || aylikOdeme.maas_elden_odendi || 
+                                  aylikOdeme.sgk_odendi || aylikOdeme.gelir_vergisi_odendi || 
+                                  aylikOdeme.damga_vergisi_odendi || aylikOdeme.issizlik_odendi) && (
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    color="gray"
+                                    leftSection={<IconRefresh size={16} />}
+                                    onClick={() => handleTumunuOde(false)}
+                                  >
+                                    Tümünü Sıfırla
+                                  </Button>
+                                )}
+                              </Group>
+                            </Group>
+                            
+                            {/* TOPLAM ÖDENEN - 2 SATIR */}
+                            {(() => {
+                              // RESMİ TOPLAM (Tahakkuktan gelen doğru değer)
+                              const resmiToplam = parseFloat(String(tahakkuk.toplam_gider || 0));
+
+                              // EK ÖDEMELER (Kayıt dışı)
+                              const eldenFark = parseFloat(String(maasOdemeOzet?.toplam_elden || 0));
+                              const prim = parseFloat(String(maasOdemeOzet?.toplam_prim || 0));
+                              const avans = parseFloat(String(maasOdemeOzet?.toplam_avans || 0));
+                              const ekOdemeler = eldenFark + prim - avans;
+
+                              // GENEL TOPLAM
+                              const genelToplam = resmiToplam + ekOdemeler;
+
+                              // Ödeme hesabı için kart değerleri (kartlardaki değerlerle aynı olmalı)
+                              const netMaas = parseFloat(String(tahakkuk.odenecek_net_ucret || 0));
+                              const sgkPrimi = parseFloat(String(tahakkuk.odenecek_sgk_primi || 0)) + parseFloat(String(tahakkuk.odenecek_sgd_primi || 0));
+                              const gelirVergisi = parseFloat(String(tahakkuk.odenecek_gelir_vergisi || 0));
+                              const damgaVergisi = parseFloat(String(tahakkuk.odenecek_damga_vergisi || 0));
+                              const issizlik = parseFloat(String(tahakkuk.odenecek_issizlik || 0));
+
+                              // ÖDENEN (kartlardaki değerlere göre)
+                              const resmiOdenen = 
+                                (aylikOdeme.maas_banka_odendi ? netMaas : 0) +
+                                (aylikOdeme.sgk_odendi ? sgkPrimi : 0) +
+                                (aylikOdeme.gelir_vergisi_odendi ? gelirVergisi : 0) +
+                                (aylikOdeme.damga_vergisi_odendi ? damgaVergisi : 0) +
+                                (aylikOdeme.issizlik_odendi ? issizlik : 0);
+                              
+                              const ekOdenen = aylikOdeme.maas_elden_odendi ? ekOdemeler : 0;
+                              const toplamOdenen = resmiOdenen + ekOdenen;
+
+                              return (
+                                <Stack gap="md">
+                                  {/* Resmi Ödemeler */}
+                                  <SimpleGrid cols={{ base: 2, md: 4 }}>
+                                    <Box>
+                                      <Text size="xs" c="dimmed">📋 Tahakkuk Toplamı (Resmi)</Text>
+                                      <Text fw={700} size="lg">{formatMoney(resmiToplam)}</Text>
+                                    </Box>
+                                    <Box>
+                                      <Text size="xs" c="dimmed">💵 Ek Ödemeler (Elden/Prim)</Text>
+                                      <Text fw={700} size="lg" c={ekOdemeler > 0 ? 'orange' : 'dimmed'}>
+                                        {ekOdemeler >= 0 ? '+' : ''}{formatMoney(ekOdemeler)}
+                                      </Text>
+                                    </Box>
+                                    <Box>
+                                      <Text size="xs" c="dimmed">💰 Genel Toplam</Text>
+                                      <Text fw={700} size="xl" c="blue">{formatMoney(genelToplam)}</Text>
+                                    </Box>
+                                    <Box>
+                                      <Text size="xs" c="dimmed">✅ Ödenen</Text>
+                                      <Text fw={700} size="xl" c="green">{formatMoney(toplamOdenen)}</Text>
+                                    </Box>
+                                  </SimpleGrid>
+
+                                  {/* Detay satırı */}
+                                  <Group gap="xl" style={{ fontSize: '12px', color: 'var(--mantine-color-dimmed)' }}>
+                                    <Text size="xs">
+                                      Elden: {formatMoney(eldenFark)} | Prim: +{formatMoney(prim)} | Avans: -{formatMoney(avans)}
+                                    </Text>
+                                    <Text size="xs" c={genelToplam - toplamOdenen > 0 ? 'orange' : 'green'}>
+                                      Kalan: {formatMoney(genelToplam - toplamOdenen)}
+                                    </Text>
+                                  </Group>
+                                </Stack>
+                              );
+                            })()}
+                          </Paper>
+                        )}
+
+                        {/* ÖDEME KARTLARI */}
+                        <SimpleGrid cols={{ base: 2, md: 3 }} mb="md">
+                          {/* BANKA MAAŞLARI */}
+                          <Card 
+                            withBorder 
+                            p="md" 
+                            radius="md" 
+                            bg={aylikOdeme?.maas_banka_odendi ? (isDark ? 'green.9' : 'green.1') : (isDark ? 'dark.7' : 'white')}
+                            style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                            onClick={() => handleToggleOdeme('maas_banka_odendi', aylikOdeme?.maas_banka_odendi || false)}
+                          >
+                            <Group justify="space-between" mb="xs">
+                              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>🏦 Banka Maaşları</Text>
+                              <ThemeIcon 
+                                size="sm" 
+                                radius="xl" 
+                                color={aylikOdeme?.maas_banka_odendi ? 'green' : 'gray'}
+                                variant={aylikOdeme?.maas_banka_odendi ? 'filled' : 'light'}
+                              >
+                                <IconCheck size={12} />
+                              </ThemeIcon>
+                            </Group>
+                            <Text fw={700} size="xl">{formatMoney(tahakkuk.odenecek_net_ucret || 0)}</Text>
+                            {aylikOdeme?.maas_banka_tarih && (
+                              <Text size="xs" c="dimmed">Ödendi: {formatDate(aylikOdeme.maas_banka_tarih)}</Text>
+                            )}
+                          </Card>
+
+                          {/* ELDEN ÖDEMELER */}
+                          <Card 
+                            withBorder 
+                            p="md" 
+                            radius="md" 
+                            bg={aylikOdeme?.maas_elden_odendi ? (isDark ? 'green.9' : 'green.1') : (isDark ? 'dark.7' : 'white')}
+                            style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                            onClick={() => handleToggleOdeme('maas_elden_odendi', aylikOdeme?.maas_elden_odendi || false)}
+                          >
+                            <Group justify="space-between" mb="xs">
+                              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>💵 Elden Ödemeler</Text>
+                              <ThemeIcon 
+                                size="sm" 
+                                radius="xl" 
+                                color={aylikOdeme?.maas_elden_odendi ? 'green' : 'gray'}
+                                variant={aylikOdeme?.maas_elden_odendi ? 'filled' : 'light'}
+                              >
+                                <IconCheck size={12} />
+                              </ThemeIcon>
+                            </Group>
+                            <Text fw={700} size="xl" c="orange">{formatMoney(maasOdemeOzet?.toplam_elden || 0)}</Text>
+                            {aylikOdeme?.maas_elden_tarih && (
+                              <Text size="xs" c="dimmed">Ödendi: {formatDate(aylikOdeme.maas_elden_tarih)}</Text>
+                            )}
+                          </Card>
+
+                          {/* SGK PRİMİ */}
+                          <Card 
+                            withBorder 
+                            p="md" 
+                            radius="md" 
+                            bg={aylikOdeme?.sgk_odendi ? (isDark ? 'green.9' : 'green.1') : (isDark ? 'dark.7' : 'white')}
+                            style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                            onClick={() => handleToggleOdeme('sgk_odendi', aylikOdeme?.sgk_odendi || false)}
+                          >
+                            <Group justify="space-between" mb="xs">
+                              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>🏛️ SGK Primi</Text>
+                              <ThemeIcon 
+                                size="sm" 
+                                radius="xl" 
+                                color={aylikOdeme?.sgk_odendi ? 'green' : 'gray'}
+                                variant={aylikOdeme?.sgk_odendi ? 'filled' : 'light'}
+                              >
+                                <IconCheck size={12} />
+                              </ThemeIcon>
+                            </Group>
+                            <Text fw={700} size="xl" c="blue">{formatMoney((parseFloat(String(tahakkuk.odenecek_sgk_primi || 0)) + parseFloat(String(tahakkuk.odenecek_sgd_primi || 0))))}</Text>
+                            {aylikOdeme?.sgk_tarih && (
+                              <Text size="xs" c="dimmed">Ödendi: {formatDate(aylikOdeme.sgk_tarih)}</Text>
+                            )}
+                          </Card>
+
+                          {/* GELİR VERGİSİ */}
+                          <Card 
+                            withBorder 
+                            p="md" 
+                            radius="md" 
+                            bg={aylikOdeme?.gelir_vergisi_odendi ? (isDark ? 'green.9' : 'green.1') : (isDark ? 'dark.7' : 'white')}
+                            style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                            onClick={() => handleToggleOdeme('gelir_vergisi_odendi', aylikOdeme?.gelir_vergisi_odendi || false)}
+                          >
+                            <Group justify="space-between" mb="xs">
+                              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>📋 Gelir Vergisi</Text>
+                              <ThemeIcon 
+                                size="sm" 
+                                radius="xl" 
+                                color={aylikOdeme?.gelir_vergisi_odendi ? 'green' : 'gray'}
+                                variant={aylikOdeme?.gelir_vergisi_odendi ? 'filled' : 'light'}
+                              >
+                                <IconCheck size={12} />
+                              </ThemeIcon>
+                            </Group>
+                            <Text fw={700} size="xl" c="violet">{formatMoney(tahakkuk.odenecek_gelir_vergisi || 0)}</Text>
+                            {aylikOdeme?.gelir_vergisi_tarih && (
+                              <Text size="xs" c="dimmed">Ödendi: {formatDate(aylikOdeme.gelir_vergisi_tarih)}</Text>
+                            )}
+                          </Card>
+
+                          {/* DAMGA VERGİSİ */}
+                          <Card 
+                            withBorder 
+                            p="md" 
+                            radius="md" 
+                            bg={aylikOdeme?.damga_vergisi_odendi ? (isDark ? 'green.9' : 'green.1') : (isDark ? 'dark.7' : 'white')}
+                            style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                            onClick={() => handleToggleOdeme('damga_vergisi_odendi', aylikOdeme?.damga_vergisi_odendi || false)}
+                          >
+                            <Group justify="space-between" mb="xs">
+                              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>📄 Damga Vergisi</Text>
+                              <ThemeIcon 
+                                size="sm" 
+                                radius="xl" 
+                                color={aylikOdeme?.damga_vergisi_odendi ? 'green' : 'gray'}
+                                variant={aylikOdeme?.damga_vergisi_odendi ? 'filled' : 'light'}
+                              >
+                                <IconCheck size={12} />
+                              </ThemeIcon>
+                            </Group>
+                            <Text fw={700} size="xl" c="grape">{formatMoney(tahakkuk.odenecek_damga_vergisi || 0)}</Text>
+                            {aylikOdeme?.damga_vergisi_tarih && (
+                              <Text size="xs" c="dimmed">Ödendi: {formatDate(aylikOdeme.damga_vergisi_tarih)}</Text>
+                            )}
+                          </Card>
+
+                          {/* İŞSİZLİK SİGORTASI */}
+                          <Card 
+                            withBorder 
+                            p="md" 
+                            radius="md" 
+                            bg={aylikOdeme?.issizlik_odendi ? (isDark ? 'green.9' : 'green.1') : (isDark ? 'dark.7' : 'white')}
+                            style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                            onClick={() => handleToggleOdeme('issizlik_odendi', aylikOdeme?.issizlik_odendi || false)}
+                          >
+                            <Group justify="space-between" mb="xs">
+                              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>👷 İşsizlik Sigortası</Text>
+                              <ThemeIcon 
+                                size="sm" 
+                                radius="xl" 
+                                color={aylikOdeme?.issizlik_odendi ? 'green' : 'gray'}
+                                variant={aylikOdeme?.issizlik_odendi ? 'filled' : 'light'}
+                              >
+                                <IconCheck size={12} />
+                              </ThemeIcon>
+                            </Group>
+                            <Text fw={700} size="xl" c="cyan">{formatMoney(tahakkuk.odenecek_issizlik || 0)}</Text>
+                            {aylikOdeme?.issizlik_tarih && (
+                              <Text size="xs" c="dimmed">Ödendi: {formatDate(aylikOdeme.issizlik_tarih)}</Text>
+                            )}
+                          </Card>
+                        </SimpleGrid>
+
+                        {/* PERSONEL DETAY BUTONU */}
+                        <Group justify="center" mb="md">
+                          <Button 
+                            size="xs" 
+                            variant="subtle" 
+                            onClick={() => setShowOdemeDetay(!showOdemeDetay)}
+                          >
+                            {showOdemeDetay ? '👆 Personel Listesini Gizle' : '👇 Personel Bazlı Detay Göster'}
+                          </Button>
                         </Group>
-                        <Group justify="space-between">
-                          <Text size="sm">İşsizlik Sigortası:</Text>
-                          <Text size="sm" fw={500}>%1</Text>
-                        </Group>
-                        <Divider my="xs" />
-                        <Group justify="space-between">
-                          <Text size="sm" fw={600}>Toplam:</Text>
-                          <Text size="sm" fw={600} c="blue">%15</Text>
-                        </Group>
+
+                        {/* Personel Bazlı Ödeme Listesi */}
+                        {showOdemeDetay && maasOdemePersoneller.length > 0 && (
+                          <Table striped highlightOnHover withTableBorder>
+                            <Table.Thead>
+                              <Table.Tr>
+                                <Table.Th>Personel</Table.Th>
+                                <Table.Th style={{ textAlign: 'right' }}>Bordro (Banka)</Table.Th>
+                                <Table.Th style={{ textAlign: 'right' }}>Elden Fark</Table.Th>
+                                <Table.Th style={{ textAlign: 'right' }}>Avans</Table.Th>
+                                <Table.Th style={{ textAlign: 'right' }}>Prim</Table.Th>
+                                <Table.Th style={{ textAlign: 'right' }}>Net Ödenecek</Table.Th>
+                                <Table.Th style={{ textAlign: 'center' }}>Durum</Table.Th>
+                                <Table.Th style={{ textAlign: 'center' }}>İşlem</Table.Th>
+                              </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody>
+                              {maasOdemePersoneller.map((p) => (
+                                <Table.Tr key={p.id}>
+                                  <Table.Td>
+                                    <Text size="sm" fw={500}>{p.ad} {p.soyad}</Text>
+                                  </Table.Td>
+                                  <Table.Td style={{ textAlign: 'right' }}>
+                                    <Text size="sm">{formatMoney(p.bordro_maas)}</Text>
+                                  </Table.Td>
+                                  <Table.Td style={{ textAlign: 'right' }}>
+                                    <Text size="sm" c="orange">{formatMoney(p.elden_fark)}</Text>
+                                  </Table.Td>
+                                  <Table.Td style={{ textAlign: 'right' }}>
+                                    <Text size="sm" c="red">{p.avans > 0 ? `-${formatMoney(p.avans)}` : '-'}</Text>
+                                  </Table.Td>
+                                  <Table.Td style={{ textAlign: 'right' }}>
+                                    <Text size="sm" c="green">{p.prim > 0 ? `+${formatMoney(p.prim)}` : '-'}</Text>
+                                  </Table.Td>
+                                  <Table.Td style={{ textAlign: 'right' }}>
+                                    <Text size="sm" fw={700}>{formatMoney(p.net_odenecek)}</Text>
+                                  </Table.Td>
+                                  <Table.Td style={{ textAlign: 'center' }}>
+                                    <Group gap={4} justify="center">
+                                      <Tooltip label={p.banka_odendi ? 'Banka ödendi' : 'Banka bekleniyor'}>
+                                        <Badge size="xs" color={p.banka_odendi ? 'green' : 'gray'} variant="light">🏦</Badge>
+                                      </Tooltip>
+                                      <Tooltip label={p.elden_odendi ? 'Elden ödendi' : 'Elden bekleniyor'}>
+                                        <Badge size="xs" color={p.elden_odendi ? 'green' : 'gray'} variant="light">💵</Badge>
+                                      </Tooltip>
+                                    </Group>
+                                  </Table.Td>
+                                  <Table.Td style={{ textAlign: 'center' }}>
+                                    <ActionIcon 
+                                      variant="light" 
+                                      color="blue" 
+                                      size="sm"
+                                      onClick={() => handleEditOdeme(p)}
+                                    >
+                                      <IconEdit size={14} />
+                                    </ActionIcon>
+                                  </Table.Td>
+                                </Table.Tr>
+                              ))}
+                            </Table.Tbody>
+                          </Table>
+                        )}
                       </Stack>
-                    </Paper>
-                    <Paper withBorder p="md" radius="md">
-                      <Text fw={600} mb="xs" c="orange">İşveren Kesintileri</Text>
-                      <Stack gap={4}>
-                        <Group justify="space-between">
-                          <Text size="sm">SGK Primi:</Text>
-                          <Text size="sm" fw={500}>%15.5</Text>
-                        </Group>
-                        <Group justify="space-between">
-                          <Text size="sm">İşsizlik Sigortası:</Text>
-                          <Text size="sm" fw={500}>%2</Text>
-                        </Group>
-                        <Divider my="xs" />
-                        <Group justify="space-between">
-                          <Text size="sm" fw={600}>Toplam:</Text>
-                          <Text size="sm" fw={600} c="orange">%17.5</Text>
-                        </Group>
-                      </Stack>
-                    </Paper>
-                    <Paper withBorder p="md" radius="md">
-                      <Text fw={600} mb="xs" c="violet">Vergiler</Text>
-                      <Stack gap={4}>
-                        <Group justify="space-between">
-                          <Text size="sm">Damga Vergisi:</Text>
-                          <Text size="sm" fw={500}>%0.759</Text>
-                        </Group>
-                        <Group justify="space-between">
-                          <Text size="sm">Gelir Vergisi:</Text>
-                          <Text size="sm" fw={500}>%15-%40</Text>
-                        </Group>
-                        <Text size="xs" c="dimmed" mt="xs">
-                          Gelir vergisi kümülatif matrah dilimlerine göre hesaplanır.
-                        </Text>
-                      </Stack>
-                    </Paper>
-                  </SimpleGrid>
-                </Card>
-              </Stack>
-            </Tabs.Panel>
-          </Tabs>
+                    ) : (
+                      /* TAHAKKUK YOK */
+                      <Center py="xl">
+                        <Stack align="center" gap="md">
+                          <ThemeIcon size="xl" color="gray" variant="light" radius="xl">
+                            <IconReceipt size={24} />
+                          </ThemeIcon>
+                          <Text c="dimmed">Bu dönem için tahakkuk bilgisi bulunamadı</Text>
+                          <Button
+                            variant="light"
+                            leftSection={<IconFileUpload size={16} />}
+                            onClick={() => setBordroImportOpen(true)}
+                          >
+                            Tahakkuk Yükle
+                          </Button>
+                        </Stack>
+                      </Center>
+                    )}
+                  </Stack>
+                </Tabs.Panel>
+              </Tabs>
+            </Card>
+          )}
         </Stack>
 
+        {/* ==================== MODAL'LAR ==================== */}
+
         {/* Personel Modal */}
-        <Modal 
-          opened={personelModalOpened} 
-          onClose={() => { resetPersonelForm(); closePersonelModal(); }} 
-          title={<Text fw={600} size="lg">{editingPersonel ? 'Personel Düzenle' : 'Yeni Personel'}</Text>} 
-          size="xl"
+        <Modal
+          opened={personelModalOpened}
+          onClose={() => { resetPersonelForm(); closePersonelModal(); }}
+          title={<Text fw={600} size="lg">{editingPersonel ? 'Personel Düzenle' : 'Yeni Personel'}</Text>}
+          size="lg"
         >
           <Stack gap="md">
             <SimpleGrid cols={2}>
-              <TextInput label="Ad" placeholder="Ad" required value={personelForm.ad} onChange={(e) => setPersonelForm({ ...personelForm, ad: e.currentTarget.value })} />
-              <TextInput label="Soyad" placeholder="Soyad" required value={personelForm.soyad} onChange={(e) => setPersonelForm({ ...personelForm, soyad: e.currentTarget.value })} />
+              <TextInput label="Ad" required value={personelForm.ad} onChange={(e) => setPersonelForm({ ...personelForm, ad: e.currentTarget.value })} />
+              <TextInput label="Soyad" required value={personelForm.soyad} onChange={(e) => setPersonelForm({ ...personelForm, soyad: e.currentTarget.value })} />
             </SimpleGrid>
 
             <SimpleGrid cols={2}>
-              <TextInput label="TC Kimlik No" placeholder="11 haneli" required value={personelForm.tc_kimlik} onChange={(e) => setPersonelForm({ ...personelForm, tc_kimlik: e.currentTarget.value })} leftSection={<IconId size={16} />} />
-              <TextInput label="Sicil No" placeholder="Sicil numarası" value={personelForm.sicil_no} onChange={(e) => setPersonelForm({ ...personelForm, sicil_no: e.currentTarget.value })} />
+              <TextInput label="TC Kimlik No" required value={personelForm.tc_kimlik} onChange={(e) => setPersonelForm({ ...personelForm, tc_kimlik: e.currentTarget.value })} leftSection={<IconId size={16} />} />
+              <TextInput label="SGK No" value={personelForm.sgk_no} onChange={(e) => setPersonelForm({ ...personelForm, sgk_no: e.currentTarget.value })} />
             </SimpleGrid>
 
             <SimpleGrid cols={2}>
-              <TextInput label="Telefon" placeholder="0xxx xxx xxxx" value={personelForm.telefon} onChange={(e) => setPersonelForm({ ...personelForm, telefon: e.currentTarget.value })} leftSection={<IconPhone size={16} />} />
-              <TextInput label="E-posta" placeholder="email@firma.com" value={personelForm.email} onChange={(e) => setPersonelForm({ ...personelForm, email: e.currentTarget.value })} leftSection={<IconMail size={16} />} />
+              <TextInput label="Telefon" value={personelForm.telefon} onChange={(e) => setPersonelForm({ ...personelForm, telefon: e.currentTarget.value })} leftSection={<IconPhone size={16} />} />
+              <TextInput label="E-posta" value={personelForm.email} onChange={(e) => setPersonelForm({ ...personelForm, email: e.currentTarget.value })} leftSection={<IconMail size={16} />} />
             </SimpleGrid>
 
             <SimpleGrid cols={2}>
-              <Select 
-                label="Departman" 
-                placeholder="Seçin" 
-                data={departmanlar} 
-                value={personelForm.departman} 
-                onChange={(v) => setPersonelForm({ ...personelForm, departman: v || '', pozisyon: '' })} 
+              <Select
+                label="Departman"
+                data={departmanlar}
+                value={personelForm.departman}
+                onChange={(v) => setPersonelForm({ ...personelForm, departman: v || '', pozisyon: '' })}
               />
-              <Select 
-                label="Pozisyon" 
-                placeholder="Seçin" 
-                data={personelForm.departman ? pozisyonlar[personelForm.departman] || [] : []} 
-                value={personelForm.pozisyon} 
-                onChange={(v) => setPersonelForm({ ...personelForm, pozisyon: v || '' })} 
-                disabled={!personelForm.departman} 
+              <Select
+                label="Pozisyon"
+                data={personelForm.departman ? pozisyonlar[personelForm.departman] || [] : []}
+                value={personelForm.pozisyon}
+                onChange={(v) => setPersonelForm({ ...personelForm, pozisyon: v || '' })}
+                disabled={!personelForm.departman}
               />
             </SimpleGrid>
 
-            <SimpleGrid cols={3}>
-              <DatePickerInput 
-                label="İşe Giriş Tarihi" 
-                leftSection={<IconCalendar size={16} />} 
-                value={personelForm.ise_giris_tarihi} 
-                onChange={(v) => setPersonelForm({ ...personelForm, ise_giris_tarihi: v || new Date() })} 
-                locale="tr" 
+            <SimpleGrid cols={2}>
+              <DatePickerInput
+                label="İşe Giriş Tarihi"
+                leftSection={<IconCalendar size={16} />}
+                value={personelForm.ise_giris_tarihi}
+                onChange={(v) => setPersonelForm({ ...personelForm, ise_giris_tarihi: v || new Date() })}
+                locale="tr"
                 required
               />
-              <NumberInput 
-                label="Net Maaş (₺)" 
-                description="Personelin eline geçecek tutar"
-                value={personelForm.maas} 
-                onChange={(v) => setPersonelForm({ ...personelForm, maas: Number(v) || 0 })} 
-                min={0} 
-                thousandSeparator="." 
-                decimalSeparator="," 
-              />
-              <Select 
-                label="Durum" 
+              <Select
+                label="Durum"
                 data={[
-                  { label: 'Aktif', value: 'aktif' }, 
-                  { label: 'İzinli', value: 'izinli' }, 
+                  { label: 'Aktif', value: 'aktif' },
+                  { label: 'İzinli', value: 'izinli' },
                   { label: 'Pasif', value: 'pasif' }
-                ]} 
-                value={personelForm.durum} 
-                onChange={(v) => setPersonelForm({ ...personelForm, durum: v || 'aktif' })} 
+                ]}
+                value={personelForm.durum}
+                onChange={(v) => setPersonelForm({ ...personelForm, durum: v || 'aktif' })}
               />
             </SimpleGrid>
 
-            <TextInput label="Adres" placeholder="Açık adres" value={personelForm.adres} onChange={(e) => setPersonelForm({ ...personelForm, adres: e.currentTarget.value })} />
+            <SimpleGrid cols={2}>
+              <NumberInput
+                label="💰 Net Maaş (Elden Ödenen)"
+                description="Gerçek ödenen tutar"
+                value={personelForm.maas}
+                onChange={(v) => setPersonelForm({ ...personelForm, maas: Number(v) || 0 })}
+                min={0}
+                thousandSeparator="."
+                decimalSeparator=","
+                styles={{ input: { borderColor: 'var(--mantine-color-green-5)' } }}
+              />
+              <NumberInput
+                label="📋 Bordro Maaş (SGK Bildirimi)"
+                description="Resmi kayıtlardaki tutar"
+                value={personelForm.bordro_maas}
+                onChange={(v) => setPersonelForm({ ...personelForm, bordro_maas: Number(v) || 0 })}
+                min={0}
+                thousandSeparator="."
+                decimalSeparator=","
+                styles={{ input: { borderColor: 'var(--mantine-color-orange-5)' } }}
+              />
+            </SimpleGrid>
 
-            <Divider label="SGK ve Bordro Bilgileri" labelPosition="center" />
-
-            <SimpleGrid cols={3}>
-              <Select 
-                label="Medeni Durum" 
-                leftSection={<IconHeart size={16} />}
+            <SimpleGrid cols={2}>
+              <Select
+                label="Medeni Durum"
                 data={[
                   { value: 'bekar', label: 'Bekar' },
                   { value: 'evli', label: 'Evli' }
@@ -1927,149 +1539,14 @@ export default function PersonelPage() {
                 value={personelForm.medeni_durum}
                 onChange={(v) => setPersonelForm({ ...personelForm, medeni_durum: v || 'bekar' })}
               />
-              <Checkbox 
-                label="Eşi Çalışıyor mu?" 
-                checked={personelForm.es_calisiyormu} 
-                onChange={(e) => setPersonelForm({ ...personelForm, es_calisiyormu: e.currentTarget.checked })}
-                disabled={personelForm.medeni_durum !== 'evli'}
-                mt={30}
-              />
-              <NumberInput 
-                label="Çocuk Sayısı" 
-                value={personelForm.cocuk_sayisi} 
-                onChange={(v) => setPersonelForm({ ...personelForm, cocuk_sayisi: Number(v) || 0 })} 
+              <NumberInput
+                label="Çocuk Sayısı"
+                value={personelForm.cocuk_sayisi}
+                onChange={(v) => setPersonelForm({ ...personelForm, cocuk_sayisi: Number(v) || 0 })}
                 min={0}
                 max={10}
               />
             </SimpleGrid>
-
-            <SimpleGrid cols={3}>
-              <TextInput 
-                label="SGK No" 
-                placeholder="SGK sicil numarası" 
-                value={personelForm.sgk_no} 
-                onChange={(e) => setPersonelForm({ ...personelForm, sgk_no: e.currentTarget.value })} 
-              />
-              <NumberInput 
-                label="Yemek Yardımı (₺)" 
-                value={personelForm.yemek_yardimi} 
-                onChange={(v) => setPersonelForm({ ...personelForm, yemek_yardimi: Number(v) || 0 })} 
-                min={0}
-                thousandSeparator="."
-                decimalSeparator=","
-              />
-              <NumberInput 
-                label="Yol Yardımı (₺)" 
-                value={personelForm.yol_yardimi} 
-                onChange={(v) => setPersonelForm({ ...personelForm, yol_yardimi: Number(v) || 0 })} 
-                min={0}
-                thousandSeparator="."
-                decimalSeparator=","
-              />
-            </SimpleGrid>
-
-            <Divider label="Acil Durum İletişim" labelPosition="center" />
-
-            <SimpleGrid cols={2}>
-              <TextInput label="Acil Durumda Aranacak Kişi" placeholder="Ad Soyad" value={personelForm.acil_kisi} onChange={(e) => setPersonelForm({ ...personelForm, acil_kisi: e.currentTarget.value })} />
-              <TextInput label="Acil Durum Telefonu" placeholder="0xxx xxx xxxx" value={personelForm.acil_telefon} onChange={(e) => setPersonelForm({ ...personelForm, acil_telefon: e.currentTarget.value })} />
-            </SimpleGrid>
-
-            <Textarea label="Notlar" placeholder="Ek notlar..." rows={2} value={personelForm.notlar} onChange={(e) => setPersonelForm({ ...personelForm, notlar: e.currentTarget.value })} />
-
-            {/* Gerçek Maliyet Hesabı */}
-            {personelForm.maas > 0 && (
-              <Paper withBorder p="md" radius="md" bg={isDark ? 'dark.6' : 'violet.0'}>
-                <Group gap="xs" mb="sm" justify="space-between">
-                  <Group gap="xs">
-                    <ThemeIcon size="sm" color="violet" variant="filled" radius="xl">
-                      <IconCalculator size={14} />
-                    </ThemeIcon>
-                    <Text fw={600} size="sm">Maliyet Hesabı</Text>
-                  </Group>
-                  {maasHesaplaniyor && <Loader size="xs" color="violet" />}
-                </Group>
-                
-                {maasOnizleme ? (
-                  <>
-                    {/* Ana Bilgiler */}
-                    <SimpleGrid cols={3} mb="md">
-                      <Paper withBorder p="sm" radius="sm" bg={isDark ? 'dark.7' : 'white'}>
-                        <Text size="xs" c="dimmed">Net Maaş (Eline Geçecek)</Text>
-                        <Text fw={700} size="lg" c="green">{formatMoney(maasOnizleme.net_maas)}</Text>
-                      </Paper>
-                      <Paper withBorder p="sm" radius="sm" bg={isDark ? 'dark.7' : 'white'}>
-                        <Text size="xs" c="dimmed">Brüt Maaş</Text>
-                        <Text fw={700} size="lg">{formatMoney(maasOnizleme.brut_maas)}</Text>
-                      </Paper>
-                      <Paper withBorder p="sm" radius="sm" bg={isDark ? 'dark.7' : 'white'}>
-                        <Text size="xs" c="dimmed">Toplam Maliyet</Text>
-                        <Text fw={700} size="lg" c="red">{formatMoney(maasOnizleme.toplam_maliyet)}</Text>
-                      </Paper>
-                    </SimpleGrid>
-
-                    {/* Detaylı Kesintiler */}
-                    <SimpleGrid cols={2} mb="md">
-                      <Box>
-                        <Text size="xs" fw={600} c="blue" mb="xs">📋 İşçi Kesintileri</Text>
-                        <Stack gap={4}>
-                          <Group justify="space-between">
-                            <Text size="xs" c="dimmed">SGK Primi (%14)</Text>
-                            <Text size="xs" fw={500} c="orange">-{formatMoney(maasOnizleme.sgk_isci)}</Text>
-                          </Group>
-                          <Group justify="space-between">
-                            <Text size="xs" c="dimmed">İşsizlik Sigortası (%1)</Text>
-                            <Text size="xs" fw={500} c="orange">-{formatMoney(maasOnizleme.issizlik_isci)}</Text>
-                          </Group>
-                          <Group justify="space-between">
-                            <Text size="xs" c="dimmed">Gelir Vergisi</Text>
-                            <Text size="xs" fw={500} c="orange">-{formatMoney(maasOnizleme.gelir_vergisi)}</Text>
-                          </Group>
-                          <Group justify="space-between">
-                            <Text size="xs" c="dimmed">Damga Vergisi (%0.759)</Text>
-                            <Text size="xs" fw={500} c="orange">-{formatMoney(maasOnizleme.damga_vergisi)}</Text>
-                          </Group>
-                          <Divider my={4} />
-                          <Group justify="space-between">
-                            <Text size="xs" c="dimmed">AGİ (Asgari Geçim İndirimi)</Text>
-                            <Text size="xs" fw={500} c="teal">+{formatMoney(maasOnizleme.agi_tutari)}</Text>
-                          </Group>
-                        </Stack>
-                      </Box>
-                      <Box>
-                        <Text size="xs" fw={600} c="red" mb="xs">🏢 İşveren Kesintileri</Text>
-                        <Stack gap={4}>
-                          <Group justify="space-between">
-                            <Text size="xs" c="dimmed">SGK İşveren (%15.5)</Text>
-                            <Text size="xs" fw={500} c="red">+{formatMoney(maasOnizleme.sgk_isveren)}</Text>
-                          </Group>
-                          <Group justify="space-between">
-                            <Text size="xs" c="dimmed">İşsizlik İşveren (%2)</Text>
-                            <Text size="xs" fw={500} c="red">+{formatMoney(maasOnizleme.issizlik_isveren)}</Text>
-                          </Group>
-                          <Divider my={4} />
-                          <Group justify="space-between">
-                            <Text size="xs" fw={600}>Toplam İşveren SGK</Text>
-                            <Text size="xs" fw={600} c="red">{formatMoney(maasOnizleme.sgk_isveren + maasOnizleme.issizlik_isveren)}</Text>
-                          </Group>
-                        </Stack>
-                      </Box>
-                    </SimpleGrid>
-
-                    <Alert variant="light" color="violet" radius="md" p="xs">
-                      <Text size="xs">
-                        💡 Bu personel için <strong>aylık toplam maliyetiniz {formatMoney(maasOnizleme.toplam_maliyet)}</strong> olacaktır. 
-                        Personelin eline <strong>{formatMoney(maasOnizleme.net_maas)}</strong> geçecektir.
-                      </Text>
-                    </Alert>
-                  </>
-                ) : (
-                  <Center py="md">
-                    <Text size="sm" c="dimmed">Hesaplanıyor...</Text>
-                  </Center>
-                )}
-              </Paper>
-            )}
 
             <Group justify="flex-end" mt="md">
               <Button variant="default" onClick={() => { resetPersonelForm(); closePersonelModal(); }}>İptal</Button>
@@ -2078,481 +1555,368 @@ export default function PersonelPage() {
           </Stack>
         </Modal>
 
-        {/* Proje Modal */}
-        <Modal 
-          opened={projeModalOpened} 
-          onClose={() => { resetProjeForm(); closeProjeModal(); }} 
-          title={<Text fw={600} size="lg">{editingProje ? 'Proje Düzenle' : 'Yeni Proje'}</Text>} 
-          size="lg"
+        {/* Personel Detay Modal */}
+        <Modal
+          opened={detailModalOpened}
+          onClose={closeDetailModal}
+          title={<Text fw={600} size="lg">👤 Personel Detayı</Text>}
+          size="xl"
         >
-          <Stack gap="md">
-            <SimpleGrid cols={2}>
-              <TextInput label="Proje Adı" placeholder="Proje adı" required value={projeForm.ad} onChange={(e) => setProjeForm({ ...projeForm, ad: e.currentTarget.value })} />
-              <TextInput label="Proje Kodu" placeholder="PRJ-001" value={projeForm.kod} onChange={(e) => setProjeForm({ ...projeForm, kod: e.currentTarget.value })} />
-            </SimpleGrid>
-
-            <SimpleGrid cols={2}>
-              <TextInput label="Müşteri" placeholder="Müşteri adı" value={projeForm.musteri} onChange={(e) => setProjeForm({ ...projeForm, musteri: e.currentTarget.value })} />
-              <TextInput label="Lokasyon" placeholder="Şehir / Adres" value={projeForm.lokasyon} onChange={(e) => setProjeForm({ ...projeForm, lokasyon: e.currentTarget.value })} leftSection={<IconMapPin size={16} />} />
-            </SimpleGrid>
-
-            <SimpleGrid cols={3}>
-              <DatePickerInput 
-                label="Başlangıç Tarihi" 
-                leftSection={<IconCalendar size={16} />} 
-                value={projeForm.baslangic_tarihi} 
-                onChange={(v) => setProjeForm({ ...projeForm, baslangic_tarihi: v })} 
-                locale="tr"
-                clearable
-              />
-              <DatePickerInput 
-                label="Bitiş Tarihi" 
-                leftSection={<IconCalendar size={16} />} 
-                value={projeForm.bitis_tarihi} 
-                onChange={(v) => setProjeForm({ ...projeForm, bitis_tarihi: v })} 
-                locale="tr"
-                clearable
-              />
-              <Select 
-                label="Durum" 
-                data={[
-                  { label: 'Aktif', value: 'aktif' }, 
-                  { label: 'Beklemede', value: 'beklemede' }, 
-                  { label: 'Tamamlandı', value: 'tamamlandi' },
-                  { label: 'Pasif', value: 'pasif' }
-                ]} 
-                value={projeForm.durum} 
-                onChange={(v) => setProjeForm({ ...projeForm, durum: v || 'aktif' })} 
-              />
-            </SimpleGrid>
-
-            <NumberInput 
-              label="Bütçe (₺)" 
-              value={projeForm.butce} 
-              onChange={(v) => setProjeForm({ ...projeForm, butce: Number(v) || 0 })} 
-              min={0} 
-              thousandSeparator="." 
-              decimalSeparator="," 
-            />
-
-            <Textarea label="Açıklama" placeholder="Proje hakkında notlar..." rows={3} value={projeForm.aciklama} onChange={(e) => setProjeForm({ ...projeForm, aciklama: e.currentTarget.value })} />
-
-            <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={() => { resetProjeForm(); closeProjeModal(); }}>İptal</Button>
-              <Button color="cyan" onClick={handleSaveProje}>{editingProje ? 'Güncelle' : 'Kaydet'}</Button>
-            </Group>
-          </Stack>
-        </Modal>
-
-        {/* Detay Modal */}
-        <Modal 
-          opened={detailModalOpened} 
-          onClose={closeDetailModal} 
-          title={<Text fw={600} size="lg">Personel Detayı</Text>} 
-          size="lg"
-        >
-          {selectedPersonel && (
-            <Stack gap="md">
-              <Group>
-                <Avatar size="xl" color={getAvatarColor(selectedPersonel.departman)} radius="xl">
-                  {selectedPersonel.ad[0]}{selectedPersonel.soyad[0]}
-                </Avatar>
-                <div>
-                  <Text size="xl" fw={700}>{selectedPersonel.ad} {selectedPersonel.soyad}</Text>
-                  <Group gap="xs">
-                    <Badge variant="light" color={getAvatarColor(selectedPersonel.departman)}>{selectedPersonel.departman || 'Belirsiz'}</Badge>
-                    <Text c="dimmed">{selectedPersonel.pozisyon || '-'}</Text>
-                    {getDurumBadge(selectedPersonel.durum || 'aktif')}
-                  </Group>
-                </div>
-              </Group>
-
-              <Divider />
-
-              <SimpleGrid cols={2}>
-                <Paper withBorder p="md" radius="md">
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>İletişim</Text>
-                  <Stack gap="xs" mt="sm">
-                    <Group gap="xs"><IconPhone size={14} /><Text size="sm">{selectedPersonel.telefon || '-'}</Text></Group>
-                    <Group gap="xs"><IconMail size={14} /><Text size="sm">{selectedPersonel.email || '-'}</Text></Group>
-                    <Group gap="xs"><IconId size={14} /><Text size="sm">TC: {selectedPersonel.tc_kimlik}</Text></Group>
-                  </Stack>
-                </Paper>
-                <Paper withBorder p="md" radius="md">
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Çalışma Bilgileri</Text>
-                  <Stack gap="xs" mt="sm">
-                    <Group justify="space-between">
-                      <Text size="sm">İşe Giriş:</Text>
-                      <Text size="sm">{formatDate(selectedPersonel.ise_giris_tarihi)}</Text>
-                    </Group>
-                    <Group justify="space-between">
-                      <Text size="sm">Çalışma Süresi:</Text>
-                      <Text size="sm">{getCalismaSuresi(selectedPersonel.ise_giris_tarihi)}</Text>
-                    </Group>
-                    <Group justify="space-between">
-                      <Text size="sm" fw={600}>Net Maaş:</Text>
-                      <Text size="lg" fw={700} c="green">{formatMoney(selectedPersonel.maas)}</Text>
-                    </Group>
-                  </Stack>
-                </Paper>
-              </SimpleGrid>
-
-              {/* Maliyet Bilgileri */}
-              {detayMaliyet && (
-                <Paper withBorder p="md" radius="md" bg={isDark ? 'dark.6' : 'violet.0'}>
-                  <Group gap="xs" mb="md">
-                    <ThemeIcon size="sm" color="violet" variant="filled" radius="xl">
-                      <IconReceipt size={14} />
-                    </ThemeIcon>
-                    <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Maaş ve Maliyet Detayı</Text>
-                  </Group>
-                  
-                  <SimpleGrid cols={3} mb="md">
-                    <Paper withBorder p="sm" radius="sm" bg={isDark ? 'dark.7' : 'white'}>
-                      <Text size="xs" c="dimmed">Net Maaş</Text>
-                      <Text fw={700} c="green">{formatMoney(detayMaliyet.net_maas)}</Text>
-                    </Paper>
-                    <Paper withBorder p="sm" radius="sm" bg={isDark ? 'dark.7' : 'white'}>
-                      <Text size="xs" c="dimmed">Brüt Maaş</Text>
-                      <Text fw={700}>{formatMoney(detayMaliyet.brut_maas)}</Text>
-                    </Paper>
-                    <Paper withBorder p="sm" radius="sm" bg={isDark ? 'dark.7' : 'white'}>
-                      <Text size="xs" c="dimmed">Toplam Maliyet</Text>
-                      <Text fw={700} c="red">{formatMoney(detayMaliyet.toplam_maliyet)}</Text>
-                    </Paper>
-                  </SimpleGrid>
-
-                  <SimpleGrid cols={2}>
-                    <Box>
-                      <Text size="xs" fw={600} c="blue" mb="xs">İşçi Kesintileri</Text>
-                      <Stack gap={2}>
-                        <Group justify="space-between">
-                          <Text size="xs" c="dimmed">SGK (%14)</Text>
-                          <Text size="xs" c="orange">-{formatMoney(detayMaliyet.sgk_isci)}</Text>
-                        </Group>
-                        <Group justify="space-between">
-                          <Text size="xs" c="dimmed">İşsizlik (%1)</Text>
-                          <Text size="xs" c="orange">-{formatMoney(detayMaliyet.issizlik_isci)}</Text>
-                        </Group>
-                        <Group justify="space-between">
-                          <Text size="xs" c="dimmed">Gelir Vergisi</Text>
-                          <Text size="xs" c="orange">-{formatMoney(detayMaliyet.gelir_vergisi)}</Text>
-                        </Group>
-                        <Group justify="space-between">
-                          <Text size="xs" c="dimmed">Damga Vergisi</Text>
-                          <Text size="xs" c="orange">-{formatMoney(detayMaliyet.damga_vergisi)}</Text>
-                        </Group>
-                        <Group justify="space-between">
-                          <Text size="xs" c="dimmed">AGİ</Text>
-                          <Text size="xs" c="teal">+{formatMoney(detayMaliyet.agi_tutari)}</Text>
-                        </Group>
-                      </Stack>
-                    </Box>
-                    <Box>
-                      <Text size="xs" fw={600} c="red" mb="xs">İşveren Kesintileri</Text>
-                      <Stack gap={2}>
-                        <Group justify="space-between">
-                          <Text size="xs" c="dimmed">SGK İşveren (%15.5)</Text>
-                          <Text size="xs" c="red">+{formatMoney(detayMaliyet.sgk_isveren)}</Text>
-                        </Group>
-                        <Group justify="space-between">
-                          <Text size="xs" c="dimmed">İşsizlik İşveren (%2)</Text>
-                          <Text size="xs" c="red">+{formatMoney(detayMaliyet.issizlik_isveren)}</Text>
-                        </Group>
-                        <Divider my={4} />
-                        <Group justify="space-between">
-                          <Text size="xs" fw={600}>Toplam İşveren SGK</Text>
-                          <Text size="xs" fw={600} c="red">{formatMoney(detayMaliyet.sgk_isveren + detayMaliyet.issizlik_isveren)}</Text>
-                        </Group>
-                      </Stack>
-                    </Box>
-                  </SimpleGrid>
-                </Paper>
-              )}
-
-              {/* Projeler */}
-              <Paper withBorder p="md" radius="md">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700} mb="sm">Görevli Olduğu Projeler</Text>
-                {selectedPersonel.projeler && selectedPersonel.projeler.length > 0 ? (
-                  <Stack gap="xs">
-                    {selectedPersonel.projeler.map((pr, i) => (
-                      <Group key={i} justify="space-between" p="xs" style={{ borderRadius: 8, background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
-                        <Group gap="sm">
-                          <ThemeIcon color="cyan" variant="light" size="sm"><IconBuilding size={14} /></ThemeIcon>
-                          <div>
-                            <Text size="sm" fw={500}>{pr.proje_ad}</Text>
-                            <Text size="xs" c="dimmed">{pr.gorev || 'Görev belirtilmemiş'} • {formatDate(pr.baslangic_tarihi)}'den beri</Text>
-                          </div>
-                        </Group>
-                        {pr.atama_id && (
-                          <ActionIcon 
-                            variant="subtle" 
-                            color="red" 
-                            size="sm"
-                            onClick={() => handleRemoveAtama(pr.atama_id!)}
-                          >
-                            <IconUserMinus size={14} />
-                          </ActionIcon>
-                        )}
+          {selectedPersonel && (() => {
+            // Kıdem hesapla
+            const iseGiris = new Date(selectedPersonel.ise_giris_tarihi);
+            const bugun = new Date();
+            const farkMs = bugun.getTime() - iseGiris.getTime();
+            const gunFark = Math.floor(farkMs / (1000 * 60 * 60 * 24));
+            const yil = Math.floor(gunFark / 365);
+            const ay = Math.floor((gunFark % 365) / 30);
+            const gun = gunFark % 30;
+            const kidemStr = yil > 0 ? `${yil} yıl ${ay} ay` : ay > 0 ? `${ay} ay ${gun} gün` : `${gun} gün`;
+            
+            // Maaş farkı
+            const maasFark = selectedPersonel.maas - (selectedPersonel.bordro_maas || 0);
+            
+            return (
+              <Stack gap="md">
+                {/* PROFİL HEADER */}
+                <Paper withBorder p="lg" radius="md" bg={isDark ? 'dark.6' : 'violet.0'}>
+                  <Group>
+                    <Avatar size={80} color={getAvatarColor(selectedPersonel.departman)} radius="xl">
+                      <Text size="xl" fw={700}>{selectedPersonel.ad[0]}{selectedPersonel.soyad[0]}</Text>
+                    </Avatar>
+                    <div style={{ flex: 1 }}>
+                      <Text size="xl" fw={700}>{selectedPersonel.ad} {selectedPersonel.soyad}</Text>
+                      <Group gap="xs" mt={4}>
+                        <Badge variant="filled" color={getAvatarColor(selectedPersonel.departman)}>
+                          {selectedPersonel.departman || 'Belirsiz'}
+                        </Badge>
+                        <Badge variant="light" color="gray">{selectedPersonel.pozisyon || 'Pozisyon Yok'}</Badge>
+                        {getDurumBadge(selectedPersonel.durum || 'aktif')}
                       </Group>
-                    ))}
-                  </Stack>
-                ) : (
-                  <Text c="dimmed" size="sm">Henüz bir projeye atanmamış</Text>
-                )}
-              </Paper>
-
-              {(selectedPersonel.acil_kisi || selectedPersonel.notlar) && (
-                <Paper withBorder p="md" radius="md">
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Ek Bilgiler</Text>
-                  {selectedPersonel.acil_kisi && (
-                    <Text size="sm" mt="xs">Acil Durum: {selectedPersonel.acil_kisi} - {selectedPersonel.acil_telefon}</Text>
-                  )}
-                  {selectedPersonel.notlar && <Text size="sm" mt="xs">Not: {selectedPersonel.notlar}</Text>}
+                      <Text size="sm" c="dimmed" mt={4}>
+                        🏢 {selectedProjeData?.ad || 'Proje Atanmamış'} • ⏱️ Kıdem: {kidemStr}
+                      </Text>
+                    </div>
+                  </Group>
                 </Paper>
-              )}
 
-              <Group justify="flex-end">
-                <Button 
-                  variant="light" 
-                  color="orange"
-                  leftSection={<IconCoin size={16} />} 
-                  onClick={() => handleKidemHesapla(selectedPersonel.id)}
-                >
-                  Kıdem Hesapla
-                </Button>
-                <Button variant="default" onClick={closeDetailModal}>Kapat</Button>
-                <Button color="violet" leftSection={<IconEdit size={16} />} onClick={() => { closeDetailModal(); handleEditPersonel(selectedPersonel); }}>Düzenle</Button>
-              </Group>
-            </Stack>
-          )}
+                <SimpleGrid cols={{ base: 1, md: 2 }}>
+                  {/* KİŞİSEL BİLGİLER */}
+                  <Paper withBorder p="md" radius="md">
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={700} mb="sm">🪪 Kimlik Bilgileri</Text>
+                    <Stack gap="xs">
+                      <Group justify="space-between">
+                        <Text size="sm" c="dimmed">TC Kimlik No:</Text>
+                        <Text size="sm" fw={500}>{selectedPersonel.tc_kimlik}</Text>
+                      </Group>
+                      <Group justify="space-between">
+                        <Text size="sm" c="dimmed">SGK No:</Text>
+                        <Text size="sm" fw={500}>{selectedPersonel.sgk_no || '-'}</Text>
+                      </Group>
+                      <Group justify="space-between">
+                        <Text size="sm" c="dimmed">Medeni Durum:</Text>
+                        <Text size="sm" fw={500}>{selectedPersonel.medeni_durum === 'evli' ? 'Evli' : 'Bekar'}</Text>
+                      </Group>
+                      <Group justify="space-between">
+                        <Text size="sm" c="dimmed">Çocuk Sayısı:</Text>
+                        <Text size="sm" fw={500}>{selectedPersonel.cocuk_sayisi || 0}</Text>
+                      </Group>
+                    </Stack>
+                  </Paper>
+
+                  {/* İLETİŞİM */}
+                  <Paper withBorder p="md" radius="md">
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={700} mb="sm">📞 İletişim</Text>
+                    <Stack gap="xs">
+                      <Group gap="xs">
+                        <ThemeIcon size="sm" variant="light" color="blue"><IconPhone size={12} /></ThemeIcon>
+                        <Text size="sm">{selectedPersonel.telefon || 'Telefon girilmemiş'}</Text>
+                      </Group>
+                      <Group gap="xs">
+                        <ThemeIcon size="sm" variant="light" color="red"><IconMail size={12} /></ThemeIcon>
+                        <Text size="sm">{selectedPersonel.email || 'E-posta girilmemiş'}</Text>
+                      </Group>
+                    </Stack>
+                  </Paper>
+                </SimpleGrid>
+
+                {/* MAAŞ BİLGİLERİ */}
+                <Paper withBorder p="md" radius="md">
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={700} mb="sm">💰 Maaş Bilgileri</Text>
+                  <SimpleGrid cols={{ base: 2, md: 4 }}>
+                    <Box>
+                      <Text size="xs" c="dimmed">Net Maaş (Elden)</Text>
+                      <Text size="xl" fw={700} c="green">{formatMoney(selectedPersonel.maas)}</Text>
+                    </Box>
+                    <Box>
+                      <Text size="xs" c="dimmed">Bordro Maaş (SGK)</Text>
+                      <Text size="xl" fw={700} c="orange">{formatMoney(selectedPersonel.bordro_maas || 0)}</Text>
+                    </Box>
+                    <Box>
+                      <Text size="xs" c="dimmed">Fark (Kayıt Dışı)</Text>
+                      <Text size="xl" fw={700} c={maasFark > 0 ? 'red' : 'gray'}>{formatMoney(maasFark)}</Text>
+                    </Box>
+                    <Box>
+                      <Text size="xs" c="dimmed">Yıllık Maliyet</Text>
+                      <Text size="xl" fw={700} c="blue">{formatMoney(selectedPersonel.maas * 12)}</Text>
+                    </Box>
+                  </SimpleGrid>
+                </Paper>
+
+                {/* ÇALIŞMA BİLGİLERİ */}
+                <Paper withBorder p="md" radius="md">
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={700} mb="sm">📋 Çalışma Bilgileri</Text>
+                  <SimpleGrid cols={{ base: 2, md: 4 }}>
+                    <Box>
+                      <Text size="xs" c="dimmed">İşe Giriş Tarihi</Text>
+                      <Text size="lg" fw={600}>{formatDate(selectedPersonel.ise_giris_tarihi)}</Text>
+                    </Box>
+                    <Box>
+                      <Text size="xs" c="dimmed">Kıdem</Text>
+                      <Text size="lg" fw={600}>{kidemStr}</Text>
+                    </Box>
+                    <Box>
+                      <Text size="xs" c="dimmed">Toplam Gün</Text>
+                      <Text size="lg" fw={600}>{gunFark.toLocaleString('tr-TR')} gün</Text>
+                    </Box>
+                    <Box>
+                      <Text size="xs" c="dimmed">Yıllık İzin Hakkı</Text>
+                      <Text size="lg" fw={600}>{yil >= 5 ? (yil >= 15 ? 26 : 20) : 14} gün</Text>
+                    </Box>
+                  </SimpleGrid>
+                </Paper>
+
+                <Group justify="flex-end">
+                  <Button variant="default" onClick={closeDetailModal}>Kapat</Button>
+                  <Button color="violet" leftSection={<IconEdit size={16} />} onClick={() => { closeDetailModal(); handleEditPersonel(selectedPersonel); }}>
+                    Düzenle
+                  </Button>
+                </Group>
+              </Stack>
+            );
+          })()}
         </Modal>
 
-        {/* İzin Talebi Modal */}
-        <Modal 
-          opened={izinModalOpened} 
-          onClose={closeIzinModal} 
-          title={<Text fw={600} size="lg">Yeni İzin Talebi</Text>} 
+        {/* Proje Modal */}
+        <Modal
+          opened={projeModalOpened}
+          onClose={() => { resetProjeForm(); closeProjeModal(); }}
+          title={<Text fw={600} size="lg">{editingProje ? 'Proje Düzenle' : 'Yeni Proje'}</Text>}
           size="md"
         >
           <Stack gap="md">
-            <Select
-              label="Personel"
-              placeholder="Personel seçin"
-              required
-              data={personeller.map(p => ({ value: p.id.toString(), label: `${p.ad} ${p.soyad}` }))}
-              value={izinForm.personel_id}
-              onChange={(v) => setIzinForm({ ...izinForm, personel_id: v || '' })}
-              searchable
-            />
-            <Select
-              label="İzin Türü"
-              placeholder="İzin türü seçin"
-              required
-              data={izinTurleri.map(t => ({ value: t.id.toString(), label: `${t.ad} ${t.ucretli ? '' : '(Ücretsiz)'}` }))}
-              value={izinForm.izin_turu_id}
-              onChange={(v) => setIzinForm({ ...izinForm, izin_turu_id: v || '' })}
-            />
+            <TextInput label="Proje Adı" required value={projeForm.ad} onChange={(e) => setProjeForm({ ...projeForm, ad: e.currentTarget.value })} />
             <SimpleGrid cols={2}>
-              <DatePickerInput
-                label="Başlangıç Tarihi"
-                placeholder="Tarih seçin"
-                required
-                locale="tr"
-                value={izinForm.baslangic_tarihi}
-                onChange={(v) => setIzinForm({ ...izinForm, baslangic_tarihi: v || new Date() })}
-              />
-              <DatePickerInput
-                label="Bitiş Tarihi"
-                placeholder="Tarih seçin"
-                required
-                locale="tr"
-                value={izinForm.bitis_tarihi}
-                onChange={(v) => setIzinForm({ ...izinForm, bitis_tarihi: v || new Date() })}
-                minDate={izinForm.baslangic_tarihi}
-              />
+              <TextInput label="Proje Kodu" value={projeForm.kod} onChange={(e) => setProjeForm({ ...projeForm, kod: e.currentTarget.value })} />
+              <TextInput label="Müşteri" value={projeForm.musteri} onChange={(e) => setProjeForm({ ...projeForm, musteri: e.currentTarget.value })} />
             </SimpleGrid>
-            
-            {izinForm.baslangic_tarihi && izinForm.bitis_tarihi && (
-              <Alert color="blue" variant="light">
-                <Text size="sm">
-                  Toplam: <strong>{Math.ceil((izinForm.bitis_tarihi.getTime() - izinForm.baslangic_tarihi.getTime()) / (1000 * 60 * 60 * 24)) + 1} gün</strong>
-                </Text>
-              </Alert>
-            )}
-
-            <Textarea
-              label="Açıklama"
-              placeholder="İzin sebebi..."
-              rows={2}
-              value={izinForm.aciklama}
-              onChange={(e) => setIzinForm({ ...izinForm, aciklama: e.currentTarget.value })}
+            <TextInput label="Lokasyon" value={projeForm.lokasyon} onChange={(e) => setProjeForm({ ...projeForm, lokasyon: e.currentTarget.value })} />
+            <Select
+              label="Durum"
+              data={[
+                { label: 'Aktif', value: 'aktif' },
+                { label: 'Beklemede', value: 'beklemede' },
+                { label: 'Tamamlandı', value: 'tamamlandi' },
+                { label: 'Pasif', value: 'pasif' }
+              ]}
+              value={projeForm.durum}
+              onChange={(v) => setProjeForm({ ...projeForm, durum: v || 'aktif' })}
             />
-
             <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={closeIzinModal}>İptal</Button>
-              <Button color="cyan" onClick={handleCreateIzin}>Talep Oluştur</Button>
+              <Button variant="default" onClick={() => { resetProjeForm(); closeProjeModal(); }}>İptal</Button>
+              <Button color="violet" onClick={handleSaveProje}>{editingProje ? 'Güncelle' : 'Kaydet'}</Button>
             </Group>
           </Stack>
         </Modal>
 
-        {/* Kıdem Hesaplama Modal */}
-        <Modal 
-          opened={kidemModalOpened} 
-          onClose={closeKidemModal} 
-          title={<Text fw={600} size="lg">💰 Kıdem ve Tazminat Hesabı</Text>} 
-          size="lg"
+        {/* Personel Ödeme Düzenleme Modal */}
+        <Modal
+          opened={!!editingOdeme}
+          onClose={() => setEditingOdeme(null)}
+          title={<Text fw={600}>💰 Ödeme Düzenle - {editingOdeme?.ad} {editingOdeme?.soyad}</Text>}
+          size="md"
         >
-          {kidemHesap && (
-            <Stack gap="md">
-              {/* Personel Bilgisi */}
-              <Paper withBorder p="md" radius="md" bg={isDark ? 'dark.6' : 'gray.0'}>
-                <Group justify="space-between">
-                  <div>
-                    <Text fw={700} size="lg">{kidemHesap.personel.ad} {kidemHesap.personel.soyad}</Text>
-                    <Text size="sm" c="dimmed">
-                      Çalışma Süresi: {Math.floor(kidemHesap.calisma.toplam_yil)} yıl {Math.round((kidemHesap.calisma.toplam_yil % 1) * 12)} ay
-                    </Text>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <Text size="xs" c="dimmed">Net Maaş</Text>
-                    <Text fw={600} c="green">{formatMoney(kidemHesap.personel.net_maas)}</Text>
-                  </div>
-                </Group>
-              </Paper>
+          <Stack gap="md">
+            <NumberInput
+              label="Elden Fark (₺)"
+              description="Bordro dışı ödenen tutar"
+              value={odemeForm.elden_fark}
+              onChange={(val) => setOdemeForm({ ...odemeForm, elden_fark: Number(val) || 0 })}
+              min={0}
+              decimalScale={2}
+              thousandSeparator=","
+              leftSection="₺"
+            />
+            <NumberInput
+              label="Avans (₺)"
+              description="Maaştan düşülecek avans tutarı"
+              value={odemeForm.avans}
+              onChange={(val) => setOdemeForm({ ...odemeForm, avans: Number(val) || 0 })}
+              min={0}
+              decimalScale={2}
+              thousandSeparator=","
+              leftSection="₺"
+            />
+            <NumberInput
+              label="Prim (₺)"
+              description="Ek prim ödemesi"
+              value={odemeForm.prim}
+              onChange={(val) => setOdemeForm({ ...odemeForm, prim: Number(val) || 0 })}
+              min={0}
+              decimalScale={2}
+              thousandSeparator=","
+              leftSection="₺"
+            />
+            <Divider />
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">
+                Net Ödenecek: <Text component="span" fw={700} c="blue">
+                  {formatMoney((editingOdeme?.bordro_maas || 0) + odemeForm.elden_fark + odemeForm.prim - odemeForm.avans)}
+                </Text>
+              </Text>
+              <Group>
+                <Button variant="light" onClick={() => setEditingOdeme(null)}>İptal</Button>
+                <Button onClick={handleSaveOdeme}>Kaydet</Button>
+              </Group>
+            </Group>
+          </Stack>
+        </Modal>
 
-              {/* Tazminat Detayları */}
-              <SimpleGrid cols={2}>
-                <Paper withBorder p="md" radius="md">
-                  <Text fw={600} mb="sm" c="violet">🏆 Kıdem Tazminatı</Text>
-                  {kidemHesap.kidem.hakki_var ? (
-                    <Stack gap="xs">
-                      <Group justify="space-between">
-                        <Text size="sm" c="dimmed">Tavan</Text>
-                        <Text size="sm">{formatMoney(kidemHesap.kidem.tavan)}</Text>
-                      </Group>
-                      <Divider />
-                      <Group justify="space-between">
-                        <Text size="sm" fw={600}>Tazminat</Text>
-                        <Text size="lg" fw={700} c="violet">{formatMoney(kidemHesap.kidem.tazminat)}</Text>
-                      </Group>
-                    </Stack>
-                  ) : (
-                    <Text size="sm" c="dimmed">1 yıldan az çalışma veya istifa - hak yok</Text>
-                  )}
+        {/* Tahakkuk Detay Modal */}
+        <Modal
+          opened={tahakkukDetailOpen}
+          onClose={() => setTahakkukDetailOpen(false)}
+          title={<Text fw={600} size="lg">📋 Tahakkuk Detayı - {aylar.find(a => a.value === bordroAy.toString())?.label} {bordroYil}</Text>}
+          size="xl"
+        >
+          {tahakkuk?.exists && (
+            <Stack gap="md">
+              {/* GİDERLER ve ÖDEMELER */}
+              <SimpleGrid cols={{ base: 1, md: 2 }}>
+                {/* GİDERLER */}
+                <Paper withBorder p="md" radius="md" bg={isDark ? 'dark.6' : 'blue.0'}>
+                  <Text fw={600} mb="md" c="blue">💰 GİDERLER (İşveren Tarafı)</Text>
+                  <Stack gap="xs">
+                    <Group justify="space-between">
+                      <Text size="sm">Aylık Ücretler Toplamı:</Text>
+                      <Text size="sm" fw={500}>{formatMoney(tahakkuk.aylik_ucret_toplami || 0)}</Text>
+                    </Group>
+                    <Group justify="space-between">
+                      <Text size="sm">Fazla Mesai Toplamı:</Text>
+                      <Text size="sm" fw={500}>{formatMoney(tahakkuk.fazla_mesai_toplami || 0)}</Text>
+                    </Group>
+                    <Group justify="space-between">
+                      <Text size="sm">İşveren SGK Hissesi:</Text>
+                      <Text size="sm" fw={500}>{formatMoney(tahakkuk.isveren_sgk_hissesi || 0)}</Text>
+                    </Group>
+                    <Group justify="space-between">
+                      <Text size="sm">İşveren İşsizlik:</Text>
+                      <Text size="sm" fw={500}>{formatMoney(tahakkuk.isveren_issizlik || 0)}</Text>
+                    </Group>
+                    <Divider my="xs" />
+                    <Group justify="space-between">
+                      <Text size="sm" fw={700}>TOPLAM GİDER:</Text>
+                      <Text size="lg" fw={700} c="red">{formatMoney(tahakkuk.toplam_gider || 0)}</Text>
+                    </Group>
+                  </Stack>
                 </Paper>
 
-                <Paper withBorder p="md" radius="md">
-                  <Text fw={600} mb="sm" c="orange">📋 İhbar Tazminatı</Text>
-                  {kidemHesap.ihbar.hakki_var ? (
-                    <Stack gap="xs">
-                      <Group justify="space-between">
-                        <Text size="sm" c="dimmed">İhbar Süresi</Text>
-                        <Text size="sm">{kidemHesap.ihbar.sure_hafta} hafta ({kidemHesap.ihbar.sure_gun} gün)</Text>
-                      </Group>
-                      <Divider />
-                      <Group justify="space-between">
-                        <Text size="sm" fw={600}>Tazminat</Text>
-                        <Text size="lg" fw={700} c="orange">{formatMoney(kidemHesap.ihbar.tazminat)}</Text>
-                      </Group>
-                    </Stack>
-                  ) : (
-                    <Text size="sm" c="dimmed">İstifa durumunda hak yok</Text>
-                  )}
+                {/* ÖDEMELER */}
+                <Paper withBorder p="md" radius="md" bg={isDark ? 'dark.6' : 'green.0'}>
+                  <Text fw={600} mb="md" c="green">📤 ÖDEMELER (Dağıtım)</Text>
+                  <Stack gap="xs">
+                    <Group justify="space-between">
+                      <Text size="sm">Ödenecek Net Ücretler:</Text>
+                      <Text size="sm" fw={500} c="green">{formatMoney(tahakkuk.odenecek_net_ucret || 0)}</Text>
+                    </Group>
+                    <Group justify="space-between">
+                      <Text size="sm">Ödenecek SGK Primi:</Text>
+                      <Text size="sm" fw={500}>{formatMoney(tahakkuk.odenecek_sgk_primi || 0)}</Text>
+                    </Group>
+                    <Group justify="space-between">
+                      <Text size="sm">Ödenecek SGD Primi:</Text>
+                      <Text size="sm" fw={500}>{formatMoney(tahakkuk.odenecek_sgd_primi || 0)}</Text>
+                    </Group>
+                    <Group justify="space-between">
+                      <Text size="sm">Ödenecek Gelir Vergisi:</Text>
+                      <Text size="sm" fw={500}>{formatMoney(tahakkuk.odenecek_gelir_vergisi || 0)}</Text>
+                    </Group>
+                    <Group justify="space-between">
+                      <Text size="sm">Ödenecek Damga Vergisi:</Text>
+                      <Text size="sm" fw={500}>{formatMoney(tahakkuk.odenecek_damga_vergisi || 0)}</Text>
+                    </Group>
+                    <Group justify="space-between">
+                      <Text size="sm">Ödenecek İşsizlik:</Text>
+                      <Text size="sm" fw={500}>{formatMoney(tahakkuk.odenecek_issizlik || 0)}</Text>
+                    </Group>
+                    <Divider my="xs" />
+                    <Group justify="space-between">
+                      <Text size="sm" fw={700}>TOPLAM ÖDEME:</Text>
+                      <Text size="lg" fw={700} c="blue">{formatMoney(tahakkuk.toplam_odeme || 0)}</Text>
+                    </Group>
+                  </Stack>
                 </Paper>
               </SimpleGrid>
 
-              <Paper withBorder p="md" radius="md">
-                <Text fw={600} mb="sm" c="blue">🏖️ Kullanılmamış İzin Ücreti</Text>
+              {/* SGK PRİMLERİ */}
+              <Paper withBorder p="md" radius="md" bg={isDark ? 'dark.6' : 'orange.0'}>
+                <Text fw={600} mb="md" c="orange">🏛️ SGK PRİMLERİ</Text>
                 <SimpleGrid cols={3}>
-                  <div>
-                    <Text size="xs" c="dimmed">Yıllık Hak</Text>
-                    <Text fw={600}>{kidemHesap.izin.yillik_hak} gün</Text>
-                  </div>
-                  <div>
-                    <Text size="xs" c="dimmed">Kullanılan</Text>
-                    <Text fw={600}>{kidemHesap.izin.kullanilan} gün</Text>
-                  </div>
-                  <div>
-                    <Text size="xs" c="dimmed">Kalan ({kidemHesap.izin.kalan} gün)</Text>
-                    <Text fw={600} c="blue">{formatMoney(kidemHesap.izin.ucret)}</Text>
-                  </div>
+                  <Box>
+                    <Text size="xs" c="dimmed">Toplam SGK Primi</Text>
+                    <Text fw={600}>{formatMoney(tahakkuk.toplam_sgk_primi || 0)}</Text>
+                  </Box>
+                  <Box>
+                    <Text size="xs" c="dimmed">İndirilecek İşveren Payı</Text>
+                    <Text fw={600}>{formatMoney(0)}</Text>
+                  </Box>
+                  <Box>
+                    <Text size="xs" c="dimmed">Net Ödenecek SGK</Text>
+                    <Text fw={700} c="orange">{formatMoney(tahakkuk.net_odenecek_sgk || tahakkuk.toplam_sgk_primi || 0)}</Text>
+                  </Box>
                 </SimpleGrid>
               </Paper>
 
-              {/* Toplam */}
-              <Paper withBorder p="lg" radius="md" bg={isDark ? 'green.9' : 'green.0'}>
-                <Group justify="space-between">
-                  <Text fw={700} size="lg">TOPLAM TAZMİNAT</Text>
-                  <Text fw={700} size="xl" c="green">{formatMoney(kidemHesap.toplam_tazminat)}</Text>
-                </Group>
+              {/* VERGİLER */}
+              <Paper withBorder p="md" radius="md" bg={isDark ? 'dark.6' : 'violet.0'}>
+                <Text fw={600} mb="md" c="violet">🧾 VERGİLER</Text>
+                <SimpleGrid cols={3}>
+                  <Box>
+                    <Text size="xs" c="dimmed">Gelir Vergisi</Text>
+                    <Text fw={600}>{formatMoney(tahakkuk.odenecek_gelir_vergisi || 0)}</Text>
+                  </Box>
+                  <Box>
+                    <Text size="xs" c="dimmed">Damga Vergisi</Text>
+                    <Text fw={600}>{formatMoney(tahakkuk.odenecek_damga_vergisi || 0)}</Text>
+                  </Box>
+                  <Box>
+                    <Text size="xs" c="dimmed">Toplam Vergi</Text>
+                    <Text fw={700} c="violet">{formatMoney(parseFloat(String(tahakkuk.odenecek_gelir_vergisi || 0)) + parseFloat(String(tahakkuk.odenecek_damga_vergisi || 0)))}</Text>
+                  </Box>
+                </SimpleGrid>
               </Paper>
 
-              <Alert color="yellow" variant="light">
-                <Text size="xs">
-                  ⚠️ Bu hesaplama tahminidir. Gerçek tazminat tutarları SGK ve vergi hesaplamalarına göre değişebilir.
-                  Resmi işlemler için mali müşavirinize danışın.
+              {tahakkuk.kaynak_dosya && (
+                <Text size="xs" c="dimmed" ta="center">
+                  📁 Kaynak Dosya: {tahakkuk.kaynak_dosya}
                 </Text>
-              </Alert>
-
-              <Group justify="flex-end">
-                <Button variant="default" onClick={closeKidemModal}>Kapat</Button>
-              </Group>
+              )}
             </Stack>
           )}
         </Modal>
 
-        {/* Atama Modal */}
-        <Modal 
-          opened={atamaModalOpened} 
-          onClose={() => { closeAtamaModal(); setAtamaProjeId(null); }} 
-          title={<Text fw={600} size="lg">Projeye Personel Ata</Text>} 
-          size="lg"
-        >
-          <Stack gap="md">
-            {atamaProjeId && (
-              <Alert color="cyan" variant="light" icon={<IconBuilding size={16} />}>
-                <Text fw={500}>{projeler.find(p => p.id === atamaProjeId)?.ad}</Text>
-              </Alert>
-            )}
+        {/* Bordro Import Modal */}
+        <BordroImportModal
+          opened={bordroImportOpen}
+          onClose={() => setBordroImportOpen(false)}
+          onSuccess={() => {
+            fetchBordro();
+            setBordroImportOpen(false);
+          }}
+          defaultProjeId={selectedProje || undefined}
+        />
 
-            <MultiSelect
-              label="Personel Seç"
-              placeholder="Personelleri seçin..."
-              data={personeller
-                .filter(p => !p.projeler?.some(pr => pr.proje_id === atamaProjeId))
-                .map(p => ({ value: p.id.toString(), label: `${p.ad} ${p.soyad} (${p.departman || 'Belirsiz'})` }))}
-              value={atamaForm.personel_ids}
-              onChange={(v) => setAtamaForm({ ...atamaForm, personel_ids: v })}
-              searchable
-              clearable
-            />
-
-            <TextInput 
-              label="Görev" 
-              placeholder="Projedeki görev (isteğe bağlı)" 
-              value={atamaForm.gorev} 
-              onChange={(e) => setAtamaForm({ ...atamaForm, gorev: e.currentTarget.value })} 
-            />
-
-            <DatePickerInput 
-              label="Başlangıç Tarihi" 
-              leftSection={<IconCalendar size={16} />} 
-              value={atamaForm.baslangic_tarihi} 
-              onChange={(v) => setAtamaForm({ ...atamaForm, baslangic_tarihi: v || new Date() })} 
-              locale="tr" 
-            />
-
-            <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={() => { closeAtamaModal(); setAtamaProjeId(null); }}>İptal</Button>
-              <Button color="cyan" leftSection={<IconUserPlus size={16} />} onClick={handleAtamaSubmit}>
-                {atamaForm.personel_ids.length} Personel Ata
-              </Button>
-            </Group>
-          </Stack>
-        </Modal>
-
-        </Container>
+      </Container>
     </Box>
   );
 }

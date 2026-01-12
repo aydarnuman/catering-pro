@@ -126,6 +126,14 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false }: 
       '📋 Aktif personelleri listele',
       '💵 Ocak ayı bordro özeti göster'
     ],
+    'MENU_PLANLAMA': [
+      '📅 Ocak ayı için KYK menüsü hazırla',
+      '🍲 Mevcut reçeteleri listele',
+      '💰 Mercimek çorbası maliyetini hesapla',
+      '🥗 Düşük kalorili haftalık menü öner',
+      '📊 9 Ocak menüsünü göster',
+      '👨‍🍳 Tavuk sote reçetesi oluştur'
+    ],
     'TÜM SİSTEM': [
     '📊 Bu ay KYK için ne kadar harcama yapıldı?',
     '📦 Bekleyen siparişler hangileri?',
@@ -143,6 +151,12 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false }: 
       { label: '💰 Bordro hesapla', value: 'Tüm personelin bordrosunu hesapla' },
       { label: '📅 İzin bakiyesi', value: 'Personellerin izin bakiyelerini listele' },
       { label: '🧮 Maliyet analizi', value: 'Toplam personel maliyeti analizi yap' }
+    ],
+    'MENU_PLANLAMA': [
+      { label: '📅 Aylık menü oluştur', value: 'KYK projesi için Ocak 2026 menüsü oluştur, 1000 kişilik' },
+      { label: '📋 Reçeteleri listele', value: 'Tüm reçeteleri kategorilere göre listele' },
+      { label: '💰 Maliyet hesapla', value: 'Seçili reçetenin maliyetini hesapla' },
+      { label: '🍽️ Menü öner', value: 'Bütçeye uygun haftalık öğle menüsü öner' }
     ],
     'TÜM SİSTEM': [
     { label: '🆕 Yeni sipariş oluştur', value: 'KYK için Metro\'dan 100 kg süt siparişi oluştur' },
@@ -354,7 +368,7 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false }: 
               placeholder="Mesaj yazın..."
               value={inputValue}
               onChange={(e) => setInputValue(e.currentTarget.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
               size="sm"
               radius="xl"
               styles={{
@@ -592,7 +606,7 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false }: 
             placeholder={useAgent ? "Soru sorun, komut verin veya işlem yaptırın..." : "Sorunuzu yazın..."}
             value={inputValue}
             onChange={(e) => setInputValue(e.currentTarget.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
             disabled={isLoading}
             size="md"
           />

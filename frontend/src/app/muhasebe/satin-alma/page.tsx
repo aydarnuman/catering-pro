@@ -50,8 +50,10 @@ import {
   IconAlertCircle,
   IconRefresh,
   IconCurrencyLira,
-  IconX
+  IconX,
+  IconReceipt
 } from '@tabler/icons-react';
+import { useRouter } from 'next/navigation';
 import 'dayjs/locale/tr';
 import { projelerAPI, siparislerAPI, Proje, Siparis, SiparisKalem, SiparisOzet } from '@/lib/satin-alma-api';
 
@@ -67,6 +69,7 @@ interface Tedarikci {
 const birimler = ['Kg', 'Adet', 'Lt', 'Paket', 'Koli', 'Kutu', 'Porsiyon', 'Gram'];
 
 export default function SatinAlmaPage() {
+  const router = useRouter();
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
   const [opened, { open, close }] = useDisclosure(false);
@@ -711,6 +714,15 @@ export default function SatinAlmaPage() {
                               >
                                 {siparis.durum === 'teslim_alindi' ? '✓ ' : ''}Teslim Alındı
                               </Menu.Item>
+                              {siparis.durum === 'teslim_alindi' && siparis.tedarikci_id && (
+                                <Menu.Item 
+                                  leftSection={<IconReceipt style={{ width: rem(14), height: rem(14) }} />} 
+                                  color="violet"
+                                  onClick={() => router.push(`/muhasebe/faturalar?cari=${siparis.tedarikci_id}`)}
+                                >
+                                  Faturayı Gör
+                                </Menu.Item>
+                              )}
                               <Menu.Divider />
                               <Menu.Item color="red" leftSection={<IconTrash style={{ width: rem(14), height: rem(14) }} />} onClick={() => handleDelete(siparis.id)}>Sil</Menu.Item>
                             </Menu.Dropdown>

@@ -515,7 +515,7 @@ export default function StokPage() {
                         <Table.Td>
                           <Badge variant="light">{item.kod}</Badge>
                         </Table.Td>
-                        <Table.Td fw={500}>{item.ad}</Table.Td>
+                        <Table.Td><Text fw={500}>{item.ad}</Text></Table.Td>
                         <Table.Td>{item.kategori}</Table.Td>
                         <Table.Td>
                           {item.toplam_stok} {item.birim}

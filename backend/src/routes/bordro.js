@@ -523,6 +523,17 @@ router.post('/toplu-hesapla', async (req, res) => {
 
     for (const personel of personellerResult.rows) {
       try {
+        // PDF/Excel'den import edilmiş kayıt var mı kontrol et - varsa atla
+        const existingImport = await query(`
+          SELECT id, kaynak FROM bordro_kayitlari 
+          WHERE personel_id = $1 AND yil = $2 AND ay = $3 AND kaynak = 'excel_import'
+        `, [personel.id, yil, ay]);
+        
+        if (existingImport.rows.length > 0) {
+          console.log(`⏭️ ${personel.ad} ${personel.soyad} için PDF import kaydı var, atlanıyor`);
+          continue; // PDF'den import edilmiş, üzerine yazma
+        }
+        
         // NET MAAŞ - personelin eline geçecek tutar
         const hedefNetMaas = personel.maas || 0;
         if (hedefNetMaas === 0) {
@@ -584,8 +595,9 @@ router.post('/toplu-hesapla', async (req, res) => {
             sgk_matrahi, sgk_isci, issizlik_isci, toplam_isci_sgk,
             vergi_matrahi, kumulatif_matrah, gelir_vergisi, damga_vergisi,
             agi_tutari, net_maas,
-            sgk_isveren, issizlik_isveren, toplam_isveren_sgk, toplam_maliyet
-          ) VALUES ($1,$2,$3,30,0,$4,0,0,0,$5,$6,0,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+            sgk_isveren, issizlik_isveren, toplam_isveren_sgk, toplam_maliyet,
+            kaynak
+          ) VALUES ($1,$2,$3,30,0,$4,0,0,0,$5,$6,0,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,'hesaplama')
           ON CONFLICT (personel_id, yil, ay) DO UPDATE SET
             brut_maas = EXCLUDED.brut_maas, brut_toplam = EXCLUDED.brut_toplam,
             sgk_matrahi = EXCLUDED.sgk_matrahi, sgk_isci = EXCLUDED.sgk_isci, 
@@ -595,6 +607,7 @@ router.post('/toplu-hesapla', async (req, res) => {
             agi_tutari = EXCLUDED.agi_tutari, net_maas = EXCLUDED.net_maas,
             sgk_isveren = EXCLUDED.sgk_isveren, issizlik_isveren = EXCLUDED.issizlik_isveren,
             toplam_isveren_sgk = EXCLUDED.toplam_isveren_sgk, toplam_maliyet = EXCLUDED.toplam_maliyet,
+            kaynak = 'hesaplama',
             updated_at = NOW()
           RETURNING *
         `, [
@@ -633,7 +646,7 @@ router.get('/', async (req, res) => {
     const { yil, ay, odeme_durumu } = req.query;
 
     let sql = `
-      SELECT b.*, p.ad, p.soyad, p.tc_kimlik, p.departman, p.pozisyon
+      SELECT b.*, b.kaynak, b.kaynak_dosya, p.ad, p.soyad, p.tc_kimlik, p.departman, p.pozisyon
       FROM bordro_kayitlari b
       JOIN personeller p ON p.id = b.personel_id
       WHERE 1=1
@@ -754,6 +767,47 @@ router.post('/toplu-odeme', async (req, res) => {
     });
   } catch (error) {
     console.error('Toplu ödeme hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =====================================================
+// DÖNEM BORDRO SİL
+// =====================================================
+router.delete('/donem-sil', async (req, res) => {
+  try {
+    const { yil, ay, proje_id } = req.body;
+
+    if (!yil || !ay) {
+      return res.status(400).json({ error: 'Yıl ve ay bilgisi gerekli' });
+    }
+
+    let sql = `DELETE FROM bordro_kayitlari WHERE yil = $1 AND ay = $2`;
+    const params = [yil, ay];
+
+    // Proje filtresi: 
+    // - proje_id varsa o projeyi sil
+    // - proje_id yoksa veya 0 ise TÜM kayıtları sil (proje_id NULL olanlar dahil)
+    if (proje_id && proje_id !== 0 && proje_id !== '0') {
+      sql += ` AND proje_id = $3`;
+      params.push(proje_id);
+    }
+    // Proje seçilmemişse tüm kayıtları sil (proje_id NULL olanlar dahil)
+
+    sql += ` RETURNING id`;
+
+    console.log(`🗑️ Silme sorgusu: ${sql}, params: ${JSON.stringify(params)}`);
+
+    const result = await query(sql, params);
+
+    console.log(`🗑️ ${result.rows.length} bordro kaydı silindi (${ay}/${yil}${proje_id ? `, Proje: ${proje_id}` : ', Tüm projeler'})`);
+
+    res.json({ 
+      deleted: result.rows.length,
+      message: `${result.rows.length} bordro kaydı silindi`
+    });
+  } catch (error) {
+    console.error('Dönem silme hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
