@@ -1471,9 +1471,9 @@ Bu ihale bağlamında cevap ver.
                     withBorder
                     p="md"
                     radius="md"
-                    style={{ minHeight: 400, display: 'flex', flexDirection: 'column' }}
+                    style={{ height: 500, display: 'flex', flexDirection: 'column' }}
                   >
-                    <ScrollArea h={400} offsetScrollbars type="always">
+                    <ScrollArea style={{ flex: 1 }} offsetScrollbars type="always" scrollbarSize={8}>
                       {messages.length === 0 ? (
                         <Center h={300}>
                           <Stack align="center" gap="md">
@@ -1532,7 +1532,7 @@ Bu ihale bağlamında cevap ver.
                     </ScrollArea>
 
                     {/* Input Area */}
-                    <Box mt="md" pt="md" style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}>
+                    <Box mt="md" pt="md" style={{ borderTop: '1px solid var(--mantine-color-gray-3)', flexShrink: 0 }}>
                       <Group gap="xs">
                         <Textarea
                           placeholder={selectedTender ? `"${selectedTender.ihale_basligi}" hakkında soru sorun...` : 'İhale uzmanına soru sorun...'}
