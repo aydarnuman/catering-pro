@@ -68,7 +68,12 @@ import {
   IconCalendarEvent,
   IconCurrencyLira,
   IconDatabase,
-  IconRefresh
+  IconRefresh,
+  IconBuilding,
+  IconPhone,
+  IconMapPin,
+  IconId,
+  IconSignature
 } from '@tabler/icons-react';
 import Link from 'next/link';
 
@@ -97,6 +102,32 @@ interface UserPreferences {
   dateFormat: string;
   currency: string;
 }
+
+// Firma Bilgileri tipi
+interface FirmaBilgileri {
+  unvan: string;
+  vergi_dairesi: string;
+  vergi_no: string;
+  adres: string;
+  telefon: string;
+  email: string;
+  yetkili_adi: string;
+  yetkili_unvani: string;
+  imza_yetkisi: string;
+}
+
+// Varsayılan firma bilgileri
+const defaultFirmaBilgileri: FirmaBilgileri = {
+  unvan: '',
+  vergi_dairesi: '',
+  vergi_no: '',
+  adres: '',
+  telefon: '',
+  email: '',
+  yetkili_adi: '',
+  yetkili_unvani: '',
+  imza_yetkisi: '',
+};
 
 // Varsayılan tercihler
 const defaultPreferences: UserPreferences = {
@@ -150,6 +181,9 @@ function AyarlarContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   
+  // Firma bilgileri state
+  const [firmaBilgileri, setFirmaBilgileri] = useState<FirmaBilgileri>(defaultFirmaBilgileri);
+  
   // Modal states
   const [passwordModalOpened, { open: openPasswordModal, close: closePasswordModal }] = useDisclosure(false);
   const [logoutModalOpened, { open: openLogoutModal, close: closeLogoutModal }] = useDisclosure(false);
@@ -182,6 +216,12 @@ function AyarlarContent() {
     if (savedPrefs) {
       setPreferences({ ...defaultPreferences, ...JSON.parse(savedPrefs) });
     }
+    
+    // LocalStorage'dan firma bilgilerini yükle
+    const savedFirma = localStorage.getItem('firmaBilgileri');
+    if (savedFirma) {
+      setFirmaBilgileri({ ...defaultFirmaBilgileri, ...JSON.parse(savedFirma) });
+    }
   }, [API_URL]);
 
   // URL'deki section parametresini takip et
@@ -200,6 +240,17 @@ function AyarlarContent() {
     notifications.show({
       title: 'Kaydedildi',
       message: 'Tercihleriniz güncellendi',
+      color: 'green',
+      icon: <IconCheck size={16} />
+    });
+  };
+
+  // Firma bilgilerini kaydet
+  const saveFirmaBilgileri = () => {
+    localStorage.setItem('firmaBilgileri', JSON.stringify(firmaBilgileri));
+    notifications.show({
+      title: 'Kaydedildi',
+      message: 'Firma bilgileriniz güncellendi',
       color: 'green',
       icon: <IconCheck size={16} />
     });
@@ -330,6 +381,7 @@ function AyarlarContent() {
   // Menü öğeleri
   const menuItems = [
     { id: 'profil', label: 'Profil', icon: IconUser, color: 'blue', description: 'Hesap bilgileri' },
+    { id: 'firma', label: 'Firma Bilgileri', icon: IconBuilding, color: 'teal', description: 'Şirket bilgileri' },
     { id: 'gorunum', label: 'Görünüm', icon: IconPalette, color: 'pink', description: 'Tema ve arayüz' },
     { id: 'bildirimler', label: 'Bildirimler', icon: IconBell, color: 'orange', description: 'Uyarı tercihleri' },
     { id: 'ai', label: 'AI Ayarları', icon: IconRobot, color: 'violet', description: 'Yapay zeka', href: '/ayarlar/ai' },
@@ -477,6 +529,150 @@ function AyarlarContent() {
                 </Paper>
               </>
             )}
+          </Stack>
+        );
+
+      case 'firma':
+        return (
+          <Stack gap="lg">
+            <div>
+              <Title order={3} mb={4}>🏢 Firma Bilgileri</Title>
+              <Text c="dimmed" size="sm">
+                Dilekçe ve resmi yazışmalarda kullanılacak şirket bilgilerinizi girin.
+                Bu bilgiler AI asistanı tarafından otomatik kullanılır.
+              </Text>
+            </div>
+
+            {/* Temel Bilgiler */}
+            <Paper p="lg" radius="md" withBorder>
+              <Stack gap="md">
+                <Group justify="space-between">
+                  <Text fw={600}>Temel Firma Bilgileri</Text>
+                  <IconBuilding size={18} color="var(--mantine-color-dimmed)" />
+                </Group>
+                <Divider />
+                
+                <TextInput
+                  label="Firma Ünvanı"
+                  placeholder="ABC Yemek Hizmetleri Ltd. Şti."
+                  value={firmaBilgileri.unvan}
+                  onChange={(e) => setFirmaBilgileri({ ...firmaBilgileri, unvan: e.currentTarget.value })}
+                  leftSection={<IconBuilding size={16} />}
+                  required
+                />
+                
+                <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                  <TextInput
+                    label="Vergi Dairesi"
+                    placeholder="Ankara Kurumlar"
+                    value={firmaBilgileri.vergi_dairesi}
+                    onChange={(e) => setFirmaBilgileri({ ...firmaBilgileri, vergi_dairesi: e.currentTarget.value })}
+                    leftSection={<IconId size={16} />}
+                  />
+                  <TextInput
+                    label="Vergi No"
+                    placeholder="1234567890"
+                    value={firmaBilgileri.vergi_no}
+                    onChange={(e) => setFirmaBilgileri({ ...firmaBilgileri, vergi_no: e.currentTarget.value })}
+                    leftSection={<IconId size={16} />}
+                  />
+                </SimpleGrid>
+              </Stack>
+            </Paper>
+
+            {/* İletişim Bilgileri */}
+            <Paper p="lg" radius="md" withBorder>
+              <Stack gap="md">
+                <Group justify="space-between">
+                  <Text fw={600}>İletişim Bilgileri</Text>
+                  <IconPhone size={18} color="var(--mantine-color-dimmed)" />
+                </Group>
+                <Divider />
+                
+                <TextInput
+                  label="Adres"
+                  placeholder="Firma adresi"
+                  value={firmaBilgileri.adres}
+                  onChange={(e) => setFirmaBilgileri({ ...firmaBilgileri, adres: e.currentTarget.value })}
+                  leftSection={<IconMapPin size={16} />}
+                />
+                
+                <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                  <TextInput
+                    label="Telefon"
+                    placeholder="0312 XXX XX XX"
+                    value={firmaBilgileri.telefon}
+                    onChange={(e) => setFirmaBilgileri({ ...firmaBilgileri, telefon: e.currentTarget.value })}
+                    leftSection={<IconPhone size={16} />}
+                  />
+                  <TextInput
+                    label="E-posta"
+                    placeholder="info@firma.com.tr"
+                    value={firmaBilgileri.email}
+                    onChange={(e) => setFirmaBilgileri({ ...firmaBilgileri, email: e.currentTarget.value })}
+                    leftSection={<IconMail size={16} />}
+                  />
+                </SimpleGrid>
+              </Stack>
+            </Paper>
+
+            {/* Yetkili Bilgileri */}
+            <Paper p="lg" radius="md" withBorder>
+              <Stack gap="md">
+                <Group justify="space-between">
+                  <Text fw={600}>Yetkili Bilgileri</Text>
+                  <IconSignature size={18} color="var(--mantine-color-dimmed)" />
+                </Group>
+                <Divider />
+                <Text size="xs" c="dimmed">
+                  Dilekçe ve resmi yazışmalarda imza atacak yetkili kişi bilgileri
+                </Text>
+                
+                <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                  <TextInput
+                    label="Yetkili Adı Soyadı"
+                    placeholder="Ad Soyad"
+                    value={firmaBilgileri.yetkili_adi}
+                    onChange={(e) => setFirmaBilgileri({ ...firmaBilgileri, yetkili_adi: e.currentTarget.value })}
+                    leftSection={<IconUser size={16} />}
+                  />
+                  <TextInput
+                    label="Yetkili Unvanı"
+                    placeholder="Şirket Müdürü"
+                    value={firmaBilgileri.yetkili_unvani}
+                    onChange={(e) => setFirmaBilgileri({ ...firmaBilgileri, yetkili_unvani: e.currentTarget.value })}
+                    leftSection={<IconId size={16} />}
+                  />
+                </SimpleGrid>
+                
+                <TextInput
+                  label="İmza Yetkisi Açıklaması"
+                  placeholder="Şirketi her türlü konuda temsile yetkilidir"
+                  description="İmza sirkülerindeki yetki tanımı"
+                  value={firmaBilgileri.imza_yetkisi}
+                  onChange={(e) => setFirmaBilgileri({ ...firmaBilgileri, imza_yetkisi: e.currentTarget.value })}
+                  leftSection={<IconSignature size={16} />}
+                />
+              </Stack>
+            </Paper>
+
+            {/* Kaydet Butonu */}
+            <Group justify="flex-end">
+              <Button
+                leftSection={<IconCheck size={16} />}
+                onClick={saveFirmaBilgileri}
+                color="teal"
+              >
+                Firma Bilgilerini Kaydet
+              </Button>
+            </Group>
+
+            <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
+              <Text size="sm">
+                Bu bilgiler <strong>İhale Uzmanı</strong> sayfasında dilekçe hazırlarken otomatik kullanılır.
+                İhale Uzmanı sayfasında gerekirse farklı bilgiler girebilirsiniz.
+              </Text>
+            </Alert>
           </Stack>
         );
 

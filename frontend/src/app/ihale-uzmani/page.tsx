@@ -73,6 +73,9 @@ import {
   IconForms,
   IconTools,
   IconMathFunction,
+  IconBuilding,
+  IconUser,
+  IconSettings,
 } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
 import { Modal } from '@mantine/core';
@@ -104,6 +107,19 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+}
+
+// Firma bilgileri interface
+interface FirmaBilgileri {
+  unvan: string;
+  vergi_dairesi: string;
+  vergi_no: string;
+  adres: string;
+  telefon: string;
+  email: string;
+  yetkili_adi: string;
+  yetkili_unvani: string;
+  imza_yetkisi: string;
 }
 
 // Calculation results
@@ -177,6 +193,21 @@ export default function IhaleUzmaniPage() {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  
+  // Firma bilgileri state
+  const [firmaBilgileri, setFirmaBilgileri] = useState<FirmaBilgileri>({
+    unvan: '',
+    vergi_dairesi: '',
+    vergi_no: '',
+    adres: '',
+    telefon: '',
+    email: '',
+    yetkili_adi: '',
+    yetkili_unvani: '',
+    imza_yetkisi: '',
+  });
+  const [firmaBilgileriPanelOpen, setFirmaBilgileriPanelOpen] = useState(false);
+  const [firmaBilgileriOverride, setFirmaBilgileriOverride] = useState(false);
 
   // Calculation states
   const [asiriDusukData, setAsiriDusukData] = useState({
@@ -217,6 +248,17 @@ export default function IhaleUzmaniPage() {
         setManuelIhaleler(manuel);
       } catch (e) {
         console.error('Failed to parse manuel ihaleler:', e);
+      }
+    }
+    
+    // Load firma bilgileri from settings
+    const savedFirma = localStorage.getItem('firmaBilgileri');
+    if (savedFirma) {
+      try {
+        const firma = JSON.parse(savedFirma);
+        setFirmaBilgileri(firma);
+      } catch (e) {
+        console.error('Failed to parse firma bilgileri:', e);
       }
     }
   }, []);
@@ -544,12 +586,30 @@ export default function IhaleUzmaniPage() {
     setIsLoading(true);
 
     try {
+      // Build context with firma bilgileri
+      let firmaContext = '';
+      if (firmaBilgileri.unvan) {
+        firmaContext = `
+Kullanıcının Firma Bilgileri (dilekçe ve resmi yazışmalarda kullan):
+- Firma Ünvanı: ${firmaBilgileri.unvan}
+${firmaBilgileri.vergi_dairesi ? `- Vergi Dairesi: ${firmaBilgileri.vergi_dairesi}` : ''}
+${firmaBilgileri.vergi_no ? `- Vergi No: ${firmaBilgileri.vergi_no}` : ''}
+${firmaBilgileri.adres ? `- Adres: ${firmaBilgileri.adres}` : ''}
+${firmaBilgileri.telefon ? `- Telefon: ${firmaBilgileri.telefon}` : ''}
+${firmaBilgileri.email ? `- E-posta: ${firmaBilgileri.email}` : ''}
+${firmaBilgileri.yetkili_adi ? `- Yetkili: ${firmaBilgileri.yetkili_adi}` : ''}
+${firmaBilgileri.yetkili_unvani ? `- Yetkili Unvanı: ${firmaBilgileri.yetkili_unvani}` : ''}
+${firmaBilgileri.imza_yetkisi ? `- İmza Yetkisi: ${firmaBilgileri.imza_yetkisi}` : ''}
+
+`;
+      }
+      
       // Build context with selected tender info
-      let context = '';
+      let context = firmaContext;
       if (selectedTender) {
         if ('isManuel' in selectedTender) {
           // Manuel ihale context
-          context = `
+          context += `
 Kullanıcının seçili ihalesi (manuel eklenen):
 - Başlık: ${selectedTender.ihale_basligi}
 - Kurum: ${selectedTender.kurum}
@@ -565,7 +625,7 @@ Bu ihale bağlamında cevap ver.
 `;
         } else {
           // Tracking'den gelen ihale context
-          context = `
+          context += `
 Kullanıcının seçili ihalesi:
 - Başlık: ${selectedTender.ihale_basligi}
 - Kurum: ${selectedTender.kurum}
@@ -661,7 +721,17 @@ Bu ihale bağlamında cevap ver.
               </div>
             </Group>
           </div>
-          <Group>
+          <Group gap="sm">
+            <Tooltip label={firmaBilgileri.unvan ? 'Firma bilgileri ayarlı' : 'Firma bilgisi eksik'}>
+              <Button
+                variant={firmaBilgileri.unvan ? 'light' : 'filled'}
+                color={firmaBilgileri.unvan ? 'teal' : 'orange'}
+                leftSection={<IconBuilding size={18} />}
+                onClick={() => setFirmaBilgileriPanelOpen(!firmaBilgileriPanelOpen)}
+              >
+                {firmaBilgileri.unvan ? (firmaBilgileri.unvan.length > 20 ? firmaBilgileri.unvan.slice(0, 20) + '...' : firmaBilgileri.unvan) : 'Firma Bilgisi Ekle'}
+              </Button>
+            </Tooltip>
             <Button
               component={Link}
               href="/tracking"
@@ -673,6 +743,101 @@ Bu ihale bağlamında cevap ver.
           </Group>
         </Group>
       </Paper>
+
+      {/* Firma Bilgileri Panel */}
+      <Collapse in={firmaBilgileriPanelOpen}>
+        <Paper p="md" mb="lg" radius="md" withBorder style={{ 
+          background: colorScheme === 'dark' ? 'rgba(0, 166, 125, 0.05)' : 'rgba(0, 166, 125, 0.03)',
+          borderColor: 'var(--mantine-color-teal-4)'
+        }}>
+          <Group justify="space-between" mb="md">
+            <Group gap="sm">
+              <ThemeIcon size="md" radius="md" variant="light" color="teal">
+                <IconBuilding size={16} />
+              </ThemeIcon>
+              <div>
+                <Text fw={600} size="sm">Firma Bilgileri</Text>
+                <Text size="xs" c="dimmed">Dilekçe ve yazışmalarda kullanılır</Text>
+              </div>
+            </Group>
+            <Group gap="xs">
+              {!firmaBilgileri.unvan && (
+                <Button
+                  component={Link}
+                  href="/ayarlar?section=firma"
+                  variant="light"
+                  size="xs"
+                  color="teal"
+                  leftSection={<IconSettings size={14} />}
+                >
+                  Ayarlarda Düzenle
+                </Button>
+              )}
+              <ActionIcon 
+                variant="subtle" 
+                color="gray" 
+                onClick={() => setFirmaBilgileriPanelOpen(false)}
+              >
+                <IconX size={16} />
+              </ActionIcon>
+            </Group>
+          </Group>
+          
+          {firmaBilgileri.unvan ? (
+            <Stack gap="xs">
+              <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }}>
+                <Box>
+                  <Text size="xs" c="dimmed">Firma Ünvanı</Text>
+                  <Text size="sm" fw={500}>{firmaBilgileri.unvan}</Text>
+                </Box>
+                {firmaBilgileri.vergi_no && (
+                  <Box>
+                    <Text size="xs" c="dimmed">Vergi No</Text>
+                    <Text size="sm">{firmaBilgileri.vergi_no}</Text>
+                  </Box>
+                )}
+                {firmaBilgileri.yetkili_adi && (
+                  <Box>
+                    <Text size="xs" c="dimmed">Yetkili</Text>
+                    <Text size="sm">{firmaBilgileri.yetkili_adi} {firmaBilgileri.yetkili_unvani && `(${firmaBilgileri.yetkili_unvani})`}</Text>
+                  </Box>
+                )}
+                {firmaBilgileri.telefon && (
+                  <Box>
+                    <Text size="xs" c="dimmed">İletişim</Text>
+                    <Text size="sm">{firmaBilgileri.telefon}</Text>
+                  </Box>
+                )}
+              </SimpleGrid>
+              <Group gap="xs" mt="xs">
+                <Button
+                  component={Link}
+                  href="/ayarlar?section=firma"
+                  variant="subtle"
+                  size="xs"
+                  color="teal"
+                  leftSection={<IconEdit size={14} />}
+                >
+                  Ayarlarda Düzenle
+                </Button>
+                <Text size="xs" c="dimmed">
+                  Bu bilgiler AI asistana otomatik gönderilir
+                </Text>
+              </Group>
+            </Stack>
+          ) : (
+            <Alert icon={<IconInfoCircle size={16} />} color="orange" variant="light">
+              <Text size="sm">
+                Firma bilgilerinizi henüz eklemediniz. Dilekçe ve resmi yazışmaların doğru hazırlanması için 
+                <Link href="/ayarlar?section=firma" style={{ marginLeft: 4, fontWeight: 600, color: 'var(--mantine-color-teal-6)' }}>
+                  Ayarlar → Firma Bilgileri
+                </Link> 
+                {' '}bölümünden ekleyebilirsiniz.
+              </Text>
+            </Alert>
+          )}
+        </Paper>
+      </Collapse>
 
       {/* Stepper */}
       <Paper p="md" mb="lg" radius="md" withBorder>
