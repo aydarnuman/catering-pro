@@ -47,8 +47,10 @@ import {
   IconDownload,
   IconSettings,
   IconClipboardList,
-  IconReceipt
+  IconReceipt,
+  IconScale,
 } from '@tabler/icons-react';
+import Link from 'next/link';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import TeklifModal from '@/components/teklif/TeklifModal';
@@ -265,6 +267,15 @@ export default function TrackingPage() {
                 </div>
               </Group>
             </div>
+            <Button
+              component={Link}
+              href="/ihale-uzmani"
+              variant="gradient"
+              gradient={{ from: 'violet', to: 'blue' }}
+              leftSection={<IconScale size={18} />}
+            >
+              İhale Uzmanı
+            </Button>
           </Group>
 
           {/* İstatistik Kartları */}

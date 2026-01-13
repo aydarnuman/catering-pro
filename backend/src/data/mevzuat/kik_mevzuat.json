@@ -63,11 +63,141 @@
     ]
   },
   
+  "asiri_dusuk_teklif": {
+    "aciklama": "Aşırı düşük teklif değerlendirmesi yemek ihalelerinde özel kurallara tabidir",
+    "yemek_ihalesi_formulu": {
+      "formul": "(Ana Çiğ Girdi + İşçilik) / Toplam Teklif",
+      "gecerli_oran_alt": 0.80,
+      "gecerli_oran_ust": 0.95,
+      "aciklama": "Hesaplanan oran 0.80-0.95 aralığında olmalıdır. Bu aralık dışındaki teklifler reddedilir."
+    },
+    "ek_h4": {
+      "ad": "Malzemeli Yemek Sunumu Hesap Cetveli (EK-H.4)",
+      "aciklama": "Yemek ihalelerinde aşırı düşük açıklaması için kullanılan resmi format",
+      "icerik": [
+        "Ana çiğ girdi maliyetleri",
+        "İşçilik maliyetleri",
+        "Genel giderler",
+        "Kar oranı"
+      ]
+    },
+    "dikkat_edilecekler": [
+      "Tüm ana çiğ girdilerin tek tek fiyatlandırılması",
+      "Asgari ücret ve SGK primlerinin doğru hesaplanması",
+      "Yemek başına maliyet ile toplam teklif tutumu",
+      "Birim fiyat teklif cetvelinde tutarlılık"
+    ]
+  },
+  
   "itiraz_sureleri": {
-    "ihale_ilan": "İlan tarihinden itibaren 10 gün",
-    "on_yeterlik": "Sonuç bildiriminden itibaren 5 gün",
-    "kesinlesen_ihale": "Kesinleşen ihale kararı bildiriminden itibaren 10 gün",
-    "sozlesme_imza": "Sözleşme imzalandıktan sonra itiraz kabul edilmez"
+    "idareye_sikayet": {
+      "sure_gun": 10,
+      "baslangic": "İhale kararının tebliğinden itibaren",
+      "aciklama": "Önce idareye şikayet zorunlu"
+    },
+    "itirazen_sikayet": {
+      "sure_gun": 10,
+      "baslangic": "İdare kararının tebliğinden veya 10 gün içinde cevap verilmemesinden itibaren",
+      "muracaat_yeri": "Kamu İhale Kurumu (KİK)"
+    },
+    "onemli_notlar": [
+      "Tatil günleri süreye dahildir",
+      "Son gün tatile denk gelirse ilk iş gününe uzar",
+      "Süre tebliğ tarihini takip eden günden başlar",
+      "Elektronik tebligatta tebliğ tarihi = sistemde görüntülenme tarihi"
+    ]
+  },
+  
+  "itirazen_sikayet_bedelleri_2025": {
+    "gecerlilik": "2025 yılı için geçerli",
+    "bedeller": [
+      {
+        "yaklasik_maliyet_alt": 0,
+        "yaklasik_maliyet_ust": 8447946,
+        "bedel": 50640,
+        "aciklama": "8.447.946 TL'ye kadar"
+      },
+      {
+        "yaklasik_maliyet_alt": 8447946,
+        "yaklasik_maliyet_ust": 33791911,
+        "bedel": 101344,
+        "aciklama": "8.447.946 TL - 33.791.911 TL arası"
+      },
+      {
+        "yaklasik_maliyet_alt": 33791911,
+        "yaklasik_maliyet_ust": 253439417,
+        "bedel": 152021,
+        "aciklama": "33.791.911 TL - 253.439.417 TL arası"
+      },
+      {
+        "yaklasik_maliyet_alt": 253439417,
+        "yaklasik_maliyet_ust": null,
+        "bedel": 202718,
+        "aciklama": "253.439.417 TL üstü"
+      }
+    ],
+    "odeme_bilgisi": {
+      "hesap": "Kamu İhale Kurumu Saymanlığı",
+      "aciklama": "Başvuru ile birlikte dekont ibrazı zorunlu"
+    }
+  },
+  
+  "resmi_tatiller_2026": {
+    "aciklama": "Süre hesaplamada dikkate alınacak resmi tatiller",
+    "tatiller": [
+      { "tarih": "2026-01-01", "ad": "Yılbaşı" },
+      { "tarih": "2026-03-17", "ad": "Ramazan Bayramı Arifesi (yarım gün)" },
+      { "tarih": "2026-03-18", "ad": "Ramazan Bayramı 1. Gün" },
+      { "tarih": "2026-03-19", "ad": "Ramazan Bayramı 2. Gün" },
+      { "tarih": "2026-03-20", "ad": "Ramazan Bayramı 3. Gün" },
+      { "tarih": "2026-04-23", "ad": "Ulusal Egemenlik ve Çocuk Bayramı" },
+      { "tarih": "2026-05-01", "ad": "Emek ve Dayanışma Günü" },
+      { "tarih": "2026-05-19", "ad": "Atatürk'ü Anma, Gençlik ve Spor Bayramı" },
+      { "tarih": "2026-05-24", "ad": "Kurban Bayramı Arifesi (yarım gün)" },
+      { "tarih": "2026-05-25", "ad": "Kurban Bayramı 1. Gün" },
+      { "tarih": "2026-05-26", "ad": "Kurban Bayramı 2. Gün" },
+      { "tarih": "2026-05-27", "ad": "Kurban Bayramı 3. Gün" },
+      { "tarih": "2026-05-28", "ad": "Kurban Bayramı 4. Gün" },
+      { "tarih": "2026-07-15", "ad": "Demokrasi ve Milli Birlik Günü" },
+      { "tarih": "2026-08-30", "ad": "Zafer Bayramı" },
+      { "tarih": "2026-10-29", "ad": "Cumhuriyet Bayramı" }
+    ]
+  },
+  
+  "kik_karar_arama": {
+    "url": "https://www.ihale.gov.tr/kararlar.html",
+    "arama_ipuclari": [
+      "İhale kayıt numarası ile arama",
+      "Konu bazlı arama (örn: 'aşırı düşük yemek')",
+      "Kurum adı ile arama",
+      "Tarih aralığı filtreleme"
+    ],
+    "emsal_karar_onemi": "Benzer konulardaki KİK kararları itiraz ve açıklamalarda emsal teşkil eder"
+  },
+  
+  "dilekce_sablonlari": {
+    "idareye_sikayet": {
+      "baslik": "[İDARE ADI] İHALE KOMİSYONU BAŞKANLIĞINA",
+      "gerekli_bilgiler": [
+        "Firma unvanı ve adresi",
+        "İhale kayıt numarası",
+        "İhale adı",
+        "Şikayet konusu ve gerekçeler",
+        "Talep (düzeltici işlem/iptal)"
+      ]
+    },
+    "itirazen_sikayet": {
+      "baslik": "KAMU İHALE KURUMU BAŞKANLIĞINA",
+      "gerekli_bilgiler": [
+        "Başvuru sahibi bilgileri",
+        "İhale kayıt numarası ve adı",
+        "İdare bilgileri",
+        "İdareye yapılan şikayetin özeti",
+        "İdare kararı ve tebliğ tarihi",
+        "İtirazen şikayet sebepleri",
+        "Talep ve sonuç"
+      ]
+    }
   },
   
   "yasaklilik": {
@@ -79,4 +209,3 @@
     "kontrol": "EKAP üzerinden yasaklılık sorgulaması yapılır"
   }
 }
-

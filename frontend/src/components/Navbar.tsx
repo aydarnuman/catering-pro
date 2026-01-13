@@ -48,7 +48,8 @@ import {
   IconShieldLock,
   IconLogin,
   IconLogout,
-  IconUser
+  IconUser,
+  IconScale,
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -71,7 +72,7 @@ export function Navbar() {
   }, []);
 
   const isActive = (path: string) => pathname === path;
-  const isIhaleMerkezi = pathname === '/tenders' || pathname === '/upload' || pathname === '/tracking';
+  const isIhaleMerkezi = pathname === '/tenders' || pathname === '/upload' || pathname === '/tracking' || pathname === '/ihale-uzmani';
   const isMuhasebe = pathname.startsWith('/muhasebe');
   const isAyarlar = pathname.startsWith('/ayarlar');
   const isPlanlama = pathname.startsWith('/planlama');
@@ -224,6 +225,27 @@ export function Navbar() {
                     </div>
                     {isActive('/tracking') && (
                       <Badge size="xs" color="cyan" variant="filled">Aktif</Badge>
+                    )}
+                  </Group>
+                </Menu.Item>
+
+                <Menu.Divider />
+
+                <Menu.Item
+                  component={Link}
+                  href="/ihale-uzmani"
+                  leftSection={<IconScale size={18} color="var(--mantine-color-violet-6)" />}
+                  style={{
+                    backgroundColor: isActive('/ihale-uzmani') ? 'var(--mantine-color-violet-light)' : undefined,
+                  }}
+                >
+                  <Group justify="space-between" w="100%">
+                    <div>
+                      <Text size="sm" fw={500}>İhale Uzmanı</Text>
+                      <Text size="xs" c="dimmed">AI Danışman</Text>
+                    </div>
+                    {isActive('/ihale-uzmani') && (
+                      <Badge size="xs" color="violet" variant="filled">Aktif</Badge>
                     )}
                   </Group>
                 </Menu.Item>
@@ -662,6 +684,18 @@ export function Navbar() {
                 onClick={() => setOpened(false)}
               >
                 İhale Takibim
+              </Button>
+
+              <Button
+                component={Link}
+                href="/ihale-uzmani"
+                leftSection={<IconScale size={18} />}
+                variant={isActive('/ihale-uzmani') ? 'filled' : 'light'}
+                color="violet"
+                fullWidth
+                onClick={() => setOpened(false)}
+              >
+                İhale Uzmanı (AI)
               </Button>
 
               <Divider label="Muhasebe" labelPosition="center" />
