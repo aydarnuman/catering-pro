@@ -1,4 +1,5 @@
 'use client';
+import { API_BASE_URL } from '@/lib/config';
 
 import { useState, useEffect } from 'react';
 import {
@@ -43,7 +44,7 @@ import {
 } from '@tabler/icons-react';
 import 'dayjs/locale/tr';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_URL = `${API_BASE_URL}/api`;
 
 // Çıkış sebepleri tip tanımı
 interface CikisSebebi {

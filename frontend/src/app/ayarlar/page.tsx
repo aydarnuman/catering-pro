@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Container,
@@ -127,7 +128,7 @@ const colorOptions = [
 ];
 
 function AyarlarContent() {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const API_URL = API_BASE_URL;
   const router = useRouter();
   const searchParams = useSearchParams();
   const { colorScheme, setColorScheme } = useMantineColorScheme();

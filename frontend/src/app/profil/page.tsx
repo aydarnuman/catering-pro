@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 import { useRouter } from 'next/navigation';
 import {
   Container,
@@ -37,7 +38,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import { useAuth } from '@/context/AuthContext';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = API_BASE_URL;
 
 export default function ProfilPage() {
   const router = useRouter();

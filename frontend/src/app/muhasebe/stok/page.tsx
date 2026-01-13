@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 import {
   Container,
   Title,
@@ -81,7 +82,7 @@ import {
 import { DataActions } from '@/components/DataActions';
 
 // API URL
-const API_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : 'http://localhost:3001/api';
+const API_URL = `${API_BASE_URL}/api`;
 
 // Tip tanımları
 interface StokItem {

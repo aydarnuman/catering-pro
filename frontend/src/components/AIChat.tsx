@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 import {
   Paper,
   Stack,
@@ -45,7 +46,7 @@ import {
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : 'http://localhost:3001/api';
+const API_URL = `${API_BASE_URL}/api`;
 
 // Tip tanımları
 interface ChatMessage {

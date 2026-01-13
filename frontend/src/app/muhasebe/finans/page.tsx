@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 import {
   Container,
   Title,
@@ -62,7 +63,7 @@ import {
   IconEye,
 } from '@tabler/icons-react';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : 'http://localhost:3001/api';
+const API_URL = `${API_BASE_URL}/api`;
 
 // ==================== INTERFACES ====================
 

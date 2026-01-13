@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 import {
   Container,
   Title,
@@ -43,7 +44,7 @@ import {
   IconX
 } from '@tabler/icons-react';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : 'http://localhost:3001/api';
+const API_URL = `${API_BASE_URL}/api`;
 
 // Market Logoları - Özel tasarım
 const MARKET_INFO: Record<string, { letter: string; color: string; gradient: string }> = {

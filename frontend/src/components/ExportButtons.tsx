@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 import {
   Menu,
   Button,
@@ -28,7 +29,7 @@ interface ExportButtonsProps {
   filters?: Record<string, string>;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_BASE = `${API_BASE_URL}/api`;
 
 export function ExportButtons({ type, filters = {} }: ExportButtonsProps) {
   const [mailModalOpen, setMailModalOpen] = useState(false);

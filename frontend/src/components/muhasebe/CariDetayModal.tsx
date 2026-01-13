@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 import {
   Modal,
   Tabs,
@@ -131,7 +132,7 @@ export default function CariDetayModal({ opened, onClose, cari, onEdit, onMutaba
       }
       
       const queryString = params.toString();
-      const url = `http://localhost:3001/api/cariler/${cari?.id}/hareketler${queryString ? `?${queryString}` : ''}`;
+      const url = `${API_BASE_URL}/api/cariler/${cari?.id}/hareketler${queryString ? `?${queryString}` : ''}`;
       
       const response = await fetch(url);
       if (response.ok) {
@@ -147,7 +148,7 @@ export default function CariDetayModal({ opened, onClose, cari, onEdit, onMutaba
 
   const loadAylikOzet = async () => {
     try {
-      const response = await fetch(`http://localhost:3001/api/cariler/${cari?.id}/aylik-ozet`);
+      const response = await fetch(`${API_BASE_URL}/api/cariler/${cari?.id}/aylik-ozet`);
       if (response.ok) {
         const data = await response.json();
         setAylikOzet(data.data || []);

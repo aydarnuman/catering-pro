@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 import { 
   Container, 
   Title, 
@@ -155,7 +156,7 @@ export default function UploadPage() {
       formData.append('file', file, file.name);
       formData.append('uploaded_by', 'user');
       
-      const response = await fetch(`http://localhost:3001/api/documents/analyze`, {
+      const response = await fetch(`${API_BASE_URL}/api/documents/analyze`, {
         method: 'POST',
         body: formData
       });

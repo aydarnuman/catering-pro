@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 import {
   Container,
   Title,
@@ -58,7 +59,7 @@ import 'dayjs/locale/tr';
 import { projelerAPI, siparislerAPI, Proje, Siparis, SiparisKalem, SiparisOzet } from '@/lib/satin-alma-api';
 
 // Tedarikçileri çekmek için
-const CARILER_API = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api/cariler` : 'http://localhost:3001/api/cariler';
+const CARILER_API = `${API_BASE_URL}/api/cariler`;
 
 interface Tedarikci {
   id: number;

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 import {
   Container,
   Title,
@@ -75,7 +76,7 @@ import 'dayjs/locale/tr';
 
 dayjs.locale('tr');
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_URL = `${API_BASE_URL}/api`;
 
 // =====================================================
 // TİP TANIMLARI

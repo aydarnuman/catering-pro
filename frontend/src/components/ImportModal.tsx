@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 import {
   Modal,
   Button,
@@ -60,7 +61,7 @@ interface AnalysisResult {
   tempFile: string;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_BASE = `${API_BASE_URL}/api`;
 
 const typeLabels: Record<string, string> = {
   personel: 'Personel',

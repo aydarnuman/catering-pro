@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE_URL } from '@/lib/config';
 import { 
   Container, 
   Title, 
@@ -42,7 +43,7 @@ import { useState, useMemo } from 'react';
 import { apiClient } from '@/lib/api';
 import { TendersResponse, Tender } from '@/types/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = API_BASE_URL;
 
 export default function TendersPage() {
   const [currentPage, setCurrentPage] = useState(1);
