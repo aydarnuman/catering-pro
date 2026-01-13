@@ -267,36 +267,40 @@ function isRelevantProduct(searchTerm, productName) {
 function calculateUnitPrice(price, productName) {
   const lowerName = (productName || '').toLowerCase();
   
-  // Miktar pattern'leri: "1 kg", "500 gr", "2.5 kg", "1000 g", "1 lt", "200 ml"
+  // Miktar pattern'leri (öncelik sırasına göre)
   const patterns = [
-    /(\d+[.,]?\d*)\s*(kg)/i,
-    /(\d+[.,]?\d*)\s*(gr|g)\b/i,
-    /(\d+[.,]?\d*)\s*(lt|l)\b/i,
-    /(\d+[.,]?\d*)\s*(ml)/i,
-    /(\d+[.,]?\d*)\s*(adet)/i
+    // "25 kg", "5 kilo", "1.5 kg"
+    { pattern: /(\d+[.,]?\d*)\s*(kg|kilo)\b/i, unit: 'kg', divideBy: 1 },
+    // "500 gr", "1000 g"
+    { pattern: /(\d+[.,]?\d*)\s*(gr|g)\b/i, unit: 'kg', divideBy: 1000 },
+    // "1 lt", "2 litre", "5 L"
+    { pattern: /(\d+[.,]?\d*)\s*(lt|l|litre)\b/i, unit: 'L', divideBy: 1 },
+    // "200 ml"
+    { pattern: /(\d+[.,]?\d*)\s*(ml)\b/i, unit: 'L', divideBy: 1000 },
+    // "x5", "x 10", "5'li", "10lu", "5 adet"
+    { pattern: /x\s*(\d+)\b/i, unit: 'adet', divideBy: 1 },
+    { pattern: /(\d+)\s*['']?\s*(li|lu|lı|lü)\b/i, unit: 'adet', divideBy: 1 },
+    { pattern: /(\d+)\s*(adet)/i, unit: 'adet', divideBy: 1 }
   ];
   
-  for (const pattern of patterns) {
+  for (const { pattern, unit, divideBy } of patterns) {
     const match = lowerName.match(pattern);
     if (match) {
-      let amount = parseFloat(match[1].replace(',', '.'));
-      let unit = match[2].toLowerCase();
+      // x5 formatında amount farklı index'te
+      let amountStr = match[1];
+      let amount = parseFloat(amountStr.replace(',', '.'));
       
-      if (unit === 'g' || unit === 'gr') {
-        return { unitPrice: Math.round(price / (amount / 1000) * 100) / 100, perUnit: 'kg' };
-      }
-      if (unit === 'ml') {
-        return { unitPrice: Math.round(price / (amount / 1000) * 100) / 100, perUnit: 'L' };
-      }
-      if (unit === 'kg') {
-        return { unitPrice: Math.round(price / amount * 100) / 100, perUnit: 'kg' };
-      }
-      if (unit === 'lt' || unit === 'l') {
-        return { unitPrice: Math.round(price / amount * 100) / 100, perUnit: 'L' };
-      }
+      if (isNaN(amount) || amount <= 0) continue;
+      
+      // Gram/ml için 1000'e böl, diğerleri için doğrudan böl
+      const normalizedAmount = divideBy === 1000 ? amount / 1000 : amount;
+      const unitPrice = Math.round(price / normalizedAmount * 100) / 100;
+      
+      return { unitPrice, perUnit: unit };
     }
   }
   
+  // Varsayılan: tek birim (1 kg veya 1 adet varsay)
   return { unitPrice: price, perUnit: 'adet' };
 }
 

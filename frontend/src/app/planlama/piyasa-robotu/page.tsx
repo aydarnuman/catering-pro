@@ -1118,14 +1118,19 @@ export default function PiyasaRobotuPage() {
                       </Box>
                       <Stack gap={2} align="flex-end">
                         <Group gap="xs" align="center">
+                          {/* Ana fiyat: birim fiyatı (kg/L) göster */}
                           <Text fw={700} c={i === 0 ? 'teal.4' : 'white'} size="lg">
-                            {formatMoney(kaynak.fiyat)}
+                            {formatMoney(kaynak.birimFiyat || kaynak.fiyat)}
+                            {kaynak.birimTipi && kaynak.birimTipi !== 'adet' && (
+                              <Text component="span" size="sm" c="gray.5" fw={400}>/{kaynak.birimTipi}</Text>
+                            )}
                           </Text>
                           {i === 0 && <Badge size="xs" color="teal">EN UCUZ</Badge>}
                         </Group>
-                        {kaynak.birimFiyat && kaynak.birimTipi && kaynak.birimTipi !== 'adet' && (
-                          <Text size="xs" c="gray.5">
-                            {formatMoney(kaynak.birimFiyat)}/{kaynak.birimTipi}
+                        {/* Alt satır: toplam paket fiyatı göster (farklıysa) */}
+                        {kaynak.birimFiyat && kaynak.birimFiyat !== kaynak.fiyat && (
+                          <Text size="xs" c="gray.6">
+                            Paket: {formatMoney(kaynak.fiyat)}
                           </Text>
                         )}
                       </Stack>
