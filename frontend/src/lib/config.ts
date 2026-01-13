@@ -1,9 +1,29 @@
 // Merkezi API Konfigürasyonu
 // Tüm API çağrıları bu dosyadan import etmeli
 
-// NOT: NEXT_PUBLIC_* değişkenleri build-time'da kodun içine gömülür
-// Bu yüzden .env.production dosyasında MUTLAKA tanımlı olmalı
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+// Runtime'da API URL belirleme - hem local hem production için çalışır
+const getApiBaseUrl = (): string => {
+  // Build-time env varsa onu kullan (SSR/SSG için)
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  
+  // Client-side'da hostname'e göre karar ver
+  if (typeof window !== 'undefined') {
+    const { hostname, protocol } = window.location;
+    // Localhost ise local backend
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:3001';
+    }
+    // Production: aynı hostname'i kullan (Nginx proxy)
+    return `${protocol}//${hostname}`;
+  }
+  
+  // Server-side fallback
+  return 'http://localhost:3001';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 // API endpoint'leri için helper
 export const API_ENDPOINTS = {

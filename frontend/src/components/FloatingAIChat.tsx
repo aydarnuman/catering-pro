@@ -16,6 +16,7 @@ import {
 import { IconRobot, IconSparkles, IconX, IconMinus } from '@tabler/icons-react';
 import { usePathname } from 'next/navigation';
 import { AIChat } from './AIChat';
+import { API_BASE_URL } from '@/lib/config';
 
 // Path'e göre department mapping
 const pathToDepartment: Record<string, string> = {
@@ -79,7 +80,7 @@ export function FloatingAIChat() {
     const fetchAlerts = async () => {
       try {
         const [invoiceRes] = await Promise.all([
-          fetch('http://localhost:3001/api/invoices/stats').catch(() => null)
+          fetch(`${API_BASE_URL}/api/invoices/stats`).catch(() => null)
         ]);
         
         let count = 0;

@@ -1,5 +1,7 @@
-const API_URL = 'http://localhost:3001/api/satin-alma';
-const PROJELER_API_URL = 'http://localhost:3001/api/projeler';
+import { API_BASE_URL } from '@/lib/config';
+
+const API_URL = `${API_BASE_URL}/api/satin-alma`;
+const PROJELER_API_URL = `${API_BASE_URL}/api/projeler`;
 
 // ==================== TİPLER ====================
 

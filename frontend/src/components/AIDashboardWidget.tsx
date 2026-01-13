@@ -25,6 +25,7 @@ import {
   IconBulb,
   IconTrendingUp
 } from '@tabler/icons-react';
+import { API_BASE_URL } from '@/lib/config';
 
 interface Insight {
   type: 'warning' | 'info' | 'success';
@@ -46,8 +47,8 @@ export function AIDashboardWidget() {
     try {
       // Paralel API çağrıları
       const [personelRes, faturaRes] = await Promise.all([
-        fetch('http://localhost:3001/api/personel/stats').catch(() => null),
-        fetch('http://localhost:3001/api/invoices/stats').catch(() => null)
+        fetch(`${API_BASE_URL}/api/personel/stats`).catch(() => null),
+        fetch(`${API_BASE_URL}/api/invoices/stats`).catch(() => null)
       ]);
 
       const newInsights: Insight[] = [];

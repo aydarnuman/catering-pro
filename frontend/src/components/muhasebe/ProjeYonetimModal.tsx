@@ -40,6 +40,7 @@ import {
   IconEye,
   IconArrowLeft,
 } from '@tabler/icons-react';
+import { API_BASE_URL } from '@/lib/config';
 
 interface Proje {
   id: number;
@@ -183,7 +184,7 @@ export default function ProjeYonetimModal({ opened, onClose }: ProjeYonetimModal
   const loadProjeler = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3001/api/projeler');
+      const res = await fetch(`${API_BASE_URL}/api/projeler`);
       if (res.ok) {
         const data = await res.json();
         setProjeler(data);
@@ -197,7 +198,7 @@ export default function ProjeYonetimModal({ opened, onClose }: ProjeYonetimModal
 
   const loadTamOzet = async (projeId: number) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/projeler/${projeId}/tam-ozet`);
+      const res = await fetch(`${API_BASE_URL}/api/projeler/${projeId}/tam-ozet`);
       if (res.ok) {
         const data = await res.json();
         setTamOzet(data);
@@ -239,8 +240,8 @@ export default function ProjeYonetimModal({ opened, onClose }: ProjeYonetimModal
     setSaving(true);
     try {
       const url = selectedProje
-        ? `http://localhost:3001/api/projeler/${selectedProje.id}`
-        : 'http://localhost:3001/api/projeler';
+        ? `${API_BASE_URL}/api/projeler/${selectedProje.id}`
+        : `${API_BASE_URL}/api/projeler`;
       const method = selectedProje ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
@@ -278,7 +279,7 @@ export default function ProjeYonetimModal({ opened, onClose }: ProjeYonetimModal
     }
 
     try {
-      const res = await fetch(`http://localhost:3001/api/projeler/${proje.id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/projeler/${proje.id}`, {
         method: 'DELETE',
       });
 

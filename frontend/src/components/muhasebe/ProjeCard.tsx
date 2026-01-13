@@ -22,6 +22,7 @@ import {
   IconChartBar,
   IconSettings,
 } from '@tabler/icons-react';
+import { API_BASE_URL } from '@/lib/config';
 
 interface GenelOzet {
   projeler: {
@@ -89,7 +90,7 @@ export default function ProjeCard({ onYonetClick }: ProjeCardProps) {
 
   const loadData = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/projeler/stats/genel-ozet');
+      const res = await fetch(`${API_BASE_URL}/api/projeler/stats/genel-ozet`);
       if (res.ok) {
         const data = await res.json();
         setOzet(data);

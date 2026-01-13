@@ -56,9 +56,10 @@ import {
 import CariDetayModal from '@/components/muhasebe/CariDetayModal';
 import MutabakatModal from '@/components/muhasebe/MutabakatModal';
 import { DataActions } from '@/components/DataActions';
+import { API_BASE_URL } from '@/lib/config';
 
-// API URL
-const API_URL = 'http://localhost:3001/api';
+// API URL - config'den al
+const API_URL = `${API_BASE_URL}/api`;
 
 // Tip tanımları
 interface Cari {
