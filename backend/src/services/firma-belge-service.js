@@ -107,55 +107,22 @@ export async function analyzeFirmaBelgesi(filePath, belgeTipi, mimeType) {
       model: 'gemini-2.0-flash-exp'
     });
 
-    // PDF ise önce metin çıkar, görsel ise direkt vision kullan
+    // Her zaman görsel tabanlı analiz kullan (PDF dahil)
+    // Gemini Vision PDF'leri direkt okuyabiliyor
     const ext = path.extname(filePath).toLowerCase();
-    let content;
-    let extractedText = '';
-
-    if (ext === '.pdf') {
-      // PDF - önce metin çıkar
-      extractedText = await extractTextFromPDF(filePath);
-      
-      // Metin varsa metin tabanlı analiz
-      if (extractedText && extractedText.trim().length > 100) {
-        content = `
-${belgeConfig.prompt}
-
-BELGE METNİ:
-${extractedText}
-
-Lütfen JSON formatında yanıt ver. Bulamadığın alanları null olarak bırak.
-\`\`\`json
-{
-  "unvan": "...",
-  "vergi_dairesi": "...",
-  "vergi_no": "...",
-  "ticaret_sicil_no": "...",
-  "mersis_no": "...",
-  "adres": "...",
-  "il": "...",
-  "ilce": "...",
-  "telefon": "...",
-  "yetkili_adi": "...",
-  "yetkili_tc": "...",
-  "yetkili_unvani": "...",
-  "imza_yetkisi": "...",
-  "faaliyet_kodu": "...",
-  "belge_tarihi": "...",
-  "guven_skoru": 0.0-1.0 arasında tahmini doğruluk
-}
-\`\`\`
-        `.trim();
-
-        const result = await model.generateContent(content);
-        const response = await result.response;
-        return parseGeminiResponse(response.text(), belgeTipi);
-      }
-    }
-
-    // Görsel tabanlı analiz (PDF görsel olarak veya resim dosyaları)
     const base64Data = await fileToBase64(filePath);
-    const imageMimeType = mimeType || (ext === '.pdf' ? 'application/pdf' : `image/${ext.slice(1)}`);
+    
+    // MIME type belirle
+    let imageMimeType = mimeType;
+    if (!imageMimeType) {
+      if (ext === '.pdf') imageMimeType = 'application/pdf';
+      else if (ext === '.png') imageMimeType = 'image/png';
+      else if (ext === '.jpg' || ext === '.jpeg') imageMimeType = 'image/jpeg';
+      else if (ext === '.webp') imageMimeType = 'image/webp';
+      else imageMimeType = 'application/octet-stream';
+    }
+    
+    console.log(`📄 Belge tipi: ${imageMimeType}, boyut: ${base64Data.length} bytes`);
 
     const visionPrompt = `
 ${belgeConfig.prompt}
