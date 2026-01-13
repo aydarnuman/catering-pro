@@ -1471,9 +1471,9 @@ Bu ihale bağlamında cevap ver.
                     withBorder
                     p="md"
                     radius="md"
-                    style={{ minHeight: 400, maxHeight: 500, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+                    style={{ minHeight: 400, display: 'flex', flexDirection: 'column' }}
                   >
-                    <ScrollArea style={{ flex: 1 }} offsetScrollbars>
+                    <ScrollArea h={400} offsetScrollbars type="always">
                       {messages.length === 0 ? (
                         <Center h={300}>
                           <Stack align="center" gap="md">
