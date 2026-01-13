@@ -1022,7 +1022,7 @@ Bu ihale bağlamında cevap ver.
                   type="date"
                   value={selectedTender.kesinlesme_tarihi || ''}
                   onChange={(e) => {
-                    const updated = { ...selectedTender, kesinlesme_tarihi: e.currentTarget.value };
+                    const updated = { ...selectedTender, kesinlesme_tarihi: e.target.value };
                     setSelectedTender(updated);
                     const list = manuelIhaleler.map(m => m.id === updated.id ? updated : m);
                     setManuelIhaleler(list);
@@ -1074,8 +1074,8 @@ Bu ihale bağlamında cevap ver.
                   placeholder="1.250.000, 1.300.000, 1.180.000, 1.420.000"
                   value={teklifInput}
                   onChange={(e) => {
-                    setTeklifInput(e.currentTarget.value);
-                    parseTeklifler(e.currentTarget.value);
+                    setTeklifInput(e.target.value);
+                    parseTeklifler(e.target.value);
                   }}
                   minRows={3}
                   mb="md"
@@ -1398,7 +1398,7 @@ Bu ihale bağlamında cevap ver.
                           value={sureData.tebligTarihi ? sureData.tebligTarihi.toISOString().split('T')[0] : ''}
                           onChange={(e) => setSureData(prev => ({ 
                             ...prev, 
-                            tebligTarihi: e.currentTarget.value ? new Date(e.currentTarget.value) : null 
+                            tebligTarihi: e.target.value ? new Date(e.target.value) : null 
                           }))}
                         />
                         <Select
@@ -1592,7 +1592,7 @@ Bu ihale bağlamında cevap ver.
                         <Textarea
                           placeholder={selectedTender ? `"${selectedTender.ihale_basligi}" hakkında soru sorun...` : 'İhale uzmanına soru sorun...'}
                           value={inputMessage}
-                          onChange={(e) => setInputMessage(e.currentTarget.value)}
+                          onChange={(e) => setInputMessage(e.target.value)}
                           style={{ flex: 1 }}
                           minRows={1}
                           maxRows={3}
@@ -1742,7 +1742,7 @@ Bu ihale bağlamında cevap ver.
             label="İhale Başlığı"
             placeholder="Malzemeli Yemek Alımı İhalesi"
             value={manuelFormData.ihale_basligi}
-            onChange={(e) => setManuelFormData(prev => ({ ...prev, ihale_basligi: e.currentTarget.value }))}
+            onChange={(e) => setManuelFormData(prev => ({ ...prev, ihale_basligi: e.target.value }))}
             required
           />
 
@@ -1750,21 +1750,33 @@ Bu ihale bağlamında cevap ver.
             label="Kurum / İdare"
             placeholder="... Belediyesi / ... Müdürlüğü"
             value={manuelFormData.kurum}
-            onChange={(e) => setManuelFormData(prev => ({ ...prev, kurum: e.currentTarget.value }))}
+            onChange={(e) => setManuelFormData(prev => ({ ...prev, kurum: e.target.value }))}
             required
           />
 
-          <SimpleGrid cols={2}>
-            <NumberInput
-              label="Yaklaşık Maliyet (TL)"
-              placeholder="0"
-              value={manuelFormData.yaklasik_maliyet || ''}
-              onChange={(val) => setManuelFormData(prev => ({ ...prev, yaklasik_maliyet: Number(val) || 0 }))}
-              thousandSeparator="."
-              decimalSeparator=","
-              min={0}
-              description="İdarenin belirlediği tahmini tutar"
-            />
+          <NumberInput
+            label="Yaklaşık Maliyet (TL)"
+            placeholder="0"
+            value={manuelFormData.yaklasik_maliyet || ''}
+            onChange={(val) => {
+              setManuelFormData(prev => ({ ...prev, yaklasik_maliyet: Number(val) || 0 }));
+              setSinirDegerData(prev => ({ ...prev, yaklasikMaliyet: Number(val) || 0 }));
+            }}
+            thousandSeparator="."
+            decimalSeparator=","
+            min={0}
+            description="İdarenin belirlediği tahmini tutar"
+          />
+
+          {/* Sınır Değer Hesaplama Bölümü */}
+          <Paper p="md" radius="md" withBorder style={{ background: 'rgba(139, 92, 246, 0.03)' }}>
+            <Group gap="xs" mb="sm">
+              <ThemeIcon size="sm" radius="md" variant="light" color="violet">
+                <IconMathFunction size={14} />
+              </ThemeIcon>
+              <Text size="sm" fw={600}>Sınır Değer</Text>
+            </Group>
+
             <NumberInput
               label="Sınır Değer (TL)"
               placeholder="0"
@@ -1773,9 +1785,54 @@ Bu ihale bağlamında cevap ver.
               thousandSeparator="."
               decimalSeparator=","
               min={0}
-              description="Hesaplanan alt limit"
+              description="Biliyorsanız doğrudan girin, bilmiyorsanız aşağıdan hesaplayın"
+              mb="sm"
             />
-          </SimpleGrid>
+
+            <Divider label="veya tekliflerden hesapla" labelPosition="center" my="sm" />
+
+            <Textarea
+              label="Tüm Teklifler"
+              description="Virgülle ayırarak tüm teklifleri girin (sizinki dahil)"
+              placeholder="1.250.000, 1.300.000, 1.180.000, 1.420.000"
+              value={teklifInput}
+              onChange={(e) => {
+                setTeklifInput(e.target.value);
+                parseTeklifler(e.target.value);
+              }}
+              minRows={2}
+              mb="xs"
+            />
+
+            {sinirDegerData.teklifler.length > 0 && (
+              <Text size="xs" c="dimmed" mb="xs">
+                {sinirDegerData.teklifler.length} teklif algılandı
+              </Text>
+            )}
+
+            <Button 
+              size="xs"
+              variant="light"
+              color="violet"
+              leftSection={<IconCalculator size={14} />}
+              disabled={sinirDegerData.teklifler.length < 2 || !manuelFormData.yaklasik_maliyet}
+              onClick={() => {
+                setSinirDegerData(prev => ({ ...prev, yaklasikMaliyet: manuelFormData.yaklasik_maliyet }));
+                const sonuc = hesaplaSinirDeger();
+                if (sonuc) {
+                  setManuelFormData(prev => ({ ...prev, sinir_deger: Math.round(sonuc) }));
+                }
+              }}
+            >
+              Hesapla ve Uygula
+            </Button>
+
+            {hesaplananSinirDeger && (
+              <Alert mt="sm" color="green" icon={<IconCheck size={14} />} p="xs">
+                <Text size="xs">Hesaplanan: {hesaplananSinirDeger.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL</Text>
+              </Alert>
+            )}
+          </Paper>
 
           <SimpleGrid cols={2}>
             <NumberInput
@@ -1794,7 +1851,7 @@ Bu ihale bağlamında cevap ver.
               value={manuelFormData.kesinlesme_tarihi ? manuelFormData.kesinlesme_tarihi.toISOString().split('T')[0] : ''}
               onChange={(e) => setManuelFormData(prev => ({ 
                 ...prev, 
-                kesinlesme_tarihi: e.currentTarget.value ? new Date(e.currentTarget.value) : null 
+                kesinlesme_tarihi: e.target.value ? new Date(e.target.value) : null 
               }))}
               description="İtiraz süreleri başlangıcı"
             />
@@ -1817,7 +1874,7 @@ Bu ihale bağlamında cevap ver.
             label="Notlar"
             placeholder="Ek notlar, önemli detaylar..."
             value={manuelFormData.notlar}
-            onChange={(e) => setManuelFormData(prev => ({ ...prev, notlar: e.currentTarget.value }))}
+            onChange={(e) => setManuelFormData(prev => ({ ...prev, notlar: e.target.value }))}
             minRows={2}
           />
 
