@@ -2,12 +2,16 @@
  * Firma Belgesi Analiz Servisi
  * Vergi levhası, sicil gazetesi, imza sirküleri vb. belgelerden
  * firma bilgilerini AI ile çıkarır
+ * 
+ * PDF, Word, Excel ve görsel dosyaları destekler
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import fs from 'fs';
 import path from 'path';
 import pdfParse from 'pdf-parse';
+import mammoth from 'mammoth';
+import xlsx from 'xlsx';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -69,6 +73,28 @@ const BELGE_TIPLERI = {
   }
 };
 
+// Desteklenen dosya tipleri
+const DESTEKLENEN_TIPLER = {
+  pdf: ['.pdf'],
+  word: ['.doc', '.docx'],
+  excel: ['.xls', '.xlsx'],
+  image: ['.jpg', '.jpeg', '.png', '.webp', '.gif']
+};
+
+/**
+ * Dosya tipini belirle
+ */
+function getFileCategory(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  
+  if (DESTEKLENEN_TIPLER.pdf.includes(ext)) return 'pdf';
+  if (DESTEKLENEN_TIPLER.word.includes(ext)) return 'word';
+  if (DESTEKLENEN_TIPLER.excel.includes(ext)) return 'excel';
+  if (DESTEKLENEN_TIPLER.image.includes(ext)) return 'image';
+  
+  return 'unknown';
+}
+
 /**
  * PDF'den metin çıkar
  */
@@ -76,9 +102,43 @@ async function extractTextFromPDF(filePath) {
   try {
     const dataBuffer = await fs.promises.readFile(filePath);
     const data = await pdfParse(dataBuffer);
-    return data.text;
+    return data.text?.trim() || '';
   } catch (error) {
-    console.error('PDF metin çıkarma hatası:', error);
+    console.error('PDF metin çıkarma hatası:', error.message);
+    return '';
+  }
+}
+
+/**
+ * Word'den metin çıkar
+ */
+async function extractTextFromWord(filePath) {
+  try {
+    const result = await mammoth.extractRawText({ path: filePath });
+    return result.value?.trim() || '';
+  } catch (error) {
+    console.error('Word metin çıkarma hatası:', error.message);
+    return '';
+  }
+}
+
+/**
+ * Excel'den metin çıkar
+ */
+async function extractTextFromExcel(filePath) {
+  try {
+    const workbook = xlsx.readFile(filePath);
+    let text = '';
+    
+    workbook.SheetNames.forEach(sheetName => {
+      const sheet = workbook.Sheets[sheetName];
+      const csv = xlsx.utils.sheet_to_csv(sheet);
+      text += `${sheetName}:\n${csv}\n\n`;
+    });
+    
+    return text.trim();
+  } catch (error) {
+    console.error('Excel metin çıkarma hatası:', error.message);
     return '';
   }
 }
@@ -92,42 +152,17 @@ async function fileToBase64(filePath) {
 }
 
 /**
- * Gemini ile belge analizi
+ * Metin tabanlı AI analizi (Word, Excel veya PDF metin)
  */
-export async function analyzeFirmaBelgesi(filePath, belgeTipi, mimeType) {
-  try {
-    const belgeConfig = BELGE_TIPLERI[belgeTipi];
-    if (!belgeConfig) {
-      throw new Error(`Bilinmeyen belge tipi: ${belgeTipi}`);
-    }
+async function analyzeWithText(text, belgeTipi, belgeConfig) {
+  const model = genAI.getGenerativeModel({ 
+    model: process.env.GEMINI_MODEL || 'gemini-2.0-flash-exp'
+  });
 
-    console.log(`🔍 Firma belgesi analizi başlıyor: ${belgeConfig.ad}`);
-
-    const model = genAI.getGenerativeModel({ 
-      model: 'gemini-2.0-flash-exp'
-    });
-
-    // Her zaman görsel tabanlı analiz kullan (PDF dahil)
-    // Gemini Vision PDF'leri direkt okuyabiliyor
-    const ext = path.extname(filePath).toLowerCase();
-    const base64Data = await fileToBase64(filePath);
-    
-    // MIME type belirle
-    let imageMimeType = mimeType;
-    if (!imageMimeType) {
-      if (ext === '.pdf') imageMimeType = 'application/pdf';
-      else if (ext === '.png') imageMimeType = 'image/png';
-      else if (ext === '.jpg' || ext === '.jpeg') imageMimeType = 'image/jpeg';
-      else if (ext === '.webp') imageMimeType = 'image/webp';
-      else imageMimeType = 'application/octet-stream';
-    }
-    
-    console.log(`📄 Belge tipi: ${imageMimeType}, boyut: ${base64Data.length} bytes`);
-
-    const visionPrompt = `
+  const prompt = `
 ${belgeConfig.prompt}
 
-Bu belgeyi dikkatle incele ve bilgileri çıkar.
+Aşağıdaki metin içeriğinden firma bilgilerini çıkar.
 Lütfen JSON formatında yanıt ver. Bulamadığın alanları null olarak bırak.
 
 \`\`\`json
@@ -150,23 +185,152 @@ Lütfen JSON formatında yanıt ver. Bulamadığın alanları null olarak bırak
   "guven_skoru": 0.85
 }
 \`\`\`
-    `.trim();
 
-    const result = await model.generateContent([
-      visionPrompt,
-      {
-        inlineData: {
-          mimeType: imageMimeType,
-          data: base64Data
-        }
+BELGE METNİ:
+${text.slice(0, 15000)}
+  `.trim();
+
+  const result = await model.generateContent(prompt);
+  return result.response.text();
+}
+
+/**
+ * Vision tabanlı AI analizi (PDF görsel veya resim)
+ */
+async function analyzeWithVision(filePath, belgeTipi, belgeConfig, mimeType) {
+  const model = genAI.getGenerativeModel({ 
+    model: 'gemini-2.0-flash-exp'
+  });
+
+  const ext = path.extname(filePath).toLowerCase();
+  const base64Data = await fileToBase64(filePath);
+  
+  // MIME type belirle
+  let imageMimeType = mimeType;
+  if (!imageMimeType) {
+    const mimeMap = {
+      '.pdf': 'application/pdf',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.webp': 'image/webp',
+      '.gif': 'image/gif'
+    };
+    imageMimeType = mimeMap[ext] || 'application/octet-stream';
+  }
+
+  const visionPrompt = `
+${belgeConfig.prompt}
+
+Bu belgeyi dikkatle incele ve bilgileri çıkar.
+Tüm yazıları, tabloları ve sembolleri oku.
+Lütfen JSON formatında yanıt ver. Bulamadığın alanları null olarak bırak.
+
+\`\`\`json
+{
+  "unvan": "Firma/Şirket Ünvanı",
+  "vergi_dairesi": "Vergi Dairesi Adı",
+  "vergi_no": "10 haneli vergi numarası",
+  "ticaret_sicil_no": "Ticaret sicil numarası",
+  "mersis_no": "16 haneli MERSİS numarası",
+  "adres": "Tam adres",
+  "il": "İl",
+  "ilce": "İlçe",
+  "telefon": "Telefon numarası",
+  "yetkili_adi": "Yetkili kişi adı soyadı",
+  "yetkili_tc": "TC Kimlik No",
+  "yetkili_unvani": "Unvanı (Müdür, Genel Müdür vs.)",
+  "imza_yetkisi": "İmza yetkisi açıklaması",
+  "faaliyet_kodu": "NACE/Faaliyet kodu",
+  "belge_tarihi": "Belge tarihi (YYYY-MM-DD)",
+  "guven_skoru": 0.85
+}
+\`\`\`
+  `.trim();
+
+  console.log(`📸 Vision analizi: ${imageMimeType}, ${(base64Data.length / 1024).toFixed(1)}KB`);
+
+  const result = await model.generateContent([
+    visionPrompt,
+    {
+      inlineData: {
+        mimeType: imageMimeType,
+        data: base64Data
       }
-    ]);
+    }
+  ]);
 
-    const response = await result.response;
-    return parseGeminiResponse(response.text(), belgeTipi);
+  return result.response.text();
+}
+
+/**
+ * Ana analiz fonksiyonu - Akıllı yönlendirme
+ */
+export async function analyzeFirmaBelgesi(filePath, belgeTipi, mimeType) {
+  try {
+    const belgeConfig = BELGE_TIPLERI[belgeTipi];
+    if (!belgeConfig) {
+      throw new Error(`Bilinmeyen belge tipi: ${belgeTipi}`);
+    }
+
+    const fileCategory = getFileCategory(filePath);
+    console.log(`🔍 Firma belgesi analizi: ${belgeConfig.ad} (${fileCategory})`);
+
+    let responseText;
+
+    switch (fileCategory) {
+      case 'word':
+        // Word dosyası - metin tabanlı analiz
+        console.log('📝 Word dosyası - metin çıkarılıyor...');
+        const wordText = await extractTextFromWord(filePath);
+        if (wordText.length > 50) {
+          responseText = await analyzeWithText(wordText, belgeTipi, belgeConfig);
+        } else {
+          throw new Error('Word dosyasından metin çıkarılamadı');
+        }
+        break;
+
+      case 'excel':
+        // Excel dosyası - metin tabanlı analiz
+        console.log('📊 Excel dosyası - metin çıkarılıyor...');
+        const excelText = await extractTextFromExcel(filePath);
+        if (excelText.length > 50) {
+          responseText = await analyzeWithText(excelText, belgeTipi, belgeConfig);
+        } else {
+          throw new Error('Excel dosyasından metin çıkarılamadı');
+        }
+        break;
+
+      case 'pdf':
+        // PDF - Önce metin çıkar, başarısızsa Vision kullan
+        console.log('📄 PDF dosyası - hybrid analiz...');
+        const pdfText = await extractTextFromPDF(filePath);
+        
+        if (pdfText.length > 100) {
+          // Metin bazlı analiz
+          console.log(`   ✓ Metin çıkarıldı: ${pdfText.length} karakter`);
+          responseText = await analyzeWithText(pdfText, belgeTipi, belgeConfig);
+        } else {
+          // Vision tabanlı analiz (taranmış PDF)
+          console.log('   ⚠ Metin az, Vision kullanılıyor...');
+          responseText = await analyzeWithVision(filePath, belgeTipi, belgeConfig, mimeType);
+        }
+        break;
+
+      case 'image':
+        // Görsel - direkt Vision
+        console.log('🖼️ Görsel dosya - Vision analizi...');
+        responseText = await analyzeWithVision(filePath, belgeTipi, belgeConfig, mimeType);
+        break;
+
+      default:
+        throw new Error(`Desteklenmeyen dosya formatı: ${path.extname(filePath)}`);
+    }
+
+    return parseGeminiResponse(responseText, belgeTipi, fileCategory);
 
   } catch (error) {
-    console.error('Firma belgesi analiz hatası:', error);
+    console.error('❌ Firma belgesi analiz hatası:', error);
     throw error;
   }
 }
@@ -174,37 +338,34 @@ Lütfen JSON formatında yanıt ver. Bulamadığın alanları null olarak bırak
 /**
  * Gemini yanıtını parse et
  */
-function parseGeminiResponse(text, belgeTipi) {
+function parseGeminiResponse(text, belgeTipi, fileCategory) {
   try {
     // JSON bloğunu bul
     const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+    let parsed;
+    
     if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[1]);
-      return {
-        success: true,
-        belgeTipi,
-        belgeTipiAd: BELGE_TIPLERI[belgeTipi]?.ad || belgeTipi,
-        data: cleanAnalysisData(parsed),
-        rawResponse: text
-      };
+      parsed = JSON.parse(jsonMatch[1]);
+    } else {
+      // JSON bloğu yoksa direkt parse dene
+      parsed = JSON.parse(text);
     }
 
-    // JSON bloğu yoksa direkt parse dene
-    const parsed = JSON.parse(text);
     return {
       success: true,
       belgeTipi,
       belgeTipiAd: BELGE_TIPLERI[belgeTipi]?.ad || belgeTipi,
+      analizMetodu: fileCategory === 'image' || (fileCategory === 'pdf' && !jsonMatch) ? 'vision' : 'text',
       data: cleanAnalysisData(parsed),
       rawResponse: text
     };
 
   } catch (error) {
-    console.error('JSON parse hatası:', error);
+    console.error('JSON parse hatası:', error.message);
     return {
       success: false,
       belgeTipi,
-      error: 'Belge analiz edilemedi',
+      error: 'Belge analiz edilemedi - AI yanıtı parse edilemedi',
       rawResponse: text
     };
   }
@@ -217,7 +378,7 @@ function cleanAnalysisData(data) {
   const cleaned = {};
   
   for (const [key, value] of Object.entries(data)) {
-    if (value && value !== 'null' && value !== '...' && value !== 'N/A') {
+    if (value && value !== 'null' && value !== '...' && value !== 'N/A' && value !== '-') {
       // Vergi no temizle (sadece rakam)
       if (key === 'vergi_no' && typeof value === 'string') {
         cleaned[key] = value.replace(/\D/g, '').slice(0, 10);
@@ -229,6 +390,10 @@ function cleanAnalysisData(data) {
       // MERSİS temizle
       else if (key === 'mersis_no' && typeof value === 'string') {
         cleaned[key] = value.replace(/\D/g, '').slice(0, 16);
+      }
+      // Telefon formatla
+      else if (key === 'telefon' && typeof value === 'string') {
+        cleaned[key] = value.replace(/[^\d\s\-\+\(\)]/g, '').trim();
       }
       else {
         cleaned[key] = value;
@@ -250,7 +415,26 @@ export function getDesteklenenBelgeTipleri() {
   }));
 }
 
+/**
+ * Desteklenen dosya formatlarını döndür
+ */
+export function getDesteklenenDosyaFormatlari() {
+  return {
+    pdf: DESTEKLENEN_TIPLER.pdf,
+    word: DESTEKLENEN_TIPLER.word,
+    excel: DESTEKLENEN_TIPLER.excel,
+    image: DESTEKLENEN_TIPLER.image,
+    all: [
+      ...DESTEKLENEN_TIPLER.pdf,
+      ...DESTEKLENEN_TIPLER.word,
+      ...DESTEKLENEN_TIPLER.excel,
+      ...DESTEKLENEN_TIPLER.image
+    ]
+  };
+}
+
 export default {
   analyzeFirmaBelgesi,
-  getDesteklenenBelgeTipleri
+  getDesteklenenBelgeTipleri,
+  getDesteklenenDosyaFormatlari
 };
