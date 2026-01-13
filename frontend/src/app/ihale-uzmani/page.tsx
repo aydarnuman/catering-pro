@@ -109,19 +109,28 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-// Firma bilgileri interface
+// Firma bilgileri interface (Database)
 interface FirmaBilgileri {
-  id: string;
+  id: number;
   unvan: string;
+  kisa_ad?: string;
   vergi_dairesi: string;
   vergi_no: string;
+  ticaret_sicil_no?: string;
+  mersis_no?: string;
   adres: string;
+  il?: string;
+  ilce?: string;
   telefon: string;
   email: string;
   yetkili_adi: string;
   yetkili_unvani: string;
+  yetkili_tc?: string;
   imza_yetkisi: string;
-  varsayilan?: boolean;
+  banka_adi?: string;
+  iban?: string;
+  varsayilan: boolean;
+  aktif: boolean;
 }
 
 // Calculation results
@@ -196,10 +205,11 @@ export default function IhaleUzmaniPage() {
   const [isLoading, setIsLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   
-  // Firma bilgileri state - çoklu firma desteği
+  // Firma bilgileri state - Database'den çekiliyor
   const [firmalar, setFirmalar] = useState<FirmaBilgileri[]>([]);
-  const [seciliFirmaId, setSeciliFirmaId] = useState<string | null>(null);
+  const [seciliFirmaId, setSeciliFirmaId] = useState<number | null>(null);
   const [firmaPanelOpen, setFirmaPanelOpen] = useState(false);
+  const [firmaLoading, setFirmaLoading] = useState(false);
   
   // Seçili firma objesi
   const seciliFirma = firmalar.find(f => f.id === seciliFirmaId) || firmalar.find(f => f.varsayilan) || null;
@@ -246,24 +256,36 @@ export default function IhaleUzmaniPage() {
       }
     }
     
-    // Load firmalar listesi from settings
-    const savedFirmalar = localStorage.getItem('firmalar');
-    if (savedFirmalar) {
-      try {
-        const parsedFirmalar = JSON.parse(savedFirmalar);
-        setFirmalar(parsedFirmalar);
+    // Load firmalar from database
+    fetchFirmalar();
+  }, []);
+
+  // Firmaları API'den yükle
+  const fetchFirmalar = async () => {
+    try {
+      setFirmaLoading(true);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/api/firmalar`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const firmalarData = data.data || [];
+        setFirmalar(firmalarData);
         // Varsayılan firmayı seç
-        const varsayilan = parsedFirmalar.find((f: FirmaBilgileri) => f.varsayilan);
+        const varsayilan = firmalarData.find((f: FirmaBilgileri) => f.varsayilan);
         if (varsayilan) {
           setSeciliFirmaId(varsayilan.id);
-        } else if (parsedFirmalar.length > 0) {
-          setSeciliFirmaId(parsedFirmalar[0].id);
+        } else if (firmalarData.length > 0) {
+          setSeciliFirmaId(firmalarData[0].id);
         }
-      } catch (e) {
-        console.error('Failed to parse firmalar:', e);
       }
+    } catch (e) {
+      console.error('Failed to fetch firmalar:', e);
+    } finally {
+      setFirmaLoading(false);
     }
-  }, []);
+  };
 
   // Manuel ihale kaydetme
   const saveManuelIhale = useCallback(() => {
@@ -724,12 +746,14 @@ Bu ihale bağlamında cevap ver.
             </Group>
           </div>
           <Group gap="sm">
-            {firmalar.length > 0 ? (
+            {firmaLoading ? (
+              <Loader size="sm" />
+            ) : firmalar.length > 0 ? (
               <Select
                 placeholder="Firma seçin"
-                data={firmalar.map(f => ({ value: f.id, label: f.unvan }))}
-                value={seciliFirmaId}
-                onChange={(val) => setSeciliFirmaId(val)}
+                data={firmalar.map(f => ({ value: String(f.id), label: f.unvan }))}
+                value={seciliFirmaId ? String(seciliFirmaId) : null}
+                onChange={(val) => setSeciliFirmaId(val ? Number(val) : null)}
                 leftSection={<IconBuilding size={18} />}
                 style={{ minWidth: 200 }}
                 comboboxProps={{ withinPortal: true }}

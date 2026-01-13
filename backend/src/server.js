@@ -120,6 +120,7 @@ import planlamaRouter from './routes/planlama.js';
 import menuPlanlamaRouter from './routes/menu-planlama.js';
 import tekliflerRouter from './routes/teklifler.js';
 import notlarRouter from './routes/notlar.js';
+import firmalarRouter from './routes/firmalar.js';
 import scheduler from './services/sync-scheduler.js';
 import tenderScheduler from './services/tender-scheduler.js';
 
@@ -155,6 +156,7 @@ app.use('/api/planlama', planlamaRouter);
 app.use('/api/menu-planlama', menuPlanlamaRouter);
 app.use('/api/teklifler', tekliflerRouter);
 app.use('/api/notlar', notlarRouter);
+app.use('/api/firmalar', firmalarRouter);
 
 /**
  * @swagger
