@@ -4,36 +4,31 @@
 
 Bu döküman Catering Pro'nun farklı ortamlara deployment sürecini açıklar.
 
+**Mevcut Production:** DigitalOcean Droplet (46.101.172.210)
+
 ---
 
 ## 🖥️ Local Development
 
 ### Gereksinimler
-- Node.js 18+
-- Docker & Docker Compose
+- Node.js 20+
 - Git
 
 ### Kurulum
 
 ```bash
 # 1. Repo'yu klonla
-git clone <repo-url>
+git clone https://github.com/aydarnuman/catering-pro.git
 cd CATERİNG
 
-# 2. Environment dosyalarını oluştur
-cp .env.example .env
-# .env dosyasını düzenle
-
-# 3. PostgreSQL başlat
-docker-compose up -d
-
-# 4. Backend kurulum
+# 2. Backend kurulum
 cd backend
+cp ../.env.example .env
+# .env dosyasını düzenle (Supabase credentials)
 npm install
-npm run migrate
-npm run dev
+npm start
 
-# 5. Frontend kurulum (yeni terminal)
+# 3. Frontend kurulum (yeni terminal)
 cd frontend
 npm install
 npm run dev
@@ -42,66 +37,45 @@ npm run dev
 ### Portlar
 - Frontend: http://localhost:3000
 - Backend: http://localhost:3001
-- PostgreSQL: localhost:5432
+- Database: Supabase (cloud)
 
 ---
 
-## ☁️ Railway Deployment
+## 🌊 DigitalOcean Deployment (Mevcut)
 
-### 1. Railway Hesabı
-- https://railway.app adresinden hesap oluştur
-- GitHub ile bağla
+> Detaylı bilgi için: [DIGITALOCEAN.md](./DIGITALOCEAN.md)
 
-### 2. Yeni Proje Oluştur
-```
-Railway Dashboard → New Project → Deploy from GitHub repo
-```
+### Hızlı Deploy
 
-### 3. Backend Service
-
-```yaml
-# railway.toml (backend klasöründe)
-[build]
-builder = "NIXPACKS"
-
-[deploy]
-startCommand = "npm start"
-healthcheckPath = "/health"
-healthcheckTimeout = 100
+```bash
+# Lokal makineden tek komutla deploy
+./scripts/deploy.sh              # Tam deploy
+./scripts/deploy.sh frontend     # Sadece frontend
+./scripts/deploy.sh backend      # Sadece backend
 ```
 
-**Environment Variables:**
-```
-DATABASE_URL=postgresql://...
-JWT_SECRET=xxx
-GEMINI_API_KEY=xxx
-CLAUDE_API_KEY=xxx
-NODE_ENV=production
-PORT=3001
+### Manuel Deploy
+
+```bash
+# SSH ile bağlan
+ssh -i ~/.ssh/procheff_deploy root@46.101.172.210
+
+# Deploy
+cd /root/catering-pro
+git pull origin main
+cd frontend && npm run build
+pm2 restart all
 ```
 
-### 4. Frontend Service
+### Sunucu Bilgileri
 
-```yaml
-# railway.toml (frontend klasöründe)
-[build]
-builder = "NIXPACKS"
-
-[deploy]
-startCommand = "npm start"
-```
-
-**Environment Variables:**
-```
-NEXT_PUBLIC_API_URL=https://backend-xxx.railway.app
-NEXTAUTH_URL=https://frontend-xxx.railway.app
-NEXTAUTH_SECRET=xxx
-```
-
-### 5. Custom Domain (Opsiyonel)
-```
-Service Settings → Networking → Custom Domain
-```
+| Özellik | Değer |
+|---------|-------|
+| IP | 46.101.172.210 |
+| OS | Ubuntu 22.04 |
+| Process Manager | PM2 |
+| Reverse Proxy | Nginx |
+| Database | Supabase (external) |
 
 ---
 
