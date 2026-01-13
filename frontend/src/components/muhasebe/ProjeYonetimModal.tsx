@@ -388,7 +388,7 @@ export default function ProjeYonetimModal({ opened, onClose }: ProjeYonetimModal
         <Text fw={500}>{selectedProje ? 'Proje Düzenle' : 'Yeni Proje'}</Text>
       </Group>
 
-      <SimpleGrid cols={2} spacing="md">
+      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
         <TextInput
           label="Proje Kodu"
           placeholder="KYK-01"
@@ -412,7 +412,7 @@ export default function ProjeYonetimModal({ opened, onClose }: ProjeYonetimModal
         rows={2}
       />
 
-      <SimpleGrid cols={2} spacing="md">
+      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
         <TextInput
           label="Müşteri"
           placeholder="Müşteri adı"
@@ -434,7 +434,7 @@ export default function ProjeYonetimModal({ opened, onClose }: ProjeYonetimModal
         onChange={(e) => setForm({ ...form, adres: e.target.value })}
       />
 
-      <SimpleGrid cols={2} spacing="md">
+      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
         <TextInput
           label="Yetkili"
           placeholder="Yetkili kişi"
@@ -521,7 +521,7 @@ export default function ProjeYonetimModal({ opened, onClose }: ProjeYonetimModal
               {/* Genel Bilgiler */}
               <Paper p="sm" radius="sm" withBorder>
                 <Text size="sm" fw={500} mb="xs">📋 Genel Bilgiler</Text>
-                <SimpleGrid cols={2} spacing="xs">
+                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
                   <Text size="xs"><b>Kod:</b> {tamOzet.proje.kod || '-'}</Text>
                   <Text size="xs"><b>Lokasyon:</b> {tamOzet.proje.lokasyon || '-'}</Text>
                   <Text size="xs"><b>Yetkili:</b> {tamOzet.proje.yetkili || '-'}</Text>
@@ -533,7 +533,7 @@ export default function ProjeYonetimModal({ opened, onClose }: ProjeYonetimModal
               </Paper>
 
               {/* Personel & Bordro */}
-              <SimpleGrid cols={2} spacing="md">
+              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
                 <Paper p="sm" radius="sm" withBorder>
                   <Group gap="xs" mb="xs">
                     <IconUsers size={16} color="var(--mantine-color-blue-6)" />
@@ -590,7 +590,7 @@ export default function ProjeYonetimModal({ opened, onClose }: ProjeYonetimModal
               </SimpleGrid>
 
               {/* Satın Alma & Finans */}
-              <SimpleGrid cols={2} spacing="md">
+              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
                 <Paper p="sm" radius="sm" withBorder>
                   <Group gap="xs" mb="xs">
                     <IconShoppingCart size={16} color="var(--mantine-color-orange-6)" />

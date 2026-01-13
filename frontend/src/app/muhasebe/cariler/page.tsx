@@ -31,7 +31,7 @@ import {
   Alert,
   Tooltip
 } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
   IconPlus,
@@ -102,6 +102,7 @@ const iller = [
 export default function CarilerPage() {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const [opened, { open, close }] = useDisclosure(false);
   const [detailOpened, { open: openDetail, close: closeDetail }] = useDisclosure(false);
   const [mutabakatOpened, { open: openMutabakat, close: closeMutabakat }] = useDisclosure(false);
@@ -628,9 +629,10 @@ export default function CarilerPage() {
           }}
           title={editingItem ? 'Cari Düzenle' : 'Yeni Cari'}
           size="lg"
+          fullScreen={isMobile}
         >
           <Stack>
-            <SimpleGrid cols={2}>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <Select
                 label="Tip"
                 required
@@ -660,7 +662,7 @@ export default function CarilerPage() {
               onChange={(e) => setFormData({ ...formData, unvan: e.target.value })}
             />
             
-            <SimpleGrid cols={2}>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <TextInput
                 label="Yetkili"
                 value={formData.yetkili}
@@ -673,7 +675,7 @@ export default function CarilerPage() {
               />
             </SimpleGrid>
             
-            <SimpleGrid cols={2}>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <TextInput
                 label="Vergi No"
                 value={formData.vergi_no}
@@ -699,7 +701,7 @@ export default function CarilerPage() {
               onChange={(e) => setFormData({ ...formData, adres: e.target.value })}
             />
             
-            <SimpleGrid cols={2}>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <Select
                 label="İl"
                 data={iller}

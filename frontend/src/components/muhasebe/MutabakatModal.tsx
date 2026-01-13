@@ -38,8 +38,9 @@ import {
   IconChevronUp
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
+import { API_BASE_URL } from '@/lib/config';
 
-const API_URL = 'http://localhost:3001/api';
+const API_URL = `${API_BASE_URL}/api`;
 
 interface Cari {
   id: number;

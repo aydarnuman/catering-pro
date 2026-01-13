@@ -332,7 +332,7 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
         )}
 
         {/* Giriş Alanları */}
-        <SimpleGrid cols={2}>
+        <SimpleGrid cols={{ base: 1, sm: 2 }}>
           <Select
             label="Çıkış Sebebi"
             placeholder="Çıkış sebebi seçin"

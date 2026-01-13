@@ -53,9 +53,10 @@ import {
   IconFileInvoice,
   IconAlertCircle
 } from '@tabler/icons-react';
+import { API_BASE_URL } from '@/lib/config';
 
 // API URL
-const API_URL = 'http://localhost:3001/api';
+const API_URL = `${API_BASE_URL}/api`;
 
 // Tip tanımları
 interface Cari {

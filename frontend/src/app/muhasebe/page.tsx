@@ -21,6 +21,7 @@ import {
   Divider,
   useMantineColorScheme
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import {
   IconWallet,
   IconTrendingUp,
@@ -97,6 +98,7 @@ const bekleyenFaturalar = [
 export default function MuhasebeDashboard() {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const [projeModalOpen, setProjeModalOpen] = useState(false);
 
   // Para formatı
@@ -248,11 +250,19 @@ export default function MuhasebeDashboard() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#333' : '#eee'} />
-                    <XAxis dataKey="ay" stroke={isDark ? '#888' : '#666'} fontSize={12} />
+                    <XAxis 
+                      dataKey="ay" 
+                      stroke={isDark ? '#888' : '#666'} 
+                      fontSize={isMobile ? 10 : 12}
+                      tick={{ fontSize: isMobile ? 10 : 12 }}
+                      interval={isMobile ? 1 : 0}
+                    />
                     <YAxis 
                       stroke={isDark ? '#888' : '#666'} 
-                      fontSize={12}
+                      fontSize={isMobile ? 10 : 12}
+                      tick={{ fontSize: isMobile ? 10 : 12 }}
                       tickFormatter={(value) => `${(value / 1000).toFixed(0)}K`}
+                      width={isMobile ? 35 : 45}
                     />
                     <RechartsTooltip 
                       formatter={(value: number) => formatMoney(value)}
@@ -303,8 +313,8 @@ export default function MuhasebeDashboard() {
                       data={giderDagilimi}
                       cx="50%"
                       cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
+                      innerRadius={isMobile ? 40 : 60}
+                      outerRadius={isMobile ? 70 : 100}
                       paddingAngle={3}
                       dataKey="value"
                     >
@@ -314,9 +324,10 @@ export default function MuhasebeDashboard() {
                     </Pie>
                     <Legend 
                       verticalAlign="bottom" 
-                      height={36}
+                      height={isMobile ? 60 : 36}
+                      wrapperStyle={{ fontSize: isMobile ? 11 : 14 }}
                       formatter={(value, entry: any) => (
-                        <span style={{ color: isDark ? '#ccc' : '#333' }}>
+                        <span style={{ color: isDark ? '#ccc' : '#333', fontSize: isMobile ? 11 : 14 }}>
                           {value} ({entry.payload.value}%)
                         </span>
                       )}
@@ -348,7 +359,7 @@ export default function MuhasebeDashboard() {
                   Tümünü Gör
                 </Badge>
               </Group>
-              <Table.ScrollContainer minWidth={400}>
+              <Table.ScrollContainer minWidth={320}>
                 <Table verticalSpacing="sm" highlightOnHover>
                   <Table.Thead>
                     <Table.Tr>

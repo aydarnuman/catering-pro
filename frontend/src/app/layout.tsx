@@ -54,7 +54,7 @@ export default function RootLayout({
             <Notifications position="top-right" />
             <Box style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
               <Navbar />
-              <Box component="main" style={{ flex: 1, paddingTop: 120 }}>
+              <Box component="main" className="main-content" style={{ flex: 1 }}>
                 <ClientLayout>
                 {children}
                 </ClientLayout>

@@ -494,7 +494,7 @@ export default function CariDetayModal({ opened, onClose, cari, onEdit, onMutaba
 
               <Card withBorder>
                 <Title order={5} mb="md">Cari Bilgileri</Title>
-                <SimpleGrid cols={2}>
+                <SimpleGrid cols={{ base: 1, sm: 2 }}>
                   {cari.etiket && (
                     <div>
                       <Text size="sm" c="dimmed">Etiket/Kategori</Text>
@@ -666,7 +666,7 @@ export default function CariDetayModal({ opened, onClose, cari, onEdit, onMutaba
                 </Paper>
               </SimpleGrid>
 
-              <SimpleGrid cols={2}>
+              <SimpleGrid cols={{ base: 1, sm: 2 }}>
                 <Card withBorder>
                   <Title order={5} mb="md" c="green">Gelirler (Alacaklar)</Title>
                   <Stack gap="xs">

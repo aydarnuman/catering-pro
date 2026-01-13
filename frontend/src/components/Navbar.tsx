@@ -16,8 +16,10 @@ import {
   ThemeIcon,
   Tooltip,
   Avatar,
-  Loader
+  Loader,
+  ScrollArea
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import {
   IconSun,
   IconMoon,
@@ -59,6 +61,9 @@ export function Navbar() {
   const [opened, setOpened] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { user, isAuthenticated, isAdmin: userIsAdmin, isLoading, logout } = useAuth();
+  
+  // Mobil responsive kontrolü
+  const isMobile = useMediaQuery('(max-width: 768px)');
 
   // Client-side mount kontrolü (hydration hatası önleme)
   useEffect(() => {
@@ -107,19 +112,24 @@ export function Navbar() {
           zIndex: 100,
         })}
       >
-        <Group h={100} px="md" justify="space-between">
+        <Group h={mounted && isMobile ? 60 : 100} px="md" justify="space-between">
           {/* Logo */}
           <Link href="/" style={{ textDecoration: 'none' }}>
-            <Box style={{ width: 220, display: 'flex', alignItems: 'center' }}>
+            <Box style={{ 
+              width: mounted && isMobile ? 140 : 220, 
+              display: 'flex', 
+              alignItems: 'center' 
+            }}>
               <img 
                 src="/logo.png" 
                 alt="Catering Pro" 
                 style={{ 
-                  height: 170,
+                  height: mounted && isMobile ? 100 : 170,
                   width: 'auto',
                   objectFit: 'contain',
-                  marginTop: -35,
-                  marginBottom: 0
+                  marginTop: mounted && isMobile ? -20 : -35,
+                  marginBottom: 0,
+                  transition: 'all 0.2s ease'
                 }}
               />
             </Box>
@@ -544,6 +554,7 @@ export function Navbar() {
         {/* Mobile Navigation */}
         {opened && (
           <Box hiddenFrom="sm" pb="md" px="md">
+            <ScrollArea.Autosize mah="calc(100vh - 80px)" offsetScrollbars>
             <Stack gap="xs">
               <Button
                 component={Link}
@@ -729,6 +740,7 @@ export function Navbar() {
                 </Button>
               )}
             </Stack>
+            </ScrollArea.Autosize>
           </Box>
         )}
       </Box>

@@ -799,7 +799,7 @@ function AyarlarContent() {
                   <Badge variant="light" color="blue">v1.0.0</Badge>
                 </Group>
                 <Divider />
-                <SimpleGrid cols={2}>
+                <SimpleGrid cols={{ base: 1, sm: 2 }}>
                   <div>
                     <Text size="xs" c="dimmed">Backend</Text>
                     <Text size="sm">{API_URL}</Text>

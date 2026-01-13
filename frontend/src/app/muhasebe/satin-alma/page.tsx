@@ -33,7 +33,7 @@ import {
   Avatar
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
   IconPlus,
@@ -73,6 +73,7 @@ export default function SatinAlmaPage() {
   const router = useRouter();
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const [opened, { open, close }] = useDisclosure(false);
   const [detailOpened, { open: openDetail, close: closeDetail }] = useDisclosure(false);
   const [projeModalOpened, { open: openProjeModal, close: closeProjeModal }] = useDisclosure(false);
@@ -739,7 +740,7 @@ export default function SatinAlmaPage() {
         </Stack>
 
         {/* Yeni Sipariş Modal */}
-        <Modal opened={opened} onClose={() => { resetForm(); close(); }} title={<Text fw={700} size="lg">Yeni Sipariş</Text>} size="xl">
+        <Modal opened={opened} onClose={() => { resetForm(); close(); }} title={<Text fw={700} size="lg">Yeni Sipariş</Text>} size="xl" fullScreen={isMobile}>
           <Stack gap="md">
             <TextInput 
               label="Sipariş Başlığı" 
@@ -749,7 +750,7 @@ export default function SatinAlmaPage() {
               required 
             />
             
-            <SimpleGrid cols={2}>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <Select 
                 label="Proje / Şube" 
                 placeholder="Seçin (opsiyonel)" 
@@ -853,7 +854,7 @@ export default function SatinAlmaPage() {
         </Modal>
 
         {/* Detay Modal */}
-        <Modal opened={detailOpened} onClose={closeDetail} title={<Text fw={700} size="lg">Sipariş Detayı</Text>} size="lg">
+        <Modal opened={detailOpened} onClose={closeDetail} title={<Text fw={700} size="lg">Sipariş Detayı</Text>} size="lg" fullScreen={isMobile}>
           {selectedSiparis && (
             <Stack gap="md">
               <Group justify="space-between">
@@ -875,7 +876,7 @@ export default function SatinAlmaPage() {
 
               <Divider />
 
-              <SimpleGrid cols={2}>
+              <SimpleGrid cols={{ base: 1, sm: 2 }}>
                 <Paper withBorder p="md" radius="md">
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Proje</Text>
                   {selectedSiparis.proje_ad ? (
@@ -947,6 +948,7 @@ export default function SatinAlmaPage() {
           onClose={closeFormModal} 
           title={<Text fw={700} size="lg">📦 Sipariş Formu</Text>} 
           size="lg"
+          fullScreen={isMobile}
           styles={{
             body: { padding: 0 }
           }}
@@ -962,7 +964,7 @@ export default function SatinAlmaPage() {
                 </Paper>
 
                 {/* Info Grid */}
-                <SimpleGrid cols={2} mb="md">
+                <SimpleGrid cols={{ base: 1, sm: 2 }} mb="md">
                   <Paper withBorder p="md">
                     <Text size="xs" c="dimmed" tt="uppercase" fw={700} mb="xs">Tedarikçi</Text>
                     <Text fw={600}>{formSiparis.tedarikci_unvan || 'Belirtilmedi'}</Text>
@@ -1012,7 +1014,7 @@ export default function SatinAlmaPage() {
                 )}
 
                 {/* İmza Alanları */}
-                <SimpleGrid cols={2}>
+                <SimpleGrid cols={{ base: 1, sm: 2 }}>
                   <Paper withBorder p="md" style={{ textAlign: 'center' }}>
                     <Text size="sm" c="dimmed" mb="xl">Sipariş Veren</Text>
                     <Divider />
@@ -1036,9 +1038,9 @@ export default function SatinAlmaPage() {
         </Modal>
 
         {/* Yeni Proje Modal */}
-        <Modal opened={projeModalOpened} onClose={closeProjeModal} title={<Text fw={700} size="lg">Yeni Proje / Şube</Text>} size="md">
+        <Modal opened={projeModalOpened} onClose={closeProjeModal} title={<Text fw={700} size="lg">Yeni Proje / Şube</Text>} size="md" fullScreen={isMobile}>
           <Stack gap="md">
-            <SimpleGrid cols={2}>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <TextInput 
                 label="Proje Kodu" 
                 placeholder="KYK, HASTANE..." 
@@ -1060,7 +1062,7 @@ export default function SatinAlmaPage() {
               value={newProje.adres}
               onChange={(e) => setNewProje({ ...newProje, adres: e.currentTarget.value })}
             />
-            <SimpleGrid cols={2}>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <TextInput 
                 label="Yetkili Kişi" 
                 placeholder="Ad Soyad" 

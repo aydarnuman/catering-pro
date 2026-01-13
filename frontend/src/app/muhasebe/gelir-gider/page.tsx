@@ -518,7 +518,7 @@ export default function GelirGiderPage() {
               required
             />
 
-            <SimpleGrid cols={2}>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <DatePickerInput
                 label="Tarih"
                 placeholder="Tarih seçin"

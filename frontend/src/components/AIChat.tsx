@@ -589,7 +589,7 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false }: 
                 {/* Önerilen Sorular */}
                 <Stack gap="xs" w="100%" maw={600}>
                   <Text size="sm" fw={500} c="dimmed">💡 Önerilen Sorular:</Text>
-                  <SimpleGrid cols={2} spacing="xs">
+                  <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
                     {suggestedQuestions.map((question, index) => (
                       <Card 
                         key={index} 

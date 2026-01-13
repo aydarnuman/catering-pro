@@ -147,10 +147,92 @@ a {
   }
 }
 
+/* Main content padding - Navbar altı için */
+.main-content {
+  padding-top: 120px;
+  transition: padding-top 0.2s ease;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding-top: 70px;
+  }
+}
+
 /* Focus visible for accessibility */
 :focus-visible {
   outline: 2px solid #228be6;
   outline-offset: 2px;
+}
+
+/* Touch-friendly sizes for mobile */
+@media (max-width: 768px) {
+  /* Minimum touch target size (44px Apple HIG standard) */
+  .mantine-Button-root,
+  .mantine-ActionIcon-root,
+  .mantine-UnstyledButton-root {
+    min-height: 44px;
+  }
+  
+  /* Increase tap targets for buttons with compact variants */
+  .mantine-Button-root[data-size="xs"],
+  .mantine-Button-root[data-size="compact-xs"],
+  .mantine-Button-root[data-size="compact-sm"] {
+    min-height: 40px;
+    padding-left: 12px;
+    padding-right: 12px;
+    font-size: 13px;
+  }
+  
+  /* Better spacing for action icons */
+  .mantine-ActionIcon-root[data-size="sm"],
+  .mantine-ActionIcon-root[data-size="xs"] {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  
+  /* Increase input field heights */
+  .mantine-Input-input,
+  .mantine-TextInput-input,
+  .mantine-Select-input,
+  .mantine-NumberInput-input,
+  .mantine-Textarea-input {
+    min-height: 44px;
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+  
+  /* Better checkbox/radio sizing */
+  .mantine-Checkbox-input,
+  .mantine-Radio-input {
+    width: 24px;
+    height: 24px;
+  }
+  
+  /* Menu items touch-friendly */
+  .mantine-Menu-item {
+    min-height: 44px;
+    padding: 12px 16px;
+  }
+  
+  /* Tabs touch-friendly */
+  .mantine-Tabs-tab {
+    min-height: 44px;
+    padding: 8px 16px;
+  }
+  
+  /* Table scroll container improvements */
+  .mantine-ScrollArea-root {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .mantine-Table-root {
+    font-size: 13px;
+  }
+  
+  .mantine-Table-th,
+  .mantine-Table-td {
+    padding: 8px 10px;
+  }
 }
 
 /* Reduce motion for accessibility */

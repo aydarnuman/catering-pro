@@ -2516,7 +2516,7 @@ export default function MenuPlanlamaPage() {
             onChange={(val) => setYeniReceteForm(prev => ({ ...prev, kategori_id: val || '' }))}
           />
           
-          <SimpleGrid cols={2}>
+          <SimpleGrid cols={{ base: 1, sm: 2 }}>
             <NumberInput
               label="Kalori (kcal)"
               placeholder="180"

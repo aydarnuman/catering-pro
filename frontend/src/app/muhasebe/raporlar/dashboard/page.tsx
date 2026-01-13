@@ -382,7 +382,7 @@ export default function DashboardPage() {
                     </Text>
                   </Paper>
                   
-                  <SimpleGrid cols={2}>
+                  <SimpleGrid cols={{ base: 1, sm: 2 }}>
                     {categorySummary.map((cat) => (
                       <Paper key={cat.category} withBorder p="sm" radius="md">
                         <Text size="xs" c="dimmed" mb={5}>{cat.category}</Text>

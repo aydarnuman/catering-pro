@@ -36,7 +36,7 @@ import {
   ScrollArea
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
   IconPlus,
@@ -163,6 +163,7 @@ export default function FaturalarPage() {
   const router = useRouter();
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const [opened, { open, close }] = useDisclosure(false);
   const [detailOpened, { open: openDetail, close: closeDetail }] = useDisclosure(false);
   const [connectOpened, { open: openConnect, close: closeConnect }] = useDisclosure(false);
@@ -1546,7 +1547,7 @@ export default function FaturalarPage() {
         </Stack>
 
         {/* Uyumsoft Bağlantı Modal */}
-        <Modal opened={connectOpened} onClose={closeConnect} title="🔐 Uyumsoft Bağlantısı" size="sm">
+        <Modal opened={connectOpened} onClose={closeConnect} title="🔐 Uyumsoft Bağlantısı" size="sm" fullScreen={isMobile}>
           <Stack gap="md">
             <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
               Uyumsoft Portal hesabınızla giriş yapın. Gelen e-faturalarınızı otomatik olarak çekebilirsiniz.
@@ -1589,9 +1590,9 @@ export default function FaturalarPage() {
         </Modal>
 
         {/* Yeni Fatura Modal */}
-        <Modal opened={opened} onClose={() => { resetForm(); close(); }} title="📄 Yeni Fatura" size="xl">
+        <Modal opened={opened} onClose={() => { resetForm(); close(); }} title="📄 Yeni Fatura" size="xl" fullScreen={isMobile}>
           <Stack gap="md">
-            <SimpleGrid cols={2}>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <Select label="Fatura Tipi" data={[{ label: '📤 Satış Faturası', value: 'satis' }, { label: '📥 Alış Faturası', value: 'alis' }]} value={formData.tip} onChange={(v) => setFormData({ ...formData, tip: v as any, seri: v === 'satis' ? 'A' : 'B' })} />
               <Select label="Cari" placeholder="Cari seçin" data={cariler.map(c => ({ label: c.unvan, value: String(c.id) }))} value={formData.cariId} onChange={(v) => setFormData({ ...formData, cariId: v || '' })} searchable required />
             </SimpleGrid>
@@ -1682,6 +1683,7 @@ export default function FaturalarPage() {
         <Modal 
           opened={uyumsoftDetailOpened} 
           onClose={closeUyumsoftDetail} 
+          fullScreen={isMobile}
           title={
             <Group gap="sm">
               <Title order={3}>📄 E-Fatura Görüntüleyici</Title>
@@ -1773,7 +1775,7 @@ export default function FaturalarPage() {
         </Modal>
 
         {/* Detay Modal */}
-        <Modal opened={detailOpened} onClose={closeDetail} title="📋 Fatura Detayı" size="lg">
+        <Modal opened={detailOpened} onClose={closeDetail} title="📋 Fatura Detayı" size="lg" fullScreen={isMobile}>
           {selectedFatura && (
             <Stack gap="md">
               <Group justify="space-between">
@@ -1791,7 +1793,7 @@ export default function FaturalarPage() {
 
               <Divider />
 
-              <SimpleGrid cols={2}>
+              <SimpleGrid cols={{ base: 1, sm: 2 }}>
                 <Paper withBorder p="md" radius="md">
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Cari Bilgileri</Text>
                   <Text size="lg" fw={600} mt="xs">{selectedFatura.cariUnvan}</Text>

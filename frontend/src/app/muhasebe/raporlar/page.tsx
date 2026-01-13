@@ -348,7 +348,7 @@ export default function RaporlarPage() {
                 <Text fw={600} size="lg">Cari Hesap Özeti</Text>
                 <ThemeIcon color="blue" variant="light"><IconUsers size={18} /></ThemeIcon>
               </Group>
-              <SimpleGrid cols={2} mb="md">
+              <SimpleGrid cols={{ base: 1, sm: 2 }} mb="md">
                 <Paper withBorder p="md" radius="md">
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Toplam Alacak</Text>
                   <Text fw={700} size="xl" c="green" mt="xs">{formatMoney(cariOzet[0].toplam)}</Text>

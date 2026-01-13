@@ -34,7 +34,7 @@ import {
   SegmentedControl
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
   IconPlus,
@@ -215,6 +215,7 @@ const aylar = [
 export default function PersonelPage() {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
+  const isMobile = useMediaQuery('(max-width: 768px)');
 
   // === TEMEL STATE ===
   const [loading, setLoading] = useState(true);
@@ -1453,24 +1454,25 @@ export default function PersonelPage() {
           onClose={() => { resetPersonelForm(); closePersonelModal(); }}
           title={<Text fw={600} size="lg">{editingPersonel ? 'Personel Düzenle' : 'Yeni Personel'}</Text>}
           size="lg"
+          fullScreen={isMobile}
         >
           <Stack gap="md">
-            <SimpleGrid cols={2}>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <TextInput label="Ad" required value={personelForm.ad} onChange={(e) => setPersonelForm({ ...personelForm, ad: e.currentTarget.value })} />
               <TextInput label="Soyad" required value={personelForm.soyad} onChange={(e) => setPersonelForm({ ...personelForm, soyad: e.currentTarget.value })} />
             </SimpleGrid>
 
-            <SimpleGrid cols={2}>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <TextInput label="TC Kimlik No" required value={personelForm.tc_kimlik} onChange={(e) => setPersonelForm({ ...personelForm, tc_kimlik: e.currentTarget.value })} leftSection={<IconId size={16} />} />
               <TextInput label="SGK No" value={personelForm.sgk_no} onChange={(e) => setPersonelForm({ ...personelForm, sgk_no: e.currentTarget.value })} />
             </SimpleGrid>
 
-            <SimpleGrid cols={2}>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <TextInput label="Telefon" value={personelForm.telefon} onChange={(e) => setPersonelForm({ ...personelForm, telefon: e.currentTarget.value })} leftSection={<IconPhone size={16} />} />
               <TextInput label="E-posta" value={personelForm.email} onChange={(e) => setPersonelForm({ ...personelForm, email: e.currentTarget.value })} leftSection={<IconMail size={16} />} />
             </SimpleGrid>
 
-            <SimpleGrid cols={2}>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <Select
                 label="Departman"
                 data={departmanlar}
@@ -1486,7 +1488,7 @@ export default function PersonelPage() {
               />
             </SimpleGrid>
 
-            <SimpleGrid cols={2}>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <DatePickerInput
                 label="İşe Giriş Tarihi"
                 leftSection={<IconCalendar size={16} />}
@@ -1507,7 +1509,7 @@ export default function PersonelPage() {
               />
             </SimpleGrid>
 
-            <SimpleGrid cols={2}>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <NumberInput
                 label="💰 Net Maaş (Elden Ödenen)"
                 description="Gerçek ödenen tutar"
@@ -1530,7 +1532,7 @@ export default function PersonelPage() {
               />
             </SimpleGrid>
 
-            <SimpleGrid cols={2}>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <Select
                 label="Medeni Durum"
                 data={[
@@ -1562,6 +1564,7 @@ export default function PersonelPage() {
           onClose={closeDetailModal}
           title={<Text fw={600} size="lg">👤 Personel Detayı</Text>}
           size="xl"
+          fullScreen={isMobile}
         >
           {selectedPersonel && (() => {
             // Kıdem hesapla
@@ -1704,10 +1707,11 @@ export default function PersonelPage() {
           onClose={() => { resetProjeForm(); closeProjeModal(); }}
           title={<Text fw={600} size="lg">{editingProje ? 'Proje Düzenle' : 'Yeni Proje'}</Text>}
           size="md"
+          fullScreen={isMobile}
         >
           <Stack gap="md">
             <TextInput label="Proje Adı" required value={projeForm.ad} onChange={(e) => setProjeForm({ ...projeForm, ad: e.currentTarget.value })} />
-            <SimpleGrid cols={2}>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <TextInput label="Proje Kodu" value={projeForm.kod} onChange={(e) => setProjeForm({ ...projeForm, kod: e.currentTarget.value })} />
               <TextInput label="Müşteri" value={projeForm.musteri} onChange={(e) => setProjeForm({ ...projeForm, musteri: e.currentTarget.value })} />
             </SimpleGrid>
@@ -1736,6 +1740,7 @@ export default function PersonelPage() {
           onClose={() => setEditingOdeme(null)}
           title={<Text fw={600}>💰 Ödeme Düzenle - {editingOdeme?.ad} {editingOdeme?.soyad}</Text>}
           size="md"
+          fullScreen={isMobile}
         >
           <Stack gap="md">
             <NumberInput
@@ -1789,6 +1794,7 @@ export default function PersonelPage() {
           onClose={() => setTahakkukDetailOpen(false)}
           title={<Text fw={600} size="lg">📋 Tahakkuk Detayı - {aylar.find(a => a.value === bordroAy.toString())?.label} {bordroYil}</Text>}
           size="xl"
+          fullScreen={isMobile}
         >
           {tahakkuk?.exists && (
             <Stack gap="md">
