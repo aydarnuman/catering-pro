@@ -17,69 +17,232 @@ import {
   SimpleGrid,
   Paper,
   Progress,
-  RingProgress,
-  Center
+  Avatar,
+  Divider,
+  ActionIcon,
+  Tooltip,
+  Timeline,
+  ScrollArea
 } from '@mantine/core';
 import { 
   IconUpload, 
   IconList, 
-  IconChartBar, 
   IconFileText,
   IconBrain,
-  IconClock,
   IconAlertCircle,
   IconTrendingUp,
+  IconTrendingDown,
   IconChecklist,
   IconSparkles,
-  IconRocket
+  IconRocket,
+  IconCalendar,
+  IconClock,
+  IconCash,
+  IconPackage,
+  IconUsers,
+  IconChefHat,
+  IconTruck,
+  IconBell,
+  IconArrowRight,
+  IconSun,
+  IconMoon,
+  IconCloudRain,
+  IconPlus,
+  IconDots,
+  IconWallet,
+  IconReceipt,
+  IconChartLine,
+  IconRefresh
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import useSWR from 'swr';
+import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api';
 import { StatsResponse } from '@/types/api';
 import { AIChat } from '@/components/AIChat';
-import { AIDashboardWidget } from '@/components/AIDashboardWidget';
+import { useAuth } from '@/context/AuthContext';
+import { API_BASE_URL } from '@/lib/config';
+
+// Saate göre selamlama
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 6) return { text: 'İyi geceler', icon: IconMoon, color: 'indigo' };
+  if (hour < 12) return { text: 'Günaydın', icon: IconSun, color: 'orange' };
+  if (hour < 18) return { text: 'İyi günler', icon: IconSun, color: 'yellow' };
+  if (hour < 22) return { text: 'İyi akşamlar', icon: IconMoon, color: 'violet' };
+  return { text: 'İyi geceler', icon: IconMoon, color: 'indigo' };
+};
+
+// Tarih formatla
+const formatDate = (date: Date) => {
+  return date.toLocaleDateString('tr-TR', { 
+    weekday: 'long', 
+    day: 'numeric', 
+    month: 'long',
+    year: 'numeric'
+  });
+};
+
+// Saat formatla
+const formatTime = (date: Date) => {
+  return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+};
 
 export default function HomePage() {
-  // Fetch stats from backend
-  const { 
-    data: stats, 
-    error, 
-    isLoading 
-  } = useSWR<StatsResponse>('stats', apiClient.getStats);
+  const { user, isAuthenticated } = useAuth();
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const greeting = getGreeting();
+  const GreetingIcon = greeting.icon;
+
+  // Saat güncelleme
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Stats fetch
+  const { data: stats, error, isLoading } = useSWR<StatsResponse>('stats', apiClient.getStats);
+
+  // Finans özeti fetch
+  const { data: finansOzet } = useSWR(
+    isAuthenticated ? 'finans-ozet' : null,
+    async () => {
+      const res = await fetch(`${API_BASE_URL}/api/finans/ozet`);
+      return res.json();
+    }
+  );
+
+  // Yaklaşan ihaleler
+  const { data: yaklasanIhaleler } = useSWR(
+    'yaklasan-ihaleler',
+    async () => {
+      const res = await fetch(`${API_BASE_URL}/api/tenders?limit=5&sort=tender_date&order=asc`);
+      const data = await res.json();
+      return data.tenders?.slice(0, 5) || [];
+    }
+  );
 
   const totalTenders = stats?.totalTenders || 0;
   const activeTenders = stats?.activeTenders || 0;
-  const activePercentage = totalTenders > 0 ? (activeTenders / totalTenders) * 100 : 0;
+
+  // Demo ajanda verileri (gerçek API'den çekilebilir)
+  const ajandaItems = [
+    { time: '09:00', title: 'Ankara İhalesi Toplantısı', type: 'meeting', color: 'blue' },
+    { time: '11:30', title: 'Malzeme Teslimatı - Proje A', type: 'delivery', color: 'green' },
+    { time: '14:00', title: 'Menü Planlama', type: 'task', color: 'violet' },
+    { time: '16:00', title: 'Tedarikçi Görüşmesi', type: 'meeting', color: 'orange' },
+  ];
 
   return (
     <Box
       style={{
-        background: 'linear-gradient(180deg, rgba(34,139,230,0.05) 0%, rgba(255,255,255,0) 100%)',
+        background: 'linear-gradient(135deg, rgba(34,139,230,0.03) 0%, rgba(139,92,246,0.03) 100%)',
         minHeight: '100vh',
-        paddingTop: '2rem',
+        paddingTop: '1rem',
         paddingBottom: '4rem'
       }}
     >
       <Container size="xl">
-        <Stack gap="xl">
-          {/* Hero Section */}
-          <Box ta="center" py="xl">
-            <Center>
-              <img 
-                src="/logo.png" 
-                alt="Catering Pro Logo" 
-                style={{ 
-                  height: 140, 
-                  width: 'auto',
-                  objectFit: 'contain'
-                }}
-              />
-            </Center>
-            <Text size="xl" c="dimmed" mt="xl" maw={600} mx="auto">
-              AI destekli ihale analiz ve yönetim sistemi ile ihalelerinizi kolayca takip edin
-            </Text>
-          </Box>
+        <Stack gap="lg">
+          
+          {/* 🌅 Hero Section - Dinamik Karşılama */}
+          <Paper
+            p="xl"
+            radius="xl"
+            style={{
+              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)',
+              border: '1px solid rgba(59, 130, 246, 0.2)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}
+          >
+            {/* Dekoratif arka plan */}
+            <Box
+              style={{
+                position: 'absolute',
+                top: -50,
+                right: -50,
+                width: 200,
+                height: 200,
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%)',
+                pointerEvents: 'none'
+              }}
+            />
+            
+            <Group justify="space-between" align="flex-start" wrap="wrap">
+              <Box>
+                <Group gap="sm" mb="xs">
+                  <ThemeIcon size={32} radius="xl" variant="light" color={greeting.color}>
+                    <GreetingIcon size={18} />
+                  </ThemeIcon>
+                  <Text size="xl" fw={700} c={greeting.color}>
+                    {greeting.text}{isAuthenticated && user?.ad ? `, ${user.ad}!` : '!'}
+                  </Text>
+                </Group>
+                
+                <Text size="sm" c="dimmed" mb="md">
+                  📅 {formatDate(currentTime)} • 🕐 {formatTime(currentTime)}
+                </Text>
+                
+                {/* Günün Özeti */}
+                <Group gap="lg" wrap="wrap">
+                  <Group gap={6}>
+                    <IconFileText size={16} color="var(--mantine-color-blue-6)" />
+                    <Text size="sm" fw={500}>{activeTenders} aktif ihale</Text>
+                  </Group>
+                  <Group gap={6}>
+                    <IconBrain size={16} color="var(--mantine-color-green-6)" />
+                    <Text size="sm" fw={500}>{stats?.aiAnalysisCount || 0} AI analiz</Text>
+                  </Group>
+                  <Group gap={6}>
+                    <IconChecklist size={16} color="var(--mantine-color-violet-6)" />
+                    <Text size="sm" fw={500}>{stats?.totalDocuments || 0} döküman</Text>
+                  </Group>
+                </Group>
+              </Box>
+              
+              {/* Hızlı Aksiyonlar */}
+              <Group gap="xs">
+                <Tooltip label="Döküman Yükle">
+                  <ActionIcon 
+                    component={Link} 
+                    href="/upload" 
+                    size="lg" 
+                    variant="light" 
+                    color="violet"
+                    radius="xl"
+                  >
+                    <IconUpload size={18} />
+                  </ActionIcon>
+                </Tooltip>
+                <Tooltip label="İhalelere Git">
+                  <ActionIcon 
+                    component={Link} 
+                    href="/tenders" 
+                    size="lg" 
+                    variant="light" 
+                    color="blue"
+                    radius="xl"
+                  >
+                    <IconList size={18} />
+                  </ActionIcon>
+                </Tooltip>
+                <Tooltip label="Muhasebe">
+                  <ActionIcon 
+                    component={Link} 
+                    href="/muhasebe" 
+                    size="lg" 
+                    variant="light" 
+                    color="green"
+                    radius="xl"
+                  >
+                    <IconCash size={18} />
+                  </ActionIcon>
+                </Tooltip>
+              </Group>
+            </Group>
+          </Paper>
 
           {/* Error Alert */}
           {error && (
@@ -87,223 +250,290 @@ export default function HomePage() {
               icon={<IconAlertCircle size={16} />} 
               title="Bağlantı Hatası" 
               color="red"
-              variant="filled"
+              variant="light"
+              radius="lg"
             >
-              Backend sunucusuna bağlanılamıyor. Lütfen sunucunun çalıştığından emin olun.
+              Backend sunucusuna bağlanılamıyor.
             </Alert>
           )}
 
-          {/* Quick Stats - Modern Design */}
-          <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="lg">
-            {/* Toplam İhale */}
-            <Card shadow="md" padding="lg" radius="lg" withBorder>
-              <Stack gap="sm">
-                <Group justify="space-between">
-                  <ThemeIcon size={40} radius="md" variant="light" color="blue">
-                    <IconFileText size={22} />
-                  </ThemeIcon>
-                  {isLoading && <Loader size="xs" />}
+          {/* 📅 Ajanda + Hızlı İstatistikler */}
+          <Grid gutter="lg">
+            {/* Sol: Bugünün Ajandası */}
+            <Grid.Col span={{ base: 12, md: 5 }}>
+              <Card shadow="sm" padding="lg" radius="lg" withBorder h="100%">
+                <Group justify="space-between" mb="md">
+                  <Group gap="xs">
+                    <ThemeIcon size={28} radius="md" variant="light" color="blue">
+                      <IconCalendar size={16} />
+                    </ThemeIcon>
+                    <Text fw={600}>Bugünün Ajandası</Text>
+                  </Group>
+                  <ActionIcon variant="subtle" color="gray" size="sm">
+                    <IconPlus size={14} />
+                  </ActionIcon>
                 </Group>
-                <Text size="xs" tt="uppercase" fw={700} c="dimmed">
-                  Toplam İhale
-                </Text>
-                <Text size="28px" fw={900} c="blue" style={{ lineHeight: 1 }}>
-                  {totalTenders}
-                </Text>
-                <Group justify="space-between">
-                  <Text size="xs" c="dimmed">
-                    {activeTenders} aktif
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    {totalTenders - activeTenders} kapalı
-                  </Text>
-                </Group>
-              </Stack>
-            </Card>
-
-            {/* AI Analiz */}
-            <Card shadow="md" padding="lg" radius="lg" withBorder>
-              <Stack gap="sm">
-                <Group justify="space-between">
-                  <ThemeIcon size={40} radius="md" variant="light" color="green">
-                    <IconBrain size={22} />
-                  </ThemeIcon>
-                  {isLoading && <Loader size="xs" />}
-                </Group>
-                <Text size="xs" tt="uppercase" fw={700} c="dimmed">
-                  AI Analiz
-                </Text>
-                <Text size="28px" fw={900} c="green" style={{ lineHeight: 1 }}>
-                  {stats?.aiAnalysisCount || 0}
-                </Text>
-                <Group justify="space-between">
-                  <Text size="xs" c="dimmed">
-                    Gemini 2.5
-                  </Text>
-                  <Badge variant="dot" color="green" size="xs">
-                    Aktif
-                  </Badge>
-                </Group>
-              </Stack>
-            </Card>
-
-            {/* Dökümanlar */}
-            <Card shadow="md" padding="lg" radius="lg" withBorder>
-              <Stack gap="sm">
-                <Group justify="space-between">
-                  <ThemeIcon size={40} radius="md" variant="light" color="violet">
-                    <IconChecklist size={22} />
-                  </ThemeIcon>
-                  {isLoading && <Loader size="xs" />}
-                </Group>
-                <Text size="xs" tt="uppercase" fw={700} c="dimmed">
-                  Dökümanlar
-                </Text>
-                <Text size="28px" fw={900} c="violet" style={{ lineHeight: 1 }}>
-                  {stats?.totalDocuments || 0}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  Toplam yükleme
-                </Text>
-              </Stack>
-            </Card>
-
-            {/* Aktif Oran */}
-            <Card shadow="md" padding="lg" radius="lg" withBorder>
-              <Stack gap="sm">
-                <Group justify="space-between">
-                  <ThemeIcon size={40} radius="md" variant="light" color="orange">
-                    <IconTrendingUp size={22} />
-                  </ThemeIcon>
-                  {isLoading && <Loader size="xs" />}
-                </Group>
-                <Text size="xs" tt="uppercase" fw={700} c="dimmed">
-                  Aktif Oran
-                </Text>
-                <Text size="28px" fw={900} c="orange" style={{ lineHeight: 1 }}>
-                  {activePercentage.toFixed(0)}%
-                </Text>
-                <Progress
-                  value={activePercentage}
-                  color="orange"
-                  size="sm"
-                  radius="xl"
-                />
-              </Stack>
-            </Card>
-          </SimpleGrid>
-
-          {/* Quick Actions - Enhanced */}
-          <Grid>
-            <Grid.Col span={{ base: 12, md: 4 }}>
-              <Card shadow="md" padding="xl" radius="lg" withBorder h="100%">
-                <Stack h="100%" justify="space-between">
-                  <div>
-                    <Group mb="md">
-                      <ThemeIcon size={40} radius="md" variant="gradient" gradient={{ from: 'blue', to: 'cyan' }}>
-                        <IconList size={24} />
-                      </ThemeIcon>
-                      <Title order={3}>İhale Listesi</Title>
-                    </Group>
-                    <Text c="dimmed" mb="md">
-                      Tüm ihaleleri görüntüleyin, filtreleyin ve detaylı bilgilere erişin
-                    </Text>
-                  </div>
-                  <Button 
-                    size="lg"
-                    fullWidth
-                    component={Link}
-                    href="/tenders"
-                    rightSection={<IconRocket size={18} />}
-                    variant="gradient"
-                    gradient={{ from: 'blue', to: 'cyan' }}
-                  >
-                    İhaleleri Görüntüle
-                  </Button>
-                </Stack>
+                
+                <ScrollArea h={220} offsetScrollbars>
+                  <Timeline active={1} bulletSize={24} lineWidth={2}>
+                    {ajandaItems.map((item, index) => (
+                      <Timeline.Item
+                        key={index}
+                        bullet={
+                          <ThemeIcon size={24} radius="xl" color={item.color} variant="filled">
+                            {item.type === 'meeting' ? <IconUsers size={12} /> : 
+                             item.type === 'delivery' ? <IconTruck size={12} /> : 
+                             <IconChecklist size={12} />}
+                          </ThemeIcon>
+                        }
+                        title={
+                          <Group gap="xs">
+                            <Badge size="xs" variant="light" color={item.color}>{item.time}</Badge>
+                            <Text size="sm" fw={500}>{item.title}</Text>
+                          </Group>
+                        }
+                      />
+                    ))}
+                  </Timeline>
+                </ScrollArea>
+                
+                <Divider my="sm" />
+                <Button 
+                  variant="subtle" 
+                  color="blue" 
+                  fullWidth 
+                  size="xs"
+                  rightSection={<IconArrowRight size={14} />}
+                >
+                  Tüm Programı Gör
+                </Button>
               </Card>
             </Grid.Col>
+            
+            {/* Sağ: Mini İstatistik Kartları */}
+            <Grid.Col span={{ base: 12, md: 7 }}>
+              <SimpleGrid cols={{ base: 2, sm: 2 }} spacing="md">
+                {/* Kasa Bakiyesi */}
+                <Card shadow="sm" padding="md" radius="lg" withBorder>
+                  <Group justify="space-between" mb="xs">
+                    <ThemeIcon size={32} radius="md" variant="light" color="green">
+                      <IconWallet size={18} />
+                    </ThemeIcon>
+                    {isLoading && <Loader size="xs" />}
+                  </Group>
+                  <Text size="xs" tt="uppercase" fw={600} c="dimmed">Kasa Bakiyesi</Text>
+                  <Text size="xl" fw={800} c="green" mt={4}>
+                    ₺{finansOzet?.kasaBakiye?.toLocaleString('tr-TR') || '—'}
+                  </Text>
+                  <Group gap={4} mt="xs">
+                    <IconTrendingUp size={12} color="var(--mantine-color-teal-6)" />
+                    <Text size="xs" c="teal">+₺2.5K bugün</Text>
+                  </Group>
+                </Card>
 
-            <Grid.Col span={{ base: 12, md: 4 }}>
-              <Card shadow="md" padding="xl" radius="lg" withBorder h="100%">
-                <Stack h="100%" justify="space-between">
-                  <div>
-                    <Group mb="md">
-                      <ThemeIcon size={40} radius="md" variant="gradient" gradient={{ from: 'violet', to: 'grape' }}>
-                        <IconUpload size={24} />
-                      </ThemeIcon>
-                      <Title order={3}>Döküman Yükle</Title>
-                    </Group>
-                    <Text c="dimmed" mb="md">
-                      PDF, Word, Excel dökümanlarınızı yükleyin ve AI ile analiz edin
-                    </Text>
-                  </div>
-                  <Button 
-                    size="lg"
-                    fullWidth
-                    component={Link}
-                    href="/upload"
-                    rightSection={<IconSparkles size={18} />}
-                    variant="gradient"
-                    gradient={{ from: 'violet', to: 'grape' }}
-                  >
-                    Yüklemeye Başla
-                  </Button>
-                </Stack>
-              </Card>
-            </Grid.Col>
+                {/* Aktif İhaleler */}
+                <Card shadow="sm" padding="md" radius="lg" withBorder>
+                  <Group justify="space-between" mb="xs">
+                    <ThemeIcon size={32} radius="md" variant="light" color="blue">
+                      <IconFileText size={18} />
+                    </ThemeIcon>
+                  </Group>
+                  <Text size="xs" tt="uppercase" fw={600} c="dimmed">Aktif İhale</Text>
+                  <Text size="xl" fw={800} c="blue" mt={4}>{activeTenders}</Text>
+                  <Text size="xs" c="dimmed" mt="xs">
+                    {totalTenders} toplam kayıt
+                  </Text>
+                </Card>
 
-            {/* AI Smart Insights Widget */}
-            <Grid.Col span={{ base: 12, md: 4 }}>
-              <AIDashboardWidget />
+                {/* Bekleyen Analiz */}
+                <Card shadow="sm" padding="md" radius="lg" withBorder>
+                  <Group justify="space-between" mb="xs">
+                    <ThemeIcon size={32} radius="md" variant="light" color="violet">
+                      <IconBrain size={18} />
+                    </ThemeIcon>
+                  </Group>
+                  <Text size="xs" tt="uppercase" fw={600} c="dimmed">AI Analiz</Text>
+                  <Text size="xl" fw={800} c="violet" mt={4}>{stats?.aiAnalysisCount || 0}</Text>
+                  <Badge size="xs" variant="dot" color="green" mt="xs">Gemini Aktif</Badge>
+                </Card>
+
+                {/* Stok Uyarısı */}
+                <Card shadow="sm" padding="md" radius="lg" withBorder>
+                  <Group justify="space-between" mb="xs">
+                    <ThemeIcon size={32} radius="md" variant="light" color="orange">
+                      <IconPackage size={18} />
+                    </ThemeIcon>
+                  </Group>
+                  <Text size="xs" tt="uppercase" fw={600} c="dimmed">Stok Uyarısı</Text>
+                  <Text size="xl" fw={800} c="orange" mt={4}>3</Text>
+                  <Text size="xs" c="orange" mt="xs">Kritik seviye</Text>
+                </Card>
+              </SimpleGrid>
             </Grid.Col>
           </Grid>
 
-          {/* Feature Cards */}
-          <Card shadow="md" padding="xl" radius="lg" withBorder>
-            <Title order={2} mb="xl" ta="center">
-              ✨ Özellikler
-            </Title>
-            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="lg">
-              <Paper p="md" radius="md" withBorder>
-                <ThemeIcon size={40} radius="md" variant="light" color="blue" mb="md">
-                  <IconBrain size={24} />
-                </ThemeIcon>
-                <Text fw={600} mb="xs">AI Destekli Analiz</Text>
-                <Text size="sm" c="dimmed">
-                  Gemini 2.5 Flash ile ihale dökümanlarınızı otomatik analiz edin
-                </Text>
-              </Paper>
+          {/* 📋 Alt Bölüm: Yaklaşan İhaleler + Piyasa + Son Aktivite */}
+          <Grid gutter="lg">
+            {/* Yaklaşan İhaleler */}
+            <Grid.Col span={{ base: 12, md: 4 }}>
+              <Card shadow="sm" padding="lg" radius="lg" withBorder h="100%">
+                <Group justify="space-between" mb="md">
+                  <Group gap="xs">
+                    <ThemeIcon size={28} radius="md" variant="light" color="blue">
+                      <IconClock size={16} />
+                    </ThemeIcon>
+                    <Text fw={600}>Yaklaşan İhaleler</Text>
+                  </Group>
+                  <Badge size="sm" variant="light" color="blue">{yaklasanIhaleler?.length || 0}</Badge>
+                </Group>
+                
+                <Stack gap="xs">
+                  {yaklasanIhaleler?.slice(0, 4).map((ihale: any, i: number) => (
+                    <Paper key={i} p="sm" radius="md" withBorder style={{ background: 'rgba(59,130,246,0.03)' }}>
+                      <Text size="sm" fw={500} lineClamp={1}>{ihale.title || 'İhale'}</Text>
+                      <Group gap="xs" mt={4}>
+                        <Badge size="xs" variant="light" color="gray">{ihale.city || '—'}</Badge>
+                        <Text size="xs" c="dimmed">
+                          {ihale.tender_date ? new Date(ihale.tender_date).toLocaleDateString('tr-TR') : '—'}
+                        </Text>
+                      </Group>
+                    </Paper>
+                  )) || (
+                    <Text size="sm" c="dimmed" ta="center" py="md">Yaklaşan ihale yok</Text>
+                  )}
+                </Stack>
+                
+                <Button 
+                  component={Link}
+                  href="/tenders"
+                  variant="light" 
+                  color="blue" 
+                  fullWidth 
+                  mt="md"
+                  size="sm"
+                  rightSection={<IconArrowRight size={14} />}
+                >
+                  Tüm İhaleler
+                </Button>
+              </Card>
+            </Grid.Col>
 
-              <Paper p="md" radius="md" withBorder>
-                <ThemeIcon size={40} radius="md" variant="light" color="green" mb="md">
-                  <IconTrendingUp size={24} />
-                </ThemeIcon>
-                <Text fw={600} mb="xs">Otomatik Scraping</Text>
-                <Text size="sm" c="dimmed">
-                  EKAP sisteminden otomatik olarak ihale verilerini çekin
-                </Text>
-              </Paper>
+            {/* Piyasa Özeti */}
+            <Grid.Col span={{ base: 12, md: 4 }}>
+              <Card shadow="sm" padding="lg" radius="lg" withBorder h="100%">
+                <Group justify="space-between" mb="md">
+                  <Group gap="xs">
+                    <ThemeIcon size={28} radius="md" variant="light" color="teal">
+                      <IconChartLine size={16} />
+                    </ThemeIcon>
+                    <Text fw={600}>Piyasa Fiyatları</Text>
+                  </Group>
+                  <ActionIcon variant="subtle" color="gray" size="sm">
+                    <IconRefresh size={14} />
+                  </ActionIcon>
+                </Group>
+                
+                <Stack gap="xs">
+                  {[
+                    { urun: 'Pirinç Baldo', fiyat: '₺82/kg', degisim: '+3%', up: true },
+                    { urun: 'Tavuk But', fiyat: '₺145/kg', degisim: '-2%', up: false },
+                    { urun: 'Ayçiçek Yağı', fiyat: '₺85/L', degisim: '+1%', up: true },
+                    { urun: 'Domates', fiyat: '₺35/kg', degisim: '-5%', up: false },
+                  ].map((item, i) => (
+                    <Group key={i} justify="space-between" p="xs" style={{ background: 'rgba(0,0,0,0.02)', borderRadius: 8 }}>
+                      <Text size="sm" fw={500}>{item.urun}</Text>
+                      <Group gap="xs">
+                        <Text size="sm" fw={600}>{item.fiyat}</Text>
+                        <Badge 
+                          size="xs" 
+                          variant="light" 
+                          color={item.up ? 'red' : 'green'}
+                          leftSection={item.up ? <IconTrendingUp size={10} /> : <IconTrendingDown size={10} />}
+                        >
+                          {item.degisim}
+                        </Badge>
+                      </Group>
+                    </Group>
+                  ))}
+                </Stack>
+                
+                <Button 
+                  component={Link}
+                  href="/planlama/piyasa-robotu"
+                  variant="light" 
+                  color="teal" 
+                  fullWidth 
+                  mt="md"
+                  size="sm"
+                  rightSection={<IconArrowRight size={14} />}
+                >
+                  Piyasa Robotu
+                </Button>
+              </Card>
+            </Grid.Col>
 
-              <Paper p="md" radius="md" withBorder>
-                <ThemeIcon size={40} radius="md" variant="light" color="violet" mb="md">
-                  <IconChecklist size={24} />
-                </ThemeIcon>
-                <Text fw={600} mb="xs">Döküman Yönetimi</Text>
-                <Text size="sm" c="dimmed">
-                  Tüm ihale dökümanlarınızı tek bir yerde saklayın ve yönetin
-                </Text>
-              </Paper>
-            </SimpleGrid>
-          </Card>
+            {/* Hızlı Aksiyonlar */}
+            <Grid.Col span={{ base: 12, md: 4 }}>
+              <Card shadow="sm" padding="lg" radius="lg" withBorder h="100%">
+                <Group justify="space-between" mb="md">
+                  <Group gap="xs">
+                    <ThemeIcon size={28} radius="md" variant="light" color="violet">
+                      <IconRocket size={16} />
+                    </ThemeIcon>
+                    <Text fw={600}>Hızlı Erişim</Text>
+                  </Group>
+                </Group>
+                
+                <Stack gap="sm">
+                  <Button 
+                    component={Link}
+                    href="/upload"
+                    variant="light" 
+                    color="violet" 
+                    fullWidth
+                    leftSection={<IconUpload size={16} />}
+                    justify="flex-start"
+                  >
+                    Döküman Yükle
+                  </Button>
+                  <Button 
+                    component={Link}
+                    href="/muhasebe/cariler"
+                    variant="light" 
+                    color="blue" 
+                    fullWidth
+                    leftSection={<IconUsers size={16} />}
+                    justify="flex-start"
+                  >
+                    Cari Hesaplar
+                  </Button>
+                  <Button 
+                    component={Link}
+                    href="/muhasebe/personel"
+                    variant="light" 
+                    color="orange" 
+                    fullWidth
+                    leftSection={<IconChefHat size={16} />}
+                    justify="flex-start"
+                  >
+                    Personel Yönetimi
+                  </Button>
+                  <Button 
+                    component={Link}
+                    href="/muhasebe/faturalar"
+                    variant="light" 
+                    color="green" 
+                    fullWidth
+                    leftSection={<IconReceipt size={16} />}
+                    justify="flex-start"
+                  >
+                    Faturalar
+                  </Button>
+                </Stack>
+              </Card>
+            </Grid.Col>
+          </Grid>
 
-          {/* AI Chat Section */}
-          <Card shadow="md" padding="xl" radius="lg" withBorder>
-            <Title order={2} mb="xl" ta="center">
-              🤖 AI Asistan
-            </Title>
-            <AIChat compact />
-          </Card>
         </Stack>
       </Container>
     </Box>
