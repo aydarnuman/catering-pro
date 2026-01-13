@@ -34,6 +34,7 @@ import {
   Accordion,
   RingProgress,
   Center,
+  Stepper,
 } from '@mantine/core';
 // Date inputs now use native HTML date type
 import { notifications } from '@mantine/notifications';
@@ -55,6 +56,7 @@ import {
   IconCopy,
   IconRefresh,
   IconArrowRight,
+  IconArrowLeft,
   IconInfoCircle,
   IconChevronDown,
   IconChevronUp,
@@ -67,6 +69,10 @@ import {
   IconTrash,
   IconEdit,
   IconHandStop,
+  IconListCheck,
+  IconForms,
+  IconTools,
+  IconMathFunction,
 } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
 import { Modal } from '@mantine/core';
@@ -131,6 +137,15 @@ interface ManuelIhale {
   notlar?: string;
   created_at: string;
   isManuel: true;
+  // Sınır değer hesaplama için ek veriler
+  diger_teklifler?: number[];
+  verilerTamam?: boolean;
+}
+
+// Sınır değer hesaplama için gerekli veri
+interface SinirDegerHesapData {
+  yaklasikMaliyet: number;
+  teklifler: number[]; // Tüm teklifler (bizim dahil)
 }
 
 export default function IhaleUzmaniPage() {
@@ -139,6 +154,17 @@ export default function IhaleUzmaniPage() {
   const [manuelIhaleler, setManuelIhaleler] = useState<ManuelIhale[]>([]);
   const [selectedTender, setSelectedTender] = useState<SavedTender | ManuelIhale | null>(null);
   const [activeTab, setActiveTab] = useState<string | null>('hesaplamalar');
+  
+  // 3 Aşamalı wizard step state
+  const [currentStep, setCurrentStep] = useState(0); // 0: İhale Seç, 1: Veriler, 2: Araçlar
+  
+  // Sınır değer hesaplama state
+  const [sinirDegerData, setSinirDegerData] = useState<SinirDegerHesapData>({
+    yaklasikMaliyet: 0,
+    teklifler: [],
+  });
+  const [teklifInput, setTeklifInput] = useState<string>(''); // virgülle ayrılmış teklifler
+  const [hesaplananSinirDeger, setHesaplananSinirDeger] = useState<number | null>(null);
   
   // Manuel ihale modal
   const [manuelModalOpened, { open: openManuelModal, close: closeManuelModal }] = useDisclosure(false);
@@ -343,6 +369,118 @@ export default function IhaleUzmaniPage() {
           : 'Teklif çok düşük! Ana girdi ve işçilik oranı %95\'in üzerinde.',
     });
   }, [asiriDusukData]);
+
+  // Sınır değer hesaplama fonksiyonu (KİK formülü)
+  const hesaplaSinirDeger = useCallback(() => {
+    const { yaklasikMaliyet, teklifler } = sinirDegerData;
+    
+    if (yaklasikMaliyet <= 0) {
+      notifications.show({
+        title: 'Hata',
+        message: 'Yaklaşık maliyet giriniz',
+        color: 'red',
+      });
+      return null;
+    }
+    
+    if (teklifler.length < 2) {
+      notifications.show({
+        title: 'Hata',
+        message: 'En az 2 teklif giriniz',
+        color: 'red',
+      });
+      return null;
+    }
+
+    // Geçerli teklifler (0'dan büyük)
+    const gecerliTeklifler = teklifler.filter(t => t > 0);
+    const n = gecerliTeklifler.length;
+    
+    if (n < 2) {
+      notifications.show({
+        title: 'Hata',
+        message: 'En az 2 geçerli teklif gerekli',
+        color: 'red',
+      });
+      return null;
+    }
+
+    // 1. Aritmetik ortalama (Tort1)
+    const toplam = gecerliTeklifler.reduce((a, b) => a + b, 0);
+    const Tort1 = toplam / n;
+
+    // 2. Standart sapma
+    const varyans = gecerliTeklifler.reduce((acc, t) => acc + Math.pow(t - Tort1, 2), 0) / (n - 1);
+    const stdSapma = Math.sqrt(varyans);
+
+    // 3. Tort2: (Tort1 - σ) ile (Tort1 + σ) arasındaki tekliflerin ortalaması
+    const altSinir = Tort1 - stdSapma;
+    const ustSinir = Tort1 + stdSapma;
+    const aralikTeklifler = gecerliTeklifler.filter(t => t >= altSinir && t <= ustSinir);
+    
+    let Tort2 = Tort1; // Default
+    if (aralikTeklifler.length > 0) {
+      Tort2 = aralikTeklifler.reduce((a, b) => a + b, 0) / aralikTeklifler.length;
+    }
+
+    // 4. C değeri
+    const C = Tort2 / yaklasikMaliyet;
+
+    // 5. K değeri
+    let K: number;
+    if (C < 0.60) {
+      K = C;
+    } else if (C <= 1.00) {
+      K = (3.2 * C - C * C - 0.6) / (C + 1);
+    } else {
+      K = 1;
+    }
+
+    // 6. Sınır Değer = K × Tort2 (Hizmet alımı için N=1.00)
+    const N = 1.00; // Hizmet alımı (yemek dahil)
+    const sinirDeger = (K * Tort2);
+
+    setHesaplananSinirDeger(sinirDeger);
+    
+    notifications.show({
+      title: 'Sınır Değer Hesaplandı',
+      message: `${sinirDeger.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} TL`,
+      color: 'green',
+    });
+
+    return sinirDeger;
+  }, [sinirDegerData]);
+
+  // Teklifleri parse et
+  const parseTeklifler = useCallback((input: string) => {
+    const teklifler = input
+      .split(/[,;\s]+/)
+      .map(s => s.replace(/\./g, '').replace(',', '.'))
+      .map(s => parseFloat(s))
+      .filter(n => !isNaN(n) && n > 0);
+    setSinirDegerData(prev => ({ ...prev, teklifler }));
+    return teklifler;
+  }, []);
+
+  // İhale seçildiğinde step kontrolü
+  useEffect(() => {
+    if (selectedTender) {
+      // Manuel ihale ve veriler tamam mı kontrol et
+      if ('isManuel' in selectedTender) {
+        const { yaklasik_maliyet, sinir_deger, bizim_teklif, kesinlesme_tarihi } = selectedTender;
+        if (yaklasik_maliyet > 0 && sinir_deger > 0 && bizim_teklif > 0 && kesinlesme_tarihi) {
+          setCurrentStep(2); // Araçlara geç
+        } else {
+          setCurrentStep(1); // Veri girişine geç
+        }
+      } else {
+        // Tracking'den gelen ihale - direkt araçlara
+        setCurrentStep(2);
+      }
+    } else {
+      setCurrentStep(0);
+    }
+  }, [selectedTender]);
 
   // Calculate süre
   const hesaplaSure = useCallback(() => {
@@ -560,298 +698,596 @@ Bu ihale bağlamında cevap ver.
         </Group>
       </Paper>
 
-      <Grid gutter="lg">
-        {/* Left Panel - Tender Selector */}
-        <Grid.Col span={{ base: 12, md: 4 }}>
-          <Paper p="md" radius="md" withBorder h="100%">
-            {/* Header with Manuel Ekle button */}
-            <Group justify="space-between" mb="md">
-              <Text fw={600} size="sm">
-                <IconClipboardList size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                İhaleler
-              </Text>
-              <Group gap="xs">
-                <Badge size="sm" variant="light" color="blue">
-                  {savedTenders.length + manuelIhaleler.length}
-                </Badge>
-                <Tooltip label="Manuel İhale Ekle">
-                  <ActionIcon 
+      {/* Stepper */}
+      <Paper p="md" mb="lg" radius="md" withBorder>
+        <Stepper 
+          active={currentStep} 
+          onStepClick={(step) => {
+            // Sadece tamamlanmış adımlara geri dönülebilir
+            if (step < currentStep) {
+              setCurrentStep(step);
+            } else if (step === 1 && selectedTender) {
+              setCurrentStep(1);
+            } else if (step === 2 && selectedTender && 'isManuel' in selectedTender) {
+              const { yaklasik_maliyet, sinir_deger, bizim_teklif, kesinlesme_tarihi } = selectedTender;
+              if (yaklasik_maliyet > 0 && sinir_deger > 0 && bizim_teklif > 0 && kesinlesme_tarihi) {
+                setCurrentStep(2);
+              }
+            }
+          }}
+          color="violet"
+          size="sm"
+          completedIcon={<IconCheck size={16} />}
+        >
+          <Stepper.Step 
+            icon={<IconListCheck size={16} />} 
+            label="İhale Seç" 
+            description="Manuel ekle veya listeden seç"
+            loading={!selectedTender && currentStep === 0}
+          />
+          <Stepper.Step 
+            icon={<IconForms size={16} />} 
+            label="Verileri Tamamla" 
+            description="Yaklaşık maliyet, sınır değer, teklif"
+            loading={currentStep === 1}
+          />
+          <Stepper.Step 
+            icon={<IconTools size={16} />} 
+            label="Araçlar" 
+            description="Hesaplamalar, AI Uzman, Dilekçe"
+          />
+        </Stepper>
+      </Paper>
+
+      {/* STEP 0: İhale Seçimi */}
+      {currentStep === 0 && (
+        <Grid gutter="lg">
+          <Grid.Col span={{ base: 12, md: 5 }}>
+            <Paper p="md" radius="md" withBorder h="100%">
+              <Group justify="space-between" mb="md">
+                <Text fw={600} size="sm">
+                  <IconClipboardList size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                  İhaleler
+                </Text>
+                <Group gap="xs">
+                  <Badge size="sm" variant="light" color="blue">
+                    {savedTenders.length + manuelIhaleler.length}
+                  </Badge>
+                  <Tooltip label="Manuel İhale Ekle">
+                    <ActionIcon 
+                      variant="filled" 
+                      color="violet" 
+                      size="md"
+                      onClick={() => {
+                        setEditingManuelId(null);
+                        setManuelFormData({
+                          ihale_basligi: '',
+                          kurum: '',
+                          yaklasik_maliyet: 0,
+                          sinir_deger: 0,
+                          bizim_teklif: 0,
+                          kesinlesme_tarihi: null,
+                          durum: 'beklemede',
+                          notlar: '',
+                        });
+                        openManuelModal();
+                      }}
+                    >
+                      <IconPlus size={18} />
+                    </ActionIcon>
+                  </Tooltip>
+                </Group>
+              </Group>
+
+              <ScrollArea h={400} offsetScrollbars>
+                <Stack gap="xs">
+                  {manuelIhaleler.length > 0 && (
+                    <>
+                      <Text size="xs" c="dimmed" fw={500}>
+                        <IconHandStop size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                        Manuel Eklenenler
+                      </Text>
+                      {manuelIhaleler.map((ihale) => (
+                        <Card
+                          key={ihale.id}
+                          padding="sm"
+                          radius="md"
+                          withBorder
+                          style={{
+                            cursor: 'pointer',
+                            borderColor: 'var(--mantine-color-orange-3)',
+                            borderLeftWidth: 3,
+                          }}
+                          onClick={() => {
+                            setSelectedTender(ihale);
+                            setCurrentStep(1);
+                          }}
+                        >
+                          <Group justify="space-between" wrap="nowrap">
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <Text size="sm" fw={500} lineClamp={1}>{ihale.ihale_basligi}</Text>
+                              <Text size="xs" c="dimmed">{ihale.kurum}</Text>
+                            </div>
+                            <IconArrowRight size={16} color="gray" />
+                          </Group>
+                        </Card>
+                      ))}
+                    </>
+                  )}
+
+                  {savedTenders.length > 0 && (
+                    <>
+                      <Text size="xs" c="dimmed" fw={500} mt="xs">
+                        <IconBookmark size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                        Takip Edilen
+                      </Text>
+                      {savedTenders.map((tender) => (
+                        <Card
+                          key={tender.id}
+                          padding="sm"
+                          radius="md"
+                          withBorder
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => {
+                            setSelectedTender(tender);
+                            setCurrentStep(2); // Tracking'den gelenler direkt araçlara
+                          }}
+                        >
+                          <Group justify="space-between" wrap="nowrap">
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <Text size="sm" fw={500} lineClamp={1}>{tender.ihale_basligi}</Text>
+                              <Text size="xs" c="dimmed">{tender.kurum?.slice(0, 30)}...</Text>
+                            </div>
+                            <IconArrowRight size={16} color="gray" />
+                          </Group>
+                        </Card>
+                      ))}
+                    </>
+                  )}
+
+                  {savedTenders.length === 0 && manuelIhaleler.length === 0 && (
+                    <Alert icon={<IconInfoCircle size={18} />} color="violet" variant="light">
+                      <Text size="sm">
+                        Henüz ihale eklenmemiş.
+                      </Text>
+                    </Alert>
+                  )}
+                </Stack>
+              </ScrollArea>
+            </Paper>
+          </Grid.Col>
+
+          <Grid.Col span={{ base: 12, md: 7 }}>
+            <Paper p="xl" radius="md" withBorder h="100%">
+              <Center h={400}>
+                <Stack align="center" gap="lg">
+                  <ThemeIcon size={80} radius="xl" variant="light" color="violet">
+                    <IconListCheck size={40} />
+                  </ThemeIcon>
+                  <div style={{ textAlign: 'center' }}>
+                    <Title order={3} mb="xs">İhale Seçin</Title>
+                    <Text c="dimmed" size="sm" maw={400}>
+                      Sol panelden bir ihale seçin veya{' '}
+                      <Text component="span" c="violet" fw={600} style={{ cursor: 'pointer' }} onClick={openManuelModal}>
+                        manuel ekle
+                      </Text>
+                      {' '}butonuyla yeni ihale oluşturun.
+                    </Text>
+                  </div>
+                  <Button 
                     variant="light" 
                     color="violet" 
-                    size="sm"
-                    onClick={() => {
-                      setEditingManuelId(null);
-                      setManuelFormData({
-                        ihale_basligi: '',
-                        kurum: '',
-                        yaklasik_maliyet: 0,
-                        sinir_deger: 0,
-                        bizim_teklif: 0,
-                        kesinlesme_tarihi: null,
-                        durum: 'beklemede',
-                        notlar: '',
-                      });
-                      openManuelModal();
-                    }}
+                    size="lg"
+                    leftSection={<IconPlus size={20} />}
+                    onClick={openManuelModal}
                   >
-                    <IconPlus size={14} />
-                  </ActionIcon>
-                </Tooltip>
+                    Manuel İhale Ekle
+                  </Button>
+                </Stack>
+              </Center>
+            </Paper>
+          </Grid.Col>
+        </Grid>
+      )}
+
+      {/* STEP 1: Veri Girişi */}
+      {currentStep === 1 && selectedTender && 'isManuel' in selectedTender && (
+        <Paper p="lg" radius="md" withBorder>
+          <Group justify="space-between" mb="lg">
+            <div>
+              <Group gap="xs" mb={4}>
+                <Button 
+                  variant="subtle" 
+                  color="gray" 
+                  size="xs"
+                  leftSection={<IconArrowLeft size={14} />}
+                  onClick={() => {
+                    setSelectedTender(null);
+                    setCurrentStep(0);
+                  }}
+                >
+                  Geri
+                </Button>
               </Group>
+              <Title order={3}>{selectedTender.ihale_basligi}</Title>
+              <Text c="dimmed" size="sm">{selectedTender.kurum}</Text>
+            </div>
+            <Badge color={
+              selectedTender.durum === 'asiri_dusuk' ? 'orange' :
+              selectedTender.durum === 'kazandik' ? 'green' :
+              selectedTender.durum === 'elendik' ? 'red' : 'gray'
+            } size="lg">
+              {selectedTender.durum === 'asiri_dusuk' ? '⚠️ Aşırı Düşük' :
+               selectedTender.durum === 'kazandik' ? '✅ Kazandık' :
+               selectedTender.durum === 'elendik' ? '❌ Elendik' : '⏳ Beklemede'}
+            </Badge>
+          </Group>
+
+          <Alert icon={<IconInfoCircle size={18} />} color="blue" variant="light" mb="lg">
+            <Text size="sm">
+              Hesaplama ve dilekçe araçlarını kullanabilmek için aşağıdaki bilgileri doldurun. 
+              Sınır değeri bilmiyorsanız &quot;Sınır Değer Hesapla&quot; butonunu kullanın.
+            </Text>
+          </Alert>
+
+          <Grid gutter="lg">
+            {/* Sol: Ana Veriler */}
+            <Grid.Col span={{ base: 12, md: 6 }}>
+              <Stack gap="md">
+                <NumberInput
+                  label="Yaklaşık Maliyet (TL)"
+                  description="İdarenin belirlediği tahmini tutar"
+                  placeholder="0"
+                  value={selectedTender.yaklasik_maliyet || ''}
+                  onChange={(val) => {
+                    const updated = { ...selectedTender, yaklasik_maliyet: Number(val) || 0 };
+                    setSelectedTender(updated);
+                    const list = manuelIhaleler.map(m => m.id === updated.id ? updated : m);
+                    setManuelIhaleler(list);
+                    localStorage.setItem('manuelIhaleler', JSON.stringify(list));
+                    // Sınır değer hesaplama için de güncelle
+                    setSinirDegerData(prev => ({ ...prev, yaklasikMaliyet: Number(val) || 0 }));
+                  }}
+                  thousandSeparator="."
+                  decimalSeparator=","
+                  min={0}
+                  required
+                  size="md"
+                  leftSection={<IconCoin size={18} />}
+                />
+
+                <NumberInput
+                  label="Sınır Değer (TL)"
+                  description="Aşırı düşük teklif sınırı"
+                  placeholder="0"
+                  value={selectedTender.sinir_deger || ''}
+                  onChange={(val) => {
+                    const updated = { ...selectedTender, sinir_deger: Number(val) || 0 };
+                    setSelectedTender(updated);
+                    const list = manuelIhaleler.map(m => m.id === updated.id ? updated : m);
+                    setManuelIhaleler(list);
+                    localStorage.setItem('manuelIhaleler', JSON.stringify(list));
+                  }}
+                  thousandSeparator="."
+                  decimalSeparator=","
+                  min={0}
+                  required
+                  size="md"
+                  leftSection={<IconAlertTriangle size={18} />}
+                  rightSection={
+                    <Tooltip label="Sınır değer hesapla">
+                      <ActionIcon 
+                        variant="subtle" 
+                        color="violet"
+                        onClick={() => {
+                          // Sınır değer hesaplama modalı aç - basit formülle
+                          if (hesaplananSinirDeger) {
+                            const updated = { ...selectedTender, sinir_deger: hesaplananSinirDeger };
+                            setSelectedTender(updated);
+                            const list = manuelIhaleler.map(m => m.id === updated.id ? updated : m);
+                            setManuelIhaleler(list);
+                            localStorage.setItem('manuelIhaleler', JSON.stringify(list));
+                          }
+                        }}
+                      >
+                        <IconMathFunction size={16} />
+                      </ActionIcon>
+                    </Tooltip>
+                  }
+                />
+
+                <NumberInput
+                  label="Bizim Teklifimiz (TL)"
+                  description="Verdiğimiz teklif tutarı"
+                  placeholder="0"
+                  value={selectedTender.bizim_teklif || ''}
+                  onChange={(val) => {
+                    const updated = { ...selectedTender, bizim_teklif: Number(val) || 0 };
+                    setSelectedTender(updated);
+                    const list = manuelIhaleler.map(m => m.id === updated.id ? updated : m);
+                    setManuelIhaleler(list);
+                    localStorage.setItem('manuelIhaleler', JSON.stringify(list));
+                  }}
+                  thousandSeparator="."
+                  decimalSeparator=","
+                  min={0}
+                  required
+                  size="md"
+                  leftSection={<IconReportMoney size={18} />}
+                />
+
+                <TextInput
+                  label="Kesinleşme Tarihi"
+                  description="İtiraz süreleri başlangıcı"
+                  type="date"
+                  value={selectedTender.kesinlesme_tarihi || ''}
+                  onChange={(e) => {
+                    const updated = { ...selectedTender, kesinlesme_tarihi: e.currentTarget.value };
+                    setSelectedTender(updated);
+                    const list = manuelIhaleler.map(m => m.id === updated.id ? updated : m);
+                    setManuelIhaleler(list);
+                    localStorage.setItem('manuelIhaleler', JSON.stringify(list));
+                  }}
+                  required
+                  size="md"
+                  leftSection={<IconCalendar size={18} />}
+                />
+
+                <Select
+                  label="Durum"
+                  value={selectedTender.durum}
+                  onChange={(val) => {
+                    const updated = { ...selectedTender, durum: val as any || 'beklemede' };
+                    setSelectedTender(updated);
+                    const list = manuelIhaleler.map(m => m.id === updated.id ? updated : m);
+                    setManuelIhaleler(list);
+                    localStorage.setItem('manuelIhaleler', JSON.stringify(list));
+                  }}
+                  data={[
+                    { value: 'beklemede', label: '⏳ Beklemede' },
+                    { value: 'asiri_dusuk', label: '⚠️ Aşırı Düşük Teklif' },
+                    { value: 'kazandik', label: '✅ Kazandık' },
+                    { value: 'elendik', label: '❌ Elendik' },
+                  ]}
+                  size="md"
+                />
+              </Stack>
+            </Grid.Col>
+
+            {/* Sağ: Sınır Değer Hesaplama */}
+            <Grid.Col span={{ base: 12, md: 6 }}>
+              <Paper p="md" radius="md" withBorder style={{ background: colorScheme === 'dark' ? 'rgba(139, 92, 246, 0.05)' : 'rgba(139, 92, 246, 0.03)' }}>
+                <Group gap="xs" mb="md">
+                  <ThemeIcon size="md" radius="md" variant="light" color="violet">
+                    <IconMathFunction size={16} />
+                  </ThemeIcon>
+                  <Text fw={600} size="sm">Sınır Değer Hesaplama</Text>
+                </Group>
+                
+                <Text size="xs" c="dimmed" mb="md">
+                  Sınır değeri bilmiyorsanız, diğer teklifleri girerek KİK formülüyle hesaplayabilirsiniz.
+                </Text>
+
+                <Textarea
+                  label="Diğer Teklifler"
+                  description="Virgülle ayırarak tüm teklifleri girin (bizim teklifimiz dahil)"
+                  placeholder="1.250.000, 1.300.000, 1.180.000, 1.420.000"
+                  value={teklifInput}
+                  onChange={(e) => {
+                    setTeklifInput(e.currentTarget.value);
+                    parseTeklifler(e.currentTarget.value);
+                  }}
+                  minRows={3}
+                  mb="md"
+                />
+
+                {sinirDegerData.teklifler.length > 0 && (
+                  <Alert icon={<IconInfoCircle size={16} />} color="gray" variant="light" mb="md">
+                    <Text size="xs">
+                      {sinirDegerData.teklifler.length} teklif algılandı:{' '}
+                      {sinirDegerData.teklifler.map(t => t.toLocaleString('tr-TR')).join(', ')} TL
+                    </Text>
+                  </Alert>
+                )}
+
+                <Button 
+                  fullWidth 
+                  color="violet"
+                  onClick={() => {
+                    // Yaklaşık maliyeti formdan al
+                    if (selectedTender.yaklasik_maliyet > 0) {
+                      setSinirDegerData(prev => ({ ...prev, yaklasikMaliyet: selectedTender.yaklasik_maliyet }));
+                    }
+                    const sonuc = hesaplaSinirDeger();
+                    if (sonuc) {
+                      const updated = { ...selectedTender, sinir_deger: Math.round(sonuc) };
+                      setSelectedTender(updated);
+                      const list = manuelIhaleler.map(m => m.id === updated.id ? updated : m);
+                      setManuelIhaleler(list);
+                      localStorage.setItem('manuelIhaleler', JSON.stringify(list));
+                    }
+                  }}
+                  leftSection={<IconCalculator size={16} />}
+                  disabled={sinirDegerData.teklifler.length < 2 || !selectedTender.yaklasik_maliyet}
+                >
+                  Sınır Değer Hesapla
+                </Button>
+
+                {hesaplananSinirDeger && (
+                  <Alert mt="md" color="green" icon={<IconCheck size={16} />}>
+                    <Text size="sm" fw={600}>
+                      Hesaplanan: {hesaplananSinirDeger.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL
+                    </Text>
+                  </Alert>
+                )}
+
+                <Divider my="md" />
+
+                <Text size="xs" c="dimmed">
+                  <strong>Formül:</strong> KİK Tebliği gereği hizmet alımları için standart sapma yöntemi kullanılır (N=1.00).
+                </Text>
+              </Paper>
+            </Grid.Col>
+          </Grid>
+
+          {/* İlerleme Butonu */}
+          <Group justify="flex-end" mt="xl">
+            <Button
+              size="lg"
+              color="violet"
+              rightSection={<IconArrowRight size={18} />}
+              disabled={
+                !selectedTender.yaklasik_maliyet || 
+                !selectedTender.sinir_deger || 
+                !selectedTender.bizim_teklif || 
+                !selectedTender.kesinlesme_tarihi
+              }
+              onClick={() => {
+                // Verileri kaydet
+                const list = manuelIhaleler.map(m => m.id === selectedTender.id ? selectedTender : m);
+                setManuelIhaleler(list);
+                localStorage.setItem('manuelIhaleler', JSON.stringify(list));
+                setCurrentStep(2);
+                notifications.show({
+                  title: 'Veriler Kaydedildi',
+                  message: 'Şimdi hesaplama ve AI araçlarını kullanabilirsiniz.',
+                  color: 'green',
+                });
+              }}
+            >
+              Araçlara Geç
+            </Button>
+          </Group>
+        </Paper>
+      )}
+
+      {/* STEP 2: Araçlar */}
+      {currentStep === 2 && selectedTender && (
+        <Grid gutter="lg">
+        {/* Left Panel - Seçili İhale Özeti */}
+        <Grid.Col span={{ base: 12, md: 4 }}>
+          <Paper p="md" radius="md" withBorder>
+            {/* Geri ve Değiştir Butonları */}
+            <Group justify="space-between" mb="md">
+              <Button 
+                variant="subtle" 
+                color="gray" 
+                size="xs"
+                leftSection={<IconArrowLeft size={14} />}
+                onClick={() => {
+                  setSelectedTender(null);
+                  setCurrentStep(0);
+                }}
+              >
+                Başka İhale Seç
+              </Button>
+              {'isManuel' in selectedTender && (
+                <ActionIcon 
+                  variant="light" 
+                  color="blue" 
+                  size="sm"
+                  onClick={() => setCurrentStep(1)}
+                >
+                  <IconEdit size={14} />
+                </ActionIcon>
+              )}
             </Group>
 
-            <ScrollArea h={450} offsetScrollbars>
-              <Stack gap="xs">
-                {/* Manuel İhaleler */}
-                {manuelIhaleler.length > 0 && (
-                  <>
-                    <Text size="xs" c="dimmed" fw={500} mt="xs">
-                      <IconHandStop size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                      Manuel Eklenenler ({manuelIhaleler.length})
-                    </Text>
-                    {manuelIhaleler.map((ihale) => (
-                      <Card
-                        key={ihale.id}
-                        padding="sm"
-                        radius="md"
-                        withBorder
-                        style={{
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                          borderColor: selectedTender?.id === ihale.id
-                            ? 'var(--mantine-color-violet-5)'
-                            : 'var(--mantine-color-orange-3)',
-                          borderLeftWidth: 3,
-                          background: selectedTender?.id === ihale.id
-                            ? colorScheme === 'dark'
-                              ? 'rgba(139, 92, 246, 0.1)'
-                              : 'rgba(139, 92, 246, 0.05)'
-                            : undefined,
-                        }}
-                        onClick={() => setSelectedTender(ihale)}
-                      >
-                        <Group justify="space-between" wrap="nowrap">
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <Text size="sm" fw={500} lineClamp={1} mb={4}>
-                              {ihale.ihale_basligi}
-                            </Text>
-                            <Group gap={4}>
-                              <Badge 
-                                size="xs" 
-                                variant="light" 
-                                color={
-                                  ihale.durum === 'asiri_dusuk' ? 'orange' :
-                                  ihale.durum === 'kazandik' ? 'green' :
-                                  ihale.durum === 'elendik' ? 'red' : 'gray'
-                                }
-                              >
-                                {ihale.durum === 'asiri_dusuk' ? 'Aşırı Düşük' :
-                                 ihale.durum === 'kazandik' ? 'Kazandık' :
-                                 ihale.durum === 'elendik' ? 'Elendik' : 'Beklemede'}
-                              </Badge>
-                              {ihale.bizim_teklif > 0 && (
-                                <Badge size="xs" variant="outline" color="blue">
-                                  {(ihale.bizim_teklif / 1000000).toFixed(1)}M
-                                </Badge>
-                              )}
-                            </Group>
-                          </div>
-                          <Group gap={4}>
-                            <ActionIcon 
-                              size="xs" 
-                              variant="subtle" 
-                              color="blue"
-                              onClick={(e) => { e.stopPropagation(); editManuelIhale(ihale); }}
-                            >
-                              <IconEdit size={12} />
-                            </ActionIcon>
-                            <ActionIcon 
-                              size="xs" 
-                              variant="subtle" 
-                              color="red"
-                              onClick={(e) => { e.stopPropagation(); deleteManuelIhale(ihale.id); }}
-                            >
-                              <IconTrash size={12} />
-                            </ActionIcon>
-                          </Group>
-                        </Group>
-                      </Card>
-                    ))}
-                  </>
-                )}
+            {/* İhale Başlığı */}
+            <Text fw={600} size="lg" mb="xs">{selectedTender.ihale_basligi}</Text>
+            <Text c="dimmed" size="sm" mb="md">{selectedTender.kurum}</Text>
 
-                {/* Tracking'den Kayıtlı İhaleler */}
-                {savedTenders.length > 0 && (
-                  <>
-                    <Text size="xs" c="dimmed" fw={500} mt="xs">
-                      <IconBookmark size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                      Takip Edilen ({savedTenders.length})
-                    </Text>
-                    {savedTenders.map((tender) => (
-                      <Card
-                        key={tender.id}
-                        padding="sm"
-                        radius="md"
-                        withBorder
-                        style={{
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                        borderColor: selectedTender?.id === tender.id
-                          ? 'var(--mantine-color-violet-5)'
-                          : undefined,
-                        background: selectedTender?.id === tender.id
-                          ? colorScheme === 'dark'
-                            ? 'rgba(139, 92, 246, 0.1)'
-                            : 'rgba(139, 92, 246, 0.05)'
-                          : undefined,
-                      }}
-                      onClick={() => setSelectedTender(tender)}
-                    >
-                      <Text size="sm" fw={500} lineClamp={2} mb={4}>
-                        {tender.ihale_basligi}
-                      </Text>
-                      <Group gap="xs">
-                        <Badge size="xs" variant="light" color="gray">
-                          {tender.kurum?.slice(0, 20)}...
-                        </Badge>
-                        <Badge size="xs" variant="light" color="blue">
-                          {tender.tarih}
-                        </Badge>
-                      </Group>
-                    </Card>
-                  ))}
-                  </>
-                )}
+            {'isManuel' in selectedTender && (
+              <Badge 
+                size="lg" 
+                mb="md"
+                color={
+                  selectedTender.durum === 'asiri_dusuk' ? 'orange' :
+                  selectedTender.durum === 'kazandik' ? 'green' :
+                  selectedTender.durum === 'elendik' ? 'red' : 'gray'
+                }
+              >
+                {selectedTender.durum === 'asiri_dusuk' ? '⚠️ Aşırı Düşük' :
+                 selectedTender.durum === 'kazandik' ? '✅ Kazandık' :
+                 selectedTender.durum === 'elendik' ? '❌ Elendik' : '⏳ Beklemede'}
+              </Badge>
+            )}
 
-                {/* Boş durum */}
-                {savedTenders.length === 0 && manuelIhaleler.length === 0 && (
-                  <Alert icon={<IconInfoCircle size={18} />} color="blue" variant="light" mt="xs">
+            <Divider my="md" />
+
+            {/* Özet Bilgiler */}
+            {'isManuel' in selectedTender ? (
+              <Stack gap="sm">
+                <SimpleGrid cols={2} spacing="sm">
+                  <Paper p="sm" radius="sm" withBorder>
+                    <Text size="xs" c="dimmed">Yaklaşık Maliyet</Text>
+                    <Text size="sm" fw={600} c="blue">
+                      {selectedTender.yaklasik_maliyet > 0 
+                        ? `${selectedTender.yaklasik_maliyet.toLocaleString('tr-TR')} ₺` 
+                        : '-'}
+                    </Text>
+                  </Paper>
+                  <Paper p="sm" radius="sm" withBorder>
+                    <Text size="xs" c="dimmed">Sınır Değer</Text>
+                    <Text size="sm" fw={600} c="orange">
+                      {selectedTender.sinir_deger > 0 
+                        ? `${selectedTender.sinir_deger.toLocaleString('tr-TR')} ₺` 
+                        : '-'}
+                    </Text>
+                  </Paper>
+                  <Paper p="sm" radius="sm" withBorder>
+                    <Text size="xs" c="dimmed">Bizim Teklif</Text>
+                    <Text size="sm" fw={600} c="green">
+                      {selectedTender.bizim_teklif > 0 
+                        ? `${selectedTender.bizim_teklif.toLocaleString('tr-TR')} ₺` 
+                        : '-'}
+                    </Text>
+                  </Paper>
+                  <Paper p="sm" radius="sm" withBorder>
+                    <Text size="xs" c="dimmed">Kesinleşme</Text>
+                    <Text size="sm" fw={600}>
+                      {selectedTender.kesinlesme_tarihi || '-'}
+                    </Text>
+                  </Paper>
+                </SimpleGrid>
+                
+                {/* Aşırı Düşük Durumu Özet */}
+                {selectedTender.sinir_deger > 0 && selectedTender.bizim_teklif > 0 && (
+                  <Alert 
+                    color={selectedTender.bizim_teklif < selectedTender.sinir_deger ? 'orange' : 'green'} 
+                    variant="light"
+                    icon={selectedTender.bizim_teklif < selectedTender.sinir_deger ? <IconAlertTriangle size={18} /> : <IconCheck size={18} />}
+                  >
                     <Text size="sm">
-                      Henüz ihale yok.{' '}
-                      <Text component="span" c="violet" fw={500} style={{ cursor: 'pointer' }} onClick={openManuelModal}>
-                        Manuel ekle
-                      </Text>
-                      {' '}veya{' '}
-                      <Text component={Link} href="/tracking" c="blue" td="underline">
-                        İhale Takibim
-                      </Text>
-                      {' '}sayfasından kaydedin.
+                      {selectedTender.bizim_teklif < selectedTender.sinir_deger 
+                        ? `Teklifiniz sınır değerin ${((1 - selectedTender.bizim_teklif / selectedTender.sinir_deger) * 100).toFixed(1)}% altında - Açıklama gerekli!`
+                        : 'Teklifiniz sınır değerin üzerinde - Açıklama gerekmez.'}
                     </Text>
                   </Alert>
                 )}
               </Stack>
-            </ScrollArea>
-
-            {/* Selected Tender Details */}
-            {selectedTender && (
-              <Box mt="md" pt="md" style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}>
-                <Group justify="space-between" mb="xs">
-                  <Text size="xs" c="dimmed">
-                    {'isManuel' in selectedTender ? '✋ Manuel İhale' : '📋 Seçili İhale'}
-                  </Text>
-                  {'isManuel' in selectedTender && (
-                    <Button 
-                      size="xs" 
-                      variant="light" 
-                      color="violet"
-                      leftSection={<IconArrowRight size={12} />}
-                      onClick={fillFromSelectedTender}
-                    >
-                      Formlara Aktar
-                    </Button>
-                  )}
-                </Group>
-                <Text size="sm" fw={600} mb="xs">{selectedTender.ihale_basligi}</Text>
-                
-                {'isManuel' in selectedTender ? (
-                  // Manuel ihale detayları
-                  <Stack gap="xs">
-                    <SimpleGrid cols={2} spacing="xs">
-                      <div>
-                        <Text size="xs" c="dimmed">Kurum</Text>
-                        <Text size="xs">{selectedTender.kurum}</Text>
-                      </div>
-                      <div>
-                        <Text size="xs" c="dimmed">Durum</Text>
-                        <Badge 
-                          size="xs" 
-                          color={
-                            selectedTender.durum === 'asiri_dusuk' ? 'orange' :
-                            selectedTender.durum === 'kazandik' ? 'green' :
-                            selectedTender.durum === 'elendik' ? 'red' : 'gray'
-                          }
-                        >
-                          {selectedTender.durum === 'asiri_dusuk' ? 'Aşırı Düşük' :
-                           selectedTender.durum === 'kazandik' ? 'Kazandık' :
-                           selectedTender.durum === 'elendik' ? 'Elendik' : 'Beklemede'}
-                        </Badge>
-                      </div>
-                    </SimpleGrid>
-                    <Divider my={4} />
-                    <SimpleGrid cols={2} spacing="xs">
-                      <div>
-                        <Text size="xs" c="dimmed">Yaklaşık Maliyet</Text>
-                        <Text size="xs" fw={500} c="blue">
-                          {selectedTender.yaklasik_maliyet > 0 
-                            ? `${selectedTender.yaklasik_maliyet.toLocaleString('tr-TR')} TL` 
-                            : '-'}
-                        </Text>
-                      </div>
-                      <div>
-                        <Text size="xs" c="dimmed">Sınır Değer</Text>
-                        <Text size="xs" fw={500} c="orange">
-                          {selectedTender.sinir_deger > 0 
-                            ? `${selectedTender.sinir_deger.toLocaleString('tr-TR')} TL` 
-                            : '-'}
-                        </Text>
-                      </div>
-                      <div>
-                        <Text size="xs" c="dimmed">Bizim Teklif</Text>
-                        <Text size="xs" fw={500} c="green">
-                          {selectedTender.bizim_teklif > 0 
-                            ? `${selectedTender.bizim_teklif.toLocaleString('tr-TR')} TL` 
-                            : '-'}
-                        </Text>
-                      </div>
-                      <div>
-                        <Text size="xs" c="dimmed">Kesinleşme</Text>
-                        <Text size="xs">
-                          {selectedTender.kesinlesme_tarihi || '-'}
-                        </Text>
-                      </div>
-                    </SimpleGrid>
-                    {selectedTender.notlar && (
-                      <>
-                        <Divider my={4} />
-                        <div>
-                          <Text size="xs" c="dimmed">Notlar</Text>
-                          <Text size="xs">{selectedTender.notlar}</Text>
-                        </div>
-                      </>
-                    )}
-                  </Stack>
-                ) : (
-                  // Tracking'den gelen ihale detayları
-                  <SimpleGrid cols={2} spacing="xs">
-                    <div>
-                      <Text size="xs" c="dimmed">Kurum</Text>
-                      <Text size="xs">{selectedTender.kurum}</Text>
-                    </div>
-                    <div>
-                      <Text size="xs" c="dimmed">Bedel</Text>
-                      <Text size="xs" fw={500}>{selectedTender.bedel}</Text>
-                    </div>
-                    <div>
-                      <Text size="xs" c="dimmed">Tarih</Text>
-                      <Text size="xs">{selectedTender.tarih}</Text>
-                    </div>
-                    <div>
-                      <Text size="xs" c="dimmed">Süre</Text>
-                      <Text size="xs">{selectedTender.sure}</Text>
-                    </div>
-                  </SimpleGrid>
+            ) : (
+              // Tracking'den gelen ihale
+              <SimpleGrid cols={2} spacing="sm">
+                <Paper p="sm" radius="sm" withBorder>
+                  <Text size="xs" c="dimmed">Bedel</Text>
+                  <Text size="sm" fw={600}>{selectedTender.bedel}</Text>
+                </Paper>
+                <Paper p="sm" radius="sm" withBorder>
+                  <Text size="xs" c="dimmed">Tarih</Text>
+                  <Text size="sm" fw={600}>{selectedTender.tarih}</Text>
+                </Paper>
+                <Paper p="sm" radius="sm" withBorder>
+                  <Text size="xs" c="dimmed">Süre</Text>
+                  <Text size="sm" fw={600}>{selectedTender.sure}</Text>
+                </Paper>
+                {selectedTender.ihale_kayit_no && (
+                  <Paper p="sm" radius="sm" withBorder>
+                    <Text size="xs" c="dimmed">Kayıt No</Text>
+                    <Text size="sm" fw={600}>{selectedTender.ihale_kayit_no}</Text>
+                  </Paper>
                 )}
-              </Box>
+              </SimpleGrid>
             )}
           </Paper>
         </Grid.Col>
@@ -1278,6 +1714,7 @@ Bu ihale bağlamında cevap ver.
           </Paper>
         </Grid.Col>
       </Grid>
+      )}
 
       {/* Manuel İhale Ekleme Modal */}
       <Modal
