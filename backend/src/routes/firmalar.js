@@ -11,6 +11,7 @@ import path from 'path';
 import fs from 'fs';
 import { query } from '../database.js';
 import { logError, logAPI } from '../utils/logger.js';
+import { analyzeFirmaBelgesi, getDesteklenenBelgeTipleri } from '../services/firma-belge-service.js';
 
 const router = express.Router();
 
@@ -384,6 +385,194 @@ router.delete('/:id', async (req, res) => {
     
   } catch (error) {
     logError('Firma Sil', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/firmalar/belge-tipleri:
+ *   get:
+ *     summary: Desteklenen belge tiplerini listele
+ *     tags: [Firmalar]
+ */
+router.get('/belge-tipleri', async (req, res) => {
+  try {
+    const tipler = getDesteklenenBelgeTipleri();
+    res.json({ success: true, data: tipler });
+  } catch (error) {
+    logError('Belge Tipleri', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/firmalar/analyze-belge:
+ *   post:
+ *     summary: Belgeyi AI ile analiz et ve firma bilgilerini çıkar
+ *     tags: [Firmalar]
+ *     consumes:
+ *       - multipart/form-data
+ *     parameters:
+ *       - name: dosya
+ *         in: formData
+ *         type: file
+ *         required: true
+ *       - name: belge_tipi
+ *         in: formData
+ *         type: string
+ *         required: true
+ *         enum: [vergi_levhasi, sicil_gazetesi, imza_sirküleri, faaliyet_belgesi, iso_sertifika]
+ */
+router.post('/analyze-belge', upload.single('dosya'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'Dosya yüklenmedi' });
+    }
+
+    const { belge_tipi } = req.body;
+    if (!belge_tipi) {
+      return res.status(400).json({ success: false, error: 'Belge tipi belirtilmedi' });
+    }
+
+    console.log(`🔍 Belge analizi başlıyor: ${belge_tipi} - ${req.file.originalname}`);
+
+    // AI ile analiz et
+    const analizSonucu = await analyzeFirmaBelgesi(
+      req.file.path,
+      belge_tipi,
+      req.file.mimetype
+    );
+
+    // Dosya URL'ini ekle
+    const dosyaUrl = `/uploads/firmalar/${req.file.filename}`;
+
+    res.json({
+      success: true,
+      analiz: analizSonucu,
+      dosya: {
+        url: dosyaUrl,
+        originalName: req.file.originalname,
+        size: req.file.size,
+        mimeType: req.file.mimetype
+      },
+      message: 'Belge başarıyla analiz edildi'
+    });
+
+  } catch (error) {
+    logError('Belge Analiz', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/firmalar/{id}/analyze-and-save:
+ *   post:
+ *     summary: Belgeyi analiz et, firma bilgilerini güncelle ve belgeyi kaydet
+ *     tags: [Firmalar]
+ */
+router.post('/:id/analyze-and-save', upload.single('dosya'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { belge_tipi, auto_fill } = req.body;
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'Dosya yüklenmedi' });
+    }
+
+    // Firma var mı kontrol et
+    const firmaCheck = await query('SELECT * FROM firmalar WHERE id = $1', [id]);
+    if (firmaCheck.rowCount === 0) {
+      return res.status(404).json({ success: false, error: 'Firma bulunamadı' });
+    }
+
+    // AI ile analiz et
+    const analizSonucu = await analyzeFirmaBelgesi(
+      req.file.path,
+      belge_tipi,
+      req.file.mimetype
+    );
+
+    const dosyaUrl = `/uploads/firmalar/${req.file.filename}`;
+
+    // Belge URL'ini güncelle
+    const belgeAlanlari = {
+      vergi_levhasi: { url: 'vergi_levhasi_url', tarih: 'vergi_levhasi_tarih' },
+      sicil_gazetesi: { url: 'sicil_gazetesi_url', tarih: 'sicil_gazetesi_tarih' },
+      imza_sirküleri: { url: 'imza_sirküleri_url', tarih: 'imza_sirküleri_tarih' },
+      faaliyet_belgesi: { url: 'faaliyet_belgesi_url', tarih: 'faaliyet_belgesi_tarih' },
+      iso_sertifika: { url: 'iso_sertifika_url', tarih: 'iso_sertifika_tarih' }
+    };
+
+    let updatedFirma = firmaCheck.rows[0];
+
+    // Belge URL'ini kaydet
+    if (belgeAlanlari[belge_tipi]) {
+      const alan = belgeAlanlari[belge_tipi];
+      const belgeResult = await query(
+        `UPDATE firmalar SET ${alan.url} = $1, ${alan.tarih} = $2 WHERE id = $3 RETURNING *`,
+        [dosyaUrl, new Date().toISOString().split('T')[0], id]
+      );
+      updatedFirma = belgeResult.rows[0];
+    }
+
+    // auto_fill true ise analiz sonuçlarını firmaya uygula
+    if (auto_fill === 'true' && analizSonucu.success && analizSonucu.data) {
+      const data = analizSonucu.data;
+      const updateFields = [];
+      const updateValues = [];
+      let paramIndex = 1;
+
+      // Sadece dolu ve mevcut firmada boş olan alanları güncelle
+      const alanMap = {
+        'unvan': 'unvan',
+        'vergi_dairesi': 'vergi_dairesi',
+        'vergi_no': 'vergi_no',
+        'ticaret_sicil_no': 'ticaret_sicil_no',
+        'mersis_no': 'mersis_no',
+        'adres': 'adres',
+        'il': 'il',
+        'ilce': 'ilce',
+        'telefon': 'telefon',
+        'yetkili_adi': 'yetkili_adi',
+        'yetkili_tc': 'yetkili_tc',
+        'yetkili_unvani': 'yetkili_unvani',
+        'imza_yetkisi': 'imza_yetkisi'
+      };
+
+      for (const [aiKey, dbKey] of Object.entries(alanMap)) {
+        if (data[aiKey] && !updatedFirma[dbKey]) {
+          updateFields.push(`${dbKey} = $${paramIndex}`);
+          updateValues.push(data[aiKey]);
+          paramIndex++;
+        }
+      }
+
+      if (updateFields.length > 0) {
+        updateValues.push(id);
+        const updateSql = `UPDATE firmalar SET ${updateFields.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
+        const updateResult = await query(updateSql, updateValues);
+        updatedFirma = updateResult.rows[0];
+      }
+    }
+
+    logAPI('Belge Analiz ve Kaydet', { id, belge_tipi, auto_fill });
+
+    res.json({
+      success: true,
+      firma: updatedFirma,
+      analiz: analizSonucu,
+      dosya: {
+        url: dosyaUrl,
+        originalName: req.file.originalname
+      },
+      message: 'Belge analiz edildi ve kaydedildi'
+    });
+
+  } catch (error) {
+    logError('Belge Analiz ve Kaydet', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

@@ -34,7 +34,8 @@ import {
   ColorSwatch,
   CheckIcon,
   ScrollArea,
-  rem
+  rem,
+  Loader
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -73,7 +74,8 @@ import {
   IconPhone,
   IconMapPin,
   IconId,
-  IconSignature
+  IconSignature,
+  IconSparkles
 } from '@tabler/icons-react';
 import Link from 'next/link';
 
@@ -240,6 +242,8 @@ function AyarlarContent() {
   const [firmaFormData, setFirmaFormData] = useState<Partial<FirmaBilgileri>>(emptyFirma);
   const [selectedBelgeTipi, setSelectedBelgeTipi] = useState<string>('');
   const [uploadingBelge, setUploadingBelge] = useState(false);
+  const [analyzingBelge, setAnalyzingBelge] = useState(false);
+  const [lastAnalysis, setLastAnalysis] = useState<any>(null);
   
   // Modal states
   const [passwordModalOpened, { open: openPasswordModal, close: closePasswordModal }] = useDisclosure(false);
@@ -482,6 +486,72 @@ function AyarlarContent() {
     { value: 'faaliyet_belgesi', label: 'Faaliyet Belgesi' },
     { value: 'iso_sertifika', label: 'ISO Sertifikası' },
   ];
+
+  // Belgeden AI ile firma bilgisi çıkar
+  const handleBelgeAnaliz = async (file: File, belgeTipi: string) => {
+    if (!file || !belgeTipi) return;
+
+    setAnalyzingBelge(true);
+    try {
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('dosya', file);
+      formData.append('belge_tipi', belgeTipi);
+
+      const res = await fetch(`${API_URL}/api/firmalar/analyze-belge`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setLastAnalysis(data);
+        
+        if (data.analiz?.success && data.analiz?.data) {
+          // Analiz sonuçlarını forma uygula
+          const analizData = data.analiz.data;
+          setFirmaFormData(prev => ({
+            ...prev,
+            unvan: analizData.unvan || prev.unvan,
+            vergi_dairesi: analizData.vergi_dairesi || prev.vergi_dairesi,
+            vergi_no: analizData.vergi_no || prev.vergi_no,
+            ticaret_sicil_no: analizData.ticaret_sicil_no || prev.ticaret_sicil_no,
+            mersis_no: analizData.mersis_no || prev.mersis_no,
+            adres: analizData.adres || prev.adres,
+            il: analizData.il || prev.il,
+            ilce: analizData.ilce || prev.ilce,
+            telefon: analizData.telefon || prev.telefon,
+            yetkili_adi: analizData.yetkili_adi || prev.yetkili_adi,
+            yetkili_tc: analizData.yetkili_tc || prev.yetkili_tc,
+            yetkili_unvani: analizData.yetkili_unvani || prev.yetkili_unvani,
+            imza_yetkisi: analizData.imza_yetkisi || prev.imza_yetkisi,
+          }));
+
+          notifications.show({
+            title: '✨ AI Analiz Tamamlandı',
+            message: `${data.analiz.belgeTipiAd} analiz edildi. Form otomatik dolduruldu.`,
+            color: 'green',
+            autoClose: 5000,
+          });
+        } else {
+          notifications.show({
+            title: 'Analiz Tamamlandı',
+            message: 'Belge okundu ancak bazı bilgiler çıkarılamadı. Manuel kontrol edin.',
+            color: 'yellow',
+          });
+        }
+      }
+    } catch (err) {
+      notifications.show({
+        title: 'Hata',
+        message: 'Belge analiz edilemedi',
+        color: 'red',
+      });
+    } finally {
+      setAnalyzingBelge(false);
+    }
+  };
 
   // Tema değiştir
   const handleThemeChange = (value: string) => {
@@ -896,6 +966,65 @@ function AyarlarContent() {
             >
               <ScrollArea h={500} type="auto" offsetScrollbars>
                 <Stack gap="md" pr="sm">
+                  {/* Belgeden Tanı - AI ile Otomatik Doldurma */}
+                  {!editingFirma && (
+                    <Paper p="md" radius="md" withBorder style={{ background: 'linear-gradient(135deg, rgba(64,192,87,0.05) 0%, rgba(34,139,230,0.05) 100%)' }}>
+                      <Stack gap="sm">
+                        <Group gap="xs">
+                          <ThemeIcon size="sm" variant="light" color="green">
+                            <IconSparkles size={14} />
+                          </ThemeIcon>
+                          <Text fw={600} size="sm">🤖 Belgeden Tanı (AI)</Text>
+                        </Group>
+                        <Text size="xs" c="dimmed">
+                          Vergi levhası, sicil gazetesi veya imza sirküleri yükleyin - AI bilgileri otomatik çıkarsın.
+                        </Text>
+                        <SimpleGrid cols={{ base: 2, sm: 3 }}>
+                          {belgeTipleri.slice(0, 3).map((belge) => (
+                            <Paper key={belge.value} p="xs" radius="md" withBorder style={{ cursor: 'pointer' }}>
+                              <Stack gap={4} align="center">
+                                <Text size="xs" fw={500} ta="center">{belge.label}</Text>
+                                <label style={{ cursor: 'pointer' }}>
+                                  <input
+                                    type="file"
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    style={{ display: 'none' }}
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) handleBelgeAnaliz(file, belge.value);
+                                    }}
+                                    disabled={analyzingBelge}
+                                  />
+                                  <Badge 
+                                    size="xs" 
+                                    variant="light" 
+                                    color="blue" 
+                                    style={{ cursor: 'pointer' }}
+                                  >
+                                    {analyzingBelge ? 'Analiz...' : '📄 Yükle'}
+                                  </Badge>
+                                </label>
+                              </Stack>
+                            </Paper>
+                          ))}
+                        </SimpleGrid>
+                        {analyzingBelge && (
+                          <Group gap="xs">
+                            <Loader size="xs" />
+                            <Text size="xs" c="dimmed">AI belgeyi analiz ediyor...</Text>
+                          </Group>
+                        )}
+                        {lastAnalysis?.analiz?.success && (
+                          <Alert color="green" variant="light" p="xs">
+                            <Text size="xs">✅ {lastAnalysis.analiz.belgeTipiAd} analiz edildi. Güven: {Math.round((lastAnalysis.analiz.data?.guven_skoru || 0.85) * 100)}%</Text>
+                          </Alert>
+                        )}
+                      </Stack>
+                    </Paper>
+                  )}
+
+                  <Divider label="veya manuel girin" labelPosition="center" />
+
                   {/* Temel Bilgiler */}
                   <Text fw={600} size="sm" c="dimmed">TEMEL BİLGİLER</Text>
                   
