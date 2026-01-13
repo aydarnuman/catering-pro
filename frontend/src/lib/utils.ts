@@ -67,13 +67,13 @@ export function formatDate(date: string | Date | null | undefined, format: 'shor
   
   const d = typeof date === 'string' ? new Date(date) : date;
   
-  const options: Intl.DateTimeFormatOptions = {
+  const formatOptions: Record<string, Intl.DateTimeFormatOptions> = {
     short: { day: '2-digit', month: '2-digit' },
     medium: { day: '2-digit', month: '2-digit', year: 'numeric' },
     long: { day: 'numeric', month: 'long', year: 'numeric' },
-  }[format];
+  };
   
-  return d.toLocaleDateString('tr-TR', options);
+  return d.toLocaleDateString('tr-TR', formatOptions[format]);
 }
 
 /**
