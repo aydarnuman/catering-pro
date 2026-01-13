@@ -150,13 +150,88 @@ a {
 /* Main content padding - Navbar altı için */
 .main-content {
   padding-top: 120px;
-  transition: padding-top 0.2s ease;
+  transition: padding-top 0.3s ease;
 }
 
 @media (max-width: 768px) {
   .main-content {
-    padding-top: 70px;
+    padding-top: 64px;
   }
+}
+
+/* ===== Navbar Micro-interactions ===== */
+
+/* ActionIcon hover & active effects */
+.mantine-ActionIcon-root {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.mantine-ActionIcon-root:hover {
+  transform: scale(1.05);
+}
+
+.mantine-ActionIcon-root:active {
+  transform: scale(0.95);
+}
+
+/* Navbar specific ActionIcon styling */
+@media (max-width: 768px) {
+  /* Navbar buttons - softer, more refined */
+  .navbar-action-icon {
+    background: transparent !important;
+    border: none !important;
+  }
+  
+  .navbar-action-icon:hover {
+    background: rgba(128, 128, 128, 0.1) !important;
+  }
+}
+
+/* Button press effect */
+.mantine-Button-root {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.mantine-Button-root:active {
+  transform: scale(0.97);
+}
+
+/* Burger menu animation enhancement */
+.mantine-Burger-root {
+  transition: all 0.2s ease !important;
+}
+
+.mantine-Burger-root:hover {
+  transform: scale(1.05);
+}
+
+.mantine-Burger-root:active {
+  transform: scale(0.95);
+}
+
+/* Tooltip animation */
+.mantine-Tooltip-tooltip {
+  animation: tooltipFadeIn 0.15s ease-out;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Avatar hover effect */
+.mantine-Avatar-root {
+  transition: all 0.2s ease !important;
+}
+
+.mantine-Avatar-root:hover {
+  box-shadow: 0 0 0 2px rgba(34, 139, 230, 0.3);
 }
 
 /* Focus visible for accessibility */

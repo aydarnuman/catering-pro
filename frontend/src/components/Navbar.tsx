@@ -97,26 +97,29 @@ export function Navbar() {
       <Box
         style={(theme) => ({
           borderBottom: `1px solid ${
-            colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'
+            colorScheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
           }`,
           backgroundColor: colorScheme === 'dark' 
-            ? 'rgba(26, 27, 30, 0.6)' 
-            : 'rgba(255, 255, 255, 0.6)',
-          backdropFilter: 'blur(20px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-          boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05)',
+            ? 'rgba(26, 27, 30, 0.75)' 
+            : 'rgba(255, 255, 255, 0.8)',
+          backdropFilter: 'blur(24px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(200%)',
+          boxShadow: colorScheme === 'dark'
+            ? '0 4px 30px rgba(0, 0, 0, 0.3)'
+            : '0 4px 30px rgba(0, 0, 0, 0.08)',
           position: 'fixed',
           top: 0,
           left: 0,
           right: 0,
           zIndex: 100,
+          transition: 'all 0.3s ease',
         })}
       >
-        <Group h={mounted && isMobile ? 60 : 100} px="md" justify="space-between">
+        <Group h={mounted && isMobile ? 56 : 100} px={mounted && isMobile ? 'sm' : 'md'} justify="space-between">
           {/* Logo */}
           <Link href="/" style={{ textDecoration: 'none' }}>
             <Box style={{ 
-              width: mounted && isMobile ? 140 : 220, 
+              width: mounted && isMobile ? 100 : 220, 
               display: 'flex', 
               alignItems: 'center' 
             }}>
@@ -124,12 +127,12 @@ export function Navbar() {
                 src="/logo.png" 
                 alt="Catering Pro" 
                 style={{ 
-                  height: mounted && isMobile ? 100 : 170,
+                  height: mounted && isMobile ? 70 : 170,
                   width: 'auto',
                   objectFit: 'contain',
-                  marginTop: mounted && isMobile ? -20 : -35,
+                  marginTop: mounted && isMobile ? -8 : -35,
                   marginBottom: 0,
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                 }}
               />
             </Box>
@@ -444,30 +447,45 @@ export function Navbar() {
           </Group>
 
           {/* Right Section */}
-          <Group gap="xs">
+          <Group gap={mounted && isMobile ? 4 : 'xs'}>
             {/* Admin Button - only for admin users (mounted kontrolü) */}
             {mounted && isAuthenticated && userIsAdmin && (
-              <Tooltip label="Admin Panel">
+              <Tooltip label="Admin Panel" withArrow>
                 <ActionIcon
                   component={Link}
                   href="/admin"
                   variant={isAdminPage ? 'filled' : 'subtle'}
                   color={isAdminPage ? 'red' : 'gray'}
-                  size="lg"
+                  size={mounted && isMobile ? 'md' : 'lg'}
+                  radius="md"
+                  style={{
+                    transition: 'all 0.2s ease',
+                  }}
                 >
-                  <IconShieldLock size={20} />
+                  <IconShieldLock size={mounted && isMobile ? 18 : 20} />
                 </ActionIcon>
               </Tooltip>
             )}
 
-            <ActionIcon
-              variant="subtle"
-              onClick={() => toggleColorScheme()}
-              size="lg"
-              aria-label="Toggle color scheme"
-            >
-              {colorScheme === 'dark' ? <IconSun size={20} /> : <IconMoon size={20} />}
-            </ActionIcon>
+            {/* Dark Mode Toggle */}
+            <Tooltip label={colorScheme === 'dark' ? 'Aydınlık mod' : 'Karanlık mod'} withArrow>
+              <ActionIcon
+                variant="subtle"
+                onClick={() => toggleColorScheme()}
+                size={mounted && isMobile ? 'md' : 'lg'}
+                radius="md"
+                aria-label="Toggle color scheme"
+                style={{
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                {colorScheme === 'dark' ? (
+                  <IconSun size={mounted && isMobile ? 18 : 20} style={{ transition: 'transform 0.3s ease' }} />
+                ) : (
+                  <IconMoon size={mounted && isMobile ? 18 : 20} style={{ transition: 'transform 0.3s ease' }} />
+                )}
+              </ActionIcon>
+            </Tooltip>
 
             {/* Auth Section - mounted kontrolü ile hydration hatası önleme */}
             {!mounted || isLoading ? (
@@ -475,16 +493,23 @@ export function Navbar() {
             ) : isAuthenticated && user ? (
               <Menu shadow="md" width={200} position="bottom-end">
                 <Menu.Target>
-                  <ActionIcon variant="subtle" size="lg" radius="xl">
-                    <Avatar
-                      size="sm"
+                  <Tooltip label={user.name} withArrow disabled={!isMobile}>
+                    <ActionIcon 
+                      variant="subtle" 
+                      size={mounted && isMobile ? 'md' : 'lg'} 
                       radius="xl"
-                      color="blue"
-                      style={{ cursor: 'pointer' }}
+                      style={{ transition: 'all 0.2s ease' }}
                     >
-                      {getInitials(user.name)}
-                    </Avatar>
-                  </ActionIcon>
+                      <Avatar
+                        size={mounted && isMobile ? 'xs' : 'sm'}
+                        radius="xl"
+                        color="blue"
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {getInitials(user.name)}
+                      </Avatar>
+                    </ActionIcon>
+                  </Tooltip>
                 </Menu.Target>
                 <Menu.Dropdown>
                   <Menu.Label>
@@ -530,15 +555,34 @@ export function Navbar() {
                 </Menu.Dropdown>
               </Menu>
             ) : (
-              <Button
-                component={Link}
-                href="/giris"
-                variant="light"
-                size="sm"
-                leftSection={<IconLogin size={16} />}
-              >
-                Giriş
-              </Button>
+              /* Giriş Butonu - Mobilde sadece ikon, Desktop'ta text */
+              mounted && isMobile ? (
+                <Tooltip label="Giriş Yap" withArrow>
+                  <ActionIcon
+                    component={Link}
+                    href="/giris"
+                    variant="light"
+                    color="blue"
+                    size="md"
+                    radius="md"
+                    style={{ transition: 'all 0.2s ease' }}
+                  >
+                    <IconLogin size={18} />
+                  </ActionIcon>
+                </Tooltip>
+              ) : (
+                <Button
+                  component={Link}
+                  href="/giris"
+                  variant="light"
+                  size="sm"
+                  radius="md"
+                  leftSection={<IconLogin size={16} />}
+                  style={{ transition: 'all 0.2s ease' }}
+                >
+                  Giriş
+                </Button>
+              )
             )}
             
             {/* Mobile Burger */}
@@ -547,6 +591,7 @@ export function Navbar() {
               onClick={() => setOpened(!opened)}
               hiddenFrom="sm"
               size="sm"
+              style={{ transition: 'all 0.2s ease' }}
             />
           </Group>
         </Group>
