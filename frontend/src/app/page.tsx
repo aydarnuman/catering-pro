@@ -192,66 +192,48 @@ export default function HomePage() {
               />
               
               <Box p="xl" style={{ position: 'relative', zIndex: 1 }}>
-                <Group justify="space-between" align="flex-start">
-                  <Box>
-                    {/* Date badge */}
-                    <Box
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        background: 'rgba(99, 102, 241, 0.15)',
-                        border: '1px solid rgba(99, 102, 241, 0.3)',
-                        borderRadius: 8,
-                        padding: '6px 12px',
-                        marginBottom: 16,
-                      }}
-                    >
-                      <IconCalendar size={14} color="#818cf8" />
-                      <Text size="xs" fw={600} c="#a5b4fc" tt="uppercase" style={{ letterSpacing: 0.5 }}>
-                        {formatDate(currentTime)}
-                      </Text>
-                    </Box>
-                    
-                    {/* Large greeting */}
-                    <Group gap="sm" align="center">
-                      <GreetingIcon size={32} color="#fbbf24" />
-                      <Text 
-                        size="2rem" 
-                        fw={800} 
-                        style={{ 
-                          background: 'linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%)',
-                          WebkitBackgroundClip: 'text',
-                          WebkitTextFillColor: 'transparent',
-                          lineHeight: 1.1,
-                        }}
-                      >
-                        {greeting.text}{isAuthenticated && user?.name ? `, ${user.name.split(' ')[0]}` : ''}!
-                      </Text>
-                    </Group>
-                    
-                    {/* Subtitle */}
-                    <Text size="sm" c="dimmed" mt="xs">
-                      İş akışınızı yönetmeye hazır mısınız?
+                <Box>
+                  {/* Date badge */}
+                  <Box
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      background: 'rgba(99, 102, 241, 0.15)',
+                      border: '1px solid rgba(99, 102, 241, 0.3)',
+                      borderRadius: 8,
+                      padding: '6px 12px',
+                      marginBottom: 16,
+                    }}
+                  >
+                    <IconCalendar size={14} color="#818cf8" />
+                    <Text size="xs" fw={600} c="#a5b4fc" tt="uppercase" style={{ letterSpacing: 0.5 }}>
+                      {formatDate(currentTime)}
                     </Text>
                   </Box>
                   
-                  {/* Live clock */}
-                  <Box
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: 12,
-                      padding: '12px 20px',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <Text size="2rem" fw={700} c="white" style={{ fontFamily: 'monospace', letterSpacing: 2 }}>
-                      {formatTime(currentTime)}
+                  {/* Large greeting */}
+                  <Group gap="sm" align="center">
+                    <GreetingIcon size={32} color="#fbbf24" />
+                    <Text 
+                      size="2rem" 
+                      fw={800} 
+                      style={{ 
+                        background: 'linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        lineHeight: 1.1,
+                      }}
+                    >
+                      {greeting.text}{isAuthenticated && user?.name ? `, ${user.name.split(' ')[0]}` : ''}!
                     </Text>
-                    <Text size="xs" c="dimmed" tt="uppercase">İstanbul</Text>
-                  </Box>
-                </Group>
+                  </Group>
+                  
+                  {/* Subtitle */}
+                  <Text size="sm" c="dimmed" mt="xs">
+                    İş akışınızı yönetmeye hazır mısınız?
+                  </Text>
+                </Box>
                 
                 {/* Quick action buttons */}
                 <Group gap="xs" mt="xl">
@@ -304,7 +286,7 @@ export default function HomePage() {
               </Box>
             </Box>
             
-            {/* Stats Card */}
+            {/* Ajanda Card */}
             <Box
               style={{
                 position: 'relative',
@@ -319,59 +301,50 @@ export default function HomePage() {
               <Box
                 style={{
                   position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: 200,
-                  height: 200,
-                  background: 'radial-gradient(circle, rgba(34, 197, 94, 0.2) 0%, transparent 70%)',
+                  top: 0,
+                  right: 0,
+                  width: 150,
+                  height: 150,
+                  background: 'radial-gradient(circle, rgba(251, 191, 36, 0.15) 0%, transparent 70%)',
                   filter: 'blur(30px)',
                   pointerEvents: 'none',
                 }}
               />
               
               <Box p="lg" style={{ position: 'relative', zIndex: 1, height: '100%' }}>
-                <Text size="xs" c="dimmed" tt="uppercase" fw={600} mb="md" style={{ letterSpacing: 1 }}>
-                  Sistem Durumu
-                </Text>
+                <Group justify="space-between" mb="md">
+                  <Group gap="xs">
+                    <IconCalendar size={16} color="#fbbf24" />
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={600} style={{ letterSpacing: 1 }}>
+                      Bugünün Ajandası
+                    </Text>
+                  </Group>
+                  <Text size="xs" c="dimmed">{ajandaItems.length} etkinlik</Text>
+                </Group>
                 
-                <Stack gap="md">
-                  {/* İhale stat */}
-                  <Box>
-                    <Group justify="space-between" mb={4}>
-                      <Group gap="xs">
-                        <Box style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }} />
-                        <Text size="xs" c="dimmed">Aktif İhale</Text>
-                      </Group>
-                      <Text size="lg" fw={700} c="white">{activeTenders}</Text>
-                    </Group>
-                    <Progress value={(activeTenders / Math.max(totalTenders, 1)) * 100} color="green" size="xs" radius="xl" />
-                  </Box>
-                  
-                  {/* AI stat */}
-                  <Box>
-                    <Group justify="space-between" mb={4}>
-                      <Group gap="xs">
-                        <Box style={{ width: 8, height: 8, borderRadius: '50%', background: '#a855f7' }} />
-                        <Text size="xs" c="dimmed">AI Analiz</Text>
-                      </Group>
-                      <Text size="lg" fw={700} c="white">{stats?.aiAnalysisCount || 0}</Text>
-                    </Group>
-                    <Progress value={75} color="violet" size="xs" radius="xl" />
-                  </Box>
-                  
-                  {/* Document stat */}
-                  <Box>
-                    <Group justify="space-between" mb={4}>
-                      <Group gap="xs">
-                        <Box style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6' }} />
-                        <Text size="xs" c="dimmed">Döküman</Text>
-                      </Group>
-                      <Text size="lg" fw={700} c="white">{stats?.totalDocuments || 0}</Text>
-                    </Group>
-                    <Progress value={60} color="blue" size="xs" radius="xl" />
-                  </Box>
-                </Stack>
+                <ScrollArea h={140} scrollbarSize={4}>
+                  <Stack gap="xs">
+                    {ajandaItems.map((item, index) => (
+                      <Box 
+                        key={index}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 12,
+                          padding: '8px 10px',
+                          background: 'rgba(255,255,255,0.03)',
+                          borderRadius: 8,
+                          borderLeft: `3px solid var(--mantine-color-${item.color}-6)`,
+                        }}
+                      >
+                        <Text size="xs" fw={600} c="dimmed" style={{ fontFamily: 'monospace', minWidth: 40 }}>
+                          {item.time}
+                        </Text>
+                        <Text size="sm" c="white" lineClamp={1}>{item.title}</Text>
+                      </Box>
+                    ))}
+                  </Stack>
+                </ScrollArea>
               </Box>
             </Box>
           </SimpleGrid>
