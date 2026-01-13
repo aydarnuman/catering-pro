@@ -468,7 +468,7 @@ export default function MuhasebeDashboard() {
           </SimpleGrid>
 
           {/* Quick Stats Bottom */}
-          <SimpleGrid cols={{ base: 2, md: 4 }}>
+          <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }}>
             <Paper withBorder p="md" radius="md">
               <Group>
                 <ThemeIcon color="blue" variant="light" size="xl" radius="md">

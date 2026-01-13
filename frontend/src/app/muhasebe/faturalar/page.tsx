@@ -959,21 +959,31 @@ export default function FaturalarPage() {
           </SimpleGrid>
 
           {/* Filters & Table */}
-          <Card withBorder shadow="sm" p="lg" radius="md">
-            <Group justify="space-between" mb="md">
-              <Tabs value={activeTab} onChange={setActiveTab}>
-                <Tabs.List>
-                  <Tabs.Tab value="tumu">Tümü</Tabs.Tab>
-                  <Tabs.Tab value="manuel">Manuel ({faturalar.length})</Tabs.Tab>
-                  <Tabs.Tab value="uyumsoft" color="violet">
-                    Uyumsoft ({uyumsoftFaturalar.length})
-                  </Tabs.Tab>
-                  <Tabs.Tab value="satis" color="green">Satış</Tabs.Tab>
-                  <Tabs.Tab value="alis" color="orange">Alış</Tabs.Tab>
-                </Tabs.List>
-              </Tabs>
-              <TextInput placeholder="Fatura ara..." leftSection={<IconSearch size={16} />} value={searchTerm} onChange={(e) => setSearchTerm(e.currentTarget.value)} style={{ width: 250 }} />
-            </Group>
+          <Card withBorder shadow="sm" p={{ base: 'sm', sm: 'lg' }} radius="md">
+            <Stack gap="md" mb="md">
+              {/* Tabs with horizontal scroll on mobile */}
+              <ScrollArea type="scroll" offsetScrollbars scrollbarSize={4}>
+                <Tabs value={activeTab} onChange={setActiveTab}>
+                  <Tabs.List style={{ flexWrap: 'nowrap' }}>
+                    <Tabs.Tab value="tumu">Tümü</Tabs.Tab>
+                    <Tabs.Tab value="manuel">Manuel ({faturalar.length})</Tabs.Tab>
+                    <Tabs.Tab value="uyumsoft" color="violet">
+                      Uyumsoft ({uyumsoftFaturalar.length})
+                    </Tabs.Tab>
+                    <Tabs.Tab value="satis" color="green">Satış</Tabs.Tab>
+                    <Tabs.Tab value="alis" color="orange">Alış</Tabs.Tab>
+                  </Tabs.List>
+                </Tabs>
+              </ScrollArea>
+              {/* Search - full width on mobile */}
+              <TextInput 
+                placeholder="Fatura ara..." 
+                leftSection={<IconSearch size={16} />} 
+                value={searchTerm} 
+                onChange={(e) => setSearchTerm(e.currentTarget.value)} 
+                style={{ maxWidth: isMobile ? '100%' : 250 }} 
+              />
+            </Stack>
 
             {/* Tümü Sekmesi - Manuel + Uyumsoft Birleşik */}
             {activeTab === 'tumu' ? (

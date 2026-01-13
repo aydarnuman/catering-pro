@@ -2,6 +2,15 @@
 
 Bu dosya, Cursor AI'a görev verirken kullanılacak standart prompt şablonlarını içerir.
 
+## 🌐 Production Bilgileri
+
+| Özellik | Değer |
+|---------|-------|
+| **Domain** | https://catering-tr.com |
+| **Server** | DigitalOcean Droplet (46.101.172.210) |
+| **DNS/CDN** | Cloudflare |
+| **SSL** | Cloudflare Flexible |
+
 ---
 
 ## 📋 GÖREV VERİRKEN KULLANILACAK ŞABLONLAR

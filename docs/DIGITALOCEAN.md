@@ -8,11 +8,14 @@ Bu döküman Catering Pro'nun DigitalOcean Droplet üzerinde çalıştırılmas�
 
 | Özellik | Değer |
 |---------|-------|
+| **Domain** | https://catering-tr.com |
 | **IP** | 46.101.172.210 |
 | **OS** | Ubuntu 22.04 |
 | **RAM** | 8GB |
 | **Disk** | 160GB SSD |
 | **Region** | Frankfurt (fra1) |
+| **DNS/CDN** | Cloudflare |
+| **SSL** | Cloudflare Flexible |
 
 ---
 
@@ -129,7 +132,7 @@ Dosya: `/etc/nginx/sites-available/catering`
 ```nginx
 server {
     listen 80;
-    server_name 46.101.172.210;
+    server_name catering-tr.com www.catering-tr.com 46.101.172.210;
 
     # Frontend
     location / {
@@ -138,6 +141,9 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
     }
 
@@ -148,6 +154,9 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
     }
 
@@ -201,9 +210,12 @@ ufw enable
 # Lokal makineden
 ./scripts/health-check.sh
 
-# Veya manuel
+# Veya manuel (domain üzerinden)
+curl https://catering-tr.com/health
+curl https://catering-tr.com/api/auth/me
+
+# Veya direkt IP (Cloudflare bypass)
 curl http://46.101.172.210/health
-curl http://46.101.172.210/api/auth/me
 ```
 
 ### Sistem Kaynakları
@@ -302,19 +314,68 @@ scp -i ~/.ssh/procheff_deploy -r ./uploads root@46.101.172.210:/root/catering-pr
 
 ---
 
-## 🔐 SSL Sertifikası (TODO)
+## 🔐 SSL/TLS - Cloudflare Yapılandırması
 
-Domain aldıktan sonra:
+Domain **catering-tr.com** için Cloudflare kullanılıyor.
+
+### Cloudflare Ayarları
+
+| Ayar | Değer | Açıklama |
+|------|-------|----------|
+| **SSL/TLS Mode** | Flexible | Cloudflare → Server HTTP, Client → Cloudflare HTTPS |
+| **Always Use HTTPS** | ON | HTTP'yi HTTPS'e yönlendir |
+| **Automatic HTTPS Rewrites** | ON | Mixed content'i otomatik düzelt |
+
+### DNS Kayıtları (Cloudflare)
+
+| Type | Name | Content | Proxy |
+|------|------|---------|-------|
+| A | @ | 46.101.172.210 | ✅ Proxied |
+| A | www | 46.101.172.210 | ✅ Proxied |
+
+### Neden Flexible Mode?
+
+- Sunucuda SSL sertifikası kurulumu gerektirmez
+- Cloudflare client ile HTTPS üzerinden iletişim kurar
+- Cloudflare ile sunucu arasında HTTP kullanılır
+- Basit ve yönetimi kolay
+
+### Full (Strict) Mode'a Geçiş (İsteğe Bağlı)
+
+Daha güvenli bir yapılandırma için:
 
 ```bash
 # Certbot kur
 apt install certbot python3-certbot-nginx
 
 # SSL al
-certbot --nginx -d yourdomain.com
+certbot --nginx -d catering-tr.com -d www.catering-tr.com
 
 # Otomatik yenileme test
 certbot renew --dry-run
+```
+
+Sonra Cloudflare'da SSL mode'u **Full (Strict)** yapın.
+
+### Mixed Content Hatası Alırsanız
+
+Frontend build sırasında doğru URL kullanıldığından emin olun:
+
+```bash
+# Sunucuda kontrol
+cat /root/catering-pro/frontend/.env.production
+# Çıktı: NEXT_PUBLIC_API_URL=https://catering-tr.com
+
+# .env.local dosyası OLMAMALI!
+ls -la /root/catering-pro/frontend/.env*
+
+# Eğer .env.local varsa silin
+rm -f /root/catering-pro/frontend/.env.local
+
+# Yeniden build
+rm -rf /root/catering-pro/frontend/.next
+cd /root/catering-pro/frontend && npm run build
+pm2 restart catering-frontend
 ```
 
 ---

@@ -33,6 +33,7 @@ import {
   Modal,
   ColorSwatch,
   CheckIcon,
+  ScrollArea,
   rem
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -854,8 +855,8 @@ function AyarlarContent() {
   };
 
   return (
-    <Container size="xl" py="xl">
-      <Stack gap="xl">
+    <Container size="xl" py="xl" style={{ overflow: 'hidden' }}>
+      <Stack gap="xl" style={{ overflow: 'hidden' }}>
         {/* Header */}
         <Group justify="space-between">
           <div>
@@ -866,14 +867,14 @@ function AyarlarContent() {
         </Group>
 
         {/* Main Content */}
-        <Group align="flex-start" gap="xl" wrap="nowrap" style={{ minHeight: '60vh' }}>
+        <Group align="flex-start" gap="xl" wrap={{ base: 'wrap', md: 'nowrap' }} style={{ minHeight: '60vh' }}>
           {/* Sidebar */}
           <Paper 
             p="md" 
             radius="md" 
             withBorder 
             w={280} 
-            style={{ position: 'sticky', top: 80 }}
+            style={{ position: 'sticky', top: 80, flexShrink: 0 }}
             visibleFrom="md"
           >
             <Stack gap="xs">
@@ -933,40 +934,44 @@ function AyarlarContent() {
           </Paper>
 
           {/* Mobile Tabs */}
-          <Box hiddenFrom="md" w="100%">
+          <Box hiddenFrom="md" w="100%" style={{ overflow: 'hidden' }}>
             <Paper p="xs" radius="md" withBorder mb="md">
-              <Group gap="xs" style={{ overflowX: 'auto' }}>
-                {menuItems.filter(m => !m.href).map((item) => (
+              <ScrollArea type="scroll" offsetScrollbars scrollbarSize={4}>
+                <Group gap="xs" wrap="nowrap" style={{ minWidth: 'max-content' }}>
+                  {menuItems.filter(m => !m.href).map((item) => (
+                    <Button
+                      key={item.id}
+                      variant={activeSection === item.id ? 'filled' : 'subtle'}
+                      color={item.color}
+                      size="sm"
+                      leftSection={<item.icon size={16} />}
+                      onClick={() => {
+                        setActiveSection(item.id);
+                        router.push(`/ayarlar?section=${item.id}`);
+                      }}
+                      style={{ flexShrink: 0 }}
+                    >
+                      {item.label}
+                    </Button>
+                  ))}
                   <Button
-                    key={item.id}
-                    variant={activeSection === item.id ? 'filled' : 'subtle'}
-                    color={item.color}
+                    variant="subtle"
+                    color="violet"
                     size="sm"
-                    leftSection={<item.icon size={16} />}
-                    onClick={() => {
-                      setActiveSection(item.id);
-                      router.push(`/ayarlar?section=${item.id}`);
-                    }}
+                    leftSection={<IconRobot size={16} />}
+                    component={Link}
+                    href="/ayarlar/ai"
+                    style={{ flexShrink: 0 }}
                   >
-                    {item.label}
+                    AI
                   </Button>
-                ))}
-                <Button
-                  variant="subtle"
-                  color="violet"
-                  size="sm"
-                  leftSection={<IconRobot size={16} />}
-                  component={Link}
-                  href="/ayarlar/ai"
-                >
-                  AI
-                </Button>
-              </Group>
+                </Group>
+              </ScrollArea>
             </Paper>
           </Box>
 
           {/* Content */}
-          <Box style={{ flex: 1, minWidth: 0 }}>
+          <Box style={{ flex: 1, minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
             {renderContent()}
           </Box>
         </Group>

@@ -457,12 +457,15 @@ export function Navbar() {
                   variant={isAdminPage ? 'filled' : 'subtle'}
                   color={isAdminPage ? 'red' : 'gray'}
                   size={mounted && isMobile ? 'md' : 'lg'}
-                  radius="md"
+                  radius="xl"
                   style={{
-                    transition: 'all 0.2s ease',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    background: isAdminPage 
+                      ? undefined 
+                      : (colorScheme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
                   }}
                 >
-                  <IconShieldLock size={mounted && isMobile ? 18 : 20} />
+                  <IconShieldLock size={mounted && isMobile ? 16 : 18} />
                 </ActionIcon>
               </Tooltip>
             )}
@@ -473,16 +476,20 @@ export function Navbar() {
                 variant="subtle"
                 onClick={() => toggleColorScheme()}
                 size={mounted && isMobile ? 'md' : 'lg'}
-                radius="md"
+                radius="xl"
                 aria-label="Toggle color scheme"
+                color="gray"
                 style={{
-                  transition: 'all 0.2s ease',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  background: colorScheme === 'dark' 
+                    ? 'rgba(255,255,255,0.05)' 
+                    : 'rgba(0,0,0,0.03)',
                 }}
               >
                 {colorScheme === 'dark' ? (
-                  <IconSun size={mounted && isMobile ? 18 : 20} style={{ transition: 'transform 0.3s ease' }} />
+                  <IconSun size={mounted && isMobile ? 16 : 18} style={{ transition: 'transform 0.3s ease' }} />
                 ) : (
-                  <IconMoon size={mounted && isMobile ? 18 : 20} style={{ transition: 'transform 0.3s ease' }} />
+                  <IconMoon size={mounted && isMobile ? 16 : 18} style={{ transition: 'transform 0.3s ease' }} />
                 )}
               </ActionIcon>
             </Tooltip>
@@ -561,13 +568,18 @@ export function Navbar() {
                   <ActionIcon
                     component={Link}
                     href="/giris"
-                    variant="light"
+                    variant="subtle"
                     color="blue"
                     size="md"
-                    radius="md"
-                    style={{ transition: 'all 0.2s ease' }}
+                    radius="xl"
+                    style={{ 
+                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                      background: colorScheme === 'dark' 
+                        ? 'rgba(34, 139, 230, 0.1)' 
+                        : 'rgba(34, 139, 230, 0.08)',
+                    }}
                   >
-                    <IconLogin size={18} />
+                    <IconLogin size={16} />
                   </ActionIcon>
                 </Tooltip>
               ) : (
@@ -576,9 +588,12 @@ export function Navbar() {
                   href="/giris"
                   variant="light"
                   size="sm"
-                  radius="md"
+                  radius="xl"
                   leftSection={<IconLogin size={16} />}
-                  style={{ transition: 'all 0.2s ease' }}
+                  style={{ 
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    fontWeight: 500,
+                  }}
                 >
                   Giriş
                 </Button>

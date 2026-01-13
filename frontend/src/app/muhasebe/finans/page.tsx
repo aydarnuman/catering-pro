@@ -557,8 +557,14 @@ export default function FinansMerkeziPage() {
                       ))}
                       {hareketler.length === 0 && (
                         <Table.Tr>
-                          <Table.Td colSpan={4} ta="center" c="dimmed" py="lg">
-                            Henüz hareket yok
+                          <Table.Td colSpan={4}>
+                            <Center py="xl">
+                              <Stack align="center" gap="xs">
+                                <IconCash size={32} color="var(--mantine-color-dimmed)" />
+                                <Text c="dimmed" size="sm">Henüz hareket yok</Text>
+                                <Text c="dimmed" size="xs">İlk hareketi eklemek için Gelir/Gider butonlarını kullanın</Text>
+                              </Stack>
+                            </Center>
                           </Table.Td>
                         </Table.Tr>
                       )}
@@ -745,8 +751,14 @@ export default function FinansMerkeziPage() {
                   ))}
                   {hareketler.length === 0 && (
                     <Table.Tr>
-                      <Table.Td colSpan={6} ta="center" py="xl" c="dimmed">
-                        Henüz hareket yok
+                      <Table.Td colSpan={6}>
+                        <Center py="xl">
+                          <Stack align="center" gap="xs">
+                            <IconWallet size={40} color="var(--mantine-color-dimmed)" />
+                            <Text c="dimmed" size="sm" fw={500}>Henüz hareket kaydı yok</Text>
+                            <Text c="dimmed" size="xs">Gelir veya gider ekleyerek başlayın</Text>
+                          </Stack>
+                        </Center>
                       </Table.Td>
                     </Table.Tr>
                   )}
@@ -858,8 +870,14 @@ export default function FinansMerkeziPage() {
                   ))}
                   {cekSenetler.length === 0 && (
                     <Table.Tr>
-                      <Table.Td colSpan={7} ta="center" py="xl" c="dimmed">
-                        Henüz çek/senet yok
+                      <Table.Td colSpan={7}>
+                        <Center py="xl">
+                          <Stack align="center" gap="xs">
+                            <IconReceipt size={40} color="var(--mantine-color-dimmed)" />
+                            <Text c="dimmed" size="sm" fw={500}>Henüz çek/senet kaydı yok</Text>
+                            <Text c="dimmed" size="xs">Yeni çek veya senet eklemek için yukarıdaki butonu kullanın</Text>
+                          </Stack>
+                        </Center>
                       </Table.Td>
                     </Table.Tr>
                   )}

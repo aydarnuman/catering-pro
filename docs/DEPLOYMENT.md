@@ -4,7 +4,11 @@
 
 Bu döküman Catering Pro'nun farklı ortamlara deployment sürecini açıklar.
 
-**Mevcut Production:** DigitalOcean Droplet (46.101.172.210)
+**Mevcut Production:**
+- **Domain:** https://catering-tr.com
+- **Server:** DigitalOcean Droplet (46.101.172.210)
+- **SSL:** Cloudflare (Flexible mode)
+- **DNS:** Cloudflare
 
 ---
 
@@ -125,18 +129,23 @@ NODE_ENV=production
 PORT=3001
 ```
 
-### Frontend (.env.local)
+### Frontend (.env.production) - Production için
 ```env
-# API
-NEXT_PUBLIC_API_URL=http://localhost:3001
-
-# Auth
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=random-32-char-string
-
-# Other
-NODE_ENV=production
+# API - Domain üzerinden (Cloudflare proxy)
+NEXT_PUBLIC_API_URL=https://catering-tr.com
+NEXTAUTH_URL=https://catering-tr.com
 ```
+
+### Frontend (.env.local) - Local Development için
+```env
+# API - Localhost
+NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXTAUTH_URL=http://localhost:3000
+```
+
+> ⚠️ **ÖNEMLİ:** Production'da `.env.local` dosyası OLMAMALI!
+> Next.js'de `.env.local` dosyası `.env.production`'dan önceliklidir.
+> Sadece `.env.production` kullanın.
 
 ---
 

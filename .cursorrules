@@ -21,7 +21,12 @@ Hazır yemek sektörü için kurumsal iş yönetim sistemi (ERP-benzeri). ~10 ak
 - **Port:** 3000
 
 ### Deployment
-- **Platform:** Railway (hedef)
+- **Platform:** DigitalOcean Droplet (Ubuntu 22.04)
+- **Domain:** https://catering-tr.com
+- **DNS/CDN:** Cloudflare
+- **SSL:** Cloudflare Flexible
+- **Process Manager:** PM2
+- **Reverse Proxy:** Nginx
 - **Storage:** Supabase Storage / local uploads
 
 ---

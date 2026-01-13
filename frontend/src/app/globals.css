@@ -240,6 +240,20 @@ a {
   outline-offset: 2px;
 }
 
+/* FAB button clearance - prevent content from being hidden */
+@media (max-width: 768px) {
+  /* Add bottom padding to main content for FAB button */
+  .mantine-Container-root,
+  main {
+    padding-bottom: 80px !important;
+  }
+  
+  /* Specific padding for scrollable areas */
+  .mantine-ScrollArea-viewport {
+    padding-bottom: 70px;
+  }
+}
+
 /* Touch-friendly sizes for mobile */
 @media (max-width: 768px) {
   /* Minimum touch target size (44px Apple HIG standard) */
@@ -306,7 +320,36 @@ a {
   
   .mantine-Table-th,
   .mantine-Table-td {
-    padding: 8px 10px;
+    padding: 10px 12px;
+    vertical-align: middle;
+  }
+  
+  /* Standard row height for touch */
+  .mantine-Table-tr {
+    min-height: 48px;
+  }
+  
+  /* Truncate long text in table cells */
+  .mantine-Table-td {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  /* Allow multi-line for specific columns */
+  .mantine-Table-td[data-multiline="true"] {
+    white-space: normal;
+    max-width: none;
+  }
+  
+  /* Better spacing for table headers */
+  .mantine-Table-th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--mantine-color-dimmed);
+    font-weight: 600;
   }
 }
 
