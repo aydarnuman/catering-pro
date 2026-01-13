@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Container,
@@ -126,7 +126,7 @@ const colorOptions = [
   { color: '#fa5252', name: 'Kırmızı', value: 'red' },
 ];
 
-export default function AyarlarPage() {
+function AyarlarContent() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1025,5 +1025,14 @@ export default function AyarlarPage() {
         </Stack>
       </Modal>
     </Container>
+  );
+}
+
+// Suspense wrapper for useSearchParams
+export default function AyarlarPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center' }}>Yükleniyor...</div>}>
+      <AyarlarContent />
+    </Suspense>
   );
 }
