@@ -105,6 +105,7 @@ interface UserPreferences {
 
 // Firma Bilgileri tipi
 interface FirmaBilgileri {
+  id: string;
   unvan: string;
   vergi_dairesi: string;
   vergi_no: string;
@@ -114,10 +115,11 @@ interface FirmaBilgileri {
   yetkili_adi: string;
   yetkili_unvani: string;
   imza_yetkisi: string;
+  varsayilan?: boolean;
 }
 
-// Varsayılan firma bilgileri
-const defaultFirmaBilgileri: FirmaBilgileri = {
+// Yeni firma için boş şablon
+const emptyFirma: Omit<FirmaBilgileri, 'id'> = {
   unvan: '',
   vergi_dairesi: '',
   vergi_no: '',
@@ -127,6 +129,7 @@ const defaultFirmaBilgileri: FirmaBilgileri = {
   yetkili_adi: '',
   yetkili_unvani: '',
   imza_yetkisi: '',
+  varsayilan: false,
 };
 
 // Varsayılan tercihler
@@ -181,8 +184,11 @@ function AyarlarContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   
-  // Firma bilgileri state
-  const [firmaBilgileri, setFirmaBilgileri] = useState<FirmaBilgileri>(defaultFirmaBilgileri);
+  // Firma bilgileri state - çoklu firma desteği
+  const [firmalar, setFirmalar] = useState<FirmaBilgileri[]>([]);
+  const [firmaModalOpened, { open: openFirmaModal, close: closeFirmaModal }] = useDisclosure(false);
+  const [editingFirma, setEditingFirma] = useState<FirmaBilgileri | null>(null);
+  const [firmaFormData, setFirmaFormData] = useState<Omit<FirmaBilgileri, 'id'>>(emptyFirma);
   
   // Modal states
   const [passwordModalOpened, { open: openPasswordModal, close: closePasswordModal }] = useDisclosure(false);
@@ -217,10 +223,26 @@ function AyarlarContent() {
       setPreferences({ ...defaultPreferences, ...JSON.parse(savedPrefs) });
     }
     
-    // LocalStorage'dan firma bilgilerini yükle
-    const savedFirma = localStorage.getItem('firmaBilgileri');
-    if (savedFirma) {
-      setFirmaBilgileri({ ...defaultFirmaBilgileri, ...JSON.parse(savedFirma) });
+    // LocalStorage'dan firmalar listesini yükle
+    const savedFirmalar = localStorage.getItem('firmalar');
+    if (savedFirmalar) {
+      setFirmalar(JSON.parse(savedFirmalar));
+    } else {
+      // Eski tekli firma verisini migration et
+      const oldFirma = localStorage.getItem('firmaBilgileri');
+      if (oldFirma) {
+        const parsed = JSON.parse(oldFirma);
+        if (parsed.unvan) {
+          const migratedFirma: FirmaBilgileri = {
+            id: Date.now().toString(),
+            ...parsed,
+            varsayilan: true,
+          };
+          setFirmalar([migratedFirma]);
+          localStorage.setItem('firmalar', JSON.stringify([migratedFirma]));
+          localStorage.removeItem('firmaBilgileri'); // Eski veriyi temizle
+        }
+      }
     }
   }, [API_URL]);
 
@@ -245,14 +267,108 @@ function AyarlarContent() {
     });
   };
 
-  // Firma bilgilerini kaydet
-  const saveFirmaBilgileri = () => {
-    localStorage.setItem('firmaBilgileri', JSON.stringify(firmaBilgileri));
+  // Firma ekleme/düzenleme modalını aç
+  const handleOpenFirmaModal = (firma?: FirmaBilgileri) => {
+    if (firma) {
+      setEditingFirma(firma);
+      setFirmaFormData({
+        unvan: firma.unvan,
+        vergi_dairesi: firma.vergi_dairesi,
+        vergi_no: firma.vergi_no,
+        adres: firma.adres,
+        telefon: firma.telefon,
+        email: firma.email,
+        yetkili_adi: firma.yetkili_adi,
+        yetkili_unvani: firma.yetkili_unvani,
+        imza_yetkisi: firma.imza_yetkisi,
+        varsayilan: firma.varsayilan,
+      });
+    } else {
+      setEditingFirma(null);
+      setFirmaFormData({ ...emptyFirma, varsayilan: firmalar.length === 0 });
+    }
+    openFirmaModal();
+  };
+
+  // Firma kaydet (ekle veya güncelle)
+  const handleSaveFirma = () => {
+    if (!firmaFormData.unvan.trim()) {
+      notifications.show({
+        title: 'Hata',
+        message: 'Firma ünvanı zorunludur',
+        color: 'red',
+      });
+      return;
+    }
+
+    let updatedFirmalar: FirmaBilgileri[];
+
+    if (editingFirma) {
+      // Güncelleme
+      updatedFirmalar = firmalar.map(f => 
+        f.id === editingFirma.id 
+          ? { ...f, ...firmaFormData }
+          : firmaFormData.varsayilan ? { ...f, varsayilan: false } : f
+      );
+    } else {
+      // Yeni ekleme
+      const newFirma: FirmaBilgileri = {
+        id: Date.now().toString(),
+        ...firmaFormData,
+      };
+      // Eğer yeni firma varsayılan ise, diğerlerinin varsayılanını kaldır
+      if (firmaFormData.varsayilan) {
+        updatedFirmalar = [...firmalar.map(f => ({ ...f, varsayilan: false })), newFirma];
+      } else {
+        updatedFirmalar = [...firmalar, newFirma];
+      }
+    }
+
+    setFirmalar(updatedFirmalar);
+    localStorage.setItem('firmalar', JSON.stringify(updatedFirmalar));
+    closeFirmaModal();
+    
     notifications.show({
       title: 'Kaydedildi',
-      message: 'Firma bilgileriniz güncellendi',
+      message: editingFirma ? 'Firma bilgileri güncellendi' : 'Yeni firma eklendi',
       color: 'green',
       icon: <IconCheck size={16} />
+    });
+  };
+
+  // Firma sil
+  const handleDeleteFirma = (id: string) => {
+    const firma = firmalar.find(f => f.id === id);
+    const updatedFirmalar = firmalar.filter(f => f.id !== id);
+    
+    // Silinen varsayılan ise, ilk firmayı varsayılan yap
+    if (firma?.varsayilan && updatedFirmalar.length > 0) {
+      updatedFirmalar[0].varsayilan = true;
+    }
+    
+    setFirmalar(updatedFirmalar);
+    localStorage.setItem('firmalar', JSON.stringify(updatedFirmalar));
+    
+    notifications.show({
+      title: 'Silindi',
+      message: 'Firma silindi',
+      color: 'orange',
+    });
+  };
+
+  // Varsayılan firmayı değiştir
+  const handleSetVarsayilan = (id: string) => {
+    const updatedFirmalar = firmalar.map(f => ({
+      ...f,
+      varsayilan: f.id === id,
+    }));
+    setFirmalar(updatedFirmalar);
+    localStorage.setItem('firmalar', JSON.stringify(updatedFirmalar));
+    
+    notifications.show({
+      title: 'Güncellendi',
+      message: 'Varsayılan firma değiştirildi',
+      color: 'green',
     });
   };
 
@@ -538,25 +654,130 @@ function AyarlarContent() {
             <div>
               <Title order={3} mb={4}>🏢 Firma Bilgileri</Title>
               <Text c="dimmed" size="sm">
-                Dilekçe ve resmi yazışmalarda kullanılacak şirket bilgilerinizi girin.
-                Bu bilgiler AI asistanı tarafından otomatik kullanılır.
+                Birden fazla firma ekleyebilir ve İhale Uzmanı sayfasında dilekçe hazırlarken seçebilirsiniz.
               </Text>
             </div>
 
-            {/* Temel Bilgiler */}
-            <Paper p="lg" radius="md" withBorder>
+            {/* Firma Ekle Butonu */}
+            <Group justify="space-between">
+              <Text fw={600} size="sm">Kayıtlı Firmalar ({firmalar.length})</Text>
+              <Button
+                leftSection={<IconBuilding size={16} />}
+                onClick={() => handleOpenFirmaModal()}
+                color="teal"
+              >
+                Yeni Firma Ekle
+              </Button>
+            </Group>
+
+            {/* Firma Listesi */}
+            {firmalar.length === 0 ? (
+              <Paper p="xl" radius="md" withBorder ta="center">
+                <IconBuilding size={48} color="var(--mantine-color-gray-5)" style={{ marginBottom: 16 }} />
+                <Text c="dimmed" mb="md">Henüz firma eklenmemiş</Text>
+                <Button
+                  variant="light"
+                  color="teal"
+                  leftSection={<IconBuilding size={16} />}
+                  onClick={() => handleOpenFirmaModal()}
+                >
+                  İlk Firmayı Ekle
+                </Button>
+              </Paper>
+            ) : (
               <Stack gap="md">
-                <Group justify="space-between">
-                  <Text fw={600}>Temel Firma Bilgileri</Text>
-                  <IconBuilding size={18} color="var(--mantine-color-dimmed)" />
+                {firmalar.map((firma) => (
+                  <Paper key={firma.id} p="md" radius="md" withBorder style={{
+                    borderColor: firma.varsayilan ? 'var(--mantine-color-teal-5)' : undefined,
+                    background: firma.varsayilan ? 'rgba(0, 166, 125, 0.03)' : undefined,
+                  }}>
+                    <Group justify="space-between" wrap="nowrap">
+                      <Group gap="md" style={{ flex: 1, minWidth: 0 }}>
+                        <ThemeIcon size="lg" radius="md" variant="light" color={firma.varsayilan ? 'teal' : 'gray'}>
+                          <IconBuilding size={20} />
+                        </ThemeIcon>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <Group gap="xs">
+                            <Text fw={600} truncate>{firma.unvan}</Text>
+                            {firma.varsayilan && (
+                              <Badge size="xs" color="teal" variant="filled">Varsayılan</Badge>
+                            )}
+                          </Group>
+                          <Group gap="xs" mt={4}>
+                            {firma.vergi_no && (
+                              <Text size="xs" c="dimmed">VKN: {firma.vergi_no}</Text>
+                            )}
+                            {firma.yetkili_adi && (
+                              <Text size="xs" c="dimmed">• {firma.yetkili_adi}</Text>
+                            )}
+                          </Group>
+                        </div>
+                      </Group>
+                      <Group gap="xs">
+                        {!firma.varsayilan && (
+                          <Tooltip label="Varsayılan Yap">
+                            <ActionIcon 
+                              variant="light" 
+                              color="teal"
+                              onClick={() => handleSetVarsayilan(firma.id)}
+                            >
+                              <IconCheck size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
+                        <Tooltip label="Düzenle">
+                          <ActionIcon 
+                            variant="light" 
+                            color="blue"
+                            onClick={() => handleOpenFirmaModal(firma)}
+                          >
+                            <IconEdit size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label="Sil">
+                          <ActionIcon 
+                            variant="light" 
+                            color="red"
+                            onClick={() => handleDeleteFirma(firma.id)}
+                          >
+                            <IconX size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                      </Group>
+                    </Group>
+                  </Paper>
+                ))}
+              </Stack>
+            )}
+
+            <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
+              <Text size="sm">
+                <strong>Varsayılan firma</strong> İhale Uzmanı sayfasında otomatik seçilir. 
+                Dilekçe hazırlarken dropdown'dan farklı bir firma da seçebilirsiniz.
+              </Text>
+            </Alert>
+
+            {/* Firma Ekleme/Düzenleme Modalı */}
+            <Modal
+              opened={firmaModalOpened}
+              onClose={closeFirmaModal}
+              title={
+                <Group gap="sm">
+                  <ThemeIcon size="md" radius="md" variant="light" color="teal">
+                    <IconBuilding size={16} />
+                  </ThemeIcon>
+                  <Text fw={600}>{editingFirma ? 'Firma Düzenle' : 'Yeni Firma Ekle'}</Text>
                 </Group>
-                <Divider />
-                
+              }
+              size="lg"
+              centered
+            >
+              <Stack gap="md">
                 <TextInput
                   label="Firma Ünvanı"
                   placeholder="ABC Yemek Hizmetleri Ltd. Şti."
-                  value={firmaBilgileri.unvan}
-                  onChange={(e) => setFirmaBilgileri({ ...firmaBilgileri, unvan: e.currentTarget.value })}
+                  value={firmaFormData.unvan}
+                  onChange={(e) => setFirmaFormData({ ...firmaFormData, unvan: e.currentTarget.value })}
                   leftSection={<IconBuilding size={16} />}
                   required
                 />
@@ -565,35 +786,24 @@ function AyarlarContent() {
                   <TextInput
                     label="Vergi Dairesi"
                     placeholder="Ankara Kurumlar"
-                    value={firmaBilgileri.vergi_dairesi}
-                    onChange={(e) => setFirmaBilgileri({ ...firmaBilgileri, vergi_dairesi: e.currentTarget.value })}
+                    value={firmaFormData.vergi_dairesi}
+                    onChange={(e) => setFirmaFormData({ ...firmaFormData, vergi_dairesi: e.currentTarget.value })}
                     leftSection={<IconId size={16} />}
                   />
                   <TextInput
                     label="Vergi No"
                     placeholder="1234567890"
-                    value={firmaBilgileri.vergi_no}
-                    onChange={(e) => setFirmaBilgileri({ ...firmaBilgileri, vergi_no: e.currentTarget.value })}
+                    value={firmaFormData.vergi_no}
+                    onChange={(e) => setFirmaFormData({ ...firmaFormData, vergi_no: e.currentTarget.value })}
                     leftSection={<IconId size={16} />}
                   />
                 </SimpleGrid>
-              </Stack>
-            </Paper>
 
-            {/* İletişim Bilgileri */}
-            <Paper p="lg" radius="md" withBorder>
-              <Stack gap="md">
-                <Group justify="space-between">
-                  <Text fw={600}>İletişim Bilgileri</Text>
-                  <IconPhone size={18} color="var(--mantine-color-dimmed)" />
-                </Group>
-                <Divider />
-                
                 <TextInput
                   label="Adres"
                   placeholder="Firma adresi"
-                  value={firmaBilgileri.adres}
-                  onChange={(e) => setFirmaBilgileri({ ...firmaBilgileri, adres: e.currentTarget.value })}
+                  value={firmaFormData.adres}
+                  onChange={(e) => setFirmaFormData({ ...firmaFormData, adres: e.currentTarget.value })}
                   leftSection={<IconMapPin size={16} />}
                 />
                 
@@ -601,46 +811,34 @@ function AyarlarContent() {
                   <TextInput
                     label="Telefon"
                     placeholder="0312 XXX XX XX"
-                    value={firmaBilgileri.telefon}
-                    onChange={(e) => setFirmaBilgileri({ ...firmaBilgileri, telefon: e.currentTarget.value })}
+                    value={firmaFormData.telefon}
+                    onChange={(e) => setFirmaFormData({ ...firmaFormData, telefon: e.currentTarget.value })}
                     leftSection={<IconPhone size={16} />}
                   />
                   <TextInput
                     label="E-posta"
                     placeholder="info@firma.com.tr"
-                    value={firmaBilgileri.email}
-                    onChange={(e) => setFirmaBilgileri({ ...firmaBilgileri, email: e.currentTarget.value })}
+                    value={firmaFormData.email}
+                    onChange={(e) => setFirmaFormData({ ...firmaFormData, email: e.currentTarget.value })}
                     leftSection={<IconMail size={16} />}
                   />
                 </SimpleGrid>
-              </Stack>
-            </Paper>
 
-            {/* Yetkili Bilgileri */}
-            <Paper p="lg" radius="md" withBorder>
-              <Stack gap="md">
-                <Group justify="space-between">
-                  <Text fw={600}>Yetkili Bilgileri</Text>
-                  <IconSignature size={18} color="var(--mantine-color-dimmed)" />
-                </Group>
-                <Divider />
-                <Text size="xs" c="dimmed">
-                  Dilekçe ve resmi yazışmalarda imza atacak yetkili kişi bilgileri
-                </Text>
+                <Divider label="Yetkili Bilgileri" labelPosition="center" />
                 
                 <SimpleGrid cols={{ base: 1, sm: 2 }}>
                   <TextInput
                     label="Yetkili Adı Soyadı"
                     placeholder="Ad Soyad"
-                    value={firmaBilgileri.yetkili_adi}
-                    onChange={(e) => setFirmaBilgileri({ ...firmaBilgileri, yetkili_adi: e.currentTarget.value })}
+                    value={firmaFormData.yetkili_adi}
+                    onChange={(e) => setFirmaFormData({ ...firmaFormData, yetkili_adi: e.currentTarget.value })}
                     leftSection={<IconUser size={16} />}
                   />
                   <TextInput
                     label="Yetkili Unvanı"
                     placeholder="Şirket Müdürü"
-                    value={firmaBilgileri.yetkili_unvani}
-                    onChange={(e) => setFirmaBilgileri({ ...firmaBilgileri, yetkili_unvani: e.currentTarget.value })}
+                    value={firmaFormData.yetkili_unvani}
+                    onChange={(e) => setFirmaFormData({ ...firmaFormData, yetkili_unvani: e.currentTarget.value })}
                     leftSection={<IconId size={16} />}
                   />
                 </SimpleGrid>
@@ -648,31 +846,27 @@ function AyarlarContent() {
                 <TextInput
                   label="İmza Yetkisi Açıklaması"
                   placeholder="Şirketi her türlü konuda temsile yetkilidir"
-                  description="İmza sirkülerindeki yetki tanımı"
-                  value={firmaBilgileri.imza_yetkisi}
-                  onChange={(e) => setFirmaBilgileri({ ...firmaBilgileri, imza_yetkisi: e.currentTarget.value })}
+                  value={firmaFormData.imza_yetkisi}
+                  onChange={(e) => setFirmaFormData({ ...firmaFormData, imza_yetkisi: e.currentTarget.value })}
                   leftSection={<IconSignature size={16} />}
                 />
+
+                <Switch
+                  label="Varsayılan firma olarak ayarla"
+                  description="İhale Uzmanı sayfasında otomatik seçilir"
+                  checked={firmaFormData.varsayilan || false}
+                  onChange={(e) => setFirmaFormData({ ...firmaFormData, varsayilan: e.currentTarget.checked })}
+                  color="teal"
+                />
+
+                <Group justify="flex-end" mt="md">
+                  <Button variant="light" onClick={closeFirmaModal}>İptal</Button>
+                  <Button color="teal" onClick={handleSaveFirma} leftSection={<IconCheck size={16} />}>
+                    {editingFirma ? 'Güncelle' : 'Ekle'}
+                  </Button>
+                </Group>
               </Stack>
-            </Paper>
-
-            {/* Kaydet Butonu */}
-            <Group justify="flex-end">
-              <Button
-                leftSection={<IconCheck size={16} />}
-                onClick={saveFirmaBilgileri}
-                color="teal"
-              >
-                Firma Bilgilerini Kaydet
-              </Button>
-            </Group>
-
-            <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
-              <Text size="sm">
-                Bu bilgiler <strong>İhale Uzmanı</strong> sayfasında dilekçe hazırlarken otomatik kullanılır.
-                İhale Uzmanı sayfasında gerekirse farklı bilgiler girebilirsiniz.
-              </Text>
-            </Alert>
+            </Modal>
           </Stack>
         );
 
