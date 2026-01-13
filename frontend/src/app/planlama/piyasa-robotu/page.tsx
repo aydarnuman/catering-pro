@@ -277,17 +277,26 @@ export default function PiyasaRobotuPage() {
   const collectPrices = async () => {
     setLoading(true);
     try {
+      // Mevcut listeden ürün isimlerini al, yoksa default liste kullan
+      const currentItems = prices.length > 0 
+        ? [...new Set(prices.map(p => p.item))] // Unique ürün isimleri
+        : ['domates', 'soğan', 'patates', 'tavuk', 'pirinç', 'bulgur', 'ayçiçek yağı'];
+      
       const res = await fetch(`${API_URL}/planlama/market/collect`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          items: ['domates', 'soğan', 'patates', 'tavuk', 'pirinç', 'bulgur', 'ayçiçek yağı'],
+          items: currentItems.slice(0, 15), // Max 15 ürün (timeout önleme)
           sources: ['trendyol', 'migros']
         })
       });
       const result = await res.json();
       if (result.success) {
-        notifications.show({ title: '✅ Başarılı', message: `${result.prices?.length || 0} fiyat toplandı`, color: 'teal' });
+        notifications.show({ 
+          title: '✅ Başarılı', 
+          message: `${result.prices?.length || 0} fiyat güncellendi (${currentItems.length} ürün)`, 
+          color: 'teal' 
+        });
         await fetchPrices();
         await fetchSources();
       }
@@ -325,6 +334,53 @@ export default function PiyasaRobotuPage() {
       notifications.show({ title: 'Hata', message: error.message || 'Öneri alınamadı', color: 'red' });
     } finally {
       setQuickSearchLoading(false);
+    }
+  };
+
+  // Tek bir ürünün fiyatını güncelle (öneri modalı olmadan direkt)
+  const refreshSingleItem = async (itemName: string, itemId: string) => {
+    // O satırı loading state'ine al
+    setPrices(prev => prev.map(p => 
+      p.id === itemId ? { ...p, availability: 'limited' as const } : p
+    ));
+    
+    try {
+      const res = await fetch(`${API_URL}/planlama/piyasa/hizli-arastir`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urun_adi: itemName })
+      });
+      const result = await res.json();
+      
+      if (result.success && result.piyasa) {
+        // Mevcut ürünü güncelle
+        setPrices(prev => prev.map(p => 
+          p.id === itemId ? {
+            ...p,
+            unitPrice: result.piyasa.min || p.unitPrice,
+            minPrice: result.piyasa.min,
+            avgPrice: result.piyasa.ortalama,
+            lastUpdated: new Date().toLocaleString('tr-TR'),
+            availability: 'available' as const,
+            change: p.unitPrice > 0 
+              ? Number((((result.piyasa.min - p.unitPrice) / p.unitPrice) * 100).toFixed(1))
+              : 0
+          } : p
+        ));
+        notifications.show({ 
+          title: '✅ Güncellendi', 
+          message: `${itemName}: ₺${result.piyasa.min?.toFixed(2) || '—'}`, 
+          color: 'teal' 
+        });
+      } else {
+        throw new Error(result.error || 'Fiyat bulunamadı');
+      }
+    } catch (error: any) {
+      // Hata durumunda eski state'e dön
+      setPrices(prev => prev.map(p => 
+        p.id === itemId ? { ...p, availability: 'available' as const } : p
+      ));
+      notifications.show({ title: 'Hata', message: error.message, color: 'red' });
     }
   };
 
@@ -824,8 +880,8 @@ export default function PiyasaRobotuPage() {
                             variant="light" 
                             color="violet"
                             onClick={() => {
-                              setQuickSearchValue(price.item);
-                              handleQuickSearch();
+                              // Direkt bu ürünün fiyatını güncelle (öneri modalı olmadan)
+                              refreshSingleItem(price.item, price.id);
                             }}
                             title="Fiyat Güncelle"
                           >
