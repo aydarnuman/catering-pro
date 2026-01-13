@@ -658,7 +658,7 @@ Bu ihale bağlamında cevap ver.
 
                       <Box mt="md" p="sm" style={{ background: 'rgba(0,0,0,0.03)', borderRadius: 8 }}>
                         <Text size="xs" fw={500} mb="xs">2025 Yılı Tarife</Text>
-                        <Table size="xs">
+                        <Table>
                           <Table.Tbody>
                             <Table.Tr>
                               <Table.Td>8.447.946 TL&apos;ye kadar</Table.Td>
