@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 import {
   Modal,
   Box,
@@ -143,7 +144,7 @@ export default function TeklifModal({
 
   const fetchExistingTeklif = async (ihaleId: number) => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teklifler/ihale/${ihaleId}`);
+      const res = await fetch(`${API_BASE_URL}/api/teklifler/ihale/${ihaleId}`);
       const data = await res.json();
       if (data.success && data.data) {
         setTeklifData(data.data);
@@ -229,8 +230,8 @@ export default function TeklifModal({
       };
 
       const url = existingTeklifId
-        ? `${process.env.NEXT_PUBLIC_API_URL}/api/teklifler/${existingTeklifId}`
-        : `${process.env.NEXT_PUBLIC_API_URL}/api/teklifler`;
+        ? `${API_BASE_URL}/api/teklifler/${existingTeklifId}`
+        : `${API_BASE_URL}/api/teklifler`;
 
       const method = existingTeklifId ? 'PUT' : 'POST';
 

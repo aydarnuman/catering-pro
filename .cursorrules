@@ -137,6 +137,29 @@ GET /api/tenders?city=Ankara&status=active
 2. Components: `components/ModulAdi/ComponentAdi.tsx`
 3. API calls: fetch + try-catch
 4. Loading states: Her async işlemde
+5. **API URL:** Mutlaka `API_BASE_URL` kullan (config'den import et)
+
+### 🌐 API URL Kullanımı (ÖNEMLİ!)
+
+**ASLA hardcoded URL kullanma:**
+```typescript
+// ❌ YANLIŞ - Hardcoded URL
+const API_URL = 'http://localhost:3001/api';
+fetch('http://localhost:3001/api/cariler');
+
+// ❌ YANLIŞ - process.env direkt kullanımı
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+// ✅ DOĞRU - Merkezi config kullan
+import { API_BASE_URL } from '@/lib/config';
+const API_URL = `${API_BASE_URL}/api`;
+fetch(`${API_BASE_URL}/api/cariler`);
+```
+
+**Neden?**
+- `config.ts` hem local hem production'da otomatik çalışır
+- Build-time değil runtime'da URL belirlenir
+- Tek noktadan yönetim
 
 ---
 
@@ -170,6 +193,7 @@ GET /api/tenders?city=Ankara&status=active
 3. console.log production'da (proper logging)
 4. Senkron dosya işlemleri (async kullan)
 5. Global state (component-level state tercih)
+6. **Hardcoded API URL'ler (`localhost:3001`)** - `API_BASE_URL` kullan!
 
 ---
 

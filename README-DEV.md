@@ -50,17 +50,43 @@ npm run dev
 
 ### Lokal Geliştirme
 
-| Dosya | Kullanım | API URL |
-|-------|----------|---------|
-| `frontend/.env.local` | Frontend Dev | `http://localhost:3001` |
-| `backend/.env` | Backend Dev | (Supabase + Gemini) |
+| Dosya | Kullanım |
+|-------|----------|
+| `backend/.env` | Supabase + Gemini credentials |
 
 ### Production (Sunucu)
 
-| Dosya | Kullanım | API URL |
-|-------|----------|---------|
-| `frontend/.env.local` | Frontend Production | `http://46.101.172.210` |
-| `backend/.env` | Backend Production | (Supabase + Gemini) |
+| Dosya | Kullanım |
+|-------|----------|
+| `backend/.env` | Supabase + Gemini credentials |
+
+> **NOT:** Frontend artık `NEXT_PUBLIC_API_URL` env variable'a ihtiyaç duymuyor. 
+> `config.ts` runtime'da hostname'e göre otomatik belirliyor.
+
+---
+
+## 🌐 API URL Kullanımı (ÖNEMLİ!)
+
+Frontend'de **ASLA** hardcoded URL kullanma:
+
+```typescript
+// ❌ YANLIŞ
+const API_URL = 'http://localhost:3001/api';
+fetch('http://localhost:3001/api/cariler');
+
+// ✅ DOĞRU
+import { API_BASE_URL } from '@/lib/config';
+fetch(`${API_BASE_URL}/api/cariler`);
+```
+
+### Nasıl Çalışıyor?
+
+| Ortam | hostname | API_BASE_URL |
+|-------|----------|--------------|
+| Local | `localhost` | `http://localhost:3001` |
+| Production | `46.101.172.210` | `http://46.101.172.210` |
+
+Hiçbir env dosyası değiştirmene gerek yok - **aynı kod her yerde çalışır!**
 
 ---
 

@@ -194,6 +194,15 @@ Mevcut modüller: İhale takip, Muhasebe, Stok, Personel/Bordro, Menü Planlama
 - [Endpoint 1]
 - [Endpoint 2]
 
+### ⚠️ API URL Kullanımı (ZORUNLU)
+```typescript
+// MUTLAKA config'den import et
+import { API_BASE_URL } from '@/lib/config';
+
+// API çağrılarında kullan
+fetch(`${API_BASE_URL}/api/endpoint`);
+```
+
 ### Responsive
 [ ] Desktop
 [ ] Tablet
