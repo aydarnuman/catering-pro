@@ -6,6 +6,7 @@ import { MantineProvider, ColorSchemeScript, Container, Box } from '@mantine/cor
 import { Notifications } from '@mantine/notifications';
 import { Navbar } from '@/components/Navbar';
 import { ClientLayout } from '@/components/ClientLayout';
+import { AuthProvider } from '@/context/AuthContext';
 
 export const metadata = {
   title: 'Catering Pro - İhale Yönetim Sistemi',
@@ -49,15 +50,17 @@ export default function RootLayout({
             },
           }}
         >
-          <Notifications position="top-right" />
-          <Box style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-            <Navbar />
-            <Box component="main" style={{ flex: 1 }}>
-              <ClientLayout>
-              {children}
-              </ClientLayout>
+          <AuthProvider>
+            <Notifications position="top-right" />
+            <Box style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+              <Navbar />
+              <Box component="main" style={{ flex: 1, paddingTop: 120 }}>
+                <ClientLayout>
+                {children}
+                </ClientLayout>
+              </Box>
             </Box>
-          </Box>
+          </AuthProvider>
         </MantineProvider>
       </body>
     </html>

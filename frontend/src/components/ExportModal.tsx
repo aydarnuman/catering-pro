@@ -26,7 +26,7 @@ import 'dayjs/locale/tr';
 interface ExportModalProps {
   opened: boolean;
   onClose: () => void;
-  type: 'personel' | 'fatura' | 'cari' | 'stok';
+  type: 'personel' | 'fatura' | 'cari' | 'stok' | 'bordro';
   projeler?: { id: number; ad: string }[];
   departmanlar?: string[];
   kategoriler?: string[];
@@ -350,7 +350,7 @@ export function ExportModal({ opened, onClose, type, projeler = [], departmanlar
             leftSection={<IconFileSpreadsheet size={18} />}
             color="green"
             onClick={() => handleExport('excel')}
-            disabled={currentRapor?.needsParam && !selectedParam && currentRapor.needsParam !== 'tarih' && currentRapor.needsParam !== 'donem'}
+            disabled={!!(currentRapor?.needsParam && !selectedParam && currentRapor.needsParam !== 'tarih' && currentRapor.needsParam !== 'donem')}
           >
             Excel
           </Button>
@@ -358,7 +358,7 @@ export function ExportModal({ opened, onClose, type, projeler = [], departmanlar
             leftSection={<IconFileTypePdf size={18} />}
             color="red"
             onClick={() => handleExport('pdf')}
-            disabled={currentRapor?.needsParam && !selectedParam && currentRapor.needsParam !== 'tarih' && currentRapor.needsParam !== 'donem'}
+            disabled={!!(currentRapor?.needsParam && !selectedParam && currentRapor.needsParam !== 'tarih' && currentRapor.needsParam !== 'donem')}
           >
             PDF
           </Button>

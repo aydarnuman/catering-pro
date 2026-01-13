@@ -761,7 +761,7 @@ export default function TrackingPage() {
           opened={teklifOpened}
           onClose={closeTeklif}
           ihaleBasligi={selectedTender.ihale_basligi || 'İsimsiz İhale'}
-          ihaleBedeli={selectedTender.bedel}
+          ihaleBedeli={selectedTender.bedel ? Number(selectedTender.bedel) : undefined}
           birimFiyatlar={selectedTender.analiz_data?.birim_fiyatlar}
         />
       )}

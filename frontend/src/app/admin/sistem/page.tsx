@@ -72,7 +72,7 @@ export default function AdminSistemPage() {
     setLogsLoading(true);
     setLogsError(null);
     try {
-      const res = await fetch(`${API_URL}/api/logs/recent`);
+      const res = await fetch(`${API_URL}/logs/recent`);
       const data = await res.json();
       setLogs(data.data || []);
     } catch (err) {
@@ -291,7 +291,7 @@ export default function AdminSistemPage() {
               color="orange"
               leftSection={<IconDatabase size={16} />}
               rightSection={<IconExternalLink size={14} />}
-              onClick={() => window.open(`${API_URL}/api/stats`, '_blank')}
+              onClick={() => window.open(`${API_URL}/stats`, '_blank')}
             >
               API Stats
             </Button>

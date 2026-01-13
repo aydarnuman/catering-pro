@@ -14,8 +14,31 @@ class AIAgentService {
     this.client = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
-    this.model = "claude-sonnet-4-20250514"; // Claude Sonnet 4
+    this.defaultModel = "claude-sonnet-4-20250514"; // Fallback model
     this.maxIterations = 10; // Sonsuz döngüyü önle
+  }
+
+  /**
+   * Aktif AI modelini veritabanından al
+   */
+  async getActiveModel() {
+    try {
+      const result = await query(`
+        SELECT setting_value FROM ai_settings WHERE setting_key = 'default_model'
+      `);
+      
+      if (result.rows.length > 0 && result.rows[0].setting_value) {
+        const model = result.rows[0].setting_value;
+        // JSON string ise parse et, değilse direkt kullan
+        return typeof model === 'string' && model.startsWith('"') 
+          ? JSON.parse(model) 
+          : model;
+      }
+      return this.defaultModel;
+    } catch (error) {
+      console.error('Model yükleme hatası, varsayılan kullanılıyor:', error.message);
+      return this.defaultModel;
+    }
   }
 
   /**
@@ -101,9 +124,51 @@ class AIAgentService {
   }
 
   /**
-   * Sistem prompt'u oluştur (hafıza ile zenginleştirilmiş)
+   * Veritabanından şablon al
    */
-  async getSystemPrompt(memories = []) {
+  async getTemplateFromDB(templateSlug) {
+    if (!templateSlug || templateSlug === 'default') {
+      return null;
+    }
+    
+    try {
+      const result = await query(`
+        SELECT slug, name, prompt, category, description, preferred_model 
+        FROM ai_prompt_templates 
+        WHERE (slug = $1 OR id::text = $1) AND is_active = TRUE
+      `, [templateSlug]);
+      
+      // Kullanım sayacını artır
+      if (result.rows[0]) {
+        await query(`UPDATE ai_prompt_templates SET usage_count = usage_count + 1 WHERE slug = $1`, [templateSlug]);
+      }
+      
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('Şablon yükleme hatası:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Şablona göre model seç
+   * Şablonun preferred_model'i varsa onu kullan, yoksa global ayarı kullan
+   */
+  async getModelForTemplate(template) {
+    // Şablonun özel modeli varsa onu kullan
+    if (template && template.preferred_model) {
+      console.log(`🎯 [AI Agent] Şablon modeli: ${template.preferred_model}`);
+      return template.preferred_model;
+    }
+    
+    // Yoksa global ayarı kullan
+    return await this.getActiveModel();
+  }
+
+  /**
+   * Sistem prompt'u oluştur (hafıza + şablon ile zenginleştirilmiş)
+   */
+  async getSystemPrompt(memories = [], templatePrompt = null) {
     const context = aiTools.getSystemContext();
     
     // Hafızaları organize et
@@ -124,8 +189,20 @@ ${preferences.map(p => `- ${p.key}: ${p.value}`).join('\n')}
 ${patterns.map(p => `- ${p.key}: ${p.value}`).join('\n')}
 `;
     }
+
+    // Şablon varsa ekle
+    let templateSection = '';
+    if (templatePrompt) {
+      templateSection = `
+## 🎯 AKTİF ŞABLON DAVRANIŞI
+${templatePrompt}
+
+Bu şablona göre yanıtlarını şekillendir. Yukarıdaki yönergeleri takip et.
+`;
+    }
     
     return `Sen bir **Catering Pro AI Asistanı**sın. Türkçe konuşuyorsun.
+${templateSection}
 ${memorySection}
 
 ## KİMLİĞİN
@@ -235,28 +312,43 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
    * Kullanıcı sorusunu işle (Tool Calling ile)
    */
   async processQuery(userMessage, conversationHistory = [], options = {}) {
-    const { sessionId, userId = 'default' } = options;
+    const { sessionId, userId = 'default', templateSlug } = options;
     
     try {
       console.log(`🤖 [AI Agent] Sorgu: "${userMessage.substring(0, 100)}..."`);
+      if (templateSlug) console.log(`📋 [AI Agent] Şablon: ${templateSlug}`);
 
       // 1. Hafızayı yükle
       const memories = await this.loadMemoryContext(userId);
       console.log(`📚 [AI Agent] ${memories.length} hafıza yüklendi`);
 
-      // 2. Önceki konuşmaları yükle (session varsa)
+      // 2. Şablonu yükle (varsa) - preferred_model dahil
+      let templatePrompt = null;
+      let loadedTemplate = null;
+      if (templateSlug && templateSlug !== 'default') {
+        loadedTemplate = await this.getTemplateFromDB(templateSlug);
+        if (loadedTemplate) {
+          templatePrompt = loadedTemplate.prompt;
+          console.log(`🎯 [AI Agent] Şablon yüklendi: ${loadedTemplate.name}`);
+          if (loadedTemplate.preferred_model) {
+            console.log(`🧠 [AI Agent] Şablon özel modeli: ${loadedTemplate.preferred_model}`);
+          }
+        }
+      }
+
+      // 3. Önceki konuşmaları yükle (session varsa)
       let previousConversations = [];
       if (sessionId && conversationHistory.length === 0) {
         previousConversations = await this.loadPreviousConversations(sessionId, 10);
         console.log(`💬 [AI Agent] ${previousConversations.length} önceki konuşma yüklendi`);
       }
 
-      // 3. Kullanıcı mesajını kaydet
+      // 4. Kullanıcı mesajını kaydet
       if (sessionId) {
         await this.saveConversation(sessionId, 'user', userMessage, [], userId);
       }
 
-      // 4. Mesaj geçmişini hazırla
+      // 5. Mesaj geçmişini hazırla
       const messages = [
         ...previousConversations,
         ...conversationHistory,
@@ -270,8 +362,12 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
       let finalResponse = null;
       let toolResults = [];
 
-      // 5. System prompt'u hazırla (hafıza ile)
-      const systemPrompt = await this.getSystemPrompt(memories);
+      // 6. System prompt'u hazırla (hafıza + şablon ile)
+      const systemPrompt = await this.getSystemPrompt(memories, templatePrompt);
+
+      // Modeli seç: Şablonun özel modeli varsa onu kullan, yoksa global ayarı
+      const activeModel = await this.getModelForTemplate(loadedTemplate);
+      console.log(`🧠 [AI Agent] Model: ${activeModel}`);
 
       // Tool calling döngüsü
       while (iteration < this.maxIterations) {
@@ -280,7 +376,7 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
 
         // Claude API çağrısı
         const response = await this.client.messages.create({
-          model: this.model,
+          model: activeModel,
           max_tokens: 4096,
           system: systemPrompt,
           tools: tools,
@@ -340,17 +436,28 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
       }
 
       // 6. Asistan cevabını kaydet
+      let conversationId = null;
       if (sessionId && finalResponse) {
-        await this.saveConversation(
+        const convResult = await this.saveConversation(
           sessionId, 
           'assistant', 
           finalResponse, 
           toolResults.map(t => t.tool), 
           userId
         );
+        conversationId = convResult?.id;
       }
 
-      console.log(`✅ [AI Agent] Cevap hazırlandı (${iteration} iterasyon)`);
+      // 7. Otomatik öğrenme - arka planda çalıştır
+      this.extractLearningFromConversation(userMessage, finalResponse, conversationId)
+        .then(result => {
+          if (result.facts && result.facts.length > 0) {
+            console.log(`📚 [AI Agent] Otomatik öğrenme: ${result.facts.length} fact`);
+          }
+        })
+        .catch(err => console.error('Öğrenme hatası:', err.message));
+
+      console.log(`✅ [AI Agent] Cevap hazırlandı (${iteration} iterasyon, model: ${activeModel})`);
 
       return {
         success: true,
@@ -358,7 +465,9 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
         toolsUsed: toolResults.map(t => t.tool),
         toolResults: toolResults,
         iterations: iteration,
-        sessionId: sessionId
+        sessionId: sessionId,
+        model: activeModel,
+        templateSlug: templateSlug || 'default'
       };
 
     } catch (error) {
@@ -377,8 +486,9 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
    */
   async quickQuery(question) {
     try {
+      const activeModel = await this.getActiveModel();
       const response = await this.client.messages.create({
-        model: this.model,
+        model: activeModel,
         max_tokens: 1024,
         system: 'Sen yardımcı bir asistansın. Kısa ve öz Türkçe cevaplar ver.',
         messages: [{ role: 'user', content: question }]
@@ -415,6 +525,221 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
    */
   getToolDefinitions() {
     return aiTools.getToolDefinitions();
+  }
+
+  /**
+   * Konuşmadan otomatik fact çıkarımı (Öğrenme)
+   * Kullanıcı ile AI konuşmasından önemli bilgileri çıkarır
+   */
+  async extractLearningFromConversation(userMessage, aiResponse, conversationId = null) {
+    try {
+      // Otomatik öğrenme aktif mi kontrol et
+      const settingResult = await query(`
+        SELECT setting_value FROM ai_settings WHERE setting_key = 'auto_learn_enabled'
+      `);
+      const autoLearnEnabled = settingResult.rows[0]?.setting_value ?? true;
+      
+      if (!autoLearnEnabled) {
+        console.log('📚 [AI Learning] Otomatik öğrenme devre dışı');
+        return { success: true, facts: [] };
+      }
+
+      // Fact çıkarımı için prompt
+      const extractionPrompt = `Aşağıdaki kullanıcı mesajı ve AI yanıtından önemli bilgileri çıkar.
+
+KULLANICI: "${userMessage}"
+AI YANIT: "${aiResponse}"
+
+Şu kategorilerde bilgi ara:
+1. **entity** - Şirketler, kişiler, projeler (örn: "ABC Gıda tedarikçimiz", "Ahmet müdürümüz")
+2. **preference** - Kullanıcı tercihleri (örn: "her zaman PDF formatında rapor ister")
+3. **pattern** - Tekrarlayan kalıplar (örn: "KYK siparişleri genelde pazartesi")
+4. **correction** - Düzeltmeler (örn: "Yanlış: X, Doğru: Y")
+
+JSON formatında döndür (boş olabilir):
+{
+  "facts": [
+    {
+      "fact_type": "entity|preference|pattern|correction",
+      "entity_type": "tedarikci|proje|personel|urun|genel",
+      "entity_name": "ABC Gıda",
+      "fact_key": "tip",
+      "fact_value": "ana tedarikçi",
+      "confidence": 0.85
+    }
+  ]
+}
+
+ÖNEMLİ KURALLAR:
+- Sadece yeni ve önemli bilgileri çıkar
+- Confidence 0.6'nın altında olanları dahil etme
+- Genel bilgiler değil, spesifik bilgiler
+- Maksimum 3 fact
+
+Eğer önemli bir bilgi yoksa: {"facts": []}`;
+
+      const response = await this.client.messages.create({
+        model: 'claude-sonnet-4-20250514', // Fact çıkarımı için hızlı model yeterli
+        max_tokens: 500,
+        system: 'Sen bir bilgi çıkarım asistanısın. Sadece JSON formatında yanıt ver.',
+        messages: [{ role: 'user', content: extractionPrompt }]
+      });
+
+      const responseText = response.content[0].text;
+      
+      // JSON parse et
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        return { success: true, facts: [] };
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      const facts = parsed.facts || [];
+
+      if (facts.length === 0) {
+        return { success: true, facts: [] };
+      }
+
+      // Fact'leri veritabanına kaydet
+      for (const fact of facts) {
+        if (fact.confidence >= 0.6) {
+          await query(`
+            INSERT INTO ai_learned_facts 
+            (source_conversation_id, fact_type, entity_type, entity_name, fact_key, fact_value, confidence)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+          `, [
+            conversationId,
+            fact.fact_type,
+            fact.entity_type || 'genel',
+            fact.entity_name || null,
+            fact.fact_key,
+            fact.fact_value,
+            fact.confidence
+          ]);
+        }
+      }
+
+      console.log(`📚 [AI Learning] ${facts.length} fact çıkarıldı ve kaydedildi`);
+
+      return {
+        success: true,
+        facts,
+        message: `${facts.length} yeni bilgi öğrenildi`
+      };
+
+    } catch (error) {
+      console.error('❌ [AI Learning] Hata:', error);
+      return { success: false, error: error.message, facts: [] };
+    }
+  }
+
+  /**
+   * Günlük sistem özeti oluştur
+   */
+  async createDailySnapshot() {
+    try {
+      console.log('📸 [AI Snapshot] Günlük özet oluşturuluyor...');
+
+      // Bugünün snapshot'u var mı?
+      const existingSnapshot = await query(`
+        SELECT id FROM ai_system_snapshot 
+        WHERE snapshot_type = 'daily' 
+        AND DATE(created_at) = CURRENT_DATE
+      `);
+
+      if (existingSnapshot.rows.length > 0) {
+        console.log('📸 [AI Snapshot] Bugünün özeti zaten var');
+        return { success: true, message: 'Bugünün özeti mevcut' };
+      }
+
+      // Sistem verilerini topla
+      const summaries = {};
+
+      // Cari özeti
+      const cariResult = await query(`
+        SELECT 
+          COUNT(*) as toplam,
+          COUNT(CASE WHEN tip = 'musteri' THEN 1 END) as musteri,
+          COUNT(CASE WHEN tip = 'tedarikci' THEN 1 END) as tedarikci,
+          COALESCE(SUM(borc), 0) as toplam_borc,
+          COALESCE(SUM(alacak), 0) as toplam_alacak
+        FROM cariler
+      `);
+      summaries.cariler = cariResult.rows[0];
+
+      // Fatura özeti
+      const faturaResult = await query(`
+        SELECT 
+          COUNT(*) as toplam,
+          COUNT(CASE WHEN fatura_tipi = 'satis' THEN 1 END) as satis,
+          COUNT(CASE WHEN fatura_tipi = 'alis' THEN 1 END) as alis,
+          COALESCE(SUM(toplam_tutar), 0) as toplam_tutar
+        FROM e_faturalar
+        WHERE DATE(fatura_tarihi) >= DATE_TRUNC('month', CURRENT_DATE)
+      `);
+      summaries.faturalar = faturaResult.rows[0];
+
+      // Personel özeti
+      const personelResult = await query(`
+        SELECT 
+          COUNT(*) as toplam,
+          COUNT(CASE WHEN durum = 'aktif' THEN 1 END) as aktif,
+          COALESCE(AVG(maas), 0) as ortalama_maas
+        FROM personeller
+      `);
+      summaries.personel = personelResult.rows[0];
+
+      // İhale özeti
+      const ihaleResult = await query(`
+        SELECT 
+          COUNT(*) as toplam,
+          COUNT(CASE WHEN status IN ('new', 'analyzing') THEN 1 END) as aktif
+        FROM tenders
+        WHERE DATE(tender_date) >= CURRENT_DATE - INTERVAL '30 days'
+      `);
+      summaries.ihaleler = ihaleResult.rows[0];
+
+      // Stok özeti (varsa)
+      try {
+        const stokResult = await query(`
+          SELECT 
+            COUNT(*) as toplam_urun,
+            COUNT(CASE WHEN mevcut_miktar <= minimum_stok THEN 1 END) as kritik
+          FROM stok_kartlari
+        `);
+        summaries.stok = stokResult.rows[0];
+      } catch {
+        summaries.stok = { toplam_urun: 0, kritik: 0 };
+      }
+
+      // AI istatistikleri
+      const aiResult = await query(`
+        SELECT 
+          COUNT(*) as toplam_konusma,
+          COUNT(DISTINCT session_id) as benzersiz_oturum
+        FROM ai_conversations
+        WHERE DATE(created_at) = CURRENT_DATE
+      `);
+      summaries.ai = aiResult.rows[0];
+
+      // Snapshot kaydet
+      await query(`
+        INSERT INTO ai_system_snapshot (snapshot_type, summary_data)
+        VALUES ('daily', $1)
+      `, [JSON.stringify(summaries)]);
+
+      console.log('📸 [AI Snapshot] Günlük özet kaydedildi');
+
+      return {
+        success: true,
+        snapshot: summaries,
+        message: 'Günlük sistem özeti oluşturuldu'
+      };
+
+    } catch (error) {
+      console.error('❌ [AI Snapshot] Hata:', error);
+      return { success: false, error: error.message };
+    }
   }
 }
 

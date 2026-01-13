@@ -42,15 +42,27 @@ import { uyumsoftAPI } from '@/lib/invoice-api';
 
 interface Cari {
   id: number;
+  tip: 'musteri' | 'tedarikci' | 'her_ikisi';
   unvan: string;
-  tip: string;
+  yetkili?: string;
   vergi_no?: string;
+  vergi_dairesi?: string;
   telefon?: string;
   email?: string;
+  adres?: string;
   il?: string;
+  ilce?: string;
   borc: number;
   alacak: number;
   bakiye: number;
+  kredi_limiti?: number;
+  banka_adi?: string;
+  iban?: string;
+  aktif?: boolean;
+  notlar?: string;
+  etiket?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface CariHareket {
@@ -324,14 +336,19 @@ export default function CariDetayModal({ opened, onClose, cari, onEdit, onMutaba
         size="xl"
         title={
           <Group>
-            <ThemeIcon size="lg" variant="light">
+            <ThemeIcon size="lg" variant="light" color={cari.tip === 'musteri' ? 'green' : cari.tip === 'tedarikci' ? 'orange' : 'blue'}>
               <IconUser size={20} />
             </ThemeIcon>
             <div>
               <Text size="lg" fw={600}>{cari.unvan}</Text>
-              <Text size="sm" c="dimmed">
-                {cari.tip === 'musteri' ? 'Müşteri' : cari.tip === 'tedarikci' ? 'Tedarikçi' : 'Her İkisi'}
-              </Text>
+              <Group gap="xs">
+                <Text size="sm" c="dimmed">
+                  {cari.tip === 'musteri' ? 'Müşteri' : cari.tip === 'tedarikci' ? 'Tedarikçi' : 'Her İkisi'}
+                </Text>
+                {cari.etiket && (
+                  <Badge size="sm" variant="light" color="violet">{cari.etiket}</Badge>
+                )}
+              </Group>
             </div>
           </Group>
         }
@@ -475,11 +492,25 @@ export default function CariDetayModal({ opened, onClose, cari, onEdit, onMutaba
               </Card>
 
               <Card withBorder>
-                <Title order={5} mb="md">İletişim Bilgileri</Title>
+                <Title order={5} mb="md">Cari Bilgileri</Title>
                 <SimpleGrid cols={2}>
+                  {cari.etiket && (
+                    <div>
+                      <Text size="sm" c="dimmed">Etiket/Kategori</Text>
+                      <Badge variant="light" color="violet">{cari.etiket}</Badge>
+                    </div>
+                  )}
+                  <div>
+                    <Text size="sm" c="dimmed">Yetkili</Text>
+                    <Text size="sm" fw={500}>{cari.yetkili || '-'}</Text>
+                  </div>
                   <div>
                     <Text size="sm" c="dimmed">Vergi No</Text>
                     <Text size="sm" fw={500}>{cari.vergi_no || '-'}</Text>
+                  </div>
+                  <div>
+                    <Text size="sm" c="dimmed">Vergi Dairesi</Text>
+                    <Text size="sm" fw={500}>{cari.vergi_dairesi || '-'}</Text>
                   </div>
                   <div>
                     <Text size="sm" c="dimmed">Telefon</Text>
@@ -490,9 +521,17 @@ export default function CariDetayModal({ opened, onClose, cari, onEdit, onMutaba
                     <Text size="sm" fw={500}>{cari.email || '-'}</Text>
                   </div>
                   <div>
-                    <Text size="sm" c="dimmed">Şehir</Text>
-                    <Text size="sm" fw={500}>{cari.il || '-'}</Text>
+                    <Text size="sm" c="dimmed">Şehir / İlçe</Text>
+                    <Text size="sm" fw={500}>
+                      {cari.il ? `${cari.il}${cari.ilce ? ` / ${cari.ilce}` : ''}` : '-'}
+                    </Text>
                   </div>
+                  {cari.adres && (
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <Text size="sm" c="dimmed">Adres</Text>
+                      <Text size="sm" fw={500}>{cari.adres}</Text>
+                    </div>
+                  )}
                 </SimpleGrid>
               </Card>
             </Stack>

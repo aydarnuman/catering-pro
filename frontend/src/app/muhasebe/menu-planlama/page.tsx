@@ -167,6 +167,7 @@ interface OgunYapisi {
   max_cesit: number | null;
   zorunlu_kategoriler: string[] | null;
   aciklama: string | null;
+  aktif?: boolean;
 }
 
 interface Kurum {
@@ -1551,7 +1552,7 @@ export default function MenuPlanlamaPage() {
                                       if (res.ok) {
                                         // Proje şartnamesini yeniden yükle
                                         if (secilenProje) {
-                                          await fetchProjeSartnamesi(parseInt(secilenProje));
+                                          await fetchProjeSartnamesi(secilenProje);
                                         }
                                         notifications.show({
                                           title: !yapisi.aktif ? '✅ Aktif' : '❌ Pasif',

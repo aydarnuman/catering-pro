@@ -903,7 +903,7 @@ export function BordroImportModal({
                     </Text>
                   </Group>
                   
-                  <Table size="xs" withTableBorder>
+                  <Table withTableBorder fz="xs">
                     <Table.Thead>
                       <Table.Tr>
                         <Table.Th>Alan</Table.Th>
@@ -1024,7 +1024,7 @@ export function BordroImportModal({
                   </Text>
                 </Box>
                 <ScrollArea h={200}>
-                  <Table striped highlightOnHover size="sm">
+                  <Table striped highlightOnHover fz="sm">
                     <Table.Thead>
                       <Table.Tr>
                         <Table.Th>
@@ -1095,7 +1095,7 @@ export function BordroImportModal({
                   </Group>
                 </Box>
                 <ScrollArea h={150}>
-                  <Table striped size="sm">
+                  <Table striped fz="sm">
                     <Table.Thead>
                       <Table.Tr>
                         <Table.Th>Personel</Table.Th>

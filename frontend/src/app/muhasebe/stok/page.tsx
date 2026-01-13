@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import {
   Container,
   Title,
@@ -120,9 +120,14 @@ interface Depo {
   kod: string;
   ad: string;
   tip: string;
+  tur?: string;
   lokasyon?: string;
+  adres?: string;
   sorumlu_kisi?: string;
   telefon?: string;
+  email?: string;
+  yetkili?: string;
+  kapasite_m3?: number;
   urun_sayisi?: number;
   toplam_deger?: number;
   kritik_urun?: number;
@@ -147,7 +152,7 @@ interface Birim {
 
 const COLORS = ['#4dabf7', '#51cf66', '#ff922b', '#ff6b6b', '#845ef7', '#339af0', '#20c997', '#f06595'];
 
-export default function StokPage() {
+function StokPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { colorScheme } = useMantineColorScheme();
@@ -197,7 +202,7 @@ export default function StokPage() {
   
   // Depo yönetimi state'leri
   const [depoModalOpened, setDepoModalOpened] = useState(false);
-  const [editingDepo, setEditingDepo] = useState(null);
+  const [editingDepo, setEditingDepo] = useState<Depo | null>(null);
   const [depoForm, setDepoForm] = useState({
     ad: '',
     kod: '',
@@ -252,7 +257,7 @@ export default function StokPage() {
   const [kalemEslestirme, setKalemEslestirme] = useState<{[key: number]: number | null}>({});
 
   // Depo yönetimi fonksiyonları
-  const handleEditDepo = (depoId) => {
+  const handleEditDepo = (depoId: number) => {
     const depo = depolar.find(d => d.id === depoId);
     if (depo) {
       setEditingDepo(depo);
@@ -310,10 +315,10 @@ export default function StokPage() {
       });
       
       await loadData();
-    } catch (error) {
+    } catch (error: any) {
       notifications.show({
         title: 'Hata',
-        message: error.message,
+        message: error?.message || 'Bir hata oluştu',
         color: 'red'
       });
     } finally {
@@ -321,7 +326,7 @@ export default function StokPage() {
     }
   };
 
-  const handleDeleteDepo = async (depoId) => {
+  const handleDeleteDepo = async (depoId: number) => {
     if (!confirm('Bu depoyu silmek istediğinizden emin misiniz?')) return;
     
     try {
@@ -342,7 +347,7 @@ export default function StokPage() {
       });
 
       await loadData();
-    } catch (error) {
+    } catch (error: any) {
       notifications.show({
         title: 'Hata',
         message: error.message,
@@ -564,7 +569,7 @@ export default function StokPage() {
       if (result.success) {
         setFaturalar(result.data);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Fatura yükleme hatası:', error);
     } finally {
       setFaturaLoading(false);
@@ -586,7 +591,7 @@ export default function StokPage() {
         });
         setKalemEslestirme(eslestirmeler);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Fatura kalem hatası:', error);
       notifications.show({
         title: 'Hata',
@@ -684,7 +689,7 @@ export default function StokPage() {
       if (result.success) {
         setStokAramaSonuclari(result.data);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Stok arama hatası:', error);
     }
   };
@@ -933,7 +938,7 @@ export default function StokPage() {
       if (result.success) {
         setHareketler(result.data || []);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Hareketler yükleme hatası:', error);
     } finally {
       setHareketlerLoading(false);
@@ -954,7 +959,7 @@ export default function StokPage() {
         });
         setSayimVerileri(initialSayim);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Sayım verileri yükleme hatası:', error);
     }
   };
@@ -969,7 +974,6 @@ export default function StokPage() {
     setLoading(true);
     try {
       // Her ürün için fark varsa hareket oluştur
-      const stoklar = selectedDepo ? depoStoklar : stoklar;
       let islemSayisi = 0;
 
       for (const item of filteredStoklar) {
@@ -1047,7 +1051,7 @@ export default function StokPage() {
               });
             }
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error('Fatura yükleme hatası:', error);
         } finally {
           setFaturaLoading(false);
@@ -1206,7 +1210,7 @@ export default function StokPage() {
           </Menu>
           <DataActions 
             type="stok" 
-            onImportSuccess={() => fetchStokKartlari()}
+            onImportSuccess={() => loadData()}
             kategoriler={kategoriler.map(k => k.ad)}
           />
         </Group>
@@ -1489,7 +1493,7 @@ export default function StokPage() {
                       <Table.Th>Birim Fiyat</Table.Th>
                       <Table.Th>Durum</Table.Th>
                       <Table.Th>Değer</Table.Th>
-                      <Table.Th width={120}>İşlemler</Table.Th>
+                      <Table.Th style={{ width: 120 }}>İşlemler</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
@@ -1618,7 +1622,7 @@ export default function StokPage() {
             value={depoForm.kod}
             onChange={(e) => setDepoForm({ ...depoForm, kod: e.target.value })}
             required
-            disabled={editingDepo}
+            disabled={!!editingDepo}
           />
           <Select
             label="Depo Türü"
@@ -1629,7 +1633,7 @@ export default function StokPage() {
               { value: 'sebze', label: 'Sebze/Meyve Deposu' }
             ]}
             value={depoForm.tur}
-            onChange={(value) => setDepoForm({ ...depoForm, tur: value })}
+            onChange={(value) => setDepoForm({ ...depoForm, tur: value || 'genel' })}
           />
           <TextInput
             label="Yetkili"
@@ -1660,7 +1664,7 @@ export default function StokPage() {
             label="Kapasite (m³)"
             placeholder="0"
             value={depoForm.kapasite_m3}
-            onChange={(value) => setDepoForm({ ...depoForm, kapasite_m3: value })}
+            onChange={(value) => setDepoForm({ ...depoForm, kapasite_m3: typeof value === 'number' ? value : 0 })}
             min={0}
           />
         </SimpleGrid>
@@ -2063,7 +2067,7 @@ export default function StokPage() {
           <Select
             label="Birim"
             placeholder="Birim seçin"
-            data={birimler.map(b => ({ value: b.id.toString(), label: `${b.ad} (${b.kisaltma})` }))}
+            data={birimler.map(b => ({ value: b.id.toString(), label: `${b.ad} (${b.kisa_ad})` }))}
             value={urunForm.ana_birim_id}
             onChange={(value) => setUrunForm({ ...urunForm, ana_birim_id: value || '' })}
             required
@@ -2280,7 +2284,7 @@ export default function StokPage() {
                             // Fatura kaleminden stok kartı oluştur
                             try {
                               const birimId = birimler.find(b => 
-                                b.kisaltma === (kalem.birim === 'KGM' ? 'kg' : 'adet') ||
+                                b.kisa_ad === (kalem.birim === 'KGM' ? 'kg' : 'adet') ||
                                 b.kod === (kalem.birim === 'KGM' ? 'KG' : 'ADET')
                               )?.id || birimler[0]?.id;
                               
@@ -2347,5 +2351,16 @@ export default function StokPage() {
         )}
       </Modal>
     </Container>
+  );
+}
+
+// Next.js 15 requires Suspense wrapper for useSearchParams
+import { Loader, Center } from '@mantine/core';
+
+export default function StokPage() {
+  return (
+    <Suspense fallback={<Center h="50vh"><Loader size="lg" /></Center>}>
+      <StokPageContent />
+    </Suspense>
   );
 }

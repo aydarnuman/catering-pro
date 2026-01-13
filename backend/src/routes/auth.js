@@ -258,7 +258,7 @@ router.get('/me', async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
     
     const result = await query(
-      'SELECT id, email, name, role FROM users WHERE id = $1 AND is_active = true',
+      'SELECT id, email, name, role, created_at FROM users WHERE id = $1 AND is_active = true',
       [decoded.id]
     );
     
@@ -274,6 +274,343 @@ router.get('/me', async (req, res) => {
   } catch (error) {
     console.error('Auth hatası:', error);
     res.status(401).json({ error: 'Geçersiz token' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/profile:
+ *   put:
+ *     summary: Profil güncelleme
+ *     description: Kullanıcının kendi profil bilgilerini günceller
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: "Ahmet Yılmaz"
+ *     responses:
+ *       200:
+ *         description: Profil güncellendi
+ *       401:
+ *         description: Token gerekli veya geçersiz
+ */
+router.put('/profile', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Token gerekli' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const { name } = req.body;
+    
+    if (!name || name.trim().length < 2) {
+      return res.status(400).json({ error: 'Geçerli bir isim girin (en az 2 karakter)' });
+    }
+    
+    const result = await query(`
+      UPDATE users 
+      SET name = $1, updated_at = NOW()
+      WHERE id = $2 AND is_active = true
+      RETURNING id, email, name, role, created_at
+    `, [name.trim(), decoded.id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profil güncellendi',
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('Profil güncelleme hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/password:
+ *   put:
+ *     summary: Şifre değiştirme
+ *     description: Kullanıcının kendi şifresini değiştirir
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 format: password
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *                 minLength: 6
+ *     responses:
+ *       200:
+ *         description: Şifre değiştirildi
+ *       400:
+ *         description: Mevcut şifre yanlış veya yeni şifre geçersiz
+ *       401:
+ *         description: Token gerekli veya geçersiz
+ */
+router.put('/password', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Token gerekli' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Mevcut ve yeni şifre gerekli' });
+    }
+    
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Yeni şifre en az 6 karakter olmalı' });
+    }
+    
+    // Mevcut kullanıcıyı ve şifresini al
+    const userResult = await query(
+      'SELECT id, password_hash FROM users WHERE id = $1 AND is_active = true',
+      [decoded.id]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Mevcut şifreyi doğrula
+    const validPassword = await bcrypt.compare(currentPassword, user.password_hash);
+    
+    if (!validPassword) {
+      return res.status(400).json({ error: 'Mevcut şifre yanlış' });
+    }
+    
+    // Yeni şifreyi hashle
+    const salt = await bcrypt.genSalt(10);
+    const newPasswordHash = await bcrypt.hash(newPassword, salt);
+    
+    // Şifreyi güncelle
+    await query(`
+      UPDATE users 
+      SET password_hash = $1, updated_at = NOW()
+      WHERE id = $2
+    `, [newPasswordHash, decoded.id]);
+    
+    res.json({
+      success: true,
+      message: 'Şifre başarıyla değiştirildi'
+    });
+    
+  } catch (error) {
+    console.error('Şifre değiştirme hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========== ADMIN ENDPOINTS ==========
+
+/**
+ * @swagger
+ * /api/auth/users:
+ *   get:
+ *     summary: Tüm kullanıcıları listele (Admin)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/users', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Token gerekli' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    
+    // Admin kontrolü
+    if (decoded.role !== 'admin') {
+      return res.status(403).json({ error: 'Bu işlem için admin yetkisi gerekli' });
+    }
+    
+    const result = await query(`
+      SELECT id, email, name, role, is_active, created_at, updated_at
+      FROM users
+      ORDER BY created_at DESC
+    `);
+    
+    res.json({
+      success: true,
+      users: result.rows
+    });
+    
+  } catch (error) {
+    console.error('Kullanıcı listeleme hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/users/{id}:
+ *   put:
+ *     summary: Kullanıcı güncelle (Admin)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.put('/users/:id', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Token gerekli' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    
+    // Admin kontrolü
+    if (decoded.role !== 'admin') {
+      return res.status(403).json({ error: 'Bu işlem için admin yetkisi gerekli' });
+    }
+    
+    const { id } = req.params;
+    const { name, email, password, role, is_active } = req.body;
+    
+    // Şifre değişikliği varsa hashle
+    let passwordHash = null;
+    if (password && password.length >= 6) {
+      const salt = await bcrypt.genSalt(10);
+      passwordHash = await bcrypt.hash(password, salt);
+    }
+    
+    // Kullanıcıyı güncelle
+    const updateFields = [];
+    const values = [];
+    let paramCount = 1;
+    
+    if (name) {
+      updateFields.push(`name = $${paramCount++}`);
+      values.push(name);
+    }
+    if (email) {
+      updateFields.push(`email = $${paramCount++}`);
+      values.push(email);
+    }
+    if (passwordHash) {
+      updateFields.push(`password_hash = $${paramCount++}`);
+      values.push(passwordHash);
+    }
+    if (role) {
+      updateFields.push(`role = $${paramCount++}`);
+      values.push(role);
+    }
+    if (typeof is_active === 'boolean') {
+      updateFields.push(`is_active = $${paramCount++}`);
+      values.push(is_active);
+    }
+    
+    updateFields.push('updated_at = NOW()');
+    values.push(id);
+    
+    const result = await query(`
+      UPDATE users SET ${updateFields.join(', ')}
+      WHERE id = $${paramCount}
+      RETURNING id, email, name, role, is_active, created_at
+    `, values);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Kullanıcı güncellendi',
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('Kullanıcı güncelleme hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/users/{id}:
+ *   delete:
+ *     summary: Kullanıcı sil (Admin)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.delete('/users/:id', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Token gerekli' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    
+    // Admin kontrolü
+    if (decoded.role !== 'admin') {
+      return res.status(403).json({ error: 'Bu işlem için admin yetkisi gerekli' });
+    }
+    
+    const { id } = req.params;
+    
+    // Kendini silemesin
+    if (parseInt(id) === decoded.id) {
+      return res.status(400).json({ error: 'Kendinizi silemezsiniz' });
+    }
+    
+    const result = await query(
+      'DELETE FROM users WHERE id = $1 RETURNING id, email',
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Kullanıcı silindi',
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('Kullanıcı silme hatası:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 

@@ -19,7 +19,6 @@ import {
   Card,
   ThemeIcon,
   Tooltip,
-  Switch,
   Collapse,
   Box
 } from '@mantine/core';
@@ -39,8 +38,14 @@ import {
   IconFileInvoice,
   IconUsers,
   IconClipboardList,
-  IconChartBar
+  IconChartBar,
+  IconThumbUp,
+  IconThumbDown,
+  IconCheck
 } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 // Tip tanımları
 interface ChatMessage {
@@ -53,10 +58,14 @@ interface ChatMessage {
 }
 
 interface PromptTemplate {
-  id: string;
+  id: number;
+  slug: string;
   name: string;
   description: string;
   category: string;
+  icon: string;
+  color: string;
+  is_active: boolean;
 }
 
 interface AIChatProps {
@@ -98,10 +107,10 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false }: 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [useAgent, setUseAgent] = useState(true); // Varsayılan olarak Agent kullan
-  const [selectedPrompt, setSelectedPrompt] = useState('default');
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('default');
   const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
+  const [feedbackGiven, setFeedbackGiven] = useState<Set<string>>(new Set()); // Feedback verilen mesajlar
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Session ID - tarayıcı oturumu boyunca aynı kalır, hafıza için kullanılır
@@ -166,21 +175,67 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false }: 
     ]
   };
 
-  const suggestedQuestions = departmentQuestions[defaultDepartment] || departmentQuestions['TÜM SİSTEM'];
+  // Şablona göre önerilen sorular
+  const templateQuestions: { [key: string]: string[] } = {
+    'default': [
+      '📊 Bu ay KYK için ne kadar harcama yapıldı?',
+      '📦 Bekleyen siparişler hangileri?',
+      '🏆 En çok alım yaptığımız tedarikçi kim?',
+      '📋 Yaklaşan ihaleler neler?'
+    ],
+    'cfo-analiz': [
+      '📈 Aylık gelir-gider karşılaştırması yap',
+      '💰 Nakit akış durumunu analiz et',
+      '📊 Karlılık oranlarını hesapla',
+      '🔮 Önümüzdeki 3 ay için bütçe tahmini yap'
+    ],
+    'risk-uzman': [
+      '⚠️ Vadesi geçen alacakları listele',
+      '🔴 Kritik stok seviyesindeki ürünler hangileri?',
+      '💳 Ödenmemiş faturaları risk sırasına göre göster',
+      '📉 Mali risk analizi yap'
+    ],
+    'ihale-uzman': [
+      '📋 Yaklaşan ihale son başvuru tarihlerini listele',
+      '🎯 Kazanma şansı yüksek ihaleleri analiz et',
+      '📊 İhale başarı oranımızı hesapla',
+      '🏢 Rakip firma analizi yap'
+    ],
+    'hizli-yanit': [
+      '💰 Toplam borç ne kadar?',
+      '📦 Stok durumu?',
+      '👥 Personel sayısı?',
+      '📈 Bugünkü satışlar?'
+    ],
+    'strateji-danismani': [
+      '🎯 SWOT analizi yap',
+      '📊 Pazar payı değerlendirmesi',
+      '🚀 Büyüme fırsatlarını belirle',
+      '📋 Yıllık hedef takibi'
+    ]
+  };
+
+  // Seçili şablona göre önerileri al
+  const suggestedQuestions = templateQuestions[selectedTemplate] || templateQuestions['default'];
   const quickCommands = departmentCommands[defaultDepartment] || departmentCommands['TÜM SİSTEM'];
 
   // Prompt şablonlarını yükle
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/ai/templates');
+        console.log('🔄 Fetching templates from:', `${API_URL}/ai/templates`);
+        const response = await fetch(`${API_URL}/ai/templates`);
         const data = await response.json();
         
-        if (data.success) {
-          setPromptTemplates(data.templates);
+        console.log('📦 Templates response:', data);
+        
+        if (data.success && data.templates) {
+          const activeTemplates = data.templates.filter((t: PromptTemplate) => t.is_active);
+          console.log('✅ Active templates:', activeTemplates.length, activeTemplates);
+          setPromptTemplates(activeTemplates);
         }
       } catch (error) {
-        console.error('Failed to fetch templates:', error);
+        console.error('❌ Failed to fetch templates:', error);
       }
     };
 
@@ -191,6 +246,39 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false }: 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Seçili şablonun bilgilerini al
+  const currentTemplate = promptTemplates.find(t => t.slug === selectedTemplate) || promptTemplates[0];
+
+  // Feedback gönder
+  const sendFeedback = async (messageId: string, messageContent: string, aiResponse: string, isPositive: boolean) => {
+    if (feedbackGiven.has(messageId)) return;
+    
+    try {
+      await fetch(`${API_URL}/ai/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rating: isPositive ? 5 : 1,
+          feedbackType: isPositive ? 'helpful' : 'not_helpful',
+          messageContent,
+          aiResponse,
+          templateSlug: selectedTemplate
+        })
+      });
+      
+      setFeedbackGiven(prev => new Set([...prev, messageId]));
+      
+      notifications.show({
+        title: isPositive ? '👍 Teşekkürler!' : '👎 Geri bildirim alındı',
+        message: isPositive ? 'Olumlu geri bildiriminiz kaydedildi' : 'İyileştirme için çalışacağız',
+        color: isPositive ? 'green' : 'orange',
+        icon: <IconCheck size={16} />
+      });
+    } catch (error) {
+      console.error('Feedback error:', error);
+    }
+  };
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
@@ -213,21 +301,17 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false }: 
         content: m.content
       }));
 
-      // AI Agent veya Chat endpoint'i kullan
-      const endpoint = useAgent ? '/api/ai/agent' : '/api/ai/chat';
-      const body = useAgent 
-        ? { 
-            message: userMessage.content, 
-            history,
-            sessionId,           // Hafıza için session ID
-            department: defaultDepartment  // Departman bilgisi
-          }
-        : { question: userMessage.content, department: defaultDepartment, promptTemplate: selectedPrompt };
-
-      const response = await fetch(`http://localhost:3001${endpoint}`, {
+      // AI Agent endpoint'i kullan - şablon bilgisi ile
+      const response = await fetch(`${API_URL}/ai/agent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify({
+          message: userMessage.content,
+          history,
+          sessionId,
+          department: defaultDepartment,
+          templateSlug: selectedTemplate  // Şablon slug'ı gönder
+        })
       });
 
       const data = await response.json();
@@ -246,6 +330,12 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false }: 
       };
 
       setMessages(prev => [...prev, aiMessage]);
+
+      // Şablon kullanım sayacını artır
+      if (selectedTemplate && selectedTemplate !== 'default') {
+        fetch(`${API_URL}/ai/templates/${selectedTemplate}/increment-usage`, { method: 'POST' }).catch(() => {});
+      }
+
     } catch (error) {
       console.error('AI API Error:', error);
       const errorMessage: ChatMessage = {
@@ -284,9 +374,35 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false }: 
     });
   };
 
+  // Şablon seçici - Select data formatı
+  const templateSelectData = promptTemplates.map(t => ({
+    value: t.slug,
+    label: `${t.icon} ${t.name.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, '')}`
+  }));
+
   if (compact) {
     return (
       <Stack gap={0} h="100%" style={{ display: 'flex', flexDirection: 'column' }}>
+        {/* Compact Header with Template Select */}
+        <Box p="xs" style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
+          <Group gap="xs" justify="space-between">
+            <Group gap="xs">
+              <IconBrain size={16} color="var(--mantine-color-violet-6)" />
+              <Text size="xs" fw={500}>AI Agent</Text>
+            </Group>
+            <Select
+              data={templateSelectData}
+              value={selectedTemplate}
+              onChange={(value) => setSelectedTemplate(value || 'default')}
+              size="xs"
+              w={130}
+              placeholder="Şablon"
+              styles={{ input: { fontSize: 11 } }}
+              comboboxProps={{ withinPortal: true, zIndex: 10000 }}
+            />
+          </Group>
+        </Box>
+
         {/* Messages Area */}
         <ScrollArea flex={1} p="sm" style={{ minHeight: 0 }}>
           <Stack gap="sm">
@@ -411,27 +527,21 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false }: 
           </Group>
           
           <Group gap="md">
+            {/* Şablon Seçici */}
             <Group gap="xs">
-              <Text size="xs" c="dimmed">Agent Modu</Text>
-              <Switch
-                checked={useAgent}
-                onChange={(e) => setUseAgent(e.currentTarget.checked)}
-                color="violet"
-                size="sm"
+              <Text size="xs" c="dimmed">Şablon:</Text>
+              <Select
+                data={templateSelectData}
+                value={selectedTemplate}
+                onChange={(value) => setSelectedTemplate(value || 'default')}
+                size="xs"
+                w={180}
+                placeholder="Şablon seçin"
+                leftSection={currentTemplate?.icon ? <Text size="sm">{currentTemplate.icon}</Text> : undefined}
               />
             </Group>
             
-            {!useAgent && (
-              <Select
-                data={promptTemplates.map(t => ({ value: t.id, label: t.name }))}
-                value={selectedPrompt}
-                onChange={(value) => setSelectedPrompt(value || 'default')}
-                size="xs"
-                w={150}
-              />
-            )}
-            
-            <Tooltip label="Ayarlar">
+            <Tooltip label="AI Ayarları">
               <ActionIcon variant="subtle" color="gray" component="a" href="/ayarlar/ai">
                 <IconSettings size={16} />
               </ActionIcon>
@@ -443,6 +553,19 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false }: 
             </Tooltip>
           </Group>
         </Group>
+
+        {/* Seçili şablon bilgisi */}
+        {currentTemplate && selectedTemplate !== 'default' && (
+          <Paper p="xs" bg="violet.0" radius="sm">
+            <Group gap="xs">
+              <Text size="lg">{currentTemplate.icon}</Text>
+              <div>
+                <Text size="sm" fw={500}>{currentTemplate.name.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, '')}</Text>
+                <Text size="xs" c="dimmed">{currentTemplate.description}</Text>
+              </div>
+            </Group>
+          </Paper>
+        )}
 
         <Divider />
 
@@ -575,6 +698,49 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false }: 
                           <IconCopy size={12} />
                         </ActionIcon>
                       </Tooltip>
+                      
+                      {/* Feedback butonları - sadece AI mesajlarında */}
+                      {message.type === 'ai' && !feedbackGiven.has(message.id) && (
+                        <>
+                          <Tooltip label="Yardımcı oldu">
+                            <ActionIcon 
+                              size="sm" 
+                              variant="subtle" 
+                              color="green"
+                              onClick={() => {
+                                const userMsg = messages.find((m, idx) => 
+                                  m.type === 'user' && messages[idx + 1]?.id === message.id
+                                );
+                                sendFeedback(message.id, userMsg?.content || '', message.content, true);
+                              }}
+                            >
+                              <IconThumbUp size={12} />
+                            </ActionIcon>
+                          </Tooltip>
+                          <Tooltip label="Yardımcı olmadı">
+                            <ActionIcon 
+                              size="sm" 
+                              variant="subtle" 
+                              color="red"
+                              onClick={() => {
+                                const userMsg = messages.find((m, idx) => 
+                                  m.type === 'user' && messages[idx + 1]?.id === message.id
+                                );
+                                sendFeedback(message.id, userMsg?.content || '', message.content, false);
+                              }}
+                            >
+                              <IconThumbDown size={12} />
+                            </ActionIcon>
+                          </Tooltip>
+                        </>
+                      )}
+                      
+                      {/* Feedback verildi göstergesi */}
+                      {message.type === 'ai' && feedbackGiven.has(message.id) && (
+                        <Badge size="xs" variant="light" color="gray" leftSection={<IconCheck size={10} />}>
+                          Geri bildirim verildi
+                        </Badge>
+                      )}
                     </Group>
                   </Stack>
                 </Group>
@@ -603,7 +769,7 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false }: 
         <Group gap="xs">
           <TextInput
             flex={1}
-            placeholder={useAgent ? "Soru sorun, komut verin veya işlem yaptırın..." : "Sorunuzu yazın..."}
+            placeholder="Soru sorun, komut verin veya işlem yaptırın..."
             value={inputValue}
             onChange={(e) => setInputValue(e.currentTarget.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}

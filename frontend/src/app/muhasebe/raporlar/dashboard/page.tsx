@@ -340,10 +340,6 @@ export default function DashboardPage() {
                           value={percentage} 
                           color={color} 
                           size="sm" 
-                          label={`${percentage}%`}
-                          styles={{
-                            label: { fontSize: 10 }
-                          }}
                         />
                         <Group justify="space-between" mt={5}>
                           <Text size="xs" c="dimmed">

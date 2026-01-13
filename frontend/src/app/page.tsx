@@ -65,24 +65,18 @@ export default function HomePage() {
         <Stack gap="xl">
           {/* Hero Section */}
           <Box ta="center" py="xl">
-            <Group justify="center" mb="md">
-              <ThemeIcon size={60} radius="xl" variant="gradient" gradient={{ from: 'blue', to: 'cyan' }}>
-                <IconSparkles size={32} />
-              </ThemeIcon>
-            </Group>
-            <Title
-              order={1}
-              size={48}
-              fw={900}
-              style={{
-                background: 'linear-gradient(45deg, #228be6 0%, #15aabf 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
-            >
-              Catering Pro
-            </Title>
-            <Text size="xl" c="dimmed" mt="md" maw={600} mx="auto">
+            <Center>
+              <img 
+                src="/logo.png" 
+                alt="Catering Pro Logo" 
+                style={{ 
+                  height: 140, 
+                  width: 'auto',
+                  objectFit: 'contain'
+                }}
+              />
+            </Center>
+            <Text size="xl" c="dimmed" mt="xl" maw={600} mx="auto">
               AI destekli ihale analiz ve yönetim sistemi ile ihalelerinizi kolayca takip edin
             </Text>
           </Box>

@@ -906,7 +906,7 @@ export default function FaturalarPage() {
               </Button>
               <DataActions 
                 type="fatura" 
-                onImportSuccess={() => fetchInvoices()} 
+                onImportSuccess={() => loadInvoices()} 
               />
             </Group>
           </Group>

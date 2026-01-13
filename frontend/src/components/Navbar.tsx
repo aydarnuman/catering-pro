@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Group,
   Button,
@@ -14,7 +14,9 @@ import {
   Menu,
   Divider,
   ThemeIcon,
-  Tooltip
+  Tooltip,
+  Avatar,
+  Loader
 } from '@mantine/core';
 import {
   IconSun,
@@ -41,51 +43,86 @@ import {
   IconRobot,
   IconBuilding,
   IconToolsKitchen2,
-  IconShieldLock
+  IconShieldLock,
+  IconLogin,
+  IconLogout,
+  IconUser
 } from '@tabler/icons-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 
 export function Navbar() {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const pathname = usePathname();
+  const router = useRouter();
   const [opened, setOpened] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const { user, isAuthenticated, isAdmin: userIsAdmin, isLoading, logout } = useAuth();
+
+  // Client-side mount kontrolü (hydration hatası önleme)
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const isActive = (path: string) => pathname === path;
   const isIhaleMerkezi = pathname === '/tenders' || pathname === '/upload' || pathname === '/tracking';
   const isMuhasebe = pathname.startsWith('/muhasebe');
   const isAyarlar = pathname.startsWith('/ayarlar');
   const isPlanlama = pathname.startsWith('/planlama');
-  const isAdmin = pathname.startsWith('/admin');
+  const isAdminPage = pathname.startsWith('/admin');
+
+  const handleLogout = () => {
+    logout();
+    router.push('/giris');
+  };
+
+  // Get user initials for avatar
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   return (
     <>
       <Box
         style={(theme) => ({
           borderBottom: `1px solid ${
-            colorScheme === 'dark' ? theme.colors.dark[5] : theme.colors.gray[2]
+            colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'
           }`,
-          backgroundColor: colorScheme === 'dark' ? theme.colors.dark[7] : theme.white,
-          position: 'sticky',
+          backgroundColor: colorScheme === 'dark' 
+            ? 'rgba(26, 27, 30, 0.6)' 
+            : 'rgba(255, 255, 255, 0.6)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05)',
+          position: 'fixed',
           top: 0,
+          left: 0,
+          right: 0,
           zIndex: 100,
         })}
       >
-        <Group h={60} px="md" justify="space-between">
+        <Group h={100} px="md" justify="space-between">
           {/* Logo */}
           <Link href="/" style={{ textDecoration: 'none' }}>
-            <Group gap="xs">
-              <ThemeIcon size={36} radius="md" variant="gradient" gradient={{ from: 'blue', to: 'cyan' }}>
-                <IconFileText size={22} />
-              </ThemeIcon>
-              <Text size="xl" fw={700} style={{ 
-                background: 'linear-gradient(45deg, var(--mantine-color-blue-6), var(--mantine-color-cyan-6))',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}>
-                Catering Pro
-              </Text>
-            </Group>
+            <Box style={{ width: 220, display: 'flex', alignItems: 'center' }}>
+              <img 
+                src="/logo.png" 
+                alt="Catering Pro" 
+                style={{ 
+                  height: 170,
+                  width: 'auto',
+                  objectFit: 'contain',
+                  marginTop: -35,
+                  marginBottom: 0
+                }}
+              />
+            </Box>
           </Link>
 
           {/* Desktop Navigation */}
@@ -398,18 +435,20 @@ export function Navbar() {
 
           {/* Right Section */}
           <Group gap="xs">
-            {/* Admin Button */}
-            <Tooltip label="Admin Panel">
-              <ActionIcon
-                component={Link}
-                href="/admin"
-                variant={isAdmin ? 'filled' : 'subtle'}
-                color={isAdmin ? 'red' : 'gray'}
-                size="lg"
-              >
-                <IconShieldLock size={20} />
-              </ActionIcon>
-            </Tooltip>
+            {/* Admin Button - only for admin users (mounted kontrolü) */}
+            {mounted && isAuthenticated && userIsAdmin && (
+              <Tooltip label="Admin Panel">
+                <ActionIcon
+                  component={Link}
+                  href="/admin"
+                  variant={isAdminPage ? 'filled' : 'subtle'}
+                  color={isAdminPage ? 'red' : 'gray'}
+                  size="lg"
+                >
+                  <IconShieldLock size={20} />
+                </ActionIcon>
+              </Tooltip>
+            )}
 
             <ActionIcon
               variant="subtle"
@@ -419,6 +458,78 @@ export function Navbar() {
             >
               {colorScheme === 'dark' ? <IconSun size={20} /> : <IconMoon size={20} />}
             </ActionIcon>
+
+            {/* Auth Section - mounted kontrolü ile hydration hatası önleme */}
+            {!mounted || isLoading ? (
+              <Loader size="sm" />
+            ) : isAuthenticated && user ? (
+              <Menu shadow="md" width={200} position="bottom-end">
+                <Menu.Target>
+                  <ActionIcon variant="subtle" size="lg" radius="xl">
+                    <Avatar
+                      size="sm"
+                      radius="xl"
+                      color="blue"
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {getInitials(user.name)}
+                    </Avatar>
+                  </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Label>
+                    <Text size="sm" fw={500}>{user.name}</Text>
+                    <Text size="xs" c="dimmed">{user.email}</Text>
+                  </Menu.Label>
+                  <Menu.Divider />
+                  <Menu.Item
+                    component={Link}
+                    href="/profil"
+                    leftSection={<IconUser size={16} />}
+                  >
+                    Profilim
+                  </Menu.Item>
+                  <Menu.Item
+                    component={Link}
+                    href="/ayarlar"
+                    leftSection={<IconSettings size={16} />}
+                  >
+                    Ayarlar
+                  </Menu.Item>
+                  {userIsAdmin && (
+                    <>
+                      <Menu.Divider />
+                      <Menu.Item
+                        component={Link}
+                        href="/admin"
+                        leftSection={<IconShieldLock size={16} />}
+                        color="red"
+                      >
+                        Admin Panel
+                      </Menu.Item>
+                    </>
+                  )}
+                  <Menu.Divider />
+                  <Menu.Item
+                    leftSection={<IconLogout size={16} />}
+                    color="red"
+                    onClick={handleLogout}
+                  >
+                    Çıkış Yap
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
+            ) : (
+              <Button
+                component={Link}
+                href="/giris"
+                variant="light"
+                size="sm"
+                leftSection={<IconLogin size={16} />}
+              >
+                Giriş
+              </Button>
+            )}
             
             {/* Mobile Burger */}
             <Burger
@@ -560,17 +671,63 @@ export function Navbar() {
                 Ayarlar
               </Button>
 
-              <Button
-                component={Link}
-                href="/admin"
-                leftSection={<IconShieldLock size={18} />}
-                variant={isAdmin ? 'filled' : 'light'}
-                color="red"
-                fullWidth
-                onClick={() => setOpened(false)}
-              >
-                Admin Panel
-              </Button>
+              {mounted && isAuthenticated && userIsAdmin && (
+                <Button
+                  component={Link}
+                  href="/admin"
+                  leftSection={<IconShieldLock size={18} />}
+                  variant={isAdminPage ? 'filled' : 'light'}
+                  color="red"
+                  fullWidth
+                  onClick={() => setOpened(false)}
+                >
+                  Admin Panel
+                </Button>
+              )}
+
+              <Divider my="xs" />
+
+              {!mounted ? (
+                <Loader size="sm" mx="auto" />
+              ) : isAuthenticated && user ? (
+                <>
+                  <Box px="xs" py="sm">
+                    <Group>
+                      <Avatar size="sm" radius="xl" color="blue">
+                        {getInitials(user.name)}
+                      </Avatar>
+                      <div>
+                        <Text size="sm" fw={500}>{user.name}</Text>
+                        <Text size="xs" c="dimmed">{user.email}</Text>
+                      </div>
+                    </Group>
+                  </Box>
+                  <Button
+                    leftSection={<IconLogout size={18} />}
+                    variant="light"
+                    color="red"
+                    fullWidth
+                    onClick={() => {
+                      setOpened(false);
+                      handleLogout();
+                    }}
+                  >
+                    Çıkış Yap
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  component={Link}
+                  href="/giris"
+                  leftSection={<IconLogin size={18} />}
+                  variant="filled"
+                  color="blue"
+                  fullWidth
+                  onClick={() => setOpened(false)}
+                >
+                  Giriş Yap
+                </Button>
+              )}
             </Stack>
           </Box>
         )}

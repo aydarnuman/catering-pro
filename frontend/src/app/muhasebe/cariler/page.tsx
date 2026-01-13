@@ -76,14 +76,21 @@ interface Cari {
   borc: number;
   alacak: number;
   bakiye: number;
-  kredi_limiti: number;
+  kredi_limiti?: number;
   banka_adi?: string;
   iban?: string;
-  aktif: boolean;
+  aktif?: boolean;
   notlar?: string;
-  created_at: string;
-  updated_at: string;
+  etiket?: string;
+  created_at?: string;
+  updated_at?: string;
 }
+
+// Yaygın etiketler
+const etiketler = [
+  'Şarküteri', 'Market', 'Restoran', 'Kafe', 'Otel', 'Hastane', 'Okul',
+  'Fabrika', 'Toptan', 'Perakende', 'Dağıtıcı', 'Üretici', 'İthalatçı', 'Diğer'
+];
 
 // Şehirler
 const iller = [
@@ -122,7 +129,8 @@ export default function CarilerPage() {
     kredi_limiti: 0,
     banka_adi: '',
     iban: '',
-    notlar: ''
+    notlar: '',
+    etiket: ''
   });
 
   // API'den carileri yükle
@@ -259,7 +267,8 @@ export default function CarilerPage() {
       kredi_limiti: 0,
       banka_adi: '',
       iban: '',
-      notlar: ''
+      notlar: '',
+      etiket: ''
     });
     setEditingItem(null);
   };
@@ -282,7 +291,8 @@ export default function CarilerPage() {
       kredi_limiti: Number(cari.kredi_limiti) || 0,
       banka_adi: cari.banka_adi || '',
       iban: cari.iban || '',
-      notlar: cari.notlar || ''
+      notlar: cari.notlar || '',
+      etiket: cari.etiket || ''
     });
     setEditingItem(cari);
     open();
@@ -424,219 +434,165 @@ export default function CarilerPage() {
           </Stack>
         </Card>
 
-        {/* Cari Listesi */}
-        <Card withBorder p={0}>
-          <Table.ScrollContainer minWidth={900}>
-            <Table verticalSpacing="md" highlightOnHover>
-              <Table.Thead>
-                <Table.Tr style={{ backgroundColor: isDark ? 'var(--mantine-color-dark-6)' : 'var(--mantine-color-gray-0)' }}>
-                  <Table.Th style={{ paddingLeft: 20 }}>Cari Bilgileri</Table.Th>
-                  <Table.Th>İletişim</Table.Th>
-                  <Table.Th>Konum</Table.Th>
-                  <Table.Th style={{ textAlign: 'right' }}>Bakiye Durumu</Table.Th>
-                  <Table.Th style={{ textAlign: 'center', width: 80 }}>Detay</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {filteredCariler.length === 0 ? (
-                  <Table.Tr>
-                    <Table.Td colSpan={5}>
-                      <Stack align="center" py="xl" gap="md">
-                        <ThemeIcon size={60} variant="light" color="gray" radius="xl">
-                          <IconUsers size={30} />
-                        </ThemeIcon>
-                        <Text c="dimmed" size="lg">Kayıt bulunamadı</Text>
-                        <Button 
-                          variant="light" 
-                          leftSection={<IconPlus size={16} />}
-                          onClick={() => { resetForm(); open(); }}
+        {/* Cari Listesi - Kart Görünümü */}
+        {filteredCariler.length === 0 ? (
+          <Card withBorder>
+            <Stack align="center" py="xl" gap="md">
+              <ThemeIcon size={60} variant="light" color="gray" radius="xl">
+                <IconUsers size={30} />
+              </ThemeIcon>
+              <Text c="dimmed" size="lg">Kayıt bulunamadı</Text>
+              <Button 
+                variant="light" 
+                leftSection={<IconPlus size={16} />}
+                onClick={() => { resetForm(); open(); }}
+              >
+                İlk Carinizi Ekleyin
+              </Button>
+            </Stack>
+          </Card>
+        ) : (
+          <>
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="md">
+              {filteredCariler.map((cari) => {
+                const bakiye = Number(cari.bakiye);
+                const tipRenk = cari.tip === 'musteri' ? 'green' : cari.tip === 'tedarikci' ? 'orange' : 'blue';
+                const TipIcon = cari.tip === 'musteri' ? IconUserCheck : cari.tip === 'tedarikci' ? IconTruck : IconUsers;
+                
+                return (
+                  <Paper
+                    key={cari.id}
+                    shadow="sm"
+                    radius="lg"
+                    p="md"
+                    withBorder
+                    style={{
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      borderLeft: `4px solid var(--mantine-color-${tipRenk}-5)`,
+                    }}
+                    onClick={() => { setSelectedCari(cari); openDetail(); }}
+                    className="cari-card"
+                  >
+                    {/* Header */}
+                    <Group justify="space-between" mb="sm">
+                      <Group gap="sm">
+                        <Avatar 
+                          color={tipRenk} 
+                          radius="xl" 
+                          size={40}
+                          variant="light"
                         >
-                          İlk Carinizi Ekleyin
-                        </Button>
-                      </Stack>
-                    </Table.Td>
-                  </Table.Tr>
-                ) : (
-                  filteredCariler.map((cari) => {
-                    const bakiye = Number(cari.bakiye);
-                    const tipRenk = cari.tip === 'musteri' ? 'green' : cari.tip === 'tedarikci' ? 'orange' : 'blue';
-                    const TipIcon = cari.tip === 'musteri' ? IconUserCheck : cari.tip === 'tedarikci' ? IconTruck : IconUsers;
-                    
-                    const isSelected = selectedCari?.id === cari.id;
-                    
-                    return (
-                      <Table.Tr 
-                        key={cari.id}
-                        style={{ 
-                          cursor: 'pointer',
-                          backgroundColor: isSelected 
-                            ? (isDark ? 'rgba(34, 139, 230, 0.15)' : 'rgba(34, 139, 230, 0.08)')
-                            : undefined,
-                          borderLeft: isSelected ? '3px solid var(--mantine-color-blue-5)' : '3px solid transparent',
-                          transition: 'all 0.15s ease'
-                        }}
-                        onClick={() => { setSelectedCari(cari); openDetail(); }}
-                      >
-                        {/* Cari Bilgileri */}
-                        <Table.Td style={{ paddingLeft: 20 }}>
-                          <Group gap="md">
-                            <Avatar 
-                              color={tipRenk} 
-                              radius="xl" 
-                              size={45}
-                              variant="light"
-                            >
-                              <TipIcon size={22} />
-                            </Avatar>
-                            <div>
-                              <Text fw={600} size="sm" lineClamp={1} style={{ maxWidth: 280 }}>
-                                {cari.unvan}
-                              </Text>
-                              <Group gap={6} mt={4}>
-                                <Badge
-                                  size="xs"
-                                  variant="dot"
-                                  color={tipRenk}
-                                >
-                                  {cari.tip === 'musteri' ? 'Müşteri' :
-                                   cari.tip === 'tedarikci' ? 'Tedarikçi' : 'Her İkisi'}
-                                </Badge>
-                                {cari.vergi_no && (
-                                  <Text size="xs" c="dimmed">VKN: {cari.vergi_no}</Text>
-                                )}
-                              </Group>
-                            </div>
-                          </Group>
-                        </Table.Td>
-
-                        {/* İletişim */}
-                        <Table.Td>
-                          <Stack gap={4}>
-                            {cari.yetkili ? (
-                              <Group gap={6}>
-                                <IconUser size={14} style={{ color: 'var(--mantine-color-dimmed)' }} />
-                                <Text size="sm">{cari.yetkili}</Text>
-                              </Group>
-                            ) : null}
-                            {cari.telefon ? (
-                              <Group gap={6}>
-                                <IconPhone size={14} style={{ color: 'var(--mantine-color-dimmed)' }} />
-                                <Text size="sm" c="dimmed">{cari.telefon}</Text>
-                              </Group>
-                            ) : null}
-                            {cari.email ? (
-                              <Group gap={6}>
-                                <IconMail size={14} style={{ color: 'var(--mantine-color-dimmed)' }} />
-                                <Text size="xs" c="dimmed" lineClamp={1}>{cari.email}</Text>
-                              </Group>
-                            ) : null}
-                            {!cari.yetkili && !cari.telefon && !cari.email && (
-                              <Text size="sm" c="dimmed" fs="italic">İletişim bilgisi yok</Text>
-                            )}
-                          </Stack>
-                        </Table.Td>
-
-                        {/* Konum */}
-                        <Table.Td>
-                          {cari.il ? (
-                            <Group gap={6}>
-                              <IconMapPin size={16} style={{ color: 'var(--mantine-color-dimmed)' }} />
-                              <Text size="sm">
-                                {cari.ilce ? `${cari.ilce}, ` : ''}{cari.il}
-                              </Text>
-                            </Group>
-                          ) : (
-                            <Text size="sm" c="dimmed" fs="italic">Belirtilmemiş</Text>
-                          )}
-                        </Table.Td>
-
-                        {/* Bakiye Durumu */}
-                        <Table.Td style={{ textAlign: 'right' }}>
-                          <Stack gap={4} align="flex-end">
-                            <Group gap={6}>
-                              {bakiye < 0 ? (
-                                <IconArrowDownRight size={18} style={{ color: 'var(--mantine-color-red-6)' }} />
-                              ) : bakiye > 0 ? (
-                                <IconArrowUpRight size={18} style={{ color: 'var(--mantine-color-green-6)' }} />
-                              ) : null}
-                              <Text 
-                                size="lg" 
-                                fw={700} 
-                                c={bakiye > 0 ? 'green' : bakiye < 0 ? 'red' : 'dimmed'}
-                              >
-                                {formatMoney(bakiye)}
-                              </Text>
-                            </Group>
-                            {bakiye !== 0 && (
-                              <Badge 
-                                size="xs" 
-                                variant="light" 
-                                color={bakiye > 0 ? 'green' : 'red'}
-                              >
-                                {bakiye > 0 ? 'TAHSİL EDİLECEK' : 'ÖDENECEK'}
+                          <TipIcon size={20} />
+                        </Avatar>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <Text fw={600} size="sm" lineClamp={1}>
+                            {cari.unvan}
+                          </Text>
+                          <Group gap={4}>
+                            <Badge size="xs" variant="light" color={tipRenk}>
+                              {cari.tip === 'musteri' ? 'Müşteri' :
+                               cari.tip === 'tedarikci' ? 'Tedarikçi' : 'Her İkisi'}
+                            </Badge>
+                            {cari.etiket && (
+                              <Badge size="xs" variant="outline" color="violet">
+                                {cari.etiket}
                               </Badge>
                             )}
-                            {bakiye === 0 && (
-                              <Badge size="xs" variant="light" color="gray">
-                                Dengeli
-                              </Badge>
-                            )}
-                          </Stack>
-                        </Table.Td>
-
-                        {/* İşlemler - Minimal */}
-                        <Table.Td onClick={(e) => e.stopPropagation()}>
-                          <Group gap={8} justify="center">
-                            <Tooltip label="Detay Görüntüle" position="top" withArrow>
-                              <ActionIcon
-                                size={32}
-                                variant="light"
-                                color="violet"
-                                radius="md"
-                                onClick={() => {
-                                  setSelectedCari(cari);
-                                  openDetail();
-                                }}
-                              >
-                                <IconEye size={16} />
-                              </ActionIcon>
-                            </Tooltip>
                           </Group>
-                        </Table.Td>
-                      </Table.Tr>
-                    );
-                  })
-                )}
-              </Table.Tbody>
-            </Table>
-          </Table.ScrollContainer>
-          
-          {/* Alt Bilgi */}
-          {filteredCariler.length > 0 && (
-            <Divider />
-          )}
-          {filteredCariler.length > 0 && (
-            <Group justify="space-between" p="md" style={{ backgroundColor: isDark ? 'var(--mantine-color-dark-6)' : 'var(--mantine-color-gray-0)' }}>
-              <Text size="sm" c="dimmed">
-                Toplam <strong>{filteredCariler.length}</strong> cari gösteriliyor
-              </Text>
-              <Group gap="xl">
-                <Group gap={6}>
-                  <Text size="sm" c="dimmed">Toplam Alacak:</Text>
-                  <Text size="sm" fw={600} c="green">
-                    {formatMoney(filteredCariler.reduce((sum, c) => sum + Math.max(0, Number(c.bakiye)), 0))}
-                  </Text>
-                </Group>
-                <Group gap={6}>
-                  <Text size="sm" c="dimmed">Toplam Borç:</Text>
-                  <Text size="sm" fw={600} c="red">
-                    {formatMoney(Math.abs(filteredCariler.reduce((sum, c) => sum + Math.min(0, Number(c.bakiye)), 0)))}
-                  </Text>
+                        </div>
+                      </Group>
+                    </Group>
+
+                    {/* İletişim Bilgileri */}
+                    <Stack gap={4} mb="sm">
+                      {cari.vergi_no && (
+                        <Text size="xs" c="dimmed">VKN: {cari.vergi_no}</Text>
+                      )}
+                      {cari.telefon && (
+                        <Group gap={4}>
+                          <IconPhone size={12} style={{ color: 'var(--mantine-color-dimmed)' }} />
+                          <Text size="xs" c="dimmed">{cari.telefon}</Text>
+                        </Group>
+                      )}
+                      {cari.il && (
+                        <Group gap={4}>
+                          <IconMapPin size={12} style={{ color: 'var(--mantine-color-dimmed)' }} />
+                          <Text size="xs" c="dimmed">{cari.ilce ? `${cari.ilce}, ` : ''}{cari.il}</Text>
+                        </Group>
+                      )}
+                      {cari.adres && (
+                        <Text size="xs" c="dimmed" lineClamp={1} title={cari.adres}>
+                          {cari.adres}
+                        </Text>
+                      )}
+                    </Stack>
+
+                    <Divider mb="sm" />
+
+                    {/* Bakiye */}
+                    <Group justify="space-between" align="center">
+                      <div>
+                        <Text size="xs" c="dimmed">Bakiye</Text>
+                        <Group gap={4}>
+                          {bakiye < 0 ? (
+                            <IconArrowDownRight size={16} style={{ color: 'var(--mantine-color-red-6)' }} />
+                          ) : bakiye > 0 ? (
+                            <IconArrowUpRight size={16} style={{ color: 'var(--mantine-color-green-6)' }} />
+                          ) : null}
+                          <Text 
+                            fw={700} 
+                            size="lg"
+                            c={bakiye > 0 ? 'green' : bakiye < 0 ? 'red' : 'dimmed'}
+                          >
+                            {formatMoney(Math.abs(bakiye))}
+                          </Text>
+                        </Group>
+                      </div>
+                      {bakiye !== 0 && (
+                        <Badge 
+                          size="sm" 
+                          variant="light" 
+                          color={bakiye > 0 ? 'green' : 'red'}
+                        >
+                          {bakiye > 0 ? 'Alacak' : 'Borç'}
+                        </Badge>
+                      )}
+                      {bakiye === 0 && (
+                        <Badge size="sm" variant="light" color="gray">
+                          Dengeli
+                        </Badge>
+                      )}
+                    </Group>
+                  </Paper>
+                );
+              })}
+            </SimpleGrid>
+
+            {/* Alt Bilgi */}
+            <Paper withBorder p="md" radius="md" mt="md">
+              <Group justify="space-between">
+                <Text size="sm" c="dimmed">
+                  Toplam <strong>{filteredCariler.length}</strong> cari gösteriliyor
+                </Text>
+                <Group gap="xl">
+                  <Group gap={6}>
+                    <Text size="sm" c="dimmed">Toplam Alacak:</Text>
+                    <Text size="sm" fw={600} c="green">
+                      {formatMoney(filteredCariler.reduce((sum, c) => sum + Math.max(0, Number(c.bakiye)), 0))}
+                    </Text>
+                  </Group>
+                  <Group gap={6}>
+                    <Text size="sm" c="dimmed">Toplam Borç:</Text>
+                    <Text size="sm" fw={600} c="red">
+                      {formatMoney(Math.abs(filteredCariler.reduce((sum, c) => sum + Math.min(0, Number(c.bakiye)), 0)))}
+                    </Text>
+                  </Group>
                 </Group>
               </Group>
-            </Group>
-          )}
-        </Card>
+            </Paper>
+          </>
+        )}
 
         {/* Cari Detay Modal */}
         <CariDetayModal 
@@ -673,17 +629,28 @@ export default function CarilerPage() {
           size="lg"
         >
           <Stack>
-            <Select
-              label="Tip"
-              required
-              data={[
-                { value: 'musteri', label: 'Müşteri' },
-                { value: 'tedarikci', label: 'Tedarikçi' },
-                { value: 'her_ikisi', label: 'Her İkisi' }
-              ]}
-              value={formData.tip}
-              onChange={(value) => setFormData({ ...formData, tip: value as any })}
-            />
+            <SimpleGrid cols={2}>
+              <Select
+                label="Tip"
+                required
+                data={[
+                  { value: 'musteri', label: 'Müşteri' },
+                  { value: 'tedarikci', label: 'Tedarikçi' },
+                  { value: 'her_ikisi', label: 'Her İkisi' }
+                ]}
+                value={formData.tip}
+                onChange={(value) => setFormData({ ...formData, tip: value as any })}
+              />
+              <Select
+                label="Etiket/Kategori"
+                placeholder="Seçin"
+                data={etiketler}
+                value={formData.etiket || null}
+                onChange={(value) => setFormData({ ...formData, etiket: value || '' })}
+                searchable
+                clearable
+              />
+            </SimpleGrid>
             
             <TextInput
               label="Ünvan"

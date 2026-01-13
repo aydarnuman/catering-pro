@@ -18,7 +18,7 @@ import {
 
 // Cache süreleri
 const STALE_TIME = 5 * 60 * 1000; // 5 dakika
-const CACHE_TIME = 10 * 60 * 1000; // 10 dakika
+const GC_TIME = 10 * 60 * 1000; // 10 dakika (React Query v5: cacheTime -> gcTime)
 
 // Cariler Hook
 export function useCariler(filters?: any) {
@@ -26,7 +26,7 @@ export function useCariler(filters?: any) {
     queryKey: ['cariler', filters],
     queryFn: () => carilerAPI.list(filters),
     staleTime: STALE_TIME,
-    cacheTime: CACHE_TIME,
+    gcTime: GC_TIME,
   });
 }
 
@@ -101,7 +101,7 @@ export function useStok(filters?: any) {
     queryKey: ['stok', filters],
     queryFn: () => stokAPI.list(filters),
     staleTime: STALE_TIME,
-    cacheTime: CACHE_TIME,
+    gcTime: GC_TIME,
   });
 }
 
@@ -163,18 +163,19 @@ export function useGelirGider(filters?: any) {
     queryKey,
     queryFn: () => gelirGiderAPI.list(filters),
     staleTime: STALE_TIME,
-    cacheTime: CACHE_TIME,
+    gcTime: GC_TIME,
   });
 
   // Hesaplanmış değerler - useMemo ile optimize
   const totals = useMemo(() => {
-    if (!data?.items) return { gelir: 0, gider: 0, net: 0 };
+    const items = (data as any)?.items;
+    if (!items) return { gelir: 0, gider: 0, net: 0 };
     
-    const gelir = data.items
+    const gelir = items
       .filter((item: any) => item.tip === 'gelir')
       .reduce((sum: number, item: any) => sum + item.tutar, 0);
       
-    const gider = data.items
+    const gider = items
       .filter((item: any) => item.tip === 'gider')
       .reduce((sum: number, item: any) => sum + item.tutar, 0);
     
@@ -254,7 +255,7 @@ export function usePersonel(filters?: any) {
     queryKey: ['personel', filters],
     queryFn: () => personelAPI.list(filters),
     staleTime: STALE_TIME,
-    cacheTime: CACHE_TIME,
+    gcTime: GC_TIME,
   });
 }
 
@@ -295,7 +296,7 @@ export function useSatinAlma(filters?: any) {
     queryKey: ['satin-alma', filters],
     queryFn: () => satinAlmaAPI.listRequests(filters),
     staleTime: STALE_TIME,
-    cacheTime: CACHE_TIME,
+    gcTime: GC_TIME,
   });
 }
 

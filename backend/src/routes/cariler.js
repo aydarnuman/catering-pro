@@ -165,7 +165,8 @@ router.post('/', async (req, res) => {
       kredi_limiti = 0,
       banka_adi,
       iban,
-      notlar
+      notlar,
+      etiket
     } = req.body;
     
     if (!tip || !unvan) {
@@ -178,14 +179,14 @@ router.post('/', async (req, res) => {
       INSERT INTO cariler (
         tip, unvan, yetkili, vergi_no, vergi_dairesi,
         telefon, email, adres, il, ilce,
-        borc, alacak, kredi_limiti, banka_adi, iban, notlar
+        borc, alacak, kredi_limiti, banka_adi, iban, notlar, etiket
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
       ) RETURNING *
     `, [
       tip, unvan, yetkili, vergi_no, vergi_dairesi,
       telefon, email, adres, il, ilce,
-      borc, alacak, kredi_limiti, banka_adi, iban, notlar
+      borc, alacak, kredi_limiti, banka_adi, iban, notlar, etiket
     ]);
     
     logAPI('Cariler', 'Yeni cari oluşturuldu', { cariId: result.rows[0].id, unvan });

@@ -41,6 +41,7 @@ import {
   IconBuilding,
   IconScale,
   IconShieldCheck,
+  IconX,
 } from '@tabler/icons-react';
 import type {
   TeklifData,
@@ -1308,58 +1309,151 @@ export default function TeklifModal({
     }
   };
 
+  // Toplam maliyet hesapla (progress bar için)
+  const toplamMaliyet = hesaplanmisTeklifData.maliyet_toplam || 1;
+
   // Maliyet görünümü
   const renderMaliyetView = () => (
-    <Box style={{ display: 'flex', height: 'calc(100vh - 280px)', minHeight: 500 }}>
-      {/* Sol Panel - Kalemler */}
+    <Box style={{ display: 'flex', height: 'calc(100vh - 280px)', minHeight: 500, gap: 16 }}>
+      {/* Sol Panel - Kalemler (Kompakt) */}
       <Paper
-        withBorder
+        shadow="md"
+        radius="lg"
         p="xs"
-        style={{ width: 200, flexShrink: 0, display: 'flex', flexDirection: 'column' }}
+        style={{ 
+          width: 200, 
+          flexShrink: 0, 
+          display: 'flex', 
+          flexDirection: 'column',
+          background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
+          border: '1px solid #e2e8f0',
+        }}
       >
-        <ScrollArea style={{ flex: 1 }}>
-          <Stack gap={4}>
+        <Text size="xs" fw={600} c="dimmed" mb={4} tt="uppercase" style={{ letterSpacing: 1 }}>
+          Kalemler
+        </Text>
+        <ScrollArea style={{ flex: 1 }} scrollbarSize={4}>
+          <Stack gap={3}>
             {MALIYET_KALEMLERI.map((kalem) => {
               const tutar = hesaplanmisTeklifData.maliyet_detay[kalem.key]?.tutar || 0;
               const isSelected = selectedKalem === kalem.key;
+              const yuzde = toplamMaliyet > 0 ? (tutar / toplamMaliyet) * 100 : 0;
+              
               return (
                 <Paper
                   key={kalem.key}
-                  p="xs"
-                  withBorder
+                  p={6}
+                  radius="sm"
+                  shadow={isSelected ? 'sm' : 'none'}
                   style={{
                     cursor: 'pointer',
-                    backgroundColor: isSelected ? 'var(--mantine-color-blue-light)' : undefined,
-                    borderColor: isSelected ? 'var(--mantine-color-blue-filled)' : undefined,
+                    background: isSelected 
+                      ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
+                      : tutar > 0 
+                        ? '#fff'
+                        : 'transparent',
+                    border: isSelected 
+                      ? '1px solid #2563eb' 
+                      : tutar > 0 
+                        ? '1px solid #e2e8f0'
+                        : '1px dashed #cbd5e1',
+                    transition: 'all 0.15s ease',
                   }}
                   onClick={() => setSelectedKalem(kalem.key)}
                 >
-                  <Group justify="space-between" wrap="nowrap">
-                    <Group gap="xs" wrap="nowrap">
-                      <Text size="lg">{kalem.icon}</Text>
-                      <Text size="sm" fw={500} lineClamp={1}>
+                  <Group justify="space-between" wrap="nowrap" gap={4}>
+                    <Group gap={6} wrap="nowrap">
+                      <Text size="sm">{kalem.icon}</Text>
+                      <Text 
+                        size="xs" 
+                        fw={500} 
+                        lineClamp={1}
+                        c={isSelected ? 'white' : 'dark'}
+                      >
                         {kalem.label}
                       </Text>
                     </Group>
-                    {isSelected && <Text size="xs">◄</Text>}
+                    {isSelected && (
+                      <ThemeIcon size={14} radius="xl" color="white" variant="filled">
+                        <IconCheck size={8} />
+                      </ThemeIcon>
+                    )}
                   </Group>
-                  <Text
-                    size="sm"
-                    c={tutar > 0 ? 'green' : 'dimmed'}
-                    ta="right"
-                    fw={700}
+                  
+                  {/* Progress Bar - İnce */}
+                  <Box
+                    my={3}
+                    style={{
+                      height: 2,
+                      borderRadius: 1,
+                      backgroundColor: isSelected ? 'rgba(255,255,255,0.3)' : '#e2e8f0',
+                      overflow: 'hidden',
+                    }}
                   >
-                    {formatParaKisa(tutar)}
-                  </Text>
+                    <Box
+                      style={{
+                        height: '100%',
+                        width: `${Math.min(yuzde, 100)}%`,
+                        backgroundColor: isSelected ? '#fff' : '#22c55e',
+                        borderRadius: 1,
+                      }}
+                    />
+                  </Box>
+                  
+                  <Group justify="space-between" wrap="nowrap">
+                    <Text
+                      size="sm"
+                      fw={700}
+                      c={isSelected ? 'white' : tutar > 0 ? 'green.7' : 'dimmed'}
+                      style={{ fontFamily: 'system-ui' }}
+                    >
+                      {formatParaKisa(tutar)}
+                    </Text>
+                    <Text 
+                      size="10px" 
+                      c={isSelected ? 'white' : 'dimmed'}
+                      fw={500}
+                    >
+                      {yuzde.toFixed(0)}%
+                    </Text>
+                  </Group>
                 </Paper>
               );
             })}
           </Stack>
         </ScrollArea>
+        
+        {/* Alt Toplam */}
+        <Paper
+          mt="sm"
+          p="sm"
+          radius="md"
+          style={{
+            background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+            border: 'none',
+          }}
+        >
+          <Group justify="space-between" align="center">
+            <Text size="xs" c="white" fw={500} style={{ opacity: 0.8 }}>TOPLAM</Text>
+            <Text size="md" fw={800} c="white" style={{ fontFamily: 'system-ui' }}>
+              {formatParaKisa(hesaplanmisTeklifData.maliyet_toplam)}
+            </Text>
+          </Group>
+        </Paper>
       </Paper>
 
       {/* Sağ Panel - Form */}
-      <Paper withBorder p="md" ml="md" style={{ flex: 1, overflow: 'auto' }}>
+      <Paper 
+        shadow="md" 
+        radius="lg" 
+        p="lg" 
+        style={{ 
+          flex: 1, 
+          overflow: 'auto',
+          background: 'linear-gradient(180deg, #ffffff 0%, #fafafa 100%)',
+          border: '1px solid #e2e8f0',
+        }}
+      >
         <ScrollArea style={{ height: '100%' }}>{renderMaliyetForm()}</ScrollArea>
       </Paper>
     </Box>
@@ -1398,7 +1492,7 @@ export default function TeklifModal({
                     <Table.Td>
                       <TextInput
                         variant="unstyled"
-                        value={kalem.isKalemi}
+                        value={kalem.isKalemi || ''}
                         onChange={(e) => {
                           const yeniCetvel = [...teklifData.birim_fiyat_cetveli];
                           yeniCetvel[idx].isKalemi = e.target.value;
@@ -1410,7 +1504,7 @@ export default function TeklifModal({
                     <Table.Td>
                       <TextInput
                         variant="unstyled"
-                        value={kalem.birim}
+                        value={kalem.birim || ''}
                         onChange={(e) => {
                           const yeniCetvel = [...teklifData.birim_fiyat_cetveli];
                           yeniCetvel[idx].birim = e.target.value;
@@ -1422,7 +1516,7 @@ export default function TeklifModal({
                     <Table.Td>
                       <NumberInput
                         variant="unstyled"
-                        value={kalem.miktar}
+                        value={kalem.miktar ?? 0}
                         onChange={(v) => {
                           const miktar = typeof v === 'number' ? v : 0;
                           const yeniCetvel = [...teklifData.birim_fiyat_cetveli];
@@ -1443,7 +1537,7 @@ export default function TeklifModal({
                     <Table.Td>
                       <NumberInput
                         variant="unstyled"
-                        value={kalem.birimFiyat}
+                        value={kalem.birimFiyat ?? 0}
                         onChange={(v) => handleCetvelBirimFiyatChange(idx, typeof v === 'number' ? v : 0)}
                         min={0}
                         decimalScale={2}
@@ -1511,101 +1605,269 @@ export default function TeklifModal({
     <Modal
       opened={opened}
       onClose={onClose}
-      title={
-        <Group>
-          <Text fw={600}>📄 TEKLİF OLUŞTUR</Text>
-          {existingTeklifId && (
-            <Badge color="blue" variant="light">
-              Kayıtlı #{existingTeklifId}
-            </Badge>
-          )}
-        </Group>
-      }
-      size="90%"
+      title={null}
+      size="95%"
+      radius="lg"
+      centered
       styles={{
-        body: { padding: 0 },
-        header: { padding: '12px 16px' },
+        body: { 
+          padding: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: 'calc(100vh - 40px)',
+          overflow: 'hidden',
+        },
+        header: { display: 'none' },
+        content: { 
+          borderRadius: 16,
+          overflow: 'hidden',
+          maxHeight: 'calc(100vh - 40px)',
+        },
+        inner: {
+          padding: '20px',
+        },
       }}
     >
       <LoadingOverlay visible={loading} />
 
-      <Box p="md">
-        {/* Tab Butonları */}
-        <Group mb="md">
-          <Button
-            variant={viewMode === 'maliyet' ? 'filled' : 'light'}
-            leftSection={<IconCalculator size={16} />}
-            onClick={() => setViewMode('maliyet')}
-          >
-            Maliyet Hesaplama
-          </Button>
-          <Button
-            variant={viewMode === 'cetvel' ? 'filled' : 'light'}
-            leftSection={<IconFileSpreadsheet size={16} />}
-            onClick={() => setViewMode('cetvel')}
-          >
-            Teklif Cetveli
-          </Button>
+      {/* Modern Header */}
+      <Box
+        p="md"
+        style={{
+          background: 'linear-gradient(135deg, #1e40af 0%, #7c3aed 100%)',
+          borderBottom: '1px solid rgba(255,255,255,0.1)',
+        }}
+      >
+        <Group justify="space-between">
+          <Group gap="md">
+            <ThemeIcon 
+              size={48} 
+              radius="xl" 
+              variant="filled"
+              style={{ 
+                background: 'rgba(255,255,255,0.2)',
+                backdropFilter: 'blur(10px)',
+              }}
+            >
+              <IconFileSpreadsheet size={24} color="white" />
+            </ThemeIcon>
+            <div>
+              <Group gap="xs">
+                <Text fw={700} size="xl" c="white">TEKLİF OLUŞTUR</Text>
+                {existingTeklifId && (
+                  <Badge 
+                    color="green" 
+                    variant="filled" 
+                    size="sm"
+                    style={{ background: 'rgba(34, 197, 94, 0.9)' }}
+                  >
+                    Kayıtlı #{existingTeklifId}
+                  </Badge>
+                )}
+              </Group>
+              <Text size="sm" c="white" style={{ opacity: 0.8 }}>
+                {ihaleBasligi}
+              </Text>
+            </div>
+          </Group>
+          
+          <Group>
+            {/* Tab Butonları */}
+            <Paper 
+              p={4} 
+              radius="lg"
+              style={{ 
+                background: 'rgba(255,255,255,0.15)',
+                backdropFilter: 'blur(10px)',
+              }}
+            >
+              <Group gap={4}>
+                <Button
+                  variant={viewMode === 'maliyet' ? 'filled' : 'subtle'}
+                  leftSection={<IconCalculator size={16} />}
+                  onClick={() => setViewMode('maliyet')}
+                  radius="md"
+                  size="sm"
+                  style={viewMode === 'maliyet' ? {
+                    background: 'white',
+                    color: '#1e40af',
+                  } : {
+                    color: 'white',
+                  }}
+                >
+                  Maliyet Hesaplama
+                </Button>
+                <Button
+                  variant={viewMode === 'cetvel' ? 'filled' : 'subtle'}
+                  leftSection={<IconFileSpreadsheet size={16} />}
+                  onClick={() => setViewMode('cetvel')}
+                  radius="md"
+                  size="sm"
+                  style={viewMode === 'cetvel' ? {
+                    background: 'white',
+                    color: '#1e40af',
+                  } : {
+                    color: 'white',
+                  }}
+                >
+                  Teklif Cetveli
+                </Button>
+              </Group>
+            </Paper>
+            
+            {/* Kapat Butonu */}
+            <ActionIcon 
+              variant="subtle" 
+              color="white" 
+              size="lg" 
+              radius="xl"
+              onClick={onClose}
+              style={{ 
+                background: 'rgba(255,255,255,0.1)',
+              }}
+            >
+              <IconX size={18} />
+            </ActionIcon>
+          </Group>
         </Group>
+      </Box>
 
+      <Box 
+        p="md" 
+        style={{ 
+          background: '#f8fafc',
+          flex: 1,
+          overflow: 'auto',
+          minHeight: 0,
+        }}
+      >
         {/* İçerik */}
         {viewMode === 'maliyet' ? renderMaliyetView() : renderCetvelView()}
+      </Box>
 
-        {/* Alt Bar */}
-        <Paper withBorder p="sm" mt="md" bg="gray.1">
+      {/* Alt Bar - Modern (Sticky Bottom) */}
+      <Paper 
+        shadow="lg" 
+        p="md" 
+        style={{
+          background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+          border: 'none',
+          flexShrink: 0,
+          borderRadius: 0,
+        }}
+      >
           <Group justify="space-between">
-            <Group gap="xl">
+            <Group gap={32}>
+              {/* Maliyet */}
               <div>
-                <Text size="xs" c="dimmed">MALİYET</Text>
-                <Text fw={700} size="lg">{formatPara(hesaplanmisTeklifData.maliyet_toplam)}</Text>
+                <Text size="xs" c="gray.5" fw={500} tt="uppercase" style={{ letterSpacing: 1 }}>
+                  Maliyet
+                </Text>
+                <Text fw={800} size="xl" c="white" style={{ fontFamily: 'system-ui' }}>
+                  {formatPara(hesaplanmisTeklifData.maliyet_toplam)}
+                </Text>
               </div>
+              
+              {/* Kar Oranı */}
               <div>
-                <Text size="xs" c="dimmed">KAR</Text>
-                <Group gap="xs">
+                <Text size="xs" c="gray.5" fw={500} tt="uppercase" style={{ letterSpacing: 1 }}>
+                  Kar Oranı
+                </Text>
+                <Group gap="xs" align="center">
                   <NumberInput
                     value={teklifData.kar_orani}
                     onChange={handleKarOraniChange}
                     min={0}
                     max={100}
-                    w={60}
-                    size="xs"
+                    w={70}
+                    size="sm"
                     rightSection="%"
-                    styles={{ input: { textAlign: 'center' } }}
+                    radius="md"
+                    styles={{ 
+                      input: { 
+                        textAlign: 'center', 
+                        fontWeight: 700,
+                        backgroundColor: 'rgba(255,255,255,0.1)',
+                        color: 'white',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                      }
+                    }}
+                    rightSectionProps={{ style: { color: 'white' } }}
                   />
                 </Group>
               </div>
+              
+              {/* Kar Tutarı */}
               <div>
-                <Text size="xs" c="dimmed">KAR TUTARI</Text>
-                <Text fw={700} size="lg" c="green">{formatPara(hesaplanmisTeklifData.kar_tutari)}</Text>
+                <Text size="xs" c="gray.5" fw={500} tt="uppercase" style={{ letterSpacing: 1 }}>
+                  Kar Tutarı
+                </Text>
+                <Text fw={800} size="xl" c="green.4" style={{ fontFamily: 'system-ui' }}>
+                  +{formatPara(hesaplanmisTeklifData.kar_tutari)}
+                </Text>
               </div>
+              
+              {/* Divider */}
+              <Divider orientation="vertical" color="gray.7" />
+              
+              {/* Teklif Fiyatı */}
               <div>
-                <Text size="xs" c="dimmed">TEKLİF FİYATI</Text>
-                <Text fw={700} size="xl" c="blue">{formatPara(hesaplanmisTeklifData.teklif_fiyati)}</Text>
+                <Text size="xs" c="gray.5" fw={500} tt="uppercase" style={{ letterSpacing: 1 }}>
+                  Teklif Fiyatı
+                </Text>
+                <Text 
+                  fw={900} 
+                  size="xl" 
+                  style={{ 
+                    fontFamily: 'system-ui',
+                    background: 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    fontSize: 28,
+                  }}
+                >
+                  {formatPara(hesaplanmisTeklifData.teklif_fiyati)}
+                </Text>
               </div>
             </Group>
-            <Group>
-              <Button variant="default" onClick={onClose}>
+            
+            {/* Butonlar */}
+            <Group gap="sm">
+              <Button 
+                variant="subtle" 
+                color="gray" 
+                onClick={onClose}
+                radius="md"
+                styles={{ root: { color: 'white' } }}
+              >
                 İptal
               </Button>
               <Button
                 variant="light"
                 leftSection={<IconDownload size={16} />}
                 disabled
+                radius="md"
+                color="gray"
               >
                 PDF
               </Button>
               <Button
-                color="green"
-                leftSection={<IconDeviceFloppy size={16} />}
+                radius="md"
+                size="md"
+                leftSection={<IconDeviceFloppy size={18} />}
                 onClick={handleKaydet}
                 loading={loading}
+                style={{
+                  background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                  border: 'none',
+                  fontWeight: 700,
+                }}
               >
                 Kaydet
               </Button>
             </Group>
           </Group>
         </Paper>
-      </Box>
     </Modal>
   );
 }

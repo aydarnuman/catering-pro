@@ -98,7 +98,7 @@ export default function AdminPage() {
       icon: IconUsers,
       color: 'blue',
       path: '/admin/kullanicilar',
-      badge: 'Yakında'
+      badge: null
     },
     {
       id: 'veri',
