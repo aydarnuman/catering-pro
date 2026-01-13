@@ -375,3 +375,50 @@ a {
   }
 }
 
+/* ========================================
+   Hero Section Animations
+   ======================================== */
+
+/* Animated gradient background */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Hero action buttons hover effect */
+.hero-action-btn:hover {
+  background: rgba(255,255,255,0.35) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+
+.hero-action-btn:active {
+  transform: translateY(0);
+}
+
+/* Stats pills subtle animation */
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255,255,255,0);
+  }
+  50% {
+    box-shadow: 0 0 20px 0 rgba(255,255,255,0.2);
+  }
+}
+
+/* Responsive hero on mobile */
+@media (max-width: 768px) {
+  .hero-action-btn {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+  }
+}
