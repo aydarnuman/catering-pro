@@ -145,200 +145,236 @@ export default function HomePage() {
       <Container size="xl">
         <Stack gap="lg">
           
-          {/* 🌅 Hero Section - Dinamik Karşılama */}
-          <Box
-            style={{
-              position: 'relative',
-              borderRadius: 24,
-              overflow: 'hidden',
-            }}
-          >
-            {/* Animated gradient background */}
+          {/* 🌅 Hero Section - Premium Bento Style */}
+          <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
+            {/* Main Greeting Card */}
             <Box
               style={{
-                position: 'absolute',
-                inset: 0,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #6B8DD6 100%)',
-                backgroundSize: '200% 200%',
-                animation: 'gradientShift 8s ease infinite',
-                opacity: 0.95,
+                gridColumn: 'span 2',
+                position: 'relative',
+                borderRadius: 20,
+                overflow: 'hidden',
+                background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                minHeight: 180,
               }}
-            />
-            
-            {/* Glassmorphism overlay */}
-            <Box
-              style={{
-                position: 'absolute',
-                inset: 0,
-                backdropFilter: 'blur(40px)',
-                background: 'rgba(255,255,255,0.1)',
-              }}
-            />
-            
-            {/* Decorative elements */}
-            <Box
-              style={{
-                position: 'absolute',
-                top: -100,
-                right: -100,
-                width: 300,
-                height: 300,
-                borderRadius: '50%',
-                background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 60%)',
-                pointerEvents: 'none',
-              }}
-            />
-            <Box
-              style={{
-                position: 'absolute',
-                bottom: -50,
-                left: -50,
-                width: 200,
-                height: 200,
-                borderRadius: '50%',
-                background: 'radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 60%)',
-                pointerEvents: 'none',
-              }}
-            />
-            
-            {/* Content */}
-            <Box p="xl" style={{ position: 'relative', zIndex: 1 }}>
-              <Group justify="space-between" align="flex-start" wrap="wrap">
-                <Box>
-                  {/* Greeting */}
-                  <Group gap="md" mb="sm">
+            >
+              {/* Animated mesh gradient */}
+              <Box
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  right: 0,
+                  width: '60%',
+                  height: '100%',
+                  background: `
+                    radial-gradient(ellipse at 80% 20%, rgba(99, 102, 241, 0.4) 0%, transparent 50%),
+                    radial-gradient(ellipse at 60% 80%, rgba(168, 85, 247, 0.3) 0%, transparent 50%),
+                    radial-gradient(ellipse at 40% 40%, rgba(59, 130, 246, 0.2) 0%, transparent 50%)
+                  `,
+                  filter: 'blur(40px)',
+                  pointerEvents: 'none',
+                }}
+              />
+              
+              {/* Grid pattern overlay */}
+              <Box
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundImage: `
+                    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)
+                  `,
+                  backgroundSize: '32px 32px',
+                  pointerEvents: 'none',
+                }}
+              />
+              
+              <Box p="xl" style={{ position: 'relative', zIndex: 1 }}>
+                <Group justify="space-between" align="flex-start">
+                  <Box>
+                    {/* Date badge */}
                     <Box
                       style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 16,
-                        background: 'rgba(255,255,255,0.2)',
-                        backdropFilter: 'blur(10px)',
-                        display: 'flex',
+                        display: 'inline-flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                        gap: 8,
+                        background: 'rgba(99, 102, 241, 0.15)',
+                        border: '1px solid rgba(99, 102, 241, 0.3)',
+                        borderRadius: 8,
+                        padding: '6px 12px',
+                        marginBottom: 16,
                       }}
                     >
-                      <GreetingIcon size={24} color="white" />
-                    </Box>
-                    <Box>
-                      <Text size="xs" tt="uppercase" fw={600} c="rgba(255,255,255,0.7)" style={{ letterSpacing: 1 }}>
+                      <IconCalendar size={14} color="#818cf8" />
+                      <Text size="xs" fw={600} c="#a5b4fc" tt="uppercase" style={{ letterSpacing: 0.5 }}>
                         {formatDate(currentTime)}
                       </Text>
-                      <Text size="xl" fw={800} c="white" style={{ lineHeight: 1.2 }}>
-                        {greeting.text}{isAuthenticated && user?.name ? `, ${user.name.split(' ')[0]}!` : '!'}
+                    </Box>
+                    
+                    {/* Large greeting */}
+                    <Group gap="sm" align="center">
+                      <GreetingIcon size={32} color="#fbbf24" />
+                      <Text 
+                        size="2rem" 
+                        fw={800} 
+                        style={{ 
+                          background: 'linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%)',
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                          lineHeight: 1.1,
+                        }}
+                      >
+                        {greeting.text}{isAuthenticated && user?.name ? `, ${user.name.split(' ')[0]}` : ''}!
                       </Text>
-                    </Box>
-                  </Group>
+                    </Group>
+                    
+                    {/* Subtitle */}
+                    <Text size="sm" c="dimmed" mt="xs">
+                      İş akışınızı yönetmeye hazır mısınız?
+                    </Text>
+                  </Box>
                   
-                  {/* Stats Pills */}
-                  <Group gap="sm" mt="lg">
-                    <Box
-                      style={{
-                        background: 'rgba(255,255,255,0.15)',
-                        backdropFilter: 'blur(10px)',
-                        borderRadius: 100,
-                        padding: '8px 16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                      }}
-                    >
-                      <IconFileText size={16} color="white" />
-                      <Text size="sm" fw={600} c="white">{activeTenders} aktif ihale</Text>
-                    </Box>
-                    <Box
-                      style={{
-                        background: 'rgba(255,255,255,0.15)',
-                        backdropFilter: 'blur(10px)',
-                        borderRadius: 100,
-                        padding: '8px 16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                      }}
-                    >
-                      <IconBrain size={16} color="white" />
-                      <Text size="sm" fw={600} c="white">{stats?.aiAnalysisCount || 0} AI analiz</Text>
-                    </Box>
-                    <Box
-                      style={{
-                        background: 'rgba(255,255,255,0.15)',
-                        backdropFilter: 'blur(10px)',
-                        borderRadius: 100,
-                        padding: '8px 16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                      }}
-                    >
-                      <IconChecklist size={16} color="white" />
-                      <Text size="sm" fw={600} c="white">{stats?.totalDocuments || 0} döküman</Text>
-                    </Box>
-                  </Group>
-                </Box>
-                
-                {/* Quick Actions */}
-                <Group gap="sm">
-                  <Tooltip label="Döküman Yükle" position="bottom">
-                    <ActionIcon 
-                      component={Link} 
-                      href="/upload" 
-                      size={44}
-                      radius="xl"
-                      style={{
-                        background: 'rgba(255,255,255,0.2)',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(255,255,255,0.3)',
-                        color: 'white',
-                        transition: 'all 0.2s ease',
-                      }}
-                      className="hero-action-btn"
-                    >
-                      <IconUpload size={20} />
-                    </ActionIcon>
-                  </Tooltip>
-                  <Tooltip label="İhalelere Git" position="bottom">
-                    <ActionIcon 
-                      component={Link} 
-                      href="/tenders" 
-                      size={44}
-                      radius="xl"
-                      style={{
-                        background: 'rgba(255,255,255,0.2)',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(255,255,255,0.3)',
-                        color: 'white',
-                        transition: 'all 0.2s ease',
-                      }}
-                      className="hero-action-btn"
-                    >
-                      <IconList size={20} />
-                    </ActionIcon>
-                  </Tooltip>
-                  <Tooltip label="Muhasebe" position="bottom">
-                    <ActionIcon 
-                      component={Link} 
-                      href="/muhasebe" 
-                      size={44}
-                      radius="xl"
-                      style={{
-                        background: 'rgba(255,255,255,0.2)',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(255,255,255,0.3)',
-                        color: 'white',
-                        transition: 'all 0.2s ease',
-                      }}
-                      className="hero-action-btn"
-                    >
-                      <IconCash size={20} />
-                    </ActionIcon>
-                  </Tooltip>
+                  {/* Live clock */}
+                  <Box
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: 12,
+                      padding: '12px 20px',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <Text size="2rem" fw={700} c="white" style={{ fontFamily: 'monospace', letterSpacing: 2 }}>
+                      {formatTime(currentTime)}
+                    </Text>
+                    <Text size="xs" c="dimmed" tt="uppercase">İstanbul</Text>
+                  </Box>
                 </Group>
-              </Group>
+                
+                {/* Quick action buttons */}
+                <Group gap="xs" mt="xl">
+                  <Button
+                    component={Link}
+                    href="/upload"
+                    variant="light"
+                    color="violet"
+                    size="sm"
+                    leftSection={<IconUpload size={16} />}
+                    radius="md"
+                    style={{ 
+                      background: 'rgba(139, 92, 246, 0.15)',
+                      border: '1px solid rgba(139, 92, 246, 0.3)',
+                    }}
+                  >
+                    Döküman Yükle
+                  </Button>
+                  <Button
+                    component={Link}
+                    href="/tenders"
+                    variant="light"
+                    color="blue"
+                    size="sm"
+                    leftSection={<IconList size={16} />}
+                    radius="md"
+                    style={{ 
+                      background: 'rgba(59, 130, 246, 0.15)',
+                      border: '1px solid rgba(59, 130, 246, 0.3)',
+                    }}
+                  >
+                    İhaleler
+                  </Button>
+                  <Button
+                    component={Link}
+                    href="/muhasebe"
+                    variant="light"
+                    color="teal"
+                    size="sm"
+                    leftSection={<IconCash size={16} />}
+                    radius="md"
+                    style={{ 
+                      background: 'rgba(20, 184, 166, 0.15)',
+                      border: '1px solid rgba(20, 184, 166, 0.3)',
+                    }}
+                  >
+                    Muhasebe
+                  </Button>
+                </Group>
+              </Box>
             </Box>
-          </Box>
+            
+            {/* Stats Card */}
+            <Box
+              style={{
+                position: 'relative',
+                borderRadius: 20,
+                overflow: 'hidden',
+                background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                minHeight: 180,
+              }}
+            >
+              {/* Glow effect */}
+              <Box
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: 200,
+                  height: 200,
+                  background: 'radial-gradient(circle, rgba(34, 197, 94, 0.2) 0%, transparent 70%)',
+                  filter: 'blur(30px)',
+                  pointerEvents: 'none',
+                }}
+              />
+              
+              <Box p="lg" style={{ position: 'relative', zIndex: 1, height: '100%' }}>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={600} mb="md" style={{ letterSpacing: 1 }}>
+                  Sistem Durumu
+                </Text>
+                
+                <Stack gap="md">
+                  {/* İhale stat */}
+                  <Box>
+                    <Group justify="space-between" mb={4}>
+                      <Group gap="xs">
+                        <Box style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }} />
+                        <Text size="xs" c="dimmed">Aktif İhale</Text>
+                      </Group>
+                      <Text size="lg" fw={700} c="white">{activeTenders}</Text>
+                    </Group>
+                    <Progress value={(activeTenders / Math.max(totalTenders, 1)) * 100} color="green" size="xs" radius="xl" />
+                  </Box>
+                  
+                  {/* AI stat */}
+                  <Box>
+                    <Group justify="space-between" mb={4}>
+                      <Group gap="xs">
+                        <Box style={{ width: 8, height: 8, borderRadius: '50%', background: '#a855f7' }} />
+                        <Text size="xs" c="dimmed">AI Analiz</Text>
+                      </Group>
+                      <Text size="lg" fw={700} c="white">{stats?.aiAnalysisCount || 0}</Text>
+                    </Group>
+                    <Progress value={75} color="violet" size="xs" radius="xl" />
+                  </Box>
+                  
+                  {/* Document stat */}
+                  <Box>
+                    <Group justify="space-between" mb={4}>
+                      <Group gap="xs">
+                        <Box style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6' }} />
+                        <Text size="xs" c="dimmed">Döküman</Text>
+                      </Group>
+                      <Text size="lg" fw={700} c="white">{stats?.totalDocuments || 0}</Text>
+                    </Group>
+                    <Progress value={60} color="blue" size="xs" radius="xl" />
+                  </Box>
+                </Stack>
+              </Box>
+            </Box>
+          </SimpleGrid>
 
           {/* Error Alert */}
           {error && (
