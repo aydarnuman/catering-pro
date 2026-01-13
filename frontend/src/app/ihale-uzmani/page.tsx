@@ -433,7 +433,25 @@ export default function IhaleUzmaniPage() {
       // Build context with selected tender info
       let context = '';
       if (selectedTender) {
-        context = `
+        if ('isManuel' in selectedTender) {
+          // Manuel ihale context
+          context = `
+Kullanıcının seçili ihalesi (manuel eklenen):
+- Başlık: ${selectedTender.ihale_basligi}
+- Kurum: ${selectedTender.kurum}
+- Durum: ${selectedTender.durum === 'asiri_dusuk' ? 'Aşırı Düşük Teklif' : selectedTender.durum === 'kazandik' ? 'Kazandık' : selectedTender.durum === 'elendik' ? 'Elendik' : 'Beklemede'}
+${selectedTender.yaklasik_maliyet > 0 ? `- Yaklaşık Maliyet: ${selectedTender.yaklasik_maliyet.toLocaleString('tr-TR')} TL` : ''}
+${selectedTender.sinir_deger > 0 ? `- Sınır Değer: ${selectedTender.sinir_deger.toLocaleString('tr-TR')} TL` : ''}
+${selectedTender.bizim_teklif > 0 ? `- Bizim Teklifimiz: ${selectedTender.bizim_teklif.toLocaleString('tr-TR')} TL` : ''}
+${selectedTender.kesinlesme_tarihi ? `- Kesinleşme Tarihi: ${selectedTender.kesinlesme_tarihi}` : ''}
+${selectedTender.notlar ? `- Notlar: ${selectedTender.notlar}` : ''}
+
+Bu ihale bağlamında cevap ver.
+
+`;
+        } else {
+          // Tracking'den gelen ihale context
+          context = `
 Kullanıcının seçili ihalesi:
 - Başlık: ${selectedTender.ihale_basligi}
 - Kurum: ${selectedTender.kurum}
@@ -446,6 +464,7 @@ ${selectedTender.yaklasik_maliyet ? `- Yaklaşık Maliyet: ${selectedTender.yakl
 Bu ihale bağlamında cevap ver.
 
 `;
+        }
       }
 
       const response = await fetch(`${API_BASE_URL}/api/ai/agent`, {
