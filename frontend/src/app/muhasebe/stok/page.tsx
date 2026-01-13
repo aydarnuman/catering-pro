@@ -81,7 +81,7 @@ import {
 import { DataActions } from '@/components/DataActions';
 
 // API URL
-const API_URL = 'http://localhost:3001/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : 'http://localhost:3001/api';
 
 // Tip tanımları
 interface StokItem {

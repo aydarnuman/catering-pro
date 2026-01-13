@@ -58,7 +58,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 
-const API_URL = 'http://localhost:3001/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : 'http://localhost:3001/api';
 
 export default function SyncControlPage() {
   const { colorScheme } = useMantineColorScheme();

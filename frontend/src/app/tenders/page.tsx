@@ -42,6 +42,8 @@ import { useState, useMemo } from 'react';
 import { apiClient } from '@/lib/api';
 import { TendersResponse, Tender } from '@/types/api';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 export default function TendersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
@@ -382,7 +384,7 @@ export default function TendersPage() {
                                   color="blue"
                                   leftSection={<IconDownload size={12} />}
                                   component="a"
-                                  href={`http://localhost:3001/api/documents/download/${tender.id}/tech_spec`}
+                                  href={`${API_URL}/api/documents/download/${tender.id}/tech_spec`}
                                   download
                                   styles={{
                                     root: { height: 28, fontSize: '11px' },
@@ -404,7 +406,7 @@ export default function TendersPage() {
                                   color="blue"
                                   leftSection={<IconDownload size={12} />}
                                   component="a"
-                                  href={`http://localhost:3001/api/documents/download/${tender.id}/admin_spec`}
+                                  href={`${API_URL}/api/documents/download/${tender.id}/admin_spec`}
                                   download
                                   styles={{
                                     root: { height: 28, fontSize: '11px' },
@@ -426,7 +428,7 @@ export default function TendersPage() {
                                   color="violet"
                                   leftSection={<IconDownload size={12} />}
                                   component="a"
-                                  href={`http://localhost:3001/api/content/announcement/${tender.id}`}
+                                  href={`${API_URL}/api/content/announcement/${tender.id}`}
                                   download
                                   styles={{
                                     root: { height: 28, fontSize: '11px' },
@@ -448,7 +450,7 @@ export default function TendersPage() {
                                   color="green"
                                   leftSection={<IconDownload size={12} />}
                                   component="a"
-                                  href={`http://localhost:3001/api/content/goods-services/${tender.id}`}
+                                  href={`${API_URL}/api/content/goods-services/${tender.id}`}
                                   download
                                   styles={{
                                     root: { height: 28, fontSize: '11px' },
@@ -470,7 +472,7 @@ export default function TendersPage() {
                                   color="orange"
                                   leftSection={<IconDownload size={12} />}
                                   component="a"
-                                  href={`http://localhost:3001/api/documents/download/${tender.id}/project_files`}
+                                  href={`${API_URL}/api/documents/download/${tender.id}/project_files`}
                                   download
                                   styles={{
                                     root: { height: 28, fontSize: '11px' },
