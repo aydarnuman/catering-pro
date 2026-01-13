@@ -1,31 +1,9 @@
 // Merkezi API Konfigürasyonu
 // Tüm API çağrıları bu dosyadan import etmeli
 
-// Runtime ortamını tespit et (browser vs server)
-const isServer = typeof window === 'undefined';
-const isBrowser = !isServer;
-
-// Production detection: window.location veya env
-const getDefaultApiUrl = () => {
-  // Browser'daysa, current hostname kullan
-  if (isBrowser) {
-    const hostname = window.location.hostname;
-    const protocol = window.location.protocol;
-    
-    // localhost ise backend port 3001
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost:3001';
-    }
-    
-    // Production IP ise aynı IP kullan
-    return `${protocol}//${hostname}`;
-  }
-  
-  // Server-side: env'den al veya localhost
-  return 'http://localhost:3001';
-};
-
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || getDefaultApiUrl();
+// NOT: NEXT_PUBLIC_* değişkenleri build-time'da kodun içine gömülür
+// Bu yüzden .env.production dosyasında MUTLAKA tanımlı olmalı
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 // API endpoint'leri için helper
 export const API_ENDPOINTS = {
