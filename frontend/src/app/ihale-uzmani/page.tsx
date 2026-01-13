@@ -35,7 +35,7 @@ import {
   RingProgress,
   Center,
 } from '@mantine/core';
-import { DateInput } from '@mantine/dates';
+// Date inputs now use native HTML date type
 import { notifications } from '@mantine/notifications';
 import {
   IconScale,
@@ -956,12 +956,14 @@ Bu ihale bağlamında cevap ver.
                     </Accordion.Control>
                     <Accordion.Panel>
                       <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" mb="md">
-                        <DateInput
+                        <TextInput
                           label="Tebliğ Tarihi"
-                          placeholder="Tarih seçin"
-                          value={sureData.tebligTarihi}
-                          onChange={(val) => setSureData(prev => ({ ...prev, tebligTarihi: val }))}
-                          locale="tr"
+                          type="date"
+                          value={sureData.tebligTarihi ? sureData.tebligTarihi.toISOString().split('T')[0] : ''}
+                          onChange={(e) => setSureData(prev => ({ 
+                            ...prev, 
+                            tebligTarihi: e.currentTarget.value ? new Date(e.currentTarget.value) : null 
+                          }))}
                         />
                         <Select
                           label="Başvuru Türü"
@@ -1349,13 +1351,15 @@ Bu ihale bağlamında cevap ver.
               min={0}
               description="Verdiğimiz teklif tutarı"
             />
-            <DateInput
+            <TextInput
               label="Kesinleşme Tarihi"
-              placeholder="Tarih seçin"
-              value={manuelFormData.kesinlesme_tarihi}
-              onChange={(val) => setManuelFormData(prev => ({ ...prev, kesinlesme_tarihi: val }))}
+              type="date"
+              value={manuelFormData.kesinlesme_tarihi ? manuelFormData.kesinlesme_tarihi.toISOString().split('T')[0] : ''}
+              onChange={(e) => setManuelFormData(prev => ({ 
+                ...prev, 
+                kesinlesme_tarihi: e.currentTarget.value ? new Date(e.currentTarget.value) : null 
+              }))}
               description="İtiraz süreleri başlangıcı"
-              clearable
             />
           </SimpleGrid>
 
