@@ -142,11 +142,6 @@ interface ManuelIhale {
   verilerTamam?: boolean;
 }
 
-// Sınır değer hesaplama için gerekli veri
-interface SinirDegerHesapData {
-  yaklasikMaliyet: number;
-  teklifler: number[]; // Tüm teklifler (bizim dahil)
-}
 
 export default function IhaleUzmaniPage() {
   const { colorScheme } = useMantineColorScheme();
@@ -159,12 +154,9 @@ export default function IhaleUzmaniPage() {
   const [currentStep, setCurrentStep] = useState(0); // 0: İhale Seç, 1: Veriler, 2: Araçlar
   
   // Sınır değer hesaplama state
-  const [sinirDegerData, setSinirDegerData] = useState<SinirDegerHesapData>({
-    yaklasikMaliyet: 0,
-    teklifler: [],
-  });
-  const [teklifInput, setTeklifInput] = useState<string>(''); // virgülle ayrılmış teklifler
+  const [teklifListesi, setTeklifListesi] = useState<number[]>([0, 0]); // dinamik teklif listesi
   const [hesaplananSinirDeger, setHesaplananSinirDeger] = useState<number | null>(null);
+  const [sinirDegerModalOpened, { open: openSinirDegerModal, close: closeSinirDegerModal }] = useDisclosure(false);
   
   // Manuel ihale modal
   const [manuelModalOpened, { open: openManuelModal, close: closeManuelModal }] = useDisclosure(false);
@@ -371,22 +363,11 @@ export default function IhaleUzmaniPage() {
   }, [asiriDusukData]);
 
   // Sınır değer hesaplama fonksiyonu (KİK formülü)
-  const hesaplaSinirDeger = useCallback(() => {
-    const { yaklasikMaliyet, teklifler } = sinirDegerData;
-    
+  const hesaplaSinirDeger = useCallback((yaklasikMaliyet: number, teklifler: number[]) => {
     if (yaklasikMaliyet <= 0) {
       notifications.show({
         title: 'Hata',
         message: 'Yaklaşık maliyet giriniz',
-        color: 'red',
-      });
-      return null;
-    }
-    
-    if (teklifler.length < 2) {
-      notifications.show({
-        title: 'Hata',
-        message: 'En az 2 teklif giriniz',
         color: 'red',
       });
       return null;
@@ -437,29 +418,24 @@ export default function IhaleUzmaniPage() {
     }
 
     // 6. Sınır Değer = K × Tort2 (Hizmet alımı için N=1.00)
-    const N = 1.00; // Hizmet alımı (yemek dahil)
     const sinirDeger = (K * Tort2);
 
     setHesaplananSinirDeger(sinirDeger);
     
-    notifications.show({
-      title: 'Sınır Değer Hesaplandı',
-      message: `${sinirDeger.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} TL`,
-      color: 'green',
-    });
-
     return sinirDeger;
-  }, [sinirDegerData]);
+  }, []);
 
-  // Teklifleri parse et
-  const parseTeklifler = useCallback((input: string) => {
-    const teklifler = input
-      .split(/[,;\s]+/)
-      .map(s => s.replace(/\./g, '').replace(',', '.'))
-      .map(s => parseFloat(s))
-      .filter(n => !isNaN(n) && n > 0);
-    setSinirDegerData(prev => ({ ...prev, teklifler }));
-    return teklifler;
+  // Teklif ekleme/silme
+  const addTeklif = useCallback(() => {
+    setTeklifListesi(prev => [...prev, 0]);
+  }, []);
+
+  const removeTeklif = useCallback((index: number) => {
+    setTeklifListesi(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const updateTeklif = useCallback((index: number, value: number) => {
+    setTeklifListesi(prev => prev.map((t, i) => i === index ? value : t));
   }, []);
 
   // İhale seçildiğinde step kontrolü
@@ -945,8 +921,6 @@ Bu ihale bağlamında cevap ver.
                     const list = manuelIhaleler.map(m => m.id === updated.id ? updated : m);
                     setManuelIhaleler(list);
                     localStorage.setItem('manuelIhaleler', JSON.stringify(list));
-                    // Sınır değer hesaplama için de güncelle
-                    setSinirDegerData(prev => ({ ...prev, yaklasikMaliyet: Number(val) || 0 }));
                   }}
                   thousandSeparator="."
                   decimalSeparator=","
@@ -1068,55 +1042,26 @@ Bu ihale bağlamında cevap ver.
                   Sınır değeri bilmiyorsanız, diğer teklifleri girerek KİK formülüyle hesaplayabilirsiniz.
                 </Text>
 
-                <Textarea
-                  label="Diğer Teklifler"
-                  description="Virgülle ayırarak tüm teklifleri girin (bizim teklifimiz dahil)"
-                  placeholder="1.250.000, 1.300.000, 1.180.000, 1.420.000"
-                  value={teklifInput}
-                  onChange={(e) => {
-                    setTeklifInput(e.target.value);
-                    parseTeklifler(e.target.value);
-                  }}
-                  minRows={3}
-                  mb="md"
-                />
-
-                {sinirDegerData.teklifler.length > 0 && (
-                  <Alert icon={<IconInfoCircle size={16} />} color="gray" variant="light" mb="md">
-                    <Text size="xs">
-                      {sinirDegerData.teklifler.length} teklif algılandı:{' '}
-                      {sinirDegerData.teklifler.map(t => t.toLocaleString('tr-TR')).join(', ')} TL
-                    </Text>
-                  </Alert>
-                )}
-
                 <Button 
                   fullWidth 
+                  variant="light"
                   color="violet"
+                  size="lg"
                   onClick={() => {
-                    // Yaklaşık maliyeti formdan al
-                    if (selectedTender.yaklasik_maliyet > 0) {
-                      setSinirDegerData(prev => ({ ...prev, yaklasikMaliyet: selectedTender.yaklasik_maliyet }));
-                    }
-                    const sonuc = hesaplaSinirDeger();
-                    if (sonuc) {
-                      const updated = { ...selectedTender, sinir_deger: Math.round(sonuc) };
-                      setSelectedTender(updated);
-                      const list = manuelIhaleler.map(m => m.id === updated.id ? updated : m);
-                      setManuelIhaleler(list);
-                      localStorage.setItem('manuelIhaleler', JSON.stringify(list));
-                    }
+                    setTeklifListesi([0, 0]);
+                    setHesaplananSinirDeger(null);
+                    openSinirDegerModal();
                   }}
-                  leftSection={<IconCalculator size={16} />}
-                  disabled={sinirDegerData.teklifler.length < 2 || !selectedTender.yaklasik_maliyet}
+                  leftSection={<IconMathFunction size={20} />}
+                  disabled={!selectedTender.yaklasik_maliyet}
                 >
-                  Sınır Değer Hesapla
+                  Sınır Değer Hesaplama Aracını Aç
                 </Button>
 
-                {hesaplananSinirDeger && (
+                {selectedTender.sinir_deger > 0 && (
                   <Alert mt="md" color="green" icon={<IconCheck size={16} />}>
                     <Text size="sm" fw={600}>
-                      Hesaplanan: {hesaplananSinirDeger.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL
+                      Mevcut Sınır Değer: {selectedTender.sinir_deger.toLocaleString('tr-TR')} TL
                     </Text>
                   </Alert>
                 )}
@@ -1758,25 +1703,14 @@ Bu ihale bağlamında cevap ver.
             label="Yaklaşık Maliyet (TL)"
             placeholder="0"
             value={manuelFormData.yaklasik_maliyet || ''}
-            onChange={(val) => {
-              setManuelFormData(prev => ({ ...prev, yaklasik_maliyet: Number(val) || 0 }));
-              setSinirDegerData(prev => ({ ...prev, yaklasikMaliyet: Number(val) || 0 }));
-            }}
+            onChange={(val) => setManuelFormData(prev => ({ ...prev, yaklasik_maliyet: Number(val) || 0 }))}
             thousandSeparator="."
             decimalSeparator=","
             min={0}
             description="İdarenin belirlediği tahmini tutar"
           />
 
-          {/* Sınır Değer Hesaplama Bölümü */}
-          <Paper p="md" radius="md" withBorder style={{ background: 'rgba(139, 92, 246, 0.03)' }}>
-            <Group gap="xs" mb="sm">
-              <ThemeIcon size="sm" radius="md" variant="light" color="violet">
-                <IconMathFunction size={14} />
-              </ThemeIcon>
-              <Text size="sm" fw={600}>Sınır Değer</Text>
-            </Group>
-
+          <SimpleGrid cols={2}>
             <NumberInput
               label="Sınır Değer (TL)"
               placeholder="0"
@@ -1785,54 +1719,25 @@ Bu ihale bağlamında cevap ver.
               thousandSeparator="."
               decimalSeparator=","
               min={0}
-              description="Biliyorsanız doğrudan girin, bilmiyorsanız aşağıdan hesaplayın"
-              mb="sm"
+              description="Biliyorsanız doğrudan girin"
             />
-
-            <Divider label="veya tekliflerden hesapla" labelPosition="center" my="sm" />
-
-            <Textarea
-              label="Tüm Teklifler"
-              description="Virgülle ayırarak tüm teklifleri girin (sizinki dahil)"
-              placeholder="1.250.000, 1.300.000, 1.180.000, 1.420.000"
-              value={teklifInput}
-              onChange={(e) => {
-                setTeklifInput(e.target.value);
-                parseTeklifler(e.target.value);
-              }}
-              minRows={2}
-              mb="xs"
-            />
-
-            {sinirDegerData.teklifler.length > 0 && (
-              <Text size="xs" c="dimmed" mb="xs">
-                {sinirDegerData.teklifler.length} teklif algılandı
-              </Text>
-            )}
-
-            <Button 
-              size="xs"
-              variant="light"
-              color="violet"
-              leftSection={<IconCalculator size={14} />}
-              disabled={sinirDegerData.teklifler.length < 2 || !manuelFormData.yaklasik_maliyet}
-              onClick={() => {
-                setSinirDegerData(prev => ({ ...prev, yaklasikMaliyet: manuelFormData.yaklasik_maliyet }));
-                const sonuc = hesaplaSinirDeger();
-                if (sonuc) {
-                  setManuelFormData(prev => ({ ...prev, sinir_deger: Math.round(sonuc) }));
-                }
-              }}
-            >
-              Hesapla ve Uygula
-            </Button>
-
-            {hesaplananSinirDeger && (
-              <Alert mt="sm" color="green" icon={<IconCheck size={14} />} p="xs">
-                <Text size="xs">Hesaplanan: {hesaplananSinirDeger.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL</Text>
-              </Alert>
-            )}
-          </Paper>
+            <Stack gap="xs" justify="flex-end">
+              <Text size="xs" c="dimmed">veya</Text>
+              <Button 
+                variant="light"
+                color="violet"
+                leftSection={<IconMathFunction size={16} />}
+                onClick={() => {
+                  setTeklifListesi([0, 0]);
+                  setHesaplananSinirDeger(null);
+                  openSinirDegerModal();
+                }}
+                disabled={!manuelFormData.yaklasik_maliyet}
+              >
+                Tekliflerden Hesapla
+              </Button>
+            </Stack>
+          </SimpleGrid>
 
           <SimpleGrid cols={2}>
             <NumberInput
@@ -1890,6 +1795,152 @@ Bu ihale bağlamında cevap ver.
               {editingManuelId ? 'Güncelle' : 'Ekle'}
             </Button>
           </Group>
+        </Stack>
+      </Modal>
+
+      {/* Sınır Değer Hesaplama Modal */}
+      <Modal
+        opened={sinirDegerModalOpened}
+        onClose={closeSinirDegerModal}
+        title={
+          <Group gap="sm">
+            <ThemeIcon size="md" radius="md" variant="gradient" gradient={{ from: 'violet', to: 'blue' }}>
+              <IconMathFunction size={16} />
+            </ThemeIcon>
+            <div>
+              <Text fw={600}>Sınır Değer Hesaplama</Text>
+              <Text size="xs" c="dimmed">KİK Tebliği Formülü</Text>
+            </div>
+          </Group>
+        }
+        size="md"
+        centered
+      >
+        <Stack gap="md">
+          {/* Yaklaşık Maliyet Gösterimi */}
+          <Alert icon={<IconCoin size={16} />} color="blue" variant="light">
+            <Group justify="space-between">
+              <Text size="sm">Yaklaşık Maliyet:</Text>
+              <Text size="sm" fw={700}>{manuelFormData.yaklasik_maliyet.toLocaleString('tr-TR')} TL</Text>
+            </Group>
+          </Alert>
+
+          {/* Teklif Listesi */}
+          <div>
+            <Group justify="space-between" mb="xs">
+              <Text size="sm" fw={500}>Teklif Listesi</Text>
+              <Button 
+                size="xs" 
+                variant="light" 
+                color="green"
+                leftSection={<IconPlus size={14} />}
+                onClick={addTeklif}
+              >
+                Teklif Ekle
+              </Button>
+            </Group>
+
+            <Stack gap="xs">
+              {teklifListesi.map((teklif, index) => (
+                <Group key={index} gap="xs">
+                  <NumberInput
+                    placeholder={`${index + 1}. Teklif`}
+                    value={teklif || ''}
+                    onChange={(val) => updateTeklif(index, Number(val) || 0)}
+                    thousandSeparator="."
+                    decimalSeparator=","
+                    min={0}
+                    style={{ flex: 1 }}
+                    leftSection={<Text size="xs" c="dimmed" w={20}>{index + 1}.</Text>}
+                  />
+                  {teklifListesi.length > 2 && (
+                    <ActionIcon 
+                      variant="light" 
+                      color="red" 
+                      onClick={() => removeTeklif(index)}
+                    >
+                      <IconTrash size={16} />
+                    </ActionIcon>
+                  )}
+                </Group>
+              ))}
+            </Stack>
+
+            <Text size="xs" c="dimmed" mt="xs">
+              En az 2 teklif gerekli. Kendi teklifinizi de dahil edin.
+            </Text>
+          </div>
+
+          <Divider />
+
+          {/* Hesapla Butonu */}
+          <Button
+            fullWidth
+            color="violet"
+            size="md"
+            leftSection={<IconCalculator size={18} />}
+            onClick={() => {
+              const sonuc = hesaplaSinirDeger(manuelFormData.yaklasik_maliyet, teklifListesi);
+              if (sonuc) {
+                notifications.show({
+                  title: 'Hesaplandı',
+                  message: `Sınır Değer: ${sonuc.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL`,
+                  color: 'green',
+                });
+              }
+            }}
+            disabled={teklifListesi.filter(t => t > 0).length < 2}
+          >
+            Sınır Değer Hesapla
+          </Button>
+
+          {/* Sonuç */}
+          {hesaplananSinirDeger && (
+            <Paper p="md" radius="md" withBorder style={{ background: 'rgba(34, 197, 94, 0.1)' }}>
+              <Group justify="space-between" align="center">
+                <div>
+                  <Text size="xs" c="dimmed">Hesaplanan Sınır Değer</Text>
+                  <Text size="xl" fw={700} c="green">
+                    {hesaplananSinirDeger.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL
+                  </Text>
+                </div>
+                <Button
+                  color="green"
+                  leftSection={<IconCheck size={16} />}
+                  onClick={() => {
+                    setManuelFormData(prev => ({ ...prev, sinir_deger: Math.round(hesaplananSinirDeger) }));
+                    closeSinirDegerModal();
+                    notifications.show({
+                      title: 'Aktarıldı',
+                      message: 'Sınır değer forma aktarıldı',
+                      color: 'green',
+                    });
+                  }}
+                >
+                  Forma Aktar
+                </Button>
+              </Group>
+            </Paper>
+          )}
+
+          {/* Formül Açıklaması */}
+          <Accordion variant="contained">
+            <Accordion.Item value="formul">
+              <Accordion.Control icon={<IconInfoCircle size={16} />}>
+                <Text size="xs">Formül Nasıl Çalışır?</Text>
+              </Accordion.Control>
+              <Accordion.Panel>
+                <Text size="xs" c="dimmed">
+                  1. Tekliflerin aritmetik ortalaması (T̄₁) hesaplanır<br/>
+                  2. Standart sapma (σ) hesaplanır<br/>
+                  3. (T̄₁ - σ) ile (T̄₁ + σ) arasındaki tekliflerin ortalaması (T̄₂) alınır<br/>
+                  4. C = T̄₂ / Yaklaşık Maliyet<br/>
+                  5. K katsayısı belirlenir<br/>
+                  6. Sınır Değer = K × T̄₂
+                </Text>
+              </Accordion.Panel>
+            </Accordion.Item>
+          </Accordion>
         </Stack>
       </Modal>
     </Container>
