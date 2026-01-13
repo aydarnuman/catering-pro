@@ -353,6 +353,17 @@ a {
   }
 }
 
+/* Settings page layout - responsive wrap */
+.settings-main-content {
+  flex-wrap: wrap;
+}
+
+@media (min-width: 768px) {
+  .settings-main-content {
+    flex-wrap: nowrap;
+  }
+}
+
 /* Reduce motion for accessibility */
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -867,7 +867,17 @@ function AyarlarContent() {
         </Group>
 
         {/* Main Content */}
-        <Group align="flex-start" gap="xl" wrap={{ base: 'wrap', md: 'nowrap' }} style={{ minHeight: '60vh' }}>
+        <Box 
+          style={{ 
+            display: 'flex', 
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            gap: 'var(--mantine-spacing-xl)',
+            minHeight: '60vh',
+            flexWrap: 'wrap',
+          }}
+          className="settings-main-content"
+        >
           {/* Sidebar */}
           <Paper 
             p="md" 
@@ -974,7 +984,7 @@ function AyarlarContent() {
           <Box style={{ flex: 1, minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
             {renderContent()}
           </Box>
-        </Group>
+        </Box>
       </Stack>
 
       {/* Şifre Değiştir Modal */}
