@@ -177,7 +177,7 @@ export default function HomePage() {
                     <GreetingIcon size={18} />
                   </ThemeIcon>
                   <Text size="xl" fw={700} c={greeting.color}>
-                    {greeting.text}{isAuthenticated && user?.ad ? `, ${user.ad}!` : '!'}
+                    {greeting.text}{isAuthenticated && user?.name ? `, ${user.name.split(' ')[0]}!` : '!'}
                   </Text>
                 </Group>
                 
