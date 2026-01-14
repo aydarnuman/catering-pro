@@ -664,25 +664,50 @@ export async function analyzeDocxFile(docPath, onProgress) {
         console.log(`✅ mammoth ile dönüştürüldü`);
       }
     } else if (ext === '.doc') {
-      // Eski DOC formatı için LibreOffice öncelikli
-      text = tryLibreOffice();
+      // Önce dosyanın gerçek tipini kontrol et (bazı .doc dosyaları aslında HTML)
+      const fileContent = fs.readFileSync(docPath, 'utf-8').slice(0, 500);
+      const isHtmlDoc = fileContent.includes('<html') || fileContent.includes('<!DOCTYPE html') || 
+                        fileContent.includes('xmlns:w=') || fileContent.includes('urn:schemas-microsoft-com:office:word');
       
-      if (!text) {
-        // Fallback: antiword
-        try {
-          text = execSync(`antiword "${docPath}"`, { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 });
-          console.log(`✅ antiword ile dönüştürüldü`);
-        } catch (antiwordError) {
-          console.warn('⚠️ antiword başarısız, textutil deneniyor...');
-          // Son çare: textutil (macOS yerleşik)
+      if (isHtmlDoc) {
+        console.log('📄 DOC dosyası aslında HTML formatında, HTML olarak işleniyor...');
+        // HTML'den metin çıkar
+        const fullContent = fs.readFileSync(docPath, 'utf-8');
+        // HTML taglerini temizle
+        text = fullContent
+          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // style taglerini kaldır
+          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '') // script taglerini kaldır
+          .replace(/<[^>]+>/g, ' ') // tüm HTML taglerini boşlukla değiştir
+          .replace(/&nbsp;/g, ' ')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#\d+;/g, '') // numeric entities
+          .replace(/\s+/g, ' ') // çoklu boşlukları tekleştir
+          .trim();
+        console.log(`✅ HTML-DOC dosyasından metin çıkarıldı`);
+      } else {
+        // Gerçek DOC formatı için LibreOffice öncelikli
+        text = tryLibreOffice();
+        
+        if (!text) {
+          // Fallback: antiword
           try {
-            const tmpTxt = docPath.replace('.doc', '_tmp.txt');
-            execSync(`textutil -convert txt -output "${tmpTxt}" "${docPath}"`, { encoding: 'utf-8' });
-            text = fs.readFileSync(tmpTxt, 'utf-8');
-            fs.unlinkSync(tmpTxt);
-            console.log(`✅ textutil ile dönüştürüldü`);
-          } catch (textutilError) {
-            throw new Error('DOC dosyası okunamadı. LibreOffice, antiword veya textutil gerekli.');
+            text = execSync(`antiword "${docPath}"`, { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 });
+            console.log(`✅ antiword ile dönüştürüldü`);
+          } catch (antiwordError) {
+            console.warn('⚠️ antiword başarısız, textutil deneniyor...');
+            // Son çare: textutil (macOS yerleşik)
+            try {
+              const tmpTxt = docPath.replace('.doc', '_tmp.txt');
+              execSync(`textutil -convert txt -output "${tmpTxt}" "${docPath}"`, { encoding: 'utf-8' });
+              text = fs.readFileSync(tmpTxt, 'utf-8');
+              fs.unlinkSync(tmpTxt);
+              console.log(`✅ textutil ile dönüştürüldü`);
+            } catch (textutilError) {
+              throw new Error('DOC dosyası okunamadı. LibreOffice, antiword veya textutil gerekli.');
+            }
           }
         }
       }
