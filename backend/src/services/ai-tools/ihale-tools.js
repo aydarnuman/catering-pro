@@ -56,7 +56,7 @@ const ihaleTools = {
     handler: async (params) => {
       let sql = `
         SELECT 
-          id, ihale_kayit_no, title, organization, tender_date,
+          id, ihale_kayit_no, title, organization_name, tender_date,
           estimated_cost, city, source, status, created_at
         FROM tenders
         WHERE 1=1
@@ -65,7 +65,7 @@ const ihaleTools = {
       let paramIndex = 1;
 
       if (params.kurum) {
-        sql += ` AND UPPER(organization) LIKE UPPER($${paramIndex++})`;
+        sql += ` AND UPPER(organization_name) LIKE UPPER($${paramIndex++})`;
         queryParams.push(`%${params.kurum}%`);
       }
 
@@ -168,13 +168,13 @@ const ihaleTools = {
 
       // Benzer ihaleleri bul
       const benzerResult = await query(`
-        SELECT id, title, organization, tender_date, estimated_cost
+        SELECT id, title, organization_name_name, tender_date, estimated_cost
         FROM tenders
         WHERE id != $1
-        AND organization = $2
+        AND organization_name_name = $2
         ORDER BY tender_date DESC
         LIMIT 5
-      `, [ihale.id, ihale.organization]);
+      `, [ihale.id, ihale.organization_name_name]);
 
       return {
         success: true,
@@ -237,12 +237,12 @@ const ihaleTools = {
       // Kurum bazlı
       const kurumResult = await query(`
         SELECT 
-          organization,
+          organization_name,
           COUNT(*) as ihale_sayisi,
           SUM(estimated_cost) as toplam_bedel
         FROM tenders
         WHERE 1=1 ${dateFilter}
-        GROUP BY organization
+        GROUP BY organization_name
         ORDER BY ihale_sayisi DESC
         LIMIT 10
       `);
@@ -262,7 +262,7 @@ const ihaleTools = {
 
       // Yaklaşan ihaleler
       const yaklasanResult = await query(`
-        SELECT id, title, organization, tender_date, estimated_cost, city
+        SELECT id, title, organization_name, tender_date, estimated_cost, city
         FROM tenders
         WHERE tender_date > NOW()
         ORDER BY tender_date ASC
@@ -307,7 +307,7 @@ const ihaleTools = {
 
       const result = await query(`
         SELECT 
-          id, title, organization, tender_date, estimated_cost, city,
+          id, title, organization_name, tender_date, estimated_cost, city,
           EXTRACT(DAY FROM tender_date) as gun
         FROM tenders
         WHERE EXTRACT(MONTH FROM tender_date) = $1
@@ -356,7 +356,7 @@ const ihaleTools = {
     handler: async (params) => {
       const ozetResult = await query(`
         SELECT 
-          organization,
+          organization_name,
           COUNT(*) as toplam_ihale,
           COUNT(CASE WHEN tender_date > NOW() THEN 1 END) as aktif_ihale,
           SUM(estimated_cost) as toplam_bedel,
@@ -364,8 +364,8 @@ const ihaleTools = {
           MIN(tender_date) as ilk_ihale,
           MAX(tender_date) as son_ihale
         FROM tenders
-        WHERE UPPER(organization) LIKE UPPER($1)
-        GROUP BY organization
+        WHERE UPPER(organization_name) LIKE UPPER($1)
+        GROUP BY organization_name
       `, [`%${params.kurum}%`]);
 
       if (ozetResult.rows.length === 0) {
@@ -376,7 +376,7 @@ const ihaleTools = {
       const sonIhalelerResult = await query(`
         SELECT id, title, tender_date, estimated_cost, city
         FROM tenders
-        WHERE UPPER(organization) LIKE UPPER($1)
+        WHERE UPPER(organization_name) LIKE UPPER($1)
         ORDER BY tender_date DESC
         LIMIT 10
       `, [`%${params.kurum}%`]);
@@ -388,7 +388,7 @@ const ihaleTools = {
           COUNT(*) as ihale_sayisi,
           SUM(estimated_cost) as toplam_bedel
         FROM tenders
-        WHERE UPPER(organization) LIKE UPPER($1)
+        WHERE UPPER(organization_name) LIKE UPPER($1)
         GROUP BY EXTRACT(YEAR FROM tender_date)
         ORDER BY yil DESC
       `, [`%${params.kurum}%`]);
