@@ -98,11 +98,17 @@ export default function TendersPage() {
   const getStatusBadge = (tender: Tender) => {
     const deadline = new Date(tender.deadline);
     const now = new Date();
+    const diffMs = deadline.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffMs / (24 * 60 * 60 * 1000));
     
-    if (deadline < now) {
+    if (diffMs < 0) {
       return <Badge color="red">Süresi Dolmuş</Badge>;
-    } else if (deadline.getTime() - now.getTime() < 7 * 24 * 60 * 60 * 1000) {
-      return <Badge color="yellow">Son 7 Gün</Badge>;
+    } else if (diffDays <= 1) {
+      return <Badge color="red">BUGÜN!</Badge>;
+    } else if (diffDays <= 3) {
+      return <Badge color="orange">{diffDays} Gün Kaldı</Badge>;
+    } else if (diffDays <= 7) {
+      return <Badge color="yellow">{diffDays} Gün Kaldı</Badge>;
     } else {
       return <Badge color="green">Aktif</Badge>;
     }
