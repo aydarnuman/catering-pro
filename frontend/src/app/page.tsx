@@ -448,59 +448,31 @@ export default function HomePage() {
                 <Box 
                   style={{ 
                     flex: '1 1 auto',
-                    maxWidth: 500,
+                    maxWidth: 550,
                     margin: '0 32px',
                   }}
                 >
                   <Paper
-                    p="sm"
-                    radius="lg"
+                    px="md"
+                    py="xs"
+                    radius="xl"
                     style={{
-                      background: 'rgba(255, 255, 255, 0.08)',
+                      background: 'rgba(255, 255, 255, 0.06)',
                       backdropFilter: 'blur(10px)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
                     }}
                   >
-                    <Group gap="sm" wrap="nowrap">
-                      <ThemeIcon 
-                        size={36} 
-                        radius="xl" 
-                        variant="gradient" 
-                        gradient={{ from: 'violet', to: 'cyan', deg: 45 }}
-                      >
-                        <IconSparkles size={20} />
-                      </ThemeIcon>
-                      <Box style={{ flex: 1, minWidth: 0 }}>
-                        <Group gap={4} mb={2}>
-                          <IconRobot size={12} color="rgba(255,255,255,0.5)" />
-                          <Text size="xs" c="rgba(255,255,255,0.5)" fw={500}>AI Asistan</Text>
-                        </Group>
-                        <Text 
-                          size="sm" 
-                          c="white" 
-                          style={{ 
-                            lineHeight: 1.4,
-                            transition: 'opacity 0.3s ease',
-                          }}
-                        >
-                          {aiTip}
-                        </Text>
-                      </Box>
-                      <Tooltip label="Sonraki öneri">
-                        <ActionIcon 
-                          variant="subtle" 
-                          color="white" 
-                          size="sm"
-                          onClick={() => {
-                            const next = (aiTipIndex + 1) % aiTips.length;
-                            setAiTipIndex(next);
-                            setAiTip(aiTips[next]);
-                          }}
-                        >
-                          <IconRefresh size={14} />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Group>
+                    <Text 
+                      size="sm" 
+                      c="rgba(255,255,255,0.85)" 
+                      ta="center"
+                      style={{ 
+                        lineHeight: 1.5,
+                        transition: 'opacity 0.3s ease',
+                      }}
+                    >
+                      {aiTip}
+                    </Text>
                   </Paper>
                 </Box>
               )}
