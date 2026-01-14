@@ -337,6 +337,17 @@ export default function UploadPage() {
     combined.teknik_sartlar = [...new Set(combined.teknik_sartlar)];
     combined.notlar = [...new Set(combined.notlar)];
     
+    // birim_fiyatlar için string olanları filtrele (sadece object formatını al)
+    // ve normalize et (farklı key isimleri: kalem/is_kalemi/kalem_adi, birim/birimi, miktar/miktari, fiyat/birim_fiyat/birim_fiyati/tutari)
+    combined.birim_fiyatlar = combined.birim_fiyatlar
+      .filter((item: any) => typeof item === 'object' && item !== null)
+      .map((item: any) => ({
+        kalem: item.kalem || item.is_kalemi || item.kalem_adi || item.aciklama || '-',
+        birim: item.birim || item.birimi || '-',
+        miktar: item.miktar || item.miktari || '-',
+        fiyat: item.fiyat || item.birim_fiyat || item.birim_fiyati || item.tutari || item.toplam_tutari || '-'
+      }));
+    
     return combined;
   };
 
