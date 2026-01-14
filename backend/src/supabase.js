@@ -1,41 +1,64 @@
 /**
  * Supabase Backend Client
  * Service Role Key ile tam yetki
+ * Lazy initialization - env değişkenleri runtime'da okunur
  */
 
 import { createClient } from '@supabase/supabase-js';
-// Note: .env is loaded by env-loader.js in server.js
 
-// Supabase configuration
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-// Service key signature verification failed, use anon key for storage operations
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY; // Service key for backend
+// Lazy initialized client
+let _supabase = null;
+let _initialized = false;
 
-console.log('🔍 Supabase Config Debug:');
-console.log('NEXT_PUBLIC_SUPABASE_URL:', supabaseUrl ? 'Var' : 'YOK');
-console.log('NEXT_PUBLIC_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'Var' : 'YOK');
-console.log('SUPABASE_SERVICE_KEY:', supabaseServiceKey ? 'Var' : 'YOK');
-
-// Use anon key if service key fails, otherwise try service key
-const apiKey = supabaseAnonKey || supabaseServiceKey;
-
-if (!supabaseUrl || !apiKey) {
-  console.warn('⚠️ Supabase URL veya API Key eksik!');
-  console.warn('NEXT_PUBLIC_SUPABASE_URL:', supabaseUrl);
-  console.warn('API Key:', apiKey ? 'Var' : 'YOK');
-  console.warn('⚠️ Supabase Storage özellikleri çalışmayacak!');
+/**
+ * Get or create Supabase client (lazy initialization)
+ * Bu fonksiyon çağrıldığında env değişkenleri zaten yüklenmiş olmalı
+ */
+function getSupabaseClient() {
+  if (_initialized) {
+    return _supabase;
+  }
+  
+  _initialized = true;
+  
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+  
+  console.log('🔍 Supabase Config (Lazy Init):');
+  console.log('  NEXT_PUBLIC_SUPABASE_URL:', supabaseUrl ? '✓' : '✗');
+  console.log('  NEXT_PUBLIC_SUPABASE_ANON_KEY:', supabaseAnonKey ? '✓' : '✗');
+  console.log('  SUPABASE_SERVICE_KEY:', supabaseServiceKey ? '✓' : '✗');
+  
+  const apiKey = supabaseAnonKey || supabaseServiceKey;
+  
+  if (!supabaseUrl || !apiKey) {
+    console.warn('⚠️ Supabase URL veya API Key eksik!');
+    console.warn('⚠️ Supabase Storage özellikleri çalışmayacak!');
+    return null;
+  }
+  
+  _supabase = createClient(supabaseUrl, apiKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+  
+  console.log('✅ Supabase client başarıyla oluşturuldu');
+  return _supabase;
 }
 
-// Create Supabase client with anon key (service key signature verification failed)
-export const supabase = (supabaseUrl && apiKey) 
-  ? createClient(supabaseUrl, apiKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    })
-  : null; // Dummy client - Storage işlemleri çalışmayacak
+// Export as getter - her erişimde lazy init kontrol edilir
+export const supabase = new Proxy({}, {
+  get(target, prop) {
+    const client = getSupabaseClient();
+    if (!client) {
+      throw new Error('Supabase client veya storage mevcut değil. Lütfen SUPABASE_SERVICE_KEY environment variable\'ını kontrol edin.');
+    }
+    return client[prop];
+  }
+});
 
 /**
  * Database helper functions
