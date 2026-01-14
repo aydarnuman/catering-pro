@@ -89,7 +89,7 @@ export function FloatingAIChat() {
                 title: data.data.title,
                 data: {
                   title: data.data.title,
-                  organization: data.data.organization,
+                  organization: data.data.organization_name,
                   city: data.data.city,
                   deadline: data.data.deadline,
                   estimated_cost: data.data.estimated_cost
@@ -130,6 +130,20 @@ export function FloatingAIChat() {
 
     detectPageContext();
   }, [pathname]);
+
+  // Custom event dinleyici - diğer sayfalardan gelen context güncellemeleri için
+  // Örn: tracking sayfasında bir ihale seçildiğinde
+  useEffect(() => {
+    const handleContextUpdate = (event: CustomEvent<PageContext>) => {
+      console.log('📍 AI Context güncellendi:', event.detail);
+      setPageContext(event.detail);
+    };
+
+    window.addEventListener('ai-context-update', handleContextUpdate as EventListener);
+    return () => {
+      window.removeEventListener('ai-context-update', handleContextUpdate as EventListener);
+    };
+  }, []);
 
   // İlk açılışta pulse animasyonu, 5 saniye sonra durur
   useEffect(() => {

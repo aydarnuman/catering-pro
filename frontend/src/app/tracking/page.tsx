@@ -376,6 +376,25 @@ export default function TrackingPage() {
     setNotesExpanded(false); // Notlar kapalı başlasın
     openDetail();
     
+    // AI Context'i güncelle - FloatingAIChat'e bildir
+    if (typeof window !== 'undefined') {
+      const contextEvent = new CustomEvent('ai-context-update', {
+        detail: {
+          type: 'tender',
+          id: tender.tender_id,
+          title: tender.ihale_basligi || tender.title,
+          data: {
+            title: tender.ihale_basligi || tender.title,
+            organization: tender.kurum,
+            city: tender.sehir,
+            deadline: tender.tarih,
+            estimated_cost: tender.bedel
+          }
+        }
+      });
+      window.dispatchEvent(contextEvent);
+    }
+    
     // Güncel analiz verilerini API'den çek
     try {
       setAnalysisLoading(true);
@@ -776,6 +795,13 @@ export default function TrackingPage() {
           closeDetail();
           setLiveAnalysisData(null);
           setAnalysisStats(null);
+          // AI Context'i sıfırla
+          if (typeof window !== 'undefined') {
+            const contextEvent = new CustomEvent('ai-context-update', {
+              detail: { type: 'general' }
+            });
+            window.dispatchEvent(contextEvent);
+          }
         }} 
         title={
           <Group gap="sm">
