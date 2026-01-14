@@ -414,7 +414,21 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
         </Box>
 
         {/* Messages Area */}
-        <ScrollArea flex={1} p="sm" style={{ minHeight: 0 }}>
+        <ScrollArea 
+          flex={1} 
+          p="sm" 
+          style={{ minHeight: 0 }}
+          type="scroll"
+          scrollbarSize={6}
+          offsetScrollbars
+          styles={{
+            viewport: {
+              // Mobilde touch scroll için
+              WebkitOverflowScrolling: 'touch',
+              overscrollBehavior: 'contain',
+            }
+          }}
+        >
           <Stack gap="sm">
             {messages.length === 0 ? (
               <Stack gap="sm" align="center" py="md">
@@ -487,7 +501,7 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
         </ScrollArea>
 
         {/* Input Area */}
-        <Box p="sm" style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}>
+        <Box p="sm" style={{ borderTop: '1px solid var(--mantine-color-gray-3)', paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}>
           <Group gap="xs">
             <TextInput
               flex={1}
@@ -495,23 +509,25 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
               value={inputValue}
               onChange={(e) => setInputValue(e.currentTarget.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-              size="sm"
+              size="md"
               radius="xl"
               styles={{
                 input: {
                   paddingLeft: 16,
                   paddingRight: 16,
+                  minHeight: 44, // Mobilde daha büyük dokunma alanı
                 }
               }}
             />
             <ActionIcon 
-              size="lg"
+              size={44}
               radius="xl"
               variant="gradient"
               gradient={{ from: 'violet', to: 'grape' }}
               onClick={handleSendMessage}
               loading={isLoading}
               disabled={!inputValue.trim()}
+              style={{ minWidth: 44, minHeight: 44 }} // Mobilde daha büyük dokunma alanı
             >
               <IconSend size={16} />
             </ActionIcon>
@@ -580,7 +596,19 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
         <Divider />
 
         {/* Messages */}
-        <ScrollArea flex={1} type="auto">
+        <ScrollArea 
+          flex={1} 
+          type="scroll"
+          scrollbarSize={8}
+          offsetScrollbars
+          styles={{
+            viewport: {
+              // Mobilde touch scroll için
+              WebkitOverflowScrolling: 'touch',
+              overscrollBehavior: 'contain',
+            }
+          }}
+        >
           <Stack gap="md" p="sm">
             {messages.length === 0 ? (
               <Stack gap="lg" align="center" py="xl">

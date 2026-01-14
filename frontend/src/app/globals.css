@@ -652,3 +652,50 @@ a {
     min-height: 40px !important;
   }
 }
+
+/* ========================================
+   AI Chat Mobile Improvements
+   ======================================== */
+
+/* Mobilde scroll iyileştirmeleri */
+.mantine-ScrollArea-viewport {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Mobilde dokunma alanlarını büyüt */
+@media (max-width: 768px) {
+  /* AI Chat input alanı */
+  .mantine-TextInput-input {
+    min-height: 44px !important;
+    font-size: 16px !important; /* iOS zoom'u önler */
+  }
+  
+  /* AI Chat butonları */
+  .mantine-ActionIcon-root {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  /* AI Chat mesajları - daha okunabilir */
+  .mantine-Paper-root .mantine-Text-root {
+    line-height: 1.5;
+  }
+  
+  /* Safe area için padding (iPhone notch) */
+  .ai-chat-input-area {
+    padding-bottom: env(safe-area-inset-bottom, 8px) !important;
+  }
+}
+
+/* Touch scroll için */
+.touch-scroll {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+/* Prevent pull-to-refresh on chat */
+.no-pull-refresh {
+  overscroll-behavior-y: none;
+}

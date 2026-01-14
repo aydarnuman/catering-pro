@@ -13,6 +13,7 @@ import {
   Tooltip,
   useMantineColorScheme
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { IconRobot, IconSparkles, IconX, IconMinus } from '@tabler/icons-react';
 import { usePathname } from 'next/navigation';
 import { AIChat } from './AIChat';
@@ -66,6 +67,7 @@ export function FloatingAIChat() {
   const { colorScheme } = useMantineColorScheme();
   const pathname = usePathname();
   const isDark = colorScheme === 'dark';
+  const isMobile = useMediaQuery('(max-width: 768px)');
 
   // Path'e göre department belirle
   const department = pathToDepartment[pathname] || 'TÜM SİSTEM';
@@ -272,16 +274,19 @@ export function FloatingAIChat() {
             style={{
               ...styles,
               position: 'fixed',
-              bottom: 110,
-              right: 24,
-              zIndex: 1000,
-              width: isMinimized ? 320 : 420,
-              height: isMinimized ? 60 : 550,
-              maxHeight: 'calc(100vh - 150px)',
+              // Mobilde tam ekran, desktop'ta normal
+              bottom: isMobile ? 0 : 110,
+              right: isMobile ? 0 : 24,
+              left: isMobile ? 0 : 'auto',
+              top: isMobile ? 0 : 'auto',
+              zIndex: 1001,
+              width: isMobile ? '100%' : (isMinimized ? 320 : 420),
+              height: isMobile ? '100%' : (isMinimized ? 60 : 550),
+              maxHeight: isMobile ? '100%' : 'calc(100vh - 150px)',
               overflow: 'hidden',
-              borderRadius: 16,
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
-              border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+              borderRadius: isMobile ? 0 : 16,
+              boxShadow: isMobile ? 'none' : '0 8px 32px rgba(0, 0, 0, 0.15)',
+              border: isMobile ? 'none' : `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
               display: 'flex',
               flexDirection: 'column',
               transition: 'all 0.3s ease',
