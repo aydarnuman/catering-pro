@@ -56,7 +56,7 @@ const ihaleTools = {
     handler: async (params) => {
       let sql = `
         SELECT 
-          id, ihale_kayit_no, title, organization_name, tender_date,
+          id, external_id, title, organization_name, tender_date,
           estimated_cost, city, source, status, created_at
         FROM tenders
         WHERE 1=1
@@ -138,7 +138,7 @@ const ihaleTools = {
           type: 'number',
           description: 'İhale ID'
         },
-        ihale_kayit_no: {
+        external_id: {
           type: 'string',
           description: 'İhale kayıt numarası'
         }
@@ -151,11 +151,11 @@ const ihaleTools = {
       if (params.ihale_id) {
         sql += 'id = $1';
         queryParam = params.ihale_id;
-      } else if (params.ihale_kayit_no) {
-        sql += 'ihale_kayit_no = $1';
-        queryParam = params.ihale_kayit_no;
+      } else if (params.external_id) {
+        sql += 'external_id = $1';
+        queryParam = params.external_id;
       } else {
-        return { success: false, error: 'ihale_id veya ihale_kayit_no gerekli' };
+        return { success: false, error: 'ihale_id veya external_id gerekli' };
       }
 
       const result = await query(sql, [queryParam]);
@@ -168,13 +168,13 @@ const ihaleTools = {
 
       // Benzer ihaleleri bul
       const benzerResult = await query(`
-        SELECT id, title, organization_name_name, tender_date, estimated_cost
+        SELECT id, title, organization_name, tender_date, estimated_cost
         FROM tenders
         WHERE id != $1
-        AND organization_name_name = $2
+        AND organization_name = $2
         ORDER BY tender_date DESC
         LIMIT 5
-      `, [ihale.id, ihale.organization_name_name]);
+      `, [ihale.id, ihale.organization_name]);
 
       return {
         success: true,
