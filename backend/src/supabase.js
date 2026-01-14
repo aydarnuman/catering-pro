@@ -11,21 +11,8 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables
-// Try multiple locations for .env file
-const envPaths = [
-  path.join(__dirname, '../.env'),      // backend/.env
-  path.join(__dirname, '../../.env'),   // project root/.env
-  path.resolve(process.cwd(), '.env')   // current working directory
-];
-
-for (const envPath of envPaths) {
-  const result = dotenv.config({ path: envPath });
-  if (!result.error) {
-    console.log(`✅ .env loaded from: ${envPath}`);
-    break;
-  }
-}
+// Load environment variables from backend/.env
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 // Supabase configuration
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
