@@ -382,11 +382,11 @@ export default function TrackingPage() {
         detail: {
           type: 'tender',
           id: tender.tender_id,
-          title: tender.ihale_basligi || tender.title,
+          title: tender.ihale_basligi,
           data: {
-            title: tender.ihale_basligi || tender.title,
+            title: tender.ihale_basligi,
             organization: tender.kurum,
-            city: tender.sehir,
+            city: tender.city,
             deadline: tender.tarih,
             estimated_cost: tender.bedel
           }
