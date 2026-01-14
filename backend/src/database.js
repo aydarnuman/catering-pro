@@ -1,13 +1,5 @@
 import pg from 'pg';
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Backend .env dosyasını yükle
-dotenv.config({ path: path.join(__dirname, '../.env') });
+// Note: .env is loaded by env-loader.js in server.js
 
 const { Pool } = pg;
 

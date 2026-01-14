@@ -1,6 +1,8 @@
+// ENV LOADER MUST BE FIRST - before any other imports!
+import './env-loader.js';
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { pool, query } from './database.js';
@@ -10,9 +12,6 @@ import logger, { httpLogger, logError } from './utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// Backend .env dosyasını yükle
-dotenv.config({ path: path.join(__dirname, '../.env'), override: true });
 
 const app = express();
 const PORT = process.env.PORT || process.env.API_PORT || 3001;
