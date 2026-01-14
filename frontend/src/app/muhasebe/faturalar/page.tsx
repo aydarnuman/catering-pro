@@ -710,38 +710,18 @@ export default function FaturalarPage() {
 
   // Silme
   const handleDelete = async (id: string) => {
-    // Demo fatura kontrolü - düşük ID'ler genellikle demo
-    const numId = parseInt(id);
-    if (isNaN(numId) || numId <= 0) {
-      notifications.show({ 
-        title: 'Uyarı', 
-        message: 'Demo faturalar silinemez. Gerçek bir fatura seçin.', 
-        color: 'yellow' 
-      });
-      return;
-    }
-
     if (!confirm('Bu faturayı silmek istediğinize emin misiniz?')) {
       return;
     }
 
     try {
-      const result = await invoiceAPI.delete(numId);
+      const result = await invoiceAPI.delete(parseInt(id));
       if (result.success) {
-        notifications.show({ title: 'Silindi', message: 'Fatura veritabanından silindi.', color: 'orange' });
-        await loadInvoices(); // Listeyi yenile
+        notifications.show({ title: 'Silindi', message: 'Fatura silindi.', color: 'orange' });
+        await loadInvoices();
       }
     } catch (error: any) {
-      // 404 hatası = fatura bulunamadı (muhtemelen demo fatura)
-      if (error.message?.includes('404') || error.message?.includes('bulunamadı')) {
-        notifications.show({ 
-          title: 'Bulunamadı', 
-          message: 'Bu fatura veritabanında bulunamadı. Demo fatura olabilir.', 
-          color: 'yellow' 
-        });
-      } else {
-        notifications.show({ title: 'Hata!', message: error.message, color: 'red' });
-      }
+      notifications.show({ title: 'Hata!', message: error.message, color: 'red' });
     }
   };
 

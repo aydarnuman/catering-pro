@@ -53,7 +53,10 @@ import {
   IconBuildingBank,
   IconAlertTriangle,
   IconCheck,
-  IconActivity
+  IconActivity,
+  IconSparkles,
+  IconRobot,
+  IconBulb
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import useSWR from 'swr';
@@ -243,13 +246,40 @@ export default function HomePage() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [newNote, setNewNote] = useState('');
   const [isAddingNote, setIsAddingNote] = useState(false);
+  const [aiTip, setAiTip] = useState<string>('');
+  const [aiTipIndex, setAiTipIndex] = useState(0);
   const greeting = getGreeting();
   const GreetingIcon = greeting.icon;
+
+  // AI önerileri - döngüsel
+  const aiTips = [
+    "💡 Bu hafta 3 ihale son başvuru tarihine yaklaşıyor. Takip listesini kontrol edin.",
+    "📊 Geçen aya göre alış faturalarında %12 artış var. Maliyet analizi yapmanızı öneririm.",
+    "🎯 En çok kazandığınız kategori: Okul yemekhaneleri. Bu alana odaklanabilirsiniz.",
+    "⚡ 5 adet stok kalemi kritik seviyede. Tedarik siparişi oluşturmayı unutmayın.",
+    "📈 Son 30 günde 8 yeni ihale eklendi. Fırsat analizi için AI Uzmanı'nı kullanın.",
+    "💰 Vadesi geçmiş 2 fatura bulunuyor. Tahsilat takibi yapmanızı öneririm.",
+    "🔔 Yarın için planlanmış 1 ihale toplantısı var. Dökümanları hazırladınız mı?",
+    "✨ Yeni özellik: Döküman analizi artık daha hızlı! İhale detayından deneyin."
+  ];
 
   // Saat güncelleme
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
+  }, []);
+
+  // AI öneri döngüsü
+  useEffect(() => {
+    setAiTip(aiTips[0]);
+    const tipTimer = setInterval(() => {
+      setAiTipIndex(prev => {
+        const next = (prev + 1) % aiTips.length;
+        setAiTip(aiTips[next]);
+        return next;
+      });
+    }, 8000); // Her 8 saniyede değiş
+    return () => clearInterval(tipTimer);
   }, []);
 
   // Stats fetch
@@ -340,88 +370,182 @@ export default function HomePage() {
       <Container size="xl">
         <Stack gap="lg">
           
-          {/* ========== COMPACT HERO BANNER ========== */}
+          {/* ========== DARK HERO BANNER WITH AI ========== */}
           <Box
             style={{
               position: 'relative',
               borderRadius: 20,
               overflow: 'hidden',
-              background: isDark
-                ? 'linear-gradient(135deg, #1e1e2e 0%, #2d1b4e 100%)'
-                : 'linear-gradient(135deg, #1e40af 0%, #7c3aed 100%)',
-              padding: isMobile ? '20px' : '24px 32px',
+              background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%)',
+              padding: isMobile ? '20px' : '28px 32px',
             }}
           >
             {/* Decorative elements */}
             <Box
               style={{
                 position: 'absolute',
-                top: -50,
-                right: -50,
-                width: 200,
-                height: 200,
+                top: -80,
+                right: -80,
+                width: 250,
+                height: 250,
                 borderRadius: '50%',
-                background: 'rgba(255,255,255,0.1)',
+                background: 'radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, transparent 70%)',
                 filter: 'blur(40px)',
               }}
             />
             <Box
               style={{
                 position: 'absolute',
-                bottom: -30,
-                left: '30%',
-                width: 150,
-                height: 150,
+                bottom: -60,
+                left: '20%',
+                width: 200,
+                height: 200,
                 borderRadius: '50%',
-                background: 'rgba(139, 92, 246, 0.3)',
+                background: 'radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, transparent 70%)',
                 filter: 'blur(50px)',
               }}
             />
+            <Box
+              style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: 400,
+                height: 400,
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, transparent 60%)',
+                filter: 'blur(60px)',
+              }}
+            />
 
-            <Group justify="space-between" align="center" wrap="nowrap">
-              <Box style={{ position: 'relative', zIndex: 1 }}>
-                {/* Date badge */}
+            {/* Grid layout for 3 columns */}
+            <Group justify="space-between" align="center" wrap="nowrap" style={{ position: 'relative', zIndex: 1 }}>
+              {/* Sol: Tarih ve Selamlama */}
+              <Box style={{ flex: '0 0 auto' }}>
                 <Group gap="xs" mb="xs">
-                  <IconCalendar size={14} color="rgba(255,255,255,0.7)" />
-                  <Text size="xs" c="rgba(255,255,255,0.7)" fw={500}>
+                  <IconCalendar size={14} color="rgba(255,255,255,0.6)" />
+                  <Text size="xs" c="rgba(255,255,255,0.6)" fw={500}>
                     {formatDate(currentTime)}
                   </Text>
                 </Group>
                 
-                {/* Greeting */}
                 <Group gap="sm" align="center">
-                  <GreetingIcon size={isMobile ? 24 : 32} color="#fbbf24" />
+                  <GreetingIcon size={isMobile ? 24 : 28} color="#fbbf24" />
                   <Text 
-                    size={isMobile ? 'xl' : '1.75rem'}
-                    fw={800} 
+                    size={isMobile ? 'lg' : 'xl'}
+                    fw={700} 
                     c="white"
                     style={{ lineHeight: 1.2 }}
                   >
                     {greeting.text}{isAuthenticated && user?.name ? `, ${user.name.split(' ')[0]}` : ''}!
                   </Text>
                 </Group>
-                
-                {!isMobile && (
-                  <Text size="sm" c="rgba(255,255,255,0.6)" mt={4}>
-                    İş akışınızı yönetmeye hazır mısınız?
-                  </Text>
-                )}
               </Box>
 
-              {/* Mini stats on desktop */}
+              {/* Orta: AI Önerileri */}
+              {!isMobile && (
+                <Box 
+                  style={{ 
+                    flex: '1 1 auto',
+                    maxWidth: 500,
+                    margin: '0 32px',
+                  }}
+                >
+                  <Paper
+                    p="sm"
+                    radius="lg"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.08)',
+                      backdropFilter: 'blur(10px)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                    }}
+                  >
+                    <Group gap="sm" wrap="nowrap">
+                      <ThemeIcon 
+                        size={36} 
+                        radius="xl" 
+                        variant="gradient" 
+                        gradient={{ from: 'violet', to: 'cyan', deg: 45 }}
+                      >
+                        <IconSparkles size={20} />
+                      </ThemeIcon>
+                      <Box style={{ flex: 1, minWidth: 0 }}>
+                        <Group gap={4} mb={2}>
+                          <IconRobot size={12} color="rgba(255,255,255,0.5)" />
+                          <Text size="xs" c="rgba(255,255,255,0.5)" fw={500}>AI Asistan</Text>
+                        </Group>
+                        <Text 
+                          size="sm" 
+                          c="white" 
+                          style={{ 
+                            lineHeight: 1.4,
+                            transition: 'opacity 0.3s ease',
+                          }}
+                        >
+                          {aiTip}
+                        </Text>
+                      </Box>
+                      <Tooltip label="Sonraki öneri">
+                        <ActionIcon 
+                          variant="subtle" 
+                          color="white" 
+                          size="sm"
+                          onClick={() => {
+                            const next = (aiTipIndex + 1) % aiTips.length;
+                            setAiTipIndex(next);
+                            setAiTip(aiTips[next]);
+                          }}
+                        >
+                          <IconRefresh size={14} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
+                  </Paper>
+                </Box>
+              )}
+
+              {/* Sağ: Mini Stats */}
               {!isMobile && !isTablet && (
-                <Group gap="lg">
+                <Group gap="xl" style={{ flex: '0 0 auto' }}>
                   <Box ta="center">
-                    <Text size="1.5rem" fw={800} c="white">{activeTenders}</Text>
-                    <Text size="xs" c="rgba(255,255,255,0.6)">Aktif İhale</Text>
+                    <Text size="1.75rem" fw={800} c="white" style={{ lineHeight: 1 }}>{activeTenders}</Text>
+                    <Text size="xs" c="rgba(255,255,255,0.5)" mt={4}>Aktif İhale</Text>
                   </Box>
+                  <Box 
+                    style={{ 
+                      width: 1, 
+                      height: 40, 
+                      background: 'rgba(255,255,255,0.15)' 
+                    }} 
+                  />
                   <Box ta="center">
-                    <Text size="1.5rem" fw={800} c="white">{notlar.filter(n => !n.is_completed).length}</Text>
-                    <Text size="xs" c="rgba(255,255,255,0.6)">Bekleyen Not</Text>
+                    <Text size="1.75rem" fw={800} c="white" style={{ lineHeight: 1 }}>{notlar.filter(n => !n.is_completed).length}</Text>
+                    <Text size="xs" c="rgba(255,255,255,0.5)" mt={4}>Bekleyen Not</Text>
                   </Box>
                 </Group>
               )}
             </Group>
+
+            {/* Mobile: AI öneri alt satırda */}
+            {isMobile && (
+              <Paper
+                p="xs"
+                radius="md"
+                mt="md"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                }}
+              >
+                <Group gap="xs" wrap="nowrap">
+                  <IconBulb size={16} color="#fbbf24" />
+                  <Text size="xs" c="white" style={{ flex: 1 }} lineClamp={2}>
+                    {aiTip}
+                  </Text>
+                </Group>
+              </Paper>
+            )}
           </Box>
 
           {/* Error Alert */}
