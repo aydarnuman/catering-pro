@@ -16,58 +16,53 @@ import {
   Box,
   SimpleGrid,
   Paper,
-  Progress,
   Avatar,
-  Divider,
   ActionIcon,
-  Tooltip,
-  Timeline,
   ScrollArea,
   TextInput,
   Checkbox,
-  Transition
+  Transition,
+  useMantineColorScheme,
+  Skeleton,
+  RingProgress,
+  Tooltip
 } from '@mantine/core';
 import { 
   IconUpload, 
   IconList, 
-  IconFileText,
-  IconBrain,
   IconAlertCircle,
   IconTrendingUp,
   IconTrendingDown,
-  IconChecklist,
-  IconSparkles,
-  IconRocket,
   IconCalendar,
   IconClock,
   IconCash,
   IconPackage,
   IconUsers,
-  IconChefHat,
-  IconTruck,
-  IconBell,
   IconArrowRight,
   IconSun,
   IconMoon,
-  IconCloudRain,
   IconPlus,
-  IconDots,
   IconWallet,
   IconReceipt,
-  IconChartLine,
   IconRefresh,
   IconTrash,
   IconNote,
-  IconX
+  IconX,
+  IconFileText,
+  IconChartBar,
+  IconBuildingBank,
+  IconAlertTriangle,
+  IconCheck,
+  IconActivity
 } from '@tabler/icons-react';
 import Link from 'next/link';
-import useSWR, { mutate } from 'swr';
+import useSWR from 'swr';
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api';
 import { StatsResponse } from '@/types/api';
-import { AIChat } from '@/components/AIChat';
 import { useAuth } from '@/context/AuthContext';
 import { API_BASE_URL } from '@/lib/config';
+import { useMediaQuery } from '@mantine/hooks';
 
 // Types
 interface Not {
@@ -100,8 +95,151 @@ const formatDate = (date: Date) => {
   });
 };
 
+// KPI Card Component
+interface KPICardProps {
+  title: string;
+  value: string | number;
+  subtitle?: string;
+  icon: React.ElementType;
+  color: string;
+  gradient: string;
+  trend?: { value: string; isUp: boolean };
+  onClick?: () => void;
+  isLoading?: boolean;
+}
+
+function KPICard({ title, value, subtitle, icon: Icon, color, gradient, trend, onClick, isLoading }: KPICardProps) {
+  const { colorScheme } = useMantineColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  return (
+    <Paper
+      p="md"
+      radius="lg"
+      onClick={onClick}
+      style={{
+        cursor: onClick ? 'pointer' : 'default',
+        background: isDark 
+          ? 'rgba(255, 255, 255, 0.03)' 
+          : 'rgba(255, 255, 255, 0.8)',
+        backdropFilter: 'blur(10px)',
+        border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+      className="kpi-card"
+    >
+      {/* Gradient accent */}
+      <Box
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 3,
+          background: gradient,
+        }}
+      />
+
+      <Group justify="space-between" align="flex-start" mb="xs">
+        <Box
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            background: gradient,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: `0 4px 14px ${color}40`,
+          }}
+        >
+          <Icon size={22} color="white" />
+        </Box>
+        {trend && (
+          <Badge 
+            size="sm" 
+            variant="light" 
+            color={trend.isUp ? 'teal' : 'red'}
+            leftSection={trend.isUp ? <IconTrendingUp size={12} /> : <IconTrendingDown size={12} />}
+          >
+            {trend.value}
+          </Badge>
+        )}
+      </Group>
+
+      {isLoading ? (
+        <Skeleton height={36} width="60%" mt="sm" />
+      ) : (
+        <Text 
+          size="1.75rem" 
+          fw={800} 
+          mt="sm"
+          style={{ 
+            color: isDark ? 'white' : '#1a1a2e',
+            lineHeight: 1.1,
+          }}
+        >
+          {value}
+        </Text>
+      )}
+
+      <Text size="xs" tt="uppercase" fw={600} c="dimmed" mt={4} style={{ letterSpacing: 0.5 }}>
+        {title}
+      </Text>
+
+      {subtitle && (
+        <Text size="xs" c="dimmed" mt={2}>
+          {subtitle}
+        </Text>
+      )}
+    </Paper>
+  );
+}
+
+// Quick Action Button
+interface QuickActionProps {
+  href: string;
+  icon: React.ElementType;
+  label: string;
+  color: string;
+  gradient: string;
+}
+
+function QuickAction({ href, icon: Icon, label, color, gradient }: QuickActionProps) {
+  const { colorScheme } = useMantineColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  return (
+    <Button
+      component={Link}
+      href={href}
+      variant="light"
+      size="md"
+      radius="lg"
+      leftSection={<Icon size={18} />}
+      style={{
+        background: isDark ? `${color}15` : `${color}10`,
+        border: `1px solid ${color}30`,
+        color: isDark ? 'white' : color,
+        minWidth: 140,
+        transition: 'all 0.2s ease',
+      }}
+      className="quick-action-btn"
+    >
+      {label}
+    </Button>
+  );
+}
+
 export default function HomePage() {
   const { user, isAuthenticated } = useAuth();
+  const { colorScheme } = useMantineColorScheme();
+  const isDark = colorScheme === 'dark';
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  const isTablet = useMediaQuery('(max-width: 1024px)');
+  
   const [currentTime, setCurrentTime] = useState(new Date());
   const [newNote, setNewNote] = useState('');
   const [isAddingNote, setIsAddingNote] = useState(false);
@@ -131,7 +269,7 @@ export default function HomePage() {
   const { data: finansOzet } = useSWR(
     isAuthenticated ? 'finans-ozet' : null,
     async () => {
-      const res = await fetch(`${API_BASE_URL}/api/finans/ozet`);
+      const res = await fetch(`${API_BASE_URL}/api/kasa-banka/ozet`);
       return res.json();
     }
   );
@@ -148,6 +286,7 @@ export default function HomePage() {
 
   const totalTenders = stats?.totalTenders || 0;
   const activeTenders = stats?.activeTenders || 0;
+  const kasaBakiye = finansOzet?.kasa?.toplam || finansOzet?.kasaBakiye || 0;
 
   // Not ekle
   const handleAddNote = async () => {
@@ -190,7 +329,9 @@ export default function HomePage() {
   return (
     <Box
       style={{
-        background: 'linear-gradient(135deg, rgba(34,139,230,0.03) 0%, rgba(139,92,246,0.03) 100%)',
+        background: isDark 
+          ? 'linear-gradient(180deg, #0a0a0f 0%, #111118 100%)'
+          : 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
         minHeight: '100vh',
         paddingTop: '1rem',
         paddingBottom: '4rem'
@@ -199,259 +340,88 @@ export default function HomePage() {
       <Container size="xl">
         <Stack gap="lg">
           
-          {/* 🌅 Hero Section - Tek Kart */}
+          {/* ========== COMPACT HERO BANNER ========== */}
           <Box
             style={{
               position: 'relative',
-              borderRadius: 24,
+              borderRadius: 20,
               overflow: 'hidden',
-              background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              background: isDark
+                ? 'linear-gradient(135deg, #1e1e2e 0%, #2d1b4e 100%)'
+                : 'linear-gradient(135deg, #1e40af 0%, #7c3aed 100%)',
+              padding: isMobile ? '20px' : '24px 32px',
             }}
           >
-            {/* Animated mesh gradient */}
+            {/* Decorative elements */}
             <Box
               style={{
                 position: 'absolute',
-                top: 0,
-                right: 0,
-                width: '50%',
-                height: '100%',
-                background: `
-                  radial-gradient(ellipse at 80% 20%, rgba(99, 102, 241, 0.3) 0%, transparent 50%),
-                  radial-gradient(ellipse at 60% 80%, rgba(168, 85, 247, 0.2) 0%, transparent 50%)
-                `,
+                top: -50,
+                right: -50,
+                width: 200,
+                height: 200,
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.1)',
                 filter: 'blur(40px)',
-                pointerEvents: 'none',
               }}
             />
-            
-            {/* Grid pattern */}
             <Box
               style={{
                 position: 'absolute',
-                inset: 0,
-                backgroundImage: `
-                  linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)
-                `,
-                backgroundSize: '32px 32px',
-                pointerEvents: 'none',
+                bottom: -30,
+                left: '30%',
+                width: 150,
+                height: 150,
+                borderRadius: '50%',
+                background: 'rgba(139, 92, 246, 0.3)',
+                filter: 'blur(50px)',
               }}
             />
-            
-            <Box p="xl" style={{ position: 'relative', zIndex: 1 }}>
-              <Grid gutter="xl">
-                {/* Sol: Karşılama */}
-                <Grid.Col span={{ base: 12, md: 6 }}>
-                  {/* Date badge */}
-                  <Box
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      background: 'rgba(99, 102, 241, 0.15)',
-                      border: '1px solid rgba(99, 102, 241, 0.3)',
-                      borderRadius: 8,
-                      padding: '6px 12px',
-                      marginBottom: 16,
-                    }}
+
+            <Group justify="space-between" align="center" wrap="nowrap">
+              <Box style={{ position: 'relative', zIndex: 1 }}>
+                {/* Date badge */}
+                <Group gap="xs" mb="xs">
+                  <IconCalendar size={14} color="rgba(255,255,255,0.7)" />
+                  <Text size="xs" c="rgba(255,255,255,0.7)" fw={500}>
+                    {formatDate(currentTime)}
+                  </Text>
+                </Group>
+                
+                {/* Greeting */}
+                <Group gap="sm" align="center">
+                  <GreetingIcon size={isMobile ? 24 : 32} color="#fbbf24" />
+                  <Text 
+                    size={isMobile ? 'xl' : '1.75rem'}
+                    fw={800} 
+                    c="white"
+                    style={{ lineHeight: 1.2 }}
                   >
-                    <IconCalendar size={14} color="#818cf8" />
-                    <Text size="xs" fw={600} c="#a5b4fc" tt="uppercase" style={{ letterSpacing: 0.5 }}>
-                      {formatDate(currentTime)}
-                    </Text>
-                  </Box>
-                  
-                  {/* Greeting */}
-                  <Group gap="sm" align="center">
-                    <GreetingIcon size={36} color="#fbbf24" />
-                    <Text 
-                      size="2rem" 
-                      fw={800} 
-                      style={{ 
-                        background: 'linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        lineHeight: 1.1,
-                      }}
-                    >
-                      {greeting.text}{isAuthenticated && user?.name ? `, ${user.name.split(' ')[0]}` : ''}!
-                    </Text>
-                  </Group>
-                  
-                  <Text size="sm" c="dimmed" mt="xs" mb="xl">
+                    {greeting.text}{isAuthenticated && user?.name ? `, ${user.name.split(' ')[0]}` : ''}!
+                  </Text>
+                </Group>
+                
+                {!isMobile && (
+                  <Text size="sm" c="rgba(255,255,255,0.6)" mt={4}>
                     İş akışınızı yönetmeye hazır mısınız?
                   </Text>
-                  
-                  {/* Quick actions */}
-                  <Group gap="xs">
-                    <Button
-                      component={Link}
-                      href="/upload"
-                      variant="light"
-                      color="violet"
-                      size="sm"
-                      leftSection={<IconUpload size={16} />}
-                      radius="md"
-                      style={{ 
-                        background: 'rgba(139, 92, 246, 0.15)',
-                        border: '1px solid rgba(139, 92, 246, 0.3)',
-                      }}
-                    >
-                      Döküman Yükle
-                    </Button>
-                    <Button
-                      component={Link}
-                      href="/tenders"
-                      variant="light"
-                      color="blue"
-                      size="sm"
-                      leftSection={<IconList size={16} />}
-                      radius="md"
-                      style={{ 
-                        background: 'rgba(59, 130, 246, 0.15)',
-                        border: '1px solid rgba(59, 130, 246, 0.3)',
-                      }}
-                    >
-                      İhaleler
-                    </Button>
-                    <Button
-                      component={Link}
-                      href="/muhasebe"
-                      variant="light"
-                      color="teal"
-                      size="sm"
-                      leftSection={<IconCash size={16} />}
-                      radius="md"
-                      style={{ 
-                        background: 'rgba(20, 184, 166, 0.15)',
-                        border: '1px solid rgba(20, 184, 166, 0.3)',
-                      }}
-                    >
-                      Muhasebe
-                    </Button>
-                  </Group>
-                </Grid.Col>
-                
-                {/* Sağ: Notlarım */}
-                <Grid.Col span={{ base: 12, md: 6 }}>
-                  <Box
-                    style={{
-                      background: 'rgba(255,255,255,0.03)',
-                      borderRadius: 16,
-                      padding: 16,
-                      border: '1px solid rgba(255,255,255,0.06)',
-                      height: '100%',
-                    }}
-                  >
-                    <Group justify="space-between" mb="sm">
-                      <Group gap="xs">
-                        <IconNote size={18} color="#fbbf24" />
-                        <Text size="sm" fw={600} c="white">Notlarım</Text>
-                      </Group>
-                      <ActionIcon 
-                        variant="subtle" 
-                        color="gray" 
-                        size="sm"
-                        onClick={() => setIsAddingNote(!isAddingNote)}
-                      >
-                        {isAddingNote ? <IconX size={14} /> : <IconPlus size={14} />}
-                      </ActionIcon>
-                    </Group>
-                    
-                    {/* Not ekleme */}
-                    <Transition mounted={isAddingNote} transition="slide-down" duration={200}>
-                      {(styles) => (
-                        <Box style={styles} mb="sm">
-                          <TextInput
-                            placeholder="Yeni not ekle..."
-                            value={newNote}
-                            onChange={(e) => setNewNote(e.currentTarget.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
-                            size="xs"
-                            rightSection={
-                              <ActionIcon 
-                                variant="filled" 
-                                color="violet" 
-                                size="xs"
-                                onClick={handleAddNote}
-                                disabled={!newNote.trim()}
-                              >
-                                <IconPlus size={12} />
-                              </ActionIcon>
-                            }
-                            styles={{
-                              input: {
-                                background: 'rgba(255,255,255,0.05)',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                color: 'white',
-                              }
-                            }}
-                          />
-                        </Box>
-                      )}
-                    </Transition>
-                    
-                    {/* Notlar listesi */}
-                    <ScrollArea h={150} scrollbarSize={4}>
-                      <Stack gap={6}>
-                        {notlar.length === 0 ? (
-                          <Text size="xs" c="dimmed" ta="center" py="md">
-                            Henüz not yok. + ile ekleyin.
-                          </Text>
-                        ) : (
-                          notlar.map((not) => (
-                            <Group
-                              key={not.id}
-                              gap="xs"
-                              p="xs"
-                              style={{
-                                background: not.is_completed 
-                                  ? 'rgba(34, 197, 94, 0.1)' 
-                                  : 'rgba(255,255,255,0.02)',
-                                borderRadius: 8,
-                                borderLeft: `3px solid ${not.is_completed ? '#22c55e' : '#6366f1'}`,
-                              }}
-                            >
-                              <Checkbox
-                                checked={not.is_completed}
-                                onChange={() => handleToggleNote(not.id)}
-                                size="xs"
-                                color="green"
-                                styles={{
-                                  input: {
-                                    background: 'rgba(255,255,255,0.1)',
-                                    borderColor: 'rgba(255,255,255,0.2)',
-                                  }
-                                }}
-                              />
-                              <Text 
-                                size="sm" 
-                                c={not.is_completed ? 'dimmed' : 'white'}
-                                td={not.is_completed ? 'line-through' : undefined}
-                                style={{ flex: 1 }}
-                                lineClamp={1}
-                              >
-                                {not.content}
-                              </Text>
-                              <ActionIcon 
-                                variant="subtle" 
-                                color="red" 
-                                size="xs"
-                                onClick={() => handleDeleteNote(not.id)}
-                              >
-                                <IconTrash size={12} />
-                              </ActionIcon>
-                            </Group>
-                          ))
-                        )}
-                      </Stack>
-                    </ScrollArea>
+                )}
+              </Box>
+
+              {/* Mini stats on desktop */}
+              {!isMobile && !isTablet && (
+                <Group gap="lg">
+                  <Box ta="center">
+                    <Text size="1.5rem" fw={800} c="white">{activeTenders}</Text>
+                    <Text size="xs" c="rgba(255,255,255,0.6)">Aktif İhale</Text>
                   </Box>
-                </Grid.Col>
-              </Grid>
-            </Box>
+                  <Box ta="center">
+                    <Text size="1.5rem" fw={800} c="white">{notlar.filter(n => !n.is_completed).length}</Text>
+                    <Text size="xs" c="rgba(255,255,255,0.6)">Bekleyen Not</Text>
+                  </Box>
+                </Group>
+              )}
+            </Group>
           </Box>
 
           {/* Error Alert */}
@@ -467,93 +437,143 @@ export default function HomePage() {
             </Alert>
           )}
 
-          {/* 📊 Mini İstatistik Kartları */}
-          <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
+          {/* ========== KPI CARDS ========== */}
+          <SimpleGrid cols={{ base: 2, sm: 2, md: 4 }} spacing="md">
             {/* Kasa Bakiyesi */}
-            <Card shadow="sm" padding="md" radius="lg" withBorder>
-              <Group justify="space-between" mb="xs">
-                <ThemeIcon size={32} radius="md" variant="light" color="green">
-                  <IconWallet size={18} />
-                </ThemeIcon>
-                {isLoading && <Loader size="xs" />}
-              </Group>
-              <Text size="xs" tt="uppercase" fw={600} c="dimmed">Kasa Bakiyesi</Text>
-              <Text size="xl" fw={800} c="green" mt={4}>
-                ₺{finansOzet?.kasaBakiye?.toLocaleString('tr-TR') || '—'}
-              </Text>
-              <Group gap={4} mt="xs">
-                <IconTrendingUp size={12} color="var(--mantine-color-teal-6)" />
-                <Text size="xs" c="teal">+₺2.5K bugün</Text>
-              </Group>
-            </Card>
+            <KPICard
+              title="Kasa Bakiyesi"
+              value={`₺${kasaBakiye.toLocaleString('tr-TR')}`}
+              icon={IconWallet}
+              color="#10B981"
+              gradient="linear-gradient(135deg, #10B981 0%, #059669 100%)"
+              trend={{ value: '+₺2.5K', isUp: true }}
+              isLoading={isLoading}
+            />
 
             {/* Aktif İhaleler */}
-            <Card shadow="sm" padding="md" radius="lg" withBorder>
-              <Group justify="space-between" mb="xs">
-                <ThemeIcon size={32} radius="md" variant="light" color="blue">
-                  <IconFileText size={18} />
-                </ThemeIcon>
-              </Group>
-              <Text size="xs" tt="uppercase" fw={600} c="dimmed">Aktif İhale</Text>
-              <Text size="xl" fw={800} c="blue" mt={4}>{activeTenders}</Text>
-              <Text size="xs" c="dimmed" mt="xs">
-                {totalTenders} toplam kayıt
-              </Text>
-            </Card>
+            <KPICard
+              title="Aktif İhale"
+              value={activeTenders}
+              subtitle={`${totalTenders} toplam kayıt`}
+              icon={IconFileText}
+              color="#3B82F6"
+              gradient="linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)"
+              isLoading={isLoading}
+            />
 
-            {/* AI Analiz */}
-            <Card shadow="sm" padding="md" radius="lg" withBorder>
-              <Group justify="space-between" mb="xs">
-                <ThemeIcon size={32} radius="md" variant="light" color="violet">
-                  <IconBrain size={18} />
-                </ThemeIcon>
-              </Group>
-              <Text size="xs" tt="uppercase" fw={600} c="dimmed">AI Analiz</Text>
-              <Text size="xl" fw={800} c="violet" mt={4}>{stats?.aiAnalysisCount || 0}</Text>
-              <Badge size="xs" variant="dot" color="green" mt="xs">Gemini Aktif</Badge>
-            </Card>
+            {/* Bekleyen Fatura */}
+            <KPICard
+              title="Bekleyen Fatura"
+              value={8}
+              subtitle="Bu hafta vadesi dolan"
+              icon={IconReceipt}
+              color="#F59E0B"
+              gradient="linear-gradient(135deg, #F59E0B 0%, #D97706 100%)"
+            />
 
             {/* Stok Uyarısı */}
-            <Card shadow="sm" padding="md" radius="lg" withBorder>
-              <Group justify="space-between" mb="xs">
-                <ThemeIcon size={32} radius="md" variant="light" color="orange">
-                  <IconPackage size={18} />
-                </ThemeIcon>
-              </Group>
-              <Text size="xs" tt="uppercase" fw={600} c="dimmed">Stok Uyarısı</Text>
-              <Text size="xl" fw={800} c="orange" mt={4}>3</Text>
-              <Text size="xs" c="orange" mt="xs">Kritik seviye</Text>
-            </Card>
+            <KPICard
+              title="Stok Uyarısı"
+              value={3}
+              subtitle="Kritik seviyede"
+              icon={IconPackage}
+              color="#EF4444"
+              gradient="linear-gradient(135deg, #EF4444 0%, #DC2626 100%)"
+            />
           </SimpleGrid>
 
-          {/* 📋 Alt Bölüm: Yaklaşan İhaleler + Piyasa + Hızlı Erişim */}
+          {/* ========== QUICK ACTIONS (Mobile: Horizontal Scroll) ========== */}
+          <Box>
+            <Text size="sm" fw={600} c="dimmed" mb="sm" tt="uppercase" style={{ letterSpacing: 1 }}>
+              Hızlı İşlemler
+            </Text>
+            <ScrollArea type="never" offsetScrollbars={false}>
+              <Group gap="sm" wrap={isMobile ? 'nowrap' : 'wrap'}>
+                <QuickAction 
+                  href="/upload" 
+                  icon={IconUpload} 
+                  label="Döküman Yükle" 
+                  color="#8B5CF6"
+                  gradient="linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)"
+                />
+                <QuickAction 
+                  href="/tenders" 
+                  icon={IconList} 
+                  label="İhale Listesi" 
+                  color="#3B82F6"
+                  gradient="linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)"
+                />
+                <QuickAction 
+                  href="/muhasebe/finans" 
+                  icon={IconBuildingBank} 
+                  label="Finans" 
+                  color="#10B981"
+                  gradient="linear-gradient(135deg, #10B981 0%, #059669 100%)"
+                />
+                <QuickAction 
+                  href="/muhasebe/cariler" 
+                  icon={IconUsers} 
+                  label="Cariler" 
+                  color="#06B6D4"
+                  gradient="linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)"
+                />
+                <QuickAction 
+                  href="/muhasebe/faturalar" 
+                  icon={IconReceipt} 
+                  label="Faturalar" 
+                  color="#F59E0B"
+                  gradient="linear-gradient(135deg, #F59E0B 0%, #D97706 100%)"
+                />
+              </Group>
+            </ScrollArea>
+          </Box>
+
+          {/* ========== MAIN CONTENT GRID ========== */}
           <Grid gutter="lg">
             {/* Yaklaşan İhaleler */}
-            <Grid.Col span={{ base: 12, md: 4 }}>
-              <Card shadow="sm" padding="lg" radius="lg" withBorder h="100%">
+            <Grid.Col span={{ base: 12, md: 6, lg: 4 }}>
+              <Paper
+                p="lg"
+                radius="lg"
+                style={{
+                  background: isDark ? 'rgba(255,255,255,0.03)' : 'white',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+                  height: '100%',
+                }}
+              >
                 <Group justify="space-between" mb="md">
                   <Group gap="xs">
-                    <ThemeIcon size={28} radius="md" variant="light" color="blue">
-                      <IconClock size={16} />
+                    <ThemeIcon size={32} radius="lg" variant="light" color="blue">
+                      <IconClock size={18} />
                     </ThemeIcon>
-                    <Text fw={600}>Yaklaşan İhaleler</Text>
+                    <Text fw={700} size="md">Yaklaşan İhaleler</Text>
                   </Group>
-                  <Badge size="sm" variant="light" color="blue">{yaklasanIhaleler?.length || 0}</Badge>
+                  <Badge size="sm" variant="light" color="blue" radius="md">
+                    {yaklasanIhaleler?.length || 0}
+                  </Badge>
                 </Group>
                 
                 <Stack gap="xs">
                   {yaklasanIhaleler?.slice(0, 4).map((ihale: any, i: number) => (
-                    <Paper key={i} p="sm" radius="md" withBorder style={{ background: 'rgba(59,130,246,0.03)' }}>
-                      <Text size="sm" fw={500} lineClamp={1}>{ihale.title || 'İhale'}</Text>
-                      <Group gap="xs" mt={4}>
-                        <Badge size="xs" variant="light" color="gray">{ihale.city || '—'}</Badge>
+                    <Paper 
+                      key={i} 
+                      p="sm" 
+                      radius="md" 
+                      style={{ 
+                        background: isDark ? 'rgba(59,130,246,0.08)' : 'rgba(59,130,246,0.05)',
+                        border: `1px solid ${isDark ? 'rgba(59,130,246,0.2)' : 'rgba(59,130,246,0.1)'}`,
+                      }}
+                    >
+                      <Text size="sm" fw={600} lineClamp={1}>{ihale.title || 'İhale'}</Text>
+                      <Group gap="xs" mt={6}>
+                        <Badge size="xs" variant="light" color="gray" radius="sm">{ihale.city || '—'}</Badge>
                         <Text size="xs" c="dimmed">
                           {ihale.tender_date ? new Date(ihale.tender_date).toLocaleDateString('tr-TR') : '—'}
                         </Text>
                       </Group>
                     </Paper>
                   )) || (
-                    <Text size="sm" c="dimmed" ta="center" py="md">Yaklaşan ihale yok</Text>
+                    <Text size="sm" c="dimmed" ta="center" py="xl">Yaklaşan ihale yok</Text>
                   )}
                 </Stack>
                 
@@ -564,127 +584,231 @@ export default function HomePage() {
                   color="blue" 
                   fullWidth 
                   mt="md"
-                  size="sm"
+                  radius="md"
                   rightSection={<IconArrowRight size={14} />}
                 >
                   Tüm İhaleler
                 </Button>
-              </Card>
+              </Paper>
             </Grid.Col>
 
-            {/* Piyasa Özeti */}
-            <Grid.Col span={{ base: 12, md: 4 }}>
-              <Card shadow="sm" padding="lg" radius="lg" withBorder h="100%">
+            {/* Notlarım */}
+            <Grid.Col span={{ base: 12, md: 6, lg: 4 }}>
+              <Paper
+                p="lg"
+                radius="lg"
+                style={{
+                  background: isDark ? 'rgba(255,255,255,0.03)' : 'white',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+                  height: '100%',
+                }}
+              >
                 <Group justify="space-between" mb="md">
                   <Group gap="xs">
-                    <ThemeIcon size={28} radius="md" variant="light" color="teal">
-                      <IconChartLine size={16} />
+                    <ThemeIcon size={32} radius="lg" variant="light" color="violet">
+                      <IconNote size={18} />
                     </ThemeIcon>
-                    <Text fw={600}>Piyasa Fiyatları</Text>
+                    <Text fw={700} size="md">Notlarım</Text>
                   </Group>
-                  <ActionIcon variant="subtle" color="gray" size="sm">
-                    <IconRefresh size={14} />
+                  <ActionIcon 
+                    variant="light" 
+                    color="violet" 
+                    radius="md"
+                    onClick={() => setIsAddingNote(!isAddingNote)}
+                  >
+                    {isAddingNote ? <IconX size={16} /> : <IconPlus size={16} />}
                   </ActionIcon>
                 </Group>
                 
-                <Stack gap="xs">
-                  {[
-                    { urun: 'Pirinç Baldo', fiyat: '₺82/kg', degisim: '+3%', up: true },
-                    { urun: 'Tavuk But', fiyat: '₺145/kg', degisim: '-2%', up: false },
-                    { urun: 'Ayçiçek Yağı', fiyat: '₺85/L', degisim: '+1%', up: true },
-                    { urun: 'Domates', fiyat: '₺35/kg', degisim: '-5%', up: false },
-                  ].map((item, i) => (
-                    <Group key={i} justify="space-between" p="xs" style={{ background: 'rgba(0,0,0,0.02)', borderRadius: 8 }}>
-                      <Text size="sm" fw={500}>{item.urun}</Text>
-                      <Group gap="xs">
-                        <Text size="sm" fw={600}>{item.fiyat}</Text>
-                        <Badge 
-                          size="xs" 
-                          variant="light" 
-                          color={item.up ? 'red' : 'green'}
-                          leftSection={item.up ? <IconTrendingUp size={10} /> : <IconTrendingDown size={10} />}
-                        >
-                          {item.degisim}
-                        </Badge>
-                      </Group>
-                    </Group>
-                  ))}
-                </Stack>
+                {/* Not ekleme */}
+                <Transition mounted={isAddingNote} transition="slide-down" duration={200}>
+                  {(styles) => (
+                    <Box style={styles} mb="sm">
+                      <TextInput
+                        placeholder="Yeni not ekle..."
+                        value={newNote}
+                        onChange={(e) => setNewNote(e.currentTarget.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
+                        size="sm"
+                        radius="md"
+                        rightSection={
+                          <ActionIcon 
+                            variant="filled" 
+                            color="violet" 
+                            size="sm"
+                            radius="md"
+                            onClick={handleAddNote}
+                            disabled={!newNote.trim()}
+                          >
+                            <IconPlus size={14} />
+                          </ActionIcon>
+                        }
+                      />
+                    </Box>
+                  )}
+                </Transition>
                 
-                <Button 
-                  component={Link}
-                  href="/planlama/piyasa-robotu"
-                  variant="light" 
-                  color="teal" 
-                  fullWidth 
-                  mt="md"
-                  size="sm"
-                  rightSection={<IconArrowRight size={14} />}
-                >
-                  Piyasa Robotu
-                </Button>
-              </Card>
+                {/* Notlar listesi */}
+                <ScrollArea h={220} scrollbarSize={4}>
+                  <Stack gap={8}>
+                    {notlar.length === 0 ? (
+                      <Text size="sm" c="dimmed" ta="center" py="xl">
+                        Henüz not yok. + ile ekleyin.
+                      </Text>
+                    ) : (
+                      notlar.map((not) => (
+                        <Group
+                          key={not.id}
+                          gap="xs"
+                          p="sm"
+                          style={{
+                            background: not.is_completed 
+                              ? (isDark ? 'rgba(34, 197, 94, 0.1)' : 'rgba(34, 197, 94, 0.08)')
+                              : (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'),
+                            borderRadius: 10,
+                            borderLeft: `3px solid ${not.is_completed ? '#22c55e' : '#8B5CF6'}`,
+                            transition: 'all 0.2s ease',
+                          }}
+                          className="note-item"
+                        >
+                          <Checkbox
+                            checked={not.is_completed}
+                            onChange={() => handleToggleNote(not.id)}
+                            size="sm"
+                            color="green"
+                            radius="md"
+                          />
+                          <Text 
+                            size="sm" 
+                            c={not.is_completed ? 'dimmed' : undefined}
+                            td={not.is_completed ? 'line-through' : undefined}
+                            style={{ flex: 1 }}
+                            lineClamp={1}
+                          >
+                            {not.content}
+                          </Text>
+                          <ActionIcon 
+                            variant="subtle" 
+                            color="red" 
+                            size="sm"
+                            radius="md"
+                            onClick={() => handleDeleteNote(not.id)}
+                          >
+                            <IconTrash size={14} />
+                          </ActionIcon>
+                        </Group>
+                      ))
+                    )}
+                  </Stack>
+                </ScrollArea>
+              </Paper>
             </Grid.Col>
 
-            {/* Hızlı Erişim */}
-            <Grid.Col span={{ base: 12, md: 4 }}>
-              <Card shadow="sm" padding="lg" radius="lg" withBorder h="100%">
+            {/* Aktivite & Durum */}
+            <Grid.Col span={{ base: 12, lg: 4 }}>
+              <Paper
+                p="lg"
+                radius="lg"
+                style={{
+                  background: isDark ? 'rgba(255,255,255,0.03)' : 'white',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+                  height: '100%',
+                }}
+              >
                 <Group justify="space-between" mb="md">
                   <Group gap="xs">
-                    <ThemeIcon size={28} radius="md" variant="light" color="violet">
-                      <IconRocket size={16} />
+                    <ThemeIcon size={32} radius="lg" variant="light" color="teal">
+                      <IconActivity size={18} />
                     </ThemeIcon>
-                    <Text fw={600}>Hızlı Erişim</Text>
+                    <Text fw={700} size="md">Sistem Durumu</Text>
                   </Group>
+                  <Badge size="sm" variant="dot" color="green" radius="md">
+                    Aktif
+                  </Badge>
                 </Group>
-                
-                <Stack gap="sm">
-                  <Button 
-                    component={Link}
-                    href="/upload"
-                    variant="light" 
-                    color="violet" 
-                    fullWidth
-                    leftSection={<IconUpload size={16} />}
-                    justify="flex-start"
+
+                <Stack gap="md">
+                  {/* AI Status */}
+                  <Paper
+                    p="sm"
+                    radius="md"
+                    style={{
+                      background: isDark ? 'rgba(139, 92, 246, 0.1)' : 'rgba(139, 92, 246, 0.05)',
+                      border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.1)'}`,
+                    }}
                   >
-                    Döküman Yükle
-                  </Button>
-                  <Button 
-                    component={Link}
-                    href="/muhasebe/cariler"
-                    variant="light" 
-                    color="blue" 
-                    fullWidth
-                    leftSection={<IconUsers size={16} />}
-                    justify="flex-start"
+                    <Group justify="space-between">
+                      <Group gap="xs">
+                        <Box
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            background: '#22c55e',
+                            boxShadow: '0 0 8px #22c55e',
+                          }}
+                        />
+                        <Text size="sm" fw={500}>AI Analiz</Text>
+                      </Group>
+                      <Text size="sm" fw={700} c="violet">{stats?.aiAnalysisCount || 0}</Text>
+                    </Group>
+                    <Text size="xs" c="dimmed" mt={4}>Gemini API bağlantısı aktif</Text>
+                  </Paper>
+
+                  {/* Database Status */}
+                  <Paper
+                    p="sm"
+                    radius="md"
+                    style={{
+                      background: isDark ? 'rgba(20, 184, 166, 0.1)' : 'rgba(20, 184, 166, 0.05)',
+                      border: `1px solid ${isDark ? 'rgba(20, 184, 166, 0.2)' : 'rgba(20, 184, 166, 0.1)'}`,
+                    }}
                   >
-                    Cari Hesaplar
-                  </Button>
-                  <Button 
-                    component={Link}
-                    href="/muhasebe/personel"
-                    variant="light" 
-                    color="orange" 
-                    fullWidth
-                    leftSection={<IconChefHat size={16} />}
-                    justify="flex-start"
-                  >
-                    Personel Yönetimi
-                  </Button>
-                  <Button 
-                    component={Link}
-                    href="/muhasebe/faturalar"
-                    variant="light" 
-                    color="green" 
-                    fullWidth
-                    leftSection={<IconReceipt size={16} />}
-                    justify="flex-start"
-                  >
-                    Faturalar
-                  </Button>
+                    <Group justify="space-between">
+                      <Group gap="xs">
+                        <Box
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            background: '#22c55e',
+                            boxShadow: '0 0 8px #22c55e',
+                          }}
+                        />
+                        <Text size="sm" fw={500}>Veritabanı</Text>
+                      </Group>
+                      <Text size="sm" fw={700} c="teal">Supabase</Text>
+                    </Group>
+                    <Text size="xs" c="dimmed" mt={4}>PostgreSQL bağlantısı aktif</Text>
+                  </Paper>
+
+                  {/* Quick Stats */}
+                  <SimpleGrid cols={2} spacing="xs">
+                    <Paper
+                      p="sm"
+                      radius="md"
+                      ta="center"
+                      style={{
+                        background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                      }}
+                    >
+                      <Text size="xl" fw={800} c="blue">{totalTenders}</Text>
+                      <Text size="xs" c="dimmed">Toplam İhale</Text>
+                    </Paper>
+                    <Paper
+                      p="sm"
+                      radius="md"
+                      ta="center"
+                      style={{
+                        background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                      }}
+                    >
+                      <Text size="xl" fw={800} c="teal">{notlar.filter(n => n.is_completed).length}</Text>
+                      <Text size="xs" c="dimmed">Tamamlanan</Text>
+                    </Paper>
+                  </SimpleGrid>
                 </Stack>
-              </Card>
+              </Paper>
             </Grid.Col>
           </Grid>
 

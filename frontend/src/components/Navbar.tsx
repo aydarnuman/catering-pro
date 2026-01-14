@@ -13,21 +13,21 @@ import {
   Badge,
   Menu,
   Divider,
-  ThemeIcon,
   Tooltip,
   Avatar,
   Loader,
-  ScrollArea
+  ScrollArea,
+  TextInput,
+  UnstyledButton,
+  Kbd,
+  Transition
 } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
+import { useMediaQuery, useDisclosure, useHotkeys } from '@mantine/hooks';
 import {
   IconSun,
   IconMoon,
   IconHome,
   IconList,
-  IconUpload,
-  IconChartBar,
-  IconFileText,
   IconChevronDown,
   IconFolder,
   IconSettings,
@@ -40,7 +40,6 @@ import {
   IconShoppingCart,
   IconPackage,
   IconUserCircle,
-  IconBuildingBank,
   IconChartPie,
   IconRobot,
   IconBuilding,
@@ -50,27 +49,43 @@ import {
   IconLogout,
   IconUser,
   IconScale,
+  IconSearch,
+  IconX,
+  IconChartBar
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { SearchModal } from './SearchModal';
+import { NotificationDropdown } from './NotificationDropdown';
+import { MobileSidebar } from './MobileSidebar';
 
 export function Navbar() {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const pathname = usePathname();
   const router = useRouter();
-  const [opened, setOpened] = useState(false);
+  const [mobileMenuOpened, setMobileMenuOpened] = useState(false);
+  const [mobileSearchOpened, setMobileSearchOpened] = useState(false);
+  const [searchModalOpened, { open: openSearchModal, close: closeSearchModal }] = useDisclosure(false);
   const [mounted, setMounted] = useState(false);
   const { user, isAuthenticated, isAdmin: userIsAdmin, isLoading, logout } = useAuth();
   
-  // Mobil responsive kontrolü
+  const isDark = colorScheme === 'dark';
+  
+  // Responsive breakpoints
   const isMobile = useMediaQuery('(max-width: 768px)');
+  const isTablet = useMediaQuery('(max-width: 1024px)');
 
-  // Client-side mount kontrolü (hydration hatası önleme)
+  // Keyboard shortcut for search
+  useHotkeys([
+    ['mod+k', () => openSearchModal()]
+  ]);
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Route helpers
   const isActive = (path: string) => pathname === path;
   const isIhaleMerkezi = pathname === '/tenders' || pathname === '/upload' || pathname === '/tracking' || pathname === '/ihale-uzmani';
   const isMuhasebe = pathname.startsWith('/muhasebe');
@@ -83,7 +98,6 @@ export function Navbar() {
     router.push('/giris');
   };
 
-  // Get user initials for avatar
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -93,453 +107,177 @@ export function Navbar() {
       .slice(0, 2);
   };
 
+  // Glassmorphism styles
+  const glassStyle = {
+    backgroundColor: isDark 
+      ? 'rgba(26, 27, 30, 0.85)' 
+      : 'rgba(255, 255, 255, 0.9)',
+    backdropFilter: 'blur(20px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+    boxShadow: isDark
+      ? '0 4px 30px rgba(0, 0, 0, 0.3)'
+      : '0 4px 30px rgba(0, 0, 0, 0.08)',
+  };
+
   return (
     <>
+      {/* Search Modal */}
+      <SearchModal opened={searchModalOpened} onClose={closeSearchModal} />
+      
+      {/* Main Header Container */}
       <Box
-        style={(theme) => ({
-          borderBottom: `1px solid ${
-            colorScheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
-          }`,
-          backgroundColor: colorScheme === 'dark' 
-            ? 'rgba(26, 27, 30, 0.75)' 
-            : 'rgba(255, 255, 255, 0.8)',
-          backdropFilter: 'blur(24px) saturate(200%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(200%)',
-          boxShadow: colorScheme === 'dark'
-            ? '0 4px 30px rgba(0, 0, 0, 0.3)'
-            : '0 4px 30px rgba(0, 0, 0, 0.08)',
+        style={{
+          ...glassStyle,
           position: 'fixed',
           top: 0,
           left: 0,
           right: 0,
           zIndex: 100,
           transition: 'all 0.3s ease',
-        })}
+        }}
       >
-        <Group h={mounted && isMobile ? 56 : 100} px={mounted && isMobile ? 'sm' : 'md'} justify="space-between">
-          {/* Logo */}
-          <Link href="/" style={{ textDecoration: 'none' }}>
+        {/* ========== PRIMARY BAR ========== */}
+        <Box 
+          px={mounted && isMobile ? 'sm' : 'lg'}
+          style={{
+            height: mounted && isMobile ? 64 : 72,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          {/* LEFT: Logo */}
+          <Link href="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
             <Box style={{ 
-              width: mounted && isMobile ? 100 : 220, 
               display: 'flex', 
-              alignItems: 'center' 
+              alignItems: 'center',
+              transition: 'transform 0.2s ease',
             }}>
               <img 
-                src="/logo.png" 
+                src="/logo-trimmed.png" 
                 alt="Catering Pro" 
                 style={{ 
-                  height: mounted && isMobile ? 70 : 170,
+                  height: mounted && isMobile ? 50 : 58,
                   width: 'auto',
                   objectFit: 'contain',
-                  marginTop: mounted && isMobile ? -8 : -35,
-                  marginBottom: 0,
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                 }}
               />
             </Box>
           </Link>
 
-          {/* Desktop Navigation */}
-          <Group gap="sm" visibleFrom="sm">
-            {/* Ana Sayfa */}
-            <Button
-              component={Link}
-              href="/"
-              leftSection={<IconHome size={18} />}
-              variant={isActive('/') ? 'filled' : 'subtle'}
-              color={isActive('/') ? 'blue' : 'gray'}
-            >
-              Ana Sayfa
-            </Button>
+          {/* CENTER: Search Bar (Desktop & Tablet) */}
+          {mounted && !isMobile && (
+            <Box style={{ flex: 1, maxWidth: 480, margin: '0 24px' }}>
+              <UnstyledButton 
+                onClick={openSearchModal}
+                style={{ 
+                  width: '100%',
+                  padding: '10px 16px',
+                  borderRadius: 12,
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                }}
+                className="search-trigger"
+              >
+                <IconSearch size={18} style={{ opacity: 0.5 }} />
+                <Text size="sm" c="dimmed" style={{ flex: 1 }}>
+                  İhale, cari, fatura ara...
+                </Text>
+                <Group gap={4}>
+                  <Kbd size="xs">⌘</Kbd>
+                  <Kbd size="xs">K</Kbd>
+                </Group>
+              </UnstyledButton>
+            </Box>
+          )}
 
-            {/* İhale Merkezi Dropdown */}
-            <Menu 
-              shadow="md" 
-              width={220} 
-              position="bottom-start"
-              transitionProps={{ transition: 'pop-top-left' }}
-            >
-              <Menu.Target>
-                <Button
-                  rightSection={<IconChevronDown size={16} />}
-                  leftSection={<IconFolder size={18} />}
-                  variant={isIhaleMerkezi ? 'filled' : 'subtle'}
-                  color={isIhaleMerkezi ? 'blue' : 'gray'}
-                >
-                  İhale Merkezi
-                </Button>
-              </Menu.Target>
-
-              <Menu.Dropdown>
-                <Menu.Label>İhale İşlemleri</Menu.Label>
-                
-                <Menu.Item
-                  component={Link}
-                  href="/tenders"
-                  leftSection={<IconList size={18} />}
-                  style={{
-                    backgroundColor: isActive('/tenders') ? 'var(--mantine-color-blue-light)' : undefined,
-                  }}
-                >
-                  <Group justify="space-between" w="100%">
-                    <Text size="sm">İhale Listesi</Text>
-                    {isActive('/tenders') && (
-                      <Badge size="xs" color="blue" variant="filled">Aktif</Badge>
-                    )}
-                  </Group>
-                </Menu.Item>
-
-                <Menu.Item
-                  component={Link}
-                  href="/upload"
-                  leftSection={<IconSparkles size={18} color="var(--mantine-color-violet-6)" />}
-                  style={{
-                    backgroundColor: isActive('/upload') ? 'var(--mantine-color-violet-light)' : undefined,
-                  }}
-                >
-                  <Group justify="space-between" w="100%">
-                    <div>
-                      <Text size="sm" fw={500}>Yükle & Analiz</Text>
-                      <Text size="xs" c="dimmed">Claude AI</Text>
-                    </div>
-                    {isActive('/upload') && (
-                      <Badge size="xs" color="violet" variant="filled">Aktif</Badge>
-                    )}
-                  </Group>
-                </Menu.Item>
-
-                <Menu.Divider />
-
-                <Menu.Item
-                  component={Link}
-                  href="/tracking"
-                  leftSection={<IconBookmark size={18} color="var(--mantine-color-cyan-6)" />}
-                  style={{
-                    backgroundColor: isActive('/tracking') ? 'var(--mantine-color-cyan-light)' : undefined,
-                  }}
-                >
-                  <Group justify="space-between" w="100%">
-                    <div>
-                      <Text size="sm" fw={500}>İhale Takibim</Text>
-                      <Text size="xs" c="dimmed">Kaydedilenler</Text>
-                    </div>
-                    {isActive('/tracking') && (
-                      <Badge size="xs" color="cyan" variant="filled">Aktif</Badge>
-                    )}
-                  </Group>
-                </Menu.Item>
-
-                <Menu.Divider />
-
-                <Menu.Item
-                  component={Link}
-                  href="/ihale-uzmani"
-                  leftSection={<IconScale size={18} color="var(--mantine-color-violet-6)" />}
-                  style={{
-                    backgroundColor: isActive('/ihale-uzmani') ? 'var(--mantine-color-violet-light)' : undefined,
-                  }}
-                >
-                  <Group justify="space-between" w="100%">
-                    <div>
-                      <Text size="sm" fw={500}>İhale Uzmanı</Text>
-                      <Text size="xs" c="dimmed">AI Danışman</Text>
-                    </div>
-                    {isActive('/ihale-uzmani') && (
-                      <Badge size="xs" color="violet" variant="filled">Aktif</Badge>
-                    )}
-                  </Group>
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-
-            {/* Muhasebe Dropdown */}
-            <Menu 
-              shadow="md" 
-              width={220} 
-              position="bottom-start"
-              transitionProps={{ transition: 'pop-top-left' }}
-            >
-              <Menu.Target>
-                <Button
-                  rightSection={<IconChevronDown size={16} />}
-                  leftSection={<IconWallet size={18} />}
-                  variant={isMuhasebe ? 'filled' : 'subtle'}
-                  color={isMuhasebe ? 'teal' : 'gray'}
-                >
-                  Muhasebe
-                </Button>
-              </Menu.Target>
-
-              <Menu.Dropdown>
-                <Menu.Label>Mali İşlemler</Menu.Label>
-                
-                <Menu.Item
-                  component={Link}
-                  href="/muhasebe"
-                  leftSection={<IconChartPie size={18} />}
-                  style={{
-                    backgroundColor: isActive('/muhasebe') ? 'var(--mantine-color-teal-light)' : undefined,
-                  }}
-                >
-                  <Text size="sm">Dashboard</Text>
-                </Menu.Item>
-
-                <Menu.Item
-                  component={Link}
-                  href="/muhasebe/finans"
-                  leftSection={<IconWallet size={18} color="var(--mantine-color-blue-6)" />}
-                  style={{
-                    backgroundColor: isActive('/muhasebe/finans') ? 'var(--mantine-color-blue-light)' : undefined,
-                  }}
-                >
-                  <Group justify="space-between" w="100%">
-                    <div>
-                      <Text size="sm" fw={500}>Finans Merkezi</Text>
-                      <Text size="xs" c="dimmed">Kasa, Banka, Çek/Senet</Text>
-                    </div>
-                  </Group>
-                </Menu.Item>
-
-                <Menu.Item
-                  component={Link}
-                  href="/muhasebe/cariler"
-                  leftSection={<IconUsers size={18} />}
-                  style={{
-                    backgroundColor: isActive('/muhasebe/cariler') ? 'var(--mantine-color-teal-light)' : undefined,
-                  }}
-                >
-                  <Text size="sm">Cari Hesaplar</Text>
-                </Menu.Item>
-
-                <Menu.Item
-                  component={Link}
-                  href="/muhasebe/faturalar"
-                  leftSection={<IconReceipt size={18} />}
-                  style={{
-                    backgroundColor: isActive('/muhasebe/faturalar') ? 'var(--mantine-color-teal-light)' : undefined,
-                  }}
-                >
-                  <Text size="sm">Faturalar</Text>
-                </Menu.Item>
-
-                <Menu.Divider />
-
-                <Menu.Item
-                  component={Link}
-                  href="/muhasebe/satin-alma"
-                  leftSection={<IconShoppingCart size={18} />}
-                  style={{
-                    backgroundColor: isActive('/muhasebe/satin-alma') ? 'var(--mantine-color-teal-light)' : undefined,
-                  }}
-                >
-                  <Text size="sm">Satın Alma</Text>
-                </Menu.Item>
-
-                <Menu.Item
-                  component={Link}
-                  href="/muhasebe/stok"
-                  leftSection={<IconPackage size={18} />}
-                  style={{
-                    backgroundColor: isActive('/muhasebe/stok') ? 'var(--mantine-color-teal-light)' : undefined,
-                  }}
-                >
-                  <Text size="sm">Stok Takibi</Text>
-                </Menu.Item>
-
-                <Menu.Item
-                  component={Link}
-                  href="/muhasebe/demirbas"
-                  leftSection={<IconBuilding size={18} />}
-                  style={{
-                    backgroundColor: isActive('/muhasebe/demirbas') ? 'var(--mantine-color-teal-light)' : undefined,
-                  }}
-                >
-                  <Text size="sm">Envanter</Text>
-                </Menu.Item>
-
-                <Menu.Item
-                  component={Link}
-                  href="/muhasebe/personel"
-                  leftSection={<IconUserCircle size={18} />}
-                  style={{
-                    backgroundColor: isActive('/muhasebe/personel') ? 'var(--mantine-color-teal-light)' : undefined,
-                  }}
-                >
-                  <Text size="sm">Personel</Text>
-                </Menu.Item>
-
-                <Menu.Divider />
-
-                <Menu.Item
-                  component={Link}
-                  href="/muhasebe/raporlar"
-                  leftSection={<IconChartBar size={18} />}
-                  style={{
-                    backgroundColor: isActive('/muhasebe/raporlar') ? 'var(--mantine-color-teal-light)' : undefined,
-                  }}
-                >
-                  <Text size="sm">Raporlar</Text>
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-
-            {/* Planlama Dropdown */}
-            <Menu 
-              shadow="md" 
-              width={220} 
-              position="bottom-start"
-              transitionProps={{ transition: 'pop-top-left' }}
-            >
-              <Menu.Target>
-                <Button
-                  rightSection={<IconChevronDown size={16} />}
-                  leftSection={<IconRobot size={18} />}
-                  variant={isPlanlama ? 'filled' : 'subtle'}
-                  color={isPlanlama ? 'violet' : 'gray'}
-                >
-                  Planlama
-                </Button>
-              </Menu.Target>
-
-              <Menu.Dropdown>
-                <Menu.Label>AI Destekli Planlama</Menu.Label>
-                
-                <Menu.Item
-                  component={Link}
-                  href="/planlama/piyasa-robotu"
-                  leftSection={<IconRobot size={18} color="var(--mantine-color-violet-6)" />}
-                  style={{
-                    backgroundColor: pathname === '/planlama/piyasa-robotu' ? 'var(--mantine-color-violet-light)' : undefined,
-                  }}
-                >
-                  <Group justify="space-between" w="100%">
-                    <div>
-                      <Text size="sm" fw={500}>Piyasa Robotu</Text>
-                      <Text size="xs" c="dimmed">Fiyat Araştırma</Text>
-                    </div>
-                    {pathname === '/planlama/piyasa-robotu' && (
-                      <Badge size="xs" color="violet" variant="filled">Aktif</Badge>
-                    )}
-                  </Group>
-                </Menu.Item>
-
-                <Menu.Divider />
-
-                <Menu.Item
-                  component={Link}
-                  href="/muhasebe/menu-planlama"
-                  leftSection={<IconToolsKitchen2 size={18} color="var(--mantine-color-orange-6)" />}
-                  style={{
-                    backgroundColor: pathname === '/muhasebe/menu-planlama' ? 'var(--mantine-color-orange-light)' : undefined,
-                  }}
-                >
-                  <Group justify="space-between" w="100%">
-                    <div>
-                      <Text size="sm" fw={500}>Menü Planlama</Text>
-                      <Text size="xs" c="dimmed">Reçete & Maliyet</Text>
-                    </div>
-                    {pathname === '/muhasebe/menu-planlama' && (
-                      <Badge size="xs" color="orange" variant="filled">Aktif</Badge>
-                    )}
-                  </Group>
-                </Menu.Item>
-
-                <Menu.Divider />
-                <Menu.Label c="dimmed">Yakında</Menu.Label>
-
-                <Menu.Item
-                  leftSection={<IconReportMoney size={18} />}
-                  disabled
-                >
-                  <Text size="sm" c="dimmed">Maliyet Analizi</Text>
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-
-            {/* Ayarlar */}
-            <Button
-              component={Link}
-              href="/ayarlar"
-              leftSection={<IconSettings size={18} />}
-              variant={isAyarlar ? 'filled' : 'subtle'}
-              color={isAyarlar ? 'orange' : 'gray'}
-            >
-              Ayarlar
-            </Button>
-          </Group>
-
-          {/* Right Section */}
-          <Group gap={mounted && isMobile ? 4 : 'xs'}>
-            {/* Admin Button - only for admin users (mounted kontrolü) */}
-            {mounted && isAuthenticated && userIsAdmin && (
-              <Tooltip label="Admin Panel" withArrow>
+          {/* RIGHT: Actions */}
+          <Group gap={mounted && isMobile ? 6 : 'sm'}>
+            {/* Mobile Search Icon */}
+            {mounted && isMobile && (
+              <Tooltip label="Ara" withArrow>
                 <ActionIcon
-                  component={Link}
-                  href="/admin"
-                  variant={isAdminPage ? 'filled' : 'subtle'}
-                  color={isAdminPage ? 'red' : 'gray'}
-                  size={mounted && isMobile ? 'md' : 'lg'}
+                  variant="subtle"
+                  size="lg"
                   radius="xl"
+                  color="gray"
+                  onClick={openSearchModal}
                   style={{
-                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                    background: isAdminPage 
-                      ? undefined 
-                      : (colorScheme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
+                    background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
                   }}
                 >
-                  <IconShieldLock size={mounted && isMobile ? 16 : 18} />
+                  <IconSearch size={18} />
                 </ActionIcon>
               </Tooltip>
             )}
 
-            {/* Dark Mode Toggle */}
-            <Tooltip label={colorScheme === 'dark' ? 'Aydınlık mod' : 'Karanlık mod'} withArrow>
+            {/* Notifications */}
+            <NotificationDropdown />
+
+            {/* Theme Toggle */}
+            <Tooltip label={isDark ? 'Aydınlık mod' : 'Karanlık mod'} withArrow>
               <ActionIcon
                 variant="subtle"
                 onClick={() => toggleColorScheme()}
-                size={mounted && isMobile ? 'md' : 'lg'}
+                size="lg"
                 radius="xl"
-                aria-label="Toggle color scheme"
                 color="gray"
                 style={{
-                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                  background: colorScheme === 'dark' 
-                    ? 'rgba(255,255,255,0.05)' 
-                    : 'rgba(0,0,0,0.03)',
+                  background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                  transition: 'all 0.2s ease',
                 }}
               >
-                {colorScheme === 'dark' ? (
-                  <IconSun size={mounted && isMobile ? 16 : 18} style={{ transition: 'transform 0.3s ease' }} />
-                ) : (
-                  <IconMoon size={mounted && isMobile ? 16 : 18} style={{ transition: 'transform 0.3s ease' }} />
-                )}
+                {isDark ? <IconSun size={18} /> : <IconMoon size={18} />}
               </ActionIcon>
             </Tooltip>
 
-            {/* Auth Section - mounted kontrolü ile hydration hatası önleme */}
+            {/* User Menu */}
             {!mounted || isLoading ? (
               <Loader size="sm" />
             ) : isAuthenticated && user ? (
-              <Menu shadow="md" width={200} position="bottom-end">
+              <Menu shadow="md" width={220} position="bottom-end">
                 <Menu.Target>
-                  <Tooltip label={user.name} withArrow disabled={!isMobile}>
-                    <ActionIcon 
-                      variant="subtle" 
-                      size={mounted && isMobile ? 'md' : 'lg'} 
-                      radius="xl"
-                      style={{ transition: 'all 0.2s ease' }}
-                    >
+                  <UnstyledButton
+                    style={{
+                      padding: mounted && isMobile ? 4 : '6px 12px',
+                      borderRadius: 12,
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                      border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+                      transition: 'all 0.2s ease',
+                    }}
+                    className="user-menu-trigger"
+                  >
+                    <Group gap="xs" wrap="nowrap">
                       <Avatar
-                        size={mounted && isMobile ? 'xs' : 'sm'}
+                        size={mounted && isMobile ? 'sm' : 32}
                         radius="xl"
                         color="blue"
-                        style={{ cursor: 'pointer' }}
+                        variant="filled"
                       >
                         {getInitials(user.name)}
                       </Avatar>
-                    </ActionIcon>
-                  </Tooltip>
+                      {mounted && !isMobile && (
+                        <>
+                          <Box style={{ lineHeight: 1.2 }}>
+                            <Text size="sm" fw={500} style={{ lineHeight: 1.2 }}>
+                              {user.name.split(' ')[0]}
+                            </Text>
+                            {userIsAdmin && (
+                              <Badge size="xs" color="red" variant="light">Admin</Badge>
+                            )}
+                          </Box>
+                          <IconChevronDown size={14} style={{ opacity: 0.5 }} />
+                        </>
+                      )}
+                    </Group>
+                  </UnstyledButton>
                 </Menu.Target>
+                
                 <Menu.Dropdown>
                   <Menu.Label>
                     <Text size="sm" fw={500}>{user.name}</Text>
@@ -584,24 +322,17 @@ export function Navbar() {
                 </Menu.Dropdown>
               </Menu>
             ) : (
-              /* Giriş Butonu - Mobilde sadece ikon, Desktop'ta text */
               mounted && isMobile ? (
                 <Tooltip label="Giriş Yap" withArrow>
                   <ActionIcon
                     component={Link}
                     href="/giris"
-                    variant="subtle"
+                    variant="light"
                     color="blue"
-                    size="md"
+                    size="lg"
                     radius="xl"
-                    style={{ 
-                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                      background: colorScheme === 'dark' 
-                        ? 'rgba(34, 139, 230, 0.1)' 
-                        : 'rgba(34, 139, 230, 0.08)',
-                    }}
                   >
-                    <IconLogin size={16} />
+                    <IconLogin size={18} />
                   </ActionIcon>
                 </Tooltip>
               ) : (
@@ -612,232 +343,237 @@ export function Navbar() {
                   size="sm"
                   radius="xl"
                   leftSection={<IconLogin size={16} />}
-                  style={{ 
-                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                    fontWeight: 500,
-                  }}
                 >
                   Giriş
                 </Button>
               )
             )}
             
-            {/* Mobile Burger */}
-            <Burger
-              opened={opened}
-              onClick={() => setOpened(!opened)}
-              hiddenFrom="sm"
-              size="sm"
-              style={{ transition: 'all 0.2s ease' }}
-            />
+            {/* Mobile Hamburger */}
+            {mounted && (isMobile || isTablet) && (
+              <Burger
+                opened={mobileMenuOpened}
+                onClick={() => setMobileMenuOpened(!mobileMenuOpened)}
+                size="sm"
+              />
+            )}
           </Group>
-        </Group>
+        </Box>
 
-        {/* Mobile Navigation */}
-        {opened && (
-          <Box hiddenFrom="sm" pb="md" px="md">
-            <ScrollArea.Autosize mah="calc(100vh - 80px)" offsetScrollbars>
-            <Stack gap="xs">
-              <Button
-                component={Link}
-                href="/"
-                leftSection={<IconHome size={18} />}
-                variant={isActive('/') ? 'filled' : 'light'}
-                fullWidth
-                onClick={() => setOpened(false)}
-              >
-                Ana Sayfa
-              </Button>
+        {/* ========== NAVIGATION BAR (Desktop Only) ========== */}
+        {mounted && !isMobile && !isTablet && (
+          <Box 
+            px="lg"
+            style={{
+              height: 48,
+              display: 'flex',
+              alignItems: 'center',
+              borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'}`,
+              gap: 4,
+            }}
+          >
+            {/* Ana Sayfa */}
+            <Button
+              component={Link}
+              href="/"
+              leftSection={<IconHome size={16} />}
+              variant={isActive('/') ? 'light' : 'subtle'}
+              color={isActive('/') ? 'blue' : 'gray'}
+              size="compact-sm"
+              radius="md"
+            >
+              Ana Sayfa
+            </Button>
 
-              <Divider label="İhale Merkezi" labelPosition="center" />
-
-              <Button
-                component={Link}
-                href="/tenders"
-                leftSection={<IconList size={18} />}
-                variant={isActive('/tenders') ? 'filled' : 'light'}
-                fullWidth
-                onClick={() => setOpened(false)}
-              >
-                İhale Listesi
-              </Button>
-
-              <Button
-                component={Link}
-                href="/upload"
-                leftSection={<IconSparkles size={18} />}
-                variant={isActive('/upload') ? 'filled' : 'light'}
-                color="violet"
-                fullWidth
-                onClick={() => setOpened(false)}
-              >
-                Yükle & Analiz (AI)
-              </Button>
-
-              <Button
-                component={Link}
-                href="/tracking"
-                leftSection={<IconBookmark size={18} />}
-                variant={isActive('/tracking') ? 'filled' : 'light'}
-                color="cyan"
-                fullWidth
-                onClick={() => setOpened(false)}
-              >
-                İhale Takibim
-              </Button>
-
-              <Button
-                component={Link}
-                href="/ihale-uzmani"
-                leftSection={<IconScale size={18} />}
-                variant={isActive('/ihale-uzmani') ? 'filled' : 'light'}
-                color="violet"
-                fullWidth
-                onClick={() => setOpened(false)}
-              >
-                İhale Uzmanı (AI)
-              </Button>
-
-              <Divider label="Muhasebe" labelPosition="center" />
-
-              <Button
-                component={Link}
-                href="/muhasebe"
-                leftSection={<IconChartPie size={18} />}
-                variant={isActive('/muhasebe') ? 'filled' : 'light'}
-                color="teal"
-                fullWidth
-                onClick={() => setOpened(false)}
-              >
-                Dashboard
-              </Button>
-
-              <Button
-                component={Link}
-                href="/muhasebe/finans"
-                leftSection={<IconWallet size={18} />}
-                variant={isActive('/muhasebe/finans') ? 'filled' : 'light'}
-                color="blue"
-                fullWidth
-                onClick={() => setOpened(false)}
-              >
-                Finans Merkezi
-              </Button>
-
-              <Button
-                component={Link}
-                href="/muhasebe/cariler"
-                leftSection={<IconUsers size={18} />}
-                variant={isActive('/muhasebe/cariler') ? 'filled' : 'light'}
-                color="teal"
-                fullWidth
-                onClick={() => setOpened(false)}
-              >
-                Cari Hesaplar
-              </Button>
-
-              <Button
-                component={Link}
-                href="/muhasebe/faturalar"
-                leftSection={<IconReceipt size={18} />}
-                variant={isActive('/muhasebe/faturalar') ? 'filled' : 'light'}
-                color="teal"
-                fullWidth
-                onClick={() => setOpened(false)}
-              >
-                Faturalar
-              </Button>
-
-              <Divider label="Planlama" labelPosition="center" />
-
-              <Button
-                component={Link}
-                href="/planlama/piyasa-robotu"
-                leftSection={<IconRobot size={18} />}
-                variant={pathname === '/planlama/piyasa-robotu' ? 'filled' : 'light'}
-                color="violet"
-                fullWidth
-                onClick={() => setOpened(false)}
-              >
-                Piyasa Robotu
-              </Button>
-
-              <Divider label="Sistem" labelPosition="center" />
-
-              <Button
-                component={Link}
-                href="/ayarlar"
-                leftSection={<IconSettings size={18} />}
-                variant={isAyarlar ? 'filled' : 'light'}
-                color="orange"
-                fullWidth
-                onClick={() => setOpened(false)}
-              >
-                Ayarlar
-              </Button>
-
-              {mounted && isAuthenticated && userIsAdmin && (
+            {/* İhale Merkezi Dropdown */}
+            <Menu shadow="lg" width={240} position="bottom-start" transitionProps={{ transition: 'pop-top-left' }}>
+              <Menu.Target>
                 <Button
-                  component={Link}
-                  href="/admin"
-                  leftSection={<IconShieldLock size={18} />}
-                  variant={isAdminPage ? 'filled' : 'light'}
-                  color="red"
-                  fullWidth
-                  onClick={() => setOpened(false)}
+                  rightSection={<IconChevronDown size={14} />}
+                  leftSection={<IconFolder size={16} />}
+                  variant={isIhaleMerkezi ? 'light' : 'subtle'}
+                  color={isIhaleMerkezi ? 'blue' : 'gray'}
+                  size="compact-sm"
+                  radius="md"
                 >
-                  Admin Panel
+                  İhale Merkezi
                 </Button>
-              )}
-
-              <Divider my="xs" />
-
-              {!mounted ? (
-                <Loader size="sm" mx="auto" />
-              ) : isAuthenticated && user ? (
-                <>
-                  <Box px="xs" py="sm">
-                    <Group>
-                      <Avatar size="sm" radius="xl" color="blue">
-                        {getInitials(user.name)}
-                      </Avatar>
-                      <div>
-                        <Text size="sm" fw={500}>{user.name}</Text>
-                        <Text size="xs" c="dimmed">{user.email}</Text>
-                      </div>
-                    </Group>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item
+                  component={Link}
+                  href="/tenders"
+                  leftSection={<IconList size={16} />}
+                >
+                  <Group justify="space-between" w="100%">
+                    <Text size="sm">İhale Listesi</Text>
+                    {isActive('/tenders') && <Badge size="xs" color="blue">Aktif</Badge>}
+                  </Group>
+                </Menu.Item>
+                <Menu.Item
+                  component={Link}
+                  href="/upload"
+                  leftSection={<IconSparkles size={16} color="var(--mantine-color-violet-6)" />}
+                >
+                  <Box>
+                    <Text size="sm" fw={500}>Yükle & Analiz</Text>
+                    <Text size="xs" c="dimmed">AI Analiz</Text>
                   </Box>
-                  <Button
-                    leftSection={<IconLogout size={18} />}
-                    variant="light"
-                    color="red"
-                    fullWidth
-                    onClick={() => {
-                      setOpened(false);
-                      handleLogout();
-                    }}
-                  >
-                    Çıkış Yap
-                  </Button>
-                </>
-              ) : (
-                <Button
+                </Menu.Item>
+                <Menu.Divider />
+                <Menu.Item
                   component={Link}
-                  href="/giris"
-                  leftSection={<IconLogin size={18} />}
-                  variant="filled"
-                  color="blue"
-                  fullWidth
-                  onClick={() => setOpened(false)}
+                  href="/tracking"
+                  leftSection={<IconBookmark size={16} color="var(--mantine-color-cyan-6)" />}
                 >
-                  Giriş Yap
+                  İhale Takibim
+                </Menu.Item>
+                <Menu.Item
+                  component={Link}
+                  href="/ihale-uzmani"
+                  leftSection={<IconScale size={16} color="var(--mantine-color-violet-6)" />}
+                >
+                  <Box>
+                    <Text size="sm" fw={500}>İhale Uzmanı</Text>
+                    <Text size="xs" c="dimmed">AI Danışman</Text>
+                  </Box>
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+
+            {/* Muhasebe Dropdown */}
+            <Menu shadow="lg" width={240} position="bottom-start" transitionProps={{ transition: 'pop-top-left' }}>
+              <Menu.Target>
+                <Button
+                  rightSection={<IconChevronDown size={14} />}
+                  leftSection={<IconWallet size={16} />}
+                  variant={isMuhasebe ? 'light' : 'subtle'}
+                  color={isMuhasebe ? 'teal' : 'gray'}
+                  size="compact-sm"
+                  radius="md"
+                >
+                  Muhasebe
                 </Button>
-              )}
-            </Stack>
-            </ScrollArea.Autosize>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item component={Link} href="/muhasebe" leftSection={<IconChartPie size={16} />}>
+                  Dashboard
+                </Menu.Item>
+                <Menu.Item component={Link} href="/muhasebe/finans" leftSection={<IconWallet size={16} color="var(--mantine-color-blue-6)" />}>
+                  <Box>
+                    <Text size="sm" fw={500}>Finans Merkezi</Text>
+                    <Text size="xs" c="dimmed">Kasa, Banka</Text>
+                  </Box>
+                </Menu.Item>
+                <Menu.Divider />
+                <Menu.Item component={Link} href="/muhasebe/cariler" leftSection={<IconUsers size={16} />}>
+                  Cari Hesaplar
+                </Menu.Item>
+                <Menu.Item component={Link} href="/muhasebe/faturalar" leftSection={<IconReceipt size={16} />}>
+                  Faturalar
+                </Menu.Item>
+                <Menu.Item component={Link} href="/muhasebe/stok" leftSection={<IconPackage size={16} />}>
+                  Stok Takibi
+                </Menu.Item>
+                <Menu.Divider />
+                <Menu.Item component={Link} href="/muhasebe/personel" leftSection={<IconUserCircle size={16} />}>
+                  Personel
+                </Menu.Item>
+                <Menu.Item component={Link} href="/muhasebe/demirbas" leftSection={<IconBuilding size={16} />}>
+                  Envanter
+                </Menu.Item>
+                <Menu.Divider />
+                <Menu.Item component={Link} href="/muhasebe/raporlar" leftSection={<IconChartBar size={16} />}>
+                  Raporlar
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+
+            {/* Planlama Dropdown */}
+            <Menu shadow="lg" width={240} position="bottom-start" transitionProps={{ transition: 'pop-top-left' }}>
+              <Menu.Target>
+                <Button
+                  rightSection={<IconChevronDown size={14} />}
+                  leftSection={<IconRobot size={16} />}
+                  variant={isPlanlama ? 'light' : 'subtle'}
+                  color={isPlanlama ? 'violet' : 'gray'}
+                  size="compact-sm"
+                  radius="md"
+                >
+                  Planlama
+                </Button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item
+                  component={Link}
+                  href="/planlama/piyasa-robotu"
+                  leftSection={<IconRobot size={16} color="var(--mantine-color-violet-6)" />}
+                >
+                  <Box>
+                    <Text size="sm" fw={500}>Piyasa Robotu</Text>
+                    <Text size="xs" c="dimmed">Fiyat Araştırma</Text>
+                  </Box>
+                </Menu.Item>
+                <Menu.Divider />
+                <Menu.Item
+                  component={Link}
+                  href="/muhasebe/menu-planlama"
+                  leftSection={<IconToolsKitchen2 size={16} color="var(--mantine-color-orange-6)" />}
+                >
+                  <Box>
+                    <Text size="sm" fw={500}>Menü Planlama</Text>
+                    <Text size="xs" c="dimmed">Reçete & Maliyet</Text>
+                  </Box>
+                </Menu.Item>
+                <Menu.Divider />
+                <Menu.Item leftSection={<IconReportMoney size={16} />} disabled>
+                  <Text size="sm" c="dimmed">Maliyet Analizi</Text>
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+
+            {/* Ayarlar */}
+            <Button
+              component={Link}
+              href="/ayarlar"
+              leftSection={<IconSettings size={16} />}
+              variant={isAyarlar ? 'light' : 'subtle'}
+              color={isAyarlar ? 'orange' : 'gray'}
+              size="compact-sm"
+              radius="md"
+            >
+              Ayarlar
+            </Button>
+
+            {/* Admin (only for admins) */}
+            {mounted && isAuthenticated && userIsAdmin && (
+              <Button
+                component={Link}
+                href="/admin"
+                leftSection={<IconShieldLock size={16} />}
+                variant={isAdminPage ? 'light' : 'subtle'}
+                color="red"
+                size="compact-sm"
+                radius="md"
+              >
+                Admin
+              </Button>
+            )}
           </Box>
         )}
+
       </Box>
+
+      {/* ========== PREMIUM MOBILE SIDEBAR ========== */}
+      {mounted && (isMobile || isTablet) && (
+        <MobileSidebar
+          opened={mobileMenuOpened}
+          onClose={() => setMobileMenuOpened(false)}
+          user={user}
+          isAdmin={userIsAdmin}
+          onLogout={handleLogout}
+        />
+      )}
     </>
   );
 }

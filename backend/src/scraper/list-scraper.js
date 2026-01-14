@@ -382,24 +382,34 @@ async function extractDocumentLinksForTenders(page, tenders) {
       try {
         await delay(1000); // Rate limiting
         
-        // Tüm içerikleri çek (döküman linkleri + ilan + mal/hizmet)
+        // Tüm içerikleri çek (döküman linkleri + ilan + mal/hizmet + zeyilname + düzeltme)
         const content = await documentScraper.scrapeAllContent(page, tender.url);
         
         tender.document_links = content.documentLinks;
         tender.announcement_content = content.announcementContent;
         tender.goods_services_content = content.goodsServicesList;
+        tender.zeyilname_content = content.zeyilnameContent;
+        tender.correction_notice_content = content.correctionNoticeContent;
+        
+        // Güncellendi durumunu belirle
+        tender.is_updated = !!(content.zeyilnameContent || content.correctionNoticeContent);
         
         processedCount++;
         
         const hasAnn = content.announcementContent ? '✓' : '✗';
         const hasGoods = content.goodsServicesList ? `✓(${content.goodsServicesList.length})` : '✗';
-        console.log(`     📄 ${processedCount}/${tenders.length} - İhale ${tender.id} [İlan:${hasAnn} Mal/Hizmet:${hasGoods}]`);
+        const hasZeyil = content.zeyilnameContent ? '✓' : '✗';
+        const hasCorr = content.correctionNoticeContent ? '✓' : '✗';
+        console.log(`     📄 ${processedCount}/${tenders.length} - İhale ${tender.id} [İlan:${hasAnn} Mal/Hizmet:${hasGoods} Zeyil:${hasZeyil} Düzeltme:${hasCorr}]`);
         
       } catch (error) {
         console.error(`     ❌ İhale ${tender.id} içerik hatası:`, error.message);
         tender.document_links = {};
         tender.announcement_content = null;
         tender.goods_services_content = null;
+        tender.zeyilname_content = null;
+        tender.correction_notice_content = null;
+        tender.is_updated = false;
       }
     }
     
@@ -464,6 +474,9 @@ function normalizeTenderData(tender) {
     document_links: tender.document_links || null,
     announcement_content: tender.announcement_content || null,
     goods_services_content: tender.goods_services_content || null,
+    zeyilname_content: tender.zeyilname_content || null,
+    correction_notice_content: tender.correction_notice_content || null,
+    is_updated: tender.is_updated || false,
     raw_data: {
       original: tender,
       scraped_at: new Date().toISOString()
@@ -483,10 +496,12 @@ async function upsertTender(data) {
       organization_email, estimated_cost, estimated_cost_raw,
       estimated_cost_min, estimated_cost_max, tender_type, tender_method,
       tender_source, bid_type, category_id, category_name, url, raw_data, 
-      document_links, announcement_content, goods_services_content
+      document_links, announcement_content, goods_services_content,
+      zeyilname_content, correction_notice_content, is_updated
     ) VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-      $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
+      $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
+      $31, $32, $33
     )
     ON CONFLICT (external_id)
     DO UPDATE SET
@@ -505,6 +520,10 @@ async function upsertTender(data) {
       document_links = COALESCE(EXCLUDED.document_links, tenders.document_links),
       announcement_content = COALESCE(EXCLUDED.announcement_content, tenders.announcement_content),
       goods_services_content = COALESCE(EXCLUDED.goods_services_content, tenders.goods_services_content),
+      zeyilname_content = COALESCE(EXCLUDED.zeyilname_content, tenders.zeyilname_content),
+      correction_notice_content = COALESCE(EXCLUDED.correction_notice_content, tenders.correction_notice_content),
+      is_updated = COALESCE(EXCLUDED.is_updated, tenders.is_updated),
+      last_update_date = CASE WHEN EXCLUDED.is_updated = true THEN NOW() ELSE tenders.last_update_date END,
       updated_at = NOW()
     RETURNING id, external_id, (xmax = 0) as is_new
   `, [
@@ -517,7 +536,10 @@ async function upsertTender(data) {
     data.category_id, data.category_name, data.url, JSON.stringify(data.raw_data),
     data.document_links ? JSON.stringify(data.document_links) : null,
     data.announcement_content,
-    data.goods_services_content ? JSON.stringify(data.goods_services_content) : null
+    data.goods_services_content ? JSON.stringify(data.goods_services_content) : null,
+    data.zeyilname_content ? JSON.stringify(data.zeyilname_content) : null,
+    data.correction_notice_content ? JSON.stringify(data.correction_notice_content) : null,
+    data.is_updated || false
   ]);
 
   return result.rows[0];

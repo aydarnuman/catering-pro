@@ -89,13 +89,13 @@ class TenderScheduler {
       return { success: false, message: 'Scraper already running' };
     }
 
-    // 🔒 AKILLI STARTUP KONTROLÜ
+    // 🔒 AKILLI STARTUP KONTROLÜ - 4 saat içinde scrape varsa atla
     if (options.type === 'startup') {
       const lastScrape = await this.getLastSuccessfulScrape();
       if (lastScrape) {
         const hoursSince = (Date.now() - new Date(lastScrape.started_at).getTime()) / (1000 * 60 * 60);
-        if (hoursSince < 1) {
-          console.log(`⏭️ Son scrape ${Math.round(hoursSince * 60)} dakika önce yapıldı, startup scrape atlanıyor`);
+        if (hoursSince < 4) {
+          console.log(`⏭️ Son scrape ${hoursSince.toFixed(1)} saat önce yapıldı, startup scrape atlanıyor`);
           return { success: true, message: 'Recent scrape exists, skipped', skipped: true };
         }
         console.log(`📊 Son scrape ${hoursSince.toFixed(1)} saat önce, devam ediliyor...`);

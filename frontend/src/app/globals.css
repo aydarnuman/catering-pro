@@ -149,13 +149,19 @@ a {
 
 /* Main content padding - Navbar altı için */
 .main-content {
-  padding-top: 120px;
+  padding-top: 128px; /* Desktop: 72px primary + 48px nav + padding */
   transition: padding-top 0.3s ease;
+}
+
+@media (max-width: 1024px) {
+  .main-content {
+    padding-top: 80px; /* Tablet: tek satır header */
+  }
 }
 
 @media (max-width: 768px) {
   .main-content {
-    padding-top: 64px;
+    padding-top: 72px; /* Mobile: kompakt header */
   }
 }
 
@@ -373,6 +379,216 @@ a {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ========================================
+   New Navbar & Search Styles
+   ======================================== */
+
+/* Search trigger hover */
+.search-trigger:hover {
+  background-color: rgba(34, 139, 230, 0.08) !important;
+  border-color: rgba(34, 139, 230, 0.2) !important;
+}
+
+[data-mantine-color-scheme='dark'] .search-trigger:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* User menu trigger hover */
+.user-menu-trigger:hover {
+  background-color: rgba(34, 139, 230, 0.08) !important;
+  border-color: rgba(34, 139, 230, 0.2) !important;
+}
+
+[data-mantine-color-scheme='dark'] .user-menu-trigger:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Search result item hover */
+.search-result-item:hover {
+  background-color: rgba(34, 139, 230, 0.08) !important;
+}
+
+[data-mantine-color-scheme='dark'] .search-result-item:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Notification item hover */
+.notification-item:hover {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+[data-mantine-color-scheme='dark'] .notification-item:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* ========================================
+   Premium Mobile Sidebar Styles
+   ======================================== */
+
+/* Sidebar close button hover */
+.sidebar-close-btn:hover {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  transform: scale(1.05);
+}
+
+.sidebar-close-btn:active {
+  transform: scale(0.95);
+}
+
+/* Menu item hover effects */
+.menu-item {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.menu-item:hover {
+  transform: translateX(-2px);
+}
+
+.menu-item:hover .menu-chevron {
+  transform: translateX(4px);
+  opacity: 0.8 !important;
+}
+
+.menu-item:active {
+  transform: scale(0.98);
+}
+
+/* User action buttons */
+.user-action-btn:hover {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+}
+
+[data-mantine-color-scheme='dark'] .user-action-btn:hover {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+}
+
+.logout-btn:hover {
+  background-color: rgba(239, 68, 68, 0.2) !important;
+}
+
+[data-mantine-color-scheme='dark'] .logout-btn:hover {
+  background-color: rgba(239, 68, 68, 0.25) !important;
+}
+
+/* Active menu item glow animation */
+@keyframes activeGlow {
+  0%, 100% {
+    box-shadow: 0 0 8px currentColor;
+  }
+  50% {
+    box-shadow: 0 0 16px currentColor;
+  }
+}
+
+/* Stagger animation for menu items */
+@keyframes menuItemSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Apply stagger to menu groups */
+.menu-item {
+  animation: menuItemSlideIn 0.3s ease-out forwards;
+}
+
+/* Premium badge gradient */
+.ai-badge {
+  background: linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%) !important;
+  color: white !important;
+  font-weight: 600 !important;
+}
+
+/* ========================================
+   Premium Dashboard Styles
+   ======================================== */
+
+/* KPI Card hover effects */
+.kpi-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.kpi-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+[data-mantine-color-scheme='dark'] .kpi-card:hover {
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Quick action button hover */
+.quick-action-btn {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.quick-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Note item hover */
+.note-item {
+  transition: all 0.2s ease !important;
+}
+
+.note-item:hover {
+  transform: translateX(4px);
+}
+
+/* Dashboard card entrance animation */
+@keyframes cardSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.kpi-card {
+  animation: cardSlideUp 0.4s ease-out forwards;
+}
+
+.kpi-card:nth-child(1) { animation-delay: 0.05s; }
+.kpi-card:nth-child(2) { animation-delay: 0.1s; }
+.kpi-card:nth-child(3) { animation-delay: 0.15s; }
+.kpi-card:nth-child(4) { animation-delay: 0.2s; }
+
+/* Pulse animation for status indicators */
+@keyframes statusPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Kbd styling for search */
+.mantine-Kbd-root {
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+  min-width: auto !important;
 }
 
 /* ========================================

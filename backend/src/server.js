@@ -19,7 +19,12 @@ const PORT = process.env.PORT || process.env.API_PORT || 3001;
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: [
+    'http://localhost:3000', 
+    'http://127.0.0.1:3000',
+    'http://localhost:3002', 
+    'http://127.0.0.1:3002'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control']
@@ -121,8 +126,15 @@ import menuPlanlamaRouter from './routes/menu-planlama.js';
 import tekliflerRouter from './routes/teklifler.js';
 import notlarRouter from './routes/notlar.js';
 import firmalarRouter from './routes/firmalar.js';
+import ihaleSonuclariRouter from './routes/ihale-sonuclari.js';
+import searchRouter from './routes/search.js';
+import notificationsRouter from './routes/notifications.js';
+import tenderDocumentsRouter from './routes/tender-documents.js';
+import tenderContentDocumentsRouter from './routes/tender-content-documents.js';
+import tenderTrackingRouter from './routes/tender-tracking.js';
 import scheduler from './services/sync-scheduler.js';
 import tenderScheduler from './services/tender-scheduler.js';
+import documentQueueProcessor from './services/document-queue-processor.js';
 
 app.use('/api/tenders', tendersRouter);
 app.use('/api/documents', documentsRouter);
@@ -157,6 +169,12 @@ app.use('/api/menu-planlama', menuPlanlamaRouter);
 app.use('/api/teklifler', tekliflerRouter);
 app.use('/api/notlar', notlarRouter);
 app.use('/api/firmalar', firmalarRouter);
+app.use('/api/ihale-sonuclari', ihaleSonuclariRouter);
+app.use('/api/search', searchRouter);
+app.use('/api/notifications', notificationsRouter);
+app.use('/api/tender-docs', tenderDocumentsRouter);
+app.use('/api/tender-content', tenderContentDocumentsRouter);
+app.use('/api/tender-tracking', tenderTrackingRouter);
 
 /**
  * @swagger
@@ -287,6 +305,9 @@ app.listen(PORT, () => {
   
   logger.info('🔍 İhale scraper scheduler başlatılıyor...');
   tenderScheduler.start();
+  
+  logger.info('📋 Document queue processor başlatılıyor...');
+  documentQueueProcessor.start();
 });
 
 export default app;

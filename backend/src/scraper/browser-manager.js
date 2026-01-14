@@ -41,7 +41,7 @@ class BrowserManager {
       
       this.browser = await puppeteer.launch({
         headless: headlessMode,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/snap/bin/chromium',
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/opt/homebrew/bin/chromium',
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',

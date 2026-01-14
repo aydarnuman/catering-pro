@@ -17,30 +17,35 @@ class DocumentDownloadService {
         console.log(`📥 Döküman indiriliyor: ${documentUrl}`);
         
         try {
-            // Session cookie'lerini al
-            const session = await sessionManager.loadSession();
-            
-            if (!session || !session.cookies) {
-                throw new Error('Session bulunamadı - scraper önce çalıştırılmalı');
+            // Session cookie'lerini al (varsa)
+            let headers = {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': 'https://www.ihalebul.com/',
+                'Accept': '*/*',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive'
+            };
+
+            try {
+                const session = await sessionManager.loadSession();
+                if (session && session.cookies && session.cookies.length > 0) {
+                    // Cookie'leri header formatına çevir
+                    const cookieHeader = session.cookies
+                        .map(c => `${c.name}=${c.value}`)
+                        .join('; ');
+                    
+                    headers['Cookie'] = cookieHeader;
+                    console.log(`🍪 ${session.cookies.length} cookie kullanılıyor`);
+                } else {
+                    console.log(`⚠️ Session bulunamadı, cookie olmadan deneniyor...`);
+                }
+            } catch (sessionError) {
+                console.log(`⚠️ Session yüklenemedi: ${sessionError.message}, cookie olmadan deneniyor...`);
             }
             
-            // Cookie'leri header formatına çevir
-            const cookieHeader = session.cookies
-                .map(c => `${c.name}=${c.value}`)
-                .join('; ');
-            
-            console.log(`🍪 ${session.cookies.length} cookie kullanılıyor`);
-            
-            // Fetch ile indir (cookie ile)
+            // Fetch ile indir (cookie ile veya olmadan)
             const response = await fetch(documentUrl, {
-                headers: {
-                    'Cookie': cookieHeader,
-                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Referer': 'https://www.ihalebul.com/',
-                    'Accept': '*/*',
-                    'Accept-Encoding': 'gzip, deflate, br',
-                    'Connection': 'keep-alive'
-                },
+                headers,
                 timeout: this.downloadTimeout
             });
             

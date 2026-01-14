@@ -102,52 +102,63 @@ export function FloatingAIChat() {
 
   return (
     <>
-      {/* Floating Button */}
-      <Transition mounted={!isOpen} transition="scale" duration={200}>
-        {(styles) => (
-          <Tooltip 
-            label={`${info.icon} ${info.title}${alertCount > 0 ? ` (${alertCount} uyarı)` : ''}`} 
-            position="left"
-            withArrow
+      {/* Floating Button - Her zaman görünür */}
+      <Tooltip 
+        label={`${info.icon} ${info.title}${alertCount > 0 ? ` (${alertCount} uyarı)` : ''}`} 
+        position="left"
+        withArrow
+        disabled={isOpen}
+      >
+        <Box style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1001 }}>
+          <Box
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: '50%',
+              background: 'white',
+              boxShadow: '0 6px 30px rgba(102, 126, 234, 0.5)',
+              transition: 'all 0.3s ease',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '2px solid #667eea',
+              overflow: 'hidden',
+            }}
+            onClick={() => setIsOpen(!isOpen)}
+            className={showPulse && !isOpen ? 'pulse-animation' : ''}
           >
-            <Box style={{ ...styles, position: 'fixed', bottom: 24, right: 24, zIndex: 1000 }}>
-              <ActionIcon
-                style={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  boxShadow: '0 4px 20px rgba(102, 126, 234, 0.4)',
-                  transition: 'all 0.3s ease',
-                }}
-                onClick={() => setIsOpen(true)}
-                className={showPulse ? 'pulse-animation' : ''}
-              >
-                <IconSparkles size={28} color="white" />
-              </ActionIcon>
-              {/* Alert Badge */}
-              {alertCount > 0 && (
-                <Badge
-                  size="sm"
-                  color="red"
-                  variant="filled"
-                  style={{
-                    position: 'absolute',
-                    top: -4,
-                    right: -4,
-                    minWidth: 20,
-                    height: 20,
-                    padding: '0 6px',
-                    borderRadius: 10,
-                  }}
-                >
-                  {alertCount > 9 ? '9+' : alertCount}
-                </Badge>
-              )}
-            </Box>
-          </Tooltip>
-        )}
-      </Transition>
+            <img 
+              src="/ai-chef-icon-trimmed.png" 
+              alt="AI Asistan" 
+              style={{ 
+                width: 64, 
+                height: 64, 
+                objectFit: 'cover',
+              }} 
+            />
+          </Box>
+          {/* Alert Badge */}
+          {alertCount > 0 && !isOpen && (
+            <Badge
+              size="sm"
+              color="red"
+              variant="filled"
+              style={{
+                position: 'absolute',
+                top: -4,
+                right: -4,
+                minWidth: 20,
+                height: 20,
+                padding: '0 6px',
+                borderRadius: 10,
+              }}
+            >
+              {alertCount > 9 ? '9+' : alertCount}
+            </Badge>
+          )}
+        </Box>
+      </Tooltip>
 
       {/* Pulse Animation Style */}
       <style jsx global>{`
@@ -171,19 +182,19 @@ export function FloatingAIChat() {
         }
       `}</style>
 
-      {/* Chat Window */}
+      {/* Chat Window - Butonun üstünde açılır */}
       <Transition mounted={isOpen} transition="slide-up" duration={300}>
         {(styles) => (
           <Paper
             style={{
               ...styles,
               position: 'fixed',
-              bottom: 24,
+              bottom: 110,
               right: 24,
               zIndex: 1000,
               width: isMinimized ? 320 : 420,
-              height: isMinimized ? 60 : 600,
-              maxHeight: 'calc(100vh - 100px)',
+              height: isMinimized ? 60 : 550,
+              maxHeight: 'calc(100vh - 150px)',
               overflow: 'hidden',
               borderRadius: 16,
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',

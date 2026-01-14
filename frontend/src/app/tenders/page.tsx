@@ -31,15 +31,15 @@ import {
   IconAlertCircle,
   IconRefresh,
   IconFileText,
-  IconDownload,
   IconExternalLink,
   IconSearch,
   IconFilter,
-  IconX
+  IconX,
+  IconSparkles
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import useSWR from 'swr';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { apiClient } from '@/lib/api';
 import { TendersResponse, Tender } from '@/types/api';
 
@@ -49,9 +49,19 @@ export default function TendersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [cityFilter, setCityFilter] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+
+  // Debounce search - 500ms bekle
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(1); // Arama değişince sayfa 1'e dön
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const { 
     data, 
@@ -59,8 +69,12 @@ export default function TendersPage() {
     isLoading,
     mutate 
   } = useSWR<TendersResponse>(
-    ['tenders', currentPage, pageSize], 
-    () => apiClient.getTenders({ page: currentPage, limit: pageSize })
+    ['tenders', currentPage, pageSize, debouncedSearch], 
+    () => apiClient.getTenders({ 
+      page: currentPage, 
+      limit: pageSize,
+      search: debouncedSearch || undefined
+    })
   );
 
   const formatCurrency = (amount?: number) => {
@@ -103,37 +117,25 @@ export default function TendersPage() {
     return 'active';
   };
 
-  // Filter and search tenders
+  // Filter tenders (arama artık backend'de yapılıyor, sadece client-side status/city filtresi)
   const filteredTenders = useMemo(() => {
     if (!data?.tenders) return [];
     
     return data.tenders.filter((tender) => {
-      // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const matchesSearch = 
-          tender.title.toLowerCase().includes(query) ||
-          tender.organization.toLowerCase().includes(query) ||
-          (tender.city && tender.city.toLowerCase().includes(query)) ||
-          (tender.external_id && tender.external_id.toLowerCase().includes(query));
-        
-        if (!matchesSearch) return false;
-      }
-
-      // Status filter
+      // Status filter (client-side)
       if (statusFilter) {
         const status = getStatus(tender);
         if (status !== statusFilter) return false;
       }
 
-      // City filter
+      // City filter (client-side)
       if (cityFilter.length > 0 && tender.city) {
         if (!cityFilter.includes(tender.city)) return false;
       }
 
       return true;
     });
-  }, [data?.tenders, searchQuery, statusFilter, cityFilter]);
+  }, [data?.tenders, statusFilter, cityFilter]);
 
   // Get unique cities for filter
   const availableCities = useMemo(() => {
@@ -157,9 +159,11 @@ export default function TendersPage() {
             <div>
               <Title order={1}>İhale Listesi</Title>
               <Text c="dimmed" size="lg">
-                {filteredTenders.length > 0 
-                  ? `${filteredTenders.length} ihale bulundu ${data?.total !== filteredTenders.length ? `(${data?.total} toplam)` : ''}`
-                  : 'İhaleler yükleniyor...'}
+                {isLoading 
+                  ? 'Aranıyor...'
+                  : debouncedSearch 
+                    ? `"${debouncedSearch}" için ${data?.total || 0} sonuç bulundu`
+                    : `${data?.total || 0} ihale bulundu`}
               </Text>
             </div>
             <Group>
@@ -184,19 +188,21 @@ export default function TendersPage() {
           {/* Search and Filters */}
           <Paper shadow="sm" p="md" radius="md" withBorder>
             <Stack gap="md">
-              {/* Search Bar */}
+              {/* Search Bar - Tüm veritabanında arama yapar */}
               <TextInput
-                placeholder="İhale başlığı, kuruluş, şehir veya ihale no ile ara..."
+                placeholder="Tüm ihalelerde ara... (başlık, kuruluş, şehir, ihale no)"
                 leftSection={<IconSearch size={16} />}
                 size="md"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 rightSection={
-                  searchQuery && (
+                  isLoading && debouncedSearch ? (
+                    <Loader size="xs" />
+                  ) : searchQuery ? (
                     <ActionIcon onClick={() => setSearchQuery('')} variant="subtle">
                       <IconX size={16} />
                     </ActionIcon>
-                  )
+                  ) : null
                 }
               />
 
@@ -292,7 +298,19 @@ export default function TendersPage() {
                   <Stack gap="sm" h="100%">
                     {/* Header */}
                     <Group justify="space-between" align="flex-start">
-                      {getStatusBadge(tender)}
+                      <Group gap="xs">
+                        {getStatusBadge(tender)}
+                        {tender.is_updated && (
+                          <Badge 
+                            color="yellow" 
+                            size="sm" 
+                            variant="filled" 
+                            leftSection={<IconSparkles size={10} />}
+                          >
+                            Güncellendi
+                          </Badge>
+                        )}
+                      </Group>
                       <Group gap="xs">
                         {tender.url && (
                           <Button
@@ -313,9 +331,28 @@ export default function TendersPage() {
                     </Group>
 
                     {/* Title */}
-                    <Title order={4} lineClamp={2} h={48}>
-                      {tender.title}
-                    </Title>
+                    <Link 
+                      href={`/tenders/${tender.id}`} 
+                      style={{ textDecoration: 'none', color: 'inherit' }}
+                    >
+                      <Title 
+                        order={4} 
+                        lineClamp={2} 
+                        h={48}
+                        style={{ 
+                          cursor: 'pointer',
+                          transition: 'color 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = '#228be6';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = '';
+                        }}
+                      >
+                        {tender.title}
+                      </Title>
+                    </Link>
 
                     <Divider />
 
@@ -365,147 +402,28 @@ export default function TendersPage() {
                         </Group>
                       )}
 
-                      {/* Dökümanlar - Yeni Düzenli Tasarım */}
-                      <Stack gap="xs">
-                        <Group gap="xs">
-                          <IconFileText size={16} />
-                          <Text size="sm" fw={500}>Dökümanlar:</Text>
-                        </Group>
-                        
-                        {/* Dökümanları 2 sütunlu grid'de göster */}
-                        <Box>
-                          <Grid gutter={8}>
-                            {/* Teknik Şartname */}
-                            {tender.document_links?.tech_spec && (
-                              <Grid.Col span={6}>
-                                <Button
-                                  fullWidth
-                                  size="compact-xs"
-                                  variant="light"
-                                  color="blue"
-                                  leftSection={<IconDownload size={12} />}
-                                  component="a"
-                                  href={`${API_URL}/api/documents/download/${tender.id}/tech_spec`}
-                                  download
-                                  styles={{
-                                    root: { height: 28, fontSize: '11px' },
-                                    section: { marginRight: 4 }
-                                  }}
-                                >
-                                  Teknik Şartname
-                                </Button>
-                              </Grid.Col>
-                            )}
-                            
-                            {/* İdari Şartname */}
-                            {tender.document_links?.admin_spec && (
-                              <Grid.Col span={6}>
-                                <Button
-                                  fullWidth
-                                  size="compact-xs"
-                                  variant="light"
-                                  color="blue"
-                                  leftSection={<IconDownload size={12} />}
-                                  component="a"
-                                  href={`${API_URL}/api/documents/download/${tender.id}/admin_spec`}
-                                  download
-                                  styles={{
-                                    root: { height: 28, fontSize: '11px' },
-                                    section: { marginRight: 4 }
-                                  }}
-                                >
-                                  İdari Şartname
-                                </Button>
-                              </Grid.Col>
-                            )}
-                            
-                            {/* İhale İlanı */}
-                            {tender.has_announcement && (
-                              <Grid.Col span={6}>
-                                <Button
-                                  fullWidth
-                                  size="compact-xs"
-                                  variant="light"
-                                  color="violet"
-                                  leftSection={<IconDownload size={12} />}
-                                  component="a"
-                                  href={`${API_URL}/api/content/announcement/${tender.id}`}
-                                  download
-                                  styles={{
-                                    root: { height: 28, fontSize: '11px' },
-                                    section: { marginRight: 4 }
-                                  }}
-                                >
-                                  İhale İlanı (PDF)
-                                </Button>
-                              </Grid.Col>
-                            )}
-                            
-                            {/* Mal/Hizmet Listesi */}
-                            {tender.has_goods_services && (
-                              <Grid.Col span={6}>
-                                <Button
-                                  fullWidth
-                                  size="compact-xs"
-                                  variant="light"
-                                  color="green"
-                                  leftSection={<IconDownload size={12} />}
-                                  component="a"
-                                  href={`${API_URL}/api/content/goods-services/${tender.id}`}
-                                  download
-                                  styles={{
-                                    root: { height: 28, fontSize: '11px' },
-                                    section: { marginRight: 4 }
-                                  }}
-                                >
-                                  Mal/Hizmet (CSV)
-                                </Button>
-                              </Grid.Col>
-                            )}
-                            
-                            {/* Proje Dosyaları */}
-                            {tender.document_links?.project_files && (
-                              <Grid.Col span={6}>
-                                <Button
-                                  fullWidth
-                                  size="compact-xs"
-                                  variant="light"
-                                  color="orange"
-                                  leftSection={<IconDownload size={12} />}
-                                  component="a"
-                                  href={`${API_URL}/api/documents/download/${tender.id}/project_files`}
-                                  download
-                                  styles={{
-                                    root: { height: 28, fontSize: '11px' },
-                                    section: { marginRight: 4 }
-                                  }}
-                                >
-                                  Proje Dosyaları
-                                </Button>
-                              </Grid.Col>
-                            )}
-                          </Grid>
-                          
-                          {/* Hiç döküman yoksa */}
-                          {(!tender.document_links || Object.keys(tender.document_links).length === 0) && 
-                           !tender.has_announcement && !tender.has_goods_services && (
-                            <Paper p="xs" radius="sm" bg="gray.0" ta="center">
-                              <Text size="xs" c="dimmed">Döküman bulunamadı</Text>
-                            </Paper>
-                          )}
-                        </Box>
-                      </Stack>
                     </Stack>
 
                     {/* Footer */}
-                    <Group justify="space-between" mt="auto" pt="sm">
-                      <Text size="xs" c="dimmed">
-                        {formatDate(tender.created_at)}
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        #{tender.external_id}
-                      </Text>
-                    </Group>
+                    <Stack gap="sm" mt="auto" pt="sm">
+                      <Button
+                        component={Link}
+                        href={`/tenders/${tender.id}`}
+                        variant="light"
+                        fullWidth
+                        leftSection={<IconFileText size={16} />}
+                      >
+                        Detayları Gör
+                      </Button>
+                      <Group justify="space-between">
+                        <Text size="xs" c="dimmed">
+                          {formatDate(tender.created_at)}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          #{tender.external_id}
+                        </Text>
+                      </Group>
+                    </Stack>
                   </Stack>
                 </Card>
               </Grid.Col>

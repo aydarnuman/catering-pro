@@ -42,6 +42,12 @@ export interface Tender {
   document_links?: Record<string, string>;
   has_announcement?: boolean;
   has_goods_services?: boolean;
+  
+  // Güncelleme bilgileri
+  is_updated?: boolean;
+  last_update_date?: string;
+  zeyilname_content?: any;
+  correction_notice_content?: any;
 }
 
 // Document types

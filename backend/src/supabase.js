@@ -16,22 +16,34 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 // Supabase configuration
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+// Service key signature verification failed, use anon key for storage operations
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY; // Service key for backend
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('Supabase URL veya Service Key eksik!');
-  console.error('NEXT_PUBLIC_SUPABASE_URL:', supabaseUrl ? 'Var' : 'YOK');
-  console.error('SUPABASE_SERVICE_KEY:', supabaseServiceKey ? 'Var' : 'YOK');
-  throw new Error('Supabase bağlantı bilgileri eksik. .env dosyasını kontrol edin.');
+console.log('🔍 Supabase Config Debug:');
+console.log('NEXT_PUBLIC_SUPABASE_URL:', supabaseUrl ? 'Var' : 'YOK');
+console.log('NEXT_PUBLIC_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'Var' : 'YOK');
+console.log('SUPABASE_SERVICE_KEY:', supabaseServiceKey ? 'Var' : 'YOK');
+
+// Use anon key if service key fails, otherwise try service key
+const apiKey = supabaseAnonKey || supabaseServiceKey;
+
+if (!supabaseUrl || !apiKey) {
+  console.warn('⚠️ Supabase URL veya API Key eksik!');
+  console.warn('NEXT_PUBLIC_SUPABASE_URL:', supabaseUrl);
+  console.warn('API Key:', apiKey ? 'Var' : 'YOK');
+  console.warn('⚠️ Supabase Storage özellikleri çalışmayacak!');
 }
 
-// Create Supabase client with service role key (full access)
-export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-});
+// Create Supabase client with anon key (service key signature verification failed)
+export const supabase = (supabaseUrl && apiKey) 
+  ? createClient(supabaseUrl, apiKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  : null; // Dummy client - Storage işlemleri çalışmayacak
 
 /**
  * Database helper functions

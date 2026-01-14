@@ -244,10 +244,20 @@ export async function analyzePdfWithClaude(pdfPath, onProgress) {
     
     // 1. PDF → Görseller (paralel)
     if (onProgress) onProgress({ stage: 'converting', message: 'PDF görsellere çevriliyor...' });
-    const images = await pdfToImages(pdfPath);
     
+    let images = [];
+    try {
+      images = await pdfToImages(pdfPath);
+    } catch (convertError) {
+      console.warn(`⚠️ PDF görüntüye dönüştürülemedi: ${convertError.message}`);
+    }
+    
+    // Görüntü dönüşümü başarısız olursa, Claude'a doğrudan PDF gönder
     if (images.length === 0) {
-      throw new Error('PDF sayfalara dönüştürülemedi');
+      console.log(`📄 Alternatif: PDF doğrudan Claude'a gönderiliyor...`);
+      if (onProgress) onProgress({ stage: 'analyzing', message: 'PDF doğrudan analiz ediliyor...' });
+      
+      return await analyzePdfDirectWithClaude(pdfPath, onProgress);
     }
     
     // 2. Her sayfayı PARALEL analiz et (2 sayfa aynı anda)
@@ -375,6 +385,168 @@ function mergeSayfalar(sayfalar) {
   birlesik.notlar = [...new Set(birlesik.notlar)];
   
   return birlesik;
+}
+
+/**
+ * PDF'i doğrudan Claude'a gönder (görüntü dönüşümü başarısız olduğunda)
+ * Claude PDF'i base64 olarak kabul eder
+ */
+async function analyzePdfDirectWithClaude(pdfPath, onProgress) {
+  try {
+    console.log(`📄 PDF doğrudan Claude'a gönderiliyor: ${pdfPath}`);
+    
+    const pdfBuffer = fs.readFileSync(pdfPath);
+    const base64Pdf = pdfBuffer.toString('base64');
+    
+    // PDF boyut kontrolü (Claude max ~25MB)
+    const sizeMB = pdfBuffer.length / (1024 * 1024);
+    if (sizeMB > 20) {
+      console.warn(`⚠️ PDF çok büyük (${sizeMB.toFixed(1)} MB), sadece metin çıkarılacak`);
+      // Büyük PDF için sadece metin çıkar
+      const pdfParse = (await import('pdf-parse')).default;
+      const data = await pdfParse(pdfBuffer);
+      
+      if (data.text && data.text.length > 100) {
+        return await analyzeTextWithClaudeInternal(data.text.substring(0, 50000));
+      }
+      
+      throw new Error('PDF çok büyük ve metin çıkarılamadı');
+    }
+    
+    if (onProgress) onProgress({ stage: 'analyzing', message: 'PDF Claude ile analiz ediliyor...' });
+    
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 8192,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'document',
+              source: {
+                type: 'base64',
+                media_type: 'application/pdf',
+                data: base64Pdf
+              }
+            },
+            {
+              type: 'text',
+              text: `Bu ihale dökümanını analiz et. Tüm bilgileri çıkar.
+
+JSON formatında yanıt ver:
+{
+  "tam_metin": "Dökümanın özeti...",
+  "ihale_basligi": "",
+  "kurum": "",
+  "tarih": "",
+  "bedel": "",
+  "sure": "",
+  "teknik_sartlar": ["şart1", "şart2"],
+  "birim_fiyatlar": [{"kalem": "", "birim": "", "miktar": "", "fiyat": ""}],
+  "iletisim": {"telefon": "", "email": "", "adres": ""},
+  "notlar": ["not1", "not2"]
+}`
+            }
+          ]
+        }
+      ]
+    });
+    
+    const responseText = response.content[0].text;
+    
+    try {
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        console.log(`✅ PDF doğrudan analiz tamamlandı`);
+        return {
+          success: true,
+          analiz: parsed,
+          ham_metin: parsed.tam_metin || ''
+        };
+      }
+    } catch (e) {
+      console.warn('JSON parse hatası, raw text kullanılacak');
+    }
+    
+    return {
+      success: true,
+      analiz: {
+        tam_metin: responseText.substring(0, 5000),
+        ihale_basligi: '',
+        kurum: '',
+        tarih: '',
+        bedel: '',
+        sure: '',
+        teknik_sartlar: [],
+        birim_fiyatlar: [],
+        iletisim: {},
+        notlar: []
+      },
+      ham_metin: responseText
+    };
+    
+  } catch (error) {
+    console.error(`❌ PDF doğrudan analiz hatası:`, error);
+    throw error;
+  }
+}
+
+/**
+ * İç kullanım için metin analizi
+ */
+async function analyzeTextWithClaudeInternal(text) {
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 4096,
+    messages: [
+      {
+        role: 'user',
+        content: `Bu ihale dökümanını analiz et:
+
+${text.substring(0, 30000)}
+
+JSON formatında yanıt ver:
+{
+  "tam_metin": "Özet...",
+  "ihale_basligi": "",
+  "kurum": "",
+  "tarih": "",
+  "bedel": "",
+  "sure": "",
+  "teknik_sartlar": [],
+  "birim_fiyatlar": [],
+  "iletisim": {},
+  "notlar": []
+}`
+      }
+    ]
+  });
+
+  const responseText = response.content[0].text;
+  
+  try {
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return {
+        success: true,
+        analiz: JSON.parse(jsonMatch[0]),
+        ham_metin: text.substring(0, 5000)
+      };
+    }
+  } catch (e) {}
+  
+  return {
+    success: true,
+    analiz: {
+      tam_metin: text.substring(0, 5000),
+      teknik_sartlar: [],
+      birim_fiyatlar: [],
+      notlar: []
+    },
+    ham_metin: text.substring(0, 5000)
+  };
 }
 
 /**
@@ -626,6 +798,10 @@ export async function analyzeTextFile(textPath, onProgress) {
 /**
  * Text içeriğini Claude ile analiz et
  */
+export async function analyzeWithClaude(text, fileType = 'text') {
+  return analyzeTextWithClaude(text);
+}
+
 async function analyzeTextWithClaude(text) {
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',

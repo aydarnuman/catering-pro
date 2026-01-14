@@ -17,7 +17,6 @@ import {
   Menu,
   ActionIcon,
   Modal,
-  Textarea,
   Select,
   Divider,
   Alert,
@@ -25,7 +24,8 @@ import {
   TextInput,
   Tabs,
   ScrollArea,
-  Table
+  Table,
+  Loader
 } from '@mantine/core';
 import {
   IconBookmark,
@@ -54,6 +54,7 @@ import Link from 'next/link';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import TeklifModal from '@/components/teklif/TeklifModal';
+import { API_BASE_URL } from '@/lib/config';
 
 interface AnalysisData {
   ihale_basligi?: string;
@@ -68,20 +69,34 @@ interface AnalysisData {
   iletisim?: any;
 }
 
+interface UserNote {
+  id: string;
+  text: string;
+  created_at: string;
+}
+
 interface SavedTender {
   id: string;
+  tender_id: number;
   ihale_basligi: string;
   kurum: string;
   tarih: string;
   bedel: string;
   sure: string;
+  city?: string;
+  external_id?: string;
+  url?: string;
   status: 'bekliyor' | 'basvuruldu' | 'kazanildi' | 'kaybedildi' | 'iptal';
-  notlar: string;
+  notes: string;
+  notlar?: string;
+  user_notes?: UserNote[];
   created_at: string;
   dokuman_sayisi: number;
+  analiz_edilen_dokuman?: number;
   teknik_sart_sayisi: number;
   birim_fiyat_sayisi: number;
   analiz_data?: AnalysisData;
+  analysis_summary?: AnalysisData;
 }
 
 const statusConfig = {
@@ -101,64 +116,231 @@ export default function TrackingPage() {
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [userNote, setUserNote] = useState('');
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [liveAnalysisData, setLiveAnalysisData] = useState<AnalysisData | null>(null);
+  const [analysisStats, setAnalysisStats] = useState<{toplam_dokuman: number; analiz_edilen: number; basarisiz: number; bekleyen: number} | null>(null);
+  const [notesExpanded, setNotesExpanded] = useState(false);
+  const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
 
-  // LocalStorage'dan verileri yükle
-  useEffect(() => {
-    const saved = localStorage.getItem('savedTenders');
-    if (saved) {
-      setTenders(JSON.parse(saved));
+  // Veritabanından verileri yükle
+  const fetchTenders = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/api/tender-tracking`);
+      const result = await response.json();
+      
+      if (result.success) {
+        // API verisini frontend formatına dönüştür
+        const formattedTenders: SavedTender[] = result.data.map((t: any) => ({
+          id: t.id.toString(),
+          tender_id: t.tender_id,
+          ihale_basligi: t.ihale_basligi || '',
+          kurum: t.kurum || '',
+          tarih: t.tarih ? new Date(t.tarih).toLocaleDateString('tr-TR') : '',
+          bedel: t.bedel ? `${Number(t.bedel).toLocaleString('tr-TR')} ₺` : '',
+          sure: '',
+          city: t.city,
+          external_id: t.external_id,
+          url: t.url,
+          status: t.status || 'bekliyor',
+          notes: t.notes || '',
+          notlar: t.notes || '',
+          user_notes: t.user_notes || [],
+          created_at: t.created_at,
+          dokuman_sayisi: t.dokuman_sayisi || 0,
+          analiz_edilen_dokuman: t.analiz_edilen_dokuman || 0,
+          teknik_sart_sayisi: t.analysis_summary?.teknik_sartlar?.length || 0,
+          birim_fiyat_sayisi: t.analysis_summary?.birim_fiyatlar?.length || 0,
+          analiz_data: t.analysis_summary,
+          analysis_summary: t.analysis_summary
+        }));
+        setTenders(formattedTenders);
+      }
+    } catch (error) {
+      console.error('Takip listesi yükleme hatası:', error);
+      notifications.show({
+        title: '❌ Hata',
+        message: 'Takip listesi yüklenemedi',
+        color: 'red'
+      });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, []);
-
-  // Verileri kaydet
-  const saveTenders = (newTenders: SavedTender[]) => {
-    localStorage.setItem('savedTenders', JSON.stringify(newTenders));
-    setTenders(newTenders);
   };
 
+  useEffect(() => {
+    fetchTenders();
+  }, []);
+
   // Durum güncelle
-  const updateStatus = (id: string, newStatus: SavedTender['status']) => {
-    const updated = tenders.map(t => 
-      t.id === id ? { ...t, status: newStatus } : t
-    );
-    saveTenders(updated);
-    if (selectedTender?.id === id) {
-      setSelectedTender({ ...selectedTender, status: newStatus });
+  const updateStatus = async (id: string, newStatus: SavedTender['status']) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tender-tracking/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      
+      if (!response.ok) throw new Error('Güncelleme hatası');
+      
+      const updated = tenders.map(t => 
+        t.id === id ? { ...t, status: newStatus } : t
+      );
+      setTenders(updated);
+      
+      if (selectedTender?.id === id) {
+        setSelectedTender({ ...selectedTender, status: newStatus });
+      }
+      
+      notifications.show({
+        title: 'Durum Güncellendi',
+        message: `İhale durumu "${statusConfig[newStatus].label}" olarak değiştirildi`,
+        color: statusConfig[newStatus].color,
+      });
+    } catch (error) {
+      notifications.show({
+        title: '❌ Hata',
+        message: 'Durum güncellenemedi',
+        color: 'red'
+      });
     }
-    notifications.show({
-      title: 'Durum Güncellendi',
-      message: `İhale durumu "${statusConfig[newStatus].label}" olarak değiştirildi`,
-      color: statusConfig[newStatus].color,
-    });
   };
 
   // Not güncelle
-  const updateNote = (id: string, note: string) => {
-    const updated = tenders.map(t => 
-      t.id === id ? { ...t, notlar: note } : t
-    );
-    saveTenders(updated);
-    if (selectedTender?.id === id) {
-      setSelectedTender({ ...selectedTender, notlar: note });
+  const updateNote = async (id: string, note: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tender-tracking/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: note })
+      });
+      
+      if (!response.ok) throw new Error('Güncelleme hatası');
+      
+      const updated = tenders.map(t => 
+        t.id === id ? { ...t, notlar: note, notes: note } : t
+      );
+      setTenders(updated);
+      
+      if (selectedTender?.id === id) {
+        setSelectedTender({ ...selectedTender, notlar: note, notes: note });
+      }
+      
+      notifications.show({
+        title: 'Not Kaydedildi',
+        message: 'İhale notu güncellendi',
+        color: 'green',
+      });
+    } catch (error) {
+      notifications.show({
+        title: '❌ Hata',
+        message: 'Not kaydedilemedi',
+        color: 'red'
+      });
     }
-    notifications.show({
-      title: 'Not Kaydedildi',
-      message: 'İhale notu güncellendi',
-      color: 'green',
-    });
+  };
+
+  // Not ekle
+  const addUserNote = async (id: string, text: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tender-tracking/${id}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      
+      if (!response.ok) throw new Error('Not ekleme hatası');
+      
+      const result = await response.json();
+      const newNote = result.note;
+      
+      const updated = tenders.map(t => 
+        t.id === id ? { ...t, user_notes: [...(t.user_notes || []), newNote] } : t
+      );
+      setTenders(updated);
+      
+      if (selectedTender?.id === id) {
+        setSelectedTender({ ...selectedTender, user_notes: [...(selectedTender.user_notes || []), newNote] });
+      }
+      
+      setUserNote(''); // Input'u temizle
+      
+      notifications.show({
+        title: '✅ Not Eklendi',
+        message: 'Notunuz kaydedildi',
+        color: 'green',
+      });
+    } catch (error) {
+      notifications.show({
+        title: '❌ Hata',
+        message: 'Not eklenemedi',
+        color: 'red'
+      });
+    }
+  };
+
+  // Not sil
+  const deleteUserNote = async (trackingId: string, noteId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tender-tracking/${trackingId}/notes/${noteId}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) throw new Error('Not silme hatası');
+      
+      const updated = tenders.map(t => 
+        t.id === trackingId 
+          ? { ...t, user_notes: (t.user_notes || []).filter(n => n.id !== noteId) } 
+          : t
+      );
+      setTenders(updated);
+      
+      if (selectedTender?.id === trackingId) {
+        setSelectedTender({ 
+          ...selectedTender, 
+          user_notes: (selectedTender.user_notes || []).filter(n => n.id !== noteId) 
+        });
+      }
+      
+      notifications.show({
+        title: 'Not Silindi',
+        message: 'Notunuz kaldırıldı',
+        color: 'orange',
+      });
+    } catch (error) {
+      notifications.show({
+        title: '❌ Hata',
+        message: 'Not silinemedi',
+        color: 'red'
+      });
+    }
   };
 
   // İhale sil
-  const deleteTender = (id: string) => {
-    const updated = tenders.filter(t => t.id !== id);
-    saveTenders(updated);
-    closeDetail();
-    notifications.show({
-      title: 'İhale Silindi',
-      message: 'İhale takip listesinden kaldırıldı',
-      color: 'red',
-    });
+  const deleteTender = async (id: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tender-tracking/${id}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) throw new Error('Silme hatası');
+      
+      const updated = tenders.filter(t => t.id !== id);
+      setTenders(updated);
+      closeDetail();
+      
+      notifications.show({
+        title: 'İhale Silindi',
+        message: 'İhale takip listesinden kaldırıldı',
+        color: 'red',
+      });
+    } catch (error) {
+      notifications.show({
+        title: '❌ Hata',
+        message: 'İhale silinemedi',
+        color: 'red'
+      });
+    }
   };
 
   // JSON indir
@@ -185,11 +367,30 @@ export default function TrackingPage() {
     link.click();
   };
 
-  // Detay modalı açıldığında notu yükle
-  const handleOpenDetail = (tender: SavedTender) => {
+  // Detay modalı açıldığında notu ve güncel analiz verilerini yükle
+  const handleOpenDetail = async (tender: SavedTender) => {
     setSelectedTender(tender);
-    setUserNote(tender.notlar || '');
+    setUserNote(''); // Yeni not için boş başla
+    setLiveAnalysisData(null);
+    setAnalysisStats(null);
+    setNotesExpanded(false); // Notlar kapalı başlasın
     openDetail();
+    
+    // Güncel analiz verilerini API'den çek
+    try {
+      setAnalysisLoading(true);
+      const response = await fetch(`${API_BASE_URL}/api/tender-tracking/${tender.tender_id}/analysis`);
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        setLiveAnalysisData(result.data.analysis);
+        setAnalysisStats(result.data.stats);
+      }
+    } catch (error) {
+      console.error('Analiz verisi çekme hatası:', error);
+    } finally {
+      setAnalysisLoading(false);
+    }
   };
 
   // Filtreleme
@@ -197,7 +398,8 @@ export default function TrackingPage() {
     const matchesStatus = !filterStatus || t.status === filterStatus;
     const matchesSearch = !searchQuery || 
       t.ihale_basligi?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.kurum?.toLowerCase().includes(searchQuery.toLowerCase());
+      t.kurum?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.external_id?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
@@ -224,11 +426,20 @@ export default function TrackingPage() {
     }
   };
 
-  // Analiz verilerini al
+  // Analiz verilerini al - önce canlı veriyi kontrol et
   const getAnalysisData = (tender: SavedTender): AnalysisData => {
+    // Önce API'den çekilen güncel veriyi kullan
+    if (liveAnalysisData) {
+      return liveAnalysisData;
+    }
+    // Sonra tender'daki analiz verisini kontrol et
     if (tender.analiz_data) {
       return tender.analiz_data;
     }
+    if (tender.analysis_summary) {
+      return tender.analysis_summary;
+    }
+    // Fallback: temel bilgiler
     return {
       ihale_basligi: tender.ihale_basligi,
       kurum: tender.kurum,
@@ -504,6 +715,42 @@ export default function TrackingPage() {
                             </Badge>
                           </Tooltip>
                         )}
+                        {/* Not sayısı badge - Tıklanabilir */}
+                        {tender.user_notes && tender.user_notes.length > 0 && (
+                          <Tooltip label="Notları göster">
+                            <Badge 
+                              size="sm" 
+                              variant="light" 
+                              color="yellow"
+                              leftSection={<IconNote size={10} />}
+                              style={{ cursor: 'pointer' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenDetail(tender);
+                                setTimeout(() => setNotesExpanded(true), 100);
+                              }}
+                            >
+                              {tender.user_notes.length}
+                            </Badge>
+                          </Tooltip>
+                        )}
+                        {/* Not ekle ikonu - Not yoksa */}
+                        {(!tender.user_notes || tender.user_notes.length === 0) && (
+                          <Tooltip label="Not ekle">
+                            <ActionIcon 
+                              size="sm" 
+                              variant="subtle" 
+                              color="gray"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenDetail(tender);
+                                setTimeout(() => setNotesExpanded(true), 100);
+                              }}
+                            >
+                              <IconNote size={14} />
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
                       </Group>
                       <Button 
                         variant="light" 
@@ -514,16 +761,6 @@ export default function TrackingPage() {
                         Detay
                       </Button>
                     </Group>
-
-                    {/* Not varsa göster */}
-                    {tender.notlar && (
-                      <Paper p="xs" mt="sm" bg="gray.0" radius="sm">
-                        <Group gap="xs">
-                          <IconNote size={14} color="var(--mantine-color-orange-6)" />
-                          <Text size="xs" c="dimmed" lineClamp={2}>{tender.notlar}</Text>
-                        </Group>
-                      </Paper>
-                    )}
                   </Card>
                 );
               })}
@@ -535,8 +772,17 @@ export default function TrackingPage() {
       {/* Detay Modal */}
       <Modal 
         opened={detailOpened} 
-        onClose={closeDetail} 
-        title={<Text fw={600} size="lg">📋 İhale Detayı</Text>}
+        onClose={() => {
+          closeDetail();
+          setLiveAnalysisData(null);
+          setAnalysisStats(null);
+        }} 
+        title={
+          <Group gap="sm">
+            <Text fw={600} size="lg">📋 İhale Detayı</Text>
+            {analysisLoading && <Loader size="xs" />}
+          </Group>
+        }
         size="xl"
         centered
       >
@@ -547,19 +793,37 @@ export default function TrackingPage() {
             <Stack gap="md">
               {/* Üst Bar - Durum ve Aksiyonlar */}
               <Group justify="space-between">
-                <Select
-                  value={selectedTender.status}
-                  onChange={(value) => value && updateStatus(selectedTender.id, value as SavedTender['status'])}
-                  data={[
-                    { value: 'bekliyor', label: '🟡 Bekliyor' },
-                    { value: 'basvuruldu', label: '🔵 Başvuruldu' },
-                    { value: 'kazanildi', label: '🟢 Kazanıldı' },
-                    { value: 'kaybedildi', label: '🔴 Kaybedildi' },
-                    { value: 'iptal', label: '⚫ İptal' },
-                  ]}
-                  w={160}
-                />
+                <Group gap="sm">
+                  <Select
+                    value={selectedTender.status}
+                    onChange={(value) => value && updateStatus(selectedTender.id, value as SavedTender['status'])}
+                    data={[
+                      { value: 'bekliyor', label: '🟡 Bekliyor' },
+                      { value: 'basvuruldu', label: '🔵 Başvuruldu' },
+                      { value: 'kazanildi', label: '🟢 Kazanıldı' },
+                      { value: 'kaybedildi', label: '🔴 Kaybedildi' },
+                      { value: 'iptal', label: '⚫ İptal' },
+                    ]}
+                    w={160}
+                  />
+                  {analysisStats && (
+                    <Badge variant="light" color="blue">
+                      {analysisStats.analiz_edilen}/{analysisStats.toplam_dokuman} Döküman Analiz Edildi
+                    </Badge>
+                  )}
+                </Group>
                 <Group gap="xs">
+                  <Button 
+                    variant="light"
+                    color="blue"
+                    size="xs"
+                    leftSection={<IconEye size={14} />}
+                    component="a"
+                    href={`/tenders/${selectedTender.tender_id}`}
+                    target="_blank"
+                  >
+                    Detaya Git
+                  </Button>
                   <Button 
                     variant="gradient"
                     gradient={{ from: 'teal', to: 'cyan' }}
@@ -659,32 +923,61 @@ export default function TrackingPage() {
                 <Tabs.Panel value="fiyat" pt="md">
                   {analysisData.birim_fiyatlar && analysisData.birim_fiyatlar.length > 0 ? (
                     <ScrollArea h={250} type="auto" offsetScrollbars>
-                      <Table striped highlightOnHover withTableBorder>
-                        <Table.Thead>
-                          <Table.Tr>
-                            <Table.Th w={50}>#</Table.Th>
-                            <Table.Th>Kalem / Açıklama</Table.Th>
-                            <Table.Th>Birim</Table.Th>
-                            <Table.Th>Miktar</Table.Th>
-                            <Table.Th ta="right">Fiyat</Table.Th>
-                          </Table.Tr>
-                        </Table.Thead>
-                        <Table.Tbody>
-                          {analysisData.birim_fiyatlar.map((item: any, i) => (
-                            <Table.Tr key={i}>
-                              <Table.Td>{i + 1}</Table.Td>
-                              <Table.Td>{item.kalem || item.aciklama || item.urun || '-'}</Table.Td>
-                              <Table.Td>{item.birim || '-'}</Table.Td>
-                              <Table.Td>{item.miktar || '-'}</Table.Td>
-                              <Table.Td ta="right">
-                                <Badge color="green" variant="light">
-                                  {item.fiyat || item.tutar || item.birim_fiyat || '-'}
-                                </Badge>
-                              </Table.Td>
-                            </Table.Tr>
-                          ))}
-                        </Table.Tbody>
-                      </Table>
+                      <Stack gap="md">
+                        {/* Object formatındaki birim fiyatları (tablo) */}
+                        {(() => {
+                          const objectItems = analysisData.birim_fiyatlar.filter((item: any) => typeof item === 'object' && item !== null);
+                          if (objectItems.length > 0) {
+                            return (
+                              <Table striped highlightOnHover withTableBorder>
+                                <Table.Thead>
+                                  <Table.Tr>
+                                    <Table.Th w={50}>#</Table.Th>
+                                    <Table.Th>Kalem / Açıklama</Table.Th>
+                                    <Table.Th>Birim</Table.Th>
+                                    <Table.Th>Miktar</Table.Th>
+                                    <Table.Th ta="right">Fiyat</Table.Th>
+                                  </Table.Tr>
+                                </Table.Thead>
+                                <Table.Tbody>
+                                  {objectItems.map((item: any, i: number) => (
+                                    <Table.Tr key={i}>
+                                      <Table.Td>{i + 1}</Table.Td>
+                                      <Table.Td>{item.kalem || item.aciklama || item.urun || '-'}</Table.Td>
+                                      <Table.Td>{item.birim || '-'}</Table.Td>
+                                      <Table.Td>{item.miktar || '-'}</Table.Td>
+                                      <Table.Td ta="right">
+                                        <Badge color="green" variant="light">
+                                          {item.fiyat || item.tutar || item.birim_fiyat || '-'}
+                                        </Badge>
+                                      </Table.Td>
+                                    </Table.Tr>
+                                  ))}
+                                </Table.Tbody>
+                              </Table>
+                            );
+                          }
+                          return null;
+                        })()}
+                        
+                        {/* String formatındaki açıklamalar */}
+                        {(() => {
+                          const stringItems = analysisData.birim_fiyatlar.filter((item: any) => typeof item === 'string');
+                          if (stringItems.length > 0) {
+                            return (
+                              <Paper p="sm" withBorder radius="sm" bg="blue.0">
+                                <Text size="xs" fw={600} c="blue.7" mb="xs">📋 Birim Fiyat Bilgileri</Text>
+                                <Stack gap={4}>
+                                  {stringItems.map((item: string, i: number) => (
+                                    <Text key={i} size="sm" c="dimmed">• {item}</Text>
+                                  ))}
+                                </Stack>
+                              </Paper>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </Stack>
                     </ScrollArea>
                   ) : (
                     <Text c="dimmed" ta="center" py="xl">Birim fiyat bulunamadı</Text>
@@ -731,25 +1024,137 @@ export default function TrackingPage() {
 
               <Divider />
 
-              {/* Kullanıcı Notu */}
-              <Box>
-                <Text size="sm" fw={600} mb="xs">📝 Kendi Notlarım</Text>
-                <Textarea
-                  placeholder="Bu ihale hakkında notlarınız..."
-                  minRows={3}
-                  value={userNote}
-                  onChange={(e) => setUserNote(e.target.value)}
-                />
-                <Group justify="flex-end" mt="sm">
-                  <Button 
-                    size="sm"
-                    onClick={() => updateNote(selectedTender.id, userNote)}
-                    disabled={userNote === selectedTender.notlar}
-                  >
-                    Notu Kaydet
-                  </Button>
+              {/* Kullanıcı Notları - Accordion Tarzı */}
+              <Paper 
+                p="sm" 
+                withBorder 
+                radius="md" 
+                bg={notesExpanded ? "yellow.0" : "gray.0"}
+                style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+              >
+                {/* Header - Tıklanabilir */}
+                <Group 
+                  justify="space-between" 
+                  onClick={() => setNotesExpanded(!notesExpanded)}
+                >
+                  <Group gap="xs">
+                    <ThemeIcon size="sm" color="yellow" variant="light" radius="md">
+                      <IconNote size={14} />
+                    </ThemeIcon>
+                    <Text size="sm" fw={500}>Notlarım</Text>
+                    {selectedTender.user_notes && selectedTender.user_notes.length > 0 && (
+                      <Badge size="xs" variant="filled" color="yellow" c="dark">
+                        {selectedTender.user_notes.length}
+                      </Badge>
+                    )}
+                  </Group>
+                  <ActionIcon variant="subtle" size="sm">
+                    <IconChevronRight 
+                      size={16} 
+                      style={{ 
+                        transform: notesExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.2s'
+                      }} 
+                    />
+                  </ActionIcon>
                 </Group>
-              </Box>
+                
+                {/* İçerik - Açılır/Kapanır */}
+                {notesExpanded && (
+                  <Box mt="sm">
+                    {/* Mevcut Notlar - Tıkla/Aç */}
+                    {selectedTender.user_notes && selectedTender.user_notes.length > 0 ? (
+                      <ScrollArea.Autosize mah={180} mb="sm" offsetScrollbars>
+                        <Stack gap={4}>
+                          {selectedTender.user_notes.map((note) => {
+                            const isExpanded = expandedNoteId === note.id;
+                            const isLong = note.text.length > 50;
+                            return (
+                              <Paper 
+                                key={note.id} 
+                                p="xs" 
+                                withBorder 
+                                radius="sm" 
+                                bg="white"
+                                style={{ cursor: isLong ? 'pointer' : 'default' }}
+                                onClick={() => isLong && setExpandedNoteId(isExpanded ? null : note.id)}
+                              >
+                                <Group justify="space-between" wrap="nowrap" align="flex-start" gap="xs">
+                                  <Group gap={6} wrap="nowrap" style={{ flex: 1, minWidth: 0 }} align="flex-start">
+                                    {isLong && (
+                                      <ActionIcon size="xs" variant="subtle" color="gray" mt={2}>
+                                        <IconChevronRight 
+                                          size={12} 
+                                          style={{ 
+                                            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                                            transition: 'transform 0.15s'
+                                          }} 
+                                        />
+                                      </ActionIcon>
+                                    )}
+                                    <Text 
+                                      size="sm" 
+                                      style={{ flex: 1, wordBreak: 'break-word' }}
+                                      lineClamp={isExpanded ? undefined : 1}
+                                    >
+                                      {note.text}
+                                    </Text>
+                                  </Group>
+                                  <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+                                    <Text size="xs" c="dimmed">
+                                      {new Date(note.created_at).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' })}
+                                    </Text>
+                                    <ActionIcon 
+                                      size="xs" 
+                                      color="red" 
+                                      variant="subtle"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        deleteUserNote(selectedTender.id, note.id);
+                                      }}
+                                    >
+                                      <IconX size={10} />
+                                    </ActionIcon>
+                                  </Group>
+                                </Group>
+                              </Paper>
+                            );
+                          })}
+                        </Stack>
+                      </ScrollArea.Autosize>
+                    ) : (
+                      <Text size="xs" c="dimmed" ta="center" py="xs">Henüz not yok</Text>
+                    )}
+                    
+                    {/* Yeni Not Ekle */}
+                    <Group gap="xs" onClick={(e) => e.stopPropagation()}>
+                      <TextInput
+                        placeholder="Not ekle... (Enter)"
+                        size="xs"
+                        value={userNote}
+                        onChange={(e) => setUserNote(e.target.value)}
+                        style={{ flex: 1 }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && userNote.trim()) {
+                            e.preventDefault();
+                            addUserNote(selectedTender.id, userNote);
+                          }
+                        }}
+                      />
+                      <Button 
+                        size="xs"
+                        variant="filled"
+                        color="yellow"
+                        c="dark"
+                        onClick={() => addUserNote(selectedTender.id, userNote)}
+                        disabled={!userNote.trim()}
+                      >
+                        +
+                      </Button>
+                    </Group>
+                  </Box>
+                )}
+              </Paper>
 
               {/* Alt Bilgi */}
               <Text size="xs" c="dimmed" ta="right">
