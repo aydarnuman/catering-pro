@@ -312,11 +312,25 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
    * Kullanıcı sorusunu işle (Tool Calling ile)
    */
   async processQuery(userMessage, conversationHistory = [], options = {}) {
-    const { sessionId, userId = 'default', templateSlug } = options;
+    const { sessionId, userId = 'default', templateSlug, pageContext } = options;
     
     try {
       console.log(`🤖 [AI Agent] Sorgu: "${userMessage.substring(0, 100)}..."`);
       if (templateSlug) console.log(`📋 [AI Agent] Şablon: ${templateSlug}`);
+      if (pageContext?.type) console.log(`📍 [AI Agent] Sayfa Context: ${pageContext.type}${pageContext.id ? '#' + pageContext.id : ''}`);
+      
+      // Sayfa context'i varsa mesajı zenginleştir
+      let enrichedMessage = userMessage;
+      if (pageContext?.type === 'tender' && pageContext.id) {
+        const contextInfo = pageContext.data 
+          ? `\n\n[SAYFA CONTEXT: Şu an İhale #${pageContext.id} sayfasındayım. İhale: "${pageContext.data.title || 'Bilinmiyor'}", Kurum: "${pageContext.data.organization || 'Bilinmiyor'}", Şehir: "${pageContext.data.city || 'Bilinmiyor'}", Tarih: "${pageContext.data.deadline || 'Bilinmiyor'}"]`
+          : `\n\n[SAYFA CONTEXT: Şu an İhale #${pageContext.id} sayfasındayım]`;
+        enrichedMessage = userMessage + contextInfo;
+      } else if (pageContext?.type === 'invoice' && pageContext.id) {
+        enrichedMessage = userMessage + `\n\n[SAYFA CONTEXT: Şu an Fatura #${pageContext.id} sayfasındayım]`;
+      } else if (pageContext?.type === 'cari' && pageContext.id) {
+        enrichedMessage = userMessage + `\n\n[SAYFA CONTEXT: Şu an Cari #${pageContext.id} sayfasındayım]`;
+      }
 
       // 1. Hafızayı yükle
       const memories = await this.loadMemoryContext(userId);
@@ -348,11 +362,11 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
         await this.saveConversation(sessionId, 'user', userMessage, [], userId);
       }
 
-      // 5. Mesaj geçmişini hazırla
+      // 5. Mesaj geçmişini hazırla (zenginleştirilmiş mesaj ile)
       const messages = [
         ...previousConversations,
         ...conversationHistory,
-        { role: 'user', content: userMessage }
+        { role: 'user', content: enrichedMessage }
       ];
 
       // Tool tanımlarını al

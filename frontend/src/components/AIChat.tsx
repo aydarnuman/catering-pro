@@ -69,9 +69,17 @@ interface PromptTemplate {
   is_active: boolean;
 }
 
+interface PageContext {
+  type: 'tender' | 'invoice' | 'cari' | 'personel' | 'general';
+  id?: number | string;
+  title?: string;
+  data?: any;
+}
+
 interface AIChatProps {
   defaultDepartment?: string;
   compact?: boolean;
+  pageContext?: PageContext;
 }
 
 // Tool ikon mapping
@@ -104,7 +112,7 @@ const getToolDisplayName = (toolName: string) => {
   return `${moduleNames[module] || module}: ${action}`;
 };
 
-export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false }: AIChatProps) {
+export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pageContext }: AIChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -302,7 +310,7 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false }: 
         content: m.content
       }));
 
-      // AI Agent endpoint'i kullan - şablon bilgisi ile
+      // AI Agent endpoint'i kullan - şablon bilgisi ve sayfa context'i ile
       const response = await fetch(`${API_URL}/ai/agent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -311,7 +319,8 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false }: 
           history,
           sessionId,
           department: defaultDepartment,
-          templateSlug: selectedTemplate  // Şablon slug'ı gönder
+          templateSlug: selectedTemplate,  // Şablon slug'ı gönder
+          pageContext: pageContext  // Sayfa context'i gönder (ihale, fatura, cari vb.)
         })
       });
 

@@ -49,11 +49,20 @@ const departmentInfo: Record<string, { title: string; color: string; icon: strin
   'TÜM SİSTEM': { title: 'AI Asistan', color: 'violet', icon: '🤖' },
 };
 
+// Sayfa context'ini tespit et
+interface PageContext {
+  type: 'tender' | 'invoice' | 'cari' | 'personel' | 'general';
+  id?: number | string;
+  title?: string;
+  data?: any;
+}
+
 export function FloatingAIChat() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [showPulse, setShowPulse] = useState(true);
   const [alertCount, setAlertCount] = useState(0);
+  const [pageContext, setPageContext] = useState<PageContext | undefined>(undefined);
   const { colorScheme } = useMantineColorScheme();
   const pathname = usePathname();
   const isDark = colorScheme === 'dark';
@@ -61,6 +70,66 @@ export function FloatingAIChat() {
   // Path'e göre department belirle
   const department = pathToDepartment[pathname] || 'TÜM SİSTEM';
   const info = departmentInfo[department] || departmentInfo['TÜM SİSTEM'];
+
+  // Sayfa context'ini tespit et
+  useEffect(() => {
+    const detectPageContext = async () => {
+      // İhale detay sayfası: /tenders/123
+      const tenderMatch = pathname.match(/^\/tenders\/(\d+)$/);
+      if (tenderMatch) {
+        const tenderId = tenderMatch[1];
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/tenders/${tenderId}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.data) {
+              setPageContext({
+                type: 'tender',
+                id: tenderId,
+                title: data.data.title,
+                data: {
+                  title: data.data.title,
+                  organization: data.data.organization,
+                  city: data.data.city,
+                  deadline: data.data.deadline,
+                  estimated_cost: data.data.estimated_cost
+                }
+              });
+              return;
+            }
+          }
+        } catch (e) {
+          console.error('Tender context fetch error:', e);
+        }
+      }
+
+      // Fatura sayfası: /muhasebe/faturalar/123
+      const invoiceMatch = pathname.match(/^\/muhasebe\/faturalar\/(\d+)$/);
+      if (invoiceMatch) {
+        setPageContext({ type: 'invoice', id: invoiceMatch[1] });
+        return;
+      }
+
+      // Cari sayfası: /muhasebe/cariler/123
+      const cariMatch = pathname.match(/^\/muhasebe\/cariler\/(\d+)$/);
+      if (cariMatch) {
+        setPageContext({ type: 'cari', id: cariMatch[1] });
+        return;
+      }
+
+      // Personel sayfası: /muhasebe/personel/123
+      const personelMatch = pathname.match(/^\/muhasebe\/personel\/(\d+)$/);
+      if (personelMatch) {
+        setPageContext({ type: 'personel', id: personelMatch[1] });
+        return;
+      }
+
+      // Genel sayfa
+      setPageContext({ type: 'general' });
+    };
+
+    detectPageContext();
+  }, [pathname]);
 
   // İlk açılışta pulse animasyonu, 5 saniye sonra durur
   useEffect(() => {
@@ -222,7 +291,13 @@ export function FloatingAIChat() {
                     </Text>
                     {!isMinimized && (
                       <Text size="xs" c="rgba(255,255,255,0.7)">
-                        {pathname.split('/').pop() || 'Genel'} sayfası
+                        {pageContext?.type === 'tender' && pageContext.id 
+                          ? `İhale #${pageContext.id}` 
+                          : pageContext?.type === 'invoice' && pageContext.id
+                          ? `Fatura #${pageContext.id}`
+                          : pageContext?.type === 'cari' && pageContext.id
+                          ? `Cari #${pageContext.id}`
+                          : pathname.split('/').pop() || 'Genel'} sayfası
                       </Text>
                     )}
                   </div>
@@ -265,7 +340,7 @@ export function FloatingAIChat() {
             {/* Chat Content */}
             {!isMinimized && (
               <Box style={{ flex: 1, overflow: 'hidden' }}>
-                <AIChat defaultDepartment={department} compact />
+                <AIChat defaultDepartment={department} compact pageContext={pageContext} />
               </Box>
             )}
           </Paper>
