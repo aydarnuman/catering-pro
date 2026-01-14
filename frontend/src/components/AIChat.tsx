@@ -392,9 +392,16 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
 
   if (compact) {
     return (
-      <Stack gap={0} h="100%" style={{ display: 'flex', flexDirection: 'column' }}>
+      <Box 
+        h="100%" 
+        style={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          overflow: 'hidden', // Önemli: taşmayı engeller
+        }}
+      >
         {/* Compact Header with Template Select */}
-        <Box p="xs" style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
+        <Box p="xs" style={{ borderBottom: '1px solid var(--mantine-color-gray-3)', flexShrink: 0 }}>
           <Group gap="xs" justify="space-between">
             <Group gap="xs">
               <IconBrain size={16} color="var(--mantine-color-violet-6)" />
@@ -413,23 +420,29 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
           </Group>
         </Box>
 
-        {/* Messages Area */}
-        <ScrollArea 
-          flex={1} 
-          p="sm" 
-          style={{ minHeight: 0 }}
-          type="scroll"
-          scrollbarSize={6}
-          offsetScrollbars
-          styles={{
-            viewport: {
-              // Mobilde touch scroll için
-              WebkitOverflowScrolling: 'touch',
-              overscrollBehavior: 'contain',
-            }
-          }}
-        >
-          <Stack gap="sm">
+        {/* Messages Area - Scroll edilebilir alan */}
+        <Box style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+          <ScrollArea 
+            h="100%"
+            type="always"
+            scrollbarSize={8}
+            offsetScrollbars
+            styles={{
+              root: { height: '100%' },
+              viewport: { 
+                height: '100%',
+                // Mobilde touch scroll için
+                WebkitOverflowScrolling: 'touch',
+                overscrollBehavior: 'contain',
+              },
+              scrollbar: {
+                '&[data-orientation="vertical"]': {
+                  width: 8,
+                },
+              },
+            }}
+          >
+          <Stack gap="sm" p="sm">
             {messages.length === 0 ? (
               <Stack gap="sm" align="center" py="md">
                 <Text size="sm" c="dimmed" ta="center">
@@ -498,10 +511,11 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
             )}
             <div ref={messagesEndRef} />
           </Stack>
-        </ScrollArea>
+          </ScrollArea>
+        </Box>
 
         {/* Input Area */}
-        <Box p="sm" style={{ borderTop: '1px solid var(--mantine-color-gray-3)', paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}>
+        <Box p="sm" style={{ borderTop: '1px solid var(--mantine-color-gray-3)', paddingBottom: 'env(safe-area-inset-bottom, 8px)', flexShrink: 0 }}>
           <Group gap="xs">
             <TextInput
               flex={1}
@@ -533,7 +547,7 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
             </ActionIcon>
           </Group>
         </Box>
-        </Stack>
+      </Box>
     );
   }
 
