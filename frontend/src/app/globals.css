@@ -48,6 +48,20 @@ html {
   background: #555;
 }
 
+/* Hover lift effect for cards */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+}
+
+.hover-lift:active {
+  transform: translateY(-2px);
+}
+
 /* Dark mode scrollbar */
 [data-mantine-color-scheme='dark'] ::-webkit-scrollbar-track {
   background: #1a1b1e;

@@ -828,7 +828,7 @@ export default function TenderDetailPage() {
         <Card shadow="sm" padding={0} radius="md" withBorder>
           {/* Başlık */}
           <Box p="md" style={{ background: 'linear-gradient(135deg, var(--mantine-color-violet-6) 0%, var(--mantine-color-grape-6) 100%)' }}>
-            <Group justify="space-between">
+            <Group justify="space-between" align="flex-start">
               <Group>
                 <ThemeIcon size={50} color="white" variant="white" radius="xl">
                   <IconFileAnalytics size={28} color="var(--mantine-color-violet-6)" />
@@ -840,56 +840,124 @@ export default function TenderDetailPage() {
                   </Text>
                 </div>
               </Group>
-              <Group gap="xs">
-                {/* İçerik oluştur */}
-                {documents.filter(d => d.source_type === 'content').length === 0 && tender.announcement_content && (
-                  <Button variant="white" color="violet" size="sm" onClick={handleCreateContentDocs}>
-                    İçerikleri Döküman Yap
-                  </Button>
-                )}
-                
-                {/* İndir */}
-                {downloadStatus && downloadStatus.pendingTypes.length > 0 && (
-                  <Button
-                    variant="white"
-                    color="blue"
-                    size="sm"
-                    leftSection={<IconCloudDownload size={16} />}
-                    loading={downloading}
-                    onClick={handleDownloadDocuments}
-                  >
-                    Dökümanları İndir ({downloadStatus.pendingTypes.length})
-                  </Button>
-                )}
-                
-                {/* Hatalıları Tekrar Dene */}
-                {failedDocs.length > 0 && (
-                  <Button
-                    variant="white"
-                    color="red"
-                    size="sm"
-                    leftSection={<IconRefresh size={16} />}
-                    onClick={handleRetryFailed}
-                    disabled={analyzing}
-                  >
-                    Hatalıları Tekrar Dene ({failedDocs.length})
-                  </Button>
-                )}
-
-                {/* Mevcut Analizi Göster */}
-                {completedDocs.length > 0 && (
-                  <Button
-                    variant="white"
-                    color="green"
-                    size="sm"
-                    leftSection={<IconEye size={16} />}
-                    onClick={showExistingAnalysis}
-                  >
-                    Analiz Sonuçları ({completedDocs.length})
-                  </Button>
-                )}
-              </Group>
             </Group>
+          </Box>
+
+          {/* Aksiyon Kartları */}
+          <Box p="md" bg="gray.0" style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
+            <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
+              {/* İçerik Oluştur Kartı */}
+              {documents.filter(d => d.source_type === 'content').length === 0 && tender.announcement_content && (
+                <Paper
+                  p="md"
+                  radius="md"
+                  withBorder
+                  style={{ 
+                    cursor: 'pointer',
+                    borderColor: 'var(--mantine-color-violet-4)',
+                    background: 'linear-gradient(135deg, var(--mantine-color-violet-0) 0%, white 100%)',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={handleCreateContentDocs}
+                  className="hover-lift"
+                >
+                  <Stack gap="xs" align="center">
+                    <ThemeIcon size={44} radius="xl" variant="gradient" gradient={{ from: 'violet', to: 'grape' }}>
+                      <IconFileText size={24} />
+                    </ThemeIcon>
+                    <Text size="sm" fw={600} ta="center">İçerikleri Döküman Yap</Text>
+                    <Text size="xs" c="dimmed" ta="center">HTML içeriklerini PDF'e çevir</Text>
+                  </Stack>
+                </Paper>
+              )}
+
+              {/* Döküman İndir Kartı */}
+              {downloadStatus && downloadStatus.pendingTypes.length > 0 && (
+                <Paper
+                  p="md"
+                  radius="md"
+                  withBorder
+                  style={{ 
+                    cursor: downloading ? 'wait' : 'pointer',
+                    borderColor: 'var(--mantine-color-blue-4)',
+                    background: 'linear-gradient(135deg, var(--mantine-color-blue-0) 0%, white 100%)',
+                    transition: 'all 0.2s ease',
+                    opacity: downloading ? 0.7 : 1
+                  }}
+                  onClick={!downloading ? handleDownloadDocuments : undefined}
+                  className="hover-lift"
+                >
+                  <Stack gap="xs" align="center">
+                    <ThemeIcon size={44} radius="xl" variant="gradient" gradient={{ from: 'blue', to: 'cyan' }}>
+                      {downloading ? <Loader size={24} color="white" /> : <IconCloudDownload size={24} />}
+                    </ThemeIcon>
+                    <Text size="sm" fw={600} ta="center">Dökümanları İndir</Text>
+                    <Group gap={4} justify="center">
+                      <Badge size="sm" color="blue" variant="filled">{downloadStatus.pendingTypes.length} dosya</Badge>
+                    </Group>
+                    <Text size="xs" c="dimmed" ta="center">
+                      {downloadStatus.pendingTypes.slice(0, 2).map(t => 
+                        t === 'tech_spec' ? 'Teknik' : t === 'admin_spec' ? 'İdari' : t
+                      ).join(', ')}
+                      {downloadStatus.pendingTypes.length > 2 && ` +${downloadStatus.pendingTypes.length - 2}`}
+                    </Text>
+                  </Stack>
+                </Paper>
+              )}
+
+              {/* Hatalıları Tekrar Dene Kartı */}
+              {failedDocs.length > 0 && (
+                <Paper
+                  p="md"
+                  radius="md"
+                  withBorder
+                  style={{ 
+                    cursor: analyzing ? 'not-allowed' : 'pointer',
+                    borderColor: 'var(--mantine-color-red-4)',
+                    background: 'linear-gradient(135deg, var(--mantine-color-red-0) 0%, white 100%)',
+                    transition: 'all 0.2s ease',
+                    opacity: analyzing ? 0.7 : 1
+                  }}
+                  onClick={!analyzing ? handleRetryFailed : undefined}
+                  className="hover-lift"
+                >
+                  <Stack gap="xs" align="center">
+                    <ThemeIcon size={44} radius="xl" variant="gradient" gradient={{ from: 'red', to: 'orange' }}>
+                      <IconRefresh size={24} />
+                    </ThemeIcon>
+                    <Text size="sm" fw={600} ta="center">Hatalıları Tekrar Dene</Text>
+                    <Badge size="sm" color="red" variant="filled">{failedDocs.length} hatalı</Badge>
+                    <Text size="xs" c="dimmed" ta="center">Başarısız dökümanları yeniden analiz et</Text>
+                  </Stack>
+                </Paper>
+              )}
+
+              {/* Analiz Sonuçları Kartı */}
+              {completedDocs.length > 0 && (
+                <Paper
+                  p="md"
+                  radius="md"
+                  withBorder
+                  style={{ 
+                    cursor: 'pointer',
+                    borderColor: 'var(--mantine-color-green-4)',
+                    background: 'linear-gradient(135deg, var(--mantine-color-green-0) 0%, white 100%)',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={showExistingAnalysis}
+                  className="hover-lift"
+                >
+                  <Stack gap="xs" align="center">
+                    <ThemeIcon size={44} radius="xl" variant="gradient" gradient={{ from: 'green', to: 'teal' }}>
+                      <IconEye size={24} />
+                    </ThemeIcon>
+                    <Text size="sm" fw={600} ta="center">Analiz Sonuçları</Text>
+                    <Badge size="sm" color="green" variant="filled">{completedDocs.length} tamamlandı</Badge>
+                    <Text size="xs" c="dimmed" ta="center">Tüm analiz sonuçlarını görüntüle</Text>
+                  </Stack>
+                </Paper>
+              )}
+            </SimpleGrid>
           </Box>
 
           {/* Analiz Progress */}
