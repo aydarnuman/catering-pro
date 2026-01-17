@@ -61,6 +61,9 @@ router.get('/', async (req, res) => {
         document_links,
         announcement_content IS NOT NULL as has_announcement,
         goods_services_content IS NOT NULL as has_goods_services,
+        (zeyilname_content IS NOT NULL OR document_links::text ILIKE '%zeyilname%') as has_zeyilname,
+        correction_notice_content IS NOT NULL as has_correction_notice,
+        (is_updated = true OR document_links::text ILIKE '%zeyilname%' OR zeyilname_content IS NOT NULL OR correction_notice_content IS NOT NULL) as is_updated,
         created_at,
         updated_at,
         tender_method,
@@ -309,6 +312,81 @@ router.get('/stats/detailed', async (req, res) => {
       data: stats
     });
   } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Son güncelleme istatistikleri
+router.get('/stats/updates', async (req, res) => {
+  try {
+    // Bugünün başlangıcı (Europe/Istanbul)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    
+    // Son scraper çalışması
+    const lastUpdateResult = await query(`
+      SELECT MAX(updated_at) as last_update 
+      FROM tenders
+    `);
+    
+    // Bugün yeni eklenen ihaleler
+    const newTodayResult = await query(`
+      SELECT id, external_id, title, city, organization_name, created_at
+      FROM tenders 
+      WHERE created_at >= $1 
+      ORDER BY created_at DESC 
+      LIMIT 10
+    `, [todayStart.toISOString()]);
+    
+    // Bugün güncellenen ihaleler (daha önce eklenenler)
+    const updatedTodayResult = await query(`
+      SELECT id, external_id, title, city, organization_name, updated_at
+      FROM tenders 
+      WHERE updated_at >= $1 AND created_at < $1
+      ORDER BY updated_at DESC 
+      LIMIT 10
+    `, [todayStart.toISOString()]);
+    
+    // Bugünkü toplam sayılar
+    const countsResult = await query(`
+      SELECT 
+        COUNT(*) FILTER (WHERE created_at >= $1) as new_count,
+        COUNT(*) FILTER (WHERE updated_at >= $1 AND created_at < $1) as updated_count,
+        COUNT(*) as total_count
+      FROM tenders
+    `, [todayStart.toISOString()]);
+    
+    // Son 7 gün istatistikleri
+    const weeklyResult = await query(`
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(*) FILTER (WHERE created_at >= DATE(created_at) AND created_at < DATE(created_at) + INTERVAL '1 day') as new_count
+      FROM tenders
+      WHERE created_at >= NOW() - INTERVAL '7 days'
+      GROUP BY DATE(created_at)
+      ORDER BY date DESC
+    `);
+    
+    res.json({
+      success: true,
+      data: {
+        lastUpdate: lastUpdateResult.rows[0]?.last_update,
+        today: {
+          newCount: parseInt(countsResult.rows[0]?.new_count || 0),
+          updatedCount: parseInt(countsResult.rows[0]?.updated_count || 0),
+          newTenders: newTodayResult.rows,
+          updatedTenders: updatedTodayResult.rows
+        },
+        totalCount: parseInt(countsResult.rows[0]?.total_count || 0),
+        weeklyStats: weeklyResult.rows
+      }
+    });
+    
+  } catch (error) {
+    console.error('Stats error:', error);
     res.status(500).json({
       success: false,
       error: error.message

@@ -611,13 +611,13 @@ export default function IhaleUzmaniModal({
                 {analysisLoading && <Loader size="xs" />}
               </Group>
               <Group gap="xs">
-                <Button variant="light" size="xs" leftSection={<IconEye size={14} />} component={Link} href={`/tenders/${tender.tender_id}`} target="_blank">
+                <Button variant="outline" size="xs" leftSection={<IconEye size={14} />} component={Link} href={`/tenders/${tender.tender_id}`} target="_blank">
                   Detay
                 </Button>
-                <Button variant="light" size="xs" leftSection={<IconDownload size={14} />} onClick={downloadJSON}>
+                <Button variant="outline" size="xs" leftSection={<IconDownload size={14} />} onClick={downloadJSON}>
                   JSON
                 </Button>
-                <Button variant="light" color="red" size="xs" leftSection={<IconTrash size={14} />} onClick={() => onDelete(tender.id)}>
+                <Button variant="outline" color="red" size="xs" leftSection={<IconTrash size={14} />} onClick={() => onDelete(tender.id)}>
                   Sil
                 </Button>
               </Group>
@@ -625,33 +625,37 @@ export default function IhaleUzmaniModal({
 
             {/* Özet Kartları */}
             <SimpleGrid cols={{ base: 2, sm: 3, md: 5 }} spacing="sm">
-              <Paper p="sm" withBorder radius="md">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={600}>İhale Başlığı</Text>
-                <Text size="sm" fw={500} lineClamp={2}>{tender.ihale_basligi || '-'}</Text>
+              <Tooltip label={tender.ihale_basligi} multiline w={300} withArrow disabled={!tender.ihale_basligi}>
+                <Paper p="sm" withBorder radius="md" shadow="xs" className="hover-card">
+                  <Text size="xs" c="gray.6" tt="uppercase" fw={600} mb={4}>İhale Başlığı</Text>
+                  <Text size="sm" fw={500} lineClamp={2}>{tender.ihale_basligi || <Text span c="gray.5">Belirtilmemiş</Text>}</Text>
+                </Paper>
+              </Tooltip>
+              <Tooltip label={tender.kurum} multiline w={300} withArrow disabled={!tender.kurum}>
+                <Paper p="sm" withBorder radius="md" shadow="xs" className="hover-card">
+                  <Text size="xs" c="gray.6" tt="uppercase" fw={600} mb={4}>Kurum</Text>
+                  <Text size="sm" fw={500} lineClamp={2}>{tender.kurum || <Text span c="gray.5">Belirtilmemiş</Text>}</Text>
+                </Paper>
+              </Tooltip>
+              <Paper p="sm" withBorder radius="md" shadow="xs" className="hover-card">
+                <Text size="xs" c="gray.6" tt="uppercase" fw={600} mb={4}>Tarih</Text>
+                <Text size="sm" fw={600}>{tender.tarih || <Text span c="gray.5">Belirtilmemiş</Text>}</Text>
               </Paper>
-              <Paper p="sm" withBorder radius="md">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={600}>Kurum</Text>
-                <Text size="sm" fw={500} lineClamp={2}>{tender.kurum || '-'}</Text>
+              <Paper p="sm" withBorder radius="md" shadow="xs" style={{ borderColor: tender.bedel ? 'var(--mantine-color-green-5)' : undefined }} className="hover-card">
+                <Text size="xs" c="gray.6" tt="uppercase" fw={600} mb={4}>Tahmini Bedel</Text>
+                <Text size="sm" fw={700} c={tender.bedel ? 'green' : 'gray.5'}>{tender.bedel || 'Belirtilmemiş'}</Text>
               </Paper>
-              <Paper p="sm" withBorder radius="md">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={600}>Tarih</Text>
-                <Text size="sm" fw={500}>{tender.tarih || '-'}</Text>
-              </Paper>
-              <Paper p="sm" withBorder radius="md" style={{ borderColor: 'var(--mantine-color-green-5)' }}>
-                <Text size="xs" c="dimmed" tt="uppercase" fw={600}>Tahmini Bedel</Text>
-                <Text size="sm" fw={700} c="green">{tender.bedel || '-'}</Text>
-              </Paper>
-              <Paper p="sm" withBorder radius="md">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={600}>Şehir</Text>
-                <Text size="sm" fw={500}>{tender.city || '-'}</Text>
+              <Paper p="sm" withBorder radius="md" shadow="xs" className="hover-card">
+                <Text size="xs" c="gray.6" tt="uppercase" fw={600} mb={4}>Şehir</Text>
+                <Text size="sm" fw={500}>{tender.city || <Text span c="gray.5">Belirtilmemiş</Text>}</Text>
               </Paper>
             </SimpleGrid>
 
             {/* Veri Girişi */}
-            <Paper p="md" withBorder radius="md" bg="gray.0">
+            <Paper p="md" withBorder radius="md" bg="gray.0" shadow="sm">
               <Group justify="space-between" mb="md">
                 <Group gap="xs">
-                  <Text fw={600} size="sm">📊 İhale Verileri</Text>
+                  <Text fw={600} size="sm" c="gray.8">📊 İhale Verileri</Text>
                   {/* Save Status Indicator */}
                   {saveStatus === 'saving' && (
                     <Badge size="xs" variant="light" color="blue" leftSection={<Loader size={10} />}>
@@ -711,13 +715,13 @@ export default function IhaleUzmaniModal({
             </Paper>
 
             {/* Notlar */}
-            <Paper p="sm" withBorder radius="md">
+            <Paper p="sm" withBorder radius="md" shadow="xs">
               <Group justify="space-between" mb="sm">
                 <Group gap="xs">
                   <ThemeIcon size="sm" color="yellow" variant="light">
                     <IconNote size={14} />
                   </ThemeIcon>
-                  <Text size="sm" fw={500}>Notlarım</Text>
+                  <Text size="sm" fw={600} c="gray.7">Notlarım</Text>
                   {tender.user_notes && tender.user_notes.length > 0 && (
                     <Badge size="xs" variant="filled" color="yellow" c="dark">{tender.user_notes.length}</Badge>
                   )}
@@ -790,16 +794,42 @@ export default function IhaleUzmaniModal({
                 {analysisData.teknik_sartlar && analysisData.teknik_sartlar.length > 0 ? (
                   <Stack gap="xs">
                     {analysisData.teknik_sartlar.map((sart, i) => (
-                      <Paper key={i} p="sm" withBorder radius="sm">
-                        <Group gap="xs" wrap="nowrap">
-                          <Badge size="sm" variant="light" color="blue" circle>{i + 1}</Badge>
-                          <Text size="sm">{sart}</Text>
+                      <Paper 
+                        key={i} 
+                        p="sm" 
+                        withBorder 
+                        radius="md" 
+                        shadow="xs"
+                        style={{ 
+                          transition: 'all 0.2s ease',
+                          cursor: 'default'
+                        }}
+                        className="hover-card"
+                      >
+                        <Group gap="sm" wrap="nowrap">
+                          <Badge 
+                            size="lg" 
+                            variant="gradient" 
+                            gradient={{ from: 'blue', to: 'cyan' }} 
+                            circle
+                            style={{ minWidth: 32 }}
+                          >
+                            {i + 1}
+                          </Badge>
+                          <Text size="sm" style={{ flex: 1 }}>{sart}</Text>
                         </Group>
                       </Paper>
                     ))}
                   </Stack>
                 ) : (
-                  <Text c="dimmed" ta="center" py="xl">Teknik şart bulunamadı</Text>
+                  <Center h={200}>
+                    <Stack align="center" gap="xs">
+                      <ThemeIcon size={50} radius="xl" variant="light" color="gray">
+                        <IconClipboardList size={24} />
+                      </ThemeIcon>
+                      <Text c="dimmed">Teknik şart bulunamadı</Text>
+                    </Stack>
+                  </Center>
                 )}
               </ScrollArea>
             </Tabs.Panel>
@@ -844,18 +874,37 @@ export default function IhaleUzmaniModal({
                 {analysisData.notlar && analysisData.notlar.length > 0 ? (
                   <Stack gap="xs">
                     {analysisData.notlar.map((not, i) => (
-                      <Paper key={i} p="sm" withBorder radius="sm">
-                        <Group gap="xs" wrap="nowrap" align="flex-start">
-                          <ThemeIcon size="sm" color="orange" variant="light" mt={2}>
-                            <IconNote size={12} />
+                      <Paper 
+                        key={i} 
+                        p="sm" 
+                        withBorder 
+                        radius="md" 
+                        shadow="xs"
+                        bg="orange.0"
+                        style={{ 
+                          transition: 'all 0.2s ease',
+                          borderLeft: '4px solid var(--mantine-color-orange-5)'
+                        }}
+                        className="hover-card"
+                      >
+                        <Group gap="sm" wrap="nowrap" align="flex-start">
+                          <ThemeIcon size="md" color="orange" variant="light" radius="xl" mt={2}>
+                            <IconNote size={14} />
                           </ThemeIcon>
-                          <Text size="sm">{not}</Text>
+                          <Text size="sm" style={{ flex: 1 }}>{not}</Text>
                         </Group>
                       </Paper>
                     ))}
                   </Stack>
                 ) : (
-                  <Text c="dimmed" ta="center" py="xl">AI notu bulunamadı</Text>
+                  <Center h={200}>
+                    <Stack align="center" gap="xs">
+                      <ThemeIcon size={50} radius="xl" variant="light" color="gray">
+                        <IconNote size={24} />
+                      </ThemeIcon>
+                      <Text c="dimmed">AI notu bulunamadı</Text>
+                    </Stack>
+                  </Center>
                 )}
               </ScrollArea>
             </Tabs.Panel>
@@ -921,8 +970,16 @@ export default function IhaleUzmaniModal({
                       </Stack>
                     </div>
 
-                    <Button color="violet" leftSection={<IconCalculator size={16} />} onClick={hesaplaSinirDeger} disabled={teklifListesi.filter(t => t > 0).length < 2}>
-                      Hesapla
+                    <Button 
+                      size="lg" 
+                      variant="gradient" 
+                      gradient={{ from: 'violet', to: 'indigo' }}
+                      leftSection={<IconCalculator size={18} />} 
+                      onClick={hesaplaSinirDeger} 
+                      disabled={teklifListesi.filter(t => t > 0).length < 2}
+                      fullWidth
+                    >
+                      🧮 Sınır Değer Hesapla
                     </Button>
 
                     {hesaplananSinirDeger && (
@@ -953,7 +1010,15 @@ export default function IhaleUzmaniModal({
                     <NumberInput label="İşçilik (TL)" value={asiriDusukData.iscilik || ''} onChange={(val) => setAsiriDusukData(prev => ({ ...prev, iscilik: Number(val) || 0 }))} thousandSeparator="." decimalSeparator="," min={0} />
                     <NumberInput label="Toplam Teklif (TL)" value={asiriDusukData.toplamTeklif || ''} onChange={(val) => setAsiriDusukData(prev => ({ ...prev, toplamTeklif: Number(val) || 0 }))} thousandSeparator="." decimalSeparator="," min={0} />
                   </SimpleGrid>
-                  <Button onClick={hesaplaAsiriDusuk} leftSection={<IconCalculator size={16} />}>Hesapla</Button>
+                  <Button 
+                    size="md" 
+                    variant="gradient" 
+                    gradient={{ from: 'orange', to: 'red' }}
+                    leftSection={<IconCalculator size={16} />} 
+                    onClick={hesaplaAsiriDusuk}
+                  >
+                    📊 Aşırı Düşük Analiz
+                  </Button>
                   {asiriDusukSonuc && (
                     <Alert mt="md" color={asiriDusukSonuc.gecerli ? 'green' : 'red'} icon={asiriDusukSonuc.gecerli ? <IconCheck size={18} /> : <IconX size={18} />}>
                       <Text fw={700}>{(asiriDusukSonuc.oran * 100).toFixed(2)}%</Text>
@@ -973,7 +1038,15 @@ export default function IhaleUzmaniModal({
                     <TextInput label="Tebliğ Tarihi" type="date" value={sureData.tebligTarihi} onChange={(e) => setSureData(prev => ({ ...prev, tebligTarihi: e.target.value }))} />
                     <Select label="Başvuru Türü" value={sureData.basvuruTuru} onChange={(val) => setSureData(prev => ({ ...prev, basvuruTuru: val as 'sikayet' | 'itirazen_sikayet' }))} data={[{ value: 'sikayet', label: 'İdareye Şikayet (10 gün)' }, { value: 'itirazen_sikayet', label: 'KİK İtirazen Şikayet (10 gün)' }]} />
                   </SimpleGrid>
-                  <Button onClick={hesaplaSure} leftSection={<IconCalendar size={16} />}>Hesapla</Button>
+                  <Button 
+                    size="md" 
+                    variant="gradient" 
+                    gradient={{ from: 'blue', to: 'cyan' }}
+                    leftSection={<IconCalendar size={16} />} 
+                    onClick={hesaplaSure}
+                  >
+                    📅 Süre Hesapla
+                  </Button>
                   {sureSonuc && (
                     <Alert mt="md" color={sureSonuc.kalanGun > 3 ? 'blue' : sureSonuc.kalanGun > 0 ? 'orange' : 'red'} icon={<IconCalendar size={18} />}>
                       <Group><Text fw={700}>Son: {sureSonuc.sonTarih.toLocaleDateString('tr-TR')}</Text><Badge>{sureSonuc.kalanGun} gün kaldı</Badge></Group>
@@ -990,7 +1063,15 @@ export default function IhaleUzmaniModal({
                 </Accordion.Control>
                 <Accordion.Panel>
                   <NumberInput label="Yaklaşık Maliyet (TL)" value={bedelData.yaklasikMaliyet || ''} onChange={(val) => setBedelData({ yaklasikMaliyet: Number(val) || 0 })} thousandSeparator="." decimalSeparator="," min={0} mb="md" style={{ maxWidth: 300 }} />
-                  <Button onClick={hesaplaBedel} leftSection={<IconCoin size={16} />}>Hesapla</Button>
+                  <Button 
+                    size="md" 
+                    variant="gradient" 
+                    gradient={{ from: 'green', to: 'teal' }}
+                    leftSection={<IconCoin size={16} />} 
+                    onClick={hesaplaBedel}
+                  >
+                    💰 Bedel Hesapla
+                  </Button>
                   {bedelSonuc && (
                     <Alert mt="md" color="green" icon={<IconCoin size={18} />}>
                       <Text size="xl" fw={700}>{bedelSonuc.bedel.toLocaleString('tr-TR')} TL</Text>
@@ -1019,14 +1100,71 @@ export default function IhaleUzmaniModal({
             <Paper withBorder p="md" radius="md" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               <ScrollArea style={{ flex: 1 }} offsetScrollbars>
                 {messages.length === 0 ? (
-                  <Center h={250}>
-                    <Stack align="center">
-                      <ThemeIcon size={60} radius="xl" variant="light" color="violet">
-                        <IconBrain size={32} />
-                      </ThemeIcon>
-                      <Text c="dimmed" ta="center">İhale uzmanınıza soru sorun.</Text>
-                    </Stack>
-                  </Center>
+                  <Stack gap="lg" align="center" py="xl">
+                    <ThemeIcon size={60} radius="xl" variant="gradient" gradient={{ from: 'violet', to: 'grape' }}>
+                      <IconBrain size={32} />
+                    </ThemeIcon>
+                    <div>
+                      <Text fw={600} ta="center" size="lg">İhale Danışmanınız Hazır</Text>
+                      <Text c="dimmed" ta="center" size="sm">Aşağıdaki sorulardan birini seçin veya kendi sorunuzu yazın</Text>
+                    </div>
+                    
+                    {/* Örnek Sorular */}
+                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm" w="100%" maw={600}>
+                      <Paper 
+                        p="sm" 
+                        withBorder 
+                        radius="md" 
+                        style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                        className="hover-card"
+                        onClick={() => setInputMessage('Bu ihalenin tahmini karını hesapla ve analiz et.')}
+                      >
+                        <Group gap="xs">
+                          <ThemeIcon size="sm" color="green" variant="light"><IconCoin size={14} /></ThemeIcon>
+                          <Text size="sm">Kâr analizi yap</Text>
+                        </Group>
+                      </Paper>
+                      <Paper 
+                        p="sm" 
+                        withBorder 
+                        radius="md" 
+                        style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                        className="hover-card"
+                        onClick={() => setInputMessage('Bu ihale için risk değerlendirmesi yap.')}
+                      >
+                        <Group gap="xs">
+                          <ThemeIcon size="sm" color="orange" variant="light"><IconAlertTriangle size={14} /></ThemeIcon>
+                          <Text size="sm">Risk analizi</Text>
+                        </Group>
+                      </Paper>
+                      <Paper 
+                        p="sm" 
+                        withBorder 
+                        radius="md" 
+                        style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                        className="hover-card"
+                        onClick={() => setInputMessage('Teknik şartnamedeki önemli maddeleri özetle.')}
+                      >
+                        <Group gap="xs">
+                          <ThemeIcon size="sm" color="blue" variant="light"><IconClipboardList size={14} /></ThemeIcon>
+                          <Text size="sm">Şartname özeti</Text>
+                        </Group>
+                      </Paper>
+                      <Paper 
+                        p="sm" 
+                        withBorder 
+                        radius="md" 
+                        style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                        className="hover-card"
+                        onClick={() => setInputMessage('Bu ihale için rekabet analizi yap, rakipler kimler olabilir?')}
+                      >
+                        <Group gap="xs">
+                          <ThemeIcon size="sm" color="violet" variant="light"><IconSearch size={14} /></ThemeIcon>
+                          <Text size="sm">Rekabet analizi</Text>
+                        </Group>
+                      </Paper>
+                    </SimpleGrid>
+                  </Stack>
                 ) : (
                   <Stack gap="md">
                     {messages.map((msg) => (

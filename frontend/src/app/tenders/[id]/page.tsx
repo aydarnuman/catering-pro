@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { API_BASE_URL } from '@/lib/config';
 import Link from 'next/link';
@@ -100,14 +100,17 @@ interface Document {
   content_type?: string;
   analysis_result?: any;
   extracted_text?: string;
+  is_extracted?: boolean; // ZIP'ten çıkarılan dosya mı?
 }
 
 interface DownloadStatus {
   availableTypes: string[];
   downloadedTypes: string[];
   pendingTypes: string[];
+  failedTypes?: string[];
   hasDocuments: boolean;
   isComplete: boolean;
+  hasFailedDownloads?: boolean;
   progress: number;
 }
 
@@ -156,6 +159,7 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   'admin_spec': 'İdari Şartname',
   'tech_spec': 'Teknik Şartname',
   'announcement': 'İhale İlanı',
+  'goods_list': 'Malzeme Listesi',
   'goods_services': 'Mal/Hizmet Listesi',
   'zeyilname': 'Zeyilname',
   'zeyilname_tech_spec': 'Teknik Şartname Zeyilnamesi',
@@ -188,6 +192,7 @@ export default function TenderDetailPage() {
   // Action states
   const [downloading, setDownloading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [fetchingDocs, setFetchingDocs] = useState(false);
   const [selectedDocs, setSelectedDocs] = useState<Set<number>>(new Set());
   const [analysisProgress, setAnalysisProgress] = useState<{ current: number; total: number; message: string } | null>(null);
   
@@ -200,6 +205,103 @@ export default function TenderDetailPage() {
   // Takip listesi state
   const [isTracked, setIsTracked] = useState(false);
   const [trackingData, setTrackingData] = useState<any>(null);
+
+  // Filtrelenmiş dökümanlar (duplikeler, ZIP'ler ve tekrar eden içerikler gizlenir)
+  const filteredDocuments = useMemo(() => {
+    if (!documents.length) return [];
+    
+    // Kaynaklara göre ayır
+    const contentDocs = documents.filter(d => d.source_type === 'content');
+    const downloadDocs = documents.filter(d => d.source_type === 'download');
+    const uploadDocs = documents.filter(d => d.source_type === 'upload');
+    
+    // ZIP ve extracted dosyaları bul
+    const zipFiles = downloadDocs.filter(d => d.file_type === 'zip');
+    const extractedFiles = downloadDocs.filter(d => d.is_extracted);
+    
+    // Extracted dosyaları olan doc_type base'lerini bul
+    // Örn: zeyilname_tech_spec -> zeyilname, tech_spec -> tech
+    const extractedDocTypeBases = new Set<string>();
+    extractedFiles.forEach(d => {
+      extractedDocTypeBases.add(d.doc_type);
+      // Base type'ı da ekle (örn: zeyilname_tech_spec -> zeyilname)
+      const parts = d.doc_type?.split('_') || [];
+      if (parts.length > 0) extractedDocTypeBases.add(parts[0]);
+      // tech_spec -> tech
+      if (d.doc_type?.includes('_spec')) {
+        extractedDocTypeBases.add(d.doc_type.replace('_spec', ''));
+      }
+    });
+    // ZIP'lerin doc_type'larını da ekle
+    zipFiles.forEach(z => {
+      extractedDocTypeBases.add(z.doc_type);
+      const parts = z.doc_type?.split('_') || [];
+      if (parts.length > 0) extractedDocTypeBases.add(parts[0]);
+    });
+    
+    // İÇERİK (content) olan tipleri bul
+    const contentDocTypes = new Set(contentDocs.map(d => {
+      if (d.content_type === 'announcement') return 'announcement';
+      if (d.content_type === 'goods_services') return 'goods_list';
+      return d.doc_type;
+    }));
+    
+    // Download'ları filtrele
+    const filteredDownloads = downloadDocs.filter(doc => {
+      const docType = doc.doc_type;
+      
+      // ZIP dosyasıysa
+      if (doc.file_type === 'zip') {
+        // Eğer bu ZIP'ten çıkarılmış dosyalar varsa, ZIP'i gizle
+        const docTypeBase = docType?.split('_')[0];
+        const hasExtracted = extractedFiles.some(e => {
+          const eBase = e.doc_type?.split('_')[0];
+          return e.doc_type === docType || 
+                 e.doc_type?.includes(docType?.replace('_spec', '')) ||
+                 eBase === docTypeBase;
+        });
+        return !hasExtracted;
+      }
+      
+      // Extracted dosya değilse ve ZIP/extracted aynı tipte (veya benzer) varsa, gizle
+      if (!doc.is_extracted) {
+        // Tam eşleşme
+        if (extractedDocTypeBases.has(docType)) {
+          return false;
+        }
+        // Partial eşleşme (örn: zeyilname linki, zeyilname_tech_spec extracted varsa)
+        const docTypeBase = docType?.split('_')[0];
+        if (docTypeBase && extractedDocTypeBases.has(docTypeBase)) {
+          return false;
+        }
+      }
+      
+      // İÇERİK varsa ve aynı tip ise, PDF'i gizle
+      if (docType === 'announcement' && contentDocTypes.has('announcement')) {
+        return false;
+      }
+      if ((docType === 'goods_list' || docType === 'goods_services') && 
+          (contentDocTypes.has('goods_list') || contentDocTypes.has('goods_services'))) {
+        return false;
+      }
+      
+      return true;
+    });
+    
+    // Tüm dökümanları birleştir
+    const allDocs = [...contentDocs, ...filteredDownloads, ...uploadDocs];
+    
+    // İsim bazlı duplike kontrolü (son güvenlik)
+    const seenNames = new Set<string>();
+    const uniqueDocs = allDocs.filter(doc => {
+      const key = doc.original_filename?.toLowerCase().trim();
+      if (!key || seenNames.has(key)) return false;
+      seenNames.add(key);
+      return true;
+    });
+    
+    return uniqueDocs;
+  }, [documents]);
 
   // ============ DATA FETCHING ============
   const fetchData = useCallback(async () => {
@@ -277,7 +379,73 @@ export default function TenderDetailPage() {
     fetchData();
   }, [fetchData]);
 
+  // Otomatik güncelleme: 24 saatten fazla güncellenmemişse arka planda güncelle
+  useEffect(() => {
+    if (!tender?.updated_at) return;
+    
+    const lastUpdate = new Date(tender.updated_at);
+    const now = new Date();
+    const hoursSinceUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60);
+    
+    // 24 saatten fazla güncellenmemişse otomatik güncelle
+    if (hoursSinceUpdate > 24) {
+      console.log(`📋 İhale ${tenderId} ${Math.round(hoursSinceUpdate)} saat önce güncellendi, arka planda güncelleniyor...`);
+      
+      // Sessizce arka planda güncelle
+      fetch(`${API_BASE_URL}/api/scraper/fetch-documents/${tenderId}`, { method: 'POST' })
+        .then(res => res.json())
+        .then(result => {
+          if (result.success && result.data.documentCount > 0) {
+            notifications.show({
+              title: '🔄 İhale Güncellendi',
+              message: `Yeni bilgiler alındı. ${result.data.documentCount} döküman.`,
+              color: 'blue',
+              autoClose: 3000
+            });
+            fetchData(); // Sayfayı yenile
+          }
+        })
+        .catch(() => {}); // Hataları sessizce yoksay
+    }
+  }, [tender?.updated_at, tenderId, fetchData]);
+
   // ============ ACTIONS ============
+  
+  // Döküman linklerini ihalebul.com'dan çek
+  const handleFetchDocumentLinks = async () => {
+    setFetchingDocs(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/scraper/fetch-documents/${tenderId}`, {
+        method: 'POST'
+      });
+      const result = await response.json();
+      
+      if (result.success) {
+        const data = result.data;
+        
+        notifications.show({
+          title: '✅ Döküman Linkleri Çekildi',
+          message: data.documentCount > 0 
+            ? `${data.documentCount} döküman linki bulundu. Şimdi indirebilirsiniz.`
+            : 'Döküman linki bulunamadı.',
+          color: data.documentCount > 0 ? 'green' : 'yellow'
+        });
+        
+        // Sayfayı yenile
+        await fetchData();
+      } else {
+        throw new Error(result.error || 'Döküman çekme hatası');
+      }
+    } catch (err: any) {
+      notifications.show({
+        title: '❌ Hata',
+        message: err.message,
+        color: 'red'
+      });
+    } finally {
+      setFetchingDocs(false);
+    }
+  };
   
   // Dökümanları indir
   const handleDownloadDocuments = async () => {
@@ -609,9 +777,9 @@ export default function TenderDetailPage() {
     );
   }
 
-  const selectableDocs = documents.filter(d => d.processing_status !== 'processing' && d.processing_status !== 'queued');
-  const completedDocs = documents.filter(d => d.processing_status === 'completed');
-  const failedDocs = documents.filter(d => d.processing_status === 'failed');
+  const selectableDocs = filteredDocuments.filter(d => d.processing_status !== 'processing' && d.processing_status !== 'queued');
+  const completedDocs = filteredDocuments.filter(d => d.processing_status === 'completed');
+  const failedDocs = filteredDocuments.filter(d => d.processing_status === 'failed');
 
   // Hatalı dökümanları tekrar analiz et
   const handleRetryFailed = async () => {
@@ -847,7 +1015,7 @@ export default function TenderDetailPage() {
                 <div>
                   <Title order={3} c="white">İhale Dökümanları</Title>
                   <Text c="white" opacity={0.9}>
-                    {documents.length} döküman • {completedDocs.length} analiz edildi
+                    {filteredDocuments.length} döküman • {completedDocs.length} analiz edildi
                   </Text>
                 </div>
               </Group>
@@ -857,6 +1025,34 @@ export default function TenderDetailPage() {
           {/* Aksiyon Kartları */}
           <Box p="md" bg="gray.0" style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
             <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
+              {/* 🔍 Dökümanları Getir Kartı - Döküman yoksa veya az varsa göster */}
+              {(!downloadStatus?.hasDocuments || (downloadStatus?.availableTypes?.length === 0 && documents.length === 0)) && (
+                <Paper
+                  p="md"
+                  radius="md"
+                  withBorder
+                  style={{ 
+                    cursor: fetchingDocs ? 'wait' : 'pointer',
+                    borderColor: 'var(--mantine-color-teal-4)',
+                    background: 'linear-gradient(135deg, var(--mantine-color-teal-0) 0%, white 100%)',
+                    transition: 'all 0.2s ease',
+                    opacity: fetchingDocs ? 0.7 : 1
+                  }}
+                  onClick={!fetchingDocs ? handleFetchDocumentLinks : undefined}
+                  className="hover-lift"
+                >
+                  <Stack gap="xs" align="center">
+                    <ThemeIcon size={44} radius="xl" variant="gradient" gradient={{ from: 'teal', to: 'cyan' }}>
+                      {fetchingDocs ? <Loader size={24} color="white" /> : <IconCloudDownload size={24} />}
+                    </ThemeIcon>
+                    <Text size="sm" fw={600} ta="center">Dökümanları Getir</Text>
+                    <Text size="xs" c="dimmed" ta="center">
+                      ihalebul.com'dan döküman linklerini çek
+                    </Text>
+                  </Stack>
+                </Paper>
+              )}
+
               {/* İçerik Oluştur Kartı */}
               {documents.filter(d => d.source_type === 'content').length === 0 && tender.announcement_content && (
                 <Paper
@@ -882,16 +1078,24 @@ export default function TenderDetailPage() {
                 </Paper>
               )}
 
-              {/* Döküman İndir Kartı */}
-              {downloadStatus && downloadStatus.pendingTypes.length > 0 && (
+              {/* Döküman İndir Kartı - HER ZAMAN GÖRÜNÜR (döküman linki varsa) */}
+              {downloadStatus && downloadStatus.hasDocuments && (
                 <Paper
                   p="md"
                   radius="md"
                   withBorder
                   style={{ 
                     cursor: downloading ? 'wait' : 'pointer',
-                    borderColor: 'var(--mantine-color-blue-4)',
-                    background: 'linear-gradient(135deg, var(--mantine-color-blue-0) 0%, white 100%)',
+                    borderColor: downloadStatus.hasFailedDownloads 
+                      ? 'var(--mantine-color-orange-4)' 
+                      : downloadStatus.isComplete 
+                        ? 'var(--mantine-color-green-4)'
+                        : 'var(--mantine-color-blue-4)',
+                    background: downloadStatus.hasFailedDownloads
+                      ? 'linear-gradient(135deg, var(--mantine-color-orange-0) 0%, white 100%)'
+                      : downloadStatus.isComplete
+                        ? 'linear-gradient(135deg, var(--mantine-color-green-0) 0%, white 100%)'
+                        : 'linear-gradient(135deg, var(--mantine-color-blue-0) 0%, white 100%)',
                     transition: 'all 0.2s ease',
                     opacity: downloading ? 0.7 : 1
                   }}
@@ -899,18 +1103,50 @@ export default function TenderDetailPage() {
                   className="hover-lift"
                 >
                   <Stack gap="xs" align="center">
-                    <ThemeIcon size={44} radius="xl" variant="gradient" gradient={{ from: 'blue', to: 'cyan' }}>
+                    <ThemeIcon 
+                      size={44} 
+                      radius="xl" 
+                      variant="gradient" 
+                      gradient={downloadStatus.hasFailedDownloads 
+                        ? { from: 'orange', to: 'red' } 
+                        : downloadStatus.isComplete
+                          ? { from: 'green', to: 'teal' }
+                          : { from: 'blue', to: 'cyan' }
+                      }
+                    >
                       {downloading ? <Loader size={24} color="white" /> : <IconCloudDownload size={24} />}
                     </ThemeIcon>
-                    <Text size="sm" fw={600} ta="center">Dökümanları İndir</Text>
+                    <Text size="sm" fw={600} ta="center">
+                      {downloadStatus.hasFailedDownloads 
+                        ? 'Hatalı Dökümanları Yeniden İndir'
+                        : downloadStatus.isComplete
+                          ? 'Dökümanları Yeniden İndir'
+                          : 'Dökümanları İndir'}
+                    </Text>
                     <Group gap={4} justify="center">
-                      <Badge size="sm" color="blue" variant="filled">{downloadStatus.pendingTypes.length} dosya</Badge>
+                      <Badge 
+                        size="sm" 
+                        color={downloadStatus.hasFailedDownloads ? 'orange' : downloadStatus.isComplete ? 'green' : 'blue'} 
+                        variant="filled"
+                      >
+                        {downloadStatus.availableTypes.length} dosya
+                      </Badge>
+                      {downloadStatus.hasFailedDownloads && (
+                        <Badge size="sm" color="red" variant="light">
+                          {downloadStatus.failedTypes?.length || 0} hatalı
+                        </Badge>
+                      )}
+                      {downloadStatus.isComplete && !downloadStatus.hasFailedDownloads && (
+                        <Badge size="sm" color="green" variant="light">
+                          ✓ İndirildi
+                        </Badge>
+                      )}
                     </Group>
                     <Text size="xs" c="dimmed" ta="center">
-                      {downloadStatus.pendingTypes.slice(0, 2).map(t => 
+                      {downloadStatus.availableTypes.slice(0, 2).map(t => 
                         t === 'tech_spec' ? 'Teknik' : t === 'admin_spec' ? 'İdari' : t
                       ).join(', ')}
-                      {downloadStatus.pendingTypes.length > 2 && ` +${downloadStatus.pendingTypes.length - 2}`}
+                      {downloadStatus.availableTypes.length > 2 && ` +${downloadStatus.availableTypes.length - 2}`}
                     </Text>
                   </Stack>
                 </Paper>
@@ -1017,13 +1253,13 @@ export default function TenderDetailPage() {
 
           {/* Döküman Listesi */}
           <Box p="md">
-            {documents.length === 0 ? (
+            {filteredDocuments.length === 0 ? (
               <Text c="dimmed" ta="center" py="xl">
                 Henüz döküman yok. Yukarıdaki butonları kullanarak döküman ekleyin.
               </Text>
             ) : (
               <Stack gap="xs">
-                {documents.map((doc) => {
+                {filteredDocuments.map((doc) => {
                   const DocIcon = getDocTypeIcon(doc.doc_type);
                   const isProcessing = doc.processing_status === 'queued' || doc.processing_status === 'processing';
                   

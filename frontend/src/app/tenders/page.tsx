@@ -21,8 +21,12 @@ import {
   MultiSelect,
   Paper,
   Collapse,
-  ActionIcon
+  ActionIcon,
+  Modal,
+  Progress,
+  Center
 } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import { 
   IconCalendar,
   IconMapPin,
@@ -35,9 +39,17 @@ import {
   IconSearch,
   IconFilter,
   IconX,
-  IconSparkles
+  IconSparkles,
+  IconLink,
+  IconPlus,
+  IconClock,
+  IconTrendingUp,
+  IconCirclePlus,
+  IconEdit,
+  IconCloudDownload
 } from '@tabler/icons-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { useState, useMemo, useEffect } from 'react';
 import { apiClient } from '@/lib/api';
@@ -46,6 +58,7 @@ import { TendersResponse, Tender } from '@/types/api';
 const API_URL = API_BASE_URL;
 
 export default function TendersPage() {
+  const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,6 +66,16 @@ export default function TendersPage() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [cityFilter, setCityFilter] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  
+  // URL ile ihale ekleme
+  const [addUrlModalOpen, setAddUrlModalOpen] = useState(false);
+  const [tenderUrl, setTenderUrl] = useState('');
+  const [addingTender, setAddingTender] = useState(false);
+  
+  // On-demand döküman çekme
+  const [fetchingDocsModalOpen, setFetchingDocsModalOpen] = useState(false);
+  const [fetchingDocsTender, setFetchingDocsTender] = useState<Tender | null>(null);
+  const [fetchingDocsProgress, setFetchingDocsProgress] = useState<string>('Kontrol ediliyor...');
 
   // Debounce search - 500ms bekle
   useEffect(() => {
@@ -76,6 +99,145 @@ export default function TendersPage() {
       search: debouncedSearch || undefined
     })
   );
+
+  // Güncelleme istatistikleri
+  interface UpdateStats {
+    lastUpdate: string;
+    today: {
+      newCount: number;
+      updatedCount: number;
+      newTenders: Array<{ id: number; external_id: string; title: string; city: string; organization_name: string; created_at: string }>;
+      updatedTenders: Array<{ id: number; external_id: string; title: string; city: string; organization_name: string; updated_at: string }>;
+    };
+    totalCount: number;
+  }
+
+  const { data: statsData } = useSWR<{ success: boolean; data: UpdateStats }>(
+    'tender-stats',
+    () => fetch(`${API_URL}/api/tenders/stats/updates`).then(r => r.json()),
+    { refreshInterval: 60000 } // Her 1 dakikada yenile
+  );
+  
+  const [showStats, setShowStats] = useState<'new' | 'updated' | false>(false);
+
+  // URL ile ihale ekleme handler
+  const handleAddTenderByUrl = async () => {
+    if (!tenderUrl.trim()) {
+      notifications.show({
+        title: 'Hata',
+        message: 'URL girmelisiniz',
+        color: 'red'
+      });
+      return;
+    }
+    
+    if (!tenderUrl.includes('ihalebul.com/tender/')) {
+      notifications.show({
+        title: 'Geçersiz URL',
+        message: 'URL formatı: https://ihalebul.com/tender/123456',
+        color: 'red'
+      });
+      return;
+    }
+    
+    setAddingTender(true);
+    try {
+      const res = await fetch(`${API_URL}/api/scraper/add-tender`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: tenderUrl.trim() })
+      });
+      
+      const data = await res.json();
+      
+      if (data.success) {
+        notifications.show({
+          title: '✅ Başarılı!',
+          message: `${data.data.isNew ? 'Yeni ihale eklendi' : 'İhale güncellendi'}: ${data.data.title?.substring(0, 50) || 'İhale'}... (${data.data.documentCount} döküman)`,
+          color: 'green'
+        });
+        setAddUrlModalOpen(false);
+        setTenderUrl('');
+        mutate(); // Listeyi yenile
+      } else {
+        notifications.show({
+          title: 'Hata',
+          message: data.error || 'İhale eklenemedi',
+          color: 'red'
+        });
+      }
+    } catch (err: any) {
+      notifications.show({
+        title: 'Hata',
+        message: err.message || 'Bağlantı hatası',
+        color: 'red'
+      });
+    } finally {
+      setAddingTender(false);
+    }
+  };
+
+  // İhale detayına git - on-demand döküman çekme ile
+  const handleTenderClick = async (tender: Tender) => {
+    setFetchingDocsTender(tender);
+    setFetchingDocsModalOpen(true);
+    setFetchingDocsProgress('Döküman durumu kontrol ediliyor...');
+    
+    try {
+      // 1. Döküman durumunu kontrol et
+      const checkRes = await fetch(`${API_URL}/api/scraper/check-documents/${tender.id}`);
+      const checkData = await checkRes.json();
+      
+      if (!checkData.success) {
+        // Kontrol başarısız, direkt yönlendir
+        router.push(`/tenders/${tender.id}`);
+        setFetchingDocsModalOpen(false);
+        return;
+      }
+      
+      const { hasDocuments, needsUpdate, documentCount } = checkData.data;
+      
+      // 2. Döküman yoksa veya güncelleme gerekiyorsa çek
+      if (!hasDocuments || needsUpdate) {
+        setFetchingDocsProgress(
+          hasDocuments 
+            ? `${documentCount} döküman mevcut, güncelleniyor...`
+            : 'Dökümanlar ihalebul.com\'dan çekiliyor...'
+        );
+        
+        const fetchRes = await fetch(`${API_URL}/api/scraper/fetch-documents/${tender.id}`, {
+          method: 'POST'
+        });
+        const fetchData = await fetchRes.json();
+        
+        if (fetchData.success) {
+          const newDocCount = fetchData.data?.documentCount || 0;
+          
+          if (newDocCount > 0) {
+            notifications.show({
+              title: '✅ Dökümanlar Yüklendi',
+              message: `${newDocCount} döküman başarıyla çekildi`,
+              color: 'green'
+            });
+          }
+        }
+      } else {
+        setFetchingDocsProgress(`${documentCount} döküman mevcut, yönlendiriliyor...`);
+      }
+      
+      // 3. Detay sayfasına yönlendir
+      await new Promise(r => setTimeout(r, 500)); // Kısa gecikme ile UX iyileştirme
+      router.push(`/tenders/${tender.id}`);
+      
+    } catch (err: any) {
+      console.error('Döküman çekme hatası:', err);
+      // Hata olsa da detay sayfasına yönlendir
+      router.push(`/tenders/${tender.id}`);
+    } finally {
+      setFetchingDocsModalOpen(false);
+      setFetchingDocsTender(null);
+    }
+  };
 
   const formatCurrency = (amount?: number) => {
     if (!amount) return 'Belirtilmemiş';
@@ -188,8 +350,136 @@ export default function TendersPage() {
               >
                 Yenile
               </Button>
+              <Button 
+                leftSection={<IconLink size={16} />}
+                variant="gradient"
+                gradient={{ from: 'teal', to: 'cyan' }}
+                onClick={() => setAddUrlModalOpen(true)}
+              >
+                URL ile Ekle
+              </Button>
             </Group>
           </Group>
+
+          {/* Bugünün Özeti - Dashboard Kartları */}
+          {statsData?.data && (
+            <Grid gutter="sm">
+              {/* Stat Kartları */}
+              <Grid.Col span={{ base: 4, sm: 2 }}>
+                <Paper p="xs" radius="md" bg="blue.0" ta="center">
+                  <Text size="xl" fw={700} c="blue.7">{statsData.data.totalCount}</Text>
+                  <Text size="xs" c="blue.6">Toplam</Text>
+                </Paper>
+              </Grid.Col>
+              
+              <Grid.Col span={{ base: 4, sm: 2 }}>
+                <Paper 
+                  p="xs" 
+                  radius="md" 
+                  bg="green.0" 
+                  ta="center"
+                  style={{ cursor: statsData.data.today.newCount > 0 ? 'pointer' : 'default' }}
+                  onClick={() => statsData.data.today.newCount > 0 && setShowStats(showStats === 'new' ? false : 'new')}
+                >
+                  <Text size="xl" fw={700} c="green.7">{statsData.data.today.newCount}</Text>
+                  <Text size="xs" c="green.6">Yeni {statsData.data.today.newCount > 0 && '▾'}</Text>
+                </Paper>
+              </Grid.Col>
+              
+              <Grid.Col span={{ base: 4, sm: 2 }}>
+                <Paper 
+                  p="xs" 
+                  radius="md" 
+                  bg="orange.0" 
+                  ta="center"
+                  style={{ cursor: statsData.data.today.updatedCount > 0 ? 'pointer' : 'default' }}
+                  onClick={() => statsData.data.today.updatedCount > 0 && setShowStats(showStats === 'updated' ? false : 'updated')}
+                >
+                  <Text size="xl" fw={700} c="orange.7">{statsData.data.today.updatedCount}</Text>
+                  <Text size="xs" c="orange.6">Güncellenen {statsData.data.today.updatedCount > 0 && '▾'}</Text>
+                </Paper>
+              </Grid.Col>
+
+              <Grid.Col span={{ base: 12, sm: 6 }}>
+                <Paper p="xs" radius="md" bg="gray.0">
+                  <Group gap="xs" justify="center">
+                    <IconClock size={14} color="var(--mantine-color-gray-6)" />
+                    <Text size="xs" c="dimmed">
+                      {new Date(statsData.data.lastUpdate).toLocaleString('tr-TR', {
+                        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+                      })}
+                    </Text>
+                  </Group>
+                </Paper>
+              </Grid.Col>
+
+              {/* Yeni Eklenen İhaleler - Açılır Liste */}
+              {showStats === 'new' && statsData.data.today.newTenders.length > 0 && (
+                <Grid.Col span={12}>
+                  <Paper p="sm" radius="md" withBorder style={{ borderColor: 'var(--mantine-color-green-3)' }}>
+                    <Group justify="space-between" mb="xs">
+                      <Text size="sm" fw={600} c="green.7">Bugün Eklenen İhaleler</Text>
+                      <ActionIcon variant="subtle" size="xs" onClick={() => setShowStats(false)}>
+                        <IconX size={12} />
+                      </ActionIcon>
+                    </Group>
+                    <Stack gap={4}>
+                      {statsData.data.today.newTenders.map((t) => (
+                        <Group key={t.id} gap="xs" wrap="nowrap">
+                          <Badge size="xs" color="green" variant="light" style={{ minWidth: 70 }}>
+                            {t.city}
+                          </Badge>
+                          <Text 
+                            size="xs" 
+                            lineClamp={1}
+                            component={Link}
+                            href={`/tenders/${t.id}`}
+                            c="dark"
+                            style={{ flex: 1, textDecoration: 'none' }}
+                          >
+                            {t.title}
+                          </Text>
+                        </Group>
+                      ))}
+                    </Stack>
+                  </Paper>
+                </Grid.Col>
+              )}
+
+              {/* Güncellenen İhaleler - Açılır Liste */}
+              {showStats === 'updated' && statsData.data.today.updatedTenders.length > 0 && (
+                <Grid.Col span={12}>
+                  <Paper p="sm" radius="md" withBorder style={{ borderColor: 'var(--mantine-color-orange-3)' }}>
+                    <Group justify="space-between" mb="xs">
+                      <Text size="sm" fw={600} c="orange.7">Bugün Güncellenen İhaleler</Text>
+                      <ActionIcon variant="subtle" size="xs" onClick={() => setShowStats(false)}>
+                        <IconX size={12} />
+                      </ActionIcon>
+                    </Group>
+                    <Stack gap={4}>
+                      {statsData.data.today.updatedTenders.map((t) => (
+                        <Group key={t.id} gap="xs" wrap="nowrap">
+                          <Badge size="xs" color="orange" variant="light" style={{ minWidth: 70 }}>
+                            {t.city}
+                          </Badge>
+                          <Text 
+                            size="xs" 
+                            lineClamp={1}
+                            component={Link}
+                            href={`/tenders/${t.id}`}
+                            c="dark"
+                            style={{ flex: 1, textDecoration: 'none' }}
+                          >
+                            {t.title}
+                          </Text>
+                        </Group>
+                      ))}
+                    </Stack>
+                  </Paper>
+                </Grid.Col>
+              )}
+            </Grid>
+          )}
 
           {/* Search and Filters */}
           <Paper shadow="sm" p="md" radius="md" withBorder>
@@ -336,29 +626,25 @@ export default function TendersPage() {
                       </Group>
                     </Group>
 
-                    {/* Title */}
-                    <Link 
-                      href={`/tenders/${tender.id}`} 
-                      style={{ textDecoration: 'none', color: 'inherit' }}
+                    {/* Title - Tıklandığında on-demand döküman çekme */}
+                    <Title 
+                      order={4} 
+                      lineClamp={2} 
+                      h={48}
+                      style={{ 
+                        cursor: 'pointer',
+                        transition: 'color 0.2s'
+                      }}
+                      onClick={() => handleTenderClick(tender)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = '#228be6';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = '';
+                      }}
                     >
-                      <Title 
-                        order={4} 
-                        lineClamp={2} 
-                        h={48}
-                        style={{ 
-                          cursor: 'pointer',
-                          transition: 'color 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.color = '#228be6';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.color = '';
-                        }}
-                      >
-                        {tender.title}
-                      </Title>
-                    </Link>
+                      {tender.title}
+                    </Title>
 
                     <Divider />
 
@@ -413,11 +699,10 @@ export default function TendersPage() {
                     {/* Footer */}
                     <Stack gap="sm" mt="auto" pt="sm">
                       <Button
-                        component={Link}
-                        href={`/tenders/${tender.id}`}
                         variant="light"
                         fullWidth
                         leftSection={<IconFileText size={16} />}
+                        onClick={() => handleTenderClick(tender)}
                       >
                         Detayları Gör
                       </Button>
@@ -481,6 +766,82 @@ export default function TendersPage() {
           </Button>
         </Group>
       </Stack>
+
+      {/* URL ile İhale Ekleme Modal */}
+      <Modal
+        opened={addUrlModalOpen}
+        onClose={() => { setAddUrlModalOpen(false); setTenderUrl(''); }}
+        title="URL ile İhale Ekle"
+        centered
+      >
+        <Stack gap="md">
+          <TextInput
+            label="İhale URL'si"
+            placeholder="https://ihalebul.com/tender/123456"
+            value={tenderUrl}
+            onChange={(e) => setTenderUrl(e.target.value)}
+            description="ihalebul.com üzerindeki ihale detay sayfasının URL'sini girin"
+            leftSection={<IconLink size={16} />}
+          />
+          
+          <Paper p="sm" bg="gray.0" radius="md">
+            <Text size="xs" c="dimmed">
+              <strong>Örnek:</strong> https://ihalebul.com/tender/1768253602118
+            </Text>
+            <Text size="xs" c="dimmed" mt="xs">
+              Bu işlem ihale bilgilerini, döküman linklerini, ihale ilanı ve mal/hizmet listesini otomatik olarak çeker.
+            </Text>
+          </Paper>
+          
+          <Group justify="flex-end" mt="md">
+            <Button variant="light" onClick={() => { setAddUrlModalOpen(false); setTenderUrl(''); }}>
+              İptal
+            </Button>
+            <Button
+              variant="gradient"
+              gradient={{ from: 'teal', to: 'cyan' }}
+              leftSection={<IconPlus size={16} />}
+              loading={addingTender}
+              onClick={handleAddTenderByUrl}
+              disabled={!tenderUrl.trim()}
+            >
+              İhale Ekle
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Döküman Çekme Loading Modal */}
+      <Modal
+        opened={fetchingDocsModalOpen}
+        onClose={() => {}} // Kapatılamaz
+        centered
+        withCloseButton={false}
+        size="sm"
+      >
+        <Stack gap="lg" align="center" py="md">
+          <Loader size="lg" color="violet" />
+          <Stack gap="xs" align="center">
+            <Title order={4}>Dökümanlar Yükleniyor</Title>
+            {fetchingDocsTender && (
+              <Text size="sm" c="dimmed" ta="center" lineClamp={2}>
+                {fetchingDocsTender.title}
+              </Text>
+            )}
+          </Stack>
+          <Paper p="md" bg="violet.0" radius="md" w="100%">
+            <Group gap="sm" justify="center">
+              <IconCloudDownload size={20} color="var(--mantine-color-violet-6)" />
+              <Text size="sm" c="violet.7" fw={500}>
+                {fetchingDocsProgress}
+              </Text>
+            </Group>
+          </Paper>
+          <Text size="xs" c="dimmed">
+            Bu işlem birkaç saniye sürebilir...
+          </Text>
+        </Stack>
+      </Modal>
     </Container>
     </Box>
   );

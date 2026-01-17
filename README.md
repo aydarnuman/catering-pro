@@ -210,6 +210,8 @@ cd frontend && npm run dev   # :3000
 | Tenders | `/api/tenders/*` | İhale CRUD |
 | Tracking | `/api/tender-tracking/*` | Takip listesi |
 | Documents | `/api/documents/*` | Döküman upload/analiz |
+| Scraper | `/api/scraper/*` | ihalebul.com scraper |
+| Tender Docs | `/api/tender-docs/*` | Döküman indirme |
 | Cariler | `/api/cariler/*` | Cari hesaplar |
 | Invoices | `/api/invoices/*` | Faturalar |
 | Stok | `/api/stok/*` | Stok yönetimi |
@@ -217,6 +219,19 @@ cd frontend && npm run dev   # :3000
 | Bordro | `/api/bordro/*` | Bordro hesaplama |
 | Planlama | `/api/planlama/*` | Menü planlama |
 | AI | `/api/ai/*` | AI asistan |
+
+### Scraper & Döküman API
+
+| Endpoint | Method | Açıklama |
+|----------|--------|----------|
+| `/api/scraper/health` | GET | Scraper sistem durumu |
+| `/api/scraper/trigger` | POST | Manuel scraping başlat |
+| `/api/scraper/check-documents/:id` | GET | İhale döküman durumu kontrol |
+| `/api/scraper/fetch-documents/:id` | POST | İhale dökümanlarını çek (on-demand) |
+| `/api/scraper/cleanup-documents` | POST | Tüm başarısız dökümanları temizle |
+| `/api/scraper/cleanup-tender/:id` | POST | Tek ihale için temizlik |
+| `/api/tender-docs/:id/download-status` | GET | İndirme durumu (failed dahil) |
+| `/api/tender-docs/:id/download-documents` | POST | Döküman indir + ZIP aç (otomatik cleanup) |
 
 ### Swagger Dokümantasyonu
 
@@ -263,6 +278,12 @@ psql $DATABASE_URL -c "SELECT 1"
 ```bash
 # Session temizle
 rm backend/storage/session.json
+
+# Başarısız dökümanları temizle (API)
+curl -X POST http://localhost:3001/api/scraper/cleanup-documents
+
+# Tek ihale için temizlik
+curl -X POST http://localhost:3001/api/scraper/cleanup-tender/97
 ```
 
 ### API Bağlantı Hatası

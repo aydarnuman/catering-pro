@@ -41,7 +41,8 @@ import {
   IconTrendingUp,
   IconReceipt,
   IconBriefcase,
-  IconUser
+  IconUser,
+  IconBug
 } from '@tabler/icons-react';
 
 interface AdminStats {
@@ -135,6 +136,15 @@ export default function AdminPage() {
       icon: IconServer,
       color: 'gray',
       path: '/admin/sistem',
+      badge: null
+    },
+    {
+      id: 'scraper',
+      title: 'Scraper Dashboard',
+      description: 'İhale scraper durumu ve yönetimi',
+      icon: IconBug,
+      color: 'grape',
+      path: '/admin/scraper',
       badge: null
     }
   ];

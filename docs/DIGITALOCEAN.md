@@ -397,6 +397,55 @@ pm2 update
 
 ---
 
+## 🕷️ Scraper (Chromium) Kurulumu
+
+Scraper sistemi Puppeteer kullanarak ihalebul.com'dan veri çeker. Production'da Chromium kurulması gerekir.
+
+### Chromium Kurulumu
+
+```bash
+# Snap ile Chromium kur (Önerilen)
+apt install snapd -y
+snap install chromium
+
+# Veya APT ile
+apt install chromium-browser -y
+```
+
+### Environment Variable
+
+`.env` dosyasına ekle:
+
+```bash
+# Snap kurulumu için
+PUPPETEER_EXECUTABLE_PATH=/snap/bin/chromium
+
+# APT kurulumu için
+PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+```
+
+### Test
+
+```bash
+# Chromium çalışıyor mu?
+/snap/bin/chromium --version
+
+# Scraper test
+cd /root/catering-pro/backend
+node -e "import('./src/scraper/browser-manager.js').then(m => m.default.getBrowser().then(() => console.log('OK')))"
+```
+
+### Session Dosyası
+
+Scraper login session'ı `backend/storage/session.json` dosyasında saklanır. Bu dosya sunucuda kalmalı, git'e push edilmemeli.
+
+```bash
+# Session kontrolü
+ls -la /root/catering-pro/backend/storage/session.json
+```
+
+---
+
 ## 📞 Acil Durum
 
 Sunucu yanıt vermiyorsa:

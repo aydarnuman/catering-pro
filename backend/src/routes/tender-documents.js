@@ -32,12 +32,30 @@ router.post('/:tenderId/download-documents', async (req, res) => {
       });
     }
 
+    // ✅ İndirmeden önce failed dökümanları otomatik temizle
+    // Bu sayede yeniden indirme tetiklenecek
+    const cleanupResult = await pool.query(
+      `DELETE FROM documents 
+       WHERE tender_id = $1 
+       AND source_type = 'download' 
+       AND processing_status IN ('failed', 'error')
+       RETURNING id, original_filename`,
+      [tenderId]
+    );
+    
+    if (cleanupResult.rowCount > 0) {
+      console.log(`🧹 ${cleanupResult.rowCount} başarısız döküman temizlendi (tender_id: ${tenderId})`);
+    }
+
     // Dökümanları indir
     const result = await documentStorageService.downloadTenderDocuments(parseInt(tenderId));
 
     res.json({
       success: true,
-      data: result
+      data: {
+        ...result,
+        cleanedUpFailed: cleanupResult.rowCount || 0 // Temizlenen sayısını da döndür
+      }
     });
 
   } catch (error) {
@@ -250,16 +268,29 @@ router.get('/:tenderId/download-status', async (req, res) => {
       return false;
     });
 
-    // İndirilen dökümanları kontrol et
+    // İndirilen dökümanları kontrol et (başarılı olanlar)
     const downloadedResult = await pool.query(
       `SELECT DISTINCT doc_type FROM documents 
-       WHERE tender_id = $1 AND source_type = 'download'`,
+       WHERE tender_id = $1 AND source_type = 'download' 
+       AND processing_status NOT IN ('failed', 'error')`,
       [tenderId]
     );
     const downloadedTypes = downloadedResult.rows.map(r => r.doc_type).filter(Boolean);
 
-    // Hangi tipler indirilmemiş?
-    const pendingTypes = availableTypes.filter(t => !downloadedTypes.includes(t));
+    // Başarısız dökümanları kontrol et
+    const failedResult = await pool.query(
+      `SELECT DISTINCT doc_type FROM documents 
+       WHERE tender_id = $1 AND source_type = 'download' 
+       AND processing_status IN ('failed', 'error')`,
+      [tenderId]
+    );
+    const failedTypes = failedResult.rows.map(r => r.doc_type).filter(Boolean);
+
+    // Hangi tipler indirilmemiş veya başarısız?
+    // Failed olan tipler yeniden indirilmeli, bu yüzden pendingTypes'a dahil et
+    const pendingTypes = availableTypes.filter(t => 
+      !downloadedTypes.includes(t) || failedTypes.includes(t)
+    );
 
     const hasDocuments = availableTypes.length > 0;
     const isComplete = hasDocuments && downloadedTypes.length > 0 && pendingTypes.length === 0;
@@ -271,8 +302,10 @@ router.get('/:tenderId/download-status', async (req, res) => {
         availableTypes,
         downloadedTypes,
         pendingTypes,
+        failedTypes, // Frontend'e failed bilgisi de gönder
         hasDocuments,
         isComplete,
+        hasFailedDownloads: failedTypes.length > 0, // Kolay kontrol için
         progress: hasDocuments
           ? Math.round((downloadedTypes.length / availableTypes.length) * 100)
           : 0

@@ -7,17 +7,19 @@ Hazır yemek sektörü için kurumsal iş yönetim sistemi (ERP-benzeri). ~10 ak
 
 ### Backend
 - **Runtime:** Node.js + Express.js
+- **Module System:** ES Modules (import/export)
 - **Database:** PostgreSQL (Supabase hosted)
 - **ORM:** Raw SQL (pg driver)
 - **AI:** Gemini API (döküman analizi) + Claude API (asistan)
-- **Auth:** JWT + bcrypt
+- **Auth:** JWT + bcrypt (custom implementation)
+- **Logging:** Winston
 - **Port:** 3001
 
 ### Frontend
-- **Framework:** Next.js 14 (App Router)
-- **UI:** Tailwind CSS + custom components
-- **State:** React hooks (useState, useEffect)
-- **Auth:** NextAuth.js
+- **Framework:** Next.js 15 (App Router)
+- **UI:** Mantine 7.17 + @tabler/icons-react
+- **State:** React hooks + React Query (@tanstack/react-query)
+- **Auth:** Custom AuthContext (JWT + localStorage)
 - **Port:** 3000
 
 ### Deployment
@@ -38,35 +40,31 @@ CATERİNG/
 ├── backend/
 │   └── src/
 │       ├── routes/          # API endpoints (RESTful)
-│       │   ├── auth.js      # Login/register
-│       │   ├── tenders.js   # İhale yönetimi
-│       │   ├── cariler.js   # Cari hesaplar
-│       │   ├── stok.js      # Stok yönetimi
-│       │   ├── personel.js  # Personel/HR
-│       │   ├── bordro.js    # Bordro sistemi
-│       │   ├── invoices.js  # Fatura yönetimi
-│       │   ├── muhasebe/    # Gelir-gider, kasa-banka
-│       │   ├── planlama.js  # Menü planlama
-│       │   └── ai.js        # AI asistan endpoint'leri
 │       ├── services/        # Business logic
-│       │   ├── gemini.js    # Döküman AI analizi
-│       │   ├── claude.js    # Konuşma AI
-│       │   └── *-service.js # Domain servisleri
 │       ├── scraper/         # ihalebul.com scraper
 │       ├── migrations/      # SQL migration dosyaları
+│       ├── middleware/      # Auth, logging middleware
+│       ├── utils/           # Logger, helpers
 │       ├── database.js      # DB connection pool
 │       └── server.js        # Express app entry
 ├── frontend/
 │   └── src/
 │       ├── app/             # Next.js App Router pages
-│       │   ├── tenders/     # İhale modülü
+│       │   ├── tenders/     # İhale listesi
+│       │   ├── tracking/    # İhale takip
+│       │   ├── ihale-uzmani/# İhale uzmanı modal
 │       │   ├── muhasebe/    # Muhasebe modülü
 │       │   ├── planlama/    # Üretim planlama
 │       │   ├── ai-chat/     # AI asistan
-│       │   └── admin/       # Yönetim paneli
+│       │   ├── admin/       # Yönetim paneli
+│       │   ├── ayarlar/     # Sistem ayarları
+│       │   ├── profil/      # Kullanıcı profili
+│       │   ├── upload/      # Dosya yükleme
+│       │   └── giris/       # Login sayfası
 │       ├── components/      # Reusable UI components
-│       ├── hooks/           # Custom React hooks
-│       ├── lib/             # Utility functions
+│       ├── context/         # AuthContext
+│       ├── hooks/           # Custom React hooks (React Query)
+│       ├── lib/             # Utility functions + API config
 │       └── types/           # TypeScript types
 └── database/
     └── migrations/          # Versiyonlu SQL
@@ -79,6 +77,7 @@ CATERİNG/
 ### İhale Modülü
 - `tenders` - İhale kayıtları (external_id, title, tender_date, city, estimated_cost)
 - `documents` - İhale dökümanları + AI analiz sonuçları
+- `tender_tracking` - İhale takip kayıtları
 - `scraper_logs` - Scraper çalışma logları
 
 ### Muhasebe Modülü
@@ -103,8 +102,11 @@ CATERİNG/
 - `projeler` - Müşteri projeleri (ihaleler)
 - `sartnameler` - Gramaj şartnameleri
 
-### Entegrasyon
-- `sync_logs` - Harici sistem sync logları
+### Sistem
+- `users` - Kullanıcılar (email, password, role, user_type)
+- `permissions` - Yetki tanımları
+- `user_permissions` - Kullanıcı yetkileri
+- `audit_logs` - İşlem logları
 - `ai_memory` - AI konuşma hafızası
 
 ---
@@ -112,10 +114,68 @@ CATERİNG/
 ## 🔧 Geliştirme Kuralları
 
 ### Kod Stili
-1. **Backend:** CommonJS (require/module.exports), async/await
-2. **Frontend:** TypeScript tercih, functional components
+1. **Backend:** ES Modules (import/export), async/await
+2. **Frontend:** TypeScript, functional components
 3. **SQL:** Parameterized queries ($1, $2...), injection koruması
 4. **Hata Yönetimi:** try-catch + meaningful error messages
+
+### Backend Route Yapısı
+```javascript
+// ✅ DOĞRU - ES Modules
+import express from 'express';
+import { query } from '../database.js';
+
+const router = express.Router();
+
+router.get('/', async (req, res) => {
+  try {
+    const result = await query('SELECT * FROM table');
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+export default router;
+```
+
+### Mantine UI Kullanımı
+```typescript
+// ✅ DOĞRU - Mantine bileşenleri
+import { Button, Paper, Text, Stack, Group, Badge } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
+import { IconSearch, IconPlus, IconTrash } from '@tabler/icons-react';
+
+// Gradient butonlar
+<Button variant="gradient" gradient={{ from: 'violet', to: 'blue' }}>
+  Kaydet
+</Button>
+
+// Notification
+notifications.show({
+  title: 'Başarılı',
+  message: 'İşlem tamamlandı',
+  color: 'green'
+});
+```
+
+### React Query Kullanımı
+```typescript
+// ✅ DOĞRU - React Query hook'ları
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+// Data fetching
+const { data, isLoading, error } = useQuery({
+  queryKey: ['cariler'],
+  queryFn: () => fetch(`${API_BASE_URL}/api/cariler`).then(r => r.json()),
+});
+
+// Mutation
+const mutation = useMutation({
+  mutationFn: (data) => fetch(...),
+  onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cariler'] })
+});
+```
 
 ### API Tasarımı
 ```javascript
@@ -140,7 +200,7 @@ GET /api/tenders?city=Ankara&status=active
 ### Frontend Kuralları
 1. Pages: `app/modul/page.tsx`
 2. Components: `components/ModulAdi/ComponentAdi.tsx`
-3. API calls: fetch + try-catch
+3. API calls: fetch + try-catch veya React Query
 4. Loading states: Her async işlemde
 5. **API URL:** Mutlaka `API_BASE_URL` kullan (config'den import et)
 
@@ -173,11 +233,75 @@ fetch(`${API_BASE_URL}/api/cariler`);
 ### Aktif
 - **ihalebul.com** - Puppeteer scraper (login + pagination)
 - **Gemini AI** - Döküman OCR + analiz
-- **Claude AI** - Konuşma asistanı
+- **Claude AI** - Konuşma asistanı + döküman analizi
 
 ### Planlanan
 - **Uyumsoft** - Muhasebe yazılımı sync
 - **e-Fatura** - GİB entegrasyonu
+
+---
+
+## 🕷️ Scraper Sistemi
+
+### Dosya Yapısı
+```
+backend/src/scraper/
+├── browser-manager.js    # Puppeteer singleton
+├── session-manager.js    # Cookie kaydet/yükle
+├── login-service.js      # ihalebul.com login
+├── list-scraper.js       # Liste çekme + DB upsert
+├── document-scraper.js   # Döküman/içerik çekme
+├── logger.js             # Merkezi loglama
+├── health.js             # Circuit breaker
+├── queue.js              # Job kuyruğu
+└── runner.js             # CLI çalıştırıcı
+```
+
+### API Endpoint'leri
+```bash
+# Scraper
+GET  /api/scraper/health              # Sistem durumu
+GET  /api/scraper/stats               # İstatistikler
+POST /api/scraper/trigger             # Manuel scraping
+POST /api/scraper/add-tender          # URL ile ihale ekle
+POST /api/scraper/fetch-documents/:id # Tek ihale döküman çek (on-demand)
+GET  /api/scraper/check-documents/:id # Döküman durumu kontrol
+POST /api/scraper/cleanup-documents   # Tüm başarısız dökümanları temizle
+POST /api/scraper/cleanup-tender/:id  # Tek ihale için temizlik
+
+# Döküman İndirme
+GET  /api/tender-docs/:id/download-status    # İndirme durumu (failed dahil)
+POST /api/tender-docs/:id/download-documents # Döküman indir + ZIP aç (otomatik cleanup)
+```
+
+### Kullanım
+```javascript
+// URL ile ihale ekleme
+const res = await fetch(`${API_BASE_URL}/api/scraper/add-tender`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ url: 'https://ihalebul.com/tender/123456' })
+});
+
+// Tek ihale için döküman çekme (on-demand)
+await fetch(`${API_BASE_URL}/api/scraper/fetch-documents/${tenderId}`, {
+  method: 'POST'
+});
+
+// Döküman durumu kontrol
+const status = await fetch(`${API_BASE_URL}/api/tender-docs/${tenderId}/download-status`);
+// Response: { pendingTypes, downloadedTypes, failedTypes, hasFailedDownloads, isComplete }
+
+// Dökümanları indir (failed olanları otomatik temizler, ZIP'leri açar)
+await fetch(`${API_BASE_URL}/api/tender-docs/${tenderId}/download-documents`, {
+  method: 'POST'
+});
+```
+
+### Production Notları
+- Chromium kurulumu gerekli: `snap install chromium`
+- `.env`'de `PUPPETEER_EXECUTABLE_PATH=/snap/bin/chromium`
+- Session dosyası: `backend/storage/session.json` (.gitignore'da olmalı)
 
 ---
 
@@ -195,10 +319,13 @@ fetch(`${API_BASE_URL}/api/cariler`);
 
 1. Raw SQL'de string concatenation (SQL injection riski)
 2. Hardcoded credentials (.env kullan)
-3. console.log production'da (proper logging)
+3. console.log production'da (winston logger kullan)
 4. Senkron dosya işlemleri (async kullan)
 5. Global state (component-level state tercih)
 6. **Hardcoded API URL'ler (`localhost:3001`)** - `API_BASE_URL` kullan!
+7. **Tailwind CSS kullanma** - Mantine kullan!
+8. **require/module.exports** - ES Modules import/export kullan!
+9. **NextAuth kullanma** - Custom AuthContext kullan!
 
 ---
 

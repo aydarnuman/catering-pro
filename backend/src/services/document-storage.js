@@ -486,14 +486,20 @@ class DocumentStorageService {
 
       const storageUrl = urlData?.publicUrl || null;
 
-      // 3. documents tablosuna kaydet
+      // 3. documents tablosuna kaydet (duplike kontrolü ile)
       const insertResult = await pool.query(
         `INSERT INTO documents (
           tender_id, filename, original_filename, file_type, file_size,
           file_path, storage_path, storage_url, source_url, doc_type,
           source_type, is_extracted, processing_status
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-        RETURNING id, storage_path, storage_url`,
+        ON CONFLICT (tender_id, original_filename) WHERE tender_id IS NOT NULL
+        DO UPDATE SET 
+          storage_path = EXCLUDED.storage_path,
+          storage_url = EXCLUDED.storage_url,
+          file_size = EXCLUDED.file_size,
+          updated_at = NOW()
+        RETURNING id, storage_path, storage_url, (xmax = 0) as is_new`,
         [
           tenderId,
           storageFileName,
@@ -516,6 +522,11 @@ class DocumentStorageService {
       // Kayıt kontrolü
       if (!insertedDoc || !insertedDoc.id) {
         throw new Error('Döküman veritabanına kaydedilemedi');
+      }
+      
+      // Duplike uyarısı
+      if (!insertedDoc.is_new) {
+        console.log(`⚠️ Döküman zaten mevcut, güncellendi: ${displayName}`);
       }
 
       console.log(`✅ Döküman DB'ye kaydedildi: ID=${insertedDoc.id}, storage_path=${insertedDoc.storage_path}, storage_url=${insertedDoc.storage_url || 'NULL'}`);
