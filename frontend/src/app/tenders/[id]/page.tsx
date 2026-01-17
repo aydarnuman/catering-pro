@@ -85,6 +85,8 @@ interface Tender {
   } | null;
   is_updated?: boolean;
   last_update_date?: string;
+  updated_at?: string;
+  created_at?: string;
 }
 
 interface Document {
