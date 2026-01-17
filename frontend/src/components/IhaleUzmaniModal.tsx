@@ -837,46 +837,40 @@ export default function IhaleUzmaniModal({
         {/* DÖKÜMANLAR TAB */}
         <Tabs.Panel value="dokumanlar">
           <Tabs defaultValue="teknik" variant="pills" radius="md">
-            <Tabs.List mb="lg" style={{ gap: 8 }}>
+            <Tabs.List mb="lg" style={{ gap: 6 }}>
               <Tabs.Tab 
                 value="teknik" 
-                leftSection={<IconSettings size={16} />}
-                rightSection={
-                  <Badge size="sm" variant="filled" color="blue" circle>
-                    {analysisData.teknik_sartlar?.length || 0}
-                  </Badge>
-                }
+                leftSection={<IconSettings size={14} />}
                 style={{ fontWeight: 500 }}
               >
                 Teknik Şartlar
+                <Badge size="xs" variant="filled" color="blue" ml={6}>
+                  {analysisData.teknik_sartlar?.length || 0}
+                </Badge>
               </Tabs.Tab>
               <Tabs.Tab 
                 value="fiyat" 
-                leftSection={<IconCoin size={16} />}
-                rightSection={
-                  <Badge size="sm" variant="filled" color="green" circle>
-                    {analysisData.birim_fiyatlar?.length || 0}
-                  </Badge>
-                }
+                leftSection={<IconCoin size={14} />}
                 style={{ fontWeight: 500 }}
               >
                 Birim Fiyatlar
+                <Badge size="xs" variant="filled" color="green" ml={6}>
+                  {analysisData.birim_fiyatlar?.length || 0}
+                </Badge>
               </Tabs.Tab>
               <Tabs.Tab 
                 value="ainotlar" 
-                leftSection={<IconBulb size={16} />}
-                rightSection={
-                  <Badge size="sm" variant="gradient" gradient={{ from: 'orange', to: 'yellow' }} circle className="tab-badge-pulse">
-                    {analysisData.notlar?.length || 0}
-                  </Badge>
-                }
+                leftSection={<IconBulb size={14} />}
                 style={{ fontWeight: 500 }}
               >
                 AI Notları
+                <Badge size="xs" variant="gradient" gradient={{ from: 'orange', to: 'yellow' }} ml={6}>
+                  {analysisData.notlar?.length || 0}
+                </Badge>
               </Tabs.Tab>
               <Tabs.Tab 
                 value="metin" 
-                leftSection={<IconClipboardList size={16} />}
+                leftSection={<IconClipboardList size={14} />}
                 style={{ fontWeight: 500 }}
               >
                 Tam Metin
