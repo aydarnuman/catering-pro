@@ -160,7 +160,7 @@ export default function IhaleUzmaniModal({
   const [yaklasikMaliyet, setYaklasikMaliyet] = useState<number>(0);
   const [sinirDeger, setSinirDeger] = useState<number | null>(null);
   const [bizimTeklif, setBizimTeklif] = useState<number>(0);
-  const [teklifListesi, setTeklifListesi] = useState<number[]>([0, 0]);
+  const [teklifListesi, setTeklifListesi] = useState<{firma: string, tutar: number}[]>([{firma: '', tutar: 0}, {firma: '', tutar: 0}]);
   const [hesaplananSinirDeger, setHesaplananSinirDeger] = useState<number | null>(null);
   
   // Aşırı düşük
@@ -360,7 +360,7 @@ export default function IhaleUzmaniModal({
       return;
     }
 
-    const gecerliTeklifler = teklifListesi.filter(t => t > 0);
+    const gecerliTeklifler = teklifListesi.filter(t => t.tutar > 0).map(t => t.tutar);
     const n = gecerliTeklifler.length;
     
     if (n < 2) {
@@ -1083,22 +1083,31 @@ export default function IhaleUzmaniModal({
                     <div>
                       <Group justify="space-between" mb="xs">
                         <Text size="sm" fw={500}>Teklif Listesi</Text>
-                        <Button size="xs" variant="light" color="green" leftSection={<IconCheck size={14} />} onClick={() => setTeklifListesi(prev => [...prev, 0])}>
+                        <Button size="xs" variant="light" color="green" leftSection={<IconCheck size={14} />} onClick={() => setTeklifListesi(prev => [...prev, {firma: '', tutar: 0}])}>
                           Teklif Ekle
                         </Button>
                       </Group>
-                      <Stack gap="xs">
+                      <Stack gap="sm">
                         {teklifListesi.map((teklif, index) => (
-                          <Group key={index} gap="xs">
+                          <Group key={index} gap="xs" align="flex-end">
+                            <TextInput
+                              placeholder={`Firma ${index + 1} (opsiyonel)`}
+                              value={teklif.firma}
+                              onChange={(e) => setTeklifListesi(prev => prev.map((t, i) => i === index ? {...t, firma: e.target.value} : t))}
+                              style={{ flex: 1, maxWidth: 180 }}
+                              size="sm"
+                            />
                             <NumberInput
-                              placeholder={`${index + 1}. Teklif`}
-                              value={teklif || ''}
-                              onChange={(val) => setTeklifListesi(prev => prev.map((t, i) => i === index ? (Number(val) || 0) : t))}
+                              placeholder={`Teklif tutarı`}
+                              value={teklif.tutar || ''}
+                              onChange={(val) => setTeklifListesi(prev => prev.map((t, i) => i === index ? {...t, tutar: Number(val) || 0} : t))}
                               thousandSeparator="." decimalSeparator="," min={0}
                               style={{ flex: 1 }}
+                              size="sm"
+                              rightSection={<Text size="xs" c="dimmed">TL</Text>}
                             />
                             {teklifListesi.length > 2 && (
-                              <ActionIcon variant="light" color="red" onClick={() => setTeklifListesi(prev => prev.filter((_, i) => i !== index))}>
+                              <ActionIcon variant="light" color="red" onClick={() => setTeklifListesi(prev => prev.filter((_, i) => i !== index))} size="md">
                                 <IconTrash size={16} />
                               </ActionIcon>
                             )}
@@ -1113,7 +1122,7 @@ export default function IhaleUzmaniModal({
                       gradient={{ from: 'violet', to: 'indigo' }}
                       leftSection={<IconCalculator size={18} />} 
                       onClick={hesaplaSinirDeger} 
-                      disabled={teklifListesi.filter(t => t > 0).length < 2}
+                      disabled={teklifListesi.filter(t => t.tutar > 0).length < 2}
                     >
                       Sınır Değer Hesapla
                     </Button>
