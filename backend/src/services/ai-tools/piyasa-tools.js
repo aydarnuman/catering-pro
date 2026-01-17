@@ -164,28 +164,32 @@ const SPELLING_CORRECTIONS = {
  */
 const getAICorrection = async (term) => {
   try {
-    const response = await claudeAI.sendMessage(
-      `Türkçe gıda ürün araması: "${term}"
+    const prompt = `Türkçe gıda ürün araması: "${term}"
 
 Görev: Bu arama terimini analiz et ve JSON formatında yanıt ver.
 
 Kurallar:
-1. Yazım hatası varsa düzelt (örn: "şerk" → "şeker", "pirnc" → "pirinç")
-2. Gramaj/miktar yoksa (kg, g, lt, ml, adet) 3-5 öneri ver
+1. Yazım hatası varsa düzelt (örn: "şerk" → "şeker", "pirnc" → "pirinç", "piras" → "pirinç")
+2. Gramaj/miktar yoksa (kg, g, lt, ml, adet) 3-5 spesifik öneri ver
 3. Gramaj varsa direkt arama yapılabilir
 
-JSON formatı (başka hiçbir şey yazma):
+SADECE JSON formatında yanıt ver, başka hiçbir şey yazma:
 {
   "duzeltilmis": "düzeltilmiş terim veya null",
   "oneriler": ["öneri1 1kg", "öneri2 500g", ...],
   "arama_yapilabilir": true/false,
   "mesaj": "kullanıcıya mesaj"
-}`,
-      { systemPrompt: 'Sen Türkçe gıda ürünleri uzmanısın. Sadece JSON formatında yanıt ver, başka hiçbir şey yazma.' }
-    );
+}`;
+
+    const result = await claudeAI.askQuestion(prompt, 'STOK', 'default');
+    
+    if (!result.success) {
+      console.error('AI düzeltme hatası:', result.error);
+      return null;
+    }
     
     // JSON çıkar
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    const jsonMatch = result.response.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
     }
