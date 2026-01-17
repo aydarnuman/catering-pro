@@ -108,17 +108,17 @@ export function Navbar() {
       .slice(0, 2);
   };
 
-  // Glassmorphism styles
+  // Glassmorphism styles - More transparent
   const glassStyle = {
     backgroundColor: isDark 
-      ? 'rgba(26, 27, 30, 0.85)' 
-      : 'rgba(255, 255, 255, 0.9)',
-    backdropFilter: 'blur(20px) saturate(180%)',
-    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+      ? 'rgba(26, 27, 30, 0.65)' 
+      : 'rgba(255, 255, 255, 0.6)',
+    backdropFilter: 'blur(16px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}`,
     boxShadow: isDark
-      ? '0 4px 30px rgba(0, 0, 0, 0.3)'
-      : '0 4px 30px rgba(0, 0, 0, 0.08)',
+      ? '0 4px 30px rgba(0, 0, 0, 0.2)'
+      : '0 4px 30px rgba(0, 0, 0, 0.04)',
   };
 
   return (
@@ -150,22 +150,68 @@ export function Navbar() {
         >
           {/* LEFT: Logo */}
           <Link href="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
-            <Box style={{ 
-              display: 'flex', 
-              alignItems: 'center',
-              transition: 'transform 0.2s ease',
-            }}>
-              <img 
-                src="/logo-trimmed.png" 
-                alt="Catering Pro" 
-                style={{ 
-                  height: mounted && isMobile ? 50 : 58,
-                  width: 'auto',
-                  objectFit: 'contain',
+            <Box 
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center',
+                padding: '4px 8px',
+                borderRadius: 12,
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                background: 'transparent',
+              }}
+              className="logo-container"
+            >
+              {/* Logo with subtle glow */}
+              <Box
+                style={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
-              />
+              >
+                {/* Glow effect behind logo */}
+                <Box
+                  style={{
+                    position: 'absolute',
+                    width: mounted && isMobile ? 50 : 65,
+                    height: mounted && isMobile ? 50 : 65,
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(139, 92, 246, 0.12))',
+                    filter: 'blur(10px)',
+                    transition: 'all 0.3s ease',
+                  }}
+                  className="logo-glow"
+                />
+                <img 
+                  src="/logo-transparent.png" 
+                  alt="Catering Pro" 
+                  style={{ 
+                    position: 'relative',
+                    height: mounted && isMobile ? 56 : 68,
+                    width: 'auto',
+                    objectFit: 'contain',
+                    transition: 'transform 0.3s ease',
+                  }}
+                  className="logo-image"
+                />
+              </Box>
             </Box>
           </Link>
+          
+          {/* Logo hover styles */}
+          <style jsx global>{`
+            .logo-container:hover {
+              background: ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(59, 130, 246, 0.04)'};
+            }
+            .logo-container:hover .logo-glow {
+              filter: blur(14px);
+              transform: scale(1.3);
+            }
+            .logo-container:hover .logo-image {
+              transform: scale(1.05);
+            }
+          `}</style>
 
           {/* CENTER: Search Bar (Desktop & Tablet) */}
           {mounted && !isMobile && (

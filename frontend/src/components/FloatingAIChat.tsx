@@ -11,10 +11,13 @@ import {
   CloseButton,
   Badge,
   Tooltip,
-  useMantineColorScheme
+  useMantineColorScheme,
+  ThemeIcon,
+  Stack,
+  Kbd
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { IconRobot, IconSparkles, IconX, IconMinus } from '@tabler/icons-react';
+import { IconRobot, IconSparkles, IconX, IconMinus, IconMaximize, IconMessageCircle, IconBolt } from '@tabler/icons-react';
 import { usePathname } from 'next/navigation';
 import { AIChat } from './AIChat';
 import { API_BASE_URL } from '@/lib/config';
@@ -225,43 +228,109 @@ export function FloatingAIChat() {
 
   return (
     <>
-      {/* Floating Button - Her zaman görünür */}
+      {/* Floating Button - Modern Design */}
       <Tooltip 
-        label={`${info.icon} ${info.title}${alertCount > 0 ? ` (${alertCount} uyarı)` : ''}`} 
+        label={
+          <Stack gap={4} align="center">
+            <Text size="sm" fw={600}>{info.icon} {info.title}</Text>
+            {alertCount > 0 && <Text size="xs" c="red.3">{alertCount} uyarı bekliyor</Text>}
+            {!isMobile && <Text size="xs" c="dimmed">⌘K ile aç</Text>}
+          </Stack>
+        }
         position="left"
         withArrow
         disabled={isOpen}
+        styles={{ tooltip: { padding: '8px 12px' } }}
       >
-        <Box style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1001 }}>
+        <Box 
+          style={{ 
+            position: 'fixed', 
+            bottom: 24, 
+            right: 24, 
+            zIndex: 1001,
+          }}
+        >
+          {/* Outer glow ring */}
           <Box
             style={{
-              width: 72,
-              height: 72,
+              position: 'absolute',
+              inset: -4,
               borderRadius: '50%',
-              background: 'white',
-              boxShadow: '0 6px 30px rgba(102, 126, 234, 0.5)',
+              background: 'linear-gradient(135deg, #667eea, #764ba2, #f093fb)',
+              opacity: isOpen ? 0.8 : 0.4,
+              filter: 'blur(8px)',
               transition: 'all 0.3s ease',
+              animation: showPulse && !isOpen ? 'pulse 2s infinite' : 'none',
+            }}
+          />
+          
+          {/* Main button */}
+          <Box
+            style={{
+              position: 'relative',
+              width: 68,
+              height: 68,
+              borderRadius: '50%',
+              background: 'linear-gradient(145deg, #ffffff, #f5f5f5)',
+              boxShadow: isOpen 
+                ? '0 8px 32px rgba(102, 126, 234, 0.6), inset 0 1px 0 rgba(255,255,255,0.8)'
+                : '0 6px 24px rgba(102, 126, 234, 0.4), inset 0 1px 0 rgba(255,255,255,0.8)',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              border: '2px solid #667eea',
+              border: '2px solid transparent',
+              backgroundClip: 'padding-box',
               overflow: 'hidden',
+              transform: isOpen ? 'scale(0.95)' : 'scale(1)',
             }}
             onClick={() => setIsOpen(!isOpen)}
-            className={showPulse && !isOpen ? 'pulse-animation' : ''}
+            onMouseEnter={(e) => {
+              if (!isOpen) {
+                e.currentTarget.style.transform = 'scale(1.08)';
+                e.currentTarget.style.boxShadow = '0 10px 40px rgba(102, 126, 234, 0.6)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = isOpen ? 'scale(0.95)' : 'scale(1)';
+              e.currentTarget.style.boxShadow = isOpen 
+                ? '0 8px 32px rgba(102, 126, 234, 0.6), inset 0 1px 0 rgba(255,255,255,0.8)'
+                : '0 6px 24px rgba(102, 126, 234, 0.4), inset 0 1px 0 rgba(255,255,255,0.8)';
+            }}
           >
+            {/* Gradient border */}
+            <Box
+              style={{
+                position: 'absolute',
+                inset: -2,
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #667eea, #764ba2, #f093fb)',
+                zIndex: -1,
+              }}
+            />
+            <Box
+              style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: '50%',
+                background: 'white',
+              }}
+            />
             <img 
               src="/ai-chef-icon-trimmed.png" 
               alt="AI Asistan" 
               style={{ 
-                width: 64, 
-                height: 64, 
+                position: 'relative',
+                width: 56, 
+                height: 56, 
                 objectFit: 'cover',
+                borderRadius: '50%',
               }} 
             />
           </Box>
-          {/* Alert Badge */}
+          
+          {/* Alert Badge - Improved */}
           {alertCount > 0 && !isOpen && (
             <Badge
               size="sm"
@@ -269,21 +338,40 @@ export function FloatingAIChat() {
               variant="filled"
               style={{
                 position: 'absolute',
-                top: -4,
-                right: -4,
-                minWidth: 20,
-                height: 20,
+                top: -6,
+                right: -6,
+                minWidth: 22,
+                height: 22,
                 padding: '0 6px',
-                borderRadius: 10,
+                borderRadius: 11,
+                boxShadow: '0 2px 8px rgba(239, 68, 68, 0.5)',
+                border: '2px solid white',
+                fontWeight: 700,
+                animation: 'pulse 1.5s infinite',
               }}
             >
               {alertCount > 9 ? '9+' : alertCount}
             </Badge>
           )}
+          
+          {/* Online indicator dot */}
+          <Box
+            style={{
+              position: 'absolute',
+              bottom: 4,
+              right: 4,
+              width: 14,
+              height: 14,
+              borderRadius: '50%',
+              background: '#4ade80',
+              border: '2px solid white',
+              boxShadow: '0 0 8px rgba(74, 222, 128, 0.6)',
+            }}
+          />
         </Box>
       </Tooltip>
 
-      {/* Pulse Animation Style */}
+      {/* Animations */}
       <style jsx global>{`
         @keyframes pulse {
           0% {
@@ -303,9 +391,38 @@ export function FloatingAIChat() {
           animation: none;
           transform: scale(1.1);
         }
+        
+        @keyframes shimmer {
+          0% {
+            transform: translateX(-100%);
+          }
+          100% {
+            transform: translateX(100%);
+          }
+        }
+        
+        @keyframes pulse-green {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.6;
+            transform: scale(1.2);
+          }
+        }
+        
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-5px);
+          }
+        }
       `}</style>
 
-      {/* Chat Window - Butonun üstünde açılır */}
+      {/* Chat Window - Modern Design */}
       <Transition mounted={isOpen} transition="slide-up" duration={300}>
         {(styles) => (
           <Paper
@@ -318,91 +435,179 @@ export function FloatingAIChat() {
               left: isMobile ? 0 : 'auto',
               top: isMobile ? 0 : 'auto',
               zIndex: 1001,
-              width: isMobile ? '100%' : (isMinimized ? 320 : 420),
-              height: isMobile ? '100%' : (isMinimized ? 60 : 550),
+              width: isMobile ? '100%' : (isMinimized ? 340 : 440),
+              height: isMobile ? '100%' : (isMinimized ? 'auto' : 580),
               maxHeight: isMobile ? '100%' : 'calc(100vh - 150px)',
               overflow: 'hidden',
-              borderRadius: isMobile ? 0 : 16,
-              boxShadow: isMobile ? 'none' : '0 8px 32px rgba(0, 0, 0, 0.15)',
-              border: isMobile ? 'none' : `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+              borderRadius: isMobile ? 0 : 20,
+              boxShadow: isMobile ? 'none' : '0 25px 50px -12px rgba(102, 126, 234, 0.25), 0 0 0 1px rgba(102, 126, 234, 0.1)',
+              border: isMobile ? 'none' : 'none',
               display: 'flex',
               flexDirection: 'column',
-              transition: 'all 0.3s ease',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              background: isDark ? '#1a1b1e' : '#ffffff',
             }}
           >
-            {/* Header */}
+            {/* Header - Modern Glassmorphism */}
             <Box
               style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                padding: '12px 16px',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+                padding: isMinimized ? '10px 16px' : '14px 16px',
                 cursor: 'pointer',
+                position: 'relative',
+                overflow: 'hidden',
               }}
               onClick={() => isMinimized && setIsMinimized(false)}
             >
-              <Group justify="space-between">
-                <Group gap="xs">
-                  <Text size="xl">{info.icon}</Text>
+              {/* Animated background effect */}
+              <Box
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%)',
+                  animation: 'shimmer 3s infinite',
+                }}
+              />
+              
+              <Group justify="space-between" style={{ position: 'relative', zIndex: 1 }}>
+                <Group gap="sm">
+                  {/* AI Avatar with glow */}
+                  <Box
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '50%',
+                      background: 'rgba(255,255,255,0.2)',
+                      backdropFilter: 'blur(10px)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 0 20px rgba(255,255,255,0.3)',
+                    }}
+                  >
+                    <Text size="lg">{info.icon}</Text>
+                  </Box>
                   <div>
-                    <Text size="sm" fw={600} c="white">
-                      {info.title}
-                    </Text>
+                    <Group gap={6}>
+                      <Text size="sm" fw={700} c="white" style={{ letterSpacing: '0.3px' }}>
+                        {isMinimized ? 'AI Asistan' : info.title}
+                      </Text>
+                      {/* Online indicator */}
+                      <Box
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          background: '#4ade80',
+                          boxShadow: '0 0 8px #4ade80',
+                          animation: 'pulse-green 2s infinite',
+                        }}
+                      />
+                    </Group>
                     {!isMinimized && (
-                      <Text size="xs" c="rgba(255,255,255,0.7)">
+                      <Text size="xs" c="rgba(255,255,255,0.8)" mt={2}>
                         {pageContext?.type === 'tender' && pageContext.id 
-                          ? `İhale ${(() => {
-                              // external_id varsa ve timestamp değilse (10 haneden küçükse) kullan
+                          ? `📋 İhale ${(() => {
                               const extId = pageContext.data?.external_id;
                               if (extId && String(extId).length < 12 && String(extId).includes('/')) {
                                 return extId;
                               }
-                              // Title'dan EKAP numarasını parse et (örn: "2025/2427594 - Yemek...")
                               const title = pageContext.data?.title || pageContext.title || '';
                               const match = title.match(/^(\d{4}\/\d+)/);
                               if (match) return match[1];
                               return '#' + pageContext.id;
                             })()}` 
                           : pageContext?.type === 'invoice' && pageContext.id
-                          ? `Fatura #${pageContext.id}`
+                          ? `🧾 Fatura #${pageContext.id}`
                           : pageContext?.type === 'cari' && pageContext.id
-                          ? `Cari #${pageContext.id}`
-                          : pathname.split('/').pop() || 'Genel'} sayfası
+                          ? `🏢 Cari #${pageContext.id}`
+                          : `📍 ${pathname.split('/').filter(Boolean).pop() || 'Ana Sayfa'}`}
                       </Text>
                     )}
                   </div>
                 </Group>
-                <Group gap={4}>
-                  <Badge 
-                    size="xs" 
-                    variant="white" 
-                    color="white"
-                    style={{ background: 'rgba(255,255,255,0.2)', color: 'white' }}
-                  >
-                    AI
-                  </Badge>
+                <Group gap={6}>
+                  {/* Keyboard shortcut hint */}
+                  {!isMinimized && !isMobile && (
+                    <Tooltip label="Kısayol: ⌘K" withArrow position="bottom">
+                      <Badge 
+                        size="xs" 
+                        variant="white" 
+                        style={{ 
+                          background: 'rgba(255,255,255,0.15)', 
+                          color: 'white',
+                          backdropFilter: 'blur(10px)',
+                          cursor: 'default'
+                        }}
+                      >
+                        <Group gap={2}>
+                          <IconBolt size={10} />
+                          AI
+                        </Group>
+                      </Badge>
+                    </Tooltip>
+                  )}
                   <ActionIcon 
                     variant="transparent" 
                     c="white" 
                     size="sm"
+                    style={{ 
+                      background: 'rgba(255,255,255,0.1)',
+                      borderRadius: 6,
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
                       setIsMinimized(!isMinimized);
                     }}
                   >
-                    <IconMinus size={16} />
+                    {isMinimized ? <IconMaximize size={14} /> : <IconMinus size={14} />}
                   </ActionIcon>
                   <ActionIcon 
                     variant="transparent" 
                     c="white" 
                     size="sm"
+                    style={{ 
+                      background: 'rgba(255,255,255,0.1)',
+                      borderRadius: 6,
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
                       setIsOpen(false);
                     }}
                   >
-                    <IconX size={16} />
+                    <IconX size={14} />
                   </ActionIcon>
                 </Group>
               </Group>
+              
+              {/* Quick actions bar when minimized */}
+              {isMinimized && (
+                <Group gap="xs" mt={8} style={{ position: 'relative', zIndex: 1 }}>
+                  <Badge 
+                    size="xs" 
+                    variant="white"
+                    style={{ 
+                      background: 'rgba(255,255,255,0.2)', 
+                      color: 'white',
+                      cursor: 'pointer'
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsMinimized(false);
+                    }}
+                  >
+                    💬 Sohbete devam et
+                  </Badge>
+                  {alertCount > 0 && (
+                    <Badge size="xs" color="red" variant="filled">
+                      {alertCount} uyarı
+                    </Badge>
+                  )}
+                </Group>
+              )}
             </Box>
 
             {/* Chat Content */}
