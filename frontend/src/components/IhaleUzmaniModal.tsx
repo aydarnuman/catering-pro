@@ -790,7 +790,7 @@ export default function IhaleUzmaniModal({
             </Tabs.List>
 
             <Tabs.Panel value="teknik">
-              <ScrollArea h={400} offsetScrollbars>
+              <ScrollArea h="calc(100vh - 280px)" offsetScrollbars>
                 {analysisData.teknik_sartlar && analysisData.teknik_sartlar.length > 0 ? (
                   <Stack gap="xs">
                     {analysisData.teknik_sartlar.map((sart, i) => (
@@ -835,7 +835,7 @@ export default function IhaleUzmaniModal({
             </Tabs.Panel>
 
             <Tabs.Panel value="fiyat">
-              <ScrollArea h={400} offsetScrollbars>
+              <ScrollArea h="calc(100vh - 280px)" offsetScrollbars>
                 {analysisData.birim_fiyatlar && analysisData.birim_fiyatlar.length > 0 ? (
                   <Table striped highlightOnHover withTableBorder>
                     <Table.Thead>
@@ -870,7 +870,7 @@ export default function IhaleUzmaniModal({
             </Tabs.Panel>
 
             <Tabs.Panel value="ainotlar">
-              <ScrollArea h={400} offsetScrollbars>
+              <ScrollArea h="calc(100vh - 280px)" offsetScrollbars>
                 {analysisData.notlar && analysisData.notlar.length > 0 ? (
                   <Stack gap="xs">
                     {analysisData.notlar.map((not, i) => (
@@ -910,7 +910,7 @@ export default function IhaleUzmaniModal({
             </Tabs.Panel>
 
             <Tabs.Panel value="metin">
-              <ScrollArea h={400} offsetScrollbars>
+              <ScrollArea h="calc(100vh - 280px)" offsetScrollbars>
                 {analysisData.tam_metin ? (
                   <Paper p="md" withBorder bg="gray.0">
                     <Text size="sm" style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
@@ -927,7 +927,7 @@ export default function IhaleUzmaniModal({
 
         {/* HESAPLAMALAR TAB */}
         <Tabs.Panel value="hesaplamalar">
-          <ScrollArea h={500} offsetScrollbars>
+          <ScrollArea h="calc(100vh - 200px)" offsetScrollbars>
             <Accordion defaultValue="sinir-deger" variant="separated">
               {/* Sınır Değer Hesaplama */}
               <Accordion.Item value="sinir-deger">
@@ -1086,7 +1086,7 @@ export default function IhaleUzmaniModal({
 
         {/* AI DANIŞMAN TAB */}
         <Tabs.Panel value="ai">
-          <Stack gap="md" h={500}>
+          <Stack gap="md" h="calc(100vh - 200px)">
             {/* Quick Actions */}
             <Group gap="xs">
               {quickActions.map((action, i) => (
