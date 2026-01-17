@@ -1039,27 +1039,21 @@ export default function IhaleUzmaniModal({
         {/* HESAPLAMALAR TAB */}
         <Tabs.Panel value="hesaplamalar">
           <ScrollArea h="calc(100vh - 200px)" offsetScrollbars>
+            <Box style={{ maxWidth: 700, margin: '0 auto' }}>
             <Accordion 
               defaultValue="sinir-deger" 
               variant="separated"
-              radius="lg"
+              radius="md"
               styles={{
                 item: {
                   border: '1px solid var(--mantine-color-gray-3)',
-                  marginBottom: 12,
-                  '&[data-active]': {
-                    border: '2px solid var(--mantine-color-violet-4)',
-                  }
+                  marginBottom: 10,
                 },
                 control: {
-                  padding: '16px 20px',
-                  '&:hover': {
-                    background: 'var(--mantine-color-gray-0)',
-                  }
+                  padding: '12px 16px',
                 },
                 panel: {
-                  padding: '20px',
-                  background: 'var(--mantine-color-gray-0)',
+                  padding: '16px',
                 }
               }}
             >
@@ -1114,15 +1108,14 @@ export default function IhaleUzmaniModal({
                     </div>
 
                     <Button 
-                      size="lg" 
+                      size="md" 
                       variant="gradient" 
                       gradient={{ from: 'violet', to: 'indigo' }}
                       leftSection={<IconCalculator size={18} />} 
                       onClick={hesaplaSinirDeger} 
                       disabled={teklifListesi.filter(t => t > 0).length < 2}
-                      fullWidth
                     >
-                      🧮 Sınır Değer Hesapla
+                      Sınır Değer Hesapla
                     </Button>
 
                     {hesaplananSinirDeger && (
@@ -1169,7 +1162,7 @@ export default function IhaleUzmaniModal({
                     leftSection={<IconCalculator size={16} />} 
                     onClick={hesaplaAsiriDusuk}
                   >
-                    📊 Aşırı Düşük Analiz
+                    Aşırı Düşük Analiz
                   </Button>
                   {asiriDusukSonuc && (
                     <Alert mt="md" color={asiriDusukSonuc.gecerli ? 'green' : 'red'} icon={asiriDusukSonuc.gecerli ? <IconCheck size={18} /> : <IconX size={18} />}>
@@ -1206,7 +1199,7 @@ export default function IhaleUzmaniModal({
                     leftSection={<IconCalendar size={16} />} 
                     onClick={hesaplaSure}
                   >
-                    📅 Süre Hesapla
+                    Süre Hesapla
                   </Button>
                   {sureSonuc && (
                     <Alert mt="md" color={sureSonuc.kalanGun > 3 ? 'blue' : sureSonuc.kalanGun > 0 ? 'orange' : 'red'} icon={<IconCalendar size={18} />}>
@@ -1240,7 +1233,7 @@ export default function IhaleUzmaniModal({
                     leftSection={<IconCoin size={16} />} 
                     onClick={hesaplaBedel}
                   >
-                    💰 Bedel Hesapla
+                    Bedel Hesapla
                   </Button>
                   {bedelSonuc && (
                     <Alert mt="md" color="green" icon={<IconCoin size={18} />}>
@@ -1251,6 +1244,7 @@ export default function IhaleUzmaniModal({
                 </Accordion.Panel>
               </Accordion.Item>
             </Accordion>
+            </Box>
           </ScrollArea>
         </Tabs.Panel>
 
