@@ -1039,11 +1039,43 @@ export default function IhaleUzmaniModal({
         {/* HESAPLAMALAR TAB */}
         <Tabs.Panel value="hesaplamalar">
           <ScrollArea h="calc(100vh - 200px)" offsetScrollbars>
-            <Accordion defaultValue="sinir-deger" variant="separated">
+            <Accordion 
+              defaultValue="sinir-deger" 
+              variant="separated"
+              radius="lg"
+              styles={{
+                item: {
+                  border: '1px solid var(--mantine-color-gray-3)',
+                  marginBottom: 12,
+                  '&[data-active]': {
+                    border: '2px solid var(--mantine-color-violet-4)',
+                  }
+                },
+                control: {
+                  padding: '16px 20px',
+                  '&:hover': {
+                    background: 'var(--mantine-color-gray-0)',
+                  }
+                },
+                panel: {
+                  padding: '20px',
+                  background: 'var(--mantine-color-gray-0)',
+                }
+              }}
+            >
               {/* Sınır Değer Hesaplama */}
               <Accordion.Item value="sinir-deger">
-                <Accordion.Control icon={<IconMathFunction size={20} color="var(--mantine-color-violet-6)" />}>
-                  <Text fw={500}>Sınır Değer Hesaplama (KİK Formülü)</Text>
+                <Accordion.Control 
+                  icon={
+                    <ThemeIcon size={36} radius="xl" variant="gradient" gradient={{ from: 'violet', to: 'indigo' }}>
+                      <IconMathFunction size={20} />
+                    </ThemeIcon>
+                  }
+                >
+                  <div>
+                    <Text fw={600} size="md">Sınır Değer Hesaplama</Text>
+                    <Text size="xs" c="dimmed">KİK Formülü ile hesaplama</Text>
+                  </div>
                 </Accordion.Control>
                 <Accordion.Panel>
                   <Stack gap="md">
@@ -1112,8 +1144,17 @@ export default function IhaleUzmaniModal({
 
               {/* Aşırı Düşük Hesaplama */}
               <Accordion.Item value="asiri-dusuk">
-                <Accordion.Control icon={<IconReportMoney size={20} color="var(--mantine-color-orange-6)" />}>
-                  <Text fw={500}>Aşırı Düşük Teklif Hesaplama</Text>
+                <Accordion.Control 
+                  icon={
+                    <ThemeIcon size={36} radius="xl" variant="gradient" gradient={{ from: 'orange', to: 'red' }}>
+                      <IconReportMoney size={20} />
+                    </ThemeIcon>
+                  }
+                >
+                  <div>
+                    <Text fw={600} size="md">Aşırı Düşük Teklif Hesaplama</Text>
+                    <Text size="xs" c="dimmed">Teklif oranı analizi</Text>
+                  </div>
                 </Accordion.Control>
                 <Accordion.Panel>
                   <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md" mb="md">
@@ -1141,8 +1182,17 @@ export default function IhaleUzmaniModal({
 
               {/* Süre Hesaplama */}
               <Accordion.Item value="sure">
-                <Accordion.Control icon={<IconCalendar size={20} color="var(--mantine-color-blue-6)" />}>
-                  <Text fw={500}>İtiraz Süresi Hesaplama</Text>
+                <Accordion.Control 
+                  icon={
+                    <ThemeIcon size={36} radius="xl" variant="gradient" gradient={{ from: 'blue', to: 'cyan' }}>
+                      <IconCalendar size={20} />
+                    </ThemeIcon>
+                  }
+                >
+                  <div>
+                    <Text fw={600} size="md">İtiraz Süresi Hesaplama</Text>
+                    <Text size="xs" c="dimmed">Şikayet ve itirazen şikayet süreleri</Text>
+                  </div>
                 </Accordion.Control>
                 <Accordion.Panel>
                   <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" mb="md">
@@ -1169,8 +1219,17 @@ export default function IhaleUzmaniModal({
 
               {/* Bedel Hesaplama */}
               <Accordion.Item value="bedel">
-                <Accordion.Control icon={<IconCoin size={20} color="var(--mantine-color-green-6)" />}>
-                  <Text fw={500}>İtirazen Şikayet Bedeli (2025)</Text>
+                <Accordion.Control 
+                  icon={
+                    <ThemeIcon size={36} radius="xl" variant="gradient" gradient={{ from: 'green', to: 'teal' }}>
+                      <IconCoin size={20} />
+                    </ThemeIcon>
+                  }
+                >
+                  <div>
+                    <Text fw={600} size="md">İtirazen Şikayet Bedeli</Text>
+                    <Text size="xs" c="dimmed">2025 yılı güncel tarifeleri</Text>
+                  </div>
                 </Accordion.Control>
                 <Accordion.Panel>
                   <NumberInput label="Yaklaşık Maliyet (TL)" value={bedelData.yaklasikMaliyet || ''} onChange={(val) => setBedelData({ yaklasikMaliyet: Number(val) || 0 })} thousandSeparator="." decimalSeparator="," min={0} mb="md" style={{ maxWidth: 300 }} />
@@ -1325,44 +1384,151 @@ export default function IhaleUzmaniModal({
 
         {/* DİLEKÇELER TAB */}
         <Tabs.Panel value="dilekce">
-          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-            <Card withBorder padding="lg" radius="md">
-              <ThemeIcon size={40} radius="md" variant="light" color="orange" mb="md">
-                <IconFileAnalytics size={22} />
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
+            {/* Aşırı Düşük Açıklama */}
+            <Card 
+              withBorder 
+              padding="xl" 
+              radius="lg"
+              className="ihale-card"
+              style={{ 
+                background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.05) 0%, rgba(234, 88, 12, 0.02) 100%)',
+                borderColor: 'var(--mantine-color-orange-3)'
+              }}
+            >
+              <ThemeIcon 
+                size={56} 
+                radius="xl" 
+                variant="gradient" 
+                gradient={{ from: 'orange', to: 'red' }}
+                mb="lg"
+                style={{ boxShadow: '0 4px 15px rgba(249, 115, 22, 0.3)' }}
+              >
+                <IconFileAnalytics size={28} />
               </ThemeIcon>
-              <Text fw={600} mb="xs">Aşırı Düşük Açıklama</Text>
-              <Text size="sm" c="dimmed" mb="md">EK-H.4 formatında aşırı düşük teklif açıklama yazısı</Text>
-              <Button variant="light" onClick={() => { setActiveTab('ai'); setInputMessage('Bu ihale için aşırı düşük teklif açıklama yazısı hazırla. EK-H.4 formatında olsun.'); }}>
+              <Text fw={700} size="lg" mb="xs">Aşırı Düşük Açıklama</Text>
+              <Text size="sm" c="dimmed" mb="lg" style={{ lineHeight: 1.6 }}>
+                EK-H.4 formatında aşırı düşük teklif açıklama yazısı oluşturun
+              </Text>
+              <Button 
+                fullWidth 
+                variant="gradient" 
+                gradient={{ from: 'orange', to: 'red' }}
+                size="md"
+                radius="md"
+                onClick={() => { setActiveTab('ai'); setInputMessage('Bu ihale için aşırı düşük teklif açıklama yazısı hazırla. EK-H.4 formatında olsun.'); }}
+              >
                 Oluştur
               </Button>
             </Card>
-            <Card withBorder padding="lg" radius="md">
-              <ThemeIcon size={40} radius="md" variant="light" color="red" mb="md">
-                <IconGavel size={22} />
+
+            {/* İdareye Şikayet */}
+            <Card 
+              withBorder 
+              padding="xl" 
+              radius="lg"
+              className="ihale-card"
+              style={{ 
+                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(220, 38, 38, 0.02) 100%)',
+                borderColor: 'var(--mantine-color-red-3)'
+              }}
+            >
+              <ThemeIcon 
+                size={56} 
+                radius="xl" 
+                variant="gradient" 
+                gradient={{ from: 'red', to: 'pink' }}
+                mb="lg"
+                style={{ boxShadow: '0 4px 15px rgba(239, 68, 68, 0.3)' }}
+              >
+                <IconGavel size={28} />
               </ThemeIcon>
-              <Text fw={600} mb="xs">İdareye Şikayet Dilekçesi</Text>
-              <Text size="sm" c="dimmed" mb="md">4734 sayılı Kanun kapsamında şikayet başvurusu</Text>
-              <Button variant="light" color="red" onClick={() => { setActiveTab('ai'); setInputMessage('Bu ihale için idareye şikayet dilekçesi taslağı hazırla.'); }}>
+              <Text fw={700} size="lg" mb="xs">İdareye Şikayet Dilekçesi</Text>
+              <Text size="sm" c="dimmed" mb="lg" style={{ lineHeight: 1.6 }}>
+                4734 sayılı Kanun kapsamında şikayet başvurusu taslağı
+              </Text>
+              <Button 
+                fullWidth 
+                variant="gradient" 
+                gradient={{ from: 'red', to: 'pink' }}
+                size="md"
+                radius="md"
+                onClick={() => { setActiveTab('ai'); setInputMessage('Bu ihale için idareye şikayet dilekçesi taslağı hazırla.'); }}
+              >
                 Oluştur
               </Button>
             </Card>
-            <Card withBorder padding="lg" radius="md">
-              <ThemeIcon size={40} radius="md" variant="light" color="violet" mb="md">
-                <IconScale size={22} />
+
+            {/* KİK İtirazen Şikayet */}
+            <Card 
+              withBorder 
+              padding="xl" 
+              radius="lg"
+              className="ihale-card"
+              style={{ 
+                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(124, 58, 237, 0.02) 100%)',
+                borderColor: 'var(--mantine-color-violet-3)'
+              }}
+            >
+              <ThemeIcon 
+                size={56} 
+                radius="xl" 
+                variant="gradient" 
+                gradient={{ from: 'violet', to: 'grape' }}
+                mb="lg"
+                style={{ boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)' }}
+              >
+                <IconScale size={28} />
               </ThemeIcon>
-              <Text fw={600} mb="xs">KİK İtirazen Şikayet</Text>
-              <Text size="sm" c="dimmed" mb="md">Kamu İhale Kurumuna itirazen şikayet başvurusu</Text>
-              <Button variant="light" color="violet" onClick={() => { setActiveTab('ai'); setInputMessage('Bu ihale için KİK\'e itirazen şikayet dilekçesi hazırla.'); }}>
+              <Text fw={700} size="lg" mb="xs">KİK İtirazen Şikayet</Text>
+              <Text size="sm" c="dimmed" mb="lg" style={{ lineHeight: 1.6 }}>
+                Kamu İhale Kurumuna itirazen şikayet başvurusu
+              </Text>
+              <Button 
+                fullWidth 
+                variant="gradient" 
+                gradient={{ from: 'violet', to: 'grape' }}
+                size="md"
+                radius="md"
+                onClick={() => { setActiveTab('ai'); setInputMessage('Bu ihale için KİK\'e itirazen şikayet dilekçesi hazırla.'); }}
+              >
                 Oluştur
               </Button>
             </Card>
-            <Card withBorder padding="lg" radius="md">
-              <ThemeIcon size={40} radius="md" variant="light" color="blue" mb="md">
-                <IconSearch size={22} />
+
+            {/* Emsal Karar Araştırması */}
+            <Card 
+              withBorder 
+              padding="xl" 
+              radius="lg"
+              className="ihale-card"
+              style={{ 
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(37, 99, 235, 0.02) 100%)',
+                borderColor: 'var(--mantine-color-blue-3)'
+              }}
+            >
+              <ThemeIcon 
+                size={56} 
+                radius="xl" 
+                variant="gradient" 
+                gradient={{ from: 'blue', to: 'cyan' }}
+                mb="lg"
+                style={{ boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)' }}
+              >
+                <IconSearch size={28} />
               </ThemeIcon>
-              <Text fw={600} mb="xs">Emsal Karar Araştırması</Text>
-              <Text size="sm" c="dimmed" mb="md">Benzer KİK kararlarını araştır</Text>
-              <Button variant="light" color="blue" onClick={() => { setActiveTab('ai'); setInputMessage('Bu ihale konusunda benzer KİK kararlarını araştır.'); }}>
+              <Text fw={700} size="lg" mb="xs">Emsal Karar Araştırması</Text>
+              <Text size="sm" c="dimmed" mb="lg" style={{ lineHeight: 1.6 }}>
+                Benzer KİK kararlarını araştırın ve inceleyin
+              </Text>
+              <Button 
+                fullWidth 
+                variant="gradient" 
+                gradient={{ from: 'blue', to: 'cyan' }}
+                size="md"
+                radius="md"
+                onClick={() => { setActiveTab('ai'); setInputMessage('Bu ihale konusunda benzer KİK kararlarını araştır.'); }}
+              >
                 Araştır
               </Button>
             </Card>

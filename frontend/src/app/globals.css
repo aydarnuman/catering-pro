@@ -96,6 +96,21 @@ html {
   transform: translateY(-2px);
 }
 
+/* İhale card hover effect */
+.ihale-card {
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  cursor: pointer;
+}
+
+.ihale-card:hover {
+  transform: translateY(-6px) scale(1.01);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.ihale-card:active {
+  transform: translateY(-3px) scale(1.005);
+}
+
 /* Dark mode scrollbar */
 [data-mantine-color-scheme='dark'] ::-webkit-scrollbar-track {
   background: #1a1b1e;
