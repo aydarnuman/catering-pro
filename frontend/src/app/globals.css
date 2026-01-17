@@ -1,10 +1,34 @@
 /* Global Styles */
 :root {
-  --max-width: 1100px;
+  --max-width: 100%;
+  --content-max-width: 1800px;
   --border-radius: 12px;
   --font-mono: ui-monospace, Menlo, Monaco, 'Cascadia Mono', 'Segoe UI Mono',
     'Roboto Mono', 'Oxygen Mono', 'Ubuntu Monospace', 'Source Code Pro',
     'Fira Mono', 'Droid Sans Mono', 'Courier New', monospace;
+}
+
+/* Full width containers */
+.main-content .mantine-Container-root {
+  max-width: 95% !important;
+  width: 95% !important;
+  padding-left: 24px !important;
+  padding-right: 24px !important;
+}
+
+@media (min-width: 1600px) {
+  .main-content .mantine-Container-root {
+    max-width: 1700px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content .mantine-Container-root {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
 }
 
 * {
@@ -392,6 +416,24 @@ a {
   .settings-main-content {
     flex-wrap: nowrap;
   }
+}
+
+/* Piyasa Robotu - Soft hover effect */
+.price-row {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.price-row:hover {
+  background: var(--mantine-color-violet-light) !important;
+  transform: scale(1.002);
+}
+
+.price-row:hover td:first-child {
+  border-left: 3px solid var(--mantine-color-violet-5);
+}
+
+[data-mantine-color-scheme='dark'] .price-row:hover {
+  background: rgba(139, 92, 246, 0.15) !important;
 }
 
 /* Reduce motion for accessibility */

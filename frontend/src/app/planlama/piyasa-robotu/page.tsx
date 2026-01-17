@@ -102,15 +102,15 @@ const MarketLogo = ({ market, size = 24 }: { market: string; size?: number }) =>
             width: size + 6,
             height: size + 6,
             borderRadius: 6,
-            background: 'rgba(156, 163, 175, 0.2)',
+            background: 'var(--mantine-color-gray-light)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
           }}
         >
-          <Text fw={700} size="xs" c="gray.5">{market.charAt(0)}</Text>
+          <Text fw={700} size="xs" c="dimmed">{market.charAt(0)}</Text>
         </Box>
-        <Text size="sm" fw={500} c="white">{market}</Text>
+        <Text size="sm" fw={500}>{market}</Text>
       </Group>
     );
   }
@@ -133,7 +133,7 @@ const MarketLogo = ({ market, size = 24 }: { market: string; size?: number }) =>
           {info.letter}
         </Text>
       </Box>
-      <Text size="sm" fw={500} c="white">{market}</Text>
+      <Text size="sm" fw={500}>{market}</Text>
     </Group>
   );
 };
@@ -511,27 +511,8 @@ export default function PiyasaRobotuPage() {
   const activeSources = sources.filter(s => s.status === 'active').length;
 
   return (
-    <Box 
-      style={{ 
-        minHeight: '100vh', 
-        background: 'linear-gradient(180deg, #0c0c1d 0%, #1a1a2e 50%, #16213e 100%)'
-      }}
-    >
-      {/* Animated Background */}
-      <Box
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(74, 144, 226, 0.1) 0%, transparent 50%)',
-          pointerEvents: 'none',
-          zIndex: 0
-        }}
-      />
-
-      <Container size="xl" py="xl" style={{ position: 'relative', zIndex: 1 }}>
+    <>
+      <Container size="xl" py="xl">
         {/* Compact Header */}
         <Group justify="space-between" mb="lg">
           <Group gap="md">
@@ -539,7 +520,7 @@ export default function PiyasaRobotuPage() {
               <IconShoppingCart size={22} />
             </ThemeIcon>
             <Box>
-              <Title order={3} c="white">Piyasa Robotu</Title>
+              <Title order={3}>Piyasa Robotu</Title>
               <Group gap={6}>
                 <Badge size="xs" variant="dot" color="violet">AI</Badge>
                 <Badge size="xs" variant="outline" color="teal">{activeSources} Market Aktif</Badge>
@@ -579,10 +560,7 @@ export default function PiyasaRobotuPage() {
           p="xs"
           radius="lg"
           mb="lg"
-          style={{
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.08)'
-          }}
+          withBorder
         >
           <TextInput
             placeholder="Ürün adı yazın... (örn: pirinç baldo, tavuk but)"
@@ -591,7 +569,7 @@ export default function PiyasaRobotuPage() {
             value={quickSearchValue}
             onChange={(e) => setQuickSearchValue(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleQuickSearch()}
-            leftSection={<IconSearch size={18} style={{ color: 'rgba(255,255,255,0.4)' }} />}
+            leftSection={<IconSearch size={18} />}
             rightSection={
               quickSearchLoading ? (
                 <Loader size="sm" color="violet" />
@@ -601,15 +579,7 @@ export default function PiyasaRobotuPage() {
                 </ActionIcon>
               ) : null
             }
-            styles={{
-              input: {
-                background: 'transparent',
-                border: 'none',
-                color: 'white',
-                fontSize: '15px',
-                '&::placeholder': { color: 'rgba(255,255,255,0.4)' }
-              }
-            }}
+            variant="unstyled"
           />
         </Paper>
 
@@ -651,13 +621,6 @@ export default function PiyasaRobotuPage() {
             radius="md"
             size="sm"
             style={{ flex: 1 }}
-            styles={{ 
-              input: { 
-                background: 'rgba(255,255,255,0.05)', 
-                border: '1px solid rgba(255,255,255,0.1)', 
-                color: 'white'
-              } 
-            }}
           />
           <Select
             value={sortBy}
@@ -670,25 +633,20 @@ export default function PiyasaRobotuPage() {
             radius="md"
             size="sm"
             w={120}
-            styles={{ input: { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' } }}
           />
         </Group>
 
         {/* Price Table */}
         <Paper 
-          radius="xl" 
-          style={{ 
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            overflow: 'hidden',
-            backdropFilter: 'blur(10px)'
-          }}
+          radius="lg" 
+          withBorder
+          style={{ overflow: 'hidden' }}
         >
-          <Box p="lg" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          <Box p="lg" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
             <Group justify="space-between">
               <Group gap="sm">
                 <IconChartBar size={20} color="var(--mantine-color-violet-5)" />
-                <Text fw={700} c="white">Güncel Fiyatlar</Text>
+                <Text fw={700}>Güncel Fiyatlar</Text>
               </Group>
               <Badge variant="light" color="violet" size="lg">{filteredPrices.length} ürün</Badge>
             </Group>
@@ -698,7 +656,7 @@ export default function PiyasaRobotuPage() {
             <Center py={80}>
               <Stack align="center" gap="md">
                 <Loader size="lg" color="violet" type="dots" />
-                <Text c="gray.5">Fiyatlar yükleniyor...</Text>
+                <Text c="dimmed">Fiyatlar yükleniyor...</Text>
               </Stack>
             </Center>
           ) : filteredPrices.length === 0 ? (
@@ -707,7 +665,7 @@ export default function PiyasaRobotuPage() {
                 <ThemeIcon size={64} radius="xl" variant="light" color="gray">
                   <IconSearch size={32} />
                 </ThemeIcon>
-                <Text c="gray.5" ta="center">
+                <Text c="dimmed" ta="center">
                   {prices.length === 0 
                     ? 'Henüz fiyat verisi yok.\n"Fiyatları Güncelle" butonuna tıklayın.'
                     : 'Sonuç bulunamadı'}
@@ -723,9 +681,9 @@ export default function PiyasaRobotuPage() {
             <>
               {/* Toplu İşlem Bar */}
               {selectedItems.size > 0 && (
-                <Box p="sm" mb="sm" style={{ background: 'rgba(139, 92, 246, 0.1)', borderRadius: 8, border: '1px solid rgba(139, 92, 246, 0.3)' }}>
+                <Box p="sm" mb="sm" style={{ background: 'var(--mantine-color-violet-light)', borderRadius: 8 }}>
                   <Group justify="space-between">
-                    <Text c="violet.4" fw={500}>{selectedItems.size} ürün seçildi</Text>
+                    <Text c="violet" fw={500}>{selectedItems.size} ürün seçildi</Text>
                     <Group gap="xs">
                       <Button size="xs" variant="light" color="violet" leftSection={<IconRefresh size={14} />}>
                         Toplu Fiyat Güncelle
@@ -739,10 +697,10 @@ export default function PiyasaRobotuPage() {
               )}
               
               <Table.ScrollContainer minWidth={800}>
-                <Table highlightOnHover>
+                <Table highlightOnHover striped>
                   <Table.Thead>
-                    <Table.Tr style={{ background: 'rgba(255,255,255,0.02)' }}>
-                      <Table.Th style={{ color: 'var(--mantine-color-gray-5)', fontWeight: 600, width: 40 }}>
+                    <Table.Tr>
+                      <Table.Th style={{ width: 40 }}>
                         <input
                           type="checkbox"
                           checked={selectedItems.size === filteredPrices.length && filteredPrices.length > 0}
@@ -756,18 +714,18 @@ export default function PiyasaRobotuPage() {
                           style={{ cursor: 'pointer', accentColor: 'var(--mantine-color-violet-5)' }}
                         />
                       </Table.Th>
-                      <Table.Th style={{ color: 'var(--mantine-color-gray-5)', fontWeight: 600 }}>Ürün</Table.Th>
-                      <Table.Th style={{ color: 'var(--mantine-color-gray-5)', fontWeight: 600 }}>Miktar</Table.Th>
-                      <Table.Th style={{ color: 'var(--mantine-color-gray-5)', fontWeight: 600, textAlign: 'right' }}>
-                        <Text span c="teal.4" size="xs">●</Text> En Uygun
+                      <Table.Th>Ürün</Table.Th>
+                      <Table.Th>Miktar</Table.Th>
+                      <Table.Th style={{ textAlign: 'right' }}>
+                        <Text span c="teal" size="xs">●</Text> En Uygun
                       </Table.Th>
-                      <Table.Th style={{ color: 'var(--mantine-color-gray-5)', fontWeight: 600, textAlign: 'right' }}>
-                        <Text span c="violet.4" size="xs">●</Text> Eko. Ort.
+                      <Table.Th style={{ textAlign: 'right' }}>
+                        <Text span c="violet" size="xs">●</Text> Eko. Ort.
                       </Table.Th>
-                      <Table.Th style={{ color: 'var(--mantine-color-gray-5)', fontWeight: 600, textAlign: 'right' }}>
+                      <Table.Th style={{ textAlign: 'right' }}>
                         Manuel Fiyat
                       </Table.Th>
-                      <Table.Th style={{ color: 'var(--mantine-color-gray-5)', fontWeight: 600, textAlign: 'center', width: 80 }}>
+                      <Table.Th style={{ textAlign: 'center', width: 80 }}>
                         İşlem
                       </Table.Th>
                     </Table.Tr>
@@ -776,14 +734,19 @@ export default function PiyasaRobotuPage() {
                     {filteredPrices.map((price, i) => (
                       <Table.Tr 
                         key={price.id || i}
+                        className="price-row"
                         style={{ 
                           background: selectedItems.has(price.id) 
-                            ? 'rgba(139, 92, 246, 0.08)' 
-                            : i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
-                          borderBottom: '1px solid rgba(255,255,255,0.04)'
+                            ? 'var(--mantine-color-violet-light)' 
+                            : undefined,
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => {
+                          setSelectedPrice(price);
+                          openDetailModal();
                         }}
                       >
-                        <Table.Td>
+                        <Table.Td onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={selectedItems.has(price.id)}
@@ -800,18 +763,10 @@ export default function PiyasaRobotuPage() {
                           />
                         </Table.Td>
                         <Table.Td>
-                          <Box
-                            style={{ cursor: 'pointer' }}
-                            onClick={() => {
-                              setSelectedPrice(price);
-                              openDetailModal();
-                            }}
-                          >
-                            <Text c="white" fw={500} style={{ textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 3 }}>
-                              {price.item}
-                            </Text>
-                            <Text size="xs" c="gray.5">{price.source || 'Bilinmiyor'}</Text>
-                          </Box>
+                          <Text fw={500} tt="capitalize">
+                            {price.item?.toLowerCase()}
+                          </Text>
+                          <Text size="xs" c="dimmed" tt="capitalize">{price.source?.toLowerCase() || 'Bilinmiyor'}</Text>
                         </Table.Td>
                         <Table.Td>
                           <Badge variant="outline" color="gray" size="sm" style={{ fontWeight: 500 }}>
@@ -824,7 +779,7 @@ export default function PiyasaRobotuPage() {
                         <Table.Td ta="right">
                           <Text c="violet.4" fw={600}>{formatMoney(price.avgPrice || price.unitPrice)}</Text>
                         </Table.Td>
-                        <Table.Td ta="right">
+                        <Table.Td ta="right" onClick={(e) => e.stopPropagation()}>
                           {editingId === price.id ? (
                             <Group gap={4} justify="flex-end" wrap="nowrap">
                               <TextInput
@@ -832,7 +787,7 @@ export default function PiyasaRobotuPage() {
                                 onChange={(e) => setEditValue(e.target.value)}
                                 size="xs"
                                 w={80}
-                                styles={{ input: { textAlign: 'right', background: 'rgba(255,255,255,0.1)', border: '1px solid var(--mantine-color-violet-5)', color: 'white' } }}
+                                styles={{ input: { textAlign: 'right' } }}
                                 onKeyPress={(e) => {
                                   if (e.key === 'Enter') {
                                     const newPrices = prices.map(p => 
@@ -861,10 +816,10 @@ export default function PiyasaRobotuPage() {
                             </Group>
                           ) : (
                             <Text 
-                              c={price.manualPrice ? 'orange.4' : 'gray.6'} 
+                              c={price.manualPrice ? 'orange' : 'dimmed'} 
                               fw={price.manualPrice ? 700 : 400}
                               size="sm"
-                              style={{ cursor: 'pointer' }}
+                              style={{ cursor: 'text' }}
                               onClick={() => {
                                 setEditingId(price.id);
                                 setEditValue(String(price.manualPrice || price.unitPrice || ''));
@@ -874,7 +829,7 @@ export default function PiyasaRobotuPage() {
                             </Text>
                           )}
                         </Table.Td>
-                        <Table.Td ta="center">
+                        <Table.Td ta="center" onClick={(e) => e.stopPropagation()}>
                           <ActionIcon 
                             size="sm" 
                             variant="light" 
@@ -929,7 +884,6 @@ export default function PiyasaRobotuPage() {
         size="md"
         withCloseButton={false}
         styles={{
-          content: { background: 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)' },
           body: { height: '100%', display: 'flex', flexDirection: 'column', padding: 0 }
         }}
       >
@@ -972,22 +926,22 @@ export default function PiyasaRobotuPage() {
                   p="sm"
                   radius="lg"
                   maw="85%"
+                  withBorder={msg.role === 'assistant'}
                   style={{
                     background: msg.role === 'user' 
                       ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                      : 'rgba(255,255,255,0.05)',
-                    border: msg.role === 'assistant' ? '1px solid rgba(255,255,255,0.1)' : 'none'
+                      : undefined
                   }}
                 >
-                  <Text size="sm" c="white" style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</Text>
+                  <Text size="sm" c={msg.role === 'user' ? 'white' : undefined} style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</Text>
                 </Paper>
               </Box>
             ))}
             {chatLoading && (
-              <Paper p="sm" radius="lg" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <Paper p="sm" radius="lg" withBorder>
                 <Group gap="xs">
                   <Loader size="xs" color="violet" />
-                  <Text size="sm" c="gray.5">Araştırıyorum...</Text>
+                  <Text size="sm" c="dimmed">Araştırıyorum...</Text>
                 </Group>
               </Paper>
             )}
@@ -996,7 +950,7 @@ export default function PiyasaRobotuPage() {
         </ScrollArea>
 
         {/* Chat Input */}
-        <Box p="md" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+        <Box p="md" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
           <Group gap="xs">
             <TextInput
               placeholder="Ürün adı yazın... (örn: tavuk but)"
@@ -1007,14 +961,6 @@ export default function PiyasaRobotuPage() {
               radius="xl"
               size="md"
               disabled={chatLoading}
-              styles={{
-                input: {
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'white',
-                  '&::placeholder': { color: 'rgba(255,255,255,0.4)' }
-                }
-              }}
             />
             <ActionIcon 
               size={44} 
@@ -1039,7 +985,6 @@ export default function PiyasaRobotuPage() {
         centered
         withCloseButton={false}
         styles={{
-          content: { background: 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)', border: '1px solid rgba(255,255,255,0.1)' },
           body: { padding: 0 }
         }}
       >
@@ -1077,41 +1022,41 @@ export default function PiyasaRobotuPage() {
             </Box>
 
             {/* Stats */}
-            <SimpleGrid cols={3} p="md" style={{ background: 'rgba(255,255,255,0.02)' }}>
+            <SimpleGrid cols={3} p="md" style={{ background: 'var(--mantine-color-gray-light)' }}>
               <Box ta="center" py="sm">
-                <Text size="xs" c="gray.5" mb={4}>🏷️ En Ucuz</Text>
-                <Text size="xl" fw={800} c="teal.4">{formatMoney(fiyatSonucu.piyasa.min)}</Text>
-                <Text size="xs" c="gray.6">/{fiyatSonucu.birim}</Text>
+                <Text size="xs" c="dimmed" mb={4}>🏷️ En Ucuz</Text>
+                <Text size="xl" fw={800} c="teal">{formatMoney(fiyatSonucu.piyasa.min)}</Text>
+                <Text size="xs" c="dimmed">/{fiyatSonucu.birim}</Text>
               </Box>
-              <Box ta="center" py="sm" style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', borderRight: '1px solid rgba(255,255,255,0.1)' }}>
-                <Text size="xs" c="gray.5" mb={4}>📊 Ekonomik Ort.</Text>
-                <Text size="xl" fw={800} c="violet.4">{formatMoney(fiyatSonucu.piyasa.ortalama)}</Text>
-                <Text size="xs" c="gray.6">/{fiyatSonucu.birim}</Text>
+              <Box ta="center" py="sm" style={{ borderLeft: '1px solid var(--mantine-color-default-border)', borderRight: '1px solid var(--mantine-color-default-border)' }}>
+                <Text size="xs" c="dimmed" mb={4}>📊 Ekonomik Ort.</Text>
+                <Text size="xl" fw={800} c="violet">{formatMoney(fiyatSonucu.piyasa.ortalama)}</Text>
+                <Text size="xs" c="dimmed">/{fiyatSonucu.birim}</Text>
               </Box>
               <Box ta="center" py="sm">
-                <Text size="xs" c="gray.5" mb={4}>💎 Premium</Text>
-                <Text size="xl" fw={800} c="orange.4">{formatMoney(fiyatSonucu.piyasa.max)}</Text>
-                <Text size="xs" c="gray.6">/{fiyatSonucu.birim}</Text>
+                <Text size="xs" c="dimmed" mb={4}>💎 Premium</Text>
+                <Text size="xl" fw={800} c="orange">{formatMoney(fiyatSonucu.piyasa.max)}</Text>
+                <Text size="xs" c="dimmed">/{fiyatSonucu.birim}</Text>
               </Box>
             </SimpleGrid>
 
             {/* Price List */}
             <Box p="md">
-              <Text fw={600} c="white" mb="sm">Bulunan Fiyatlar</Text>
+              <Text fw={600} mb="sm">Bulunan Fiyatlar</Text>
               <Stack gap="xs">
                 {fiyatSonucu.piyasa.kaynaklar.map((kaynak, i) => (
                   <Paper
                     key={i}
                     p="sm"
                     radius="md"
+                    withBorder
                     style={{
-                      background: i === 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.03)',
-                      border: i === 0 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(255,255,255,0.05)'
+                      background: i === 0 ? 'var(--mantine-color-teal-light)' : undefined
                     }}
                   >
                     <Group justify="space-between">
                       <Box style={{ flex: 1 }}>
-                        <Text size="sm" c="white" fw={500} lineClamp={1}>{kaynak.urun || fiyatSonucu.urun}</Text>
+                        <Text size="sm" fw={500} lineClamp={1}>{kaynak.urun || fiyatSonucu.urun}</Text>
                         <Group gap="xs" mt={4}>
                           <MarketLogo market={kaynak.market} size={18} />
                         </Group>
@@ -1119,17 +1064,17 @@ export default function PiyasaRobotuPage() {
                       <Stack gap={2} align="flex-end">
                         <Group gap="xs" align="center">
                           {/* Ana fiyat: birim fiyatı (kg/L) göster */}
-                          <Text fw={700} c={i === 0 ? 'teal.4' : 'white'} size="lg">
+                          <Text fw={700} c={i === 0 ? 'teal' : undefined} size="lg">
                             {formatMoney(kaynak.birimFiyat || kaynak.fiyat)}
                             {kaynak.birimTipi && kaynak.birimTipi !== 'adet' && (
-                              <Text component="span" size="sm" c="gray.5" fw={400}>/{kaynak.birimTipi}</Text>
+                              <Text component="span" size="sm" c="dimmed" fw={400}>/{kaynak.birimTipi}</Text>
                             )}
                           </Text>
                           {i === 0 && <Badge size="xs" color="teal">EN UCUZ</Badge>}
                         </Group>
                         {/* Alt satır: toplam paket fiyatı göster (farklıysa) */}
                         {kaynak.birimFiyat && kaynak.birimFiyat !== kaynak.fiyat && (
-                          <Text size="xs" c="gray.6">
+                          <Text size="xs" c="dimmed">
                             Paket: {formatMoney(kaynak.fiyat)}
                           </Text>
                         )}
@@ -1141,17 +1086,17 @@ export default function PiyasaRobotuPage() {
             </Box>
 
             {/* AI Recommendation */}
-            <Box p="md" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-              <Paper p="md" radius="md" style={{ background: 'rgba(168, 85, 247, 0.1)', border: '1px solid rgba(168, 85, 247, 0.2)' }}>
+            <Box p="md" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
+              <Paper p="md" radius="md" style={{ background: 'var(--mantine-color-violet-light)' }}>
                 <Group gap="sm" align="flex-start">
-                  <IconSparkles size={20} color="var(--mantine-color-violet-4)" />
-                  <Text size="sm" c="gray.3">{fiyatSonucu.oneri}</Text>
+                  <IconSparkles size={20} color="var(--mantine-color-violet-6)" />
+                  <Text size="sm">{fiyatSonucu.oneri}</Text>
                 </Group>
               </Paper>
             </Box>
 
             {/* Actions */}
-            <Group p="md" justify="flex-end" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+            <Group p="md" justify="flex-end" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
               <Button variant="subtle" color="gray" onClick={closeModal}>Kapat</Button>
               <Button variant="gradient" gradient={{ from: 'violet', to: 'grape' }} leftSection={<IconCheck size={16} />}>
                 Listeye Ekle
@@ -1170,7 +1115,6 @@ export default function PiyasaRobotuPage() {
         centered
         withCloseButton={false}
         styles={{
-          content: { background: 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)', border: '1px solid rgba(255,255,255,0.1)' },
           body: { padding: 0 }
         }}
       >
@@ -1208,7 +1152,7 @@ export default function PiyasaRobotuPage() {
 
             {/* Girilen değer */}
             {oneriSonuc.duzeltilmis && (
-              <Box p="md" style={{ background: 'rgba(245, 158, 11, 0.1)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <Box p="md" style={{ background: 'var(--mantine-color-orange-light)', borderBottom: '1px solid var(--mantine-color-default-border)' }}>
                 <Group justify="center" gap="md">
                   <Badge size="lg" variant="outline" color="red" style={{ textDecoration: 'line-through' }}>
                     {oneriSonuc.girilen}
@@ -1223,7 +1167,7 @@ export default function PiyasaRobotuPage() {
 
             {/* Öneriler */}
             <Box p="md">
-              <Text fw={600} c="white" mb="sm">
+              <Text fw={600} mb="sm">
                 {oneriSonuc.kategori ? `${oneriSonuc.kategori} Önerileri` : 'Önerilen Ürünler'}
               </Text>
               <Stack gap="xs">
@@ -1232,28 +1176,20 @@ export default function PiyasaRobotuPage() {
                     key={i}
                     p="sm"
                     radius="md"
+                    withBorder
                     style={{
-                      background: 'rgba(255,255,255,0.03)',
-                      border: '1px solid rgba(255,255,255,0.08)',
                       cursor: 'pointer',
                       transition: '0.2s'
                     }}
                     onClick={() => handleOneriSelect(oneri)}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(139, 92, 246, 0.15)';
-                      e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
-                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-                    }}
+                    className="hover-lift"
                   >
                     <Group justify="space-between">
                       <Group gap="sm">
                         <ThemeIcon size="sm" radius="xl" variant="light" color="violet">
                           <IconShoppingCart size={12} />
                         </ThemeIcon>
-                        <Text size="sm" c="white" fw={500}>{oneri}</Text>
+                        <Text size="sm" fw={500}>{oneri}</Text>
                       </Group>
                       <IconChevronRight size={16} color="var(--mantine-color-gray-5)" />
                     </Group>
@@ -1264,7 +1200,7 @@ export default function PiyasaRobotuPage() {
 
             {/* Spesifik ürün için direkt arama butonu */}
             {oneriSonuc.arama_yapilabilir && (
-              <Box p="md" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+              <Box p="md" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
                 <Button 
                   fullWidth 
                   size="lg"
@@ -1279,8 +1215,8 @@ export default function PiyasaRobotuPage() {
             )}
 
             {/* Alt bilgi */}
-            <Box p="md" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-              <Text size="xs" c="gray.5" ta="center">
+            <Box p="md" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
+              <Text size="xs" c="dimmed" ta="center">
                 💡 Daha doğru fiyatlar için ürün adını ve gramajını belirtin
               </Text>
             </Box>
@@ -1297,7 +1233,6 @@ export default function PiyasaRobotuPage() {
         centered
         withCloseButton={false}
         styles={{
-          content: { background: 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)', border: '1px solid rgba(255,255,255,0.1)' },
           body: { padding: 0 }
         }}
       >
@@ -1328,18 +1263,18 @@ export default function PiyasaRobotuPage() {
             </Box>
 
             {/* Fiyat Bilgileri */}
-            <SimpleGrid cols={3} p="md" style={{ background: 'rgba(255,255,255,0.02)' }}>
+            <SimpleGrid cols={3} p="md" style={{ background: 'var(--mantine-color-gray-light)' }}>
               <Box ta="center" py="sm">
-                <Text size="xs" c="gray.5" mb={4}>En Uygun</Text>
-                <Text size="xl" fw={800} c="teal.4">{formatMoney(selectedPrice.minPrice || selectedPrice.unitPrice)}</Text>
+                <Text size="xs" c="dimmed" mb={4}>En Uygun</Text>
+                <Text size="xl" fw={800} c="teal">{formatMoney(selectedPrice.minPrice || selectedPrice.unitPrice)}</Text>
               </Box>
-              <Box ta="center" py="sm" style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', borderRight: '1px solid rgba(255,255,255,0.1)' }}>
-                <Text size="xs" c="gray.5" mb={4}>Eko. Ortalama</Text>
-                <Text size="xl" fw={800} c="violet.4">{formatMoney(selectedPrice.avgPrice || selectedPrice.unitPrice)}</Text>
+              <Box ta="center" py="sm" style={{ borderLeft: '1px solid var(--mantine-color-default-border)', borderRight: '1px solid var(--mantine-color-default-border)' }}>
+                <Text size="xs" c="dimmed" mb={4}>Eko. Ortalama</Text>
+                <Text size="xl" fw={800} c="violet">{formatMoney(selectedPrice.avgPrice || selectedPrice.unitPrice)}</Text>
               </Box>
               <Box ta="center" py="sm">
-                <Text size="xs" c="gray.5" mb={4}>Manuel Fiyat</Text>
-                <Text size="xl" fw={800} c={selectedPrice.manualPrice ? 'orange.4' : 'gray.5'}>
+                <Text size="xs" c="dimmed" mb={4}>Manuel Fiyat</Text>
+                <Text size="xl" fw={800} c={selectedPrice.manualPrice ? 'orange' : 'dimmed'}>
                   {selectedPrice.manualPrice ? formatMoney(selectedPrice.manualPrice) : '—'}
                 </Text>
               </Box>
@@ -1349,26 +1284,26 @@ export default function PiyasaRobotuPage() {
             <Box p="md">
               <Stack gap="sm">
                 <Group justify="space-between">
-                  <Text c="gray.5" size="sm">Miktar:</Text>
+                  <Text c="dimmed" size="sm">Miktar:</Text>
                   <Badge variant="outline" color="gray">{selectedPrice.amount || 1} {selectedPrice.unit || 'adet'}</Badge>
                 </Group>
                 <Group justify="space-between">
-                  <Text c="gray.5" size="sm">Birim Fiyat:</Text>
-                  <Text c="white" fw={600}>
+                  <Text c="dimmed" size="sm">Birim Fiyat:</Text>
+                  <Text fw={600}>
                     {selectedPrice.standardUnitPrice 
                       ? `${formatMoney(selectedPrice.standardUnitPrice)}/${selectedPrice.standardUnit}` 
                       : '—'}
                   </Text>
                 </Group>
                 <Group justify="space-between">
-                  <Text c="gray.5" size="sm">Son Güncelleme:</Text>
-                  <Text c="white" fw={500} size="sm">{selectedPrice.lastUpdated || '—'}</Text>
+                  <Text c="dimmed" size="sm">Son Güncelleme:</Text>
+                  <Text fw={500} size="sm">{selectedPrice.lastUpdated || '—'}</Text>
                 </Group>
               </Stack>
             </Box>
 
             {/* Actions */}
-            <Group p="md" justify="space-between" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+            <Group p="md" justify="space-between" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
               <Button 
                 variant="light" 
                 color="violet" 
@@ -1386,6 +1321,6 @@ export default function PiyasaRobotuPage() {
           </Stack>
         )}
       </Modal>
-    </Box>
+    </>
   );
 }

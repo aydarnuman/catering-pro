@@ -133,7 +133,7 @@ const PRODUCT_CATEGORIES = {
   }
 };
 
-// Yazım hataları sözlüğü
+// Yazım hataları sözlüğü (fallback - AI çalışmazsa)
 const SPELLING_CORRECTIONS = {
   'pirnc': 'pirinç', 'pirinc': 'pirinç', 'princ': 'pirinç', 'prınc': 'pirinç',
   'sut': 'süt', 'süd': 'süt',
@@ -150,7 +150,50 @@ const SPELLING_CORRECTIONS = {
   'sogan': 'soğan', 'soğn': 'soğan',
   'biber': 'biber', 'bibr': 'biber',
   'ayçiçek': 'ayçiçek', 'aycicek': 'ayçiçek',
-  'bakliyat': 'bakliyat', 'baklyat': 'bakliyat'
+  'bakliyat': 'bakliyat', 'baklyat': 'bakliyat',
+  // Şeker varyasyonları
+  'seker': 'şeker', 'şekr': 'şeker', 'sekr': 'şeker',
+  'şerk': 'şeker', 'serk': 'şeker', 'sekker': 'şeker',
+  // Kesme şeker
+  'kesme seker': 'kesme şeker', 'kesme sekr': 'kesme şeker',
+  'kesme şerk': 'kesme şeker', 'kesme serk': 'kesme şeker'
+};
+
+/**
+ * AI ile yazım düzeltme ve öneri (Claude)
+ */
+const getAICorrection = async (term) => {
+  try {
+    const response = await claudeAI.sendMessage(
+      `Türkçe gıda ürün araması: "${term}"
+
+Görev: Bu arama terimini analiz et ve JSON formatında yanıt ver.
+
+Kurallar:
+1. Yazım hatası varsa düzelt (örn: "şerk" → "şeker", "pirnc" → "pirinç")
+2. Gramaj/miktar yoksa (kg, g, lt, ml, adet) 3-5 öneri ver
+3. Gramaj varsa direkt arama yapılabilir
+
+JSON formatı (başka hiçbir şey yazma):
+{
+  "duzeltilmis": "düzeltilmiş terim veya null",
+  "oneriler": ["öneri1 1kg", "öneri2 500g", ...],
+  "arama_yapilabilir": true/false,
+  "mesaj": "kullanıcıya mesaj"
+}`,
+      { systemPrompt: 'Sen Türkçe gıda ürünleri uzmanısın. Sadece JSON formatında yanıt ver, başka hiçbir şey yazma.' }
+    );
+    
+    // JSON çıkar
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+    return null;
+  } catch (error) {
+    console.error('AI düzeltme hatası:', error);
+    return null;
+  }
 };
 
 // Tool tanımları
@@ -283,19 +326,53 @@ const findClosestMatch = (term, candidates, threshold = 3) => {
 export const piyasaToolImplementations = {
   
   /**
-   * AI Destekli Ürün Öneri Sistemi
+   * AI Destekli Ürün Öneri Sistemi (Claude AI ile)
    */
   piyasa_urun_oneri: async ({ arama_terimi }) => {
     try {
       const originalTerm = arama_terimi.trim();
       const lowerTerm = originalTerm.toLowerCase();
       
-      // 1. Yazım hatası kontrolü
-      const correctedTerm = correctSpelling(originalTerm);
-      const hasSpellingError = correctedTerm.toLowerCase() !== lowerTerm;
-      const searchTerm = hasSpellingError ? correctedTerm.toLowerCase() : lowerTerm;
+      // 1. Önce basit sözlük kontrolü (hızlı)
+      let correctedTerm = correctSpelling(originalTerm);
       
-      // 2. Genel kategori kontrolü - daha geniş arama
+      // Kelimeleri ayrı ayrı da kontrol et
+      const words = lowerTerm.split(' ');
+      const correctedWords = words.map(w => SPELLING_CORRECTIONS[w] || w);
+      const wordCorrected = correctedWords.join(' ');
+      if (wordCorrected !== lowerTerm) {
+        correctedTerm = wordCorrected;
+      }
+      
+      const hasBasicSpellingError = correctedTerm.toLowerCase() !== lowerTerm;
+      const termHasQuantity = hasQuantity(originalTerm);
+      
+      // 2. AI düzeltme (sözlükte bulunamadıysa veya gramaj yoksa)
+      let aiResult = null;
+      if (!hasBasicSpellingError || !termHasQuantity) {
+        aiResult = await getAICorrection(originalTerm);
+        console.log('AI öneri sonucu:', aiResult);
+      }
+      
+      // 3. AI sonucu varsa kullan
+      if (aiResult) {
+        return {
+          success: true,
+          girilen: originalTerm,
+          duzeltilmis: aiResult.duzeltilmis,
+          genel_terim: !aiResult.arama_yapilabilir,
+          kategori: null,
+          oneriler: aiResult.oneriler || [],
+          mesaj: aiResult.mesaj || '',
+          arama_yapilabilir: aiResult.arama_yapilabilir || false,
+          ai_powered: true
+        };
+      }
+      
+      // 4. Fallback: Eski sistem
+      const searchTerm = hasBasicSpellingError ? correctedTerm.toLowerCase() : lowerTerm;
+      
+      // Kategori kontrolü
       const categoryKey = Object.keys(PRODUCT_CATEGORIES).find(key => {
         const keyLower = key.toLowerCase();
         return searchTerm === keyLower || 
@@ -304,10 +381,7 @@ export const piyasaToolImplementations = {
                searchTerm.split(' ').some(word => word === keyLower || keyLower.includes(word));
       });
       
-      // 3. Gramaj kontrolü - eğer gramaj yoksa öneri sun
-      const termHasQuantity = hasQuantity(originalTerm);
-      
-      // 4. Stok kartlarından benzer ürünleri ara
+      // Stok kartlarından benzer ürünleri ara
       let stokOneriler = [];
       try {
         const stokResult = await query(`
@@ -318,7 +392,7 @@ export const piyasaToolImplementations = {
         stokOneriler = stokResult.rows.map(r => r.ad);
       } catch (e) { /* ignore */ }
       
-      // 5. Kategorideki ürünlerden öneri
+      // Kategorideki ürünlerden öneri
       let kategoriOneriler = [];
       let kategoriMesaj = '';
       if (categoryKey && PRODUCT_CATEGORIES[categoryKey]) {
@@ -326,9 +400,9 @@ export const piyasaToolImplementations = {
         kategoriMesaj = PRODUCT_CATEGORIES[categoryKey].mesaj;
       }
       
-      // 6. Yazım hatasına en yakın kategoriyi bul
+      // Yazım hatasına en yakın kategoriyi bul
       let yakinKategori = null;
-      if (!categoryKey && !hasSpellingError) {
+      if (!categoryKey && !hasBasicSpellingError) {
         yakinKategori = findClosestMatch(lowerTerm, Object.keys(PRODUCT_CATEGORIES));
       }
       
@@ -336,21 +410,22 @@ export const piyasaToolImplementations = {
       const result = {
         success: true,
         girilen: originalTerm,
-        duzeltilmis: hasSpellingError ? correctedTerm : null,
+        duzeltilmis: hasBasicSpellingError ? correctedTerm : null,
         genel_terim: false,
         kategori: categoryKey ? PRODUCT_CATEGORIES[categoryKey].kategori : null,
         oneriler: [],
         mesaj: '',
-        arama_yapilabilir: false
+        arama_yapilabilir: false,
+        ai_powered: false
       };
       
       // Yazım hatası varsa
-      if (hasSpellingError) {
+      if (hasBasicSpellingError) {
         result.mesaj = `"${originalTerm}" → "${correctedTerm}" olarak düzeltildi.`;
         result.oneriler = kategoriOneriler.length > 0 ? kategoriOneriler : [correctedTerm];
         result.genel_terim = true;
       }
-      // Kategori eşleşti ama gramaj yok - öneri sun
+      // Kategori eşleşti ama gramaj yok
       else if (categoryKey && !termHasQuantity) {
         result.mesaj = `"${originalTerm}" için miktar belirtin. ${kategoriMesaj}`;
         result.oneriler = [...new Set([...kategoriOneriler, ...stokOneriler])].slice(0, 8);
@@ -363,15 +438,14 @@ export const piyasaToolImplementations = {
         result.duzeltilmis = yakinKategori;
         result.genel_terim = true;
       }
-      // Gramaj var ama kategori yok - kabul et
+      // Gramaj var - arama yapılabilir
       else if (termHasQuantity) {
         result.mesaj = `"${originalTerm}" için fiyat araması yapılacak.`;
         result.arama_yapilabilir = true;
         result.oneriler = stokOneriler.length > 0 ? stokOneriler : [originalTerm];
       }
-      // Gramaj yok, kategori yok - öneri sun veya uyar
+      // Gramaj yok, kategori yok
       else {
-        // Kelime sayısı az ise genel terim
         if (lowerTerm.split(' ').length <= 2) {
           result.mesaj = `"${originalTerm}" için miktar belirtin (örn: 1kg, 500g, 1lt)`;
           result.oneriler = stokOneriler.length > 0 
@@ -379,7 +453,6 @@ export const piyasaToolImplementations = {
             : [`${originalTerm} 1kg`, `${originalTerm} 500g`, `${originalTerm} 1lt`];
           result.genel_terim = true;
         } else {
-          // 3+ kelime varsa kabul et
           result.mesaj = `"${originalTerm}" için fiyat araması yapılacak.`;
           result.arama_yapilabilir = true;
           result.oneriler = [originalTerm];
