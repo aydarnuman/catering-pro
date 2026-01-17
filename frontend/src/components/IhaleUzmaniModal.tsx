@@ -55,6 +55,8 @@ import {
   IconChevronRight,
   IconInfoCircle,
   IconCloudCheck,
+  IconBulb,
+  IconSparkles,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { API_BASE_URL } from '@/lib/config';
@@ -567,32 +569,93 @@ export default function IhaleUzmaniModal({
       opened={opened}
       onClose={onClose}
       title={
-        <Group gap="sm">
-          <ThemeIcon size="md" radius="md" variant="gradient" gradient={{ from: 'violet', to: 'blue' }}>
-            <IconScale size={16} />
-          </ThemeIcon>
-          <div>
-            <Text fw={600} size="sm">İhale Uzmanı</Text>
-            <Text size="xs" c="dimmed" lineClamp={1}>{tender.ihale_basligi}</Text>
-          </div>
-        </Group>
+        <Box className="modal-header-glass" style={{ margin: 0, padding: '16px 20px', borderRadius: 16 }}>
+          <Group gap="md">
+            <ThemeIcon 
+              size={48} 
+              radius="xl" 
+              variant="gradient" 
+              gradient={{ from: 'violet', to: 'blue' }}
+              style={{ boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)' }}
+            >
+              <IconScale size={24} />
+            </ThemeIcon>
+            <div>
+              <Group gap="xs">
+                <Text fw={700} size="lg">İhale Uzmanı</Text>
+                <Badge variant="gradient" gradient={{ from: 'violet', to: 'grape' }} size="sm">
+                  PRO
+                </Badge>
+              </Group>
+              <Text size="sm" c="dimmed" lineClamp={1} maw={500}>{tender.ihale_basligi}</Text>
+            </div>
+          </Group>
+        </Box>
       }
       size="xl"
       fullScreen
-      transitionProps={{ transition: 'fade', duration: 200 }}
+      transitionProps={{ transition: 'slide-up', duration: 300 }}
+      styles={{
+        header: { 
+          background: 'transparent',
+          padding: '12px 20px',
+        },
+        body: {
+          padding: '0 24px 24px 24px',
+        }
+      }}
     >
-      <Tabs value={activeTab} onChange={setActiveTab} variant="outline">
-        <Tabs.List grow mb="md">
-          <Tabs.Tab value="ozet" leftSection={<IconInfoCircle size={16} />}>Özet</Tabs.Tab>
-          <Tabs.Tab value="dokumanlar" leftSection={<IconClipboardList size={16} />}>
+      <Tabs value={activeTab} onChange={setActiveTab} variant="pills" radius="lg">
+        <Tabs.List grow mb="lg" style={{ gap: 8 }}>
+          <Tabs.Tab 
+            value="ozet" 
+            leftSection={<IconInfoCircle size={18} />}
+            style={{ fontWeight: 600, padding: '12px 20px' }}
+          >
+            Özet
+          </Tabs.Tab>
+          <Tabs.Tab 
+            value="dokumanlar" 
+            leftSection={<IconClipboardList size={18} />}
+            style={{ fontWeight: 600, padding: '12px 20px' }}
+          >
             Döküman Analizi
             {analysisStats && (
-              <Badge size="xs" ml={4} variant="light">{analysisStats.analiz_edilen}/{analysisStats.toplam_dokuman}</Badge>
+              <Badge 
+                size="sm" 
+                ml={8} 
+                variant="gradient" 
+                gradient={{ from: 'violet', to: 'blue' }}
+                className="tab-badge-pulse"
+              >
+                {analysisStats.analiz_edilen}/{analysisStats.toplam_dokuman}
+              </Badge>
             )}
           </Tabs.Tab>
-          <Tabs.Tab value="hesaplamalar" leftSection={<IconCalculator size={16} />}>Hesaplamalar</Tabs.Tab>
-          <Tabs.Tab value="ai" leftSection={<IconBrain size={16} />}>AI Danışman</Tabs.Tab>
-          <Tabs.Tab value="dilekce" leftSection={<IconFileText size={16} />}>Dilekçeler</Tabs.Tab>
+          <Tabs.Tab 
+            value="hesaplamalar" 
+            leftSection={<IconCalculator size={18} />}
+            style={{ fontWeight: 600, padding: '12px 20px' }}
+          >
+            Hesaplamalar
+          </Tabs.Tab>
+          <Tabs.Tab 
+            value="ai" 
+            leftSection={<IconBrain size={18} />}
+            style={{ fontWeight: 600, padding: '12px 20px' }}
+          >
+            <Group gap={6}>
+              AI Danışman
+              <IconSparkles size={14} style={{ color: 'var(--mantine-color-yellow-5)' }} />
+            </Group>
+          </Tabs.Tab>
+          <Tabs.Tab 
+            value="dilekce" 
+            leftSection={<IconFileText size={18} />}
+            style={{ fontWeight: 600, padding: '12px 20px' }}
+          >
+            Dilekçeler
+          </Tabs.Tab>
         </Tabs.List>
 
         {/* ÖZET TAB */}
@@ -773,18 +836,49 @@ export default function IhaleUzmaniModal({
 
         {/* DÖKÜMANLAR TAB */}
         <Tabs.Panel value="dokumanlar">
-          <Tabs defaultValue="teknik" variant="pills">
-            <Tabs.List mb="md">
-              <Tabs.Tab value="teknik" leftSection={<IconSettings size={14} />}>
-                Teknik Şartlar ({analysisData.teknik_sartlar?.length || 0})
+          <Tabs defaultValue="teknik" variant="pills" radius="md">
+            <Tabs.List mb="lg" style={{ gap: 8 }}>
+              <Tabs.Tab 
+                value="teknik" 
+                leftSection={<IconSettings size={16} />}
+                rightSection={
+                  <Badge size="sm" variant="filled" color="blue" circle>
+                    {analysisData.teknik_sartlar?.length || 0}
+                  </Badge>
+                }
+                style={{ fontWeight: 500 }}
+              >
+                Teknik Şartlar
               </Tabs.Tab>
-              <Tabs.Tab value="fiyat" leftSection={<IconCoin size={14} />}>
-                Birim Fiyatlar ({analysisData.birim_fiyatlar?.length || 0})
+              <Tabs.Tab 
+                value="fiyat" 
+                leftSection={<IconCoin size={16} />}
+                rightSection={
+                  <Badge size="sm" variant="filled" color="green" circle>
+                    {analysisData.birim_fiyatlar?.length || 0}
+                  </Badge>
+                }
+                style={{ fontWeight: 500 }}
+              >
+                Birim Fiyatlar
               </Tabs.Tab>
-              <Tabs.Tab value="ainotlar" leftSection={<IconNote size={14} />}>
-                AI Notları ({analysisData.notlar?.length || 0})
+              <Tabs.Tab 
+                value="ainotlar" 
+                leftSection={<IconBulb size={16} />}
+                rightSection={
+                  <Badge size="sm" variant="gradient" gradient={{ from: 'orange', to: 'yellow' }} circle className="tab-badge-pulse">
+                    {analysisData.notlar?.length || 0}
+                  </Badge>
+                }
+                style={{ fontWeight: 500 }}
+              >
+                AI Notları
               </Tabs.Tab>
-              <Tabs.Tab value="metin" leftSection={<IconClipboardList size={14} />}>
+              <Tabs.Tab 
+                value="metin" 
+                leftSection={<IconClipboardList size={16} />}
+                style={{ fontWeight: 500 }}
+              >
                 Tam Metin
               </Tabs.Tab>
             </Tabs.List>
@@ -792,42 +886,55 @@ export default function IhaleUzmaniModal({
             <Tabs.Panel value="teknik">
               <ScrollArea h="calc(100vh - 280px)" offsetScrollbars>
                 {analysisData.teknik_sartlar && analysisData.teknik_sartlar.length > 0 ? (
-                  <Stack gap="xs">
-                    {analysisData.teknik_sartlar.map((sart, i) => (
-                      <Paper 
-                        key={i} 
-                        p="sm" 
-                        withBorder 
-                        radius="md" 
-                        shadow="xs"
-                        style={{ 
-                          transition: 'all 0.2s ease',
-                          cursor: 'default'
-                        }}
-                        className="hover-card"
-                      >
-                        <Group gap="sm" wrap="nowrap">
-                          <Badge 
-                            size="lg" 
-                            variant="gradient" 
-                            gradient={{ from: 'blue', to: 'cyan' }} 
-                            circle
-                            style={{ minWidth: 32 }}
-                          >
-                            {i + 1}
-                          </Badge>
-                          <Text size="sm" style={{ flex: 1 }}>{sart}</Text>
-                        </Group>
-                      </Paper>
-                    ))}
+                  <Stack gap="sm">
+                    {analysisData.teknik_sartlar.map((sart, i) => {
+                      // Önem seviyesi belirleme
+                      const isImportant = /zorunlu|mecburi|şart|gerekli|mutlaka/i.test(sart);
+                      const isWarning = /dikkat|uyarı|önemli|not:|ödeme/i.test(sart);
+                      const cardClass = isImportant ? 'teknik-sart-card important' : isWarning ? 'teknik-sart-card warning' : 'teknik-sart-card info';
+                      const iconColor = isImportant ? 'red' : isWarning ? 'orange' : 'blue';
+                      
+                      return (
+                        <Paper 
+                          key={i} 
+                          p="md" 
+                          withBorder 
+                          radius="lg" 
+                          shadow="sm"
+                          className={cardClass}
+                        >
+                          <Group gap="md" wrap="nowrap" align="flex-start">
+                            <Badge 
+                              size="xl" 
+                              variant="gradient" 
+                              gradient={{ from: iconColor, to: iconColor === 'red' ? 'pink' : iconColor === 'orange' ? 'yellow' : 'cyan' }} 
+                              circle
+                              className="number-badge"
+                              style={{ minWidth: 40, minHeight: 40, fontSize: 14 }}
+                            >
+                              {i + 1}
+                            </Badge>
+                            <div style={{ flex: 1 }}>
+                              <Text size="sm" fw={500} style={{ lineHeight: 1.6 }}>{sart}</Text>
+                              {isImportant && (
+                                <Badge size="xs" color="red" variant="light" mt="xs">
+                                  Zorunlu Şart
+                                </Badge>
+                              )}
+                            </div>
+                          </Group>
+                        </Paper>
+                      );
+                    })}
                   </Stack>
                 ) : (
-                  <Center h={200}>
-                    <Stack align="center" gap="xs">
-                      <ThemeIcon size={50} radius="xl" variant="light" color="gray">
-                        <IconClipboardList size={24} />
+                  <Center h={300}>
+                    <Stack align="center" gap="md">
+                      <ThemeIcon size={80} radius="xl" variant="gradient" gradient={{ from: 'gray', to: 'dark' }}>
+                        <IconClipboardList size={40} />
                       </ThemeIcon>
-                      <Text c="dimmed">Teknik şart bulunamadı</Text>
+                      <Text c="dimmed" size="lg">Teknik şart bulunamadı</Text>
+                      <Text c="dimmed" size="sm">Döküman analizi yapıldığında burada görünecek</Text>
                     </Stack>
                   </Center>
                 )}
@@ -872,37 +979,47 @@ export default function IhaleUzmaniModal({
             <Tabs.Panel value="ainotlar">
               <ScrollArea h="calc(100vh - 280px)" offsetScrollbars>
                 {analysisData.notlar && analysisData.notlar.length > 0 ? (
-                  <Stack gap="xs">
+                  <Stack gap="md">
                     {analysisData.notlar.map((not, i) => (
                       <Paper 
                         key={i} 
-                        p="sm" 
-                        withBorder 
-                        radius="md" 
-                        shadow="xs"
-                        bg="orange.0"
+                        p="lg" 
+                        radius="lg" 
+                        shadow="md"
+                        className="ai-note-card"
                         style={{ 
-                          transition: 'all 0.2s ease',
-                          borderLeft: '4px solid var(--mantine-color-orange-5)'
+                          borderLeft: '5px solid var(--mantine-color-orange-5)'
                         }}
-                        className="hover-card"
                       >
-                        <Group gap="sm" wrap="nowrap" align="flex-start">
-                          <ThemeIcon size="md" color="orange" variant="light" radius="xl" mt={2}>
-                            <IconNote size={14} />
+                        <Group gap="md" wrap="nowrap" align="flex-start">
+                          <ThemeIcon 
+                            size={44} 
+                            radius="xl" 
+                            variant="gradient" 
+                            gradient={{ from: 'orange', to: 'yellow' }}
+                          >
+                            <IconBulb size={22} />
                           </ThemeIcon>
-                          <Text size="sm" style={{ flex: 1 }}>{not}</Text>
+                          <div style={{ flex: 1 }}>
+                            <Group gap="xs" mb="xs">
+                              <Badge size="sm" variant="gradient" gradient={{ from: 'orange', to: 'red' }}>
+                                AI İçgörü #{i + 1}
+                              </Badge>
+                            </Group>
+                            <Text size="sm" fw={500} style={{ lineHeight: 1.7 }}>{not}</Text>
+                          </div>
                         </Group>
                       </Paper>
                     ))}
                   </Stack>
                 ) : (
-                  <Center h={200}>
-                    <Stack align="center" gap="xs">
-                      <ThemeIcon size={50} radius="xl" variant="light" color="gray">
-                        <IconNote size={24} />
+                  <Center h={300}>
+                    <Stack align="center" gap="md">
+                      <ThemeIcon size={80} radius="xl" variant="gradient" gradient={{ from: 'orange', to: 'yellow' }}>
+                        <IconBulb size={40} />
                       </ThemeIcon>
-                      <Text c="dimmed">AI notu bulunamadı</Text>
+                      <Text c="dimmed" size="lg">AI notu bulunamadı</Text>
+                      <Text c="dimmed" size="sm">AI analizi yapıldığında notlar burada görünecek</Text>
                     </Stack>
                   </Center>
                 )}
