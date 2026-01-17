@@ -76,10 +76,14 @@ case $DEPLOY_TYPE in
         ssh -i $SSH_KEY ${SERVER_USER}@${SERVER_IP} "
             cd ${PROJECT_PATH}
             echo '📥 Git pull...'
+            git stash 2>/dev/null || true
             git pull origin main
             
-            echo '🔨 Frontend build...'
+            echo '📦 Paketler kontrol ediliyor...'
             cd frontend
+            npm install --silent
+            
+            echo '🔨 Frontend build...'
             rm -rf .next
             npm run build
             
@@ -96,7 +100,15 @@ case $DEPLOY_TYPE in
         ssh -i $SSH_KEY ${SERVER_USER}@${SERVER_IP} "
             cd ${PROJECT_PATH}
             echo '📥 Git pull...'
+            git stash 2>/dev/null || true
             git pull origin main
+            
+            echo '📦 Paketler kontrol ediliyor...'
+            cd backend
+            npm install --silent
+            
+            echo '🗄️  Migration kontrol ediliyor...'
+            npm run migrate
             
             echo '🔄 PM2 restart...'
             pm2 restart catering-backend
@@ -111,6 +123,7 @@ case $DEPLOY_TYPE in
         ssh -i $SSH_KEY ${SERVER_USER}@${SERVER_IP} "
             cd ${PROJECT_PATH}
             echo '📥 Git pull...'
+            git stash 2>/dev/null || true
             git pull origin main
             
             echo ''
@@ -124,11 +137,23 @@ case $DEPLOY_TYPE in
         ssh -i $SSH_KEY ${SERVER_USER}@${SERVER_IP} "
             cd ${PROJECT_PATH}
             echo '📥 Git pull...'
+            git stash 2>/dev/null || true
             git pull origin main
             
             echo ''
+            echo '📦 Backend paketleri kontrol ediliyor...'
+            cd backend
+            npm install --silent
+            
+            echo '🗄️  Migration kontrol ediliyor...'
+            npm run migrate
+            
+            echo ''
+            echo '📦 Frontend paketleri kontrol ediliyor...'
+            cd ../frontend
+            npm install --silent
+            
             echo '🔨 Frontend build...'
-            cd frontend
             rm -rf .next
             npm run build
             
@@ -146,16 +171,23 @@ esac
 # 4. Health check
 echo ""
 echo -e "${YELLOW}🏥 Health check...${NC}"
-sleep 3
+sleep 5
 
-HEALTH=$(curl -s --connect-timeout 5 http://${SERVER_IP}/api/health 2>/dev/null || echo '{"status":"error"}')
+HEALTH=$(curl -s --connect-timeout 10 http://${SERVER_IP}/health 2>/dev/null || echo '{"status":"error"}')
 if echo "$HEALTH" | grep -q '"status":"ok"'; then
     echo -e "${GREEN}✅ Backend sağlıklı${NC}"
 else
     echo -e "${YELLOW}⚠️  Backend yanıt vermiyor, bekleyin...${NC}"
+    sleep 5
+    HEALTH=$(curl -s --connect-timeout 10 http://${SERVER_IP}/health 2>/dev/null || echo '{"status":"error"}')
+    if echo "$HEALTH" | grep -q '"status":"ok"'; then
+        echo -e "${GREEN}✅ Backend sağlıklı (2. deneme)${NC}"
+    else
+        echo -e "${RED}❌ Backend hala yanıt vermiyor!${NC}"
+    fi
 fi
 
-FRONTEND=$(curl -s --connect-timeout 5 -o /dev/null -w "%{http_code}" http://${SERVER_IP} 2>/dev/null || echo "000")
+FRONTEND=$(curl -s --connect-timeout 10 -o /dev/null -w "%{http_code}" http://${SERVER_IP} 2>/dev/null || echo "000")
 if [ "$FRONTEND" = "200" ]; then
     echo -e "${GREEN}✅ Frontend sağlıklı${NC}"
 else
