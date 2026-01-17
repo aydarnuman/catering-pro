@@ -14,11 +14,13 @@ const router = express.Router();
  */
 router.get('/', async (req, res) => {
   try {
-    const { durum, aktif } = req.query;
+    const { durum, aktif, firma_id } = req.query;
     
     let sql = `
       SELECT 
         p.*,
+        f.unvan as firma_unvani,
+        f.kisa_ad as firma_kisa_ad,
         COALESCE((SELECT COUNT(*) FROM proje_personelleri pp WHERE pp.proje_id = p.id AND pp.aktif = TRUE), 0) as personel_sayisi,
         COALESCE((SELECT SUM(per.maas) FROM proje_personelleri pp 
                   JOIN personeller per ON per.id = pp.personel_id 
@@ -26,6 +28,7 @@ router.get('/', async (req, res) => {
         COALESCE((SELECT COUNT(*) FROM siparisler s WHERE s.proje_id = p.id), 0) as siparis_sayisi,
         COALESCE((SELECT SUM(s.toplam_tutar) FROM siparisler s WHERE s.proje_id = p.id AND s.durum = 'teslim_alindi'), 0) as toplam_harcama
       FROM projeler p
+      LEFT JOIN firmalar f ON p.firma_id = f.id
       WHERE 1=1
     `;
     
@@ -43,6 +46,13 @@ router.get('/', async (req, res) => {
     if (aktif !== undefined) {
       sql += ` AND p.aktif = $${paramIndex}`;
       params.push(aktif === 'true');
+      paramIndex++;
+    }
+    
+    // Firma filtresi
+    if (firma_id) {
+      sql += ` AND p.firma_id = $${paramIndex}`;
+      params.push(firma_id);
       paramIndex++;
     }
     
@@ -183,11 +193,22 @@ router.get('/:id/hareketler', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { 
-      kod, ad, aciklama, 
-      // Personel alanları
-      musteri, lokasyon, baslangic_tarihi, bitis_tarihi, butce, durum,
-      // Satın alma alanları
-      adres, yetkili, telefon, renk, aktif
+      // Temel
+      kod, ad, aciklama, firma_id, tender_id, cari_id,
+      // İşveren/Lokasyon
+      musteri, lokasyon, adres, il, ilce,
+      // Sözleşme
+      sozlesme_no, sozlesme_tarihi, sozlesme_bitis_tarihi, sozlesme_bedeli, teminat_tutari, teminat_iade_tarihi,
+      // Kapasite
+      gunluk_kisi_sayisi, ogun_sayisi, toplam_ogun, gunluk_maliyet_hedef,
+      // Fatura
+      fatura_unvani, fatura_vergi_no, fatura_vergi_dairesi, fatura_adresi, fatura_kesim_gunu, kdv_orani,
+      // Hakediş
+      hakedis_tipi, aylik_hakedis, hakedis_gun, hakedis_kesinti_orani,
+      // Yetkili
+      yetkili, yetkili_unvan, telefon, email,
+      // Diğer
+      proje_tipi, kategori, baslangic_tarihi, bitis_tarihi, butce, durum, renk, aktif, notlar
     } = req.body;
     
     if (!ad) {
@@ -196,16 +217,35 @@ router.post('/', async (req, res) => {
     
     const result = await query(`
       INSERT INTO projeler (
-        kod, ad, aciklama, 
-        musteri, lokasyon, baslangic_tarihi, bitis_tarihi, butce, durum,
-        adres, yetkili, telefon, renk, aktif
+        kod, ad, aciklama, firma_id, tender_id, cari_id,
+        musteri, lokasyon, adres, il, ilce,
+        sozlesme_no, sozlesme_tarihi, sozlesme_bitis_tarihi, sozlesme_bedeli, teminat_tutari, teminat_iade_tarihi,
+        gunluk_kisi_sayisi, ogun_sayisi, toplam_ogun, gunluk_maliyet_hedef,
+        fatura_unvani, fatura_vergi_no, fatura_vergi_dairesi, fatura_adresi, fatura_kesim_gunu, kdv_orani,
+        hakedis_tipi, aylik_hakedis, hakedis_gun, hakedis_kesinti_orani,
+        yetkili, yetkili_unvan, telefon, email,
+        proje_tipi, kategori, baslangic_tarihi, bitis_tarihi, butce, durum, renk, aktif, notlar
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      VALUES (
+        $1, $2, $3, $4, $5, $6,
+        $7, $8, $9, $10, $11,
+        $12, $13, $14, $15, $16, $17,
+        $18, $19, $20, $21,
+        $22, $23, $24, $25, $26, $27,
+        $28, $29, $30, $31,
+        $32, $33, $34, $35,
+        $36, $37, $38, $39, $40, $41, $42, $43, $44
+      )
       RETURNING *
     `, [
-      kod || null, ad, aciklama || null,
-      musteri || null, lokasyon || null, baslangic_tarihi || null, bitis_tarihi || null, butce || 0, durum || 'aktif',
-      adres || null, yetkili || null, telefon || null, renk || '#6366f1', aktif !== false
+      kod || null, ad, aciklama || null, firma_id || null, tender_id || null, cari_id || null,
+      musteri || null, lokasyon || null, adres || null, il || null, ilce || null,
+      sozlesme_no || null, sozlesme_tarihi || null, sozlesme_bitis_tarihi || null, sozlesme_bedeli || null, teminat_tutari || null, teminat_iade_tarihi || null,
+      gunluk_kisi_sayisi || null, ogun_sayisi || 3, toplam_ogun || null, gunluk_maliyet_hedef || null,
+      fatura_unvani || null, fatura_vergi_no || null, fatura_vergi_dairesi || null, fatura_adresi || null, fatura_kesim_gunu || null, kdv_orani || 10,
+      hakedis_tipi || 'aylik', aylik_hakedis || null, hakedis_gun || null, hakedis_kesinti_orani || 0,
+      yetkili || null, yetkili_unvan || null, telefon || null, email || null,
+      proje_tipi || 'yemek', kategori || null, baslangic_tarihi || null, bitis_tarihi || null, butce || 0, durum || 'aktif', renk || '#6366f1', aktif !== false, notlar || null
     ]);
     
     res.status(201).json(result.rows[0]);
@@ -223,31 +263,84 @@ router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { 
-      kod, ad, aciklama, 
-      musteri, lokasyon, baslangic_tarihi, bitis_tarihi, butce, durum,
-      adres, yetkili, telefon, renk, aktif
+      // Temel
+      kod, ad, aciklama, firma_id, tender_id, cari_id,
+      // İşveren/Lokasyon
+      musteri, lokasyon, adres, il, ilce,
+      // Sözleşme
+      sozlesme_no, sozlesme_tarihi, sozlesme_bitis_tarihi, sozlesme_bedeli, teminat_tutari, teminat_iade_tarihi,
+      // Kapasite
+      gunluk_kisi_sayisi, ogun_sayisi, toplam_ogun, gunluk_maliyet_hedef,
+      // Fatura
+      fatura_unvani, fatura_vergi_no, fatura_vergi_dairesi, fatura_adresi, fatura_kesim_gunu, kdv_orani,
+      // Hakediş
+      hakedis_tipi, aylik_hakedis, hakedis_gun, hakedis_kesinti_orani,
+      // Yetkili
+      yetkili, yetkili_unvan, telefon, email,
+      // Diğer
+      proje_tipi, kategori, baslangic_tarihi, bitis_tarihi, butce, durum, renk, aktif, notlar
     } = req.body;
     
     const result = await query(`
       UPDATE projeler SET
         kod = COALESCE($1, kod),
         ad = COALESCE($2, ad),
-        aciklama = COALESCE($3, aciklama),
-        musteri = COALESCE($4, musteri),
-        lokasyon = COALESCE($5, lokasyon),
-        baslangic_tarihi = COALESCE($6, baslangic_tarihi),
-        bitis_tarihi = COALESCE($7, bitis_tarihi),
-        butce = COALESCE($8, butce),
-        durum = COALESCE($9, durum),
-        adres = COALESCE($10, adres),
-        yetkili = COALESCE($11, yetkili),
-        telefon = COALESCE($12, telefon),
-        renk = COALESCE($13, renk),
-        aktif = COALESCE($14, aktif),
+        aciklama = $3,
+        firma_id = COALESCE($4, firma_id),
+        tender_id = $5,
+        cari_id = $6,
+        musteri = $7,
+        lokasyon = $8,
+        adres = $9,
+        il = $10,
+        ilce = $11,
+        sozlesme_no = $12,
+        sozlesme_tarihi = $13,
+        sozlesme_bitis_tarihi = $14,
+        sozlesme_bedeli = $15,
+        teminat_tutari = $16,
+        teminat_iade_tarihi = $17,
+        gunluk_kisi_sayisi = $18,
+        ogun_sayisi = COALESCE($19, ogun_sayisi),
+        toplam_ogun = $20,
+        gunluk_maliyet_hedef = $21,
+        fatura_unvani = $22,
+        fatura_vergi_no = $23,
+        fatura_vergi_dairesi = $24,
+        fatura_adresi = $25,
+        fatura_kesim_gunu = $26,
+        kdv_orani = COALESCE($27, kdv_orani),
+        hakedis_tipi = COALESCE($28, hakedis_tipi),
+        aylik_hakedis = $29,
+        hakedis_gun = $30,
+        hakedis_kesinti_orani = COALESCE($31, hakedis_kesinti_orani),
+        yetkili = $32,
+        yetkili_unvan = $33,
+        telefon = $34,
+        email = $35,
+        proje_tipi = COALESCE($36, proje_tipi),
+        kategori = $37,
+        baslangic_tarihi = $38,
+        bitis_tarihi = $39,
+        butce = COALESCE($40, butce),
+        durum = COALESCE($41, durum),
+        renk = COALESCE($42, renk),
+        aktif = COALESCE($43, aktif),
+        notlar = $44,
         updated_at = NOW()
-      WHERE id = $15
+      WHERE id = $45
       RETURNING *
-    `, [kod, ad, aciklama, musteri, lokasyon, baslangic_tarihi, bitis_tarihi, butce, durum, adres, yetkili, telefon, renk, aktif, id]);
+    `, [
+      kod, ad, aciklama, firma_id, tender_id, cari_id,
+      musteri, lokasyon, adres, il, ilce,
+      sozlesme_no, sozlesme_tarihi, sozlesme_bitis_tarihi, sozlesme_bedeli, teminat_tutari, teminat_iade_tarihi,
+      gunluk_kisi_sayisi, ogun_sayisi, toplam_ogun, gunluk_maliyet_hedef,
+      fatura_unvani, fatura_vergi_no, fatura_vergi_dairesi, fatura_adresi, fatura_kesim_gunu, kdv_orani,
+      hakedis_tipi, aylik_hakedis, hakedis_gun, hakedis_kesinti_orani,
+      yetkili, yetkili_unvan, telefon, email,
+      proje_tipi, kategori, baslangic_tarihi, bitis_tarihi, butce, durum, renk, aktif, notlar,
+      id
+    ]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Proje bulunamadı' });
@@ -967,6 +1060,221 @@ router.get('/:id/atamasiz-personeller', async (req, res) => {
   } catch (error) {
     console.error('Atamasız personeller hatası:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// =====================================================
+// PROJE YETKİLİLERİ API
+// =====================================================
+
+/**
+ * GET /api/projeler/:id/yetkililer
+ * Proje yetkililerini listele
+ */
+router.get('/:id/yetkililer', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await query(`
+      SELECT * FROM proje_yetkilileri 
+      WHERE proje_id = $1 AND aktif = TRUE
+      ORDER BY yetki_turu, ad_soyad
+    `, [id]);
+    
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Proje yetkilileri hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/projeler/:id/yetkililer
+ * Proje yetkilisi ekle
+ */
+router.post('/:id/yetkililer', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ad_soyad, unvan, telefon, email, yetki_turu, notlar } = req.body;
+    
+    if (!ad_soyad) {
+      return res.status(400).json({ success: false, error: 'Ad soyad zorunludur' });
+    }
+    
+    const result = await query(`
+      INSERT INTO proje_yetkilileri (proje_id, ad_soyad, unvan, telefon, email, yetki_turu, notlar)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `, [id, ad_soyad, unvan, telefon, email, yetki_turu || 'standart', notlar]);
+    
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Yetkili ekle hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PUT /api/projeler/:projeId/yetkililer/:yetkiliId
+ * Proje yetkilisi güncelle
+ */
+router.put('/:projeId/yetkililer/:yetkiliId', async (req, res) => {
+  try {
+    const { projeId, yetkiliId } = req.params;
+    const { ad_soyad, unvan, telefon, email, yetki_turu, notlar, aktif } = req.body;
+    
+    const result = await query(`
+      UPDATE proje_yetkilileri SET
+        ad_soyad = COALESCE($1, ad_soyad),
+        unvan = $2,
+        telefon = $3,
+        email = $4,
+        yetki_turu = COALESCE($5, yetki_turu),
+        notlar = $6,
+        aktif = COALESCE($7, aktif),
+        updated_at = NOW()
+      WHERE id = $8 AND proje_id = $9
+      RETURNING *
+    `, [ad_soyad, unvan, telefon, email, yetki_turu, notlar, aktif, yetkiliId, projeId]);
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, error: 'Yetkili bulunamadı' });
+    }
+    
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Yetkili güncelle hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/projeler/:projeId/yetkililer/:yetkiliId
+ * Proje yetkilisi sil
+ */
+router.delete('/:projeId/yetkililer/:yetkiliId', async (req, res) => {
+  try {
+    const { projeId, yetkiliId } = req.params;
+    
+    const result = await query(
+      'DELETE FROM proje_yetkilileri WHERE id = $1 AND proje_id = $2 RETURNING *',
+      [yetkiliId, projeId]
+    );
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, error: 'Yetkili bulunamadı' });
+    }
+    
+    res.json({ success: true, message: 'Yetkili silindi' });
+  } catch (error) {
+    console.error('Yetkili sil hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =====================================================
+// PROJE DÖKÜMANLARI API
+// =====================================================
+
+/**
+ * GET /api/projeler/:id/dokumanlar
+ * Proje dökümanlarını listele
+ */
+router.get('/:id/dokumanlar', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { kategori } = req.query;
+    
+    let sql = `
+      SELECT * FROM proje_dokumanlari 
+      WHERE proje_id = $1 AND aktif = TRUE
+    `;
+    const params = [id];
+    
+    if (kategori) {
+      sql += ' AND kategori = $2';
+      params.push(kategori);
+    }
+    
+    sql += ' ORDER BY kategori, yuklenme_tarihi DESC';
+    
+    const result = await query(sql, params);
+    
+    // Kategorilere göre grupla
+    const kategoriler = {};
+    result.rows.forEach(doc => {
+      if (!kategoriler[doc.kategori]) {
+        kategoriler[doc.kategori] = [];
+      }
+      kategoriler[doc.kategori].push(doc);
+    });
+    
+    res.json({ 
+      success: true, 
+      data: result.rows,
+      kategoriler 
+    });
+  } catch (error) {
+    console.error('Proje dökümanları hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/projeler/:id/dokumanlar
+ * Proje dökümanı ekle
+ */
+router.post('/:id/dokumanlar', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      dosya_adi, dosya_url, kategori, alt_kategori, 
+      aciklama, dosya_boyutu, mime_type, gecerlilik_tarihi 
+    } = req.body;
+    
+    if (!dosya_adi || !dosya_url || !kategori) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Dosya adı, URL ve kategori zorunludur' 
+      });
+    }
+    
+    const result = await query(`
+      INSERT INTO proje_dokumanlari (
+        proje_id, dosya_adi, dosya_url, kategori, alt_kategori,
+        aciklama, dosya_boyutu, mime_type, gecerlilik_tarihi
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *
+    `, [id, dosya_adi, dosya_url, kategori, alt_kategori, aciklama, dosya_boyutu, mime_type, gecerlilik_tarihi]);
+    
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Döküman ekle hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/projeler/:projeId/dokumanlar/:dokumanId
+ * Proje dökümanı sil
+ */
+router.delete('/:projeId/dokumanlar/:dokumanId', async (req, res) => {
+  try {
+    const { projeId, dokumanId } = req.params;
+    
+    const result = await query(
+      'DELETE FROM proje_dokumanlari WHERE id = $1 AND proje_id = $2 RETURNING *',
+      [dokumanId, projeId]
+    );
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, error: 'Döküman bulunamadı' });
+    }
+    
+    res.json({ success: true, message: 'Döküman silindi' });
+  } catch (error) {
+    console.error('Döküman sil hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

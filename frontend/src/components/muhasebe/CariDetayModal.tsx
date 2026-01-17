@@ -20,7 +20,7 @@ import {
   Divider,
   Loader
 } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import StyledDatePicker, { StyledDateRangePicker } from '@/components/ui/StyledDatePicker';
 import {
   IconUser,
   IconReceipt,
@@ -541,13 +541,12 @@ export default function CariDetayModal({ opened, onClose, cari, onEdit, onMutaba
           <Tabs.Panel value="ekstre" pt="md">
             <Stack gap="md">
               <Group>
-                <DatePickerInput
-                  type="range"
+                <StyledDateRangePicker
                   label="Tarih Aralığı"
                   placeholder="Tarih seçin"
                   value={dateRange}
                   onChange={setDateRange}
-                  style={{ flex: 1 }}
+                  w="100%"
                 />
                 <Select
                   label="Hareket Tipi"

@@ -4,6 +4,8 @@
 
 Catering Pro backend servisi, Node.js + Express.js üzerine inşa edilmiş RESTful API'dir. PostgreSQL veritabanı (Supabase) kullanır.
 
+**Son Güncelleme:** Ocak 2026
+
 ## 🚀 Başlatma
 
 ```bash
@@ -11,6 +13,7 @@ cd backend
 npm install
 npm run dev        # Development (nodemon)
 npm start          # Production
+npm run migrate    # Database migrations
 ```
 
 **Port:** 3001 (default)
@@ -20,28 +23,75 @@ npm start          # Production
 ## 📁 Klasör Yapısı
 
 ```
-src/
-├── routes/              # API endpoint'leri
-│   ├── auth.js          # Kimlik doğrulama
-│   ├── cariler.js       # Müşteri/Tedarikçi
-│   ├── stok.js          # Stok yönetimi
-│   ├── personel.js      # Personel işlemleri
-│   ├── bordro.js        # Bordro hesaplama
-│   ├── invoices.js      # Fatura yönetimi
-│   ├── kasa-banka.js    # Nakit yönetimi
-│   ├── tenders.js       # İhale takibi
-│   ├── planlama.js      # Menü planlama
-│   ├── ai.js            # AI asistan
-│   └── ...
-├── services/            # İş mantığı servisleri
-│   ├── gemini.js        # Google Gemini AI
-│   ├── claude.js        # Claude AI
-│   ├── document.js      # Döküman işleme
-│   └── ...
-├── scraper/             # Web scraping
-├── migrations/          # SQL migration dosyaları
-├── database.js          # DB connection pool
-└── server.js            # Express app entry
+backend/
+├── src/
+│   ├── routes/              # API endpoint'leri (39 dosya)
+│   │   ├── auth.js          # Kimlik doğrulama
+│   │   ├── tenders.js       # İhale yönetimi
+│   │   ├── tender-tracking.js # İhale takip listesi
+│   │   ├── teklifler.js     # Teklif hazırlama
+│   │   ├── documents.js     # Döküman işleme
+│   │   ├── cariler.js       # Cari hesaplar
+│   │   ├── invoices.js      # Fatura yönetimi
+│   │   ├── stok.js          # Stok/Depo yönetimi
+│   │   ├── personel.js      # Personel işlemleri
+│   │   ├── bordro.js        # Bordro hesaplama
+│   │   ├── izin.js          # İzin yönetimi
+│   │   ├── kasa-banka.js    # Nakit yönetimi
+│   │   ├── planlama.js      # Üretim planlama
+│   │   ├── menu-planlama.js # Menü planlama
+│   │   ├── ai.js            # AI asistan
+│   │   ├── notifications.js # Bildirimler
+│   │   ├── projeler.js      # Proje yönetimi
+│   │   ├── satin-alma.js    # Satın alma
+│   │   ├── search.js        # Global arama
+│   │   └── ... (detay: routes/README.md)
+│   │
+│   ├── services/            # İş mantığı (33+ dosya)
+│   │   ├── claude-ai-service.js  # Claude AI entegrasyonu
+│   │   ├── gemini.js             # Gemini AI/OCR
+│   │   ├── document-analysis.js  # Döküman işleme
+│   │   ├── bordro-service.js     # Bordro hesaplama
+│   │   ├── cari-service.js       # Cari işlemler
+│   │   ├── personel-service.js   # Personel işlemler
+│   │   ├── sync-scheduler.js     # Otomatik sync
+│   │   ├── tender-scheduler.js   # İhale scraper
+│   │   ├── document-queue-processor.js # Döküman kuyruğu
+│   │   ├── notification-service.js     # Bildirimler
+│   │   ├── logger.js             # Winston logger
+│   │   ├── ai-tools/             # AI araç modülleri (10 dosya)
+│   │   │   ├── index.js          # Merkezi registry
+│   │   │   ├── cari-tools.js
+│   │   │   ├── personel-tools.js
+│   │   │   ├── satin-alma-tools.js
+│   │   │   ├── web-tools.js
+│   │   │   ├── piyasa-tools.js
+│   │   │   └── menu-tools.js
+│   │   └── ... (detay: services/README.md)
+│   │
+│   ├── scraper/             # Web scraping
+│   │   ├── ihalebul.js      # Ana scraper
+│   │   ├── session.js       # Session yönetimi
+│   │   └── parser.js        # HTML parser
+│   │
+│   ├── migrations/          # SQL migrations (54 dosya)
+│   │   └── ... (detay: migrations/README.md)
+│   │
+│   ├── database.js          # PostgreSQL connection pool
+│   ├── server.js            # Express app entry
+│   └── swagger.js           # API dokümantasyonu
+│
+├── logs/                    # Winston log dosyaları
+│   ├── app-YYYY-MM-DD.log
+│   ├── error-YYYY-MM-DD.log
+│   └── exceptions-YYYY-MM-DD.log
+│
+├── storage/                 # Session dosyaları
+│   └── session.json
+│
+├── uploads/                 # Yüklenen dosyalar
+│
+└── temp/                    # Geçici dosyalar
 ```
 
 ---
@@ -74,6 +124,15 @@ POST /api/auth/login
 
 // Hata
 { "success": false, "error": "Hata mesajı" }
+
+// Pagination
+{
+  "success": true,
+  "data": [...],
+  "count": 150,
+  "page": 1,
+  "totalPages": 8
+}
 ```
 
 ### Pagination
@@ -86,7 +145,45 @@ GET /api/endpoint?page=1&limit=20
 
 ```
 GET /api/cariler?tip=musteri&aktif=true&search=abc
+GET /api/tenders?city=Ankara&status=active
+GET /api/invoices?startDate=2026-01-01&endDate=2026-01-31
 ```
+
+### Sorting
+
+```
+GET /api/tenders?sort=tender_date&order=desc
+```
+
+---
+
+## 📊 Route Listesi (Özet)
+
+| Route | Dosya | Açıklama |
+|-------|-------|----------|
+| `/api/auth/*` | auth.js | Kimlik doğrulama |
+| `/api/tenders/*` | tenders.js | İhale yönetimi |
+| `/api/tender-tracking/*` | tender-tracking.js | İhale takip listesi |
+| `/api/teklifler/*` | teklifler.js | Teklif hazırlama |
+| `/api/documents/*` | documents.js | Döküman işleme |
+| `/api/cariler/*` | cariler.js | Cari hesap yönetimi |
+| `/api/invoices/*` | invoices.js | Fatura yönetimi |
+| `/api/stok/*` | stok.js | Stok/Depo yönetimi |
+| `/api/personel/*` | personel.js | Personel işlemleri |
+| `/api/bordro/*` | bordro.js | Bordro hesaplama |
+| `/api/izin/*` | izin.js | İzin yönetimi |
+| `/api/kasa-banka/*` | kasa-banka.js | Nakit akış |
+| `/api/planlama/*` | planlama.js | Üretim planlama |
+| `/api/menu-planlama/*` | menu-planlama.js | Menü planlama |
+| `/api/projeler/*` | projeler.js | Proje yönetimi |
+| `/api/satin-alma/*` | satin-alma.js | Satın alma |
+| `/api/ai/*` | ai.js | AI asistan |
+| `/api/notifications/*` | notifications.js | Bildirimler |
+| `/api/search/*` | search.js | Global arama |
+| `/api/export/*` | export.js | Dışa aktarma |
+| `/api/notlar/*` | notlar.js | Dashboard notları |
+
+**Detaylı endpoint listesi:** `src/routes/README.md`
 
 ---
 
@@ -108,6 +205,7 @@ try {
   await client.query('COMMIT');
 } catch (e) {
   await client.query('ROLLBACK');
+  throw e;
 } finally {
   client.release();
 }
@@ -118,14 +216,56 @@ try {
 ## 📝 Migration Kullanımı
 
 ```bash
-# Yeni migration oluştur
-# Dosya adı: XXX_aciklama.sql (sıradaki numara)
-
 # Migration çalıştır
 npm run migrate
+
+# Manuel çalıştırma
+psql $DATABASE_URL -f src/migrations/XXX_dosya.sql
 ```
 
-**Konum:** `src/migrations/`
+**Konum:** `src/migrations/` (54 dosya)
+**Detay:** `src/migrations/README.md`
+
+---
+
+## 🤖 AI Servisleri
+
+### Claude AI (claude-ai-service.js)
+- Streaming chat responses
+- Tool calling (ai-tools registry)
+- Conversation memory
+
+### Gemini AI (gemini.js)
+- Döküman OCR
+- PDF/Word/Excel analizi
+- Yapılandırılmış veri çıkarma
+
+### AI Tools Registry (ai-tools/)
+- cari-tools: Cari hesap sorguları
+- personel-tools: Personel/bordro sorguları
+- satin-alma-tools: Satın alma işlemleri
+- web-tools: Web araması
+- piyasa-tools: Piyasa fiyatları
+- menu-tools: Menü/reçete sorguları
+
+---
+
+## 🔄 Scheduled Tasks
+
+Backend başlatıldığında otomatik çalışan servisler:
+
+1. **sync-scheduler.js** - Uyumsoft senkronizasyonu
+2. **tender-scheduler.js** - İhale scraper (günlük)
+3. **document-queue-processor.js** - Döküman analiz kuyruğu
+
+---
+
+## 📚 Swagger Dokümantasyonu
+
+```
+http://localhost:3001/api-docs
+http://localhost:3001/api-docs.json
+```
 
 ---
 
@@ -137,36 +277,33 @@ DATABASE_URL=postgresql://user:pass@host:5432/db
 
 # AI Services
 GEMINI_API_KEY=xxx
-CLAUDE_API_KEY=xxx
+ANTHROPIC_API_KEY=xxx
 
 # Auth
 JWT_SECRET=xxx
-NEXTAUTH_SECRET=xxx
 
 # Scraper
 IHALEBUL_USERNAME=xxx
 IHALEBUL_PASSWORD=xxx
+
+# Server
+PORT=3001
+NODE_ENV=development
 ```
 
 ---
 
-## 📊 Route Listesi
+## 📊 Logging
 
-| Route | Açıklama |
-|-------|----------|
-| `/api/auth/*` | Kimlik doğrulama |
-| `/api/cariler/*` | Cari hesap yönetimi |
-| `/api/stok/*` | Stok/Depo yönetimi |
-| `/api/personel/*` | Personel işlemleri |
-| `/api/bordro/*` | Bordro hesaplama |
-| `/api/invoices/*` | Fatura yönetimi |
-| `/api/kasa-banka/*` | Nakit akış |
-| `/api/tenders/*` | İhale takibi |
-| `/api/documents/*` | Döküman işleme |
-| `/api/planlama/*` | Menü planlama |
-| `/api/ai/*` | AI asistan |
-| `/api/projeler/*` | Proje yönetimi |
-| `/api/satin-alma/*` | Satın alma |
+Winston logger ile günlük log dosyaları:
+
+```
+logs/
+├── app-YYYY-MM-DD.log      # Genel loglar
+├── error-YYYY-MM-DD.log    # Hata logları
+├── exceptions-YYYY-MM-DD.log # Yakalanmamış hatalar
+└── rejections-YYYY-MM-DD.log # Promise rejections
+```
 
 ---
 
@@ -174,9 +311,11 @@ IHALEBUL_PASSWORD=xxx
 
 1. **SQL Injection:** Parameterized queries kullan (`$1, $2...`)
 2. **Error Handling:** Her route'da try-catch
-3. **Logging:** `console.error` yerine proper logging
+3. **Logging:** Winston logger kullan
 4. **Validation:** Input validation her endpoint'te
 5. **Türkçe Karakter:** UTF-8 encoding
+6. **Tarih Format:** ISO 8601 (YYYY-MM-DD)
+7. **Para Birimi:** TRY, DECIMAL(15,2)
 
 ---
 
@@ -185,6 +324,9 @@ IHALEBUL_PASSWORD=xxx
 ```bash
 # API health check
 curl http://localhost:3001/health
+
+# Swagger UI
+open http://localhost:3001/api-docs
 
 # Auth test
 curl -X POST http://localhost:3001/api/auth/login \

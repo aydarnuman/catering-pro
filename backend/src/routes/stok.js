@@ -1,7 +1,10 @@
 import express from 'express';
 import { query } from '../database.js';
+import { authenticate, requirePermission, auditLog } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// NOT: GET route'ları herkese açık, POST/PUT/DELETE route'ları authentication gerektirir
 
 // =============================================
 // DEPO YÖNETİMİ
@@ -420,7 +423,7 @@ router.get('/kartlar', async (req, res) => {
 
 // Tek bir stok kartının detayları (tüm depolardaki durumu ile)
 // Stok kartını sil
-router.delete('/kartlar/:id', async (req, res) => {
+router.delete('/kartlar/:id', authenticate, requirePermission('stok', 'delete'), auditLog('stok'), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -558,7 +561,7 @@ router.get('/kartlar/:id', async (req, res) => {
 });
 
 // Yeni stok kartı oluştur
-router.post('/kartlar', async (req, res) => {
+router.post('/kartlar', authenticate, requirePermission('stok', 'create'), auditLog('stok'), async (req, res) => {
   try {
     const {
       kod, ad, barkod, kategori_id, ana_birim_id,

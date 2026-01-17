@@ -1204,6 +1204,221 @@ router.get('/snapshots', async (req, res) => {
   }
 });
 
+// ==========================================
+// SOHBET GEÇMİŞİ ENDPOINTLERİ
+// ==========================================
+
+/**
+ * GET /api/ai/conversations
+ * Tüm sohbet oturumlarını listele
+ */
+router.get('/conversations', async (req, res) => {
+  try {
+    const { userId = 'default', limit = 50, offset = 0 } = req.query;
+    
+    // Benzersiz session'ları ve son mesajları getir
+    const { rows } = await query(`
+      WITH session_summary AS (
+        SELECT 
+          session_id,
+          user_id,
+          MIN(created_at) as started_at,
+          MAX(created_at) as last_message_at,
+          COUNT(*) as message_count,
+          COUNT(CASE WHEN role = 'user' THEN 1 END) as user_messages,
+          COUNT(CASE WHEN role = 'assistant' THEN 1 END) as ai_messages
+        FROM ai_conversations
+        WHERE user_id = $1
+        GROUP BY session_id, user_id
+      ),
+      first_message AS (
+        SELECT DISTINCT ON (session_id) 
+          session_id,
+          content as first_user_message
+        FROM ai_conversations
+        WHERE role = 'user' AND user_id = $1
+        ORDER BY session_id, created_at ASC
+      )
+      SELECT 
+        s.*,
+        f.first_user_message,
+        SUBSTRING(f.first_user_message, 1, 100) as preview
+      FROM session_summary s
+      LEFT JOIN first_message f ON s.session_id = f.session_id
+      ORDER BY s.last_message_at DESC
+      LIMIT $2 OFFSET $3
+    `, [userId, parseInt(limit), parseInt(offset)]);
+    
+    // Toplam sayı
+    const countResult = await query(`
+      SELECT COUNT(DISTINCT session_id) as total
+      FROM ai_conversations
+      WHERE user_id = $1
+    `, [userId]);
+    
+    return res.json({
+      success: true,
+      conversations: rows,
+      count: rows.length,
+      total: parseInt(countResult.rows[0]?.total || 0),
+      pagination: {
+        limit: parseInt(limit),
+        offset: parseInt(offset)
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [AI Conversations] Hata:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Sohbet geçmişi yüklenemedi'
+    });
+  }
+});
+
+/**
+ * GET /api/ai/conversations/search
+ * Sohbet geçmişinde ara
+ */
+router.get('/conversations/search', async (req, res) => {
+  try {
+    const { q, userId = 'default', limit = 20 } = req.query;
+    
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        error: 'Arama terimi en az 2 karakter olmalı'
+      });
+    }
+    
+    const searchTerm = `%${q.trim().toLowerCase()}%`;
+    
+    const { rows } = await query(`
+      SELECT 
+        id,
+        session_id,
+        role,
+        content,
+        created_at,
+        tools_used
+      FROM ai_conversations
+      WHERE user_id = $1 
+        AND LOWER(content) LIKE $2
+      ORDER BY created_at DESC
+      LIMIT $3
+    `, [userId, searchTerm, parseInt(limit)]);
+    
+    return res.json({
+      success: true,
+      results: rows,
+      count: rows.length,
+      query: q
+    });
+    
+  } catch (error) {
+    console.error('❌ [AI Conversations Search] Hata:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Arama yapılamadı'
+    });
+  }
+});
+
+/**
+ * GET /api/ai/conversations/:sessionId
+ * Belirli bir oturumun tüm mesajlarını getir
+ */
+router.get('/conversations/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { userId = 'default' } = req.query;
+    
+    const { rows } = await query(`
+      SELECT 
+        id,
+        session_id,
+        user_id,
+        role,
+        content,
+        tools_used,
+        metadata,
+        created_at
+      FROM ai_conversations
+      WHERE session_id = $1 AND user_id = $2
+      ORDER BY created_at ASC
+    `, [sessionId, userId]);
+    
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Sohbet oturumu bulunamadı'
+      });
+    }
+    
+    // Oturum özeti
+    const summary = {
+      session_id: sessionId,
+      started_at: rows[0].created_at,
+      last_message_at: rows[rows.length - 1].created_at,
+      message_count: rows.length,
+      user_messages: rows.filter(r => r.role === 'user').length,
+      ai_messages: rows.filter(r => r.role === 'assistant').length
+    };
+    
+    return res.json({
+      success: true,
+      session: summary,
+      messages: rows
+    });
+    
+  } catch (error) {
+    console.error('❌ [AI Conversation Detail] Hata:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Sohbet detayı yüklenemedi'
+    });
+  }
+});
+
+/**
+ * DELETE /api/ai/conversations/:sessionId
+ * Belirli bir oturumu sil
+ */
+router.delete('/conversations/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { userId = 'default' } = req.query;
+    
+    const result = await query(`
+      DELETE FROM ai_conversations
+      WHERE session_id = $1 AND user_id = $2
+      RETURNING id
+    `, [sessionId, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Sohbet oturumu bulunamadı'
+      });
+    }
+    
+    console.log(`🗑️ [AI Conversation] Silindi: ${sessionId} (${result.rows.length} mesaj)`);
+    
+    return res.json({
+      success: true,
+      message: 'Sohbet oturumu silindi',
+      deletedCount: result.rows.length
+    });
+    
+  } catch (error) {
+    console.error('❌ [AI Conversation Delete] Hata:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Sohbet silinemedi'
+    });
+  }
+});
+
 /**
  * GET /api/ai/dashboard
  * AI Dashboard - tüm önemli metrikleri getir

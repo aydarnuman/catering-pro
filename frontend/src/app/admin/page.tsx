@@ -95,10 +95,28 @@ export default function AdminPage() {
     {
       id: 'kullanicilar',
       title: 'Kullanıcı Yönetimi',
-      description: 'Kullanıcılar, roller ve izinler',
+      description: 'Kullanıcı ekleme, silme ve düzenleme',
       icon: IconUsers,
       color: 'blue',
       path: '/admin/kullanicilar',
+      badge: null
+    },
+    {
+      id: 'yetkiler',
+      title: 'Yetki Yönetimi',
+      description: 'Modül bazlı yetkilendirme ve roller',
+      icon: IconShieldLock,
+      color: 'violet',
+      path: '/admin/yetkiler',
+      badge: null
+    },
+    {
+      id: 'loglar',
+      title: 'İşlem Geçmişi',
+      description: 'Kim ne zaman ne değiştirdi',
+      icon: IconActivity,
+      color: 'teal',
+      path: '/admin/loglar',
       badge: null
     },
     {
@@ -342,7 +360,7 @@ export default function AdminPage() {
         {/* Yönetim Kartları */}
         <div>
           <Title order={3} mb="md">🔧 Yönetim</Title>
-          <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="lg">
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="lg">
             {adminCards.map((card) => (
               <Card key={card.id} padding="xl" radius="md" withBorder>
                 <Stack gap="md">

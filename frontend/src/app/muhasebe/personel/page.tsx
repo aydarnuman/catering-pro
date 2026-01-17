@@ -33,7 +33,7 @@ import {
   Tooltip,
   SegmentedControl
 } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
@@ -59,6 +59,8 @@ import {
 } from '@tabler/icons-react';
 import { DataActions } from '@/components/DataActions';
 import { BordroImportModal } from '@/components/BordroImportModal';
+import { usePermissions } from '@/hooks/usePermissions';
+import Link from 'next/link';
 import 'dayjs/locale/tr';
 
 const API_URL = `${API_BASE_URL}/api`;
@@ -216,6 +218,13 @@ export default function PersonelPage() {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
   const isMobile = useMediaQuery('(max-width: 768px)');
+  
+  // === YETKİ KONTROLÜ ===
+  const { canCreate, canEdit, canDelete, canExport, isSuperAdmin } = usePermissions();
+  const canEditPersonel = isSuperAdmin || canEdit('personel');
+  const canCreatePersonel = isSuperAdmin || canCreate('personel');
+  const canDeletePersonel = isSuperAdmin || canDelete('personel');
+  const canEditBordro = isSuperAdmin || canEdit('bordro');
 
   // === TEMEL STATE ===
   const [loading, setLoading] = useState(true);
@@ -246,21 +255,15 @@ export default function PersonelPage() {
   const [bordroImportOpen, setBordroImportOpen] = useState(false);
   const [personelModalOpened, { open: openPersonelModal, close: closePersonelModal }] = useDisclosure(false);
   const [detailModalOpened, { open: openDetailModal, close: closeDetailModal }] = useDisclosure(false);
-  const [projeModalOpened, { open: openProjeModal, close: closeProjeModal }] = useDisclosure(false);
 
   // === FORM STATE ===
   const [editingPersonel, setEditingPersonel] = useState<Personel | null>(null);
   const [selectedPersonel, setSelectedPersonel] = useState<Personel | null>(null);
-  const [editingProje, setEditingProje] = useState<Proje | null>(null);
 
   const [personelForm, setPersonelForm] = useState({
     ad: '', soyad: '', tc_kimlik: '', telefon: '', email: '',
     departman: '', pozisyon: '', ise_giris_tarihi: new Date(), maas: 0, bordro_maas: 0,
     durum: 'aktif', medeni_durum: 'bekar', cocuk_sayisi: 0, sgk_no: ''
-  });
-
-  const [projeForm, setProjeForm] = useState({
-    ad: '', kod: '', musteri: '', lokasyon: '', durum: 'aktif'
   });
 
   // =====================================================
@@ -572,40 +575,6 @@ export default function PersonelPage() {
     }
   };
 
-  const handleSaveProje = async () => {
-    if (!projeForm.ad) {
-      notifications.show({ title: 'Hata', message: 'Proje adı zorunludur', color: 'red' });
-      return;
-    }
-
-    try {
-      // Merkezi Proje API kullan
-      const url = editingProje
-        ? `${API_URL}/projeler/${editingProje.id}`
-        : `${API_URL}/projeler`;
-
-      const response = await fetch(url, {
-        method: editingProje ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(projeForm)
-      });
-
-      if (!response.ok) throw new Error('İşlem başarısız');
-
-      notifications.show({
-        title: 'Başarılı',
-        message: `Proje ${editingProje ? 'güncellendi' : 'eklendi'}`,
-        color: 'green'
-      });
-
-      closeProjeModal();
-      resetProjeForm();
-      fetchProjeler();
-    } catch (error: any) {
-      notifications.show({ title: 'Hata', message: error.message, color: 'red' });
-    }
-  };
-
   // === RESET FONKSİYONLARI ===
   const resetPersonelForm = () => {
     setEditingPersonel(null);
@@ -614,11 +583,6 @@ export default function PersonelPage() {
       departman: '', pozisyon: '', ise_giris_tarihi: new Date(), maas: 0, bordro_maas: 0,
       durum: 'aktif', medeni_durum: 'bekar', cocuk_sayisi: 0, sgk_no: ''
     });
-  };
-
-  const resetProjeForm = () => {
-    setEditingProje(null);
-    setProjeForm({ ad: '', kod: '', musteri: '', lokasyon: '', durum: 'aktif' });
   };
 
   const handleEditPersonel = (p: Personel) => {
@@ -737,13 +701,14 @@ export default function PersonelPage() {
             <Group justify="space-between" mb="md">
               <Text fw={600} size="lg">🏢 Projeler</Text>
               <Button
-                variant="light"
+                component={Link}
+                href="/ayarlar?section=firma"
+                variant="subtle"
                 color="violet"
                 size="sm"
-                leftSection={<IconPlus size={16} />}
-                onClick={() => { resetProjeForm(); openProjeModal(); }}
+                leftSection={<IconBuilding size={16} />}
               >
-                Yeni Proje
+                Proje Yönetimi
               </Button>
             </Group>
 
@@ -790,13 +755,15 @@ export default function PersonelPage() {
                         <IconBuilding size={24} />
                       </ThemeIcon>
                       <Text c="dimmed">Henüz proje eklenmemiş</Text>
+                      <Text size="xs" c="dimmed">Projeler merkezi olarak Ayarlar &gt; Firma Bilgileri'nden yönetilir</Text>
                       <Button
+                        component={Link}
+                        href="/ayarlar?section=firma"
                         variant="light"
                         size="sm"
-                        leftSection={<IconPlus size={16} />}
-                        onClick={() => { resetProjeForm(); openProjeModal(); }}
+                        leftSection={<IconBuilding size={16} />}
                       >
-                        İlk Projeyi Ekle
+                        Proje Ekle
                       </Button>
                     </Stack>
                   </Center>
@@ -848,6 +815,7 @@ export default function PersonelPage() {
                         onChange={(e) => setSearchTerm(e.currentTarget.value)}
                         style={{ width: 300 }}
                       />
+                      {canCreatePersonel && (
                       <Button
                         variant="gradient"
                         gradient={{ from: 'violet', to: 'grape' }}
@@ -856,6 +824,7 @@ export default function PersonelPage() {
                       >
                         Personel Ekle
                       </Button>
+                      )}
                     </Group>
 
                     {/* Personel Tablosu */}
@@ -937,12 +906,16 @@ export default function PersonelPage() {
                                       >
                                         Detay
                                       </Menu.Item>
+                                      {canEditPersonel && (
                                       <Menu.Item
                                         leftSection={<IconEdit style={{ width: rem(14), height: rem(14) }} />}
                                         onClick={() => handleEditPersonel(personel)}
                                       >
                                         Düzenle
                                       </Menu.Item>
+                                      )}
+                                      {canDeletePersonel && (
+                                      <>
                                       <Menu.Divider />
                                       <Menu.Item
                                         color="red"
@@ -951,6 +924,8 @@ export default function PersonelPage() {
                                       >
                                         Sil
                                       </Menu.Item>
+                                      </>
+                                      )}
                                     </Menu.Dropdown>
                                   </Menu>
                                 </Table.Td>
@@ -1406,6 +1381,7 @@ export default function PersonelPage() {
                                     </Group>
                                   </Table.Td>
                                   <Table.Td style={{ textAlign: 'center' }}>
+                                    {canEditBordro ? (
                                     <ActionIcon 
                                       variant="light" 
                                       color="blue" 
@@ -1414,6 +1390,9 @@ export default function PersonelPage() {
                                     >
                                       <IconEdit size={14} />
                                     </ActionIcon>
+                                    ) : (
+                                    <Text c="dimmed" size="xs">-</Text>
+                                    )}
                                   </Table.Td>
                                 </Table.Tr>
                               ))}
@@ -1489,12 +1468,10 @@ export default function PersonelPage() {
             </SimpleGrid>
 
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <DatePickerInput
+              <StyledDatePicker
                 label="İşe Giriş Tarihi"
-                leftSection={<IconCalendar size={16} />}
                 value={personelForm.ise_giris_tarihi}
                 onChange={(v) => setPersonelForm({ ...personelForm, ise_giris_tarihi: v || new Date() })}
-                locale="tr"
                 required
               />
               <Select
@@ -1699,39 +1676,6 @@ export default function PersonelPage() {
               </Stack>
             );
           })()}
-        </Modal>
-
-        {/* Proje Modal */}
-        <Modal
-          opened={projeModalOpened}
-          onClose={() => { resetProjeForm(); closeProjeModal(); }}
-          title={<Text fw={600} size="lg">{editingProje ? 'Proje Düzenle' : 'Yeni Proje'}</Text>}
-          size="md"
-          fullScreen={isMobile}
-        >
-          <Stack gap="md">
-            <TextInput label="Proje Adı" required value={projeForm.ad} onChange={(e) => setProjeForm({ ...projeForm, ad: e.currentTarget.value })} />
-            <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <TextInput label="Proje Kodu" value={projeForm.kod} onChange={(e) => setProjeForm({ ...projeForm, kod: e.currentTarget.value })} />
-              <TextInput label="Müşteri" value={projeForm.musteri} onChange={(e) => setProjeForm({ ...projeForm, musteri: e.currentTarget.value })} />
-            </SimpleGrid>
-            <TextInput label="Lokasyon" value={projeForm.lokasyon} onChange={(e) => setProjeForm({ ...projeForm, lokasyon: e.currentTarget.value })} />
-            <Select
-              label="Durum"
-              data={[
-                { label: 'Aktif', value: 'aktif' },
-                { label: 'Beklemede', value: 'beklemede' },
-                { label: 'Tamamlandı', value: 'tamamlandi' },
-                { label: 'Pasif', value: 'pasif' }
-              ]}
-              value={projeForm.durum}
-              onChange={(v) => setProjeForm({ ...projeForm, durum: v || 'aktif' })}
-            />
-            <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={() => { resetProjeForm(); closeProjeModal(); }}>İptal</Button>
-              <Button color="violet" onClick={handleSaveProje}>{editingProje ? 'Güncelle' : 'Kaydet'}</Button>
-            </Group>
-          </Stack>
         </Modal>
 
         {/* Personel Ödeme Düzenleme Modal */}

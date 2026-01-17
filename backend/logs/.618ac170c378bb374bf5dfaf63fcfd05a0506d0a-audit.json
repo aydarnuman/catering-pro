@@ -29,6 +29,16 @@
             "date": 1768377950289,
             "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-14.log",
             "hash": "338a444cc01449a23356ed8908d23976389801eb2cf502d4bb58996bebfde16d"
+        },
+        {
+            "date": 1768462093488,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-15.log",
+            "hash": "a924f94abbd4a9156a9a06f84cae351b291fdae929e559b42afebab59479dac4"
+        },
+        {
+            "date": 1768631999969,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-17.log",
+            "hash": "1758ea19ef1008c13e1d9054d13359fb9bff02e0239ffe177d69d83bb6d15783"
         }
     ],
     "hashType": "sha256"

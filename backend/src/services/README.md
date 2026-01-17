@@ -1,227 +1,500 @@
 # Services Dokümantasyonu
 
-## 🎯 Genel Bakış
+Bu klasör tüm iş mantığı servislerini içerir. Servisler, route'lardan çağrılır ve veritabanı işlemlerini yönetir.
 
-Bu klasör iş mantığı servislerini içerir. Route'lardan bağımsız, yeniden kullanılabilir fonksiyonlar burada tanımlanır.
-
----
-
-## 📁 Servis Listesi
-
-### 🤖 AI Servisleri
-
-#### `gemini.js` - Google Gemini AI
-Döküman analizi ve OCR işlemleri.
-
-```javascript
-import { analyzeDocument, extractText } from './gemini.js';
-
-// Döküman analizi
-const result = await analyzeDocument(filePath, fileType);
-// Returns: { title, organization, city, tender_date, estimated_cost, ... }
-
-// Metin çıkarma
-const text = await extractText(filePath);
-```
-
-#### `claude.js` - Anthropic Claude AI
-Konuşma asistanı ve gelişmiş analiz.
-
-```javascript
-import { chat, analyzeWithContext } from './claude.js';
-
-// Sohbet
-const response = await chat(message, history);
-
-// Bağlamlı analiz
-const analysis = await analyzeWithContext(document, context);
-```
-
-#### `ai-agent.js` - AI Agent Orchestration
-Çoklu AI çağrıları ve tool kullanımı.
+**Toplam Servis Dosyası:** 33 (ai-tools dahil 43)
+**Son Güncelleme:** Ocak 2026
 
 ---
 
-### 📄 Döküman Servisleri
+## 📁 Klasör Yapısı
 
-#### `document.js` - Döküman İşleme
-PDF, Word, Excel dosyalarından veri çıkarma.
-
-```javascript
-import { processDocument, extractFromPDF } from './document.js';
-
-const result = await processDocument(filePath);
-// Returns: { text, metadata, pages }
 ```
-
-#### `document-download.js` - Döküman İndirme
-Harici kaynaklardan döküman indirme.
-
----
-
-### 💼 İş Mantığı Servisleri
-
-#### `bordro-import-service.js` - Bordro Import
-Excel'den bordro verisi aktarma.
-
-```javascript
-import { importBordroFromExcel } from './bordro-import-service.js';
-
-const result = await importBordroFromExcel(filePath, donem);
-// Returns: { imported: 50, errors: [] }
-```
-
-#### `bordro-template-service.js` - Bordro Şablonları
-Bordro hesaplama şablonları ve formüller.
-
-#### `tazminat-service.js` - Tazminat Hesaplama
-Kıdem ve ihbar tazminatı hesaplama.
-
-```javascript
-import { hesaplaKidem, hesaplaIhbar } from './tazminat-service.js';
-
-const kidem = await hesaplaKidem(personelId, cikisTarihi);
-// Returns: { gun, tutar, detay }
-```
-
-#### `export-service.js` - Dışa Aktarma
-Excel, PDF export işlemleri.
-
-```javascript
-import { exportToExcel, exportToPDF } from './export-service.js';
-
-const buffer = await exportToExcel(data, columns);
-```
-
-#### `import-service.js` - İçe Aktarma
-Harici kaynaklardan veri aktarma.
-
-#### `duplicate-detector.js` - Duplikat Tespit
-Mükerrer kayıt kontrolü.
-
-```javascript
-import { checkDuplicate } from './duplicate-detector.js';
-
-const isDuplicate = await checkDuplicate('cariler', { vergi_no: '123' });
+services/
+├── ai-tools/              # AI araç modülleri (10 dosya)
+│   ├── index.js           # Merkezi registry
+│   ├── cari-tools.js      # Cari hesap araçları
+│   ├── satin-alma-tools.js # Satın alma araçları
+│   ├── personel-tools.js  # Personel araçları
+│   ├── web-tools.js       # Web arama araçları
+│   ├── piyasa-tools.js    # Piyasa araçları
+│   └── menu-tools.js      # Menü planlama araçları
+├── claude-ai-service.js   # Claude AI entegrasyonu
+├── gemini.js              # Gemini AI analizi
+├── document-analysis.js   # Döküman işleme
+└── [diğer servisler]
 ```
 
 ---
 
-### 🔄 Entegrasyon Servisleri
+## 🤖 AI Servisleri
 
-#### `sync-scheduler.js` - Senkronizasyon
-Periyodik veri senkronizasyonu.
-
-#### `uyumsoft-sales.js` - Uyumsoft Entegrasyonu
-Muhasebe yazılımı bağlantısı.
-
-#### `tender-scheduler.js` - İhale Scheduler
-Otomatik ihale scraping zamanlaması.
-
-#### `market-scraper.js` - Market Scraper
-Piyasa fiyat takibi.
-
----
-
-### 🍽️ Planlama Servisleri
-
-#### `menu-import.js` - Menü Import
-Excel'den menü verisi aktarma.
+### claude-ai-service.js - Claude AI Entegrasyonu
+Ana AI asistan servisi. Streaming chat, tool calling ve context management sağlar.
 
 ```javascript
-import { importMenuFromExcel } from './menu-import.js';
+// Özellikler
+- Streaming chat responses (SSE)
+- Tool-based agent system
+- Context-aware responses
+- Conversation memory
+- System prompt management
 
-const result = await importMenuFromExcel(filePath, projeId);
+// Kullanım
+const { chat, agentChat } = require('./services/claude-ai-service');
+
+// Streaming chat
+await chat(messages, onChunk, { stream: true });
+
+// Agent mode (tool calling)
+await agentChat(messages, tools, onChunk);
 ```
 
-#### `invoice-ai.js` - Fatura AI Analizi
-Fatura dökümanlarından otomatik veri çıkarma.
+**AI Tools Registry:** `ai-tools/index.js`
+- Tüm modüllerin AI araçlarını merkezi yönetir
+- Tool definitions (Claude formatında)
+- Tool execution dispatcher
+- System context generator
+
+### gemini.js - Gemini AI Servisi
+Döküman analizi ve OCR işlemleri için Gemini Vision API kullanır.
+
+```javascript
+// Özellikler
+- PDF/Döküman analizi
+- OCR (görüntüden metin)
+- Yapılandırılmış veri çıkarma
+- Multimodal analysis
+
+// Kullanım
+const gemini = require('./services/gemini');
+const result = await gemini.analyzeDocument(filePath);
+```
+
+### document-analysis.js - Döküman Analiz Servisi
+İhale dökümanlarından yapılandırılmış veri çıkarır.
+
+```javascript
+// Çıkarılan veriler
+- Kurum bilgileri
+- İhale tarihi/saati
+- Tahmini bedel
+- Teminat bilgileri
+- Şartname maddeleri
+- Gramaj tabloları
+
+// Kullanım
+const { analyzeDocument } = require('./services/document-analysis');
+const result = await analyzeDocument(documentId);
+```
 
 ---
 
-## 🔧 Servis Geliştirme Kuralları
+## 📄 AI Araç Modülleri (ai-tools/)
 
-### 1. Standart Yapı
+### index.js - Merkezi Registry
+Tüm modül araçlarını tek noktadan yönetir.
+
 ```javascript
-/**
- * Servis açıklaması
- */
+class AIToolsRegistry {
+  constructor() {
+    this.registerModule('satin_alma', satinAlmaTools);
+    this.registerModule('cari', cariTools);
+    this.registerModule('personel', personelTools);
+    this.registerModule('web', webTools);
+    this.registerModule('piyasa', piyasaTools);
+    this.registerModule('menu', menuTools);
+  }
+  
+  getToolDefinitions() { /* Claude formatında tool tanımları */ }
+  executeTool(toolName, args) { /* Tool çalıştırma */ }
+  getSystemContext() { /* Sistem bağlamı özeti */ }
+}
+```
 
-import { query } from '../database.js';
+### cari-tools.js - Cari Hesap Araçları
+```javascript
+// Araçlar
+- cari_listele: Cari hesap listesi
+- cari_detay: Cari detay bilgileri
+- cari_bakiye: Güncel bakiye sorgu
+- cari_hareketler: Cari hareketleri
+- bakiye_ozet: Toplam alacak/borç
+```
 
-/**
- * Fonksiyon açıklaması
- * @param {Type} param - Parametre açıklaması
- * @returns {Promise<Type>} Dönüş açıklaması
- */
-export async function fonksiyonAdi(param) {
+### satin-alma-tools.js - Satın Alma Araçları
+```javascript
+// Araçlar
+- talep_olustur: Satın alma talebi
+- talep_listele: Talep listesi
+- siparis_olustur: Sipariş oluştur
+- tedarikci_bul: Tedarikçi arama
+```
+
+### personel-tools.js - Personel Araçları
+```javascript
+// Araçlar
+- personel_listele: Personel listesi
+- personel_detay: Personel bilgileri
+- izin_bakiye: İzin bakiye sorgu
+- bordro_hesapla: Bordro hesaplama
+- sgk_parametreler: SGK oranları
+```
+
+### web-tools.js - Web Araçları
+```javascript
+// Araçlar
+- web_search: Web'de arama
+- web_fetch: URL içeriği çek
+- web_scrape: Sayfa scraping
+```
+
+### piyasa-tools.js - Piyasa Araçları
+```javascript
+// Araçlar
+- fiyat_sorgula: Güncel piyasa fiyatı
+- doviz_kuru: Döviz kurları
+- enflasyon_verisi: Enflasyon verileri
+```
+
+### menu-tools.js - Menü Planlama Araçları
+```javascript
+// Araçlar
+- recete_listele: Reçete listesi
+- maliyet_hesapla: Reçete maliyeti
+- gramaj_kontrol: Şartname kontrolü
+- menu_olustur: Menü önerisi
+```
+
+---
+
+## 📋 İhale Servisleri
+
+### tender-service.js - İhale Servisi
+İhale CRUD işlemleri ve istatistikler.
+
+```javascript
+// Metodlar
+getTenders(filters, pagination)
+getTenderById(id)
+createTender(data)
+updateTender(id, data)
+deleteTender(id)
+getTenderStats()
+searchTenders(query)
+```
+
+### tender-tracking-service.js - Takip Servisi
+İhale takip listesi yönetimi.
+
+```javascript
+// Metodlar
+getTrackedTenders(userId)
+addToTracking(tenderId, data)
+updateTracking(id, data)
+removeFromTracking(id)
+addNote(trackingId, note)
+getTrackingStats()
+```
+
+### scraper-service.js - Scraper Servisi
+ihalebul.com veri çekme servisi.
+
+```javascript
+// Metodlar
+runScraper(options)
+getScraperLogs()
+parseDocument(url)
+downloadDocument(url, path)
+```
+
+---
+
+## 💰 Muhasebe Servisleri
+
+### cari-service.js - Cari Hesap Servisi
+Müşteri ve tedarikçi yönetimi.
+
+```javascript
+// Metodlar
+getCariler(filters)
+getCariById(id)
+createCari(data)
+updateCari(id, data)
+deleteCari(id)
+getCariHareketler(id)
+getCariBalance(id)
+recalculateBalance(id)
+```
+
+### invoice-service.js - Fatura Servisi
+Fatura işlemleri ve ödeme takibi.
+
+```javascript
+// Metodlar
+getInvoices(filters)
+createInvoice(data)
+updateInvoice(id, data)
+deleteInvoice(id)
+addPayment(invoiceId, payment)
+getOverdueInvoices()
+getInvoiceSummary()
+```
+
+### kasa-banka-service.js - Nakit Servisi
+Kasa ve banka hesap yönetimi.
+
+```javascript
+// Metodlar
+getAccounts()
+createAccount(data)
+updateAccount(id, data)
+addTransaction(data)
+transfer(fromId, toId, amount)
+getDailySummary()
+```
+
+---
+
+## 👨‍💼 İK Servisleri
+
+### personel-service.js - Personel Servisi
+Çalışan yönetimi ve istatistikler.
+
+```javascript
+// Metodlar
+getPersoneller(filters)
+getPersonelById(id)
+createPersonel(data)
+updatePersonel(id, data)
+deletePersonel(id)
+getPersonelStats()
+getPersonelByProject(projeId)
+```
+
+### bordro-service.js - Bordro Servisi
+Maaş hesaplama ve tahakkuk işlemleri.
+
+```javascript
+// Metodlar
+calculateBordro(personelId, month)
+getBordroList(filters)
+createBordro(data)
+getBordroParameters()
+generateTahakkuk(month)
+exportBordro(format)
+
+// Hesaplama detayları
+- Brüt → Net dönüşüm
+- SGK işçi/işveren payı
+- Gelir vergisi (kümülatif)
+- Damga vergisi
+- AGİ hesaplama
+```
+
+### izin-service.js - İzin Servisi
+İzin talep ve onay süreçleri.
+
+```javascript
+// Metodlar
+getIzinler(filters)
+createIzinTalebi(data)
+approveIzin(id)
+rejectIzin(id, reason)
+getIzinBalance(personelId)
+```
+
+---
+
+## 📦 Stok Servisleri
+
+### stok-service.js - Stok Servisi
+Depo ve stok kartı yönetimi.
+
+```javascript
+// Metodlar
+getDepolar()
+createDepo(data)
+getStokKartlar(filters)
+createStokKart(data)
+addStokHareket(data)
+getKritikStoklar()
+getStokDurum(kartId)
+```
+
+---
+
+## 🍽️ Planlama Servisleri
+
+### menu-service.js - Menü Servisi
+Yemek reçetesi ve menü planlama.
+
+```javascript
+// Metodlar
+getReceteler()
+createRecete(data)
+updateRecete(id, data)
+getMenuler()
+createMenu(data)
+calculateMaliyetByRecete(receteId)
+getSartnameler()
+```
+
+### malzeme-service.js - Malzeme Servisi
+Malzeme ihtiyaç planlaması.
+
+```javascript
+// Metodlar
+calculateMalzemeIhtiyaci(menuId, porsiyon)
+getStokKarsilastirma(malzemeler)
+generateSiparisListesi(eksikler)
+```
+
+---
+
+## 🔄 Entegrasyon Servisleri
+
+### sync-scheduler.js - Senkronizasyon Zamanlayıcı
+Otomatik senkronizasyon görevleri.
+
+```javascript
+// Özellikler
+- Cron-based scheduling
+- Uyumsoft sync
+- Email bildirimleri
+- Error handling & retry
+
+// Metodlar
+start()
+stop()
+runSync()
+getStatus()
+getLogs()
+```
+
+### tender-scheduler.js - İhale Zamanlayıcı
+İhale scraper otomatik çalıştırma.
+
+```javascript
+// Özellikler
+- Günlük scraping
+- Yeni ihale bildirimi
+- Duplicate kontrolü
+
+// Metodlar
+start()
+stop()
+runNow()
+```
+
+### document-queue-processor.js - Döküman Kuyruk
+Arka planda döküman işleme.
+
+```javascript
+// Özellikler
+- Queue-based processing
+- Batch analysis
+- Progress tracking
+- Error recovery
+
+// Metodlar
+start()
+addToQueue(documentId)
+processQueue()
+getQueueStatus()
+```
+
+### uyumsoft-service.js - Uyumsoft Servisi
+Uyumsoft ERP entegrasyonu.
+
+```javascript
+// Metodlar
+login(credentials)
+getFaturalar(dateRange)
+syncFaturalar()
+getSessionStatus()
+```
+
+---
+
+## 🔧 Yardımcı Servisler
+
+### notification-service.js - Bildirim Servisi
+Push notification yönetimi.
+
+```javascript
+// Metodlar
+sendNotification(userId, data)
+getNotifications(userId)
+markAsRead(id)
+markAllAsRead(userId)
+createSystemNotification(data)
+```
+
+### export-service.js - Export Servisi
+Veri dışa aktarma.
+
+```javascript
+// Metodlar
+exportToExcel(data, template)
+exportToPDF(data, template)
+getTemplates()
+```
+
+### email-service.js - Email Servisi
+Email gönderimi.
+
+```javascript
+// Metodlar
+sendEmail(to, subject, body)
+sendBulkEmail(recipients, data)
+sendNotificationEmail(userId, notification)
+```
+
+### logger.js - Loglama Servisi
+Winston tabanlı loglama.
+
+```javascript
+// Özellikler
+- Daily rotating files
+- Console + file output
+- Error tracking
+- Request logging
+
+// Log dosyaları
+logs/app-YYYY-MM-DD.log
+logs/error-YYYY-MM-DD.log
+logs/exceptions-YYYY-MM-DD.log
+```
+
+---
+
+## 📚 Kullanım Örneği
+
+```javascript
+// Route'tan servis çağırma
+const cariService = require('../services/cari-service');
+
+router.get('/', async (req, res) => {
   try {
-    // İş mantığı
-    return result;
+    const { page, limit, tip, search } = req.query;
+    const result = await cariService.getCariler({ tip, search }, { page, limit });
+    res.json({ success: true, ...result });
   } catch (error) {
-    console.error('Fonksiyon hatası:', error);
-    throw error;
+    res.status(500).json({ success: false, error: error.message });
   }
-}
-```
-
-### 2. Error Handling
-```javascript
-// Özel hata sınıfı kullan
-class ServiceError extends Error {
-  constructor(message, code) {
-    super(message);
-    this.code = code;
-  }
-}
-
-// Throw meaningful errors
-throw new ServiceError('Cari bulunamadı', 'CARI_NOT_FOUND');
-```
-
-### 3. Logging
-```javascript
-// Önemli işlemleri logla
-console.log(`[${new Date().toISOString()}] İşlem başladı: ${islemId}`);
-```
-
-### 4. Configuration
-```javascript
-// Konfigürasyonları .env'den al
-const API_KEY = process.env.GEMINI_API_KEY;
-if (!API_KEY) throw new Error('GEMINI_API_KEY tanımlı değil');
+});
 ```
 
 ---
 
-## 📊 Servis Bağımlılıkları
+## 🔗 Bağımlılıklar
 
-```
-gemini.js
-└── @google/generative-ai
-
-claude.js
-└── @anthropic-ai/sdk
-
-document.js
-├── pdf-parse
-├── mammoth (docx)
-└── xlsx
-
-export-service.js
-├── exceljs
-└── pdfkit
-
-bordro-*.js
-└── database.js
-```
-
----
-
-## ⚠️ Önemli Notlar
-
-1. **API Keys:** `.env` dosyasında sakla
-2. **Rate Limiting:** AI servislerinde dikkat et
-3. **Timeout:** Uzun işlemlerde timeout ayarla
-4. **Memory:** Büyük dosyalarda stream kullan
-5. **Transaction:** İlişkili DB işlemlerinde transaction kullan
+| Servis | Bağımlılıklar |
+|--------|---------------|
+| claude-ai-service | @anthropic-ai/sdk, ai-tools |
+| gemini | @google/generative-ai |
+| document-analysis | gemini, pdf-parse, mammoth |
+| bordro-service | database, personel-service |
+| sync-scheduler | node-cron, uyumsoft-service |
+| logger | winston, winston-daily-rotate-file |

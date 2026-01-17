@@ -47,88 +47,53 @@ interface Proje {
   kod: string;
   ad: string;
   aciklama?: string;
+  firma_id?: number;
+  firma_unvani?: string;
+  // İşveren/Lokasyon
   musteri?: string;
   lokasyon?: string;
   adres?: string;
+  il?: string;
+  ilce?: string;
+  // Sözleşme
+  sozlesme_no?: string;
+  sozlesme_tarihi?: string;
+  sozlesme_bitis_tarihi?: string;
+  sozlesme_bedeli?: number;
+  teminat_mektubu_tutari?: number;
+  teminat_iade_tarihi?: string;
+  // Kapasite
+  gunluk_kisi_sayisi?: number;
+  ogun_sayisi?: number;
+  // Fatura
+  fatura_unvani?: string;
+  fatura_vergi_no?: string;
+  fatura_vergi_dairesi?: string;
+  fatura_kesim_gunu?: number;
+  kdv_orani?: number;
+  // Hakediş
+  hakedis_tipi?: string;
+  aylik_hakedis?: number;
+  hakedis_gun?: number;
+  // Yetkili
   yetkili?: string;
+  yetkili_unvan?: string;
   telefon?: string;
+  email?: string;
+  // Diğer
+  proje_tipi?: string;
   renk: string;
   durum: string;
   aktif: boolean;
   butce?: number;
   baslangic_tarihi?: string;
   bitis_tarihi?: string;
+  notlar?: string;
+  // Hesaplanan
   personel_sayisi?: number;
   toplam_maas?: number;
   siparis_sayisi?: number;
   toplam_harcama?: number;
-}
-
-interface TamOzet {
-  proje: Proje;
-  personel: {
-    aktif_sayisi: number;
-    toplam_net_maas: number;
-    toplam_bordro_maas: number;
-    toplam_elden_fark: number;
-  };
-  bordro: {
-    yil: number;
-    ay: number;
-    bu_ay_tahakkuk: number;
-    net_ucretler: number;
-    sgk_vergi_toplam: number;
-    odeme_durumu: {
-      toplam_personel: number;
-      banka_odenen: number;
-      elden_odenen: number;
-      odenen_banka: number;
-      odenen_elden: number;
-    };
-    sgk_odendi: boolean;
-    vergi_odendi: boolean;
-  };
-  satin_alma: {
-    toplam_siparis: number;
-    bekleyen: number;
-    tamamlanan: number;
-    toplam_harcama: number;
-  };
-  finans: {
-    bu_ay: {
-      gelir: number;
-      gider: number;
-      net: number;
-      odenen_gider: number;
-    };
-    toplam: {
-      gelir: number;
-      gider: number;
-      net: number;
-    };
-  };
-  faturalar: {
-    alis_toplam: number;
-    satis_toplam: number;
-    bekleyen: number;
-    not: string;
-  };
-  demirbas: {
-    toplam_adet: number;
-    toplam_deger: number;
-    not: string;
-  };
-  cek_senet: {
-    toplam_cek: number;
-    toplam_senet: number;
-    bekleyen_tutar: number;
-    not: string;
-  };
-  _meta: {
-    tarih: string;
-    yil: number;
-    ay: number;
-  };
 }
 
 interface ProjeYonetimModalProps {
@@ -159,19 +124,35 @@ const emptyForm: Partial<Proje> = {
   musteri: '',
   lokasyon: '',
   adres: '',
+  il: '',
+  ilce: '',
+  sozlesme_no: '',
+  sozlesme_bedeli: undefined,
+  gunluk_kisi_sayisi: undefined,
+  ogun_sayisi: 3,
+  fatura_unvani: '',
+  fatura_vergi_no: '',
+  fatura_vergi_dairesi: '',
+  fatura_kesim_gunu: undefined,
+  kdv_orani: 10,
+  aylik_hakedis: undefined,
+  hakedis_gun: undefined,
   yetkili: '',
+  yetkili_unvan: '',
   telefon: '',
+  email: '',
+  proje_tipi: 'yemek',
   renk: '#6366f1',
   durum: 'aktif',
   butce: 0,
+  notlar: '',
 };
 
-export default function ProjeYonetimModal({ opened, onClose }: ProjeYonetimModalProps) {
+export default function ProjeYonetimModal({ opened, onClose, initialProjeId }: ProjeYonetimModalProps & { initialProjeId?: number }) {
   const [projeler, setProjeler] = useState<Proje[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'list' | 'form' | 'detail'>('list');
   const [selectedProje, setSelectedProje] = useState<Proje | null>(null);
-  const [tamOzet, setTamOzet] = useState<TamOzet | null>(null);
   const [form, setForm] = useState<Partial<Proje>>(emptyForm);
   const [saving, setSaving] = useState(false);
 
@@ -180,6 +161,17 @@ export default function ProjeYonetimModal({ opened, onClose }: ProjeYonetimModal
       loadProjeler();
     }
   }, [opened]);
+
+  // initialProjeId varsa o projeyi detayda aç
+  useEffect(() => {
+    if (opened && initialProjeId && projeler.length > 0) {
+      const proje = projeler.find(p => p.id === initialProjeId);
+      if (proje) {
+        setSelectedProje(proje);
+        setView('detail');
+      }
+    }
+  }, [opened, initialProjeId, projeler]);
 
   const loadProjeler = async () => {
     setLoading(true);
@@ -196,18 +188,6 @@ export default function ProjeYonetimModal({ opened, onClose }: ProjeYonetimModal
     }
   };
 
-  const loadTamOzet = async (projeId: number) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/projeler/${projeId}/tam-ozet`);
-      if (res.ok) {
-        const data = await res.json();
-        setTamOzet(data);
-      }
-    } catch (error) {
-      console.error('Proje özeti yüklenemedi:', error);
-    }
-  };
-
   const handleYeniProje = () => {
     setForm(emptyForm);
     setSelectedProje(null);
@@ -220,11 +200,9 @@ export default function ProjeYonetimModal({ opened, onClose }: ProjeYonetimModal
     setView('form');
   };
 
-  const handleDetay = async (proje: Proje) => {
+  const handleDetay = (proje: Proje) => {
     setSelectedProje(proje);
-    setTamOzet(null);
     setView('detail');
-    await loadTamOzet(proje.id);
   };
 
   const handleSave = async () => {
@@ -321,7 +299,14 @@ export default function ProjeYonetimModal({ opened, onClose }: ProjeYonetimModal
         <ScrollArea h={400}>
           <Stack gap="xs">
             {projeler.map((proje) => (
-              <Paper key={proje.id} p="sm" radius="sm" withBorder>
+              <Paper 
+                key={proje.id} 
+                p="sm" 
+                radius="sm" 
+                withBorder
+                style={{ cursor: 'pointer' }}
+                onClick={() => handleDetay(proje)}
+              >
                 <Group justify="space-between">
                   <Group gap="sm">
                     <div 
@@ -351,12 +336,7 @@ export default function ProjeYonetimModal({ opened, onClose }: ProjeYonetimModal
                       </Group>
                     </div>
                   </Group>
-                  <Group gap="xs">
-                    <Tooltip label="Detay">
-                      <ActionIcon variant="light" color="blue" onClick={() => handleDetay(proje)}>
-                        <IconEye size={16} />
-                      </ActionIcon>
-                    </Tooltip>
+                  <Group gap="xs" onClick={(e) => e.stopPropagation()}>
                     <Tooltip label="Düzenle">
                       <ActionIcon variant="light" color="orange" onClick={() => handleDuzenle(proje)}>
                         <IconPencil size={16} />
@@ -380,294 +360,385 @@ export default function ProjeYonetimModal({ opened, onClose }: ProjeYonetimModal
   );
 
   const renderFormView = () => (
-    <Stack gap="md">
-      <Group gap="xs">
-        <ActionIcon variant="subtle" onClick={() => setView('list')}>
-          <IconArrowLeft size={16} />
-        </ActionIcon>
-        <Text fw={500}>{selectedProje ? 'Proje Düzenle' : 'Yeni Proje'}</Text>
-      </Group>
+    <ScrollArea h={500}>
+      <Stack gap="md" pr="sm">
+        <Group gap="xs">
+          <ActionIcon variant="subtle" onClick={() => setView('list')}>
+            <IconArrowLeft size={16} />
+          </ActionIcon>
+          <Text fw={500}>{selectedProje ? 'Proje Düzenle' : 'Yeni Proje'}</Text>
+        </Group>
 
-      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-        <TextInput
-          label="Proje Kodu"
-          placeholder="KYK-01"
-          value={form.kod || ''}
-          onChange={(e) => setForm({ ...form, kod: e.target.value })}
-        />
-        <TextInput
-          label="Proje Adı"
-          placeholder="Proje adı"
-          required
-          value={form.ad || ''}
-          onChange={(e) => setForm({ ...form, ad: e.target.value })}
-        />
-      </SimpleGrid>
+        {/* Temel Bilgiler */}
+        <Divider label="TEMEL BİLGİLER" labelPosition="center" />
+        
+        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+          <TextInput
+            label="Proje Kodu"
+            placeholder="KYK-01"
+            value={form.kod || ''}
+            onChange={(e) => setForm({ ...form, kod: e.target.value })}
+          />
+          <TextInput
+            label="Proje Adı"
+            placeholder="Proje adı"
+            required
+            value={form.ad || ''}
+            onChange={(e) => setForm({ ...form, ad: e.target.value })}
+          />
+        </SimpleGrid>
 
-      <Textarea
-        label="Açıklama"
-        placeholder="Proje açıklaması"
-        value={form.aciklama || ''}
-        onChange={(e) => setForm({ ...form, aciklama: e.target.value })}
-        rows={2}
-      />
+        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+          <TextInput
+            label="Müşteri/İşveren"
+            placeholder="Kurum adı"
+            value={form.musteri || ''}
+            onChange={(e) => setForm({ ...form, musteri: e.target.value })}
+          />
+          <TextInput
+            label="Lokasyon"
+            placeholder="Proje yeri"
+            value={form.lokasyon || ''}
+            onChange={(e) => setForm({ ...form, lokasyon: e.target.value })}
+          />
+        </SimpleGrid>
 
-      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
         <TextInput
-          label="Müşteri"
-          placeholder="Müşteri adı"
-          value={form.musteri || ''}
-          onChange={(e) => setForm({ ...form, musteri: e.target.value })}
+          label="Adres"
+          placeholder="Tam adres"
+          value={form.adres || ''}
+          onChange={(e) => setForm({ ...form, adres: e.target.value })}
         />
-        <TextInput
-          label="Lokasyon"
-          placeholder="Şehir"
-          value={form.lokasyon || ''}
-          onChange={(e) => setForm({ ...form, lokasyon: e.target.value })}
-        />
-      </SimpleGrid>
 
-      <TextInput
-        label="Adres"
-        placeholder="Tam adres"
-        value={form.adres || ''}
-        onChange={(e) => setForm({ ...form, adres: e.target.value })}
-      />
+        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+          <TextInput
+            label="İl"
+            placeholder="İl"
+            value={form.il || ''}
+            onChange={(e) => setForm({ ...form, il: e.target.value })}
+          />
+          <TextInput
+            label="İlçe"
+            placeholder="İlçe"
+            value={form.ilce || ''}
+            onChange={(e) => setForm({ ...form, ilce: e.target.value })}
+          />
+        </SimpleGrid>
 
-      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-        <TextInput
-          label="Yetkili"
-          placeholder="Yetkili kişi"
-          value={form.yetkili || ''}
-          onChange={(e) => setForm({ ...form, yetkili: e.target.value })}
-        />
-        <TextInput
-          label="Telefon"
-          placeholder="0532 xxx xx xx"
-          value={form.telefon || ''}
-          onChange={(e) => setForm({ ...form, telefon: e.target.value })}
-        />
-      </SimpleGrid>
+        {/* Sözleşme Bilgileri */}
+        <Divider label="SÖZLEŞME BİLGİLERİ" labelPosition="center" />
+        
+        <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+          <TextInput
+            label="Sözleşme No"
+            placeholder="2024/001"
+            value={form.sozlesme_no || ''}
+            onChange={(e) => setForm({ ...form, sozlesme_no: e.target.value })}
+          />
+          <TextInput
+            label="Sözleşme Tarihi"
+            type="date"
+            value={form.sozlesme_tarihi || ''}
+            onChange={(e) => setForm({ ...form, sozlesme_tarihi: e.target.value })}
+          />
+          <TextInput
+            label="Bitiş Tarihi"
+            type="date"
+            value={form.sozlesme_bitis_tarihi || ''}
+            onChange={(e) => setForm({ ...form, sozlesme_bitis_tarihi: e.target.value })}
+          />
+        </SimpleGrid>
 
-      <SimpleGrid cols={3} spacing="md">
-        <Select
-          label="Durum"
-          data={[
-            { value: 'aktif', label: 'Aktif' },
-            { value: 'beklemede', label: 'Beklemede' },
-            { value: 'tamamlandi', label: 'Tamamlandı' },
-            { value: 'pasif', label: 'Pasif' },
-          ]}
-          value={form.durum || 'aktif'}
-          onChange={(v) => setForm({ ...form, durum: v || 'aktif' })}
-        />
-        <TextInput
-          label="Bütçe (TL)"
-          type="number"
-          placeholder="0"
-          value={form.butce || ''}
-          onChange={(e) => setForm({ ...form, butce: parseFloat(e.target.value) || 0 })}
-        />
-        <ColorInput
-          label="Renk"
-          value={form.renk || '#6366f1'}
-          onChange={(v) => setForm({ ...form, renk: v })}
-        />
-      </SimpleGrid>
+        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+          <TextInput
+            label="Sözleşme Bedeli (TL)"
+            type="number"
+            placeholder="0"
+            value={form.sozlesme_bedeli || ''}
+            onChange={(e) => setForm({ ...form, sozlesme_bedeli: parseFloat(e.target.value) || undefined })}
+          />
+          <TextInput
+            label="Teminat Tutarı (TL)"
+            type="number"
+            placeholder="0"
+            value={form.teminat_mektubu_tutari || ''}
+            onChange={(e) => setForm({ ...form, teminat_mektubu_tutari: parseFloat(e.target.value) || undefined })}
+          />
+        </SimpleGrid>
 
-      <Group justify="flex-end" mt="md">
-        <Button variant="subtle" onClick={() => setView('list')}>İptal</Button>
-        <Button loading={saving} onClick={handleSave}>
-          {selectedProje ? 'Güncelle' : 'Oluştur'}
-        </Button>
-      </Group>
-    </Stack>
+        {/* Kapasite Bilgileri */}
+        <Divider label="KAPASİTE BİLGİLERİ" labelPosition="center" />
+        
+        <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+          <TextInput
+            label="Günlük Kişi Sayısı"
+            type="number"
+            placeholder="100"
+            value={form.gunluk_kisi_sayisi || ''}
+            onChange={(e) => setForm({ ...form, gunluk_kisi_sayisi: parseInt(e.target.value) || undefined })}
+          />
+          <Select
+            label="Öğün Sayısı"
+            data={[
+              { value: '1', label: '1 Öğün' },
+              { value: '2', label: '2 Öğün' },
+              { value: '3', label: '3 Öğün' },
+              { value: '4', label: '4 Öğün' },
+            ]}
+            value={String(form.ogun_sayisi || 3)}
+            onChange={(v) => setForm({ ...form, ogun_sayisi: parseInt(v || '3') })}
+          />
+          <TextInput
+            label="Aylık Hakediş (TL)"
+            type="number"
+            placeholder="0"
+            value={form.aylik_hakedis || ''}
+            onChange={(e) => setForm({ ...form, aylik_hakedis: parseFloat(e.target.value) || undefined })}
+          />
+        </SimpleGrid>
+
+        {/* Fatura Bilgileri */}
+        <Divider label="FATURA BİLGİLERİ" labelPosition="center" />
+        
+        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+          <TextInput
+            label="Fatura Unvanı"
+            placeholder="Kurum fatura unvanı"
+            value={form.fatura_unvani || ''}
+            onChange={(e) => setForm({ ...form, fatura_unvani: e.target.value })}
+          />
+          <TextInput
+            label="Vergi No"
+            placeholder="1234567890"
+            value={form.fatura_vergi_no || ''}
+            onChange={(e) => setForm({ ...form, fatura_vergi_no: e.target.value })}
+          />
+        </SimpleGrid>
+
+        <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+          <TextInput
+            label="Vergi Dairesi"
+            placeholder="Vergi dairesi"
+            value={form.fatura_vergi_dairesi || ''}
+            onChange={(e) => setForm({ ...form, fatura_vergi_dairesi: e.target.value })}
+          />
+          <TextInput
+            label="Fatura Kesim Günü"
+            type="number"
+            placeholder="1-31"
+            value={form.fatura_kesim_gunu || ''}
+            onChange={(e) => setForm({ ...form, fatura_kesim_gunu: parseInt(e.target.value) || undefined })}
+          />
+          <Select
+            label="KDV Oranı"
+            data={[
+              { value: '0', label: '%0' },
+              { value: '1', label: '%1' },
+              { value: '8', label: '%8' },
+              { value: '10', label: '%10' },
+              { value: '18', label: '%18' },
+              { value: '20', label: '%20' },
+            ]}
+            value={String(form.kdv_orani || 10)}
+            onChange={(v) => setForm({ ...form, kdv_orani: parseInt(v || '10') })}
+          />
+        </SimpleGrid>
+
+        {/* Yetkili Bilgileri */}
+        <Divider label="YETKİLİ BİLGİLERİ" labelPosition="center" />
+        
+        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+          <TextInput
+            label="Yetkili Adı"
+            placeholder="Yetkili kişi"
+            value={form.yetkili || ''}
+            onChange={(e) => setForm({ ...form, yetkili: e.target.value })}
+          />
+          <TextInput
+            label="Yetkili Unvanı"
+            placeholder="Müdür, Koordinatör vb."
+            value={form.yetkili_unvan || ''}
+            onChange={(e) => setForm({ ...form, yetkili_unvan: e.target.value })}
+          />
+        </SimpleGrid>
+
+        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+          <TextInput
+            label="Telefon"
+            placeholder="0532 xxx xx xx"
+            value={form.telefon || ''}
+            onChange={(e) => setForm({ ...form, telefon: e.target.value })}
+          />
+          <TextInput
+            label="E-posta"
+            placeholder="email@kurum.gov.tr"
+            value={form.email || ''}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+          />
+        </SimpleGrid>
+
+        {/* Durum */}
+        <Divider label="DURUM" labelPosition="center" />
+        
+        <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+          <Select
+            label="Durum"
+            data={[
+              { value: 'aktif', label: 'Aktif' },
+              { value: 'beklemede', label: 'Beklemede' },
+              { value: 'tamamlandi', label: 'Tamamlandı' },
+              { value: 'pasif', label: 'Pasif' },
+            ]}
+            value={form.durum || 'aktif'}
+            onChange={(v) => setForm({ ...form, durum: v || 'aktif' })}
+          />
+          <Select
+            label="Proje Tipi"
+            data={[
+              { value: 'yemek', label: 'Yemek Hizmeti' },
+              { value: 'temizlik', label: 'Temizlik' },
+              { value: 'guvenlik', label: 'Güvenlik' },
+              { value: 'diger', label: 'Diğer' },
+            ]}
+            value={form.proje_tipi || 'yemek'}
+            onChange={(v) => setForm({ ...form, proje_tipi: v || 'yemek' })}
+          />
+          <ColorInput
+            label="Renk"
+            value={form.renk || '#6366f1'}
+            onChange={(v) => setForm({ ...form, renk: v })}
+          />
+        </SimpleGrid>
+
+        <Textarea
+          label="Notlar"
+          placeholder="Proje ile ilgili notlar"
+          value={form.notlar || ''}
+          onChange={(e) => setForm({ ...form, notlar: e.target.value })}
+          rows={2}
+        />
+
+        <Group justify="flex-end" mt="md">
+          <Button variant="subtle" onClick={() => setView('list')}>İptal</Button>
+          <Button loading={saving} onClick={handleSave}>
+            {selectedProje ? 'Güncelle' : 'Oluştur'}
+          </Button>
+        </Group>
+      </Stack>
+    </ScrollArea>
   );
 
   const renderDetailView = () => {
     if (!selectedProje) return null;
 
-    const ayAdi = tamOzet 
-      ? ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 
-         'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'][tamOzet._meta.ay]
-      : '';
+    const formatCurrencyLocal = (val: number | undefined | null) => {
+      if (!val) return '₺0';
+      return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(val);
+    };
+
+    const formatDate = (date: string | undefined | null) => {
+      if (!date) return '-';
+      return new Date(date).toLocaleDateString('tr-TR');
+    };
 
     return (
       <Stack gap="md">
-        <Group gap="xs">
-          <ActionIcon variant="subtle" onClick={() => setView('list')}>
-            <IconArrowLeft size={16} />
-          </ActionIcon>
-          <div 
-            style={{ 
-              width: 12, 
-              height: 12, 
-              borderRadius: '50%', 
-              backgroundColor: selectedProje.renk 
-            }} 
-          />
-          <Text fw={600} size="lg">{selectedProje.ad}</Text>
-          <Badge color={durumRenkleri[selectedProje.durum]}>{selectedProje.durum}</Badge>
+        {/* Başlık */}
+        <Group justify="space-between">
+          <Group gap="xs">
+            <ActionIcon variant="subtle" onClick={() => setView('list')}>
+              <IconArrowLeft size={16} />
+            </ActionIcon>
+            <div 
+              style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: selectedProje.renk }} 
+            />
+            <Text fw={600} size="lg">{selectedProje.ad}</Text>
+            {selectedProje.kod && <Badge size="sm" variant="outline">{selectedProje.kod}</Badge>}
+            <Badge color={durumRenkleri[selectedProje.durum]}>{selectedProje.durum}</Badge>
+          </Group>
+          <Button 
+            variant="light" 
+            color="orange" 
+            size="sm"
+            leftSection={<IconPencil size={14} />}
+            onClick={() => handleDuzenle(selectedProje)}
+          >
+            Düzenle
+          </Button>
         </Group>
 
-        {!tamOzet ? (
-          <Group justify="center" py="xl">
-            <Loader size="sm" />
-            <Text c="dimmed">Yükleniyor...</Text>
-          </Group>
-        ) : (
-          <ScrollArea h={450}>
-            <Stack gap="md">
-              {/* Genel Bilgiler */}
-              <Paper p="sm" radius="sm" withBorder>
-                <Text size="sm" fw={500} mb="xs">📋 Genel Bilgiler</Text>
-                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
-                  <Text size="xs"><b>Kod:</b> {tamOzet.proje.kod || '-'}</Text>
-                  <Text size="xs"><b>Lokasyon:</b> {tamOzet.proje.lokasyon || '-'}</Text>
-                  <Text size="xs"><b>Yetkili:</b> {tamOzet.proje.yetkili || '-'}</Text>
-                  <Text size="xs"><b>Telefon:</b> {tamOzet.proje.telefon || '-'}</Text>
-                </SimpleGrid>
-                {tamOzet.proje.adres && (
-                  <Text size="xs" mt="xs"><b>Adres:</b> {tamOzet.proje.adres}</Text>
-                )}
+        <ScrollArea h={450}>
+          <Stack gap="md">
+            {/* Temel Bilgiler */}
+            <Paper p="md" radius="md" withBorder>
+              <Text size="sm" fw={600} mb="sm" c="blue">📋 Temel Bilgiler</Text>
+              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
+                <Text size="sm"><b>Müşteri/İşveren:</b> {selectedProje.musteri || '-'}</Text>
+                <Text size="sm"><b>Lokasyon:</b> {selectedProje.lokasyon || '-'}</Text>
+                <Text size="sm"><b>İl:</b> {selectedProje.il || '-'}</Text>
+                <Text size="sm"><b>İlçe:</b> {selectedProje.ilce || '-'}</Text>
+              </SimpleGrid>
+              {selectedProje.adres && (
+                <Text size="sm" mt="xs"><b>Adres:</b> {selectedProje.adres}</Text>
+              )}
+            </Paper>
+
+            {/* Sözleşme Bilgileri */}
+            <Paper p="md" radius="md" withBorder>
+              <Text size="sm" fw={600} mb="sm" c="green">📄 Sözleşme Bilgileri</Text>
+              <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="xs">
+                <Text size="sm"><b>Sözleşme No:</b> {selectedProje.sozlesme_no || '-'}</Text>
+                <Text size="sm"><b>Başlangıç:</b> {formatDate(selectedProje.sozlesme_tarihi)}</Text>
+                <Text size="sm"><b>Bitiş:</b> {formatDate(selectedProje.sozlesme_bitis_tarihi)}</Text>
+                <Text size="sm"><b>Sözleşme Bedeli:</b> {formatCurrencyLocal(selectedProje.sozlesme_bedeli)}</Text>
+                <Text size="sm"><b>Teminat Tutarı:</b> {formatCurrencyLocal(selectedProje.teminat_mektubu_tutari)}</Text>
+                <Text size="sm"><b>Teminat İade:</b> {formatDate(selectedProje.teminat_iade_tarihi)}</Text>
+              </SimpleGrid>
+            </Paper>
+
+            {/* Kapasite & Fatura Bilgileri */}
+            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+              <Paper p="md" radius="md" withBorder>
+                <Text size="sm" fw={600} mb="sm" c="orange">🍽️ Kapasite Bilgileri</Text>
+                <Stack gap={4}>
+                  <Text size="sm"><b>Günlük Kişi:</b> {selectedProje.gunluk_kisi_sayisi || '-'}</Text>
+                  <Text size="sm"><b>Öğün Sayısı:</b> {selectedProje.ogun_sayisi || '-'}</Text>
+                  <Text size="sm"><b>Hakediş Tipi:</b> {selectedProje.hakedis_tipi || '-'}</Text>
+                  <Text size="sm"><b>Aylık Hakediş:</b> {formatCurrencyLocal(selectedProje.aylik_hakedis)}</Text>
+                </Stack>
               </Paper>
 
-              {/* Personel & Bordro */}
-              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-                <Paper p="sm" radius="sm" withBorder>
-                  <Group gap="xs" mb="xs">
-                    <IconUsers size={16} color="var(--mantine-color-blue-6)" />
-                    <Text size="sm" fw={500}>Personel</Text>
-                  </Group>
-                  <Stack gap={4}>
-                    <Group justify="space-between">
-                      <Text size="xs" c="dimmed">Aktif:</Text>
-                      <Text size="sm" fw={600}>{tamOzet.personel.aktif_sayisi} kişi</Text>
-                    </Group>
-                    <Group justify="space-between">
-                      <Text size="xs" c="dimmed">Net Maaş:</Text>
-                      <Text size="sm" fw={600}>{formatCurrency(tamOzet.personel.toplam_net_maas)}</Text>
-                    </Group>
-                    <Group justify="space-between">
-                      <Text size="xs" c="dimmed">Bordro Maaş:</Text>
-                      <Text size="sm" fw={600}>{formatCurrency(tamOzet.personel.toplam_bordro_maas)}</Text>
-                    </Group>
-                    <Group justify="space-between">
-                      <Text size="xs" c="dimmed">Elden Fark:</Text>
-                      <Text size="sm" fw={600} c="orange">{formatCurrency(tamOzet.personel.toplam_elden_fark)}</Text>
-                    </Group>
-                  </Stack>
-                </Paper>
-
-                <Paper p="sm" radius="sm" withBorder>
-                  <Group gap="xs" mb="xs">
-                    <IconCash size={16} color="var(--mantine-color-green-6)" />
-                    <Text size="sm" fw={500}>Bordro ({ayAdi})</Text>
-                  </Group>
-                  <Stack gap={4}>
-                    <Group justify="space-between">
-                      <Text size="xs" c="dimmed">Tahakkuk:</Text>
-                      <Text size="sm" fw={600}>{formatCurrency(tamOzet.bordro.bu_ay_tahakkuk)}</Text>
-                    </Group>
-                    <Group justify="space-between">
-                      <Text size="xs" c="dimmed">SGK+Vergi:</Text>
-                      <Text size="sm" fw={600}>{formatCurrency(tamOzet.bordro.sgk_vergi_toplam)}</Text>
-                    </Group>
-                    <Group justify="space-between">
-                      <Text size="xs" c="dimmed">SGK Ödendi:</Text>
-                      <Badge size="xs" color={tamOzet.bordro.sgk_odendi ? 'green' : 'red'}>
-                        {tamOzet.bordro.sgk_odendi ? 'Evet' : 'Hayır'}
-                      </Badge>
-                    </Group>
-                    <Group justify="space-between">
-                      <Text size="xs" c="dimmed">Vergi Ödendi:</Text>
-                      <Badge size="xs" color={tamOzet.bordro.vergi_odendi ? 'green' : 'red'}>
-                        {tamOzet.bordro.vergi_odendi ? 'Evet' : 'Hayır'}
-                      </Badge>
-                    </Group>
-                  </Stack>
-                </Paper>
-              </SimpleGrid>
-
-              {/* Satın Alma & Finans */}
-              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-                <Paper p="sm" radius="sm" withBorder>
-                  <Group gap="xs" mb="xs">
-                    <IconShoppingCart size={16} color="var(--mantine-color-orange-6)" />
-                    <Text size="sm" fw={500}>Satın Alma</Text>
-                  </Group>
-                  <Stack gap={4}>
-                    <Group justify="space-between">
-                      <Text size="xs" c="dimmed">Toplam Sipariş:</Text>
-                      <Text size="sm" fw={600}>{tamOzet.satin_alma.toplam_siparis}</Text>
-                    </Group>
-                    <Group justify="space-between">
-                      <Text size="xs" c="dimmed">Bekleyen:</Text>
-                      <Badge size="xs" color="orange">{tamOzet.satin_alma.bekleyen}</Badge>
-                    </Group>
-                    <Group justify="space-between">
-                      <Text size="xs" c="dimmed">Tamamlanan:</Text>
-                      <Badge size="xs" color="green">{tamOzet.satin_alma.tamamlanan}</Badge>
-                    </Group>
-                    <Group justify="space-between">
-                      <Text size="xs" c="dimmed">Harcama:</Text>
-                      <Text size="sm" fw={600}>{formatCurrency(tamOzet.satin_alma.toplam_harcama)}</Text>
-                    </Group>
-                  </Stack>
-                </Paper>
-
-                <Paper p="sm" radius="sm" withBorder>
-                  <Group gap="xs" mb="xs">
-                    <IconChartBar size={16} color="var(--mantine-color-grape-6)" />
-                    <Text size="sm" fw={500}>Finans ({ayAdi})</Text>
-                  </Group>
-                  <Stack gap={4}>
-                    <Group justify="space-between">
-                      <Text size="xs" c="dimmed">Gelir:</Text>
-                      <Text size="sm" fw={600} c="green">{formatCurrency(tamOzet.finans.bu_ay.gelir)}</Text>
-                    </Group>
-                    <Group justify="space-between">
-                      <Text size="xs" c="dimmed">Gider:</Text>
-                      <Text size="sm" fw={600} c="red">{formatCurrency(tamOzet.finans.bu_ay.gider)}</Text>
-                    </Group>
-                    <Divider />
-                    <Group justify="space-between">
-                      <Text size="xs" c="dimmed">Bu Ay Net:</Text>
-                      <Text size="sm" fw={700} c={tamOzet.finans.bu_ay.net >= 0 ? 'green' : 'red'}>
-                        {formatCurrency(tamOzet.finans.bu_ay.net)}
-                      </Text>
-                    </Group>
-                    <Group justify="space-between">
-                      <Text size="xs" c="dimmed">Toplam Net:</Text>
-                      <Text size="sm" fw={700} c={tamOzet.finans.toplam.net >= 0 ? 'green' : 'red'}>
-                        {formatCurrency(tamOzet.finans.toplam.net)}
-                      </Text>
-                    </Group>
-                  </Stack>
-                </Paper>
-              </SimpleGrid>
-
-              {/* Gelecek Modüller */}
-              <Paper p="sm" radius="sm" bg="gray.0">
-                <Text size="xs" c="dimmed" mb="xs">🔮 Gelecek Entegrasyonlar</Text>
-                <SimpleGrid cols={3} spacing="xs">
-                  <Alert variant="light" color="gray" p="xs">
-                    <Text size="xs">📄 Faturalar</Text>
-                    <Text size="xs" c="dimmed">{tamOzet.faturalar.not}</Text>
-                  </Alert>
-                  <Alert variant="light" color="gray" p="xs">
-                    <Text size="xs">🏢 Demirbaş</Text>
-                    <Text size="xs" c="dimmed">{tamOzet.demirbas.not}</Text>
-                  </Alert>
-                  <Alert variant="light" color="gray" p="xs">
-                    <Text size="xs">📝 Çek/Senet</Text>
-                    <Text size="xs" c="dimmed">{tamOzet.cek_senet.not}</Text>
-                  </Alert>
-                </SimpleGrid>
+              <Paper p="md" radius="md" withBorder>
+                <Text size="sm" fw={600} mb="sm" c="violet">🧾 Fatura Bilgileri</Text>
+                <Stack gap={4}>
+                  <Text size="sm"><b>Fatura Ünvanı:</b> {selectedProje.fatura_unvani || '-'}</Text>
+                  <Text size="sm"><b>Vergi No:</b> {selectedProje.fatura_vergi_no || '-'}</Text>
+                  <Text size="sm"><b>Vergi Dairesi:</b> {selectedProje.fatura_vergi_dairesi || '-'}</Text>
+                  <Text size="sm"><b>Kesim Günü:</b> {selectedProje.fatura_kesim_gunu ? `Her ayın ${selectedProje.fatura_kesim_gunu}. günü` : '-'}</Text>
+                </Stack>
               </Paper>
-            </Stack>
-          </ScrollArea>
-        )}
+            </SimpleGrid>
+
+            {/* Yetkili Bilgileri */}
+            <Paper p="md" radius="md" withBorder>
+              <Text size="sm" fw={600} mb="sm" c="cyan">👤 Yetkili Bilgileri</Text>
+              <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="xs">
+                <Text size="sm"><b>Yetkili:</b> {selectedProje.yetkili || '-'}</Text>
+                <Text size="sm"><b>Ünvan:</b> {selectedProje.yetkili_unvan || '-'}</Text>
+                <Text size="sm"><b>Telefon:</b> {selectedProje.telefon || '-'}</Text>
+                <Text size="sm"><b>E-posta:</b> {selectedProje.email || '-'}</Text>
+              </SimpleGrid>
+            </Paper>
+
+            {/* Notlar */}
+            {selectedProje.notlar && (
+              <Paper p="md" radius="md" withBorder bg="gray.0">
+                <Text size="sm" fw={600} mb="sm">📝 Notlar</Text>
+                <Text size="sm" c="dimmed">{selectedProje.notlar}</Text>
+              </Paper>
+            )}
+          </Stack>
+        </ScrollArea>
       </Stack>
     );
   };

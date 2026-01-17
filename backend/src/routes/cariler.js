@@ -8,8 +8,11 @@
 import express from 'express';
 import { query } from '../database.js';
 import { logError, logAPI } from '../utils/logger.js';
+import { authenticate, requirePermission, auditLog } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// NOT: GET route'ları herkese açık, POST/PUT/DELETE route'ları authentication gerektirir
 
 /**
  * @swagger
@@ -147,7 +150,7 @@ router.get('/:id', async (req, res) => {
  *       400:
  *         description: Geçersiz veri
  */
-router.post('/', async (req, res) => {
+router.post('/', authenticate, requirePermission('cari', 'create'), auditLog('cari'), async (req, res) => {
   try {
     const {
       tip,
@@ -228,7 +231,7 @@ router.post('/', async (req, res) => {
  *       404:
  *         description: Cari bulunamadı
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticate, requirePermission('cari', 'edit'), auditLog('cari'), async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -425,7 +428,7 @@ router.get('/:id/aylik-ozet', async (req, res) => {
  *     summary: Cari sil (soft delete)
  *     tags: [Cariler]
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, requirePermission('cari', 'delete'), auditLog('cari'), async (req, res) => {
   try {
     const { id } = req.params;
     

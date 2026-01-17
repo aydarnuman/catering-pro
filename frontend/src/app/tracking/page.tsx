@@ -54,6 +54,7 @@ import Link from 'next/link';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import TeklifModal from '@/components/teklif/TeklifModal';
+import IhaleUzmaniModal from '@/components/IhaleUzmaniModal';
 import { API_BASE_URL } from '@/lib/config';
 
 interface AnalysisData {
@@ -97,6 +98,11 @@ interface SavedTender {
   birim_fiyat_sayisi: number;
   analiz_data?: AnalysisData;
   analysis_summary?: AnalysisData;
+  // Hesaplama alanları
+  yaklasik_maliyet?: number;
+  sinir_deger?: number;
+  bizim_teklif?: number;
+  hesaplama_verileri?: any;
 }
 
 const statusConfig = {
@@ -152,7 +158,12 @@ export default function TrackingPage() {
           teknik_sart_sayisi: t.analysis_summary?.teknik_sartlar?.length || 0,
           birim_fiyat_sayisi: t.analysis_summary?.birim_fiyatlar?.length || 0,
           analiz_data: t.analysis_summary,
-          analysis_summary: t.analysis_summary
+          analysis_summary: t.analysis_summary,
+          // Hesaplama alanları
+          yaklasik_maliyet: t.yaklasik_maliyet ? parseFloat(t.yaklasik_maliyet) : undefined,
+          sinir_deger: t.sinir_deger ? parseFloat(t.sinir_deger) : undefined,
+          bizim_teklif: t.bizim_teklif ? parseFloat(t.bizim_teklif) : undefined,
+          hesaplama_verileri: t.hesaplama_verileri || {}
         }));
         setTenders(formattedTenders);
       }
@@ -388,7 +399,8 @@ export default function TrackingPage() {
             organization: tender.kurum,
             city: tender.city,
             deadline: tender.tarih,
-            estimated_cost: tender.bedel
+            estimated_cost: tender.bedel,
+            external_id: tender.external_id
           }
         }
       });
@@ -497,15 +509,9 @@ export default function TrackingPage() {
                 </div>
               </Group>
             </div>
-            <Button
-              component={Link}
-              href="/ihale-uzmani"
-              variant="gradient"
-              gradient={{ from: 'violet', to: 'blue' }}
-              leftSection={<IconScale size={18} />}
-            >
-              İhale Uzmanı
-            </Button>
+            <Text size="sm" c="dimmed">
+              İhale kartına tıklayarak <Text component="span" fw={600} c="violet">İhale Uzmanı</Text> araçlarına erişin
+            </Text>
           </Group>
 
           {/* İstatistik Kartları */}
@@ -788,9 +794,9 @@ export default function TrackingPage() {
         </Stack>
       </Container>
 
-      {/* Detay Modal */}
-      <Modal 
-        opened={detailOpened} 
+      {/* İhale Uzmanı Modal */}
+      <IhaleUzmaniModal
+        opened={detailOpened}
         onClose={() => {
           closeDetail();
           setLiveAnalysisData(null);
@@ -802,400 +808,13 @@ export default function TrackingPage() {
             });
             window.dispatchEvent(contextEvent);
           }
-        }} 
-        title={
-          <Group gap="sm">
-            <Text fw={600} size="lg">📋 İhale Detayı</Text>
-            {analysisLoading && <Loader size="xs" />}
-          </Group>
-        }
-        size="xl"
-        centered
-      >
-        {selectedTender && (() => {
-          const analysisData = getAnalysisData(selectedTender);
-          
-          return (
-            <Stack gap="md">
-              {/* Üst Bar - Durum ve Aksiyonlar */}
-              <Group justify="space-between">
-                <Group gap="sm">
-                  <Select
-                    value={selectedTender.status}
-                    onChange={(value) => value && updateStatus(selectedTender.id, value as SavedTender['status'])}
-                    data={[
-                      { value: 'bekliyor', label: '🟡 Bekliyor' },
-                      { value: 'basvuruldu', label: '🔵 Başvuruldu' },
-                      { value: 'kazanildi', label: '🟢 Kazanıldı' },
-                      { value: 'kaybedildi', label: '🔴 Kaybedildi' },
-                      { value: 'iptal', label: '⚫ İptal' },
-                    ]}
-                    w={160}
-                  />
-                  {analysisStats && (
-                    <Badge variant="light" color="blue">
-                      {analysisStats.analiz_edilen}/{analysisStats.toplam_dokuman} Döküman Analiz Edildi
-                    </Badge>
-                  )}
-                </Group>
-                <Group gap="xs">
-                  <Button 
-                    variant="light"
-                    color="blue"
-                    size="xs"
-                    leftSection={<IconEye size={14} />}
-                    component="a"
-                    href={`/tenders/${selectedTender.tender_id}`}
-                    target="_blank"
-                  >
-                    Detaya Git
-                  </Button>
-                  <Button 
-                    variant="gradient"
-                    gradient={{ from: 'teal', to: 'cyan' }}
-                    size="xs"
-                    leftSection={<IconReceipt size={14} />}
-                    onClick={() => {
-                      closeDetail();
-                      openTeklif();
-                    }}
-                  >
-                    Teklif Oluştur
-                  </Button>
-                  <Button 
-                    variant="light" 
-                    size="xs"
-                    leftSection={<IconDownload size={14} />}
-                    onClick={() => downloadJSON(selectedTender)}
-                  >
-                    JSON
-                  </Button>
-                  <Button 
-                    variant="light" 
-                    color="red"
-                    size="xs"
-                    leftSection={<IconTrash size={14} />}
-                    onClick={() => deleteTender(selectedTender.id)}
-                  >
-                    Sil
-                  </Button>
-                </Group>
-              </Group>
-
-              {/* Özet Kartları */}
-              <Box p="md" bg="gray.0" style={{ borderRadius: 'var(--mantine-radius-md)' }}>
-                <SimpleGrid cols={{ base: 2, sm: 3, md: 5 }} spacing="md">
-                  <Paper p="sm" withBorder radius="md">
-                    <Text size="xs" c="dimmed" tt="uppercase" fw={600}>İhale Başlığı</Text>
-                    <Text size="sm" fw={500} lineClamp={2}>{selectedTender.ihale_basligi || '-'}</Text>
-                  </Paper>
-                  <Paper p="sm" withBorder radius="md">
-                    <Text size="xs" c="dimmed" tt="uppercase" fw={600}>Kurum</Text>
-                    <Text size="sm" fw={500} lineClamp={2}>{selectedTender.kurum || '-'}</Text>
-                  </Paper>
-                  <Paper p="sm" withBorder radius="md">
-                    <Text size="xs" c="dimmed" tt="uppercase" fw={600}>İhale Tarihi</Text>
-                    <Text size="sm" fw={500}>{selectedTender.tarih || '-'}</Text>
-                  </Paper>
-                  <Paper p="sm" withBorder radius="md" style={{ borderColor: 'var(--mantine-color-green-5)' }}>
-                    <Text size="xs" c="dimmed" tt="uppercase" fw={600}>Tahmini Bedel</Text>
-                    <Text size="sm" fw={700} c="green">{selectedTender.bedel || '-'}</Text>
-                  </Paper>
-                  <Paper p="sm" withBorder radius="md">
-                    <Text size="xs" c="dimmed" tt="uppercase" fw={600}>İş Süresi</Text>
-                    <Text size="sm" fw={500}>{selectedTender.sure || '-'}</Text>
-                  </Paper>
-                </SimpleGrid>
-              </Box>
-
-              {/* Sekmeli İçerik */}
-              <Tabs defaultValue="teknik" variant="outline">
-                <Tabs.List grow>
-                  <Tabs.Tab value="teknik" leftSection={<IconSettings size={16} />}>
-                    Teknik Şartlar ({analysisData.teknik_sartlar?.length || 0})
-                  </Tabs.Tab>
-                  <Tabs.Tab value="fiyat" leftSection={<IconCoin size={16} />}>
-                    Birim Fiyatlar ({analysisData.birim_fiyatlar?.length || 0})
-                  </Tabs.Tab>
-                  <Tabs.Tab value="ainotlar" leftSection={<IconNote size={16} />}>
-                    AI Notları ({analysisData.notlar?.length || 0})
-                  </Tabs.Tab>
-                  <Tabs.Tab value="metin" leftSection={<IconClipboardList size={16} />}>
-                    Tam Metin
-                  </Tabs.Tab>
-                </Tabs.List>
-
-                {/* Teknik Şartlar */}
-                <Tabs.Panel value="teknik" pt="md">
-                  {analysisData.teknik_sartlar && analysisData.teknik_sartlar.length > 0 ? (
-                    <ScrollArea h={250} type="auto" offsetScrollbars>
-                      <Stack gap="xs">
-                        {analysisData.teknik_sartlar.map((sart, i) => (
-                          <Paper key={i} p="sm" withBorder radius="sm" bg="gray.0">
-                            <Group gap="xs" wrap="nowrap">
-                              <Badge size="sm" variant="light" color="blue" circle>{i + 1}</Badge>
-                              <Text size="sm">{sart}</Text>
-                            </Group>
-                          </Paper>
-                        ))}
-                      </Stack>
-                    </ScrollArea>
-                  ) : (
-                    <Text c="dimmed" ta="center" py="xl">Teknik şart bulunamadı</Text>
-                  )}
-                </Tabs.Panel>
-
-                {/* Birim Fiyatlar */}
-                <Tabs.Panel value="fiyat" pt="md">
-                  {analysisData.birim_fiyatlar && analysisData.birim_fiyatlar.length > 0 ? (
-                    <ScrollArea h={250} type="auto" offsetScrollbars>
-                      <Stack gap="md">
-                        {/* Object formatındaki birim fiyatları (tablo) */}
-                        {(() => {
-                          const objectItems = analysisData.birim_fiyatlar.filter((item: any) => typeof item === 'object' && item !== null);
-                          if (objectItems.length > 0) {
-                            return (
-                              <Table striped highlightOnHover withTableBorder>
-                                <Table.Thead>
-                                  <Table.Tr>
-                                    <Table.Th w={50}>#</Table.Th>
-                                    <Table.Th>Kalem / Açıklama</Table.Th>
-                                    <Table.Th>Birim</Table.Th>
-                                    <Table.Th>Miktar</Table.Th>
-                                    <Table.Th ta="right">Fiyat</Table.Th>
-                                  </Table.Tr>
-                                </Table.Thead>
-                                <Table.Tbody>
-                                  {objectItems.map((item: any, i: number) => (
-                                    <Table.Tr key={i}>
-                                      <Table.Td>{i + 1}</Table.Td>
-                                      <Table.Td>{item.kalem || item.aciklama || item.urun || '-'}</Table.Td>
-                                      <Table.Td>{item.birim || '-'}</Table.Td>
-                                      <Table.Td>{item.miktar || '-'}</Table.Td>
-                                      <Table.Td ta="right">
-                                        <Badge color="green" variant="light">
-                                          {item.fiyat || item.tutar || item.birim_fiyat || '-'}
-                                        </Badge>
-                                      </Table.Td>
-                                    </Table.Tr>
-                                  ))}
-                                </Table.Tbody>
-                              </Table>
-                            );
-                          }
-                          return null;
-                        })()}
-                        
-                        {/* String formatındaki açıklamalar */}
-                        {(() => {
-                          const stringItems = analysisData.birim_fiyatlar.filter((item: any) => typeof item === 'string');
-                          if (stringItems.length > 0) {
-                            return (
-                              <Paper p="sm" withBorder radius="sm" bg="blue.0">
-                                <Text size="xs" fw={600} c="blue.7" mb="xs">📋 Birim Fiyat Bilgileri</Text>
-                                <Stack gap={4}>
-                                  {stringItems.map((item: string, i: number) => (
-                                    <Text key={i} size="sm" c="dimmed">• {item}</Text>
-                                  ))}
-                                </Stack>
-                              </Paper>
-                            );
-                          }
-                          return null;
-                        })()}
-                      </Stack>
-                    </ScrollArea>
-                  ) : (
-                    <Text c="dimmed" ta="center" py="xl">Birim fiyat bulunamadı</Text>
-                  )}
-                </Tabs.Panel>
-
-                {/* AI Notları */}
-                <Tabs.Panel value="ainotlar" pt="md">
-                  {analysisData.notlar && analysisData.notlar.length > 0 ? (
-                    <ScrollArea h={250} type="auto" offsetScrollbars>
-                      <Stack gap="xs">
-                        {analysisData.notlar.map((not, i) => (
-                          <Paper key={i} p="sm" withBorder radius="sm">
-                            <Group gap="xs" wrap="nowrap" align="flex-start">
-                              <ThemeIcon size="sm" color="orange" variant="light" mt={2}>
-                                <IconNote size={12} />
-                              </ThemeIcon>
-                              <Text size="sm">{not}</Text>
-                            </Group>
-                          </Paper>
-                        ))}
-                      </Stack>
-                    </ScrollArea>
-                  ) : (
-                    <Text c="dimmed" ta="center" py="xl">AI notu bulunamadı</Text>
-                  )}
-                </Tabs.Panel>
-
-                {/* Tam Metin */}
-                <Tabs.Panel value="metin" pt="md">
-                  {analysisData.tam_metin ? (
-                    <ScrollArea h={250} type="auto" offsetScrollbars>
-                      <Paper p="md" withBorder bg="gray.0">
-                        <Text size="sm" style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
-                          {analysisData.tam_metin}
-                        </Text>
-                      </Paper>
-                    </ScrollArea>
-                  ) : (
-                    <Text c="dimmed" ta="center" py="xl">Tam metin bulunamadı</Text>
-                  )}
-                </Tabs.Panel>
-              </Tabs>
-
-              <Divider />
-
-              {/* Kullanıcı Notları - Accordion Tarzı */}
-              <Paper 
-                p="sm" 
-                withBorder 
-                radius="md" 
-                bg={notesExpanded ? "yellow.0" : "gray.0"}
-                style={{ cursor: 'pointer', transition: 'all 0.2s' }}
-              >
-                {/* Header - Tıklanabilir */}
-                <Group 
-                  justify="space-between" 
-                  onClick={() => setNotesExpanded(!notesExpanded)}
-                >
-                  <Group gap="xs">
-                    <ThemeIcon size="sm" color="yellow" variant="light" radius="md">
-                      <IconNote size={14} />
-                    </ThemeIcon>
-                    <Text size="sm" fw={500}>Notlarım</Text>
-                    {selectedTender.user_notes && selectedTender.user_notes.length > 0 && (
-                      <Badge size="xs" variant="filled" color="yellow" c="dark">
-                        {selectedTender.user_notes.length}
-                      </Badge>
-                    )}
-                  </Group>
-                  <ActionIcon variant="subtle" size="sm">
-                    <IconChevronRight 
-                      size={16} 
-                      style={{ 
-                        transform: notesExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                        transition: 'transform 0.2s'
-                      }} 
-                    />
-                  </ActionIcon>
-                </Group>
-                
-                {/* İçerik - Açılır/Kapanır */}
-                {notesExpanded && (
-                  <Box mt="sm">
-                    {/* Mevcut Notlar - Tıkla/Aç */}
-                    {selectedTender.user_notes && selectedTender.user_notes.length > 0 ? (
-                      <ScrollArea.Autosize mah={180} mb="sm" offsetScrollbars>
-                        <Stack gap={4}>
-                          {selectedTender.user_notes.map((note) => {
-                            const isExpanded = expandedNoteId === note.id;
-                            const isLong = note.text.length > 50;
-                            return (
-                              <Paper 
-                                key={note.id} 
-                                p="xs" 
-                                withBorder 
-                                radius="sm" 
-                                bg="white"
-                                style={{ cursor: isLong ? 'pointer' : 'default' }}
-                                onClick={() => isLong && setExpandedNoteId(isExpanded ? null : note.id)}
-                              >
-                                <Group justify="space-between" wrap="nowrap" align="flex-start" gap="xs">
-                                  <Group gap={6} wrap="nowrap" style={{ flex: 1, minWidth: 0 }} align="flex-start">
-                                    {isLong && (
-                                      <ActionIcon size="xs" variant="subtle" color="gray" mt={2}>
-                                        <IconChevronRight 
-                                          size={12} 
-                                          style={{ 
-                                            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                                            transition: 'transform 0.15s'
-                                          }} 
-                                        />
-                                      </ActionIcon>
-                                    )}
-                                    <Text 
-                                      size="sm" 
-                                      style={{ flex: 1, wordBreak: 'break-word' }}
-                                      lineClamp={isExpanded ? undefined : 1}
-                                    >
-                                      {note.text}
-                                    </Text>
-                                  </Group>
-                                  <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-                                    <Text size="xs" c="dimmed">
-                                      {new Date(note.created_at).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' })}
-                                    </Text>
-                                    <ActionIcon 
-                                      size="xs" 
-                                      color="red" 
-                                      variant="subtle"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        deleteUserNote(selectedTender.id, note.id);
-                                      }}
-                                    >
-                                      <IconX size={10} />
-                                    </ActionIcon>
-                                  </Group>
-                                </Group>
-                              </Paper>
-                            );
-                          })}
-                        </Stack>
-                      </ScrollArea.Autosize>
-                    ) : (
-                      <Text size="xs" c="dimmed" ta="center" py="xs">Henüz not yok</Text>
-                    )}
-                    
-                    {/* Yeni Not Ekle */}
-                    <Group gap="xs" onClick={(e) => e.stopPropagation()}>
-                      <TextInput
-                        placeholder="Not ekle... (Enter)"
-                        size="xs"
-                        value={userNote}
-                        onChange={(e) => setUserNote(e.target.value)}
-                        style={{ flex: 1 }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && userNote.trim()) {
-                            e.preventDefault();
-                            addUserNote(selectedTender.id, userNote);
-                          }
-                        }}
-                      />
-                      <Button 
-                        size="xs"
-                        variant="filled"
-                        color="yellow"
-                        c="dark"
-                        onClick={() => addUserNote(selectedTender.id, userNote)}
-                        disabled={!userNote.trim()}
-                      >
-                        +
-                      </Button>
-                    </Group>
-                  </Box>
-                )}
-              </Paper>
-
-              {/* Alt Bilgi */}
-              <Text size="xs" c="dimmed" ta="right">
-                Kaydedilme: {new Date(selectedTender.created_at).toLocaleDateString('tr-TR', { 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </Text>
-            </Stack>
-          );
-        })()}
-      </Modal>
+        }}
+        tender={selectedTender}
+        onUpdateStatus={updateStatus}
+        onDelete={deleteTender}
+        onAddNote={addUserNote}
+        onDeleteNote={deleteUserNote}
+      />
 
       {/* Teklif Modal */}
       {selectedTender && (

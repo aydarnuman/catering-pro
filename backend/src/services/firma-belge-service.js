@@ -19,14 +19,19 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const BELGE_TIPLERI = {
   vergi_levhasi: {
     ad: 'Vergi Levhası',
-    alanlar: ['unvan', 'vergi_dairesi', 'vergi_no', 'adres', 'faaliyet_kodu', 'nace_kodu'],
-    prompt: `Bu bir VERGİ LEVHASI belgesidir. Aşağıdaki bilgileri çıkar:
-- Mükellef Ünvanı (firma adı)
-- Vergi Dairesi
-- Vergi Kimlik Numarası (10 haneli)
-- Adres
-- Faaliyet Kodu / NACE Kodu
-- Vergi Levhası Tarihi`
+    alanlar: ['unvan', 'vergi_dairesi', 'vergi_no', 'adres', 'il', 'ilce', 'faaliyet_kodu', 'nace_kodu'],
+    prompt: `Bu bir VERGİ LEVHASI belgesidir. Aşağıdaki bilgileri DİKKATLE çıkar:
+
+ÖNEMLİ ALANLAR:
+1. MÜKELLEF ÜNVANI (firma adı, şirket adı) - Genellikle en üstte büyük harflerle yazılır
+2. VERGİ DAİRESİ - "... Vergi Dairesi" şeklinde yazar
+3. VERGİ KİMLİK NUMARASI (VKN) - 10 haneli rakam, genellikle "Vergi Kimlik No:", "VKN:", "T.C. Kimlik No:" gibi etiketlerden sonra gelir
+4. ADRES - Açık adres bilgisi
+5. İL ve İLÇE - Adres içinden çıkar
+6. FAALİYET KODU / NACE KODU - 6 haneli rakam (örn: 562990, 561000)
+7. VERGİ LEVHASI TARİHİ
+
+DİKKAT: Vergi Kimlik Numarası (VKN) 10 haneli bir sayıdır ve mutlaka belgede bulunur!`
   },
   sicil_gazetesi: {
     ad: 'Ticaret Sicil Gazetesi',
@@ -70,6 +75,26 @@ const BELGE_TIPLERI = {
 - Sertifika Türü (ISO 9001, ISO 22000, HACCP vs.)
 - Geçerlilik Başlangıç ve Bitiş Tarihi
 - Akreditasyon Kuruluşu`
+  },
+  vekaletname: {
+    ad: 'Vekaletname',
+    alanlar: ['yetkili_adi', 'yetkili_tc', 'imza_yetkisi'],
+    prompt: `Bu bir VEKALETNAME belgesidir. Aşağıdaki bilgileri çıkar:
+- Vekil Adı Soyadı
+- Vekil TC Kimlik No
+- Yetki Kapsamı
+- Noter Bilgileri ve Tarih`
+  },
+  diger: {
+    ad: 'Genel Belge',
+    alanlar: ['unvan', 'vergi_no', 'vergi_dairesi', 'adres', 'il', 'ilce', 'yetkili_adi'],
+    prompt: `Bu belgeden firma ile ilgili tüm bilgileri çıkar:
+- Firma Ünvanı
+- Vergi Kimlik Numarası (10 haneli)
+- Vergi Dairesi
+- Adres, İl, İlçe
+- Yetkili Kişi Bilgileri
+- Diğer önemli bilgiler`
   }
 };
 
@@ -167,24 +192,26 @@ Lütfen JSON formatında yanıt ver. Bulamadığın alanları null olarak bırak
 
 \`\`\`json
 {
-  "unvan": "Firma/Şirket Ünvanı",
+  "unvan": "Firma/Şirket Ünvanı - ZORUNLU",
+  "vergi_no": "10 haneli Vergi Kimlik Numarası (VKN) - ZORUNLU, sadece rakamlar",
   "vergi_dairesi": "Vergi Dairesi Adı",
-  "vergi_no": "10 haneli vergi numarası",
-  "ticaret_sicil_no": "Ticaret sicil numarası",
-  "mersis_no": "16 haneli MERSİS numarası",
   "adres": "Tam adres",
-  "il": "İl",
+  "il": "İl (şehir adı)",
   "ilce": "İlçe",
   "telefon": "Telefon numarası",
+  "faaliyet_kodu": "6 haneli NACE/Faaliyet kodu",
+  "ticaret_sicil_no": "Ticaret sicil numarası",
+  "mersis_no": "16 haneli MERSİS numarası",
   "yetkili_adi": "Yetkili kişi adı soyadı",
-  "yetkili_tc": "TC Kimlik No",
+  "yetkili_tc": "11 haneli TC Kimlik No",
   "yetkili_unvani": "Unvanı (Müdür, Genel Müdür vs.)",
   "imza_yetkisi": "İmza yetkisi açıklaması",
-  "faaliyet_kodu": "NACE/Faaliyet kodu",
   "belge_tarihi": "Belge tarihi (YYYY-MM-DD)",
   "guven_skoru": 0.85
 }
 \`\`\`
+
+NOT: vergi_no (VKN) belgede mutlaka bulunur, 10 haneli sayıdır. Bulamazsan tekrar ara!
 
 BELGE METNİ:
 ${text.slice(0, 15000)}
@@ -222,26 +249,27 @@ async function analyzeWithVision(filePath, belgeTipi, belgeConfig, mimeType) {
   const visionPrompt = `
 ${belgeConfig.prompt}
 
-Bu belgeyi dikkatle incele ve bilgileri çıkar.
-Tüm yazıları, tabloları ve sembolleri oku.
+Bu belgeyi DİKKATLE incele ve TÜM bilgileri çıkar.
+Tüm yazıları, tabloları, sayıları ve etiketleri oku.
+ÖZELLİKLE VERGİ KİMLİK NUMARASINI (VKN - 10 haneli) BUL!
 Lütfen JSON formatında yanıt ver. Bulamadığın alanları null olarak bırak.
 
 \`\`\`json
 {
-  "unvan": "Firma/Şirket Ünvanı",
+  "unvan": "Firma/Şirket Ünvanı - ZORUNLU",
+  "vergi_no": "10 haneli Vergi Kimlik Numarası (VKN) - ZORUNLU, sadece rakamlar",
   "vergi_dairesi": "Vergi Dairesi Adı",
-  "vergi_no": "10 haneli vergi numarası",
-  "ticaret_sicil_no": "Ticaret sicil numarası",
-  "mersis_no": "16 haneli MERSİS numarası",
   "adres": "Tam adres",
-  "il": "İl",
+  "il": "İl (şehir adı)",
   "ilce": "İlçe",
   "telefon": "Telefon numarası",
+  "faaliyet_kodu": "6 haneli NACE/Faaliyet kodu",
+  "ticaret_sicil_no": "Ticaret sicil numarası",
+  "mersis_no": "16 haneli MERSİS numarası",
   "yetkili_adi": "Yetkili kişi adı soyadı",
-  "yetkili_tc": "TC Kimlik No",
+  "yetkili_tc": "11 haneli TC Kimlik No",
   "yetkili_unvani": "Unvanı (Müdür, Genel Müdür vs.)",
   "imza_yetkisi": "İmza yetkisi açıklaması",
-  "faaliyet_kodu": "NACE/Faaliyet kodu",
   "belge_tarihi": "Belge tarihi (YYYY-MM-DD)",
   "guven_skoru": 0.85
 }
@@ -264,14 +292,97 @@ Lütfen JSON formatında yanıt ver. Bulamadığın alanları null olarak bırak
 }
 
 /**
+ * Belge tipini otomatik algıla
+ */
+async function detectBelgeTipi(filePath, mimeType) {
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  const fileCategory = getFileCategory(filePath);
+  
+  let content;
+  
+  if (fileCategory === 'image' || fileCategory === 'pdf') {
+    // Vision ile analiz
+    const base64Data = await fileToBase64(filePath);
+    const ext = path.extname(filePath).toLowerCase();
+    const mimeMap = {
+      '.pdf': 'application/pdf',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.webp': 'image/webp'
+    };
+    const imageMimeType = mimeType || mimeMap[ext] || 'application/pdf';
+    
+    content = [
+      `Bu belgeye bak ve türünü belirle. Sadece şu tiplerden birini seç:
+- vergi_levhasi (Vergi Levhası, VKN belgesi)
+- sicil_gazetesi (Ticaret Sicil Gazetesi)
+- imza_sirküleri (İmza Sirküleri, Noter onaylı imza)
+- faaliyet_belgesi (Faaliyet Belgesi, Oda Kayıt Belgesi, İşletme Kayıt)
+- iso_sertifika (ISO, HACCP, TSE, Helal sertifikaları)
+- vekaletname (Vekaletname)
+- diger (Tanımlanamayan belge)
+
+SADECE belge tipinin key değerini yaz, başka bir şey yazma.
+Örnek yanıt: vergi_levhasi`,
+      {
+        inlineData: {
+          mimeType: imageMimeType,
+          data: base64Data
+        }
+      }
+    ];
+  } else {
+    // Metin tabanlı analiz
+    let text = '';
+    if (fileCategory === 'word') {
+      text = await extractTextFromWord(filePath);
+    } else if (fileCategory === 'excel') {
+      text = await extractTextFromExcel(filePath);
+    } else if (fileCategory === 'pdf') {
+      text = await extractTextFromPDF(filePath);
+    }
+    
+    content = `Bu belge metnine bak ve türünü belirle. Sadece şu tiplerden birini seç:
+- vergi_levhasi (Vergi Levhası, VKN belgesi)
+- sicil_gazetesi (Ticaret Sicil Gazetesi)
+- imza_sirküleri (İmza Sirküleri, Noter onaylı imza)
+- faaliyet_belgesi (Faaliyet Belgesi, Oda Kayıt Belgesi, İşletme Kayıt)
+- iso_sertifika (ISO, HACCP, TSE, Helal sertifikaları)
+- vekaletname (Vekaletname)
+- diger (Tanımlanamayan belge)
+
+SADECE belge tipinin key değerini yaz, başka bir şey yazma.
+
+BELGE METNİ:
+${text.slice(0, 3000)}`;
+  }
+  
+  const result = await model.generateContent(content);
+  const detected = result.response.text().trim().toLowerCase().replace(/[^a-z_]/g, '');
+  
+  // Geçerli tip mi kontrol et
+  const validTypes = ['vergi_levhasi', 'sicil_gazetesi', 'imza_sirküleri', 'faaliyet_belgesi', 'iso_sertifika', 'vekaletname', 'diger'];
+  return validTypes.includes(detected) ? detected : 'diger';
+}
+
+/**
  * Ana analiz fonksiyonu - Akıllı yönlendirme
  */
 export async function analyzeFirmaBelgesi(filePath, belgeTipi, mimeType) {
   try {
-    const belgeConfig = BELGE_TIPLERI[belgeTipi];
-    if (!belgeConfig) {
-      throw new Error(`Bilinmeyen belge tipi: ${belgeTipi}`);
+    // Belge tipi verilmediyse otomatik algıla
+    if (!belgeTipi || belgeTipi === 'auto' || belgeTipi === 'otomatik') {
+      console.log('🔎 Belge tipi algılanıyor...');
+      belgeTipi = await detectBelgeTipi(filePath, mimeType);
+      console.log(`✅ Algılanan belge tipi: ${belgeTipi}`);
     }
+    
+    const belgeConfig = BELGE_TIPLERI[belgeTipi] || BELGE_TIPLERI['diger'] || {
+      ad: 'Genel Belge',
+      alanlar: ['unvan', 'vergi_no', 'adres'],
+      prompt: 'Bu belgeden firma bilgilerini çıkar.'
+    };
 
     const fileCategory = getFileCategory(filePath);
     console.log(`🔍 Firma belgesi analizi: ${belgeConfig.ad} (${fileCategory})`);

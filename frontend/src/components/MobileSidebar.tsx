@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import {
   Box,
   Text,
@@ -33,10 +33,13 @@ import {
   IconLogout,
   IconChevronRight,
   IconX,
-  IconUser
+  IconUser,
+  IconBuilding,
+  IconChartBar
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface MobileSidebarProps {
   opened: boolean;
@@ -52,20 +55,24 @@ interface MenuItem {
   icon: React.ElementType;
   badge?: string;
   badgeColor?: string;
+  permission?: string; // Yetki kontrolü için
 }
 
 interface MenuGroup {
   title: string;
   color: string;
   gradient: string;
+  permission?: string; // Grup genelinde yetki
   items: MenuItem[];
 }
 
-const menuGroups: MenuGroup[] = [
+// Statik menü tanımı - yetki kontrolü dinamik olarak yapılacak
+const allMenuGroups: MenuGroup[] = [
   {
     title: 'İhale Merkezi',
     color: '#3B82F6',
     gradient: 'linear-gradient(135deg, #3B82F6 0%, #6366F1 100%)',
+    permission: 'ihale',
     items: [
       { label: 'İhale Listesi', href: '/tenders', icon: IconList },
       { label: 'Yükle & Analiz', href: '/upload', icon: IconSparkles, badge: 'AI', badgeColor: 'violet' },
@@ -79,17 +86,20 @@ const menuGroups: MenuGroup[] = [
     gradient: 'linear-gradient(135deg, #14B8A6 0%, #10B981 100%)',
     items: [
       { label: 'Dashboard', href: '/muhasebe', icon: IconChartPie },
-      { label: 'Finans Merkezi', href: '/muhasebe/finans', icon: IconWallet },
-      { label: 'Cari Hesaplar', href: '/muhasebe/cariler', icon: IconUsers },
-      { label: 'Faturalar', href: '/muhasebe/faturalar', icon: IconReceipt },
-      { label: 'Stok Takibi', href: '/muhasebe/stok', icon: IconPackage },
-      { label: 'Personel', href: '/muhasebe/personel', icon: IconUserCircle },
+      { label: 'Finans Merkezi', href: '/muhasebe/finans', icon: IconWallet, permission: 'kasa_banka' },
+      { label: 'Cari Hesaplar', href: '/muhasebe/cariler', icon: IconUsers, permission: 'cari' },
+      { label: 'Faturalar', href: '/muhasebe/faturalar', icon: IconReceipt, permission: 'fatura' },
+      { label: 'Stok Takibi', href: '/muhasebe/stok', icon: IconPackage, permission: 'stok' },
+      { label: 'Personel', href: '/muhasebe/personel', icon: IconUserCircle, permission: 'personel' },
+      { label: 'Envanter', href: '/muhasebe/demirbas', icon: IconBuilding, permission: 'demirbas' },
+      { label: 'Raporlar', href: '/muhasebe/raporlar', icon: IconChartBar, permission: 'rapor' },
     ]
   },
   {
     title: 'Planlama',
     color: '#8B5CF6',
     gradient: 'linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%)',
+    permission: 'planlama',
     items: [
       { label: 'Piyasa Robotu', href: '/planlama/piyasa-robotu', icon: IconRobot, badge: 'AI', badgeColor: 'violet' },
       { label: 'Menü Planlama', href: '/muhasebe/menu-planlama', icon: IconToolsKitchen2 },
@@ -99,6 +109,7 @@ const menuGroups: MenuGroup[] = [
     title: 'Sistem',
     color: '#F59E0B',
     gradient: 'linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)',
+    permission: 'ayarlar',
     items: [
       { label: 'Ayarlar', href: '/ayarlar', icon: IconSettings },
     ]
@@ -111,11 +122,35 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const { canView, isSuperAdmin } = usePermissions();
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
   };
+
+  // Yetkilere göre filtrelenmiş menü grupları
+  const menuGroups = useMemo(() => {
+    return allMenuGroups
+      .map(group => {
+        // Grup genelinde yetki kontrolü
+        if (group.permission && !isSuperAdmin && !canView(group.permission)) {
+          return null;
+        }
+
+        // Her item için yetki kontrolü
+        const filteredItems = group.items.filter(item => {
+          if (!item.permission) return true; // Yetki tanımlanmamışsa göster
+          return isSuperAdmin || canView(item.permission);
+        });
+
+        // Hiç item kalmadıysa grubu gösterme
+        if (filteredItems.length === 0) return null;
+
+        return { ...group, items: filteredItems };
+      })
+      .filter(Boolean) as MenuGroup[];
+  }, [canView, isSuperAdmin]);
 
   const getInitials = (name: string) => {
     return name

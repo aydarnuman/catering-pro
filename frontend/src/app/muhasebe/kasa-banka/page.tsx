@@ -34,7 +34,7 @@ import {
   Tooltip,
   Progress
 } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
@@ -957,7 +957,7 @@ export default function KasaBankaPage() {
             <NumberInput label="Tutar (₺)" value={hareketForm.tutar} onChange={(v) => setHareketForm({ ...hareketForm, tutar: Number(v) || 0 })} min={0} thousandSeparator="." decimalSeparator="," required />
             <TextInput label="Açıklama" placeholder="İşlem açıklaması" value={hareketForm.aciklama} onChange={(e) => setHareketForm({ ...hareketForm, aciklama: e.currentTarget.value })} />
             <TextInput label="Belge No" placeholder="Fatura/Makbuz no" value={hareketForm.belge_no} onChange={(e) => setHareketForm({ ...hareketForm, belge_no: e.currentTarget.value })} />
-            <DatePickerInput label="Tarih" leftSection={<IconCalendar size={16} />} value={hareketForm.tarih} onChange={(v) => setHareketForm({ ...hareketForm, tarih: v || new Date() })} locale="tr" />
+            <StyledDatePicker label="Tarih" value={hareketForm.tarih} onChange={(v) => setHareketForm({ ...hareketForm, tarih: v || new Date() })} />
             <Group justify="flex-end" mt="md">
               <Button variant="default" onClick={() => { resetHareketForm(); closeHareket(); }}>İptal</Button>
               <Button color={hareketForm.hareket_tipi === 'giris' ? 'green' : hareketForm.hareket_tipi === 'cikis' ? 'red' : 'blue'} onClick={handleHareketSubmit}>Kaydet</Button>
@@ -988,8 +988,8 @@ export default function KasaBankaPage() {
             </Group>
             <NumberInput label="Tutar (₺)" value={cekSenetForm.tutar} onChange={(v) => setCekSenetForm({ ...cekSenetForm, tutar: Number(v) || 0 })} min={0} thousandSeparator="." decimalSeparator="," required />
             <Group grow>
-              <DatePickerInput label="Keşide Tarihi" leftSection={<IconCalendar size={16} />} value={cekSenetForm.kesim_tarihi} onChange={(v) => setCekSenetForm({ ...cekSenetForm, kesim_tarihi: v || new Date() })} locale="tr" />
-              <DatePickerInput label="Vade Tarihi" leftSection={<IconCalendar size={16} />} value={cekSenetForm.vade_tarihi} onChange={(v) => setCekSenetForm({ ...cekSenetForm, vade_tarihi: v || new Date() })} locale="tr" />
+              <StyledDatePicker label="Keşide Tarihi" value={cekSenetForm.kesim_tarihi} onChange={(v) => setCekSenetForm({ ...cekSenetForm, kesim_tarihi: v || new Date() })} />
+              <StyledDatePicker label="Vade Tarihi" value={cekSenetForm.vade_tarihi} onChange={(v) => setCekSenetForm({ ...cekSenetForm, vade_tarihi: v || new Date() })} />
             </Group>
             <Divider label="Keşideci Bilgileri" />
             <TextInput label="Keşideci Unvanı" placeholder="Ad Soyad / Firma" value={cekSenetForm.kesen_unvan} onChange={(e) => setCekSenetForm({ ...cekSenetForm, kesen_unvan: e.currentTarget.value })} required />
@@ -1041,7 +1041,7 @@ export default function KasaBankaPage() {
               onChange={(v) => setTahsilForm({ ...tahsilForm, hesap_id: v || '' })} 
               required 
             />
-            <DatePickerInput label="İşlem Tarihi" leftSection={<IconCalendar size={16} />} value={tahsilForm.tarih} onChange={(v) => setTahsilForm({ ...tahsilForm, tarih: v || new Date() })} locale="tr" />
+            <StyledDatePicker label="İşlem Tarihi" value={tahsilForm.tarih} onChange={(v) => setTahsilForm({ ...tahsilForm, tarih: v || new Date() })} />
             <TextInput label="Açıklama" placeholder="Ek açıklama" value={tahsilForm.aciklama} onChange={(e) => setTahsilForm({ ...tahsilForm, aciklama: e.currentTarget.value })} />
             <Group justify="flex-end" mt="md">
               <Button variant="default" onClick={() => { closeTahsil(); setSelectedCekSenet(null); }}>İptal</Button>
@@ -1069,7 +1069,7 @@ export default function KasaBankaPage() {
               searchable 
               required 
             />
-            <DatePickerInput label="Ciro Tarihi" leftSection={<IconCalendar size={16} />} value={ciroForm.tarih} onChange={(v) => setCiroForm({ ...ciroForm, tarih: v || new Date() })} locale="tr" />
+            <StyledDatePicker label="Ciro Tarihi" value={ciroForm.tarih} onChange={(v) => setCiroForm({ ...ciroForm, tarih: v || new Date() })} />
             <TextInput label="Açıklama" placeholder="Ciro açıklaması" value={ciroForm.aciklama} onChange={(e) => setCiroForm({ ...ciroForm, aciklama: e.currentTarget.value })} />
             <Group justify="flex-end" mt="md">
               <Button variant="default" onClick={() => { closeCiro(); setSelectedCekSenet(null); }}>İptal</Button>

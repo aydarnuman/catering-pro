@@ -48,7 +48,6 @@ import {
   IconLogin,
   IconLogout,
   IconUser,
-  IconScale,
   IconSearch,
   IconX,
   IconChartBar
@@ -56,6 +55,7 @@ import {
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { SearchModal } from './SearchModal';
 import { NotificationDropdown } from './NotificationDropdown';
 import { MobileSidebar } from './MobileSidebar';
@@ -69,6 +69,7 @@ export function Navbar() {
   const [searchModalOpened, { open: openSearchModal, close: closeSearchModal }] = useDisclosure(false);
   const [mounted, setMounted] = useState(false);
   const { user, isAuthenticated, isAdmin: userIsAdmin, isLoading, logout } = useAuth();
+  const { canView, isSuperAdmin, loading: permLoading } = usePermissions();
   
   const isDark = colorScheme === 'dark';
   
@@ -87,7 +88,7 @@ export function Navbar() {
 
   // Route helpers
   const isActive = (path: string) => pathname === path;
-  const isIhaleMerkezi = pathname === '/tenders' || pathname === '/upload' || pathname === '/tracking' || pathname === '/ihale-uzmani';
+  const isIhaleMerkezi = pathname === '/tenders' || pathname === '/upload' || pathname === '/tracking';
   const isMuhasebe = pathname.startsWith('/muhasebe');
   const isAyarlar = pathname.startsWith('/ayarlar');
   const isPlanlama = pathname.startsWith('/planlama');
@@ -385,7 +386,8 @@ export function Navbar() {
               Ana Sayfa
             </Button>
 
-            {/* İhale Merkezi Dropdown */}
+            {/* İhale Merkezi Dropdown - Yetki kontrolü */}
+            {(isSuperAdmin || canView('ihale')) && (
             <Menu shadow="lg" width={240} position="bottom-start" transitionProps={{ transition: 'pop-top-left' }}>
               <Menu.Target>
                 <Button
@@ -428,20 +430,12 @@ export function Navbar() {
                 >
                   İhale Takibim
                 </Menu.Item>
-                <Menu.Item
-                  component={Link}
-                  href="/ihale-uzmani"
-                  leftSection={<IconScale size={16} color="var(--mantine-color-violet-6)" />}
-                >
-                  <Box>
-                    <Text size="sm" fw={500}>İhale Uzmanı</Text>
-                    <Text size="xs" c="dimmed">AI Danışman</Text>
-                  </Box>
-                </Menu.Item>
               </Menu.Dropdown>
             </Menu>
+            )}
 
-            {/* Muhasebe Dropdown */}
+            {/* Muhasebe Dropdown - Yetki kontrolü */}
+            {(isSuperAdmin || canView('fatura') || canView('cari') || canView('stok') || canView('personel') || canView('kasa_banka') || canView('demirbas') || canView('rapor')) && (
             <Menu shadow="lg" width={240} position="bottom-start" transitionProps={{ transition: 'pop-top-left' }}>
               <Menu.Target>
                 <Button
@@ -459,37 +453,53 @@ export function Navbar() {
                 <Menu.Item component={Link} href="/muhasebe" leftSection={<IconChartPie size={16} />}>
                   Dashboard
                 </Menu.Item>
+                {(isSuperAdmin || canView('kasa_banka')) && (
                 <Menu.Item component={Link} href="/muhasebe/finans" leftSection={<IconWallet size={16} color="var(--mantine-color-blue-6)" />}>
                   <Box>
                     <Text size="sm" fw={500}>Finans Merkezi</Text>
                     <Text size="xs" c="dimmed">Kasa, Banka</Text>
                   </Box>
                 </Menu.Item>
+                )}
                 <Menu.Divider />
+                {(isSuperAdmin || canView('cari')) && (
                 <Menu.Item component={Link} href="/muhasebe/cariler" leftSection={<IconUsers size={16} />}>
                   Cari Hesaplar
                 </Menu.Item>
+                )}
+                {(isSuperAdmin || canView('fatura')) && (
                 <Menu.Item component={Link} href="/muhasebe/faturalar" leftSection={<IconReceipt size={16} />}>
                   Faturalar
                 </Menu.Item>
+                )}
+                {(isSuperAdmin || canView('stok')) && (
                 <Menu.Item component={Link} href="/muhasebe/stok" leftSection={<IconPackage size={16} />}>
                   Stok Takibi
                 </Menu.Item>
+                )}
                 <Menu.Divider />
+                {(isSuperAdmin || canView('personel')) && (
                 <Menu.Item component={Link} href="/muhasebe/personel" leftSection={<IconUserCircle size={16} />}>
                   Personel
                 </Menu.Item>
+                )}
+                {(isSuperAdmin || canView('demirbas')) && (
                 <Menu.Item component={Link} href="/muhasebe/demirbas" leftSection={<IconBuilding size={16} />}>
                   Envanter
                 </Menu.Item>
+                )}
                 <Menu.Divider />
+                {(isSuperAdmin || canView('rapor')) && (
                 <Menu.Item component={Link} href="/muhasebe/raporlar" leftSection={<IconChartBar size={16} />}>
                   Raporlar
                 </Menu.Item>
+                )}
               </Menu.Dropdown>
             </Menu>
+            )}
 
-            {/* Planlama Dropdown */}
+            {/* Planlama Dropdown - Yetki kontrolü */}
+            {(isSuperAdmin || canView('planlama')) && (
             <Menu shadow="lg" width={240} position="bottom-start" transitionProps={{ transition: 'pop-top-left' }}>
               <Menu.Target>
                 <Button
@@ -531,34 +541,9 @@ export function Navbar() {
                 </Menu.Item>
               </Menu.Dropdown>
             </Menu>
-
-            {/* Ayarlar */}
-            <Button
-              component={Link}
-              href="/ayarlar"
-              leftSection={<IconSettings size={16} />}
-              variant={isAyarlar ? 'light' : 'subtle'}
-              color={isAyarlar ? 'orange' : 'gray'}
-              size="compact-sm"
-              radius="md"
-            >
-              Ayarlar
-            </Button>
-
-            {/* Admin (only for admins) */}
-            {mounted && isAuthenticated && userIsAdmin && (
-              <Button
-                component={Link}
-                href="/admin"
-                leftSection={<IconShieldLock size={16} />}
-                variant={isAdminPage ? 'light' : 'subtle'}
-                color="red"
-                size="compact-sm"
-                radius="md"
-              >
-                Admin
-              </Button>
             )}
+
+{/* Ayarlar ve Admin butonları kullanıcı dropdown menüsünde mevcut - tekrar etmesin */}
           </Box>
         )}
 

@@ -27,7 +27,7 @@ import {
   Menu,
   rem
 } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
@@ -519,13 +519,11 @@ export default function GelirGiderPage() {
             />
 
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <DatePickerInput
+              <StyledDatePicker
                 label="Tarih"
                 placeholder="Tarih seçin"
-                leftSection={<IconCalendar size={16} />}
                 value={formData.tarih}
                 onChange={(value) => setFormData({ ...formData, tarih: value || new Date() })}
-                locale="tr"
               />
 
               <Select

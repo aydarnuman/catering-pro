@@ -33,7 +33,7 @@ import {
   Grid,
   Switch
 } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
@@ -1391,10 +1391,9 @@ export default function DemirbasPage() {
                 onChange={(e) => setDemirbasForm({ ...demirbasForm, ad: e.target.value })}
                 required
               />
-              <DatePickerInput
+              <StyledDatePicker
                 label="Alış Tarihi"
                 placeholder="Seçin"
-                locale="tr"
                 value={demirbasForm.alis_tarihi}
                 onChange={(val) => setDemirbasForm({ ...demirbasForm, alis_tarihi: val })}
                 required
@@ -1579,10 +1578,9 @@ export default function DemirbasPage() {
                 min={0}
                 thousandSeparator=","
               />
-              <DatePickerInput
+              <StyledDatePicker
                 label="Alış Tarihi"
                 placeholder="Seçin"
-                locale="tr"
                 value={aracForm.alis_tarihi}
                 onChange={(val) => setAracForm({ ...aracForm, alis_tarihi: val })}
                 required
@@ -1597,10 +1595,9 @@ export default function DemirbasPage() {
                   <IconShieldCheck size={20} color="orange" />
                   <Text fw={600}>Muayene</Text>
                 </Group>
-                <DatePickerInput
+                <StyledDatePicker
                   label="Muayene Tarihi"
                   placeholder="Son muayene tarihi"
-                  locale="tr"
                   value={aracForm.muayene_tarihi}
                   onChange={(val) => setAracForm({ ...aracForm, muayene_tarihi: val })}
                 />
@@ -1611,10 +1608,9 @@ export default function DemirbasPage() {
                   <IconShieldCheck size={20} color="blue" />
                   <Text fw={600}>Trafik Sigortası</Text>
                 </Group>
-                <DatePickerInput
+                <StyledDatePicker
                   label="Sigorta Bitiş Tarihi"
                   placeholder="Bitiş tarihi"
-                  locale="tr"
                   value={aracForm.sigorta_bitis}
                   onChange={(val) => setAracForm({ ...aracForm, sigorta_bitis: val })}
                 />
@@ -1625,10 +1621,9 @@ export default function DemirbasPage() {
                   <IconShieldCheck size={20} color="teal" />
                   <Text fw={600}>Kasko</Text>
                 </Group>
-                <DatePickerInput
+                <StyledDatePicker
                   label="Kasko Bitiş Tarihi"
                   placeholder="Bitiş tarihi"
-                  locale="tr"
                   value={aracForm.kasko_bitis}
                   onChange={(val) => setAracForm({ ...aracForm, kasko_bitis: val })}
                 />
@@ -1678,9 +1673,8 @@ export default function DemirbasPage() {
             onChange={(val) => setZimmetForm({ ...zimmetForm, personel_id: val || '' })}
             required
           />
-          <DatePickerInput
+          <StyledDatePicker
             label="Zimmet Tarihi"
-            locale="tr"
             value={zimmetForm.tarih}
             onChange={(val) => setZimmetForm({ ...zimmetForm, tarih: val || new Date() })}
           />
@@ -1734,9 +1728,8 @@ export default function DemirbasPage() {
             value={bakimForm.servis_firma}
             onChange={(e) => setBakimForm({ ...bakimForm, servis_firma: e.target.value })}
           />
-          <DatePickerInput
+          <StyledDatePicker
             label="Tahmini Dönüş"
-            locale="tr"
             value={bakimForm.tahmini_donus}
             onChange={(val) => setBakimForm({ ...bakimForm, tahmini_donus: val })}
           />

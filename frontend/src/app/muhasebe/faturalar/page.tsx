@@ -35,7 +35,7 @@ import {
   Tooltip,
   ScrollArea
 } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
@@ -68,6 +68,7 @@ import { useRouter } from 'next/navigation';
 import 'dayjs/locale/tr';
 import { invoiceAPI, uyumsoftAPI, convertToFrontendFormat, convertToAPIFormat } from '@/lib/invoice-api';
 import { DataActions } from '@/components/DataActions';
+import { usePermissions } from '@/hooks/usePermissions';
 
 // API URL
 const API_URL = `${API_BASE_URL}/api`;
@@ -164,6 +165,12 @@ export default function FaturalarPage() {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
   const isMobile = useMediaQuery('(max-width: 768px)');
+  
+  // === YETKİ KONTROLÜ ===
+  const { canCreate, canEdit, canDelete, isSuperAdmin } = usePermissions();
+  const canCreateFatura = isSuperAdmin || canCreate('fatura');
+  const canEditFatura = isSuperAdmin || canEdit('fatura');
+  const canDeleteFatura = isSuperAdmin || canDelete('fatura');
   const [opened, { open, close }] = useDisclosure(false);
   const [detailOpened, { open: openDetail, close: closeDetail }] = useDisclosure(false);
   const [connectOpened, { open: openConnect, close: closeConnect }] = useDisclosure(false);
@@ -907,9 +914,11 @@ export default function FaturalarPage() {
                 </Group>
               </Paper>
 
+              {canCreateFatura && (
               <Button leftSection={<IconPlus size={18} />} variant="gradient" gradient={{ from: 'violet', to: 'grape' }} onClick={() => { resetForm(); open(); }}>
                 Yeni Fatura
               </Button>
+              )}
               <DataActions 
                 type="fatura" 
                 onImportSuccess={() => loadInvoices()} 
@@ -1045,13 +1054,21 @@ export default function FaturalarPage() {
                               </Menu.Target>
                               <Menu.Dropdown>
                                 <Menu.Item leftSection={<IconEye style={{ width: rem(14), height: rem(14) }} />} onClick={() => handleViewDetail(fatura)}>Görüntüle</Menu.Item>
+                                {canEditFatura && (
+                                <>
                                 <Menu.Divider />
                                 <Menu.Label>Durum Değiştir</Menu.Label>
                                 <Menu.Item leftSection={<IconSend style={{ width: rem(14), height: rem(14) }} />} onClick={() => updateDurum(fatura.id, 'gonderildi')}>Gönderildi</Menu.Item>
                                 <Menu.Item leftSection={<IconCheck style={{ width: rem(14), height: rem(14) }} />} color="green" onClick={() => updateDurum(fatura.id, 'odendi')}>Ödendi</Menu.Item>
                                 <Menu.Item leftSection={<IconX style={{ width: rem(14), height: rem(14) }} />} onClick={() => updateDurum(fatura.id, 'iptal')}>İptal</Menu.Item>
+                                </>
+                                )}
+                                {canDeleteFatura && (
+                                <>
                                 <Menu.Divider />
                                 <Menu.Item color="red" leftSection={<IconTrash style={{ width: rem(14), height: rem(14) }} />} onClick={() => handleDelete(fatura.id)}>Sil</Menu.Item>
+                                </>
+                                )}
                               </Menu.Dropdown>
                             </Menu>
                           </Table.Td>
@@ -1539,13 +1556,21 @@ export default function FaturalarPage() {
                                 </Menu.Target>
                                 <Menu.Dropdown>
                                   <Menu.Item leftSection={<IconEye style={{ width: rem(14), height: rem(14) }} />} onClick={() => handleViewDetail(fatura)}>Görüntüle</Menu.Item>
+                                  {canEditFatura && (
+                                  <>
                                   <Menu.Divider />
                                   <Menu.Label>Durum Değiştir</Menu.Label>
                                   <Menu.Item leftSection={<IconSend style={{ width: rem(14), height: rem(14) }} />} onClick={() => updateDurum(fatura.id, 'gonderildi')}>Gönderildi</Menu.Item>
                                   <Menu.Item leftSection={<IconCheck style={{ width: rem(14), height: rem(14) }} />} color="green" onClick={() => updateDurum(fatura.id, 'odendi')}>Ödendi</Menu.Item>
                                   <Menu.Item leftSection={<IconX style={{ width: rem(14), height: rem(14) }} />} onClick={() => updateDurum(fatura.id, 'iptal')}>İptal</Menu.Item>
+                                  </>
+                                  )}
+                                  {canDeleteFatura && (
+                                  <>
                                   <Menu.Divider />
                                   <Menu.Item color="red" leftSection={<IconTrash style={{ width: rem(14), height: rem(14) }} />} onClick={() => handleDelete(fatura.id)}>Sil</Menu.Item>
+                                  </>
+                                  )}
                                 </Menu.Dropdown>
                               </Menu>
                             </Table.Td>
@@ -1614,8 +1639,8 @@ export default function FaturalarPage() {
             <SimpleGrid cols={4}>
               <TextInput label="Seri" value={formData.seri} onChange={(e) => setFormData({ ...formData, seri: e.currentTarget.value })} />
               <TextInput label="No" placeholder="Otomatik" value={formData.no} onChange={(e) => setFormData({ ...formData, no: e.currentTarget.value })} />
-              <DatePickerInput label="Tarih" leftSection={<IconCalendar size={16} />} value={formData.tarih} onChange={(v) => setFormData({ ...formData, tarih: v || new Date() })} locale="tr" />
-              <DatePickerInput label="Vade Tarihi" leftSection={<IconCalendar size={16} />} value={formData.vadeTarihi} onChange={(v) => setFormData({ ...formData, vadeTarihi: v || new Date() })} locale="tr" />
+              <StyledDatePicker label="Tarih" value={formData.tarih} onChange={(v) => setFormData({ ...formData, tarih: v || new Date() })} />
+              <StyledDatePicker label="Vade Tarihi" value={formData.vadeTarihi} onChange={(v) => setFormData({ ...formData, vadeTarihi: v || new Date() })} />
             </SimpleGrid>
 
             <Divider label="Kalemler" labelPosition="center" />

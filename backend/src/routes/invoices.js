@@ -5,8 +5,11 @@
 
 import express from 'express';
 import { query, transaction } from '../database.js';
+import { authenticate, requirePermission, auditLog } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// NOT: GET route'ları herkese açık, POST/PUT/DELETE route'ları authentication gerektirir
 
 /**
  * GET /api/invoices/stats
@@ -60,12 +63,15 @@ router.get('/', async (req, res) => {
       endDate,
       limit = 250,
       offset = 0,
-      search
+      search,
+      proje_id // Proje bazlı filtreleme
     } = req.query;
 
     let sql = `
       SELECT 
         i.*,
+        p.ad as proje_adi,
+        p.musteri as proje_musteri,
         COALESCE(
           (SELECT JSON_AGG(
             JSON_BUILD_OBJECT(
@@ -83,6 +89,7 @@ router.get('/', async (req, res) => {
           '[]'::json
         ) as items
       FROM invoices i
+      LEFT JOIN projeler p ON i.proje_id = p.id
       WHERE 1=1
     `;
     
@@ -126,6 +133,12 @@ router.get('/', async (req, res) => {
         i.notes ILIKE $${paramIndex}
       )`;
       params.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    if (proje_id) {
+      sql += ` AND i.proje_id = $${paramIndex}`;
+      params.push(proje_id);
       paramIndex++;
     }
 
@@ -212,7 +225,7 @@ router.get('/:id', async (req, res) => {
  * POST /api/invoices
  * Yeni fatura oluştur
  */
-router.post('/', async (req, res) => {
+router.post('/', authenticate, requirePermission('fatura', 'create'), auditLog('fatura'), async (req, res) => {
   try {
     const {
       invoice_type,
@@ -318,7 +331,7 @@ router.post('/', async (req, res) => {
  * PUT /api/invoices/:id
  * Fatura güncelle
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticate, requirePermission('fatura', 'edit'), auditLog('fatura'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -477,7 +490,7 @@ router.patch('/:id/status', async (req, res) => {
  * DELETE /api/invoices/:id
  * Fatura sil
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, requirePermission('fatura', 'delete'), auditLog('fatura'), async (req, res) => {
   try {
     const { id } = req.params;
 

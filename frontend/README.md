@@ -2,14 +2,16 @@
 
 ## 🎯 Genel Bakış
 
-Catering Pro frontend uygulaması Next.js 14 (App Router) ile geliştirilmiştir. Mantine UI ve Tailwind CSS kullanılır.
+Catering Pro frontend uygulaması Next.js 14 (App Router) ile geliştirilmiştir. Mantine UI bileşen kütüphanesi ve Tailwind CSS kullanılır.
+
+**Son Güncelleme:** Ocak 2026
 
 ## 🚀 Başlatma
 
 ```bash
 cd frontend
 npm install
-npm run dev        # Development
+npm run dev        # Development (localhost:3000)
 npm run build      # Production build
 npm start          # Production server
 ```
@@ -22,73 +24,255 @@ npm start          # Production server
 
 ```
 src/
-├── app/                    # Next.js App Router
-│   ├── layout.tsx          # Root layout
-│   ├── page.tsx            # Ana sayfa
-│   ├── globals.css         # Global stiller
+├── app/                        # Next.js App Router
+│   ├── layout.tsx              # Root layout (MantineProvider, Navbar)
+│   ├── page.tsx                # Ana dashboard
+│   ├── globals.css             # Global stiller
 │   │
-│   ├── admin/              # Admin paneli
-│   ├── ai-chat/            # AI asistan
-│   ├── ayarlar/            # Sistem ayarları
-│   ├── tenders/            # İhale modülü
-│   ├── upload/             # Döküman yükleme
-│   ├── tracking/           # İhale takip
-│   ├── planlama/           # Üretim planlama
+│   ├── admin/                  # Admin paneli
+│   │   └── page.tsx            # Admin dashboard
 │   │
-│   └── muhasebe/           # Muhasebe modülü
-│       ├── page.tsx        # Dashboard
-│       ├── cariler/        # Cari hesaplar
-│       ├── stok/           # Stok yönetimi
-│       ├── personel/       # Personel/HR
-│       ├── faturalar/      # Fatura yönetimi
-│       ├── kasa-banka/     # Nakit yönetimi
-│       ├── gelir-gider/    # Gelir-gider
-│       ├── satin-alma/     # Satın alma
-│       ├── demirbas/       # Demirbaş takibi
-│       ├── menu-planlama/  # Menü planlama
-│       ├── finans/         # Finansal raporlar
-│       └── raporlar/       # Genel raporlar
+│   ├── ai-chat/                # AI Asistan
+│   │   └── page.tsx            # AI sohbet sayfası
+│   │
+│   ├── ayarlar/                # Sistem Ayarları
+│   │   ├── page.tsx            # Genel ayarlar
+│   │   ├── api-test/           # API test sayfası
+│   │   └── database-stats/     # DB istatistikleri
+│   │
+│   ├── tenders/                # İhale Modülü
+│   │   ├── page.tsx            # İhale listesi
+│   │   ├── [id]/               # Dinamik ihale detay
+│   │   │   └── page.tsx
+│   │   ├── upload/             # Döküman yükleme
+│   │   └── tracking/           # İhale takip listesi
+│   │
+│   ├── upload/                 # Döküman Yükleme (Kısa yol)
+│   │   └── page.tsx
+│   │
+│   ├── tracking/               # Takip Listesi (Kısa yol)
+│   │   └── page.tsx
+│   │
+│   ├── planlama/               # Üretim Planlama
+│   │   └── page.tsx
+│   │
+│   └── muhasebe/               # Muhasebe Modülü
+│       ├── page.tsx            # Muhasebe dashboard
+│       ├── layout.tsx          # Muhasebe layout
+│       │
+│       ├── cariler/            # Cari Hesaplar
+│       │   ├── page.tsx        # Liste
+│       │   └── [id]/           # Detay
+│       │       └── page.tsx
+│       │
+│       ├── stok/               # Stok Yönetimi
+│       │   ├── page.tsx        # Dashboard
+│       │   ├── kartlar/        # Stok kartları
+│       │   ├── depolar/        # Depo yönetimi
+│       │   └── hareketler/     # Stok hareketleri
+│       │
+│       ├── personel/           # İnsan Kaynakları
+│       │   ├── page.tsx        # Personel listesi
+│       │   ├── [id]/           # Personel detay
+│       │   │   └── page.tsx
+│       │   ├── bordro/         # Bordro yönetimi
+│       │   ├── izin/           # İzin takibi
+│       │   ├── tazminat/       # Tazminat hesaplama
+│       │   └── maas-odeme/     # Maaş ödeme
+│       │
+│       ├── faturalar/          # Fatura Yönetimi
+│       │   └── page.tsx
+│       │
+│       ├── kasa-banka/         # Nakit Yönetimi
+│       │   └── page.tsx
+│       │
+│       ├── gelir-gider/        # Gelir-Gider Takibi
+│       │   └── page.tsx
+│       │
+│       ├── satin-alma/         # Satın Alma
+│       │   └── page.tsx
+│       │
+│       ├── demirbas/           # Demirbaş Takibi
+│       │   └── page.tsx
+│       │
+│       ├── projeler/           # Proje Yönetimi
+│       │   ├── page.tsx
+│       │   └── [id]/
+│       │       └── page.tsx
+│       │
+│       ├── menu-planlama/      # Menü Planlama
+│       │   └── page.tsx
+│       │
+│       ├── finans/             # Finansal Raporlar
+│       │   └── page.tsx
+│       │
+│       └── raporlar/           # Genel Raporlar
+│           └── page.tsx
 │
-├── components/             # Reusable componentler
-│   ├── ui/                 # Temel UI componentleri
-│   ├── muhasebe/           # Muhasebe componentleri
-│   ├── tenders/            # İhale componentleri
-│   └── layout/             # Layout componentleri
+├── components/                 # Reusable Componentler
+│   ├── Navbar.tsx              # Ana navigation bar
+│   ├── ClientLayout.tsx        # Client-side layout wrapper
+│   ├── FloatingAIChat.tsx      # Floating AI asistan butonu
+│   │
+│   ├── ui/                     # Temel UI Componentleri
+│   │   ├── LoadingSpinner.tsx
+│   │   ├── ErrorBoundary.tsx
+│   │   └── ConfirmDialog.tsx
+│   │
+│   ├── muhasebe/               # Muhasebe Componentleri
+│   │   ├── CariForm.tsx
+│   │   ├── CariTable.tsx
+│   │   ├── StokKartForm.tsx
+│   │   ├── PersonelForm.tsx
+│   │   ├── BordroTable.tsx
+│   │   └── KasaBankaForm.tsx
+│   │
+│   └── tenders/                # İhale Componentleri
+│       ├── TenderCard.tsx
+│       ├── TenderFilter.tsx
+│       ├── DocumentViewer.tsx
+│       ├── AnalysisPanel.tsx
+│       └── TrackingForm.tsx
 │
-├── hooks/                  # Custom React hooks
-│   ├── useApi.ts           # API çağrıları
-│   ├── useAuth.ts          # Auth işlemleri
-│   └── useDebounce.ts      # Debounce hook
+├── context/                    # React Context
+│   └── AuthContext.tsx         # Authentication context & provider
 │
-├── lib/                    # Utility fonksiyonları
-│   ├── api.ts              # API client
-│   ├── utils.ts            # Helper fonksiyonları
-│   └── format.ts           # Formatlama
+├── hooks/                      # Custom React Hooks
+│   ├── useApi.ts               # API çağrıları (SWR based)
+│   ├── useAuth.ts              # Auth işlemleri
+│   ├── useDebounce.ts          # Debounce hook
+│   └── usePagination.ts        # Pagination hook
 │
-└── types/                  # TypeScript tipleri
-    ├── index.ts            # Genel tipler
-    ├── cari.ts             # Cari tipleri
-    └── stok.ts             # Stok tipleri
+├── lib/                        # Utility Fonksiyonları
+│   ├── config.ts               # ⭐ API_BASE_URL ve endpoints
+│   ├── api.ts                  # API client fonksiyonları
+│   ├── utils.ts                # Helper fonksiyonları
+│   └── format.ts               # Formatlama (para, tarih)
+│
+└── types/                      # TypeScript Tipleri
+    ├── index.ts                # Genel tipler
+    ├── cari.ts                 # Cari tipleri
+    ├── stok.ts                 # Stok tipleri
+    ├── personel.ts             # Personel tipleri
+    ├── tender.ts               # İhale tipleri
+    └── ai.ts                   # AI tipleri
 ```
 
 ---
 
 ## 🎨 UI Framework
 
-### Mantine UI
+### Mantine UI (v7+)
 ```tsx
-import { Button, Card, Table, Modal } from '@mantine/core';
+import { 
+  Button, Card, Table, Modal, TextInput, 
+  Select, NumberInput, Tabs, ActionIcon,
+  Group, Stack, Box, Container, Title,
+  Paper, Badge, Loader, Progress
+} from '@mantine/core';
+
 import { notifications } from '@mantine/notifications';
+import { DatePickerInput } from '@mantine/dates';
 ```
 
 ### Tabler Icons
 ```tsx
-import { IconPlus, IconEdit, IconTrash } from '@tabler/icons-react';
+import { 
+  IconPlus, IconEdit, IconTrash, IconSearch,
+  IconFilter, IconDownload, IconUpload,
+  IconCheck, IconX, IconAlertCircle
+} from '@tabler/icons-react';
 ```
 
 ### Recharts (Grafikler)
 ```tsx
-import { BarChart, LineChart, PieChart } from 'recharts';
+import { 
+  BarChart, Bar, LineChart, Line, 
+  PieChart, Pie, AreaChart, Area,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, Cell
+} from 'recharts';
+```
+
+### SWR (Data Fetching)
+```tsx
+import useSWR from 'swr';
+
+const fetcher = (url: string) => fetch(url).then(res => res.json());
+const { data, error, isLoading, mutate } = useSWR('/api/endpoint', fetcher);
+```
+
+---
+
+## 🔗 API Bağlantısı
+
+### ⚠️ ÖNEMLİ: API_BASE_URL Kullanımı
+
+**ASLA hardcoded URL kullanmayın:**
+
+```tsx
+// ❌ YANLIŞ
+const API_URL = 'http://localhost:3001/api';
+fetch('http://localhost:3001/api/cariler');
+
+// ✅ DOĞRU - lib/config.ts'den import edin
+import { API_BASE_URL } from '@/lib/config';
+const response = await fetch(`${API_BASE_URL}/api/cariler`);
+```
+
+### lib/config.ts Yapısı
+```tsx
+// Otomatik URL belirleme (localhost veya production)
+const getApiBaseUrl = (): string => {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  if (typeof window !== 'undefined') {
+    const { hostname, protocol } = window.location;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:3001';
+    }
+    return `${protocol}//${hostname}`;
+  }
+  return 'http://localhost:3001';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
+
+export const API_ENDPOINTS = {
+  AUTH: `${API_BASE_URL}/api/auth`,
+  TENDERS: `${API_BASE_URL}/api/tenders`,
+  CARILER: `${API_BASE_URL}/api/cariler`,
+  // ... diğer endpointler
+};
+```
+
+### API Çağrı Örnekleri
+```tsx
+import { API_BASE_URL, API_ENDPOINTS } from '@/lib/config';
+
+// GET
+const response = await fetch(`${API_ENDPOINTS.CARILER}`);
+const { success, data, error } = await response.json();
+
+// POST
+const response = await fetch(`${API_ENDPOINTS.CARILER}`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(formData)
+});
+
+// PUT
+const response = await fetch(`${API_ENDPOINTS.CARILER}/${id}`, {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(updateData)
+});
+
+// DELETE
+const response = await fetch(`${API_ENDPOINTS.CARILER}/${id}`, {
+  method: 'DELETE'
+});
 ```
 
 ---
@@ -100,7 +284,10 @@ import { BarChart, LineChart, PieChart } from 'recharts';
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Container, Title, Card } from '@mantine/core';
+import { Container, Title, Card, Group, Button, Table, LoadingOverlay } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
+import { IconPlus, IconRefresh } from '@tabler/icons-react';
+import { API_BASE_URL } from '@/lib/config';
 
 export default function ModulPage() {
   const [data, setData] = useState([]);
@@ -112,47 +299,53 @@ export default function ModulPage() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch('/api/endpoint');
+      setLoading(true);
+      const res = await fetch(`${API_BASE_URL}/api/endpoint`);
       const json = await res.json();
+      
       if (json.success) {
         setData(json.data);
+      } else {
+        notifications.show({
+          title: 'Hata',
+          message: json.error || 'Veri yüklenemedi',
+          color: 'red'
+        });
       }
     } catch (error) {
-      console.error('Hata:', error);
+      notifications.show({
+        title: 'Hata',
+        message: 'Sunucuya bağlanılamadı',
+        color: 'red'
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <div>Yükleniyor...</div>;
-
   return (
-    <Container size="xl">
-      <Title>Modül Başlığı</Title>
-      {/* İçerik */}
+    <Container size="xl" py="md">
+      <Group justify="space-between" mb="md">
+        <Title order={2}>Modül Başlığı</Title>
+        <Group>
+          <Button leftSection={<IconRefresh size={16} />} variant="light" onClick={fetchData}>
+            Yenile
+          </Button>
+          <Button leftSection={<IconPlus size={16} />}>
+            Yeni Ekle
+          </Button>
+        </Group>
+      </Group>
+      
+      <Card withBorder pos="relative">
+        <LoadingOverlay visible={loading} />
+        <Table striped highlightOnHover>
+          {/* Tablo içeriği */}
+        </Table>
+      </Card>
     </Container>
   );
 }
-```
-
----
-
-## 🔗 API Bağlantısı
-
-### Fetch Kullanımı
-```tsx
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
-// GET
-const response = await fetch(`${API_URL}/api/cariler`);
-const { success, data, error } = await response.json();
-
-// POST
-const response = await fetch(`${API_URL}/api/cariler`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(formData)
-});
 ```
 
 ---
@@ -164,22 +357,76 @@ const response = await fetch(`${API_URL}/api/cariler`, {
 - **Components:** `PascalCase.tsx`
 - **Hooks:** `useCamelCase.ts`
 - **Utils:** `camelCase.ts`
+- **Types:** `PascalCase` (interface/type)
 
 ### Component Yapısı
 ```tsx
 'use client';
 
 import { useState } from 'react';
+import { Modal, TextInput, Button, Group, Stack } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
+import { API_BASE_URL } from '@/lib/config';
 
-interface Props {
-  data: DataType;
-  onSave: (item: DataType) => void;
+interface FormData {
+  unvan: string;
+  tip: 'musteri' | 'tedarikci';
+  vergi_no?: string;
 }
 
-export default function ComponentName({ data, onSave }: Props) {
-  // State tanımları
-  // Event handlers
-  // Render
+interface Props {
+  opened: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+  initialData?: FormData;
+}
+
+export default function CariForm({ opened, onClose, onSuccess, initialData }: Props) {
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState<FormData>(initialData || { unvan: '', tip: 'musteri' });
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/cariler`, {
+        method: initialData ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
+      
+      const json = await res.json();
+      
+      if (json.success) {
+        notifications.show({ title: 'Başarılı', message: 'Kaydedildi', color: 'green' });
+        onSuccess();
+        onClose();
+      } else {
+        notifications.show({ title: 'Hata', message: json.error, color: 'red' });
+      }
+    } catch (error) {
+      notifications.show({ title: 'Hata', message: 'Sunucu hatası', color: 'red' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal opened={opened} onClose={onClose} title="Cari Hesap">
+      <Stack>
+        <TextInput
+          label="Ünvan"
+          required
+          value={form.unvan}
+          onChange={(e) => setForm({ ...form, unvan: e.target.value })}
+        />
+        {/* Diğer alanlar */}
+        <Group justify="flex-end">
+          <Button variant="light" onClick={onClose}>İptal</Button>
+          <Button loading={loading} onClick={handleSubmit}>Kaydet</Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
 }
 ```
 
@@ -187,57 +434,139 @@ export default function ComponentName({ data, onSave }: Props) {
 
 ## 🔐 Authentication
 
-NextAuth.js kullanılır.
-
+### AuthContext Kullanımı
 ```tsx
-import { useSession, signIn, signOut } from 'next-auth/react';
+// context/AuthContext.tsx
+'use client';
 
-const { data: session, status } = useSession();
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 
-if (status === 'loading') return <Loading />;
-if (!session) return <Login />;
+interface User {
+  id: number;
+  username: string;
+  role: string;
+}
+
+interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  login: (username: string, password: string) => Promise<boolean>;
+  logout: () => void;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    // Token kontrolü
+    setLoading(false);
+  };
+
+  const login = async (username: string, password: string): Promise<boolean> => {
+    // Login işlemi
+    return true;
+  };
+
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('token');
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, loading, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  return context;
+};
+```
+
+### Korumalı Route
+```tsx
+'use client';
+
+import { useAuth } from '@/context/AuthContext';
+import { redirect } from 'next/navigation';
+
+export default function ProtectedPage() {
+  const { user, loading } = useAuth();
+
+  if (loading) return <div>Yükleniyor...</div>;
+  if (!user) redirect('/login');
+
+  return <div>Korumalı içerik</div>;
+}
 ```
 
 ---
 
 ## 🎯 Modül Açıklamaları
 
-### `/muhasebe` - Muhasebe Dashboard
-Ana dashboard, özet kartlar, grafikler
+### Ana Dashboard (`/`)
+- KPI kartları (ihale, cari, personel, stok)
+- Hızlı işlem butonları
+- Yaklaşan ihaleler
+- Kullanıcı notları
+- Sistem durumu
+- AI tavsiyeleri
 
-### `/muhasebe/cariler` - Cari Hesaplar
-Müşteri/tedarikçi yönetimi, bakiye takibi
+### İhale Modülü (`/tenders`)
+- İhale listesi (filtreleme, arama)
+- İhale detay sayfası
+- Döküman yükleme & AI analizi
+- Takip listesi yönetimi
+- Teklif hazırlama
 
-### `/muhasebe/stok` - Stok Yönetimi
-Depo, lokasyon, stok kartları, hareketler
+### Muhasebe Dashboard (`/muhasebe`)
+- Finansal özet kartları
+- Gelir-gider grafiği
+- Gider dağılımı
+- Son işlemler
+- Yaklaşan ödemeler
 
-### `/muhasebe/personel` - Personel/HR
-Çalışan kayıtları, izin yönetimi, bordro
+### Cari Hesaplar (`/muhasebe/cariler`)
+- Müşteri/tedarikçi listesi
+- Bakiye takibi
+- Cari hareketleri
+- Mutabakat raporu
 
-### `/muhasebe/faturalar` - Fatura Yönetimi
-Alış/satış faturaları, ödeme takibi
+### Personel/HR (`/muhasebe/personel`)
+- Personel listesi
+- Bordro hesaplama
+- İzin yönetimi
+- Tazminat hesaplama
+- Maaş ödeme takibi
 
-### `/muhasebe/kasa-banka` - Nakit Yönetimi
-Kasa ve banka hesapları, hareketler
-
-### `/tenders` - İhale Takibi
-İhale listesi, detay, döküman analizi
-
-### `/ai-chat` - AI Asistan
-Konuşma arayüzü, hafıza yönetimi
-
-### `/planlama` - Üretim Planlama
-Menü oluşturma, malzeme hesaplama
+### AI Asistan (`/ai-chat`)
+- Sohbet arayüzü (streaming)
+- Hafıza yönetimi
+- Sistem entegrasyonu (tool calling)
+- Prompt şablonları
 
 ---
 
 ## ⚠️ Önemli Kurallar
 
 1. **'use client'** direktifi client componentlerde zorunlu
-2. **Loading states** her async işlemde göster
-3. **Error handling** try-catch ile yap
-4. **TypeScript** mümkün olduğunca kullan
-5. **Responsive** tasarım düşün
+2. **API_BASE_URL** her zaman `lib/config.ts`'den import edilmeli
+3. **Loading states** her async işlemde gösterilmeli
+4. **Error handling** try-catch ile yapılmalı
+5. **TypeScript** mümkün olduğunca kullanılmalı
+6. **Responsive** tasarım düşünülmeli
+7. **notifications** kullanıcı bilgilendirmesi için kullanılmalı
 
 ---
 
@@ -245,9 +574,9 @@ Menü oluşturma, malzeme hesaplama
 
 ```env
 # .env.local
-NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXT_PUBLIC_API_URL=http://localhost:3001  # Optional - config.ts otomatik belirler
 NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=xxx
+NEXTAUTH_SECRET=your-secret-key
 ```
 
 ---
@@ -261,9 +590,26 @@ npm run dev
 # Type check
 npm run type-check
 
-# Lint
+# Lint (Biome)
 npm run lint
 
 # Build test
 npm run build
 ```
+
+---
+
+## 📦 Bağımlılıklar
+
+| Paket | Versiyon | Açıklama |
+|-------|----------|----------|
+| next | 14.x | React framework |
+| react | 18.x | UI library |
+| @mantine/core | 7.x | UI components |
+| @mantine/hooks | 7.x | React hooks |
+| @mantine/notifications | 7.x | Toast notifications |
+| @mantine/dates | 7.x | Date pickers |
+| @tabler/icons-react | 3.x | Icon library |
+| recharts | 2.x | Charts |
+| swr | 2.x | Data fetching |
+| tailwindcss | 3.x | CSS framework |

@@ -293,6 +293,32 @@ Onaylıyor musunuz?"
 - İhale mevzuatı ve yemek ihalesi özel kurallarını biliyorsun
 - Teşvik ve indirimler hakkında bilgi verebilirsin
 
+## 📍 SAYFA BAĞLAMI ÇOK ÖNEMLİ!
+Kullanıcının mesajında "[SAYFA CONTEXT: ...]" etiketi varsa, SORULARI O BAĞLAMDA YORUMLA!
+
+### İHALE SAYFASINDA İSEK (İhale Uzmanı Modal):
+Kullanıcı İHALE ile ilgili soru soruyor demektir. Terminoloji:
+- "iş bitirim" → İş Deneyim/Bitirme Belgesi (ihale şartnamesi için)
+- "referans" → Benzer iş referansları (ihale yeterlilik için)
+- "geçici teminat" → İhale geçici teminat mektubu
+- "kesin teminat" → Sözleşme kesin teminatı
+- "yaklaşık maliyet" → İdarenin belirlediği tahmini ihale bedeli
+- "sınır değer" → Aşırı düşük sınır hesabı
+- "itiraz" → İhale itiraz/şikayet süreci
+- "şartname" → Teknik/İdari şartname
+- "yeterlilik" → İhale yeterlilik kriterleri
+- "zeyilname" → İhale değişiklik bildirimi
+- "teklif" → İhale teklif dosyası
+
+YANLIŞ: "iş bitirim" sorulduğunda personel kıdem tazminatından bahsetme!
+DOĞRU: İhaledeki İş Deneyim/Bitirme Belgesi şartını açıkla!
+
+### FATURA/CARİ SAYFASINDA İSEK:
+Sorular muhasebe/finans bağlamında yorumlanmalı.
+
+### PERSONEL SAYFASINDA İSEK:
+Sorular HR/bordro/özlük bağlamında yorumlanmalı.
+
 ### ⚠️ WEB ARAMA SADECE:
 - Bilgi bankasında olmayan güncel bilgi gerektiğinde
 - Kullanıcı açıkça "internetten araştır" dediğinde
@@ -319,17 +345,77 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
       if (templateSlug) console.log(`📋 [AI Agent] Şablon: ${templateSlug}`);
       if (pageContext?.type) console.log(`📍 [AI Agent] Sayfa Context: ${pageContext.type}${pageContext.id ? '#' + pageContext.id : ''}`);
       
-      // Sayfa context'i varsa mesajı zenginleştir
+      // Sayfa context'i varsa mesajı zenginleştir (OTOMATİK URL-BASED)
       let enrichedMessage = userMessage;
-      if (pageContext?.type === 'tender' && pageContext.id) {
-        const contextInfo = pageContext.data 
-          ? `\n\n[SAYFA CONTEXT: Şu an İhale #${pageContext.id} sayfasındayım. İhale: "${pageContext.data.title || 'Bilinmiyor'}", Kurum: "${pageContext.data.organization || 'Bilinmiyor'}", Şehir: "${pageContext.data.city || 'Bilinmiyor'}", Tarih: "${pageContext.data.deadline || 'Bilinmiyor'}"]`
-          : `\n\n[SAYFA CONTEXT: Şu an İhale #${pageContext.id} sayfasındayım]`;
+      let contextInfo = '';
+      
+      // Context type ve department bilgisini al
+      const contextType = pageContext?.type || 'general';
+      const department = pageContext?.department || 'TÜM SİSTEM';
+      const pathname = pageContext?.pathname || '';
+      
+      // Context bilgisini oluştur
+      let contextParts = [];
+      
+      if (contextType === 'tender') {
+        contextParts.push('🏷️ İHALE/İHALE TAKİP SAYFASINDAYIM');
+        contextParts.push('Tüm sorular İHALE bağlamında yorumlanmalı!');
+        contextParts.push('Terminoloji: iş bitirim=İş Deneyim Belgesi, teminat=Geçici/Kesin Teminat, sözleşme=İhale Sözleşmesi');
+        
+        if (pageContext?.id) {
+          contextParts.push(`İhale ID: ${pageContext.id}`);
+        }
+        if (pageContext?.data) {
+          const d = pageContext.data;
+          if (d.title) contextParts.push(`İhale: "${d.title}"`);
+          if (d.organization) contextParts.push(`Kurum: "${d.organization}"`);
+          if (d.city) contextParts.push(`Şehir: "${d.city}"`);
+          if (d.deadline) contextParts.push(`Tarih: "${d.deadline}"`);
+          if (d.estimated_cost) contextParts.push(`Tahmini Bedel: ${d.estimated_cost}`);
+          if (d.yaklasik_maliyet) contextParts.push(`Yaklaşık Maliyet: ${d.yaklasik_maliyet}`);
+          if (d.sinir_deger) contextParts.push(`Sınır Değer: ${d.sinir_deger}`);
+          if (d.bizim_teklif) contextParts.push(`Bizim Teklif: ${d.bizim_teklif}`);
+          if (d.teklif_listesi && d.teklif_listesi.length > 0) {
+            contextParts.push(`Diğer Teklifler: ${d.teklif_listesi.join(', ')}`);
+          }
+          if (d.teknik_sart_sayisi > 0) contextParts.push(`Teknik Şart: ${d.teknik_sart_sayisi} adet`);
+          if (d.birim_fiyat_sayisi > 0) contextParts.push(`Birim Fiyat: ${d.birim_fiyat_sayisi} adet`);
+        }
+      } else if (contextType === 'personel') {
+        contextParts.push('👤 PERSONEL/HR SAYFASINDAYIM');
+        contextParts.push('Tüm sorular İK/BORDRO/ÖZLÜK bağlamında yorumlanmalı!');
+        contextParts.push('Terminoloji: iş bitirim=Kıdem/İhbar Tazminatı, sözleşme=İş Sözleşmesi, süre=Çalışma Süresi');
+        if (pageContext?.id) contextParts.push(`Personel ID: ${pageContext.id}`);
+      } else if (contextType === 'invoice') {
+        contextParts.push('🧾 FATURA SAYFASINDAYIM');
+        contextParts.push('Tüm sorular FATURA/MUHASEBE bağlamında yorumlanmalı!');
+        if (pageContext?.id) contextParts.push(`Fatura ID: ${pageContext.id}`);
+      } else if (contextType === 'cari') {
+        contextParts.push('🏢 CARİ HESAP SAYFASINDAYIM');
+        contextParts.push('Tüm sorular CARİ/ALACAK-BORÇ bağlamında yorumlanmalı!');
+        if (pageContext?.id) contextParts.push(`Cari ID: ${pageContext.id}`);
+      } else if (contextType === 'stok') {
+        contextParts.push('📦 STOK/SATIN ALMA SAYFASINDAYIM');
+        contextParts.push('Tüm sorular STOK/ENVANTER/TEDARİK bağlamında yorumlanmalı!');
+      } else if (contextType === 'planlama') {
+        contextParts.push('👨‍🍳 MENÜ/PLANLAMA SAYFASINDAYIM');
+        contextParts.push('Tüm sorular MENÜ/REÇETE/GRAMAJ bağlamında yorumlanmalı!');
+      } else if (contextType === 'muhasebe') {
+        contextParts.push('💰 MUHASEBE/FİNANS SAYFASINDAYIM');
+        contextParts.push('Tüm sorular GELİR-GİDER/KASA-BANKA bağlamında yorumlanmalı!');
+      }
+      
+      // Genel bilgi ekle
+      if (department && department !== 'TÜM SİSTEM') {
+        contextParts.push(`Department: ${department}`);
+      }
+      if (pathname) {
+        contextParts.push(`URL: ${pathname}`);
+      }
+      
+      if (contextParts.length > 0) {
+        contextInfo = `\n\n[SAYFA CONTEXT: ${contextParts.join(' | ')}]`;
         enrichedMessage = userMessage + contextInfo;
-      } else if (pageContext?.type === 'invoice' && pageContext.id) {
-        enrichedMessage = userMessage + `\n\n[SAYFA CONTEXT: Şu an Fatura #${pageContext.id} sayfasındayım]`;
-      } else if (pageContext?.type === 'cari' && pageContext.id) {
-        enrichedMessage = userMessage + `\n\n[SAYFA CONTEXT: Şu an Cari #${pageContext.id} sayfasındayım]`;
       }
 
       // 1. Hafızayı yükle

@@ -42,7 +42,8 @@ import {
   IconChartBar,
   IconThumbUp,
   IconThumbDown,
-  IconCheck
+  IconCheck,
+  IconHistory
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 
@@ -70,10 +71,12 @@ interface PromptTemplate {
 }
 
 interface PageContext {
-  type: 'tender' | 'invoice' | 'cari' | 'personel' | 'general';
+  type: 'tender' | 'invoice' | 'cari' | 'personel' | 'stok' | 'planlama' | 'muhasebe' | 'general';
   id?: number | string;
   title?: string;
   data?: any;
+  pathname?: string;
+  department?: string;
 }
 
 interface AIChatProps {
@@ -435,11 +438,6 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
                 WebkitOverflowScrolling: 'touch',
                 overscrollBehavior: 'contain',
               },
-              scrollbar: {
-                '&[data-orientation="vertical"]': {
-                  width: 8,
-                },
-              },
             }}
           >
           <Stack gap="sm" p="sm">
@@ -581,6 +579,11 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
               />
             </Group>
             
+            <Tooltip label="Sohbet Geçmişi">
+              <ActionIcon variant="subtle" color="violet" component="a" href="/ai-chat/history">
+                <IconHistory size={16} />
+              </ActionIcon>
+            </Tooltip>
             <Tooltip label="AI Ayarları">
               <ActionIcon variant="subtle" color="gray" component="a" href="/ayarlar/ai">
                 <IconSettings size={16} />

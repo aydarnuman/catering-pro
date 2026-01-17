@@ -482,13 +482,13 @@ router.delete('/:id/rakip-teklif/:sira', async (req, res) => {
  * @swagger
  * /api/ihale-sonuclari/{id}/durum:
  *   patch:
- *     summary: Durum güncelle
+ *     summary: Durum güncelle (Kazandık durumunda otomatik proje oluşturur)
  *     tags: [İhale Sonuçları]
  */
 router.patch('/:id/durum', async (req, res) => {
     try {
         const { id } = req.params;
-        const { durum, aciklama } = req.body;
+        const { durum, aciklama, otomatik_proje = true } = req.body;
         
         const validDurumlar = [
             'beklemede', 'asiri_dusuk_soruldu', 'asiri_dusuk_cevaplandi',
@@ -524,16 +524,184 @@ router.patch('/:id/durum', async (req, res) => {
             return res.status(404).json({ success: false, error: 'Kayıt bulunamadı' });
         }
         
+        let projeOlusturuldu = null;
+        
+        // "Kazandık" durumuna geçince otomatik proje oluştur
+        if (durum === 'kazandik' && otomatik_proje && !result.rows[0].proje_id) {
+            try {
+                const ihale = result.rows[0];
+                
+                // Merkezi projeler tablosuna yeni proje ekle
+                const projeResult = await query(`
+                    INSERT INTO projeler (
+                        ad, kurum, tender_id, ihale_sonuc_id, 
+                        sozlesme_bedeli, durum, notlar,
+                        created_at
+                    ) VALUES (
+                        $1, $2, $3, $4, $5, 'aktif', $6, NOW()
+                    ) RETURNING *
+                `, [
+                    ihale.ihale_basligi,
+                    ihale.kurum,
+                    ihale.tender_id,
+                    ihale.id,
+                    ihale.bizim_teklif || ihale.yaklasik_maliyet,
+                    `İhale kazanıldı: ${ihale.ihale_kayit_no || ''}`
+                ]);
+                
+                // İhale sonucuna proje_id bağla
+                await query(
+                    'UPDATE ihale_sonuclari SET proje_id = $1 WHERE id = $2',
+                    [projeResult.rows[0].id, id]
+                );
+                
+                projeOlusturuldu = projeResult.rows[0];
+                logAPI('İhale Kazanıldı - Otomatik Proje Oluşturuldu', { 
+                    ihale_id: id, 
+                    proje_id: projeResult.rows[0].id 
+                });
+                
+            } catch (projeError) {
+                logError('Otomatik Proje Oluşturma Hatası', projeError);
+                // Proje oluşturma hatası ana işlemi engellemez
+            }
+        }
+        
         logAPI('İhale Sonuç Durum Değişti', { id, durum });
         
         res.json({
             success: true,
             data: result.rows[0],
-            message: `Durum "${durum}" olarak güncellendi`
+            proje: projeOlusturuldu,
+            message: projeOlusturuldu 
+                ? `Durum "${durum}" olarak güncellendi ve proje oluşturuldu` 
+                : `Durum "${durum}" olarak güncellendi`
         });
         
     } catch (error) {
         logError('Durum Güncelle', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * @swagger
+ * /api/ihale-sonuclari/{id}/proje-olustur:
+ *   post:
+ *     summary: İhale sonucundan manuel proje oluştur (Ayarlar > Projeler'e ekler)
+ *     tags: [İhale Sonuçları]
+ */
+router.post('/:id/proje-olustur', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { firma_id, ek_bilgiler = {} } = req.body;
+        
+        // İhale sonucunu al
+        const ihaleResult = await query(
+            'SELECT * FROM ihale_sonuclari WHERE id = $1',
+            [id]
+        );
+        
+        if (ihaleResult.rowCount === 0) {
+            return res.status(404).json({ success: false, error: 'İhale sonucu bulunamadı' });
+        }
+        
+        const ihale = ihaleResult.rows[0];
+        
+        // Zaten proje var mı?
+        if (ihale.proje_id) {
+            const mevcutProje = await query(
+                'SELECT * FROM projeler WHERE id = $1',
+                [ihale.proje_id]
+            );
+            return res.json({
+                success: true,
+                data: mevcutProje.rows[0],
+                message: 'Bu ihale için zaten proje mevcut',
+                existing: true
+            });
+        }
+        
+        // Merkezi projeler tablosuna yeni proje oluştur
+        const projeResult = await query(`
+            INSERT INTO projeler (
+                ad, kurum, firma_id, tender_id, ihale_sonuc_id,
+                sozlesme_bedeli, proje_tipi, durum, notlar,
+                yetkili_adi, yetkili_telefon, yetkili_email,
+                created_at
+            ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7, 'aktif', $8, $9, $10, $11, NOW()
+            ) RETURNING *
+        `, [
+            ek_bilgiler.ad || ihale.ihale_basligi,
+            ihale.kurum,
+            firma_id || null,
+            ihale.tender_id,
+            ihale.id,
+            ek_bilgiler.sozlesme_bedeli || ihale.bizim_teklif || ihale.yaklasik_maliyet,
+            ek_bilgiler.proje_tipi || 'ihale',
+            `İhaleden oluşturuldu - IKN: ${ihale.ihale_kayit_no || 'Belirtilmemiş'}`,
+            ek_bilgiler.yetkili_adi || null,
+            ek_bilgiler.yetkili_telefon || null,
+            ek_bilgiler.yetkili_email || null
+        ]);
+        
+        // İhale sonucuna proje_id bağla
+        await query(
+            'UPDATE ihale_sonuclari SET proje_id = $1 WHERE id = $2',
+            [projeResult.rows[0].id, id]
+        );
+        
+        logAPI('İhaleden Proje Oluşturuldu', { 
+            ihale_sonuc_id: id, 
+            proje_id: projeResult.rows[0].id 
+        });
+        
+        res.status(201).json({
+            success: true,
+            data: projeResult.rows[0],
+            message: 'Proje başarıyla oluşturuldu ve Ayarlar > Projeler\'e eklendi'
+        });
+        
+    } catch (error) {
+        logError('İhaleden Proje Oluştur', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * @swagger
+ * /api/ihale-sonuclari/{id}/proje:
+ *   get:
+ *     summary: İhale sonucuna bağlı projeyi getir
+ *     tags: [İhale Sonuçları]
+ */
+router.get('/:id/proje', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const result = await query(`
+            SELECT p.*, f.unvan as firma_unvani, f.kisa_ad as firma_kisa_ad
+            FROM projeler p
+            LEFT JOIN firmalar f ON p.firma_id = f.id
+            WHERE p.ihale_sonuc_id = $1
+        `, [id]);
+        
+        if (result.rowCount === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Bu ihale için proje bulunamadı',
+                hint: 'Proje oluşturmak için POST /api/ihale-sonuclari/:id/proje-olustur kullanın'
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: result.rows[0]
+        });
+        
+    } catch (error) {
+        logError('İhale Proje Getir', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

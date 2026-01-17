@@ -4,6 +4,11 @@
 
 Bu klasör veritabanı şema değişikliklerini versiyonlu SQL dosyaları olarak içerir. PostgreSQL (Supabase) kullanılır.
 
+**Toplam Migration:** 52
+**Son Güncelleme:** Ocak 2026
+
+---
+
 ## 📋 Migration Listesi
 
 | No | Dosya | Açıklama |
@@ -49,6 +54,19 @@ Bu klasör veritabanı şema değişikliklerini versiyonlu SQL dosyaları olarak
 | 041 | sartname_basitlestirilmis.sql | Basitleştirilmiş şartname |
 | 042 | kyk_receteler.sql | KYK özel reçeteleri |
 | 043 | recete_proje_bazli.sql | Proje bazlı reçeteler |
+| 044 | teklifler.sql | **Teklif hazırlama sistemi** |
+| 045 | ai_prompt_templates.sql | AI prompt şablonları |
+| 046 | ai_settings_improvements.sql | AI ayarları geliştirmeleri |
+| 047 | notlar_sistemi.sql | Dashboard not sistemi |
+| 048 | firmalar.sql | Firma yönetimi |
+| 049 | ihale_sonuclari.sql | İhale sonuç kayıtları |
+| 050 | notifications.sql | **Bildirim sistemi** |
+| 051 | tender_content_documents.sql | İhale içerik dökümanları |
+| 052 | add_documents_updated_at.sql | Döküman updated_at kolonu |
+| 053 | add_zeyilname_correction_columns.sql | Zeyilname düzeltme kolonları |
+| 054 | tender_tracking.sql | **İhale takip listesi** |
+
+> Not: 014 ve 019 numaralar atlanmış (geliştirme sırasında silinmiş migration'lar)
 
 ---
 
@@ -56,37 +74,43 @@ Bu klasör veritabanı şema değişikliklerini versiyonlu SQL dosyaları olarak
 
 ### İhale Modülü
 ```sql
-tenders           -- İhale kayıtları
-documents         -- İhale dökümanları
-scraper_logs      -- Scraper logları
+tenders                  -- İhale kayıtları
+documents                -- İhale dökümanları
+scraper_logs             -- Scraper logları
+tender_content_documents -- İçerik dökümanları
+tender_tracking          -- Takip listesi
+teklifler                -- Teklif hazırlık
+ihale_sonuclari          -- Sonuç kayıtları
 ```
 
 ### Muhasebe Modülü
 ```sql
-cariler           -- Müşteri/Tedarikçi
-cari_hareketleri  -- Cari hesap hareketleri
-invoices          -- Faturalar
-invoice_items     -- Fatura kalemleri
-gelir_giderler    -- Gelir/gider kayıtları
+cariler              -- Müşteri/Tedarikçi
+cari_hareketleri     -- Cari hesap hareketleri
+invoices             -- Faturalar
+invoice_items        -- Fatura kalemleri
+gelir_giderler       -- Gelir/gider kayıtları
+firmalar             -- Firma tanımları
 ```
 
 ### Stok Modülü
 ```sql
-stok_kartlari         -- Ürün/malzeme kartları
-stok_hareketleri      -- Stok giriş/çıkış
-depolar               -- Depo tanımları
-depo_lokasyonlar      -- Depo içi lokasyonlar
-stok_depo_durumlari   -- Depo bazlı stok durumu
+stok_kartlari        -- Ürün/malzeme kartları
+stok_hareketleri     -- Stok giriş/çıkış
+depolar              -- Depo tanımları
+depo_lokasyonlar     -- Depo içi lokasyonlar
+stok_depo_durumlari  -- Depo bazlı stok durumu
+demirbas             -- Demirbaş takibi
 ```
 
 ### Personel/Bordro Modülü
 ```sql
-personeller           -- Çalışan kayıtları
-personel_odemeleri    -- Ödeme kayıtları
-bordro                -- Aylık bordro
-bordro_detay          -- Bordro kalemleri
-izin_talepleri        -- İzin talepleri
-tazminatlar           -- Kıdem/ihbar hesapları
+personeller          -- Çalışan kayıtları
+personel_odemeleri   -- Ödeme kayıtları
+bordro               -- Aylık bordro
+bordro_detay         -- Bordro kalemleri
+izin_talepleri       -- İzin talepleri
+tazminatlar          -- Kıdem/ihbar hesapları
 ```
 
 ### Finans Modülü
@@ -98,13 +122,25 @@ cek_senetler            -- Çek/senet takibi
 
 ### Planlama Modülü
 ```sql
-receteler           -- Yemek reçeteleri
-recete_malzemeleri  -- Reçete içerikleri
-menuler             -- Günlük/haftalık menüler
-menu_yemekler       -- Menü içerikleri
-sartnameler         -- Gramaj şartnameleri
-projeler            -- Müşteri projeleri
-proje_personelleri  -- Proje atamaları
+receteler            -- Yemek reçeteleri
+recete_malzemeleri   -- Reçete içerikleri
+menuler              -- Günlük/haftalık menüler
+menu_yemekler        -- Menü içerikleri
+sartnameler          -- Gramaj şartnameleri
+projeler             -- Müşteri projeleri
+proje_personelleri   -- Proje atamaları
+```
+
+### Sistem Modülü
+```sql
+users                -- Kullanıcılar
+notifications        -- Bildirimler
+notlar               -- Dashboard notları
+ai_memory            -- AI konuşma hafızası
+ai_prompt_templates  -- AI prompt şablonları
+ai_settings          -- AI ayarları
+etiketler            -- Etiket sistemi
+sync_logs            -- Senkronizasyon logları
 ```
 
 ---
@@ -129,7 +165,7 @@ psql $DATABASE_URL -f src/migrations/XXX_dosya.sql
 ```
 XXX_aciklama.sql
 ```
-- `XXX`: Sıradaki numara (044, 045, ...)
+- `XXX`: Sıradaki numara (055, 056, ...)
 - `aciklama`: Kısa açıklama (snake_case)
 
 ### 2. Dosya Template

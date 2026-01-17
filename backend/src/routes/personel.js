@@ -1,7 +1,10 @@
 import express from 'express';
 import { pool, query } from '../database.js';
+import { authenticate, requirePermission, auditLog } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// NOT: GET route'ları herkese açık, POST/PUT/DELETE route'ları authentication gerektirir
 
 // =====================================================
 // PERSONEL İSTATİSTİKLERİ (Dashboard Widget için)
@@ -318,7 +321,7 @@ router.get('/:id', async (req, res) => {
 // =====================================================
 // YENİ PERSONEL EKLE
 // =====================================================
-router.post('/', async (req, res) => {
+router.post('/', authenticate, requirePermission('personel', 'create'), auditLog('personel'), async (req, res) => {
   try {
     const { 
       ad, soyad, tc_kimlik, telefon, email, adres, 
@@ -369,7 +372,7 @@ router.post('/', async (req, res) => {
 // =====================================================
 // PERSONEL GÜNCELLE
 // =====================================================
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticate, requirePermission('personel', 'edit'), auditLog('personel'), async (req, res) => {
   try {
     const { id } = req.params;
     const { 
@@ -435,7 +438,7 @@ router.put('/:id', async (req, res) => {
 // =====================================================
 // PERSONEL SİL
 // =====================================================
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, requirePermission('personel', 'delete'), auditLog('personel'), async (req, res) => {
   try {
     const { id } = req.params;
     const result = await query('DELETE FROM personeller WHERE id = $1 RETURNING *', [id]);

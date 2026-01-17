@@ -1,0 +1,254 @@
+/* Modern Tarih Seçici Stilleri */
+
+.dropdown {
+  border-radius: 16px !important;
+  overflow: hidden;
+  border: 1px solid var(--mantine-color-gray-2);
+}
+
+.header {
+  background: linear-gradient(135deg, var(--mantine-color-blue-0) 0%, var(--mantine-color-indigo-0) 100%);
+  border-bottom: none;
+}
+
+.headerTitle {
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.headerTitle:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.body {
+  background: var(--mantine-color-body);
+}
+
+.footer {
+  background: var(--mantine-color-gray-0);
+}
+
+/* Day Button */
+.dayButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  margin: 2px auto;
+  color: var(--mantine-color-dark-7);
+}
+
+.dayButton:hover:not(.disabled):not(.otherMonth) {
+  background: var(--mantine-color-blue-1);
+  color: var(--mantine-color-blue-7);
+  transform: scale(1.05);
+}
+
+.dayButton.otherMonth {
+  color: var(--mantine-color-gray-4);
+  font-weight: 400;
+}
+
+.dayButton.otherMonth:hover {
+  background: var(--mantine-color-gray-1);
+  color: var(--mantine-color-gray-6);
+}
+
+.dayButton.today {
+  background: var(--mantine-color-blue-0);
+  color: var(--mantine-color-blue-7);
+  font-weight: 700;
+  border: 2px solid var(--mantine-color-blue-3);
+}
+
+.dayButton.selected {
+  background: linear-gradient(135deg, var(--mantine-color-blue-6) 0%, var(--mantine-color-indigo-6) 100%);
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+}
+
+.dayButton.selected:hover {
+  transform: scale(1.08);
+}
+
+.dayButton.disabled {
+  color: var(--mantine-color-gray-3);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.dayButton.inRange {
+  background: var(--mantine-color-blue-1);
+  border-radius: 0;
+}
+
+/* Month Button */
+.monthButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 8px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  color: var(--mantine-color-dark-7);
+}
+
+.monthButton:hover {
+  background: var(--mantine-color-blue-1);
+  color: var(--mantine-color-blue-7);
+  transform: scale(1.02);
+}
+
+.monthButton.today {
+  background: var(--mantine-color-blue-0);
+  color: var(--mantine-color-blue-7);
+  font-weight: 700;
+  border: 2px solid var(--mantine-color-blue-3);
+}
+
+.monthButton.selected {
+  background: linear-gradient(135deg, var(--mantine-color-blue-6) 0%, var(--mantine-color-indigo-6) 100%);
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+}
+
+/* Year Button */
+.yearButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 8px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  color: var(--mantine-color-dark-7);
+}
+
+.yearButton:hover {
+  background: var(--mantine-color-blue-1);
+  color: var(--mantine-color-blue-7);
+  transform: scale(1.02);
+}
+
+.yearButton.today {
+  background: var(--mantine-color-blue-0);
+  color: var(--mantine-color-blue-7);
+  font-weight: 700;
+  border: 2px solid var(--mantine-color-blue-3);
+}
+
+.yearButton.selected {
+  background: linear-gradient(135deg, var(--mantine-color-blue-6) 0%, var(--mantine-color-indigo-6) 100%);
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+}
+
+/* Today Button */
+.todayButton {
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  color: var(--mantine-color-blue-6);
+}
+
+.todayButton:hover {
+  background: var(--mantine-color-blue-1);
+}
+
+/* Dark Mode Support */
+[data-mantine-color-scheme="dark"] .dropdown {
+  border-color: var(--mantine-color-dark-4);
+}
+
+[data-mantine-color-scheme="dark"] .header {
+  background: linear-gradient(135deg, var(--mantine-color-dark-6) 0%, var(--mantine-color-dark-5) 100%);
+}
+
+[data-mantine-color-scheme="dark"] .body {
+  background: var(--mantine-color-dark-7);
+}
+
+[data-mantine-color-scheme="dark"] .footer {
+  background: var(--mantine-color-dark-6);
+}
+
+[data-mantine-color-scheme="dark"] .dayButton {
+  color: var(--mantine-color-gray-3);
+}
+
+[data-mantine-color-scheme="dark"] .dayButton:hover:not(.disabled):not(.otherMonth) {
+  background: var(--mantine-color-dark-5);
+  color: var(--mantine-color-blue-4);
+}
+
+[data-mantine-color-scheme="dark"] .dayButton.otherMonth {
+  color: var(--mantine-color-dark-3);
+}
+
+[data-mantine-color-scheme="dark"] .dayButton.today {
+  background: var(--mantine-color-dark-5);
+  color: var(--mantine-color-blue-4);
+  border-color: var(--mantine-color-blue-6);
+}
+
+[data-mantine-color-scheme="dark"] .monthButton,
+[data-mantine-color-scheme="dark"] .yearButton {
+  color: var(--mantine-color-gray-3);
+}
+
+[data-mantine-color-scheme="dark"] .monthButton:hover,
+[data-mantine-color-scheme="dark"] .yearButton:hover {
+  background: var(--mantine-color-dark-5);
+  color: var(--mantine-color-blue-4);
+}
+
+[data-mantine-color-scheme="dark"] .todayButton {
+  color: var(--mantine-color-blue-4);
+}
+
+[data-mantine-color-scheme="dark"] .todayButton:hover {
+  background: var(--mantine-color-dark-5);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Mobile Responsive */
+@media (max-width: 400px) {
+  .dayButton {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  .monthButton,
+  .yearButton {
+    padding: 10px 6px;
+    font-size: 12px;
+  }
+}

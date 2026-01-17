@@ -1,69 +1,184 @@
-# 🍽️ Catering Pro - İhale Takip Sistemi
+# 🍽️ Catering Pro - Kurumsal İş Yönetim Sistemi
 
-Hazır yemek sektörü için ihale takip ve yönetim sistemi.
+Hazır yemek sektörü için kapsamlı ERP-benzeri kurumsal iş yönetim sistemi. İhale takibi, muhasebe, İK/bordro, stok ve menü planlama modüllerini içerir.
+
+**Son Güncelleme:** Ocak 2026
+
+---
 
 ## 🚀 Özellikler
 
-- ✅ **İhale Scraping** - ihalebul.com otomasyonu
-- ✅ **Döküman İşleme** - PDF/Word/Excel + AI analiz (Gemini)
-- ✅ **Admin Panel** - Modern Next.js UI
-- ✅ **Authentication** - JWT + NextAuth
-- ✅ **PostgreSQL** - Güçlü veri yönetimi
+### 📋 İhale Yönetimi
+- ✅ **İhale Scraping** - ihalebul.com otomasyonu (Puppeteer)
+- ✅ **Döküman İşleme** - PDF/Word/Excel/CSV + AI analiz
+- ✅ **AI Döküman Analizi** - Claude AI ile detaylı analiz
+- ✅ **İhale Takip Listesi** - Durum, notlar, hatırlatıcılar
+- ✅ **Teklif Hazırlama** - Teklif oluşturma ve takip
+
+### 💰 Muhasebe Modülü
+- ✅ **Cari Hesaplar** - Müşteri/tedarikçi yönetimi, bakiye takibi
+- ✅ **Fatura Yönetimi** - Alış/satış faturaları, ödeme takibi
+- ✅ **Kasa-Banka** - Nakit hesapları, hareketler, transferler
+- ✅ **Gelir-Gider** - Finansal takip ve raporlama
+- ✅ **Çek/Senet** - Çek ve senet takibi
+
+### 👨‍💼 İnsan Kaynakları
+- ✅ **Personel Yönetimi** - Çalışan kayıtları, proje atamaları
+- ✅ **Bordro Sistemi** - Net→Brüt hesaplama, SGK, Gelir Vergisi, AGİ
+- ✅ **İzin Yönetimi** - İzin talep ve onay süreçleri
+- ✅ **Tazminat Hesaplama** - Kıdem/ihbar tazminatı
+- ✅ **Maaş Ödeme** - Ödeme takibi
+
+### 📦 Stok Yönetimi
+- ✅ **Depo Yönetimi** - Çoklu depo, lokasyon bazlı
+- ✅ **Stok Kartları** - Ürün/malzeme kartları
+- ✅ **Stok Hareketleri** - Giriş/çıkış/transfer/fire
+- ✅ **Kritik Stok** - Minimum stok uyarıları
+- ✅ **Demirbaş Takibi** - Amortisman hesaplama
+
+### 🍽️ Üretim Planlama
+- ✅ **Reçete Yönetimi** - Yemek reçeteleri, maliyetlendirme
+- ✅ **Menü Planlama** - Günlük/haftalık menüler
+- ✅ **Gramaj Şartnameleri** - Şartname uyumu kontrolü
+- ✅ **Malzeme İhtiyaç** - Otomatik malzeme hesaplama
+
+### 🤖 AI Asistan
+- ✅ **Claude AI Chat** - Streaming sohbet
+- ✅ **Tool Calling** - Sistem entegrasyonu
+- ✅ **Döküman Analizi** - Gemini Vision + Claude
+- ✅ **Konuşma Hafızası** - Bağlamsal cevaplar
+
+### 🔔 Sistem
+- ✅ **Bildirim Sistemi** - Real-time bildirimler
+- ✅ **Global Arama** - Tüm modüllerde arama
+- ✅ **Export/Import** - Excel/PDF dışa aktarma
+- ✅ **Uyumsoft Entegrasyonu** - Muhasebe sync
+
+---
 
 ## 📁 Proje Yapısı
 
 ```
-.
-├── backend/              # Node.js + Express
+CATERİNG/
+├── backend/                  # Node.js + Express API
 │   └── src/
-│       ├── routes/       # API endpoints
-│       ├── services/     # Döküman işleme, AI
-│       ├── scraper/      # İhale scraper
-│       └── server.js     # Ana server
-├── frontend/             # Next.js + React
+│       ├── routes/           # API endpoints (39 dosya)
+│       ├── services/         # Business logic (33+ dosya)
+│       │   └── ai-tools/     # AI araç modülleri
+│       ├── migrations/       # SQL migrations (54 dosya)
+│       ├── scraper/          # ihalebul.com scraper
+│       ├── database.js       # PostgreSQL connection
+│       └── server.js         # Express entry point
+│
+├── frontend/                 # Next.js 14 + React
 │   └── src/
-│       ├── app/          # Pages
-│       └── components/   # UI components
-├── database/
-│   └── migrations/       # SQL migrations
-├── uploads/              # Yüklenen dosyalar
-└── docker-compose.yml    # PostgreSQL
+│       ├── app/              # App Router pages
+│       │   ├── tenders/      # İhale modülü
+│       │   ├── muhasebe/     # Muhasebe modülü
+│       │   ├── planlama/     # Üretim planlama
+│       │   └── ai-chat/      # AI asistan
+│       ├── components/       # UI components
+│       ├── context/          # React context
+│       ├── hooks/            # Custom hooks
+│       └── lib/              # Utilities
+│
+├── docs/                     # Dokümantasyon
+│   ├── ARCHITECTURE.md
+│   ├── DEPLOYMENT.md
+│   └── DIGITALOCEAN.md
+│
+├── uploads/                  # Yüklenen dosyalar
+└── scripts/                  # Deploy & utility scripts
 ```
 
-## 🛠️ Kurulum
+---
 
-### 1. Bağımlılıkları Yükle
+## 🛠️ Teknoloji Yığını
+
+### Backend
+| Teknoloji | Açıklama |
+|-----------|----------|
+| Node.js | Runtime |
+| Express.js | Web framework |
+| PostgreSQL | Veritabanı (Supabase hosted) |
+| JWT + bcrypt | Authentication |
+| Winston | Logging |
+| node-cron | Scheduled tasks |
+
+### Frontend
+| Teknoloji | Açıklama |
+|-----------|----------|
+| Next.js 14 | React framework (App Router) |
+| Mantine UI | Component library |
+| Tailwind CSS | Styling |
+| Recharts | Grafikler |
+| SWR | Data fetching |
+
+### AI
+| Teknoloji | Açıklama |
+|-----------|----------|
+| Claude AI | Chat & analiz (@anthropic-ai/sdk) |
+| Gemini AI | Döküman OCR & analiz |
+
+### Deployment
+| Teknoloji | Açıklama |
+|-----------|----------|
+| DigitalOcean | Droplet (Ubuntu 22.04) |
+| Cloudflare | DNS, CDN, SSL |
+| PM2 | Process manager |
+| Nginx | Reverse proxy |
+| Supabase | Database hosting |
+
+---
+
+## 🚀 Kurulum
+
+### 1. Repository'yi Klonla
+
+```bash
+git clone https://github.com/your-repo/catering.git
+cd catering
+```
+
+### 2. Environment Dosyaları
+
+**Backend (.env):**
+```env
+# Database (Supabase)
+DATABASE_URL=postgresql://user:pass@host:5432/db
+
+# AI Keys
+GEMINI_API_KEY=your-gemini-key
+ANTHROPIC_API_KEY=your-claude-key
+
+# Scraper
+IHALEBUL_USERNAME=username
+IHALEBUL_PASSWORD=password
+
+# Auth
+JWT_SECRET=your-jwt-secret
+
+# Server
+PORT=3001
+NODE_ENV=development
+```
+
+**Frontend (.env.local):**
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-nextauth-secret
+```
+
+### 3. Bağımlılıkları Yükle
 
 ```bash
 # Backend
-cd backend
-npm install
+cd backend && npm install
 
 # Frontend
-cd ../frontend
-npm install
+cd ../frontend && npm install
 ```
-
-### 2. PostgreSQL Başlat
-
-```bash
-docker-compose up -d
-```
-
-### 3. Environment Dosyası
-
-```bash
-cp .env.example .env
-# .env dosyasını düzenle
-```
-
-**Gerekli değişkenler:**
-- `DATABASE_URL` - PostgreSQL bağlantısı
-- `GEMINI_API_KEY` - Google Gemini AI key
-- `IHALEBUL_USERNAME` - ihalebul.com kullanıcı adı
-- `IHALEBUL_PASSWORD` - ihalebul.com şifre
-- `JWT_SECRET` - Auth için secret
-- `NEXTAUTH_SECRET` - NextAuth için secret
 
 ### 4. Database Migration
 
@@ -72,155 +187,102 @@ cd backend
 npm run migrate
 ```
 
-### 5. İlk Kullanıcı Oluştur
+### 5. Uygulamayı Başlat
 
 ```bash
-# Backend'de
-npm run dev
+# Development (ayrı terminallerde)
+cd backend && npm run dev    # :3001
+cd frontend && npm run dev   # :3000
 
-# Başka terminalde
-curl -X POST http://localhost:3001/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "admin@example.com",
-    "password": "admin123",
-    "name": "Admin User",
-    "role": "admin"
-  }'
+# Veya tek komutla
+./start-dev.sh
 ```
 
-## 🎯 Kullanım
-
-### Backend API Server
-
-```bash
-cd backend
-npm run dev
-# http://localhost:3001
-```
-
-### Frontend Admin Panel
-
-```bash
-cd frontend
-npm run dev
-# http://localhost:3000
-```
-
-### Scraper Çalıştırma
-
-```bash
-cd backend
-
-# Liste scraping (10 sayfa)
-npm run scraper -- --action=list --maxPages=10
-
-# Belirli sayfadan başla
-npm run scraper -- --action=list --maxPages=20 --startPage=5
-```
+---
 
 ## 📡 API Endpoints
 
-### Auth
-- `POST /api/auth/login` - Login
-- `POST /api/auth/register` - Yeni kullanıcı
-- `GET /api/auth/me` - Mevcut kullanıcı
+### Ana Modüller
 
-### Tenders
-- `GET /api/tenders` - İhale listesi (pagination + filter)
-- `GET /api/tenders/stats` - İstatistikler
-- `GET /api/tenders/:id` - İhale detayı
-- `DELETE /api/tenders/:id` - İhale silme
+| Modül | Endpoint | Açıklama |
+|-------|----------|----------|
+| Auth | `/api/auth/*` | Login, register, profil |
+| Tenders | `/api/tenders/*` | İhale CRUD |
+| Tracking | `/api/tender-tracking/*` | Takip listesi |
+| Documents | `/api/documents/*` | Döküman upload/analiz |
+| Cariler | `/api/cariler/*` | Cari hesaplar |
+| Invoices | `/api/invoices/*` | Faturalar |
+| Stok | `/api/stok/*` | Stok yönetimi |
+| Personel | `/api/personel/*` | Personel/HR |
+| Bordro | `/api/bordro/*` | Bordro hesaplama |
+| Planlama | `/api/planlama/*` | Menü planlama |
+| AI | `/api/ai/*` | AI asistan |
 
-### Documents
-- `POST /api/documents/upload` - Döküman yükle + analiz
-- `GET /api/documents` - Döküman listesi
-- `GET /api/documents/:id` - Döküman detayı
-- `DELETE /api/documents/:id` - Döküman silme
+### Swagger Dokümantasyonu
 
-### Health
-- `GET /health` - System health check
+```
+http://localhost:3001/api-docs
+```
+
+---
 
 ## 🤖 AI Özellikleri
 
-### Gemini AI Kullanımı
+### Claude AI Asistan
+- Streaming chat responses
+- Tool-based agent system
+- Sistem verileriyle entegrasyon
 
-1. **OCR** - PDF/Word/Excel'den metin çıkarma
-2. **Döküman Analizi** - İhale bilgilerini çıkarma
-3. **Şehir Normalizasyonu** - Şehir isimlerini temizleme
+```typescript
+// AI'dan ihale analizi iste
+"Son eklenen 5 ihaleyi analiz et ve hangisine başvurmalıyız?"
 
-### Örnek Analiz Sonucu
+// Cari bakiye sorgu
+"Ankara'daki müşterilerin toplam bakiyesi nedir?"
 
-```json
-{
-  "title": "Hazır Yemek Hizmeti Alınacaktır",
-  "organization": "Ankara Belediyesi",
-  "city": "Ankara",
-  "tender_date": "2025-12-15",
-  "estimated_cost": "1250000",
-  "technical_specs": ["Günlük 500 porsiyon", "HACCP belgesi gerekli"],
-  "contact": {
-    "phone": "0312 123 45 67",
-    "email": "ihale@ankara.gov.tr"
-  }
-}
+// Bordro hesaplama
+"5000 TL net maaş için brüt ne olur?"
 ```
 
-## 🔐 Güvenlik
+### Gemini AI Döküman Analizi
+- PDF/Word/Excel OCR
+- Yapılandırılmış veri çıkarma
+- Gramaj tablosu analizi
 
-- ✅ JWT token authentication
-- ✅ Password hashing (bcrypt)
-- ✅ SQL injection koruması (parameterized queries)
-- ✅ CORS yapılandırması
-- ✅ File upload validation
-
-## 📊 Database Schema
-
-### Tenders (İhaleler)
-- `external_id` - İhalebul.com ID (unique)
-- `title` - İhale başlığı
-- `tender_date` - İhale tarihi
-- `city` - Şehir (AI ile temizlenmiş)
-- `organization_name` - Kurum adı
-- `estimated_cost` - Tahmini bedel
-- `url` - Detay sayfası URL
-
-### Documents (Dökümanlar)
-- `tender_id` - İlişkili ihale
-- `filename` - Dosya adı
-- `file_type` - Dosya tipi
-- `extracted_text` - Çıkarılan metin
-- `analysis_result` - AI analiz sonucu (JSON)
+---
 
 ## 🚨 Troubleshooting
 
-### Database bağlantı hatası
+### Database Bağlantı Hatası
 ```bash
-# PostgreSQL çalışıyor mu kontrol et
-docker-compose ps
-
-# Logs kontrol et
-docker-compose logs postgres
+# Supabase connection test
+psql $DATABASE_URL -c "SELECT 1"
 ```
 
-### Scraper login hatası
+### Scraper Hatası
 ```bash
-# Credentials kontrol et
-echo $IHALEBUL_USERNAME
-echo $IHALEBUL_PASSWORD
-
 # Session temizle
 rm backend/storage/session.json
 ```
 
-### AI analiz hatası
+### API Bağlantı Hatası
 ```bash
-# Gemini API key kontrol et
-echo $GEMINI_API_KEY
-
-# API quota kontrol et
-# https://aistudio.google.com/app/apikey
+# Health check
+curl http://localhost:3001/health
 ```
+
+---
+
+## 📚 Detaylı Dokümantasyon
+
+- [Architecture](docs/ARCHITECTURE.md) - Sistem mimarisi
+- [Deployment](docs/DEPLOYMENT.md) - Production deploy
+- [DigitalOcean](docs/DIGITALOCEAN.md) - Server konfigürasyonu
+- [Backend Routes](backend/src/routes/README.md) - API detayları
+- [Backend Services](backend/src/services/README.md) - Servis detayları
+- [Frontend](frontend/README.md) - UI dokümantasyonu
+
+---
 
 ## 📝 License
 
@@ -228,4 +290,4 @@ MIT
 
 ## 👨‍💻 Geliştirici
 
-Catering Pro Team
+Catering Pro Team - 2026

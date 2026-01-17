@@ -80,6 +80,7 @@ import {
   Cell
 } from 'recharts';
 import { DataActions } from '@/components/DataActions';
+import { usePermissions } from '@/hooks/usePermissions';
 
 // API URL
 const API_URL = `${API_BASE_URL}/api`;
@@ -158,6 +159,12 @@ function StokPageContent() {
   const searchParams = useSearchParams();
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
+  
+  // === YETKİ KONTROLÜ ===
+  const { canCreate, canEdit, canDelete, isSuperAdmin } = usePermissions();
+  const canCreateStok = isSuperAdmin || canCreate('stok');
+  const canEditStok = isSuperAdmin || canEdit('stok');
+  const canDeleteStok = isSuperAdmin || canDelete('stok');
   const [opened, { open, close }] = useDisclosure(false);
   const [transferOpened, { open: openTransfer, close: closeTransfer }] = useDisclosure(false);
   const [activeTab, setActiveTab] = useState<string | null>('tumu');
@@ -1188,6 +1195,8 @@ function StokPageContent() {
                 Stok Sayımı
               </Menu.Item>
               
+              {canCreateStok && (
+              <>
               <Menu.Divider />
               <Menu.Label>Ürün İşlemleri</Menu.Label>
               <Menu.Item 
@@ -1202,6 +1211,8 @@ function StokPageContent() {
               <Menu.Item leftSection={<IconPlus size={16} color="grape" />} onClick={open}>
                 Yeni Ürün
               </Menu.Item>
+              </>
+              )}
               
               <Menu.Divider />
               <Menu.Item leftSection={<IconHistory size={16} color="gray" />} onClick={() => setHareketlerModalOpened(true)}>
@@ -1564,6 +1575,7 @@ function StokPageContent() {
                             >
                               <IconArrowsExchange size={16} />
                             </ActionIcon>
+                            {canDeleteStok && (
                             <ActionIcon 
                               variant="subtle" 
                               color="red" 
@@ -1577,6 +1589,7 @@ function StokPageContent() {
                             >
                               <IconTrash size={16} />
                             </ActionIcon>
+                            )}
                           </Group>
                         </Table.Td>
                       </Table.Tr>

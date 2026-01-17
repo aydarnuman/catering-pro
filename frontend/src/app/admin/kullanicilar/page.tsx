@@ -37,8 +37,13 @@ import {
   IconTrash,
   IconCheck,
   IconX,
-  IconRefresh
+  IconRefresh,
+  IconShieldLock,
+  IconHistory,
+  IconCrown,
+  IconUserShield
 } from '@tabler/icons-react';
+import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 
 const API_URL = API_BASE_URL;
@@ -48,6 +53,7 @@ interface User {
   email: string;
   name: string;
   role: 'admin' | 'user';
+  user_type?: 'super_admin' | 'admin' | 'user';
   is_active: boolean;
   created_at: string;
 }
@@ -142,8 +148,8 @@ export default function KullanicilarPage() {
     setSubmitting(true);
     try {
       const url = editingUser 
-        ? `${API_URL}/auth/users/${editingUser.id}`
-        : `${API_URL}/auth/register`;
+        ? `${API_URL}/api/auth/users/${editingUser.id}`
+        : `${API_URL}/api/auth/register`;
       
       const method = editingUser ? 'PUT' : 'POST';
       
@@ -305,11 +311,11 @@ export default function KullanicilarPage() {
                     </Table.Td>
                     <Table.Td>
                       <Badge 
-                        color={user.role === 'admin' ? 'red' : 'blue'} 
+                        color={user.user_type === 'super_admin' ? 'red' : user.role === 'admin' ? 'orange' : 'blue'} 
                         variant="light"
-                        leftSection={<IconShield size={12} />}
+                        leftSection={user.user_type === 'super_admin' ? <IconCrown size={12} /> : user.role === 'admin' ? <IconUserShield size={12} /> : <IconShield size={12} />}
                       >
-                        {user.role === 'admin' ? 'Yönetici' : 'Kullanıcı'}
+                        {user.user_type === 'super_admin' ? 'Süper Admin' : user.role === 'admin' ? 'Yönetici' : 'Kullanıcı'}
                       </Badge>
                     </Table.Td>
                     <Table.Td>
@@ -330,13 +336,24 @@ export default function KullanicilarPage() {
                           variant="subtle" 
                           color="blue"
                           onClick={() => handleEditUser(user)}
+                          title="Kullanıcıyı Düzenle"
                         >
                           <IconEdit size={16} />
                         </ActionIcon>
                         <ActionIcon 
                           variant="subtle" 
+                          color="violet"
+                          component={Link}
+                          href="/admin/yetkiler"
+                          title="Yetkileri Düzenle"
+                        >
+                          <IconShieldLock size={16} />
+                        </ActionIcon>
+                        <ActionIcon 
+                          variant="subtle" 
                           color="red"
                           onClick={() => handleDeleteUser(user.id)}
+                          title="Kullanıcıyı Sil"
                         >
                           <IconTrash size={16} />
                         </ActionIcon>

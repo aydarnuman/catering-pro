@@ -20,7 +20,7 @@ import {
   Progress,
   SegmentedControl
 } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import StyledDatePicker, { StyledDateRangePicker } from '@/components/ui/StyledDatePicker';
 import {
   IconChartBar,
   IconChartPie,

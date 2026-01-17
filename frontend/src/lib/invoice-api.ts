@@ -116,17 +116,28 @@ class ApiError extends Error {
 }
 
 /**
+ * JWT token'ı localStorage'dan al
+ */
+function getAuthToken(): string | null {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('token');
+  }
+  return null;
+}
+
+/**
  * HTTP isteği yapar
  */
 async function fetchAPI(endpoint: string, options?: RequestInit) {
   const url = `${API_URL}${endpoint}`;
+  const token = getAuthToken();
   
   // Debug log
   console.log('🔍 API Çağrısı:', {
     url,
     method: options?.method || 'GET',
     endpoint,
-    API_URL
+    hasToken: !!token
   });
   
   try {
@@ -134,31 +145,38 @@ async function fetchAPI(endpoint: string, options?: RequestInit) {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         ...options?.headers,
       },
     });
 
     if (!response.ok) {
-      const errorDetails = {
-        status: response.status,
-        statusText: response.statusText,
-        url: url,
-        method: options?.method || 'GET'
-      };
+      const status = response.status;
+      const statusText = response.statusText;
       
-      console.error('❌ API Hatası:', errorDetails);
+      console.error(`❌ API Hatası: ${status} ${statusText} - ${options?.method || 'GET'} ${url}`);
+      
+      // 401 hatası için özel mesaj (yetkisiz erişim)
+      if (status === 401) {
+        throw new ApiError(status, 'Oturum süresi dolmuş. Lütfen tekrar giriş yapın.');
+      }
+      
+      // 403 hatası için özel mesaj (yetki yok)
+      if (status === 403) {
+        throw new ApiError(status, 'Bu işlem için yetkiniz bulunmuyor.');
+      }
       
       // 404 hatası için özel mesaj
-      if (response.status === 404) {
-        throw new ApiError(response.status, `Endpoint bulunamadı: ${endpoint}`);
+      if (status === 404) {
+        throw new ApiError(status, `Endpoint bulunamadı: ${endpoint}`);
       }
       
       // CORS hatası kontrolü
-      if (response.status === 0) {
+      if (status === 0) {
         throw new ApiError(0, 'CORS hatası veya network problemi');
       }
       
-      let errorMessage = `HTTP ${response.status}`;
+      let errorMessage = `HTTP ${status}`;
       try {
         const errorData = await response.json();
         errorMessage = errorData.error || errorData.message || errorMessage;
@@ -166,7 +184,7 @@ async function fetchAPI(endpoint: string, options?: RequestInit) {
         // JSON parse edilemezse default mesajı kullan
       }
       
-      throw new ApiError(response.status, errorMessage);
+      throw new ApiError(status, errorMessage);
     }
 
     const data = await response.json();

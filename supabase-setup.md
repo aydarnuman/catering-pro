@@ -47,13 +47,29 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 
 ### A. Supabase Dashboard'dan (Kolay Yol):
 1. Supabase Dashboard → SQL Editor
-2. `backend/src/migrations/` klasöründeki SQL dosyalarını sırayla çalıştırın:
-   - `001_initial_schema.sql`
-   - `002_seed_data.sql`
-   - `003_performance_indexes.sql`
-   - `004_invoices_schema.sql`
-   - `005_sync_logs.sql`
-   - `006_muhasebe_tables.sql` ✨ (Yeni)
+2. `backend/src/migrations/` klasöründeki SQL dosyalarını sırayla çalıştırın
+
+**Migration Listesi (54 dosya):**
+- `001_initial_schema.sql` - Temel tablolar
+- `002_seed_data.sql` - Başlangıç verileri
+- `003_performance_indexes.sql` - Performans indexleri
+- `004_invoices_schema.sql` - Fatura tabloları
+- `005_sync_logs.sql` - Senkronizasyon logları
+- `006_muhasebe_tables.sql` - Ana muhasebe şeması
+- `007` - `043` - Modül tabloları ve güncellemeler
+- `044_teklifler.sql` - Teklif hazırlama
+- `045_ai_prompt_templates.sql` - AI prompt şablonları
+- `046_ai_settings_improvements.sql` - AI ayarları
+- `047_notlar_sistemi.sql` - Dashboard notları
+- `048_firmalar.sql` - Firma yönetimi
+- `049_ihale_sonuclari.sql` - İhale sonuçları
+- `050_notifications.sql` - Bildirim sistemi
+- `051_tender_content_documents.sql` - İçerik dökümanları
+- `052_add_documents_updated_at.sql` - Döküman güncelleme
+- `053_add_zeyilname_correction_columns.sql` - Zeyilname
+- `054_tender_tracking.sql` - İhale takip listesi
+
+**Detaylı liste:** `backend/src/migrations/README.md`
 
 ### B. Terminal'den (Profesyonel):
 ```bash
@@ -89,15 +105,39 @@ npm install @supabase/supabase-js
 
 Migration'lar tamamlandıktan sonra:
 1. Supabase Dashboard → Table Editor
-2. Tabloların oluştuğunu kontrol edin:
-   - ✅ tenders
-   - ✅ invoices
-   - ✅ cariler (Yeni)
-   - ✅ stok_kartlari (Yeni)
-   - ✅ personeller (Yeni)
-   - ✅ gelir_giderler (Yeni)
-   - ✅ kasa_banka_hesaplari (Yeni)
-   - ✅ satin_alma_talepleri (Yeni)
+2. Ana tabloların oluştuğunu kontrol edin:
+
+**İhale Modülü:**
+- ✅ tenders - İhale kayıtları
+- ✅ documents - Dökümanlar
+- ✅ tender_tracking - Takip listesi
+- ✅ teklifler - Teklif hazırlık
+
+**Muhasebe Modülü:**
+- ✅ cariler - Cari hesaplar
+- ✅ invoices - Faturalar
+- ✅ kasa_banka_hesaplari - Nakit hesaplar
+- ✅ gelir_giderler - Gelir-gider
+
+**Stok Modülü:**
+- ✅ stok_kartlari - Stok kartları
+- ✅ depolar - Depolar
+- ✅ stok_hareketleri - Stok hareketleri
+
+**HR Modülü:**
+- ✅ personeller - Personel kayıtları
+- ✅ bordro - Bordro kayıtları
+- ✅ izin_talepleri - İzin talepleri
+
+**Planlama Modülü:**
+- ✅ receteler - Reçeteler
+- ✅ menuler - Menüler
+- ✅ projeler - Projeler
+
+**Sistem:**
+- ✅ users - Kullanıcılar
+- ✅ notifications - Bildirimler
+- ✅ ai_memory - AI hafızası
 
 ## 7. Güvenlik Ayarları
 

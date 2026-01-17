@@ -32,7 +32,7 @@ import {
   Tabs,
   rem
 } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { notifications } from '@mantine/notifications';
 import {
   IconRefresh,

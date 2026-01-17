@@ -14,7 +14,7 @@ import {
   Loader,
   Alert
 } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import {
   IconFileSpreadsheet,
   IconFileTypePdf,
@@ -308,19 +308,17 @@ export function ExportModal({ opened, onClose, type, projeler = [], departmanlar
         {/* Tarih Aralığı Seçimi */}
         {currentRapor?.needsParam === 'tarih' && (
           <Group grow>
-            <DatePickerInput
+            <StyledDatePicker
               label="Başlangıç"
               placeholder="Tarih seçin"
               value={startDate}
               onChange={setStartDate}
-              locale="tr"
             />
-            <DatePickerInput
+            <StyledDatePicker
               label="Bitiş"
               placeholder="Tarih seçin"
               value={endDate}
               onChange={setEndDate}
-              locale="tr"
             />
           </Group>
         )}

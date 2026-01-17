@@ -34,6 +34,9 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // HTTP Request Logger (Winston)
 app.use(httpLogger);
 
+// Statik Dosya Sunucusu - Yüklenen belgeler için
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // Swagger API Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customCss: '.swagger-ui .topbar { display: none }',
@@ -131,6 +134,9 @@ import notificationsRouter from './routes/notifications.js';
 import tenderDocumentsRouter from './routes/tender-documents.js';
 import tenderContentDocumentsRouter from './routes/tender-content-documents.js';
 import tenderTrackingRouter from './routes/tender-tracking.js';
+import permissionsRouter from './routes/permissions.js';
+import auditLogsRouter from './routes/audit-logs.js';
+import mailRouter from './routes/mail.js';
 import scheduler from './services/sync-scheduler.js';
 import tenderScheduler from './services/tender-scheduler.js';
 import documentQueueProcessor from './services/document-queue-processor.js';
@@ -174,6 +180,9 @@ app.use('/api/notifications', notificationsRouter);
 app.use('/api/tender-docs', tenderDocumentsRouter);
 app.use('/api/tender-content', tenderContentDocumentsRouter);
 app.use('/api/tender-tracking', tenderTrackingRouter);
+app.use('/api/permissions', permissionsRouter);
+app.use('/api/audit-logs', auditLogsRouter);
+app.use('/api/mail', mailRouter);
 
 /**
  * @swagger

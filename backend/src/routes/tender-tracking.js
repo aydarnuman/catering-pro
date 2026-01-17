@@ -15,6 +15,7 @@ router.get('/', async (req, res) => {
       SELECT 
         tt.*,
         COALESCE(tt.user_notes, '[]'::jsonb) as user_notes,
+        COALESCE(tt.hesaplama_verileri, '{}'::jsonb) as hesaplama_verileri,
         t.title as ihale_basligi,
         t.organization_name as kurum,
         t.tender_date as tarih,
@@ -22,8 +23,8 @@ router.get('/', async (req, res) => {
         t.city,
         t.external_id,
         t.url,
-        (SELECT COUNT(*) FROM documents WHERE tender_id = t.id) as dokuman_sayisi,
-        (SELECT COUNT(*) FROM documents WHERE tender_id = t.id AND processing_status = 'completed') as analiz_edilen_dokuman
+        (SELECT COUNT(*) FROM documents WHERE tender_id = t.id AND (file_type IS NULL OR file_type NOT LIKE '%zip%')) as dokuman_sayisi,
+        (SELECT COUNT(*) FROM documents WHERE tender_id = t.id AND processing_status = 'completed' AND (file_type IS NULL OR file_type NOT LIKE '%zip%')) as analiz_edilen_dokuman
       FROM tender_tracking tt
       JOIN tenders t ON tt.tender_id = t.id
       WHERE 1=1
@@ -105,7 +106,18 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, notes, priority, reminder_date, analysis_summary } = req.body;
+    const { 
+      status, 
+      notes, 
+      priority, 
+      reminder_date, 
+      analysis_summary,
+      // Yeni hesaplama alanları
+      yaklasik_maliyet,
+      sinir_deger,
+      bizim_teklif,
+      hesaplama_verileri
+    } = req.body;
     
     const result = await query(`
       UPDATE tender_tracking 
@@ -115,8 +127,12 @@ router.put('/:id', async (req, res) => {
         priority = COALESCE($3, priority),
         reminder_date = $4,
         analysis_summary = COALESCE($5, analysis_summary),
+        yaklasik_maliyet = COALESCE($6, yaklasik_maliyet),
+        sinir_deger = COALESCE($7, sinir_deger),
+        bizim_teklif = COALESCE($8, bizim_teklif),
+        hesaplama_verileri = COALESCE($9, hesaplama_verileri),
         updated_at = NOW()
-      WHERE id = $6
+      WHERE id = $10
       RETURNING *
     `, [
       status,
@@ -124,6 +140,10 @@ router.put('/:id', async (req, res) => {
       priority,
       reminder_date || null,
       analysis_summary ? JSON.stringify(analysis_summary) : null,
+      yaklasik_maliyet || null,
+      sinir_deger || null,
+      bizim_teklif || null,
+      hesaplama_verileri ? JSON.stringify(hesaplama_verileri) : null,
       id
     ]);
     
@@ -513,13 +533,15 @@ router.get('/:tenderId/analysis', async (req, res) => {
     combinedAnalysis.notlar = [...new Set(combinedAnalysis.notlar)];
     combinedAnalysis.tam_metin = combinedAnalysis.tam_metin.trim();
     
-    // Döküman istatistikleri
+    // Döküman istatistikleri (ZIP dosyaları hariç - analiz edilemezler)
     const totalDocs = await query(`
       SELECT COUNT(*) as total, 
              COUNT(*) FILTER (WHERE processing_status = 'completed') as completed,
              COUNT(*) FILTER (WHERE processing_status = 'failed') as failed,
              COUNT(*) FILTER (WHERE processing_status = 'pending') as pending
-      FROM documents WHERE tender_id = $1
+      FROM documents 
+      WHERE tender_id = $1 
+        AND (file_type IS NULL OR file_type NOT LIKE '%zip%')
     `, [tenderId]);
     
     res.json({

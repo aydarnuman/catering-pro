@@ -56,6 +56,7 @@ import {
 import CariDetayModal from '@/components/muhasebe/CariDetayModal';
 import MutabakatModal from '@/components/muhasebe/MutabakatModal';
 import { DataActions } from '@/components/DataActions';
+import { usePermissions } from '@/hooks/usePermissions';
 import { API_BASE_URL } from '@/lib/config';
 
 // API URL - config'den al
@@ -103,6 +104,12 @@ export default function CarilerPage() {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
   const isMobile = useMediaQuery('(max-width: 768px)');
+  
+  // === YETKİ KONTROLÜ ===
+  const { canCreate, canEdit, canDelete, isSuperAdmin } = usePermissions();
+  const canCreateCari = isSuperAdmin || canCreate('cari');
+  const canEditCari = isSuperAdmin || canEdit('cari');
+  const canDeleteCari = isSuperAdmin || canDelete('cari');
   const [opened, { open, close }] = useDisclosure(false);
   const [detailOpened, { open: openDetail, close: closeDetail }] = useDisclosure(false);
   const [mutabakatOpened, { open: openMutabakat, close: closeMutabakat }] = useDisclosure(false);
@@ -343,6 +350,7 @@ export default function CarilerPage() {
             <Text c="dimmed" size="sm">Müşteri ve tedarikçi yönetimi</Text>
           </div>
           <Group>
+            {canCreateCari && (
             <Button 
               leftSection={<IconPlus size={16} />}
               onClick={() => {
@@ -352,6 +360,7 @@ export default function CarilerPage() {
             >
               Yeni Cari
             </Button>
+            )}
             <DataActions 
               type="cari" 
               onImportSuccess={() => loadCariler()} 
@@ -601,16 +610,16 @@ export default function CarilerPage() {
           opened={detailOpened}
           onClose={closeDetail}
           cari={selectedCari}
-          onEdit={(cari) => {
+          onEdit={canEditCari ? (cari) => {
             handleEdit(cari);
-          }}
+          } : undefined}
           onMutabakat={(cari) => {
             setSelectedCari(cari);
             openMutabakat();
           }}
-          onDelete={(cariId) => {
+          onDelete={canDeleteCari ? (cariId) => {
             handleDelete(cariId);
-          }}
+          } : undefined}
         />
 
         {/* Mutabakat Modal */}

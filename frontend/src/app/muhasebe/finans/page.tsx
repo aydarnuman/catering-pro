@@ -32,7 +32,7 @@ import {
   RingProgress,
   Grid,
 } from '@mantine/core';
-import { DateInput } from '@mantine/dates';
+import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { notifications } from '@mantine/notifications';
 import {
   IconPlus,
@@ -1308,11 +1308,10 @@ export default function FinansMerkeziPage() {
               onChange={(v) => setHareketForm({ ...hareketForm, taksit_sayisi: parseInt(v || '1') })}
             />
           )}
-          <DateInput
+          <StyledDatePicker
             label="Tarih"
             value={hareketForm.tarih}
             onChange={(v) => setHareketForm({ ...hareketForm, tarih: v || new Date() })}
-            locale="tr"
           />
           <Select
             label="Cari (Opsiyonel)"
@@ -1380,11 +1379,10 @@ export default function FinansMerkeziPage() {
             decimalSeparator=","
             leftSection="₺"
           />
-          <DateInput
+          <StyledDatePicker
             label="Tarih"
             value={hareketForm.tarih}
             onChange={(v) => setHareketForm({ ...hareketForm, tarih: v || new Date() })}
-            locale="tr"
           />
           <Textarea
             label="Açıklama"

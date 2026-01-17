@@ -52,11 +52,32 @@ const departmentInfo: Record<string, { title: string; color: string; icon: strin
 
 // Sayfa context'ini tespit et
 interface PageContext {
-  type: 'tender' | 'invoice' | 'cari' | 'personel' | 'general';
+  type: 'tender' | 'invoice' | 'cari' | 'personel' | 'stok' | 'planlama' | 'muhasebe' | 'general';
   id?: number | string;
   title?: string;
   data?: any;
+  pathname?: string;      // URL bilgisi
+  department?: string;    // Department bilgisi
 }
+
+// URL'ye göre context type mapping (otomatik tespit için)
+const pathToContextType: Record<string, PageContext['type']> = {
+  '/tenders': 'tender',
+  '/tracking': 'tender',
+  '/ihale-uzmani': 'tender',
+  '/upload': 'tender',
+  '/muhasebe/personel': 'personel',
+  '/muhasebe/cariler': 'cari',
+  '/muhasebe/faturalar': 'invoice',
+  '/muhasebe/stok': 'stok',
+  '/muhasebe/satin-alma': 'stok',
+  '/muhasebe/gelir-gider': 'muhasebe',
+  '/muhasebe/kasa-banka': 'muhasebe',
+  '/muhasebe/finans': 'muhasebe',
+  '/muhasebe/raporlar': 'muhasebe',
+  '/planlama': 'planlama',
+  '/muhasebe/menu-planlama': 'planlama',
+};
 
 export function FloatingAIChat() {
   const [isOpen, setIsOpen] = useState(false);
@@ -89,6 +110,8 @@ export function FloatingAIChat() {
                 type: 'tender',
                 id: tenderId,
                 title: data.data.title,
+                pathname,
+                department,
                 data: {
                   title: data.data.title,
                   organization: data.data.organization_name,
@@ -108,26 +131,41 @@ export function FloatingAIChat() {
       // Fatura sayfası: /muhasebe/faturalar/123
       const invoiceMatch = pathname.match(/^\/muhasebe\/faturalar\/(\d+)$/);
       if (invoiceMatch) {
-        setPageContext({ type: 'invoice', id: invoiceMatch[1] });
+        setPageContext({ type: 'invoice', id: invoiceMatch[1], pathname, department });
         return;
       }
 
       // Cari sayfası: /muhasebe/cariler/123
       const cariMatch = pathname.match(/^\/muhasebe\/cariler\/(\d+)$/);
       if (cariMatch) {
-        setPageContext({ type: 'cari', id: cariMatch[1] });
+        setPageContext({ type: 'cari', id: cariMatch[1], pathname, department });
         return;
       }
 
       // Personel sayfası: /muhasebe/personel/123
       const personelMatch = pathname.match(/^\/muhasebe\/personel\/(\d+)$/);
       if (personelMatch) {
-        setPageContext({ type: 'personel', id: personelMatch[1] });
+        setPageContext({ type: 'personel', id: personelMatch[1], pathname, department });
         return;
       }
 
-      // Genel sayfa
-      setPageContext({ type: 'general' });
+      // URL'ye göre otomatik context type belirleme
+      const autoContextType = Object.entries(pathToContextType).find(
+        ([path]) => pathname.startsWith(path)
+      );
+      
+      if (autoContextType) {
+        setPageContext({ 
+          type: autoContextType[1], 
+          pathname, 
+          department,
+          data: { module: department }
+        });
+        return;
+      }
+
+      // Genel sayfa - yine de pathname ve department bilgisini gönder
+      setPageContext({ type: 'general', pathname, department });
     };
 
     detectPageContext();
@@ -311,7 +349,18 @@ export function FloatingAIChat() {
                     {!isMinimized && (
                       <Text size="xs" c="rgba(255,255,255,0.7)">
                         {pageContext?.type === 'tender' && pageContext.id 
-                          ? `İhale #${pageContext.id}` 
+                          ? `İhale ${(() => {
+                              // external_id varsa ve timestamp değilse (10 haneden küçükse) kullan
+                              const extId = pageContext.data?.external_id;
+                              if (extId && String(extId).length < 12 && String(extId).includes('/')) {
+                                return extId;
+                              }
+                              // Title'dan EKAP numarasını parse et (örn: "2025/2427594 - Yemek...")
+                              const title = pageContext.data?.title || pageContext.title || '';
+                              const match = title.match(/^(\d{4}\/\d+)/);
+                              if (match) return match[1];
+                              return '#' + pageContext.id;
+                            })()}` 
                           : pageContext?.type === 'invoice' && pageContext.id
                           ? `Fatura #${pageContext.id}`
                           : pageContext?.type === 'cari' && pageContext.id

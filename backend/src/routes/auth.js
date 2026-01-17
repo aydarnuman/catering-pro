@@ -110,7 +110,8 @@ router.post('/login', async (req, res) => {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role
+        role: user.role,
+        user_type: user.user_type || 'user'
       }
     });
     
@@ -173,7 +174,7 @@ router.post('/login', async (req, res) => {
  */
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, name, role = 'user' } = req.body;
+    const { email, password, name, role = 'user', user_type } = req.body;
     
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'Tüm alanlar gerekli' });
@@ -193,12 +194,16 @@ router.post('/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
     
+    // Kullanıcı tipini belirle (role'e göre varsayılan)
+    // admin rolü -> admin user_type, aksi halde 'user'
+    const finalUserType = user_type || (role === 'admin' ? 'admin' : 'user');
+    
     // Kullanıcı oluştur
     const result = await query(`
-      INSERT INTO users (email, password_hash, name, role)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id, email, name, role
-    `, [email, passwordHash, name, role]);
+      INSERT INTO users (email, password_hash, name, role, user_type)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, email, name, role, user_type
+    `, [email, passwordHash, name, role, finalUserType]);
     
     res.json({
       success: true,
@@ -258,7 +263,7 @@ router.get('/me', async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
     
     const result = await query(
-      'SELECT id, email, name, role, created_at FROM users WHERE id = $1 AND is_active = true',
+      'SELECT id, email, name, role, user_type, created_at FROM users WHERE id = $1 AND is_active = true',
       [decoded.id]
     );
     
@@ -266,9 +271,13 @@ router.get('/me', async (req, res) => {
       return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
     }
     
+    const user = result.rows[0];
     res.json({
       success: true,
-      user: result.rows[0]
+      user: {
+        ...user,
+        user_type: user.user_type || 'user'
+      }
     });
     
   } catch (error) {
@@ -461,14 +470,17 @@ router.get('/users', async (req, res) => {
     }
     
     const result = await query(`
-      SELECT id, email, name, role, is_active, created_at, updated_at
+      SELECT id, email, name, role, user_type, is_active, created_at, updated_at
       FROM users
       ORDER BY created_at DESC
     `);
     
     res.json({
       success: true,
-      users: result.rows
+      users: result.rows.map(u => ({
+        ...u,
+        user_type: u.user_type || 'user'
+      }))
     });
     
   } catch (error) {
@@ -610,6 +622,54 @@ router.delete('/users/:id', async (req, res) => {
     
   } catch (error) {
     console.error('Kullanıcı silme hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/auth/setup-super-admin
+ * Ilk kurulum: Mevcut admin kullaniciyi super_admin yap
+ * NOT: Bu endpoint sadece henuz super_admin yoksa calisir
+ */
+router.post('/setup-super-admin', async (req, res) => {
+  try {
+    // Zaten super_admin var mi kontrol et
+    const existing = await query(`
+      SELECT id, name, email FROM users WHERE user_type = 'super_admin' LIMIT 1
+    `);
+    
+    if (existing.rows.length > 0) {
+      return res.json({
+        success: true,
+        message: 'Super Admin zaten mevcut',
+        superAdmin: existing.rows[0]
+      });
+    }
+    
+    // Ilk admin kullaniciyi super_admin yap
+    const result = await query(`
+      UPDATE users 
+      SET user_type = 'super_admin' 
+      WHERE role = 'admin'
+      AND id = (SELECT MIN(id) FROM users WHERE role = 'admin')
+      RETURNING id, name, email, user_type
+    `);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Admin kullanici bulunamadi' 
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Super Admin atandi',
+      superAdmin: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('Super admin setup hatasi:', error);
     res.status(500).json({ error: error.message });
   }
 });

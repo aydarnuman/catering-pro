@@ -26,7 +26,7 @@ import {
   Center,
   Box
 } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { notifications } from '@mantine/notifications';
 import {
   IconInfoCircle,
@@ -341,12 +341,11 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
             onChange={setSelectedSebep}
             required
           />
-          <DatePickerInput
+          <StyledDatePicker
             label="Çıkış Tarihi"
             placeholder="Tarih seçin"
             value={cikisTarihi}
             onChange={setCikisTarihi}
-            locale="tr"
             required
           />
         </SimpleGrid>

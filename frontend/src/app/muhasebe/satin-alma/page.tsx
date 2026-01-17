@@ -32,7 +32,7 @@ import {
   Alert,
   Avatar
 } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
@@ -772,19 +772,15 @@ export default function SatinAlmaPage() {
             </SimpleGrid>
 
             <SimpleGrid cols={3}>
-              <DatePickerInput 
+              <StyledDatePicker 
                 label="Sipariş Tarihi" 
-                leftSection={<IconCalendar size={16} />} 
                 value={formData.siparis_tarihi} 
                 onChange={(v) => setFormData({ ...formData, siparis_tarihi: v || new Date() })} 
-                locale="tr" 
               />
-              <DatePickerInput 
+              <StyledDatePicker 
                 label="İstenen Teslim Tarihi" 
-                leftSection={<IconCalendar size={16} />} 
                 value={formData.teslim_tarihi} 
                 onChange={(v) => setFormData({ ...formData, teslim_tarihi: v || new Date() })} 
-                locale="tr" 
               />
               <Select 
                 label="Öncelik" 
