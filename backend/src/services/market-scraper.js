@@ -1,9 +1,9 @@
 /**
- * Market Fiyat Servisi - Playwright ile Gerçek Scraping
+ * Market Fiyat Servisi - Puppeteer ile Gerçek Scraping
  * Migros, ŞOK, Trendyol - Gerçek Fiyatlar
  */
 
-import { chromium } from 'playwright';
+import puppeteer from 'puppeteer';
 
 // Browser instance (singleton)
 let browser = null;
@@ -13,9 +13,10 @@ let browser = null;
  */
 async function initBrowser() {
   if (!browser) {
-    browser = await chromium.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
     });
   }
   return browser;
