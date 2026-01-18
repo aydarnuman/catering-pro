@@ -436,11 +436,11 @@ class TenderScheduler {
 
   /**
    * Log kaydet
-   * Not: scraper_logs tablosu migration 059'da yeni şemaya geçirildi
+   * Not: Hem eski hem yeni şema ile uyumlu
    */
   async logScrape(status, details) {
     try {
-      // Yeni şema: level, module, message, context
+      // Önce yeni şemayı dene (level, module, message, context)
       const level = status === 'error' ? 'ERROR' : (status === 'success' ? 'INFO' : 'WARN');
       const module = details.mode ? `scheduler:${details.mode}` : 'scheduler';
       const message = details.error || `${details.mode || 'scrape'} ${status === 'success' ? 'completed' : 'failed'}`;
@@ -458,19 +458,53 @@ class TenderScheduler {
         error: details.error
       };
 
-      await query(`
-        INSERT INTO scraper_logs (
-          level, 
-          module, 
-          message, 
-          context
-        ) VALUES ($1, $2, $3, $4)
-      `, [
-        level,
-        module,
-        message,
-        JSON.stringify(context)
-      ]);
+      try {
+        // Yeni şema
+        await query(`
+          INSERT INTO scraper_logs (
+            level, 
+            module, 
+            message, 
+            context
+          ) VALUES ($1, $2, $3, $4)
+        `, [
+          level,
+          module,
+          message,
+          JSON.stringify(context)
+        ]);
+      } catch (newSchemaError) {
+        // Yeni şema başarısız olduysa, eski şemayı dene
+        if (newSchemaError.message.includes('column') || newSchemaError.code === '42703') {
+          await query(`
+            INSERT INTO scraper_logs (
+              action, 
+              status, 
+              message, 
+              metadata,
+              started_at,
+              finished_at,
+              tenders_found,
+              tenders_new,
+              tenders_updated,
+              pages_scraped
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          `, [
+            `${details.mode}_scrape`,
+            status,
+            details.error || `${details.mode} completed`,
+            JSON.stringify(context),
+            details.startedAt || new Date(),
+            details.finishedAt || new Date(),
+            details.tendersFound || 0,
+            details.tendersNew || 0,
+            details.tendersUpdated || 0,
+            details.pages || 0
+          ]);
+        } else {
+          throw newSchemaError;
+        }
+      }
     } catch (error) {
       console.error('❌ Log kayıt hatası:', error.message);
     }
@@ -478,19 +512,36 @@ class TenderScheduler {
 
   /**
    * Son başarılı scrape'i getir
-   * Not: Yeni şemada context içinde metadata saklanıyor
+   * Not: Hem eski hem yeni şema ile uyumlu
    */
   async getLastSuccessfulScrape() {
     try {
+      // Önce yeni şemayı dene
+      try {
+        const result = await query(`
+          SELECT 
+            created_at as started_at, 
+            context->>'tendersFound' as tenders_found, 
+            context->>'tendersNew' as tenders_new, 
+            module as action
+          FROM scraper_logs 
+          WHERE level = 'INFO' AND context->>'status' = 'success'
+          ORDER BY created_at DESC 
+          LIMIT 1
+        `);
+        if (result.rows.length > 0) {
+          return result.rows[0];
+        }
+      } catch (e) {
+        // Yeni şema yok, eski şemayı dene
+      }
+
+      // Eski şema
       const result = await query(`
-        SELECT 
-          created_at as started_at, 
-          context->>'tendersFound' as tenders_found, 
-          context->>'tendersNew' as tenders_new, 
-          module as action
+        SELECT started_at, tenders_found, tenders_new, action
         FROM scraper_logs 
-        WHERE level = 'INFO' AND context->>'status' = 'success'
-        ORDER BY created_at DESC 
+        WHERE status = 'success' 
+        ORDER BY started_at DESC 
         LIMIT 1
       `);
       return result.rows[0] || null;
