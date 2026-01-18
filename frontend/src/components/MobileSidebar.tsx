@@ -14,7 +14,7 @@ import {
 } from '@mantine/core';
 import {
   IconBookmark,
-  IconBuilding,
+  IconBuildingStore,
   IconChartBar,
   IconChartPie,
   IconChevronRight,
@@ -25,8 +25,10 @@ import {
   IconReceipt,
   IconSettings,
   IconShieldLock,
+  IconShoppingCart,
   IconSparkles,
   IconToolsKitchen2,
+  IconTrendingUp,
   IconUser,
   IconUserCircle,
   IconUsers,
@@ -79,40 +81,57 @@ const allMenuGroups: MenuGroup[] = [
         badgeColor: 'violet',
       },
       { label: 'İhale Takibim', href: '/tracking', icon: IconBookmark },
-      // İhale Uzmanı mobilde gizlendi - modal olarak çalışıyor
     ],
   },
   {
-    title: 'Muhasebe',
+    title: 'Finans',
     color: '#14B8A6',
     gradient: 'linear-gradient(135deg, #14B8A6 0%, #10B981 100%)',
     items: [
       { label: 'Dashboard', href: '/muhasebe', icon: IconChartPie },
       {
-        label: 'Finans Merkezi',
+        label: 'Kasa & Banka',
         href: '/muhasebe/finans',
         icon: IconWallet,
         permission: 'kasa_banka',
       },
-      { label: 'Cari Hesaplar', href: '/muhasebe/cariler', icon: IconUsers, permission: 'cari' },
       { label: 'Faturalar', href: '/muhasebe/faturalar', icon: IconReceipt, permission: 'fatura' },
+      { 
+        label: 'Gelir-Gider', 
+        href: '/muhasebe/gelir-gider', 
+        icon: IconTrendingUp, 
+        permission: 'kasa_banka' 
+      },
+      { label: 'Cari Hesaplar', href: '/muhasebe/cariler', icon: IconUsers, permission: 'cari' },
+      { label: 'Raporlar', href: '/muhasebe/raporlar', icon: IconChartBar, permission: 'rapor' },
+    ],
+  },
+  {
+    title: 'Operasyon',
+    color: '#8B5CF6',
+    gradient: 'linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%)',
+    items: [
       { label: 'Stok Takibi', href: '/muhasebe/stok', icon: IconPackage, permission: 'stok' },
+      { 
+        label: 'Satın Alma', 
+        href: '/muhasebe/satin-alma', 
+        icon: IconShoppingCart, 
+        permission: 'stok' 
+      },
+      { 
+        label: 'Menü Planlama', 
+        href: '/muhasebe/menu-planlama', 
+        icon: IconToolsKitchen2, 
+        permission: 'planlama' 
+      },
       {
         label: 'Personel',
         href: '/muhasebe/personel',
         icon: IconUserCircle,
         permission: 'personel',
       },
-      { label: 'Envanter', href: '/muhasebe/demirbas', icon: IconBuilding, permission: 'demirbas' },
-      { label: 'Raporlar', href: '/muhasebe/raporlar', icon: IconChartBar, permission: 'rapor' },
+      { label: 'Demirbaş', href: '/muhasebe/demirbas', icon: IconBuildingStore, permission: 'demirbas' },
     ],
-  },
-  {
-    title: 'Planlama',
-    color: '#8B5CF6',
-    gradient: 'linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%)',
-    permission: 'planlama',
-    items: [{ label: 'Menü Planlama', href: '/muhasebe/menu-planlama', icon: IconToolsKitchen2 }],
   },
   {
     title: 'Sistem',

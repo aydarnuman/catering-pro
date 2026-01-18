@@ -56,7 +56,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useCallback } from 'react';
 import { DataActions } from '@/components/DataActions';
 import { usePermissions } from '@/hooks/usePermissions';
 import { API_BASE_URL } from '@/lib/config';
@@ -282,7 +282,10 @@ function StokPageContent() {
 
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`,
+        },
         body: JSON.stringify(depoForm),
       });
 
@@ -329,6 +332,7 @@ function StokPageContent() {
       setLoading(true);
       const res = await fetch(`${API_URL}/stok/depolar/${depoId}`, {
         method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${getToken()}` },
       });
 
       if (!res.ok) {
@@ -354,8 +358,11 @@ function StokPageContent() {
     }
   };
 
+  // Token helper
+  const getToken = () => localStorage.getItem('token');
+
   // API'den verileri yükle
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -396,7 +403,7 @@ function StokPageContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Depo stoklarını yükle
   const loadDepoStoklar = async (depoId: number) => {
@@ -462,6 +469,7 @@ function StokPageContent() {
 
       const res = await fetch(`${API_URL}/stok/kartlar/${stokId}`, {
         method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${getToken()}` },
       });
 
       const result = await res.json();
@@ -508,6 +516,7 @@ function StokPageContent() {
         try {
           const res = await fetch(`${API_URL}/stok/kartlar/${stokId}`, {
             method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${getToken()}` },
           });
           if (res.ok) basarili++;
           else hatali++;
@@ -633,7 +642,10 @@ function StokPageContent() {
     try {
       const response = await fetch(`${API_URL}/stok/faturadan-giris`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`,
+        },
         body: JSON.stringify({
           ettn: selectedFatura.ettn,
           depo_id: faturaGirisDepo,
@@ -706,7 +718,10 @@ function StokPageContent() {
 
       const res = await fetch(`${API_URL}/stok/kartlar`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`,
+        },
         body: JSON.stringify({
           ...urunForm,
           kategori_id: parseInt(urunForm.kategori_id, 10),
@@ -790,7 +805,10 @@ function StokPageContent() {
     try {
       const response = await fetch(`${API_URL}/stok/hareketler/transfer`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`,
+        },
         body: JSON.stringify({
           ...transferForm,
           belge_no: transferForm.belge_no || `TRF-${Date.now()}`,
@@ -838,7 +856,10 @@ function StokPageContent() {
     try {
       const response = await fetch(`${API_URL}/stok/hareketler/giris`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`,
+        },
         body: JSON.stringify({
           stok_kart_id: girisForm.stok_kart_id,
           depo_id: girisForm.depo_id,
@@ -898,7 +919,10 @@ function StokPageContent() {
     try {
       const response = await fetch(`${API_URL}/stok/hareketler/cikis`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`,
+        },
         body: JSON.stringify({
           stok_kart_id: cikisForm.stok_kart_id,
           depo_id: cikisForm.depo_id,
@@ -942,7 +966,7 @@ function StokPageContent() {
   };
 
   // Stok hareketlerini yükle
-  const loadHareketler = async () => {
+  const loadHareketler = useCallback(async () => {
     setHareketlerLoading(true);
     try {
       const response = await fetch(`${API_URL}/stok/hareketler?limit=100`);
@@ -955,7 +979,7 @@ function StokPageContent() {
     } finally {
       setHareketlerLoading(false);
     }
-  };
+  }, []);
 
   // Sayım için depo stoklarını yükle
   const loadSayimVerileri = async (depoId: number) => {
@@ -997,7 +1021,10 @@ function StokPageContent() {
           const endpoint = fark > 0 ? 'giris' : 'cikis';
           await fetch(`${API_URL}/stok/hareketler/${endpoint}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${getToken()}`,
+            },
             body: JSON.stringify({
               stok_kart_id: item.id,
               depo_id: sayimDepoId,
@@ -1103,12 +1130,13 @@ function StokPageContent() {
     return formatted;
   };
 
-  // Para formatı
+  // Para formatı (kuruşsuz)
   const formatMoney = (value: number) => {
     return new Intl.NumberFormat('tr-TR', {
       style: 'currency',
       currency: 'TRY',
       minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(value || 0);
   };
 
@@ -2532,7 +2560,10 @@ function StokPageContent() {
 
                               const res = await fetch(`${API_URL}/stok/kartlar`, {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
+                                headers: { 
+                                  'Content-Type': 'application/json',
+                                  'Authorization': `Bearer ${getToken()}`,
+                                },
                                 body: JSON.stringify({
                                   kod: kalem.urun_kodu || `FAT-${kalem.sira}`,
                                   ad: kalem.urun_adi,

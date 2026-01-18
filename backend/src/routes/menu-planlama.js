@@ -2180,6 +2180,167 @@ Kurallar:
 });
 
 // =====================================================
+// TOPLU AI REÇETE ÖNERİSİ (BATCH - 5 REÇETE BİRDEN)
+// =====================================================
+
+router.post('/receteler/batch-ai-malzeme-oneri', async (req, res) => {
+  try {
+    const { recete_ids } = req.body;
+    
+    if (!recete_ids || !Array.isArray(recete_ids) || recete_ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'recete_ids gerekli (array)' });
+    }
+    
+    // Max 3 reçete bir seferde (timeout önlemek için)
+    const idsToProcess = recete_ids.slice(0, 3);
+    
+    // Reçete bilgilerini getir
+    const receteResult = await query(`
+      SELECT r.id, r.ad, k.ad as kategori_adi
+      FROM receteler r
+      LEFT JOIN recete_kategoriler k ON k.id = r.kategori_id
+      WHERE r.id = ANY($1::int[])
+    `, [idsToProcess]);
+    
+    if (receteResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Reçeteler bulunamadı' });
+    }
+    
+    const receteler = receteResult.rows;
+    
+    // Ürün kartlarını getir
+    const urunKartlariResult = await query(`
+      SELECT 
+        uk.id, 
+        uk.ad, 
+        uk.varsayilan_birim as birim,
+        kat.ad as kategori
+      FROM urun_kartlari uk
+      LEFT JOIN urun_kategorileri kat ON kat.id = uk.kategori_id
+      WHERE uk.aktif = true
+      ORDER BY kat.sira, uk.ad
+    `);
+    
+    const urunKartlari = urunKartlariResult.rows;
+    
+    // Kategorilere göre grupla
+    const kategoriliUrunler = {};
+    urunKartlari.forEach(uk => {
+      const kat = uk.kategori || 'Diğer';
+      if (!kategoriliUrunler[kat]) kategoriliUrunler[kat] = [];
+      kategoriliUrunler[kat].push(uk.ad);
+    });
+    
+    const urunListesi = Object.entries(kategoriliUrunler)
+      .map(([kat, urunler]) => `${kat}: ${urunler.join(', ')}`)
+      .join('\n');
+    
+    // Yemek listesi oluştur
+    const yemekListesi = receteler.map(r => `- ${r.ad} (${r.kategori_adi || 'Genel'})`).join('\n');
+    
+    // TEK AI ÇAĞRISI ile TÜM REÇETELER
+    const prompt = `
+Sen bir yemek reçetesi uzmanısın. Aşağıdaki ${receteler.length} yemek için standart Türk mutfağı tariflerine göre malzeme listesi ve gramajları öner.
+
+YEMEKLER:
+${yemekListesi}
+
+Lütfen HER yemek için ayrı ayrı malzeme listesi ver. Standart bir porsiyon (300-400 gr) için gramajlar kullan.
+
+MEVCUT ÜRÜN KARTLARI (öncelikle bunlardan seç):
+${urunListesi}
+
+FORMAT (JSON - HER YEMEK İÇİN AYRI):
+\`\`\`json
+{
+  "sonuclar": [
+    {
+      "recete_id": ${receteler[0]?.id || 0},
+      "recete_adi": "${receteler[0]?.ad || ''}",
+      "malzemeler": [
+        {"malzeme_adi": "Ürün adı", "miktar": 100, "birim": "gr", "kategori": "Sebzeler"}
+      ]
+    }
+  ]
+}
+\`\`\`
+
+KURALLAR:
+- Birim: gr, kg, ml, lt, adet
+- Miktarlar gerçekçi ve 1 porsiyon için olmalı
+- Öncelikle mevcut ürün kartlarından SEÇ
+- Listede yoksa yeni ürün öner ve kategori belirt
+- Kategoriler: Et & Tavuk, Balık & Deniz Ürünleri, Süt Ürünleri, Sebzeler, Meyveler, Bakliyat, Tahıllar & Makarna, Yağlar, Baharatlar, Soslar & Salçalar, Şekerler & Tatlandırıcılar, İçecekler, Diğer
+    `.trim();
+    
+    console.log(`🤖 BATCH AI reçete önerisi: ${receteler.length} yemek birden işleniyor`);
+    
+    const aiResult = await aiAgent.processQuery(prompt, [], {
+      maxTokens: 8000,
+      temperature: 0.3
+    });
+    
+    // Parse AI response
+    let sonuclar = [];
+    try {
+      const jsonMatch = aiResult.response.match(/```json\s*([\s\S]*?)\s*```/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[1]);
+        sonuclar = parsed.sonuclar || [];
+      }
+    } catch (parseError) {
+      console.error('Batch AI response parse hatası:', parseError);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'AI yanıtı parse edilemedi',
+        raw_response: aiResult.response 
+      });
+    }
+    
+    // Ürün kartı eşleştirmesi yap
+    const enrichedSonuclar = sonuclar.map(s => {
+      const malzemelerWithUrun = (s.malzemeler || []).map(mal => {
+        const malLower = mal.malzeme_adi.toLowerCase().trim();
+        
+        let match = urunKartlari.find(uk => uk.ad.toLowerCase().trim() === malLower);
+        
+        if (!match) {
+          match = urunKartlari.find(uk => {
+            const ukLower = uk.ad.toLowerCase().trim();
+            return ukLower.includes(malLower) || malLower.includes(ukLower);
+          });
+        }
+        
+        return {
+          ...mal,
+          urun_kart_id: match ? match.id : null,
+          birim: mal.birim || (match ? match.birim : 'gr')
+        };
+      });
+      
+      return {
+        ...s,
+        malzemeler: malzemelerWithUrun
+      };
+    });
+    
+    console.log(`✅ BATCH AI tamamlandı: ${enrichedSonuclar.length} reçete işlendi`);
+    
+    res.json({
+      success: true,
+      data: {
+        sonuclar: enrichedSonuclar,
+        toplam: enrichedSonuclar.length
+      }
+    });
+    
+  } catch (error) {
+    console.error('Batch AI malzeme önerisi hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =====================================================
 // ÜRÜN KARTLARI API
 // =====================================================
 

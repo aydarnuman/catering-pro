@@ -14,6 +14,7 @@ import {
   Modal,
   NumberInput,
   Paper,
+  Progress,
   ScrollArea,
   Select,
   SimpleGrid,
@@ -245,6 +246,10 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
 
   // Kişi sayısı çarpanı
   const [kisiSayisi, setKisiSayisi] = useState<number>(1);
+  
+  // Toplu AI İşleme
+  const [topluAiLoading, setTopluAiLoading] = useState(false);
+  const [topluAiProgress, setTopluAiProgress] = useState({ current: 0, total: 0, currentName: '' });
 
   // Sayfa açılınca verileri yükle
   useEffect(() => {
@@ -439,7 +444,8 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [opened, fetchReceteler]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened, aramaText, selectedKategori]);
 
   // Reçete güncelle
   const handleReceteGuncelle = async () => {
@@ -706,6 +712,203 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
       });
     } finally {
       setAiMalzemeLoading(false);
+    }
+  };
+
+  // TOPLU AI REÇETELENDİRME (BATCH + PARALEL - 5x3 = 15 reçete aynı anda)
+  const handleTopluAiRecetelendirme = async () => {
+    // Malzemesi olmayan reçeteleri filtrele
+    const malzemesizReceteler = receteler.filter(r => Number(r.malzeme_sayisi) === 0);
+    
+    if (malzemesizReceteler.length === 0) {
+      notifications.show({
+        title: 'Bilgi',
+        message: 'Tüm reçetelerin malzemesi mevcut',
+        color: 'blue',
+      });
+      return;
+    }
+    
+    if (!confirm(`${malzemesizReceteler.length} reçete için AI ile malzeme önerisi alınacak (hızlı mod). Devam?`)) {
+      return;
+    }
+    
+    setTopluAiLoading(true);
+    setTopluAiProgress({ current: 0, total: malzemesizReceteler.length, currentName: '🚀 Hızlı mod başlatılıyor...' });
+    
+    let basarili = 0;
+    let basarisiz = 0;
+    
+    // Kategori map (ürün kartı oluşturmak için)
+    const kategoriMap: Record<string, number> = {
+      'et & tavuk': 1, et: 1, tavuk: 1,
+      'balık & deniz ürünleri': 2, balık: 2,
+      'süt ürünleri': 3, süt: 3,
+      sebzeler: 4, sebze: 4,
+      meyveler: 5, meyve: 5,
+      bakliyat: 6,
+      'tahıllar & makarna': 7, tahıl: 7, makarna: 7,
+      yağlar: 8, yağ: 8,
+      baharatlar: 9, baharat: 9,
+      'soslar & salçalar': 10, sos: 10, salça: 10,
+      'şekerler & tatlandırıcılar': 11, şeker: 11,
+      içecekler: 12, içecek: 12,
+      diğer: 13,
+    };
+    
+    // 3'lü batch'lere böl (timeout önlemek için küçültüldü)
+    const BATCH_SIZE = 3;
+    const CONCURRENT_BATCHES = 2; // 2 batch paralel
+    const batches: Recete[][] = [];
+    
+    for (let i = 0; i < malzemesizReceteler.length; i += BATCH_SIZE) {
+      batches.push(malzemesizReceteler.slice(i, i + BATCH_SIZE));
+    }
+    
+    // Tek bir batch'i işle
+    const processBatch = async (batch: Recete[]): Promise<{ success: number; fail: number }> => {
+      try {
+        const receteIds = batch.map(r => r.id);
+        
+        // AbortController ile 90 saniye timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 90000);
+        
+        // BATCH AI çağrısı (5 reçete birden)
+        const res = await fetch(`${API_URL}/menu-planlama/receteler/batch-ai-malzeme-oneri`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recete_ids: receteIds }),
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+        const result = await res.json();
+        
+        if (!result.success || !result.data?.sonuclar) {
+          return { success: 0, fail: batch.length };
+        }
+        
+        let batchBasarili = 0;
+        let batchBasarisiz = 0;
+        
+        // Her reçetenin sonucunu işle (paralel)
+        await Promise.all(result.data.sonuclar.map(async (sonuc: any) => {
+          try {
+            if (!sonuc.malzemeler || sonuc.malzemeler.length === 0) {
+              batchBasarisiz++;
+              return;
+            }
+            
+            // Malzemeleri paralel ekle
+            await Promise.all(sonuc.malzemeler.map(async (mal: any) => {
+              try {
+                let urunKartId = mal.urun_kart_id;
+                
+                if (!urunKartId) {
+                  const kategoriId = mal.kategori ? kategoriMap[mal.kategori.toLowerCase()] || 13 : 13;
+                  
+                  const urunRes = await fetch(`${API_URL}/menu-planlama/urun-kartlari`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      ad: mal.malzeme_adi,
+                      kategori_id: kategoriId,
+                      varsayilan_birim: mal.birim || 'gr',
+                      fiyat_birimi: 'kg',
+                    }),
+                  });
+                  const urunResult = await urunRes.json();
+                  if (urunResult.success) {
+                    urunKartId = urunResult.data.id;
+                  }
+                }
+                
+                await fetch(`${API_URL}/menu-planlama/receteler/${sonuc.recete_id}/malzemeler`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    urun_kart_id: urunKartId,
+                    malzeme_adi: mal.malzeme_adi,
+                    miktar: mal.miktar,
+                    birim: mal.birim || 'gr',
+                    zorunlu: true,
+                  }),
+                });
+              } catch (e) {
+                // Tek malzeme hatası, devam
+              }
+            }));
+            
+            batchBasarili++;
+          } catch (e) {
+            batchBasarisiz++;
+          }
+        }));
+        
+        return { success: batchBasarili, fail: batchBasarisiz };
+      } catch (e) {
+        return { success: 0, fail: batch.length };
+      }
+    };
+    
+    // Batch'leri CONCURRENT_BATCHES kadar paralel işle
+    let processedCount = 0;
+    
+    try {
+      for (let i = 0; i < batches.length; i += CONCURRENT_BATCHES) {
+        const concurrentBatches = batches.slice(i, i + CONCURRENT_BATCHES);
+        
+        // İşlenen reçete isimlerini göster
+        const isimleri = concurrentBatches.flat().map(r => r.ad).slice(0, 3).join(', ');
+        setTopluAiProgress({ 
+          current: processedCount, 
+          total: malzemesizReceteler.length, 
+          currentName: `⚡ ${isimleri}...` 
+        });
+        
+        // Paralel batch işleme
+        const results = await Promise.all(concurrentBatches.map(batch => processBatch(batch)));
+        
+        // Sonuçları topla
+        results.forEach(r => {
+          basarili += r.success;
+          basarisiz += r.fail;
+        });
+        
+        processedCount += concurrentBatches.flat().length;
+        setTopluAiProgress({ 
+          current: processedCount, 
+          total: malzemesizReceteler.length, 
+          currentName: `✅ ${processedCount}/${malzemesizReceteler.length}` 
+        });
+      }
+      
+      notifications.show({
+        title: '🚀 Hızlı Reçetelendirme Tamamlandı',
+        message: `✅ ${basarili} başarılı, ❌ ${basarisiz} başarısız`,
+        color: basarisiz === 0 ? 'green' : 'yellow',
+        autoClose: 5000,
+      });
+    } catch (error: any) {
+      // Timeout veya abort hatası
+      notifications.show({
+        title: '⚠️ İşlem Durdu',
+        message: `${basarili} tamamlandı, kalan reçeteler için tekrar deneyin`,
+        color: 'orange',
+        autoClose: 5000,
+      });
+    }
+    
+    setTopluAiLoading(false);
+    setTopluAiProgress({ current: 0, total: 0, currentName: '' });
+    
+    // Listeyi güncelle (hata olsa bile)
+    try {
+      await fetchReceteler();
+    } catch (e) {
+      // Fetch hatası ignore et
     }
   };
 
@@ -994,6 +1197,42 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
               >
                 Ürün Kartları
               </Button>
+              
+              {/* Toplu AI Reçetelendirme */}
+              {receteler.filter(r => Number(r.malzeme_sayisi) === 0).length > 0 && (
+                <Tooltip label={`${receteler.filter(r => Number(r.malzeme_sayisi) === 0).length} malzemesiz reçeteyi AI ile doldur`}>
+                  <Button
+                    variant="gradient"
+                    gradient={{ from: 'violet', to: 'grape' }}
+                    leftSection={<IconSparkles size={16} />}
+                    onClick={handleTopluAiRecetelendirme}
+                    size="xs"
+                    fullWidth
+                    loading={topluAiLoading}
+                    disabled={topluAiLoading}
+                  >
+                    {topluAiLoading 
+                      ? `${topluAiProgress.current}/${topluAiProgress.total}` 
+                      : `AI Toplu (${receteler.filter(r => Number(r.malzeme_sayisi) === 0).length})`
+                    }
+                  </Button>
+                </Tooltip>
+              )}
+              
+              {/* Progress bar */}
+              {topluAiLoading && (
+                <Box>
+                  <Progress 
+                    value={(topluAiProgress.current / topluAiProgress.total) * 100} 
+                    size="sm" 
+                    color="violet"
+                    animated
+                  />
+                  <Text size="xs" c="dimmed" ta="center" mt={4} truncate>
+                    {topluAiProgress.currentName}
+                  </Text>
+                </Box>
+              )}
             </Stack>
           </Box>
 

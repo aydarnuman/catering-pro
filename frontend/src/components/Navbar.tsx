@@ -19,10 +19,12 @@ import {
 import { useDisclosure, useHotkeys, useMediaQuery } from '@mantine/hooks';
 import {
   IconBookmark,
-  IconBuilding,
+  IconBuildingFactory2,
+  IconBuildingStore,
   IconChartBar,
   IconChartPie,
   IconChevronDown,
+  IconCoin,
   IconFolder,
   IconHome,
   IconList,
@@ -31,13 +33,14 @@ import {
   IconMoon,
   IconPackage,
   IconReceipt,
-  IconRobot,
   IconSearch,
   IconSettings,
   IconShieldLock,
+  IconShoppingCart,
   IconSparkles,
   IconSun,
   IconToolsKitchen2,
+  IconTrendingUp,
   IconUser,
   IconUserCircle,
   IconUsers,
@@ -81,9 +84,24 @@ export function Navbar() {
   const isActive = (path: string) => pathname === path;
   const isIhaleMerkezi =
     pathname === '/tenders' || pathname === '/upload' || pathname === '/tracking';
-  const isMuhasebe = pathname.startsWith('/muhasebe');
+  
+  // Finans sayfaları
+  const isFinans = pathname === '/muhasebe' || 
+    pathname === '/muhasebe/finans' || 
+    pathname === '/muhasebe/faturalar' || 
+    pathname === '/muhasebe/gelir-gider' ||
+    pathname === '/muhasebe/cariler' ||
+    pathname === '/muhasebe/kasa-banka' ||
+    pathname === '/muhasebe/raporlar';
+  
+  // Operasyon sayfaları
+  const isOperasyon = pathname === '/muhasebe/stok' || 
+    pathname === '/muhasebe/satin-alma' || 
+    pathname === '/muhasebe/menu-planlama' ||
+    pathname === '/muhasebe/personel' ||
+    pathname === '/muhasebe/demirbas';
+  
   const _isAyarlar = pathname.startsWith('/ayarlar');
-  const isPlanlama = pathname.startsWith('/planlama');
   const _isAdminPage = pathname.startsWith('/admin');
 
   const handleLogout = () => {
@@ -478,14 +496,11 @@ export function Navbar() {
               </Menu>
             )}
 
-            {/* Muhasebe Dropdown - Yetki kontrolü */}
+            {/* Finans Dropdown */}
             {(isSuperAdmin ||
               canView('fatura') ||
               canView('cari') ||
-              canView('stok') ||
-              canView('personel') ||
               canView('kasa_banka') ||
-              canView('demirbas') ||
               canView('rapor')) && (
               <Menu
                 shadow="lg"
@@ -496,13 +511,13 @@ export function Navbar() {
                 <Menu.Target>
                   <Button
                     rightSection={<IconChevronDown size={14} />}
-                    leftSection={<IconWallet size={16} />}
-                    variant={isMuhasebe ? 'light' : 'subtle'}
-                    color={isMuhasebe ? 'teal' : 'gray'}
+                    leftSection={<IconCoin size={16} />}
+                    variant={isFinans ? 'light' : 'subtle'}
+                    color={isFinans ? 'teal' : 'gray'}
                     size="compact-sm"
                     radius="md"
                   >
-                    Muhasebe
+                    Finans
                   </Button>
                 </Menu.Target>
                 <Menu.Dropdown>
@@ -511,7 +526,14 @@ export function Navbar() {
                     href="/muhasebe"
                     leftSection={<IconChartPie size={16} />}
                   >
-                    Dashboard
+                    <Group justify="space-between" w="100%">
+                      <Text size="sm">Dashboard</Text>
+                      {isActive('/muhasebe') && (
+                        <Badge size="xs" color="teal">
+                          Aktif
+                        </Badge>
+                      )}
+                    </Group>
                   </Menu.Item>
                   {(isSuperAdmin || canView('kasa_banka')) && (
                     <Menu.Item
@@ -521,24 +543,15 @@ export function Navbar() {
                     >
                       <Box>
                         <Text size="sm" fw={500}>
-                          Finans Merkezi
+                          Kasa & Banka
                         </Text>
                         <Text size="xs" c="dimmed">
-                          Kasa, Banka
+                          Nakit akışı
                         </Text>
                       </Box>
                     </Menu.Item>
                   )}
                   <Menu.Divider />
-                  {(isSuperAdmin || canView('cari')) && (
-                    <Menu.Item
-                      component={Link}
-                      href="/muhasebe/cariler"
-                      leftSection={<IconUsers size={16} />}
-                    >
-                      Cari Hesaplar
-                    </Menu.Item>
-                  )}
                   {(isSuperAdmin || canView('fatura')) && (
                     <Menu.Item
                       component={Link}
@@ -548,32 +561,22 @@ export function Navbar() {
                       Faturalar
                     </Menu.Item>
                   )}
-                  {(isSuperAdmin || canView('stok')) && (
+                  {(isSuperAdmin || canView('kasa_banka')) && (
                     <Menu.Item
                       component={Link}
-                      href="/muhasebe/stok"
-                      leftSection={<IconPackage size={16} />}
+                      href="/muhasebe/gelir-gider"
+                      leftSection={<IconTrendingUp size={16} color="var(--mantine-color-green-6)" />}
                     >
-                      Stok Takibi
+                      Gelir-Gider
                     </Menu.Item>
                   )}
-                  <Menu.Divider />
-                  {(isSuperAdmin || canView('personel')) && (
+                  {(isSuperAdmin || canView('cari')) && (
                     <Menu.Item
                       component={Link}
-                      href="/muhasebe/personel"
-                      leftSection={<IconUserCircle size={16} />}
+                      href="/muhasebe/cariler"
+                      leftSection={<IconUsers size={16} />}
                     >
-                      Personel
-                    </Menu.Item>
-                  )}
-                  {(isSuperAdmin || canView('demirbas')) && (
-                    <Menu.Item
-                      component={Link}
-                      href="/muhasebe/demirbas"
-                      leftSection={<IconBuilding size={16} />}
-                    >
-                      Envanter
+                      Cari Hesaplar
                     </Menu.Item>
                   )}
                   <Menu.Divider />
@@ -590,8 +593,12 @@ export function Navbar() {
               </Menu>
             )}
 
-            {/* Planlama Dropdown - Yetki kontrolü */}
-            {(isSuperAdmin || canView('planlama')) && (
+            {/* Operasyon Dropdown */}
+            {(isSuperAdmin ||
+              canView('stok') ||
+              canView('personel') ||
+              canView('demirbas') ||
+              canView('planlama')) && (
               <Menu
                 shadow="lg"
                 width={240}
@@ -601,32 +608,84 @@ export function Navbar() {
                 <Menu.Target>
                   <Button
                     rightSection={<IconChevronDown size={14} />}
-                    leftSection={<IconRobot size={16} />}
-                    variant={isPlanlama ? 'light' : 'subtle'}
-                    color={isPlanlama ? 'violet' : 'gray'}
+                    leftSection={<IconBuildingFactory2 size={16} />}
+                    variant={isOperasyon ? 'light' : 'subtle'}
+                    color={isOperasyon ? 'violet' : 'gray'}
                     size="compact-sm"
                     radius="md"
                   >
-                    Planlama
+                    Operasyon
                   </Button>
                 </Menu.Target>
                 <Menu.Dropdown>
-                  <Menu.Item
-                    component={Link}
-                    href="/muhasebe/menu-planlama"
-                    leftSection={
-                      <IconToolsKitchen2 size={16} color="var(--mantine-color-teal-6)" />
-                    }
-                  >
-                    <Box>
-                      <Text size="sm" fw={500}>
-                        Menü Planlama
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        Reçete & Maliyet
-                      </Text>
-                    </Box>
-                  </Menu.Item>
+                  {(isSuperAdmin || canView('stok')) && (
+                    <Menu.Item
+                      component={Link}
+                      href="/muhasebe/stok"
+                      leftSection={<IconPackage size={16} color="var(--mantine-color-blue-6)" />}
+                    >
+                      <Box>
+                        <Text size="sm" fw={500}>
+                          Stok Takibi
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          Depo & Envanter
+                        </Text>
+                      </Box>
+                    </Menu.Item>
+                  )}
+                  {(isSuperAdmin || canView('stok')) && (
+                    <Menu.Item
+                      component={Link}
+                      href="/muhasebe/satin-alma"
+                      leftSection={<IconShoppingCart size={16} color="var(--mantine-color-orange-6)" />}
+                    >
+                      <Box>
+                        <Text size="sm" fw={500}>
+                          Satın Alma
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          Sipariş & Tedarik
+                        </Text>
+                      </Box>
+                    </Menu.Item>
+                  )}
+                  <Menu.Divider />
+                  {(isSuperAdmin || canView('planlama')) && (
+                    <Menu.Item
+                      component={Link}
+                      href="/muhasebe/menu-planlama"
+                      leftSection={<IconToolsKitchen2 size={16} color="var(--mantine-color-teal-6)" />}
+                    >
+                      <Box>
+                        <Text size="sm" fw={500}>
+                          Menü Planlama
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          Reçete & Maliyet
+                        </Text>
+                      </Box>
+                    </Menu.Item>
+                  )}
+                  <Menu.Divider />
+                  {(isSuperAdmin || canView('personel')) && (
+                    <Menu.Item
+                      component={Link}
+                      href="/muhasebe/personel"
+                      leftSection={<IconUserCircle size={16} />}
+                    >
+                      Personel
+                    </Menu.Item>
+                  )}
+                  {(isSuperAdmin || canView('demirbas')) && (
+                    <Menu.Item
+                      component={Link}
+                      href="/muhasebe/demirbas"
+                      leftSection={<IconBuildingStore size={16} />}
+                    >
+                      Demirbaş
+                    </Menu.Item>
+                  )}
                 </Menu.Dropdown>
               </Menu>
             )}

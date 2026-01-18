@@ -190,7 +190,8 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
       }, 300);
       return () => clearTimeout(timeout);
     }
-  }, [opened, fetchUrunler]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened, aramaText, selectedKategori]);
 
   // Yeni ürün oluştur
   const handleYeniUrun = async () => {
