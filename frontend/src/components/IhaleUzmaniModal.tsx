@@ -248,7 +248,7 @@ export default function IhaleUzmaniModal({
             yaklasik_maliyet: yaklasikMaliyet > 0 ? `${yaklasikMaliyet.toLocaleString('tr-TR')} TL` : null,
             sinir_deger: sinirDeger ? `${sinirDeger.toLocaleString('tr-TR')} TL` : null,
             bizim_teklif: bizimTeklif > 0 ? `${bizimTeklif.toLocaleString('tr-TR')} TL` : null,
-            teklif_listesi: teklifListesi.filter(t => t > 0).map(t => `${t.toLocaleString('tr-TR')} TL`),
+            teklif_listesi: teklifListesi.filter(t => t.tutar > 0).map(t => `${t.firma}: ${t.tutar.toLocaleString('tr-TR')} TL`),
             // Analiz özeti
             teknik_sart_sayisi: getAnalysisData().teknik_sartlar?.length || 0,
             birim_fiyat_sayisi: getAnalysisData().birim_fiyatlar?.length || 0,
