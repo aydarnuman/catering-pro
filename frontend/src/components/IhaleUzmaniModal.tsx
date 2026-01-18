@@ -188,7 +188,7 @@ export default function IhaleUzmaniModal({
     setSaveStatus('saving');
     try {
       const hesaplamaVerileri = {
-        teklif_listesi: teklifListesi.filter(t => t > 0),
+        teklif_listesi: teklifListesi.filter(t => t.tutar > 0),
         asiri_dusuk: asiriDusukData,
         sure_hesaplama: sureData,
         son_kayit: new Date().toISOString()

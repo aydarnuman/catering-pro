@@ -48,26 +48,11 @@ ADD COLUMN IF NOT EXISTS birim_fiyat DECIMAL(15,2); -- KG/LT bazında hesaplanm�
 CREATE INDEX IF NOT EXISTS idx_piyasa_fiyat_ana_urun ON piyasa_fiyat_gecmisi(ana_urun_id);
 CREATE INDEX IF NOT EXISTS idx_piyasa_fiyat_market ON piyasa_fiyat_gecmisi(market_adi);
 
--- 3. Örnek piyasa verisi ekle (test için)
--- Tuz için örnek piyasa verileri
-INSERT INTO piyasa_fiyat_gecmisi (ana_urun_id, market_adi, marka, ambalaj_miktar, piyasa_fiyat_ort, birim_fiyat, arastirma_tarihi, urun_adi, kaynak)
-SELECT 
-  (SELECT id FROM ana_urunler WHERE kod = 'tuz'),
-  market_adi,
-  marka,
-  ambalaj,
-  fiyat,
-  ROUND(fiyat / ambalaj, 2) as birim_fiyat,
-  CURRENT_TIMESTAMP,
-  marka || ' Tuz ' || ambalaj || ' KG',
-  market_adi
-FROM (VALUES 
-  ('A101', 'Billur', 1.5, 45.00),
-  ('Migros', 'Marsa', 0.75, 28.00),
-  ('BİM', 'Safir', 1.0, 22.00),
-  ('Şok', 'Billur', 0.75, 26.00)
-) AS t(market_adi, marka, ambalaj, fiyat)
-WHERE EXISTS (SELECT 1 FROM ana_urunler WHERE kod = 'tuz');
+-- 3. Örnek piyasa verisi ekle (test için) - ATLANACAK
+-- piyasa_fiyat_gecmisi tablosunda tüm sütunlar olmayabilir
+-- Bu INSERT manuel olarak çalıştırılabilir
+-- INSERT INTO piyasa_fiyat_gecmisi (ana_urun_id, market_adi, marka, ambalaj_miktar, piyasa_fiyat_ort, birim_fiyat, arastirma_tarihi, urun_adi)
+-- SELECT ...;
 
 COMMENT ON COLUMN stok_kartlari.ambalaj_miktari IS 'Ürünün ambalaj miktarı (KG veya LT cinsinden). Örn: 1.5kg tuz için 1.5';
 COMMENT ON COLUMN piyasa_fiyat_gecmisi.ana_urun_id IS 'Genel ürün bazlı piyasa araştırması için ana ürün referansı';
