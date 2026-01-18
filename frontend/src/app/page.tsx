@@ -1,71 +1,58 @@
 'use client';
 
-import { 
-  Container, 
-  Title, 
-  Grid, 
-  Card, 
-  Text, 
-  Badge,
-  Button,
-  Group,
-  Stack,
-  Loader,
-  Alert,
-  ThemeIcon,
-  Box,
-  SimpleGrid,
-  Paper,
-  Avatar,
+import {
   ActionIcon,
-  ScrollArea,
-  TextInput,
+  Alert,
+  Badge,
+  Box,
+  Button,
   Checkbox,
+  Container,
+  Grid,
+  Group,
+  Paper,
+  ScrollArea,
+  SimpleGrid,
+  Skeleton,
+  Stack,
+  Text,
+  TextInput,
+  ThemeIcon,
   Transition,
   useMantineColorScheme,
-  Skeleton,
-  RingProgress,
-  Tooltip
 } from '@mantine/core';
-import { 
-  IconUpload, 
-  IconList, 
+import { useMediaQuery } from '@mantine/hooks';
+import {
+  IconActivity,
   IconAlertCircle,
-  IconTrendingUp,
-  IconTrendingDown,
+  IconArrowRight,
+  IconBuildingBank,
+  IconBulb,
   IconCalendar,
   IconClock,
-  IconCash,
-  IconPackage,
-  IconUsers,
-  IconArrowRight,
-  IconSun,
-  IconMoon,
-  IconPlus,
-  IconWallet,
-  IconReceipt,
-  IconRefresh,
-  IconTrash,
-  IconNote,
-  IconX,
   IconFileText,
-  IconChartBar,
-  IconBuildingBank,
-  IconAlertTriangle,
-  IconCheck,
-  IconActivity,
-  IconSparkles,
-  IconRobot,
-  IconBulb
+  IconList,
+  IconMoon,
+  IconNote,
+  IconPackage,
+  IconPlus,
+  IconReceipt,
+  IconSun,
+  IconTrash,
+  IconTrendingDown,
+  IconTrendingUp,
+  IconUpload,
+  IconUsers,
+  IconWallet,
+  IconX,
 } from '@tabler/icons-react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import useSWR from 'swr';
-import { useState, useEffect } from 'react';
-import { apiClient } from '@/lib/api';
-import { StatsResponse } from '@/types/api';
 import { useAuth } from '@/context/AuthContext';
+import { apiClient } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/config';
-import { useMediaQuery } from '@mantine/hooks';
+import type { StatsResponse } from '@/types/api';
 
 // Types
 interface Not {
@@ -90,11 +77,11 @@ const getGreeting = () => {
 
 // Tarih formatla
 const formatDate = (date: Date) => {
-  return date.toLocaleDateString('tr-TR', { 
-    weekday: 'long', 
-    day: 'numeric', 
+  return date.toLocaleDateString('tr-TR', {
+    weekday: 'long',
+    day: 'numeric',
     month: 'long',
-    year: 'numeric'
+    year: 'numeric',
   });
 };
 
@@ -111,7 +98,17 @@ interface KPICardProps {
   isLoading?: boolean;
 }
 
-function KPICard({ title, value, subtitle, icon: Icon, color, gradient, trend, onClick, isLoading }: KPICardProps) {
+function KPICard({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  color,
+  gradient,
+  trend,
+  onClick,
+  isLoading,
+}: KPICardProps) {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -122,9 +119,7 @@ function KPICard({ title, value, subtitle, icon: Icon, color, gradient, trend, o
       onClick={onClick}
       style={{
         cursor: onClick ? 'pointer' : 'default',
-        background: isDark 
-          ? 'rgba(255, 255, 255, 0.03)' 
-          : 'rgba(255, 255, 255, 0.8)',
+        background: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.8)',
         backdropFilter: 'blur(10px)',
         border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -161,9 +156,9 @@ function KPICard({ title, value, subtitle, icon: Icon, color, gradient, trend, o
           <Icon size={22} color="white" />
         </Box>
         {trend && (
-          <Badge 
-            size="sm" 
-            variant="light" 
+          <Badge
+            size="sm"
+            variant="light"
             color={trend.isUp ? 'teal' : 'red'}
             leftSection={trend.isUp ? <IconTrendingUp size={12} /> : <IconTrendingDown size={12} />}
           >
@@ -175,11 +170,11 @@ function KPICard({ title, value, subtitle, icon: Icon, color, gradient, trend, o
       {isLoading ? (
         <Skeleton height={36} width="60%" mt="sm" />
       ) : (
-        <Text 
-          size="1.75rem" 
-          fw={800} 
+        <Text
+          size="1.75rem"
+          fw={800}
           mt="sm"
-          style={{ 
+          style={{
             color: isDark ? 'white' : '#1a1a2e',
             lineHeight: 1.1,
           }}
@@ -242,25 +237,25 @@ export default function HomePage() {
   const isDark = colorScheme === 'dark';
   const isMobile = useMediaQuery('(max-width: 768px)');
   const isTablet = useMediaQuery('(max-width: 1024px)');
-  
+
   const [currentTime, setCurrentTime] = useState(new Date());
   const [newNote, setNewNote] = useState('');
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [aiTip, setAiTip] = useState<string>('');
-  const [aiTipIndex, setAiTipIndex] = useState(0);
+  const [_aiTipIndex, setAiTipIndex] = useState(0);
   const greeting = getGreeting();
   const GreetingIcon = greeting.icon;
 
   // AI önerileri - döngüsel
   const aiTips = [
-    "💡 Bu hafta 3 ihale son başvuru tarihine yaklaşıyor. Takip listesini kontrol edin.",
-    "📊 Geçen aya göre alış faturalarında %12 artış var. Maliyet analizi yapmanızı öneririm.",
-    "🎯 En çok kazandığınız kategori: Okul yemekhaneleri. Bu alana odaklanabilirsiniz.",
-    "⚡ 5 adet stok kalemi kritik seviyede. Tedarik siparişi oluşturmayı unutmayın.",
+    '💡 Bu hafta 3 ihale son başvuru tarihine yaklaşıyor. Takip listesini kontrol edin.',
+    '📊 Geçen aya göre alış faturalarında %12 artış var. Maliyet analizi yapmanızı öneririm.',
+    '🎯 En çok kazandığınız kategori: Okul yemekhaneleri. Bu alana odaklanabilirsiniz.',
+    '⚡ 5 adet stok kalemi kritik seviyede. Tedarik siparişi oluşturmayı unutmayın.',
     "📈 Son 30 günde 8 yeni ihale eklendi. Fırsat analizi için AI Uzmanı'nı kullanın.",
-    "💰 Vadesi geçmiş 2 fatura bulunuyor. Tahsilat takibi yapmanızı öneririm.",
-    "🔔 Yarın için planlanmış 1 ihale toplantısı var. Dökümanları hazırladınız mı?",
-    "✨ Yeni özellik: Döküman analizi artık daha hızlı! İhale detayından deneyin."
+    '💰 Vadesi geçmiş 2 fatura bulunuyor. Tahsilat takibi yapmanızı öneririm.',
+    '🔔 Yarın için planlanmış 1 ihale toplantısı var. Dökümanları hazırladınız mı?',
+    '✨ Yeni özellik: Döküman analizi artık daha hızlı! İhale detayından deneyin.',
   ];
 
   // Saat güncelleme
@@ -273,7 +268,7 @@ export default function HomePage() {
   useEffect(() => {
     setAiTip(aiTips[0]);
     const tipTimer = setInterval(() => {
-      setAiTipIndex(prev => {
+      setAiTipIndex((prev) => {
         const next = (prev + 1) % aiTips.length;
         setAiTip(aiTips[next]);
         return next;
@@ -286,33 +281,24 @@ export default function HomePage() {
   const { data: stats, error, isLoading } = useSWR<StatsResponse>('stats', apiClient.getStats);
 
   // Notlar fetch
-  const { data: notlarData, mutate: mutateNotlar } = useSWR(
-    'notlar',
-    async () => {
-      const res = await fetch(`${API_BASE_URL}/api/notlar?limit=10`);
-      return res.json();
-    }
-  );
+  const { data: notlarData, mutate: mutateNotlar } = useSWR('notlar', async () => {
+    const res = await fetch(`${API_BASE_URL}/api/notlar?limit=10`);
+    return res.json();
+  });
   const notlar: Not[] = notlarData?.notlar || [];
 
   // Finans özeti fetch
-  const { data: finansOzet } = useSWR(
-    isAuthenticated ? 'finans-ozet' : null,
-    async () => {
-      const res = await fetch(`${API_BASE_URL}/api/kasa-banka/ozet`);
-      return res.json();
-    }
-  );
+  const { data: finansOzet } = useSWR(isAuthenticated ? 'finans-ozet' : null, async () => {
+    const res = await fetch(`${API_BASE_URL}/api/kasa-banka/ozet`);
+    return res.json();
+  });
 
   // Yaklaşan ihaleler
-  const { data: yaklasanIhaleler } = useSWR(
-    'yaklasan-ihaleler',
-    async () => {
-      const res = await fetch(`${API_BASE_URL}/api/tenders?limit=5&sort=tender_date&order=asc`);
-      const data = await res.json();
-      return data.tenders?.slice(0, 5) || [];
-    }
-  );
+  const { data: yaklasanIhaleler } = useSWR('yaklasan-ihaleler', async () => {
+    const res = await fetch(`${API_BASE_URL}/api/tenders?limit=5&sort=tender_date&order=asc`);
+    const data = await res.json();
+    return data.tenders?.slice(0, 5) || [];
+  });
 
   const totalTenders = stats?.totalTenders || 0;
   const activeTenders = stats?.activeTenders || 0;
@@ -321,12 +307,12 @@ export default function HomePage() {
   // Not ekle
   const handleAddNote = async () => {
     if (!newNote.trim()) return;
-    
+
     try {
       await fetch(`${API_BASE_URL}/api/notlar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newNote.trim() })
+        body: JSON.stringify({ content: newNote.trim() }),
       });
       setNewNote('');
       setIsAddingNote(false);
@@ -359,17 +345,16 @@ export default function HomePage() {
   return (
     <Box
       style={{
-        background: isDark 
+        background: isDark
           ? 'linear-gradient(180deg, #0a0a0f 0%, #111118 100%)'
           : 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
         minHeight: '100vh',
         paddingTop: '1rem',
-        paddingBottom: '4rem'
+        paddingBottom: '4rem',
       }}
     >
       <Container size="xl">
         <Stack gap="lg">
-          
           {/* ========== DARK HERO BANNER WITH AI ========== */}
           <Box
             style={{
@@ -420,7 +405,12 @@ export default function HomePage() {
             />
 
             {/* Grid layout for 3 columns */}
-            <Group justify="space-between" align="center" wrap="nowrap" style={{ position: 'relative', zIndex: 1 }}>
+            <Group
+              justify="space-between"
+              align="center"
+              wrap="nowrap"
+              style={{ position: 'relative', zIndex: 1 }}
+            >
               {/* Sol: Tarih ve Selamlama */}
               <Box style={{ flex: '0 0 auto' }}>
                 <Group gap="xs" mb="xs">
@@ -429,24 +419,25 @@ export default function HomePage() {
                     {formatDate(currentTime)}
                   </Text>
                 </Group>
-                
+
                 <Group gap="sm" align="center">
                   <GreetingIcon size={isMobile ? 24 : 28} color="#fbbf24" />
-                  <Text 
+                  <Text
                     size={isMobile ? 'lg' : 'xl'}
-                    fw={700} 
+                    fw={700}
                     c="white"
                     style={{ lineHeight: 1.2 }}
                   >
-                    {greeting.text}{isAuthenticated && user?.name ? `, ${user.name.split(' ')[0]}` : ''}!
+                    {greeting.text}
+                    {isAuthenticated && user?.name ? `, ${user.name.split(' ')[0]}` : ''}!
                   </Text>
                 </Group>
               </Box>
 
               {/* Orta: AI Önerileri */}
               {!isMobile && (
-                <Box 
-                  style={{ 
+                <Box
+                  style={{
                     flex: '1 1 auto',
                     maxWidth: 550,
                     margin: '0 32px',
@@ -462,11 +453,11 @@ export default function HomePage() {
                       border: '1px solid rgba(255, 255, 255, 0.08)',
                     }}
                   >
-                    <Text 
-                      size="sm" 
-                      c="rgba(255,255,255,0.85)" 
+                    <Text
+                      size="sm"
+                      c="rgba(255,255,255,0.85)"
                       ta="center"
-                      style={{ 
+                      style={{
                         lineHeight: 1.5,
                         transition: 'opacity 0.3s ease',
                       }}
@@ -481,19 +472,27 @@ export default function HomePage() {
               {!isMobile && !isTablet && (
                 <Group gap="xl" style={{ flex: '0 0 auto' }}>
                   <Box ta="center">
-                    <Text size="1.75rem" fw={800} c="white" style={{ lineHeight: 1 }}>{activeTenders}</Text>
-                    <Text size="xs" c="rgba(255,255,255,0.5)" mt={4}>Aktif İhale</Text>
+                    <Text size="1.75rem" fw={800} c="white" style={{ lineHeight: 1 }}>
+                      {activeTenders}
+                    </Text>
+                    <Text size="xs" c="rgba(255,255,255,0.5)" mt={4}>
+                      Aktif İhale
+                    </Text>
                   </Box>
-                  <Box 
-                    style={{ 
-                      width: 1, 
-                      height: 40, 
-                      background: 'rgba(255,255,255,0.15)' 
-                    }} 
+                  <Box
+                    style={{
+                      width: 1,
+                      height: 40,
+                      background: 'rgba(255,255,255,0.15)',
+                    }}
                   />
                   <Box ta="center">
-                    <Text size="1.75rem" fw={800} c="white" style={{ lineHeight: 1 }}>{notlar.filter(n => !n.is_completed).length}</Text>
-                    <Text size="xs" c="rgba(255,255,255,0.5)" mt={4}>Bekleyen Not</Text>
+                    <Text size="1.75rem" fw={800} c="white" style={{ lineHeight: 1 }}>
+                      {notlar.filter((n) => !n.is_completed).length}
+                    </Text>
+                    <Text size="xs" c="rgba(255,255,255,0.5)" mt={4}>
+                      Bekleyen Not
+                    </Text>
                   </Box>
                 </Group>
               )}
@@ -522,9 +521,9 @@ export default function HomePage() {
 
           {/* Error Alert */}
           {error && (
-            <Alert 
-              icon={<IconAlertCircle size={16} />} 
-              title="Bağlantı Hatası" 
+            <Alert
+              icon={<IconAlertCircle size={16} />}
+              title="Bağlantı Hatası"
               color="red"
               variant="light"
               radius="lg"
@@ -585,38 +584,38 @@ export default function HomePage() {
             </Text>
             <ScrollArea type="never" offsetScrollbars={false}>
               <Group gap="sm" wrap={isMobile ? 'nowrap' : 'wrap'}>
-                <QuickAction 
-                  href="/upload" 
-                  icon={IconUpload} 
-                  label="Döküman Yükle" 
+                <QuickAction
+                  href="/upload"
+                  icon={IconUpload}
+                  label="Döküman Yükle"
                   color="#8B5CF6"
                   gradient="linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)"
                 />
-                <QuickAction 
-                  href="/tenders" 
-                  icon={IconList} 
-                  label="İhale Listesi" 
+                <QuickAction
+                  href="/tenders"
+                  icon={IconList}
+                  label="İhale Listesi"
                   color="#3B82F6"
                   gradient="linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)"
                 />
-                <QuickAction 
-                  href="/muhasebe/finans" 
-                  icon={IconBuildingBank} 
-                  label="Finans" 
+                <QuickAction
+                  href="/muhasebe/finans"
+                  icon={IconBuildingBank}
+                  label="Finans"
                   color="#10B981"
                   gradient="linear-gradient(135deg, #10B981 0%, #059669 100%)"
                 />
-                <QuickAction 
-                  href="/muhasebe/cariler" 
-                  icon={IconUsers} 
-                  label="Cariler" 
+                <QuickAction
+                  href="/muhasebe/cariler"
+                  icon={IconUsers}
+                  label="Cariler"
                   color="#06B6D4"
                   gradient="linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)"
                 />
-                <QuickAction 
-                  href="/muhasebe/faturalar" 
-                  icon={IconReceipt} 
-                  label="Faturalar" 
+                <QuickAction
+                  href="/muhasebe/faturalar"
+                  icon={IconReceipt}
+                  label="Faturalar"
                   color="#F59E0B"
                   gradient="linear-gradient(135deg, #F59E0B 0%, #D97706 100%)"
                 />
@@ -642,43 +641,53 @@ export default function HomePage() {
                     <ThemeIcon size={32} radius="lg" variant="light" color="blue">
                       <IconClock size={18} />
                     </ThemeIcon>
-                    <Text fw={700} size="md">Yaklaşan İhaleler</Text>
+                    <Text fw={700} size="md">
+                      Yaklaşan İhaleler
+                    </Text>
                   </Group>
                   <Badge size="sm" variant="light" color="blue" radius="md">
                     {yaklasanIhaleler?.length || 0}
                   </Badge>
                 </Group>
-                
+
                 <Stack gap="xs">
                   {yaklasanIhaleler?.slice(0, 4).map((ihale: any, i: number) => (
-                    <Paper 
-                      key={i} 
-                      p="sm" 
-                      radius="md" 
-                      style={{ 
+                    <Paper
+                      key={i}
+                      p="sm"
+                      radius="md"
+                      style={{
                         background: isDark ? 'rgba(59,130,246,0.08)' : 'rgba(59,130,246,0.05)',
                         border: `1px solid ${isDark ? 'rgba(59,130,246,0.2)' : 'rgba(59,130,246,0.1)'}`,
                       }}
                     >
-                      <Text size="sm" fw={600} lineClamp={1}>{ihale.title || 'İhale'}</Text>
+                      <Text size="sm" fw={600} lineClamp={1}>
+                        {ihale.title || 'İhale'}
+                      </Text>
                       <Group gap="xs" mt={6}>
-                        <Badge size="xs" variant="light" color="gray" radius="sm">{ihale.city || '—'}</Badge>
+                        <Badge size="xs" variant="light" color="gray" radius="sm">
+                          {ihale.city || '—'}
+                        </Badge>
                         <Text size="xs" c="dimmed">
-                          {ihale.tender_date ? new Date(ihale.tender_date).toLocaleDateString('tr-TR') : '—'}
+                          {ihale.tender_date
+                            ? new Date(ihale.tender_date).toLocaleDateString('tr-TR')
+                            : '—'}
                         </Text>
                       </Group>
                     </Paper>
                   )) || (
-                    <Text size="sm" c="dimmed" ta="center" py="xl">Yaklaşan ihale yok</Text>
+                    <Text size="sm" c="dimmed" ta="center" py="xl">
+                      Yaklaşan ihale yok
+                    </Text>
                   )}
                 </Stack>
-                
-                <Button 
+
+                <Button
                   component={Link}
                   href="/tenders"
-                  variant="light" 
-                  color="blue" 
-                  fullWidth 
+                  variant="light"
+                  color="blue"
+                  fullWidth
                   mt="md"
                   radius="md"
                   rightSection={<IconArrowRight size={14} />}
@@ -704,18 +713,20 @@ export default function HomePage() {
                     <ThemeIcon size={32} radius="lg" variant="light" color="violet">
                       <IconNote size={18} />
                     </ThemeIcon>
-                    <Text fw={700} size="md">Notlarım</Text>
+                    <Text fw={700} size="md">
+                      Notlarım
+                    </Text>
                   </Group>
-                  <ActionIcon 
-                    variant="light" 
-                    color="violet" 
+                  <ActionIcon
+                    variant="light"
+                    color="violet"
                     radius="md"
                     onClick={() => setIsAddingNote(!isAddingNote)}
                   >
                     {isAddingNote ? <IconX size={16} /> : <IconPlus size={16} />}
                   </ActionIcon>
                 </Group>
-                
+
                 {/* Not ekleme */}
                 <Transition mounted={isAddingNote} transition="slide-down" duration={200}>
                   {(styles) => (
@@ -728,9 +739,9 @@ export default function HomePage() {
                         size="sm"
                         radius="md"
                         rightSection={
-                          <ActionIcon 
-                            variant="filled" 
-                            color="violet" 
+                          <ActionIcon
+                            variant="filled"
+                            color="violet"
                             size="sm"
                             radius="md"
                             onClick={handleAddNote}
@@ -743,7 +754,7 @@ export default function HomePage() {
                     </Box>
                   )}
                 </Transition>
-                
+
                 {/* Notlar listesi */}
                 <ScrollArea h={220} scrollbarSize={4}>
                   <Stack gap={8}>
@@ -758,9 +769,13 @@ export default function HomePage() {
                           gap="xs"
                           p="sm"
                           style={{
-                            background: not.is_completed 
-                              ? (isDark ? 'rgba(34, 197, 94, 0.1)' : 'rgba(34, 197, 94, 0.08)')
-                              : (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'),
+                            background: not.is_completed
+                              ? isDark
+                                ? 'rgba(34, 197, 94, 0.1)'
+                                : 'rgba(34, 197, 94, 0.08)'
+                              : isDark
+                                ? 'rgba(255,255,255,0.03)'
+                                : 'rgba(0,0,0,0.02)',
                             borderRadius: 10,
                             borderLeft: `3px solid ${not.is_completed ? '#22c55e' : '#8B5CF6'}`,
                             transition: 'all 0.2s ease',
@@ -774,8 +789,8 @@ export default function HomePage() {
                             color="green"
                             radius="md"
                           />
-                          <Text 
-                            size="sm" 
+                          <Text
+                            size="sm"
                             c={not.is_completed ? 'dimmed' : undefined}
                             td={not.is_completed ? 'line-through' : undefined}
                             style={{ flex: 1 }}
@@ -783,9 +798,9 @@ export default function HomePage() {
                           >
                             {not.content}
                           </Text>
-                          <ActionIcon 
-                            variant="subtle" 
-                            color="red" 
+                          <ActionIcon
+                            variant="subtle"
+                            color="red"
                             size="sm"
                             radius="md"
                             onClick={() => handleDeleteNote(not.id)}
@@ -816,7 +831,9 @@ export default function HomePage() {
                     <ThemeIcon size={32} radius="lg" variant="light" color="teal">
                       <IconActivity size={18} />
                     </ThemeIcon>
-                    <Text fw={700} size="md">Sistem Durumu</Text>
+                    <Text fw={700} size="md">
+                      Sistem Durumu
+                    </Text>
                   </Group>
                   <Badge size="sm" variant="dot" color="green" radius="md">
                     Aktif
@@ -844,11 +861,17 @@ export default function HomePage() {
                             boxShadow: '0 0 8px #22c55e',
                           }}
                         />
-                        <Text size="sm" fw={500}>AI Analiz</Text>
+                        <Text size="sm" fw={500}>
+                          AI Analiz
+                        </Text>
                       </Group>
-                      <Text size="sm" fw={700} c="violet">{stats?.aiAnalysisCount || 0}</Text>
+                      <Text size="sm" fw={700} c="violet">
+                        {stats?.aiAnalysisCount || 0}
+                      </Text>
                     </Group>
-                    <Text size="xs" c="dimmed" mt={4}>Gemini API bağlantısı aktif</Text>
+                    <Text size="xs" c="dimmed" mt={4}>
+                      Gemini API bağlantısı aktif
+                    </Text>
                   </Paper>
 
                   {/* Database Status */}
@@ -871,11 +894,17 @@ export default function HomePage() {
                             boxShadow: '0 0 8px #22c55e',
                           }}
                         />
-                        <Text size="sm" fw={500}>Veritabanı</Text>
+                        <Text size="sm" fw={500}>
+                          Veritabanı
+                        </Text>
                       </Group>
-                      <Text size="sm" fw={700} c="teal">Supabase</Text>
+                      <Text size="sm" fw={700} c="teal">
+                        Supabase
+                      </Text>
                     </Group>
-                    <Text size="xs" c="dimmed" mt={4}>PostgreSQL bağlantısı aktif</Text>
+                    <Text size="xs" c="dimmed" mt={4}>
+                      PostgreSQL bağlantısı aktif
+                    </Text>
                   </Paper>
 
                   {/* Quick Stats */}
@@ -888,8 +917,12 @@ export default function HomePage() {
                         background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
                       }}
                     >
-                      <Text size="xl" fw={800} c="blue">{totalTenders}</Text>
-                      <Text size="xs" c="dimmed">Toplam İhale</Text>
+                      <Text size="xl" fw={800} c="blue">
+                        {totalTenders}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        Toplam İhale
+                      </Text>
                     </Paper>
                     <Paper
                       p="sm"
@@ -899,15 +932,18 @@ export default function HomePage() {
                         background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
                       }}
                     >
-                      <Text size="xl" fw={800} c="teal">{notlar.filter(n => n.is_completed).length}</Text>
-                      <Text size="xs" c="dimmed">Tamamlanan</Text>
+                      <Text size="xl" fw={800} c="teal">
+                        {notlar.filter((n) => n.is_completed).length}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        Tamamlanan
+                      </Text>
                     </Paper>
                   </SimpleGrid>
                 </Stack>
               </Paper>
             </Grid.Col>
           </Grid>
-
         </Stack>
       </Container>
     </Box>

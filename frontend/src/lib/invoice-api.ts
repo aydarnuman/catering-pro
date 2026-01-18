@@ -109,7 +109,10 @@ export interface UyumsoftInvoice {
  * API Error Handler
  */
 class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string
+  ) {
     super(message);
     this.name = 'ApiError';
   }
@@ -131,21 +134,13 @@ function getAuthToken(): string | null {
 async function fetchAPI(endpoint: string, options?: RequestInit) {
   const url = `${API_URL}${endpoint}`;
   const token = getAuthToken();
-  
-  // Debug log
-  console.log('🔍 API Çağrısı:', {
-    url,
-    method: options?.method || 'GET',
-    endpoint,
-    hasToken: !!token
-  });
-  
+
   try {
     const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options?.headers,
       },
     });
@@ -153,50 +148,45 @@ async function fetchAPI(endpoint: string, options?: RequestInit) {
     if (!response.ok) {
       const status = response.status;
       const statusText = response.statusText;
-      
+
       console.error(`❌ API Hatası: ${status} ${statusText} - ${options?.method || 'GET'} ${url}`);
-      
+
       // 401 hatası için özel mesaj (yetkisiz erişim)
       if (status === 401) {
         throw new ApiError(status, 'Oturum süresi dolmuş. Lütfen tekrar giriş yapın.');
       }
-      
+
       // 403 hatası için özel mesaj (yetki yok)
       if (status === 403) {
         throw new ApiError(status, 'Bu işlem için yetkiniz bulunmuyor.');
       }
-      
+
       // 404 hatası için özel mesaj
       if (status === 404) {
         throw new ApiError(status, `Endpoint bulunamadı: ${endpoint}`);
       }
-      
+
       // CORS hatası kontrolü
       if (status === 0) {
         throw new ApiError(0, 'CORS hatası veya network problemi');
       }
-      
+
       let errorMessage = `HTTP ${status}`;
       try {
         const errorData = await response.json();
         errorMessage = errorData.error || errorData.message || errorMessage;
-      } catch (e) {
+      } catch (_e) {
         // JSON parse edilemezse default mesajı kullan
       }
-      
+
       throw new ApiError(status, errorMessage);
     }
 
     const data = await response.json();
-    console.log('✅ API Response:', {
-      url,
-      status: response.status,
-      dataPreview: Array.isArray(data) ? `Array(${data.length})` : typeof data
-    });
     return data;
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    throw new Error('Ağ hatası: ' + (error as Error).message);
+    throw new Error(`Ağ hatası: ${(error as Error).message}`);
   }
 }
 
@@ -216,7 +206,7 @@ export const invoiceAPI = {
         }
       });
     }
-    
+
     const query = searchParams.toString();
     const endpoint = `/api/invoices${query ? `?${query}` : ''}`;
     return fetchAPI(endpoint);
@@ -275,7 +265,7 @@ export const invoiceAPI = {
     const params = new URLSearchParams();
     if (year) params.append('year', String(year));
     if (type) params.append('type', type);
-    
+
     const query = params.toString();
     return fetchAPI(`/api/invoices/summary/monthly${query ? `?${query}` : ''}`);
   },
@@ -288,7 +278,7 @@ export const invoiceAPI = {
     params.append('type', type);
     if (startDate) params.append('startDate', startDate);
     if (endDate) params.append('endDate', endDate);
-    
+
     const query = params.toString();
     return fetchAPI(`/api/invoices/summary/category?${query}`);
   },
@@ -381,7 +371,7 @@ export const uyumsoftAPI = {
         }
       });
     }
-    
+
     const query = searchParams.toString();
     return fetchAPI(`/api/uyumsoft/invoices${query ? `?${query}` : ''}`);
   },
@@ -400,22 +390,23 @@ export const uyumsoftAPI = {
 export function convertToFrontendFormat(invoice: Invoice) {
   return {
     id: String(invoice.id),
-    tip: invoice.invoice_type === 'sales' ? 'satis' as const : 'alis' as const,
+    tip: invoice.invoice_type === 'sales' ? ('satis' as const) : ('alis' as const),
     seri: invoice.series,
     no: invoice.invoice_no,
     cariId: String(invoice.customer_id || ''),
     cariUnvan: invoice.customer_name,
     tarih: invoice.invoice_date,
     vadeTarihi: invoice.due_date,
-    kalemler: invoice.items?.map(item => ({
-      id: String(item.id || Date.now()),
-      aciklama: item.description,
-      miktar: item.quantity,
-      birim: item.unit,
-      birimFiyat: item.unit_price,
-      kdvOrani: item.vat_rate,
-      tutar: item.line_total || 0,
-    })) || [],
+    kalemler:
+      invoice.items?.map((item) => ({
+        id: String(item.id || Date.now()),
+        aciklama: item.description,
+        miktar: item.quantity,
+        birim: item.unit,
+        birimFiyat: item.unit_price,
+        kdvOrani: item.vat_rate,
+        tutar: item.line_total || 0,
+      })) || [],
     araToplam: invoice.subtotal || 0,
     kdvToplam: invoice.vat_total || 0,
     genelToplam: invoice.total_amount || 0,
@@ -442,9 +433,14 @@ export function convertToAPIFormat(fatura: any): Omit<Invoice, 'id'> {
     notes: fatura.notlar,
     items: fatura.kalemler?.map((kalem: any, index: number) => ({
       description: kalem.aciklama,
-      category: kalem.category || kalem.aciklama.toLowerCase().includes('tavuk') ? 'tavuk' : 
-               kalem.aciklama.toLowerCase().includes('et') ? 'et' :
-               kalem.aciklama.toLowerCase().includes('sebze') ? 'sebze' : 'diger',
+      category:
+        kalem.category || kalem.aciklama.toLowerCase().includes('tavuk')
+          ? 'tavuk'
+          : kalem.aciklama.toLowerCase().includes('et')
+            ? 'et'
+            : kalem.aciklama.toLowerCase().includes('sebze')
+              ? 'sebze'
+              : 'diger',
       quantity: kalem.miktar,
       unit: kalem.birim,
       unit_price: kalem.birimFiyat,
@@ -468,7 +464,13 @@ export const etiketlerAPI = {
   /**
    * Yeni etiket oluştur
    */
-  async create(etiket: { kod: string; ad: string; renk?: string; ikon?: string; aciklama?: string }) {
+  async create(etiket: {
+    kod: string;
+    ad: string;
+    renk?: string;
+    ikon?: string;
+    aciklama?: string;
+  }) {
     return fetchAPI('/api/etiketler', {
       method: 'POST',
       body: JSON.stringify(etiket),
@@ -478,7 +480,10 @@ export const etiketlerAPI = {
   /**
    * Etiket güncelle
    */
-  async update(id: number, data: Partial<{ ad: string; renk: string; ikon: string; aciklama: string; aktif: boolean }>) {
+  async update(
+    id: number,
+    data: Partial<{ ad: string; renk: string; ikon: string; aciklama: string; aktif: boolean }>
+  ) {
     return fetchAPI(`/api/etiketler/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -536,7 +541,7 @@ export const etiketlerAPI = {
   async getRapor() {
     return fetchAPI('/api/etiketler/raporlar/etiket-bazli');
   },
-  
+
   /**
    * Birden fazla faturanın etiketlerini tek seferde getir
    */

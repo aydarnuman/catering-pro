@@ -1,26 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import {
   ActionIcon,
-  Paper,
-  Transition,
+  Badge,
   Box,
   Group,
-  Text,
-  CloseButton,
-  Badge,
-  Tooltip,
-  useMantineColorScheme,
-  ThemeIcon,
+  Paper,
   Stack,
-  Kbd
+  Text,
+  Tooltip,
+  Transition,
+  useMantineColorScheme,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { IconRobot, IconSparkles, IconX, IconMinus, IconMaximize, IconMessageCircle, IconBolt } from '@tabler/icons-react';
+import { IconBolt, IconMaximize, IconMinus, IconX } from '@tabler/icons-react';
 import { usePathname } from 'next/navigation';
-import { AIChat } from './AIChat';
+import { useEffect, useState } from 'react';
 import { API_BASE_URL } from '@/lib/config';
+import { AIChat } from './AIChat';
 
 // Path'e göre department mapping
 const pathToDepartment: Record<string, string> = {
@@ -40,16 +37,16 @@ const pathToDepartment: Record<string, string> = {
 
 // Department'a göre başlık ve renk
 const departmentInfo: Record<string, { title: string; color: string; icon: string }> = {
-  'PERSONEL': { title: 'İK Uzmanı & Mali Müşavir', color: 'violet', icon: '👔' },
-  'FATURA': { title: 'Fatura Asistanı', color: 'teal', icon: '🧾' },
-  'CARİ': { title: 'Cari Hesap Uzmanı', color: 'blue', icon: '🏢' },
-  'SATIN_ALMA': { title: 'Satın Alma Asistanı', color: 'orange', icon: '🛒' },
-  'STOK': { title: 'Stok Yönetim Asistanı', color: 'green', icon: '📦' },
-  'GELİR_GİDER': { title: 'Mali Danışman', color: 'cyan', icon: '💰' },
-  'KASA_BANKA': { title: 'Finans Asistanı', color: 'indigo', icon: '🏦' },
-  'RAPOR': { title: 'Rapor Analisti', color: 'grape', icon: '📊' },
-  'MENU_PLANLAMA': { title: 'Menü & Reçete Asistanı', color: 'orange', icon: '👨‍🍳' },
-  'İHALE': { title: 'İhale Analisti', color: 'red', icon: '📋' },
+  PERSONEL: { title: 'İK Uzmanı & Mali Müşavir', color: 'violet', icon: '👔' },
+  FATURA: { title: 'Fatura Asistanı', color: 'teal', icon: '🧾' },
+  CARİ: { title: 'Cari Hesap Uzmanı', color: 'blue', icon: '🏢' },
+  SATIN_ALMA: { title: 'Satın Alma Asistanı', color: 'orange', icon: '🛒' },
+  STOK: { title: 'Stok Yönetim Asistanı', color: 'green', icon: '📦' },
+  GELİR_GİDER: { title: 'Mali Danışman', color: 'cyan', icon: '💰' },
+  KASA_BANKA: { title: 'Finans Asistanı', color: 'indigo', icon: '🏦' },
+  RAPOR: { title: 'Rapor Analisti', color: 'grape', icon: '📊' },
+  MENU_PLANLAMA: { title: 'Menü & Reçete Asistanı', color: 'orange', icon: '👨‍🍳' },
+  İHALE: { title: 'İhale Analisti', color: 'red', icon: '📋' },
   'TÜM SİSTEM': { title: 'AI Asistan', color: 'violet', icon: '🤖' },
 };
 
@@ -59,8 +56,8 @@ interface PageContext {
   id?: number | string;
   title?: string;
   data?: any;
-  pathname?: string;      // URL bilgisi
-  department?: string;    // Department bilgisi
+  pathname?: string; // URL bilgisi
+  department?: string; // Department bilgisi
 }
 
 // URL'ye göre context type mapping (otomatik tespit için)
@@ -120,8 +117,8 @@ export function FloatingAIChat() {
                   organization: data.data.organization_name,
                   city: data.data.city,
                   deadline: data.data.deadline,
-                  estimated_cost: data.data.estimated_cost
-                }
+                  estimated_cost: data.data.estimated_cost,
+                },
               });
               return;
             }
@@ -153,16 +150,16 @@ export function FloatingAIChat() {
       }
 
       // URL'ye göre otomatik context type belirleme
-      const autoContextType = Object.entries(pathToContextType).find(
-        ([path]) => pathname.startsWith(path)
+      const autoContextType = Object.entries(pathToContextType).find(([path]) =>
+        pathname.startsWith(path)
       );
-      
+
       if (autoContextType) {
-        setPageContext({ 
-          type: autoContextType[1], 
-          pathname, 
+        setPageContext({
+          type: autoContextType[1],
+          pathname,
           department,
-          data: { module: department }
+          data: { module: department },
         });
         return;
       }
@@ -172,13 +169,12 @@ export function FloatingAIChat() {
     };
 
     detectPageContext();
-  }, [pathname]);
+  }, [pathname, department]);
 
   // Custom event dinleyici - diğer sayfalardan gelen context güncellemeleri için
   // Örn: tracking sayfasında bir ihale seçildiğinde
   useEffect(() => {
     const handleContextUpdate = (event: CustomEvent<PageContext>) => {
-      console.log('📍 AI Context güncellendi:', event.detail);
       setPageContext(event.detail);
     };
 
@@ -199,16 +195,16 @@ export function FloatingAIChat() {
     setShowPulse(true);
     const timer = setTimeout(() => setShowPulse(false), 3000);
     return () => clearTimeout(timer);
-  }, [pathname]);
+  }, []);
 
   // Uyarı sayısını al
   useEffect(() => {
     const fetchAlerts = async () => {
       try {
         const [invoiceRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/invoices/stats`).catch(() => null)
+          fetch(`${API_BASE_URL}/api/invoices/stats`).catch(() => null),
         ]);
-        
+
         let count = 0;
         if (invoiceRes?.ok) {
           const data = await invoiceRes.json();
@@ -220,7 +216,7 @@ export function FloatingAIChat() {
         console.error('Alert fetch error:', e);
       }
     };
-    
+
     fetchAlerts();
     const interval = setInterval(fetchAlerts, 60000); // Her 1 dakikada bir güncelle
     return () => clearInterval(interval);
@@ -229,12 +225,22 @@ export function FloatingAIChat() {
   return (
     <>
       {/* Floating Button - Modern Design */}
-      <Tooltip 
+      <Tooltip
         label={
           <Stack gap={4} align="center">
-            <Text size="sm" fw={600}>{info.icon} {info.title}</Text>
-            {alertCount > 0 && <Text size="xs" c="red.3">{alertCount} uyarı bekliyor</Text>}
-            {!isMobile && <Text size="xs" c="dimmed">⌘K ile aç</Text>}
+            <Text size="sm" fw={600}>
+              {info.icon} {info.title}
+            </Text>
+            {alertCount > 0 && (
+              <Text size="xs" c="red.3">
+                {alertCount} uyarı bekliyor
+              </Text>
+            )}
+            {!isMobile && (
+              <Text size="xs" c="dimmed">
+                ⌘K ile aç
+              </Text>
+            )}
           </Stack>
         }
         position="left"
@@ -242,11 +248,11 @@ export function FloatingAIChat() {
         disabled={isOpen}
         styles={{ tooltip: { padding: '8px 12px' } }}
       >
-        <Box 
-          style={{ 
-            position: 'fixed', 
-            bottom: 24, 
-            right: 24, 
+        <Box
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
             zIndex: 1001,
           }}
         >
@@ -263,7 +269,7 @@ export function FloatingAIChat() {
               animation: showPulse && !isOpen ? 'pulse 2s infinite' : 'none',
             }}
           />
-          
+
           {/* Main button */}
           <Box
             style={{
@@ -272,7 +278,7 @@ export function FloatingAIChat() {
               height: 68,
               borderRadius: '50%',
               background: 'linear-gradient(145deg, #ffffff, #f5f5f5)',
-              boxShadow: isOpen 
+              boxShadow: isOpen
                 ? '0 8px 32px rgba(102, 126, 234, 0.6), inset 0 1px 0 rgba(255,255,255,0.8)'
                 : '0 6px 24px rgba(102, 126, 234, 0.4), inset 0 1px 0 rgba(255,255,255,0.8)',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -294,7 +300,7 @@ export function FloatingAIChat() {
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = isOpen ? 'scale(0.95)' : 'scale(1)';
-              e.currentTarget.style.boxShadow = isOpen 
+              e.currentTarget.style.boxShadow = isOpen
                 ? '0 8px 32px rgba(102, 126, 234, 0.6), inset 0 1px 0 rgba(255,255,255,0.8)'
                 : '0 6px 24px rgba(102, 126, 234, 0.4), inset 0 1px 0 rgba(255,255,255,0.8)';
             }}
@@ -317,19 +323,19 @@ export function FloatingAIChat() {
                 background: 'white',
               }}
             />
-            <img 
-              src="/ai-chef-icon-trimmed.png" 
-              alt="AI Asistan" 
-              style={{ 
+            <img
+              src="/ai-chef-icon-trimmed.png"
+              alt="AI Asistan"
+              style={{
                 position: 'relative',
-                width: 56, 
-                height: 56, 
+                width: 56,
+                height: 56,
                 objectFit: 'cover',
                 borderRadius: '50%',
-              }} 
+              }}
             />
           </Box>
-          
+
           {/* Alert Badge - Improved */}
           {alertCount > 0 && !isOpen && (
             <Badge
@@ -353,7 +359,7 @@ export function FloatingAIChat() {
               {alertCount > 9 ? '9+' : alertCount}
             </Badge>
           )}
-          
+
           {/* Online indicator dot */}
           <Box
             style={{
@@ -435,12 +441,14 @@ export function FloatingAIChat() {
               left: isMobile ? 0 : 'auto',
               top: isMobile ? 0 : 'auto',
               zIndex: 1001,
-              width: isMobile ? '100%' : (isMinimized ? 340 : 440),
-              height: isMobile ? '100%' : (isMinimized ? 'auto' : 580),
+              width: isMobile ? '100%' : isMinimized ? 340 : 440,
+              height: isMobile ? '100%' : isMinimized ? 'auto' : 580,
               maxHeight: isMobile ? '100%' : 'calc(100vh - 150px)',
               overflow: 'hidden',
               borderRadius: isMobile ? 0 : 20,
-              boxShadow: isMobile ? 'none' : '0 25px 50px -12px rgba(102, 126, 234, 0.25), 0 0 0 1px rgba(102, 126, 234, 0.1)',
+              boxShadow: isMobile
+                ? 'none'
+                : '0 25px 50px -12px rgba(102, 126, 234, 0.25), 0 0 0 1px rgba(102, 126, 234, 0.1)',
               border: isMobile ? 'none' : 'none',
               display: 'flex',
               flexDirection: 'column',
@@ -467,11 +475,12 @@ export function FloatingAIChat() {
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  background: 'linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%)',
+                  background:
+                    'linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%)',
                   animation: 'shimmer 3s infinite',
                 }}
               />
-              
+
               <Group justify="space-between" style={{ position: 'relative', zIndex: 1 }}>
                 <Group gap="sm">
                   {/* AI Avatar with glow */}
@@ -509,22 +518,26 @@ export function FloatingAIChat() {
                     </Group>
                     {!isMinimized && (
                       <Text size="xs" c="rgba(255,255,255,0.8)" mt={2}>
-                        {pageContext?.type === 'tender' && pageContext.id 
+                        {pageContext?.type === 'tender' && pageContext.id
                           ? `📋 İhale ${(() => {
                               const extId = pageContext.data?.external_id;
-                              if (extId && String(extId).length < 12 && String(extId).includes('/')) {
+                              if (
+                                extId &&
+                                String(extId).length < 12 &&
+                                String(extId).includes('/')
+                              ) {
                                 return extId;
                               }
                               const title = pageContext.data?.title || pageContext.title || '';
                               const match = title.match(/^(\d{4}\/\d+)/);
                               if (match) return match[1];
-                              return '#' + pageContext.id;
-                            })()}` 
+                              return `#${pageContext.id}`;
+                            })()}`
                           : pageContext?.type === 'invoice' && pageContext.id
-                          ? `🧾 Fatura #${pageContext.id}`
-                          : pageContext?.type === 'cari' && pageContext.id
-                          ? `🏢 Cari #${pageContext.id}`
-                          : `📍 ${pathname.split('/').filter(Boolean).pop() || 'Ana Sayfa'}`}
+                            ? `🧾 Fatura #${pageContext.id}`
+                            : pageContext?.type === 'cari' && pageContext.id
+                              ? `🏢 Cari #${pageContext.id}`
+                              : `📍 ${pathname.split('/').filter(Boolean).pop() || 'Ana Sayfa'}`}
                       </Text>
                     )}
                   </div>
@@ -533,14 +546,14 @@ export function FloatingAIChat() {
                   {/* Keyboard shortcut hint */}
                   {!isMinimized && !isMobile && (
                     <Tooltip label="Kısayol: ⌘K" withArrow position="bottom">
-                      <Badge 
-                        size="xs" 
-                        variant="white" 
-                        style={{ 
-                          background: 'rgba(255,255,255,0.15)', 
+                      <Badge
+                        size="xs"
+                        variant="white"
+                        style={{
+                          background: 'rgba(255,255,255,0.15)',
                           color: 'white',
                           backdropFilter: 'blur(10px)',
-                          cursor: 'default'
+                          cursor: 'default',
                         }}
                       >
                         <Group gap={2}>
@@ -550,11 +563,11 @@ export function FloatingAIChat() {
                       </Badge>
                     </Tooltip>
                   )}
-                  <ActionIcon 
-                    variant="transparent" 
-                    c="white" 
+                  <ActionIcon
+                    variant="transparent"
+                    c="white"
                     size="sm"
-                    style={{ 
+                    style={{
                       background: 'rgba(255,255,255,0.1)',
                       borderRadius: 6,
                     }}
@@ -565,11 +578,11 @@ export function FloatingAIChat() {
                   >
                     {isMinimized ? <IconMaximize size={14} /> : <IconMinus size={14} />}
                   </ActionIcon>
-                  <ActionIcon 
-                    variant="transparent" 
-                    c="white" 
+                  <ActionIcon
+                    variant="transparent"
+                    c="white"
                     size="sm"
-                    style={{ 
+                    style={{
                       background: 'rgba(255,255,255,0.1)',
                       borderRadius: 6,
                     }}
@@ -582,17 +595,17 @@ export function FloatingAIChat() {
                   </ActionIcon>
                 </Group>
               </Group>
-              
+
               {/* Quick actions bar when minimized */}
               {isMinimized && (
                 <Group gap="xs" mt={8} style={{ position: 'relative', zIndex: 1 }}>
-                  <Badge 
-                    size="xs" 
+                  <Badge
+                    size="xs"
                     variant="white"
-                    style={{ 
-                      background: 'rgba(255,255,255,0.2)', 
+                    style={{
+                      background: 'rgba(255,255,255,0.2)',
                       color: 'white',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -640,4 +653,3 @@ export function FloatingAIChat() {
     </>
   );
 }
-

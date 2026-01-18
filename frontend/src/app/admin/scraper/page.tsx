@@ -1,58 +1,56 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { API_BASE_URL } from '@/lib/config';
 import {
-  Container,
-  Title,
-  Text,
-  Card,
-  Group,
-  Stack,
-  SimpleGrid,
-  ThemeIcon,
+  ActionIcon,
   Badge,
   Button,
-  Paper,
-  Table,
-  ActionIcon,
-  Tooltip,
-  Loader,
-  Progress,
-  SegmentedControl,
-  ScrollArea,
-  Code,
-  Tabs,
-  RingProgress,
+  Card,
   Center,
-  Select,
-  NumberInput,
+  Code,
+  Container,
+  Group,
+  Loader,
   Modal,
-  TextInput
+  NumberInput,
+  Paper,
+  Progress,
+  RingProgress,
+  ScrollArea,
+  SegmentedControl,
+  Select,
+  SimpleGrid,
+  Stack,
+  Table,
+  Tabs,
+  Text,
+  TextInput,
+  ThemeIcon,
+  Title,
+  Tooltip,
 } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import {
-  IconRefresh,
-  IconCheck,
-  IconX,
-  IconArrowLeft,
   IconActivity,
-  IconClock,
-  IconPlayerPlay,
-  IconPlayerStop,
-  IconRotateClockwise,
-  IconTrash,
   IconAlertTriangle,
+  IconArrowLeft,
+  IconCheck,
   IconCircleCheck,
   IconCircleX,
-  IconLoader,
-  IconList,
+  IconClock,
   IconFileText,
-  IconBug,
-  IconRocket,
   IconLink,
-  IconPlus
+  IconList,
+  IconLoader,
+  IconPlayerStop,
+  IconPlus,
+  IconRefresh,
+  IconRocket,
+  IconRotateClockwise,
+  IconTrash,
+  IconX,
 } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
+import { useCallback, useEffect, useState } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 
 // ============================================================================
 // TYPES
@@ -127,7 +125,7 @@ interface LogEntry {
 
 export default function ScraperDashboardPage() {
   const API_URL = API_BASE_URL;
-  
+
   // State
   const [loading, setLoading] = useState(true);
   const [health, setHealth] = useState<HealthData | null>(null);
@@ -200,7 +198,7 @@ export default function ScraperDashboardPage() {
   // Initial fetch
   useEffect(() => {
     fetchAll();
-  }, []);
+  }, [fetchAll]);
 
   // Auto refresh
   useEffect(() => {
@@ -212,11 +210,11 @@ export default function ScraperDashboardPage() {
   // Filter değişince tekrar fetch
   useEffect(() => {
     fetchJobs();
-  }, [jobFilter, fetchJobs]);
+  }, [fetchJobs]);
 
   useEffect(() => {
     fetchLogs();
-  }, [logLevel, fetchLogs]);
+  }, [fetchLogs]);
 
   // ============================================================================
   // ACTIONS
@@ -228,16 +226,16 @@ export default function ScraperDashboardPage() {
       const res = await fetch(`${API_URL}/api/scraper/${action}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: body ? JSON.stringify(body) : undefined
+        body: body ? JSON.stringify(body) : undefined,
       });
       const data = await res.json();
-      
+
       if (data.success) {
         notifications.show({
           title: 'Başarılı',
           message: data.message,
           color: 'green',
-          icon: <IconCheck size={16} />
+          icon: <IconCheck size={16} />,
         });
         fetchAll();
       } else {
@@ -248,7 +246,7 @@ export default function ScraperDashboardPage() {
         title: 'Hata',
         message: err.message,
         color: 'red',
-        icon: <IconX size={16} />
+        icon: <IconX size={16} />,
       });
     } finally {
       setActionLoading(null);
@@ -273,36 +271,36 @@ export default function ScraperDashboardPage() {
       notifications.show({
         title: 'Hata',
         message: 'URL girmelisiniz',
-        color: 'red'
+        color: 'red',
       });
       return;
     }
-    
+
     // URL formatı kontrolü
     if (!tenderUrl.includes('ihalebul.com/tender/')) {
       notifications.show({
         title: 'Geçersiz URL',
         message: 'URL formatı: https://ihalebul.com/tender/123456',
-        color: 'red'
+        color: 'red',
       });
       return;
     }
-    
+
     setActionLoading('addUrl');
     try {
       const res = await fetch(`${API_URL}/api/scraper/add-tender`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: tenderUrl.trim() })
+        body: JSON.stringify({ url: tenderUrl.trim() }),
       });
-      
+
       const data = await res.json();
-      
+
       if (data.success) {
         notifications.show({
           title: 'Başarılı!',
           message: `${data.data.isNew ? 'Yeni ihale eklendi' : 'İhale güncellendi'}: ${data.data.title?.substring(0, 50)}... (${data.data.documentCount} döküman)`,
-          color: 'green'
+          color: 'green',
         });
         setAddUrlModalOpen(false);
         setTenderUrl('');
@@ -311,14 +309,14 @@ export default function ScraperDashboardPage() {
         notifications.show({
           title: 'Hata',
           message: data.error || 'İhale eklenemedi',
-          color: 'red'
+          color: 'red',
         });
       }
     } catch (err: any) {
       notifications.show({
         title: 'Hata',
         message: err.message || 'Bağlantı hatası',
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setActionLoading(null);
@@ -341,7 +339,7 @@ export default function ScraperDashboardPage() {
       completed: 'green',
       failed: 'red',
       retry_pending: 'orange',
-      cancelled: 'gray'
+      cancelled: 'gray',
     };
     return colors[status] || 'gray';
   };
@@ -358,7 +356,7 @@ export default function ScraperDashboardPage() {
       completed: IconCircleCheck,
       failed: IconCircleX,
       retry_pending: IconRotateClockwise,
-      cancelled: IconPlayerStop
+      cancelled: IconPlayerStop,
     };
     const Icon = icons[status] || IconCircleCheck;
     return <Icon size={16} />;
@@ -381,7 +379,7 @@ export default function ScraperDashboardPage() {
       INFO: 'blue',
       WARN: 'yellow',
       ERROR: 'red',
-      FATAL: 'grape'
+      FATAL: 'grape',
     };
     return colors[level] || 'gray';
   };
@@ -410,7 +408,9 @@ export default function ScraperDashboardPage() {
               <IconArrowLeft size={20} />
             </ActionIcon>
             <div>
-              <Title order={1} size="h2" mb={4}>🕷️ Scraper Dashboard</Title>
+              <Title order={1} size="h2" mb={4}>
+                🕷️ Scraper Dashboard
+              </Title>
               <Text c="dimmed">İhale scraper durumu, istatistikler ve yönetim</Text>
             </div>
           </Group>
@@ -441,19 +441,15 @@ export default function ScraperDashboardPage() {
           <Card padding="lg" radius="md" withBorder>
             <Group justify="space-between" mb="md">
               <Text fw={500}>Circuit Breaker</Text>
-              <ThemeIcon 
-                variant="light" 
+              <ThemeIcon
+                variant="light"
                 color={getStatusColor(health?.status || 'unknown')}
                 size="lg"
               >
                 {getStatusIcon(health?.status || 'unknown')}
               </ThemeIcon>
             </Group>
-            <Badge 
-              color={getStatusColor(health?.status || 'unknown')} 
-              size="lg" 
-              fullWidth
-            >
+            <Badge color={getStatusColor(health?.status || 'unknown')} size="lg" fullWidth>
               {health?.status?.toUpperCase() || 'UNKNOWN'}
             </Badge>
             <Text size="xs" c="dimmed" mt="xs">
@@ -493,13 +489,17 @@ export default function ScraperDashboardPage() {
               </ThemeIcon>
             </Group>
             <Group gap="xs">
-              <Text size="xl" fw={700} c="red">{health?.failureCount || 0}</Text>
-              <Text size="sm" c="dimmed">/ {health?.failureThreshold || 5}</Text>
+              <Text size="xl" fw={700} c="red">
+                {health?.failureCount || 0}
+              </Text>
+              <Text size="sm" c="dimmed">
+                / {health?.failureThreshold || 5}
+              </Text>
             </Group>
-            <Progress 
-              value={((health?.failureCount || 0) / (health?.failureThreshold || 5)) * 100} 
-              color="red" 
-              size="sm" 
+            <Progress
+              value={((health?.failureCount || 0) / (health?.failureThreshold || 5)) * 100}
+              color="red"
+              size="sm"
               mt="xs"
             />
           </Card>
@@ -513,8 +513,12 @@ export default function ScraperDashboardPage() {
               </ThemeIcon>
             </Group>
             <Group gap="xs">
-              <Badge color="blue" variant="light">{stats?.summary.pending || 0} Bekleyen</Badge>
-              <Badge color="cyan" variant="light">{stats?.summary.processing || 0} İşlenen</Badge>
+              <Badge color="blue" variant="light">
+                {stats?.summary.pending || 0} Bekleyen
+              </Badge>
+              <Badge color="cyan" variant="light">
+                {stats?.summary.processing || 0} İşlenen
+              </Badge>
             </Group>
             <Text size="xs" c="dimmed" mt="xs">
               Toplam: {stats?.summary.total || 0} job
@@ -526,7 +530,9 @@ export default function ScraperDashboardPage() {
         <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
           {/* Son 24 Saat */}
           <Paper p="lg" radius="md" withBorder>
-            <Title order={4} mb="md">📊 Son 24 Saat</Title>
+            <Title order={4} mb="md">
+              📊 Son 24 Saat
+            </Title>
             <Group justify="center" mb="md">
               <RingProgress
                 size={120}
@@ -546,19 +552,29 @@ export default function ScraperDashboardPage() {
             </Group>
             <Group justify="center" gap="xl">
               <div style={{ textAlign: 'center' }}>
-                <Text size="xl" fw={700} c="green">{stats?.last24h.completed || 0}</Text>
-                <Text size="xs" c="dimmed">Başarılı</Text>
+                <Text size="xl" fw={700} c="green">
+                  {stats?.last24h.completed || 0}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Başarılı
+                </Text>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <Text size="xl" fw={700} c="red">{stats?.last24h.failed || 0}</Text>
-                <Text size="xs" c="dimmed">Başarısız</Text>
+                <Text size="xl" fw={700} c="red">
+                  {stats?.last24h.failed || 0}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Başarısız
+                </Text>
               </div>
             </Group>
           </Paper>
 
           {/* Queue Özeti */}
           <Paper p="lg" radius="md" withBorder>
-            <Title order={4} mb="md">📋 Queue Özeti</Title>
+            <Title order={4} mb="md">
+              📋 Queue Özeti
+            </Title>
             <Stack gap="xs">
               <Group justify="space-between">
                 <Text size="sm">Bekleyen</Text>
@@ -585,7 +601,9 @@ export default function ScraperDashboardPage() {
 
           {/* Kontroller */}
           <Paper p="lg" radius="md" withBorder>
-            <Title order={4} mb="md">🎮 Kontroller</Title>
+            <Title order={4} mb="md">
+              🎮 Kontroller
+            </Title>
             <Stack gap="sm">
               <Button
                 variant="gradient"
@@ -714,8 +732,8 @@ export default function ScraperDashboardPage() {
                             </Tooltip>
                           </Table.Td>
                           <Table.Td>
-                            <Badge 
-                              color={getStatusColor(job.status)} 
+                            <Badge
+                              color={getStatusColor(job.status)}
                               size="sm"
                               leftSection={getStatusIcon(job.status)}
                             >
@@ -732,7 +750,9 @@ export default function ScraperDashboardPage() {
                           <Table.Td>
                             {job.error_message && (
                               <Tooltip label={job.error_message}>
-                                <Badge color="red" size="xs">Hata</Badge>
+                                <Badge color="red" size="xs">
+                                  Hata
+                                </Badge>
                               </Tooltip>
                             )}
                           </Table.Td>
@@ -822,7 +842,7 @@ export default function ScraperDashboardPage() {
               { value: 'retry', label: '🔄 Başarısızları Tekrar Dene' },
             ]}
           />
-          
+
           {(triggerMode === 'list' || triggerMode === 'full') && (
             <NumberInput
               label="Sayfa Sayısı"
@@ -833,7 +853,7 @@ export default function ScraperDashboardPage() {
               max={50}
             />
           )}
-          
+
           {(triggerMode === 'docs' || triggerMode === 'retry') && (
             <NumberInput
               label="Limit"
@@ -844,14 +864,15 @@ export default function ScraperDashboardPage() {
               max={500}
             />
           )}
-          
+
           <Text size="xs" c="dimmed">
             {triggerMode === 'list' && 'Sadece ihale listesini tarar, dökümanlar ayrıca çekilir.'}
-            {triggerMode === 'full' && 'Liste tarar ve bulunan ihaleler için döküman job\'ları oluşturup işler.'}
-            {triggerMode === 'docs' && 'Bekleyen döküman job\'larını işler (login gerektirir).'}
-            {triggerMode === 'retry' && 'Başarısız olmuş job\'ları yeniden kuyruğa alır ve işler.'}
+            {triggerMode === 'full' &&
+              "Liste tarar ve bulunan ihaleler için döküman job'ları oluşturup işler."}
+            {triggerMode === 'docs' && "Bekleyen döküman job'larını işler (login gerektirir)."}
+            {triggerMode === 'retry' && "Başarısız olmuş job'ları yeniden kuyruğa alır ve işler."}
           </Text>
-          
+
           <Group justify="flex-end" mt="md">
             <Button variant="light" onClick={() => setTriggerModalOpen(false)}>
               İptal
@@ -872,7 +893,10 @@ export default function ScraperDashboardPage() {
       {/* URL ile İhale Ekleme Modal */}
       <Modal
         opened={addUrlModalOpen}
-        onClose={() => { setAddUrlModalOpen(false); setTenderUrl(''); }}
+        onClose={() => {
+          setAddUrlModalOpen(false);
+          setTenderUrl('');
+        }}
         title="URL ile İhale Ekle"
         centered
       >
@@ -885,7 +909,7 @@ export default function ScraperDashboardPage() {
             description="ihalebul.com üzerindeki ihale detay sayfasının URL'sini girin"
             leftSection={<IconLink size={16} />}
           />
-          
+
           <Paper p="sm" bg="gray.0" radius="md">
             <Text size="xs" c="dimmed">
               <strong>Örnek:</strong> https://ihalebul.com/tender/1768253602118
@@ -894,9 +918,15 @@ export default function ScraperDashboardPage() {
               Bu işlem ihale bilgilerini ve döküman linklerini otomatik olarak çeker.
             </Text>
           </Paper>
-          
+
           <Group justify="flex-end" mt="md">
-            <Button variant="light" onClick={() => { setAddUrlModalOpen(false); setTenderUrl(''); }}>
+            <Button
+              variant="light"
+              onClick={() => {
+                setAddUrlModalOpen(false);
+                setTenderUrl('');
+              }}
+            >
               İptal
             </Button>
             <Button

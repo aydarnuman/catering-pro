@@ -8,7 +8,7 @@ export interface Tender {
   status: 'active' | 'expired' | 'completed';
   created_at: string;
   updated_at: string;
-  
+
   // Backend column mapping
   external_id?: string;
   publish_date?: string;
@@ -21,7 +21,7 @@ export interface Tender {
   url?: string;
   detail_scraped?: boolean;
   scraped_at?: string;
-  
+
   // New fields from backend
   ikn?: string;
   work_name?: string;
@@ -42,7 +42,7 @@ export interface Tender {
   document_links?: Record<string, string>;
   has_announcement?: boolean;
   has_goods_services?: boolean;
-  
+
   // Güncelleme bilgileri
   is_updated?: boolean;
   last_update_date?: string;

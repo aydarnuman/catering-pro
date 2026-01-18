@@ -1,46 +1,43 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { API_BASE_URL } from '@/lib/config';
 import {
-  Modal,
+  ActionIcon,
+  Autocomplete,
+  Badge,
+  Box,
+  Button,
+  Center,
+  Divider,
   Group,
+  Loader,
+  Menu,
+  Modal,
+  NumberInput,
+  Paper,
+  ScrollArea,
+  Select,
+  SimpleGrid,
   Stack,
   Text,
   TextInput,
-  NumberInput,
-  Select,
-  Button,
-  ActionIcon,
-  Paper,
-  Badge,
-  Box,
-  ScrollArea,
-  Table,
-  Loader,
-  Center,
   ThemeIcon,
-  Divider,
-  SimpleGrid,
-  Tooltip,
-  Menu,
-  Autocomplete
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
-  IconPackage,
-  IconPlus,
-  IconTrash,
-  IconEdit,
-  IconSearch,
   IconCheck,
-  IconX,
   IconCurrencyLira,
   IconDotsVertical,
+  IconEdit,
   IconLink,
   IconLinkOff,
-  IconCategory
+  IconPackage,
+  IconPlus,
+  IconSearch,
+  IconTrash,
+  IconX,
 } from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 
 const API_URL = `${API_BASE_URL}/api`;
 
@@ -105,14 +102,14 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
   const [urunler, setUrunler] = useState<UrunKarti[]>([]);
   const [stokKartlari, setStokKartlari] = useState<StokKarti[]>([]);
   const [loading, setLoading] = useState(false);
-  
+
   // Filtreler
   const [aramaText, setAramaText] = useState('');
   const [selectedKategori, setSelectedKategori] = useState<string | null>(null);
-  
+
   // Seçili ürün
   const [selectedUrun, setSelectedUrun] = useState<UrunKarti | null>(null);
-  
+
   // Düzenleme/Yeni ekleme modu
   const [editMode, setEditMode] = useState(false);
   const [showYeniUrun, setShowYeniUrun] = useState(false);
@@ -122,9 +119,9 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
     varsayilan_birim: 'gr',
     stok_kart_id: null as number | null,
     manuel_fiyat: null as number | null,
-    fiyat_birimi: 'kg'
+    fiyat_birimi: 'kg',
   });
-  
+
   // Stok arama
   const [stokArama, setStokArama] = useState('');
 
@@ -135,6 +132,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
       fetchUrunler();
       fetchStokKartlari();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened]);
 
   // Kategorileri yükle
@@ -157,7 +155,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
       const params = new URLSearchParams();
       if (selectedKategori) params.append('kategori_id', selectedKategori);
       if (aramaText) params.append('arama', aramaText);
-      
+
       const res = await fetch(`${API_URL}/menu-planlama/urun-kartlari?${params}`);
       const result = await res.json();
       if (result.success) {
@@ -192,7 +190,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
       }, 300);
       return () => clearTimeout(timeout);
     }
-  }, [aramaText, selectedKategori, opened]);
+  }, [opened, fetchUrunler]);
 
   // Yeni ürün oluştur
   const handleYeniUrun = async () => {
@@ -207,14 +205,18 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          kategori_id: formData.kategori_id ? parseInt(formData.kategori_id) : null
-        })
+          kategori_id: formData.kategori_id ? parseInt(formData.kategori_id, 10) : null,
+        }),
       });
-      
+
       const result = await res.json();
-      
+
       if (result.success) {
-        notifications.show({ title: 'Başarılı', message: 'Ürün kartı oluşturuldu', color: 'green' });
+        notifications.show({
+          title: 'Başarılı',
+          message: 'Ürün kartı oluşturuldu',
+          color: 'green',
+        });
         setShowYeniUrun(false);
         resetForm();
         fetchUrunler();
@@ -238,14 +240,18 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          kategori_id: formData.kategori_id ? parseInt(formData.kategori_id) : null
-        })
+          kategori_id: formData.kategori_id ? parseInt(formData.kategori_id, 10) : null,
+        }),
       });
-      
+
       const result = await res.json();
-      
+
       if (result.success) {
-        notifications.show({ title: 'Başarılı', message: 'Ürün kartı güncellendi', color: 'green' });
+        notifications.show({
+          title: 'Başarılı',
+          message: 'Ürün kartı güncellendi',
+          color: 'green',
+        });
         setEditMode(false);
         fetchUrunler();
         fetchKategoriler();
@@ -266,16 +272,16 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
 
     try {
       const res = await fetch(`${API_URL}/menu-planlama/urun-kartlari/${urunId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       });
-      
+
       const result = await res.json();
-      
+
       if (result.success) {
-        notifications.show({ 
-          title: 'Başarılı', 
-          message: result.soft_deleted ? 'Ürün kartı pasife alındı' : 'Ürün kartı silindi', 
-          color: 'green' 
+        notifications.show({
+          title: 'Başarılı',
+          message: result.soft_deleted ? 'Ürün kartı pasife alındı' : 'Ürün kartı silindi',
+          color: 'green',
         });
         if (selectedUrun?.id === urunId) {
           setSelectedUrun(null);
@@ -299,7 +305,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
       varsayilan_birim: 'gr',
       stok_kart_id: null,
       manuel_fiyat: null,
-      fiyat_birimi: 'kg'
+      fiyat_birimi: 'kg',
     });
     setStokArama('');
   };
@@ -312,7 +318,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
       varsayilan_birim: urun.varsayilan_birim || 'gr',
       stok_kart_id: urun.stok_kart_id,
       manuel_fiyat: urun.manuel_fiyat,
-      fiyat_birimi: urun.fiyat_birimi || 'kg'
+      fiyat_birimi: urun.fiyat_birimi || 'kg',
     });
     setStokArama(urun.stok_kart_adi || '');
     setEditMode(true);
@@ -331,7 +337,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
     return new Intl.NumberFormat('tr-TR', {
       style: 'currency',
       currency: 'TRY',
-      minimumFractionDigits: 2
+      minimumFractionDigits: 2,
     }).format(value);
   };
 
@@ -344,24 +350,40 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
       onClose={onClose}
       title={
         <Group gap="sm">
-          <ThemeIcon size="lg" radius="xl" variant="gradient" gradient={{ from: 'violet', to: 'indigo' }}>
+          <ThemeIcon
+            size="lg"
+            radius="xl"
+            variant="gradient"
+            gradient={{ from: 'violet', to: 'indigo' }}
+          >
             <IconPackage size={20} />
           </ThemeIcon>
           <Box>
-            <Text fw={600} size="lg">Ürün Kartları</Text>
-            <Text size="xs" c="dimmed">Reçete malzemeleri için temiz ürün tanımları</Text>
+            <Text fw={600} size="lg">
+              Ürün Kartları
+            </Text>
+            <Text size="xs" c="dimmed">
+              Reçete malzemeleri için temiz ürün tanımları
+            </Text>
           </Box>
         </Group>
       }
       size="95%"
       styles={{
         body: { padding: 0 },
-        content: { height: '90vh' }
+        content: { height: '90vh' },
       }}
     >
       <Box style={{ display: 'flex', height: 'calc(90vh - 70px)' }}>
         {/* Sol Panel - Ürün Listesi */}
-        <Box style={{ width: 350, borderRight: '1px solid var(--mantine-color-default-border)', display: 'flex', flexDirection: 'column' }}>
+        <Box
+          style={{
+            width: 350,
+            borderRight: '1px solid var(--mantine-color-default-border)',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           {/* Arama ve Filtre */}
           <Box p="sm" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
             <Stack gap="xs">
@@ -374,9 +396,9 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
               />
               <Select
                 placeholder="Kategori seç"
-                data={kategoriler.map(k => ({ 
-                  value: k.id.toString(), 
-                  label: `${k.ikon} ${k.ad} (${k.urun_sayisi})` 
+                data={kategoriler.map((k) => ({
+                  value: k.id.toString(),
+                  label: `${k.ikon} ${k.ad} (${k.urun_sayisi})`,
                 }))}
                 value={selectedKategori}
                 onChange={setSelectedKategori}
@@ -401,7 +423,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
               </Button>
             </Stack>
           </Box>
-          
+
           {/* Ürün Listesi */}
           <ScrollArea style={{ flex: 1 }}>
             {loading ? (
@@ -410,7 +432,9 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
               </Center>
             ) : filteredUrunler.length === 0 ? (
               <Center py="xl">
-                <Text c="dimmed" size="sm">Ürün bulunamadı</Text>
+                <Text c="dimmed" size="sm">
+                  Ürün bulunamadı
+                </Text>
               </Center>
             ) : (
               <Stack gap={0}>
@@ -424,7 +448,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                         borderBottom: '1px solid var(--mantine-color-default-border)',
                         cursor: 'pointer',
                         background: isSelected ? 'var(--mantine-color-violet-light)' : undefined,
-                        transition: 'background 0.15s'
+                        transition: 'background 0.15s',
                       }}
                       onClick={() => {
                         handleUrunSec(urun);
@@ -436,7 +460,9 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                         <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
                           <Text size="lg">{urun.ikon || urun.kategori_ikon || '📦'}</Text>
                           <Box style={{ flex: 1, minWidth: 0 }}>
-                            <Text fw={500} size="sm" truncate>{urun.ad}</Text>
+                            <Text fw={500} size="sm" truncate>
+                              {urun.ad}
+                            </Text>
                             <Group gap={4}>
                               <Badge size="xs" variant="light" color="gray">
                                 {urun.kod}
@@ -451,9 +477,9 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                         </Group>
                         <Menu shadow="md" width={130} position="bottom-end">
                           <Menu.Target>
-                            <ActionIcon 
-                              variant="subtle" 
-                              color="gray" 
+                            <ActionIcon
+                              variant="subtle"
+                              color="gray"
                               size="sm"
                               onClick={(e) => e.stopPropagation()}
                             >
@@ -510,8 +536,8 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                   <Text fw={600} size="lg">
                     {editMode ? '✏️ Ürün Kartını Düzenle' : '➕ Yeni Ürün Kartı'}
                   </Text>
-                  <ActionIcon 
-                    variant="subtle" 
+                  <ActionIcon
+                    variant="subtle"
                     color="gray"
                     onClick={() => {
                       setShowYeniUrun(false);
@@ -536,9 +562,9 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                   <Select
                     label="Kategori"
                     placeholder="Kategori seç"
-                    data={kategoriler.map(k => ({ 
-                      value: k.id.toString(), 
-                      label: `${k.ikon} ${k.ad}` 
+                    data={kategoriler.map((k) => ({
+                      value: k.id.toString(),
+                      label: `${k.ikon} ${k.ad}`,
                     }))}
                     value={formData.kategori_id}
                     onChange={(val) => setFormData({ ...formData, kategori_id: val || '' })}
@@ -567,9 +593,9 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                     </Text>
                     <Autocomplete
                       placeholder="Stok kartı ara..."
-                      data={stokKartlari.map(sk => ({
+                      data={stokKartlari.map((sk) => ({
                         value: sk.ad,
-                        label: `${sk.kod} - ${sk.ad} (${formatMoney(sk.son_alis_fiyat)}/${sk.birim || 'kg'})`
+                        label: `${sk.kod} - ${sk.ad} (${formatMoney(sk.son_alis_fiyat)}/${sk.birim || 'kg'})`,
                       }))}
                       value={stokArama}
                       onChange={(val) => {
@@ -577,7 +603,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                         fetchStokKartlari(val);
                       }}
                       onOptionSubmit={(val) => {
-                        const selected = stokKartlari.find(sk => sk.ad === val);
+                        const selected = stokKartlari.find((sk) => sk.ad === val);
                         if (selected) {
                           setFormData({ ...formData, stok_kart_id: selected.id });
                           setStokArama(selected.ad);
@@ -589,9 +615,9 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                         <Badge color="green" leftSection={<IconCheck size={12} />}>
                           Stok kartı seçildi
                         </Badge>
-                        <Button 
-                          size="xs" 
-                          variant="subtle" 
+                        <Button
+                          size="xs"
+                          variant="subtle"
                           color="red"
                           onClick={() => {
                             setFormData({ ...formData, stok_kart_id: null });
@@ -616,7 +642,12 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                         label="Fiyat (₺)"
                         placeholder="0.00"
                         value={formData.manuel_fiyat || ''}
-                        onChange={(val) => setFormData({ ...formData, manuel_fiyat: typeof val === 'number' ? val : null })}
+                        onChange={(val) =>
+                          setFormData({
+                            ...formData,
+                            manuel_fiyat: typeof val === 'number' ? val : null,
+                          })
+                        }
                         min={0}
                         decimalScale={2}
                         disabled={!!formData.stok_kart_id}
@@ -658,12 +689,20 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
               <Stack gap="md">
                 <Group justify="space-between">
                   <Group gap="sm">
-                    <Text size="2rem">{selectedUrun.ikon || selectedUrun.kategori_ikon || '📦'}</Text>
+                    <Text size="2rem">
+                      {selectedUrun.ikon || selectedUrun.kategori_ikon || '📦'}
+                    </Text>
                     <Box>
-                      <Text fw={600} size="xl">{selectedUrun.ad}</Text>
+                      <Text fw={600} size="xl">
+                        {selectedUrun.ad}
+                      </Text>
                       <Group gap="xs">
-                        <Badge variant="light" color="violet">{selectedUrun.kod}</Badge>
-                        <Badge variant="light" color="gray">{selectedUrun.kategori_adi}</Badge>
+                        <Badge variant="light" color="violet">
+                          {selectedUrun.kod}
+                        </Badge>
+                        <Badge variant="light" color="gray">
+                          {selectedUrun.kategori_adi}
+                        </Badge>
                       </Group>
                     </Box>
                   </Group>
@@ -680,15 +719,31 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
 
                 <SimpleGrid cols={3}>
                   <Paper p="md" withBorder radius="md" ta="center">
-                    <Text size="xs" c="dimmed">Varsayılan Birim</Text>
-                    <Text fw={600} size="lg">{selectedUrun.varsayilan_birim?.toUpperCase()}</Text>
+                    <Text size="xs" c="dimmed">
+                      Varsayılan Birim
+                    </Text>
+                    <Text fw={600} size="lg">
+                      {selectedUrun.varsayilan_birim?.toUpperCase()}
+                    </Text>
                   </Paper>
                   <Paper p="md" withBorder radius="md" ta="center">
-                    <Text size="xs" c="dimmed">Fiyat Birimi</Text>
-                    <Text fw={600} size="lg">{selectedUrun.fiyat_birimi?.toUpperCase()}</Text>
+                    <Text size="xs" c="dimmed">
+                      Fiyat Birimi
+                    </Text>
+                    <Text fw={600} size="lg">
+                      {selectedUrun.fiyat_birimi?.toUpperCase()}
+                    </Text>
                   </Paper>
-                  <Paper p="md" withBorder radius="md" ta="center" bg={selectedUrun.guncel_fiyat ? 'green.0' : 'gray.0'}>
-                    <Text size="xs" c="dimmed">Güncel Fiyat</Text>
+                  <Paper
+                    p="md"
+                    withBorder
+                    radius="md"
+                    ta="center"
+                    bg={selectedUrun.guncel_fiyat ? 'green.0' : 'gray.0'}
+                  >
+                    <Text size="xs" c="dimmed">
+                      Güncel Fiyat
+                    </Text>
                     <Text fw={600} size="lg" c={selectedUrun.guncel_fiyat ? 'green' : 'dimmed'}>
                       {formatMoney(selectedUrun.guncel_fiyat)}
                     </Text>
@@ -700,20 +755,26 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                   <Group justify="space-between" mb="sm">
                     <Text fw={500}>
                       {selectedUrun.stok_kart_id ? (
-                        <><IconLink size={16} style={{ marginRight: 4 }} /> Bağlı Stok Kartı</>
+                        <>
+                          <IconLink size={16} style={{ marginRight: 4 }} /> Bağlı Stok Kartı
+                        </>
                       ) : (
-                        <><IconLinkOff size={16} style={{ marginRight: 4 }} /> Stok Kartı Bağlantısı Yok</>
+                        <>
+                          <IconLinkOff size={16} style={{ marginRight: 4 }} /> Stok Kartı Bağlantısı
+                          Yok
+                        </>
                       )}
                     </Text>
                   </Group>
-                  
+
                   {selectedUrun.stok_kart_id ? (
                     <Paper p="sm" withBorder bg="blue.0">
                       <Group justify="space-between">
                         <Box>
                           <Text fw={500}>{selectedUrun.stok_kart_adi}</Text>
                           <Text size="xs" c="dimmed">
-                            Stok fiyatı: {formatMoney(selectedUrun.stok_fiyat)}/{selectedUrun.stok_birim || 'kg'}
+                            Stok fiyatı: {formatMoney(selectedUrun.stok_fiyat)}/
+                            {selectedUrun.stok_birim || 'kg'}
                           </Text>
                         </Box>
                         <Badge color="green" size="lg">
@@ -723,8 +784,10 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                     </Paper>
                   ) : (
                     <Text size="sm" c="dimmed">
-                      Bu ürün kartı henüz bir stok kartı ile eşleştirilmemiş. 
-                      {selectedUrun.manuel_fiyat ? ' Manuel fiyat kullanılıyor.' : ' Fiyat bilgisi yok.'}
+                      Bu ürün kartı henüz bir stok kartı ile eşleştirilmemiş.
+                      {selectedUrun.manuel_fiyat
+                        ? ' Manuel fiyat kullanılıyor.'
+                        : ' Fiyat bilgisi yok.'}
                     </Text>
                   )}
                 </Paper>
@@ -735,7 +798,9 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                     <Group justify="space-between">
                       <Box>
                         <Text fw={500}>Manuel Fiyat</Text>
-                        <Text size="xs" c="dimmed">Elle girilen fiyat değeri</Text>
+                        <Text size="xs" c="dimmed">
+                          Elle girilen fiyat değeri
+                        </Text>
                       </Box>
                       <Text fw={600} size="lg" c="orange">
                         {formatMoney(selectedUrun.manuel_fiyat)}/{selectedUrun.fiyat_birimi}
@@ -752,7 +817,9 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                     <IconPackage size={40} />
                   </ThemeIcon>
                   <Box ta="center">
-                    <Text fw={500} size="lg">Ürün Kartı Seçin</Text>
+                    <Text fw={500} size="lg">
+                      Ürün Kartı Seçin
+                    </Text>
                     <Text c="dimmed" size="sm">
                       Sol listeden bir ürün seçin veya yeni ürün kartı oluşturun
                     </Text>

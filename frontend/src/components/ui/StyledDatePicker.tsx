@@ -1,28 +1,27 @@
 'use client';
 
-import { useState, useRef } from 'react';
 import {
-  TextInput,
-  Popover,
-  Paper,
-  Group,
-  Text,
-  Stack,
   ActionIcon,
-  SimpleGrid,
   Badge,
-  UnstyledButton,
   Box,
   Divider,
-  rem
+  Group,
+  Paper,
+  Popover,
+  SimpleGrid,
+  Stack,
+  Text,
+  TextInput,
+  UnstyledButton,
 } from '@mantine/core';
 import {
   IconCalendar,
+  IconCalendarEvent,
   IconChevronLeft,
   IconChevronRight,
   IconX,
-  IconCalendarEvent
 } from '@tabler/icons-react';
+import { useRef, useState } from 'react';
 import styles from './StyledDatePicker.module.css';
 
 interface StyledDatePickerProps {
@@ -42,8 +41,18 @@ interface StyledDatePickerProps {
 }
 
 const MONTHS_TR = [
-  'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-  'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+  'Ocak',
+  'Şubat',
+  'Mart',
+  'Nisan',
+  'Mayıs',
+  'Haziran',
+  'Temmuz',
+  'Ağustos',
+  'Eylül',
+  'Ekim',
+  'Kasım',
+  'Aralık',
 ];
 
 const DAYS_TR = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
@@ -61,7 +70,7 @@ export default function StyledDatePicker({
   disabled,
   size = 'sm',
   w,
-  style
+  style,
 }: StyledDatePickerProps) {
   const [opened, setOpened] = useState(false);
   const [viewDate, setViewDate] = useState(value || new Date());
@@ -73,7 +82,7 @@ export default function StyledDatePicker({
     return date.toLocaleDateString('tr-TR', {
       day: '2-digit',
       month: 'long',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
@@ -201,9 +210,11 @@ export default function StyledDatePicker({
     return (
       <SimpleGrid cols={3} spacing="xs">
         {MONTHS_TR.map((month, index) => {
-          const date = new Date(year, index, 1);
-          const isCurrentMonth = new Date().getMonth() === index && new Date().getFullYear() === year;
-          const isSelectedMonth = value && value.getMonth() === index && value.getFullYear() === year;
+          const _date = new Date(year, index, 1);
+          const isCurrentMonth =
+            new Date().getMonth() === index && new Date().getFullYear() === year;
+          const isSelectedMonth =
+            value && value.getMonth() === index && value.getFullYear() === year;
 
           return (
             <UnstyledButton
@@ -324,16 +335,11 @@ export default function StyledDatePicker({
               cursor: 'pointer',
               fontWeight: 500,
               '&:focus': {
-                borderColor: 'var(--mantine-color-blue-5)'
-              }
-            }
+                borderColor: 'var(--mantine-color-blue-5)',
+              },
+            },
           }}
-          leftSection={
-            <IconCalendar
-              size={18}
-              color="var(--mantine-color-blue-6)"
-            />
-          }
+          leftSection={<IconCalendar size={18} color="var(--mantine-color-blue-6)" />}
           rightSection={
             clearable && value ? (
               <ActionIcon
@@ -355,25 +361,17 @@ export default function StyledDatePicker({
           {/* Header */}
           <Paper p="sm" className={styles.header}>
             <Group justify="space-between" wrap="nowrap">
-              <ActionIcon
-                variant="subtle"
-                onClick={navigatePrev}
-                size="md"
-                radius="xl"
-              >
+              <ActionIcon variant="subtle" onClick={navigatePrev} size="md" radius="xl">
                 <IconChevronLeft size={18} />
               </ActionIcon>
 
               <UnstyledButton onClick={handleHeaderClick} className={styles.headerTitle}>
-                <Text fw={600} size="sm">{getHeaderText()}</Text>
+                <Text fw={600} size="sm">
+                  {getHeaderText()}
+                </Text>
               </UnstyledButton>
 
-              <ActionIcon
-                variant="subtle"
-                onClick={navigateNext}
-                size="md"
-                radius="xl"
-              >
+              <ActionIcon variant="subtle" onClick={navigateNext} size="md" radius="xl">
                 <IconChevronRight size={18} />
               </ActionIcon>
             </Group>
@@ -396,7 +394,9 @@ export default function StyledDatePicker({
               <UnstyledButton onClick={goToToday} className={styles.todayButton}>
                 <Group gap={4}>
                   <IconCalendarEvent size={14} />
-                  <Text size="xs" fw={500}>Bugün</Text>
+                  <Text size="xs" fw={500}>
+                    Bugün
+                  </Text>
                 </Group>
               </UnstyledButton>
 
@@ -441,7 +441,7 @@ export function StyledDateRangePicker({
   error,
   disabled,
   size = 'sm',
-  w
+  w,
 }: StyledDateRangePickerProps) {
   const [opened, setOpened] = useState(false);
   const [viewDate, setViewDate] = useState(value[0] || new Date());
@@ -568,11 +568,25 @@ export function StyledDateRangePicker({
         <Stack gap={0}>
           <Paper p="sm" className={styles.header}>
             <Group justify="space-between">
-              <ActionIcon variant="subtle" onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))} radius="xl">
+              <ActionIcon
+                variant="subtle"
+                onClick={() =>
+                  setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))
+                }
+                radius="xl"
+              >
                 <IconChevronLeft size={18} />
               </ActionIcon>
-              <Text fw={600} size="sm">{MONTHS_TR[viewDate.getMonth()]} {viewDate.getFullYear()}</Text>
-              <ActionIcon variant="subtle" onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))} radius="xl">
+              <Text fw={600} size="sm">
+                {MONTHS_TR[viewDate.getMonth()]} {viewDate.getFullYear()}
+              </Text>
+              <ActionIcon
+                variant="subtle"
+                onClick={() =>
+                  setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))
+                }
+                radius="xl"
+              >
                 <IconChevronRight size={18} />
               </ActionIcon>
             </Group>
@@ -583,7 +597,9 @@ export function StyledDateRangePicker({
           <Box p="sm">
             <SimpleGrid cols={7} spacing={0} mb="xs">
               {DAYS_TR.map((day) => (
-                <Text key={day} ta="center" size="xs" fw={600} c="dimmed" py={4}>{day}</Text>
+                <Text key={day} ta="center" size="xs" fw={600} c="dimmed" py={4}>
+                  {day}
+                </Text>
               ))}
             </SimpleGrid>
             <SimpleGrid cols={7} spacing={0}>

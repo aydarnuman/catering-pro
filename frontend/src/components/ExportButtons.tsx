@@ -1,28 +1,17 @@
 'use client';
 
-import { useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
+import { Alert, Button, Group, Menu, Modal, Select, Stack, Text, TextInput } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import {
-  Menu,
-  Button,
-  Modal,
-  TextInput,
-  Select,
-  Stack,
-  Group,
-  Text,
-  Loader,
-  Alert
-} from '@mantine/core';
-import {
+  IconCheck,
   IconDownload,
   IconFileSpreadsheet,
   IconFileTypePdf,
   IconMail,
-  IconCheck,
-  IconX
+  IconX,
 } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
+import { useState } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 
 interface ExportButtonsProps {
   type: 'personel' | 'fatura' | 'cari' | 'stok';
@@ -41,7 +30,7 @@ export function ExportButtons({ type, filters = {} }: ExportButtonsProps) {
     personel: 'Personel',
     fatura: 'Fatura',
     cari: 'Cari',
-    stok: 'Stok'
+    stok: 'Stok',
   };
 
   // Query string oluştur
@@ -61,7 +50,7 @@ export function ExportButtons({ type, filters = {} }: ExportButtonsProps) {
       title: 'Excel İndiriliyor',
       message: `${typeLabels[type]} listesi Excel olarak indiriliyor...`,
       color: 'green',
-      icon: <IconFileSpreadsheet size={18} />
+      icon: <IconFileSpreadsheet size={18} />,
     });
   };
 
@@ -73,7 +62,7 @@ export function ExportButtons({ type, filters = {} }: ExportButtonsProps) {
       title: 'PDF İndiriliyor',
       message: `${typeLabels[type]} listesi PDF olarak indiriliyor...`,
       color: 'blue',
-      icon: <IconFileTypePdf size={18} />
+      icon: <IconFileTypePdf size={18} />,
     });
   };
 
@@ -83,7 +72,7 @@ export function ExportButtons({ type, filters = {} }: ExportButtonsProps) {
       notifications.show({
         title: 'Hata',
         message: 'Geçerli bir e-posta adresi girin',
-        color: 'red'
+        color: 'red',
       });
       return;
     }
@@ -96,8 +85,8 @@ export function ExportButtons({ type, filters = {} }: ExportButtonsProps) {
         body: JSON.stringify({
           email,
           format,
-          ...filters
-        })
+          ...filters,
+        }),
       });
 
       const data = await response.json();
@@ -107,7 +96,7 @@ export function ExportButtons({ type, filters = {} }: ExportButtonsProps) {
           title: 'Mail Gönderildi',
           message: `${typeLabels[type]} listesi ${email} adresine gönderildi`,
           color: 'green',
-          icon: <IconCheck size={18} />
+          icon: <IconCheck size={18} />,
         });
         setMailModalOpen(false);
         setEmail('');
@@ -119,7 +108,7 @@ export function ExportButtons({ type, filters = {} }: ExportButtonsProps) {
         title: 'Hata',
         message: error.message || 'Mail gönderilemedi',
         color: 'red',
-        icon: <IconX size={18} />
+        icon: <IconX size={18} />,
       });
     } finally {
       setLoading(false);
@@ -130,34 +119,30 @@ export function ExportButtons({ type, filters = {} }: ExportButtonsProps) {
     <>
       <Menu shadow="md" width={200}>
         <Menu.Target>
-          <Button
-            variant="light"
-            leftSection={<IconDownload size={16} />}
-            size="sm"
-          >
+          <Button variant="light" leftSection={<IconDownload size={16} />} size="sm">
             Dışa Aktar
           </Button>
         </Menu.Target>
 
         <Menu.Dropdown>
           <Menu.Label>Dışa Aktarım Formatı</Menu.Label>
-          
+
           <Menu.Item
             leftSection={<IconFileSpreadsheet size={16} color="green" />}
             onClick={handleExcelDownload}
           >
             Excel (.xlsx)
           </Menu.Item>
-          
+
           <Menu.Item
             leftSection={<IconFileTypePdf size={16} color="red" />}
             onClick={handlePdfDownload}
           >
             PDF
           </Menu.Item>
-          
+
           <Menu.Divider />
-          
+
           <Menu.Item
             leftSection={<IconMail size={16} color="blue" />}
             onClick={() => setMailModalOpen(true)}
@@ -182,32 +167,28 @@ export function ExportButtons({ type, filters = {} }: ExportButtonsProps) {
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-          
+
           <Select
             label="Format"
             value={format}
             onChange={(val) => setFormat(val || 'excel')}
             data={[
               { value: 'excel', label: 'Excel (.xlsx)' },
-              { value: 'pdf', label: 'PDF' }
+              { value: 'pdf', label: 'PDF' },
             ]}
           />
-          
+
           <Alert color="blue" variant="light">
             <Text size="sm">
               {typeLabels[type]} listesi seçilen formatta e-posta adresinize gönderilecek.
             </Text>
           </Alert>
-          
+
           <Group justify="flex-end" mt="md">
             <Button variant="default" onClick={() => setMailModalOpen(false)}>
               İptal
             </Button>
-            <Button
-              onClick={handleMailSend}
-              loading={loading}
-              leftSection={<IconMail size={16} />}
-            >
+            <Button onClick={handleMailSend} loading={loading} leftSection={<IconMail size={16} />}>
               Gönder
             </Button>
           </Group>
@@ -216,4 +197,3 @@ export function ExportButtons({ type, filters = {} }: ExportButtonsProps) {
     </>
   );
 }
-

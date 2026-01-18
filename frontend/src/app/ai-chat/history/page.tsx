@@ -1,19 +1,43 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { 
-  Container, Title, Text, Stack, Paper, Group, Badge, 
-  ActionIcon, TextInput, Button, Card, Loader, Center,
-  Modal, ScrollArea, Avatar, Tooltip, Divider, Box
+import {
+  ActionIcon,
+  Avatar,
+  Badge,
+  Box,
+  Button,
+  Card,
+  Center,
+  Container,
+  Divider,
+  Group,
+  Loader,
+  Modal,
+  Paper,
+  ScrollArea,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+  Tooltip,
 } from '@mantine/core';
-import { 
-  IconHistory, IconSearch, IconTrash, IconEye, 
-  IconRobot, IconUser, IconArrowLeft, IconRefresh,
-  IconCalendar, IconMessage, IconTool
-} from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
-import { API_BASE_URL } from '@/lib/config';
+import {
+  IconArrowLeft,
+  IconCalendar,
+  IconEye,
+  IconHistory,
+  IconMessage,
+  IconRefresh,
+  IconRobot,
+  IconSearch,
+  IconTool,
+  IconTrash,
+  IconUser,
+} from '@tabler/icons-react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 
 const API_URL = `${API_BASE_URL}/api`;
 
@@ -55,21 +79,21 @@ export default function ChatHistoryPage() {
       setLoading(true);
       const response = await fetch(`${API_URL}/ai/conversations?limit=100`);
       const data = await response.json();
-      
+
       if (data.success) {
         setConversations(data.conversations);
       } else {
         notifications.show({
           title: 'Hata',
           message: data.error || 'Geçmiş yüklenemedi',
-          color: 'red'
+          color: 'red',
         });
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: 'Hata',
         message: 'Sunucuya bağlanılamadı',
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setLoading(false);
@@ -78,7 +102,7 @@ export default function ChatHistoryPage() {
 
   useEffect(() => {
     fetchConversations();
-  }, []);
+  }, [fetchConversations]);
 
   // Arama
   const handleSearch = async () => {
@@ -86,31 +110,33 @@ export default function ChatHistoryPage() {
       notifications.show({
         title: 'Uyarı',
         message: 'En az 2 karakter girin',
-        color: 'yellow'
+        color: 'yellow',
       });
       return;
     }
 
     try {
       setSearching(true);
-      const response = await fetch(`${API_URL}/ai/conversations/search?q=${encodeURIComponent(searchQuery)}&limit=50`);
+      const response = await fetch(
+        `${API_URL}/ai/conversations/search?q=${encodeURIComponent(searchQuery)}&limit=50`
+      );
       const data = await response.json();
-      
+
       if (data.success) {
         setSearchResults(data.results);
         if (data.results.length === 0) {
           notifications.show({
             title: 'Sonuç Yok',
             message: 'Aramanızla eşleşen sonuç bulunamadı',
-            color: 'blue'
+            color: 'blue',
           });
         }
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: 'Hata',
         message: 'Arama yapılamadı',
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setSearching(false);
@@ -123,24 +149,24 @@ export default function ChatHistoryPage() {
       setLoadingSession(true);
       setSelectedSession(sessionId);
       setDetailModalOpen(true);
-      
+
       const response = await fetch(`${API_URL}/ai/conversations/${sessionId}`);
       const data = await response.json();
-      
+
       if (data.success) {
         setSessionMessages(data.messages);
       } else {
         notifications.show({
           title: 'Hata',
           message: data.error || 'Oturum yüklenemedi',
-          color: 'red'
+          color: 'red',
         });
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: 'Hata',
         message: 'Oturum detayı yüklenemedi',
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setLoadingSession(false);
@@ -155,15 +181,15 @@ export default function ChatHistoryPage() {
 
     try {
       const response = await fetch(`${API_URL}/ai/conversations/${sessionId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       });
       const data = await response.json();
-      
+
       if (data.success) {
         notifications.show({
           title: 'Başarılı',
           message: `${data.deletedCount} mesaj silindi`,
-          color: 'green'
+          color: 'green',
         });
         fetchConversations();
         if (selectedSession === sessionId) {
@@ -173,14 +199,14 @@ export default function ChatHistoryPage() {
         notifications.show({
           title: 'Hata',
           message: data.error || 'Silinemedi',
-          color: 'red'
+          color: 'red',
         });
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: 'Hata',
         message: 'Silme işlemi başarısız',
-        color: 'red'
+        color: 'red',
       });
     }
   };
@@ -193,7 +219,7 @@ export default function ChatHistoryPage() {
       month: 'short',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
@@ -202,11 +228,11 @@ export default function ChatHistoryPage() {
     const date = new Date(dateStr);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
-    
+
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
-    
+
     if (minutes < 60) return `${minutes} dk önce`;
     if (hours < 24) return `${hours} saat önce`;
     if (days < 7) return `${days} gün önce`;
@@ -219,12 +245,7 @@ export default function ChatHistoryPage() {
         {/* Header */}
         <Group justify="space-between">
           <Group gap="md">
-            <ActionIcon 
-              component={Link} 
-              href="/ai-chat" 
-              variant="subtle" 
-              size="lg"
-            >
+            <ActionIcon component={Link} href="/ai-chat" variant="subtle" size="lg">
               <IconArrowLeft size={20} />
             </ActionIcon>
             <div>
@@ -237,7 +258,7 @@ export default function ChatHistoryPage() {
               </Text>
             </div>
           </Group>
-          
+
           <Group gap="xs">
             <Tooltip label="Yenile">
               <ActionIcon variant="light" onClick={fetchConversations} loading={loading}>
@@ -261,19 +282,11 @@ export default function ChatHistoryPage() {
               onChange={(e) => setSearchQuery(e.currentTarget.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             />
-            <Button 
-              onClick={handleSearch} 
-              loading={searching}
-              disabled={searchQuery.length < 2}
-            >
+            <Button onClick={handleSearch} loading={searching} disabled={searchQuery.length < 2}>
               Ara
             </Button>
             {searchResults.length > 0 && (
-              <Button 
-                variant="subtle" 
-                color="gray"
-                onClick={() => setSearchResults([])}
-              >
+              <Button variant="subtle" color="gray" onClick={() => setSearchResults([])}>
                 Temizle
               </Button>
             )}
@@ -288,9 +301,9 @@ export default function ChatHistoryPage() {
             </Text>
             <Stack gap="xs">
               {searchResults.map((result) => (
-                <Card 
-                  key={result.id} 
-                  p="sm" 
+                <Card
+                  key={result.id}
+                  p="sm"
                   withBorder
                   style={{ cursor: 'pointer' }}
                   onClick={() => viewSession(result.session_id)}
@@ -299,7 +312,9 @@ export default function ChatHistoryPage() {
                     <Badge size="xs" color={result.role === 'user' ? 'blue' : 'violet'}>
                       {result.role === 'user' ? 'Siz' : 'AI'}
                     </Badge>
-                    <Text size="xs" c="dimmed">{formatDate(result.created_at)}</Text>
+                    <Text size="xs" c="dimmed">
+                      {formatDate(result.created_at)}
+                    </Text>
                   </Group>
                   <Text size="sm" lineClamp={2}>
                     {result.content}
@@ -318,7 +333,9 @@ export default function ChatHistoryPage() {
         ) : conversations.length === 0 ? (
           <Paper p="xl" withBorder ta="center">
             <IconHistory size={48} color="gray" style={{ opacity: 0.5 }} />
-            <Text c="dimmed" mt="md">Henüz sohbet geçmişi yok</Text>
+            <Text c="dimmed" mt="md">
+              Henüz sohbet geçmişi yok
+            </Text>
             <Button component={Link} href="/ai-chat" mt="md">
               İlk Sohbeti Başlat
             </Button>
@@ -328,23 +345,25 @@ export default function ChatHistoryPage() {
             <Text c="dimmed" size="sm">
               Toplam {conversations.length} oturum
             </Text>
-            
+
             {conversations.map((conv) => (
               <Card key={conv.session_id} p="md" withBorder>
                 <Group justify="space-between" wrap="nowrap">
                   <Box style={{ flex: 1, minWidth: 0 }}>
                     <Group gap="xs" mb={4}>
                       <IconCalendar size={14} color="gray" />
-                      <Text size="xs" c="dimmed">{getTimeAgo(conv.last_message_at)}</Text>
+                      <Text size="xs" c="dimmed">
+                        {getTimeAgo(conv.last_message_at)}
+                      </Text>
                       <Badge size="xs" variant="light">
                         {conv.message_count} mesaj
                       </Badge>
                     </Group>
-                    
+
                     <Text size="sm" fw={500} lineClamp={1} mb={4}>
                       {conv.preview || conv.first_user_message || 'Boş oturum'}
                     </Text>
-                    
+
                     <Group gap="xs">
                       <Badge size="xs" color="blue" variant="dot">
                         {conv.user_messages} soru
@@ -354,11 +373,11 @@ export default function ChatHistoryPage() {
                       </Badge>
                     </Group>
                   </Box>
-                  
+
                   <Group gap="xs">
                     <Tooltip label="Görüntüle">
-                      <ActionIcon 
-                        variant="light" 
+                      <ActionIcon
+                        variant="light"
                         color="blue"
                         onClick={() => viewSession(conv.session_id)}
                       >
@@ -366,8 +385,8 @@ export default function ChatHistoryPage() {
                       </ActionIcon>
                     </Tooltip>
                     <Tooltip label="Sil">
-                      <ActionIcon 
-                        variant="light" 
+                      <ActionIcon
+                        variant="light"
                         color="red"
                         onClick={() => deleteSession(conv.session_id)}
                       >
@@ -404,9 +423,9 @@ export default function ChatHistoryPage() {
               <Text size="sm" c="dimmed">
                 {sessionMessages.length} mesaj
               </Text>
-              <Button 
-                size="xs" 
-                color="red" 
+              <Button
+                size="xs"
+                color="red"
                 variant="light"
                 leftSection={<IconTrash size={14} />}
                 onClick={() => selectedSession && deleteSession(selectedSession)}
@@ -414,21 +433,17 @@ export default function ChatHistoryPage() {
                 Oturumu Sil
               </Button>
             </Group>
-            
+
             <Divider />
-            
+
             <ScrollArea h={400}>
               <Stack gap="md">
                 {sessionMessages.map((msg) => (
                   <Group key={msg.id} align="flex-start" gap="sm" wrap="nowrap">
-                    <Avatar 
-                      size="sm" 
-                      color={msg.role === 'user' ? 'blue' : 'violet'} 
-                      radius="xl"
-                    >
+                    <Avatar size="sm" color={msg.role === 'user' ? 'blue' : 'violet'} radius="xl">
                       {msg.role === 'user' ? <IconUser size={14} /> : <IconRobot size={14} />}
                     </Avatar>
-                    
+
                     <Box style={{ flex: 1 }}>
                       <Group gap="xs" mb={4}>
                         <Text size="xs" fw={500}>
@@ -438,17 +453,13 @@ export default function ChatHistoryPage() {
                           {formatDate(msg.created_at)}
                         </Text>
                       </Group>
-                      
-                      <Paper 
-                        p="sm" 
-                        bg={msg.role === 'user' ? 'blue.0' : 'violet.0'} 
-                        radius="md"
-                      >
+
+                      <Paper p="sm" bg={msg.role === 'user' ? 'blue.0' : 'violet.0'} radius="md">
                         <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
                           {msg.content}
                         </Text>
                       </Paper>
-                      
+
                       {msg.tools_used && msg.tools_used.length > 0 && (
                         <Group gap={4} mt={4}>
                           <IconTool size={12} color="gray" />

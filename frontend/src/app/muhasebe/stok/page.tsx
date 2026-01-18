@@ -1,86 +1,65 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { API_BASE_URL } from '@/lib/config';
 import {
-  Container,
-  Title,
-  Text,
-  Card,
-  Group,
-  Stack,
-  SimpleGrid,
-  Grid,
-  ThemeIcon,
-  Badge,
-  Button,
-  Box,
-  Table,
   ActionIcon,
-  TextInput,
-  Select,
+  Alert,
+  Badge,
+  Box,
+  Button,
+  Card,
+  Checkbox,
+  Container,
+  Divider,
+  Grid,
+  Group,
+  LoadingOverlay,
+  Menu,
   Modal,
   NumberInput,
-  Textarea,
-  Tabs,
-  useMantineColorScheme,
   Paper,
-  Menu,
-  rem,
-  Progress,
-  RingProgress,
-  Alert,
-  LoadingOverlay,
-  Divider,
-  Checkbox
+  Select,
+  SimpleGrid,
+  Stack,
+  Table,
+  Tabs,
+  Text,
+  Textarea,
+  TextInput,
+  ThemeIcon,
+  Title,
+  useMantineColorScheme,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
-  IconPlus,
-  IconSearch,
-  IconPackage,
-  IconPackages,
-  IconAlertTriangle,
-  IconEdit,
-  IconTrash,
-  IconDotsVertical,
-  IconCheck,
-  IconTrendingUp,
-  IconTrendingDown,
-  IconArrowsExchange,
-  IconBarcode,
-  IconCategory,
-  IconChartBar,
-  IconBuilding,
-  IconRefresh,
-  IconTruck,
-  IconX,
   IconAlertCircle,
-  IconFileInvoice,
-  IconLink,
-  IconLinkOff,
+  IconAlertTriangle,
+  IconArrowsExchange,
+  IconBuilding,
+  IconCategory,
+  IconCheck,
   IconChevronDown,
   IconClipboardList,
+  IconFileInvoice,
   IconHistory,
-  IconCalendar,
-  IconShoppingCart
+  IconLink,
+  IconLinkOff,
+  IconPackage,
+  IconPackages,
+  IconPlus,
+  IconRefresh,
+  IconSearch,
+  IconShoppingCart,
+  IconTrash,
+  IconTrendingDown,
+  IconTrendingUp,
+  IconX,
 } from '@tabler/icons-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell
-} from 'recharts';
+import { Suspense, useEffect, useState } from 'react';
 import { DataActions } from '@/components/DataActions';
 import { usePermissions } from '@/hooks/usePermissions';
+import { API_BASE_URL } from '@/lib/config';
 
 // API URL
 const API_URL = `${API_BASE_URL}/api`;
@@ -152,18 +131,27 @@ interface Birim {
   tip: string;
 }
 
-const COLORS = ['#4dabf7', '#51cf66', '#ff922b', '#ff6b6b', '#845ef7', '#339af0', '#20c997', '#f06595'];
+const _COLORS = [
+  '#4dabf7',
+  '#51cf66',
+  '#ff922b',
+  '#ff6b6b',
+  '#845ef7',
+  '#339af0',
+  '#20c997',
+  '#f06595',
+];
 
 function StokPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === 'dark';
-  
+  const _isDark = colorScheme === 'dark';
+
   // === YETKİ KONTROLÜ ===
   const { canCreate, canEdit, canDelete, isSuperAdmin } = usePermissions();
   const canCreateStok = isSuperAdmin || canCreate('stok');
-  const canEditStok = isSuperAdmin || canEdit('stok');
+  const _canEditStok = isSuperAdmin || canEdit('stok');
   const canDeleteStok = isSuperAdmin || canDelete('stok');
   const [opened, { open, close }] = useDisclosure(false);
   const [transferOpened, { open: openTransfer, close: closeTransfer }] = useDisclosure(false);
@@ -171,7 +159,7 @@ function StokPageContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Data states
   const [stoklar, setStoklar] = useState<StokItem[]>([]);
   const [tumStokSayisi, setTumStokSayisi] = useState<number>(0); // Toplam stok kartı sayısı
@@ -182,7 +170,7 @@ function StokPageContent() {
   const [selectedLokasyon, setSelectedLokasyon] = useState<number | null>(null);
   const [selectedStoklar, setSelectedStoklar] = useState<number[]>([]);
   const [lokasyonlar, setLokasyonlar] = useState<any[]>([]);
-  const [selectedStok, setSelectedStok] = useState<StokItem | null>(null);
+  const [_selectedStok, setSelectedStok] = useState<StokItem | null>(null);
 
   // Transfer form
   const [transferForm, setTransferForm] = useState({
@@ -191,9 +179,9 @@ function StokPageContent() {
     hedef_depo_id: 0,
     miktar: 0,
     belge_no: '',
-    aciklama: ''
+    aciklama: '',
   });
-  
+
   // Yeni ürün formu
   const [urunForm, setUrunForm] = useState({
     kod: '',
@@ -205,9 +193,9 @@ function StokPageContent() {
     max_stok: 0,
     son_alis_fiyat: 0,
     kdv_orani: 18,
-    aciklama: ''
+    aciklama: '',
   });
-  
+
   // Depo yönetimi state'leri
   const [depoModalOpened, setDepoModalOpened] = useState(false);
   const [editingDepo, setEditingDepo] = useState<Depo | null>(null);
@@ -219,18 +207,18 @@ function StokPageContent() {
     telefon: '',
     email: '',
     yetkili: '',
-    kapasite_m3: 0
+    kapasite_m3: 0,
   });
-  
+
   // Faturadan stok girişi state'leri
   const [faturaModalOpened, setFaturaModalOpened] = useState(false);
-  
+
   // Yeni modal state'leri
   const [stokGirisModalOpened, setStokGirisModalOpened] = useState(false);
   const [stokCikisModalOpened, setStokCikisModalOpened] = useState(false);
   const [sayimModalOpened, setSayimModalOpened] = useState(false);
   const [hareketlerModalOpened, setHareketlerModalOpened] = useState(false);
-  
+
   // Stok girişi form state
   const [girisForm, setGirisForm] = useState({
     stok_kart_id: null as number | null,
@@ -238,35 +226,35 @@ function StokPageContent() {
     miktar: 0,
     birim_fiyat: 0,
     giris_tipi: 'SATIN_ALMA',
-    aciklama: ''
+    aciklama: '',
   });
-  
+
   // Stok çıkışı form state
   const [cikisForm, setCikisForm] = useState({
     stok_kart_id: null as number | null,
     depo_id: null as number | null,
     miktar: 0,
     cikis_tipi: 'TUKETIM',
-    aciklama: ''
+    aciklama: '',
   });
-  
+
   // Stok hareketleri state
   const [hareketler, setHareketler] = useState<any[]>([]);
   const [hareketlerLoading, setHareketlerLoading] = useState(false);
-  
+
   // Sayım state
   const [sayimDepoId, setSayimDepoId] = useState<number | null>(null);
-  const [sayimVerileri, setSayimVerileri] = useState<{[key: number]: number}>({});
+  const [sayimVerileri, setSayimVerileri] = useState<{ [key: number]: number }>({});
   const [faturalar, setFaturalar] = useState<any[]>([]);
   const [faturaLoading, setFaturaLoading] = useState(false);
   const [selectedFatura, setSelectedFatura] = useState<any>(null);
   const [faturaKalemler, setFaturaKalemler] = useState<any[]>([]);
   const [faturaGirisDepo, setFaturaGirisDepo] = useState<number | null>(null);
-  const [kalemEslestirme, setKalemEslestirme] = useState<{[key: number]: number | null}>({});
+  const [kalemEslestirme, setKalemEslestirme] = useState<{ [key: number]: number | null }>({});
 
   // Depo yönetimi fonksiyonları
-  const handleEditDepo = (depoId: number) => {
-    const depo = depolar.find(d => d.id === depoId);
+  const _handleEditDepo = (depoId: number) => {
+    const depo = depolar.find((d) => d.id === depoId);
     if (depo) {
       setEditingDepo(depo);
       setDepoForm({
@@ -277,7 +265,7 @@ function StokPageContent() {
         telefon: depo.telefon || '',
         email: depo.email || '',
         yetkili: depo.yetkili || '',
-        kapasite_m3: depo.kapasite_m3 || 0
+        kapasite_m3: depo.kapasite_m3 || 0,
       });
       setDepoModalOpened(true);
     }
@@ -286,16 +274,16 @@ function StokPageContent() {
   const handleSaveDepo = async () => {
     try {
       setLoading(true);
-      const url = editingDepo 
+      const url = editingDepo
         ? `${API_URL}/stok/depolar/${editingDepo.id}`
         : `${API_URL}/stok/depolar`;
-      
+
       const method = editingDepo ? 'PUT' : 'POST';
-      
+
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(depoForm)
+        body: JSON.stringify(depoForm),
       });
 
       if (!res.ok) {
@@ -306,7 +294,7 @@ function StokPageContent() {
       notifications.show({
         title: 'Başarılı',
         message: editingDepo ? 'Depo güncellendi' : 'Depo eklendi',
-        color: 'green'
+        color: 'green',
       });
 
       setDepoModalOpened(false);
@@ -319,15 +307,15 @@ function StokPageContent() {
         telefon: '',
         email: '',
         yetkili: '',
-        kapasite_m3: 0
+        kapasite_m3: 0,
       });
-      
+
       await loadData();
     } catch (error: any) {
       notifications.show({
         title: 'Hata',
         message: error?.message || 'Bir hata oluştu',
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setLoading(false);
@@ -336,11 +324,11 @@ function StokPageContent() {
 
   const handleDeleteDepo = async (depoId: number) => {
     if (!confirm('Bu depoyu silmek istediğinizden emin misiniz?')) return;
-    
+
     try {
       setLoading(true);
       const res = await fetch(`${API_URL}/stok/depolar/${depoId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       });
 
       if (!res.ok) {
@@ -351,7 +339,7 @@ function StokPageContent() {
       notifications.show({
         title: 'Başarılı',
         message: 'Depo silindi',
-        color: 'green'
+        color: 'green',
       });
 
       await loadData();
@@ -359,7 +347,7 @@ function StokPageContent() {
       notifications.show({
         title: 'Hata',
         message: error.message,
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setLoading(false);
@@ -376,7 +364,7 @@ function StokPageContent() {
         fetch(`${API_URL}/stok/kartlar?limit=100`),
         fetch(`${API_URL}/stok/depolar`),
         fetch(`${API_URL}/stok/kategoriler`),
-        fetch(`${API_URL}/stok/birimler`)
+        fetch(`${API_URL}/stok/birimler`),
       ]);
 
       if (!stokRes.ok || !depoRes.ok || !katRes.ok || !birimRes.ok) {
@@ -387,7 +375,7 @@ function StokPageContent() {
         stokRes.json(),
         depoRes.json(),
         katRes.json(),
-        birimRes.json()
+        birimRes.json(),
       ]);
 
       const stokList = stokData.data || [];
@@ -396,7 +384,6 @@ function StokPageContent() {
       setDepolar(depoData.data || []);
       setKategoriler(katData.data || []);
       setBirimler(birimData.data || []);
-
     } catch (err) {
       console.error('Veri yükleme hatası:', err);
       setError('Veriler yüklenirken hata oluştu');
@@ -404,7 +391,7 @@ function StokPageContent() {
         title: 'Hata',
         message: 'Veriler yüklenemedi',
         color: 'red',
-        icon: <IconAlertCircle />
+        icon: <IconAlertCircle />,
       });
     } finally {
       setLoading(false);
@@ -417,18 +404,18 @@ function StokPageContent() {
     try {
       setSelectedDepo(depoId);
       setSelectedLokasyon(null);
-      
+
       // Lokasyonları yükle
       const lokRes = await fetch(`${API_URL}/stok/depolar/${depoId}/lokasyonlar`);
       const lokResult = await lokRes.json();
       if (lokResult.success) {
         setLokasyonlar(lokResult.data || []);
       }
-      
+
       // Stokları yükle
       const response = await fetch(`${API_URL}/stok/depolar/${depoId}/stoklar`);
       const result = await response.json();
-      
+
       if (result.success) {
         setStoklar(result.data || []);
       }
@@ -437,22 +424,22 @@ function StokPageContent() {
       notifications.show({
         title: 'Hata',
         message: 'Depo stokları yüklenemedi',
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setLoading(false);
     }
   };
-  
+
   // Lokasyon stoklarını yükle
   const loadLokasyonStoklar = async (lokasyonId: number) => {
     setLoading(true);
     try {
       setSelectedLokasyon(lokasyonId);
-      
+
       const response = await fetch(`${API_URL}/stok/lokasyonlar/${lokasyonId}/stoklar`);
       const result = await response.json();
-      
+
       if (result.success) {
         setStoklar(result.data || []);
       }
@@ -461,7 +448,7 @@ function StokPageContent() {
       notifications.show({
         title: 'Hata',
         message: 'Lokasyon stokları yüklenemedi',
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setLoading(false);
@@ -472,24 +459,24 @@ function StokPageContent() {
   const handleDeleteStok = async (stokId: number) => {
     try {
       setLoading(true);
-      
+
       const res = await fetch(`${API_URL}/stok/kartlar/${stokId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       });
-      
+
       const result = await res.json();
-      
+
       if (!res.ok) {
         throw new Error(result.error || 'Silme işlemi başarısız');
       }
-      
+
       notifications.show({
         title: 'Başarılı',
         message: 'Ürün silindi',
         color: 'green',
-        icon: <IconCheck />
+        icon: <IconCheck />,
       });
-      
+
       // Listeyi yenile
       await loadData();
     } catch (error: any) {
@@ -497,7 +484,7 @@ function StokPageContent() {
         title: 'Hata',
         message: error.message,
         color: 'red',
-        icon: <IconX />
+        icon: <IconX />,
       });
     } finally {
       setLoading(false);
@@ -507,20 +494,20 @@ function StokPageContent() {
   // Toplu stok sil
   const handleBulkDelete = async () => {
     if (selectedStoklar.length === 0) return;
-    
+
     if (!confirm(`${selectedStoklar.length} ürünü silmek istediğinizden emin misiniz?`)) {
       return;
     }
-    
+
     try {
       setLoading(true);
       let basarili = 0;
       let hatali = 0;
-      
+
       for (const stokId of selectedStoklar) {
         try {
           const res = await fetch(`${API_URL}/stok/kartlar/${stokId}`, {
-            method: 'DELETE'
+            method: 'DELETE',
           });
           if (res.ok) basarili++;
           else hatali++;
@@ -528,14 +515,14 @@ function StokPageContent() {
           hatali++;
         }
       }
-      
+
       notifications.show({
         title: 'Toplu Silme Tamamlandı',
         message: `${basarili} ürün silindi${hatali > 0 ? `, ${hatali} hata` : ''}`,
         color: hatali > 0 ? 'yellow' : 'green',
-        icon: <IconCheck />
+        icon: <IconCheck />,
       });
-      
+
       setSelectedStoklar([]);
       await loadData();
     } catch (error: any) {
@@ -543,7 +530,7 @@ function StokPageContent() {
         title: 'Hata',
         message: error.message,
         color: 'red',
-        icon: <IconX />
+        icon: <IconX />,
       });
     } finally {
       setLoading(false);
@@ -555,14 +542,14 @@ function StokPageContent() {
     if (selectedStoklar.length === filteredStoklar.length) {
       setSelectedStoklar([]);
     } else {
-      setSelectedStoklar(filteredStoklar.map(s => s.id));
+      setSelectedStoklar(filteredStoklar.map((s) => s.id));
     }
   };
 
   // Tek ürün seç/kaldır
   const handleSelectStok = (stokId: number) => {
     if (selectedStoklar.includes(stokId)) {
-      setSelectedStoklar(selectedStoklar.filter(id => id !== stokId));
+      setSelectedStoklar(selectedStoklar.filter((id) => id !== stokId));
     } else {
       setSelectedStoklar([...selectedStoklar, stokId]);
     }
@@ -593,7 +580,7 @@ function StokPageContent() {
       if (result.success) {
         setFaturaKalemler(result.kalemler);
         // Önerilen eşleştirmeleri otomatik doldur
-        const eslestirmeler: {[key: number]: number | null} = {};
+        const eslestirmeler: { [key: number]: number | null } = {};
         result.kalemler.forEach((k: any) => {
           eslestirmeler[k.sira] = k.onerilen_stok_kart_id;
         });
@@ -604,7 +591,7 @@ function StokPageContent() {
       notifications.show({
         title: 'Hata',
         message: 'Fatura kalemleri yüklenemedi',
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setFaturaLoading(false);
@@ -617,27 +604,27 @@ function StokPageContent() {
       notifications.show({
         title: 'Uyarı',
         message: 'Lütfen depo seçin',
-        color: 'yellow'
+        color: 'yellow',
       });
       return;
     }
 
     const eslesmisKalemler = faturaKalemler
-      .filter(k => kalemEslestirme[k.sira])
-      .map(k => ({
+      .filter((k) => kalemEslestirme[k.sira])
+      .map((k) => ({
         kalem_sira: k.sira,
         stok_kart_id: kalemEslestirme[k.sira],
         miktar: k.miktar,
         birim_fiyat: k.birim_fiyat,
         urun_kodu: k.urun_kodu,
-        urun_adi: k.urun_adi
+        urun_adi: k.urun_adi,
       }));
 
     if (eslesmisKalemler.length === 0) {
       notifications.show({
         title: 'Uyarı',
         message: 'En az bir kalem eşleştirmeniz gerekiyor',
-        color: 'yellow'
+        color: 'yellow',
       });
       return;
     }
@@ -650,8 +637,8 @@ function StokPageContent() {
         body: JSON.stringify({
           ettn: selectedFatura.ettn,
           depo_id: faturaGirisDepo,
-          kalemler: eslesmisKalemler
-        })
+          kalemler: eslesmisKalemler,
+        }),
       });
 
       const result = await response.json();
@@ -661,7 +648,7 @@ function StokPageContent() {
           title: 'Başarılı',
           message: result.message,
           color: 'green',
-          icon: <IconCheck />
+          icon: <IconCheck />,
         });
         setFaturaModalOpened(false);
         setSelectedFatura(null);
@@ -675,7 +662,7 @@ function StokPageContent() {
       notifications.show({
         title: 'Hata',
         message: error.message,
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setFaturaLoading(false);
@@ -683,10 +670,10 @@ function StokPageContent() {
   };
 
   // Stok kartı arama
-  const [stokAramaQuery, setStokAramaQuery] = useState('');
-  const [stokAramaSonuclari, setStokAramaSonuclari] = useState<any[]>([]);
-  
-  const araStokKarti = async (query: string) => {
+  const [_stokAramaQuery, _setStokAramaQuery] = useState('');
+  const [_stokAramaSonuclari, setStokAramaSonuclari] = useState<any[]>([]);
+
+  const _araStokKarti = async (query: string) => {
     if (query.length < 2) {
       setStokAramaSonuclari([]);
       return;
@@ -709,37 +696,37 @@ function StokPageContent() {
         title: 'Uyarı',
         message: 'Lütfen zorunlu alanları doldurun',
         color: 'yellow',
-        icon: <IconAlertTriangle />
+        icon: <IconAlertTriangle />,
       });
       return;
     }
-    
+
     try {
       setLoading(true);
-      
+
       const res = await fetch(`${API_URL}/stok/kartlar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...urunForm,
-          kategori_id: parseInt(urunForm.kategori_id),
-          ana_birim_id: parseInt(urunForm.ana_birim_id)
-        })
+          kategori_id: parseInt(urunForm.kategori_id, 10),
+          ana_birim_id: parseInt(urunForm.ana_birim_id, 10),
+        }),
       });
-      
+
       const result = await res.json();
-      
+
       if (!res.ok) {
         throw new Error(result.error || 'Kayıt başarısız');
       }
-      
+
       notifications.show({
         title: 'Başarılı',
         message: 'Yeni ürün eklendi',
         color: 'green',
-        icon: <IconCheck />
+        icon: <IconCheck />,
       });
-      
+
       close();
       setUrunForm({
         kod: '',
@@ -751,7 +738,7 @@ function StokPageContent() {
         max_stok: 0,
         son_alis_fiyat: 0,
         kdv_orani: 18,
-        aciklama: ''
+        aciklama: '',
       });
       await loadData();
     } catch (error: any) {
@@ -759,7 +746,7 @@ function StokPageContent() {
         title: 'Hata',
         message: error.message,
         color: 'red',
-        icon: <IconX />
+        icon: <IconX />,
       });
     } finally {
       setLoading(false);
@@ -767,12 +754,12 @@ function StokPageContent() {
   };
 
   // Stok detayını yükle
-  const loadStokDetay = async (stokId: number) => {
+  const _loadStokDetay = async (stokId: number) => {
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/stok/kartlar/${stokId}`);
       const result = await response.json();
-      
+
       if (result.success) {
         setSelectedStok(result.data);
       }
@@ -785,12 +772,16 @@ function StokPageContent() {
 
   // Transfer yap
   const handleTransfer = async () => {
-    if (!transferForm.stok_kart_id || !transferForm.kaynak_depo_id || 
-        !transferForm.hedef_depo_id || transferForm.miktar <= 0) {
+    if (
+      !transferForm.stok_kart_id ||
+      !transferForm.kaynak_depo_id ||
+      !transferForm.hedef_depo_id ||
+      transferForm.miktar <= 0
+    ) {
       notifications.show({
         title: 'Hata',
         message: 'Lütfen tüm alanları doldurun',
-        color: 'red'
+        color: 'red',
       });
       return;
     }
@@ -803,8 +794,8 @@ function StokPageContent() {
         body: JSON.stringify({
           ...transferForm,
           belge_no: transferForm.belge_no || `TRF-${Date.now()}`,
-          belge_tarihi: new Date().toISOString().split('T')[0]
-        })
+          belge_tarihi: new Date().toISOString().split('T')[0],
+        }),
       });
 
       const result = await response.json();
@@ -814,7 +805,7 @@ function StokPageContent() {
           title: 'Başarılı',
           message: result.message,
           color: 'green',
-          icon: <IconCheck />
+          icon: <IconCheck />,
         });
         closeTransfer();
         loadData(); // Verileri yenile
@@ -825,7 +816,7 @@ function StokPageContent() {
       notifications.show({
         title: 'Hata',
         message: err.message || 'Transfer başarısız',
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setLoading(false);
@@ -838,7 +829,7 @@ function StokPageContent() {
       notifications.show({
         title: 'Hata',
         message: 'Lütfen ürün, depo ve miktar seçin',
-        color: 'red'
+        color: 'red',
       });
       return;
     }
@@ -855,8 +846,8 @@ function StokPageContent() {
           birim_fiyat: girisForm.birim_fiyat || 0,
           belge_no: `GRS-${Date.now()}`,
           belge_tarihi: new Date().toISOString().split('T')[0],
-          aciklama: `${girisForm.giris_tipi}: ${girisForm.aciklama}`
-        })
+          aciklama: `${girisForm.giris_tipi}: ${girisForm.aciklama}`,
+        }),
       });
 
       const result = await response.json();
@@ -866,10 +857,17 @@ function StokPageContent() {
           title: 'Başarılı',
           message: 'Stok girişi yapıldı',
           color: 'green',
-          icon: <IconCheck />
+          icon: <IconCheck />,
         });
         setStokGirisModalOpened(false);
-        setGirisForm({ stok_kart_id: null, depo_id: null, miktar: 0, birim_fiyat: 0, giris_tipi: 'SATIN_ALMA', aciklama: '' });
+        setGirisForm({
+          stok_kart_id: null,
+          depo_id: null,
+          miktar: 0,
+          birim_fiyat: 0,
+          giris_tipi: 'SATIN_ALMA',
+          aciklama: '',
+        });
         loadData();
       } else {
         throw new Error(result.error);
@@ -878,7 +876,7 @@ function StokPageContent() {
       notifications.show({
         title: 'Hata',
         message: err.message || 'Stok girişi başarısız',
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setLoading(false);
@@ -891,7 +889,7 @@ function StokPageContent() {
       notifications.show({
         title: 'Hata',
         message: 'Lütfen ürün, depo ve miktar seçin',
-        color: 'red'
+        color: 'red',
       });
       return;
     }
@@ -907,8 +905,8 @@ function StokPageContent() {
           miktar: cikisForm.miktar,
           belge_no: `CKS-${Date.now()}`,
           belge_tarihi: new Date().toISOString().split('T')[0],
-          aciklama: `${cikisForm.cikis_tipi}: ${cikisForm.aciklama}`
-        })
+          aciklama: `${cikisForm.cikis_tipi}: ${cikisForm.aciklama}`,
+        }),
       });
 
       const result = await response.json();
@@ -918,10 +916,16 @@ function StokPageContent() {
           title: 'Başarılı',
           message: 'Stok çıkışı yapıldı',
           color: 'green',
-          icon: <IconCheck />
+          icon: <IconCheck />,
         });
         setStokCikisModalOpened(false);
-        setCikisForm({ stok_kart_id: null, depo_id: null, miktar: 0, cikis_tipi: 'TUKETIM', aciklama: '' });
+        setCikisForm({
+          stok_kart_id: null,
+          depo_id: null,
+          miktar: 0,
+          cikis_tipi: 'TUKETIM',
+          aciklama: '',
+        });
         loadData();
       } else {
         throw new Error(result.error);
@@ -930,7 +934,7 @@ function StokPageContent() {
       notifications.show({
         title: 'Hata',
         message: err.message || 'Stok çıkışı başarısız',
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setLoading(false);
@@ -961,7 +965,7 @@ function StokPageContent() {
       const result = await response.json();
       if (result.success) {
         // Mevcut stokları sayım verilerine kopyala
-        const initialSayim: {[key: number]: number} = {};
+        const initialSayim: { [key: number]: number } = {};
         result.data.forEach((item: any) => {
           initialSayim[item.id] = item.toplam_stok || 0;
         });
@@ -1000,8 +1004,8 @@ function StokPageContent() {
               miktar: Math.abs(fark),
               belge_no: `SAYIM-${Date.now()}`,
               belge_tarihi: new Date().toISOString().split('T')[0],
-              aciklama: `Stok sayımı: ${fark > 0 ? 'Fazla' : 'Eksik'} (${Math.abs(fark)} ${item.birim})`
-            })
+              aciklama: `Stok sayımı: ${fark > 0 ? 'Fazla' : 'Eksik'} (${Math.abs(fark)} ${item.birim})`,
+            }),
           });
           islemSayisi++;
         }
@@ -1011,7 +1015,7 @@ function StokPageContent() {
         title: 'Başarılı',
         message: `Sayım tamamlandı. ${islemSayisi} ürün güncellendi.`,
         color: 'green',
-        icon: <IconCheck />
+        icon: <IconCheck />,
       });
       setSayimModalOpened(false);
       setSayimVerileri({});
@@ -1020,7 +1024,7 @@ function StokPageContent() {
       notifications.show({
         title: 'Hata',
         message: err.message || 'Sayım kaydedilemedi',
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setLoading(false);
@@ -1030,7 +1034,7 @@ function StokPageContent() {
   // Component mount
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   // URL'de fatura parametresi varsa modalı aç ve o faturayı seç
   useEffect(() => {
@@ -1055,7 +1059,7 @@ function StokPageContent() {
               notifications.show({
                 title: 'Uyarı',
                 message: 'Fatura bulunamadı veya zaten işlenmiş',
-                color: 'yellow'
+                color: 'yellow',
               });
             }
           }
@@ -1069,68 +1073,77 @@ function StokPageContent() {
       // URL'den parametreyi temizle
       router.replace('/muhasebe/stok');
     }
-  }, [searchParams, depolar]);
+  }, [
+    searchParams,
+    depolar, // Fatura kalemlerini yükle
+    loadFaturaKalemler, // URL'den parametreyi temizle
+    router.replace,
+  ]);
 
   // Hareketler modalı açıldığında verileri yükle
   useEffect(() => {
     if (hareketlerModalOpened) {
       loadHareketler();
     }
-  }, [hareketlerModalOpened]);
+  }, [hareketlerModalOpened, loadHareketler]);
 
   // Miktar formatı (gereksiz ondalıkları kaldır)
   const formatMiktar = (value: number | string) => {
     const num = typeof value === 'string' ? parseFloat(value) : value;
-    if (isNaN(num)) return '0';
+    if (Number.isNaN(num)) return '0';
     // Tam sayı ise ondalık gösterme, değilse en fazla 2 basamak
     if (Number.isInteger(num)) {
       return num.toLocaleString('tr-TR');
     }
     // Ondalık kısmı varsa, gereksiz sıfırları kaldır
-    const formatted = num.toLocaleString('tr-TR', { 
-      minimumFractionDigits: 0, 
-      maximumFractionDigits: 2 
+    const formatted = num.toLocaleString('tr-TR', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
     });
     return formatted;
   };
 
   // Para formatı
   const formatMoney = (value: number) => {
-    return new Intl.NumberFormat('tr-TR', { 
-      style: 'currency', 
-      currency: 'TRY', 
-      minimumFractionDigits: 0 
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'TRY',
+      minimumFractionDigits: 0,
     }).format(value || 0);
   };
 
   // Filtreleme
-  const filteredStoklar = stoklar.filter(item => {
-    const matchesTab = activeTab === 'tumu' || 
-                      (activeTab === 'kritik' && item.durum === 'kritik') ||
-                      (activeTab === 'dusuk' && item.durum === 'dusuk');
-    const matchesSearch = item.ad?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.kod?.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredStoklar = stoklar.filter((item) => {
+    const matchesTab =
+      activeTab === 'tumu' ||
+      (activeTab === 'kritik' && item.durum === 'kritik') ||
+      (activeTab === 'dusuk' && item.durum === 'dusuk');
+    const matchesSearch =
+      item.ad?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.kod?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesTab && matchesSearch;
   });
 
   // İstatistikler
   const toplamKalem = stoklar.length;
-  const kritikStok = stoklar.filter(s => s.durum === 'kritik').length;
-  const toplamDeger = stoklar.reduce((acc, s) => acc + (s.toplam_stok * s.son_alis_fiyat), 0);
-  const kategoriSayisi = [...new Set(stoklar.map(s => s.kategori))].length;
+  const kritikStok = stoklar.filter((s) => s.durum === 'kritik').length;
+  const toplamDeger = stoklar.reduce((acc, s) => acc + s.toplam_stok * s.son_alis_fiyat, 0);
+  const kategoriSayisi = [...new Set(stoklar.map((s) => s.kategori))].length;
 
   // Kategori dağılımı (gerçek verilerle)
-  const kategoriDagilimi = kategoriler.map(kat => ({
-    name: kat.ad,
-    value: stoklar
-      .filter(s => s.kategori === kat.ad)
-      .reduce((acc, s) => acc + (s.toplam_stok * s.son_alis_fiyat), 0)
-  })).filter(k => k.value > 0);
+  const _kategoriDagilimi = kategoriler
+    .map((kat) => ({
+      name: kat.ad,
+      value: stoklar
+        .filter((s) => s.kategori === kat.ad)
+        .reduce((acc, s) => acc + s.toplam_stok * s.son_alis_fiyat, 0),
+    }))
+    .filter((k) => k.value > 0);
 
   return (
     <Container fluid>
       <LoadingOverlay visible={loading} />
-      
+
       {error && (
         <Alert icon={<IconAlertCircle size={16} />} color="red" mb="md">
           {error}
@@ -1139,29 +1152,36 @@ function StokPageContent() {
 
       <Group justify="space-between" mb="md">
         <Group gap="md">
-          <ThemeIcon size={42} radius="xl" variant="gradient" gradient={{ from: 'blue', to: 'cyan' }}>
+          <ThemeIcon
+            size={42}
+            radius="xl"
+            variant="gradient"
+            gradient={{ from: 'blue', to: 'cyan' }}
+          >
             <IconPackage size={24} />
           </ThemeIcon>
           <Box>
             <Title order={3}>Stok Yönetimi</Title>
-            <Text size="xs" c="dimmed">Ürün ve malzeme stoklarınızı takip edin</Text>
+            <Text size="xs" c="dimmed">
+              Ürün ve malzeme stoklarınızı takip edin
+            </Text>
           </Box>
         </Group>
         <Group gap="xs">
-          <ActionIcon 
-            variant="light" 
-            size="lg" 
+          <ActionIcon
+            variant="light"
+            size="lg"
             radius="xl"
             onClick={() => loadData()}
             title="Yenile"
           >
             <IconRefresh size={18} />
           </ActionIcon>
-          <Button 
-            variant="light" 
-            color="teal" 
-            size="sm" 
-            radius="xl" 
+          <Button
+            variant="light"
+            color="teal"
+            size="sm"
+            radius="xl"
             leftSection={<IconBuilding size={16} />}
             onClick={() => setDepoModalOpened(true)}
           >
@@ -1169,11 +1189,11 @@ function StokPageContent() {
           </Button>
           <Menu shadow="md" width={220}>
             <Menu.Target>
-              <Button 
-                variant="filled" 
-                color="grape" 
-                size="sm" 
-                radius="xl" 
+              <Button
+                variant="filled"
+                color="grape"
+                size="sm"
+                radius="xl"
                 leftSection={<IconPlus size={16} />}
                 rightSection={<IconChevronDown size={14} />}
               >
@@ -1182,78 +1202,110 @@ function StokPageContent() {
             </Menu.Target>
             <Menu.Dropdown>
               <Menu.Label>Stok Hareketleri</Menu.Label>
-              <Menu.Item leftSection={<IconTrendingUp size={16} color="green" />} onClick={() => setStokGirisModalOpened(true)}>
+              <Menu.Item
+                leftSection={<IconTrendingUp size={16} color="green" />}
+                onClick={() => setStokGirisModalOpened(true)}
+              >
                 Stok Girişi
               </Menu.Item>
-              <Menu.Item leftSection={<IconTrendingDown size={16} color="red" />} onClick={() => setStokCikisModalOpened(true)}>
+              <Menu.Item
+                leftSection={<IconTrendingDown size={16} color="red" />}
+                onClick={() => setStokCikisModalOpened(true)}
+              >
                 Stok Çıkışı
               </Menu.Item>
-              <Menu.Item leftSection={<IconArrowsExchange size={16} color="blue" />} onClick={openTransfer}>
+              <Menu.Item
+                leftSection={<IconArrowsExchange size={16} color="blue" />}
+                onClick={openTransfer}
+              >
                 Depolar Arası Transfer
               </Menu.Item>
-              <Menu.Item leftSection={<IconClipboardList size={16} color="orange" />} onClick={() => setSayimModalOpened(true)}>
+              <Menu.Item
+                leftSection={<IconClipboardList size={16} color="orange" />}
+                onClick={() => setSayimModalOpened(true)}
+              >
                 Stok Sayımı
               </Menu.Item>
-              
+
               {canCreateStok && (
-              <>
-              <Menu.Divider />
-              <Menu.Label>Ürün İşlemleri</Menu.Label>
-              <Menu.Item 
-                leftSection={<IconFileInvoice size={16} color="teal" />} 
-                onClick={() => {
-                  setFaturaModalOpened(true);
-                  loadFaturalar();
-                }}
-              >
-                Faturadan Ekle
-              </Menu.Item>
-              <Menu.Item leftSection={<IconPlus size={16} color="grape" />} onClick={open}>
-                Yeni Ürün
-              </Menu.Item>
-              </>
+                <>
+                  <Menu.Divider />
+                  <Menu.Label>Ürün İşlemleri</Menu.Label>
+                  <Menu.Item
+                    leftSection={<IconFileInvoice size={16} color="teal" />}
+                    onClick={() => {
+                      setFaturaModalOpened(true);
+                      loadFaturalar();
+                    }}
+                  >
+                    Faturadan Ekle
+                  </Menu.Item>
+                  <Menu.Item leftSection={<IconPlus size={16} color="grape" />} onClick={open}>
+                    Yeni Ürün
+                  </Menu.Item>
+                </>
               )}
-              
+
               <Menu.Divider />
-              <Menu.Item leftSection={<IconHistory size={16} color="gray" />} onClick={() => setHareketlerModalOpened(true)}>
+              <Menu.Item
+                leftSection={<IconHistory size={16} color="gray" />}
+                onClick={() => setHareketlerModalOpened(true)}
+              >
                 Hareketleri Görüntüle
               </Menu.Item>
             </Menu.Dropdown>
           </Menu>
-          <DataActions 
-            type="stok" 
+          <DataActions
+            type="stok"
             onImportSuccess={() => loadData()}
-            kategoriler={kategoriler.map(k => k.ad)}
+            kategoriler={kategoriler.map((k) => k.ad)}
           />
         </Group>
       </Group>
 
       {/* Modern İstatistik Kartları */}
-      <Paper 
-        p="md" 
-        radius="lg" 
+      <Paper
+        p="md"
+        radius="lg"
         mb="lg"
-        style={{ 
-          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)',
-          border: '1px solid var(--mantine-color-gray-2)'
+        style={{
+          background:
+            'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)',
+          border: '1px solid var(--mantine-color-gray-2)',
         }}
       >
         <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
           <Box ta="center" py="xs">
-            <Text size="2rem" fw={800} c="blue">{toplamKalem}</Text>
-            <Text size="xs" tt="uppercase" fw={600} c="dimmed">Toplam Ürün</Text>
+            <Text size="2rem" fw={800} c="blue">
+              {toplamKalem}
+            </Text>
+            <Text size="xs" tt="uppercase" fw={600} c="dimmed">
+              Toplam Ürün
+            </Text>
           </Box>
           <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
-            <Text size="2rem" fw={800} c="red">{kritikStok}</Text>
-            <Text size="xs" tt="uppercase" fw={600} c="dimmed">Kritik Stok</Text>
+            <Text size="2rem" fw={800} c="red">
+              {kritikStok}
+            </Text>
+            <Text size="xs" tt="uppercase" fw={600} c="dimmed">
+              Kritik Stok
+            </Text>
           </Box>
           <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
-            <Text size="2rem" fw={800} c="teal">{formatMoney(toplamDeger)}</Text>
-            <Text size="xs" tt="uppercase" fw={600} c="dimmed">Stok Değeri</Text>
+            <Text size="2rem" fw={800} c="teal">
+              {formatMoney(toplamDeger)}
+            </Text>
+            <Text size="xs" tt="uppercase" fw={600} c="dimmed">
+              Stok Değeri
+            </Text>
           </Box>
           <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
-            <Text size="2rem" fw={800} c="grape">{kategoriSayisi}</Text>
-            <Text size="xs" tt="uppercase" fw={600} c="dimmed">Kategori</Text>
+            <Text size="2rem" fw={800} c="grape">
+              {kategoriSayisi}
+            </Text>
+            <Text size="xs" tt="uppercase" fw={600} c="dimmed">
+              Kategori
+            </Text>
           </Box>
         </SimpleGrid>
       </Paper>
@@ -1263,37 +1315,51 @@ function StokPageContent() {
         <Group gap="md" wrap="wrap">
           {/* Tüm Depolar Kartı */}
           <Box
-            onClick={() => { setSelectedDepo(null); loadData(); }}
+            onClick={() => {
+              setSelectedDepo(null);
+              loadData();
+            }}
             style={{
               cursor: 'pointer',
               padding: '14px 20px',
               borderRadius: '16px',
-              background: selectedDepo === null 
-                ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
-                : 'white',
+              background:
+                selectedDepo === null
+                  ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                  : 'white',
               color: selectedDepo === null ? 'white' : '#495057',
-              boxShadow: selectedDepo === null 
-                ? '0 4px 15px rgba(102, 126, 234, 0.4)' 
-                : '0 2px 10px rgba(0,0,0,0.08)',
+              boxShadow:
+                selectedDepo === null
+                  ? '0 4px 15px rgba(102, 126, 234, 0.4)'
+                  : '0 2px 10px rgba(0,0,0,0.08)',
               transition: 'all 0.3s ease',
               border: selectedDepo === null ? 'none' : '1px solid #e9ecef',
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
-              minWidth: '150px'
+              minWidth: '150px',
             }}
           >
-            <Box style={{ 
-              background: selectedDepo === null ? 'rgba(255,255,255,0.2)' : '#667eea15',
-              borderRadius: '12px',
-              padding: '10px',
-              display: 'flex'
-            }}>
+            <Box
+              style={{
+                background: selectedDepo === null ? 'rgba(255,255,255,0.2)' : '#667eea15',
+                borderRadius: '12px',
+                padding: '10px',
+                display: 'flex',
+              }}
+            >
               <IconPackages size={22} color={selectedDepo === null ? 'white' : '#667eea'} />
             </Box>
             <Stack gap={2}>
-              <Text size="xs" fw={500} style={{ opacity: 0.85 }}>Tüm Depolar</Text>
-              <Text size="lg" fw={700}>{tumStokSayisi} <Text span size="sm" fw={400}>ürün</Text></Text>
+              <Text size="xs" fw={500} style={{ opacity: 0.85 }}>
+                Tüm Depolar
+              </Text>
+              <Text size="lg" fw={700}>
+                {tumStokSayisi}{' '}
+                <Text span size="sm" fw={400}>
+                  ürün
+                </Text>
+              </Text>
             </Stack>
           </Box>
 
@@ -1307,7 +1373,7 @@ function StokPageContent() {
             ];
             const colorSet = colors[index % colors.length];
             const isSelected = selectedDepo === depo.id;
-            
+
             return (
               <Box
                 key={depo.id}
@@ -1315,12 +1381,12 @@ function StokPageContent() {
                   cursor: 'pointer',
                   padding: '14px 20px',
                   borderRadius: '16px',
-                  background: isSelected 
+                  background: isSelected
                     ? `linear-gradient(135deg, ${colorSet.from} 0%, ${colorSet.to} 100%)`
                     : 'white',
                   color: isSelected ? 'white' : '#495057',
-                  boxShadow: isSelected 
-                    ? `0 4px 15px ${colorSet.shadow}` 
+                  boxShadow: isSelected
+                    ? `0 4px 15px ${colorSet.shadow}`
                     : '0 2px 10px rgba(0,0,0,0.08)',
                   transition: 'all 0.3s ease',
                   border: isSelected ? 'none' : '1px solid #e9ecef',
@@ -1328,23 +1394,32 @@ function StokPageContent() {
                   alignItems: 'center',
                   gap: '12px',
                   minWidth: '170px',
-                  position: 'relative'
+                  position: 'relative',
                 }}
                 onClick={() => loadDepoStoklar(depo.id)}
               >
-                <Box style={{ 
-                  background: isSelected ? 'rgba(255,255,255,0.2)' : `${colorSet.from}15`,
-                  borderRadius: '12px',
-                  padding: '10px',
-                  display: 'flex'
-                }}>
+                <Box
+                  style={{
+                    background: isSelected ? 'rgba(255,255,255,0.2)' : `${colorSet.from}15`,
+                    borderRadius: '12px',
+                    padding: '10px',
+                    display: 'flex',
+                  }}
+                >
                   <IconBuilding size={22} color={isSelected ? 'white' : colorSet.from} />
                 </Box>
                 <Stack gap={2} style={{ flex: 1 }}>
-                  <Text size="xs" fw={500} style={{ opacity: 0.85 }} lineClamp={1}>{depo.ad}</Text>
-                  <Text size="lg" fw={700}>{Number(depo.urun_sayisi) || 0} <Text span size="sm" fw={400}>ürün</Text></Text>
+                  <Text size="xs" fw={500} style={{ opacity: 0.85 }} lineClamp={1}>
+                    {depo.ad}
+                  </Text>
+                  <Text size="lg" fw={700}>
+                    {Number(depo.urun_sayisi) || 0}{' '}
+                    <Text span size="sm" fw={400}>
+                      ürün
+                    </Text>
+                  </Text>
                 </Stack>
-                
+
                 {/* Silme butonu */}
                 {Number(depo.urun_sayisi || 0) === 0 && (
                   <ActionIcon
@@ -1352,15 +1427,15 @@ function StokPageContent() {
                     color="red"
                     size="sm"
                     radius="md"
-                    style={{ 
-                      position: 'absolute', 
-                      top: -8, 
+                    style={{
+                      position: 'absolute',
+                      top: -8,
                       right: -8,
                       backdropFilter: 'blur(8px)',
                       backgroundColor: 'rgba(255, 82, 82, 0.15)',
                       border: '1px solid rgba(255, 82, 82, 0.3)',
                       transition: 'all 0.2s ease',
-                      boxShadow: '0 2px 8px rgba(255, 82, 82, 0.2)'
+                      boxShadow: '0 2px 8px rgba(255, 82, 82, 0.2)',
                     }}
                     className="depo-delete-btn"
                     onClick={(e) => {
@@ -1386,10 +1461,12 @@ function StokPageContent() {
             <ThemeIcon size="sm" variant="light" color="grape" radius="xl">
               <IconCategory size={14} />
             </ThemeIcon>
-            <Text size="sm" fw={600} c="dimmed">Bölümler:</Text>
-            
+            <Text size="sm" fw={600} c="dimmed">
+              Bölümler:
+            </Text>
+
             <Button
-              variant={selectedLokasyon === null ? "filled" : "light"}
+              variant={selectedLokasyon === null ? 'filled' : 'light'}
               color="grape"
               size="xs"
               radius="xl"
@@ -1400,25 +1477,32 @@ function StokPageContent() {
             >
               Tümü ({stoklar.length})
             </Button>
-            
+
             {lokasyonlar.map((lok: any) => {
               const getEmoji = () => {
-                switch(lok.tur) {
-                  case 'soguk_hava': return '❄️';
-                  case 'dondurulmus': return '🧊';
-                  case 'kuru_gida': return '🌾';
-                  case 'sebze_meyve': return '🥬';
-                  case 'temizlik': return '🧹';
-                  case 'baharat': return '🌶️';
-                  default: return '📦';
+                switch (lok.tur) {
+                  case 'soguk_hava':
+                    return '❄️';
+                  case 'dondurulmus':
+                    return '🧊';
+                  case 'kuru_gida':
+                    return '🌾';
+                  case 'sebze_meyve':
+                    return '🥬';
+                  case 'temizlik':
+                    return '🧹';
+                  case 'baharat':
+                    return '🌶️';
+                  default:
+                    return '📦';
                 }
               };
-              
+
               return (
                 <Button
                   key={lok.id}
-                  variant={selectedLokasyon === lok.id ? "filled" : "light"}
-                  color={selectedLokasyon === lok.id ? "grape" : "gray"}
+                  variant={selectedLokasyon === lok.id ? 'filled' : 'light'}
+                  color={selectedLokasyon === lok.id ? 'grape' : 'gray'}
                   size="xs"
                   radius="xl"
                   leftSection={<span style={{ fontSize: '14px' }}>{getEmoji()}</span>}
@@ -1438,14 +1522,12 @@ function StokPageContent() {
           <Card shadow="sm" padding="lg" radius="md" withBorder>
             <Tabs value={activeTab} onChange={setActiveTab}>
               <Tabs.List>
-                <Tabs.Tab value="tumu">
-                  Tümü ({stoklar.length})
-                </Tabs.Tab>
+                <Tabs.Tab value="tumu">Tümü ({stoklar.length})</Tabs.Tab>
                 <Tabs.Tab value="kritik" color="red">
                   Kritik ({kritikStok})
                 </Tabs.Tab>
                 <Tabs.Tab value="dusuk" color="orange">
-                  Düşük ({stoklar.filter(s => s.durum === 'dusuk').length})
+                  Düşük ({stoklar.filter((s) => s.durum === 'dusuk').length})
                 </Tabs.Tab>
               </Tabs.List>
 
@@ -1466,17 +1548,17 @@ function StokPageContent() {
                         {selectedStoklar.length} ürün seçildi
                       </Text>
                       <Group gap="xs">
-                        <Button 
-                          size="xs" 
-                          variant="light" 
+                        <Button
+                          size="xs"
+                          variant="light"
                           color="gray"
                           onClick={() => setSelectedStoklar([])}
                         >
                           Seçimi Kaldır
                         </Button>
-                        <Button 
-                          size="xs" 
-                          color="red" 
+                        <Button
+                          size="xs"
+                          color="red"
                           leftSection={<IconTrash size={14} />}
                           onClick={handleBulkDelete}
                           loading={loading}
@@ -1493,8 +1575,14 @@ function StokPageContent() {
                     <Table.Tr>
                       <Table.Th w={40}>
                         <Checkbox
-                          checked={selectedStoklar.length === filteredStoklar.length && filteredStoklar.length > 0}
-                          indeterminate={selectedStoklar.length > 0 && selectedStoklar.length < filteredStoklar.length}
+                          checked={
+                            selectedStoklar.length === filteredStoklar.length &&
+                            filteredStoklar.length > 0
+                          }
+                          indeterminate={
+                            selectedStoklar.length > 0 &&
+                            selectedStoklar.length < filteredStoklar.length
+                          }
                           onChange={handleSelectAll}
                         />
                       </Table.Th>
@@ -1510,7 +1598,10 @@ function StokPageContent() {
                   </Table.Thead>
                   <Table.Tbody>
                     {filteredStoklar.map((item) => (
-                      <Table.Tr key={item.id} bg={selectedStoklar.includes(item.id) ? 'blue.0' : undefined}>
+                      <Table.Tr
+                        key={item.id}
+                        bg={selectedStoklar.includes(item.id) ? 'blue.0' : undefined}
+                      >
                         <Table.Td>
                           <Checkbox
                             checked={selectedStoklar.includes(item.id)}
@@ -1521,26 +1612,36 @@ function StokPageContent() {
                           <Group gap={4}>
                             <Badge variant="light">{item.kod}</Badge>
                             {item.kod?.startsWith('FAT-') && (
-                              <Badge size="xs" variant="dot" color="violet">Faturadan</Badge>
+                              <Badge size="xs" variant="dot" color="violet">
+                                Faturadan
+                              </Badge>
                             )}
                           </Group>
                         </Table.Td>
-                        <Table.Td><Text fw={500}>{item.ad}</Text></Table.Td>
+                        <Table.Td>
+                          <Text fw={500}>{item.ad}</Text>
+                        </Table.Td>
                         <Table.Td>{item.kategori}</Table.Td>
                         <Table.Td>
                           {formatMiktar(item.toplam_stok)} {item.birim}
                         </Table.Td>
                         <Table.Td>
                           <Text size="sm" fw={500} c="blue">
-                            {item.son_alis_fiyat ? `${formatMoney(item.son_alis_fiyat)}/${item.birim}` : '-'}
+                            {item.son_alis_fiyat
+                              ? `${formatMoney(item.son_alis_fiyat)}/${item.birim}`
+                              : '-'}
                           </Text>
                         </Table.Td>
                         <Table.Td>
-                          <Badge 
+                          <Badge
                             color={
-                              item.durum === 'kritik' ? 'red' : 
-                              item.durum === 'dusuk' ? 'orange' :
-                              item.durum === 'fazla' ? 'blue' : 'green'
+                              item.durum === 'kritik'
+                                ? 'red'
+                                : item.durum === 'dusuk'
+                                  ? 'orange'
+                                  : item.durum === 'fazla'
+                                    ? 'blue'
+                                    : 'green'
                             }
                           >
                             {item.durum.toUpperCase()}
@@ -1550,24 +1651,28 @@ function StokPageContent() {
                         <Table.Td>
                           <Group gap="xs">
                             {(item.durum === 'kritik' || item.durum === 'dusuk') && (
-                              <ActionIcon 
-                                variant="filled" 
-                                color="blue" 
+                              <ActionIcon
+                                variant="filled"
+                                color="blue"
                                 size="sm"
-                                onClick={() => router.push(`/muhasebe/satin-alma?urun=${encodeURIComponent(item.ad)}&miktar=${item.min_stok - item.toplam_stok}`)}
+                                onClick={() =>
+                                  router.push(
+                                    `/muhasebe/satin-alma?urun=${encodeURIComponent(item.ad)}&miktar=${item.min_stok - item.toplam_stok}`
+                                  )
+                                }
                                 title="Sipariş Ver"
                               >
                                 <IconShoppingCart size={16} />
                               </ActionIcon>
                             )}
-                            <ActionIcon 
-                              variant="subtle" 
-                              color="green" 
+                            <ActionIcon
+                              variant="subtle"
+                              color="green"
                               size="sm"
                               onClick={() => {
                                 setTransferForm({
                                   ...transferForm,
-                                  stok_kart_id: item.id
+                                  stok_kart_id: item.id,
                                 });
                                 openTransfer();
                               }}
@@ -1576,19 +1681,23 @@ function StokPageContent() {
                               <IconArrowsExchange size={16} />
                             </ActionIcon>
                             {canDeleteStok && (
-                            <ActionIcon 
-                              variant="subtle" 
-                              color="red" 
-                              size="sm"
-                              onClick={() => {
-                                if (confirm(`"${item.ad}" ürününü silmek istediğinizden emin misiniz?`)) {
-                                  handleDeleteStok(item.id);
-                                }
-                              }}
-                              title="Sil"
-                            >
-                              <IconTrash size={16} />
-                            </ActionIcon>
+                              <ActionIcon
+                                variant="subtle"
+                                color="red"
+                                size="sm"
+                                onClick={() => {
+                                  if (
+                                    confirm(
+                                      `"${item.ad}" ürününü silmek istediğinizden emin misiniz?`
+                                    )
+                                  ) {
+                                    handleDeleteStok(item.id);
+                                  }
+                                }}
+                                title="Sil"
+                              >
+                                <IconTrash size={16} />
+                              </ActionIcon>
                             )}
                           </Group>
                         </Table.Td>
@@ -1616,10 +1725,10 @@ function StokPageContent() {
             telefon: '',
             email: '',
             yetkili: '',
-            kapasite_m3: 0
+            kapasite_m3: 0,
           });
         }}
-        title={editingDepo ? "Depo Düzenle" : "Yeni Depo Ekle"}
+        title={editingDepo ? 'Depo Düzenle' : 'Yeni Depo Ekle'}
         size="lg"
       >
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
@@ -1644,7 +1753,7 @@ function StokPageContent() {
               { value: 'genel', label: 'Genel Depo' },
               { value: 'soguk', label: 'Soğuk Hava Deposu' },
               { value: 'kuru', label: 'Kuru Gıda Deposu' },
-              { value: 'sebze', label: 'Sebze/Meyve Deposu' }
+              { value: 'sebze', label: 'Sebze/Meyve Deposu' },
             ]}
             value={depoForm.tur}
             onChange={(value) => setDepoForm({ ...depoForm, tur: value || 'genel' })}
@@ -1678,20 +1787,23 @@ function StokPageContent() {
             label="Kapasite (m³)"
             placeholder="0"
             value={depoForm.kapasite_m3}
-            onChange={(value) => setDepoForm({ ...depoForm, kapasite_m3: typeof value === 'number' ? value : 0 })}
+            onChange={(value) =>
+              setDepoForm({ ...depoForm, kapasite_m3: typeof value === 'number' ? value : 0 })
+            }
             min={0}
           />
         </SimpleGrid>
         <Group justify="flex-end" mt="lg">
-          <Button variant="light" onClick={() => {
-            setDepoModalOpened(false);
-            setEditingDepo(null);
-          }}>
+          <Button
+            variant="light"
+            onClick={() => {
+              setDepoModalOpened(false);
+              setEditingDepo(null);
+            }}
+          >
             İptal
           </Button>
-          <Button onClick={handleSaveDepo}>
-            {editingDepo ? 'Güncelle' : 'Kaydet'}
-          </Button>
+          <Button onClick={handleSaveDepo}>{editingDepo ? 'Güncelle' : 'Kaydet'}</Button>
         </Group>
       </Modal>
 
@@ -1706,12 +1818,14 @@ function StokPageContent() {
           <Select
             label="Ürün"
             placeholder="Transfer edilecek ürünü seçin"
-            data={stoklar.map(s => ({ value: s.id.toString(), label: `${s.kod} - ${s.ad}` }))}
+            data={stoklar.map((s) => ({ value: s.id.toString(), label: `${s.kod} - ${s.ad}` }))}
             value={transferForm.stok_kart_id?.toString()}
-            onChange={(value) => setTransferForm({ 
-              ...transferForm, 
-              stok_kart_id: parseInt(value || '0') 
-            })}
+            onChange={(value) =>
+              setTransferForm({
+                ...transferForm,
+                stok_kart_id: parseInt(value || '0', 10),
+              })
+            }
             required
             searchable
           />
@@ -1719,24 +1833,28 @@ function StokPageContent() {
           <Select
             label="Kaynak Depo"
             placeholder="Çıkış yapılacak depo"
-            data={depolar.map(d => ({ value: d.id.toString(), label: d.ad }))}
+            data={depolar.map((d) => ({ value: d.id.toString(), label: d.ad }))}
             value={transferForm.kaynak_depo_id?.toString()}
-            onChange={(value) => setTransferForm({ 
-              ...transferForm, 
-              kaynak_depo_id: parseInt(value || '0') 
-            })}
+            onChange={(value) =>
+              setTransferForm({
+                ...transferForm,
+                kaynak_depo_id: parseInt(value || '0', 10),
+              })
+            }
             required
           />
 
           <Select
             label="Hedef Depo"
             placeholder="Giriş yapılacak depo"
-            data={depolar.map(d => ({ value: d.id.toString(), label: d.ad }))}
+            data={depolar.map((d) => ({ value: d.id.toString(), label: d.ad }))}
             value={transferForm.hedef_depo_id?.toString()}
-            onChange={(value) => setTransferForm({ 
-              ...transferForm, 
-              hedef_depo_id: parseInt(value || '0') 
-            })}
+            onChange={(value) =>
+              setTransferForm({
+                ...transferForm,
+                hedef_depo_id: parseInt(value || '0', 10),
+              })
+            }
             required
           />
 
@@ -1764,8 +1882,12 @@ function StokPageContent() {
           />
 
           <Group justify="flex-end">
-            <Button variant="light" onClick={closeTransfer}>İptal</Button>
-            <Button onClick={handleTransfer} loading={loading}>Transfer Yap</Button>
+            <Button variant="light" onClick={closeTransfer}>
+              İptal
+            </Button>
+            <Button onClick={handleTransfer} loading={loading}>
+              Transfer Yap
+            </Button>
           </Group>
         </Stack>
       </Modal>
@@ -1774,7 +1896,12 @@ function StokPageContent() {
       <Modal
         opened={stokGirisModalOpened}
         onClose={() => setStokGirisModalOpened(false)}
-        title={<Group gap="xs"><IconTrendingUp size={20} color="green" /><Text fw={600}>Stok Girişi</Text></Group>}
+        title={
+          <Group gap="xs">
+            <IconTrendingUp size={20} color="green" />
+            <Text fw={600}>Stok Girişi</Text>
+          </Group>
+        }
         size="md"
       >
         <Stack gap="md">
@@ -1786,7 +1913,7 @@ function StokPageContent() {
               { value: 'URETIM', label: '🏭 Üretim' },
               { value: 'TRANSFER', label: '🔄 Transfer Girişi' },
               { value: 'SAYIM_FAZLASI', label: '📊 Sayım Fazlası' },
-              { value: 'DIGER', label: '📋 Diğer' }
+              { value: 'DIGER', label: '📋 Diğer' },
             ]}
             value={girisForm.giris_tipi}
             onChange={(val) => setGirisForm({ ...girisForm, giris_tipi: val || 'SATIN_ALMA' })}
@@ -1794,18 +1921,22 @@ function StokPageContent() {
           <Select
             label="Depo"
             placeholder="Giriş yapılacak depo"
-            data={depolar.map(d => ({ value: String(d.id), label: d.ad }))}
+            data={depolar.map((d) => ({ value: String(d.id), label: d.ad }))}
             value={girisForm.depo_id ? String(girisForm.depo_id) : null}
-            onChange={(val) => setGirisForm({ ...girisForm, depo_id: val ? parseInt(val) : null })}
+            onChange={(val) =>
+              setGirisForm({ ...girisForm, depo_id: val ? parseInt(val, 10) : null })
+            }
             required
           />
           <Select
             label="Ürün"
             placeholder="Giriş yapılacak ürün"
             searchable
-            data={stoklar.map(s => ({ value: String(s.id), label: `${s.kod} - ${s.ad}` }))}
+            data={stoklar.map((s) => ({ value: String(s.id), label: `${s.kod} - ${s.ad}` }))}
             value={girisForm.stok_kart_id ? String(girisForm.stok_kart_id) : null}
-            onChange={(val) => setGirisForm({ ...girisForm, stok_kart_id: val ? parseInt(val) : null })}
+            onChange={(val) =>
+              setGirisForm({ ...girisForm, stok_kart_id: val ? parseInt(val, 10) : null })
+            }
             required
           />
           <Group grow>
@@ -1837,8 +1968,15 @@ function StokPageContent() {
             onChange={(e) => setGirisForm({ ...girisForm, aciklama: e.target.value })}
           />
           <Group justify="flex-end">
-            <Button variant="light" onClick={() => setStokGirisModalOpened(false)}>İptal</Button>
-            <Button color="green" onClick={handleStokGiris} loading={loading} leftSection={<IconTrendingUp size={16} />}>
+            <Button variant="light" onClick={() => setStokGirisModalOpened(false)}>
+              İptal
+            </Button>
+            <Button
+              color="green"
+              onClick={handleStokGiris}
+              loading={loading}
+              leftSection={<IconTrendingUp size={16} />}
+            >
               Giriş Yap
             </Button>
           </Group>
@@ -1849,7 +1987,12 @@ function StokPageContent() {
       <Modal
         opened={stokCikisModalOpened}
         onClose={() => setStokCikisModalOpened(false)}
-        title={<Group gap="xs"><IconTrendingDown size={20} color="red" /><Text fw={600}>Stok Çıkışı</Text></Group>}
+        title={
+          <Group gap="xs">
+            <IconTrendingDown size={20} color="red" />
+            <Text fw={600}>Stok Çıkışı</Text>
+          </Group>
+        }
         size="md"
       >
         <Stack gap="md">
@@ -1860,7 +2003,7 @@ function StokPageContent() {
               { value: 'TUKETIM', label: '🍽️ Tüketim (Mutfak Kullanımı)' },
               { value: 'FIRE', label: '🗑️ Fire (Bozulma/Çürüme)' },
               { value: 'IADE', label: '↩️ İade (Tedarikçiye)' },
-              { value: 'DIGER', label: '📋 Diğer' }
+              { value: 'DIGER', label: '📋 Diğer' },
             ]}
             value={cikisForm.cikis_tipi}
             onChange={(val) => setCikisForm({ ...cikisForm, cikis_tipi: val || 'TUKETIM' })}
@@ -1868,18 +2011,22 @@ function StokPageContent() {
           <Select
             label="Depo"
             placeholder="Çıkış yapılacak depo"
-            data={depolar.map(d => ({ value: String(d.id), label: d.ad }))}
+            data={depolar.map((d) => ({ value: String(d.id), label: d.ad }))}
             value={cikisForm.depo_id ? String(cikisForm.depo_id) : null}
-            onChange={(val) => setCikisForm({ ...cikisForm, depo_id: val ? parseInt(val) : null })}
+            onChange={(val) =>
+              setCikisForm({ ...cikisForm, depo_id: val ? parseInt(val, 10) : null })
+            }
             required
           />
           <Select
             label="Ürün"
             placeholder="Çıkış yapılacak ürün"
             searchable
-            data={stoklar.map(s => ({ value: String(s.id), label: `${s.kod} - ${s.ad}` }))}
+            data={stoklar.map((s) => ({ value: String(s.id), label: `${s.kod} - ${s.ad}` }))}
             value={cikisForm.stok_kart_id ? String(cikisForm.stok_kart_id) : null}
-            onChange={(val) => setCikisForm({ ...cikisForm, stok_kart_id: val ? parseInt(val) : null })}
+            onChange={(val) =>
+              setCikisForm({ ...cikisForm, stok_kart_id: val ? parseInt(val, 10) : null })
+            }
             required
           />
           <NumberInput
@@ -1898,8 +2045,15 @@ function StokPageContent() {
             onChange={(e) => setCikisForm({ ...cikisForm, aciklama: e.target.value })}
           />
           <Group justify="flex-end">
-            <Button variant="light" onClick={() => setStokCikisModalOpened(false)}>İptal</Button>
-            <Button color="red" onClick={handleStokCikis} loading={loading} leftSection={<IconTrendingDown size={16} />}>
+            <Button variant="light" onClick={() => setStokCikisModalOpened(false)}>
+              İptal
+            </Button>
+            <Button
+              color="red"
+              onClick={handleStokCikis}
+              loading={loading}
+              leftSection={<IconTrendingDown size={16} />}
+            >
               Çıkış Yap
             </Button>
           </Group>
@@ -1909,26 +2063,35 @@ function StokPageContent() {
       {/* Stok Sayımı Modal */}
       <Modal
         opened={sayimModalOpened}
-        onClose={() => { setSayimModalOpened(false); setSayimVerileri({}); setSayimDepoId(null); }}
-        title={<Group gap="xs"><IconClipboardList size={20} color="orange" /><Text fw={600}>Stok Sayımı</Text></Group>}
+        onClose={() => {
+          setSayimModalOpened(false);
+          setSayimVerileri({});
+          setSayimDepoId(null);
+        }}
+        title={
+          <Group gap="xs">
+            <IconClipboardList size={20} color="orange" />
+            <Text fw={600}>Stok Sayımı</Text>
+          </Group>
+        }
         size="xl"
       >
         <Stack gap="md">
           <Select
             label="Sayım Yapılacak Depo"
             placeholder="Depo seçin"
-            data={depolar.map(d => ({ value: String(d.id), label: d.ad }))}
+            data={depolar.map((d) => ({ value: String(d.id), label: d.ad }))}
             value={sayimDepoId ? String(sayimDepoId) : null}
-            onChange={(val) => val && loadSayimVerileri(parseInt(val))}
+            onChange={(val) => val && loadSayimVerileri(parseInt(val, 10))}
             required
           />
-          
+
           {sayimDepoId && (
             <>
               <Alert color="blue" variant="light">
                 Fiziksel sayım sonuçlarını girin. Farklar otomatik hesaplanacak ve kaydedilecek.
               </Alert>
-              
+
               <Table striped highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
@@ -1943,30 +2106,39 @@ function StokPageContent() {
                     const sistemStok = item.toplam_stok || 0;
                     const sayimStok = sayimVerileri[item.id] ?? sistemStok;
                     const fark = sayimStok - sistemStok;
-                    
+
                     return (
                       <Table.Tr key={item.id}>
                         <Table.Td>
-                          <Text size="sm" fw={500}>{item.ad}</Text>
-                          <Text size="xs" c="dimmed">{item.kod}</Text>
+                          <Text size="sm" fw={500}>
+                            {item.ad}
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            {item.kod}
+                          </Text>
                         </Table.Td>
-                        <Table.Td>{formatMiktar(sistemStok)} {item.birim}</Table.Td>
+                        <Table.Td>
+                          {formatMiktar(sistemStok)} {item.birim}
+                        </Table.Td>
                         <Table.Td>
                           <NumberInput
                             size="xs"
                             value={sayimStok}
-                            onChange={(val) => setSayimVerileri({ ...sayimVerileri, [item.id]: Number(val) || 0 })}
+                            onChange={(val) =>
+                              setSayimVerileri({ ...sayimVerileri, [item.id]: Number(val) || 0 })
+                            }
                             min={0}
                             decimalScale={3}
                             style={{ width: 100 }}
                           />
                         </Table.Td>
                         <Table.Td>
-                          <Badge 
+                          <Badge
                             color={fark === 0 ? 'gray' : fark > 0 ? 'green' : 'red'}
                             variant="light"
                           >
-                            {fark > 0 ? '+' : ''}{formatMiktar(fark)} {item.birim}
+                            {fark > 0 ? '+' : ''}
+                            {formatMiktar(fark)} {item.birim}
                           </Badge>
                         </Table.Td>
                       </Table.Tr>
@@ -1974,10 +2146,23 @@ function StokPageContent() {
                   })}
                 </Table.Tbody>
               </Table>
-              
+
               <Group justify="flex-end">
-                <Button variant="light" onClick={() => { setSayimModalOpened(false); setSayimVerileri({}); }}>İptal</Button>
-                <Button color="orange" onClick={handleSayimKaydet} loading={loading} leftSection={<IconCheck size={16} />}>
+                <Button
+                  variant="light"
+                  onClick={() => {
+                    setSayimModalOpened(false);
+                    setSayimVerileri({});
+                  }}
+                >
+                  İptal
+                </Button>
+                <Button
+                  color="orange"
+                  onClick={handleSayimKaydet}
+                  loading={loading}
+                  leftSection={<IconCheck size={16} />}
+                >
                   Sayımı Kaydet
                 </Button>
               </Group>
@@ -1990,7 +2175,12 @@ function StokPageContent() {
       <Modal
         opened={hareketlerModalOpened}
         onClose={() => setHareketlerModalOpened(false)}
-        title={<Group gap="xs"><IconHistory size={20} /><Text fw={600}>Stok Hareketleri</Text></Group>}
+        title={
+          <Group gap="xs">
+            <IconHistory size={20} />
+            <Text fw={600}>Stok Hareketleri</Text>
+          </Group>
+        }
         size="xl"
       >
         <LoadingOverlay visible={hareketlerLoading} />
@@ -2009,7 +2199,9 @@ function StokPageContent() {
             {hareketler.length === 0 ? (
               <Table.Tr>
                 <Table.Td colSpan={6}>
-                  <Text ta="center" c="dimmed" py="xl">Henüz hareket kaydı yok</Text>
+                  <Text ta="center" c="dimmed" py="xl">
+                    Henüz hareket kaydı yok
+                  </Text>
                 </Table.Td>
               </Table.Tr>
             ) : (
@@ -2019,11 +2211,19 @@ function StokPageContent() {
                     <Text size="sm">{new Date(h.created_at).toLocaleDateString('tr-TR')}</Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="sm" fw={500}>{h.stok_ad || h.stok_kart_id}</Text>
+                    <Text size="sm" fw={500}>
+                      {h.stok_ad || h.stok_kart_id}
+                    </Text>
                   </Table.Td>
                   <Table.Td>
-                    <Badge 
-                      color={h.hareket_tipi === 'GIRIS' ? 'green' : h.hareket_tipi === 'CIKIS' ? 'red' : 'blue'}
+                    <Badge
+                      color={
+                        h.hareket_tipi === 'GIRIS'
+                          ? 'green'
+                          : h.hareket_tipi === 'CIKIS'
+                            ? 'red'
+                            : 'blue'
+                      }
                       variant="light"
                     >
                       {h.hareket_tipi}
@@ -2031,14 +2231,17 @@ function StokPageContent() {
                   </Table.Td>
                   <Table.Td>
                     <Text size="sm" c={h.hareket_yonu === '+' ? 'green' : 'red'} fw={500}>
-                      {h.hareket_yonu === '+' ? '+' : '-'}{formatMiktar(h.miktar)}
+                      {h.hareket_yonu === '+' ? '+' : '-'}
+                      {formatMiktar(h.miktar)}
                     </Text>
                   </Table.Td>
                   <Table.Td>
                     <Text size="sm">{h.giris_depo_ad || h.cikis_depo_ad || '-'}</Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="xs" c="dimmed">{h.belge_no || '-'}</Text>
+                    <Text size="xs" c="dimmed">
+                      {h.belge_no || '-'}
+                    </Text>
                   </Table.Td>
                 </Table.Tr>
               ))
@@ -2048,12 +2251,7 @@ function StokPageContent() {
       </Modal>
 
       {/* Yeni Ürün Modal */}
-      <Modal
-        opened={opened}
-        onClose={close}
-        title="Yeni Ürün Ekle"
-        size="lg"
-      >
+      <Modal opened={opened} onClose={close} title="Yeni Ürün Ekle" size="lg">
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
           <TextInput
             label="Ürün Kodu"
@@ -2072,7 +2270,7 @@ function StokPageContent() {
           <Select
             label="Kategori"
             placeholder="Kategori seçin"
-            data={kategoriler.map(k => ({ value: k.id.toString(), label: k.ad }))}
+            data={kategoriler.map((k) => ({ value: k.id.toString(), label: k.ad }))}
             value={urunForm.kategori_id}
             onChange={(value) => setUrunForm({ ...urunForm, kategori_id: value || '' })}
             required
@@ -2081,7 +2279,10 @@ function StokPageContent() {
           <Select
             label="Birim"
             placeholder="Birim seçin"
-            data={birimler.map(b => ({ value: b.id.toString(), label: `${b.ad} (${b.kisa_ad})` }))}
+            data={birimler.map((b) => ({
+              value: b.id.toString(),
+              label: `${b.ad} (${b.kisa_ad})`,
+            }))}
             value={urunForm.ana_birim_id}
             onChange={(value) => setUrunForm({ ...urunForm, ana_birim_id: value || '' })}
             required
@@ -2132,8 +2333,12 @@ function StokPageContent() {
           />
         </SimpleGrid>
         <Group justify="flex-end" mt="lg">
-          <Button variant="light" onClick={close}>İptal</Button>
-          <Button onClick={handleSaveUrun} loading={loading}>Kaydet</Button>
+          <Button variant="light" onClick={close}>
+            İptal
+          </Button>
+          <Button onClick={handleSaveUrun} loading={loading}>
+            Kaydet
+          </Button>
         </Group>
       </Modal>
 
@@ -2146,19 +2351,19 @@ function StokPageContent() {
           setFaturaKalemler([]);
           setKalemEslestirme({});
         }}
-        title={selectedFatura ? `📄 ${selectedFatura.sender_name}` : "📄 Faturadan Stok Girişi"}
+        title={selectedFatura ? `📄 ${selectedFatura.sender_name}` : '📄 Faturadan Stok Girişi'}
         size="xl"
         styles={{ body: { maxHeight: '70vh', overflowY: 'auto' } }}
       >
         <LoadingOverlay visible={faturaLoading} />
-        
+
         {!selectedFatura ? (
           // Fatura Listesi
           <Stack>
             <Text size="sm" c="dimmed" mb="md">
               Son 3 ayın gelen faturaları listeleniyor. İşlemek istediğiniz faturayı seçin.
             </Text>
-            
+
             <Table striped highlightOnHover>
               <Table.Thead>
                 <Table.Tr>
@@ -2170,11 +2375,9 @@ function StokPageContent() {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {faturalar.map(fatura => (
+                {faturalar.map((fatura) => (
                   <Table.Tr key={fatura.ettn}>
-                    <Table.Td>
-                      {new Date(fatura.invoice_date).toLocaleDateString('tr-TR')}
-                    </Table.Td>
+                    <Table.Td>{new Date(fatura.invoice_date).toLocaleDateString('tr-TR')}</Table.Td>
                     <Table.Td>
                       <Text size="sm" lineClamp={1} style={{ maxWidth: 300 }}>
                         {fatura.sender_name}
@@ -2182,19 +2385,26 @@ function StokPageContent() {
                     </Table.Td>
                     <Table.Td>
                       <Text fw={500}>
-                        {parseFloat(fatura.payable_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                        {parseFloat(fatura.payable_amount).toLocaleString('tr-TR', {
+                          minimumFractionDigits: 2,
+                        })}{' '}
+                        ₺
                       </Text>
                     </Table.Td>
                     <Table.Td>
                       {fatura.stok_islendi ? (
-                        <Badge color="green" variant="light">İşlendi ✓</Badge>
+                        <Badge color="green" variant="light">
+                          İşlendi ✓
+                        </Badge>
                       ) : (
-                        <Badge color="gray" variant="light">Bekliyor</Badge>
+                        <Badge color="gray" variant="light">
+                          Bekliyor
+                        </Badge>
                       )}
                     </Table.Td>
                     <Table.Td>
-                      <Button 
-                        size="xs" 
+                      <Button
+                        size="xs"
                         variant="light"
                         disabled={fatura.stok_islendi}
                         onClick={() => {
@@ -2209,7 +2419,7 @@ function StokPageContent() {
                 ))}
               </Table.Tbody>
             </Table>
-            
+
             {faturalar.length === 0 && (
               <Text ta="center" c="dimmed" py="xl">
                 Henüz işlenecek fatura bulunmuyor
@@ -2220,9 +2430,9 @@ function StokPageContent() {
           // Fatura Kalemleri ve Eşleştirme
           <Stack>
             <Group justify="space-between">
-              <Button 
-                variant="subtle" 
-                size="xs" 
+              <Button
+                variant="subtle"
+                size="xs"
                 leftSection={<IconX size={14} />}
                 onClick={() => {
                   setSelectedFatura(null);
@@ -2233,21 +2443,22 @@ function StokPageContent() {
                 Geri Dön
               </Button>
               <Badge size="lg">
-                {new Date(selectedFatura.invoice_date).toLocaleDateString('tr-TR')} - {parseFloat(selectedFatura.payable_amount).toLocaleString('tr-TR')} ₺
+                {new Date(selectedFatura.invoice_date).toLocaleDateString('tr-TR')} -{' '}
+                {parseFloat(selectedFatura.payable_amount).toLocaleString('tr-TR')} ₺
               </Badge>
             </Group>
-            
+
             <Select
               label="Hedef Depo"
               placeholder="Stok girişi yapılacak depoyu seçin"
-              data={depolar.map(d => ({ value: d.id.toString(), label: d.ad }))}
+              data={depolar.map((d) => ({ value: d.id.toString(), label: d.ad }))}
               value={faturaGirisDepo?.toString() || null}
-              onChange={(val) => setFaturaGirisDepo(val ? parseInt(val) : null)}
+              onChange={(val) => setFaturaGirisDepo(val ? parseInt(val, 10) : null)}
               required
             />
-            
+
             <Divider my="sm" label="Fatura Kalemleri" labelPosition="center" />
-            
+
             <Table striped>
               <Table.Thead>
                 <Table.Tr>
@@ -2258,16 +2469,23 @@ function StokPageContent() {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {faturaKalemler.map(kalem => (
+                {faturaKalemler.map((kalem) => (
                   <Table.Tr key={kalem.sira}>
                     <Table.Td>
                       <Stack gap={0}>
-                        <Text size="sm" fw={500}>{kalem.urun_adi}</Text>
-                        <Text size="xs" c="dimmed">Kod: {kalem.urun_kodu}</Text>
+                        <Text size="sm" fw={500}>
+                          {kalem.urun_adi}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          Kod: {kalem.urun_kodu}
+                        </Text>
                       </Stack>
                     </Table.Td>
                     <Table.Td>
-                      <Text>{formatMiktar(kalem.miktar)} {kalem.birim === 'KGM' ? 'Kg' : kalem.birim === 'C62' ? 'Ad' : kalem.birim}</Text>
+                      <Text>
+                        {formatMiktar(kalem.miktar)}{' '}
+                        {kalem.birim === 'KGM' ? 'Kg' : kalem.birim === 'C62' ? 'Ad' : kalem.birim}
+                      </Text>
                     </Table.Td>
                     <Table.Td>
                       <Text>{kalem.birim_fiyat.toLocaleString('tr-TR')} ₺</Text>
@@ -2277,17 +2495,25 @@ function StokPageContent() {
                         <Select
                           placeholder="Stok kartı seç"
                           data={stoklar
-                            .filter(s => !s.kod?.startsWith('FAT-')) // Faturadan otomatik oluşturulanları hariç tut
-                            .map(s => ({ value: s.id.toString(), label: `${s.kod} - ${s.ad}` }))}
+                            .filter((s) => !s.kod?.startsWith('FAT-')) // Faturadan otomatik oluşturulanları hariç tut
+                            .map((s) => ({ value: s.id.toString(), label: `${s.kod} - ${s.ad}` }))}
                           value={kalemEslestirme[kalem.sira]?.toString() || null}
-                          onChange={(val) => setKalemEslestirme(prev => ({
-                            ...prev,
-                            [kalem.sira]: val ? parseInt(val) : null
-                          }))}
+                          onChange={(val) =>
+                            setKalemEslestirme((prev) => ({
+                              ...prev,
+                              [kalem.sira]: val ? parseInt(val, 10) : null,
+                            }))
+                          }
                           searchable
                           clearable
                           nothingFoundMessage="Stok kartı bulunamadı"
-                          leftSection={kalemEslestirme[kalem.sira] ? <IconLink size={14} color="green" /> : <IconLinkOff size={14} color="gray" />}
+                          leftSection={
+                            kalemEslestirme[kalem.sira] ? (
+                              <IconLink size={14} color="green" />
+                            ) : (
+                              <IconLinkOff size={14} color="gray" />
+                            )
+                          }
                           style={{ flex: 1 }}
                         />
                         <ActionIcon
@@ -2297,11 +2523,13 @@ function StokPageContent() {
                           onClick={async () => {
                             // Fatura kaleminden stok kartı oluştur
                             try {
-                              const birimId = birimler.find(b => 
-                                b.kisa_ad === (kalem.birim === 'KGM' ? 'kg' : 'adet') ||
-                                b.kod === (kalem.birim === 'KGM' ? 'KG' : 'ADET')
-                              )?.id || birimler[0]?.id;
-                              
+                              const birimId =
+                                birimler.find(
+                                  (b) =>
+                                    b.kisa_ad === (kalem.birim === 'KGM' ? 'kg' : 'adet') ||
+                                    b.kod === (kalem.birim === 'KGM' ? 'KG' : 'ADET')
+                                )?.id || birimler[0]?.id;
+
                               const res = await fetch(`${API_URL}/stok/kartlar`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -2311,21 +2539,21 @@ function StokPageContent() {
                                   ana_birim_id: birimId,
                                   kategori_id: kategoriler[0]?.id,
                                   son_alis_fiyat: kalem.birim_fiyat,
-                                  kdv_orani: kalem.kdv_orani || 0
-                                })
+                                  kdv_orani: kalem.kdv_orani || 0,
+                                }),
                               });
                               const result = await res.json();
                               if (result.success) {
                                 notifications.show({
                                   title: 'Başarılı',
                                   message: `"${kalem.urun_adi}" stok kartı oluşturuldu`,
-                                  color: 'green'
+                                  color: 'green',
                                 });
                                 // Stokları yenile ve eşleştir
                                 await loadData();
-                                setKalemEslestirme(prev => ({
+                                setKalemEslestirme((prev) => ({
                                   ...prev,
-                                  [kalem.sira]: result.data.id
+                                  [kalem.sira]: result.data.id,
                                 }));
                               } else {
                                 throw new Error(result.error);
@@ -2334,7 +2562,7 @@ function StokPageContent() {
                               notifications.show({
                                 title: 'Hata',
                                 message: error.message,
-                                color: 'red'
+                                color: 'red',
                               });
                             }
                           }}
@@ -2347,15 +2575,18 @@ function StokPageContent() {
                 ))}
               </Table.Tbody>
             </Table>
-            
+
             <Group justify="space-between" mt="md">
               <Text size="sm" c="dimmed">
-                Eşleştirilen: {Object.values(kalemEslestirme).filter(v => v).length} / {faturaKalemler.length} kalem
+                Eşleştirilen: {Object.values(kalemEslestirme).filter((v) => v).length} /{' '}
+                {faturaKalemler.length} kalem
               </Text>
-              <Button 
-                onClick={handleFaturaStokGirisi} 
+              <Button
+                onClick={handleFaturaStokGirisi}
                 loading={faturaLoading}
-                disabled={!faturaGirisDepo || Object.values(kalemEslestirme).filter(v => v).length === 0}
+                disabled={
+                  !faturaGirisDepo || Object.values(kalemEslestirme).filter((v) => v).length === 0
+                }
                 leftSection={<IconCheck size={16} />}
               >
                 Stok Girişi Yap
@@ -2369,11 +2600,17 @@ function StokPageContent() {
 }
 
 // Next.js 15 requires Suspense wrapper for useSearchParams
-import { Loader, Center } from '@mantine/core';
+import { Center, Loader } from '@mantine/core';
 
 export default function StokPage() {
   return (
-    <Suspense fallback={<Center h="50vh"><Loader size="lg" /></Center>}>
+    <Suspense
+      fallback={
+        <Center h="50vh">
+          <Loader size="lg" />
+        </Center>
+      }
+    >
       <StokPageContent />
     </Suspense>
   );

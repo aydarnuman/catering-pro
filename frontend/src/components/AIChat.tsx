@@ -1,51 +1,51 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { API_BASE_URL } from '@/lib/config';
 import {
-  Paper,
-  Stack,
-  Group,
-  Text,
-  Button,
-  TextInput,
-  Select,
-  Badge,
   ActionIcon,
-  ScrollArea,
   Avatar,
-  Loader,
-  Divider,
-  SimpleGrid,
+  Badge,
+  Box,
+  Button,
   Card,
+  Collapse,
+  Divider,
+  Group,
+  Loader,
+  Paper,
+  ScrollArea,
+  Select,
+  SimpleGrid,
+  Stack,
+  Text,
+  TextInput,
   ThemeIcon,
   Tooltip,
-  Collapse,
-  Box
 } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import {
-  IconRobot,
-  IconUser,
-  IconSend,
-  IconSettings,
-  IconRefresh,
-  IconCopy,
   IconBrain,
-  IconSparkles,
-  IconTool,
+  IconChartBar,
+  IconCheck,
   IconChevronDown,
   IconChevronUp,
+  IconClipboardList,
+  IconCopy,
   IconDatabase,
   IconFileInvoice,
-  IconUsers,
-  IconClipboardList,
-  IconChartBar,
-  IconThumbUp,
+  IconHistory,
+  IconRefresh,
+  IconRobot,
+  IconSend,
+  IconSettings,
+  IconSparkles,
   IconThumbDown,
-  IconCheck,
-  IconHistory
+  IconThumbUp,
+  IconTool,
+  IconUser,
+  IconUsers,
 } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
+import { useEffect, useRef, useState } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 
 const API_URL = `${API_BASE_URL}/api`;
 
@@ -87,11 +87,11 @@ interface AIChatProps {
 
 // Tool ikon mapping
 const toolIcons: Record<string, React.ReactNode> = {
-  'satin_alma': <IconClipboardList size={12} />,
-  'cari': <IconUsers size={12} />,
-  'fatura': <IconFileInvoice size={12} />,
-  'ihale': <IconDatabase size={12} />,
-  'rapor': <IconChartBar size={12} />
+  satin_alma: <IconClipboardList size={12} />,
+  cari: <IconUsers size={12} />,
+  fatura: <IconFileInvoice size={12} />,
+  ihale: <IconDatabase size={12} />,
+  rapor: <IconChartBar size={12} />,
 };
 
 const getToolIcon = (toolName: string) => {
@@ -103,19 +103,23 @@ const getToolDisplayName = (toolName: string) => {
   const parts = toolName.split('_');
   const module = parts[0];
   const action = parts.slice(1).join(' ');
-  
+
   const moduleNames: Record<string, string> = {
-    'satin_alma': 'Satın Alma',
-    'cari': 'Cariler',
-    'fatura': 'Faturalar',
-    'ihale': 'İhaleler',
-    'rapor': 'Raporlar'
+    satin_alma: 'Satın Alma',
+    cari: 'Cariler',
+    fatura: 'Faturalar',
+    ihale: 'İhaleler',
+    rapor: 'Raporlar',
   };
-  
+
   return `${moduleNames[module] || module}: ${action}`;
 };
 
-export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pageContext }: AIChatProps) {
+export function AIChat({
+  defaultDepartment = 'TÜM SİSTEM',
+  compact = false,
+  pageContext,
+}: AIChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -138,116 +142,115 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
   });
 
   // Departmana göre önerilen sorular
-  const departmentQuestions: Record<string, string[]> = {
-    'PERSONEL': [
+  const _departmentQuestions: Record<string, string[]> = {
+    PERSONEL: [
       '👥 Toplam personel maliyetimiz ne kadar?',
       '💰 40.000 TL net maaşın brüt ve toplam maliyeti ne?',
       '📊 Bu ay izinli kaç kişi var?',
-      '🧮 Ahmet\'in kıdem tazminatını hesapla',
+      "🧮 Ahmet'in kıdem tazminatını hesapla",
       '📋 Aktif personelleri listele',
-      '💵 Ocak ayı bordro özeti göster'
+      '💵 Ocak ayı bordro özeti göster',
     ],
-    'MENU_PLANLAMA': [
+    MENU_PLANLAMA: [
       '📅 Ocak ayı için KYK menüsü hazırla',
       '🍲 Mevcut reçeteleri listele',
       '💰 Mercimek çorbası maliyetini hesapla',
       '🥗 Düşük kalorili haftalık menü öner',
       '📊 9 Ocak menüsünü göster',
-      '👨‍🍳 Tavuk sote reçetesi oluştur'
+      '👨‍🍳 Tavuk sote reçetesi oluştur',
     ],
     'TÜM SİSTEM': [
-    '📊 Bu ay KYK için ne kadar harcama yapıldı?',
-    '📦 Bekleyen siparişler hangileri?',
-    '💰 En çok alım yaptığımız tedarikçi kim?',
-    '📅 Yaklaşan ihaleler neler?',
-    '⚠️ Kritik uyarılar var mı?',
-    '📈 Geçen ayla karşılaştırma yap'
-    ]
+      '📊 Bu ay KYK için ne kadar harcama yapıldı?',
+      '📦 Bekleyen siparişler hangileri?',
+      '💰 En çok alım yaptığımız tedarikçi kim?',
+      '📅 Yaklaşan ihaleler neler?',
+      '⚠️ Kritik uyarılar var mı?',
+      '📈 Geçen ayla karşılaştırma yap',
+    ],
   };
 
   // Departmana göre hızlı komutlar
-  const departmentCommands: Record<string, Array<{label: string; value: string}>> = {
-    'PERSONEL': [
+  const departmentCommands: Record<string, Array<{ label: string; value: string }>> = {
+    PERSONEL: [
       { label: '👥 Personel istatistikleri', value: 'Personel istatistiklerini göster' },
       { label: '💰 Bordro hesapla', value: 'Tüm personelin bordrosunu hesapla' },
       { label: '📅 İzin bakiyesi', value: 'Personellerin izin bakiyelerini listele' },
-      { label: '🧮 Maliyet analizi', value: 'Toplam personel maliyeti analizi yap' }
+      { label: '🧮 Maliyet analizi', value: 'Toplam personel maliyeti analizi yap' },
     ],
-    'MENU_PLANLAMA': [
-      { label: '📅 Aylık menü oluştur', value: 'KYK projesi için Ocak 2026 menüsü oluştur, 1000 kişilik' },
+    MENU_PLANLAMA: [
+      {
+        label: '📅 Aylık menü oluştur',
+        value: 'KYK projesi için Ocak 2026 menüsü oluştur, 1000 kişilik',
+      },
       { label: '📋 Reçeteleri listele', value: 'Tüm reçeteleri kategorilere göre listele' },
       { label: '💰 Maliyet hesapla', value: 'Seçili reçetenin maliyetini hesapla' },
-      { label: '🍽️ Menü öner', value: 'Bütçeye uygun haftalık öğle menüsü öner' }
+      { label: '🍽️ Menü öner', value: 'Bütçeye uygun haftalık öğle menüsü öner' },
     ],
     'TÜM SİSTEM': [
-    { label: '🆕 Yeni sipariş oluştur', value: 'KYK için Metro\'dan 100 kg süt siparişi oluştur' },
-    { label: '📊 Sistem özeti', value: 'Sistem özeti göster' },
-    { label: '📋 Proje harcamaları', value: 'Proje bazlı harcama raporu göster' },
-    { label: '🏢 Tedarikçi analizi', value: 'En çok alım yaptığımız tedarikçileri listele' }
-    ]
+      { label: '🆕 Yeni sipariş oluştur', value: "KYK için Metro'dan 100 kg süt siparişi oluştur" },
+      { label: '📊 Sistem özeti', value: 'Sistem özeti göster' },
+      { label: '📋 Proje harcamaları', value: 'Proje bazlı harcama raporu göster' },
+      { label: '🏢 Tedarikçi analizi', value: 'En çok alım yaptığımız tedarikçileri listele' },
+    ],
   };
 
   // Şablona göre önerilen sorular
   const templateQuestions: { [key: string]: string[] } = {
-    'default': [
+    default: [
       '📊 Bu ay KYK için ne kadar harcama yapıldı?',
       '📦 Bekleyen siparişler hangileri?',
       '🏆 En çok alım yaptığımız tedarikçi kim?',
-      '📋 Yaklaşan ihaleler neler?'
+      '📋 Yaklaşan ihaleler neler?',
     ],
     'cfo-analiz': [
       '📈 Aylık gelir-gider karşılaştırması yap',
       '💰 Nakit akış durumunu analiz et',
       '📊 Karlılık oranlarını hesapla',
-      '🔮 Önümüzdeki 3 ay için bütçe tahmini yap'
+      '🔮 Önümüzdeki 3 ay için bütçe tahmini yap',
     ],
     'risk-uzman': [
       '⚠️ Vadesi geçen alacakları listele',
       '🔴 Kritik stok seviyesindeki ürünler hangileri?',
       '💳 Ödenmemiş faturaları risk sırasına göre göster',
-      '📉 Mali risk analizi yap'
+      '📉 Mali risk analizi yap',
     ],
     'ihale-uzman': [
       '📋 Yaklaşan ihale son başvuru tarihlerini listele',
       '🎯 Kazanma şansı yüksek ihaleleri analiz et',
       '📊 İhale başarı oranımızı hesapla',
-      '🏢 Rakip firma analizi yap'
+      '🏢 Rakip firma analizi yap',
     ],
     'hizli-yanit': [
       '💰 Toplam borç ne kadar?',
       '📦 Stok durumu?',
       '👥 Personel sayısı?',
-      '📈 Bugünkü satışlar?'
+      '📈 Bugünkü satışlar?',
     ],
     'strateji-danismani': [
       '🎯 SWOT analizi yap',
       '📊 Pazar payı değerlendirmesi',
       '🚀 Büyüme fırsatlarını belirle',
-      '📋 Yıllık hedef takibi'
-    ]
+      '📋 Yıllık hedef takibi',
+    ],
   };
 
   // Seçili şablona göre önerileri al
-  const suggestedQuestions = templateQuestions[selectedTemplate] || templateQuestions['default'];
+  const suggestedQuestions = templateQuestions[selectedTemplate] || templateQuestions.default;
   const quickCommands = departmentCommands[defaultDepartment] || departmentCommands['TÜM SİSTEM'];
 
   // Prompt şablonlarını yükle
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
-        console.log('🔄 Fetching templates from:', `${API_URL}/ai/templates`);
         const response = await fetch(`${API_URL}/ai/templates`);
         const data = await response.json();
-        
-        console.log('📦 Templates response:', data);
-        
+
         if (data.success && data.templates) {
           const activeTemplates = data.templates.filter((t: PromptTemplate) => t.is_active);
-          console.log('✅ Active templates:', activeTemplates.length, activeTemplates);
           setPromptTemplates(activeTemplates);
         }
-      } catch (error) {
-        console.error('❌ Failed to fetch templates:', error);
+      } catch (_error) {
+        // Template yükleme hatası - sessizce geç
       }
     };
 
@@ -257,15 +260,21 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
   // Mesajları scroll et
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, []);
 
   // Seçili şablonun bilgilerini al
-  const currentTemplate = promptTemplates.find(t => t.slug === selectedTemplate) || promptTemplates[0];
+  const currentTemplate =
+    promptTemplates.find((t) => t.slug === selectedTemplate) || promptTemplates[0];
 
   // Feedback gönder
-  const sendFeedback = async (messageId: string, messageContent: string, aiResponse: string, isPositive: boolean) => {
+  const sendFeedback = async (
+    messageId: string,
+    messageContent: string,
+    aiResponse: string,
+    isPositive: boolean
+  ) => {
     if (feedbackGiven.has(messageId)) return;
-    
+
     try {
       await fetch(`${API_URL}/ai/feedback`, {
         method: 'POST',
@@ -275,17 +284,19 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
           feedbackType: isPositive ? 'helpful' : 'not_helpful',
           messageContent,
           aiResponse,
-          templateSlug: selectedTemplate
-        })
+          templateSlug: selectedTemplate,
+        }),
       });
-      
-      setFeedbackGiven(prev => new Set([...prev, messageId]));
-      
+
+      setFeedbackGiven((prev) => new Set([...prev, messageId]));
+
       notifications.show({
         title: isPositive ? '👍 Teşekkürler!' : '👎 Geri bildirim alındı',
-        message: isPositive ? 'Olumlu geri bildiriminiz kaydedildi' : 'İyileştirme için çalışacağız',
+        message: isPositive
+          ? 'Olumlu geri bildiriminiz kaydedildi'
+          : 'İyileştirme için çalışacağız',
         color: isPositive ? 'green' : 'orange',
-        icon: <IconCheck size={16} />
+        icon: <IconCheck size={16} />,
       });
     } catch (error) {
       console.error('Feedback error:', error);
@@ -299,18 +310,18 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
       id: Date.now().toString(),
       type: 'user',
       content: inputValue.trim(),
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
 
     try {
       // Mesaj geçmişini hazırla (son 10 mesaj)
-      const history = messages.slice(-10).map(m => ({
+      const history = messages.slice(-10).map((m) => ({
         role: m.type === 'user' ? 'user' : 'assistant',
-        content: m.content
+        content: m.content,
       }));
 
       // AI Agent endpoint'i kullan - şablon bilgisi ve sayfa context'i ile
@@ -322,9 +333,9 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
           history,
           sessionId,
           department: defaultDepartment,
-          templateSlug: selectedTemplate,  // Şablon slug'ı gönder
-          pageContext: pageContext  // Sayfa context'i gönder (ihale, fatura, cari vb.)
-        })
+          templateSlug: selectedTemplate, // Şablon slug'ı gönder
+          pageContext: pageContext, // Sayfa context'i gönder (ihale, fatura, cari vb.)
+        }),
       });
 
       const data = await response.json();
@@ -339,25 +350,26 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
         content: data.response,
         timestamp: new Date(),
         toolsUsed: data.toolsUsed || [],
-        iterations: data.iterations
+        iterations: data.iterations,
       };
 
-      setMessages(prev => [...prev, aiMessage]);
+      setMessages((prev) => [...prev, aiMessage]);
 
       // Şablon kullanım sayacını artır
       if (selectedTemplate && selectedTemplate !== 'default') {
-        fetch(`${API_URL}/ai/templates/${selectedTemplate}/increment-usage`, { method: 'POST' }).catch(() => {});
+        fetch(`${API_URL}/ai/templates/${selectedTemplate}/increment-usage`, {
+          method: 'POST',
+        }).catch(() => {});
       }
-
     } catch (error) {
       console.error('AI API Error:', error);
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
-        content: `Üzgünüm, bir hata oluştu: ${(error instanceof Error) ? error.message : 'Bilinmeyen hata'}\n\nLütfen tekrar deneyin.`,
-        timestamp: new Date()
+        content: `Üzgünüm, bir hata oluştu: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}\n\nLütfen tekrar deneyin.`,
+        timestamp: new Date(),
       };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -376,7 +388,7 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
   };
 
   const toggleExpanded = (id: string) => {
-    setExpandedMessages(prev => {
+    setExpandedMessages((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
@@ -388,27 +400,32 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
   };
 
   // Şablon seçici - Select data formatı
-  const templateSelectData = promptTemplates.map(t => ({
+  const templateSelectData = promptTemplates.map((t) => ({
     value: t.slug,
-    label: `${t.icon} ${t.name.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, '')}`
+    label: `${t.icon} ${t.name.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, '')}`,
   }));
 
   if (compact) {
     return (
-      <Box 
-        h="100%" 
-        style={{ 
-          display: 'flex', 
+      <Box
+        h="100%"
+        style={{
+          display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden', // Önemli: taşmayı engeller
         }}
       >
         {/* Compact Header with Template Select */}
-        <Box p="xs" style={{ borderBottom: '1px solid var(--mantine-color-gray-3)', flexShrink: 0 }}>
+        <Box
+          p="xs"
+          style={{ borderBottom: '1px solid var(--mantine-color-gray-3)', flexShrink: 0 }}
+        >
           <Group gap="xs" justify="space-between">
             <Group gap="xs">
               <IconBrain size={16} color="var(--mantine-color-violet-6)" />
-              <Text size="xs" fw={500}>AI Agent</Text>
+              <Text size="xs" fw={500}>
+                AI Agent
+              </Text>
             </Group>
             <Select
               data={templateSelectData}
@@ -425,14 +442,14 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
 
         {/* Messages Area - Scroll edilebilir alan */}
         <Box style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-          <ScrollArea 
+          <ScrollArea
             h="100%"
             type="always"
             scrollbarSize={8}
             offsetScrollbars
             styles={{
               root: { height: '100%' },
-              viewport: { 
+              viewport: {
                 height: '100%',
                 // Mobilde touch scroll için
                 WebkitOverflowScrolling: 'touch',
@@ -440,87 +457,105 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
               },
             }}
           >
-          <Stack gap="sm" p="sm">
-            {messages.length === 0 ? (
-              <Stack gap="sm" align="center" py="md">
-                <Text size="sm" c="dimmed" ta="center">
-                  Merhaba! 👋 Size nasıl yardımcı olabilirim?
-                </Text>
-                <Stack gap={4} w="100%">
-                  {suggestedQuestions.slice(0, 4).map((question, index) => (
-                    <Paper 
-                      key={index} 
-                      p="xs" 
-                      radius="sm" 
-                      withBorder 
-                      style={{ cursor: 'pointer', fontSize: '12px' }}
-                      onClick={() => handleSuggestedQuestion(question)}
-                    >
-                      <Text size="xs">{question}</Text>
-                    </Paper>
-                  ))}
+            <Stack gap="sm" p="sm">
+              {messages.length === 0 ? (
+                <Stack gap="sm" align="center" py="md">
+                  <Text size="sm" c="dimmed" ta="center">
+                    Merhaba! 👋 Size nasıl yardımcı olabilirim?
+                  </Text>
+                  <Stack gap={4} w="100%">
+                    {suggestedQuestions.slice(0, 4).map((question, index) => (
+                      <Paper
+                        key={index}
+                        p="xs"
+                        radius="sm"
+                        withBorder
+                        style={{ cursor: 'pointer', fontSize: '12px' }}
+                        onClick={() => handleSuggestedQuestion(question)}
+                      >
+                        <Text size="xs">{question}</Text>
+                      </Paper>
+                    ))}
+                  </Stack>
                 </Stack>
-              </Stack>
-            ) : (
-              messages.map((message) => (
-                <Group key={message.id} align="flex-start" gap="xs" wrap="nowrap">
-                  <Avatar size="sm" color={message.type === 'user' ? 'blue' : 'violet'} radius="xl">
-                    {message.type === 'user' ? <IconUser size={14} /> : <IconRobot size={14} />}
+              ) : (
+                messages.map((message) => (
+                  <Group key={message.id} align="flex-start" gap="xs" wrap="nowrap">
+                    <Avatar
+                      size="sm"
+                      color={message.type === 'user' ? 'blue' : 'violet'}
+                      radius="xl"
+                    >
+                      {message.type === 'user' ? <IconUser size={14} /> : <IconRobot size={14} />}
+                    </Avatar>
+                    <Paper
+                      p="xs"
+                      bg={message.type === 'user' ? 'blue.0' : 'gray.0'}
+                      radius="md"
+                      style={{ flex: 1, maxWidth: 'calc(100% - 40px)' }}
+                    >
+                      <Text size="xs" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                        {message.content}
+                      </Text>
+                      {message.toolsUsed && message.toolsUsed.length > 0 && (
+                        <Group gap={4} mt={4}>
+                          {message.toolsUsed.slice(0, 3).map((tool, i) => (
+                            <Badge key={i} size="xs" variant="dot" color="violet">
+                              {tool.split('_').slice(0, 2).join(' ')}
+                            </Badge>
+                          ))}
+                          {message.toolsUsed.length > 3 && (
+                            <Badge size="xs" variant="light" color="gray">
+                              +{message.toolsUsed.length - 3}
+                            </Badge>
+                          )}
+                        </Group>
+                      )}
+                    </Paper>
+                  </Group>
+                ))
+              )}
+              {isLoading && (
+                <Group gap="xs">
+                  <Avatar size="sm" color="violet" radius="xl">
+                    <IconRobot size={14} />
                   </Avatar>
-                  <Paper 
-                    p="xs" 
-                    bg={message.type === 'user' ? 'blue.0' : 'gray.0'} 
-                    radius="md" 
-                    style={{ flex: 1, maxWidth: 'calc(100% - 40px)' }}
-                  >
-                    <Text size="xs" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                      {message.content}
-                    </Text>
-                    {message.toolsUsed && message.toolsUsed.length > 0 && (
-                      <Group gap={4} mt={4}>
-                        {message.toolsUsed.slice(0, 3).map((tool, i) => (
-                          <Badge key={i} size="xs" variant="dot" color="violet">
-                            {tool.split('_').slice(0, 2).join(' ')}
-                          </Badge>
-                        ))}
-                        {message.toolsUsed.length > 3 && (
-                          <Badge size="xs" variant="light" color="gray">
-                            +{message.toolsUsed.length - 3}
-                          </Badge>
-                        )}
-                      </Group>
-                    )}
+                  <Paper p="xs" bg="gray.0" radius="md">
+                    <Group gap="xs">
+                      <Loader size="xs" color="violet" />
+                      <Text size="xs" c="dimmed">
+                        Düşünüyor...
+                      </Text>
+                    </Group>
                   </Paper>
                 </Group>
-              ))
-            )}
-            {isLoading && (
-            <Group gap="xs">
-                <Avatar size="sm" color="violet" radius="xl">
-                <IconRobot size={14} />
-                </Avatar>
-                <Paper p="xs" bg="gray.0" radius="md">
-                  <Group gap="xs">
-                    <Loader size="xs" color="violet" />
-                    <Text size="xs" c="dimmed">Düşünüyor...</Text>
-            </Group>
-                </Paper>
-          </Group>
-            )}
-            <div ref={messagesEndRef} />
-          </Stack>
+              )}
+              <div ref={messagesEndRef} />
+            </Stack>
           </ScrollArea>
         </Box>
 
         {/* Input Area */}
-        <Box p="sm" style={{ borderTop: '1px solid var(--mantine-color-gray-3)', paddingBottom: 'env(safe-area-inset-bottom, 8px)', flexShrink: 0 }}>
+        <Box
+          p="sm"
+          style={{
+            borderTop: '1px solid var(--mantine-color-gray-3)',
+            paddingBottom: 'env(safe-area-inset-bottom, 8px)',
+            flexShrink: 0,
+          }}
+        >
           <Group gap="xs">
             <TextInput
               flex={1}
               placeholder="Mesaj yazın..."
               value={inputValue}
               onChange={(e) => setInputValue(e.currentTarget.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
               size="md"
               radius="xl"
               styles={{
@@ -528,10 +563,10 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
                   paddingLeft: 16,
                   paddingRight: 16,
                   minHeight: 44, // Mobilde daha büyük dokunma alanı
-                }
+                },
               }}
             />
-            <ActionIcon 
+            <ActionIcon
               size={44}
               radius="xl"
               variant="gradient"
@@ -555,19 +590,30 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
         {/* Header */}
         <Group justify="space-between">
           <Group gap="xs">
-            <ThemeIcon size="lg" color="violet" variant="gradient" gradient={{ from: 'violet', to: 'purple' }}>
+            <ThemeIcon
+              size="lg"
+              color="violet"
+              variant="gradient"
+              gradient={{ from: 'violet', to: 'purple' }}
+            >
               <IconBrain size={20} />
             </ThemeIcon>
             <div>
-              <Text size="lg" fw={600}>🤖 AI Agent</Text>
-              <Text size="xs" c="dimmed">Tüm sisteme erişebilen akıllı asistan</Text>
+              <Text size="lg" fw={600}>
+                🤖 AI Agent
+              </Text>
+              <Text size="xs" c="dimmed">
+                Tüm sisteme erişebilen akıllı asistan
+              </Text>
             </div>
           </Group>
-          
+
           <Group gap="md">
             {/* Şablon Seçici */}
             <Group gap="xs">
-              <Text size="xs" c="dimmed">Şablon:</Text>
+              <Text size="xs" c="dimmed">
+                Şablon:
+              </Text>
               <Select
                 data={templateSelectData}
                 value={selectedTemplate}
@@ -575,10 +621,12 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
                 size="xs"
                 w={180}
                 placeholder="Şablon seçin"
-                leftSection={currentTemplate?.icon ? <Text size="sm">{currentTemplate.icon}</Text> : undefined}
+                leftSection={
+                  currentTemplate?.icon ? <Text size="sm">{currentTemplate.icon}</Text> : undefined
+                }
               />
             </Group>
-            
+
             <Tooltip label="Sohbet Geçmişi">
               <ActionIcon variant="subtle" color="violet" component="a" href="/ai-chat/history">
                 <IconHistory size={16} />
@@ -603,8 +651,15 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
             <Group gap="xs">
               <Text size="lg">{currentTemplate.icon}</Text>
               <div>
-                <Text size="sm" fw={500}>{currentTemplate.name.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, '')}</Text>
-                <Text size="xs" c="dimmed">{currentTemplate.description}</Text>
+                <Text size="sm" fw={500}>
+                  {currentTemplate.name.replace(
+                    /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u,
+                    ''
+                  )}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {currentTemplate.description}
+                </Text>
               </div>
             </Group>
           </Paper>
@@ -613,8 +668,8 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
         <Divider />
 
         {/* Messages */}
-        <ScrollArea 
-          flex={1} 
+        <ScrollArea
+          flex={1}
           type="scroll"
           scrollbarSize={8}
           offsetScrollbars
@@ -623,7 +678,7 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
               // Mobilde touch scroll için
               WebkitOverflowScrolling: 'touch',
               overscrollBehavior: 'contain',
-            }
+            },
           }}
         >
           <Stack gap="md" p="sm">
@@ -633,7 +688,9 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
                   <IconSparkles size={40} />
                 </ThemeIcon>
                 <div style={{ textAlign: 'center' }}>
-                  <Text size="xl" fw={600} mb={4}>Merhaba! Ben AI Agent 🤖</Text>
+                  <Text size="xl" fw={600} mb={4}>
+                    Merhaba! Ben AI Agent 🤖
+                  </Text>
                   <Text c="dimmed" size="sm" maw={500}>
                     Tüm sisteme erişebilirim: Siparişler, cariler, faturalar, ihaleler ve raporlar.
                     Veri sorgulayabilir, yeni kayıtlar oluşturabilir ve analiz yapabilirim.
@@ -642,14 +699,16 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
 
                 {/* Önerilen Sorular */}
                 <Stack gap="xs" w="100%" maw={600}>
-                  <Text size="sm" fw={500} c="dimmed">💡 Önerilen Sorular:</Text>
+                  <Text size="sm" fw={500} c="dimmed">
+                    💡 Önerilen Sorular:
+                  </Text>
                   <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
                     {suggestedQuestions.map((question, index) => (
-                      <Card 
-                        key={index} 
-                        p="sm" 
-                        radius="md" 
-                        withBorder 
+                      <Card
+                        key={index}
+                        p="sm"
+                        radius="md"
+                        withBorder
                         style={{ cursor: 'pointer' }}
                         onClick={() => handleSuggestedQuestion(question)}
                       >
@@ -661,7 +720,9 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
 
                 {/* Hızlı Komutlar */}
                 <Stack gap="xs" w="100%" maw={600}>
-                  <Text size="sm" fw={500} c="dimmed">⚡ Hızlı Komutlar:</Text>
+                  <Text size="sm" fw={500} c="dimmed">
+                    ⚡ Hızlı Komutlar:
+                  </Text>
                   <Group gap="xs">
                     {quickCommands.map((cmd, index) => (
                       <Badge
@@ -681,13 +742,10 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
             ) : (
               messages.map((message) => (
                 <Group key={message.id} align="flex-start" gap="md">
-                  <Avatar 
-                    color={message.type === 'user' ? 'blue' : 'violet'} 
-                    radius="xl"
-                  >
+                  <Avatar color={message.type === 'user' ? 'blue' : 'violet'} radius="xl">
                     {message.type === 'user' ? <IconUser size={18} /> : <IconRobot size={18} />}
                   </Avatar>
-                  
+
                   <Stack gap="xs" flex={1}>
                     <Group gap="xs">
                       <Text size="sm" fw={500}>
@@ -697,16 +755,20 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
                         {message.timestamp.toLocaleTimeString('tr-TR')}
                       </Text>
                       {message.toolsUsed && message.toolsUsed.length > 0 && (
-                        <Badge 
-                          size="xs" 
-                          variant="light" 
+                        <Badge
+                          size="xs"
+                          variant="light"
                           color="violet"
                           leftSection={<IconTool size={10} />}
                           style={{ cursor: 'pointer' }}
                           onClick={() => toggleExpanded(message.id)}
                         >
                           {message.toolsUsed.length} tool kullanıldı
-                          {expandedMessages.has(message.id) ? <IconChevronUp size={10} /> : <IconChevronDown size={10} />}
+                          {expandedMessages.has(message.id) ? (
+                            <IconChevronUp size={10} />
+                          ) : (
+                            <IconChevronDown size={10} />
+                          )}
                         </Badge>
                       )}
                       {message.iterations && message.iterations > 1 && (
@@ -715,15 +777,23 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
                         </Badge>
                       )}
                     </Group>
-                    
+
                     {/* Tool detayları */}
                     {message.toolsUsed && message.toolsUsed.length > 0 && (
                       <Collapse in={expandedMessages.has(message.id)}>
                         <Paper p="xs" bg="gray.0" radius="sm" mb="xs">
-                          <Text size="xs" fw={500} mb={4}>🔧 Kullanılan Araçlar:</Text>
+                          <Text size="xs" fw={500} mb={4}>
+                            🔧 Kullanılan Araçlar:
+                          </Text>
                           <Group gap={4}>
                             {message.toolsUsed.map((tool, i) => (
-                              <Badge key={i} size="sm" variant="dot" color="violet" leftSection={getToolIcon(tool)}>
+                              <Badge
+                                key={i}
+                                size="sm"
+                                variant="dot"
+                                color="violet"
+                                leftSection={getToolIcon(tool)}
+                              >
                                 {getToolDisplayName(tool)}
                               </Badge>
                             ))}
@@ -731,12 +801,8 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
                         </Paper>
                       </Collapse>
                     )}
-                    
-                    <Paper 
-                      p="md" 
-                      bg={message.type === 'user' ? 'blue.0' : 'violet.0'} 
-                      radius="md"
-                    >
+
+                    <Paper p="md" bg={message.type === 'user' ? 'blue.0' : 'violet.0'} radius="md">
                       <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
                         {message.content}
                       </Text>
@@ -744,44 +810,56 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
 
                     <Group gap="xs">
                       <Tooltip label="Kopyala">
-                        <ActionIcon 
-                          size="sm" 
-                          variant="subtle" 
+                        <ActionIcon
+                          size="sm"
+                          variant="subtle"
                           color="gray"
                           onClick={() => copyMessage(message.content)}
                         >
                           <IconCopy size={12} />
                         </ActionIcon>
                       </Tooltip>
-                      
+
                       {/* Feedback butonları - sadece AI mesajlarında */}
                       {message.type === 'ai' && !feedbackGiven.has(message.id) && (
                         <>
                           <Tooltip label="Yardımcı oldu">
-                            <ActionIcon 
-                              size="sm" 
-                              variant="subtle" 
+                            <ActionIcon
+                              size="sm"
+                              variant="subtle"
                               color="green"
                               onClick={() => {
-                                const userMsg = messages.find((m, idx) => 
-                                  m.type === 'user' && messages[idx + 1]?.id === message.id
+                                const userMsg = messages.find(
+                                  (m, idx) =>
+                                    m.type === 'user' && messages[idx + 1]?.id === message.id
                                 );
-                                sendFeedback(message.id, userMsg?.content || '', message.content, true);
+                                sendFeedback(
+                                  message.id,
+                                  userMsg?.content || '',
+                                  message.content,
+                                  true
+                                );
                               }}
                             >
                               <IconThumbUp size={12} />
                             </ActionIcon>
                           </Tooltip>
                           <Tooltip label="Yardımcı olmadı">
-                            <ActionIcon 
-                              size="sm" 
-                              variant="subtle" 
+                            <ActionIcon
+                              size="sm"
+                              variant="subtle"
                               color="red"
                               onClick={() => {
-                                const userMsg = messages.find((m, idx) => 
-                                  m.type === 'user' && messages[idx + 1]?.id === message.id
+                                const userMsg = messages.find(
+                                  (m, idx) =>
+                                    m.type === 'user' && messages[idx + 1]?.id === message.id
                                 );
-                                sendFeedback(message.id, userMsg?.content || '', message.content, false);
+                                sendFeedback(
+                                  message.id,
+                                  userMsg?.content || '',
+                                  message.content,
+                                  false
+                                );
                               }}
                             >
                               <IconThumbDown size={12} />
@@ -789,10 +867,15 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
                           </Tooltip>
                         </>
                       )}
-                      
+
                       {/* Feedback verildi göstergesi */}
                       {message.type === 'ai' && feedbackGiven.has(message.id) && (
-                        <Badge size="xs" variant="light" color="gray" leftSection={<IconCheck size={10} />}>
+                        <Badge
+                          size="xs"
+                          variant="light"
+                          color="gray"
+                          leftSection={<IconCheck size={10} />}
+                        >
                           Geri bildirim verildi
                         </Badge>
                       )}
@@ -801,7 +884,7 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
                 </Group>
               ))
             )}
-            
+
             {isLoading && (
               <Group gap="md">
                 <Avatar color="violet" radius="xl">
@@ -810,12 +893,14 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
                 <Paper p="md" bg="violet.0" radius="md" flex={1}>
                   <Group gap="xs">
                     <Loader size="sm" color="violet" />
-                    <Text size="sm" c="dimmed">AI Agent çalışıyor... Verilere erişiliyor...</Text>
+                    <Text size="sm" c="dimmed">
+                      AI Agent çalışıyor... Verilere erişiliyor...
+                    </Text>
                   </Group>
                 </Paper>
               </Group>
             )}
-            
+
             <div ref={messagesEndRef} />
           </Stack>
         </ScrollArea>
@@ -827,7 +912,12 @@ export function AIChat({ defaultDepartment = 'TÜM SİSTEM', compact = false, pa
             placeholder="Soru sorun, komut verin veya işlem yaptırın..."
             value={inputValue}
             onChange={(e) => setInputValue(e.currentTarget.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
             disabled={isLoading}
             size="md"
           />

@@ -1,39 +1,35 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import {
+  Alert,
   Box,
+  Button,
+  Center,
+  Container,
+  Divider,
+  Group,
   Paper,
-  Title,
+  PasswordInput,
+  rem,
+  Stack,
   Text,
   TextInput,
-  PasswordInput,
-  Button,
-  Stack,
-  Group,
-  Divider,
-  Alert,
-  Container,
-  Center,
-  rem,
-  ThemeIcon,
-  Anchor
 } from '@mantine/core';
-import { 
-  IconAt, 
-  IconLock, 
-  IconAlertCircle, 
-  IconChefHat,
+import {
+  IconAlertCircle,
   IconArrowRight,
-  IconShieldCheck
+  IconAt,
+  IconLock,
+  IconShieldCheck,
 } from '@tabler/icons-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
   const { login, isAuthenticated, isLoading: authLoading } = useAuth();
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -74,13 +70,13 @@ export default function LoginPage() {
     }
 
     const result = await login(email, password);
-    
+
     if (result.success) {
       router.push('/');
     } else {
       setError(result.error || 'Giriş başarısız');
     }
-    
+
     setIsLoading(false);
   };
 
@@ -92,7 +88,7 @@ export default function LoginPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: rem(20)
+        padding: rem(20),
       }}
     >
       {/* Background decoration */}
@@ -104,7 +100,7 @@ export default function LoginPage() {
           right: 0,
           bottom: 0,
           overflow: 'hidden',
-          pointerEvents: 'none'
+          pointerEvents: 'none',
         }}
       >
         <Box
@@ -116,7 +112,7 @@ export default function LoginPage() {
             height: rem(300),
             background: 'radial-gradient(circle, rgba(34, 139, 230, 0.15) 0%, transparent 70%)',
             borderRadius: '50%',
-            filter: 'blur(60px)'
+            filter: 'blur(60px)',
           }}
         />
         <Box
@@ -128,7 +124,7 @@ export default function LoginPage() {
             height: rem(250),
             background: 'radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, transparent 70%)',
             borderRadius: '50%',
-            filter: 'blur(50px)'
+            filter: 'blur(50px)',
           }}
         />
       </Box>
@@ -141,22 +137,22 @@ export default function LoginPage() {
             background: 'rgba(255, 255, 255, 0.03)',
             backdropFilter: 'blur(20px)',
             border: '1px solid rgba(255, 255, 255, 0.1)',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
           }}
         >
           <Stack gap="lg">
             {/* Logo & Header */}
             <Center>
               <Stack align="center" gap="md">
-                <img 
-                  src="/logo.png" 
-                  alt="Catering Pro Logo" 
-                  style={{ 
-                    height: 80, 
+                <img
+                  src="/logo.png"
+                  alt="Catering Pro Logo"
+                  style={{
+                    height: 80,
                     width: 'auto',
                     objectFit: 'contain',
-                    filter: 'drop-shadow(0 10px 30px rgba(34, 139, 230, 0.3))'
-                  }} 
+                    filter: 'drop-shadow(0 10px 30px rgba(34, 139, 230, 0.3))',
+                  }}
                 />
                 <Text size="sm" c="dimmed" ta="center">
                   İş Yönetim Sistemine Hoş Geldiniz
@@ -165,7 +161,11 @@ export default function LoginPage() {
             </Center>
 
             <Divider
-              label={<Text size="xs" c="dimmed">Giriş Yap</Text>}
+              label={
+                <Text size="xs" c="dimmed">
+                  Giriş Yap
+                </Text>
+              }
               labelPosition="center"
               style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}
             />
@@ -187,9 +187,15 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit}>
               <Stack gap="md">
                 <TextInput
-                  label={<Text size="sm" fw={500} c="gray.3">Email</Text>}
+                  label={
+                    <Text size="sm" fw={500} c="gray.3">
+                      Email
+                    </Text>
+                  }
                   placeholder="ornek@sirket.com"
-                  leftSection={<IconAt size={16} style={{ color: 'var(--mantine-color-gray-5)' }} />}
+                  leftSection={
+                    <IconAt size={16} style={{ color: 'var(--mantine-color-gray-5)' }} />
+                  }
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   size="md"
@@ -200,19 +206,25 @@ export default function LoginPage() {
                       borderColor: 'rgba(255, 255, 255, 0.1)',
                       color: 'white',
                       '&::placeholder': {
-                        color: 'var(--mantine-color-gray-6)'
+                        color: 'var(--mantine-color-gray-6)',
                       },
                       '&:focus': {
-                        borderColor: 'var(--mantine-color-blue-5)'
-                      }
-                    }
+                        borderColor: 'var(--mantine-color-blue-5)',
+                      },
+                    },
                   }}
                 />
 
                 <PasswordInput
-                  label={<Text size="sm" fw={500} c="gray.3">Şifre</Text>}
+                  label={
+                    <Text size="sm" fw={500} c="gray.3">
+                      Şifre
+                    </Text>
+                  }
                   placeholder="••••••••"
-                  leftSection={<IconLock size={16} style={{ color: 'var(--mantine-color-gray-5)' }} />}
+                  leftSection={
+                    <IconLock size={16} style={{ color: 'var(--mantine-color-gray-5)' }} />
+                  }
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   size="md"
@@ -223,12 +235,12 @@ export default function LoginPage() {
                       borderColor: 'rgba(255, 255, 255, 0.1)',
                       color: 'white',
                       '&:focus': {
-                        borderColor: 'var(--mantine-color-blue-5)'
-                      }
+                        borderColor: 'var(--mantine-color-blue-5)',
+                      },
                     },
                     innerInput: {
-                      color: 'white'
-                    }
+                      color: 'white',
+                    },
                   }}
                 />
 
@@ -243,7 +255,7 @@ export default function LoginPage() {
                   gradient={{ from: 'blue.6', to: 'cyan.5', deg: 135 }}
                   style={{
                     marginTop: rem(8),
-                    boxShadow: '0 4px 20px -4px rgba(34, 139, 230, 0.4)'
+                    boxShadow: '0 4px 20px -4px rgba(34, 139, 230, 0.4)',
                   }}
                 >
                   Giriş Yap
@@ -273,21 +285,26 @@ export default function LoginPage() {
           radius="md"
           style={{
             background: 'rgba(59, 130, 246, 0.1)',
-            border: '1px solid rgba(59, 130, 246, 0.2)'
+            border: '1px solid rgba(59, 130, 246, 0.2)',
           }}
         >
           <Text size="xs" c="blue.3" fw={500} mb={4}>
             🧪 Demo Giriş Bilgileri
           </Text>
           <Text size="xs" c="gray.5">
-            Email: <Text span c="white" ff="monospace">admin@catering.com</Text>
+            Email:{' '}
+            <Text span c="white" ff="monospace">
+              admin@catering.com
+            </Text>
           </Text>
           <Text size="xs" c="gray.5">
-            Şifre: <Text span c="white" ff="monospace">Admin123!</Text>
+            Şifre:{' '}
+            <Text span c="white" ff="monospace">
+              Admin123!
+            </Text>
           </Text>
         </Paper>
       </Container>
     </Box>
   );
 }
-

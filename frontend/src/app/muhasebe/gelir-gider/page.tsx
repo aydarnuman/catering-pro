@@ -1,51 +1,49 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import {
-  Container,
-  Title,
-  Text,
-  Card,
-  Group,
-  Stack,
-  SimpleGrid,
-  ThemeIcon,
-  Badge,
-  Button,
-  Box,
-  Table,
   ActionIcon,
-  TextInput,
-  Select,
+  Badge,
+  Box,
+  Button,
+  Card,
+  Container,
+  Group,
+  Menu,
   Modal,
   NumberInput,
-  Textarea,
+  rem,
   SegmentedControl,
+  Select,
+  SimpleGrid,
+  Stack,
+  Table,
   Tabs,
+  Text,
+  Textarea,
+  TextInput,
+  ThemeIcon,
+  Title,
   useMantineColorScheme,
-  Tooltip,
-  Menu,
-  rem
 } from '@mantine/core';
-import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
-  IconPlus,
-  IconSearch,
-  IconTrendingUp,
-  IconTrendingDown,
-  IconCalendar,
-  IconReceipt,
-  IconEdit,
-  IconTrash,
-  IconDownload,
-  IconArrowUpRight,
   IconArrowDownRight,
+  IconArrowUpRight,
   IconCheck,
   IconDotsVertical,
-  IconFileSpreadsheet
+  IconDownload,
+  IconEdit,
+  IconFileSpreadsheet,
+  IconPlus,
+  IconReceipt,
+  IconSearch,
+  IconTrash,
+  IconTrendingDown,
+  IconTrendingUp,
 } from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
+import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import 'dayjs/locale/tr';
 
 // Tip tanımları
@@ -67,21 +65,118 @@ const STORAGE_KEY = 'muhasebe_gelir_gider';
 // Kategoriler
 const kategoriler = {
   gelir: ['İhale Ödemesi', 'Fatura Tahsilatı', 'Avans', 'Diğer Gelir'],
-  gider: ['Personel', 'Malzeme', 'Kira', 'Ulaşım', 'Fatura', 'Vergi', 'Bakım/Onarım', 'Diğer Gider']
+  gider: [
+    'Personel',
+    'Malzeme',
+    'Kira',
+    'Ulaşım',
+    'Fatura',
+    'Vergi',
+    'Bakım/Onarım',
+    'Diğer Gider',
+  ],
 };
 
 const odemeYontemleri = ['Nakit', 'Banka Transferi', 'Kredi Kartı', 'Çek', 'Senet'];
 
 // Demo veriler
 const demoVeriler: GelirGider[] = [
-  { id: '1', tip: 'gelir', kategori: 'İhale Ödemesi', aciklama: 'Metro Holding - Ocak ayı', tutar: 45000, tarih: '2026-01-02', odemeYontemi: 'Banka Transferi', belgeNo: 'FTR-2026-001', not: '', createdAt: new Date().toISOString() },
-  { id: '2', tip: 'gider', kategori: 'Personel', aciklama: 'Ocak Maaşları', tutar: 28500, tarih: '2026-01-01', odemeYontemi: 'Banka Transferi', belgeNo: '', not: '15 personel', createdAt: new Date().toISOString() },
-  { id: '3', tip: 'gelir', kategori: 'Fatura Tahsilatı', aciklama: 'Okul Yemekhane Faturası', tutar: 18750, tarih: '2025-12-30', odemeYontemi: 'Banka Transferi', belgeNo: 'FTR-2025-089', not: '', createdAt: new Date().toISOString() },
-  { id: '4', tip: 'gider', kategori: 'Malzeme', aciklama: 'Metro Market - Gıda Alımı', tutar: 12400, tarih: '2025-12-28', odemeYontemi: 'Nakit', belgeNo: 'ALM-2025-045', not: '', createdAt: new Date().toISOString() },
-  { id: '5', tip: 'gider', kategori: 'Ulaşım', aciklama: 'Araç Yakıt Gideri', tutar: 3200, tarih: '2025-12-27', odemeYontemi: 'Nakit', belgeNo: '', not: '3 araç', createdAt: new Date().toISOString() },
-  { id: '6', tip: 'gelir', kategori: 'İhale Ödemesi', aciklama: 'Belediye Kafeterya', tutar: 32000, tarih: '2025-12-25', odemeYontemi: 'Banka Transferi', belgeNo: 'FTR-2025-088', not: '', createdAt: new Date().toISOString() },
-  { id: '7', tip: 'gider', kategori: 'Kira', aciklama: 'Depo Kirası - Ocak', tutar: 8500, tarih: '2025-12-24', odemeYontemi: 'Banka Transferi', belgeNo: '', not: '', createdAt: new Date().toISOString() },
-  { id: '8', tip: 'gider', kategori: 'Fatura', aciklama: 'Elektrik Faturası', tutar: 4200, tarih: '2025-12-22', odemeYontemi: 'Banka Transferi', belgeNo: 'ELK-2025-012', not: '', createdAt: new Date().toISOString() },
+  {
+    id: '1',
+    tip: 'gelir',
+    kategori: 'İhale Ödemesi',
+    aciklama: 'Metro Holding - Ocak ayı',
+    tutar: 45000,
+    tarih: '2026-01-02',
+    odemeYontemi: 'Banka Transferi',
+    belgeNo: 'FTR-2026-001',
+    not: '',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: '2',
+    tip: 'gider',
+    kategori: 'Personel',
+    aciklama: 'Ocak Maaşları',
+    tutar: 28500,
+    tarih: '2026-01-01',
+    odemeYontemi: 'Banka Transferi',
+    belgeNo: '',
+    not: '15 personel',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: '3',
+    tip: 'gelir',
+    kategori: 'Fatura Tahsilatı',
+    aciklama: 'Okul Yemekhane Faturası',
+    tutar: 18750,
+    tarih: '2025-12-30',
+    odemeYontemi: 'Banka Transferi',
+    belgeNo: 'FTR-2025-089',
+    not: '',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: '4',
+    tip: 'gider',
+    kategori: 'Malzeme',
+    aciklama: 'Metro Market - Gıda Alımı',
+    tutar: 12400,
+    tarih: '2025-12-28',
+    odemeYontemi: 'Nakit',
+    belgeNo: 'ALM-2025-045',
+    not: '',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: '5',
+    tip: 'gider',
+    kategori: 'Ulaşım',
+    aciklama: 'Araç Yakıt Gideri',
+    tutar: 3200,
+    tarih: '2025-12-27',
+    odemeYontemi: 'Nakit',
+    belgeNo: '',
+    not: '3 araç',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: '6',
+    tip: 'gelir',
+    kategori: 'İhale Ödemesi',
+    aciklama: 'Belediye Kafeterya',
+    tutar: 32000,
+    tarih: '2025-12-25',
+    odemeYontemi: 'Banka Transferi',
+    belgeNo: 'FTR-2025-088',
+    not: '',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: '7',
+    tip: 'gider',
+    kategori: 'Kira',
+    aciklama: 'Depo Kirası - Ocak',
+    tutar: 8500,
+    tarih: '2025-12-24',
+    odemeYontemi: 'Banka Transferi',
+    belgeNo: '',
+    not: '',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: '8',
+    tip: 'gider',
+    kategori: 'Fatura',
+    aciklama: 'Elektrik Faturası',
+    tutar: 4200,
+    tarih: '2025-12-22',
+    odemeYontemi: 'Banka Transferi',
+    belgeNo: 'ELK-2025-012',
+    not: '',
+    createdAt: new Date().toISOString(),
+  },
 ];
 
 export default function GelirGiderPage() {
@@ -102,7 +197,7 @@ export default function GelirGiderPage() {
     tarih: new Date(),
     odemeYontemi: 'Nakit',
     belgeNo: '',
-    not: ''
+    not: '',
   });
 
   // localStorage'dan yükle
@@ -139,17 +234,22 @@ export default function GelirGiderPage() {
 
   // Filtreleme
   const filteredIslemler = islemler
-    .filter(islem => {
+    .filter((islem) => {
       const matchesTab = activeTab === 'tumu' || islem.tip === activeTab;
-      const matchesSearch = islem.aciklama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           islem.kategori.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch =
+        islem.aciklama.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        islem.kategori.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesTab && matchesSearch;
     })
     .sort((a, b) => new Date(b.tarih).getTime() - new Date(a.tarih).getTime());
 
   // Toplamlar
-  const toplamGelir = islemler.filter(i => i.tip === 'gelir').reduce((acc, i) => acc + i.tutar, 0);
-  const toplamGider = islemler.filter(i => i.tip === 'gider').reduce((acc, i) => acc + i.tutar, 0);
+  const toplamGelir = islemler
+    .filter((i) => i.tip === 'gelir')
+    .reduce((acc, i) => acc + i.tutar, 0);
+  const toplamGider = islemler
+    .filter((i) => i.tip === 'gider')
+    .reduce((acc, i) => acc + i.tutar, 0);
   const netDurum = toplamGelir - toplamGider;
 
   // Yeni işlem ekle
@@ -178,7 +278,7 @@ export default function GelirGiderPage() {
 
     let newIslemler: GelirGider[];
     if (editingItem) {
-      newIslemler = islemler.map(i => i.id === editingItem.id ? newItem : i);
+      newIslemler = islemler.map((i) => (i.id === editingItem.id ? newItem : i));
     } else {
       newIslemler = [newItem, ...islemler];
     }
@@ -187,7 +287,9 @@ export default function GelirGiderPage() {
 
     notifications.show({
       title: 'Başarılı!',
-      message: editingItem ? 'İşlem güncellendi.' : `${formData.tip === 'gelir' ? 'Gelir' : 'Gider'} kaydı eklendi.`,
+      message: editingItem
+        ? 'İşlem güncellendi.'
+        : `${formData.tip === 'gelir' ? 'Gelir' : 'Gider'} kaydı eklendi.`,
       color: 'green',
       icon: <IconCheck size={16} />,
     });
@@ -198,7 +300,7 @@ export default function GelirGiderPage() {
 
   // Silme
   const handleDelete = (id: string) => {
-    const newIslemler = islemler.filter(i => i.id !== id);
+    const newIslemler = islemler.filter((i) => i.id !== id);
     saveToStorage(newIslemler);
     notifications.show({
       title: 'Silindi',
@@ -218,7 +320,7 @@ export default function GelirGiderPage() {
       tarih: new Date(item.tarih),
       odemeYontemi: item.odemeYontemi,
       belgeNo: item.belgeNo,
-      not: item.not
+      not: item.not,
     });
     open();
   };
@@ -234,25 +336,25 @@ export default function GelirGiderPage() {
       tarih: new Date(),
       odemeYontemi: 'Nakit',
       belgeNo: '',
-      not: ''
+      not: '',
     });
   };
 
   // Excel export
   const exportToExcel = () => {
     const headers = ['Tarih', 'Tip', 'Kategori', 'Açıklama', 'Tutar', 'Ödeme Yöntemi', 'Belge No'];
-    const rows = filteredIslemler.map(i => [
+    const rows = filteredIslemler.map((i) => [
       formatDate(i.tarih),
       i.tip === 'gelir' ? 'Gelir' : 'Gider',
       i.kategori,
       i.aciklama,
       i.tip === 'gelir' ? i.tutar : -i.tutar,
       i.odemeYontemi,
-      i.belgeNo
+      i.belgeNo,
     ]);
 
-    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -268,12 +370,12 @@ export default function GelirGiderPage() {
   };
 
   return (
-    <Box 
-      style={{ 
-        background: isDark 
-          ? 'linear-gradient(180deg, rgba(20,184,166,0.05) 0%, rgba(0,0,0,0) 100%)' 
+    <Box
+      style={{
+        background: isDark
+          ? 'linear-gradient(180deg, rgba(20,184,166,0.05) 0%, rgba(0,0,0,0) 100%)'
           : 'linear-gradient(180deg, rgba(20,184,166,0.08) 0%, rgba(255,255,255,0) 100%)',
-        minHeight: '100vh' 
+        minHeight: '100vh',
       }}
     >
       <Container size="xl" py="xl">
@@ -292,7 +394,10 @@ export default function GelirGiderPage() {
               leftSection={<IconPlus size={18} />}
               variant="gradient"
               gradient={{ from: 'teal', to: 'cyan' }}
-              onClick={() => { resetForm(); open(); }}
+              onClick={() => {
+                resetForm();
+                open();
+              }}
             >
               Yeni İşlem Ekle
             </Button>
@@ -302,7 +407,9 @@ export default function GelirGiderPage() {
           <SimpleGrid cols={{ base: 1, sm: 3 }}>
             <Card withBorder shadow="sm" p="lg" radius="md">
               <Group justify="space-between">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Toplam Gelir</Text>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                  Toplam Gelir
+                </Text>
                 <ThemeIcon color="green" variant="light" size="lg" radius="md">
                   <IconTrendingUp size={20} />
                 </ThemeIcon>
@@ -311,12 +418,14 @@ export default function GelirGiderPage() {
                 {formatMoney(toplamGelir)}
               </Text>
               <Text size="xs" c="dimmed" mt={4}>
-                {islemler.filter(i => i.tip === 'gelir').length} işlem
+                {islemler.filter((i) => i.tip === 'gelir').length} işlem
               </Text>
             </Card>
             <Card withBorder shadow="sm" p="lg" radius="md">
               <Group justify="space-between">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Toplam Gider</Text>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                  Toplam Gider
+                </Text>
                 <ThemeIcon color="red" variant="light" size="lg" radius="md">
                   <IconTrendingDown size={20} />
                 </ThemeIcon>
@@ -325,13 +434,20 @@ export default function GelirGiderPage() {
                 {formatMoney(toplamGider)}
               </Text>
               <Text size="xs" c="dimmed" mt={4}>
-                {islemler.filter(i => i.tip === 'gider').length} işlem
+                {islemler.filter((i) => i.tip === 'gider').length} işlem
               </Text>
             </Card>
             <Card withBorder shadow="sm" p="lg" radius="md">
               <Group justify="space-between">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Net Durum</Text>
-                <ThemeIcon color={netDurum >= 0 ? 'teal' : 'red'} variant="light" size="lg" radius="md">
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                  Net Durum
+                </Text>
+                <ThemeIcon
+                  color={netDurum >= 0 ? 'teal' : 'red'}
+                  variant="light"
+                  size="lg"
+                  radius="md"
+                >
                   <IconReceipt size={20} />
                 </ThemeIcon>
               </Group>
@@ -350,11 +466,19 @@ export default function GelirGiderPage() {
               <Tabs value={activeTab} onChange={setActiveTab}>
                 <Tabs.List>
                   <Tabs.Tab value="tumu">Tümü ({islemler.length})</Tabs.Tab>
-                  <Tabs.Tab value="gelir" leftSection={<IconArrowUpRight size={14} />} color="green">
-                    Gelirler ({islemler.filter(i => i.tip === 'gelir').length})
+                  <Tabs.Tab
+                    value="gelir"
+                    leftSection={<IconArrowUpRight size={14} />}
+                    color="green"
+                  >
+                    Gelirler ({islemler.filter((i) => i.tip === 'gelir').length})
                   </Tabs.Tab>
-                  <Tabs.Tab value="gider" leftSection={<IconArrowDownRight size={14} />} color="red">
-                    Giderler ({islemler.filter(i => i.tip === 'gider').length})
+                  <Tabs.Tab
+                    value="gider"
+                    leftSection={<IconArrowDownRight size={14} />}
+                    color="red"
+                  >
+                    Giderler ({islemler.filter((i) => i.tip === 'gider').length})
                   </Tabs.Tab>
                 </Tabs.List>
               </Tabs>
@@ -366,7 +490,11 @@ export default function GelirGiderPage() {
                   onChange={(e) => setSearchTerm(e.currentTarget.value)}
                   style={{ width: 200 }}
                 />
-                <Button variant="light" leftSection={<IconDownload size={16} />} onClick={exportToExcel}>
+                <Button
+                  variant="light"
+                  leftSection={<IconDownload size={16} />}
+                  onClick={exportToExcel}
+                >
                   Excel
                 </Button>
               </Group>
@@ -399,9 +527,9 @@ export default function GelirGiderPage() {
                     filteredIslemler.map((islem) => (
                       <Table.Tr key={islem.id}>
                         <Table.Td>
-                          <ThemeIcon 
-                            color={islem.tip === 'gelir' ? 'green' : 'red'} 
-                            variant="light" 
+                          <ThemeIcon
+                            color={islem.tip === 'gelir' ? 'green' : 'red'}
+                            variant="light"
                             size="sm"
                             radius="xl"
                           >
@@ -413,29 +541,38 @@ export default function GelirGiderPage() {
                           </ThemeIcon>
                         </Table.Td>
                         <Table.Td>
-                          <Badge variant="light" color={islem.tip === 'gelir' ? 'green' : 'red'} size="sm">
+                          <Badge
+                            variant="light"
+                            color={islem.tip === 'gelir' ? 'green' : 'red'}
+                            size="sm"
+                          >
                             {islem.kategori}
                           </Badge>
                         </Table.Td>
                         <Table.Td>
-                          <Text size="sm" fw={500}>{islem.aciklama}</Text>
+                          <Text size="sm" fw={500}>
+                            {islem.aciklama}
+                          </Text>
                           {islem.belgeNo && (
-                            <Text size="xs" c="dimmed">{islem.belgeNo}</Text>
+                            <Text size="xs" c="dimmed">
+                              {islem.belgeNo}
+                            </Text>
                           )}
                         </Table.Td>
                         <Table.Td>
-                          <Text size="sm" c="dimmed">{formatDate(islem.tarih)}</Text>
+                          <Text size="sm" c="dimmed">
+                            {formatDate(islem.tarih)}
+                          </Text>
                         </Table.Td>
                         <Table.Td>
-                          <Text size="xs" c="dimmed">{islem.odemeYontemi}</Text>
+                          <Text size="xs" c="dimmed">
+                            {islem.odemeYontemi}
+                          </Text>
                         </Table.Td>
                         <Table.Td style={{ textAlign: 'right' }}>
-                          <Text 
-                            size="sm" 
-                            fw={600} 
-                            c={islem.tip === 'gelir' ? 'green' : 'red'}
-                          >
-                            {islem.tip === 'gelir' ? '+' : '-'}{formatMoney(islem.tutar)}
+                          <Text size="sm" fw={600} c={islem.tip === 'gelir' ? 'green' : 'red'}>
+                            {islem.tip === 'gelir' ? '+' : '-'}
+                            {formatMoney(islem.tutar)}
                           </Text>
                         </Table.Td>
                         <Table.Td>
@@ -447,14 +584,18 @@ export default function GelirGiderPage() {
                             </Menu.Target>
                             <Menu.Dropdown>
                               <Menu.Item
-                                leftSection={<IconEdit style={{ width: rem(14), height: rem(14) }} />}
+                                leftSection={
+                                  <IconEdit style={{ width: rem(14), height: rem(14) }} />
+                                }
                                 onClick={() => handleEdit(islem)}
                               >
                                 Düzenle
                               </Menu.Item>
                               <Menu.Item
                                 color="red"
-                                leftSection={<IconTrash style={{ width: rem(14), height: rem(14) }} />}
+                                leftSection={
+                                  <IconTrash style={{ width: rem(14), height: rem(14) }} />
+                                }
                                 onClick={() => handleDelete(islem.id)}
                               >
                                 Sil
@@ -472,9 +613,12 @@ export default function GelirGiderPage() {
         </Stack>
 
         {/* Add/Edit Modal */}
-        <Modal 
-          opened={opened} 
-          onClose={() => { resetForm(); close(); }} 
+        <Modal
+          opened={opened}
+          onClose={() => {
+            resetForm();
+            close();
+          }}
           title={<Title order={3}>{editingItem ? 'İşlemi Düzenle' : 'Yeni İşlem Ekle'}</Title>}
           size="md"
         >
@@ -482,14 +626,16 @@ export default function GelirGiderPage() {
             <SegmentedControl
               fullWidth
               value={formData.tip}
-              onChange={(value) => setFormData({ ...formData, tip: value as 'gelir' | 'gider', kategori: '' })}
+              onChange={(value) =>
+                setFormData({ ...formData, tip: value as 'gelir' | 'gider', kategori: '' })
+              }
               data={[
                 { label: '💰 Gelir', value: 'gelir' },
                 { label: '💸 Gider', value: 'gider' },
               ]}
               color={formData.tip === 'gelir' ? 'green' : 'red'}
             />
-            
+
             <Select
               label="Kategori"
               placeholder="Kategori seçin"
@@ -550,11 +696,16 @@ export default function GelirGiderPage() {
             />
 
             <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={() => { resetForm(); close(); }}>İptal</Button>
-              <Button 
-                color={formData.tip === 'gelir' ? 'green' : 'red'}
-                onClick={handleSubmit}
+              <Button
+                variant="default"
+                onClick={() => {
+                  resetForm();
+                  close();
+                }}
               >
+                İptal
+              </Button>
+              <Button color={formData.tip === 'gelir' ? 'green' : 'red'} onClick={handleSubmit}>
                 {editingItem ? 'Güncelle' : 'Kaydet'}
               </Button>
             </Group>

@@ -1,49 +1,45 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { API_BASE_URL } from '@/lib/config';
 import {
-  Container,
-  Title,
-  Text,
-  Card,
-  Group,
-  Stack,
-  SimpleGrid,
-  ThemeIcon,
+  ActionIcon,
   Badge,
   Button,
+  Card,
+  Container,
+  Group,
   Paper,
-  Loader,
   Progress,
-  ActionIcon,
-  Tooltip,
+  SimpleGrid,
+  Skeleton,
+  Stack,
   Table,
-  Timeline,
-  RingProgress,
-  Skeleton
+  Text,
+  ThemeIcon,
+  Title,
+  Tooltip,
 } from '@mantine/core';
 import {
-  IconServer,
-  IconDatabase,
-  IconUsers,
-  IconRefresh,
-  IconCheck,
-  IconX,
-  IconSettings,
-  IconFileText,
   IconActivity,
-  IconCloudDownload,
-  IconShieldLock,
-  IconExternalLink,
+  IconBriefcase,
+  IconBug,
+  IconCheck,
   IconChevronRight,
   IconClock,
-  IconTrendingUp,
+  IconCloudDownload,
+  IconDatabase,
+  IconExternalLink,
+  IconFileText,
   IconReceipt,
-  IconBriefcase,
+  IconRefresh,
+  IconServer,
+  IconSettings,
+  IconShieldLock,
   IconUser,
-  IconBug
+  IconUsers,
+  IconX,
 } from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 
 interface AdminStats {
   tablolar: { ad: string; kayit: number }[];
@@ -63,7 +59,7 @@ interface HealthData {
 
 export default function AdminPage() {
   const API_URL = API_BASE_URL;
-  
+
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [health, setHealth] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -72,10 +68,14 @@ export default function AdminPage() {
     setLoading(true);
     try {
       const [statsRes, healthRes] = await Promise.all([
-        fetch(`${API_URL}/api/database-stats/admin-stats`).then(r => r.json()).catch(() => null),
-        fetch(`${API_URL}/api/database-stats/health-detailed`).then(r => r.json()).catch(() => null)
+        fetch(`${API_URL}/api/database-stats/admin-stats`)
+          .then((r) => r.json())
+          .catch(() => null),
+        fetch(`${API_URL}/api/database-stats/health-detailed`)
+          .then((r) => r.json())
+          .catch(() => null),
       ]);
-      
+
       if (statsRes?.success) setStats(statsRes.data);
       if (healthRes?.success) setHealth(healthRes.data);
     } catch (err) {
@@ -90,7 +90,7 @@ export default function AdminPage() {
     // Her 30 saniyede yenile
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchData]);
 
   const adminCards = [
     {
@@ -100,7 +100,7 @@ export default function AdminPage() {
       icon: IconUsers,
       color: 'blue',
       path: '/admin/kullanicilar',
-      badge: null
+      badge: null,
     },
     {
       id: 'yetkiler',
@@ -109,7 +109,7 @@ export default function AdminPage() {
       icon: IconShieldLock,
       color: 'violet',
       path: '/admin/yetkiler',
-      badge: null
+      badge: null,
     },
     {
       id: 'loglar',
@@ -118,7 +118,7 @@ export default function AdminPage() {
       icon: IconActivity,
       color: 'teal',
       path: '/admin/loglar',
-      badge: null
+      badge: null,
     },
     {
       id: 'veri',
@@ -127,7 +127,7 @@ export default function AdminPage() {
       icon: IconCloudDownload,
       color: 'cyan',
       path: '/admin/sync',
-      badge: null
+      badge: null,
     },
     {
       id: 'sistem',
@@ -136,7 +136,7 @@ export default function AdminPage() {
       icon: IconServer,
       color: 'gray',
       path: '/admin/sistem',
-      badge: null
+      badge: null,
     },
     {
       id: 'scraper',
@@ -145,12 +145,14 @@ export default function AdminPage() {
       icon: IconBug,
       color: 'grape',
       path: '/admin/scraper',
-      badge: null
-    }
+      badge: null,
+    },
   ];
 
   // DB boyutu yüzdesi (500MB limit varsayımı)
-  const dbPercentage = stats ? Math.min((stats.veritabani.bytes / (500 * 1024 * 1024)) * 100, 100) : 0;
+  const dbPercentage = stats
+    ? Math.min((stats.veritabani.bytes / (500 * 1024 * 1024)) * 100, 100)
+    : 0;
 
   return (
     <Container size="xl" py="xl">
@@ -159,21 +161,30 @@ export default function AdminPage() {
         <Group justify="space-between">
           <div>
             <Group gap="sm" mb={4}>
-              <ThemeIcon size="lg" radius="md" variant="gradient" gradient={{ from: 'red', to: 'orange' }}>
+              <ThemeIcon
+                size="lg"
+                radius="md"
+                variant="gradient"
+                gradient={{ from: 'red', to: 'orange' }}
+              >
                 <IconShieldLock size={20} />
               </ThemeIcon>
-              <Title order={1} size="h2">Admin Panel</Title>
+              <Title order={1} size="h2">
+                Admin Panel
+              </Title>
             </Group>
             <Text c="dimmed">Sistem yönetimi ve yapılandırma</Text>
           </div>
-          
+
           <Group>
             <Tooltip label="Yenile">
               <ActionIcon variant="light" size="lg" onClick={fetchData} loading={loading}>
                 <IconRefresh size={18} />
               </ActionIcon>
             </Tooltip>
-            <Badge size="lg" variant="light" color="red">Admin Only</Badge>
+            <Badge size="lg" variant="light" color="red">
+              Admin Only
+            </Badge>
           </Group>
         </Group>
 
@@ -182,8 +193,15 @@ export default function AdminPage() {
           {/* Backend Status */}
           <Card padding="lg" radius="md" withBorder>
             <Group justify="space-between" mb="xs">
-              <Text size="sm" c="dimmed">Backend API</Text>
-              <ThemeIcon variant="light" color={health?.status === 'healthy' ? 'green' : 'red'} size="sm" radius="xl">
+              <Text size="sm" c="dimmed">
+                Backend API
+              </Text>
+              <ThemeIcon
+                variant="light"
+                color={health?.status === 'healthy' ? 'green' : 'red'}
+                size="sm"
+                radius="xl"
+              >
                 <IconServer size={14} />
               </ThemeIcon>
             </Group>
@@ -192,23 +210,31 @@ export default function AdminPage() {
             ) : health?.status === 'healthy' ? (
               <Group gap="xs">
                 <IconCheck size={16} color="var(--mantine-color-green-6)" />
-                <Text fw={600} c="green">Çalışıyor</Text>
+                <Text fw={600} c="green">
+                  Çalışıyor
+                </Text>
               </Group>
             ) : (
               <Group gap="xs">
                 <IconX size={16} color="var(--mantine-color-red-6)" />
-                <Text fw={600} c="red">Bağlantı Yok</Text>
+                <Text fw={600} c="red">
+                  Bağlantı Yok
+                </Text>
               </Group>
             )}
             {health && (
-              <Text size="xs" c="dimmed" mt={4}>{health.api.responseTime}ms</Text>
+              <Text size="xs" c="dimmed" mt={4}>
+                {health.api.responseTime}ms
+              </Text>
             )}
           </Card>
 
           {/* Database Status */}
           <Card padding="lg" radius="md" withBorder>
             <Group justify="space-between" mb="xs">
-              <Text size="sm" c="dimmed">Veritabanı</Text>
+              <Text size="sm" c="dimmed">
+                Veritabanı
+              </Text>
               <ThemeIcon variant="light" color="cyan" size="sm" radius="xl">
                 <IconDatabase size={14} />
               </ThemeIcon>
@@ -219,14 +245,20 @@ export default function AdminPage() {
               <>
                 <Group gap="xs">
                   <IconCheck size={16} color="var(--mantine-color-green-6)" />
-                  <Text fw={600} c="green">Bağlı</Text>
+                  <Text fw={600} c="green">
+                    Bağlı
+                  </Text>
                 </Group>
-                <Text size="xs" c="dimmed" mt={4}>{health.database.responseTime}ms</Text>
+                <Text size="xs" c="dimmed" mt={4}>
+                  {health.database.responseTime}ms
+                </Text>
               </>
             ) : (
               <Group gap="xs">
                 <IconX size={16} color="var(--mantine-color-red-6)" />
-                <Text fw={600} c="red">Bağlantı Yok</Text>
+                <Text fw={600} c="red">
+                  Bağlantı Yok
+                </Text>
               </Group>
             )}
           </Card>
@@ -234,7 +266,9 @@ export default function AdminPage() {
           {/* DB Boyutu */}
           <Card padding="lg" radius="md" withBorder>
             <Group justify="space-between" mb="xs">
-              <Text size="sm" c="dimmed">DB Boyutu</Text>
+              <Text size="sm" c="dimmed">
+                DB Boyutu
+              </Text>
               <ThemeIcon variant="light" color="violet" size="sm" radius="xl">
                 <IconDatabase size={14} />
               </ThemeIcon>
@@ -243,8 +277,15 @@ export default function AdminPage() {
               <Skeleton height={24} width={80} />
             ) : (
               <>
-                <Text fw={700} size="lg">{stats?.veritabani.boyut || '-'}</Text>
-                <Progress value={dbPercentage} size="xs" mt={4} color={dbPercentage > 80 ? 'red' : 'blue'} />
+                <Text fw={700} size="lg">
+                  {stats?.veritabani.boyut || '-'}
+                </Text>
+                <Progress
+                  value={dbPercentage}
+                  size="xs"
+                  mt={4}
+                  color={dbPercentage > 80 ? 'red' : 'blue'}
+                />
               </>
             )}
           </Card>
@@ -252,7 +293,9 @@ export default function AdminPage() {
           {/* Uptime */}
           <Card padding="lg" radius="md" withBorder>
             <Group justify="space-between" mb="xs">
-              <Text size="sm" c="dimmed">Uptime</Text>
+              <Text size="sm" c="dimmed">
+                Uptime
+              </Text>
               <ThemeIcon variant="light" color="orange" size="sm" radius="xl">
                 <IconClock size={14} />
               </ThemeIcon>
@@ -261,8 +304,12 @@ export default function AdminPage() {
               <Skeleton height={24} width={80} />
             ) : (
               <>
-                <Text fw={700} size="lg">{health?.uptime.formatted || '-'}</Text>
-                <Text size="xs" c="dimmed" mt={4}>{health?.uptime.days || 0} gün</Text>
+                <Text fw={700} size="lg">
+                  {health?.uptime.formatted || '-'}
+                </Text>
+                <Text size="xs" c="dimmed" mt={4}>
+                  {health?.uptime.days || 0} gün
+                </Text>
               </>
             )}
           </Card>
@@ -272,7 +319,9 @@ export default function AdminPage() {
         <Paper p="lg" radius="md" withBorder>
           <Group justify="space-between" mb="md">
             <Title order={4}>📊 Bugünkü Aktivite</Title>
-            <Badge color="blue" variant="light">Canlı</Badge>
+            <Badge color="blue" variant="light">
+              Canlı
+            </Badge>
           </Group>
           <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
             <Group>
@@ -280,8 +329,12 @@ export default function AdminPage() {
                 <IconReceipt size={20} />
               </ThemeIcon>
               <div>
-                <Text size="xl" fw={700}>{stats?.bugun.fatura || 0}</Text>
-                <Text size="xs" c="dimmed">Yeni Fatura</Text>
+                <Text size="xl" fw={700}>
+                  {stats?.bugun.fatura || 0}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Yeni Fatura
+                </Text>
               </div>
             </Group>
             <Group>
@@ -289,8 +342,12 @@ export default function AdminPage() {
                 <IconBriefcase size={20} />
               </ThemeIcon>
               <div>
-                <Text size="xl" fw={700}>{stats?.bugun.ihale || 0}</Text>
-                <Text size="xs" c="dimmed">Yeni İhale</Text>
+                <Text size="xl" fw={700}>
+                  {stats?.bugun.ihale || 0}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Yeni İhale
+                </Text>
               </div>
             </Group>
             <Group>
@@ -298,8 +355,12 @@ export default function AdminPage() {
                 <IconUsers size={20} />
               </ThemeIcon>
               <div>
-                <Text size="xl" fw={700}>{stats?.bugun.cari || 0}</Text>
-                <Text size="xs" c="dimmed">Yeni Cari</Text>
+                <Text size="xl" fw={700}>
+                  {stats?.bugun.cari || 0}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Yeni Cari
+                </Text>
               </div>
             </Group>
             <Group>
@@ -307,8 +368,12 @@ export default function AdminPage() {
                 <IconUser size={20} />
               </ThemeIcon>
               <div>
-                <Text size="xl" fw={700}>{stats?.bugun.personel || 0}</Text>
-                <Text size="xs" c="dimmed">Yeni Personel</Text>
+                <Text size="xl" fw={700}>
+                  {stats?.bugun.personel || 0}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Yeni Personel
+                </Text>
               </div>
             </Group>
           </SimpleGrid>
@@ -318,10 +383,14 @@ export default function AdminPage() {
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
           {/* Tablo Kayıt Sayıları */}
           <Paper p="lg" radius="md" withBorder>
-            <Title order={4} mb="md">🗄️ Veritabanı Tabloları</Title>
+            <Title order={4} mb="md">
+              🗄️ Veritabanı Tabloları
+            </Title>
             {loading ? (
               <Stack gap="xs">
-                {[1,2,3,4,5].map(i => <Skeleton key={i} height={30} />)}
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Skeleton key={i} height={30} />
+                ))}
               </Stack>
             ) : (
               <Table>
@@ -329,10 +398,14 @@ export default function AdminPage() {
                   {stats?.tablolar.slice(0, 8).map((tablo, i) => (
                     <Table.Tr key={i}>
                       <Table.Td>
-                        <Text size="sm" fw={500}>{tablo.ad}</Text>
+                        <Text size="sm" fw={500}>
+                          {tablo.ad}
+                        </Text>
                       </Table.Td>
                       <Table.Td ta="right">
-                        <Badge variant="light" color="gray">{tablo.kayit.toLocaleString()}</Badge>
+                        <Badge variant="light" color="gray">
+                          {tablo.kayit.toLocaleString()}
+                        </Badge>
                       </Table.Td>
                     </Table.Tr>
                   ))}
@@ -343,7 +416,9 @@ export default function AdminPage() {
 
           {/* Bağlantı Durumu */}
           <Paper p="lg" radius="md" withBorder>
-            <Title order={4} mb="md">🔗 Bağlantı Durumu</Title>
+            <Title order={4} mb="md">
+              🔗 Bağlantı Durumu
+            </Title>
             <Stack gap="md">
               <Group justify="space-between">
                 <Text size="sm">Toplam Bağlantı</Text>
@@ -351,16 +426,24 @@ export default function AdminPage() {
               </Group>
               <Group justify="space-between">
                 <Text size="sm">Aktif</Text>
-                <Badge size="lg" color="green">{stats?.baglanti.aktif || 0}</Badge>
+                <Badge size="lg" color="green">
+                  {stats?.baglanti.aktif || 0}
+                </Badge>
               </Group>
               <Group justify="space-between">
                 <Text size="sm">Bekleyen</Text>
-                <Badge size="lg" color="yellow">{stats?.baglanti.bekleyen || 0}</Badge>
+                <Badge size="lg" color="yellow">
+                  {stats?.baglanti.bekleyen || 0}
+                </Badge>
               </Group>
               {health?.database.version && (
                 <>
-                  <Text size="xs" c="dimmed" mt="md">Veritabanı Versiyonu</Text>
-                  <Text size="sm" fw={500}>{health.database.version}</Text>
+                  <Text size="xs" c="dimmed" mt="md">
+                    Veritabanı Versiyonu
+                  </Text>
+                  <Text size="sm" fw={500}>
+                    {health.database.version}
+                  </Text>
                 </>
               )}
             </Stack>
@@ -369,7 +452,9 @@ export default function AdminPage() {
 
         {/* Yönetim Kartları */}
         <div>
-          <Title order={3} mb="md">🔧 Yönetim</Title>
+          <Title order={3} mb="md">
+            🔧 Yönetim
+          </Title>
           <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="lg">
             {adminCards.map((card) => (
               <Card key={card.id} padding="xl" radius="md" withBorder>
@@ -379,7 +464,9 @@ export default function AdminPage() {
                       <card.icon size={28} />
                     </ThemeIcon>
                     {card.badge ? (
-                      <Badge color="gray" variant="light">{card.badge}</Badge>
+                      <Badge color="gray" variant="light">
+                        {card.badge}
+                      </Badge>
                     ) : (
                       <ActionIcon variant="subtle" color="gray">
                         <IconChevronRight size={16} />
@@ -388,8 +475,12 @@ export default function AdminPage() {
                   </Group>
 
                   <div>
-                    <Title order={4} mb={4}>{card.title}</Title>
-                    <Text c="dimmed" size="sm">{card.description}</Text>
+                    <Title order={4} mb={4}>
+                      {card.title}
+                    </Title>
+                    <Text c="dimmed" size="sm">
+                      {card.description}
+                    </Text>
                   </div>
 
                   <Button
@@ -411,18 +502,20 @@ export default function AdminPage() {
 
         {/* Hızlı Linkler */}
         <Paper p="lg" radius="md" withBorder>
-          <Title order={3} mb="md">🔗 Hızlı Erişim</Title>
+          <Title order={3} mb="md">
+            🔗 Hızlı Erişim
+          </Title>
           <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
-            <Button 
-              variant="light" 
+            <Button
+              variant="light"
               leftSection={<IconFileText size={16} />}
               rightSection={<IconExternalLink size={14} />}
               onClick={() => window.open(`${API_URL}/api-docs`, '_blank')}
             >
               API Docs
             </Button>
-            <Button 
-              variant="light" 
+            <Button
+              variant="light"
               color="green"
               leftSection={<IconActivity size={16} />}
               rightSection={<IconExternalLink size={14} />}
@@ -430,8 +523,8 @@ export default function AdminPage() {
             >
               Health Check
             </Button>
-            <Button 
-              variant="light" 
+            <Button
+              variant="light"
               color="cyan"
               leftSection={<IconCloudDownload size={16} />}
               component="a"
@@ -439,8 +532,8 @@ export default function AdminPage() {
             >
               Veri Sync
             </Button>
-            <Button 
-              variant="light" 
+            <Button
+              variant="light"
               color="gray"
               leftSection={<IconServer size={16} />}
               component="a"
@@ -453,7 +546,10 @@ export default function AdminPage() {
 
         {/* Son Güncelleme */}
         <Text size="xs" c="dimmed" ta="center">
-          Son güncelleme: {stats?.performans.timestamp ? new Date(stats.performans.timestamp).toLocaleString('tr-TR') : '-'}
+          Son güncelleme:{' '}
+          {stats?.performans.timestamp
+            ? new Date(stats.performans.timestamp).toLocaleString('tr-TR')
+            : '-'}
           {stats?.performans.responseTime && ` (${stats.performans.responseTime}ms)`}
         </Text>
       </Stack>

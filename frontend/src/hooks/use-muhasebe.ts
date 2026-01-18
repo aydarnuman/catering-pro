@@ -3,17 +3,17 @@
  * State management ve data fetching için optimize edilmiş hooks
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   carilerAPI,
-  stokAPI,
+  dashboardAPI,
   gelirGiderAPI,
+  kasaBankaAPI,
   personelAPI,
   satinAlmaAPI,
-  kasaBankaAPI,
-  dashboardAPI
+  stokAPI,
 } from '@/lib/muhasebe-api';
 
 // Cache süreleri
@@ -40,7 +40,7 @@ export function useCari(id: string) {
 
 export function useCariMutations() {
   const queryClient = useQueryClient();
-  
+
   const createMutation = useMutation({
     mutationFn: carilerAPI.create,
     onSuccess: () => {
@@ -61,8 +61,7 @@ export function useCariMutations() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => 
-      carilerAPI.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: any }) => carilerAPI.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cariler'] });
       notifications.show({
@@ -123,19 +122,19 @@ export function useStokMovement(stokId: string) {
       // Optimistic update
       await queryClient.cancelQueries({ queryKey: ['stok', stokId] });
       const previousData = queryClient.getQueryData(['stok', stokId]);
-      
+
       queryClient.setQueryData(['stok', stokId], (old: any) => {
         if (!old) return old;
         return {
           ...old,
-          miktar: old.miktar + (newMovement.tip === 'giris' ? 
-            newMovement.miktar : -newMovement.miktar),
+          miktar:
+            old.miktar + (newMovement.tip === 'giris' ? newMovement.miktar : -newMovement.miktar),
         };
       });
 
       return { previousData };
     },
-    onError: (err, newMovement, context) => {
+    onError: (_err, _newMovement, context) => {
       // Rollback on error
       queryClient.setQueryData(['stok', stokId], context?.previousData);
       notifications.show({
@@ -158,7 +157,7 @@ export function useStokMovement(stokId: string) {
 // Gelir-Gider Hook with Caching
 export function useGelirGider(filters?: any) {
   const queryKey = ['gelir-gider', filters];
-  
+
   const { data, isLoading, error } = useQuery({
     queryKey,
     queryFn: () => gelirGiderAPI.list(filters),
@@ -170,15 +169,15 @@ export function useGelirGider(filters?: any) {
   const totals = useMemo(() => {
     const items = (data as any)?.items;
     if (!items) return { gelir: 0, gider: 0, net: 0 };
-    
+
     const gelir = items
       .filter((item: any) => item.tip === 'gelir')
       .reduce((sum: number, item: any) => sum + item.tutar, 0);
-      
+
     const gider = items
       .filter((item: any) => item.tip === 'gider')
       .reduce((sum: number, item: any) => sum + item.tutar, 0);
-    
+
     return {
       gelir,
       gider,
@@ -227,10 +226,7 @@ export function useDashboard() {
     staleTime: STALE_TIME,
   });
 
-  const isLoading = 
-    summary.isLoading || 
-    monthlyTrend.isLoading || 
-    expenseDistribution.isLoading;
+  const isLoading = summary.isLoading || monthlyTrend.isLoading || expenseDistribution.isLoading;
 
   return {
     summary: summary.data,
@@ -261,14 +257,14 @@ export function usePersonel(filters?: any) {
 
 export function useSalaryProcessing() {
   const queryClient = useQueryClient();
-  
+
   const processSalaries = useMutation({
     mutationFn: personelAPI.processSalary,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['personel'] });
       queryClient.invalidateQueries({ queryKey: ['gelir-gider'] });
       queryClient.invalidateQueries({ queryKey: ['kasa-banka'] });
-      
+
       notifications.show({
         title: 'Başarılı',
         message: 'Maaşlar işlendi',
@@ -302,7 +298,7 @@ export function useSatinAlma(filters?: any) {
 
 export function useSatinAlmaApproval() {
   const queryClient = useQueryClient();
-  
+
   const approve = useMutation({
     mutationFn: satinAlmaAPI.approveRequest,
     onSuccess: () => {
@@ -386,9 +382,14 @@ export function useKasaBanka() {
 
 export function useMoneyTransfer() {
   const queryClient = useQueryClient();
-  
+
   const transfer = useMutation({
-    mutationFn: ({ from, to, amount, description }: {
+    mutationFn: ({
+      from,
+      to,
+      amount,
+      description,
+    }: {
       from: string;
       to: string;
       amount: number;
@@ -437,22 +438,25 @@ export function useDebounce<T>(value: T, delay: number = 500): T {
 // Pagination helper
 export function usePagination(totalItems: number, itemsPerPage: number = 10) {
   const [currentPage, setCurrentPage] = useState(1);
-  
+
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const offset = (currentPage - 1) * itemsPerPage;
-  
-  const goToPage = useCallback((page: number) => {
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
-  }, [totalPages]);
-  
+
+  const goToPage = useCallback(
+    (page: number) => {
+      setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+    },
+    [totalPages]
+  );
+
   const nextPage = useCallback(() => {
     goToPage(currentPage + 1);
   }, [currentPage, goToPage]);
-  
+
   const prevPage = useCallback(() => {
     goToPage(currentPage - 1);
   }, [currentPage, goToPage]);
-  
+
   return {
     currentPage,
     totalPages,

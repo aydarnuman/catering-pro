@@ -1,44 +1,42 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { API_BASE_URL } from '@/lib/config';
 import {
-  Modal,
-  Button,
-  Stack,
-  Group,
-  Text,
-  Select,
-  Paper,
-  Table,
-  Badge,
   Alert,
-  Stepper,
-  FileButton,
-  ScrollArea,
-  Checkbox,
-  Loader,
-  Center,
-  NumberInput,
-  Divider,
-  ThemeIcon,
+  Badge,
   Box,
-  TextInput
+  Button,
+  Checkbox,
+  Divider,
+  FileButton,
+  Group,
+  Modal,
+  NumberInput,
+  Paper,
+  ScrollArea,
+  Select,
+  Stack,
+  Stepper,
+  Table,
+  Text,
+  TextInput,
+  ThemeIcon,
 } from '@mantine/core';
-import {
-  IconUpload,
-  IconFileSpreadsheet,
-  IconCheck,
-  IconX,
-  IconAlertCircle,
-  IconCalendar,
-  IconBuildingFactory,
-  IconUsers,
-  IconCash,
-  IconUserPlus,
-  IconRefresh
-} from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
+import {
+  IconAlertCircle,
+  IconBuildingFactory,
+  IconCalendar,
+  IconCash,
+  IconCheck,
+  IconFileSpreadsheet,
+  IconRefresh,
+  IconUpload,
+  IconUserPlus,
+  IconUsers,
+  IconX,
+} from '@tabler/icons-react';
+import { useEffect, useRef, useState } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 
 const API_URL = `${API_BASE_URL}/api`;
 
@@ -153,36 +151,36 @@ const AYLAR = [
   { value: '9', label: 'Eylül' },
   { value: '10', label: 'Ekim' },
   { value: '11', label: 'Kasım' },
-  { value: '12', label: 'Aralık' }
+  { value: '12', label: 'Aralık' },
 ];
 
-export function BordroImportModal({ 
-  opened, 
-  onClose, 
+export function BordroImportModal({
+  opened,
+  onClose,
   onSuccess,
-  defaultProjeId 
+  defaultProjeId,
 }: BordroImportModalProps) {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  
+
   // Proje ve dönem
   const [projeler, setProjeler] = useState<Proje[]>([]);
   const [projeId, setProjeId] = useState<string | null>(defaultProjeId?.toString() || null);
   const [yil, setYil] = useState<number>(new Date().getFullYear());
   const [ay, setAy] = useState<string>((new Date().getMonth() + 1).toString());
-  
+
   // Dosya ve analiz
   const [file, setFile] = useState<File | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [selectedRecords, setSelectedRecords] = useState<number[]>([]);
-  
+
   // Template
   const [templates, setTemplates] = useState<BordroTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [forceAI, setForceAI] = useState(false);
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
-  
+
   const resetRef = useRef<() => void>(null);
 
   // Projeleri ve template'leri yükle
@@ -191,6 +189,7 @@ export function BordroImportModal({
       fetchProjeler();
       fetchTemplates();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened]);
 
   // Proje değişince template'leri filtrele
@@ -198,6 +197,7 @@ export function BordroImportModal({
     if (projeId) {
       fetchTemplates();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projeId]);
 
   const fetchProjeler = async () => {
@@ -214,9 +214,10 @@ export function BordroImportModal({
 
   const fetchTemplates = async () => {
     try {
-      const url = projeId && projeId !== '0' 
-        ? `${API_URL}/bordro-import/templates?projeId=${projeId}`
-        : `${API_URL}/bordro-import/templates`;
+      const url =
+        projeId && projeId !== '0'
+          ? `${API_URL}/bordro-import/templates?projeId=${projeId}`
+          : `${API_URL}/bordro-import/templates`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -234,11 +235,11 @@ export function BordroImportModal({
         await fetch(`${API_URL}/bordro-import/cancel`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tempFile: analysisResult.tempFile })
+          body: JSON.stringify({ tempFile: analysisResult.tempFile }),
         });
-      } catch (e) {}
+      } catch (_e) {}
     }
-    
+
     // Reset
     setStep(0);
     setFile(null);
@@ -275,7 +276,7 @@ export function BordroImportModal({
 
       const response = await fetch(`${API_URL}/bordro-import/analyze`, {
         method: 'POST',
-        body: formData
+        body: formData,
       });
 
       const data = await response.json();
@@ -296,23 +297,22 @@ export function BordroImportModal({
           title: '⚡ Hızlı Analiz',
           message: `"${templateInfo.usedTemplate.ad}" şablonu kullanıldı - AI gerekmedi!`,
           color: 'teal',
-          icon: <IconCheck size={18} />
+          icon: <IconCheck size={18} />,
         });
       } else if (templateInfo?.aiUsed) {
         notifications.show({
           title: 'AI Analizi Tamamlandı',
           message: `${data.stats.matched} kayıt eşleşti${templateInfo.canSaveTemplate ? ' - Şablon olarak kaydedebilirsiniz' : ''}`,
           color: data.stats.unmatched > 0 ? 'yellow' : 'green',
-          icon: <IconCheck size={18} />
+          icon: <IconCheck size={18} />,
         });
       }
-
     } catch (error: any) {
       notifications.show({
         title: 'Analiz Hatası',
         message: error.message || 'Dosya analiz edilemedi',
         color: 'red',
-        icon: <IconX size={18} />
+        icon: <IconX size={18} />,
       });
     } finally {
       setLoading(false);
@@ -331,10 +331,10 @@ export function BordroImportModal({
         body: JSON.stringify({
           ad: newTemplateName,
           aciklama: `${file?.name} dosyasından otomatik oluşturuldu`,
-          proje_id: projeId && projeId !== '0' ? parseInt(projeId) : null,
+          proje_id: projeId && projeId !== '0' ? parseInt(projeId, 10) : null,
           suggestedMapping: analysisResult.templateInfo.suggestedMapping,
-          formatSignature: analysisResult.templateInfo.formatSignature
-        })
+          formatSignature: analysisResult.templateInfo.formatSignature,
+        }),
       });
 
       const data = await response.json();
@@ -347,19 +347,18 @@ export function BordroImportModal({
         title: 'Şablon Kaydedildi',
         message: `"${newTemplateName}" şablonu sonraki yüklemelerde kullanılacak`,
         color: 'green',
-        icon: <IconCheck size={18} />
+        icon: <IconCheck size={18} />,
       });
 
       setShowSaveTemplate(false);
       setNewTemplateName('');
       fetchTemplates();
-
     } catch (error: any) {
       notifications.show({
         title: 'Kayıt Hatası',
         message: error.message || 'Şablon kaydedilemedi',
         color: 'red',
-        icon: <IconX size={18} />
+        icon: <IconX size={18} />,
       });
     } finally {
       setLoading(false);
@@ -372,21 +371,21 @@ export function BordroImportModal({
 
     setLoading(true);
     try {
-      const recordsToImport = selectedRecords.map(i => analysisResult.matched[i]);
+      const recordsToImport = selectedRecords.map((i) => analysisResult.matched[i]);
 
       const response = await fetch(`${API_URL}/bordro-import/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          projeId: projeId && projeId !== '0' ? parseInt(projeId) : null,
+          projeId: projeId && projeId !== '0' ? parseInt(projeId, 10) : null,
           yil,
-          ay: parseInt(ay),
+          ay: parseInt(ay, 10),
           records: recordsToImport,
           tempFile: analysisResult.tempFile,
           originalFilename: analysisResult.originalFilename,
           // PDF'den çekilen TAHAKKUK BİLGİLERİNİ de kaydet
-          tahakkuk: analysisResult.tahakkuk || null
-        })
+          tahakkuk: analysisResult.tahakkuk || null,
+        }),
       });
 
       const data = await response.json();
@@ -399,18 +398,17 @@ export function BordroImportModal({
         title: 'Bordro Kaydedildi',
         message: `${data.inserted} yeni kayıt, ${data.updated} güncelleme yapıldı`,
         color: 'green',
-        icon: <IconCheck size={18} />
+        icon: <IconCheck size={18} />,
       });
 
       onSuccess?.();
       handleClose();
-
     } catch (error: any) {
       notifications.show({
         title: 'Kayıt Hatası',
         message: error.message || 'Bordro kaydedilemedi',
         color: 'red',
-        icon: <IconX size={18} />
+        icon: <IconX size={18} />,
       });
     } finally {
       setLoading(false);
@@ -428,8 +426,8 @@ export function BordroImportModal({
           tc_kimlik: record.tc_kimlik,
           sgk_no: record.sgk_no,
           brut_maas: record.brut_maas,
-          projeId: projeId && projeId !== '0' ? parseInt(projeId) : null
-        })
+          projeId: projeId && projeId !== '0' ? parseInt(projeId, 10) : null,
+        }),
       });
 
       const data = await response.json();
@@ -444,12 +442,12 @@ export function BordroImportModal({
           ...record,
           personel_id: data.personel_id,
           sistem_adi: record.personel_adi,
-          eslestirme_tipi: 'yeni_olusturuldu'
+          eslestirme_tipi: 'yeni_olusturuldu',
         };
-        
+
         const newMatched = [...analysisResult.matched, updatedRecord];
         const newUnmatched = analysisResult.unmatched.filter((_: any, i: number) => i !== index);
-        
+
         setAnalysisResult({
           ...analysisResult,
           matched: newMatched,
@@ -457,10 +455,10 @@ export function BordroImportModal({
           stats: {
             ...analysisResult.stats,
             matched: newMatched.length,
-            unmatched: newUnmatched.length
-          }
+            unmatched: newUnmatched.length,
+          },
         });
-        
+
         // Yeni kaydı seçili olarak ekle
         setSelectedRecords([...selectedRecords, newMatched.length - 1]);
       }
@@ -469,15 +467,14 @@ export function BordroImportModal({
         title: 'Personel Oluşturuldu',
         message: `${record.personel_adi} sisteme eklendi`,
         color: 'green',
-        icon: <IconCheck size={18} />
+        icon: <IconCheck size={18} />,
       });
-
     } catch (error: any) {
       notifications.show({
         title: 'Oluşturma Hatası',
         message: error.message || 'Personel oluşturulamadı',
         color: 'red',
-        icon: <IconX size={18} />
+        icon: <IconX size={18} />,
       });
     }
   };
@@ -485,11 +482,11 @@ export function BordroImportModal({
   // Tüm bulunamayanları oluştur
   const handleCreateAllPersonel = async () => {
     if (!analysisResult?.unmatched.length) return;
-    
+
     setLoading(true);
     let successCount = 0;
     let failCount = 0;
-    
+
     for (let i = analysisResult.unmatched.length - 1; i >= 0; i--) {
       try {
         const record = analysisResult.unmatched[i];
@@ -501,8 +498,8 @@ export function BordroImportModal({
             tc_kimlik: record.tc_kimlik,
             sgk_no: record.sgk_no,
             brut_maas: record.brut_maas,
-            projeId: projeId && projeId !== '0' ? parseInt(projeId) : null
-          })
+            projeId: projeId && projeId !== '0' ? parseInt(projeId, 10) : null,
+          }),
         });
 
         const data = await response.json();
@@ -512,9 +509,9 @@ export function BordroImportModal({
             ...record,
             personel_id: data.personel_id,
             sistem_adi: record.personel_adi,
-            eslestirme_tipi: 'yeni_olusturuldu'
+            eslestirme_tipi: 'yeni_olusturuldu',
           };
-          
+
           analysisResult.matched.push(updatedRecord);
           analysisResult.unmatched.splice(i, 1);
           successCount++;
@@ -525,27 +522,27 @@ export function BordroImportModal({
         failCount++;
       }
     }
-    
+
     // State güncelle
     setAnalysisResult({
       ...analysisResult,
       stats: {
         ...analysisResult.stats,
         matched: analysisResult.matched.length,
-        unmatched: analysisResult.unmatched.length
-      }
+        unmatched: analysisResult.unmatched.length,
+      },
     });
-    
+
     // Tüm yeni kayıtları seç
     setSelectedRecords(analysisResult.matched.map((_: any, i: number) => i));
-    
+
     setLoading(false);
-    
+
     notifications.show({
       title: 'Toplu Oluşturma Tamamlandı',
       message: `${successCount} personel oluşturuldu${failCount > 0 ? `, ${failCount} hata` : ''}`,
       color: failCount > 0 ? 'yellow' : 'green',
-      icon: <IconCheck size={18} />
+      icon: <IconCheck size={18} />,
     });
   };
 
@@ -562,13 +559,13 @@ export function BordroImportModal({
 
   const toggleRecord = (index: number) => {
     if (selectedRecords.includes(index)) {
-      setSelectedRecords(selectedRecords.filter(i => i !== index));
+      setSelectedRecords(selectedRecords.filter((i) => i !== index));
     } else {
       setSelectedRecords([...selectedRecords, index]);
     }
   };
 
-  const selectedProje = projeler.find(p => p.id.toString() === projeId);
+  const selectedProje = projeler.find((p) => p.id.toString() === projeId);
 
   return (
     <Modal
@@ -588,26 +585,22 @@ export function BordroImportModal({
       <Stack gap="md">
         {/* Stepper */}
         <Stepper active={step} size="sm">
-          <Stepper.Step 
-            label="Proje & Dönem" 
+          <Stepper.Step
+            label="Proje & Dönem"
             description="Seçim yapın"
             icon={<IconCalendar size={18} />}
           />
-          <Stepper.Step 
-            label="Dosya" 
+          <Stepper.Step
+            label="Dosya"
             description="Dosya yükleyin"
             icon={<IconFileSpreadsheet size={18} />}
           />
-          <Stepper.Step 
-            label="Eşleştirme" 
+          <Stepper.Step
+            label="Eşleştirme"
             description="Kontrol edin"
             icon={<IconUsers size={18} />}
           />
-          <Stepper.Step 
-            label="Kaydet" 
-            description="Tamamla"
-            icon={<IconCheck size={18} />}
-          />
+          <Stepper.Step label="Kaydet" description="Tamamla" icon={<IconCheck size={18} />} />
         </Stepper>
 
         {/* Step 0: Proje ve Dönem Seçimi */}
@@ -623,10 +616,10 @@ export function BordroImportModal({
                   onChange={setProjeId}
                   data={[
                     { value: '0', label: '📊 Genel (Proje bağımsız)' },
-                    ...projeler.map(p => ({
+                    ...projeler.map((p) => ({
                       value: p.id.toString(),
-                      label: `📁 ${p.ad}${p.kod ? ` (${p.kod})` : ''} - ${p.personel_sayisi} personel`
-                    }))
+                      label: `📁 ${p.ad}${p.kod ? ` (${p.kod})` : ''} - ${p.personel_sayisi} personel`,
+                    })),
                   ]}
                   searchable
                   leftSection={<IconBuildingFactory size={16} />}
@@ -664,9 +657,7 @@ export function BordroImportModal({
             </Paper>
 
             <Group justify="flex-end">
-              <Button onClick={() => setStep(1)}>
-                Devam →
-              </Button>
+              <Button onClick={() => setStep(1)}>Devam →</Button>
             </Group>
           </Stack>
         )}
@@ -680,7 +671,7 @@ export function BordroImportModal({
               style={{
                 borderStyle: 'dashed',
                 textAlign: 'center',
-                cursor: 'pointer'
+                cursor: 'pointer',
               }}
             >
               <Stack align="center" gap="sm">
@@ -735,7 +726,9 @@ export function BordroImportModal({
               <Paper withBorder p="sm">
                 <Stack gap="xs">
                   <Group justify="space-between">
-                    <Text size="sm" fw={500}>⚡ Hızlı Şablon</Text>
+                    <Text size="sm" fw={500}>
+                      ⚡ Hızlı Şablon
+                    </Text>
                     <Checkbox
                       size="xs"
                       label="Her zaman AI kullan"
@@ -755,18 +748,17 @@ export function BordroImportModal({
                       clearable
                       data={[
                         { value: '', label: '🔍 Otomatik Algıla' },
-                        ...templates.map(t => ({
+                        ...templates.map((t) => ({
                           value: t.id.toString(),
-                          label: `📋 ${t.ad}${t.proje_adi ? ` (${t.proje_adi})` : ''} - ${t.kullanim_sayisi} kullanım`
-                        }))
+                          label: `📋 ${t.ad}${t.proje_adi ? ` (${t.proje_adi})` : ''} - ${t.kullanim_sayisi} kullanım`,
+                        })),
                       ]}
                     />
                   )}
                   <Text size="xs" c="dimmed">
-                    {forceAI 
-                      ? '⚠️ AI her seferinde kullanılacak (daha yavaş)' 
-                      : '✨ Kayıtlı şablon varsa AI kullanılmadan hızlı parse yapılır'
-                    }
+                    {forceAI
+                      ? '⚠️ AI her seferinde kullanılacak (daha yavaş)'
+                      : '✨ Kayıtlı şablon varsa AI kullanılmadan hızlı parse yapılır'}
                   </Text>
                 </Stack>
               </Paper>
@@ -779,7 +771,7 @@ export function BordroImportModal({
                   <strong>Proje:</strong> {selectedProje?.ad || 'Genel'}
                 </Text>
                 <Text size="sm">
-                  <strong>Dönem:</strong> {AYLAR.find(a => a.value === ay)?.label} {yil}
+                  <strong>Dönem:</strong> {AYLAR.find((a) => a.value === ay)?.label} {yil}
                 </Text>
               </Group>
             </Paper>
@@ -849,7 +841,9 @@ export function BordroImportModal({
             {showSaveTemplate && (
               <Paper withBorder p="sm" bg="teal.0">
                 <Stack gap="xs">
-                  <Text size="sm" fw={500}>💾 Şablon Olarak Kaydet</Text>
+                  <Text size="sm" fw={500}>
+                    💾 Şablon Olarak Kaydet
+                  </Text>
                   <Group>
                     <TextInput
                       placeholder="Şablon adı (örn: Hezar Dinari Bordro)"
@@ -887,7 +881,11 @@ export function BordroImportModal({
 
             {/* 🔥 TAHAKKUK DOĞRULAMA - Çift Katmanlı Kontrol */}
             {analysisResult.verification && (
-              <Paper withBorder p="sm" bg={analysisResult.verification.allMatch ? 'green.0' : 'red.0'}>
+              <Paper
+                withBorder
+                p="sm"
+                bg={analysisResult.verification.allMatch ? 'green.0' : 'red.0'}
+              >
                 <Stack gap="xs">
                   <Group gap="xs">
                     {analysisResult.verification.allMatch ? (
@@ -903,7 +901,7 @@ export function BordroImportModal({
                       PDF&apos;deki TAHAKKUK BİLGİLERİ ile karşılaştırıldı
                     </Text>
                   </Group>
-                  
+
                   <Table withTableBorder fz="xs">
                     <Table.Thead>
                       <Table.Tr>
@@ -916,51 +914,111 @@ export function BordroImportModal({
                     <Table.Tbody>
                       <Table.Tr>
                         <Table.Td>Brüt Toplam</Table.Td>
-                        <Table.Td ta="right">{analysisResult.verification.tahakkuk.aylik_ucret_toplami?.toLocaleString('tr-TR')} ₺</Table.Td>
-                        <Table.Td ta="right">{analysisResult.verification.personelTotals.brut_toplam.toLocaleString('tr-TR')} ₺</Table.Td>
+                        <Table.Td ta="right">
+                          {analysisResult.verification.tahakkuk.aylik_ucret_toplami?.toLocaleString(
+                            'tr-TR'
+                          )}{' '}
+                          ₺
+                        </Table.Td>
+                        <Table.Td ta="right">
+                          {analysisResult.verification.personelTotals.brut_toplam.toLocaleString(
+                            'tr-TR'
+                          )}{' '}
+                          ₺
+                        </Table.Td>
                         <Table.Td ta="center">
-                          {analysisResult.verification.comparison.brut.match 
-                            ? <Badge color="green" size="xs">✓</Badge>
-                            : <Badge color="red" size="xs">✗</Badge>
-                          }
+                          {analysisResult.verification.comparison.brut.match ? (
+                            <Badge color="green" size="xs">
+                              ✓
+                            </Badge>
+                          ) : (
+                            <Badge color="red" size="xs">
+                              ✗
+                            </Badge>
+                          )}
                         </Table.Td>
                       </Table.Tr>
                       <Table.Tr>
                         <Table.Td>Net Maaş</Table.Td>
-                        <Table.Td ta="right">{analysisResult.verification.tahakkuk.odenecek_net_ucret?.toLocaleString('tr-TR')} ₺</Table.Td>
-                        <Table.Td ta="right">{analysisResult.verification.personelTotals.net_toplam.toLocaleString('tr-TR')} ₺</Table.Td>
+                        <Table.Td ta="right">
+                          {analysisResult.verification.tahakkuk.odenecek_net_ucret?.toLocaleString(
+                            'tr-TR'
+                          )}{' '}
+                          ₺
+                        </Table.Td>
+                        <Table.Td ta="right">
+                          {analysisResult.verification.personelTotals.net_toplam.toLocaleString(
+                            'tr-TR'
+                          )}{' '}
+                          ₺
+                        </Table.Td>
                         <Table.Td ta="center">
-                          {analysisResult.verification.comparison.net.match 
-                            ? <Badge color="green" size="xs">✓</Badge>
-                            : <Badge color="red" size="xs">✗</Badge>
-                          }
+                          {analysisResult.verification.comparison.net.match ? (
+                            <Badge color="green" size="xs">
+                              ✓
+                            </Badge>
+                          ) : (
+                            <Badge color="red" size="xs">
+                              ✗
+                            </Badge>
+                          )}
                         </Table.Td>
                       </Table.Tr>
                       <Table.Tr>
                         <Table.Td>İşveren SGK</Table.Td>
-                        <Table.Td ta="right">{analysisResult.verification.tahakkuk.isveren_sgk_hissesi?.toLocaleString('tr-TR')} ₺</Table.Td>
-                        <Table.Td ta="right">{analysisResult.verification.personelTotals.sgk_isveren.toLocaleString('tr-TR')} ₺</Table.Td>
+                        <Table.Td ta="right">
+                          {analysisResult.verification.tahakkuk.isveren_sgk_hissesi?.toLocaleString(
+                            'tr-TR'
+                          )}{' '}
+                          ₺
+                        </Table.Td>
+                        <Table.Td ta="right">
+                          {analysisResult.verification.personelTotals.sgk_isveren.toLocaleString(
+                            'tr-TR'
+                          )}{' '}
+                          ₺
+                        </Table.Td>
                         <Table.Td ta="center">
-                          {analysisResult.verification.comparison.sgk_isveren.match 
-                            ? <Badge color="green" size="xs">✓</Badge>
-                            : <Badge color="red" size="xs">✗</Badge>
-                          }
+                          {analysisResult.verification.comparison.sgk_isveren.match ? (
+                            <Badge color="green" size="xs">
+                              ✓
+                            </Badge>
+                          ) : (
+                            <Badge color="red" size="xs">
+                              ✗
+                            </Badge>
+                          )}
                         </Table.Td>
                       </Table.Tr>
                       <Table.Tr>
                         <Table.Td>Gelir Vergisi</Table.Td>
-                        <Table.Td ta="right">{analysisResult.verification.tahakkuk.odenecek_gelir_vergisi?.toLocaleString('tr-TR')} ₺</Table.Td>
-                        <Table.Td ta="right">{analysisResult.verification.personelTotals.gelir_vergisi.toLocaleString('tr-TR')} ₺</Table.Td>
+                        <Table.Td ta="right">
+                          {analysisResult.verification.tahakkuk.odenecek_gelir_vergisi?.toLocaleString(
+                            'tr-TR'
+                          )}{' '}
+                          ₺
+                        </Table.Td>
+                        <Table.Td ta="right">
+                          {analysisResult.verification.personelTotals.gelir_vergisi.toLocaleString(
+                            'tr-TR'
+                          )}{' '}
+                          ₺
+                        </Table.Td>
                         <Table.Td ta="center">
-                          {analysisResult.verification.comparison.gelir_vergisi.match 
-                            ? <Badge color="green" size="xs">✓</Badge>
-                            : <Badge color="red" size="xs">✗</Badge>
-                          }
+                          {analysisResult.verification.comparison.gelir_vergisi.match ? (
+                            <Badge color="green" size="xs">
+                              ✓
+                            </Badge>
+                          ) : (
+                            <Badge color="red" size="xs">
+                              ✗
+                            </Badge>
+                          )}
                         </Table.Td>
                       </Table.Tr>
                     </Table.Tbody>
                   </Table>
-                  
+
                   {!analysisResult.verification.allMatch && (
                     <Alert color="orange" variant="light" icon={<IconAlertCircle size={16} />}>
                       <Text size="xs">
@@ -977,19 +1035,33 @@ export function BordroImportModal({
             {analysisResult.tahakkuk && !analysisResult.verification && (
               <Paper withBorder p="sm" bg="blue.0">
                 <Stack gap="xs">
-                  <Text size="sm" fw={500}>📊 PDF&apos;den Alınan TAHAKKUK BİLGİLERİ</Text>
+                  <Text size="sm" fw={500}>
+                    📊 PDF&apos;den Alınan TAHAKKUK BİLGİLERİ
+                  </Text>
                   <Group grow>
                     <Box>
-                      <Text size="xs" c="dimmed">Brüt Toplam</Text>
-                      <Text size="sm" fw={500}>{analysisResult.tahakkuk.aylik_ucret_toplami?.toLocaleString('tr-TR')} ₺</Text>
+                      <Text size="xs" c="dimmed">
+                        Brüt Toplam
+                      </Text>
+                      <Text size="sm" fw={500}>
+                        {analysisResult.tahakkuk.aylik_ucret_toplami?.toLocaleString('tr-TR')} ₺
+                      </Text>
                     </Box>
                     <Box>
-                      <Text size="xs" c="dimmed">Net Ücret</Text>
-                      <Text size="sm" fw={500}>{analysisResult.tahakkuk.odenecek_net_ucret?.toLocaleString('tr-TR')} ₺</Text>
+                      <Text size="xs" c="dimmed">
+                        Net Ücret
+                      </Text>
+                      <Text size="sm" fw={500}>
+                        {analysisResult.tahakkuk.odenecek_net_ucret?.toLocaleString('tr-TR')} ₺
+                      </Text>
                     </Box>
                     <Box>
-                      <Text size="xs" c="dimmed">Toplam Maliyet</Text>
-                      <Text size="sm" fw={500}>{analysisResult.tahakkuk.toplam_gider?.toLocaleString('tr-TR')} ₺</Text>
+                      <Text size="xs" c="dimmed">
+                        Toplam Maliyet
+                      </Text>
+                      <Text size="sm" fw={500}>
+                        {analysisResult.tahakkuk.toplam_gider?.toLocaleString('tr-TR')} ₺
+                      </Text>
                     </Box>
                   </Group>
                 </Stack>
@@ -1000,8 +1072,8 @@ export function BordroImportModal({
             {analysisResult.existing.kayit_sayisi > 0 && (
               <Alert color="yellow" icon={<IconAlertCircle size={18} />}>
                 <Text size="sm">
-                  Bu dönem için <strong>{analysisResult.existing.kayit_sayisi}</strong> kayıt zaten var.
-                  İçe aktarım yapılırsa mevcut kayıtlar <strong>güncellenecek</strong>.
+                  Bu dönem için <strong>{analysisResult.existing.kayit_sayisi}</strong> kayıt zaten
+                  var. İçe aktarım yapılırsa mevcut kayıtlar <strong>güncellenecek</strong>.
                 </Text>
               </Alert>
             )}
@@ -1009,9 +1081,13 @@ export function BordroImportModal({
             {/* Uyarılar */}
             {analysisResult.warnings.length > 0 && (
               <Alert color="orange" variant="light" icon={<IconAlertCircle size={18} />}>
-                <Text size="sm" fw={500}>Uyarılar:</Text>
+                <Text size="sm" fw={500}>
+                  Uyarılar:
+                </Text>
                 {analysisResult.warnings.slice(0, 3).map((w, i) => (
-                  <Text key={i} size="xs" c="dimmed">• {w}</Text>
+                  <Text key={i} size="xs" c="dimmed">
+                    • {w}
+                  </Text>
                 ))}
               </Alert>
             )}
@@ -1031,7 +1107,10 @@ export function BordroImportModal({
                         <Table.Th>
                           <Checkbox
                             checked={selectedRecords.length === analysisResult.matched.length}
-                            indeterminate={selectedRecords.length > 0 && selectedRecords.length < analysisResult.matched.length}
+                            indeterminate={
+                              selectedRecords.length > 0 &&
+                              selectedRecords.length < analysisResult.matched.length
+                            }
                             onChange={toggleAll}
                           />
                         </Table.Th>
@@ -1051,13 +1130,19 @@ export function BordroImportModal({
                             />
                           </Table.Td>
                           <Table.Td>
-                            <Text size="sm" fw={500}>{record.personel_adi}</Text>
+                            <Text size="sm" fw={500}>
+                              {record.personel_adi}
+                            </Text>
                             {record.sistem_adi && record.sistem_adi !== record.personel_adi && (
-                              <Text size="xs" c="dimmed">→ {record.sistem_adi}</Text>
+                              <Text size="xs" c="dimmed">
+                                → {record.sistem_adi}
+                              </Text>
                             )}
                           </Table.Td>
                           <Table.Td>
-                            <Text size="sm" ff="monospace">{record.tc_kimlik || '-'}</Text>
+                            <Text size="sm" ff="monospace">
+                              {record.tc_kimlik || '-'}
+                            </Text>
                           </Table.Td>
                           <Table.Td ta="right">
                             <Text size="sm">{record.brut_maas?.toLocaleString('tr-TR')} ₺</Text>
@@ -1112,7 +1197,9 @@ export function BordroImportModal({
                             <Text size="sm">{record.personel_adi}</Text>
                           </Table.Td>
                           <Table.Td>
-                            <Text size="sm" ff="monospace">{record.tc_kimlik || '-'}</Text>
+                            <Text size="sm" ff="monospace">
+                              {record.tc_kimlik || '-'}
+                            </Text>
                           </Table.Td>
                           <Table.Td>
                             <Text size="sm">{record.net_maas?.toLocaleString('tr-TR')} ₺</Text>
@@ -1178,4 +1265,3 @@ export function BordroImportModal({
 }
 
 export default BordroImportModal;
-

@@ -1,56 +1,53 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { API_BASE_URL } from '@/lib/config';
-import { useAuth } from '@/context/AuthContext';
 import {
-  Container,
-  Title,
-  Text,
-  Card,
-  Group,
-  Stack,
-  SimpleGrid,
-  ThemeIcon,
+  ActionIcon,
   Badge,
   Button,
-  Paper,
-  Loader,
-  ActionIcon,
-  Tooltip,
-  Table,
-  Select,
-  TextInput,
-  Pagination,
-  Modal,
+  Card,
   Code,
-  Timeline,
-  Box,
+  Container,
   Divider,
-  ScrollArea
+  Group,
+  Loader,
+  Modal,
+  Pagination,
+  Paper,
+  ScrollArea,
+  Select,
+  SimpleGrid,
+  Stack,
+  Table,
+  Text,
+  TextInput,
+  ThemeIcon,
+  Title,
+  Tooltip,
 } from '@mantine/core';
-import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { useDisclosure } from '@mantine/hooks';
 import {
-  IconHistory,
-  IconRefresh,
-  IconSearch,
-  IconFilter,
-  IconEye,
-  IconUser,
-  IconPlus,
-  IconEdit,
-  IconTrash,
-  IconLogin,
-  IconLogout,
-  IconDownload,
+  IconActivity,
   IconArrowLeft,
   IconCalendar,
   IconClock,
-  IconActivity,
-  IconAlertCircle
+  IconDownload,
+  IconEdit,
+  IconEye,
+  IconFilter,
+  IconHistory,
+  IconLogin,
+  IconLogout,
+  IconPlus,
+  IconRefresh,
+  IconSearch,
+  IconTrash,
+  IconUser,
 } from '@tabler/icons-react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import StyledDatePicker from '@/components/ui/StyledDatePicker';
+import { useAuth } from '@/context/AuthContext';
+import { API_BASE_URL } from '@/lib/config';
 import 'dayjs/locale/tr';
 
 interface AuditLog {
@@ -90,7 +87,7 @@ export default function LoglarPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  
+
   // Filtre state'leri
   const [filterUserId, setFilterUserId] = useState<string | null>(null);
   const [filterAction, setFilterAction] = useState<string | null>(null);
@@ -98,9 +95,10 @@ export default function LoglarPage() {
   const [filterSearch, setFilterSearch] = useState('');
   const [filterStartDate, setFilterStartDate] = useState<Date | null>(null);
   const [filterEndDate, setFilterEndDate] = useState<Date | null>(null);
-  
+
   // Detay modal
-  const [detailModalOpened, { open: openDetailModal, close: closeDetailModal }] = useDisclosure(false);
+  const [detailModalOpened, { open: openDetailModal, close: closeDetailModal }] =
+    useDisclosure(false);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
   const fetchLogs = async () => {
@@ -110,7 +108,7 @@ export default function LoglarPage() {
       const params = new URLSearchParams();
       params.append('page', page.toString());
       params.append('limit', '30');
-      
+
       if (filterUserId) params.append('user_id', filterUserId);
       if (filterAction) params.append('action', filterAction);
       if (filterEntityType) params.append('entity_type', filterEntityType);
@@ -119,10 +117,10 @@ export default function LoglarPage() {
       if (filterEndDate) params.append('end_date', filterEndDate.toISOString());
 
       const res = await fetch(`${API_BASE_URL}/api/audit-logs?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      
+
       if (data.success) {
         setLogs(data.logs);
         setTotalPages(data.pagination.totalPages);
@@ -138,7 +136,7 @@ export default function LoglarPage() {
     if (!token) return;
     try {
       const res = await fetch(`${API_BASE_URL}/api/audit-logs/summary`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (data.success) setSummary(data.data);
@@ -151,7 +149,7 @@ export default function LoglarPage() {
     if (!token) return;
     try {
       const res = await fetch(`${API_BASE_URL}/api/audit-logs/meta/filters`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (data.success) setFilters(data.data);
@@ -164,11 +162,11 @@ export default function LoglarPage() {
     fetchLogs();
     fetchSummary();
     fetchFilters();
-  }, [token]);
+  }, [fetchFilters, fetchLogs, fetchSummary]);
 
   useEffect(() => {
     fetchLogs();
-  }, [page, filterUserId, filterAction, filterEntityType, filterStartDate, filterEndDate]);
+  }, [fetchLogs]);
 
   const handleSearch = () => {
     setPage(1);
@@ -188,7 +186,7 @@ export default function LoglarPage() {
   const viewLogDetail = async (logId: number) => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/audit-logs/${logId}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (data.success) {
@@ -201,57 +199,81 @@ export default function LoglarPage() {
   };
 
   const getActionIcon = (action: string) => {
-    switch(action) {
-      case 'create': return <IconPlus size={14} />;
-      case 'update': return <IconEdit size={14} />;
-      case 'delete': return <IconTrash size={14} />;
-      case 'login': return <IconLogin size={14} />;
-      case 'logout': return <IconLogout size={14} />;
-      case 'export': return <IconDownload size={14} />;
-      default: return <IconEye size={14} />;
+    switch (action) {
+      case 'create':
+        return <IconPlus size={14} />;
+      case 'update':
+        return <IconEdit size={14} />;
+      case 'delete':
+        return <IconTrash size={14} />;
+      case 'login':
+        return <IconLogin size={14} />;
+      case 'logout':
+        return <IconLogout size={14} />;
+      case 'export':
+        return <IconDownload size={14} />;
+      default:
+        return <IconEye size={14} />;
     }
   };
 
   const getActionColor = (action: string) => {
-    switch(action) {
-      case 'create': return 'green';
-      case 'update': return 'blue';
-      case 'delete': return 'red';
-      case 'login': return 'teal';
-      case 'logout': return 'gray';
-      case 'export': return 'violet';
-      case 'unauthorized_access': return 'red';
-      default: return 'gray';
+    switch (action) {
+      case 'create':
+        return 'green';
+      case 'update':
+        return 'blue';
+      case 'delete':
+        return 'red';
+      case 'login':
+        return 'teal';
+      case 'logout':
+        return 'gray';
+      case 'export':
+        return 'violet';
+      case 'unauthorized_access':
+        return 'red';
+      default:
+        return 'gray';
     }
   };
 
   const getActionName = (action: string) => {
-    switch(action) {
-      case 'create': return 'Oluşturma';
-      case 'update': return 'Güncelleme';
-      case 'delete': return 'Silme';
-      case 'login': return 'Giriş';
-      case 'logout': return 'Çıkış';
-      case 'export': return 'Dışa Aktarma';
-      case 'view': return 'Görüntüleme';
-      case 'unauthorized_access': return 'Yetkisiz Erişim';
-      default: return action;
+    switch (action) {
+      case 'create':
+        return 'Oluşturma';
+      case 'update':
+        return 'Güncelleme';
+      case 'delete':
+        return 'Silme';
+      case 'login':
+        return 'Giriş';
+      case 'logout':
+        return 'Çıkış';
+      case 'export':
+        return 'Dışa Aktarma';
+      case 'view':
+        return 'Görüntüleme';
+      case 'unauthorized_access':
+        return 'Yetkisiz Erişim';
+      default:
+        return action;
     }
   };
 
   const getEntityTypeName = (type: string) => {
     const names: Record<string, string> = {
-      'user': 'Kullanıcı',
-      'invoice': 'Fatura',
-      'tender': 'İhale',
-      'cari': 'Cari',
-      'personel': 'Personel',
-      'stok': 'Stok',
-      'firma': 'Firma',
-      'bordro': 'Bordro',
-      'permission': 'Yetki',
-      'menu': 'Menü',
-      'recete': 'Reçete'
+      user: 'Kullanıcı',
+      invoice: 'Fatura',
+      tender: 'İhale',
+      cari: 'Cari',
+      personel: 'Personel',
+      stok: 'Stok',
+      firma: 'Firma',
+      bordro: 'Bordro',
+      permission: 'Yetki',
+      menu: 'Menü',
+      recete: 'Reçete',
     };
     return names[type] || type;
   };
@@ -262,7 +284,7 @@ export default function LoglarPage() {
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
@@ -285,17 +307,32 @@ export default function LoglarPage() {
               </Button>
             </Group>
             <Group gap="sm" mb={4}>
-              <ThemeIcon size="lg" radius="md" variant="gradient" gradient={{ from: 'cyan', to: 'teal' }}>
+              <ThemeIcon
+                size="lg"
+                radius="md"
+                variant="gradient"
+                gradient={{ from: 'cyan', to: 'teal' }}
+              >
                 <IconHistory size={20} />
               </ThemeIcon>
-              <Title order={1} size="h2">İşlem Geçmişi</Title>
+              <Title order={1} size="h2">
+                İşlem Geçmişi
+              </Title>
             </Group>
             <Text c="dimmed">Sistemdeki tüm işlemlerin kaydı</Text>
           </div>
-          
+
           <Group>
             <Tooltip label="Yenile">
-              <ActionIcon variant="light" size="lg" onClick={() => { fetchLogs(); fetchSummary(); }} loading={loading}>
+              <ActionIcon
+                variant="light"
+                size="lg"
+                onClick={() => {
+                  fetchLogs();
+                  fetchSummary();
+                }}
+                loading={loading}
+              >
                 <IconRefresh size={18} />
               </ActionIcon>
             </Tooltip>
@@ -306,29 +343,43 @@ export default function LoglarPage() {
         <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
           <Card padding="lg" radius="md" withBorder>
             <Group justify="space-between" mb="xs">
-              <Text size="sm" c="dimmed">Bugün</Text>
+              <Text size="sm" c="dimmed">
+                Bugün
+              </Text>
               <ThemeIcon variant="light" color="blue" size="sm" radius="xl">
                 <IconActivity size={14} />
               </ThemeIcon>
             </Group>
-            <Text fw={700} size="xl">{summary?.todayCount || 0}</Text>
-            <Text size="xs" c="dimmed">işlem</Text>
+            <Text fw={700} size="xl">
+              {summary?.todayCount || 0}
+            </Text>
+            <Text size="xs" c="dimmed">
+              işlem
+            </Text>
           </Card>
 
           <Card padding="lg" radius="md" withBorder>
             <Group justify="space-between" mb="xs">
-              <Text size="sm" c="dimmed">Son 7 Gün</Text>
+              <Text size="sm" c="dimmed">
+                Son 7 Gün
+              </Text>
               <ThemeIcon variant="light" color="green" size="sm" radius="xl">
                 <IconCalendar size={14} />
               </ThemeIcon>
             </Group>
-            <Text fw={700} size="xl">{summary?.weekCount || 0}</Text>
-            <Text size="xs" c="dimmed">işlem</Text>
+            <Text fw={700} size="xl">
+              {summary?.weekCount || 0}
+            </Text>
+            <Text size="xs" c="dimmed">
+              işlem
+            </Text>
           </Card>
 
           <Card padding="lg" radius="md" withBorder>
             <Group justify="space-between" mb="xs">
-              <Text size="sm" c="dimmed">En Aktif</Text>
+              <Text size="sm" c="dimmed">
+                En Aktif
+              </Text>
               <ThemeIcon variant="light" color="violet" size="sm" radius="xl">
                 <IconUser size={14} />
               </ThemeIcon>
@@ -343,7 +394,9 @@ export default function LoglarPage() {
 
           <Card padding="lg" radius="md" withBorder>
             <Group justify="space-between" mb="xs">
-              <Text size="sm" c="dimmed">En Çok</Text>
+              <Text size="sm" c="dimmed">
+                En Çok
+              </Text>
               <ThemeIcon variant="light" color="orange" size="sm" radius="xl">
                 <IconClock size={14} />
               </ThemeIcon>
@@ -368,13 +421,16 @@ export default function LoglarPage() {
               Temizle
             </Button>
           </Group>
-          
+
           <SimpleGrid cols={{ base: 1, sm: 2, md: 6 }} spacing="md">
             <Select
               placeholder="Kullanıcı"
               value={filterUserId}
               onChange={setFilterUserId}
-              data={filters?.users.map(u => ({ value: u.user_id.toString(), label: u.user_name })) || []}
+              data={
+                filters?.users.map((u) => ({ value: u.user_id.toString(), label: u.user_name })) ||
+                []
+              }
               clearable
               searchable
             />
@@ -382,14 +438,16 @@ export default function LoglarPage() {
               placeholder="İşlem Tipi"
               value={filterAction}
               onChange={setFilterAction}
-              data={filters?.actions.map(a => ({ value: a, label: getActionName(a) })) || []}
+              data={filters?.actions.map((a) => ({ value: a, label: getActionName(a) })) || []}
               clearable
             />
             <Select
               placeholder="Modül"
               value={filterEntityType}
               onChange={setFilterEntityType}
-              data={filters?.entityTypes.map(t => ({ value: t, label: getEntityTypeName(t) })) || []}
+              data={
+                filters?.entityTypes.map((t) => ({ value: t, label: getEntityTypeName(t) })) || []
+              }
               clearable
             />
             <StyledDatePicker
@@ -460,12 +518,14 @@ export default function LoglarPage() {
                         <Table.Td>
                           <Group gap="xs">
                             <IconUser size={14} />
-                            <Text size="sm" fw={500}>{log.user_name || '-'}</Text>
+                            <Text size="sm" fw={500}>
+                              {log.user_name || '-'}
+                            </Text>
                           </Group>
                         </Table.Td>
                         <Table.Td>
-                          <Badge 
-                            leftSection={getActionIcon(log.action)} 
+                          <Badge
+                            leftSection={getActionIcon(log.action)}
                             color={getActionColor(log.action)}
                             variant="light"
                             size="sm"
@@ -485,8 +545,8 @@ export default function LoglarPage() {
                         </Table.Td>
                         <Table.Td ta="right">
                           <Tooltip label="Detay Görüntüle">
-                            <ActionIcon 
-                              variant="light" 
+                            <ActionIcon
+                              variant="light"
                               color="gray"
                               onClick={() => viewLogDetail(log.id)}
                             >
@@ -503,12 +563,7 @@ export default function LoglarPage() {
               {/* Pagination */}
               {totalPages > 1 && (
                 <Group justify="center" mt="lg">
-                  <Pagination 
-                    total={totalPages} 
-                    value={page} 
-                    onChange={setPage}
-                    withEdges
-                  />
+                  <Pagination total={totalPages} value={page} onChange={setPage} withEdges />
                 </Group>
               )}
             </>
@@ -532,38 +587,52 @@ export default function LoglarPage() {
           <Stack gap="md">
             <SimpleGrid cols={2} spacing="md">
               <div>
-                <Text size="xs" c="dimmed">Tarih</Text>
+                <Text size="xs" c="dimmed">
+                  Tarih
+                </Text>
                 <Text fw={500}>{formatDate(selectedLog.created_at)}</Text>
               </div>
               <div>
-                <Text size="xs" c="dimmed">Kullanıcı</Text>
+                <Text size="xs" c="dimmed">
+                  Kullanıcı
+                </Text>
                 <Group gap="xs">
                   <Text fw={500}>{selectedLog.user_name}</Text>
-                  <Text size="xs" c="dimmed">({selectedLog.user_email})</Text>
+                  <Text size="xs" c="dimmed">
+                    ({selectedLog.user_email})
+                  </Text>
                 </Group>
               </div>
               <div>
-                <Text size="xs" c="dimmed">İşlem</Text>
-                <Badge 
-                  leftSection={getActionIcon(selectedLog.action)} 
+                <Text size="xs" c="dimmed">
+                  İşlem
+                </Text>
+                <Badge
+                  leftSection={getActionIcon(selectedLog.action)}
                   color={getActionColor(selectedLog.action)}
                 >
                   {getActionName(selectedLog.action)}
                 </Badge>
               </div>
               <div>
-                <Text size="xs" c="dimmed">Modül</Text>
+                <Text size="xs" c="dimmed">
+                  Modül
+                </Text>
                 <Badge variant="outline">{getEntityTypeName(selectedLog.entity_type)}</Badge>
               </div>
               {selectedLog.entity_name && (
                 <div>
-                  <Text size="xs" c="dimmed">Kayıt Adı</Text>
+                  <Text size="xs" c="dimmed">
+                    Kayıt Adı
+                  </Text>
                   <Text fw={500}>{selectedLog.entity_name}</Text>
                 </div>
               )}
               {selectedLog.ip_address && (
                 <div>
-                  <Text size="xs" c="dimmed">IP Adresi</Text>
+                  <Text size="xs" c="dimmed">
+                    IP Adresi
+                  </Text>
                   <Code>{selectedLog.ip_address}</Code>
                 </div>
               )}
@@ -592,7 +661,9 @@ export default function LoglarPage() {
                       {Object.entries(selectedLog.changes).map(([key, value]: [string, any]) => (
                         <Table.Tr key={key}>
                           <Table.Td>
-                            <Text size="sm" fw={500}>{key}</Text>
+                            <Text size="sm" fw={500}>
+                              {key}
+                            </Text>
                           </Table.Td>
                           <Table.Td>
                             <Code color="red">{JSON.stringify(value.old)}</Code>

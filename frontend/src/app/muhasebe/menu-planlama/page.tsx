@@ -1,47 +1,46 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { API_BASE_URL } from '@/lib/config';
 import {
-  Container,
-  Title,
-  Text,
-  Group,
-  Stack,
-  Badge,
-  Button,
-  Box,
   ActionIcon,
+  Badge,
+  Box,
+  Button,
+  Card,
+  Center,
+  Container,
+  Divider,
+  Group,
+  Loader,
+  Modal,
+  NumberInput,
   Paper,
-  ThemeIcon,
+  Popover,
   ScrollArea,
   SimpleGrid,
-  Center,
-  Loader,
-  NumberInput,
-  Popover,
+  Stack,
+  Table,
+  Text,
+  ThemeIcon,
+  Title,
   UnstyledButton,
-  Divider,
-  Card,
-  Modal,
-  Table
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
-  IconChartBar,
-  IconTrash,
-  IconCheck,
-  IconShoppingCart,
-  IconX,
+  IconBook2,
   IconCalculator,
+  IconCheck,
   IconCurrencyLira,
   IconInfoCircle,
+  IconPackages,
   IconScale,
-  IconBook2,
-  IconPackages
+  IconShoppingCart,
+  IconTrash,
+  IconX,
 } from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
 import ReceteModal from '@/components/ReceteModal';
 import UrunKartlariModal from '@/components/UrunKartlariModal';
+import { API_BASE_URL } from '@/lib/config';
 
 const API_URL = `${API_BASE_URL}/api`;
 
@@ -112,21 +111,22 @@ export default function MenuMaliyetPage() {
   const [seciliYemekler, setSeciliYemekler] = useState<SeciliYemek[]>([]);
   const [openedPopover, setOpenedPopover] = useState<string | null>(null);
   const [kisiSayisi, setKisiSayisi] = useState<number>(1000);
-  
+
   // Reçete detay modal
   const [detayModalOpened, setDetayModalOpened] = useState(false);
   const [receteDetay, setReceteDetay] = useState<ReceteDetay | null>(null);
   const [detayLoading, setDetayLoading] = useState(false);
-  
+
   // Reçete Yönetimi Modal
   const [receteModalOpened, setReceteModalOpened] = useState(false);
-  
+
   // Ürün Kartları Modal
   const [urunKartlariModalOpened, setUrunKartlariModalOpened] = useState(false);
 
   // Reçeteleri yükle
   useEffect(() => {
     fetchReceteler();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchReceteler = async () => {
@@ -142,7 +142,7 @@ export default function MenuMaliyetPage() {
       notifications.show({
         title: 'Hata',
         message: 'Reçeteler yüklenemedi',
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setLoading(false);
@@ -151,7 +151,7 @@ export default function MenuMaliyetPage() {
 
   // Kategori için reçeteleri getir
   const getRecetelerForKategori = (kategoriKod: string): ReceteYemek[] => {
-    const kategori = receteKategorileri.find(k => k.kod === kategoriKod);
+    const kategori = receteKategorileri.find((k) => k.kod === kategoriKod);
     return kategori?.yemekler || [];
   };
 
@@ -168,7 +168,7 @@ export default function MenuMaliyetPage() {
         notifications.show({
           title: 'Hata',
           message: 'Reçete detayı yüklenemedi',
-          color: 'red'
+          color: 'red',
         });
       }
     } catch (error) {
@@ -176,7 +176,7 @@ export default function MenuMaliyetPage() {
       notifications.show({
         title: 'Hata',
         message: 'Reçete detayı yüklenemedi',
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setDetayLoading(false);
@@ -186,20 +186,23 @@ export default function MenuMaliyetPage() {
   // Yemek seç
   const handleYemekSec = (kategori: string, yemek: ReceteYemek) => {
     const id = `recete-${yemek.id}`;
-    const mevcut = seciliYemekler.find(y => y.id === id);
-    
+    const mevcut = seciliYemekler.find((y) => y.id === id);
+
     if (mevcut) {
       // Zaten var, kaldır
-      setSeciliYemekler(seciliYemekler.filter(y => y.id !== id));
+      setSeciliYemekler(seciliYemekler.filter((y) => y.id !== id));
     } else {
       // Ekle
-      setSeciliYemekler([...seciliYemekler, {
-        id,
-        recete_id: yemek.id,
-        kategori,
-        ad: yemek.ad,
-        fiyat: yemek.piyasa_maliyet || yemek.sistem_maliyet || 0
-      }]);
+      setSeciliYemekler([
+        ...seciliYemekler,
+        {
+          id,
+          recete_id: yemek.id,
+          kategori,
+          ad: yemek.ad,
+          fiyat: yemek.piyasa_maliyet || yemek.sistem_maliyet || 0,
+        },
+      ]);
       setOpenedPopover(null);
       notifications.show({
         message: `${yemek.ad} eklendi`,
@@ -211,7 +214,7 @@ export default function MenuMaliyetPage() {
 
   // Yemek sil
   const handleYemekSil = (id: string) => {
-    setSeciliYemekler(seciliYemekler.filter(y => y.id !== id));
+    setSeciliYemekler(seciliYemekler.filter((y) => y.id !== id));
   };
 
   // Sepeti temizle
@@ -227,7 +230,7 @@ export default function MenuMaliyetPage() {
       style: 'currency',
       currency: 'TRY',
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      maximumFractionDigits: 2,
     }).format(value);
   };
 
@@ -246,19 +249,27 @@ export default function MenuMaliyetPage() {
     <Box
       style={{
         minHeight: '100vh',
-        background: 'linear-gradient(180deg, rgba(20, 184, 166, 0.03) 0%, rgba(59, 130, 246, 0.03) 100%)'
+        background:
+          'linear-gradient(180deg, rgba(20, 184, 166, 0.03) 0%, rgba(59, 130, 246, 0.03) 100%)',
       }}
     >
       <Container size="xl" py="xl">
         {/* Header */}
         <Group justify="space-between" mb="xl">
           <Group gap="md">
-            <ThemeIcon size={50} radius="xl" variant="gradient" gradient={{ from: 'teal', to: 'cyan' }}>
+            <ThemeIcon
+              size={50}
+              radius="xl"
+              variant="gradient"
+              gradient={{ from: 'teal', to: 'cyan' }}
+            >
               <IconCalculator size={26} />
             </ThemeIcon>
             <Box>
               <Title order={2}>Menü Maliyet Hesaplama</Title>
-              <Text c="dimmed" size="sm">Reçete seçin, maliyeti görün</Text>
+              <Text c="dimmed" size="sm">
+                Reçete seçin, maliyeti görün
+              </Text>
             </Box>
           </Group>
 
@@ -298,15 +309,17 @@ export default function MenuMaliyetPage() {
           <Box>
             <Paper p="md" withBorder radius="lg" mb="md">
               <Group justify="space-between" mb="md">
-                <Text fw={600} size="lg">🍽️ Yemek Kategorileri</Text>
+                <Text fw={600} size="lg">
+                  🍽️ Yemek Kategorileri
+                </Text>
                 <Badge variant="light" color="gray">
                   {receteKategorileri.reduce((sum, k) => sum + k.yemekler.length, 0)} reçete
                 </Badge>
               </Group>
-              
+
               <SimpleGrid cols={{ base: 2, sm: 5 }} spacing="xs">
-                {KATEGORILER.map(kat => {
-                  const seciliSayisi = seciliYemekler.filter(y => y.kategori === kat.kod).length;
+                {KATEGORILER.map((kat) => {
+                  const seciliSayisi = seciliYemekler.filter((y) => y.kategori === kat.kod).length;
                   const yemekler = getRecetelerForKategori(kat.kod);
                   const isOpen = openedPopover === kat.kod;
 
@@ -326,12 +339,16 @@ export default function MenuMaliyetPage() {
                             padding: 10,
                             borderRadius: 'var(--mantine-radius-md)',
                             border: `${seciliSayisi > 0 ? 2 : 1}px solid`,
-                            borderColor: seciliSayisi > 0
-                              ? `var(--mantine-color-${kat.renk}-5)`
-                              : 'var(--mantine-color-default-border)',
-                            background: seciliSayisi > 0
-                              ? `var(--mantine-color-${kat.renk}-light)`
-                              : isOpen ? 'var(--mantine-color-gray-0)' : undefined,
+                            borderColor:
+                              seciliSayisi > 0
+                                ? `var(--mantine-color-${kat.renk}-5)`
+                                : 'var(--mantine-color-default-border)',
+                            background:
+                              seciliSayisi > 0
+                                ? `var(--mantine-color-${kat.renk}-light)`
+                                : isOpen
+                                  ? 'var(--mantine-color-gray-0)'
+                                  : undefined,
                             transition: 'all 0.15s',
                             width: '100%',
                           }}
@@ -340,8 +357,12 @@ export default function MenuMaliyetPage() {
                           <Group gap={6} wrap="nowrap">
                             <Text size="xl">{kat.ikon}</Text>
                             <Box style={{ flex: 1, minWidth: 0 }}>
-                              <Text fw={500} size="xs" truncate>{kat.ad}</Text>
-                              <Text size="10px" c="dimmed">{yemekler.length} yemek</Text>
+                              <Text fw={500} size="xs" truncate>
+                                {kat.ad}
+                              </Text>
+                              <Text size="10px" c="dimmed">
+                                {yemekler.length} yemek
+                              </Text>
                             </Box>
                             {seciliSayisi > 0 && (
                               <Badge size="xs" color="teal" variant="filled" circle>
@@ -353,11 +374,16 @@ export default function MenuMaliyetPage() {
                       </Popover.Target>
 
                       <Popover.Dropdown p={0}>
-                        <Box p="xs" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
+                        <Box
+                          p="xs"
+                          style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
+                        >
                           <Group justify="space-between">
                             <Group gap="xs">
                               <Text size="lg">{kat.ikon}</Text>
-                              <Text fw={600} size="sm">{kat.ad}</Text>
+                              <Text fw={600} size="sm">
+                                {kat.ad}
+                              </Text>
                             </Group>
                             <Badge size="xs" variant="light" color="gray">
                               {yemekler.length} reçete
@@ -367,7 +393,9 @@ export default function MenuMaliyetPage() {
                         <ScrollArea.Autosize mah={300}>
                           <Stack gap={0}>
                             {yemekler.map((yemek) => {
-                              const isSecili = seciliYemekler.some(y => y.id === `recete-${yemek.id}`);
+                              const isSecili = seciliYemekler.some(
+                                (y) => y.id === `recete-${yemek.id}`
+                              );
                               const fiyat = yemek.piyasa_maliyet || yemek.sistem_maliyet || 0;
                               return (
                                 <Box
@@ -375,7 +403,9 @@ export default function MenuMaliyetPage() {
                                   p="xs"
                                   style={{
                                     borderBottom: '1px solid var(--mantine-color-default-border)',
-                                    background: isSecili ? 'var(--mantine-color-teal-light)' : undefined,
+                                    background: isSecili
+                                      ? 'var(--mantine-color-teal-light)'
+                                      : undefined,
                                   }}
                                 >
                                   <Group justify="space-between" wrap="nowrap">
@@ -384,8 +414,15 @@ export default function MenuMaliyetPage() {
                                       style={{ flex: 1, minWidth: 0 }}
                                     >
                                       <Group gap="xs" wrap="nowrap">
-                                        {isSecili && <IconCheck size={14} color="var(--mantine-color-teal-6)" />}
-                                        <Text size="sm" truncate fw={isSecili ? 600 : 400}>{yemek.ad}</Text>
+                                        {isSecili && (
+                                          <IconCheck
+                                            size={14}
+                                            color="var(--mantine-color-teal-6)"
+                                          />
+                                        )}
+                                        <Text size="sm" truncate fw={isSecili ? 600 : 400}>
+                                          {yemek.ad}
+                                        </Text>
                                       </Group>
                                     </UnstyledButton>
                                     <Group gap="xs" wrap="nowrap">
@@ -427,11 +464,13 @@ export default function MenuMaliyetPage() {
             <Paper p="md" withBorder radius="lg" bg="blue.0">
               <Group gap="xs" mb="xs">
                 <IconCurrencyLira size={20} color="var(--mantine-color-blue-6)" />
-                <Text fw={600} size="sm" c="blue.9">Fiyat Bilgisi</Text>
+                <Text fw={600} size="sm" c="blue.9">
+                  Fiyat Bilgisi
+                </Text>
               </Group>
               <Text size="xs" c="dimmed">
-                Fiyatlar piyasa araştırmasından otomatik çekilmektedir. 
-                Piyasa fiyatı bulunamayan ürünler için sistem fiyatı kullanılır.
+                Fiyatlar piyasa araştırmasından otomatik çekilmektedir. Piyasa fiyatı bulunamayan
+                ürünler için sistem fiyatı kullanılır.
               </Text>
             </Paper>
           </Box>
@@ -446,7 +485,7 @@ export default function MenuMaliyetPage() {
                 overflow: 'hidden',
                 minHeight: 500,
                 display: 'flex',
-                flexDirection: 'column'
+                flexDirection: 'column',
               }}
             >
               {/* Sepet Başlık */}
@@ -469,8 +508,12 @@ export default function MenuMaliyetPage() {
                       <IconShoppingCart size={30} />
                     </ThemeIcon>
                     <Stack gap={4}>
-                      <Text c="dimmed" ta="center">Henüz yemek seçilmedi</Text>
-                      <Text size="xs" c="dimmed" ta="center">Kategori kartlarına tıklayarak yemek ekleyin</Text>
+                      <Text c="dimmed" ta="center">
+                        Henüz yemek seçilmedi
+                      </Text>
+                      <Text size="xs" c="dimmed" ta="center">
+                        Kategori kartlarına tıklayarak yemek ekleyin
+                      </Text>
                     </Stack>
                   </Stack>
                 </Center>
@@ -480,20 +523,28 @@ export default function MenuMaliyetPage() {
                   <ScrollArea style={{ flex: 1 }} p="md">
                     <Stack gap="xs">
                       {seciliYemekler.map((yemek, index) => {
-                        const kategori = KATEGORILER.find(k => k.kod === yemek.kategori);
+                        const kategori = KATEGORILER.find((k) => k.kod === yemek.kategori);
                         return (
                           <Paper key={yemek.id} p="sm" radius="md" withBorder>
                             <Group justify="space-between">
                               <Group gap="sm">
-                                <Badge size="sm" variant="light" color="gray">{index + 1}</Badge>
+                                <Badge size="sm" variant="light" color="gray">
+                                  {index + 1}
+                                </Badge>
                                 <Text size="sm">{kategori?.ikon}</Text>
                                 <Box>
-                                  <Text fw={500} size="sm">{yemek.ad}</Text>
-                                  <Text size="xs" c="dimmed">{kategori?.ad}</Text>
+                                  <Text fw={500} size="sm">
+                                    {yemek.ad}
+                                  </Text>
+                                  <Text size="xs" c="dimmed">
+                                    {kategori?.ad}
+                                  </Text>
                                 </Box>
                               </Group>
                               <Group gap="sm">
-                                <Text fw={600} c="teal">{formatMoney(yemek.fiyat)}</Text>
+                                <Text fw={600} c="teal">
+                                  {formatMoney(yemek.fiyat)}
+                                </Text>
                                 <ActionIcon
                                   variant="subtle"
                                   color="red"
@@ -515,19 +566,25 @@ export default function MenuMaliyetPage() {
                     p="md"
                     style={{
                       borderTop: '2px solid var(--mantine-color-teal-5)',
-                      background: 'var(--mantine-color-teal-light)'
+                      background: 'var(--mantine-color-teal-light)',
                     }}
                   >
                     <Group justify="space-between" mb="md">
-                      <Text fw={700} size="lg">1 PORSİYON</Text>
-                      <Text fw={700} size="xl" c="teal">{formatMoney(toplamMaliyet)}</Text>
+                      <Text fw={700} size="lg">
+                        1 PORSİYON
+                      </Text>
+                      <Text fw={700} size="xl" c="teal">
+                        {formatMoney(toplamMaliyet)}
+                      </Text>
                     </Group>
 
                     <Divider mb="md" />
 
                     {/* Kişi Sayısı Girişi */}
                     <Group mb="md">
-                      <Text size="sm" fw={500}>👥 Kişi Sayısı:</Text>
+                      <Text size="sm" fw={500}>
+                        👥 Kişi Sayısı:
+                      </Text>
                       <NumberInput
                         value={kisiSayisi}
                         onChange={(val) => setKisiSayisi(typeof val === 'number' ? val : 1000)}
@@ -542,16 +599,28 @@ export default function MenuMaliyetPage() {
                     {/* Hızlı Hesap */}
                     <SimpleGrid cols={3} spacing="xs" mb="md">
                       <Paper p="xs" radius="md" withBorder ta="center" bg="white">
-                        <Text size="xs" c="dimmed">100 Kişi</Text>
-                        <Text fw={600} size="sm">{formatMoney(toplamMaliyet * 100)}</Text>
+                        <Text size="xs" c="dimmed">
+                          100 Kişi
+                        </Text>
+                        <Text fw={600} size="sm">
+                          {formatMoney(toplamMaliyet * 100)}
+                        </Text>
                       </Paper>
                       <Paper p="xs" radius="md" withBorder ta="center" bg="white">
-                        <Text size="xs" c="dimmed">500 Kişi</Text>
-                        <Text fw={600} size="sm">{formatMoney(toplamMaliyet * 500)}</Text>
+                        <Text size="xs" c="dimmed">
+                          500 Kişi
+                        </Text>
+                        <Text fw={600} size="sm">
+                          {formatMoney(toplamMaliyet * 500)}
+                        </Text>
                       </Paper>
                       <Paper p="xs" radius="md" withBorder ta="center" bg="white">
-                        <Text size="xs" c="dimmed">1000 Kişi</Text>
-                        <Text fw={600} size="sm">{formatMoney(toplamMaliyet * 1000)}</Text>
+                        <Text size="xs" c="dimmed">
+                          1000 Kişi
+                        </Text>
+                        <Text fw={600} size="sm">
+                          {formatMoney(toplamMaliyet * 1000)}
+                        </Text>
                       </Paper>
                     </SimpleGrid>
 
@@ -559,8 +628,12 @@ export default function MenuMaliyetPage() {
                     <Card withBorder radius="md" p="md" bg="teal.9">
                       <Group justify="space-between">
                         <Box>
-                          <Text size="xs" c="teal.2">{kisiSayisi.toLocaleString('tr-TR')} Kişi için</Text>
-                          <Text size="xs" c="teal.3">TOPLAM MALİYET</Text>
+                          <Text size="xs" c="teal.2">
+                            {kisiSayisi.toLocaleString('tr-TR')} Kişi için
+                          </Text>
+                          <Text size="xs" c="teal.3">
+                            TOPLAM MALİYET
+                          </Text>
                         </Box>
                         <Text fw={800} size="xl" c="white">
                           {formatMoney(toplamMaliyet * kisiSayisi)}
@@ -599,23 +672,35 @@ export default function MenuMaliyetPage() {
             {/* Özet Bilgiler */}
             <SimpleGrid cols={3}>
               <Paper p="sm" withBorder radius="md" ta="center">
-                <Text size="xs" c="dimmed">Porsiyon</Text>
+                <Text size="xs" c="dimmed">
+                  Porsiyon
+                </Text>
                 <Text fw={600}>{receteDetay.porsiyon_gram || 250}g</Text>
               </Paper>
               <Paper p="sm" withBorder radius="md" ta="center" bg="blue.0">
-                <Text size="xs" c="dimmed">Sistem Maliyet</Text>
-                <Text fw={600} c="blue">{formatMoney(receteDetay.sistem_maliyet || 0)}</Text>
+                <Text size="xs" c="dimmed">
+                  Sistem Maliyet
+                </Text>
+                <Text fw={600} c="blue">
+                  {formatMoney(receteDetay.sistem_maliyet || 0)}
+                </Text>
               </Paper>
               <Paper p="sm" withBorder radius="md" ta="center" bg="teal.0">
-                <Text size="xs" c="dimmed">Piyasa Maliyet</Text>
-                <Text fw={600} c="teal">{formatMoney(receteDetay.piyasa_maliyet || 0)}</Text>
+                <Text size="xs" c="dimmed">
+                  Piyasa Maliyet
+                </Text>
+                <Text fw={600} c="teal">
+                  {formatMoney(receteDetay.piyasa_maliyet || 0)}
+                </Text>
               </Paper>
             </SimpleGrid>
 
             {/* Malzeme Listesi */}
             <Box>
-              <Text fw={600} mb="sm">📋 Malzemeler ({receteDetay.malzemeler?.length || 0} kalem)</Text>
-              
+              <Text fw={600} mb="sm">
+                📋 Malzemeler ({receteDetay.malzemeler?.length || 0} kalem)
+              </Text>
+
               {receteDetay.malzemeler && receteDetay.malzemeler.length > 0 ? (
                 <Table striped highlightOnHover withTableBorder>
                   <Table.Thead>
@@ -630,13 +715,19 @@ export default function MenuMaliyetPage() {
                     {receteDetay.malzemeler.map((m) => (
                       <Table.Tr key={m.id}>
                         <Table.Td>
-                          <Text size="sm" fw={500}>{m.malzeme_adi || m.stok_adi}</Text>
+                          <Text size="sm" fw={500}>
+                            {m.malzeme_adi || m.stok_adi}
+                          </Text>
                           {m.stok_adi && m.malzeme_adi !== m.stok_adi && (
-                            <Text size="xs" c="dimmed">{m.stok_adi}</Text>
+                            <Text size="xs" c="dimmed">
+                              {m.stok_adi}
+                            </Text>
                           )}
                         </Table.Td>
                         <Table.Td ta="right">
-                          <Text size="sm" fw={600}>{m.miktar}</Text>
+                          <Text size="sm" fw={600}>
+                            {m.miktar}
+                          </Text>
                         </Table.Td>
                         <Table.Td ta="right">
                           <Badge variant="light" color="gray" size="sm">
@@ -653,7 +744,9 @@ export default function MenuMaliyetPage() {
                               ₺{m.sistem_fiyat.toFixed(2)}
                             </Text>
                           ) : (
-                            <Text size="sm" c="dimmed">—</Text>
+                            <Text size="sm" c="dimmed">
+                              —
+                            </Text>
                           )}
                         </Table.Td>
                       </Table.Tr>
@@ -675,7 +768,9 @@ export default function MenuMaliyetPage() {
             </Paper>
           </Stack>
         ) : (
-          <Text c="dimmed" ta="center" py="xl">Reçete bilgisi bulunamadı</Text>
+          <Text c="dimmed" ta="center" py="xl">
+            Reçete bilgisi bulunamadı
+          </Text>
         )}
       </Modal>
 

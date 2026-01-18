@@ -1,7 +1,7 @@
 'use client';
 
-import { Card, Group, Text, Badge, ActionIcon, Box, Tooltip, Stack } from '@mantine/core';
-import { IconEye, IconTrash, IconCalendar } from '@tabler/icons-react';
+import { ActionIcon, Badge, Box, Card, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { IconCalendar, IconEye, IconTrash } from '@tabler/icons-react';
 
 export interface ConversationSummary {
   session_id: string;
@@ -27,19 +27,19 @@ export function ChatHistoryList({ conversations, onView, onDelete }: ChatHistory
     const date = new Date(dateStr);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
-    
+
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
-    
+
     if (minutes < 60) return `${minutes} dk önce`;
     if (hours < 24) return `${hours} saat önce`;
     if (days < 7) return `${days} gün önce`;
-    
+
     return date.toLocaleDateString('tr-TR', {
       day: '2-digit',
       month: 'short',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
@@ -55,16 +55,18 @@ export function ChatHistoryList({ conversations, onView, onDelete }: ChatHistory
             <Box style={{ flex: 1, minWidth: 0 }}>
               <Group gap="xs" mb={4}>
                 <IconCalendar size={14} color="gray" />
-                <Text size="xs" c="dimmed">{getTimeAgo(conv.last_message_at)}</Text>
+                <Text size="xs" c="dimmed">
+                  {getTimeAgo(conv.last_message_at)}
+                </Text>
                 <Badge size="xs" variant="light">
                   {conv.message_count} mesaj
                 </Badge>
               </Group>
-              
+
               <Text size="sm" fw={500} lineClamp={1} mb={4}>
                 {conv.preview || conv.first_user_message || 'Boş oturum'}
               </Text>
-              
+
               <Group gap="xs">
                 <Badge size="xs" color="blue" variant="dot">
                   {conv.user_messages} soru
@@ -74,23 +76,15 @@ export function ChatHistoryList({ conversations, onView, onDelete }: ChatHistory
                 </Badge>
               </Group>
             </Box>
-            
+
             <Group gap="xs">
               <Tooltip label="Görüntüle">
-                <ActionIcon 
-                  variant="light" 
-                  color="blue"
-                  onClick={() => onView(conv.session_id)}
-                >
+                <ActionIcon variant="light" color="blue" onClick={() => onView(conv.session_id)}>
                   <IconEye size={16} />
                 </ActionIcon>
               </Tooltip>
               <Tooltip label="Sil">
-                <ActionIcon 
-                  variant="light" 
-                  color="red"
-                  onClick={() => onDelete(conv.session_id)}
-                >
+                <ActionIcon variant="light" color="red" onClick={() => onDelete(conv.session_id)}>
                   <IconTrash size={16} />
                 </ActionIcon>
               </Tooltip>

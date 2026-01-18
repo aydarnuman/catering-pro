@@ -1,43 +1,43 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import {
-  Modal,
-  Tabs,
-  Text,
+  ActionIcon,
+  Alert,
+  Badge,
+  Box,
+  Button,
+  Divider,
   Group,
+  Loader,
+  Modal,
+  Paper,
+  Progress,
+  ScrollArea,
+  Select,
+  SimpleGrid,
   Stack,
   Table,
-  Badge,
-  Paper,
-  SimpleGrid,
-  Title,
-  Button,
-  Select,
-  Loader,
-  Box,
-  Divider,
-  ActionIcon,
+  Tabs,
+  Text,
   ThemeIcon,
-  Progress,
-  Alert,
-  ScrollArea
+  Title,
 } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import {
+  IconAlertTriangle,
   IconCalendar,
+  IconCheck,
+  IconChevronDown,
+  IconChevronUp,
+  IconClock,
+  IconDownload,
   IconFileInvoice,
   IconList,
-  IconDownload,
-  IconPrinter,
   IconMail,
-  IconCheck,
+  IconPrinter,
   IconX,
-  IconClock,
-  IconAlertTriangle,
-  IconChevronDown,
-  IconChevronUp
 } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
+import { useEffect, useState } from 'react';
 import { API_BASE_URL } from '@/lib/config';
 
 const API_URL = `${API_BASE_URL}/api`;
@@ -83,7 +83,7 @@ const aylar = [
   { value: '9', label: 'Eylül' },
   { value: '10', label: 'Ekim' },
   { value: '11', label: 'Kasım' },
-  { value: '12', label: 'Aralık' }
+  { value: '12', label: 'Aralık' },
 ];
 
 // Yıllar listesi
@@ -95,29 +95,29 @@ const yillar = Array.from({ length: 5 }, (_, i) => {
 export default function MutabakatModal({ opened, onClose, cari }: MutabakatModalProps) {
   const [activeTab, setActiveTab] = useState<string | null>('ekstre');
   const [loading, setLoading] = useState(false);
-  
+
   // Dönem filtresi
   const [selectedAy, setSelectedAy] = useState(String(new Date().getMonth() + 1));
   const [selectedYil, setSelectedYil] = useState(String(new Date().getFullYear()));
-  
+
   // Data states
   const [ekstreData, setEkstreData] = useState<any>(null);
   const [faturaBazliData, setFaturaBazliData] = useState<any>(null);
   const [donemselData, setDonemselData] = useState<any>(null);
-  
+
   // Fatura bazlı filtre
   const [faturaFiltre, setFaturaFiltre] = useState('tumu');
-  
+
   // Açık/kapalı fatura detayları
   const [expandedFatura, setExpandedFatura] = useState<number | null>(null);
-  
 
   // Verileri yükle
   useEffect(() => {
     if (opened && cari) {
       loadData();
     }
-  }, [opened, cari, selectedAy, selectedYil, activeTab]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened, cari?.id]);
 
   const loadData = async () => {
     if (!cari) return;
@@ -125,23 +125,29 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
 
     try {
       const baslangic = `${selectedYil}-${selectedAy.padStart(2, '0')}-01`;
-      const sonGun = new Date(parseInt(selectedYil), parseInt(selectedAy), 0).getDate();
+      const sonGun = new Date(parseInt(selectedYil, 10), parseInt(selectedAy, 10), 0).getDate();
       const bitis = `${selectedYil}-${selectedAy.padStart(2, '0')}-${sonGun}`;
 
       if (activeTab === 'ekstre') {
-        const res = await fetch(`${API_URL}/mutabakat/ekstre/${cari.id}?baslangic=${baslangic}&bitis=${bitis}`);
+        const res = await fetch(
+          `${API_URL}/mutabakat/ekstre/${cari.id}?baslangic=${baslangic}&bitis=${bitis}`
+        );
         if (res.ok) {
           const data = await res.json();
           setEkstreData(data);
         }
       } else if (activeTab === 'fatura-bazli') {
-        const res = await fetch(`${API_URL}/mutabakat/fatura-bazli/${cari.id}?durum=${faturaFiltre}&yil=${selectedYil}&ay=${selectedAy}`);
+        const res = await fetch(
+          `${API_URL}/mutabakat/fatura-bazli/${cari.id}?durum=${faturaFiltre}&yil=${selectedYil}&ay=${selectedAy}`
+        );
         if (res.ok) {
           const data = await res.json();
           setFaturaBazliData(data);
         }
       } else if (activeTab === 'donemsel') {
-        const res = await fetch(`${API_URL}/mutabakat/donemsel/${cari.id}?yil=${selectedYil}&ay=${selectedAy}`);
+        const res = await fetch(
+          `${API_URL}/mutabakat/donemsel/${cari.id}?yil=${selectedYil}&ay=${selectedAy}`
+        );
         if (res.ok) {
           const data = await res.json();
           setDonemselData(data);
@@ -152,7 +158,7 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
       notifications.show({
         title: 'Hata',
         message: 'Veriler yüklenemedi',
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setLoading(false);
@@ -164,7 +170,7 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
     if (activeTab === 'fatura-bazli' && cari) {
       loadData();
     }
-  }, [faturaFiltre, selectedYil, selectedAy]);
+  }, [activeTab, cari, loadData]);
 
   const renderEkstreTab = () => {
     if (!ekstreData) return <Text c="dimmed">Veri yükleniyor...</Text>;
@@ -175,21 +181,33 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
         <Paper withBorder p="md" radius="md" bg="gray.0">
           <SimpleGrid cols={{ base: 2, md: 4 }}>
             <Box>
-              <Text size="xs" c="dimmed">Açılış Bakiyesi</Text>
+              <Text size="xs" c="dimmed">
+                Açılış Bakiyesi
+              </Text>
               <Text fw={600} c={ekstreData.acilis_bakiyesi >= 0 ? 'green' : 'red'}>
                 {formatMoney(ekstreData.acilis_bakiyesi)}
               </Text>
             </Box>
             <Box>
-              <Text size="xs" c="dimmed">Toplam Borç</Text>
-              <Text fw={600} c="red">{formatMoney(ekstreData.toplam_borc)}</Text>
+              <Text size="xs" c="dimmed">
+                Toplam Borç
+              </Text>
+              <Text fw={600} c="red">
+                {formatMoney(ekstreData.toplam_borc)}
+              </Text>
             </Box>
             <Box>
-              <Text size="xs" c="dimmed">Toplam Alacak</Text>
-              <Text fw={600} c="green">{formatMoney(ekstreData.toplam_alacak)}</Text>
+              <Text size="xs" c="dimmed">
+                Toplam Alacak
+              </Text>
+              <Text fw={600} c="green">
+                {formatMoney(ekstreData.toplam_alacak)}
+              </Text>
             </Box>
             <Box>
-              <Text size="xs" c="dimmed">Kapanış Bakiyesi</Text>
+              <Text size="xs" c="dimmed">
+                Kapanış Bakiyesi
+              </Text>
               <Text fw={700} size="lg" c={ekstreData.kapanis_bakiyesi >= 0 ? 'green' : 'red'}>
                 {formatMoney(ekstreData.kapanis_bakiyesi)}
               </Text>
@@ -215,22 +233,29 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
               <Table.Tr style={{ backgroundColor: 'var(--mantine-color-blue-0)' }}>
                 <Table.Td>{formatDate(ekstreData.donem.baslangic)}</Table.Td>
                 <Table.Td>-</Table.Td>
-                <Table.Td><Text fw={500}>📅 Dönem Başı Devir</Text></Table.Td>
+                <Table.Td>
+                  <Text fw={500}>📅 Dönem Başı Devir</Text>
+                </Table.Td>
                 <Table.Td ta="right">-</Table.Td>
                 <Table.Td ta="right">-</Table.Td>
-                <Table.Td ta="right" fw={600}>{formatMoney(ekstreData.acilis_bakiyesi)}</Table.Td>
+                <Table.Td ta="right" fw={600}>
+                  {formatMoney(ekstreData.acilis_bakiyesi)}
+                </Table.Td>
               </Table.Tr>
-              
-              {ekstreData.hareketler.map((h: any, index: number) => (
+
+              {ekstreData.hareketler.map((h: any, _index: number) => (
                 <Table.Tr key={`${h.kaynak_tip}-${h.kaynak_id}`}>
                   <Table.Td>{formatDate(h.tarih)}</Table.Td>
                   <Table.Td>
-                    <Badge 
-                      size="sm" 
+                    <Badge
+                      size="sm"
                       variant="light"
                       color={
-                        h.kaynak_tip === 'fatura' ? 'blue' :
-                        h.kaynak_tip === 'hareket' ? 'green' : 'orange'
+                        h.kaynak_tip === 'fatura'
+                          ? 'blue'
+                          : h.kaynak_tip === 'hareket'
+                            ? 'green'
+                            : 'orange'
                       }
                     >
                       {h.belge_no || '-'}
@@ -286,7 +311,7 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
               { value: 'tumu', label: 'Tüm Faturalar' },
               { value: 'acik', label: '⏳ Açık Faturalar' },
               { value: 'kismi', label: '🟡 Kısmi Ödenenler' },
-              { value: 'kapali', label: '✅ Kapalı Faturalar' }
+              { value: 'kapali', label: '✅ Kapalı Faturalar' },
             ]}
             w={200}
           />
@@ -306,16 +331,28 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
         {/* Özet Kartlar */}
         <SimpleGrid cols={3}>
           <Paper withBorder p="sm" radius="md">
-            <Text size="xs" c="dimmed">Toplam Fatura</Text>
-            <Text fw={700} size="xl">{formatMoney(faturaBazliData.ozet.toplam_tutar)}</Text>
+            <Text size="xs" c="dimmed">
+              Toplam Fatura
+            </Text>
+            <Text fw={700} size="xl">
+              {formatMoney(faturaBazliData.ozet.toplam_tutar)}
+            </Text>
           </Paper>
           <Paper withBorder p="sm" radius="md">
-            <Text size="xs" c="dimmed">Ödenen</Text>
-            <Text fw={700} size="xl" c="green">{formatMoney(faturaBazliData.ozet.odenen_tutar)}</Text>
+            <Text size="xs" c="dimmed">
+              Ödenen
+            </Text>
+            <Text fw={700} size="xl" c="green">
+              {formatMoney(faturaBazliData.ozet.odenen_tutar)}
+            </Text>
           </Paper>
           <Paper withBorder p="sm" radius="md">
-            <Text size="xs" c="dimmed">Kalan</Text>
-            <Text fw={700} size="xl" c="red">{formatMoney(faturaBazliData.ozet.kalan_tutar)}</Text>
+            <Text size="xs" c="dimmed">
+              Kalan
+            </Text>
+            <Text fw={700} size="xl" c="red">
+              {formatMoney(faturaBazliData.ozet.kalan_tutar)}
+            </Text>
           </Paper>
         </SimpleGrid>
 
@@ -323,10 +360,10 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
         <ScrollArea h={350}>
           <Stack gap="xs">
             {faturaBazliData.faturalar.map((f: any) => (
-              <Paper 
-                key={f.id} 
-                withBorder 
-                p="sm" 
+              <Paper
+                key={f.id}
+                withBorder
+                p="sm"
                 radius="md"
                 style={{ cursor: 'pointer' }}
                 onClick={() => setExpandedFatura(expandedFatura === f.id ? null : f.id)}
@@ -338,13 +375,20 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
                       radius="md"
                       variant="light"
                       color={
-                        f.odeme_durumu === 'kapali' ? 'green' :
-                        f.odeme_durumu === 'kismi' ? 'yellow' : 'red'
+                        f.odeme_durumu === 'kapali'
+                          ? 'green'
+                          : f.odeme_durumu === 'kismi'
+                            ? 'yellow'
+                            : 'red'
                       }
                     >
-                      {f.odeme_durumu === 'kapali' ? <IconCheck size={18} /> :
-                       f.odeme_durumu === 'kismi' ? <IconClock size={18} /> :
-                       <IconAlertTriangle size={18} />}
+                      {f.odeme_durumu === 'kapali' ? (
+                        <IconCheck size={18} />
+                      ) : f.odeme_durumu === 'kismi' ? (
+                        <IconClock size={18} />
+                      ) : (
+                        <IconAlertTriangle size={18} />
+                      )}
                     </ThemeIcon>
                     <div>
                       <Group gap="xs">
@@ -363,35 +407,61 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
                     <Stack gap={2} align="flex-end">
                       <Text fw={700}>{formatMoney(f.fatura_tutari)}</Text>
                       <Group gap={4}>
-                        <Text size="xs" c="green">Ödenen: {formatMoney(f.odenen_tutar)}</Text>
-                        <Text size="xs" c="red">Kalan: {formatMoney(f.kalan_tutar)}</Text>
+                        <Text size="xs" c="green">
+                          Ödenen: {formatMoney(f.odenen_tutar)}
+                        </Text>
+                        <Text size="xs" c="red">
+                          Kalan: {formatMoney(f.kalan_tutar)}
+                        </Text>
                       </Group>
                     </Stack>
                     <ActionIcon variant="subtle" color="gray">
-                      {expandedFatura === f.id ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
+                      {expandedFatura === f.id ? (
+                        <IconChevronUp size={16} />
+                      ) : (
+                        <IconChevronDown size={16} />
+                      )}
                     </ActionIcon>
                   </Group>
                 </Group>
 
                 {/* Progress bar */}
-                <Progress 
-                  value={(f.odenen_tutar / f.fatura_tutari) * 100} 
-                  color={f.odeme_durumu === 'kapali' ? 'green' : f.odeme_durumu === 'kismi' ? 'yellow' : 'gray'}
+                <Progress
+                  value={(f.odenen_tutar / f.fatura_tutari) * 100}
+                  color={
+                    f.odeme_durumu === 'kapali'
+                      ? 'green'
+                      : f.odeme_durumu === 'kismi'
+                        ? 'yellow'
+                        : 'gray'
+                  }
                   size="sm"
                   mt="xs"
                 />
 
                 {/* Ödeme detayları */}
                 {expandedFatura === f.id && f.odemeler && f.odemeler.length > 0 && (
-                  <Box mt="sm" p="sm" style={{ backgroundColor: 'var(--mantine-color-gray-0)', borderRadius: 8 }}>
-                    <Text size="xs" fw={500} mb="xs">Ödemeler:</Text>
+                  <Box
+                    mt="sm"
+                    p="sm"
+                    style={{ backgroundColor: 'var(--mantine-color-gray-0)', borderRadius: 8 }}
+                  >
+                    <Text size="xs" fw={500} mb="xs">
+                      Ödemeler:
+                    </Text>
                     {f.odemeler.map((o: any, i: number) => (
                       <Group key={i} justify="space-between" mb={4}>
                         <Group gap="xs">
                           <Text size="xs">{formatDate(o.tarih)}</Text>
-                          {o.belge_no && <Badge size="xs" variant="outline">{o.belge_no}</Badge>}
+                          {o.belge_no && (
+                            <Badge size="xs" variant="outline">
+                              {o.belge_no}
+                            </Badge>
+                          )}
                         </Group>
-                        <Text size="xs" fw={500} c="green">{formatMoney(o.tutar)}</Text>
+                        <Text size="xs" fw={500} c="green">
+                          {formatMoney(o.tutar)}
+                        </Text>
                       </Group>
                     ))}
                   </Box>
@@ -429,66 +499,91 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
           <Table verticalSpacing="md">
             <Table.Tbody>
               <Table.Tr>
-                <Table.Td><Text fw={500}>Dönem Başı Bakiye</Text></Table.Td>
-                <Table.Td ta="right" fw={600} c={donemselData.acilis_bakiyesi >= 0 ? 'green' : 'red'}>
+                <Table.Td>
+                  <Text fw={500}>Dönem Başı Bakiye</Text>
+                </Table.Td>
+                <Table.Td
+                  ta="right"
+                  fw={600}
+                  c={donemselData.acilis_bakiyesi >= 0 ? 'green' : 'red'}
+                >
                   {formatMoney(donemselData.acilis_bakiyesi)}
                 </Table.Td>
               </Table.Tr>
 
               <Table.Tr>
-                <Table.Td colSpan={2}><Divider label="Dönem İçi Hareketler" labelPosition="center" /></Table.Td>
+                <Table.Td colSpan={2}>
+                  <Divider label="Dönem İçi Hareketler" labelPosition="center" />
+                </Table.Td>
               </Table.Tr>
 
               <Table.Tr>
                 <Table.Td>
                   <Group gap="xs">
-                    <Badge color="blue" variant="light">{donemselData.satis_faturalari.adet}</Badge>
+                    <Badge color="blue" variant="light">
+                      {donemselData.satis_faturalari.adet}
+                    </Badge>
                     (+) Satış Faturaları
                   </Group>
                 </Table.Td>
-                <Table.Td ta="right" c="blue">{formatMoney(donemselData.satis_faturalari.toplam)}</Table.Td>
+                <Table.Td ta="right" c="blue">
+                  {formatMoney(donemselData.satis_faturalari.toplam)}
+                </Table.Td>
               </Table.Tr>
 
               <Table.Tr>
                 <Table.Td>
                   <Group gap="xs">
-                    <Badge color="orange" variant="light">{donemselData.alis_faturalari.adet}</Badge>
+                    <Badge color="orange" variant="light">
+                      {donemselData.alis_faturalari.adet}
+                    </Badge>
                     (-) Alış Faturaları
                   </Group>
                 </Table.Td>
-                <Table.Td ta="right" c="orange">{formatMoney(donemselData.alis_faturalari.toplam)}</Table.Td>
+                <Table.Td ta="right" c="orange">
+                  {formatMoney(donemselData.alis_faturalari.toplam)}
+                </Table.Td>
               </Table.Tr>
 
               <Table.Tr>
                 <Table.Td>
                   <Group gap="xs">
-                    <Badge color="green" variant="light">{donemselData.tahsilatlar.adet}</Badge>
+                    <Badge color="green" variant="light">
+                      {donemselData.tahsilatlar.adet}
+                    </Badge>
                     (-) Tahsilatlar
                   </Group>
                 </Table.Td>
-                <Table.Td ta="right" c="green">{formatMoney(donemselData.tahsilatlar.toplam)}</Table.Td>
+                <Table.Td ta="right" c="green">
+                  {formatMoney(donemselData.tahsilatlar.toplam)}
+                </Table.Td>
               </Table.Tr>
 
               <Table.Tr>
                 <Table.Td>
                   <Group gap="xs">
-                    <Badge color="red" variant="light">{donemselData.odemeler.adet}</Badge>
+                    <Badge color="red" variant="light">
+                      {donemselData.odemeler.adet}
+                    </Badge>
                     (+) Ödemeler
                   </Group>
                 </Table.Td>
-                <Table.Td ta="right" c="red">{formatMoney(donemselData.odemeler.toplam)}</Table.Td>
+                <Table.Td ta="right" c="red">
+                  {formatMoney(donemselData.odemeler.toplam)}
+                </Table.Td>
               </Table.Tr>
 
               <Table.Tr style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
-                <Table.Td><Text fw={700} size="lg">DÖNEM SONU BAKİYE</Text></Table.Td>
+                <Table.Td>
+                  <Text fw={700} size="lg">
+                    DÖNEM SONU BAKİYE
+                  </Text>
+                </Table.Td>
                 <Table.Td ta="right">
                   <Text fw={700} size="xl" c={donemselData.kapanis_bakiyesi >= 0 ? 'green' : 'red'}>
                     {formatMoney(donemselData.kapanis_bakiyesi)}
                   </Text>
-                  <Badge 
-                    mt="xs" 
-                    color={donemselData.kapanis_bakiyesi >= 0 ? 'green' : 'red'}
-                  >
+                  <Badge mt="xs" color={donemselData.kapanis_bakiyesi >= 0 ? 'green' : 'red'}>
                     {donemselData.kapanis_bakiyesi >= 0 ? 'Alacaklı' : 'Borçlu'}
                   </Badge>
                 </Table.Td>
@@ -496,7 +591,6 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
             </Table.Tbody>
           </Table>
         </Paper>
-
       </Stack>
     );
   };
@@ -512,7 +606,9 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
           </ThemeIcon>
           <div>
             <Text fw={600}>Cari Mutabakat</Text>
-            <Text size="xs" c="dimmed">{cari?.unvan}</Text>
+            <Text size="xs" c="dimmed">
+              {cari?.unvan}
+            </Text>
           </div>
         </Group>
       }
@@ -537,25 +633,13 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
             w={100}
           />
           <Group mt="xl">
-            <Button 
-              variant="light" 
-              leftSection={<IconDownload size={16} />}
-              color="blue"
-            >
+            <Button variant="light" leftSection={<IconDownload size={16} />} color="blue">
               PDF
             </Button>
-            <Button 
-              variant="light" 
-              leftSection={<IconPrinter size={16} />}
-              color="gray"
-            >
+            <Button variant="light" leftSection={<IconPrinter size={16} />} color="gray">
               Yazdır
             </Button>
-            <Button 
-              variant="light" 
-              leftSection={<IconMail size={16} />}
-              color="violet"
-            >
+            <Button variant="light" leftSection={<IconMail size={16} />} color="violet">
               E-posta Gönder
             </Button>
           </Group>
@@ -577,40 +661,55 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
 
           <Box mt="md" pos="relative" mih={400}>
             {loading && (
-              <Box pos="absolute" top={0} left={0} right={0} bottom={0} 
-                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                            backgroundColor: 'rgba(255,255,255,0.8)', zIndex: 10 }}>
+              <Box
+                pos="absolute"
+                top={0}
+                left={0}
+                right={0}
+                bottom={0}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'rgba(255,255,255,0.8)',
+                  zIndex: 10,
+                }}
+              >
                 <Loader />
               </Box>
             )}
 
-            <Tabs.Panel value="ekstre">
-              {renderEkstreTab()}
-            </Tabs.Panel>
+            <Tabs.Panel value="ekstre">{renderEkstreTab()}</Tabs.Panel>
 
-            <Tabs.Panel value="fatura-bazli">
-              {renderFaturaBazliTab()}
-            </Tabs.Panel>
+            <Tabs.Panel value="fatura-bazli">{renderFaturaBazliTab()}</Tabs.Panel>
 
-            <Tabs.Panel value="donemsel">
-              {renderDonemselTab()}
-            </Tabs.Panel>
+            <Tabs.Panel value="donemsel">{renderDonemselTab()}</Tabs.Panel>
           </Box>
         </Tabs>
-        
+
         {/* Mutabakat Onay Alanı - Sadece Bakiye Teyidi */}
         <Divider my="md" />
         <Paper withBorder p="md" radius="md" bg="gray.0">
           <Group justify="space-between">
             <Stack gap={4}>
-              <Text size="sm" fw={600}>📋 Bakiye Durumu</Text>
+              <Text size="sm" fw={600}>
+                📋 Bakiye Durumu
+              </Text>
               <Text size="xs" c="dimmed">
-                Bu cari ile {aylar.find(a => a.value === selectedAy)?.label} {selectedYil} dönemi bakiyesi
+                Bu cari ile {aylar.find((a) => a.value === selectedAy)?.label} {selectedYil} dönemi
+                bakiyesi
               </Text>
             </Stack>
             <Paper withBorder p="md" radius="md" bg="white">
-              <Text size="xs" c="dimmed" ta="center">Kapanış Bakiyesi</Text>
-              <Text fw={700} size="xl" c={ekstreData?.kapanis_bakiyesi >= 0 ? 'teal.7' : 'red.7'} ta="center">
+              <Text size="xs" c="dimmed" ta="center">
+                Kapanış Bakiyesi
+              </Text>
+              <Text
+                fw={700}
+                size="xl"
+                c={ekstreData?.kapanis_bakiyesi >= 0 ? 'teal.7' : 'red.7'}
+                ta="center"
+              >
                 {formatMoney(ekstreData?.kapanis_bakiyesi || 0)}
               </Text>
               <Text size="xs" c="dimmed" ta="center">
@@ -618,33 +717,33 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
               </Text>
             </Paper>
           </Group>
-          
+
           <Divider my="md" />
-          
+
           <Group justify="flex-end">
-            <Button 
-              variant="outline" 
-              color="red" 
+            <Button
+              variant="outline"
+              color="red"
               leftSection={<IconX size={16} />}
               onClick={() => {
                 notifications.show({
                   title: 'Uyuşmazlık',
                   message: 'Bakiye tutmuyor olarak işaretlendi',
-                  color: 'red'
+                  color: 'red',
                 });
               }}
             >
               Uyuşmazlık Bildir
             </Button>
-            <Button 
-              color="green" 
+            <Button
+              color="green"
               leftSection={<IconCheck size={16} />}
               onClick={() => {
                 notifications.show({
                   title: 'Mutabakat Onaylandı',
                   message: `${cari?.unvan} ile bakiye teyit edildi`,
                   color: 'green',
-                  icon: <IconCheck size={16} />
+                  icon: <IconCheck size={16} />,
                 });
                 onClose();
               }}
@@ -657,4 +756,3 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
     </Modal>
   );
 }
-

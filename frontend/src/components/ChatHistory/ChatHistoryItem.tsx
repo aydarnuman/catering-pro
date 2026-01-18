@@ -1,7 +1,7 @@
 'use client';
 
-import { Group, Text, Paper, Badge, Box, Avatar } from '@mantine/core';
-import { IconUser, IconRobot, IconTool } from '@tabler/icons-react';
+import { Avatar, Badge, Box, Group, Paper, Text } from '@mantine/core';
+import { IconRobot, IconTool, IconUser } from '@tabler/icons-react';
 
 export interface ChatMessage {
   id: number;
@@ -23,7 +23,7 @@ export function ChatHistoryItem({ message, showTime = true }: ChatHistoryItemPro
     const date = new Date(dateStr);
     return date.toLocaleTimeString('tr-TR', {
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
@@ -31,14 +31,10 @@ export function ChatHistoryItem({ message, showTime = true }: ChatHistoryItemPro
 
   return (
     <Group align="flex-start" gap="sm" wrap="nowrap">
-      <Avatar 
-        size="sm" 
-        color={isUser ? 'blue' : 'violet'} 
-        radius="xl"
-      >
+      <Avatar size="sm" color={isUser ? 'blue' : 'violet'} radius="xl">
         {isUser ? <IconUser size={14} /> : <IconRobot size={14} />}
       </Avatar>
-      
+
       <Box style={{ flex: 1 }}>
         <Group gap="xs" mb={4}>
           <Text size="xs" fw={500}>
@@ -50,17 +46,13 @@ export function ChatHistoryItem({ message, showTime = true }: ChatHistoryItemPro
             </Text>
           )}
         </Group>
-        
-        <Paper 
-          p="sm" 
-          bg={isUser ? 'blue.0' : 'violet.0'} 
-          radius="md"
-        >
+
+        <Paper p="sm" bg={isUser ? 'blue.0' : 'violet.0'} radius="md">
           <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
             {message.content}
           </Text>
         </Paper>
-        
+
         {message.tools_used && message.tools_used.length > 0 && (
           <Group gap={4} mt={4}>
             <IconTool size={12} color="gray" />

@@ -1,42 +1,41 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { API_BASE_URL } from '@/lib/config';
 import {
-  Container,
-  Title,
-  Text,
-  Card,
-  Group,
-  Stack,
-  SimpleGrid,
-  ThemeIcon,
+  ActionIcon,
+  Alert,
   Badge,
   Button,
-  Paper,
+  Card,
   Code,
-  ScrollArea,
+  Container,
+  CopyButton,
+  Group,
   Loader,
-  Alert,
+  Paper,
+  ScrollArea,
+  SimpleGrid,
+  Stack,
   Table,
-  ActionIcon,
+  Text,
+  ThemeIcon,
+  Title,
   Tooltip,
-  CopyButton
 } from '@mantine/core';
 import {
-  IconServer,
-  IconDatabase,
+  IconActivity,
   IconApi,
+  IconArrowLeft,
+  IconCheck,
+  IconClock,
+  IconCopy,
+  IconDatabase,
+  IconExternalLink,
   IconFileText,
   IconRefresh,
-  IconCheck,
   IconX,
-  IconExternalLink,
-  IconCopy,
-  IconArrowLeft,
-  IconActivity,
-  IconClock
 } from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 
 interface HealthStatus {
   status: string;
@@ -46,11 +45,11 @@ interface HealthStatus {
 
 export default function AdminSistemPage() {
   const API_URL = API_BASE_URL;
-  
+
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [healthLoading, setHealthLoading] = useState(true);
   const [healthError, setHealthError] = useState<string | null>(null);
-  
+
   const [logs, setLogs] = useState<string[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsError, setLogsError] = useState<string | null>(null);
@@ -62,7 +61,7 @@ export default function AdminSistemPage() {
       const res = await fetch(`${API_URL}/health`);
       const data = await res.json();
       setHealth(data);
-    } catch (err) {
+    } catch (_err) {
       setHealthError('Backend bağlantısı kurulamadı');
     } finally {
       setHealthLoading(false);
@@ -76,7 +75,7 @@ export default function AdminSistemPage() {
       const res = await fetch(`${API_URL}/logs/recent`);
       const data = await res.json();
       setLogs(data.data || []);
-    } catch (err) {
+    } catch (_err) {
       setLogsError('Loglar alınamadı');
     } finally {
       setLogsLoading(false);
@@ -85,7 +84,7 @@ export default function AdminSistemPage() {
 
   useEffect(() => {
     fetchHealth();
-  }, []);
+  }, [fetchHealth]);
 
   const systemInfo = [
     { label: 'Backend URL', value: API_URL },
@@ -104,11 +103,15 @@ export default function AdminSistemPage() {
               <IconArrowLeft size={20} />
             </ActionIcon>
             <div>
-              <Title order={1} size="h2" mb={4}>🛠️ Sistem & Geliştirici</Title>
+              <Title order={1} size="h2" mb={4}>
+                🛠️ Sistem & Geliştirici
+              </Title>
               <Text c="dimmed">Sistem durumu, API dokümantasyonu ve loglar</Text>
             </div>
           </Group>
-          <Badge size="lg" variant="light" color="red">Admin</Badge>
+          <Badge size="lg" variant="light" color="red">
+            Admin
+          </Badge>
         </Group>
 
         {/* Durum Kartları */}
@@ -160,9 +163,9 @@ export default function AdminSistemPage() {
                 <IconFileText size={14} />
               </ThemeIcon>
             </Group>
-            <Button 
-              variant="light" 
-              size="xs" 
+            <Button
+              variant="light"
+              size="xs"
               fullWidth
               rightSection={<IconExternalLink size={14} />}
               onClick={() => window.open(`${API_URL}/api-docs`, '_blank')}
@@ -179,31 +182,32 @@ export default function AdminSistemPage() {
               </ThemeIcon>
             </Group>
             <Text size="sm" c="dimmed">
-              {health?.timestamp 
-                ? new Date(health.timestamp).toLocaleString('tr-TR')
-                : '-'
-              }
+              {health?.timestamp ? new Date(health.timestamp).toLocaleString('tr-TR') : '-'}
             </Text>
           </Card>
         </SimpleGrid>
 
         {/* Sistem Bilgileri */}
         <Paper p="lg" radius="md" withBorder>
-          <Title order={3} mb="md">📋 Sistem Bilgileri</Title>
+          <Title order={3} mb="md">
+            📋 Sistem Bilgileri
+          </Title>
           <Table>
             <Table.Tbody>
               {systemInfo.map((item, i) => (
                 <Table.Tr key={i}>
-                  <Table.Td fw={500} w={150}>{item.label}</Table.Td>
+                  <Table.Td fw={500} w={150}>
+                    {item.label}
+                  </Table.Td>
                   <Table.Td>
                     <Group gap="xs">
                       <Code>{item.value}</Code>
                       <CopyButton value={item.value}>
                         {({ copied, copy }) => (
                           <Tooltip label={copied ? 'Kopyalandı!' : 'Kopyala'}>
-                            <ActionIcon 
-                              variant="subtle" 
-                              size="sm" 
+                            <ActionIcon
+                              variant="subtle"
+                              size="sm"
                               onClick={copy}
                               color={copied ? 'green' : 'gray'}
                             >
@@ -213,8 +217,8 @@ export default function AdminSistemPage() {
                         )}
                       </CopyButton>
                       {item.label.includes('API') && (
-                        <ActionIcon 
-                          variant="subtle" 
+                        <ActionIcon
+                          variant="subtle"
                           size="sm"
                           onClick={() => window.open(item.value, '_blank')}
                         >
@@ -233,9 +237,9 @@ export default function AdminSistemPage() {
         <Paper p="lg" radius="md" withBorder id="logs">
           <Group justify="space-between" mb="md">
             <Title order={3}>🐛 Son Hata Logları</Title>
-            <Button 
-              variant="light" 
-              size="xs" 
+            <Button
+              variant="light"
+              size="xs"
               leftSection={<IconRefresh size={14} />}
               onClick={fetchLogs}
               loading={logsLoading}
@@ -245,13 +249,19 @@ export default function AdminSistemPage() {
           </Group>
 
           {logsError ? (
-            <Alert color="red" title="Hata">{logsError}</Alert>
+            <Alert color="red" title="Hata">
+              {logsError}
+            </Alert>
           ) : logs.length === 0 && !logsLoading ? (
-            <Alert color="green" title="Harika!">Bugün için hata kaydı bulunmuyor.</Alert>
+            <Alert color="green" title="Harika!">
+              Bugün için hata kaydı bulunmuyor.
+            </Alert>
           ) : (
             <ScrollArea h={300}>
               <Code block style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>
-                {logs.length > 0 ? logs.join('\n') : 'Logları görmek için "Yenile" butonuna tıklayın.'}
+                {logs.length > 0
+                  ? logs.join('\n')
+                  : 'Logları görmek için "Yenile" butonuna tıklayın.'}
               </Code>
             </ScrollArea>
           )}
@@ -259,18 +269,20 @@ export default function AdminSistemPage() {
 
         {/* Hızlı Linkler */}
         <Paper p="lg" radius="md" withBorder>
-          <Title order={3} mb="md">🔗 Hızlı Linkler</Title>
+          <Title order={3} mb="md">
+            🔗 Hızlı Linkler
+          </Title>
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md">
-            <Button 
-              variant="light" 
+            <Button
+              variant="light"
               leftSection={<IconFileText size={16} />}
               rightSection={<IconExternalLink size={14} />}
               onClick={() => window.open(`${API_URL}/api-docs`, '_blank')}
             >
               Swagger UI
             </Button>
-            <Button 
-              variant="light" 
+            <Button
+              variant="light"
               color="cyan"
               leftSection={<IconApi size={16} />}
               rightSection={<IconExternalLink size={14} />}
@@ -278,8 +290,8 @@ export default function AdminSistemPage() {
             >
               OpenAPI JSON
             </Button>
-            <Button 
-              variant="light" 
+            <Button
+              variant="light"
               color="green"
               leftSection={<IconActivity size={16} />}
               rightSection={<IconExternalLink size={14} />}
@@ -287,8 +299,8 @@ export default function AdminSistemPage() {
             >
               Health Check
             </Button>
-            <Button 
-              variant="light" 
+            <Button
+              variant="light"
               color="orange"
               leftSection={<IconDatabase size={16} />}
               rightSection={<IconExternalLink size={14} />}

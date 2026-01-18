@@ -1,6 +1,5 @@
 'use client';
 
-import { Box } from '@mantine/core';
 import { FloatingAIChat } from './FloatingAIChat';
 
 interface ClientLayoutProps {
@@ -15,4 +14,3 @@ export function ClientLayout({ children }: ClientLayoutProps) {
     </>
   );
 }
-

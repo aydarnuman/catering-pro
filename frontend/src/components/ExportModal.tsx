@@ -1,27 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { API_BASE_URL } from '@/lib/config';
+import { Alert, Badge, Button, Group, Modal, Paper, Select, Stack, Text } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import {
-  Modal,
-  Stack,
-  Group,
-  Text,
-  Select,
-  Button,
-  Paper,
-  Badge,
-  Loader,
-  Alert
-} from '@mantine/core';
-import StyledDatePicker from '@/components/ui/StyledDatePicker';
-import {
+  IconAlertCircle,
+  IconDownload,
   IconFileSpreadsheet,
   IconFileTypePdf,
-  IconDownload,
-  IconAlertCircle
 } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
+import { useEffect, useState } from 'react';
+import StyledDatePicker from '@/components/ui/StyledDatePicker';
+import { API_BASE_URL } from '@/lib/config';
 import 'dayjs/locale/tr';
 
 interface ExportModalProps {
@@ -46,17 +35,24 @@ const typeLabels: Record<string, string> = {
   personel: 'Personel',
   fatura: 'Fatura',
   cari: 'Cari',
-  stok: 'Stok'
+  stok: 'Stok',
 };
 
-export function ExportModal({ opened, onClose, type, projeler = [], departmanlar = [], kategoriler = [] }: ExportModalProps) {
+export function ExportModal({
+  opened,
+  onClose,
+  type,
+  projeler = [],
+  departmanlar = [],
+  kategoriler = [],
+}: ExportModalProps) {
   const [raporTipleri, setRaporTipleri] = useState<RaporTipi[]>([]);
   const [selectedRapor, setSelectedRapor] = useState<string>('tum');
   const [selectedParam, setSelectedParam] = useState<string>('');
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [donem, setDonem] = useState<string>('');
-  const [loading, setLoading] = useState(false);
+  const [_loading, _setLoading] = useState(false);
 
   // Rapor tiplerini yükle
   useEffect(() => {
@@ -66,64 +62,69 @@ export function ExportModal({ opened, onClose, type, projeler = [], departmanlar
       const now = new Date();
       setDonem(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
     }
-  }, [opened, type]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened]);
 
   const fetchRaporTipleri = async () => {
     try {
-      console.log('Fetching rapor tipleri from:', `${API_BASE}/export/rapor-tipleri/${type}`);
       const response = await fetch(`${API_BASE}/export/rapor-tipleri/${type}`);
-      
+
       if (!response.ok) {
-        console.error('API yanıtı başarısız:', response.status, response.statusText);
-        // Varsayılan rapor tiplerini kullan
         setRaporTipleri(getDefaultRaporTipleri(type));
         return;
       }
-      
+
       const data = await response.json();
-      console.log('API yanıtı:', data);
-      
-      // Array olduğundan emin ol
+
       if (Array.isArray(data)) {
         setRaporTipleri(data);
       } else {
-        console.warn('Rapor tipleri array değil, varsayılan kullanılıyor:', data);
         setRaporTipleri(getDefaultRaporTipleri(type));
       }
-    } catch (error) {
-      console.error('Rapor tipleri yüklenemedi:', error);
-      // Varsayılan rapor tiplerini kullan
+    } catch (_error) {
       setRaporTipleri(getDefaultRaporTipleri(type));
     }
   };
-  
+
   // Varsayılan rapor tipleri (backend'e erişilemezse)
   const getDefaultRaporTipleri = (t: string): RaporTipi[] => {
     const defaults: Record<string, RaporTipi[]> = {
       personel: [
         { value: 'tum', label: 'Tüm Personel', endpoint: '/personel/excel' },
-        { value: 'proje', label: 'Proje Bazlı', endpoint: '/personel/proje/:id', needsParam: 'proje' },
-        { value: 'departman', label: 'Departman Bazlı', endpoint: '/personel/excel?departman=', needsParam: 'departman' }
+        {
+          value: 'proje',
+          label: 'Proje Bazlı',
+          endpoint: '/personel/proje/:id',
+          needsParam: 'proje',
+        },
+        {
+          value: 'departman',
+          label: 'Departman Bazlı',
+          endpoint: '/personel/excel?departman=',
+          needsParam: 'departman',
+        },
       ],
       fatura: [
         { value: 'tum', label: 'Tüm Faturalar', endpoint: '/fatura/excel' },
         { value: 'satis', label: 'Satış Faturaları', endpoint: '/fatura/excel?type=SATIS' },
-        { value: 'alis', label: 'Alış Faturaları', endpoint: '/fatura/excel?type=ALIS' }
+        { value: 'alis', label: 'Alış Faturaları', endpoint: '/fatura/excel?type=ALIS' },
       ],
       cari: [
         { value: 'tum', label: 'Tüm Cariler', endpoint: '/cari/excel' },
         { value: 'musteri', label: 'Müşteriler', endpoint: '/cari/excel?tip=musteri' },
-        { value: 'tedarikci', label: 'Tedarikçiler', endpoint: '/cari/excel?tip=tedarikci' }
+        { value: 'tedarikci', label: 'Tedarikçiler', endpoint: '/cari/excel?tip=tedarikci' },
       ],
       stok: [
         { value: 'tum', label: 'Tüm Stok', endpoint: '/stok/excel' },
-        { value: 'kritik', label: 'Kritik Stok', endpoint: '/stok/kritik' }
-      ]
+        { value: 'kritik', label: 'Kritik Stok', endpoint: '/stok/kritik' },
+      ],
     };
     return defaults[t] || [{ value: 'tum', label: 'Tüm Liste', endpoint: `/${t}/excel` }];
   };
 
-  const currentRapor = Array.isArray(raporTipleri) ? raporTipleri.find(r => r.value === selectedRapor) : null;
+  const currentRapor = Array.isArray(raporTipleri)
+    ? raporTipleri.find((r) => r.value === selectedRapor)
+    : null;
 
   // Export URL oluştur
   const buildExportUrl = (format: 'excel' | 'pdf') => {
@@ -153,12 +154,11 @@ export function ExportModal({ opened, onClose, type, projeler = [], departmanlar
       endpoint = endpoint.replace('/excel', '/pdf');
       // Özel raporlar için format parametresi ekle
       if (!endpoint.includes('/pdf')) {
-        endpoint = endpoint + (endpoint.includes('?') ? '&' : '?') + 'format=pdf';
+        endpoint = `${endpoint + (endpoint.includes('?') ? '&' : '?')}format=pdf`;
       }
     }
 
     const url = `${API_BASE}/export${endpoint}`;
-    console.log('Export URL:', url); // Debug için
     return url;
   };
 
@@ -168,7 +168,7 @@ export function ExportModal({ opened, onClose, type, projeler = [], departmanlar
       notifications.show({
         title: 'Hata',
         message: 'Lütfen rapor tipini seçin',
-        color: 'red'
+        color: 'red',
       });
       return;
     }
@@ -180,16 +180,16 @@ export function ExportModal({ opened, onClose, type, projeler = [], departmanlar
         message: `${currentRapor?.label || ''} raporu indiriliyor...`,
         color: format === 'excel' ? 'green' : 'blue',
         loading: true,
-        autoClose: false
+        autoClose: false,
       });
-      
+
       const response = await fetch(url);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'İndirme başarısız' }));
         throw new Error(errorData.error || `HTTP ${response.status}`);
       }
-      
+
       const blob = await response.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -199,7 +199,7 @@ export function ExportModal({ opened, onClose, type, projeler = [], departmanlar
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(downloadUrl);
-      
+
       notifications.update({
         id: `export-${format}`,
         title: 'İndirildi!',
@@ -207,9 +207,10 @@ export function ExportModal({ opened, onClose, type, projeler = [], departmanlar
         color: 'green',
         loading: false,
         autoClose: 3000,
-        icon: format === 'excel' ? <IconFileSpreadsheet size={18} /> : <IconFileTypePdf size={18} />
+        icon:
+          format === 'excel' ? <IconFileSpreadsheet size={18} /> : <IconFileTypePdf size={18} />,
       });
-      
+
       onClose();
     } catch (error: any) {
       console.error('Export error:', error);
@@ -219,7 +220,7 @@ export function ExportModal({ opened, onClose, type, projeler = [], departmanlar
         message: error.message || 'Dosya indirilemedi',
         color: 'red',
         loading: false,
-        autoClose: 5000
+        autoClose: 5000,
       });
     }
   };
@@ -230,11 +231,11 @@ export function ExportModal({ opened, onClose, type, projeler = [], departmanlar
 
     switch (currentRapor.needsParam) {
       case 'proje':
-        return projeler.map(p => ({ value: p.id.toString(), label: p.ad }));
+        return projeler.map((p) => ({ value: p.id.toString(), label: p.ad }));
       case 'departman':
-        return departmanlar.map(d => ({ value: d, label: d }));
+        return departmanlar.map((d) => ({ value: d, label: d }));
       case 'kategori':
-        return kategoriler.map(k => ({ value: k, label: k }));
+        return kategoriler.map((k) => ({ value: k, label: k }));
       default:
         return [];
     }
@@ -257,7 +258,7 @@ export function ExportModal({ opened, onClose, type, projeler = [], departmanlar
         <Select
           label="Rapor Tipi"
           placeholder="Rapor tipini seçin"
-          data={raporTipleri.map(r => ({ value: r.value, label: r.label }))}
+          data={raporTipleri.map((r) => ({ value: r.value, label: r.label }))}
           value={selectedRapor}
           onChange={(val) => {
             setSelectedRapor(val || 'tum');
@@ -266,20 +267,24 @@ export function ExportModal({ opened, onClose, type, projeler = [], departmanlar
         />
 
         {/* Parametre Seçimi (Proje, Departman, Kategori) */}
-        {currentRapor?.needsParam && currentRapor.needsParam !== 'tarih' && currentRapor.needsParam !== 'donem' && (
-          <Select
-            label={
-              currentRapor.needsParam === 'proje' ? 'Proje Seçin' :
-              currentRapor.needsParam === 'departman' ? 'Departman Seçin' :
-              'Kategori Seçin'
-            }
-            placeholder="Seçiniz..."
-            data={getParamOptions()}
-            value={selectedParam}
-            onChange={(val) => setSelectedParam(val || '')}
-            searchable
-          />
-        )}
+        {currentRapor?.needsParam &&
+          currentRapor.needsParam !== 'tarih' &&
+          currentRapor.needsParam !== 'donem' && (
+            <Select
+              label={
+                currentRapor.needsParam === 'proje'
+                  ? 'Proje Seçin'
+                  : currentRapor.needsParam === 'departman'
+                    ? 'Departman Seçin'
+                    : 'Kategori Seçin'
+              }
+              placeholder="Seçiniz..."
+              data={getParamOptions()}
+              value={selectedParam}
+              onChange={(val) => setSelectedParam(val || '')}
+              searchable
+            />
+          )}
 
         {/* Dönem Seçimi (Bordro için) */}
         {currentRapor?.needsParam === 'donem' && (
@@ -298,7 +303,7 @@ export function ExportModal({ opened, onClose, type, projeler = [], departmanlar
               { value: `${new Date().getFullYear()}-09`, label: 'Eylül 2026' },
               { value: `${new Date().getFullYear()}-10`, label: 'Ekim 2026' },
               { value: `${new Date().getFullYear()}-11`, label: 'Kasım 2026' },
-              { value: `${new Date().getFullYear()}-12`, label: 'Aralık 2026' }
+              { value: `${new Date().getFullYear()}-12`, label: 'Aralık 2026' },
             ]}
             value={donem}
             onChange={(val) => setDonem(val || '')}
@@ -327,18 +332,31 @@ export function ExportModal({ opened, onClose, type, projeler = [], departmanlar
         {currentRapor && (
           <Paper withBorder p="sm" radius="md" bg="gray.0">
             <Group justify="space-between">
-              <Text size="sm" c="dimmed">Seçilen Rapor:</Text>
-              <Badge color="blue" variant="light">{currentRapor.label}</Badge>
+              <Text size="sm" c="dimmed">
+                Seçilen Rapor:
+              </Text>
+              <Badge color="blue" variant="light">
+                {currentRapor.label}
+              </Badge>
             </Group>
           </Paper>
         )}
 
         {/* Uyarı */}
-        {currentRapor?.needsParam && !selectedParam && currentRapor.needsParam !== 'tarih' && currentRapor.needsParam !== 'donem' && (
-          <Alert color="yellow" icon={<IconAlertCircle size={16} />}>
-            Lütfen {currentRapor.needsParam === 'proje' ? 'proje' : currentRapor.needsParam === 'departman' ? 'departman' : 'kategori'} seçin.
-          </Alert>
-        )}
+        {currentRapor?.needsParam &&
+          !selectedParam &&
+          currentRapor.needsParam !== 'tarih' &&
+          currentRapor.needsParam !== 'donem' && (
+            <Alert color="yellow" icon={<IconAlertCircle size={16} />}>
+              Lütfen{' '}
+              {currentRapor.needsParam === 'proje'
+                ? 'proje'
+                : currentRapor.needsParam === 'departman'
+                  ? 'departman'
+                  : 'kategori'}{' '}
+              seçin.
+            </Alert>
+          )}
 
         {/* Export Butonları */}
         <Group justify="flex-end" mt="md">
@@ -349,7 +367,14 @@ export function ExportModal({ opened, onClose, type, projeler = [], departmanlar
             leftSection={<IconFileSpreadsheet size={18} />}
             color="green"
             onClick={() => handleExport('excel')}
-            disabled={!!(currentRapor?.needsParam && !selectedParam && currentRapor.needsParam !== 'tarih' && currentRapor.needsParam !== 'donem')}
+            disabled={
+              !!(
+                currentRapor?.needsParam &&
+                !selectedParam &&
+                currentRapor.needsParam !== 'tarih' &&
+                currentRapor.needsParam !== 'donem'
+              )
+            }
           >
             Excel
           </Button>
@@ -357,7 +382,14 @@ export function ExportModal({ opened, onClose, type, projeler = [], departmanlar
             leftSection={<IconFileTypePdf size={18} />}
             color="red"
             onClick={() => handleExport('pdf')}
-            disabled={!!(currentRapor?.needsParam && !selectedParam && currentRapor.needsParam !== 'tarih' && currentRapor.needsParam !== 'donem')}
+            disabled={
+              !!(
+                currentRapor?.needsParam &&
+                !selectedParam &&
+                currentRapor.needsParam !== 'tarih' &&
+                currentRapor.needsParam !== 'donem'
+              )
+            }
           >
             PDF
           </Button>
@@ -366,4 +398,3 @@ export function ExportModal({ opened, onClose, type, projeler = [], departmanlar
     </Modal>
   );
 }
-

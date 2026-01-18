@@ -1,45 +1,36 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import {
-  Modal,
-  Text,
-  Group,
-  Stack,
+  ActionIcon,
   Badge,
   Button,
-  Paper,
-  TextInput,
-  Textarea,
-  Select,
   ColorInput,
-  SimpleGrid,
-  Tabs,
-  ActionIcon,
-  Tooltip,
-  Loader,
-  Alert,
-  ThemeIcon,
   Divider,
-  Table,
+  Group,
+  Loader,
+  Modal,
+  Paper,
   ScrollArea,
+  Select,
+  SimpleGrid,
+  Stack,
+  Text,
+  Textarea,
+  TextInput,
+  ThemeIcon,
+  Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
+  IconArrowLeft,
   IconBuilding,
-  IconPlus,
+  IconCash,
   IconPencil,
+  IconPlus,
   IconTrash,
   IconUsers,
-  IconCash,
-  IconShoppingCart,
-  IconChartBar,
-  IconCheck,
-  IconX,
-  IconInfoCircle,
-  IconEye,
-  IconArrowLeft,
 } from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
 import { API_BASE_URL } from '@/lib/config';
 
 interface Proje {
@@ -148,7 +139,11 @@ const emptyForm: Partial<Proje> = {
   notlar: '',
 };
 
-export default function ProjeYonetimModal({ opened, onClose, initialProjeId }: ProjeYonetimModalProps & { initialProjeId?: number }) {
+export default function ProjeYonetimModal({
+  opened,
+  onClose,
+  initialProjeId,
+}: ProjeYonetimModalProps & { initialProjeId?: number }) {
   const [projeler, setProjeler] = useState<Proje[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'list' | 'form' | 'detail'>('list');
@@ -160,12 +155,13 @@ export default function ProjeYonetimModal({ opened, onClose, initialProjeId }: P
     if (opened) {
       loadProjeler();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened]);
 
   // initialProjeId varsa o projeyi detayda aç
   useEffect(() => {
     if (opened && initialProjeId && projeler.length > 0) {
-      const proje = projeler.find(p => p.id === initialProjeId);
+      const proje = projeler.find((p) => p.id === initialProjeId);
       if (proje) {
         setSelectedProje(proje);
         setView('detail');
@@ -269,7 +265,7 @@ export default function ProjeYonetimModal({ opened, onClose, initialProjeId }: P
         });
         loadProjeler();
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: 'Hata',
         message: 'İşlem başarısız',
@@ -282,11 +278,7 @@ export default function ProjeYonetimModal({ opened, onClose, initialProjeId }: P
     <Stack gap="md">
       <Group justify="space-between">
         <Text fw={500}>Tüm Projeler ({projeler.length})</Text>
-        <Button 
-          size="sm" 
-          leftSection={<IconPlus size={16} />}
-          onClick={handleYeniProje}
-        >
+        <Button size="sm" leftSection={<IconPlus size={16} />} onClick={handleYeniProje}>
           Yeni Proje
         </Button>
       </Group>
@@ -299,46 +291,60 @@ export default function ProjeYonetimModal({ opened, onClose, initialProjeId }: P
         <ScrollArea h={400}>
           <Stack gap="xs">
             {projeler.map((proje) => (
-              <Paper 
-                key={proje.id} 
-                p="sm" 
-                radius="sm" 
+              <Paper
+                key={proje.id}
+                p="sm"
+                radius="sm"
                 withBorder
                 style={{ cursor: 'pointer' }}
                 onClick={() => handleDetay(proje)}
               >
                 <Group justify="space-between">
                   <Group gap="sm">
-                    <div 
-                      style={{ 
-                        width: 12, 
-                        height: 12, 
-                        borderRadius: '50%', 
-                        backgroundColor: proje.renk 
-                      }} 
+                    <div
+                      style={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: '50%',
+                        backgroundColor: proje.renk,
+                      }}
                     />
                     <div>
                       <Group gap="xs">
                         <Text fw={500}>{proje.ad}</Text>
-                        {proje.kod && <Badge size="xs" variant="outline">{proje.kod}</Badge>}
+                        {proje.kod && (
+                          <Badge size="xs" variant="outline">
+                            {proje.kod}
+                          </Badge>
+                        )}
                         <Badge size="xs" color={durumRenkleri[proje.durum]}>
                           {proje.durum}
                         </Badge>
                       </Group>
                       <Group gap="md" mt={4}>
-                        {proje.lokasyon && <Text size="xs" c="dimmed">{proje.lokasyon}</Text>}
+                        {proje.lokasyon && (
+                          <Text size="xs" c="dimmed">
+                            {proje.lokasyon}
+                          </Text>
+                        )}
                         <Text size="xs" c="dimmed">
-                          <IconUsers size={12} style={{ verticalAlign: 'middle' }} /> {proje.personel_sayisi || 0}
+                          <IconUsers size={12} style={{ verticalAlign: 'middle' }} />{' '}
+                          {proje.personel_sayisi || 0}
                         </Text>
                         <Text size="xs" c="dimmed">
-                          <IconCash size={12} style={{ verticalAlign: 'middle' }} /> {formatCurrency(proje.toplam_maas || 0)}
+                          <IconCash size={12} style={{ verticalAlign: 'middle' }} />{' '}
+                          {formatCurrency(proje.toplam_maas || 0)}
                         </Text>
                       </Group>
                     </div>
                   </Group>
                   <Group gap="xs" onClick={(e) => e.stopPropagation()}>
                     <Tooltip label="Düzenle">
-                      <ActionIcon variant="light" color="orange" onClick={() => handleDuzenle(proje)}>
+                      <ActionIcon
+                        variant="light"
+                        color="orange"
+                        onClick={() => handleDuzenle(proje)}
+                      >
                         <IconPencil size={16} />
                       </ActionIcon>
                     </Tooltip>
@@ -371,7 +377,7 @@ export default function ProjeYonetimModal({ opened, onClose, initialProjeId }: P
 
         {/* Temel Bilgiler */}
         <Divider label="TEMEL BİLGİLER" labelPosition="center" />
-        
+
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
           <TextInput
             label="Proje Kodu"
@@ -427,7 +433,7 @@ export default function ProjeYonetimModal({ opened, onClose, initialProjeId }: P
 
         {/* Sözleşme Bilgileri */}
         <Divider label="SÖZLEŞME BİLGİLERİ" labelPosition="center" />
-        
+
         <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
           <TextInput
             label="Sözleşme No"
@@ -455,27 +461,33 @@ export default function ProjeYonetimModal({ opened, onClose, initialProjeId }: P
             type="number"
             placeholder="0"
             value={form.sozlesme_bedeli || ''}
-            onChange={(e) => setForm({ ...form, sozlesme_bedeli: parseFloat(e.target.value) || undefined })}
+            onChange={(e) =>
+              setForm({ ...form, sozlesme_bedeli: parseFloat(e.target.value) || undefined })
+            }
           />
           <TextInput
             label="Teminat Tutarı (TL)"
             type="number"
             placeholder="0"
             value={form.teminat_mektubu_tutari || ''}
-            onChange={(e) => setForm({ ...form, teminat_mektubu_tutari: parseFloat(e.target.value) || undefined })}
+            onChange={(e) =>
+              setForm({ ...form, teminat_mektubu_tutari: parseFloat(e.target.value) || undefined })
+            }
           />
         </SimpleGrid>
 
         {/* Kapasite Bilgileri */}
         <Divider label="KAPASİTE BİLGİLERİ" labelPosition="center" />
-        
+
         <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
           <TextInput
             label="Günlük Kişi Sayısı"
             type="number"
             placeholder="100"
             value={form.gunluk_kisi_sayisi || ''}
-            onChange={(e) => setForm({ ...form, gunluk_kisi_sayisi: parseInt(e.target.value) || undefined })}
+            onChange={(e) =>
+              setForm({ ...form, gunluk_kisi_sayisi: parseInt(e.target.value, 10) || undefined })
+            }
           />
           <Select
             label="Öğün Sayısı"
@@ -486,20 +498,22 @@ export default function ProjeYonetimModal({ opened, onClose, initialProjeId }: P
               { value: '4', label: '4 Öğün' },
             ]}
             value={String(form.ogun_sayisi || 3)}
-            onChange={(v) => setForm({ ...form, ogun_sayisi: parseInt(v || '3') })}
+            onChange={(v) => setForm({ ...form, ogun_sayisi: parseInt(v || '3', 10) })}
           />
           <TextInput
             label="Aylık Hakediş (TL)"
             type="number"
             placeholder="0"
             value={form.aylik_hakedis || ''}
-            onChange={(e) => setForm({ ...form, aylik_hakedis: parseFloat(e.target.value) || undefined })}
+            onChange={(e) =>
+              setForm({ ...form, aylik_hakedis: parseFloat(e.target.value) || undefined })
+            }
           />
         </SimpleGrid>
 
         {/* Fatura Bilgileri */}
         <Divider label="FATURA BİLGİLERİ" labelPosition="center" />
-        
+
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
           <TextInput
             label="Fatura Unvanı"
@@ -527,7 +541,9 @@ export default function ProjeYonetimModal({ opened, onClose, initialProjeId }: P
             type="number"
             placeholder="1-31"
             value={form.fatura_kesim_gunu || ''}
-            onChange={(e) => setForm({ ...form, fatura_kesim_gunu: parseInt(e.target.value) || undefined })}
+            onChange={(e) =>
+              setForm({ ...form, fatura_kesim_gunu: parseInt(e.target.value, 10) || undefined })
+            }
           />
           <Select
             label="KDV Oranı"
@@ -540,13 +556,13 @@ export default function ProjeYonetimModal({ opened, onClose, initialProjeId }: P
               { value: '20', label: '%20' },
             ]}
             value={String(form.kdv_orani || 10)}
-            onChange={(v) => setForm({ ...form, kdv_orani: parseInt(v || '10') })}
+            onChange={(v) => setForm({ ...form, kdv_orani: parseInt(v || '10', 10) })}
           />
         </SimpleGrid>
 
         {/* Yetkili Bilgileri */}
         <Divider label="YETKİLİ BİLGİLERİ" labelPosition="center" />
-        
+
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
           <TextInput
             label="Yetkili Adı"
@@ -579,7 +595,7 @@ export default function ProjeYonetimModal({ opened, onClose, initialProjeId }: P
 
         {/* Durum */}
         <Divider label="DURUM" labelPosition="center" />
-        
+
         <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
           <Select
             label="Durum"
@@ -619,7 +635,9 @@ export default function ProjeYonetimModal({ opened, onClose, initialProjeId }: P
         />
 
         <Group justify="flex-end" mt="md">
-          <Button variant="subtle" onClick={() => setView('list')}>İptal</Button>
+          <Button variant="subtle" onClick={() => setView('list')}>
+            İptal
+          </Button>
           <Button loading={saving} onClick={handleSave}>
             {selectedProje ? 'Güncelle' : 'Oluştur'}
           </Button>
@@ -633,7 +651,11 @@ export default function ProjeYonetimModal({ opened, onClose, initialProjeId }: P
 
     const formatCurrencyLocal = (val: number | undefined | null) => {
       if (!val) return '₺0';
-      return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(val);
+      return new Intl.NumberFormat('tr-TR', {
+        style: 'currency',
+        currency: 'TRY',
+        maximumFractionDigits: 0,
+      }).format(val);
     };
 
     const formatDate = (date: string | undefined | null) => {
@@ -649,16 +671,27 @@ export default function ProjeYonetimModal({ opened, onClose, initialProjeId }: P
             <ActionIcon variant="subtle" onClick={() => setView('list')}>
               <IconArrowLeft size={16} />
             </ActionIcon>
-            <div 
-              style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: selectedProje.renk }} 
+            <div
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: '50%',
+                backgroundColor: selectedProje.renk,
+              }}
             />
-            <Text fw={600} size="lg">{selectedProje.ad}</Text>
-            {selectedProje.kod && <Badge size="sm" variant="outline">{selectedProje.kod}</Badge>}
+            <Text fw={600} size="lg">
+              {selectedProje.ad}
+            </Text>
+            {selectedProje.kod && (
+              <Badge size="sm" variant="outline">
+                {selectedProje.kod}
+              </Badge>
+            )}
             <Badge color={durumRenkleri[selectedProje.durum]}>{selectedProje.durum}</Badge>
           </Group>
-          <Button 
-            variant="light" 
-            color="orange" 
+          <Button
+            variant="light"
+            color="orange"
             size="sm"
             leftSection={<IconPencil size={14} />}
             onClick={() => handleDuzenle(selectedProje)}
@@ -671,70 +704,133 @@ export default function ProjeYonetimModal({ opened, onClose, initialProjeId }: P
           <Stack gap="md">
             {/* Temel Bilgiler */}
             <Paper p="md" radius="md" withBorder>
-              <Text size="sm" fw={600} mb="sm" c="blue">📋 Temel Bilgiler</Text>
+              <Text size="sm" fw={600} mb="sm" c="blue">
+                📋 Temel Bilgiler
+              </Text>
               <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
-                <Text size="sm"><b>Müşteri/İşveren:</b> {selectedProje.musteri || '-'}</Text>
-                <Text size="sm"><b>Lokasyon:</b> {selectedProje.lokasyon || '-'}</Text>
-                <Text size="sm"><b>İl:</b> {selectedProje.il || '-'}</Text>
-                <Text size="sm"><b>İlçe:</b> {selectedProje.ilce || '-'}</Text>
+                <Text size="sm">
+                  <b>Müşteri/İşveren:</b> {selectedProje.musteri || '-'}
+                </Text>
+                <Text size="sm">
+                  <b>Lokasyon:</b> {selectedProje.lokasyon || '-'}
+                </Text>
+                <Text size="sm">
+                  <b>İl:</b> {selectedProje.il || '-'}
+                </Text>
+                <Text size="sm">
+                  <b>İlçe:</b> {selectedProje.ilce || '-'}
+                </Text>
               </SimpleGrid>
               {selectedProje.adres && (
-                <Text size="sm" mt="xs"><b>Adres:</b> {selectedProje.adres}</Text>
+                <Text size="sm" mt="xs">
+                  <b>Adres:</b> {selectedProje.adres}
+                </Text>
               )}
             </Paper>
 
             {/* Sözleşme Bilgileri */}
             <Paper p="md" radius="md" withBorder>
-              <Text size="sm" fw={600} mb="sm" c="green">📄 Sözleşme Bilgileri</Text>
+              <Text size="sm" fw={600} mb="sm" c="green">
+                📄 Sözleşme Bilgileri
+              </Text>
               <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="xs">
-                <Text size="sm"><b>Sözleşme No:</b> {selectedProje.sozlesme_no || '-'}</Text>
-                <Text size="sm"><b>Başlangıç:</b> {formatDate(selectedProje.sozlesme_tarihi)}</Text>
-                <Text size="sm"><b>Bitiş:</b> {formatDate(selectedProje.sozlesme_bitis_tarihi)}</Text>
-                <Text size="sm"><b>Sözleşme Bedeli:</b> {formatCurrencyLocal(selectedProje.sozlesme_bedeli)}</Text>
-                <Text size="sm"><b>Teminat Tutarı:</b> {formatCurrencyLocal(selectedProje.teminat_mektubu_tutari)}</Text>
-                <Text size="sm"><b>Teminat İade:</b> {formatDate(selectedProje.teminat_iade_tarihi)}</Text>
+                <Text size="sm">
+                  <b>Sözleşme No:</b> {selectedProje.sozlesme_no || '-'}
+                </Text>
+                <Text size="sm">
+                  <b>Başlangıç:</b> {formatDate(selectedProje.sozlesme_tarihi)}
+                </Text>
+                <Text size="sm">
+                  <b>Bitiş:</b> {formatDate(selectedProje.sozlesme_bitis_tarihi)}
+                </Text>
+                <Text size="sm">
+                  <b>Sözleşme Bedeli:</b> {formatCurrencyLocal(selectedProje.sozlesme_bedeli)}
+                </Text>
+                <Text size="sm">
+                  <b>Teminat Tutarı:</b> {formatCurrencyLocal(selectedProje.teminat_mektubu_tutari)}
+                </Text>
+                <Text size="sm">
+                  <b>Teminat İade:</b> {formatDate(selectedProje.teminat_iade_tarihi)}
+                </Text>
               </SimpleGrid>
             </Paper>
 
             {/* Kapasite & Fatura Bilgileri */}
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
               <Paper p="md" radius="md" withBorder>
-                <Text size="sm" fw={600} mb="sm" c="orange">🍽️ Kapasite Bilgileri</Text>
+                <Text size="sm" fw={600} mb="sm" c="orange">
+                  🍽️ Kapasite Bilgileri
+                </Text>
                 <Stack gap={4}>
-                  <Text size="sm"><b>Günlük Kişi:</b> {selectedProje.gunluk_kisi_sayisi || '-'}</Text>
-                  <Text size="sm"><b>Öğün Sayısı:</b> {selectedProje.ogun_sayisi || '-'}</Text>
-                  <Text size="sm"><b>Hakediş Tipi:</b> {selectedProje.hakedis_tipi || '-'}</Text>
-                  <Text size="sm"><b>Aylık Hakediş:</b> {formatCurrencyLocal(selectedProje.aylik_hakedis)}</Text>
+                  <Text size="sm">
+                    <b>Günlük Kişi:</b> {selectedProje.gunluk_kisi_sayisi || '-'}
+                  </Text>
+                  <Text size="sm">
+                    <b>Öğün Sayısı:</b> {selectedProje.ogun_sayisi || '-'}
+                  </Text>
+                  <Text size="sm">
+                    <b>Hakediş Tipi:</b> {selectedProje.hakedis_tipi || '-'}
+                  </Text>
+                  <Text size="sm">
+                    <b>Aylık Hakediş:</b> {formatCurrencyLocal(selectedProje.aylik_hakedis)}
+                  </Text>
                 </Stack>
               </Paper>
 
               <Paper p="md" radius="md" withBorder>
-                <Text size="sm" fw={600} mb="sm" c="violet">🧾 Fatura Bilgileri</Text>
+                <Text size="sm" fw={600} mb="sm" c="violet">
+                  🧾 Fatura Bilgileri
+                </Text>
                 <Stack gap={4}>
-                  <Text size="sm"><b>Fatura Ünvanı:</b> {selectedProje.fatura_unvani || '-'}</Text>
-                  <Text size="sm"><b>Vergi No:</b> {selectedProje.fatura_vergi_no || '-'}</Text>
-                  <Text size="sm"><b>Vergi Dairesi:</b> {selectedProje.fatura_vergi_dairesi || '-'}</Text>
-                  <Text size="sm"><b>Kesim Günü:</b> {selectedProje.fatura_kesim_gunu ? `Her ayın ${selectedProje.fatura_kesim_gunu}. günü` : '-'}</Text>
+                  <Text size="sm">
+                    <b>Fatura Ünvanı:</b> {selectedProje.fatura_unvani || '-'}
+                  </Text>
+                  <Text size="sm">
+                    <b>Vergi No:</b> {selectedProje.fatura_vergi_no || '-'}
+                  </Text>
+                  <Text size="sm">
+                    <b>Vergi Dairesi:</b> {selectedProje.fatura_vergi_dairesi || '-'}
+                  </Text>
+                  <Text size="sm">
+                    <b>Kesim Günü:</b>{' '}
+                    {selectedProje.fatura_kesim_gunu
+                      ? `Her ayın ${selectedProje.fatura_kesim_gunu}. günü`
+                      : '-'}
+                  </Text>
                 </Stack>
               </Paper>
             </SimpleGrid>
 
             {/* Yetkili Bilgileri */}
             <Paper p="md" radius="md" withBorder>
-              <Text size="sm" fw={600} mb="sm" c="cyan">👤 Yetkili Bilgileri</Text>
+              <Text size="sm" fw={600} mb="sm" c="cyan">
+                👤 Yetkili Bilgileri
+              </Text>
               <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="xs">
-                <Text size="sm"><b>Yetkili:</b> {selectedProje.yetkili || '-'}</Text>
-                <Text size="sm"><b>Ünvan:</b> {selectedProje.yetkili_unvan || '-'}</Text>
-                <Text size="sm"><b>Telefon:</b> {selectedProje.telefon || '-'}</Text>
-                <Text size="sm"><b>E-posta:</b> {selectedProje.email || '-'}</Text>
+                <Text size="sm">
+                  <b>Yetkili:</b> {selectedProje.yetkili || '-'}
+                </Text>
+                <Text size="sm">
+                  <b>Ünvan:</b> {selectedProje.yetkili_unvan || '-'}
+                </Text>
+                <Text size="sm">
+                  <b>Telefon:</b> {selectedProje.telefon || '-'}
+                </Text>
+                <Text size="sm">
+                  <b>E-posta:</b> {selectedProje.email || '-'}
+                </Text>
               </SimpleGrid>
             </Paper>
 
             {/* Notlar */}
             {selectedProje.notlar && (
               <Paper p="md" radius="md" withBorder bg="gray.0">
-                <Text size="sm" fw={600} mb="sm">📝 Notlar</Text>
-                <Text size="sm" c="dimmed">{selectedProje.notlar}</Text>
+                <Text size="sm" fw={600} mb="sm">
+                  📝 Notlar
+                </Text>
+                <Text size="sm" c="dimmed">
+                  {selectedProje.notlar}
+                </Text>
               </Paper>
             )}
           </Stack>
@@ -749,7 +845,12 @@ export default function ProjeYonetimModal({ opened, onClose, initialProjeId }: P
       onClose={onClose}
       title={
         <Group gap="sm">
-          <ThemeIcon size="lg" radius="md" variant="gradient" gradient={{ from: 'indigo', to: 'violet' }}>
+          <ThemeIcon
+            size="lg"
+            radius="md"
+            variant="gradient"
+            gradient={{ from: 'indigo', to: 'violet' }}
+          >
             <IconBuilding size={20} />
           </ThemeIcon>
           <Text fw={600}>Proje Yönetimi</Text>
@@ -764,4 +865,3 @@ export default function ProjeYonetimModal({ opened, onClose, initialProjeId }: P
     </Modal>
   );
 }
-

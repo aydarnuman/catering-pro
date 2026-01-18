@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Center, Loader, Stack, Text, ThemeIcon, Paper, Container } from '@mantine/core';
+import { Center, Container, Loader, Paper, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconShieldOff } from '@tabler/icons-react';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
 interface AdminGuardProps {
@@ -53,7 +53,9 @@ export function AdminGuard({ children }: AdminGuardProps) {
             <ThemeIcon size={80} radius="xl" color="red" variant="light">
               <IconShieldOff size={40} />
             </ThemeIcon>
-            <Text size="xl" fw={700}>Erişim Reddedildi</Text>
+            <Text size="xl" fw={700}>
+              Erişim Reddedildi
+            </Text>
             <Text c="dimmed">
               Bu sayfaya erişim yetkiniz bulunmamaktadır.
               <br />
@@ -71,4 +73,3 @@ export function AdminGuard({ children }: AdminGuardProps) {
   // Authorized
   return <>{children}</>;
 }
-

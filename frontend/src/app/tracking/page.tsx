@@ -1,60 +1,49 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import {
-  Container,
-  Title,
-  Text,
-  Card,
-  Button,
-  Stack,
-  Group,
+  ActionIcon,
+  Alert,
   Badge,
   Box,
-  SimpleGrid,
-  ThemeIcon,
-  Paper,
-  Menu,
-  ActionIcon,
-  Modal,
-  Select,
+  Button,
+  Card,
+  Container,
   Divider,
-  Alert,
-  Tooltip,
+  Group,
+  Menu,
+  Paper,
+  Select,
+  SimpleGrid,
+  Stack,
+  Text,
   TextInput,
-  Tabs,
-  ScrollArea,
-  Table,
-  Loader
+  ThemeIcon,
+  Title,
+  Tooltip,
 } from '@mantine/core';
-import {
-  IconBookmark,
-  IconCalendar,
-  IconCoin,
-  IconBuilding,
-  IconDotsVertical,
-  IconTrash,
-  IconEye,
-  IconNote,
-  IconClock,
-  IconCheck,
-  IconX,
-  IconAlertCircle,
-  IconSearch,
-  IconFilter,
-  IconFileAnalytics,
-  IconChevronRight,
-  IconDownload,
-  IconSettings,
-  IconClipboardList,
-  IconReceipt,
-  IconScale,
-} from '@tabler/icons-react';
-import Link from 'next/link';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import TeklifModal from '@/components/teklif/TeklifModal';
+import {
+  IconAlertCircle,
+  IconBookmark,
+  IconBuilding,
+  IconCalendar,
+  IconCheck,
+  IconChevronRight,
+  IconClock,
+  IconCoin,
+  IconDotsVertical,
+  IconEye,
+  IconFileAnalytics,
+  IconFilter,
+  IconNote,
+  IconSearch,
+  IconTrash,
+  IconX,
+} from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
 import IhaleUzmaniModal from '@/components/IhaleUzmaniModal';
+import TeklifModal from '@/components/teklif/TeklifModal';
 import { API_BASE_URL } from '@/lib/config';
 
 interface AnalysisData {
@@ -121,12 +110,17 @@ export default function TrackingPage() {
   const [teklifOpened, { open: openTeklif, close: closeTeklif }] = useDisclosure(false);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [userNote, setUserNote] = useState('');
-  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [_userNote, setUserNote] = useState('');
+  const [_analysisLoading, setAnalysisLoading] = useState(false);
   const [liveAnalysisData, setLiveAnalysisData] = useState<AnalysisData | null>(null);
-  const [analysisStats, setAnalysisStats] = useState<{toplam_dokuman: number; analiz_edilen: number; basarisiz: number; bekleyen: number} | null>(null);
-  const [notesExpanded, setNotesExpanded] = useState(false);
-  const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
+  const [_analysisStats, setAnalysisStats] = useState<{
+    toplam_dokuman: number;
+    analiz_edilen: number;
+    basarisiz: number;
+    bekleyen: number;
+  } | null>(null);
+  const [_notesExpanded, setNotesExpanded] = useState(false);
+  const [_expandedNoteId, _setExpandedNoteId] = useState<string | null>(null);
 
   // Veritabanından verileri yükle
   const fetchTenders = async () => {
@@ -134,7 +128,7 @@ export default function TrackingPage() {
       setLoading(true);
       const response = await fetch(`${API_BASE_URL}/api/tender-tracking`);
       const result = await response.json();
-      
+
       if (result.success) {
         // API verisini frontend formatına dönüştür
         const formattedTenders: SavedTender[] = result.data.map((t: any) => ({
@@ -163,7 +157,7 @@ export default function TrackingPage() {
           yaklasik_maliyet: t.yaklasik_maliyet ? parseFloat(t.yaklasik_maliyet) : undefined,
           sinir_deger: t.sinir_deger ? parseFloat(t.sinir_deger) : undefined,
           bizim_teklif: t.bizim_teklif ? parseFloat(t.bizim_teklif) : undefined,
-          hesaplama_verileri: t.hesaplama_verileri || {}
+          hesaplama_verileri: t.hesaplama_verileri || {},
         }));
         setTenders(formattedTenders);
       }
@@ -172,7 +166,7 @@ export default function TrackingPage() {
       notifications.show({
         title: '❌ Hata',
         message: 'Takip listesi yüklenemedi',
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setLoading(false);
@@ -181,7 +175,7 @@ export default function TrackingPage() {
 
   useEffect(() => {
     fetchTenders();
-  }, []);
+  }, [fetchTenders]);
 
   // Durum güncelle
   const updateStatus = async (id: string, newStatus: SavedTender['status']) => {
@@ -189,64 +183,60 @@ export default function TrackingPage() {
       const response = await fetch(`${API_BASE_URL}/api/tender-tracking/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ status: newStatus }),
       });
-      
+
       if (!response.ok) throw new Error('Güncelleme hatası');
-      
-      const updated = tenders.map(t => 
-        t.id === id ? { ...t, status: newStatus } : t
-      );
+
+      const updated = tenders.map((t) => (t.id === id ? { ...t, status: newStatus } : t));
       setTenders(updated);
-      
+
       if (selectedTender?.id === id) {
         setSelectedTender({ ...selectedTender, status: newStatus });
       }
-      
+
       notifications.show({
         title: 'Durum Güncellendi',
         message: `İhale durumu "${statusConfig[newStatus].label}" olarak değiştirildi`,
         color: statusConfig[newStatus].color,
       });
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: '❌ Hata',
         message: 'Durum güncellenemedi',
-        color: 'red'
+        color: 'red',
       });
     }
   };
 
   // Not güncelle
-  const updateNote = async (id: string, note: string) => {
+  const _updateNote = async (id: string, note: string) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/tender-tracking/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notes: note })
+        body: JSON.stringify({ notes: note }),
       });
-      
+
       if (!response.ok) throw new Error('Güncelleme hatası');
-      
-      const updated = tenders.map(t => 
-        t.id === id ? { ...t, notlar: note, notes: note } : t
-      );
+
+      const updated = tenders.map((t) => (t.id === id ? { ...t, notlar: note, notes: note } : t));
       setTenders(updated);
-      
+
       if (selectedTender?.id === id) {
         setSelectedTender({ ...selectedTender, notlar: note, notes: note });
       }
-      
+
       notifications.show({
         title: 'Not Kaydedildi',
         message: 'İhale notu güncellendi',
         color: 'green',
       });
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: '❌ Hata',
         message: 'Not kaydedilemedi',
-        color: 'red'
+        color: 'red',
       });
     }
   };
@@ -257,35 +247,38 @@ export default function TrackingPage() {
       const response = await fetch(`${API_BASE_URL}/api/tender-tracking/${id}/notes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
+        body: JSON.stringify({ text }),
       });
-      
+
       if (!response.ok) throw new Error('Not ekleme hatası');
-      
+
       const result = await response.json();
       const newNote = result.note;
-      
-      const updated = tenders.map(t => 
+
+      const updated = tenders.map((t) =>
         t.id === id ? { ...t, user_notes: [...(t.user_notes || []), newNote] } : t
       );
       setTenders(updated);
-      
+
       if (selectedTender?.id === id) {
-        setSelectedTender({ ...selectedTender, user_notes: [...(selectedTender.user_notes || []), newNote] });
+        setSelectedTender({
+          ...selectedTender,
+          user_notes: [...(selectedTender.user_notes || []), newNote],
+        });
       }
-      
+
       setUserNote(''); // Input'u temizle
-      
+
       notifications.show({
         title: '✅ Not Eklendi',
         message: 'Notunuz kaydedildi',
         color: 'green',
       });
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: '❌ Hata',
         message: 'Not eklenemedi',
-        color: 'red'
+        color: 'red',
       });
     }
   };
@@ -293,36 +286,39 @@ export default function TrackingPage() {
   // Not sil
   const deleteUserNote = async (trackingId: string, noteId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tender-tracking/${trackingId}/notes/${noteId}`, {
-        method: 'DELETE'
-      });
-      
+      const response = await fetch(
+        `${API_BASE_URL}/api/tender-tracking/${trackingId}/notes/${noteId}`,
+        {
+          method: 'DELETE',
+        }
+      );
+
       if (!response.ok) throw new Error('Not silme hatası');
-      
-      const updated = tenders.map(t => 
-        t.id === trackingId 
-          ? { ...t, user_notes: (t.user_notes || []).filter(n => n.id !== noteId) } 
+
+      const updated = tenders.map((t) =>
+        t.id === trackingId
+          ? { ...t, user_notes: (t.user_notes || []).filter((n) => n.id !== noteId) }
           : t
       );
       setTenders(updated);
-      
+
       if (selectedTender?.id === trackingId) {
-        setSelectedTender({ 
-          ...selectedTender, 
-          user_notes: (selectedTender.user_notes || []).filter(n => n.id !== noteId) 
+        setSelectedTender({
+          ...selectedTender,
+          user_notes: (selectedTender.user_notes || []).filter((n) => n.id !== noteId),
         });
       }
-      
+
       notifications.show({
         title: 'Not Silindi',
         message: 'Notunuz kaldırıldı',
         color: 'orange',
       });
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: '❌ Hata',
         message: 'Not silinemedi',
-        color: 'red'
+        color: 'red',
       });
     }
   };
@@ -331,31 +327,31 @@ export default function TrackingPage() {
   const deleteTender = async (id: string) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/tender-tracking/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       });
-      
+
       if (!response.ok) throw new Error('Silme hatası');
-      
-      const updated = tenders.filter(t => t.id !== id);
+
+      const updated = tenders.filter((t) => t.id !== id);
       setTenders(updated);
       closeDetail();
-      
+
       notifications.show({
         title: 'İhale Silindi',
         message: 'İhale takip listesinden kaldırıldı',
         color: 'red',
       });
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: '❌ Hata',
         message: 'İhale silinemedi',
-        color: 'red'
+        color: 'red',
       });
     }
   };
 
   // JSON indir
-  const downloadJSON = (tender: SavedTender) => {
+  const _downloadJSON = (tender: SavedTender) => {
     const exportData = {
       ihale_bilgileri: {
         baslik: tender.ihale_basligi,
@@ -363,11 +359,11 @@ export default function TrackingPage() {
         tarih: tender.tarih,
         bedel: tender.bedel,
         sure: tender.sure,
-        durum: statusConfig[tender.status].label
+        durum: statusConfig[tender.status].label,
       },
       analiz_data: tender.analiz_data,
       kullanici_notu: tender.notlar,
-      kayit_tarihi: tender.created_at
+      kayit_tarihi: tender.created_at,
     };
     const dataStr = JSON.stringify(exportData, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
@@ -386,7 +382,7 @@ export default function TrackingPage() {
     setAnalysisStats(null);
     setNotesExpanded(false); // Notlar kapalı başlasın
     openDetail();
-    
+
     // AI Context'i güncelle - FloatingAIChat'e bildir
     if (typeof window !== 'undefined') {
       const contextEvent = new CustomEvent('ai-context-update', {
@@ -400,19 +396,21 @@ export default function TrackingPage() {
             city: tender.city,
             deadline: tender.tarih,
             estimated_cost: tender.bedel,
-            external_id: tender.external_id
-          }
-        }
+            external_id: tender.external_id,
+          },
+        },
       });
       window.dispatchEvent(contextEvent);
     }
-    
+
     // Güncel analiz verilerini API'den çek
     try {
       setAnalysisLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/tender-tracking/${tender.tender_id}/analysis`);
+      const response = await fetch(
+        `${API_BASE_URL}/api/tender-tracking/${tender.tender_id}/analysis`
+      );
       const result = await response.json();
-      
+
       if (result.success && result.data) {
         setLiveAnalysisData(result.data.analysis);
         setAnalysisStats(result.data.stats);
@@ -425,9 +423,10 @@ export default function TrackingPage() {
   };
 
   // Filtreleme
-  const filteredTenders = tenders.filter(t => {
+  const filteredTenders = tenders.filter((t) => {
     const matchesStatus = !filterStatus || t.status === filterStatus;
-    const matchesSearch = !searchQuery || 
+    const matchesSearch =
+      !searchQuery ||
       t.ihale_basligi?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.kurum?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.external_id?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -437,9 +436,9 @@ export default function TrackingPage() {
   // İstatistikler
   const stats = {
     toplam: tenders.length,
-    bekliyor: tenders.filter(t => t.status === 'bekliyor').length,
-    basvuruldu: tenders.filter(t => t.status === 'basvuruldu').length,
-    kazanildi: tenders.filter(t => t.status === 'kazanildi').length,
+    bekliyor: tenders.filter((t) => t.status === 'bekliyor').length,
+    basvuruldu: tenders.filter((t) => t.status === 'basvuruldu').length,
+    kazanildi: tenders.filter((t) => t.status === 'kazanildi').length,
   };
 
   // Kalan gün hesapla
@@ -448,7 +447,11 @@ export default function TrackingPage() {
     try {
       const parts = dateStr.match(/(\d{1,2})[./](\d{1,2})[./](\d{4})/);
       if (!parts) return null;
-      const date = new Date(parseInt(parts[3]), parseInt(parts[2]) - 1, parseInt(parts[1]));
+      const date = new Date(
+        parseInt(parts[3], 10),
+        parseInt(parts[2], 10) - 1,
+        parseInt(parts[1], 10)
+      );
       const today = new Date();
       const diff = Math.ceil((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
       return diff;
@@ -458,7 +461,7 @@ export default function TrackingPage() {
   };
 
   // Analiz verilerini al - önce canlı veriyi kontrol et
-  const getAnalysisData = (tender: SavedTender): AnalysisData => {
+  const _getAnalysisData = (tender: SavedTender): AnalysisData => {
     // Önce API'den çekilen güncel veriyi kullan
     if (liveAnalysisData) {
       return liveAnalysisData;
@@ -480,7 +483,7 @@ export default function TrackingPage() {
       teknik_sartlar: [],
       birim_fiyatlar: [],
       notlar: [],
-      tam_metin: ''
+      tam_metin: '',
     };
   };
 
@@ -493,14 +496,24 @@ export default function TrackingPage() {
   }
 
   return (
-    <Box style={{ background: 'linear-gradient(180deg, rgba(59,130,246,0.05) 0%, rgba(255,255,255,0) 100%)', minHeight: '100vh' }}>
+    <Box
+      style={{
+        background: 'linear-gradient(180deg, rgba(59,130,246,0.05) 0%, rgba(255,255,255,0) 100%)',
+        minHeight: '100vh',
+      }}
+    >
       <Container size="xl" py="xl">
         <Stack gap="xl">
           {/* Header */}
           <Group justify="space-between" align="flex-start">
             <div>
               <Group gap="sm" mb="xs">
-                <ThemeIcon size={44} radius="md" variant="gradient" gradient={{ from: 'blue', to: 'cyan' }}>
+                <ThemeIcon
+                  size={44}
+                  radius="md"
+                  variant="gradient"
+                  gradient={{ from: 'blue', to: 'cyan' }}
+                >
                   <IconBookmark size={26} />
                 </ThemeIcon>
                 <div>
@@ -510,7 +523,11 @@ export default function TrackingPage() {
               </Group>
             </div>
             <Text size="sm" c="dimmed">
-              İhale kartına tıklayarak <Text component="span" fw={600} c="violet">İhale Uzmanı</Text> araçlarına erişin
+              İhale kartına tıklayarak{' '}
+              <Text component="span" fw={600} c="violet">
+                İhale Uzmanı
+              </Text>{' '}
+              araçlarına erişin
             </Text>
           </Group>
 
@@ -519,41 +536,72 @@ export default function TrackingPage() {
             <Paper p="md" radius="md" withBorder>
               <Group justify="space-between">
                 <div>
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={600}>Toplam</Text>
-                  <Text size="xl" fw={700}>{stats.toplam}</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+                    Toplam
+                  </Text>
+                  <Text size="xl" fw={700}>
+                    {stats.toplam}
+                  </Text>
                 </div>
                 <ThemeIcon size={40} radius="md" variant="light" color="gray">
                   <IconBookmark size={22} />
                 </ThemeIcon>
               </Group>
             </Paper>
-            <Paper p="md" radius="md" withBorder style={{ borderColor: 'var(--mantine-color-yellow-5)' }}>
+            <Paper
+              p="md"
+              radius="md"
+              withBorder
+              style={{ borderColor: 'var(--mantine-color-yellow-5)' }}
+            >
               <Group justify="space-between">
                 <div>
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={600}>Bekliyor</Text>
-                  <Text size="xl" fw={700} c="yellow">{stats.bekliyor}</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+                    Bekliyor
+                  </Text>
+                  <Text size="xl" fw={700} c="yellow">
+                    {stats.bekliyor}
+                  </Text>
                 </div>
                 <ThemeIcon size={40} radius="md" variant="light" color="yellow">
                   <IconClock size={22} />
                 </ThemeIcon>
               </Group>
             </Paper>
-            <Paper p="md" radius="md" withBorder style={{ borderColor: 'var(--mantine-color-blue-5)' }}>
+            <Paper
+              p="md"
+              radius="md"
+              withBorder
+              style={{ borderColor: 'var(--mantine-color-blue-5)' }}
+            >
               <Group justify="space-between">
                 <div>
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={600}>Başvuruldu</Text>
-                  <Text size="xl" fw={700} c="blue">{stats.basvuruldu}</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+                    Başvuruldu
+                  </Text>
+                  <Text size="xl" fw={700} c="blue">
+                    {stats.basvuruldu}
+                  </Text>
                 </div>
                 <ThemeIcon size={40} radius="md" variant="light" color="blue">
                   <IconFileAnalytics size={22} />
                 </ThemeIcon>
               </Group>
             </Paper>
-            <Paper p="md" radius="md" withBorder style={{ borderColor: 'var(--mantine-color-green-5)' }}>
+            <Paper
+              p="md"
+              radius="md"
+              withBorder
+              style={{ borderColor: 'var(--mantine-color-green-5)' }}
+            >
               <Group justify="space-between">
                 <div>
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={600}>Kazanıldı</Text>
-                  <Text size="xl" fw={700} c="green">{stats.kazanildi}</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+                    Kazanıldı
+                  </Text>
+                  <Text size="xl" fw={700} c="green">
+                    {stats.kazanildi}
+                  </Text>
                 </div>
                 <ThemeIcon size={40} radius="md" variant="light" color="green">
                   <IconCheck size={22} />
@@ -593,7 +641,7 @@ export default function TrackingPage() {
           {/* İhale Kartları */}
           {filteredTenders.length === 0 ? (
             <Alert icon={<IconAlertCircle size={16} />} title="Henüz ihale yok" color="gray">
-              {tenders.length === 0 
+              {tenders.length === 0
                 ? 'Henüz kaydettiğiniz bir ihale bulunmuyor. Yükle & Analiz sayfasından döküman yükleyip "Kaydet" butonuna tıklayarak ihale ekleyebilirsiniz.'
                 : 'Filtrelere uygun ihale bulunamadı.'}
             </Alert>
@@ -606,11 +654,11 @@ export default function TrackingPage() {
                 const StatusIcon = statusConfig[tender.status].icon;
 
                 return (
-                  <Card 
-                    key={tender.id} 
-                    shadow="sm" 
-                    padding="lg" 
-                    radius="md" 
+                  <Card
+                    key={tender.id}
+                    shadow="sm"
+                    padding="lg"
+                    radius="md"
                     withBorder
                     style={{
                       borderColor: isUrgent ? 'var(--mantine-color-red-5)' : undefined,
@@ -619,8 +667,8 @@ export default function TrackingPage() {
                   >
                     {/* Üst Kısım - Durum ve Menü */}
                     <Group justify="space-between" mb="md">
-                      <Badge 
-                        color={statusConfig[tender.status].color} 
+                      <Badge
+                        color={statusConfig[tender.status].color}
                         variant="light"
                         leftSection={<StatusIcon size={12} />}
                       >
@@ -634,26 +682,26 @@ export default function TrackingPage() {
                         </Menu.Target>
                         <Menu.Dropdown>
                           <Menu.Label>Durum Değiştir</Menu.Label>
-                          <Menu.Item 
+                          <Menu.Item
                             leftSection={<IconClock size={14} />}
                             onClick={() => updateStatus(tender.id, 'bekliyor')}
                           >
                             Bekliyor
                           </Menu.Item>
-                          <Menu.Item 
+                          <Menu.Item
                             leftSection={<IconFileAnalytics size={14} />}
                             onClick={() => updateStatus(tender.id, 'basvuruldu')}
                           >
                             Başvuruldu
                           </Menu.Item>
-                          <Menu.Item 
+                          <Menu.Item
                             leftSection={<IconCheck size={14} />}
                             color="green"
                             onClick={() => updateStatus(tender.id, 'kazanildi')}
                           >
                             Kazanıldı
                           </Menu.Item>
-                          <Menu.Item 
+                          <Menu.Item
                             leftSection={<IconX size={14} />}
                             color="red"
                             onClick={() => updateStatus(tender.id, 'kaybedildi')}
@@ -661,14 +709,14 @@ export default function TrackingPage() {
                             Kaybedildi
                           </Menu.Item>
                           <Menu.Divider />
-                          <Menu.Item 
+                          <Menu.Item
                             leftSection={<IconEye size={14} />}
                             onClick={() => handleOpenDetail(tender)}
                           >
                             Detayları Gör
                           </Menu.Item>
                           <Menu.Divider />
-                          <Menu.Item 
+                          <Menu.Item
                             leftSection={<IconTrash size={14} />}
                             color="red"
                             onClick={() => deleteTender(tender.id)}
@@ -688,7 +736,9 @@ export default function TrackingPage() {
                     {tender.kurum && (
                       <Group gap="xs" mb="xs">
                         <IconBuilding size={16} color="var(--mantine-color-gray-6)" />
-                        <Text size="sm" c="dimmed" lineClamp={1}>{tender.kurum}</Text>
+                        <Text size="sm" c="dimmed" lineClamp={1}>
+                          {tender.kurum}
+                        </Text>
                       </Group>
                     )}
 
@@ -696,17 +746,19 @@ export default function TrackingPage() {
                     {tender.tarih && (
                       <Group gap="xs" mb="xs">
                         <IconCalendar size={16} color="var(--mantine-color-gray-6)" />
-                        <Text size="sm" c="dimmed">{tender.tarih}</Text>
+                        <Text size="sm" c="dimmed">
+                          {tender.tarih}
+                        </Text>
                         {daysRemaining !== null && (
-                          <Badge 
-                            size="sm" 
+                          <Badge
+                            size="sm"
                             color={isPast ? 'gray' : isUrgent ? 'red' : 'blue'}
                             variant="light"
                           >
-                            {isPast 
-                              ? 'Geçmiş' 
-                              : daysRemaining === 0 
-                                ? 'Bugün!' 
+                            {isPast
+                              ? 'Geçmiş'
+                              : daysRemaining === 0
+                                ? 'Bugün!'
                                 : `${daysRemaining} gün`}
                           </Badge>
                         )}
@@ -717,7 +769,9 @@ export default function TrackingPage() {
                     {tender.bedel && (
                       <Group gap="xs" mb="md">
                         <IconCoin size={16} color="var(--mantine-color-green-6)" />
-                        <Text size="sm" fw={600} c="green">{tender.bedel}</Text>
+                        <Text size="sm" fw={600} c="green">
+                          {tender.bedel}
+                        </Text>
                       </Group>
                     )}
 
@@ -743,9 +797,9 @@ export default function TrackingPage() {
                         {/* Not sayısı badge - Tıklanabilir */}
                         {tender.user_notes && tender.user_notes.length > 0 && (
                           <Tooltip label="Notları göster">
-                            <Badge 
-                              size="sm" 
-                              variant="light" 
+                            <Badge
+                              size="sm"
+                              variant="light"
                               color="yellow"
                               leftSection={<IconNote size={10} />}
                               style={{ cursor: 'pointer' }}
@@ -762,9 +816,9 @@ export default function TrackingPage() {
                         {/* Not ekle ikonu - Not yoksa */}
                         {(!tender.user_notes || tender.user_notes.length === 0) && (
                           <Tooltip label="Not ekle">
-                            <ActionIcon 
-                              size="sm" 
-                              variant="subtle" 
+                            <ActionIcon
+                              size="sm"
+                              variant="subtle"
                               color="gray"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -777,8 +831,8 @@ export default function TrackingPage() {
                           </Tooltip>
                         )}
                       </Group>
-                      <Button 
-                        variant="light" 
+                      <Button
+                        variant="light"
                         size="xs"
                         rightSection={<IconChevronRight size={14} />}
                         onClick={() => handleOpenDetail(tender)}
@@ -804,7 +858,7 @@ export default function TrackingPage() {
           // AI Context'i sıfırla
           if (typeof window !== 'undefined') {
             const contextEvent = new CustomEvent('ai-context-update', {
-              detail: { type: 'general' }
+              detail: { type: 'general' },
             });
             window.dispatchEvent(contextEvent);
           }

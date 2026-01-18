@@ -1,67 +1,55 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { API_BASE_URL } from '@/lib/config';
 import {
-  Container,
-  Title,
-  Text,
-  Group,
-  Stack,
-  Paper,
-  SimpleGrid,
-  Tabs,
-  Table,
+  ActionIcon,
   Badge,
   Button,
-  Modal,
-  TextInput,
-  NumberInput,
-  Select,
-  Textarea,
-  ActionIcon,
-  ThemeIcon,
-  Box,
-  Divider,
-  Progress,
   Center,
+  Container,
+  Divider,
+  Grid,
+  Group,
   Loader,
   Menu,
-  Tooltip,
-  Card,
-  RingProgress,
-  Grid,
+  Modal,
+  NumberInput,
+  Paper,
+  Progress,
+  Select,
+  SimpleGrid,
+  Stack,
+  Table,
+  Tabs,
+  Text,
+  Textarea,
+  TextInput,
+  ThemeIcon,
+  Title,
 } from '@mantine/core';
-import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { notifications } from '@mantine/notifications';
 import {
-  IconPlus,
-  IconWallet,
-  IconBuildingBank,
-  IconCreditCard,
-  IconReceipt,
-  IconArrowUpRight,
-  IconArrowDownRight,
+  IconAlertCircle,
   IconArrowsExchange,
+  IconBuilding,
+  IconBuildingBank,
+  IconCash,
   IconChartBar,
   IconChartPie,
-  IconTrendingUp,
-  IconTrendingDown,
-  IconCash,
-  IconReportMoney,
-  IconCalendar,
-  IconDots,
-  IconEdit,
-  IconTrash,
   IconCheck,
-  IconClock,
-  IconAlertCircle,
-  IconBuilding,
-  IconFileInvoice,
-  IconRefresh,
   IconChevronRight,
-  IconEye,
+  IconCreditCard,
+  IconDots,
+  IconPlus,
+  IconReceipt,
+  IconRefresh,
+  IconReportMoney,
+  IconTrendingDown,
+  IconTrendingUp,
+  IconWallet,
 } from '@tabler/icons-react';
+import { useCallback, useEffect, useState } from 'react';
+import StyledDatePicker from '@/components/ui/StyledDatePicker';
+import { API_BASE_URL } from '@/lib/config';
 
 const API_URL = `${API_BASE_URL}/api`;
 
@@ -147,7 +135,7 @@ const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString('tr-TR', {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric'
+    year: 'numeric',
   });
 };
 
@@ -156,33 +144,33 @@ const formatDate = (date: string) => {
 export default function FinansMerkeziPage() {
   const [activeTab, setActiveTab] = useState<string | null>('ozet');
   const [loading, setLoading] = useState(true);
-  
+
   // Data States
   const [hesaplar, setHesaplar] = useState<Hesap[]>([]);
   const [hareketler, setHareketler] = useState<Hareket[]>([]);
   const [cekSenetler, setCekSenetler] = useState<CekSenet[]>([]);
   const [projeler, setProjeler] = useState<Proje[]>([]);
   const [cariler, setCariler] = useState<Cari[]>([]);
-  
+
   // Proje Analiz States
   const [selectedProje, setSelectedProje] = useState<number | null>(null);
   const [projeYil, setProjeYil] = useState(new Date().getFullYear());
   const [projeAy, setProjeAy] = useState(new Date().getMonth() + 1);
   const [projeHareketler, setProjeHareketler] = useState<ProjeHareket[]>([]);
-  
+
   // Modal States
   const [hesapModalOpen, setHesapModalOpen] = useState(false);
   const [hareketModalOpen, setHareketModalOpen] = useState(false);
-  const [cekSenetModalOpen, setCekSenetModalOpen] = useState(false);
+  const [_cekSenetModalOpen, setCekSenetModalOpen] = useState(false);
   const [projeHareketModalOpen, setProjeHareketModalOpen] = useState(false);
-  
+
   // Kategori Detay Modal
   const [kategoriDetayModal, setKategoriDetayModal] = useState<{
     open: boolean;
     kategori: string;
     baslik: string;
   }>({ open: false, kategori: '', baslik: '' });
-  
+
   // Form States
   const [hesapForm, setHesapForm] = useState({
     ad: '',
@@ -193,7 +181,7 @@ export default function FinansMerkeziPage() {
     ekstre_kesim: 1,
     son_odeme_gun: 15,
   });
-  
+
   const [hareketForm, setHareketForm] = useState({
     hesap_id: 0,
     tip: 'gider' as 'gelir' | 'gider',
@@ -218,7 +206,7 @@ export default function FinansMerkeziPage() {
         fetch(`${API_URL}/projeler?durum=aktif`),
         fetch(`${API_URL}/kasa-banka/cariler`),
       ]);
-      
+
       if (hesapRes.ok) setHesaplar(await hesapRes.json());
       if (hareketRes.ok) setHareketler(await hareketRes.json());
       if (cekRes.ok) setCekSenetler(await cekRes.json());
@@ -253,23 +241,35 @@ export default function FinansMerkeziPage() {
     if (selectedProje) {
       loadProjeHareketler();
     }
-  }, [selectedProje, projeYil, projeAy, loadProjeHareketler]);
+  }, [selectedProje, loadProjeHareketler]);
 
   // ==================== CALCULATIONS ====================
 
-  const kasaBakiye = hesaplar.filter(h => h.tip === 'kasa').reduce((sum, h) => sum + h.bakiye, 0);
-  const bankaBakiye = hesaplar.filter(h => h.tip === 'banka').reduce((sum, h) => sum + h.bakiye, 0);
-  const kkBorcToplam = hesaplar.filter(h => h.tip === 'kredi_karti').reduce((sum, h) => sum + Math.abs(h.bakiye), 0);
+  const kasaBakiye = hesaplar.filter((h) => h.tip === 'kasa').reduce((sum, h) => sum + h.bakiye, 0);
+  const bankaBakiye = hesaplar
+    .filter((h) => h.tip === 'banka')
+    .reduce((sum, h) => sum + h.bakiye, 0);
+  const kkBorcToplam = hesaplar
+    .filter((h) => h.tip === 'kredi_karti')
+    .reduce((sum, h) => sum + Math.abs(h.bakiye), 0);
   const toplamVarlik = kasaBakiye + bankaBakiye - kkBorcToplam;
-  
-  const bekleyenCekler = cekSenetler.filter(c => c.tip === 'cek' && c.durum === 'beklemede');
-  const bekleyenSenetler = cekSenetler.filter(c => c.tip === 'senet' && c.durum === 'beklemede');
-  const bekleyenAlacak = cekSenetler.filter(c => c.yon === 'alacak' && c.durum === 'beklemede').reduce((sum, c) => sum + c.tutar, 0);
-  const bekleyenBorc = cekSenetler.filter(c => c.yon === 'borc' && c.durum === 'beklemede').reduce((sum, c) => sum + c.tutar, 0);
+
+  const bekleyenCekler = cekSenetler.filter((c) => c.tip === 'cek' && c.durum === 'beklemede');
+  const bekleyenSenetler = cekSenetler.filter((c) => c.tip === 'senet' && c.durum === 'beklemede');
+  const bekleyenAlacak = cekSenetler
+    .filter((c) => c.yon === 'alacak' && c.durum === 'beklemede')
+    .reduce((sum, c) => sum + c.tutar, 0);
+  const bekleyenBorc = cekSenetler
+    .filter((c) => c.yon === 'borc' && c.durum === 'beklemede')
+    .reduce((sum, c) => sum + c.tutar, 0);
 
   // Proje hesaplamaları
-  const projeGelir = projeHareketler.filter(h => h.tip === 'gelir').reduce((sum, h) => sum + h.tutar, 0);
-  const projeGider = projeHareketler.filter(h => h.tip === 'gider').reduce((sum, h) => sum + h.tutar, 0);
+  const projeGelir = projeHareketler
+    .filter((h) => h.tip === 'gelir')
+    .reduce((sum, h) => sum + h.tutar, 0);
+  const projeGider = projeHareketler
+    .filter((h) => h.tip === 'gider')
+    .reduce((sum, h) => sum + h.tutar, 0);
   const projeNet = projeGelir - projeGider;
 
   // ==================== HANDLERS ====================
@@ -285,9 +285,17 @@ export default function FinansMerkeziPage() {
         notifications.show({ message: '✓ Hesap eklendi', color: 'green' });
         setHesapModalOpen(false);
         loadData();
-        setHesapForm({ ad: '', tip: 'kasa', banka_adi: '', iban: '', limit: 0, ekstre_kesim: 1, son_odeme_gun: 15 });
+        setHesapForm({
+          ad: '',
+          tip: 'kasa',
+          banka_adi: '',
+          iban: '',
+          limit: 0,
+          ekstre_kesim: 1,
+          son_odeme_gun: 15,
+        });
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ message: '✗ Hata oluştu', color: 'red' });
     }
   };
@@ -307,7 +315,7 @@ export default function FinansMerkeziPage() {
         setHareketModalOpen(false);
         loadData();
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ message: '✗ Hata oluştu', color: 'red' });
     }
   };
@@ -329,7 +337,7 @@ export default function FinansMerkeziPage() {
         setProjeHareketModalOpen(false);
         loadProjeHareketler();
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ message: '✗ Hata oluştu', color: 'red' });
     }
   };
@@ -362,11 +370,7 @@ export default function FinansMerkeziPage() {
           </Text>
         </div>
         <Group>
-          <Button 
-            variant="light" 
-            leftSection={<IconRefresh size={18} />}
-            onClick={loadData}
-          >
+          <Button variant="light" leftSection={<IconRefresh size={18} />} onClick={loadData}>
             Yenile
           </Button>
         </Group>
@@ -404,13 +408,19 @@ export default function FinansMerkeziPage() {
                 }}
               >
                 <Group justify="space-between" mb="xs">
-                  <Text size="sm" fw={500} opacity={0.9}>💵 Kasa</Text>
+                  <Text size="sm" fw={500} opacity={0.9}>
+                    💵 Kasa
+                  </Text>
                   <ThemeIcon size={36} radius="xl" variant="white" color="violet">
                     <IconCash size={20} />
                   </ThemeIcon>
                 </Group>
-                <Text fw={700} size="xl">{formatMoney(kasaBakiye)}</Text>
-                <Text size="xs" opacity={0.8}>{hesaplar.filter(h => h.tip === 'kasa').length} hesap</Text>
+                <Text fw={700} size="xl">
+                  {formatMoney(kasaBakiye)}
+                </Text>
+                <Text size="xs" opacity={0.8}>
+                  {hesaplar.filter((h) => h.tip === 'kasa').length} hesap
+                </Text>
               </Paper>
 
               {/* Banka */}
@@ -423,13 +433,19 @@ export default function FinansMerkeziPage() {
                 }}
               >
                 <Group justify="space-between" mb="xs">
-                  <Text size="sm" fw={500} opacity={0.9}>🏦 Banka</Text>
+                  <Text size="sm" fw={500} opacity={0.9}>
+                    🏦 Banka
+                  </Text>
                   <ThemeIcon size={36} radius="xl" variant="white" color="teal">
                     <IconBuildingBank size={20} />
                   </ThemeIcon>
                 </Group>
-                <Text fw={700} size="xl">{formatMoney(bankaBakiye)}</Text>
-                <Text size="xs" opacity={0.8}>{hesaplar.filter(h => h.tip === 'banka').length} hesap</Text>
+                <Text fw={700} size="xl">
+                  {formatMoney(bankaBakiye)}
+                </Text>
+                <Text size="xs" opacity={0.8}>
+                  {hesaplar.filter((h) => h.tip === 'banka').length} hesap
+                </Text>
               </Paper>
 
               {/* Kredi Kartı Borcu */}
@@ -442,13 +458,19 @@ export default function FinansMerkeziPage() {
                 }}
               >
                 <Group justify="space-between" mb="xs">
-                  <Text size="sm" fw={500} opacity={0.9}>💳 KK Borç</Text>
+                  <Text size="sm" fw={500} opacity={0.9}>
+                    💳 KK Borç
+                  </Text>
                   <ThemeIcon size={36} radius="xl" variant="white" color="red">
                     <IconCreditCard size={20} />
                   </ThemeIcon>
                 </Group>
-                <Text fw={700} size="xl">{formatMoney(kkBorcToplam)}</Text>
-                <Text size="xs" opacity={0.8}>{hesaplar.filter(h => h.tip === 'kredi_karti').length} kart</Text>
+                <Text fw={700} size="xl">
+                  {formatMoney(kkBorcToplam)}
+                </Text>
+                <Text size="xs" opacity={0.8}>
+                  {hesaplar.filter((h) => h.tip === 'kredi_karti').length} kart
+                </Text>
               </Paper>
 
               {/* Toplam Varlık */}
@@ -456,20 +478,32 @@ export default function FinansMerkeziPage() {
                 p="lg"
                 radius="lg"
                 style={{
-                  background: toplamVarlik >= 0 
-                    ? 'linear-gradient(135deg, #0093E9 0%, #80D0C7 100%)'
-                    : 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)',
+                  background:
+                    toplamVarlik >= 0
+                      ? 'linear-gradient(135deg, #0093E9 0%, #80D0C7 100%)'
+                      : 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)',
                   color: 'white',
                 }}
               >
                 <Group justify="space-between" mb="xs">
-                  <Text size="sm" fw={500} opacity={0.9}>💰 Net Varlık</Text>
-                  <ThemeIcon size={36} radius="xl" variant="white" color={toplamVarlik >= 0 ? 'cyan' : 'red'}>
+                  <Text size="sm" fw={500} opacity={0.9}>
+                    💰 Net Varlık
+                  </Text>
+                  <ThemeIcon
+                    size={36}
+                    radius="xl"
+                    variant="white"
+                    color={toplamVarlik >= 0 ? 'cyan' : 'red'}
+                  >
                     <IconReportMoney size={20} />
                   </ThemeIcon>
                 </Group>
-                <Text fw={700} size="xl">{formatMoney(toplamVarlik)}</Text>
-                <Text size="xs" opacity={0.8}>Kasa + Banka - KK</Text>
+                <Text fw={700} size="xl">
+                  {formatMoney(toplamVarlik)}
+                </Text>
+                <Text size="xs" opacity={0.8}>
+                  Kasa + Banka - KK
+                </Text>
               </Paper>
             </SimpleGrid>
 
@@ -479,38 +513,66 @@ export default function FinansMerkeziPage() {
               <Grid.Col span={{ base: 12, md: 4 }}>
                 <Paper withBorder p="lg" radius="lg" h="100%">
                   <Group justify="space-between" mb="md">
-                    <Text fw={600} size="sm">⏳ Bekleyen İşlemler</Text>
-                    <Badge variant="light" color="orange">{bekleyenCekler.length + bekleyenSenetler.length}</Badge>
+                    <Text fw={600} size="sm">
+                      ⏳ Bekleyen İşlemler
+                    </Text>
+                    <Badge variant="light" color="orange">
+                      {bekleyenCekler.length + bekleyenSenetler.length}
+                    </Badge>
                   </Group>
                   <Stack gap="sm">
-                    <Group justify="space-between" p="sm" style={{ background: 'var(--mantine-color-blue-0)', borderRadius: 8 }}>
+                    <Group
+                      justify="space-between"
+                      p="sm"
+                      style={{ background: 'var(--mantine-color-blue-0)', borderRadius: 8 }}
+                    >
                       <Group gap="xs">
                         <Text size="sm">📄</Text>
                         <Text size="sm">Bekleyen Çekler</Text>
                       </Group>
                       <div style={{ textAlign: 'right' }}>
-                        <Text size="sm" fw={600}>{bekleyenCekler.length} adet</Text>
-                        <Text size="xs" c="dimmed">{formatMoney(bekleyenCekler.reduce((s, c) => s + c.tutar, 0))}</Text>
+                        <Text size="sm" fw={600}>
+                          {bekleyenCekler.length} adet
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {formatMoney(bekleyenCekler.reduce((s, c) => s + c.tutar, 0))}
+                        </Text>
                       </div>
                     </Group>
-                    <Group justify="space-between" p="sm" style={{ background: 'var(--mantine-color-grape-0)', borderRadius: 8 }}>
+                    <Group
+                      justify="space-between"
+                      p="sm"
+                      style={{ background: 'var(--mantine-color-grape-0)', borderRadius: 8 }}
+                    >
                       <Group gap="xs">
                         <Text size="sm">📋</Text>
                         <Text size="sm">Bekleyen Senetler</Text>
                       </Group>
                       <div style={{ textAlign: 'right' }}>
-                        <Text size="sm" fw={600}>{bekleyenSenetler.length} adet</Text>
-                        <Text size="xs" c="dimmed">{formatMoney(bekleyenSenetler.reduce((s, c) => s + c.tutar, 0))}</Text>
+                        <Text size="sm" fw={600}>
+                          {bekleyenSenetler.length} adet
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {formatMoney(bekleyenSenetler.reduce((s, c) => s + c.tutar, 0))}
+                        </Text>
                       </div>
                     </Group>
                     <Divider my="xs" />
                     <Group justify="space-between">
-                      <Text size="sm" c="teal.7">📥 Alacak</Text>
-                      <Text size="sm" fw={600} c="teal.7">+{formatMoney(bekleyenAlacak)}</Text>
+                      <Text size="sm" c="teal.7">
+                        📥 Alacak
+                      </Text>
+                      <Text size="sm" fw={600} c="teal.7">
+                        +{formatMoney(bekleyenAlacak)}
+                      </Text>
                     </Group>
                     <Group justify="space-between">
-                      <Text size="sm" c="red.7">📤 Borç</Text>
-                      <Text size="sm" fw={600} c="red.7">-{formatMoney(bekleyenBorc)}</Text>
+                      <Text size="sm" c="red.7">
+                        📤 Borç
+                      </Text>
+                      <Text size="sm" fw={600} c="red.7">
+                        -{formatMoney(bekleyenBorc)}
+                      </Text>
                     </Group>
                   </Stack>
                 </Paper>
@@ -520,8 +582,15 @@ export default function FinansMerkeziPage() {
               <Grid.Col span={{ base: 12, md: 8 }}>
                 <Paper withBorder p="lg" radius="lg" h="100%">
                   <Group justify="space-between" mb="md">
-                    <Text fw={600} size="sm">📊 Son Hareketler</Text>
-                    <Button variant="subtle" size="xs" rightSection={<IconChevronRight size={14} />} onClick={() => setActiveTab('hesaplar')}>
+                    <Text fw={600} size="sm">
+                      📊 Son Hareketler
+                    </Text>
+                    <Button
+                      variant="subtle"
+                      size="xs"
+                      rightSection={<IconChevronRight size={14} />}
+                      onClick={() => setActiveTab('hesaplar')}
+                    >
                       Tümünü Gör
                     </Button>
                   </Group>
@@ -546,11 +615,14 @@ export default function FinansMerkeziPage() {
                             </Badge>
                           </Table.Td>
                           <Table.Td>
-                            <Text size="sm" lineClamp={1}>{h.aciklama || '-'}</Text>
+                            <Text size="sm" lineClamp={1}>
+                              {h.aciklama || '-'}
+                            </Text>
                           </Table.Td>
                           <Table.Td ta="right">
                             <Text fw={600} c={h.tip === 'gelir' ? 'teal' : 'red'}>
-                              {h.tip === 'gelir' ? '+' : '-'}{formatMoney(h.tutar)}
+                              {h.tip === 'gelir' ? '+' : '-'}
+                              {formatMoney(h.tutar)}
                             </Text>
                           </Table.Td>
                         </Table.Tr>
@@ -561,8 +633,12 @@ export default function FinansMerkeziPage() {
                             <Center py="xl">
                               <Stack align="center" gap="xs">
                                 <IconCash size={32} color="var(--mantine-color-dimmed)" />
-                                <Text c="dimmed" size="sm">Henüz hareket yok</Text>
-                                <Text c="dimmed" size="xs">İlk hareketi eklemek için Gelir/Gider butonlarını kullanın</Text>
+                                <Text c="dimmed" size="sm">
+                                  Henüz hareket yok
+                                </Text>
+                                <Text c="dimmed" size="xs">
+                                  İlk hareketi eklemek için Gelir/Gider butonlarını kullanın
+                                </Text>
                               </Stack>
                             </Center>
                           </Table.Td>
@@ -577,8 +653,15 @@ export default function FinansMerkeziPage() {
             {/* Proje Analiz Özeti */}
             <Paper withBorder p="lg" radius="lg">
               <Group justify="space-between" mb="md">
-                <Text fw={600} size="sm">📊 Proje Analiz Özeti</Text>
-                <Button variant="subtle" size="xs" rightSection={<IconChevronRight size={14} />} onClick={() => setActiveTab('proje-karlilik')}>
+                <Text fw={600} size="sm">
+                  📊 Proje Analiz Özeti
+                </Text>
+                <Button
+                  variant="subtle"
+                  size="xs"
+                  rightSection={<IconChevronRight size={14} />}
+                  onClick={() => setActiveTab('proje-karlilik')}
+                >
                   Detaylı Görünüm
                 </Button>
               </Group>
@@ -587,10 +670,14 @@ export default function FinansMerkeziPage() {
                   {projeler.slice(0, 6).map((proje) => (
                     <Paper key={proje.id} withBorder p="md" radius="md" bg="gray.0">
                       <Group justify="space-between" mb="xs">
-                        <Text size="sm" fw={500} lineClamp={1}>{proje.ad}</Text>
+                        <Text size="sm" fw={500} lineClamp={1}>
+                          {proje.ad}
+                        </Text>
                         <IconChevronRight size={14} color="gray" />
                       </Group>
-                      <Text size="xs" c="dimmed">Detay için tıklayın</Text>
+                      <Text size="xs" c="dimmed">
+                        Detay için tıklayın
+                      </Text>
                     </Paper>
                   ))}
                 </SimpleGrid>
@@ -609,14 +696,22 @@ export default function FinansMerkeziPage() {
             {/* Üst Bar */}
             <Group justify="space-between">
               <Group>
-                <Button leftSection={<IconPlus size={18} />} onClick={() => setHesapModalOpen(true)}>
+                <Button
+                  leftSection={<IconPlus size={18} />}
+                  onClick={() => setHesapModalOpen(true)}
+                >
                   Hesap Ekle
                 </Button>
                 <Button variant="light" leftSection={<IconArrowsExchange size={18} />}>
                   Transfer
                 </Button>
               </Group>
-              <Button variant="light" leftSection={<IconPlus size={18} />} color="green" onClick={() => setHareketModalOpen(true)}>
+              <Button
+                variant="light"
+                leftSection={<IconPlus size={18} />}
+                color="green"
+                onClick={() => setHareketModalOpen(true)}
+              >
                 Hareket Ekle
               </Button>
             </Group>
@@ -633,19 +728,27 @@ export default function FinansMerkeziPage() {
                       </ThemeIcon>
                       <Text fw={600}>Kasalar</Text>
                     </Group>
-                    <Text fw={700} c="violet">{formatMoney(kasaBakiye)}</Text>
+                    <Text fw={700} c="violet">
+                      {formatMoney(kasaBakiye)}
+                    </Text>
                   </Group>
                   <Stack gap="xs">
-                    {hesaplar.filter(h => h.tip === 'kasa').map((hesap) => (
-                      <Paper key={hesap.id} withBorder p="sm" radius="md" bg="gray.0">
-                        <Group justify="space-between">
-                          <Text size="sm">{hesap.ad}</Text>
-                          <Text size="sm" fw={600}>{formatMoney(hesap.bakiye)}</Text>
-                        </Group>
-                      </Paper>
-                    ))}
-                    {hesaplar.filter(h => h.tip === 'kasa').length === 0 && (
-                      <Text size="sm" c="dimmed" ta="center" py="md">Kasa hesabı yok</Text>
+                    {hesaplar
+                      .filter((h) => h.tip === 'kasa')
+                      .map((hesap) => (
+                        <Paper key={hesap.id} withBorder p="sm" radius="md" bg="gray.0">
+                          <Group justify="space-between">
+                            <Text size="sm">{hesap.ad}</Text>
+                            <Text size="sm" fw={600}>
+                              {formatMoney(hesap.bakiye)}
+                            </Text>
+                          </Group>
+                        </Paper>
+                      ))}
+                    {hesaplar.filter((h) => h.tip === 'kasa').length === 0 && (
+                      <Text size="sm" c="dimmed" ta="center" py="md">
+                        Kasa hesabı yok
+                      </Text>
                     )}
                   </Stack>
                 </Paper>
@@ -661,22 +764,36 @@ export default function FinansMerkeziPage() {
                       </ThemeIcon>
                       <Text fw={600}>Bankalar</Text>
                     </Group>
-                    <Text fw={700} c="teal">{formatMoney(bankaBakiye)}</Text>
+                    <Text fw={700} c="teal">
+                      {formatMoney(bankaBakiye)}
+                    </Text>
                   </Group>
                   <Stack gap="xs">
-                    {hesaplar.filter(h => h.tip === 'banka').map((hesap) => (
-                      <Paper key={hesap.id} withBorder p="sm" radius="md" bg="gray.0">
-                        <Group justify="space-between">
-                          <div>
-                            <Text size="sm" fw={500}>{hesap.ad}</Text>
-                            {hesap.banka_adi && <Text size="xs" c="dimmed">{hesap.banka_adi}</Text>}
-                          </div>
-                          <Text size="sm" fw={600}>{formatMoney(hesap.bakiye)}</Text>
-                        </Group>
-                      </Paper>
-                    ))}
-                    {hesaplar.filter(h => h.tip === 'banka').length === 0 && (
-                      <Text size="sm" c="dimmed" ta="center" py="md">Banka hesabı yok</Text>
+                    {hesaplar
+                      .filter((h) => h.tip === 'banka')
+                      .map((hesap) => (
+                        <Paper key={hesap.id} withBorder p="sm" radius="md" bg="gray.0">
+                          <Group justify="space-between">
+                            <div>
+                              <Text size="sm" fw={500}>
+                                {hesap.ad}
+                              </Text>
+                              {hesap.banka_adi && (
+                                <Text size="xs" c="dimmed">
+                                  {hesap.banka_adi}
+                                </Text>
+                              )}
+                            </div>
+                            <Text size="sm" fw={600}>
+                              {formatMoney(hesap.bakiye)}
+                            </Text>
+                          </Group>
+                        </Paper>
+                      ))}
+                    {hesaplar.filter((h) => h.tip === 'banka').length === 0 && (
+                      <Text size="sm" c="dimmed" ta="center" py="md">
+                        Banka hesabı yok
+                      </Text>
                     )}
                   </Stack>
                 </Paper>
@@ -692,28 +809,46 @@ export default function FinansMerkeziPage() {
                       </ThemeIcon>
                       <Text fw={600}>Kredi Kartları</Text>
                     </Group>
-                    <Text fw={700} c="red">{formatMoney(kkBorcToplam)}</Text>
+                    <Text fw={700} c="red">
+                      {formatMoney(kkBorcToplam)}
+                    </Text>
                   </Group>
                   <Stack gap="xs">
-                    {hesaplar.filter(h => h.tip === 'kredi_karti').map((hesap) => (
-                      <Paper key={hesap.id} withBorder p="sm" radius="md" bg="gray.0">
-                        <Group justify="space-between" mb="xs">
-                          <Text size="sm" fw={500}>{hesap.ad}</Text>
-                          <Text size="sm" fw={600} c="red">{formatMoney(Math.abs(hesap.bakiye))}</Text>
-                        </Group>
-                        {hesap.limit && (
-                          <div>
-                            <Group justify="space-between" mb={4}>
-                              <Text size="xs" c="dimmed">Limit: {formatMoney(hesap.limit)}</Text>
-                              <Text size="xs" c="dimmed">{Math.round((Math.abs(hesap.bakiye) / hesap.limit) * 100)}%</Text>
-                            </Group>
-                            <Progress value={(Math.abs(hesap.bakiye) / hesap.limit) * 100} color="red" size="sm" />
-                          </div>
-                        )}
-                      </Paper>
-                    ))}
-                    {hesaplar.filter(h => h.tip === 'kredi_karti').length === 0 && (
-                      <Text size="sm" c="dimmed" ta="center" py="md">Kredi kartı yok</Text>
+                    {hesaplar
+                      .filter((h) => h.tip === 'kredi_karti')
+                      .map((hesap) => (
+                        <Paper key={hesap.id} withBorder p="sm" radius="md" bg="gray.0">
+                          <Group justify="space-between" mb="xs">
+                            <Text size="sm" fw={500}>
+                              {hesap.ad}
+                            </Text>
+                            <Text size="sm" fw={600} c="red">
+                              {formatMoney(Math.abs(hesap.bakiye))}
+                            </Text>
+                          </Group>
+                          {hesap.limit && (
+                            <div>
+                              <Group justify="space-between" mb={4}>
+                                <Text size="xs" c="dimmed">
+                                  Limit: {formatMoney(hesap.limit)}
+                                </Text>
+                                <Text size="xs" c="dimmed">
+                                  {Math.round((Math.abs(hesap.bakiye) / hesap.limit) * 100)}%
+                                </Text>
+                              </Group>
+                              <Progress
+                                value={(Math.abs(hesap.bakiye) / hesap.limit) * 100}
+                                color="red"
+                                size="sm"
+                              />
+                            </div>
+                          )}
+                        </Paper>
+                      ))}
+                    {hesaplar.filter((h) => h.tip === 'kredi_karti').length === 0 && (
+                      <Text size="sm" c="dimmed" ta="center" py="md">
+                        Kredi kartı yok
+                      </Text>
                     )}
                   </Stack>
                 </Paper>
@@ -722,7 +857,9 @@ export default function FinansMerkeziPage() {
 
             {/* Son Hareketler */}
             <Paper withBorder p="lg" radius="lg">
-              <Text fw={600} mb="md">📋 Tüm Hareketler</Text>
+              <Text fw={600} mb="md">
+                📋 Tüm Hareketler
+              </Text>
               <Table striped highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
@@ -738,13 +875,26 @@ export default function FinansMerkeziPage() {
                   {hareketler.map((h) => (
                     <Table.Tr key={h.id}>
                       <Table.Td>{formatDate(h.tarih)}</Table.Td>
-                      <Table.Td><Badge variant="light" size="sm">{h.hesap_adi}</Badge></Table.Td>
-                      <Table.Td><Text size="sm">{h.kategori || '-'}</Text></Table.Td>
-                      <Table.Td><Text size="sm" lineClamp={1}>{h.aciklama || '-'}</Text></Table.Td>
-                      <Table.Td><Text size="sm">{h.cari_adi || '-'}</Text></Table.Td>
+                      <Table.Td>
+                        <Badge variant="light" size="sm">
+                          {h.hesap_adi}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm">{h.kategori || '-'}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" lineClamp={1}>
+                          {h.aciklama || '-'}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm">{h.cari_adi || '-'}</Text>
+                      </Table.Td>
                       <Table.Td ta="right">
                         <Text fw={600} c={h.tip === 'gelir' ? 'teal' : 'red'}>
-                          {h.tip === 'gelir' ? '+' : '-'}{formatMoney(h.tutar)}
+                          {h.tip === 'gelir' ? '+' : '-'}
+                          {formatMoney(h.tutar)}
                         </Text>
                       </Table.Td>
                     </Table.Tr>
@@ -755,8 +905,12 @@ export default function FinansMerkeziPage() {
                         <Center py="xl">
                           <Stack align="center" gap="xs">
                             <IconWallet size={40} color="var(--mantine-color-dimmed)" />
-                            <Text c="dimmed" size="sm" fw={500}>Henüz hareket kaydı yok</Text>
-                            <Text c="dimmed" size="xs">Gelir veya gider ekleyerek başlayın</Text>
+                            <Text c="dimmed" size="sm" fw={500}>
+                              Henüz hareket kaydı yok
+                            </Text>
+                            <Text c="dimmed" size="xs">
+                              Gelir veya gider ekleyerek başlayın
+                            </Text>
                           </Stack>
                         </Center>
                       </Table.Td>
@@ -773,7 +927,10 @@ export default function FinansMerkeziPage() {
           <Stack gap="lg">
             <Group justify="space-between">
               <Group>
-                <Button leftSection={<IconPlus size={18} />} onClick={() => setCekSenetModalOpen(true)}>
+                <Button
+                  leftSection={<IconPlus size={18} />}
+                  onClick={() => setCekSenetModalOpen(true)}
+                >
                   Çek/Senet Ekle
                 </Button>
               </Group>
@@ -786,27 +943,87 @@ export default function FinansMerkeziPage() {
 
             {/* Özet Kartlar */}
             <SimpleGrid cols={{ base: 2, sm: 4 }}>
-              <Paper withBorder p="md" radius="lg" style={{ borderLeft: '4px solid var(--mantine-color-teal-6)' }}>
-                <Text size="xs" c="dimmed">Alacak Çekler</Text>
-                <Text fw={700} size="lg" c="teal">{formatMoney(cekSenetler.filter(c => c.tip === 'cek' && c.yon === 'alacak' && c.durum === 'beklemede').reduce((s, c) => s + c.tutar, 0))}</Text>
+              <Paper
+                withBorder
+                p="md"
+                radius="lg"
+                style={{ borderLeft: '4px solid var(--mantine-color-teal-6)' }}
+              >
+                <Text size="xs" c="dimmed">
+                  Alacak Çekler
+                </Text>
+                <Text fw={700} size="lg" c="teal">
+                  {formatMoney(
+                    cekSenetler
+                      .filter(
+                        (c) => c.tip === 'cek' && c.yon === 'alacak' && c.durum === 'beklemede'
+                      )
+                      .reduce((s, c) => s + c.tutar, 0)
+                  )}
+                </Text>
               </Paper>
-              <Paper withBorder p="md" radius="lg" style={{ borderLeft: '4px solid var(--mantine-color-red-6)' }}>
-                <Text size="xs" c="dimmed">Borç Çekler</Text>
-                <Text fw={700} size="lg" c="red">{formatMoney(cekSenetler.filter(c => c.tip === 'cek' && c.yon === 'borc' && c.durum === 'beklemede').reduce((s, c) => s + c.tutar, 0))}</Text>
+              <Paper
+                withBorder
+                p="md"
+                radius="lg"
+                style={{ borderLeft: '4px solid var(--mantine-color-red-6)' }}
+              >
+                <Text size="xs" c="dimmed">
+                  Borç Çekler
+                </Text>
+                <Text fw={700} size="lg" c="red">
+                  {formatMoney(
+                    cekSenetler
+                      .filter((c) => c.tip === 'cek' && c.yon === 'borc' && c.durum === 'beklemede')
+                      .reduce((s, c) => s + c.tutar, 0)
+                  )}
+                </Text>
               </Paper>
-              <Paper withBorder p="md" radius="lg" style={{ borderLeft: '4px solid var(--mantine-color-grape-6)' }}>
-                <Text size="xs" c="dimmed">Alacak Senetler</Text>
-                <Text fw={700} size="lg" c="grape">{formatMoney(cekSenetler.filter(c => c.tip === 'senet' && c.yon === 'alacak' && c.durum === 'beklemede').reduce((s, c) => s + c.tutar, 0))}</Text>
+              <Paper
+                withBorder
+                p="md"
+                radius="lg"
+                style={{ borderLeft: '4px solid var(--mantine-color-grape-6)' }}
+              >
+                <Text size="xs" c="dimmed">
+                  Alacak Senetler
+                </Text>
+                <Text fw={700} size="lg" c="grape">
+                  {formatMoney(
+                    cekSenetler
+                      .filter(
+                        (c) => c.tip === 'senet' && c.yon === 'alacak' && c.durum === 'beklemede'
+                      )
+                      .reduce((s, c) => s + c.tutar, 0)
+                  )}
+                </Text>
               </Paper>
-              <Paper withBorder p="md" radius="lg" style={{ borderLeft: '4px solid var(--mantine-color-orange-6)' }}>
-                <Text size="xs" c="dimmed">Borç Senetler</Text>
-                <Text fw={700} size="lg" c="orange">{formatMoney(cekSenetler.filter(c => c.tip === 'senet' && c.yon === 'borc' && c.durum === 'beklemede').reduce((s, c) => s + c.tutar, 0))}</Text>
+              <Paper
+                withBorder
+                p="md"
+                radius="lg"
+                style={{ borderLeft: '4px solid var(--mantine-color-orange-6)' }}
+              >
+                <Text size="xs" c="dimmed">
+                  Borç Senetler
+                </Text>
+                <Text fw={700} size="lg" c="orange">
+                  {formatMoney(
+                    cekSenetler
+                      .filter(
+                        (c) => c.tip === 'senet' && c.yon === 'borc' && c.durum === 'beklemede'
+                      )
+                      .reduce((s, c) => s + c.tutar, 0)
+                  )}
+                </Text>
               </Paper>
             </SimpleGrid>
 
             {/* Çek/Senet Listesi */}
             <Paper withBorder p="lg" radius="lg">
-              <Text fw={600} mb="md">📋 Çek/Senet Listesi</Text>
+              <Text fw={600} mb="md">
+                📋 Çek/Senet Listesi
+              </Text>
               <Table striped highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
@@ -828,28 +1045,43 @@ export default function FinansMerkeziPage() {
                         </Badge>
                       </Table.Td>
                       <Table.Td>
-                        <Badge color={cs.yon === 'alacak' ? 'teal' : 'red'} variant="outline" size="sm">
+                        <Badge
+                          color={cs.yon === 'alacak' ? 'teal' : 'red'}
+                          variant="outline"
+                          size="sm"
+                        >
                           {cs.yon === 'alacak' ? '📥 Alacak' : '📤 Borç'}
                         </Badge>
                       </Table.Td>
-                      <Table.Td><Text size="sm">{cs.cari_adi || '-'}</Text></Table.Td>
-                      <Table.Td><Text size="sm">{formatDate(cs.vade_tarihi)}</Text></Table.Td>
+                      <Table.Td>
+                        <Text size="sm">{cs.cari_adi || '-'}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm">{formatDate(cs.vade_tarihi)}</Text>
+                      </Table.Td>
                       <Table.Td ta="right">
                         <Text fw={600}>{formatMoney(cs.tutar)}</Text>
                       </Table.Td>
                       <Table.Td ta="center">
-                        <Badge 
+                        <Badge
                           color={
-                            cs.durum === 'beklemede' ? 'orange' :
-                            cs.durum === 'tahsil_edildi' || cs.durum === 'odendi' ? 'green' :
-                            'red'
+                            cs.durum === 'beklemede'
+                              ? 'orange'
+                              : cs.durum === 'tahsil_edildi' || cs.durum === 'odendi'
+                                ? 'green'
+                                : 'red'
                           }
                           variant="light"
                         >
-                          {cs.durum === 'beklemede' ? '⏳ Bekliyor' :
-                           cs.durum === 'tahsil_edildi' ? '✅ Tahsil' :
-                           cs.durum === 'odendi' ? '✅ Ödendi' :
-                           cs.durum === 'iade' ? '↩️ İade' : '❌ Protesto'}
+                          {cs.durum === 'beklemede'
+                            ? '⏳ Bekliyor'
+                            : cs.durum === 'tahsil_edildi'
+                              ? '✅ Tahsil'
+                              : cs.durum === 'odendi'
+                                ? '✅ Ödendi'
+                                : cs.durum === 'iade'
+                                  ? '↩️ İade'
+                                  : '❌ Protesto'}
                         </Badge>
                       </Table.Td>
                       <Table.Td ta="center">
@@ -861,8 +1093,12 @@ export default function FinansMerkeziPage() {
                           </Menu.Target>
                           <Menu.Dropdown>
                             <Menu.Item leftSection={<IconCheck size={14} />}>Tahsil Et</Menu.Item>
-                            <Menu.Item leftSection={<IconArrowsExchange size={14} />}>Ciro Et</Menu.Item>
-                            <Menu.Item leftSection={<IconAlertCircle size={14} />} color="red">İade/Protesto</Menu.Item>
+                            <Menu.Item leftSection={<IconArrowsExchange size={14} />}>
+                              Ciro Et
+                            </Menu.Item>
+                            <Menu.Item leftSection={<IconAlertCircle size={14} />} color="red">
+                              İade/Protesto
+                            </Menu.Item>
                           </Menu.Dropdown>
                         </Menu>
                       </Table.Td>
@@ -874,8 +1110,12 @@ export default function FinansMerkeziPage() {
                         <Center py="xl">
                           <Stack align="center" gap="xs">
                             <IconReceipt size={40} color="var(--mantine-color-dimmed)" />
-                            <Text c="dimmed" size="sm" fw={500}>Henüz çek/senet kaydı yok</Text>
-                            <Text c="dimmed" size="xs">Yeni çek veya senet eklemek için yukarıdaki butonu kullanın</Text>
+                            <Text c="dimmed" size="sm" fw={500}>
+                              Henüz çek/senet kaydı yok
+                            </Text>
+                            <Text c="dimmed" size="xs">
+                              Yeni çek veya senet eklemek için yukarıdaki butonu kullanın
+                            </Text>
                           </Stack>
                         </Center>
                       </Table.Td>
@@ -896,32 +1136,40 @@ export default function FinansMerkeziPage() {
                 <Group>
                   <Select
                     placeholder="Proje Seç"
-                    data={projeler.map(p => ({ value: String(p.id), label: p.ad }))}
+                    data={projeler.map((p) => ({ value: String(p.id), label: p.ad }))}
                     value={selectedProje ? String(selectedProje) : null}
-                    onChange={(v) => setSelectedProje(v ? parseInt(v) : null)}
+                    onChange={(v) => setSelectedProje(v ? parseInt(v, 10) : null)}
                     w={250}
                     leftSection={<IconBuilding size={16} />}
                   />
                   <Select
                     data={Array.from({ length: 5 }, (_, i) => ({
                       value: String(new Date().getFullYear() - 2 + i),
-                      label: String(new Date().getFullYear() - 2 + i)
+                      label: String(new Date().getFullYear() - 2 + i),
                     }))}
                     value={String(projeYil)}
-                    onChange={(v) => setProjeYil(parseInt(v || String(new Date().getFullYear())))}
+                    onChange={(v) =>
+                      setProjeYil(parseInt(v || String(new Date().getFullYear()), 10))
+                    }
                     w={100}
                   />
                   <Select
                     data={[
-                      { value: '1', label: 'Ocak' }, { value: '2', label: 'Şubat' },
-                      { value: '3', label: 'Mart' }, { value: '4', label: 'Nisan' },
-                      { value: '5', label: 'Mayıs' }, { value: '6', label: 'Haziran' },
-                      { value: '7', label: 'Temmuz' }, { value: '8', label: 'Ağustos' },
-                      { value: '9', label: 'Eylül' }, { value: '10', label: 'Ekim' },
-                      { value: '11', label: 'Kasım' }, { value: '12', label: 'Aralık' }
+                      { value: '1', label: 'Ocak' },
+                      { value: '2', label: 'Şubat' },
+                      { value: '3', label: 'Mart' },
+                      { value: '4', label: 'Nisan' },
+                      { value: '5', label: 'Mayıs' },
+                      { value: '6', label: 'Haziran' },
+                      { value: '7', label: 'Temmuz' },
+                      { value: '8', label: 'Ağustos' },
+                      { value: '9', label: 'Eylül' },
+                      { value: '10', label: 'Ekim' },
+                      { value: '11', label: 'Kasım' },
+                      { value: '12', label: 'Aralık' },
                     ]}
                     value={String(projeAy)}
-                    onChange={(v) => setProjeAy(parseInt(v || '1'))}
+                    onChange={(v) => setProjeAy(parseInt(v || '1', 10))}
                     w={130}
                   />
                 </Group>
@@ -949,10 +1197,14 @@ export default function FinansMerkeziPage() {
                     }}
                   >
                     <Group justify="space-between" mb="xs">
-                      <Text size="sm" fw={500} opacity={0.9}>📉 Toplam Gider</Text>
+                      <Text size="sm" fw={500} opacity={0.9}>
+                        📉 Toplam Gider
+                      </Text>
                       <IconTrendingDown size={24} opacity={0.7} />
                     </Group>
-                    <Text fw={700} size="xl">{formatMoney(projeGider)}</Text>
+                    <Text fw={700} size="xl">
+                      {formatMoney(projeGider)}
+                    </Text>
                   </Paper>
 
                   <Paper
@@ -964,27 +1216,37 @@ export default function FinansMerkeziPage() {
                     }}
                   >
                     <Group justify="space-between" mb="xs">
-                      <Text size="sm" fw={500} opacity={0.9}>📈 Toplam Gelir</Text>
+                      <Text size="sm" fw={500} opacity={0.9}>
+                        📈 Toplam Gelir
+                      </Text>
                       <IconTrendingUp size={24} opacity={0.7} />
                     </Group>
-                    <Text fw={700} size="xl">{formatMoney(projeGelir)}</Text>
+                    <Text fw={700} size="xl">
+                      {formatMoney(projeGelir)}
+                    </Text>
                   </Paper>
 
                   <Paper
                     p="lg"
                     radius="lg"
                     style={{
-                      background: projeNet >= 0
-                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                        : 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                      background:
+                        projeNet >= 0
+                          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                          : 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
                       color: 'white',
                     }}
                   >
                     <Group justify="space-between" mb="xs">
-                      <Text size="sm" fw={500} opacity={0.9}>💰 Net Kar/Zarar</Text>
+                      <Text size="sm" fw={500} opacity={0.9}>
+                        💰 Net Kar/Zarar
+                      </Text>
                       <IconReportMoney size={24} opacity={0.7} />
                     </Group>
-                    <Text fw={700} size="xl">{projeNet >= 0 ? '+' : ''}{formatMoney(projeNet)}</Text>
+                    <Text fw={700} size="xl">
+                      {projeNet >= 0 ? '+' : ''}
+                      {formatMoney(projeNet)}
+                    </Text>
                   </Paper>
                 </SimpleGrid>
 
@@ -992,50 +1254,94 @@ export default function FinansMerkeziPage() {
                 <Grid>
                   <Grid.Col span={{ base: 12, md: 6 }}>
                     <Paper withBorder p="lg" radius="lg">
-                      <Text fw={600} mb="md" c="red.7">📉 Gider Kalemleri</Text>
+                      <Text fw={600} mb="md" c="red.7">
+                        📉 Gider Kalemleri
+                      </Text>
                       <Stack gap="xs">
                         {/* Personel Giderleri */}
-                        <Paper 
-                          withBorder p="md" radius="md" bg="red.0"
+                        <Paper
+                          withBorder
+                          p="md"
+                          radius="md"
+                          bg="red.0"
                           style={{ cursor: 'pointer' }}
-                          onClick={() => setKategoriDetayModal({ open: true, kategori: 'personel', baslik: '👥 Personel Giderleri Detayı' })}
+                          onClick={() =>
+                            setKategoriDetayModal({
+                              open: true,
+                              kategori: 'personel',
+                              baslik: '👥 Personel Giderleri Detayı',
+                            })
+                          }
                         >
                           <Group justify="space-between">
                             <Group gap="xs">
                               <Text>👥</Text>
                               <div>
-                                <Text size="sm" fw={500}>Personel Giderleri</Text>
-                                <Badge size="xs" color="green" variant="light">OTOMATİK</Badge>
+                                <Text size="sm" fw={500}>
+                                  Personel Giderleri
+                                </Text>
+                                <Badge size="xs" color="green" variant="light">
+                                  OTOMATİK
+                                </Badge>
                               </div>
                             </Group>
                             <Group gap="xs">
                               <Text fw={600} c="red.7">
-                                {formatMoney(projeHareketler.filter(h => 
-                                  h.tip === 'gider' && 
-                                  ['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori)
-                                ).reduce((s, h) => s + h.tutar, 0))}
+                                {formatMoney(
+                                  projeHareketler
+                                    .filter(
+                                      (h) =>
+                                        h.tip === 'gider' &&
+                                        [
+                                          'personel_maas',
+                                          'personel_sgk',
+                                          'personel_vergi',
+                                        ].includes(h.kategori)
+                                    )
+                                    .reduce((s, h) => s + h.tutar, 0)
+                                )}
                               </Text>
                               <IconChevronRight size={16} color="gray" />
                             </Group>
                           </Group>
                         </Paper>
                         {/* Diğer Giderler */}
-                        <Paper 
-                          withBorder p="md" radius="md" bg="gray.0"
+                        <Paper
+                          withBorder
+                          p="md"
+                          radius="md"
+                          bg="gray.0"
                           style={{ cursor: 'pointer' }}
-                          onClick={() => setKategoriDetayModal({ open: true, kategori: 'diger_gider', baslik: '📦 Diğer Giderler Detayı' })}
+                          onClick={() =>
+                            setKategoriDetayModal({
+                              open: true,
+                              kategori: 'diger_gider',
+                              baslik: '📦 Diğer Giderler Detayı',
+                            })
+                          }
                         >
                           <Group justify="space-between">
                             <Group gap="xs">
                               <Text>📦</Text>
-                              <Text size="sm" fw={500}>Diğer Giderler</Text>
+                              <Text size="sm" fw={500}>
+                                Diğer Giderler
+                              </Text>
                             </Group>
                             <Group gap="xs">
                               <Text fw={600} c="red.7">
-                                {formatMoney(projeHareketler.filter(h => 
-                                  h.tip === 'gider' && 
-                                  !['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori)
-                                ).reduce((s, h) => s + h.tutar, 0))}
+                                {formatMoney(
+                                  projeHareketler
+                                    .filter(
+                                      (h) =>
+                                        h.tip === 'gider' &&
+                                        ![
+                                          'personel_maas',
+                                          'personel_sgk',
+                                          'personel_vergi',
+                                        ].includes(h.kategori)
+                                    )
+                                    .reduce((s, h) => s + h.tutar, 0)
+                                )}
                               </Text>
                               <IconChevronRight size={16} color="gray" />
                             </Group>
@@ -1047,41 +1353,75 @@ export default function FinansMerkeziPage() {
 
                   <Grid.Col span={{ base: 12, md: 6 }}>
                     <Paper withBorder p="lg" radius="lg">
-                      <Text fw={600} mb="md" c="teal.7">📈 Gelir Kalemleri</Text>
+                      <Text fw={600} mb="md" c="teal.7">
+                        📈 Gelir Kalemleri
+                      </Text>
                       <Stack gap="xs">
                         {/* Hakediş */}
-                        <Paper 
-                          withBorder p="md" radius="md" bg="teal.0"
+                        <Paper
+                          withBorder
+                          p="md"
+                          radius="md"
+                          bg="teal.0"
                           style={{ cursor: 'pointer' }}
-                          onClick={() => setKategoriDetayModal({ open: true, kategori: 'hakedis', baslik: '💰 Hakediş Detayı' })}
+                          onClick={() =>
+                            setKategoriDetayModal({
+                              open: true,
+                              kategori: 'hakedis',
+                              baslik: '💰 Hakediş Detayı',
+                            })
+                          }
                         >
                           <Group justify="space-between">
                             <Group gap="xs">
                               <Text>💰</Text>
-                              <Text size="sm" fw={500}>Hakediş</Text>
+                              <Text size="sm" fw={500}>
+                                Hakediş
+                              </Text>
                             </Group>
                             <Group gap="xs">
                               <Text fw={600} c="teal.7">
-                                +{formatMoney(projeHareketler.filter(h => h.kategori === 'hakedis').reduce((s, h) => s + h.tutar, 0))}
+                                +
+                                {formatMoney(
+                                  projeHareketler
+                                    .filter((h) => h.kategori === 'hakedis')
+                                    .reduce((s, h) => s + h.tutar, 0)
+                                )}
                               </Text>
                               <IconChevronRight size={16} color="gray" />
                             </Group>
                           </Group>
                         </Paper>
                         {/* Diğer Gelirler */}
-                        <Paper 
-                          withBorder p="md" radius="md" bg="gray.0"
+                        <Paper
+                          withBorder
+                          p="md"
+                          radius="md"
+                          bg="gray.0"
                           style={{ cursor: 'pointer' }}
-                          onClick={() => setKategoriDetayModal({ open: true, kategori: 'diger_gelir', baslik: '📦 Diğer Gelirler Detayı' })}
+                          onClick={() =>
+                            setKategoriDetayModal({
+                              open: true,
+                              kategori: 'diger_gelir',
+                              baslik: '📦 Diğer Gelirler Detayı',
+                            })
+                          }
                         >
                           <Group justify="space-between">
                             <Group gap="xs">
                               <Text>📦</Text>
-                              <Text size="sm" fw={500}>Diğer Gelirler</Text>
+                              <Text size="sm" fw={500}>
+                                Diğer Gelirler
+                              </Text>
                             </Group>
                             <Group gap="xs">
                               <Text fw={600} c="teal.7">
-                                +{formatMoney(projeHareketler.filter(h => h.tip === 'gelir' && h.kategori !== 'hakedis').reduce((s, h) => s + h.tutar, 0))}
+                                +
+                                {formatMoney(
+                                  projeHareketler
+                                    .filter((h) => h.tip === 'gelir' && h.kategori !== 'hakedis')
+                                    .reduce((s, h) => s + h.tutar, 0)
+                                )}
                               </Text>
                               <IconChevronRight size={16} color="gray" />
                             </Group>
@@ -1094,7 +1434,9 @@ export default function FinansMerkeziPage() {
 
                 {/* Hareket Listesi */}
                 <Paper withBorder p="lg" radius="lg">
-                  <Text fw={600} mb="md">📋 Hareket Listesi</Text>
+                  <Text fw={600} mb="md">
+                    📋 Hareket Listesi
+                  </Text>
                   <Table striped highlightOnHover>
                     <Table.Thead>
                       <Table.Tr>
@@ -1110,22 +1452,39 @@ export default function FinansMerkeziPage() {
                         <Table.Tr key={h.id}>
                           <Table.Td>{formatDate(h.tarih)}</Table.Td>
                           <Table.Td>
-                            <Badge color={h.tip === 'gelir' ? 'teal' : 'red'} variant="light" size="sm">
-                              {h.kategori === 'hakedis' ? '💰 Hakediş' :
-                               h.kategori === 'personel_maas' ? '💵 Maaş' :
-                               h.kategori === 'personel_sgk' ? '🏛️ SGK' :
-                               h.kategori === 'personel_vergi' ? '📋 Vergi' :
-                               `📦 ${h.kategori}`}
+                            <Badge
+                              color={h.tip === 'gelir' ? 'teal' : 'red'}
+                              variant="light"
+                              size="sm"
+                            >
+                              {h.kategori === 'hakedis'
+                                ? '💰 Hakediş'
+                                : h.kategori === 'personel_maas'
+                                  ? '💵 Maaş'
+                                  : h.kategori === 'personel_sgk'
+                                    ? '🏛️ SGK'
+                                    : h.kategori === 'personel_vergi'
+                                      ? '📋 Vergi'
+                                      : `📦 ${h.kategori}`}
                             </Badge>
                           </Table.Td>
-                          <Table.Td><Text size="sm" lineClamp={1}>{h.aciklama || '-'}</Text></Table.Td>
+                          <Table.Td>
+                            <Text size="sm" lineClamp={1}>
+                              {h.aciklama || '-'}
+                            </Text>
+                          </Table.Td>
                           <Table.Td ta="right">
                             <Text fw={600} c={h.tip === 'gelir' ? 'teal' : 'red'}>
-                              {h.tip === 'gelir' ? '+' : '-'}{formatMoney(h.tutar)}
+                              {h.tip === 'gelir' ? '+' : '-'}
+                              {formatMoney(h.tutar)}
                             </Text>
                           </Table.Td>
                           <Table.Td ta="center">
-                            <Badge variant="dot" color={h.referans_tip === 'bordro' ? 'green' : 'blue'} size="sm">
+                            <Badge
+                              variant="dot"
+                              color={h.referans_tip === 'bordro' ? 'green' : 'blue'}
+                              size="sm"
+                            >
                               {h.referans_tip === 'bordro' ? 'Personel' : 'Manuel'}
                             </Badge>
                           </Table.Td>
@@ -1154,8 +1513,12 @@ export default function FinansMerkeziPage() {
                     <ThemeIcon size={60} variant="light" color="grape" radius="xl">
                       <IconBuilding size={30} />
                     </ThemeIcon>
-                    <Text fw={600} size="lg">Proje Seçin</Text>
-                    <Text c="dimmed" ta="center">Analiz için yukarıdan bir proje seçin</Text>
+                    <Text fw={600} size="lg">
+                      Proje Seçin
+                    </Text>
+                    <Text c="dimmed" ta="center">
+                      Analiz için yukarıdan bir proje seçin
+                    </Text>
                   </Stack>
                 </Center>
               </Paper>
@@ -1235,7 +1598,9 @@ export default function FinansMerkeziPage() {
             </>
           )}
           <Group justify="flex-end" mt="md">
-            <Button variant="light" onClick={() => setHesapModalOpen(false)}>İptal</Button>
+            <Button variant="light" onClick={() => setHesapModalOpen(false)}>
+              İptal
+            </Button>
             <Button onClick={handleSaveHesap}>Kaydet</Button>
           </Group>
         </Stack>
@@ -1274,15 +1639,15 @@ export default function FinansMerkeziPage() {
             label="Hesap"
             placeholder="Hesap seçin"
             data={hesaplar
-              .filter(h => {
+              .filter((h) => {
                 if (hareketForm.odeme_yontemi === 'nakit') return h.tip === 'kasa';
                 if (hareketForm.odeme_yontemi === 'banka') return h.tip === 'banka';
                 if (hareketForm.odeme_yontemi === 'kredi_karti') return h.tip === 'kredi_karti';
                 return true;
               })
-              .map(h => ({ value: String(h.id), label: h.ad }))}
+              .map((h) => ({ value: String(h.id), label: h.ad }))}
             value={hareketForm.hesap_id ? String(hareketForm.hesap_id) : null}
-            onChange={(v) => setHareketForm({ ...hareketForm, hesap_id: v ? parseInt(v) : 0 })}
+            onChange={(v) => setHareketForm({ ...hareketForm, hesap_id: v ? parseInt(v, 10) : 0 })}
           />
           <NumberInput
             label="Tutar"
@@ -1305,7 +1670,9 @@ export default function FinansMerkeziPage() {
                 { value: '12', label: '12 Taksit' },
               ]}
               value={String(hareketForm.taksit_sayisi)}
-              onChange={(v) => setHareketForm({ ...hareketForm, taksit_sayisi: parseInt(v || '1') })}
+              onChange={(v) =>
+                setHareketForm({ ...hareketForm, taksit_sayisi: parseInt(v || '1', 10) })
+              }
             />
           )}
           <StyledDatePicker
@@ -1316,9 +1683,11 @@ export default function FinansMerkeziPage() {
           <Select
             label="Cari (Opsiyonel)"
             placeholder="Cari seçin"
-            data={cariler.map(c => ({ value: String(c.id), label: c.unvan }))}
+            data={cariler.map((c) => ({ value: String(c.id), label: c.unvan }))}
             value={hareketForm.cari_id ? String(hareketForm.cari_id) : null}
-            onChange={(v) => setHareketForm({ ...hareketForm, cari_id: v ? parseInt(v) : null })}
+            onChange={(v) =>
+              setHareketForm({ ...hareketForm, cari_id: v ? parseInt(v, 10) : null })
+            }
             clearable
             searchable
           />
@@ -1329,8 +1698,13 @@ export default function FinansMerkeziPage() {
             onChange={(e) => setHareketForm({ ...hareketForm, aciklama: e.target.value })}
           />
           <Group justify="flex-end" mt="md">
-            <Button variant="light" onClick={() => setHareketModalOpen(false)}>İptal</Button>
-            <Button color={hareketForm.tip === 'gelir' ? 'teal' : 'red'} onClick={handleSaveHareket}>
+            <Button variant="light" onClick={() => setHareketModalOpen(false)}>
+              İptal
+            </Button>
+            <Button
+              color={hareketForm.tip === 'gelir' ? 'teal' : 'red'}
+              onClick={handleSaveHareket}
+            >
               {hareketForm.tip === 'gelir' ? '📥 Gelir Kaydet' : '📤 Gider Kaydet'}
             </Button>
           </Group>
@@ -1356,17 +1730,18 @@ export default function FinansMerkeziPage() {
           />
           <Select
             label="Kategori"
-            data={hareketForm.tip === 'gelir' 
-              ? [
-                  { value: 'hakedis', label: '💰 Hakediş' },
-                  { value: 'diger', label: '📦 Diğer Gelir' },
-                ]
-              : [
-                  { value: 'malzeme', label: '📦 Malzeme' },
-                  { value: 'taseron', label: '👷 Taşeron' },
-                  { value: 'kira', label: '🏠 Kira' },
-                  { value: 'diger', label: '📋 Diğer Gider' },
-                ]
+            data={
+              hareketForm.tip === 'gelir'
+                ? [
+                    { value: 'hakedis', label: '💰 Hakediş' },
+                    { value: 'diger', label: '📦 Diğer Gelir' },
+                  ]
+                : [
+                    { value: 'malzeme', label: '📦 Malzeme' },
+                    { value: 'taseron', label: '👷 Taşeron' },
+                    { value: 'kira', label: '🏠 Kira' },
+                    { value: 'diger', label: '📋 Diğer Gider' },
+                  ]
             }
             value={hareketForm.kategori}
             onChange={(v) => setHareketForm({ ...hareketForm, kategori: v || '' })}
@@ -1390,8 +1765,13 @@ export default function FinansMerkeziPage() {
             onChange={(e) => setHareketForm({ ...hareketForm, aciklama: e.target.value })}
           />
           <Group justify="flex-end" mt="md">
-            <Button variant="light" onClick={() => setProjeHareketModalOpen(false)}>İptal</Button>
-            <Button color={hareketForm.tip === 'gelir' ? 'teal' : 'red'} onClick={handleSaveProjeHareket}>
+            <Button variant="light" onClick={() => setProjeHareketModalOpen(false)}>
+              İptal
+            </Button>
+            <Button
+              color={hareketForm.tip === 'gelir' ? 'teal' : 'red'}
+              onClick={handleSaveProjeHareket}
+            >
               Kaydet
             </Button>
           </Group>
@@ -1411,38 +1791,75 @@ export default function FinansMerkeziPage() {
             <>
               {/* Özet Kartlar */}
               <SimpleGrid cols={3}>
-                <Paper withBorder p="md" radius="md" style={{ borderLeft: '4px solid var(--mantine-color-blue-6)' }}>
-                  <Text size="xs" c="dimmed">💵 Net Maaşlar</Text>
+                <Paper
+                  withBorder
+                  p="md"
+                  radius="md"
+                  style={{ borderLeft: '4px solid var(--mantine-color-blue-6)' }}
+                >
+                  <Text size="xs" c="dimmed">
+                    💵 Net Maaşlar
+                  </Text>
                   <Text fw={700} size="lg" c="blue.7">
-                    {formatMoney(projeHareketler.filter(h => h.kategori === 'personel_maas').reduce((s, h) => s + h.tutar, 0))}
+                    {formatMoney(
+                      projeHareketler
+                        .filter((h) => h.kategori === 'personel_maas')
+                        .reduce((s, h) => s + h.tutar, 0)
+                    )}
                   </Text>
                 </Paper>
-                <Paper withBorder p="md" radius="md" style={{ borderLeft: '4px solid var(--mantine-color-orange-6)' }}>
-                  <Text size="xs" c="dimmed">🏛️ SGK Primleri</Text>
+                <Paper
+                  withBorder
+                  p="md"
+                  radius="md"
+                  style={{ borderLeft: '4px solid var(--mantine-color-orange-6)' }}
+                >
+                  <Text size="xs" c="dimmed">
+                    🏛️ SGK Primleri
+                  </Text>
                   <Text fw={700} size="lg" c="orange.7">
-                    {formatMoney(projeHareketler.filter(h => h.kategori === 'personel_sgk').reduce((s, h) => s + h.tutar, 0))}
+                    {formatMoney(
+                      projeHareketler
+                        .filter((h) => h.kategori === 'personel_sgk')
+                        .reduce((s, h) => s + h.tutar, 0)
+                    )}
                   </Text>
                 </Paper>
-                <Paper withBorder p="md" radius="md" style={{ borderLeft: '4px solid var(--mantine-color-red-6)' }}>
-                  <Text size="xs" c="dimmed">📋 Vergiler</Text>
+                <Paper
+                  withBorder
+                  p="md"
+                  radius="md"
+                  style={{ borderLeft: '4px solid var(--mantine-color-red-6)' }}
+                >
+                  <Text size="xs" c="dimmed">
+                    📋 Vergiler
+                  </Text>
                   <Text fw={700} size="lg" c="red.7">
-                    {formatMoney(projeHareketler.filter(h => h.kategori === 'personel_vergi').reduce((s, h) => s + h.tutar, 0))}
+                    {formatMoney(
+                      projeHareketler
+                        .filter((h) => h.kategori === 'personel_vergi')
+                        .reduce((s, h) => s + h.tutar, 0)
+                    )}
                   </Text>
                 </Paper>
               </SimpleGrid>
-              
+
               {/* Toplam */}
               <Paper withBorder p="md" radius="md" bg="red.0">
                 <Group justify="space-between">
                   <Text fw={600}>👥 Toplam Personel Gideri</Text>
                   <Text fw={700} size="xl" c="red.7">
-                    {formatMoney(projeHareketler.filter(h => 
-                      ['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori)
-                    ).reduce((s, h) => s + h.tutar, 0))}
+                    {formatMoney(
+                      projeHareketler
+                        .filter((h) =>
+                          ['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori)
+                        )
+                        .reduce((s, h) => s + h.tutar, 0)
+                    )}
                   </Text>
                 </Group>
               </Paper>
-              
+
               {/* Liste */}
               <Paper withBorder radius="md">
                 <Table striped highlightOnHover>
@@ -1456,33 +1873,55 @@ export default function FinansMerkeziPage() {
                   </Table.Thead>
                   <Table.Tbody>
                     {projeHareketler
-                      .filter(h => ['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori))
+                      .filter((h) =>
+                        ['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori)
+                      )
                       .map((h) => (
                         <Table.Tr key={h.id}>
                           <Table.Td>{formatDate(h.tarih)}</Table.Td>
                           <Table.Td>
-                            <Badge size="sm" color={
-                              h.kategori === 'personel_maas' ? 'blue' :
-                              h.kategori === 'personel_sgk' ? 'orange' : 'red'
-                            } variant="light">
-                              {h.kategori === 'personel_maas' ? '💵 Maaş' :
-                               h.kategori === 'personel_sgk' ? '🏛️ SGK' : '📋 Vergi'}
+                            <Badge
+                              size="sm"
+                              color={
+                                h.kategori === 'personel_maas'
+                                  ? 'blue'
+                                  : h.kategori === 'personel_sgk'
+                                    ? 'orange'
+                                    : 'red'
+                              }
+                              variant="light"
+                            >
+                              {h.kategori === 'personel_maas'
+                                ? '💵 Maaş'
+                                : h.kategori === 'personel_sgk'
+                                  ? '🏛️ SGK'
+                                  : '📋 Vergi'}
                             </Badge>
                           </Table.Td>
-                          <Table.Td><Text size="sm">{h.aciklama || '-'}</Text></Table.Td>
-                          <Table.Td ta="right"><Text fw={600} c="red">{formatMoney(h.tutar)}</Text></Table.Td>
+                          <Table.Td>
+                            <Text size="sm">{h.aciklama || '-'}</Text>
+                          </Table.Td>
+                          <Table.Td ta="right">
+                            <Text fw={600} c="red">
+                              {formatMoney(h.tutar)}
+                            </Text>
+                          </Table.Td>
                         </Table.Tr>
                       ))}
-                    {projeHareketler.filter(h => ['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori)).length === 0 && (
+                    {projeHareketler.filter((h) =>
+                      ['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori)
+                    ).length === 0 && (
                       <Table.Tr>
-                        <Table.Td colSpan={4} ta="center" py="xl" c="dimmed">Bu dönemde personel gideri yok</Table.Td>
+                        <Table.Td colSpan={4} ta="center" py="xl" c="dimmed">
+                          Bu dönemde personel gideri yok
+                        </Table.Td>
                       </Table.Tr>
                     )}
                   </Table.Tbody>
                 </Table>
               </Paper>
-              
-              <Button variant="light" onClick={() => window.location.href = '/muhasebe/personel'}>
+
+              <Button variant="light" onClick={() => (window.location.href = '/muhasebe/personel')}>
                 Personel Sayfasına Git →
               </Button>
             </>
@@ -1495,11 +1934,16 @@ export default function FinansMerkeziPage() {
                 <Group justify="space-between">
                   <Text fw={600}>💰 Toplam Hakediş</Text>
                   <Text fw={700} size="xl" c="teal.7">
-                    +{formatMoney(projeHareketler.filter(h => h.kategori === 'hakedis').reduce((s, h) => s + h.tutar, 0))}
+                    +
+                    {formatMoney(
+                      projeHareketler
+                        .filter((h) => h.kategori === 'hakedis')
+                        .reduce((s, h) => s + h.tutar, 0)
+                    )}
                   </Text>
                 </Group>
               </Paper>
-              
+
               <Paper withBorder radius="md">
                 <Table striped highlightOnHover>
                   <Table.Thead>
@@ -1511,17 +1955,25 @@ export default function FinansMerkeziPage() {
                   </Table.Thead>
                   <Table.Tbody>
                     {projeHareketler
-                      .filter(h => h.kategori === 'hakedis')
+                      .filter((h) => h.kategori === 'hakedis')
                       .map((h) => (
                         <Table.Tr key={h.id}>
                           <Table.Td>{formatDate(h.tarih)}</Table.Td>
-                          <Table.Td><Text size="sm">{h.aciklama || '-'}</Text></Table.Td>
-                          <Table.Td ta="right"><Text fw={600} c="teal">+{formatMoney(h.tutar)}</Text></Table.Td>
+                          <Table.Td>
+                            <Text size="sm">{h.aciklama || '-'}</Text>
+                          </Table.Td>
+                          <Table.Td ta="right">
+                            <Text fw={600} c="teal">
+                              +{formatMoney(h.tutar)}
+                            </Text>
+                          </Table.Td>
                         </Table.Tr>
                       ))}
-                    {projeHareketler.filter(h => h.kategori === 'hakedis').length === 0 && (
+                    {projeHareketler.filter((h) => h.kategori === 'hakedis').length === 0 && (
                       <Table.Tr>
-                        <Table.Td colSpan={3} ta="center" py="xl" c="dimmed">Bu dönemde hakediş kaydı yok</Table.Td>
+                        <Table.Td colSpan={3} ta="center" py="xl" c="dimmed">
+                          Bu dönemde hakediş kaydı yok
+                        </Table.Td>
                       </Table.Tr>
                     )}
                   </Table.Tbody>
@@ -1537,13 +1989,21 @@ export default function FinansMerkeziPage() {
                 <Group justify="space-between">
                   <Text fw={600}>📦 Toplam Diğer Gider</Text>
                   <Text fw={700} size="xl" c="red.7">
-                    {formatMoney(projeHareketler.filter(h => 
-                      h.tip === 'gider' && !['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori)
-                    ).reduce((s, h) => s + h.tutar, 0))}
+                    {formatMoney(
+                      projeHareketler
+                        .filter(
+                          (h) =>
+                            h.tip === 'gider' &&
+                            !['personel_maas', 'personel_sgk', 'personel_vergi'].includes(
+                              h.kategori
+                            )
+                        )
+                        .reduce((s, h) => s + h.tutar, 0)
+                    )}
                   </Text>
                 </Group>
               </Paper>
-              
+
               <Paper withBorder radius="md">
                 <Table striped highlightOnHover>
                   <Table.Thead>
@@ -1556,18 +2016,38 @@ export default function FinansMerkeziPage() {
                   </Table.Thead>
                   <Table.Tbody>
                     {projeHareketler
-                      .filter(h => h.tip === 'gider' && !['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori))
+                      .filter(
+                        (h) =>
+                          h.tip === 'gider' &&
+                          !['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori)
+                      )
                       .map((h) => (
                         <Table.Tr key={h.id}>
                           <Table.Td>{formatDate(h.tarih)}</Table.Td>
-                          <Table.Td><Badge size="sm" variant="light">{h.kategori}</Badge></Table.Td>
-                          <Table.Td><Text size="sm">{h.aciklama || '-'}</Text></Table.Td>
-                          <Table.Td ta="right"><Text fw={600} c="red">{formatMoney(h.tutar)}</Text></Table.Td>
+                          <Table.Td>
+                            <Badge size="sm" variant="light">
+                              {h.kategori}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="sm">{h.aciklama || '-'}</Text>
+                          </Table.Td>
+                          <Table.Td ta="right">
+                            <Text fw={600} c="red">
+                              {formatMoney(h.tutar)}
+                            </Text>
+                          </Table.Td>
                         </Table.Tr>
                       ))}
-                    {projeHareketler.filter(h => h.tip === 'gider' && !['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori)).length === 0 && (
+                    {projeHareketler.filter(
+                      (h) =>
+                        h.tip === 'gider' &&
+                        !['personel_maas', 'personel_sgk', 'personel_vergi'].includes(h.kategori)
+                    ).length === 0 && (
                       <Table.Tr>
-                        <Table.Td colSpan={4} ta="center" py="xl" c="dimmed">Bu dönemde diğer gider kaydı yok</Table.Td>
+                        <Table.Td colSpan={4} ta="center" py="xl" c="dimmed">
+                          Bu dönemde diğer gider kaydı yok
+                        </Table.Td>
                       </Table.Tr>
                     )}
                   </Table.Tbody>
@@ -1583,11 +2063,16 @@ export default function FinansMerkeziPage() {
                 <Group justify="space-between">
                   <Text fw={600}>📦 Toplam Diğer Gelir</Text>
                   <Text fw={700} size="xl" c="teal.7">
-                    +{formatMoney(projeHareketler.filter(h => h.tip === 'gelir' && h.kategori !== 'hakedis').reduce((s, h) => s + h.tutar, 0))}
+                    +
+                    {formatMoney(
+                      projeHareketler
+                        .filter((h) => h.tip === 'gelir' && h.kategori !== 'hakedis')
+                        .reduce((s, h) => s + h.tutar, 0)
+                    )}
                   </Text>
                 </Group>
               </Paper>
-              
+
               <Paper withBorder radius="md">
                 <Table striped highlightOnHover>
                   <Table.Thead>
@@ -1600,18 +2085,31 @@ export default function FinansMerkeziPage() {
                   </Table.Thead>
                   <Table.Tbody>
                     {projeHareketler
-                      .filter(h => h.tip === 'gelir' && h.kategori !== 'hakedis')
+                      .filter((h) => h.tip === 'gelir' && h.kategori !== 'hakedis')
                       .map((h) => (
                         <Table.Tr key={h.id}>
                           <Table.Td>{formatDate(h.tarih)}</Table.Td>
-                          <Table.Td><Badge size="sm" variant="light" color="teal">{h.kategori}</Badge></Table.Td>
-                          <Table.Td><Text size="sm">{h.aciklama || '-'}</Text></Table.Td>
-                          <Table.Td ta="right"><Text fw={600} c="teal">+{formatMoney(h.tutar)}</Text></Table.Td>
+                          <Table.Td>
+                            <Badge size="sm" variant="light" color="teal">
+                              {h.kategori}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="sm">{h.aciklama || '-'}</Text>
+                          </Table.Td>
+                          <Table.Td ta="right">
+                            <Text fw={600} c="teal">
+                              +{formatMoney(h.tutar)}
+                            </Text>
+                          </Table.Td>
                         </Table.Tr>
                       ))}
-                    {projeHareketler.filter(h => h.tip === 'gelir' && h.kategori !== 'hakedis').length === 0 && (
+                    {projeHareketler.filter((h) => h.tip === 'gelir' && h.kategori !== 'hakedis')
+                      .length === 0 && (
                       <Table.Tr>
-                        <Table.Td colSpan={4} ta="center" py="xl" c="dimmed">Bu dönemde diğer gelir kaydı yok</Table.Td>
+                        <Table.Td colSpan={4} ta="center" py="xl" c="dimmed">
+                          Bu dönemde diğer gelir kaydı yok
+                        </Table.Td>
                       </Table.Tr>
                     )}
                   </Table.Tbody>

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { API_BASE_URL } from '@/lib/config';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { API_BASE_URL } from '@/lib/config';
 
 interface Permission {
   module_name: string;
@@ -38,9 +38,9 @@ export function usePermissions() {
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/permissions/my`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
@@ -66,62 +66,89 @@ export function usePermissions() {
    * @param moduleName - Modül adı (ihale, fatura, cari, stok, personel, bordro, etc.)
    * @param action - İşlem (view, create, edit, delete, export)
    */
-  const can = useCallback((moduleName: string, action: 'view' | 'create' | 'edit' | 'delete' | 'export' = 'view'): boolean => {
-    // Super admin her şeyi yapabilir
-    if (isSuperAdmin) return true;
+  const can = useCallback(
+    (
+      moduleName: string,
+      action: 'view' | 'create' | 'edit' | 'delete' | 'export' = 'view'
+    ): boolean => {
+      // Super admin her şeyi yapabilir
+      if (isSuperAdmin) return true;
 
-    const perm = permissions.find(p => p.module_name === moduleName);
-    if (!perm) return false;
+      const perm = permissions.find((p) => p.module_name === moduleName);
+      if (!perm) return false;
 
-    switch (action) {
-      case 'view': return perm.can_view;
-      case 'create': return perm.can_create;
-      case 'edit': return perm.can_edit;
-      case 'delete': return perm.can_delete;
-      case 'export': return perm.can_export;
-      default: return false;
-    }
-  }, [permissions, isSuperAdmin]);
+      switch (action) {
+        case 'view':
+          return perm.can_view;
+        case 'create':
+          return perm.can_create;
+        case 'edit':
+          return perm.can_edit;
+        case 'delete':
+          return perm.can_delete;
+        case 'export':
+          return perm.can_export;
+        default:
+          return false;
+      }
+    },
+    [permissions, isSuperAdmin]
+  );
 
   /**
    * Modülü görüntüleme yetkisi var mı?
    */
-  const canView = useCallback((moduleName: string): boolean => {
-    return can(moduleName, 'view');
-  }, [can]);
+  const canView = useCallback(
+    (moduleName: string): boolean => {
+      return can(moduleName, 'view');
+    },
+    [can]
+  );
 
   /**
    * Modüle ekleme yetkisi var mı?
    */
-  const canCreate = useCallback((moduleName: string): boolean => {
-    return can(moduleName, 'create');
-  }, [can]);
+  const canCreate = useCallback(
+    (moduleName: string): boolean => {
+      return can(moduleName, 'create');
+    },
+    [can]
+  );
 
   /**
    * Modülde düzenleme yetkisi var mı?
    */
-  const canEdit = useCallback((moduleName: string): boolean => {
-    return can(moduleName, 'edit');
-  }, [can]);
+  const canEdit = useCallback(
+    (moduleName: string): boolean => {
+      return can(moduleName, 'edit');
+    },
+    [can]
+  );
 
   /**
    * Modülden silme yetkisi var mı?
    */
-  const canDelete = useCallback((moduleName: string): boolean => {
-    return can(moduleName, 'delete');
-  }, [can]);
+  const canDelete = useCallback(
+    (moduleName: string): boolean => {
+      return can(moduleName, 'delete');
+    },
+    [can]
+  );
 
   /**
    * Modülden dışa aktarma yetkisi var mı?
    */
-  const canExport = useCallback((moduleName: string): boolean => {
-    return can(moduleName, 'export');
-  }, [can]);
+  const canExport = useCallback(
+    (moduleName: string): boolean => {
+      return can(moduleName, 'export');
+    },
+    [can]
+  );
 
   /**
    * Erişilebilir modül listesi
    */
-  const accessibleModules = permissions.filter(p => p.can_view).map(p => p.module_name);
+  const accessibleModules = permissions.filter((p) => p.can_view).map((p) => p.module_name);
 
   return {
     permissions,
@@ -136,30 +163,30 @@ export function usePermissions() {
     canDelete,
     canExport,
     accessibleModules,
-    refetch: fetchPermissions
+    refetch: fetchPermissions,
   };
 }
 
 // Modül adı -> Route eşleştirmesi
 export const MODULE_ROUTES: Record<string, string[]> = {
-  'ihale': ['/tenders', '/upload', '/tracking', '/ihale-uzmani'],
-  'fatura': ['/muhasebe/faturalar'],
-  'cari': ['/muhasebe/cariler'],
-  'stok': ['/muhasebe/stok'],
-  'personel': ['/muhasebe/personel'],
-  'bordro': ['/muhasebe/personel'], // Bordro personel sayfasında
-  'kasa_banka': ['/muhasebe/finans'],
-  'planlama': ['/planlama', '/muhasebe/menu-planlama'],
-  'firma': ['/ayarlar'],
-  'demirbas': ['/muhasebe/demirbas'],
-  'rapor': ['/muhasebe/raporlar'],
-  'ayarlar': ['/ayarlar', '/admin']
+  ihale: ['/tenders', '/upload', '/tracking', '/ihale-uzmani'],
+  fatura: ['/muhasebe/faturalar'],
+  cari: ['/muhasebe/cariler'],
+  stok: ['/muhasebe/stok'],
+  personel: ['/muhasebe/personel'],
+  bordro: ['/muhasebe/personel'], // Bordro personel sayfasında
+  kasa_banka: ['/muhasebe/finans'],
+  planlama: ['/planlama', '/muhasebe/menu-planlama'],
+  firma: ['/ayarlar'],
+  demirbas: ['/muhasebe/demirbas'],
+  rapor: ['/muhasebe/raporlar'],
+  ayarlar: ['/ayarlar', '/admin'],
 };
 
 // Route -> Modül eşleştirmesi
 export function getModuleFromRoute(pathname: string): string | null {
   for (const [module, routes] of Object.entries(MODULE_ROUTES)) {
-    if (routes.some(route => pathname.startsWith(route))) {
+    if (routes.some((route) => pathname.startsWith(route))) {
       return module;
     }
   }

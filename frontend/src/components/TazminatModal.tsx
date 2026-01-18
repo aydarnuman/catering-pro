@@ -1,47 +1,41 @@
 'use client';
-import { API_BASE_URL } from '@/lib/config';
-
-import { useState, useEffect } from 'react';
 import {
-  Modal,
-  Text,
-  Group,
-  Stack,
-  Button,
-  Select,
-  Badge,
-  Paper,
-  SimpleGrid,
-  Divider,
-  Alert,
-  NumberInput,
-  Textarea,
-  Checkbox,
   Accordion,
-  ThemeIcon,
-  Table,
-  Tooltip,
   ActionIcon,
-  Loader,
+  Alert,
+  Badge,
+  Button,
   Center,
-  Box
+  Checkbox,
+  Divider,
+  Group,
+  Loader,
+  Modal,
+  NumberInput,
+  Paper,
+  Select,
+  SimpleGrid,
+  Stack,
+  Text,
+  Textarea,
+  ThemeIcon,
+  Tooltip,
 } from '@mantine/core';
-import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { notifications } from '@mantine/notifications';
 import {
-  IconInfoCircle,
   IconAlertTriangle,
-  IconCheck,
-  IconCash,
-  IconCalendar,
-  IconUser,
-  IconBriefcase,
-  IconScale,
-  IconDownload,
-  IconMail,
   IconCalculator,
-  IconExternalLink
+  IconCash,
+  IconCheck,
+  IconDownload,
+  IconExternalLink,
+  IconInfoCircle,
+  IconMail,
+  IconScale,
 } from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
+import StyledDatePicker from '@/components/ui/StyledDatePicker';
+import { API_BASE_URL } from '@/lib/config';
 import 'dayjs/locale/tr';
 
 const API_URL = `${API_BASE_URL}/api`;
@@ -169,14 +163,16 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
         setKalanIzinGun(personel.kalan_izin_gun);
       }
     }
-  }, [opened, personel]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened, personel?.id]);
 
   // Sebep veya tarih değişince hesapla
   useEffect(() => {
     if (selectedSebep && cikisTarihi && personel) {
       hesaplaTazminat();
     }
-  }, [selectedSebep, cikisTarihi, kalanIzinGun]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSebep, cikisTarihi, personel?.id]);
 
   const fetchCikisSebepler = async () => {
     try {
@@ -200,8 +196,8 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
           personelId: personel.id,
           cikisSebebi: selectedSebep,
           cikisTarihi: cikisTarihi.toISOString().split('T')[0],
-          kalanIzinGun: Number(kalanIzinGun) || 0
-        })
+          kalanIzinGun: Number(kalanIzinGun) || 0,
+        }),
       });
 
       if (!res.ok) {
@@ -215,7 +211,7 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
       notifications.show({
         title: 'Hesaplama Hatası',
         message: error.message,
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setCalculating(false);
@@ -231,13 +227,13 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          personelId: personel!.id,
+          personelId: personel?.id,
           cikisSebebi: selectedSebep,
-          cikisTarihi: cikisTarihi!.toISOString().split('T')[0],
+          cikisTarihi: cikisTarihi?.toISOString().split('T')[0],
           kalanIzinGun: Number(kalanIzinGun) || 0,
           notlar,
-          istenCikar
-        })
+          istenCikar,
+        }),
       });
 
       if (!res.ok) {
@@ -247,8 +243,10 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
 
       notifications.show({
         title: 'Tazminat Kaydedildi',
-        message: istenCikar ? 'Personel işten çıkarıldı ve tazminat hesabı kaydedildi.' : 'Tazminat hesabı kaydedildi.',
-        color: 'teal'
+        message: istenCikar
+          ? 'Personel işten çıkarıldı ve tazminat hesabı kaydedildi.'
+          : 'Tazminat hesabı kaydedildi.',
+        color: 'teal',
       });
 
       onSuccess?.();
@@ -257,7 +255,7 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
       notifications.show({
         title: 'Kayıt Hatası',
         message: error.message,
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setLoading(false);
@@ -283,9 +281,9 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
     return new Date(date).toLocaleDateString('tr-TR');
   };
 
-  const sebepOptions = Object.values(cikisSebepler).map(s => ({
+  const sebepOptions = Object.values(cikisSebepler).map((s) => ({
     value: s.kod,
-    label: s.ad
+    label: s.ad,
   }));
 
   const selectedSebepData = selectedSebep ? cikisSebepler[selectedSebep] : null;
@@ -302,7 +300,9 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
           <div>
             <Text fw={600}>Tazminat Hesaplama</Text>
             {personel && (
-              <Text size="xs" c="dimmed">{personel.ad} {personel.soyad}</Text>
+              <Text size="xs" c="dimmed">
+                {personel.ad} {personel.soyad}
+              </Text>
             )}
           </div>
         </Group>
@@ -316,15 +316,25 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
           <Paper withBorder p="md" radius="md" bg="gray.0">
             <SimpleGrid cols={3}>
               <div>
-                <Text size="xs" c="dimmed">Personel</Text>
-                <Text fw={600}>{personel.ad} {personel.soyad}</Text>
+                <Text size="xs" c="dimmed">
+                  Personel
+                </Text>
+                <Text fw={600}>
+                  {personel.ad} {personel.soyad}
+                </Text>
               </div>
               <div>
-                <Text size="xs" c="dimmed">Brüt Maaş</Text>
-                <Text fw={600} c="teal">{formatMoney(personel.maas)}</Text>
+                <Text size="xs" c="dimmed">
+                  Brüt Maaş
+                </Text>
+                <Text fw={600} c="teal">
+                  {formatMoney(personel.maas)}
+                </Text>
               </div>
               <div>
-                <Text size="xs" c="dimmed">İşe Giriş</Text>
+                <Text size="xs" c="dimmed">
+                  İşe Giriş
+                </Text>
                 <Text fw={600}>{formatDate(personel.ise_giris_tarihi)}</Text>
               </div>
             </SimpleGrid>
@@ -361,19 +371,43 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
 
         {/* Çıkış Sebebi Açıklaması */}
         {selectedSebepData && (
-          <Alert 
-            icon={<IconInfoCircle size={16} />} 
+          <Alert
+            icon={<IconInfoCircle size={16} />}
             color={selectedSebepData.kidem ? 'teal' : 'gray'}
             variant="light"
           >
-            <Text size="sm" fw={500}>{selectedSebepData.ad}</Text>
-            <Text size="xs" mt="xs">{selectedSebepData.aciklama}</Text>
+            <Text size="sm" fw={500}>
+              {selectedSebepData.ad}
+            </Text>
+            <Text size="xs" mt="xs">
+              {selectedSebepData.aciklama}
+            </Text>
             <Group gap="xs" mt="xs">
-              {selectedSebepData.kidem && <Badge size="xs" color="teal">Kıdem ✓</Badge>}
-              {selectedSebepData.ihbar && <Badge size="xs" color="blue">İhbar ✓</Badge>}
-              {selectedSebepData.izin && <Badge size="xs" color="orange">İzin ✓</Badge>}
-              {!selectedSebepData.kidem && <Badge size="xs" color="gray">Kıdem ✗</Badge>}
-              {!selectedSebepData.ihbar && <Badge size="xs" color="gray">İhbar ✗</Badge>}
+              {selectedSebepData.kidem && (
+                <Badge size="xs" color="teal">
+                  Kıdem ✓
+                </Badge>
+              )}
+              {selectedSebepData.ihbar && (
+                <Badge size="xs" color="blue">
+                  İhbar ✓
+                </Badge>
+              )}
+              {selectedSebepData.izin && (
+                <Badge size="xs" color="orange">
+                  İzin ✓
+                </Badge>
+              )}
+              {!selectedSebepData.kidem && (
+                <Badge size="xs" color="gray">
+                  Kıdem ✗
+                </Badge>
+              )}
+              {!selectedSebepData.ihbar && (
+                <Badge size="xs" color="gray">
+                  İhbar ✗
+                </Badge>
+              )}
             </Group>
           </Alert>
         )}
@@ -391,18 +425,29 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
             <Paper withBorder p="md" radius="md">
               <Group justify="space-between">
                 <div>
-                  <Text size="xs" c="dimmed" tt="uppercase">Çalışma Süresi</Text>
-                  <Text fw={700} size="xl">{hesap.calisma_suresi.metin}</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase">
+                    Çalışma Süresi
+                  </Text>
+                  <Text fw={700} size="xl">
+                    {hesap.calisma_suresi.metin}
+                  </Text>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <Text size="xs" c="dimmed">Günlük Brüt</Text>
+                  <Text size="xs" c="dimmed">
+                    Günlük Brüt
+                  </Text>
                   <Text fw={600}>{formatMoney(hesap.hesaplama.gunluk_brut)}</Text>
                 </div>
               </Group>
               {hesap.hesaplama.tavan_asimi && (
-                <Alert icon={<IconAlertTriangle size={14} />} color="yellow" variant="light" mt="sm">
+                <Alert
+                  icon={<IconAlertTriangle size={14} />}
+                  color="yellow"
+                  variant="light"
+                  mt="sm"
+                >
                   <Text size="xs">
-                    Kıdem tazminatı tavanı ({formatMoney(hesap.hesaplama.kidem_tavani)}) aşıldı. 
+                    Kıdem tazminatı tavanı ({formatMoney(hesap.hesaplama.kidem_tavani)}) aşıldı.
                     Hesaplama tavan üzerinden yapılmıştır.
                   </Text>
                 </Alert>
@@ -412,17 +457,19 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
             {/* Tazminat Detayları */}
             <SimpleGrid cols={3}>
               {/* Kıdem */}
-              <Paper 
-                withBorder 
-                p="md" 
-                radius="md" 
-                style={{ 
+              <Paper
+                withBorder
+                p="md"
+                radius="md"
+                style={{
                   borderColor: hesap.kidem.hak_var ? 'var(--mantine-color-teal-5)' : undefined,
-                  opacity: hesap.kidem.hak_var ? 1 : 0.6
+                  opacity: hesap.kidem.hak_var ? 1 : 0.6,
                 }}
               >
                 <Group justify="space-between" mb="xs">
-                  <Text size="xs" c="dimmed" tt="uppercase">Kıdem Tazminatı</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase">
+                    Kıdem Tazminatı
+                  </Text>
                   <Tooltip label={hesap.kidem.kanun_ref.ozet} multiline w={300}>
                     <ActionIcon variant="subtle" size="xs" color="gray">
                       <IconInfoCircle size={14} />
@@ -432,24 +479,30 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
                 <Text fw={700} size="xl" c={hesap.kidem.hak_var ? 'teal' : 'dimmed'}>
                   {formatMoney(hesap.kidem.tutar)}
                 </Text>
-                <Text size="xs" c="dimmed" mt="xs">{hesap.kidem.gun} gün</Text>
+                <Text size="xs" c="dimmed" mt="xs">
+                  {hesap.kidem.gun} gün
+                </Text>
                 {!hesap.kidem.hak_var && (
-                  <Badge size="xs" color="gray" mt="xs">Hak yok</Badge>
+                  <Badge size="xs" color="gray" mt="xs">
+                    Hak yok
+                  </Badge>
                 )}
               </Paper>
 
               {/* İhbar */}
-              <Paper 
-                withBorder 
-                p="md" 
+              <Paper
+                withBorder
+                p="md"
                 radius="md"
-                style={{ 
+                style={{
                   borderColor: hesap.ihbar.hak_var ? 'var(--mantine-color-blue-5)' : undefined,
-                  opacity: hesap.ihbar.hak_var ? 1 : 0.6
+                  opacity: hesap.ihbar.hak_var ? 1 : 0.6,
                 }}
               >
                 <Group justify="space-between" mb="xs">
-                  <Text size="xs" c="dimmed" tt="uppercase">İhbar Tazminatı</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase">
+                    İhbar Tazminatı
+                  </Text>
                   <Tooltip label={hesap.ihbar.kanun_ref.ozet} multiline w={300}>
                     <ActionIcon variant="subtle" size="xs" color="gray">
                       <IconInfoCircle size={14} />
@@ -459,24 +512,30 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
                 <Text fw={700} size="xl" c={hesap.ihbar.hak_var ? 'blue' : 'dimmed'}>
                   {formatMoney(hesap.ihbar.tutar)}
                 </Text>
-                <Text size="xs" c="dimmed" mt="xs">{hesap.ihbar.gun} gün</Text>
+                <Text size="xs" c="dimmed" mt="xs">
+                  {hesap.ihbar.gun} gün
+                </Text>
                 {!hesap.ihbar.hak_var && (
-                  <Badge size="xs" color="gray" mt="xs">Hak yok</Badge>
+                  <Badge size="xs" color="gray" mt="xs">
+                    Hak yok
+                  </Badge>
                 )}
               </Paper>
 
               {/* İzin */}
-              <Paper 
-                withBorder 
-                p="md" 
+              <Paper
+                withBorder
+                p="md"
                 radius="md"
-                style={{ 
+                style={{
                   borderColor: hesap.izin.hak_var ? 'var(--mantine-color-orange-5)' : undefined,
-                  opacity: hesap.izin.hak_var ? 1 : 0.6
+                  opacity: hesap.izin.hak_var ? 1 : 0.6,
                 }}
               >
                 <Group justify="space-between" mb="xs">
-                  <Text size="xs" c="dimmed" tt="uppercase">İzin Ücreti</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase">
+                    İzin Ücreti
+                  </Text>
                   <Tooltip label={hesap.izin.kanun_ref.ozet} multiline w={300}>
                     <ActionIcon variant="subtle" size="xs" color="gray">
                       <IconInfoCircle size={14} />
@@ -486,9 +545,13 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
                 <Text fw={700} size="xl" c={hesap.izin.hak_var ? 'orange' : 'dimmed'}>
                   {formatMoney(hesap.izin.tutar)}
                 </Text>
-                <Text size="xs" c="dimmed" mt="xs">{hesap.izin.gun} gün</Text>
+                <Text size="xs" c="dimmed" mt="xs">
+                  {hesap.izin.gun} gün
+                </Text>
                 {!hesap.izin.hak_var && (
-                  <Badge size="xs" color="gray" mt="xs">İzin yok</Badge>
+                  <Badge size="xs" color="gray" mt="xs">
+                    İzin yok
+                  </Badge>
                 )}
               </Paper>
             </SimpleGrid>
@@ -497,8 +560,12 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
             <Paper withBorder p="lg" radius="md" bg="teal.0">
               <Group justify="space-between">
                 <div>
-                  <Text size="xs" c="dimmed" tt="uppercase">Toplam Tazminat</Text>
-                  <Text fw={700} size="2rem" c="teal">{formatMoney(hesap.toplam.tutar)}</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase">
+                    Toplam Tazminat
+                  </Text>
+                  <Text fw={700} size="2rem" c="teal">
+                    {formatMoney(hesap.toplam.tutar)}
+                  </Text>
                 </div>
                 <ThemeIcon size={50} color="teal" variant="light" radius="xl">
                   <IconCash size={28} />
@@ -510,21 +577,35 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
             <Accordion variant="contained">
               <Accordion.Item value="yasal">
                 <Accordion.Control icon={<IconScale size={16} />}>
-                  <Text size="sm" fw={500}>Yasal Bilgiler</Text>
+                  <Text size="sm" fw={500}>
+                    Yasal Bilgiler
+                  </Text>
                 </Accordion.Control>
                 <Accordion.Panel>
                   <Stack gap="sm">
-                    {[hesap.yasal_bilgiler.kidem, hesap.yasal_bilgiler.ihbar, hesap.yasal_bilgiler.izin].map((yb, i) => (
+                    {[
+                      hesap.yasal_bilgiler.kidem,
+                      hesap.yasal_bilgiler.ihbar,
+                      hesap.yasal_bilgiler.izin,
+                    ].map((yb, i) => (
                       <Paper key={i} withBorder p="sm" radius="md">
                         <Group justify="space-between" mb="xs">
-                          <Text size="sm" fw={600}>{yb.baslik}</Text>
-                          <Badge size="xs" variant="light">{yb.kanun}</Badge>
+                          <Text size="sm" fw={600}>
+                            {yb.baslik}
+                          </Text>
+                          <Badge size="xs" variant="light">
+                            {yb.kanun}
+                          </Badge>
                         </Group>
-                        <Text size="xs" c="dimmed">{yb.ozet}</Text>
+                        <Text size="xs" c="dimmed">
+                          {yb.ozet}
+                        </Text>
                         <Divider my="xs" />
                         <Stack gap={4}>
                           {yb.detay.map((d, j) => (
-                            <Text key={j} size="xs">• {d}</Text>
+                            <Text key={j} size="xs">
+                              • {d}
+                            </Text>
                           ))}
                         </Stack>
                         <Button
@@ -580,7 +661,9 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
                 </Button>
               </Group>
               <Group>
-                <Button variant="subtle" onClick={handleClose}>İptal</Button>
+                <Button variant="subtle" onClick={handleClose}>
+                  İptal
+                </Button>
                 <Button
                   color="teal"
                   leftSection={<IconCheck size={16} />}
@@ -599,4 +682,3 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
 }
 
 export default TazminatModal;
-

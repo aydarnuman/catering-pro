@@ -20,10 +20,10 @@ class MuhasebeAPI {
 
   private async request(endpoint: string, options: RequestInit = {}) {
     const url = `${API_URL}/api${endpoint}`;
-    
+
     const headers = {
       'Content-Type': 'application/json',
-      ...(this.token && { 'Authorization': `Bearer ${this.token}` }),
+      ...(this.token && { Authorization: `Bearer ${this.token}` }),
       ...options.headers,
     };
 
@@ -46,7 +46,7 @@ class MuhasebeAPI {
 
   // GET request
   async get(endpoint: string, params?: Record<string, any>) {
-    const queryString = params ? '?' + new URLSearchParams(params).toString() : '';
+    const queryString = params ? `?${new URLSearchParams(params).toString()}` : '';
     return this.request(`${endpoint}${queryString}`, {
       method: 'GET',
     });
@@ -86,10 +86,9 @@ export const carilerAPI = {
   create: (data: any) => api.post('/cariler', data),
   update: (id: string, data: any) => api.put(`/cariler/${id}`, data),
   delete: (id: string) => api.delete(`/cariler/${id}`),
-  
+
   // Cari hesap ekstreleri
-  getStatement: (id: string, params?: any) => 
-    api.get(`/cariler/${id}/statement`, params),
+  getStatement: (id: string, params?: any) => api.get(`/cariler/${id}/statement`, params),
 };
 
 // Stok API
@@ -99,12 +98,11 @@ export const stokAPI = {
   create: (data: any) => api.post('/stok', data),
   update: (id: string, data: any) => api.put(`/stok/${id}`, data),
   delete: (id: string) => api.delete(`/stok/${id}`),
-  
+
   // Stok hareketleri
   movements: (stokId: string) => api.get(`/stok/${stokId}/movements`),
-  addMovement: (stokId: string, data: any) => 
-    api.post(`/stok/${stokId}/movements`, data),
-  
+  addMovement: (stokId: string, data: any) => api.post(`/stok/${stokId}/movements`, data),
+
   // Kritik stok raporu
   getCriticalItems: () => api.get('/stok/critical'),
 };
@@ -115,11 +113,11 @@ export const gelirGiderAPI = {
   create: (data: any) => api.post('/gelir-gider', data),
   update: (id: string, data: any) => api.put(`/gelir-gider/${id}`, data),
   delete: (id: string) => api.delete(`/gelir-gider/${id}`),
-  
+
   // Özet raporlar
   getSummary: (period: 'daily' | 'monthly' | 'yearly', date?: string) =>
     api.get('/gelir-gider/summary', { period, date }),
-  
+
   // Kategori bazlı analiz
   getCategoryAnalysis: (startDate: string, endDate: string) =>
     api.get('/gelir-gider/analysis', { startDate, endDate }),
@@ -132,7 +130,7 @@ export const personelAPI = {
   create: (data: any) => api.post('/personel', data),
   update: (id: string, data: any) => api.put(`/personel/${id}`, data),
   delete: (id: string) => api.delete(`/personel/${id}`),
-  
+
   // Maaş işlemleri
   getSalaryHistory: (id: string) => api.get(`/personel/${id}/salaries`),
   processSalary: (data: any) => api.post('/personel/salary-batch', data),
@@ -142,15 +140,13 @@ export const personelAPI = {
 export const satinAlmaAPI = {
   listRequests: (params?: any) => api.get('/satin-alma/talepler', params),
   createRequest: (data: any) => api.post('/satin-alma/talepler', data),
-  updateRequest: (id: string, data: any) => 
-    api.put(`/satin-alma/talepler/${id}`, data),
-  
+  updateRequest: (id: string, data: any) => api.put(`/satin-alma/talepler/${id}`, data),
+
   // Onay işlemleri
-  approveRequest: (id: string) => 
-    api.post(`/satin-alma/talepler/${id}/approve`),
-  rejectRequest: (id: string, reason: string) => 
+  approveRequest: (id: string) => api.post(`/satin-alma/talepler/${id}/approve`),
+  rejectRequest: (id: string, reason: string) =>
     api.post(`/satin-alma/talepler/${id}/reject`, { reason }),
-    
+
   // Sipariş dönüşümü
   convertToOrder: (requestId: string) =>
     api.post(`/satin-alma/talepler/${requestId}/convert-to-order`),
@@ -161,22 +157,21 @@ export const kasaBankaAPI = {
   // Hesaplar
   listAccounts: () => api.get('/kasa-banka/hesaplar'),
   createAccount: (data: any) => api.post('/kasa-banka/hesaplar', data),
-  updateAccount: (id: string, data: any) => 
-    api.put(`/kasa-banka/hesaplar/${id}`, data),
-  
+  updateAccount: (id: string, data: any) => api.put(`/kasa-banka/hesaplar/${id}`, data),
+
   // Hareketler
   listTransactions: (params?: any) => api.get('/kasa-banka/hareketler', params),
   createTransaction: (data: any) => api.post('/kasa-banka/hareketler', data),
-  
+
   // Transfer işlemleri
   transfer: (fromId: string, toId: string, amount: number, description?: string) =>
     api.post('/kasa-banka/transfer', {
       fromAccountId: fromId,
       toAccountId: toId,
       amount,
-      description
+      description,
     }),
-    
+
   // Bakiye özeti
   getBalanceSummary: () => api.get('/kasa-banka/balance-summary'),
 };
@@ -185,26 +180,23 @@ export const kasaBankaAPI = {
 export const dashboardAPI = {
   // Ana özet veriler
   getSummary: () => api.get('/muhasebe/dashboard'),
-  
+
   // Gelir/Gider trendi (grafik için)
-  getMonthlyTrend: (year?: number) => 
-    api.get('/muhasebe/dashboard/trend', { year }),
-  
+  getMonthlyTrend: (year?: number) => api.get('/muhasebe/dashboard/trend', { year }),
+
   // Gider dağılımı (pie chart için)
   getExpenseDistribution: (period?: string) =>
     api.get('/muhasebe/dashboard/expense-distribution', { period }),
-  
+
   // Son işlemler
   getRecentTransactions: (limit: number = 10) =>
     api.get('/muhasebe/dashboard/recent-transactions', { limit }),
-    
+
   // Yaklaşan ödemeler
-  getUpcomingPayments: () =>
-    api.get('/muhasebe/dashboard/upcoming-payments'),
-    
+  getUpcomingPayments: () => api.get('/muhasebe/dashboard/upcoming-payments'),
+
   // Hızlı istatistikler
-  getQuickStats: () =>
-    api.get('/muhasebe/dashboard/quick-stats'),
+  getQuickStats: () => api.get('/muhasebe/dashboard/quick-stats'),
 };
 
 export default api;

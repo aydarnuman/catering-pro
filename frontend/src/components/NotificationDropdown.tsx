@@ -1,38 +1,37 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
 import {
-  Menu,
   ActionIcon,
-  Text,
-  Group,
-  Stack,
   Badge,
   Box,
-  Indicator,
-  UnstyledButton,
-  Divider,
-  Loader,
-  useMantineColorScheme,
-  ScrollArea,
   Center,
-  Tooltip
+  Group,
+  Indicator,
+  Loader,
+  Menu,
+  ScrollArea,
+  Stack,
+  Text,
+  Tooltip,
+  UnstyledButton,
+  useMantineColorScheme,
 } from '@mantine/core';
 import {
-  IconBell,
-  IconFileText,
-  IconReceipt,
-  IconPackage,
   IconAlertTriangle,
+  IconBell,
   IconCheck,
+  IconExternalLink,
+  IconFileText,
   IconInfoCircle,
+  IconPackage,
+  IconReceipt,
   IconX,
-  IconExternalLink
 } from '@tabler/icons-react';
-import { useRouter } from 'next/navigation';
-import { API_BASE_URL } from '@/lib/config';
 import { formatDistanceToNow } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 
 interface Notification {
   id: number;
@@ -49,14 +48,14 @@ const typeConfig = {
   info: { icon: IconInfoCircle, color: 'blue' },
   success: { icon: IconCheck, color: 'green' },
   warning: { icon: IconAlertTriangle, color: 'orange' },
-  error: { icon: IconX, color: 'red' }
+  error: { icon: IconX, color: 'red' },
 };
 
 const categoryIcons: Record<string, any> = {
   tender: IconFileText,
   invoice: IconReceipt,
   stock: IconPackage,
-  system: IconInfoCircle
+  system: IconInfoCircle,
 };
 
 export function NotificationDropdown() {
@@ -72,7 +71,7 @@ export function NotificationDropdown() {
   const fetchUnreadCount = useCallback(async () => {
     try {
       const url = `${API_BASE_URL}/api/notifications/unread-count`;
-      
+
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -82,13 +81,13 @@ export function NotificationDropdown() {
         // Timeout ekle
         signal: AbortSignal.timeout(10000), // 10 saniye timeout
       });
-      
+
       if (!response.ok) {
         // Sessizce hata at, kullanıcıyı rahatsız etme
         console.warn(`Bildirim sayısı alınamadı: ${response.status}`);
         return;
       }
-      
+
       const data = await response.json();
       if (data.success) {
         setUnreadCount(data.count);
@@ -124,7 +123,7 @@ export function NotificationDropdown() {
   // Initial fetch
   useEffect(() => {
     fetchUnreadCount();
-    
+
     // Poll every 60 seconds
     const interval = setInterval(fetchUnreadCount, 60000);
     return () => clearInterval(interval);
@@ -141,13 +140,11 @@ export function NotificationDropdown() {
   const markAsRead = async (id: number) => {
     try {
       await fetch(`${API_BASE_URL}/api/notifications/${id}/read`, {
-        method: 'PATCH'
+        method: 'PATCH',
       });
-      
-      setNotifications(prev => 
-        prev.map(n => n.id === id ? { ...n, is_read: true } : n)
-      );
-      setUnreadCount(prev => Math.max(0, prev - 1));
+
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
       console.error('Bildirim güncellenemedi:', error);
     }
@@ -157,10 +154,10 @@ export function NotificationDropdown() {
   const markAllAsRead = async () => {
     try {
       await fetch(`${API_BASE_URL}/api/notifications/read-all`, {
-        method: 'PATCH'
+        method: 'PATCH',
       });
-      
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
       setUnreadCount(0);
     } catch (error) {
       console.error('Bildirimler güncellenemedi:', error);
@@ -172,7 +169,7 @@ export function NotificationDropdown() {
     if (!notification.is_read) {
       markAsRead(notification.id);
     }
-    
+
     if (notification.link) {
       router.push(notification.link);
       setOpened(false);
@@ -181,9 +178,9 @@ export function NotificationDropdown() {
 
   const formatTime = (dateString: string) => {
     try {
-      return formatDistanceToNow(new Date(dateString), { 
-        addSuffix: true, 
-        locale: tr 
+      return formatDistanceToNow(new Date(dateString), {
+        addSuffix: true,
+        locale: tr,
       });
     } catch {
       return '';
@@ -204,8 +201,8 @@ export function NotificationDropdown() {
           backdropFilter: 'blur(20px)',
           border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
           borderRadius: 12,
-          padding: 0
-        }
+          padding: 0,
+        },
       }}
     >
       <Menu.Target>
@@ -225,7 +222,7 @@ export function NotificationDropdown() {
               color="gray"
               style={{
                 transition: 'all 0.2s ease',
-                background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'
+                background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
               }}
             >
               <IconBell size={20} />
@@ -236,17 +233,28 @@ export function NotificationDropdown() {
 
       <Menu.Dropdown>
         {/* Header */}
-        <Box p="sm" style={{ borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}` }}>
+        <Box
+          p="sm"
+          style={{
+            borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+          }}
+        >
           <Group justify="space-between">
             <Group gap="xs">
-              <Text fw={600} size="sm">Bildirimler</Text>
+              <Text fw={600} size="sm">
+                Bildirimler
+              </Text>
               {unreadCount > 0 && (
-                <Badge size="sm" variant="filled" color="red">{unreadCount}</Badge>
+                <Badge size="sm" variant="filled" color="red">
+                  {unreadCount}
+                </Badge>
               )}
             </Group>
             {unreadCount > 0 && (
               <UnstyledButton onClick={markAllAsRead}>
-                <Text size="xs" c="blue" fw={500}>Tümünü okundu işaretle</Text>
+                <Text size="xs" c="blue" fw={500}>
+                  Tümünü okundu işaretle
+                </Text>
               </UnstyledButton>
             )}
           </Group>
@@ -262,7 +270,9 @@ export function NotificationDropdown() {
             <Center py="xl">
               <Stack align="center" gap="xs">
                 <IconBell size={40} style={{ opacity: 0.2 }} />
-                <Text c="dimmed" size="sm">Bildirim yok</Text>
+                <Text c="dimmed" size="sm">
+                  Bildirim yok
+                </Text>
               </Stack>
             </Center>
           ) : (
@@ -270,8 +280,8 @@ export function NotificationDropdown() {
               {notifications.map((notification) => {
                 const config = typeConfig[notification.type] || typeConfig.info;
                 const Icon = config.icon;
-                const CategoryIcon = categoryIcons[notification.category] || IconInfoCircle;
-                
+                const _CategoryIcon = categoryIcons[notification.category] || IconInfoCircle;
+
                 return (
                   <UnstyledButton
                     key={notification.id}
@@ -279,10 +289,12 @@ export function NotificationDropdown() {
                     p="sm"
                     style={{
                       borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
-                      backgroundColor: notification.is_read 
-                        ? 'transparent' 
-                        : (isDark ? 'rgba(34, 139, 230, 0.1)' : 'rgba(34, 139, 230, 0.05)'),
-                      transition: 'all 0.15s ease'
+                      backgroundColor: notification.is_read
+                        ? 'transparent'
+                        : isDark
+                          ? 'rgba(34, 139, 230, 0.1)'
+                          : 'rgba(34, 139, 230, 0.05)',
+                      transition: 'all 0.15s ease',
                     }}
                     className="notification-item"
                   >
@@ -292,18 +304,18 @@ export function NotificationDropdown() {
                           width: 36,
                           height: 36,
                           borderRadius: 8,
-                          backgroundColor: isDark 
-                            ? `var(--mantine-color-${config.color}-9)` 
+                          backgroundColor: isDark
+                            ? `var(--mantine-color-${config.color}-9)`
                             : `var(--mantine-color-${config.color}-0)`,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          flexShrink: 0
+                          flexShrink: 0,
                         }}
                       >
                         <Icon size={18} color={`var(--mantine-color-${config.color}-6)`} />
                       </Box>
-                      
+
                       <Box style={{ flex: 1, minWidth: 0 }}>
                         <Group justify="space-between" wrap="nowrap" mb={2}>
                           <Text size="sm" fw={notification.is_read ? 400 : 600} truncate>
@@ -316,18 +328,18 @@ export function NotificationDropdown() {
                                 height: 8,
                                 borderRadius: '50%',
                                 backgroundColor: 'var(--mantine-color-blue-6)',
-                                flexShrink: 0
+                                flexShrink: 0,
                               }}
                             />
                           )}
                         </Group>
-                        
+
                         {notification.message && (
                           <Text size="xs" c="dimmed" lineClamp={2}>
                             {notification.message}
                           </Text>
                         )}
-                        
+
                         <Group gap="xs" mt={4}>
                           <Text size="xs" c="dimmed">
                             {formatTime(notification.created_at)}
@@ -347,14 +359,14 @@ export function NotificationDropdown() {
 
         {/* Footer */}
         {notifications.length > 0 && (
-          <Box 
-            p="sm" 
-            style={{ 
+          <Box
+            p="sm"
+            style={{
               borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
-              backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)'
+              backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)',
             }}
           >
-            <UnstyledButton 
+            <UnstyledButton
               onClick={() => {
                 router.push('/bildirimler');
                 setOpened(false);

@@ -1,64 +1,62 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { API_BASE_URL } from '@/lib/config';
 import {
-  Container,
-  Title,
-  Text,
-  Card,
-  Group,
-  Stack,
-  SimpleGrid,
-  ThemeIcon,
-  Badge,
-  Button,
-  Box,
-  Table,
   ActionIcon,
-  TextInput,
-  Select,
+  Alert,
+  Badge,
+  Box,
+  Button,
+  Card,
+  Checkbox,
+  Container,
+  Divider,
+  Group,
+  LoadingOverlay,
+  Menu,
   Modal,
   NumberInput,
-  Textarea,
-  Tabs,
   Paper,
-  Menu,
-  Checkbox,
-  Alert,
-  LoadingOverlay,
-  Divider,
   Progress,
+  Select,
+  SimpleGrid,
+  Stack,
+  Table,
+  Tabs,
+  Text,
+  Textarea,
+  TextInput,
+  ThemeIcon,
+  Title,
   Tooltip,
-  Grid,
-  Switch
 } from '@mantine/core';
-import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
-  IconPlus,
-  IconSearch,
-  IconBuilding,
-  IconPackage,
-  IconTrash,
-  IconCheck,
   IconAlertCircle,
-  IconRefresh,
-  IconChevronDown,
-  IconUser,
-  IconMapPin,
-  IconTool,
-  IconArrowsExchange,
-  IconReceipt,
   IconAlertTriangle,
+  IconArrowsExchange,
+  IconBuilding,
   IconCar,
+  IconCheck,
+  IconChevronDown,
   IconClipboardList,
-  IconShieldCheck,
   IconDotsVertical,
   IconEdit,
-  IconX
+  IconMapPin,
+  IconPackage,
+  IconPlus,
+  IconReceipt,
+  IconRefresh,
+  IconSearch,
+  IconShieldCheck,
+  IconTool,
+  IconTrash,
+  IconUser,
+  IconX,
 } from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
+import StyledDatePicker from '@/components/ui/StyledDatePicker';
+import { API_BASE_URL } from '@/lib/config';
 import 'dayjs/locale/tr';
 
 const API_URL = `${API_BASE_URL}/api`;
@@ -137,7 +135,7 @@ interface Istatistik {
 export default function DemirbasPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Data states
   const [demirbaslar, setDemirbaslar] = useState<Demirbas[]>([]);
   const [kategoriler, setKategoriler] = useState<Kategori[]>([]);
@@ -145,27 +143,31 @@ export default function DemirbasPage() {
   const [projeler, setProjeler] = useState<Proje[]>([]);
   const [personeller, setPersoneller] = useState<Personel[]>([]);
   const [istatistik, setIstatistik] = useState<Istatistik | null>(null);
-  const [kategoriDagilimi, setKategoriDagilimi] = useState<any[]>([]);
+  const [_kategoriDagilimi, setKategoriDagilimi] = useState<any[]>([]);
   const [garantiYaklasan, setGarantiYaklasan] = useState<any[]>([]);
   const [bakimdakiler, setBakimdakiler] = useState<any[]>([]);
-  
+
   // Filter states
   const [activeTab, setActiveTab] = useState<string | null>('tumu');
-  const [selectedKategori, setSelectedKategori] = useState<string | null>(null);
+  const [selectedKategori, _setSelectedKategori] = useState<string | null>(null);
   const [selectedLokasyonFilter, setSelectedLokasyonFilter] = useState<number | null>(null);
   const [selectedProjeFilter, setSelectedProjeFilter] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
-  
+
   // Modal states
-  const [demirbasModalOpened, { open: openDemirbasModal, close: closeDemirbasModal }] = useDisclosure(false);
+  const [demirbasModalOpened, { open: openDemirbasModal, close: closeDemirbasModal }] =
+    useDisclosure(false);
   const [aracModalOpened, { open: openAracModal, close: closeAracModal }] = useDisclosure(false);
-  const [zimmetModalOpened, { open: openZimmetModal, close: closeZimmetModal }] = useDisclosure(false);
+  const [zimmetModalOpened, { open: openZimmetModal, close: closeZimmetModal }] =
+    useDisclosure(false);
   const [bakimModalOpened, { open: openBakimModal, close: closeBakimModal }] = useDisclosure(false);
-  const [transferModalOpened, { open: openTransferModal, close: closeTransferModal }] = useDisclosure(false);
+  const [transferModalOpened, { open: openTransferModal, close: closeTransferModal }] =
+    useDisclosure(false);
   const [detayModalOpened, { open: openDetayModal, close: closeDetayModal }] = useDisclosure(false);
-  const [lokasyonModalOpened, { open: openLokasyonModal, close: closeLokasyonModal }] = useDisclosure(false);
-  
+  const [lokasyonModalOpened, { open: openLokasyonModal, close: closeLokasyonModal }] =
+    useDisclosure(false);
+
   // Lokasyon yönetimi
   const [editingLokasyon, setEditingLokasyon] = useState<Lokasyon | null>(null);
   const [lokasyonForm, setLokasyonForm] = useState({
@@ -173,17 +175,17 @@ export default function DemirbasPage() {
     kod: '',
     tip: 'depo',
     adres: '',
-    aciklama: ''
+    aciklama: '',
   });
-  
+
   // Selected item for operations
   const [selectedDemirbas, setSelectedDemirbas] = useState<Demirbas | null>(null);
   const [detayData, setDetayData] = useState<any>(null);
-  
+
   // Envanter Form (Yatay Kart Seçimi)
   const [envanterStep, setEnvanterStep] = useState(1);
   const [selectedKategoriForForm, setSelectedKategoriForForm] = useState<Kategori | null>(null);
-  
+
   // Form states
   const [demirbasForm, setDemirbasForm] = useState({
     ad: '',
@@ -197,9 +199,9 @@ export default function DemirbasPage() {
     lokasyon_id: '',
     lokasyon_detay: '',
     proje_id: '',
-    aciklama: ''
+    aciklama: '',
   });
-  
+
   // Araç Form (özel alanlar)
   const [aracForm, setAracForm] = useState({
     ad: '',
@@ -218,28 +220,28 @@ export default function DemirbasPage() {
     sigorta_bitis: null as Date | null,
     kasko_bitis: null as Date | null,
     lokasyon_id: '',
-    aciklama: ''
+    aciklama: '',
   });
-  
+
   const [zimmetForm, setZimmetForm] = useState({
     personel_id: '',
     tarih: new Date(),
-    notlar: ''
+    notlar: '',
   });
-  
+
   const [bakimForm, setBakimForm] = useState({
     bakim_tipi: 'ariza',
     bakim_nedeni: '',
     servis_firma: '',
     tahmini_donus: null as Date | null,
     tahmini_maliyet: 0,
-    garanti_kapsaminda: false
+    garanti_kapsaminda: false,
   });
-  
+
   const [transferForm, setTransferForm] = useState({
     lokasyon_id: '',
     lokasyon_detay: '',
-    aciklama: ''
+    aciklama: '',
   });
 
   // Para formatı
@@ -248,7 +250,7 @@ export default function DemirbasPage() {
       style: 'currency',
       currency: 'TRY',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     }).format(value || 0);
   };
 
@@ -263,14 +265,15 @@ export default function DemirbasPage() {
     setLoading(true);
     setError(null);
     try {
-      const [demirbasRes, kategoriRes, lokasyonRes, projelerRes, personelRes, istatistikRes] = await Promise.all([
-        fetch(`${API_URL}/demirbas`),
-        fetch(`${API_URL}/demirbas/kategoriler`),
-        fetch(`${API_URL}/demirbas/lokasyonlar`),
-        fetch(`${API_URL}/projeler?durum=aktif`),
-        fetch(`${API_URL}/personel`),
-        fetch(`${API_URL}/demirbas/istatistik/ozet`)
-      ]);
+      const [demirbasRes, kategoriRes, lokasyonRes, projelerRes, personelRes, istatistikRes] =
+        await Promise.all([
+          fetch(`${API_URL}/demirbas`),
+          fetch(`${API_URL}/demirbas/kategoriler`),
+          fetch(`${API_URL}/demirbas/lokasyonlar`),
+          fetch(`${API_URL}/projeler?durum=aktif`),
+          fetch(`${API_URL}/personel`),
+          fetch(`${API_URL}/demirbas/istatistik/ozet`),
+        ]);
 
       // Response'ları JSON'a çevir (hata durumunda bile)
       const demirbasData = demirbasRes.ok ? await demirbasRes.json() : { success: false };
@@ -279,7 +282,7 @@ export default function DemirbasPage() {
       const projelerData = projelerRes.ok ? await projelerRes.json() : [];
       const personelData = personelRes.ok ? await personelRes.json() : { success: false };
       const istatistikData = istatistikRes.ok ? await istatistikRes.json() : { success: false };
-      
+
       if (demirbasData.success) setDemirbaslar(demirbasData.data || []);
       if (kategoriData.success) {
         setKategoriler(kategoriData.data || []);
@@ -303,30 +306,32 @@ export default function DemirbasPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   // Ana kategorileri filtrele (ust_kategori_id null olanlar)
-  const anaKategoriler = kategoriler.filter(k => !k.ust_kategori_id);
+  const anaKategoriler = kategoriler.filter((k) => !k.ust_kategori_id);
 
   // Filtreleme
-  const filteredDemirbaslar = demirbaslar.filter(item => {
-    const matchesTab = activeTab === 'tumu' ||
+  const filteredDemirbaslar = demirbaslar.filter((item) => {
+    const matchesTab =
+      activeTab === 'tumu' ||
       (activeTab === 'bakimda' && item.durum === 'bakimda') ||
       (activeTab === 'zimmetli' && item.zimmetli_personel_id);
-    
+
     const matchesKategori = !selectedKategori || item.kategori_id?.toString() === selectedKategori;
-    
+
     const matchesLokasyon = !selectedLokasyonFilter || item.lokasyon_id === selectedLokasyonFilter;
-    
+
     const matchesProje = !selectedProjeFilter || item.proje_id === selectedProjeFilter;
-    
-    const matchesSearch = !searchTerm ||
+
+    const matchesSearch =
+      !searchTerm ||
       item.kod?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.ad?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.marka?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.model?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.seri_no?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     return matchesTab && matchesKategori && matchesLokasyon && matchesProje && matchesSearch;
   });
 
@@ -348,7 +353,7 @@ export default function DemirbasPage() {
       notifications.show({
         title: 'Uyarı',
         message: 'Lütfen zorunlu alanları doldurun',
-        color: 'yellow'
+        color: 'yellow',
       });
       return;
     }
@@ -360,11 +365,11 @@ export default function DemirbasPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...demirbasForm,
-          kategori_id: parseInt(demirbasForm.kategori_id),
-          lokasyon_id: demirbasForm.lokasyon_id ? parseInt(demirbasForm.lokasyon_id) : null,
-          proje_id: demirbasForm.proje_id ? parseInt(demirbasForm.proje_id) : null,
-          alis_tarihi: demirbasForm.alis_tarihi?.toISOString().split('T')[0]
-        })
+          kategori_id: parseInt(demirbasForm.kategori_id, 10),
+          lokasyon_id: demirbasForm.lokasyon_id ? parseInt(demirbasForm.lokasyon_id, 10) : null,
+          proje_id: demirbasForm.proje_id ? parseInt(demirbasForm.proje_id, 10) : null,
+          alis_tarihi: demirbasForm.alis_tarihi?.toISOString().split('T')[0],
+        }),
       });
 
       const result = await res.json();
@@ -374,7 +379,7 @@ export default function DemirbasPage() {
           title: 'Başarılı',
           message: 'Envanter eklendi',
           color: 'green',
-          icon: <IconCheck />
+          icon: <IconCheck />,
         });
         closeDemirbasModal();
         resetDemirbasForm();
@@ -386,7 +391,7 @@ export default function DemirbasPage() {
       notifications.show({
         title: 'Hata',
         message: err.message,
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setLoading(false);
@@ -399,18 +404,18 @@ export default function DemirbasPage() {
       notifications.show({
         title: 'Uyarı',
         message: 'Lütfen zorunlu alanları doldurun (Ad, Plaka, Alış Tarihi)',
-        color: 'yellow'
+        color: 'yellow',
       });
       return;
     }
 
     // Araç kategorisini bul
-    const aracKategori = kategoriler.find(k => k.kod === 'ARAC');
+    const aracKategori = kategoriler.find((k) => k.kod === 'ARAC');
     if (!aracKategori) {
       notifications.show({
         title: 'Hata',
         message: 'Araç kategorisi bulunamadı',
-        color: 'red'
+        color: 'red',
       });
       return;
     }
@@ -428,7 +433,7 @@ export default function DemirbasPage() {
         km: aracForm.km,
         muayene_tarihi: aracForm.muayene_tarihi?.toISOString().split('T')[0],
         sigorta_bitis: aracForm.sigorta_bitis?.toISOString().split('T')[0],
-        kasko_bitis: aracForm.kasko_bitis?.toISOString().split('T')[0]
+        kasko_bitis: aracForm.kasko_bitis?.toISOString().split('T')[0],
       });
 
       const res = await fetch(`${API_URL}/demirbas`, {
@@ -442,10 +447,10 @@ export default function DemirbasPage() {
           seri_no: aracForm.plaka, // Plaka seri no olarak
           alis_tarihi: aracForm.alis_tarihi?.toISOString().split('T')[0],
           alis_fiyati: aracForm.alis_fiyati,
-          lokasyon_id: aracForm.lokasyon_id ? parseInt(aracForm.lokasyon_id) : null,
+          lokasyon_id: aracForm.lokasyon_id ? parseInt(aracForm.lokasyon_id, 10) : null,
           aciklama: aracForm.aciklama,
-          teknik_ozellik: teknikOzellik
-        })
+          teknik_ozellik: teknikOzellik,
+        }),
       });
 
       const result = await res.json();
@@ -455,7 +460,7 @@ export default function DemirbasPage() {
           title: 'Başarılı',
           message: 'Araç eklendi',
           color: 'green',
-          icon: <IconCheck />
+          icon: <IconCheck />,
         });
         closeAracModal();
         resetAracForm();
@@ -467,7 +472,7 @@ export default function DemirbasPage() {
       notifications.show({
         title: 'Hata',
         message: err.message,
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setLoading(false);
@@ -476,9 +481,18 @@ export default function DemirbasPage() {
 
   const resetDemirbasForm = () => {
     setDemirbasForm({
-      ad: '', kategori_id: '', marka: '', model: '', seri_no: '',
-      alis_tarihi: null, alis_fiyati: 0, garanti_suresi: 24,
-      lokasyon_id: '', lokasyon_detay: '', proje_id: '', aciklama: ''
+      ad: '',
+      kategori_id: '',
+      marka: '',
+      model: '',
+      seri_no: '',
+      alis_tarihi: null,
+      alis_fiyati: 0,
+      garanti_suresi: 24,
+      lokasyon_id: '',
+      lokasyon_detay: '',
+      proje_id: '',
+      aciklama: '',
     });
     setSelectedKategoriForForm(null);
     setEnvanterStep(1);
@@ -486,11 +500,23 @@ export default function DemirbasPage() {
 
   const resetAracForm = () => {
     setAracForm({
-      ad: '', plaka: '', marka: '', model: '', yil: new Date().getFullYear(),
-      sasi_no: '', motor_no: '', renk: '', yakit_tipi: 'dizel',
-      alis_tarihi: null, alis_fiyati: 0, km: 0,
-      muayene_tarihi: null, sigorta_bitis: null, kasko_bitis: null,
-      lokasyon_id: '', aciklama: ''
+      ad: '',
+      plaka: '',
+      marka: '',
+      model: '',
+      yil: new Date().getFullYear(),
+      sasi_no: '',
+      motor_no: '',
+      renk: '',
+      yakit_tipi: 'dizel',
+      alis_tarihi: null,
+      alis_fiyati: 0,
+      km: 0,
+      muayene_tarihi: null,
+      sigorta_bitis: null,
+      kasko_bitis: null,
+      lokasyon_id: '',
+      aciklama: '',
     });
   };
 
@@ -507,10 +533,10 @@ export default function DemirbasPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          personel_id: parseInt(zimmetForm.personel_id),
+          personel_id: parseInt(zimmetForm.personel_id, 10),
           tarih: zimmetForm.tarih?.toISOString().split('T')[0],
-          notlar: zimmetForm.notlar
-        })
+          notlar: zimmetForm.notlar,
+        }),
       });
 
       const result = await res.json();
@@ -539,7 +565,7 @@ export default function DemirbasPage() {
       const res = await fetch(`${API_URL}/demirbas/${demirbasId}/zimmet-iade`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tarih: new Date().toISOString().split('T')[0] })
+        body: JSON.stringify({ tarih: new Date().toISOString().split('T')[0] }),
       });
 
       const result = await res.json();
@@ -559,7 +585,11 @@ export default function DemirbasPage() {
   // Bakıma gönder
   const handleBakimaGonder = async () => {
     if (!selectedDemirbas || !bakimForm.bakim_nedeni) {
-      notifications.show({ title: 'Uyarı', message: 'Lütfen bakım nedenini girin', color: 'yellow' });
+      notifications.show({
+        title: 'Uyarı',
+        message: 'Lütfen bakım nedenini girin',
+        color: 'yellow',
+      });
       return;
     }
 
@@ -570,15 +600,22 @@ export default function DemirbasPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...bakimForm,
-          tahmini_donus: bakimForm.tahmini_donus?.toISOString().split('T')[0]
-        })
+          tahmini_donus: bakimForm.tahmini_donus?.toISOString().split('T')[0],
+        }),
       });
 
       const result = await res.json();
       if (result.success) {
         notifications.show({ title: 'Başarılı', message: 'Bakıma gönderildi', color: 'green' });
         closeBakimModal();
-        setBakimForm({ bakim_tipi: 'ariza', bakim_nedeni: '', servis_firma: '', tahmini_donus: null, tahmini_maliyet: 0, garanti_kapsaminda: false });
+        setBakimForm({
+          bakim_tipi: 'ariza',
+          bakim_nedeni: '',
+          servis_firma: '',
+          tahmini_donus: null,
+          tahmini_maliyet: 0,
+          garanti_kapsaminda: false,
+        });
         loadData();
       } else {
         throw new Error(result.error);
@@ -593,7 +630,11 @@ export default function DemirbasPage() {
   // Transfer
   const handleTransfer = async () => {
     if (!selectedDemirbas || !transferForm.lokasyon_id) {
-      notifications.show({ title: 'Uyarı', message: 'Lütfen hedef lokasyonu seçin', color: 'yellow' });
+      notifications.show({
+        title: 'Uyarı',
+        message: 'Lütfen hedef lokasyonu seçin',
+        color: 'yellow',
+      });
       return;
     }
 
@@ -603,10 +644,10 @@ export default function DemirbasPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          lokasyon_id: parseInt(transferForm.lokasyon_id),
+          lokasyon_id: parseInt(transferForm.lokasyon_id, 10),
           lokasyon_detay: transferForm.lokasyon_detay,
-          aciklama: transferForm.aciklama
-        })
+          aciklama: transferForm.aciklama,
+        }),
       });
 
       const result = await res.json();
@@ -656,7 +697,7 @@ export default function DemirbasPage() {
       const res = await fetch(`${API_URL}/demirbas/toplu/sil`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedItems })
+        body: JSON.stringify({ ids: selectedItems }),
       });
       const result = await res.json();
       if (result.success) {
@@ -686,7 +727,7 @@ export default function DemirbasPage() {
       kod: lokasyon.kod || '',
       tip: lokasyon.tip || 'depo',
       adres: (lokasyon as any).adres || '',
-      aciklama: (lokasyon as any).aciklama || ''
+      aciklama: (lokasyon as any).aciklama || '',
     });
     openLokasyonModal();
   };
@@ -699,22 +740,22 @@ export default function DemirbasPage() {
 
     setLoading(true);
     try {
-      const url = editingLokasyon 
+      const url = editingLokasyon
         ? `${API_URL}/demirbas/lokasyonlar/${editingLokasyon.id}`
         : `${API_URL}/demirbas/lokasyonlar`;
-      
+
       const res = await fetch(url, {
         method: editingLokasyon ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(lokasyonForm)
+        body: JSON.stringify(lokasyonForm),
       });
 
       const result = await res.json();
       if (result.success) {
-        notifications.show({ 
-          title: 'Başarılı', 
-          message: editingLokasyon ? 'Lokasyon güncellendi' : 'Lokasyon eklendi', 
-          color: 'green' 
+        notifications.show({
+          title: 'Başarılı',
+          message: editingLokasyon ? 'Lokasyon güncellendi' : 'Lokasyon eklendi',
+          color: 'green',
         });
         closeLokasyonModal();
         resetLokasyonForm();
@@ -734,7 +775,9 @@ export default function DemirbasPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/demirbas/lokasyonlar/${lokasyonId}`, { method: 'DELETE' });
+      const res = await fetch(`${API_URL}/demirbas/lokasyonlar/${lokasyonId}`, {
+        method: 'DELETE',
+      });
       const result = await res.json();
       if (result.success) {
         notifications.show({ title: 'Başarılı', message: 'Lokasyon silindi', color: 'green' });
@@ -771,13 +814,13 @@ export default function DemirbasPage() {
     if (selectedItems.length === filteredDemirbaslar.length) {
       setSelectedItems([]);
     } else {
-      setSelectedItems(filteredDemirbaslar.map(d => d.id));
+      setSelectedItems(filteredDemirbaslar.map((d) => d.id));
     }
   };
 
   const handleSelectItem = (id: number) => {
     if (selectedItems.includes(id)) {
-      setSelectedItems(selectedItems.filter(i => i !== id));
+      setSelectedItems(selectedItems.filter((i) => i !== id));
     } else {
       setSelectedItems([...selectedItems, id]);
     }
@@ -786,22 +829,32 @@ export default function DemirbasPage() {
   // Durum badge rengi
   const getDurumColor = (durum: string) => {
     switch (durum) {
-      case 'aktif': return 'green';
-      case 'bakimda': return 'yellow';
-      case 'arizali': return 'red';
-      case 'hurda': return 'gray';
-      case 'satildi': return 'blue';
-      default: return 'gray';
+      case 'aktif':
+        return 'green';
+      case 'bakimda':
+        return 'yellow';
+      case 'arizali':
+        return 'red';
+      case 'hurda':
+        return 'gray';
+      case 'satildi':
+        return 'blue';
+      default:
+        return 'gray';
     }
   };
 
   // Garanti badge rengi
   const getGarantiColor = (durum: string) => {
     switch (durum) {
-      case 'gecerli': return 'green';
-      case 'yaklasiyor': return 'yellow';
-      case 'bitti': return 'red';
-      default: return 'gray';
+      case 'gecerli':
+        return 'green';
+      case 'yaklasiyor':
+        return 'yellow';
+      case 'bitti':
+        return 'red';
+      default:
+        return 'gray';
     }
   };
 
@@ -818,12 +871,19 @@ export default function DemirbasPage() {
       {/* Header */}
       <Group justify="space-between" mb="md">
         <Group gap="md">
-          <ThemeIcon size={42} radius="xl" variant="gradient" gradient={{ from: 'indigo', to: 'violet' }}>
+          <ThemeIcon
+            size={42}
+            radius="xl"
+            variant="gradient"
+            gradient={{ from: 'indigo', to: 'violet' }}
+          >
             <IconBuilding size={24} />
           </ThemeIcon>
           <Box>
             <Title order={3}>Envanter Yönetimi</Title>
-            <Text size="xs" c="dimmed">Şirket varlıklarınızı takip edin</Text>
+            <Text size="xs" c="dimmed">
+              Şirket varlıklarınızı takip edin
+            </Text>
           </Box>
         </Group>
         <ActionIcon variant="light" size="lg" radius="xl" onClick={loadData} title="Yenile">
@@ -838,30 +898,67 @@ export default function DemirbasPage() {
           radius="lg"
           mb="lg"
           style={{
-            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)',
-            border: '1px solid var(--mantine-color-gray-2)'
+            background:
+              'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)',
+            border: '1px solid var(--mantine-color-gray-2)',
           }}
         >
           <SimpleGrid cols={{ base: 2, sm: 4, md: 5 }} spacing="md">
             <Box ta="center" py="xs">
-              <Text size="2rem" fw={800} c="indigo">{istatistik.toplam_demirbas}</Text>
-              <Text size="xs" tt="uppercase" fw={600} c="dimmed">Toplam Varlık</Text>
+              <Text size="2rem" fw={800} c="indigo">
+                {istatistik.toplam_demirbas}
+              </Text>
+              <Text size="xs" tt="uppercase" fw={600} c="dimmed">
+                Toplam Varlık
+              </Text>
             </Box>
-            <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
-              <Text size="2rem" fw={800} c="teal">{formatMoney(Number(istatistik.toplam_net_deger))}</Text>
-              <Text size="xs" tt="uppercase" fw={600} c="dimmed">Net Değer</Text>
+            <Box
+              ta="center"
+              py="xs"
+              style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}
+            >
+              <Text size="2rem" fw={800} c="teal">
+                {formatMoney(Number(istatistik.toplam_net_deger))}
+              </Text>
+              <Text size="xs" tt="uppercase" fw={600} c="dimmed">
+                Net Değer
+              </Text>
             </Box>
-            <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
-              <Text size="2rem" fw={800} c="blue">{istatistik.zimmetli}</Text>
-              <Text size="xs" tt="uppercase" fw={600} c="dimmed">Zimmetli</Text>
+            <Box
+              ta="center"
+              py="xs"
+              style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}
+            >
+              <Text size="2rem" fw={800} c="blue">
+                {istatistik.zimmetli}
+              </Text>
+              <Text size="xs" tt="uppercase" fw={600} c="dimmed">
+                Zimmetli
+              </Text>
             </Box>
-            <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
-              <Text size="2rem" fw={800} c="yellow">{istatistik.bakimda}</Text>
-              <Text size="xs" tt="uppercase" fw={600} c="dimmed">Bakımda</Text>
+            <Box
+              ta="center"
+              py="xs"
+              style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}
+            >
+              <Text size="2rem" fw={800} c="yellow">
+                {istatistik.bakimda}
+              </Text>
+              <Text size="xs" tt="uppercase" fw={600} c="dimmed">
+                Bakımda
+              </Text>
             </Box>
-            <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
-              <Text size="2rem" fw={800} c="orange">{formatMoney(Number(istatistik.toplam_amortisman))}</Text>
-              <Text size="xs" tt="uppercase" fw={600} c="dimmed">Birikmiş Amor.</Text>
+            <Box
+              ta="center"
+              py="xs"
+              style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}
+            >
+              <Text size="2rem" fw={800} c="orange">
+                {formatMoney(Number(istatistik.toplam_amortisman))}
+              </Text>
+              <Text size="xs" tt="uppercase" fw={600} c="dimmed">
+                Birikmiş Amor.
+              </Text>
             </Box>
           </SimpleGrid>
         </Paper>
@@ -915,23 +1012,35 @@ export default function DemirbasPage() {
       {/* Lokasyon & Proje Yönetimi - Yan Yana */}
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md" mb="md">
         {/* Lokasyonlar */}
-        <Paper p="md" radius="md" withBorder style={{ background: 'linear-gradient(135deg, #fff8f0 0%, #fff 100%)' }}>
-          <Text size="sm" fw={600} c="orange.7" mb="sm">📍 Lokasyonlar</Text>
-          
+        <Paper
+          p="md"
+          radius="md"
+          withBorder
+          style={{ background: 'linear-gradient(135deg, #fff8f0 0%, #fff 100%)' }}
+        >
+          <Text size="sm" fw={600} c="orange.7" mb="sm">
+            📍 Lokasyonlar
+          </Text>
+
           {lokasyonlar.length === 0 ? (
-            <Text size="sm" c="dimmed" ta="center" py="md">Henüz lokasyon yok</Text>
+            <Text size="sm" c="dimmed" ta="center" py="md">
+              Henüz lokasyon yok
+            </Text>
           ) : (
             <Stack gap="xs" mb="sm">
               {lokasyonlar.slice(0, 5).map((lok) => (
-                <Group 
-                  key={lok.id} 
-                  justify="space-between" 
-                  p="xs" 
-                  style={{ 
-                    background: selectedLokasyonFilter === lok.id ? '#fed7aa' : '#fafafa', 
+                <Group
+                  key={lok.id}
+                  justify="space-between"
+                  p="xs"
+                  style={{
+                    background: selectedLokasyonFilter === lok.id ? '#fed7aa' : '#fafafa',
                     borderRadius: 8,
                     cursor: 'pointer',
-                    border: selectedLokasyonFilter === lok.id ? '2px solid #f97316' : '2px solid transparent'
+                    border:
+                      selectedLokasyonFilter === lok.id
+                        ? '2px solid #f97316'
+                        : '2px solid transparent',
                   }}
                   onClick={() => {
                     if (selectedLokasyonFilter === lok.id) {
@@ -944,58 +1053,98 @@ export default function DemirbasPage() {
                 >
                   <Group gap="xs">
                     <Text size="md">
-                      {lok.tip === 'sube' ? '🏢' : lok.tip === 'depo' ? '📦' : lok.tip === 'ofis' ? '🏠' : '📍'}
+                      {lok.tip === 'sube'
+                        ? '🏢'
+                        : lok.tip === 'depo'
+                          ? '📦'
+                          : lok.tip === 'ofis'
+                            ? '🏠'
+                            : '📍'}
                     </Text>
-                    <Text size="sm" fw={500}>{lok.ad}</Text>
-                    <Badge size="xs" variant="light" color="orange">{lok.demirbas_sayisi || 0}</Badge>
+                    <Text size="sm" fw={500}>
+                      {lok.ad}
+                    </Text>
+                    <Badge size="xs" variant="light" color="orange">
+                      {lok.demirbas_sayisi || 0}
+                    </Badge>
                   </Group>
                   <Menu shadow="md" width={100} position="bottom-end">
                     <Menu.Target>
-                      <ActionIcon size="xs" variant="subtle" onClick={(e) => e.stopPropagation()}><IconDotsVertical size={14} /></ActionIcon>
+                      <ActionIcon size="xs" variant="subtle" onClick={(e) => e.stopPropagation()}>
+                        <IconDotsVertical size={14} />
+                      </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown>
-                      <Menu.Item leftSection={<IconEdit size={14} />} onClick={() => handleEditLokasyon(lok)}>Düzenle</Menu.Item>
-                      <Menu.Item leftSection={<IconTrash size={14} />} color="red" onClick={() => handleDeleteLokasyon(lok.id)}>Sil</Menu.Item>
+                      <Menu.Item
+                        leftSection={<IconEdit size={14} />}
+                        onClick={() => handleEditLokasyon(lok)}
+                      >
+                        Düzenle
+                      </Menu.Item>
+                      <Menu.Item
+                        leftSection={<IconTrash size={14} />}
+                        color="red"
+                        onClick={() => handleDeleteLokasyon(lok.id)}
+                      >
+                        Sil
+                      </Menu.Item>
                     </Menu.Dropdown>
                   </Menu>
                 </Group>
               ))}
               {lokasyonlar.length > 5 && (
-                <Text size="xs" c="dimmed" ta="center">+{lokasyonlar.length - 5} daha...</Text>
+                <Text size="xs" c="dimmed" ta="center">
+                  +{lokasyonlar.length - 5} daha...
+                </Text>
               )}
             </Stack>
           )}
-          
-          <Button 
-            size="xs" 
-            variant="light" 
-            color="orange" 
+
+          <Button
+            size="xs"
+            variant="light"
+            color="orange"
             fullWidth
             leftSection={<IconPlus size={14} />}
-            onClick={() => { resetLokasyonForm(); openLokasyonModal(); }}
+            onClick={() => {
+              resetLokasyonForm();
+              openLokasyonModal();
+            }}
           >
             Yeni Lokasyon
           </Button>
         </Paper>
 
         {/* Projeler */}
-        <Paper p="md" radius="md" withBorder style={{ background: 'linear-gradient(135deg, #f0f7ff 0%, #fff 100%)' }}>
-          <Text size="sm" fw={600} c="blue.7" mb="sm">📁 Projeler</Text>
-          
+        <Paper
+          p="md"
+          radius="md"
+          withBorder
+          style={{ background: 'linear-gradient(135deg, #f0f7ff 0%, #fff 100%)' }}
+        >
+          <Text size="sm" fw={600} c="blue.7" mb="sm">
+            📁 Projeler
+          </Text>
+
           {projeler.length === 0 ? (
-            <Text size="sm" c="dimmed" ta="center" py="md">Henüz proje yok</Text>
+            <Text size="sm" c="dimmed" ta="center" py="md">
+              Henüz proje yok
+            </Text>
           ) : (
             <Stack gap="xs" mb="sm">
               {projeler.slice(0, 5).map((proje) => (
-                <Group 
-                  key={proje.id} 
-                  justify="space-between" 
-                  p="xs" 
-                  style={{ 
-                    background: selectedProjeFilter === proje.id ? '#bfdbfe' : '#f8faff', 
+                <Group
+                  key={proje.id}
+                  justify="space-between"
+                  p="xs"
+                  style={{
+                    background: selectedProjeFilter === proje.id ? '#bfdbfe' : '#f8faff',
                     borderRadius: 8,
                     cursor: 'pointer',
-                    border: selectedProjeFilter === proje.id ? '2px solid #3b82f6' : '2px solid transparent'
+                    border:
+                      selectedProjeFilter === proje.id
+                        ? '2px solid #3b82f6'
+                        : '2px solid transparent',
                   }}
                   onClick={() => {
                     if (selectedProjeFilter === proje.id) {
@@ -1008,19 +1157,23 @@ export default function DemirbasPage() {
                 >
                   <Group gap="xs">
                     <Text size="md">📁</Text>
-                    <Text size="sm" fw={500}>{proje.ad}</Text>
+                    <Text size="sm" fw={500}>
+                      {proje.ad}
+                    </Text>
                   </Group>
                   <Badge size="xs" variant="light" color="blue">
-                    {demirbaslar.filter(d => d.proje_id === proje.id).length} varlık
+                    {demirbaslar.filter((d) => d.proje_id === proje.id).length} varlık
                   </Badge>
                 </Group>
               ))}
               {projeler.length > 5 && (
-                <Text size="xs" c="dimmed" ta="center">+{projeler.length - 5} daha...</Text>
+                <Text size="xs" c="dimmed" ta="center">
+                  +{projeler.length - 5} daha...
+                </Text>
               )}
             </Stack>
           )}
-          
+
           {projeler.length === 0 && (
             <Text size="xs" c="dimmed" ta="center" fs="italic">
               Projeler merkezi sistemden yüklenir
@@ -1035,10 +1188,14 @@ export default function DemirbasPage() {
           <Group justify="space-between" align="flex-end">
             <Tabs.List>
               <Tabs.Tab value="tumu">Tümü ({demirbaslar.length})</Tabs.Tab>
-              <Tabs.Tab value="zimmetli" color="blue">Zimmetli ({demirbaslar.filter(d => d.zimmetli_personel_id).length})</Tabs.Tab>
-              <Tabs.Tab value="bakimda" color="yellow">Bakımda ({demirbaslar.filter(d => d.durum === 'bakimda').length})</Tabs.Tab>
+              <Tabs.Tab value="zimmetli" color="blue">
+                Zimmetli ({demirbaslar.filter((d) => d.zimmetli_personel_id).length})
+              </Tabs.Tab>
+              <Tabs.Tab value="bakimda" color="yellow">
+                Bakımda ({demirbaslar.filter((d) => d.durum === 'bakimda').length})
+              </Tabs.Tab>
             </Tabs.List>
-            
+
             <Menu shadow="md" width={220}>
               <Menu.Target>
                 <Button
@@ -1077,38 +1234,53 @@ export default function DemirbasPage() {
           {(selectedLokasyonFilter || selectedProjeFilter) && (
             <Box mt="md" mb="sm">
               <Group gap="xs">
-                <Text size="sm" c="dimmed">Filtreler:</Text>
+                <Text size="sm" c="dimmed">
+                  Filtreler:
+                </Text>
                 {selectedLokasyonFilter && (
-                  <Badge 
-                    variant="filled" 
-                    color="orange" 
+                  <Badge
+                    variant="filled"
+                    color="orange"
                     rightSection={
-                      <ActionIcon size="xs" variant="transparent" c="white" onClick={() => setSelectedLokasyonFilter(null)}>
+                      <ActionIcon
+                        size="xs"
+                        variant="transparent"
+                        c="white"
+                        onClick={() => setSelectedLokasyonFilter(null)}
+                      >
                         <IconX size={12} />
                       </ActionIcon>
                     }
                   >
-                    📍 {lokasyonlar.find(l => l.id === selectedLokasyonFilter)?.ad}
+                    📍 {lokasyonlar.find((l) => l.id === selectedLokasyonFilter)?.ad}
                   </Badge>
                 )}
                 {selectedProjeFilter && (
-                  <Badge 
-                    variant="filled" 
-                    color="blue" 
+                  <Badge
+                    variant="filled"
+                    color="blue"
                     rightSection={
-                      <ActionIcon size="xs" variant="transparent" c="white" onClick={() => setSelectedProjeFilter(null)}>
+                      <ActionIcon
+                        size="xs"
+                        variant="transparent"
+                        c="white"
+                        onClick={() => setSelectedProjeFilter(null)}
+                      >
                         <IconX size={12} />
                       </ActionIcon>
                     }
                   >
-                    📁 {projeler.find(p => p.id === selectedProjeFilter)?.ad}
+                    📁 {projeler.find((p) => p.id === selectedProjeFilter)?.ad}
                   </Badge>
                 )}
-                <Button 
-                  variant="subtle" 
-                  size="xs" 
-                  color="gray" 
-                  onClick={() => { setSelectedLokasyonFilter(null); setSelectedProjeFilter(null); }}
+                <Button
+                  variant="subtle"
+                  size="xs"
+                  color="gray"
+                  onClick={() => {
+                    setSelectedLokasyonFilter(null);
+                    setSelectedProjeFilter(null);
+                  }}
                 >
                   Tümünü Temizle
                 </Button>
@@ -1129,10 +1301,26 @@ export default function DemirbasPage() {
             {selectedItems.length > 0 && (
               <Paper p="xs" mb="sm" withBorder radius="md" bg="indigo.0">
                 <Group justify="space-between">
-                  <Text size="sm" fw={500} c="indigo.7">{selectedItems.length} envanter seçildi</Text>
+                  <Text size="sm" fw={500} c="indigo.7">
+                    {selectedItems.length} envanter seçildi
+                  </Text>
                   <Group gap="xs">
-                    <Button size="xs" variant="light" color="gray" onClick={() => setSelectedItems([])}>Seçimi Kaldır</Button>
-                    <Button size="xs" color="red" leftSection={<IconTrash size={14} />} onClick={handleBulkDelete}>Toplu Sil</Button>
+                    <Button
+                      size="xs"
+                      variant="light"
+                      color="gray"
+                      onClick={() => setSelectedItems([])}
+                    >
+                      Seçimi Kaldır
+                    </Button>
+                    <Button
+                      size="xs"
+                      color="red"
+                      leftSection={<IconTrash size={14} />}
+                      onClick={handleBulkDelete}
+                    >
+                      Toplu Sil
+                    </Button>
                   </Group>
                 </Group>
               </Paper>
@@ -1144,8 +1332,14 @@ export default function DemirbasPage() {
                   <Table.Tr>
                     <Table.Th w={40}>
                       <Checkbox
-                        checked={selectedItems.length === filteredDemirbaslar.length && filteredDemirbaslar.length > 0}
-                        indeterminate={selectedItems.length > 0 && selectedItems.length < filteredDemirbaslar.length}
+                        checked={
+                          selectedItems.length === filteredDemirbaslar.length &&
+                          filteredDemirbaslar.length > 0
+                        }
+                        indeterminate={
+                          selectedItems.length > 0 &&
+                          selectedItems.length < filteredDemirbaslar.length
+                        }
                         onChange={handleSelectAll}
                       />
                     </Table.Th>
@@ -1165,7 +1359,9 @@ export default function DemirbasPage() {
                     <Table.Tr>
                       <Table.Td colSpan={10}>
                         <Text ta="center" c="dimmed" py="xl">
-                          {searchTerm ? 'Aramanıza uygun envanter bulunamadı' : 'Henüz envanter kaydı yok'}
+                          {searchTerm
+                            ? 'Aramanıza uygun envanter bulunamadı'
+                            : 'Henüz envanter kaydı yok'}
                         </Text>
                       </Table.Td>
                     </Table.Tr>
@@ -1178,14 +1374,25 @@ export default function DemirbasPage() {
                         onClick={() => handleShowDetay(item.id)}
                       >
                         <Table.Td onClick={(e) => e.stopPropagation()}>
-                          <Checkbox checked={selectedItems.includes(item.id)} onChange={() => handleSelectItem(item.id)} />
+                          <Checkbox
+                            checked={selectedItems.includes(item.id)}
+                            onChange={() => handleSelectItem(item.id)}
+                          />
                         </Table.Td>
-                        <Table.Td><Badge variant="light" color="indigo">{item.kod}</Badge></Table.Td>
+                        <Table.Td>
+                          <Badge variant="light" color="indigo">
+                            {item.kod}
+                          </Badge>
+                        </Table.Td>
                         <Table.Td>
                           <Stack gap={2}>
-                            <Text size="sm" fw={500}>{item.ad}</Text>
+                            <Text size="sm" fw={500}>
+                              {item.ad}
+                            </Text>
                             {(item.marka || item.model) && (
-                              <Text size="xs" c="dimmed">{[item.marka, item.model].filter(Boolean).join(' ')}</Text>
+                              <Text size="xs" c="dimmed">
+                                {[item.marka, item.model].filter(Boolean).join(' ')}
+                              </Text>
                             )}
                           </Stack>
                         </Table.Td>
@@ -1193,7 +1400,10 @@ export default function DemirbasPage() {
                           <Badge
                             variant="light"
                             leftSection={<Text size="sm">{item.kategori_ikon}</Text>}
-                            style={{ backgroundColor: `${item.kategori_renk}20`, color: item.kategori_renk }}
+                            style={{
+                              backgroundColor: `${item.kategori_renk}20`,
+                              color: item.kategori_renk,
+                            }}
                           >
                             {item.kategori_ad}
                           </Badge>
@@ -1210,17 +1420,25 @@ export default function DemirbasPage() {
                               <IconUser size={14} color="blue" />
                               <Stack gap={0}>
                                 <Text size="sm">{item.zimmetli_personel}</Text>
-                                <Text size="xs" c="dimmed">{item.zimmetli_departman}</Text>
+                                <Text size="xs" c="dimmed">
+                                  {item.zimmetli_departman}
+                                </Text>
                               </Stack>
                             </Group>
                           ) : (
-                            <Text size="sm" c="dimmed">-</Text>
+                            <Text size="sm" c="dimmed">
+                              -
+                            </Text>
                           )}
                         </Table.Td>
                         <Table.Td>
                           <Stack gap={0}>
-                            <Text size="sm" fw={500}>{formatMoney(Number(item.net_defter_degeri))}</Text>
-                            <Text size="xs" c="dimmed">Alış: {formatMoney(Number(item.alis_fiyati))}</Text>
+                            <Text size="sm" fw={500}>
+                              {formatMoney(Number(item.net_defter_degeri))}
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              Alış: {formatMoney(Number(item.alis_fiyati))}
+                            </Text>
                           </Stack>
                         </Table.Td>
                         <Table.Td>
@@ -1229,37 +1447,73 @@ export default function DemirbasPage() {
                           </Badge>
                         </Table.Td>
                         <Table.Td>
-                          <Badge color={getDurumColor(item.durum)} variant="filled">{item.durum?.toUpperCase()}</Badge>
+                          <Badge color={getDurumColor(item.durum)} variant="filled">
+                            {item.durum?.toUpperCase()}
+                          </Badge>
                         </Table.Td>
                         <Table.Td onClick={(e) => e.stopPropagation()}>
                           <Group gap={4}>
                             {!item.zimmetli_personel_id ? (
                               <Tooltip label="Zimmet Ver">
-                                <ActionIcon variant="subtle" color="blue" size="sm" onClick={() => { setSelectedDemirbas(item); openZimmetModal(); }}>
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="blue"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedDemirbas(item);
+                                    openZimmetModal();
+                                  }}
+                                >
                                   <IconUser size={16} />
                                 </ActionIcon>
                               </Tooltip>
                             ) : (
                               <Tooltip label="Zimmet İade">
-                                <ActionIcon variant="subtle" color="orange" size="sm" onClick={() => handleZimmetIade(item.id)}>
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="orange"
+                                  size="sm"
+                                  onClick={() => handleZimmetIade(item.id)}
+                                >
                                   <IconReceipt size={16} />
                                 </ActionIcon>
                               </Tooltip>
                             )}
                             <Tooltip label="Transfer">
-                              <ActionIcon variant="subtle" color="teal" size="sm" onClick={() => { setSelectedDemirbas(item); openTransferModal(); }}>
+                              <ActionIcon
+                                variant="subtle"
+                                color="teal"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedDemirbas(item);
+                                  openTransferModal();
+                                }}
+                              >
                                 <IconArrowsExchange size={16} />
                               </ActionIcon>
                             </Tooltip>
                             {item.durum !== 'bakimda' && (
                               <Tooltip label="Bakıma Gönder">
-                                <ActionIcon variant="subtle" color="yellow" size="sm" onClick={() => { setSelectedDemirbas(item); openBakimModal(); }}>
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="yellow"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedDemirbas(item);
+                                    openBakimModal();
+                                  }}
+                                >
                                   <IconTool size={16} />
                                 </ActionIcon>
                               </Tooltip>
                             )}
                             <Tooltip label="Sil">
-                              <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleDelete(item.id)}>
+                              <ActionIcon
+                                variant="subtle"
+                                color="red"
+                                size="sm"
+                                onClick={() => handleDelete(item.id)}
+                              >
                                 <IconTrash size={16} />
                               </ActionIcon>
                             </Tooltip>
@@ -1280,7 +1534,9 @@ export default function DemirbasPage() {
         {garantiYaklasan.length > 0 && (
           <Card withBorder radius="md" p="md">
             <Group mb="md">
-              <ThemeIcon color="yellow" variant="light" size="lg"><IconAlertTriangle size={20} /></ThemeIcon>
+              <ThemeIcon color="yellow" variant="light" size="lg">
+                <IconAlertTriangle size={20} />
+              </ThemeIcon>
               <Text fw={600}>Garantisi Yaklaşan</Text>
             </Group>
             <Stack gap="xs">
@@ -1288,10 +1544,16 @@ export default function DemirbasPage() {
                 <Paper key={item.id} withBorder p="sm" radius="md">
                   <Group justify="space-between">
                     <div>
-                      <Text size="sm" fw={500}>{item.ad}</Text>
-                      <Text size="xs" c="dimmed">{item.marka} {item.model}</Text>
+                      <Text size="sm" fw={500}>
+                        {item.ad}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {item.marka} {item.model}
+                      </Text>
                     </div>
-                    <Badge color="yellow" variant="light">{item.kalan_gun} gün</Badge>
+                    <Badge color="yellow" variant="light">
+                      {item.kalan_gun} gün
+                    </Badge>
                   </Group>
                 </Paper>
               ))}
@@ -1302,7 +1564,9 @@ export default function DemirbasPage() {
         {bakimdakiler.length > 0 && (
           <Card withBorder radius="md" p="md">
             <Group mb="md">
-              <ThemeIcon color="orange" variant="light" size="lg"><IconTool size={20} /></ThemeIcon>
+              <ThemeIcon color="orange" variant="light" size="lg">
+                <IconTool size={20} />
+              </ThemeIcon>
               <Text fw={600}>Bakımda Olanlar</Text>
             </Group>
             <Stack gap="xs">
@@ -1310,10 +1574,16 @@ export default function DemirbasPage() {
                 <Paper key={item.id} withBorder p="sm" radius="md">
                   <Group justify="space-between">
                     <div>
-                      <Text size="sm" fw={500}>{item.ad}</Text>
-                      <Text size="xs" c="dimmed">{item.servis_firma}</Text>
+                      <Text size="sm" fw={500}>
+                        {item.ad}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {item.servis_firma}
+                      </Text>
                     </div>
-                    <Badge color="orange" variant="light">{item.gecen_gun} gündür</Badge>
+                    <Badge color="orange" variant="light">
+                      {item.gecen_gun} gündür
+                    </Badge>
                   </Group>
                 </Paper>
               ))}
@@ -1327,62 +1597,86 @@ export default function DemirbasPage() {
       {/* Genel Envanter Modal - Yatay Kategori Kartları */}
       <Modal
         opened={demirbasModalOpened}
-        onClose={() => { closeDemirbasModal(); resetDemirbasForm(); }}
-        title={<Group gap="xs"><IconPlus size={20} /><Text fw={600}>Yeni Envanter Ekle</Text></Group>}
+        onClose={() => {
+          closeDemirbasModal();
+          resetDemirbasForm();
+        }}
+        title={
+          <Group gap="xs">
+            <IconPlus size={20} />
+            <Text fw={600}>Yeni Envanter Ekle</Text>
+          </Group>
+        }
         size="xl"
       >
         {envanterStep === 1 ? (
           // Adım 1: Kategori Seçimi - Yatay Kartlar
           <Box>
-            <Text size="sm" c="dimmed" mb="md">Eklemek istediğiniz envanter türünü seçin:</Text>
+            <Text size="sm" c="dimmed" mb="md">
+              Eklemek istediğiniz envanter türünü seçin:
+            </Text>
             {anaKategoriler.length === 0 ? (
               <Alert color="yellow">Kategoriler yükleniyor...</Alert>
             ) : (
-            <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="md">
-              {anaKategoriler.filter(k => k.kod !== 'ARAC').map((kat) => (
-                <Paper
-                  key={kat.id}
-                  withBorder
-                  p="md"
-                  radius="md"
-                  onClick={() => handleKategoriSelect(kat)}
-                  style={{
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    textAlign: 'center',
-                    border: `2px solid ${kat.renk}30`,
-                    background: `linear-gradient(135deg, ${kat.renk}08 0%, ${kat.renk}15 100%)`
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = `0 8px 25px ${kat.renk}40`;
-                    e.currentTarget.style.borderColor = kat.renk;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.borderColor = `${kat.renk}30`;
-                  }}
-                >
-                  <Text size="2.5rem" mb="xs">{kat.ikon}</Text>
-                  <Text size="sm" fw={600} c={kat.renk}>{kat.ad}</Text>
-                </Paper>
-              ))}
-            </SimpleGrid>
+              <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="md">
+                {anaKategoriler
+                  .filter((k) => k.kod !== 'ARAC')
+                  .map((kat) => (
+                    <Paper
+                      key={kat.id}
+                      withBorder
+                      p="md"
+                      radius="md"
+                      onClick={() => handleKategoriSelect(kat)}
+                      style={{
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        textAlign: 'center',
+                        border: `2px solid ${kat.renk}30`,
+                        background: `linear-gradient(135deg, ${kat.renk}08 0%, ${kat.renk}15 100%)`,
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.boxShadow = `0 8px 25px ${kat.renk}40`;
+                        e.currentTarget.style.borderColor = kat.renk;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'none';
+                        e.currentTarget.style.borderColor = `${kat.renk}30`;
+                      }}
+                    >
+                      <Text size="2.5rem" mb="xs">
+                        {kat.ikon}
+                      </Text>
+                      <Text size="sm" fw={600} c={kat.renk}>
+                        {kat.ad}
+                      </Text>
+                    </Paper>
+                  ))}
+              </SimpleGrid>
             )}
           </Box>
         ) : (
           // Adım 2: Form
           <Box>
             <Group mb="md">
-              <Button variant="light" size="xs" onClick={() => setEnvanterStep(1)}>← Geri</Button>
+              <Button variant="light" size="xs" onClick={() => setEnvanterStep(1)}>
+                ← Geri
+              </Button>
               {selectedKategoriForForm && (
-                <Badge size="lg" style={{ backgroundColor: `${selectedKategoriForForm.renk}20`, color: selectedKategoriForForm.renk }}>
+                <Badge
+                  size="lg"
+                  style={{
+                    backgroundColor: `${selectedKategoriForForm.renk}20`,
+                    color: selectedKategoriForForm.renk,
+                  }}
+                >
                   {selectedKategoriForForm.ikon} {selectedKategoriForForm.ad}
                 </Badge>
               )}
             </Group>
-            
+
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
               <TextInput
                 label="Envanter Adı"
@@ -1420,7 +1714,9 @@ export default function DemirbasPage() {
                 label="Alış Fiyatı (₺)"
                 placeholder="0"
                 value={demirbasForm.alis_fiyati}
-                onChange={(val) => setDemirbasForm({ ...demirbasForm, alis_fiyati: Number(val) || 0 })}
+                onChange={(val) =>
+                  setDemirbasForm({ ...demirbasForm, alis_fiyati: Number(val) || 0 })
+                }
                 min={0}
                 thousandSeparator=","
               />
@@ -1428,13 +1724,15 @@ export default function DemirbasPage() {
                 label="Garanti Süresi (Ay)"
                 placeholder="24"
                 value={demirbasForm.garanti_suresi}
-                onChange={(val) => setDemirbasForm({ ...demirbasForm, garanti_suresi: Number(val) || 0 })}
+                onChange={(val) =>
+                  setDemirbasForm({ ...demirbasForm, garanti_suresi: Number(val) || 0 })
+                }
                 min={0}
               />
               <Select
                 label="Lokasyon"
                 placeholder="Seçin"
-                data={lokasyonlar.map(l => ({ value: l.id.toString(), label: l.ad }))}
+                data={lokasyonlar.map((l) => ({ value: l.id.toString(), label: l.ad }))}
                 value={demirbasForm.lokasyon_id}
                 onChange={(val) => setDemirbasForm({ ...demirbasForm, lokasyon_id: val || '' })}
                 searchable
@@ -1442,7 +1740,7 @@ export default function DemirbasPage() {
               <Select
                 label="Proje"
                 placeholder="Proje seçin (opsiyonel)"
-                data={projeler.map(p => ({ value: p.id.toString(), label: p.ad }))}
+                data={projeler.map((p) => ({ value: p.id.toString(), label: p.ad }))}
                 value={demirbasForm.proje_id}
                 onChange={(val) => setDemirbasForm({ ...demirbasForm, proje_id: val || '' })}
                 searchable
@@ -1452,7 +1750,9 @@ export default function DemirbasPage() {
                 label="Lokasyon Detay"
                 placeholder="Oda no, kat vb."
                 value={demirbasForm.lokasyon_detay}
-                onChange={(e) => setDemirbasForm({ ...demirbasForm, lokasyon_detay: e.target.value })}
+                onChange={(e) =>
+                  setDemirbasForm({ ...demirbasForm, lokasyon_detay: e.target.value })
+                }
               />
               <Textarea
                 label="Açıklama"
@@ -1462,8 +1762,18 @@ export default function DemirbasPage() {
               />
             </SimpleGrid>
             <Group justify="flex-end" mt="lg">
-              <Button variant="light" onClick={() => { closeDemirbasModal(); resetDemirbasForm(); }}>İptal</Button>
-              <Button onClick={handleSaveDemirbas} loading={loading}>Kaydet</Button>
+              <Button
+                variant="light"
+                onClick={() => {
+                  closeDemirbasModal();
+                  resetDemirbasForm();
+                }}
+              >
+                İptal
+              </Button>
+              <Button onClick={handleSaveDemirbas} loading={loading}>
+                Kaydet
+              </Button>
             </Group>
           </Box>
         )}
@@ -1472,8 +1782,16 @@ export default function DemirbasPage() {
       {/* Araç Ekleme Modal */}
       <Modal
         opened={aracModalOpened}
-        onClose={() => { closeAracModal(); resetAracForm(); }}
-        title={<Group gap="xs"><IconCar size={20} /><Text fw={600}>Yeni Araç Ekle</Text></Group>}
+        onClose={() => {
+          closeAracModal();
+          resetAracForm();
+        }}
+        title={
+          <Group gap="xs">
+            <IconCar size={20} />
+            <Text fw={600}>Yeni Araç Ekle</Text>
+          </Group>
+        }
         size="xl"
       >
         <Tabs defaultValue="genel">
@@ -1514,7 +1832,9 @@ export default function DemirbasPage() {
               <NumberInput
                 label="Model Yılı"
                 value={aracForm.yil}
-                onChange={(val) => setAracForm({ ...aracForm, yil: Number(val) || new Date().getFullYear() })}
+                onChange={(val) =>
+                  setAracForm({ ...aracForm, yil: Number(val) || new Date().getFullYear() })
+                }
                 min={1990}
                 max={new Date().getFullYear() + 1}
               />
@@ -1525,7 +1845,7 @@ export default function DemirbasPage() {
                   { value: 'dizel', label: '🛢️ Dizel' },
                   { value: 'lpg', label: '🔵 LPG' },
                   { value: 'elektrik', label: '⚡ Elektrik' },
-                  { value: 'hibrit', label: '🔋 Hibrit' }
+                  { value: 'hibrit', label: '🔋 Hibrit' },
                 ]}
                 value={aracForm.yakit_tipi}
                 onChange={(val) => setAracForm({ ...aracForm, yakit_tipi: val || 'dizel' })}
@@ -1539,7 +1859,7 @@ export default function DemirbasPage() {
               <Select
                 label="Lokasyon"
                 placeholder="Seçin"
-                data={lokasyonlar.map(l => ({ value: l.id.toString(), label: l.ad }))}
+                data={lokasyonlar.map((l) => ({ value: l.id.toString(), label: l.ad }))}
                 value={aracForm.lokasyon_id}
                 onChange={(val) => setAracForm({ ...aracForm, lokasyon_id: val || '' })}
                 searchable
@@ -1641,8 +1961,21 @@ export default function DemirbasPage() {
         </Tabs>
 
         <Group justify="flex-end" mt="xl">
-          <Button variant="light" onClick={() => { closeAracModal(); resetAracForm(); }}>İptal</Button>
-          <Button color="pink" onClick={handleSaveArac} loading={loading} leftSection={<IconCar size={16} />}>
+          <Button
+            variant="light"
+            onClick={() => {
+              closeAracModal();
+              resetAracForm();
+            }}
+          >
+            İptal
+          </Button>
+          <Button
+            color="pink"
+            onClick={handleSaveArac}
+            loading={loading}
+            leftSection={<IconCar size={16} />}
+          >
             Araç Kaydet
           </Button>
         </Group>
@@ -1652,12 +1985,19 @@ export default function DemirbasPage() {
       <Modal
         opened={zimmetModalOpened}
         onClose={closeZimmetModal}
-        title={<Group gap="xs"><IconUser size={20} /><Text fw={600}>Zimmet Ver</Text></Group>}
+        title={
+          <Group gap="xs">
+            <IconUser size={20} />
+            <Text fw={600}>Zimmet Ver</Text>
+          </Group>
+        }
         size="md"
       >
         {selectedDemirbas && (
           <Alert color="blue" variant="light" mb="md">
-            <Text size="sm">{selectedDemirbas.kod} - {selectedDemirbas.ad}</Text>
+            <Text size="sm">
+              {selectedDemirbas.kod} - {selectedDemirbas.ad}
+            </Text>
           </Alert>
         )}
         <Stack gap="md">
@@ -1665,9 +2005,9 @@ export default function DemirbasPage() {
             label="Personel"
             placeholder="Seçin"
             searchable
-            data={personeller.map(p => ({
+            data={personeller.map((p) => ({
               value: p.id.toString(),
-              label: `${p.ad} ${p.soyad} - ${p.departman || 'Belirtilmemiş'}`
+              label: `${p.ad} ${p.soyad} - ${p.departman || 'Belirtilmemiş'}`,
             }))}
             value={zimmetForm.personel_id}
             onChange={(val) => setZimmetForm({ ...zimmetForm, personel_id: val || '' })}
@@ -1686,8 +2026,12 @@ export default function DemirbasPage() {
           />
         </Stack>
         <Group justify="flex-end" mt="lg">
-          <Button variant="light" onClick={closeZimmetModal}>İptal</Button>
-          <Button color="blue" onClick={handleZimmetVer} loading={loading}>Zimmet Ver</Button>
+          <Button variant="light" onClick={closeZimmetModal}>
+            İptal
+          </Button>
+          <Button color="blue" onClick={handleZimmetVer} loading={loading}>
+            Zimmet Ver
+          </Button>
         </Group>
       </Modal>
 
@@ -1695,12 +2039,19 @@ export default function DemirbasPage() {
       <Modal
         opened={bakimModalOpened}
         onClose={closeBakimModal}
-        title={<Group gap="xs"><IconTool size={20} /><Text fw={600}>Bakıma Gönder</Text></Group>}
+        title={
+          <Group gap="xs">
+            <IconTool size={20} />
+            <Text fw={600}>Bakıma Gönder</Text>
+          </Group>
+        }
         size="md"
       >
         {selectedDemirbas && (
           <Alert color="yellow" variant="light" mb="md">
-            <Text size="sm">{selectedDemirbas.kod} - {selectedDemirbas.ad}</Text>
+            <Text size="sm">
+              {selectedDemirbas.kod} - {selectedDemirbas.ad}
+            </Text>
           </Alert>
         )}
         <Stack gap="md">
@@ -1710,7 +2061,7 @@ export default function DemirbasPage() {
               { value: 'ariza', label: '🔧 Arıza/Onarım' },
               { value: 'periyodik', label: '📅 Periyodik Bakım' },
               { value: 'garanti', label: '🛡️ Garanti Kapsamında' },
-              { value: 'onleyici', label: '⚠️ Önleyici Bakım' }
+              { value: 'onleyici', label: '⚠️ Önleyici Bakım' },
             ]}
             value={bakimForm.bakim_tipi}
             onChange={(val) => setBakimForm({ ...bakimForm, bakim_tipi: val || 'ariza' })}
@@ -1742,12 +2093,18 @@ export default function DemirbasPage() {
           <Checkbox
             label="Garanti kapsamında"
             checked={bakimForm.garanti_kapsaminda}
-            onChange={(e) => setBakimForm({ ...bakimForm, garanti_kapsaminda: e.currentTarget.checked })}
+            onChange={(e) =>
+              setBakimForm({ ...bakimForm, garanti_kapsaminda: e.currentTarget.checked })
+            }
           />
         </Stack>
         <Group justify="flex-end" mt="lg">
-          <Button variant="light" onClick={closeBakimModal}>İptal</Button>
-          <Button color="yellow" onClick={handleBakimaGonder} loading={loading}>Bakıma Gönder</Button>
+          <Button variant="light" onClick={closeBakimModal}>
+            İptal
+          </Button>
+          <Button color="yellow" onClick={handleBakimaGonder} loading={loading}>
+            Bakıma Gönder
+          </Button>
         </Group>
       </Modal>
 
@@ -1755,20 +2112,29 @@ export default function DemirbasPage() {
       <Modal
         opened={transferModalOpened}
         onClose={closeTransferModal}
-        title={<Group gap="xs"><IconArrowsExchange size={20} /><Text fw={600}>Lokasyon Transfer</Text></Group>}
+        title={
+          <Group gap="xs">
+            <IconArrowsExchange size={20} />
+            <Text fw={600}>Lokasyon Transfer</Text>
+          </Group>
+        }
         size="md"
       >
         {selectedDemirbas && (
           <Alert color="teal" variant="light" mb="md">
-            <Text size="sm">{selectedDemirbas.kod} - {selectedDemirbas.ad}</Text>
-            <Text size="xs" c="dimmed">Mevcut: {selectedDemirbas.lokasyon_ad || 'Belirtilmemiş'}</Text>
+            <Text size="sm">
+              {selectedDemirbas.kod} - {selectedDemirbas.ad}
+            </Text>
+            <Text size="xs" c="dimmed">
+              Mevcut: {selectedDemirbas.lokasyon_ad || 'Belirtilmemiş'}
+            </Text>
           </Alert>
         )}
         <Stack gap="md">
           <Select
             label="Hedef Lokasyon"
             placeholder="Seçin"
-            data={lokasyonlar.map(l => ({ value: l.id.toString(), label: l.ad }))}
+            data={lokasyonlar.map((l) => ({ value: l.id.toString(), label: l.ad }))}
             value={transferForm.lokasyon_id}
             onChange={(val) => setTransferForm({ ...transferForm, lokasyon_id: val || '' })}
             required
@@ -1788,8 +2154,12 @@ export default function DemirbasPage() {
           />
         </Stack>
         <Group justify="flex-end" mt="lg">
-          <Button variant="light" onClick={closeTransferModal}>İptal</Button>
-          <Button color="teal" onClick={handleTransfer} loading={loading}>Transfer Yap</Button>
+          <Button variant="light" onClick={closeTransferModal}>
+            İptal
+          </Button>
+          <Button color="teal" onClick={handleTransfer} loading={loading}>
+            Transfer Yap
+          </Button>
         </Group>
       </Modal>
 
@@ -1797,7 +2167,12 @@ export default function DemirbasPage() {
       <Modal
         opened={detayModalOpened}
         onClose={closeDetayModal}
-        title={<Group gap="xs"><IconClipboardList size={20} /><Text fw={600}>Envanter Detayı</Text></Group>}
+        title={
+          <Group gap="xs">
+            <IconClipboardList size={20} />
+            <Text fw={600}>Envanter Detayı</Text>
+          </Group>
+        }
         size="xl"
       >
         {detayData && (
@@ -1805,34 +2180,52 @@ export default function DemirbasPage() {
             <Paper withBorder p="md" radius="md">
               <Group justify="space-between" align="flex-start">
                 <div>
-                  <Badge size="lg" variant="light" color="indigo" mb="xs">{detayData.kod}</Badge>
+                  <Badge size="lg" variant="light" color="indigo" mb="xs">
+                    {detayData.kod}
+                  </Badge>
                   <Title order={4}>{detayData.ad}</Title>
-                  <Text c="dimmed">{[detayData.marka, detayData.model].filter(Boolean).join(' ')}</Text>
+                  <Text c="dimmed">
+                    {[detayData.marka, detayData.model].filter(Boolean).join(' ')}
+                  </Text>
                   {detayData.seri_no && <Text size="sm">Seri No: {detayData.seri_no}</Text>}
                 </div>
-                <Badge color={getDurumColor(detayData.durum)} size="lg">{detayData.durum?.toUpperCase()}</Badge>
+                <Badge color={getDurumColor(detayData.durum)} size="lg">
+                  {detayData.durum?.toUpperCase()}
+                </Badge>
               </Group>
             </Paper>
 
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <Paper withBorder p="md" radius="md">
-                <Text fw={600} mb="sm" c="dimmed">💰 Mali Bilgiler</Text>
+                <Text fw={600} mb="sm" c="dimmed">
+                  💰 Mali Bilgiler
+                </Text>
                 <Stack gap="xs">
                   <Group justify="space-between">
                     <Text size="sm">Alış Fiyatı:</Text>
-                    <Text size="sm" fw={500}>{formatMoney(Number(detayData.alis_fiyati))}</Text>
+                    <Text size="sm" fw={500}>
+                      {formatMoney(Number(detayData.alis_fiyati))}
+                    </Text>
                   </Group>
                   <Group justify="space-between">
                     <Text size="sm">Birikmiş Amortisman:</Text>
-                    <Text size="sm" fw={500} c="orange">{formatMoney(Number(detayData.birikimis_amortisman))}</Text>
+                    <Text size="sm" fw={500} c="orange">
+                      {formatMoney(Number(detayData.birikimis_amortisman))}
+                    </Text>
                   </Group>
                   <Divider />
                   <Group justify="space-between">
-                    <Text size="sm" fw={600}>Net Değer:</Text>
-                    <Text size="sm" fw={700} c="teal">{formatMoney(Number(detayData.net_defter_degeri))}</Text>
+                    <Text size="sm" fw={600}>
+                      Net Değer:
+                    </Text>
+                    <Text size="sm" fw={700} c="teal">
+                      {formatMoney(Number(detayData.net_defter_degeri))}
+                    </Text>
                   </Group>
                   <Progress
-                    value={(Number(detayData.birikimis_amortisman) / Number(detayData.alis_fiyati)) * 100}
+                    value={
+                      (Number(detayData.birikimis_amortisman) / Number(detayData.alis_fiyati)) * 100
+                    }
                     color="orange"
                     size="sm"
                     mt="xs"
@@ -1841,11 +2234,15 @@ export default function DemirbasPage() {
               </Paper>
 
               <Paper withBorder p="md" radius="md">
-                <Text fw={600} mb="sm" c="dimmed">👤 Zimmet & Lokasyon</Text>
+                <Text fw={600} mb="sm" c="dimmed">
+                  👤 Zimmet & Lokasyon
+                </Text>
                 <Stack gap="xs">
                   <Group justify="space-between">
                     <Text size="sm">Zimmetli:</Text>
-                    <Text size="sm" fw={500}>{detayData.zimmetli_personel || '-'}</Text>
+                    <Text size="sm" fw={500}>
+                      {detayData.zimmetli_personel || '-'}
+                    </Text>
                   </Group>
                   <Group justify="space-between">
                     <Text size="sm">Departman:</Text>
@@ -1854,7 +2251,9 @@ export default function DemirbasPage() {
                   <Divider />
                   <Group justify="space-between">
                     <Text size="sm">Lokasyon:</Text>
-                    <Text size="sm" fw={500}>{detayData.lokasyon_ad || '-'}</Text>
+                    <Text size="sm" fw={500}>
+                      {detayData.lokasyon_ad || '-'}
+                    </Text>
                   </Group>
                   <Group justify="space-between">
                     <Text size="sm">Detay:</Text>
@@ -1866,7 +2265,9 @@ export default function DemirbasPage() {
 
             {detayData.hareketler && detayData.hareketler.length > 0 && (
               <Paper withBorder p="md" radius="md">
-                <Text fw={600} mb="sm" c="dimmed">📜 Hareket Geçmişi</Text>
+                <Text fw={600} mb="sm" c="dimmed">
+                  📜 Hareket Geçmişi
+                </Text>
                 <Table striped>
                   <Table.Thead>
                     <Table.Tr>
@@ -1879,11 +2280,23 @@ export default function DemirbasPage() {
                     {detayData.hareketler.map((h: any, i: number) => (
                       <Table.Tr key={i}>
                         <Table.Td>{formatDate(h.tarih)}</Table.Td>
-                        <Table.Td><Badge variant="light" size="sm">{h.hareket_tipi}</Badge></Table.Td>
+                        <Table.Td>
+                          <Badge variant="light" size="sm">
+                            {h.hareket_tipi}
+                          </Badge>
+                        </Table.Td>
                         <Table.Td>
                           <Text size="sm">{h.aciklama || '-'}</Text>
-                          {h.yeni_personel && <Text size="xs" c="dimmed">→ {h.yeni_personel}</Text>}
-                          {h.yeni_lokasyon && <Text size="xs" c="dimmed">→ {h.yeni_lokasyon}</Text>}
+                          {h.yeni_personel && (
+                            <Text size="xs" c="dimmed">
+                              → {h.yeni_personel}
+                            </Text>
+                          )}
+                          {h.yeni_lokasyon && (
+                            <Text size="xs" c="dimmed">
+                              → {h.yeni_lokasyon}
+                            </Text>
+                          )}
                         </Table.Td>
                       </Table.Tr>
                     ))}
@@ -1898,7 +2311,10 @@ export default function DemirbasPage() {
       {/* Lokasyon Yönetimi Modal */}
       <Modal
         opened={lokasyonModalOpened}
-        onClose={() => { closeLokasyonModal(); resetLokasyonForm(); }}
+        onClose={() => {
+          closeLokasyonModal();
+          resetLokasyonForm();
+        }}
         title={
           <Group gap="xs">
             <IconMapPin size={20} />
@@ -1920,7 +2336,9 @@ export default function DemirbasPage() {
             label="Kod"
             placeholder="örn: DEPO-01"
             value={lokasyonForm.kod}
-            onChange={(e) => setLokasyonForm({ ...lokasyonForm, kod: e.target.value.toUpperCase() })}
+            onChange={(e) =>
+              setLokasyonForm({ ...lokasyonForm, kod: e.target.value.toUpperCase() })
+            }
           />
           <Select
             label="Lokasyon Tipi"
@@ -1929,7 +2347,7 @@ export default function DemirbasPage() {
               { value: 'sube', label: '🏢 Şube' },
               { value: 'ofis', label: '🏠 Ofis' },
               { value: 'santiye', label: '🏗️ Şantiye' },
-              { value: 'diger', label: '📍 Diğer' }
+              { value: 'diger', label: '📍 Diğer' },
             ]}
             value={lokasyonForm.tip}
             onChange={(val) => setLokasyonForm({ ...lokasyonForm, tip: val || 'depo' })}
@@ -1949,7 +2367,13 @@ export default function DemirbasPage() {
           />
         </Stack>
         <Group justify="flex-end" mt="lg">
-          <Button variant="light" onClick={() => { closeLokasyonModal(); resetLokasyonForm(); }}>
+          <Button
+            variant="light"
+            onClick={() => {
+              closeLokasyonModal();
+              resetLokasyonForm();
+            }}
+          >
             İptal
           </Button>
           <Button color="orange" onClick={handleSaveLokasyon} loading={loading}>
@@ -1957,7 +2381,6 @@ export default function DemirbasPage() {
           </Button>
         </Group>
       </Modal>
-
     </Container>
   );
 }

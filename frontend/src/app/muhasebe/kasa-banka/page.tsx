@@ -1,76 +1,59 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { API_BASE_URL } from '@/lib/config';
 import {
-  Container,
-  Title,
-  Text,
-  Card,
-  Group,
-  Stack,
-  SimpleGrid,
-  ThemeIcon,
-  Badge,
-  Button,
-  Box,
-  Table,
   ActionIcon,
-  TextInput,
-  Select,
+  Alert,
+  Badge,
+  Box,
+  Button,
+  Card,
+  Center,
+  Container,
+  Divider,
+  Group,
+  Loader,
+  Menu,
   Modal,
   NumberInput,
-  Textarea,
-  Tabs,
-  useMantineColorScheme,
   Paper,
-  Menu,
-  rem,
-  RingProgress,
-  Divider,
-  Alert,
-  Loader,
-  Center,
-  Tooltip,
-  Progress
+  Select,
+  SimpleGrid,
+  Stack,
+  Table,
+  Tabs,
+  Text,
+  Textarea,
+  TextInput,
+  ThemeIcon,
+  Title,
+  useMantineColorScheme,
 } from '@mantine/core';
-import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
-  IconPlus,
-  IconBuildingBank,
-  IconCash,
-  IconWallet,
-  IconArrowUpRight,
+  IconAlertTriangle,
   IconArrowDownRight,
   IconArrowsExchange,
-  IconEdit,
-  IconTrash,
-  IconDotsVertical,
+  IconArrowUpRight,
+  IconBuildingBank,
+  IconCash,
   IconCheck,
-  IconCalendar,
+  IconClockHour4,
   IconCreditCard,
-  IconPigMoney,
-  IconReceipt,
+  IconDotsVertical,
+  IconEdit,
   IconFileInvoice,
-  IconAlertTriangle,
-  IconRefresh,
-  IconCurrencyLira,
-  IconX,
-  IconSend,
+  IconPlus,
+  IconReceipt,
   IconReceiptRefund,
-  IconClockHour4
+  IconRefresh,
+  IconSend,
+  IconTrash,
+  IconWallet,
 } from '@tabler/icons-react';
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-} from 'recharts';
+import { useCallback, useEffect, useState } from 'react';
+import StyledDatePicker from '@/components/ui/StyledDatePicker';
+import { API_BASE_URL } from '@/lib/config';
 import 'dayjs/locale/tr';
 
 const API_URL = `${API_BASE_URL}/api`;
@@ -166,19 +149,33 @@ interface Ozet {
 }
 
 // Bankalar listesi
-const bankalar = ['Ana Kasa', 'Ziraat Bankası', 'Garanti BBVA', 'İş Bankası', 'Yapı Kredi', 'Akbank', 'QNB Finansbank', 'Halkbank', 'Vakıfbank', 'TEB', 'Denizbank', 'Şekerbank', 'Diğer'];
+const bankalar = [
+  'Ana Kasa',
+  'Ziraat Bankası',
+  'Garanti BBVA',
+  'İş Bankası',
+  'Yapı Kredi',
+  'Akbank',
+  'QNB Finansbank',
+  'Halkbank',
+  'Vakıfbank',
+  'TEB',
+  'Denizbank',
+  'Şekerbank',
+  'Diğer',
+];
 
 export default function KasaBankaPage() {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
-  
+
   // Modals
   const [hesapOpened, { open: openHesap, close: closeHesap }] = useDisclosure(false);
   const [hareketOpened, { open: openHareket, close: closeHareket }] = useDisclosure(false);
   const [cekSenetOpened, { open: openCekSenet, close: closeCekSenet }] = useDisclosure(false);
   const [tahsilOpened, { open: openTahsil, close: closeTahsil }] = useDisclosure(false);
   const [ciroOpened, { open: openCiro, close: closeCiro }] = useDisclosure(false);
-  
+
   // Data states
   const [loading, setLoading] = useState(true);
   const [hesaplar, setHesaplar] = useState<Hesap[]>([]);
@@ -186,12 +183,12 @@ export default function KasaBankaPage() {
   const [cekSenetler, setCekSenetler] = useState<CekSenet[]>([]);
   const [cariler, setCariler] = useState<Cari[]>([]);
   const [ozet, setOzet] = useState<Ozet | null>(null);
-  
+
   // Edit states
   const [editingHesap, setEditingHesap] = useState<Hesap | null>(null);
   const [selectedCekSenet, setSelectedCekSenet] = useState<CekSenet | null>(null);
   const [activeTab, setActiveTab] = useState<string | null>('hesaplar');
-  
+
   // Form states
   const [hesapForm, setHesapForm] = useState({
     hesap_tipi: 'banka' as 'kasa' | 'banka',
@@ -203,7 +200,7 @@ export default function KasaBankaPage() {
     para_birimi: 'TRY',
     bakiye: 0,
     kredi_limiti: 0,
-    aktif: true
+    aktif: true,
   });
 
   const [hareketForm, setHareketForm] = useState({
@@ -213,7 +210,7 @@ export default function KasaBankaPage() {
     aciklama: '',
     belge_no: '',
     tarih: new Date(),
-    karsi_hesap_id: ''
+    karsi_hesap_id: '',
   });
 
   const [cekSenetForm, setCekSenetForm] = useState({
@@ -230,19 +227,19 @@ export default function KasaBankaPage() {
     kesen_unvan: '',
     kesen_vkn_tckn: '',
     cari_id: '',
-    notlar: ''
+    notlar: '',
   });
 
   const [tahsilForm, setTahsilForm] = useState({
     hesap_id: '',
     tarih: new Date(),
-    aciklama: ''
+    aciklama: '',
   });
 
   const [ciroForm, setCiroForm] = useState({
     ciro_cari_id: '',
     tarih: new Date(),
-    aciklama: ''
+    aciklama: '',
   });
 
   // Data loading
@@ -254,7 +251,7 @@ export default function KasaBankaPage() {
         fetch(`${API_URL}/kasa-banka/hareketler?limit=50`),
         fetch(`${API_URL}/kasa-banka/cek-senet?limit=100`),
         fetch(`${API_URL}/kasa-banka/cariler`),
-        fetch(`${API_URL}/kasa-banka/ozet`)
+        fetch(`${API_URL}/kasa-banka/ozet`),
       ]);
 
       if (hesaplarRes.ok) setHesaplar(await hesaplarRes.json());
@@ -293,7 +290,7 @@ export default function KasaBankaPage() {
     const bugun = new Date();
     const vadeTarihi = new Date(vade);
     const fark = Math.ceil((vadeTarihi.getTime() - bugun.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (fark < 0) return { renk: 'red', text: `${Math.abs(fark)} gün geçti` };
     if (fark === 0) return { renk: 'orange', text: 'Bugün' };
     if (fark <= 7) return { renk: 'yellow', text: `${fark} gün` };
@@ -309,7 +306,7 @@ export default function KasaBankaPage() {
       odendi: { color: 'green', label: 'Ödendi' },
       ciro_edildi: { color: 'violet', label: 'Ciro Edildi' },
       iade_edildi: { color: 'red', label: 'İade' },
-      iptal: { color: 'gray', label: 'İptal' }
+      iptal: { color: 'gray', label: 'İptal' },
     };
     return config[durum] || { color: 'gray', label: durum };
   };
@@ -324,35 +321,40 @@ export default function KasaBankaPage() {
     }
 
     try {
-      const url = editingHesap 
+      const url = editingHesap
         ? `${API_URL}/kasa-banka/hesaplar/${editingHesap.id}`
         : `${API_URL}/kasa-banka/hesaplar`;
-      
+
       const response = await fetch(url, {
         method: editingHesap ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(hesapForm)
+        body: JSON.stringify(hesapForm),
       });
 
       if (!response.ok) throw new Error('İşlem başarısız');
-      
-      notifications.show({ title: 'Başarılı!', message: 'Hesap kaydedildi.', color: 'green', icon: <IconCheck size={16} /> });
+
+      notifications.show({
+        title: 'Başarılı!',
+        message: 'Hesap kaydedildi.',
+        color: 'green',
+        icon: <IconCheck size={16} />,
+      });
       loadData();
       resetHesapForm();
       closeHesap();
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ title: 'Hata!', message: 'Hesap kaydedilemedi.', color: 'red' });
     }
   };
 
   const handleDeleteHesap = async (id: number) => {
     if (!confirm('Bu hesabı silmek istediğinize emin misiniz?')) return;
-    
+
     try {
       await fetch(`${API_URL}/kasa-banka/hesaplar/${id}`, { method: 'DELETE' });
       notifications.show({ title: 'Silindi', message: 'Hesap silindi.', color: 'orange' });
       loadData();
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ title: 'Hata!', message: 'Hesap silinemedi.', color: 'red' });
     }
   };
@@ -367,40 +369,47 @@ export default function KasaBankaPage() {
     }
 
     try {
-      const url = hareketForm.hareket_tipi === 'transfer' 
-        ? `${API_URL}/kasa-banka/transfer`
-        : `${API_URL}/kasa-banka/hareketler`;
-      
-      const body = hareketForm.hareket_tipi === 'transfer' 
-        ? {
-            kaynak_hesap_id: parseInt(hareketForm.hesap_id),
-            hedef_hesap_id: parseInt(hareketForm.karsi_hesap_id),
-            tutar: hareketForm.tutar,
-            aciklama: hareketForm.aciklama,
-            tarih: hareketForm.tarih.toISOString().split('T')[0]
-          }
-        : {
-            hesap_id: parseInt(hareketForm.hesap_id),
-            hareket_tipi: hareketForm.hareket_tipi,
-            tutar: hareketForm.tutar,
-            aciklama: hareketForm.aciklama,
-            belge_no: hareketForm.belge_no,
-            tarih: hareketForm.tarih.toISOString().split('T')[0]
-          };
+      const url =
+        hareketForm.hareket_tipi === 'transfer'
+          ? `${API_URL}/kasa-banka/transfer`
+          : `${API_URL}/kasa-banka/hareketler`;
+
+      const body =
+        hareketForm.hareket_tipi === 'transfer'
+          ? {
+              kaynak_hesap_id: parseInt(hareketForm.hesap_id, 10),
+              hedef_hesap_id: parseInt(hareketForm.karsi_hesap_id, 10),
+              tutar: hareketForm.tutar,
+              aciklama: hareketForm.aciklama,
+              tarih: hareketForm.tarih.toISOString().split('T')[0],
+            }
+          : {
+              hesap_id: parseInt(hareketForm.hesap_id, 10),
+              hareket_tipi: hareketForm.hareket_tipi,
+              tutar: hareketForm.tutar,
+              aciklama: hareketForm.aciklama,
+              belge_no: hareketForm.belge_no,
+              tarih: hareketForm.tarih.toISOString().split('T')[0],
+            };
 
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) throw new Error('İşlem başarısız');
-      
-      notifications.show({ title: 'Başarılı!', message: 'Hareket kaydedildi.', color: 'green', icon: <IconCheck size={16} /> });
+
+      notifications.show({
+        title: 'Başarılı!',
+        message: 'Hareket kaydedildi.',
+        color: 'green',
+        icon: <IconCheck size={16} />,
+      });
       loadData();
       resetHareketForm();
       closeHareket();
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ title: 'Hata!', message: 'Hareket kaydedilemedi.', color: 'red' });
     }
   };
@@ -410,7 +419,11 @@ export default function KasaBankaPage() {
   // =====================
   const handleCekSenetSubmit = async () => {
     if (!cekSenetForm.belge_no || !cekSenetForm.kesen_unvan || cekSenetForm.tutar <= 0) {
-      notifications.show({ title: 'Hata!', message: 'Belge no, keşideci ve tutar gerekli.', color: 'red' });
+      notifications.show({
+        title: 'Hata!',
+        message: 'Belge no, keşideci ve tutar gerekli.',
+        color: 'red',
+      });
       return;
     }
 
@@ -422,17 +435,22 @@ export default function KasaBankaPage() {
           ...cekSenetForm,
           kesim_tarihi: cekSenetForm.kesim_tarihi.toISOString().split('T')[0],
           vade_tarihi: cekSenetForm.vade_tarihi.toISOString().split('T')[0],
-          cari_id: cekSenetForm.cari_id ? parseInt(cekSenetForm.cari_id) : null
-        })
+          cari_id: cekSenetForm.cari_id ? parseInt(cekSenetForm.cari_id, 10) : null,
+        }),
       });
 
       if (!response.ok) throw new Error('İşlem başarısız');
-      
-      notifications.show({ title: 'Başarılı!', message: 'Çek/Senet kaydedildi.', color: 'green', icon: <IconCheck size={16} /> });
+
+      notifications.show({
+        title: 'Başarılı!',
+        message: 'Çek/Senet kaydedildi.',
+        color: 'green',
+        icon: <IconCheck size={16} />,
+      });
       loadData();
       resetCekSenetForm();
       closeCekSenet();
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ title: 'Hata!', message: 'Çek/Senet kaydedilemedi.', color: 'red' });
     }
   };
@@ -444,28 +462,31 @@ export default function KasaBankaPage() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/kasa-banka/cek-senet/${selectedCekSenet.id}/tahsil`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          hesap_id: parseInt(tahsilForm.hesap_id),
-          tarih: tahsilForm.tarih.toISOString().split('T')[0],
-          aciklama: tahsilForm.aciklama
-        })
-      });
+      const response = await fetch(
+        `${API_URL}/kasa-banka/cek-senet/${selectedCekSenet.id}/tahsil`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            hesap_id: parseInt(tahsilForm.hesap_id, 10),
+            tarih: tahsilForm.tarih.toISOString().split('T')[0],
+            aciklama: tahsilForm.aciklama,
+          }),
+        }
+      );
 
       if (!response.ok) throw new Error('İşlem başarısız');
-      
-      notifications.show({ 
-        title: 'Başarılı!', 
-        message: selectedCekSenet.yonu === 'alinan' ? 'Tahsilat kaydedildi.' : 'Ödeme kaydedildi.', 
-        color: 'green', 
-        icon: <IconCheck size={16} /> 
+
+      notifications.show({
+        title: 'Başarılı!',
+        message: selectedCekSenet.yonu === 'alinan' ? 'Tahsilat kaydedildi.' : 'Ödeme kaydedildi.',
+        color: 'green',
+        icon: <IconCheck size={16} />,
       });
       loadData();
       closeTahsil();
       setSelectedCekSenet(null);
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ title: 'Hata!', message: 'İşlem kaydedilemedi.', color: 'red' });
     }
   };
@@ -481,19 +502,24 @@ export default function KasaBankaPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ciro_cari_id: parseInt(ciroForm.ciro_cari_id),
+          ciro_cari_id: parseInt(ciroForm.ciro_cari_id, 10),
           tarih: ciroForm.tarih.toISOString().split('T')[0],
-          aciklama: ciroForm.aciklama
-        })
+          aciklama: ciroForm.aciklama,
+        }),
       });
 
       if (!response.ok) throw new Error('İşlem başarısız');
-      
-      notifications.show({ title: 'Başarılı!', message: 'Ciro kaydedildi.', color: 'green', icon: <IconCheck size={16} /> });
+
+      notifications.show({
+        title: 'Başarılı!',
+        message: 'Ciro kaydedildi.',
+        color: 'green',
+        icon: <IconCheck size={16} />,
+      });
       loadData();
       closeCiro();
       setSelectedCekSenet(null);
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ title: 'Hata!', message: 'Ciro kaydedilemedi.', color: 'red' });
     }
   };
@@ -506,26 +532,26 @@ export default function KasaBankaPage() {
       const response = await fetch(`${API_URL}/kasa-banka/cek-senet/${cekSenet.id}/iade`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ neden })
+        body: JSON.stringify({ neden }),
       });
 
       if (!response.ok) throw new Error('İşlem başarısız');
-      
+
       notifications.show({ title: 'Kaydedildi', message: 'İade kaydedildi.', color: 'orange' });
       loadData();
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ title: 'Hata!', message: 'İade kaydedilemedi.', color: 'red' });
     }
   };
 
   const handleDeleteCekSenet = async (id: number) => {
     if (!confirm('Bu kaydı silmek istediğinize emin misiniz?')) return;
-    
+
     try {
       await fetch(`${API_URL}/kasa-banka/cek-senet/${id}`, { method: 'DELETE' });
       notifications.show({ title: 'Silindi', message: 'Kayıt silindi.', color: 'orange' });
       loadData();
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ title: 'Hata!', message: 'Kayıt silinemedi.', color: 'red' });
     }
   };
@@ -533,15 +559,49 @@ export default function KasaBankaPage() {
   // Reset fonksiyonları
   const resetHesapForm = () => {
     setEditingHesap(null);
-    setHesapForm({ hesap_tipi: 'banka', hesap_adi: '', banka_adi: '', sube: '', hesap_no: '', iban: '', para_birimi: 'TRY', bakiye: 0, kredi_limiti: 0, aktif: true });
+    setHesapForm({
+      hesap_tipi: 'banka',
+      hesap_adi: '',
+      banka_adi: '',
+      sube: '',
+      hesap_no: '',
+      iban: '',
+      para_birimi: 'TRY',
+      bakiye: 0,
+      kredi_limiti: 0,
+      aktif: true,
+    });
   };
 
   const resetHareketForm = () => {
-    setHareketForm({ hesap_id: '', hareket_tipi: 'giris', tutar: 0, aciklama: '', belge_no: '', tarih: new Date(), karsi_hesap_id: '' });
+    setHareketForm({
+      hesap_id: '',
+      hareket_tipi: 'giris',
+      tutar: 0,
+      aciklama: '',
+      belge_no: '',
+      tarih: new Date(),
+      karsi_hesap_id: '',
+    });
   };
 
   const resetCekSenetForm = () => {
-    setCekSenetForm({ tip: 'cek', yonu: 'alinan', belge_no: '', seri_no: '', tutar: 0, kesim_tarihi: new Date(), vade_tarihi: new Date(), banka_adi: '', sube_adi: '', hesap_no: '', kesen_unvan: '', kesen_vkn_tckn: '', cari_id: '', notlar: '' });
+    setCekSenetForm({
+      tip: 'cek',
+      yonu: 'alinan',
+      belge_no: '',
+      seri_no: '',
+      tutar: 0,
+      kesim_tarihi: new Date(),
+      vade_tarihi: new Date(),
+      banka_adi: '',
+      sube_adi: '',
+      hesap_no: '',
+      kesen_unvan: '',
+      kesen_vkn_tckn: '',
+      cari_id: '',
+      notlar: '',
+    });
   };
 
   // Düzenleme
@@ -557,16 +617,16 @@ export default function KasaBankaPage() {
       para_birimi: hesap.para_birimi,
       bakiye: hesap.bakiye,
       kredi_limiti: hesap.kredi_limiti,
-      aktif: hesap.aktif
+      aktif: hesap.aktif,
     });
     openHesap();
   };
 
   // Filtreleme
-  const alinanCekler = cekSenetler.filter(c => c.tip === 'cek' && c.yonu === 'alinan');
-  const verilenCekler = cekSenetler.filter(c => c.tip === 'cek' && c.yonu === 'verilen');
-  const alinanSenetler = cekSenetler.filter(c => c.tip === 'senet' && c.yonu === 'alinan');
-  const verilenSenetler = cekSenetler.filter(c => c.tip === 'senet' && c.yonu === 'verilen');
+  const alinanCekler = cekSenetler.filter((c) => c.tip === 'cek' && c.yonu === 'alinan');
+  const verilenCekler = cekSenetler.filter((c) => c.tip === 'cek' && c.yonu === 'verilen');
+  const alinanSenetler = cekSenetler.filter((c) => c.tip === 'senet' && c.yonu === 'alinan');
+  const verilenSenetler = cekSenetler.filter((c) => c.tip === 'senet' && c.yonu === 'verilen');
 
   if (loading) {
     return (
@@ -580,12 +640,12 @@ export default function KasaBankaPage() {
   }
 
   return (
-    <Box 
-      style={{ 
-        background: isDark 
-          ? 'linear-gradient(180deg, rgba(34,139,34,0.05) 0%, rgba(0,0,0,0) 100%)' 
+    <Box
+      style={{
+        background: isDark
+          ? 'linear-gradient(180deg, rgba(34,139,34,0.05) 0%, rgba(0,0,0,0) 100%)'
           : 'linear-gradient(180deg, rgba(34,139,34,0.08) 0%, rgba(255,255,255,0) 100%)',
-        minHeight: '100vh' 
+        minHeight: '100vh',
       }}
     >
       <Container size="xl" py="xl">
@@ -593,20 +653,47 @@ export default function KasaBankaPage() {
           {/* Header */}
           <Group justify="space-between" align="flex-end">
             <Box>
-              <Title order={1} fw={700}>🏦 Kasa / Banka / Çek-Senet</Title>
-              <Text c="dimmed" size="lg">Nakit akışı ve kıymetli evrak takibi</Text>
+              <Title order={1} fw={700}>
+                🏦 Kasa / Banka / Çek-Senet
+              </Title>
+              <Text c="dimmed" size="lg">
+                Nakit akışı ve kıymetli evrak takibi
+              </Text>
             </Box>
             <Group>
               <Button leftSection={<IconRefresh size={18} />} variant="subtle" onClick={loadData}>
                 Yenile
               </Button>
-              <Button leftSection={<IconArrowsExchange size={18} />} variant="light" onClick={() => { resetHareketForm(); openHareket(); }}>
+              <Button
+                leftSection={<IconArrowsExchange size={18} />}
+                variant="light"
+                onClick={() => {
+                  resetHareketForm();
+                  openHareket();
+                }}
+              >
                 Hareket
               </Button>
-              <Button leftSection={<IconReceipt size={18} />} variant="light" color="violet" onClick={() => { resetCekSenetForm(); openCekSenet(); }}>
+              <Button
+                leftSection={<IconReceipt size={18} />}
+                variant="light"
+                color="violet"
+                onClick={() => {
+                  resetCekSenetForm();
+                  openCekSenet();
+                }}
+              >
                 Çek/Senet
               </Button>
-              <Button leftSection={<IconPlus size={18} />} variant="gradient" gradient={{ from: 'green', to: 'teal' }} onClick={() => { resetHesapForm(); openHesap(); }}>
+              <Button
+                leftSection={<IconPlus size={18} />}
+                variant="gradient"
+                gradient={{ from: 'green', to: 'teal' }}
+                onClick={() => {
+                  resetHesapForm();
+                  openHesap();
+                }}
+              >
                 Yeni Hesap
               </Button>
             </Group>
@@ -617,61 +704,121 @@ export default function KasaBankaPage() {
             <SimpleGrid cols={{ base: 2, sm: 3, md: 6 }}>
               <Card withBorder shadow="sm" p="md" radius="md">
                 <Group justify="space-between">
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Kasa</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                    Kasa
+                  </Text>
                   <ThemeIcon color="teal" variant="light" size="sm" radius="xl">
                     <IconCash size={14} />
                   </ThemeIcon>
                 </Group>
-                <Text fw={700} size="lg" mt="xs">{formatMoney(ozet.kasa_toplam)}</Text>
+                <Text fw={700} size="lg" mt="xs">
+                  {formatMoney(ozet.kasa_toplam)}
+                </Text>
               </Card>
               <Card withBorder shadow="sm" p="md" radius="md">
                 <Group justify="space-between">
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Banka</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                    Banka
+                  </Text>
                   <ThemeIcon color="blue" variant="light" size="sm" radius="xl">
                     <IconBuildingBank size={14} />
                   </ThemeIcon>
                 </Group>
-                <Text fw={700} size="lg" mt="xs">{formatMoney(ozet.banka_toplam)}</Text>
+                <Text fw={700} size="lg" mt="xs">
+                  {formatMoney(ozet.banka_toplam)}
+                </Text>
               </Card>
               <Card withBorder shadow="sm" p="md" radius="md">
                 <Group justify="space-between">
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Alınan Çekler</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                    Alınan Çekler
+                  </Text>
                   <ThemeIcon color="green" variant="light" size="sm" radius="xl">
                     <IconReceipt size={14} />
                   </ThemeIcon>
                 </Group>
-                <Text fw={700} size="lg" mt="xs">{formatMoney(ozet.alinan_cek_toplam)}</Text>
-                <Text size="xs" c="dimmed">{ozet.alinan_cek_adet} adet</Text>
+                <Text fw={700} size="lg" mt="xs">
+                  {formatMoney(ozet.alinan_cek_toplam)}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {ozet.alinan_cek_adet} adet
+                </Text>
               </Card>
               <Card withBorder shadow="sm" p="md" radius="md">
                 <Group justify="space-between">
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Verilen Çekler</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                    Verilen Çekler
+                  </Text>
                   <ThemeIcon color="red" variant="light" size="sm" radius="xl">
                     <IconSend size={14} />
                   </ThemeIcon>
                 </Group>
-                <Text fw={700} size="lg" mt="xs">{formatMoney(ozet.verilen_cek_toplam)}</Text>
-                <Text size="xs" c="dimmed">{ozet.verilen_cek_adet} adet</Text>
+                <Text fw={700} size="lg" mt="xs">
+                  {formatMoney(ozet.verilen_cek_toplam)}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {ozet.verilen_cek_adet} adet
+                </Text>
               </Card>
-              <Card withBorder shadow="sm" p="md" radius="md" style={{ borderColor: ozet.vadesi_gecmis_adet > 0 ? 'var(--mantine-color-red-5)' : undefined }}>
+              <Card
+                withBorder
+                shadow="sm"
+                p="md"
+                radius="md"
+                style={{
+                  borderColor:
+                    ozet.vadesi_gecmis_adet > 0 ? 'var(--mantine-color-red-5)' : undefined,
+                }}
+              >
                 <Group justify="space-between">
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Vadesi Geçmiş</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                    Vadesi Geçmiş
+                  </Text>
                   <ThemeIcon color="red" variant="light" size="sm" radius="xl">
                     <IconAlertTriangle size={14} />
                   </ThemeIcon>
                 </Group>
-                <Text fw={700} size="lg" mt="xs" c={ozet.vadesi_gecmis_adet > 0 ? 'red' : undefined}>{formatMoney(ozet.vadesi_gecmis_toplam)}</Text>
-                <Text size="xs" c="dimmed">{ozet.vadesi_gecmis_adet} adet</Text>
+                <Text
+                  fw={700}
+                  size="lg"
+                  mt="xs"
+                  c={ozet.vadesi_gecmis_adet > 0 ? 'red' : undefined}
+                >
+                  {formatMoney(ozet.vadesi_gecmis_toplam)}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {ozet.vadesi_gecmis_adet} adet
+                </Text>
               </Card>
-              <Card withBorder shadow="sm" p="md" radius="md" style={{ borderColor: ozet.bu_hafta_vadeli_adet > 0 ? 'var(--mantine-color-orange-5)' : undefined }}>
+              <Card
+                withBorder
+                shadow="sm"
+                p="md"
+                radius="md"
+                style={{
+                  borderColor:
+                    ozet.bu_hafta_vadeli_adet > 0 ? 'var(--mantine-color-orange-5)' : undefined,
+                }}
+              >
                 <Group justify="space-between">
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Bu Hafta</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                    Bu Hafta
+                  </Text>
                   <ThemeIcon color="orange" variant="light" size="sm" radius="xl">
                     <IconClockHour4 size={14} />
                   </ThemeIcon>
                 </Group>
-                <Text fw={700} size="lg" mt="xs" c={ozet.bu_hafta_vadeli_adet > 0 ? 'orange' : undefined}>{formatMoney(ozet.bu_hafta_vadeli_toplam)}</Text>
-                <Text size="xs" c="dimmed">{ozet.bu_hafta_vadeli_adet} adet</Text>
+                <Text
+                  fw={700}
+                  size="lg"
+                  mt="xs"
+                  c={ozet.bu_hafta_vadeli_adet > 0 ? 'orange' : undefined}
+                >
+                  {formatMoney(ozet.bu_hafta_vadeli_toplam)}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {ozet.bu_hafta_vadeli_adet} adet
+                </Text>
               </Card>
             </SimpleGrid>
           )}
@@ -706,26 +853,58 @@ export default function KasaBankaPage() {
                   <Paper key={hesap.id} withBorder p="lg" radius="md" shadow="sm">
                     <Group justify="space-between" mb="md">
                       <Group>
-                        <ThemeIcon color={hesap.hesap_tipi === 'kasa' ? 'teal' : 'blue'} variant="light" size="lg" radius="md">
-                          {hesap.hesap_tipi === 'kasa' ? <IconCash size={20} /> : <IconCreditCard size={20} />}
+                        <ThemeIcon
+                          color={hesap.hesap_tipi === 'kasa' ? 'teal' : 'blue'}
+                          variant="light"
+                          size="lg"
+                          radius="md"
+                        >
+                          {hesap.hesap_tipi === 'kasa' ? (
+                            <IconCash size={20} />
+                          ) : (
+                            <IconCreditCard size={20} />
+                          )}
                         </ThemeIcon>
                         <div>
-                          <Text size="sm" fw={600}>{hesap.hesap_adi}</Text>
-                          <Text size="xs" c="dimmed">{hesap.banka_adi || hesap.hesap_tipi === 'kasa' ? 'Kasa' : 'Banka'}</Text>
+                          <Text size="sm" fw={600}>
+                            {hesap.hesap_adi}
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            {hesap.banka_adi || hesap.hesap_tipi === 'kasa' ? 'Kasa' : 'Banka'}
+                          </Text>
                         </div>
                       </Group>
                       <Menu position="bottom-end" shadow="md">
                         <Menu.Target>
-                          <ActionIcon variant="subtle" color="gray"><IconDotsVertical size={16} /></ActionIcon>
+                          <ActionIcon variant="subtle" color="gray">
+                            <IconDotsVertical size={16} />
+                          </ActionIcon>
                         </Menu.Target>
                         <Menu.Dropdown>
-                          <Menu.Item leftSection={<IconEdit size={14} />} onClick={() => handleEditHesap(hesap)}>Düzenle</Menu.Item>
-                          <Menu.Item color="red" leftSection={<IconTrash size={14} />} onClick={() => handleDeleteHesap(hesap.id)}>Sil</Menu.Item>
+                          <Menu.Item
+                            leftSection={<IconEdit size={14} />}
+                            onClick={() => handleEditHesap(hesap)}
+                          >
+                            Düzenle
+                          </Menu.Item>
+                          <Menu.Item
+                            color="red"
+                            leftSection={<IconTrash size={14} />}
+                            onClick={() => handleDeleteHesap(hesap.id)}
+                          >
+                            Sil
+                          </Menu.Item>
                         </Menu.Dropdown>
                       </Menu>
                     </Group>
-                    <Text size="xl" fw={700} c={hesap.bakiye >= 0 ? 'green' : 'red'}>{formatMoney(hesap.bakiye)}</Text>
-                    {hesap.iban && <Text size="xs" c="dimmed" mt="xs">{hesap.iban}</Text>}
+                    <Text size="xl" fw={700} c={hesap.bakiye >= 0 ? 'green' : 'red'}>
+                      {formatMoney(hesap.bakiye)}
+                    </Text>
+                    {hesap.iban && (
+                      <Text size="xs" c="dimmed" mt="xs">
+                        {hesap.iban}
+                      </Text>
+                    )}
                   </Paper>
                 ))}
               </SimpleGrid>
@@ -749,21 +928,61 @@ export default function KasaBankaPage() {
                       {hareketler.map((hareket) => (
                         <Table.Tr key={hareket.id}>
                           <Table.Td>
-                            <ThemeIcon color={hareket.hareket_tipi === 'giris' ? 'green' : hareket.hareket_tipi === 'cikis' ? 'red' : 'blue'} variant="light" size="sm" radius="xl">
-                              {hareket.hareket_tipi === 'giris' ? <IconArrowUpRight size={14} /> : hareket.hareket_tipi === 'cikis' ? <IconArrowDownRight size={14} /> : <IconArrowsExchange size={14} />}
+                            <ThemeIcon
+                              color={
+                                hareket.hareket_tipi === 'giris'
+                                  ? 'green'
+                                  : hareket.hareket_tipi === 'cikis'
+                                    ? 'red'
+                                    : 'blue'
+                              }
+                              variant="light"
+                              size="sm"
+                              radius="xl"
+                            >
+                              {hareket.hareket_tipi === 'giris' ? (
+                                <IconArrowUpRight size={14} />
+                              ) : hareket.hareket_tipi === 'cikis' ? (
+                                <IconArrowDownRight size={14} />
+                              ) : (
+                                <IconArrowsExchange size={14} />
+                              )}
                             </ThemeIcon>
                           </Table.Td>
                           <Table.Td>
                             <Text size="sm">{hareket.hesap?.hesap_adi || '-'}</Text>
                             {hareket.hareket_tipi === 'transfer' && hareket.karsi_hesap && (
-                              <Text size="xs" c="dimmed">→ {hareket.karsi_hesap.hesap_adi}</Text>
+                              <Text size="xs" c="dimmed">
+                                → {hareket.karsi_hesap.hesap_adi}
+                              </Text>
                             )}
                           </Table.Td>
-                          <Table.Td><Text size="sm">{hareket.aciklama || '-'}</Text></Table.Td>
-                          <Table.Td><Text size="sm" c="dimmed">{formatDate(hareket.tarih)}</Text></Table.Td>
+                          <Table.Td>
+                            <Text size="sm">{hareket.aciklama || '-'}</Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="sm" c="dimmed">
+                              {formatDate(hareket.tarih)}
+                            </Text>
+                          </Table.Td>
                           <Table.Td style={{ textAlign: 'right' }}>
-                            <Text size="sm" fw={600} c={hareket.hareket_tipi === 'giris' ? 'green' : hareket.hareket_tipi === 'cikis' ? 'red' : 'blue'}>
-                              {hareket.hareket_tipi === 'giris' ? '+' : hareket.hareket_tipi === 'cikis' ? '-' : ''}{formatMoney(hareket.tutar)}
+                            <Text
+                              size="sm"
+                              fw={600}
+                              c={
+                                hareket.hareket_tipi === 'giris'
+                                  ? 'green'
+                                  : hareket.hareket_tipi === 'cikis'
+                                    ? 'red'
+                                    : 'blue'
+                              }
+                            >
+                              {hareket.hareket_tipi === 'giris'
+                                ? '+'
+                                : hareket.hareket_tipi === 'cikis'
+                                  ? '-'
+                                  : ''}
+                              {formatMoney(hareket.tutar)}
                             </Text>
                           </Table.Td>
                         </Table.Tr>
@@ -775,305 +994,622 @@ export default function KasaBankaPage() {
             </Tabs.Panel>
 
             {/* ÇEK/SENET TABLARI - renderCekSenetTable fonksiyonu */}
-            {['alinan-cekler', 'verilen-cekler', 'alinan-senetler', 'verilen-senetler'].map((tabValue) => {
-              const liste = tabValue === 'alinan-cekler' ? alinanCekler 
-                : tabValue === 'verilen-cekler' ? verilenCekler 
-                : tabValue === 'alinan-senetler' ? alinanSenetler 
-                : verilenSenetler;
-              
-              const isAlinan = tabValue.startsWith('alinan');
-              
-              return (
-                <Tabs.Panel key={tabValue} value={tabValue} pt="md">
-                  <Card withBorder shadow="sm" radius="md">
-                    <Table.ScrollContainer minWidth={900}>
-                      <Table verticalSpacing="sm" highlightOnHover>
-                        <Table.Thead>
-                          <Table.Tr>
-                            <Table.Th>Belge No</Table.Th>
-                            <Table.Th>{isAlinan ? 'Kimden' : 'Kime'}</Table.Th>
-                            <Table.Th>Keşideci</Table.Th>
-                            <Table.Th>Banka</Table.Th>
-                            <Table.Th>Vade</Table.Th>
-                            <Table.Th>Durum</Table.Th>
-                            <Table.Th style={{ textAlign: 'right' }}>Tutar</Table.Th>
-                            <Table.Th></Table.Th>
-                          </Table.Tr>
-                        </Table.Thead>
-                        <Table.Tbody>
-                          {liste.map((item) => {
-                            const vade = getVadeDurumu(item.vade_tarihi);
-                            const durumBadge = getDurumBadge(item.durum);
-                            
-                            return (
-                              <Table.Tr key={item.id}>
-                                <Table.Td>
-                                  <Text size="sm" fw={500}>{item.belge_no}</Text>
-                                  {item.seri_no && <Text size="xs" c="dimmed">Seri: {item.seri_no}</Text>}
-                                </Table.Td>
-                                <Table.Td>
-                                  <Text size="sm">{item.cari?.unvan || '-'}</Text>
-                                </Table.Td>
-                                <Table.Td>
-                                  <Text size="sm">{item.kesen_unvan}</Text>
-                                  {item.kesen_vkn_tckn && <Text size="xs" c="dimmed">{item.kesen_vkn_tckn}</Text>}
-                                </Table.Td>
-                                <Table.Td>
-                                  <Text size="sm">{item.banka_adi || '-'}</Text>
-                                </Table.Td>
-                                <Table.Td>
-                                  <Group gap="xs">
-                                    <Text size="sm">{formatDate(item.vade_tarihi)}</Text>
-                                    {item.durum === 'beklemede' && (
-                                      <Badge size="xs" color={vade.renk} variant="light">{vade.text}</Badge>
+            {['alinan-cekler', 'verilen-cekler', 'alinan-senetler', 'verilen-senetler'].map(
+              (tabValue) => {
+                const liste =
+                  tabValue === 'alinan-cekler'
+                    ? alinanCekler
+                    : tabValue === 'verilen-cekler'
+                      ? verilenCekler
+                      : tabValue === 'alinan-senetler'
+                        ? alinanSenetler
+                        : verilenSenetler;
+
+                const isAlinan = tabValue.startsWith('alinan');
+
+                return (
+                  <Tabs.Panel key={tabValue} value={tabValue} pt="md">
+                    <Card withBorder shadow="sm" radius="md">
+                      <Table.ScrollContainer minWidth={900}>
+                        <Table verticalSpacing="sm" highlightOnHover>
+                          <Table.Thead>
+                            <Table.Tr>
+                              <Table.Th>Belge No</Table.Th>
+                              <Table.Th>{isAlinan ? 'Kimden' : 'Kime'}</Table.Th>
+                              <Table.Th>Keşideci</Table.Th>
+                              <Table.Th>Banka</Table.Th>
+                              <Table.Th>Vade</Table.Th>
+                              <Table.Th>Durum</Table.Th>
+                              <Table.Th style={{ textAlign: 'right' }}>Tutar</Table.Th>
+                              <Table.Th></Table.Th>
+                            </Table.Tr>
+                          </Table.Thead>
+                          <Table.Tbody>
+                            {liste.map((item) => {
+                              const vade = getVadeDurumu(item.vade_tarihi);
+                              const durumBadge = getDurumBadge(item.durum);
+
+                              return (
+                                <Table.Tr key={item.id}>
+                                  <Table.Td>
+                                    <Text size="sm" fw={500}>
+                                      {item.belge_no}
+                                    </Text>
+                                    {item.seri_no && (
+                                      <Text size="xs" c="dimmed">
+                                        Seri: {item.seri_no}
+                                      </Text>
                                     )}
-                                  </Group>
-                                </Table.Td>
-                                <Table.Td>
-                                  <Badge color={durumBadge.color} variant="light">{durumBadge.label}</Badge>
-                                  {item.cirolu_mu && item.ciro_cari && (
-                                    <Text size="xs" c="dimmed">→ {item.ciro_cari.unvan}</Text>
-                                  )}
-                                </Table.Td>
-                                <Table.Td style={{ textAlign: 'right' }}>
-                                  <Text size="sm" fw={700} c={isAlinan ? 'green' : 'red'}>
-                                    {formatMoney(item.tutar)}
+                                  </Table.Td>
+                                  <Table.Td>
+                                    <Text size="sm">{item.cari?.unvan || '-'}</Text>
+                                  </Table.Td>
+                                  <Table.Td>
+                                    <Text size="sm">{item.kesen_unvan}</Text>
+                                    {item.kesen_vkn_tckn && (
+                                      <Text size="xs" c="dimmed">
+                                        {item.kesen_vkn_tckn}
+                                      </Text>
+                                    )}
+                                  </Table.Td>
+                                  <Table.Td>
+                                    <Text size="sm">{item.banka_adi || '-'}</Text>
+                                  </Table.Td>
+                                  <Table.Td>
+                                    <Group gap="xs">
+                                      <Text size="sm">{formatDate(item.vade_tarihi)}</Text>
+                                      {item.durum === 'beklemede' && (
+                                        <Badge size="xs" color={vade.renk} variant="light">
+                                          {vade.text}
+                                        </Badge>
+                                      )}
+                                    </Group>
+                                  </Table.Td>
+                                  <Table.Td>
+                                    <Badge color={durumBadge.color} variant="light">
+                                      {durumBadge.label}
+                                    </Badge>
+                                    {item.cirolu_mu && item.ciro_cari && (
+                                      <Text size="xs" c="dimmed">
+                                        → {item.ciro_cari.unvan}
+                                      </Text>
+                                    )}
+                                  </Table.Td>
+                                  <Table.Td style={{ textAlign: 'right' }}>
+                                    <Text size="sm" fw={700} c={isAlinan ? 'green' : 'red'}>
+                                      {formatMoney(item.tutar)}
+                                    </Text>
+                                  </Table.Td>
+                                  <Table.Td>
+                                    {item.durum === 'beklemede' && (
+                                      <Menu position="bottom-end" shadow="md">
+                                        <Menu.Target>
+                                          <ActionIcon variant="subtle" color="gray">
+                                            <IconDotsVertical size={16} />
+                                          </ActionIcon>
+                                        </Menu.Target>
+                                        <Menu.Dropdown>
+                                          <Menu.Item
+                                            leftSection={<IconCheck size={14} />}
+                                            onClick={() => {
+                                              setSelectedCekSenet(item);
+                                              setTahsilForm({
+                                                hesap_id: '',
+                                                tarih: new Date(),
+                                                aciklama: '',
+                                              });
+                                              openTahsil();
+                                            }}
+                                          >
+                                            {isAlinan ? 'Tahsil Et' : 'Ödendi'}
+                                          </Menu.Item>
+                                          {isAlinan && (
+                                            <Menu.Item
+                                              leftSection={<IconSend size={14} />}
+                                              onClick={() => {
+                                                setSelectedCekSenet(item);
+                                                setCiroForm({
+                                                  ciro_cari_id: '',
+                                                  tarih: new Date(),
+                                                  aciklama: '',
+                                                });
+                                                openCiro();
+                                              }}
+                                            >
+                                              Ciro Et
+                                            </Menu.Item>
+                                          )}
+                                          <Menu.Item
+                                            leftSection={<IconReceiptRefund size={14} />}
+                                            color="orange"
+                                            onClick={() => handleIade(item)}
+                                          >
+                                            İade
+                                          </Menu.Item>
+                                          <Menu.Divider />
+                                          <Menu.Item
+                                            leftSection={<IconTrash size={14} />}
+                                            color="red"
+                                            onClick={() => handleDeleteCekSenet(item.id)}
+                                          >
+                                            Sil
+                                          </Menu.Item>
+                                        </Menu.Dropdown>
+                                      </Menu>
+                                    )}
+                                  </Table.Td>
+                                </Table.Tr>
+                              );
+                            })}
+                            {liste.length === 0 && (
+                              <Table.Tr>
+                                <Table.Td colSpan={8}>
+                                  <Text ta="center" c="dimmed" py="xl">
+                                    Kayıt bulunamadı
                                   </Text>
                                 </Table.Td>
-                                <Table.Td>
-                                  {item.durum === 'beklemede' && (
-                                    <Menu position="bottom-end" shadow="md">
-                                      <Menu.Target>
-                                        <ActionIcon variant="subtle" color="gray"><IconDotsVertical size={16} /></ActionIcon>
-                                      </Menu.Target>
-                                      <Menu.Dropdown>
-                                        <Menu.Item 
-                                          leftSection={<IconCheck size={14} />} 
-                                          onClick={() => { setSelectedCekSenet(item); setTahsilForm({ hesap_id: '', tarih: new Date(), aciklama: '' }); openTahsil(); }}
-                                        >
-                                          {isAlinan ? 'Tahsil Et' : 'Ödendi'}
-                                        </Menu.Item>
-                                        {isAlinan && (
-                                          <Menu.Item 
-                                            leftSection={<IconSend size={14} />} 
-                                            onClick={() => { setSelectedCekSenet(item); setCiroForm({ ciro_cari_id: '', tarih: new Date(), aciklama: '' }); openCiro(); }}
-                                          >
-                                            Ciro Et
-                                          </Menu.Item>
-                                        )}
-                                        <Menu.Item 
-                                          leftSection={<IconReceiptRefund size={14} />} 
-                                          color="orange"
-                                          onClick={() => handleIade(item)}
-                                        >
-                                          İade
-                                        </Menu.Item>
-                                        <Menu.Divider />
-                                        <Menu.Item 
-                                          leftSection={<IconTrash size={14} />} 
-                                          color="red"
-                                          onClick={() => handleDeleteCekSenet(item.id)}
-                                        >
-                                          Sil
-                                        </Menu.Item>
-                                      </Menu.Dropdown>
-                                    </Menu>
-                                  )}
-                                </Table.Td>
                               </Table.Tr>
-                            );
-                          })}
-                          {liste.length === 0 && (
-                            <Table.Tr>
-                              <Table.Td colSpan={8}>
-                                <Text ta="center" c="dimmed" py="xl">Kayıt bulunamadı</Text>
-                              </Table.Td>
-                            </Table.Tr>
-                          )}
-                        </Table.Tbody>
-                      </Table>
-                    </Table.ScrollContainer>
-                  </Card>
-                </Tabs.Panel>
-              );
-            })}
+                            )}
+                          </Table.Tbody>
+                        </Table>
+                      </Table.ScrollContainer>
+                    </Card>
+                  </Tabs.Panel>
+                );
+              }
+            )}
           </Tabs>
         </Stack>
 
         {/* ===================== MODALS ===================== */}
 
         {/* Hesap Modal */}
-        <Modal opened={hesapOpened} onClose={() => { resetHesapForm(); closeHesap(); }} title={<Title order={3}>{editingHesap ? 'Hesap Düzenle' : 'Yeni Hesap'}</Title>} size="md">
+        <Modal
+          opened={hesapOpened}
+          onClose={() => {
+            resetHesapForm();
+            closeHesap();
+          }}
+          title={<Title order={3}>{editingHesap ? 'Hesap Düzenle' : 'Yeni Hesap'}</Title>}
+          size="md"
+        >
           <Stack gap="md">
-            <Select 
-              label="Hesap Tipi" 
-              data={[{ label: '💵 Kasa', value: 'kasa' }, { label: '🏦 Banka Hesabı', value: 'banka' }]} 
-              value={hesapForm.hesap_tipi} 
-              onChange={(v) => setHesapForm({ ...hesapForm, hesap_tipi: v as any })} 
+            <Select
+              label="Hesap Tipi"
+              data={[
+                { label: '💵 Kasa', value: 'kasa' },
+                { label: '🏦 Banka Hesabı', value: 'banka' },
+              ]}
+              value={hesapForm.hesap_tipi}
+              onChange={(v) => setHesapForm({ ...hesapForm, hesap_tipi: v as any })}
             />
-            <TextInput label="Hesap Adı" placeholder="Örn: Ana Kasa" value={hesapForm.hesap_adi} onChange={(e) => setHesapForm({ ...hesapForm, hesap_adi: e.currentTarget.value })} required />
+            <TextInput
+              label="Hesap Adı"
+              placeholder="Örn: Ana Kasa"
+              value={hesapForm.hesap_adi}
+              onChange={(e) => setHesapForm({ ...hesapForm, hesap_adi: e.currentTarget.value })}
+              required
+            />
             {hesapForm.hesap_tipi === 'banka' && (
               <>
-                <Select label="Banka" data={bankalar} value={hesapForm.banka_adi} onChange={(v) => setHesapForm({ ...hesapForm, banka_adi: v || '' })} searchable />
-                <TextInput label="Şube" placeholder="Şube adı" value={hesapForm.sube} onChange={(e) => setHesapForm({ ...hesapForm, sube: e.currentTarget.value })} />
-                <TextInput label="IBAN" placeholder="TR00 0000 0000 0000 0000 0000 00" value={hesapForm.iban} onChange={(e) => setHesapForm({ ...hesapForm, iban: e.currentTarget.value })} />
+                <Select
+                  label="Banka"
+                  data={bankalar}
+                  value={hesapForm.banka_adi}
+                  onChange={(v) => setHesapForm({ ...hesapForm, banka_adi: v || '' })}
+                  searchable
+                />
+                <TextInput
+                  label="Şube"
+                  placeholder="Şube adı"
+                  value={hesapForm.sube}
+                  onChange={(e) => setHesapForm({ ...hesapForm, sube: e.currentTarget.value })}
+                />
+                <TextInput
+                  label="IBAN"
+                  placeholder="TR00 0000 0000 0000 0000 0000 00"
+                  value={hesapForm.iban}
+                  onChange={(e) => setHesapForm({ ...hesapForm, iban: e.currentTarget.value })}
+                />
               </>
             )}
-            <NumberInput label="Başlangıç Bakiyesi (₺)" value={hesapForm.bakiye} onChange={(v) => setHesapForm({ ...hesapForm, bakiye: Number(v) || 0 })} thousandSeparator="." decimalSeparator="," />
+            <NumberInput
+              label="Başlangıç Bakiyesi (₺)"
+              value={hesapForm.bakiye}
+              onChange={(v) => setHesapForm({ ...hesapForm, bakiye: Number(v) || 0 })}
+              thousandSeparator="."
+              decimalSeparator=","
+            />
             <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={() => { resetHesapForm(); closeHesap(); }}>İptal</Button>
-              <Button color="green" onClick={handleHesapSubmit}>{editingHesap ? 'Güncelle' : 'Kaydet'}</Button>
+              <Button
+                variant="default"
+                onClick={() => {
+                  resetHesapForm();
+                  closeHesap();
+                }}
+              >
+                İptal
+              </Button>
+              <Button color="green" onClick={handleHesapSubmit}>
+                {editingHesap ? 'Güncelle' : 'Kaydet'}
+              </Button>
             </Group>
           </Stack>
         </Modal>
 
         {/* Hareket Modal */}
-        <Modal opened={hareketOpened} onClose={() => { resetHareketForm(); closeHareket(); }} title={<Title order={3}>Yeni Hareket</Title>} size="md">
+        <Modal
+          opened={hareketOpened}
+          onClose={() => {
+            resetHareketForm();
+            closeHareket();
+          }}
+          title={<Title order={3}>Yeni Hareket</Title>}
+          size="md"
+        >
           <Stack gap="md">
-            <Select 
-              label="İşlem Tipi" 
-              data={[{ label: '📥 Giriş', value: 'giris' }, { label: '📤 Çıkış', value: 'cikis' }, { label: '🔄 Transfer', value: 'transfer' }]} 
-              value={hareketForm.hareket_tipi} 
-              onChange={(v) => setHareketForm({ ...hareketForm, hareket_tipi: v as any })} 
+            <Select
+              label="İşlem Tipi"
+              data={[
+                { label: '📥 Giriş', value: 'giris' },
+                { label: '📤 Çıkış', value: 'cikis' },
+                { label: '🔄 Transfer', value: 'transfer' },
+              ]}
+              value={hareketForm.hareket_tipi}
+              onChange={(v) => setHareketForm({ ...hareketForm, hareket_tipi: v as any })}
             />
-            <Select 
-              label="Hesap" 
-              placeholder="Hesap seçin" 
-              data={hesaplar.map(h => ({ label: `${h.hesap_adi} (${formatMoney(h.bakiye)})`, value: h.id.toString() }))} 
-              value={hareketForm.hesap_id} 
-              onChange={(v) => setHareketForm({ ...hareketForm, hesap_id: v || '' })} 
-              required 
+            <Select
+              label="Hesap"
+              placeholder="Hesap seçin"
+              data={hesaplar.map((h) => ({
+                label: `${h.hesap_adi} (${formatMoney(h.bakiye)})`,
+                value: h.id.toString(),
+              }))}
+              value={hareketForm.hesap_id}
+              onChange={(v) => setHareketForm({ ...hareketForm, hesap_id: v || '' })}
+              required
             />
             {hareketForm.hareket_tipi === 'transfer' && (
-              <Select 
-                label="Hedef Hesap" 
-                placeholder="Transfer edilecek hesap" 
-                data={hesaplar.filter(h => h.id.toString() !== hareketForm.hesap_id).map(h => ({ label: h.hesap_adi, value: h.id.toString() }))} 
-                value={hareketForm.karsi_hesap_id} 
-                onChange={(v) => setHareketForm({ ...hareketForm, karsi_hesap_id: v || '' })} 
-                required 
+              <Select
+                label="Hedef Hesap"
+                placeholder="Transfer edilecek hesap"
+                data={hesaplar
+                  .filter((h) => h.id.toString() !== hareketForm.hesap_id)
+                  .map((h) => ({ label: h.hesap_adi, value: h.id.toString() }))}
+                value={hareketForm.karsi_hesap_id}
+                onChange={(v) => setHareketForm({ ...hareketForm, karsi_hesap_id: v || '' })}
+                required
               />
             )}
-            <NumberInput label="Tutar (₺)" value={hareketForm.tutar} onChange={(v) => setHareketForm({ ...hareketForm, tutar: Number(v) || 0 })} min={0} thousandSeparator="." decimalSeparator="," required />
-            <TextInput label="Açıklama" placeholder="İşlem açıklaması" value={hareketForm.aciklama} onChange={(e) => setHareketForm({ ...hareketForm, aciklama: e.currentTarget.value })} />
-            <TextInput label="Belge No" placeholder="Fatura/Makbuz no" value={hareketForm.belge_no} onChange={(e) => setHareketForm({ ...hareketForm, belge_no: e.currentTarget.value })} />
-            <StyledDatePicker label="Tarih" value={hareketForm.tarih} onChange={(v) => setHareketForm({ ...hareketForm, tarih: v || new Date() })} />
+            <NumberInput
+              label="Tutar (₺)"
+              value={hareketForm.tutar}
+              onChange={(v) => setHareketForm({ ...hareketForm, tutar: Number(v) || 0 })}
+              min={0}
+              thousandSeparator="."
+              decimalSeparator=","
+              required
+            />
+            <TextInput
+              label="Açıklama"
+              placeholder="İşlem açıklaması"
+              value={hareketForm.aciklama}
+              onChange={(e) => setHareketForm({ ...hareketForm, aciklama: e.currentTarget.value })}
+            />
+            <TextInput
+              label="Belge No"
+              placeholder="Fatura/Makbuz no"
+              value={hareketForm.belge_no}
+              onChange={(e) => setHareketForm({ ...hareketForm, belge_no: e.currentTarget.value })}
+            />
+            <StyledDatePicker
+              label="Tarih"
+              value={hareketForm.tarih}
+              onChange={(v) => setHareketForm({ ...hareketForm, tarih: v || new Date() })}
+            />
             <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={() => { resetHareketForm(); closeHareket(); }}>İptal</Button>
-              <Button color={hareketForm.hareket_tipi === 'giris' ? 'green' : hareketForm.hareket_tipi === 'cikis' ? 'red' : 'blue'} onClick={handleHareketSubmit}>Kaydet</Button>
+              <Button
+                variant="default"
+                onClick={() => {
+                  resetHareketForm();
+                  closeHareket();
+                }}
+              >
+                İptal
+              </Button>
+              <Button
+                color={
+                  hareketForm.hareket_tipi === 'giris'
+                    ? 'green'
+                    : hareketForm.hareket_tipi === 'cikis'
+                      ? 'red'
+                      : 'blue'
+                }
+                onClick={handleHareketSubmit}
+              >
+                Kaydet
+              </Button>
             </Group>
           </Stack>
         </Modal>
 
         {/* Çek/Senet Modal */}
-        <Modal opened={cekSenetOpened} onClose={() => { resetCekSenetForm(); closeCekSenet(); }} title={<Title order={3}>Yeni Çek/Senet</Title>} size="lg">
+        <Modal
+          opened={cekSenetOpened}
+          onClose={() => {
+            resetCekSenetForm();
+            closeCekSenet();
+          }}
+          title={<Title order={3}>Yeni Çek/Senet</Title>}
+          size="lg"
+        >
           <Stack gap="md">
             <Group grow>
-              <Select 
-                label="Tip" 
-                data={[{ label: '📝 Çek', value: 'cek' }, { label: '📄 Senet', value: 'senet' }]} 
-                value={cekSenetForm.tip} 
-                onChange={(v) => setCekSenetForm({ ...cekSenetForm, tip: v as any })} 
+              <Select
+                label="Tip"
+                data={[
+                  { label: '📝 Çek', value: 'cek' },
+                  { label: '📄 Senet', value: 'senet' },
+                ]}
+                value={cekSenetForm.tip}
+                onChange={(v) => setCekSenetForm({ ...cekSenetForm, tip: v as any })}
               />
-              <Select 
-                label="Yön" 
-                data={[{ label: '📥 Alınan', value: 'alinan' }, { label: '📤 Verilen', value: 'verilen' }]} 
-                value={cekSenetForm.yonu} 
-                onChange={(v) => setCekSenetForm({ ...cekSenetForm, yonu: v as any })} 
+              <Select
+                label="Yön"
+                data={[
+                  { label: '📥 Alınan', value: 'alinan' },
+                  { label: '📤 Verilen', value: 'verilen' },
+                ]}
+                value={cekSenetForm.yonu}
+                onChange={(v) => setCekSenetForm({ ...cekSenetForm, yonu: v as any })}
               />
             </Group>
             <Group grow>
-              <TextInput label="Belge No" placeholder="Çek/Senet numarası" value={cekSenetForm.belge_no} onChange={(e) => setCekSenetForm({ ...cekSenetForm, belge_no: e.currentTarget.value })} required />
-              <TextInput label="Seri No" placeholder="Seri numarası" value={cekSenetForm.seri_no} onChange={(e) => setCekSenetForm({ ...cekSenetForm, seri_no: e.currentTarget.value })} />
+              <TextInput
+                label="Belge No"
+                placeholder="Çek/Senet numarası"
+                value={cekSenetForm.belge_no}
+                onChange={(e) =>
+                  setCekSenetForm({ ...cekSenetForm, belge_no: e.currentTarget.value })
+                }
+                required
+              />
+              <TextInput
+                label="Seri No"
+                placeholder="Seri numarası"
+                value={cekSenetForm.seri_no}
+                onChange={(e) =>
+                  setCekSenetForm({ ...cekSenetForm, seri_no: e.currentTarget.value })
+                }
+              />
             </Group>
-            <NumberInput label="Tutar (₺)" value={cekSenetForm.tutar} onChange={(v) => setCekSenetForm({ ...cekSenetForm, tutar: Number(v) || 0 })} min={0} thousandSeparator="." decimalSeparator="," required />
+            <NumberInput
+              label="Tutar (₺)"
+              value={cekSenetForm.tutar}
+              onChange={(v) => setCekSenetForm({ ...cekSenetForm, tutar: Number(v) || 0 })}
+              min={0}
+              thousandSeparator="."
+              decimalSeparator=","
+              required
+            />
             <Group grow>
-              <StyledDatePicker label="Keşide Tarihi" value={cekSenetForm.kesim_tarihi} onChange={(v) => setCekSenetForm({ ...cekSenetForm, kesim_tarihi: v || new Date() })} />
-              <StyledDatePicker label="Vade Tarihi" value={cekSenetForm.vade_tarihi} onChange={(v) => setCekSenetForm({ ...cekSenetForm, vade_tarihi: v || new Date() })} />
+              <StyledDatePicker
+                label="Keşide Tarihi"
+                value={cekSenetForm.kesim_tarihi}
+                onChange={(v) =>
+                  setCekSenetForm({ ...cekSenetForm, kesim_tarihi: v || new Date() })
+                }
+              />
+              <StyledDatePicker
+                label="Vade Tarihi"
+                value={cekSenetForm.vade_tarihi}
+                onChange={(v) => setCekSenetForm({ ...cekSenetForm, vade_tarihi: v || new Date() })}
+              />
             </Group>
             <Divider label="Keşideci Bilgileri" />
-            <TextInput label="Keşideci Unvanı" placeholder="Ad Soyad / Firma" value={cekSenetForm.kesen_unvan} onChange={(e) => setCekSenetForm({ ...cekSenetForm, kesen_unvan: e.currentTarget.value })} required />
+            <TextInput
+              label="Keşideci Unvanı"
+              placeholder="Ad Soyad / Firma"
+              value={cekSenetForm.kesen_unvan}
+              onChange={(e) =>
+                setCekSenetForm({ ...cekSenetForm, kesen_unvan: e.currentTarget.value })
+              }
+              required
+            />
             <Group grow>
-              <TextInput label="VKN / TCKN" placeholder="Vergi/TC Kimlik No" value={cekSenetForm.kesen_vkn_tckn} onChange={(e) => setCekSenetForm({ ...cekSenetForm, kesen_vkn_tckn: e.currentTarget.value })} />
-              <Select 
-                label="İlişkili Cari" 
-                placeholder="Cari seçin (opsiyonel)" 
-                data={cariler.map(c => ({ label: c.unvan, value: c.id.toString() }))} 
-                value={cekSenetForm.cari_id} 
-                onChange={(v) => setCekSenetForm({ ...cekSenetForm, cari_id: v || '' })} 
-                searchable 
-                clearable 
+              <TextInput
+                label="VKN / TCKN"
+                placeholder="Vergi/TC Kimlik No"
+                value={cekSenetForm.kesen_vkn_tckn}
+                onChange={(e) =>
+                  setCekSenetForm({ ...cekSenetForm, kesen_vkn_tckn: e.currentTarget.value })
+                }
+              />
+              <Select
+                label="İlişkili Cari"
+                placeholder="Cari seçin (opsiyonel)"
+                data={cariler.map((c) => ({ label: c.unvan, value: c.id.toString() }))}
+                value={cekSenetForm.cari_id}
+                onChange={(v) => setCekSenetForm({ ...cekSenetForm, cari_id: v || '' })}
+                searchable
+                clearable
               />
             </Group>
             {cekSenetForm.tip === 'cek' && (
               <>
                 <Divider label="Banka Bilgileri" />
                 <Group grow>
-                  <Select label="Banka" data={bankalar.filter(b => b !== 'Ana Kasa')} value={cekSenetForm.banka_adi} onChange={(v) => setCekSenetForm({ ...cekSenetForm, banka_adi: v || '' })} searchable />
-                  <TextInput label="Şube" placeholder="Şube adı" value={cekSenetForm.sube_adi} onChange={(e) => setCekSenetForm({ ...cekSenetForm, sube_adi: e.currentTarget.value })} />
+                  <Select
+                    label="Banka"
+                    data={bankalar.filter((b) => b !== 'Ana Kasa')}
+                    value={cekSenetForm.banka_adi}
+                    onChange={(v) => setCekSenetForm({ ...cekSenetForm, banka_adi: v || '' })}
+                    searchable
+                  />
+                  <TextInput
+                    label="Şube"
+                    placeholder="Şube adı"
+                    value={cekSenetForm.sube_adi}
+                    onChange={(e) =>
+                      setCekSenetForm({ ...cekSenetForm, sube_adi: e.currentTarget.value })
+                    }
+                  />
                 </Group>
-                <TextInput label="Hesap No" placeholder="Hesap numarası" value={cekSenetForm.hesap_no} onChange={(e) => setCekSenetForm({ ...cekSenetForm, hesap_no: e.currentTarget.value })} />
+                <TextInput
+                  label="Hesap No"
+                  placeholder="Hesap numarası"
+                  value={cekSenetForm.hesap_no}
+                  onChange={(e) =>
+                    setCekSenetForm({ ...cekSenetForm, hesap_no: e.currentTarget.value })
+                  }
+                />
               </>
             )}
-            <Textarea label="Notlar" placeholder="Ek notlar" value={cekSenetForm.notlar} onChange={(e) => setCekSenetForm({ ...cekSenetForm, notlar: e.currentTarget.value })} />
+            <Textarea
+              label="Notlar"
+              placeholder="Ek notlar"
+              value={cekSenetForm.notlar}
+              onChange={(e) => setCekSenetForm({ ...cekSenetForm, notlar: e.currentTarget.value })}
+            />
             <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={() => { resetCekSenetForm(); closeCekSenet(); }}>İptal</Button>
-              <Button color="violet" onClick={handleCekSenetSubmit}>Kaydet</Button>
+              <Button
+                variant="default"
+                onClick={() => {
+                  resetCekSenetForm();
+                  closeCekSenet();
+                }}
+              >
+                İptal
+              </Button>
+              <Button color="violet" onClick={handleCekSenetSubmit}>
+                Kaydet
+              </Button>
             </Group>
           </Stack>
         </Modal>
 
         {/* Tahsil Modal */}
-        <Modal opened={tahsilOpened} onClose={() => { closeTahsil(); setSelectedCekSenet(null); }} title={<Title order={3}>{selectedCekSenet?.yonu === 'alinan' ? 'Tahsilat' : 'Ödeme'}</Title>} size="md">
+        <Modal
+          opened={tahsilOpened}
+          onClose={() => {
+            closeTahsil();
+            setSelectedCekSenet(null);
+          }}
+          title={
+            <Title order={3}>{selectedCekSenet?.yonu === 'alinan' ? 'Tahsilat' : 'Ödeme'}</Title>
+          }
+          size="md"
+        >
           <Stack gap="md">
             {selectedCekSenet && (
               <Alert color="blue" variant="light">
-                <Text size="sm"><strong>Belge:</strong> {selectedCekSenet.belge_no}</Text>
-                <Text size="sm"><strong>Tutar:</strong> {formatMoney(selectedCekSenet.tutar)}</Text>
-                <Text size="sm"><strong>Vade:</strong> {formatDate(selectedCekSenet.vade_tarihi)}</Text>
+                <Text size="sm">
+                  <strong>Belge:</strong> {selectedCekSenet.belge_no}
+                </Text>
+                <Text size="sm">
+                  <strong>Tutar:</strong> {formatMoney(selectedCekSenet.tutar)}
+                </Text>
+                <Text size="sm">
+                  <strong>Vade:</strong> {formatDate(selectedCekSenet.vade_tarihi)}
+                </Text>
               </Alert>
             )}
-            <Select 
-              label="Hesap" 
-              placeholder="Hangi hesaba?" 
-              data={hesaplar.map(h => ({ label: `${h.hesap_adi} (${formatMoney(h.bakiye)})`, value: h.id.toString() }))} 
-              value={tahsilForm.hesap_id} 
-              onChange={(v) => setTahsilForm({ ...tahsilForm, hesap_id: v || '' })} 
-              required 
+            <Select
+              label="Hesap"
+              placeholder="Hangi hesaba?"
+              data={hesaplar.map((h) => ({
+                label: `${h.hesap_adi} (${formatMoney(h.bakiye)})`,
+                value: h.id.toString(),
+              }))}
+              value={tahsilForm.hesap_id}
+              onChange={(v) => setTahsilForm({ ...tahsilForm, hesap_id: v || '' })}
+              required
             />
-            <StyledDatePicker label="İşlem Tarihi" value={tahsilForm.tarih} onChange={(v) => setTahsilForm({ ...tahsilForm, tarih: v || new Date() })} />
-            <TextInput label="Açıklama" placeholder="Ek açıklama" value={tahsilForm.aciklama} onChange={(e) => setTahsilForm({ ...tahsilForm, aciklama: e.currentTarget.value })} />
+            <StyledDatePicker
+              label="İşlem Tarihi"
+              value={tahsilForm.tarih}
+              onChange={(v) => setTahsilForm({ ...tahsilForm, tarih: v || new Date() })}
+            />
+            <TextInput
+              label="Açıklama"
+              placeholder="Ek açıklama"
+              value={tahsilForm.aciklama}
+              onChange={(e) => setTahsilForm({ ...tahsilForm, aciklama: e.currentTarget.value })}
+            />
             <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={() => { closeTahsil(); setSelectedCekSenet(null); }}>İptal</Button>
-              <Button color="green" onClick={handleTahsil}>{selectedCekSenet?.yonu === 'alinan' ? 'Tahsil Et' : 'Ödendi Olarak İşaretle'}</Button>
+              <Button
+                variant="default"
+                onClick={() => {
+                  closeTahsil();
+                  setSelectedCekSenet(null);
+                }}
+              >
+                İptal
+              </Button>
+              <Button color="green" onClick={handleTahsil}>
+                {selectedCekSenet?.yonu === 'alinan' ? 'Tahsil Et' : 'Ödendi Olarak İşaretle'}
+              </Button>
             </Group>
           </Stack>
         </Modal>
 
         {/* Ciro Modal */}
-        <Modal opened={ciroOpened} onClose={() => { closeCiro(); setSelectedCekSenet(null); }} title={<Title order={3}>Ciro Et</Title>} size="md">
+        <Modal
+          opened={ciroOpened}
+          onClose={() => {
+            closeCiro();
+            setSelectedCekSenet(null);
+          }}
+          title={<Title order={3}>Ciro Et</Title>}
+          size="md"
+        >
           <Stack gap="md">
             {selectedCekSenet && (
               <Alert color="violet" variant="light">
-                <Text size="sm"><strong>Belge:</strong> {selectedCekSenet.belge_no}</Text>
-                <Text size="sm"><strong>Tutar:</strong> {formatMoney(selectedCekSenet.tutar)}</Text>
-                <Text size="sm"><strong>Vade:</strong> {formatDate(selectedCekSenet.vade_tarihi)}</Text>
+                <Text size="sm">
+                  <strong>Belge:</strong> {selectedCekSenet.belge_no}
+                </Text>
+                <Text size="sm">
+                  <strong>Tutar:</strong> {formatMoney(selectedCekSenet.tutar)}
+                </Text>
+                <Text size="sm">
+                  <strong>Vade:</strong> {formatDate(selectedCekSenet.vade_tarihi)}
+                </Text>
               </Alert>
             )}
-            <Select 
-              label="Ciro Edilecek Cari" 
-              placeholder="Kime ciro edilecek?" 
-              data={cariler.map(c => ({ label: c.unvan, value: c.id.toString() }))} 
-              value={ciroForm.ciro_cari_id} 
-              onChange={(v) => setCiroForm({ ...ciroForm, ciro_cari_id: v || '' })} 
-              searchable 
-              required 
+            <Select
+              label="Ciro Edilecek Cari"
+              placeholder="Kime ciro edilecek?"
+              data={cariler.map((c) => ({ label: c.unvan, value: c.id.toString() }))}
+              value={ciroForm.ciro_cari_id}
+              onChange={(v) => setCiroForm({ ...ciroForm, ciro_cari_id: v || '' })}
+              searchable
+              required
             />
-            <StyledDatePicker label="Ciro Tarihi" value={ciroForm.tarih} onChange={(v) => setCiroForm({ ...ciroForm, tarih: v || new Date() })} />
-            <TextInput label="Açıklama" placeholder="Ciro açıklaması" value={ciroForm.aciklama} onChange={(e) => setCiroForm({ ...ciroForm, aciklama: e.currentTarget.value })} />
+            <StyledDatePicker
+              label="Ciro Tarihi"
+              value={ciroForm.tarih}
+              onChange={(v) => setCiroForm({ ...ciroForm, tarih: v || new Date() })}
+            />
+            <TextInput
+              label="Açıklama"
+              placeholder="Ciro açıklaması"
+              value={ciroForm.aciklama}
+              onChange={(e) => setCiroForm({ ...ciroForm, aciklama: e.currentTarget.value })}
+            />
             <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={() => { closeCiro(); setSelectedCekSenet(null); }}>İptal</Button>
-              <Button color="violet" onClick={handleCiro}>Ciro Et</Button>
+              <Button
+                variant="default"
+                onClick={() => {
+                  closeCiro();
+                  setSelectedCekSenet(null);
+                }}
+              >
+                İptal
+              </Button>
+              <Button color="violet" onClick={handleCiro}>
+                Ciro Et
+              </Button>
             </Group>
           </Stack>
         </Modal>

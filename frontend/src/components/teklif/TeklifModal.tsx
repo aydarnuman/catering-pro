@@ -1,86 +1,76 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { API_BASE_URL } from '@/lib/config';
 import {
-  Modal,
+  ActionIcon,
+  Badge,
   Box,
-  Text,
   Button,
-  TextInput,
-  NumberInput,
+  Checkbox,
+  Divider,
   Group,
-  Stack,
+  LoadingOverlay,
+  Modal,
+  NumberInput,
   Paper,
   ScrollArea,
-  ActionIcon,
-  Table,
-  Divider,
-  Badge,
-  LoadingOverlay,
-  Switch,
-  Select,
   SegmentedControl,
-  Checkbox,
-  Tooltip,
+  Select,
+  Stack,
+  Switch,
+  Table,
+  Text,
+  TextInput,
   ThemeIcon,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
-  IconPlus,
-  IconTrash,
-  IconFileSpreadsheet,
+  IconAlertTriangle,
   IconCalculator,
+  IconCheck,
   IconDeviceFloppy,
   IconDownload,
-  IconCheck,
-  IconAlertTriangle,
-  IconUsers,
-  IconTruck,
-  IconPackage,
-  IconTool,
-  IconBuilding,
+  IconFileSpreadsheet,
+  IconPlus,
   IconScale,
   IconShieldCheck,
+  IconTrash,
   IconX,
 } from '@tabler/icons-react';
-import type {
-  TeklifData,
-  MaliyetKalemKey,
-  CetvelKalemi,
-  OgunDetay,
-  PozisyonKalem,
-  AracKalem,
-  SarfKalem,
-  EkipmanKalem,
-  GenelGiderKalem,
-  YasalGiderKalem,
-  RiskKategori,
-} from './types';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 import {
-  MALIYET_KALEMLERI,
-  DEFAULT_TEKLIF_DATA,
-  POZISYON_SABLONLARI,
-  ARAC_TIPLERI,
-  EKIPMAN_SABLONLARI,
-  YASAL_GIDER_SABLONLARI,
-} from './types';
-import {
-  hesaplaTumMaliyetler,
-  hesaplaToplam,
-  hesaplaKarVeTeklif,
-  hesaplaCetvelToplami,
   formatPara,
   formatParaKisa,
-  formatSayi,
-  hesaplaPersonelOzet,
-  hesaplaNakliyeOzet,
-  hesaplaSarfOzet,
+  hesaplaCetvelToplami,
   hesaplaEkipmanOzet,
   hesaplaGenelGiderOzet,
-  hesaplaYasalGiderOzet,
+  hesaplaKarVeTeklif,
+  hesaplaNakliyeOzet,
+  hesaplaPersonelOzet,
   hesaplaRiskOzet,
+  hesaplaSarfOzet,
+  hesaplaToplam,
+  hesaplaTumMaliyetler,
+  hesaplaYasalGiderOzet,
 } from './hesaplamalar';
+import type {
+  AracKalem,
+  CetvelKalemi,
+  EkipmanKalem,
+  GenelGiderKalem,
+  MaliyetKalemKey,
+  PozisyonKalem,
+  SarfKalem,
+  TeklifData,
+  YasalGiderKalem,
+} from './types';
+import {
+  ARAC_TIPLERI,
+  DEFAULT_TEKLIF_DATA,
+  EKIPMAN_SABLONLARI,
+  MALIYET_KALEMLERI,
+  POZISYON_SABLONLARI,
+} from './types';
 
 interface TeklifModalProps {
   opened: boolean;
@@ -116,7 +106,7 @@ export default function TeklifModal({
   // İhale değiştiğinde verileri sıfırla
   useEffect(() => {
     if (opened) {
-      setTeklifData(prev => ({
+      setTeklifData((prev) => ({
         ...prev,
         ihale_adi: ihaleBasligi,
         ihale_kayit_no: ihaleKayitNo,
@@ -137,10 +127,11 @@ export default function TeklifModal({
           birimFiyat: 0,
           tutar: 0,
         }));
-        setTeklifData(prev => ({ ...prev, birim_fiyat_cetveli: cetvel }));
+        setTeklifData((prev) => ({ ...prev, birim_fiyat_cetveli: cetvel }));
       }
     }
-  }, [opened, ihaleBasligi, ihaleKayitNo, ihaleId, birimFiyatlar]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened, ihaleId]);
 
   const fetchExistingTeklif = async (ihaleId: number) => {
     try {
@@ -160,7 +151,7 @@ export default function TeklifModal({
     const yeniDetay = hesaplaTumMaliyetler(teklifData.maliyet_detay);
     const maliyetToplam = hesaplaToplam(yeniDetay);
     const { karTutari, teklifFiyati } = hesaplaKarVeTeklif(maliyetToplam, teklifData.kar_orani);
-    
+
     return {
       ...teklifData,
       maliyet_detay: yeniDetay,
@@ -173,7 +164,7 @@ export default function TeklifModal({
   // Kar oranı değiştiğinde
   const handleKarOraniChange = (value: number | string) => {
     const oran = typeof value === 'number' ? value : parseFloat(value) || 0;
-    setTeklifData(prev => ({ ...prev, kar_orani: oran }));
+    setTeklifData((prev) => ({ ...prev, kar_orani: oran }));
   };
 
   // Cetvel kalem birim fiyat değişikliği
@@ -185,7 +176,7 @@ export default function TeklifModal({
       tutar: yeniCetvel[index].miktar * birimFiyat,
     };
     const cetvelToplami = hesaplaCetvelToplami(yeniCetvel);
-    setTeklifData(prev => ({
+    setTeklifData((prev) => ({
       ...prev,
       birim_fiyat_cetveli: yeniCetvel,
       cetvel_toplami: cetvelToplami,
@@ -202,7 +193,7 @@ export default function TeklifModal({
       birimFiyat: 0,
       tutar: 0,
     };
-    setTeklifData(prev => ({
+    setTeklifData((prev) => ({
       ...prev,
       birim_fiyat_cetveli: [...prev.birim_fiyat_cetveli, yeniKalem],
     }));
@@ -213,7 +204,7 @@ export default function TeklifModal({
     const yeniCetvel = teklifData.birim_fiyat_cetveli.filter((_, i) => i !== index);
     yeniCetvel.forEach((k, i) => (k.sira = i + 1));
     const cetvelToplami = hesaplaCetvelToplami(yeniCetvel);
-    setTeklifData(prev => ({
+    setTeklifData((prev) => ({
       ...prev,
       birim_fiyat_cetveli: yeniCetvel,
       cetvel_toplami: cetvelToplami,
@@ -268,16 +259,16 @@ export default function TeklifModal({
 
   // Generic maliyet detay güncelleme
   const updateMaliyetDetay = useCallback((kalem: MaliyetKalemKey, path: string, value: any) => {
-    setTeklifData(prev => {
+    setTeklifData((prev) => {
       const yeniDetay = JSON.parse(JSON.stringify(prev.maliyet_detay));
       const keys = path.split('.');
       let obj: any = yeniDetay[kalem].detay;
-      
+
       for (let i = 0; i < keys.length - 1; i++) {
         obj = obj[keys[i]];
       }
       obj[keys[keys.length - 1]] = value;
-      
+
       return { ...prev, maliyet_detay: yeniDetay };
     });
   }, []);
@@ -290,8 +281,12 @@ export default function TeklifModal({
     return (
       <Stack>
         <Group justify="space-between">
-          <Text fw={600} size="lg">💰 Malzeme Maliyeti</Text>
-          <Badge size="xl" color="green" variant="light">{formatPara(tutar)}</Badge>
+          <Text fw={600} size="lg">
+            💰 Malzeme Maliyeti
+          </Text>
+          <Badge size="xl" color="green" variant="light">
+            {formatPara(tutar)}
+          </Badge>
         </Group>
 
         <SegmentedControl
@@ -305,7 +300,9 @@ export default function TeklifModal({
 
         {detay.hesaplamaYontemi === 'ogun_bazli' ? (
           <Stack gap="xs">
-            <Text size="sm" fw={500}>Öğün Detayları</Text>
+            <Text size="sm" fw={500}>
+              Öğün Detayları
+            </Text>
             <Table withTableBorder withColumnBorders>
               <Table.Thead>
                 <Table.Tr>
@@ -319,7 +316,9 @@ export default function TeklifModal({
               </Table.Thead>
               <Table.Tbody>
                 {detay.ogunler.map((ogun, idx) => {
-                  const ogunToplam = ogun.aktif ? ogun.kisiSayisi * ogun.gunSayisi * ogun.kisiBasiMaliyet : 0;
+                  const ogunToplam = ogun.aktif
+                    ? ogun.kisiSayisi * ogun.gunSayisi * ogun.kisiBasiMaliyet
+                    : 0;
                   return (
                     <Table.Tr key={idx} style={{ opacity: ogun.aktif ? 1 : 0.5 }}>
                       <Table.Td>
@@ -327,14 +326,18 @@ export default function TeklifModal({
                           checked={ogun.aktif}
                           onChange={(e) => {
                             const yeniOgunler = [...detay.ogunler];
-                            yeniOgunler[idx] = { ...yeniOgunler[idx], aktif: e.currentTarget.checked };
+                            yeniOgunler[idx] = {
+                              ...yeniOgunler[idx],
+                              aktif: e.currentTarget.checked,
+                            };
                             updateMaliyetDetay('malzeme', 'ogunler', yeniOgunler);
                           }}
                         />
                       </Table.Td>
                       <Table.Td>
                         <Text fw={500}>
-                          {idx === 0 && '🍳'} {idx === 1 && '🍝'} {idx === 2 && '🍖'} {idx === 3 && '🥪'} {ogun.ad}
+                          {idx === 0 && '🍳'} {idx === 1 && '🍝'} {idx === 2 && '🍖'}{' '}
+                          {idx === 3 && '🥪'} {ogun.ad}
                         </Text>
                       </Table.Td>
                       <Table.Td>
@@ -372,7 +375,10 @@ export default function TeklifModal({
                           value={ogun.kisiBasiMaliyet}
                           onChange={(v) => {
                             const yeniOgunler = [...detay.ogunler];
-                            yeniOgunler[idx] = { ...yeniOgunler[idx], kisiBasiMaliyet: Number(v) || 0 };
+                            yeniOgunler[idx] = {
+                              ...yeniOgunler[idx],
+                              kisiBasiMaliyet: Number(v) || 0,
+                            };
                             updateMaliyetDetay('malzeme', 'ogunler', yeniOgunler);
                           }}
                           decimalScale={2}
@@ -432,8 +438,12 @@ export default function TeklifModal({
     return (
       <Stack>
         <Group justify="space-between">
-          <Text fw={600} size="lg">👷 Personel Maliyeti</Text>
-          <Badge size="xl" color="green" variant="light">{formatPara(tutar)}</Badge>
+          <Text fw={600} size="lg">
+            👷 Personel Maliyeti
+          </Text>
+          <Badge size="xl" color="green" variant="light">
+            {formatPara(tutar)}
+          </Badge>
         </Group>
 
         <Group>
@@ -454,7 +464,9 @@ export default function TeklifModal({
           />
         </Group>
 
-        <Text size="sm" fw={500}>Personel Listesi</Text>
+        <Text size="sm" fw={500}>
+          Personel Listesi
+        </Text>
         {detay.pozisyonlar.map((poz, idx) => (
           <Paper key={idx} withBorder p="xs">
             <Group align="end">
@@ -463,7 +475,7 @@ export default function TeklifModal({
                 value={poz.pozisyon}
                 onChange={(v) => {
                   const yeniPoz = [...detay.pozisyonlar];
-                  const sablon = POZISYON_SABLONLARI.find(s => s.pozisyon === v);
+                  const sablon = POZISYON_SABLONLARI.find((s) => s.pozisyon === v);
                   yeniPoz[idx] = {
                     ...yeniPoz[idx],
                     pozisyon: v || '',
@@ -471,7 +483,7 @@ export default function TeklifModal({
                   };
                   updateMaliyetDetay('personel', 'pozisyonlar', yeniPoz);
                 }}
-                data={POZISYON_SABLONLARI.map(s => s.pozisyon)}
+                data={POZISYON_SABLONLARI.map((s) => s.pozisyon)}
                 searchable
                 allowDeselect={false}
                 style={{ flex: 2 }}
@@ -528,20 +540,30 @@ export default function TeklifModal({
           <Paper withBorder p="sm" bg="blue.0">
             <Group justify="space-between">
               <div>
-                <Text size="xs" c="dimmed">Toplam Kişi</Text>
+                <Text size="xs" c="dimmed">
+                  Toplam Kişi
+                </Text>
                 <Text fw={600}>{ozet.toplamKisi}</Text>
               </div>
               <div>
-                <Text size="xs" c="dimmed">Aylık Brüt</Text>
+                <Text size="xs" c="dimmed">
+                  Aylık Brüt
+                </Text>
                 <Text fw={600}>{formatPara(ozet.aylikBrut)}</Text>
               </div>
               <div>
-                <Text size="xs" c="dimmed">Aylık SGK</Text>
+                <Text size="xs" c="dimmed">
+                  Aylık SGK
+                </Text>
                 <Text fw={600}>{formatPara(ozet.aylikSgk)}</Text>
               </div>
               <div>
-                <Text size="xs" c="dimmed">{detay.aySayisi} Aylık Toplam</Text>
-                <Text fw={700} c="green">{formatPara(ozet.yillikToplam)}</Text>
+                <Text size="xs" c="dimmed">
+                  {detay.aySayisi} Aylık Toplam
+                </Text>
+                <Text fw={700} c="green">
+                  {formatPara(ozet.yillikToplam)}
+                </Text>
               </div>
             </Group>
           </Paper>
@@ -559,8 +581,12 @@ export default function TeklifModal({
     return (
       <Stack>
         <Group justify="space-between">
-          <Text fw={600} size="lg">🚚 Nakliye Maliyeti</Text>
-          <Badge size="xl" color="green" variant="light">{formatPara(tutar)}</Badge>
+          <Text fw={600} size="lg">
+            🚚 Nakliye Maliyeti
+          </Text>
+          <Badge size="xl" color="green" variant="light">
+            {formatPara(tutar)}
+          </Badge>
         </Group>
 
         <Group>
@@ -580,7 +606,9 @@ export default function TeklifModal({
           />
         </Group>
 
-        <Text size="sm" fw={500}>Araç Listesi</Text>
+        <Text size="sm" fw={500}>
+          Araç Listesi
+        </Text>
         {detay.araclar.map((arac, idx) => (
           <Paper key={idx} withBorder p="xs">
             <Group align="end" wrap="nowrap">
@@ -589,7 +617,7 @@ export default function TeklifModal({
                 value={arac.tip}
                 onChange={(v) => {
                   const yeniAraclar = [...detay.araclar];
-                  const sablon = ARAC_TIPLERI.find(a => a.tip === v);
+                  const sablon = ARAC_TIPLERI.find((a) => a.tip === v);
                   yeniAraclar[idx] = {
                     ...yeniAraclar[idx],
                     tip: v || '',
@@ -598,7 +626,7 @@ export default function TeklifModal({
                   };
                   updateMaliyetDetay('nakliye', 'araclar', yeniAraclar);
                 }}
-                data={ARAC_TIPLERI.map(a => a.tip)}
+                data={ARAC_TIPLERI.map((a) => a.tip)}
                 allowDeselect={false}
                 style={{ flex: 2 }}
               />
@@ -683,20 +711,30 @@ export default function TeklifModal({
           <Paper withBorder p="sm" bg="blue.0">
             <Group justify="space-between">
               <div>
-                <Text size="xs" c="dimmed">Toplam Araç</Text>
+                <Text size="xs" c="dimmed">
+                  Toplam Araç
+                </Text>
                 <Text fw={600}>{ozet.toplamArac}</Text>
               </div>
               <div>
-                <Text size="xs" c="dimmed">Aylık Kira</Text>
+                <Text size="xs" c="dimmed">
+                  Aylık Kira
+                </Text>
                 <Text fw={600}>{formatPara(ozet.aylikKiraToplam)}</Text>
               </div>
               <div>
-                <Text size="xs" c="dimmed">Aylık Yakıt</Text>
+                <Text size="xs" c="dimmed">
+                  Aylık Yakıt
+                </Text>
                 <Text fw={600}>{formatPara(ozet.aylikYakitToplam)}</Text>
               </div>
               <div>
-                <Text size="xs" c="dimmed">{detay.aySayisi} Aylık Toplam</Text>
-                <Text fw={700} c="green">{formatPara(ozet.yillikToplam)}</Text>
+                <Text size="xs" c="dimmed">
+                  {detay.aySayisi} Aylık Toplam
+                </Text>
+                <Text fw={700} c="green">
+                  {formatPara(ozet.yillikToplam)}
+                </Text>
               </div>
             </Group>
           </Paper>
@@ -714,8 +752,12 @@ export default function TeklifModal({
     return (
       <Stack>
         <Group justify="space-between">
-          <Text fw={600} size="lg">🧴 Sarf Malzeme Maliyeti</Text>
-          <Badge size="xl" color="green" variant="light">{formatPara(tutar)}</Badge>
+          <Text fw={600} size="lg">
+            🧴 Sarf Malzeme Maliyeti
+          </Text>
+          <Badge size="xl" color="green" variant="light">
+            {formatPara(tutar)}
+          </Badge>
         </Group>
 
         <SegmentedControl
@@ -820,16 +862,24 @@ export default function TeklifModal({
             <Paper withBorder p="sm" bg="blue.0">
               <Group justify="space-between">
                 <div>
-                  <Text size="xs" c="dimmed">Kişi Başı/Gün</Text>
+                  <Text size="xs" c="dimmed">
+                    Kişi Başı/Gün
+                  </Text>
                   <Text fw={600}>{ozet.kisiBasiGunluk.toFixed(2)} ₺</Text>
                 </div>
                 <div>
-                  <Text size="xs" c="dimmed">Günlük Toplam</Text>
+                  <Text size="xs" c="dimmed">
+                    Günlük Toplam
+                  </Text>
                   <Text fw={600}>{formatPara(ozet.gunlukToplam)}</Text>
                 </div>
                 <div>
-                  <Text size="xs" c="dimmed">Yıllık Toplam</Text>
-                  <Text fw={700} c="green">{formatPara(ozet.yillikToplam)}</Text>
+                  <Text size="xs" c="dimmed">
+                    Yıllık Toplam
+                  </Text>
+                  <Text fw={700} c="green">
+                    {formatPara(ozet.yillikToplam)}
+                  </Text>
                 </div>
               </Group>
             </Paper>
@@ -864,8 +914,12 @@ export default function TeklifModal({
     return (
       <Stack>
         <Group justify="space-between">
-          <Text fw={600} size="lg">🍽️ Ekipman & Bakım</Text>
-          <Badge size="xl" color="green" variant="light">{formatPara(tutar)}</Badge>
+          <Text fw={600} size="lg">
+            🍽️ Ekipman & Bakım
+          </Text>
+          <Badge size="xl" color="green" variant="light">
+            {formatPara(tutar)}
+          </Badge>
         </Group>
 
         <NumberInput
@@ -876,7 +930,9 @@ export default function TeklifModal({
           w={100}
         />
 
-        <Text size="sm" fw={500}>Ekipman Listesi</Text>
+        <Text size="sm" fw={500}>
+          Ekipman Listesi
+        </Text>
         {detay.ekipmanlar.map((ekp, idx) => (
           <Paper key={idx} withBorder p="xs">
             <Group align="end">
@@ -885,8 +941,9 @@ export default function TeklifModal({
                 value={ekp.ad}
                 onChange={(v) => {
                   const yeniEkipmanlar = [...detay.ekipmanlar];
-                  const sablon = EKIPMAN_SABLONLARI.find(e => e.ad === v);
-                  const fiyat = ekp.tip === 'kira' ? sablon?.varsayilanKira : sablon?.varsayilanSatin;
+                  const sablon = EKIPMAN_SABLONLARI.find((e) => e.ad === v);
+                  const fiyat =
+                    ekp.tip === 'kira' ? sablon?.varsayilanKira : sablon?.varsayilanSatin;
                   yeniEkipmanlar[idx] = {
                     ...yeniEkipmanlar[idx],
                     ad: v || '',
@@ -894,7 +951,7 @@ export default function TeklifModal({
                   };
                   updateMaliyetDetay('ekipman_bakim', 'ekipmanlar', yeniEkipmanlar);
                 }}
-                data={EKIPMAN_SABLONLARI.map(e => e.ad)}
+                data={EKIPMAN_SABLONLARI.map((e) => e.ad)}
                 searchable
                 allowDeselect={false}
                 style={{ flex: 2 }}
@@ -903,7 +960,7 @@ export default function TeklifModal({
                 value={ekp.tip}
                 onChange={(v) => {
                   const yeniEkipmanlar = [...detay.ekipmanlar];
-                  const sablon = EKIPMAN_SABLONLARI.find(e => e.ad === ekp.ad);
+                  const sablon = EKIPMAN_SABLONLARI.find((e) => e.ad === ekp.ad);
                   const fiyat = v === 'kira' ? sablon?.varsayilanKira : sablon?.varsayilanSatin;
                   yeniEkipmanlar[idx] = {
                     ...yeniEkipmanlar[idx],
@@ -980,20 +1037,30 @@ export default function TeklifModal({
           <Paper withBorder p="sm" bg="blue.0">
             <Group justify="space-between">
               <div>
-                <Text size="xs" c="dimmed">Aylık Kira</Text>
+                <Text size="xs" c="dimmed">
+                  Aylık Kira
+                </Text>
                 <Text fw={600}>{formatPara(ozet.aylikKiraToplam)}</Text>
               </div>
               <div>
-                <Text size="xs" c="dimmed">Satın Alma</Text>
+                <Text size="xs" c="dimmed">
+                  Satın Alma
+                </Text>
                 <Text fw={600}>{formatPara(ozet.satinAlmaToplam)}</Text>
               </div>
               <div>
-                <Text size="xs" c="dimmed">{detay.aySayisi} Ay Bakım</Text>
+                <Text size="xs" c="dimmed">
+                  {detay.aySayisi} Ay Bakım
+                </Text>
                 <Text fw={600}>{formatPara(ozet.yillikBakim)}</Text>
               </div>
               <div>
-                <Text size="xs" c="dimmed">Toplam</Text>
-                <Text fw={700} c="green">{formatPara(ozet.toplam)}</Text>
+                <Text size="xs" c="dimmed">
+                  Toplam
+                </Text>
+                <Text fw={700} c="green">
+                  {formatPara(ozet.toplam)}
+                </Text>
               </div>
             </Group>
           </Paper>
@@ -1011,8 +1078,12 @@ export default function TeklifModal({
     return (
       <Stack>
         <Group justify="space-between">
-          <Text fw={600} size="lg">🏢 Genel Giderler</Text>
-          <Badge size="xl" color="green" variant="light">{formatPara(tutar)}</Badge>
+          <Text fw={600} size="lg">
+            🏢 Genel Giderler
+          </Text>
+          <Badge size="xl" color="green" variant="light">
+            {formatPara(tutar)}
+          </Badge>
         </Group>
 
         <NumberInput
@@ -1023,7 +1094,9 @@ export default function TeklifModal({
           w={100}
         />
 
-        <Text size="sm" fw={500}>Gider Kalemleri (Aylık)</Text>
+        <Text size="sm" fw={500}>
+          Gider Kalemleri (Aylık)
+        </Text>
         {detay.kalemler.map((kalem, idx) => (
           <Group key={idx}>
             <TextInput
@@ -1074,12 +1147,18 @@ export default function TeklifModal({
         <Paper withBorder p="sm" bg="blue.0">
           <Group justify="space-between">
             <div>
-              <Text size="xs" c="dimmed">Aylık Toplam</Text>
+              <Text size="xs" c="dimmed">
+                Aylık Toplam
+              </Text>
               <Text fw={600}>{formatPara(ozet.aylikToplam)}</Text>
             </div>
             <div>
-              <Text size="xs" c="dimmed">{detay.aySayisi} Aylık Toplam</Text>
-              <Text fw={700} c="green">{formatPara(ozet.yillikToplam)}</Text>
+              <Text size="xs" c="dimmed">
+                {detay.aySayisi} Aylık Toplam
+              </Text>
+              <Text fw={700} c="green">
+                {formatPara(ozet.yillikToplam)}
+              </Text>
             </div>
           </Group>
         </Paper>
@@ -1158,8 +1237,12 @@ export default function TeklifModal({
     return (
       <Stack>
         <Group justify="space-between">
-          <Text fw={600} size="lg">📜 Yasal Giderler</Text>
-          <Badge size="xl" color="green" variant="light">{formatPara(tutar)}</Badge>
+          <Text fw={600} size="lg">
+            📜 Yasal Giderler
+          </Text>
+          <Badge size="xl" color="green" variant="light">
+            {formatPara(tutar)}
+          </Badge>
         </Group>
 
         {renderKategori('sigortalar', 'Sigortalar', <IconShieldCheck size={16} />)}
@@ -1170,24 +1253,36 @@ export default function TeklifModal({
         <Paper withBorder p="sm" bg="blue.0">
           <Group justify="space-between">
             <div>
-              <Text size="xs" c="dimmed">Sigortalar</Text>
+              <Text size="xs" c="dimmed">
+                Sigortalar
+              </Text>
               <Text fw={600}>{formatPara(ozet.sigortaToplam)}</Text>
             </div>
             <div>
-              <Text size="xs" c="dimmed">Belgeler</Text>
+              <Text size="xs" c="dimmed">
+                Belgeler
+              </Text>
               <Text fw={600}>{formatPara(ozet.belgeToplam)}</Text>
             </div>
             <div>
-              <Text size="xs" c="dimmed">İSG</Text>
+              <Text size="xs" c="dimmed">
+                İSG
+              </Text>
               <Text fw={600}>{formatPara(ozet.isgToplam)}</Text>
             </div>
             <div>
-              <Text size="xs" c="dimmed">İhale</Text>
+              <Text size="xs" c="dimmed">
+                İhale
+              </Text>
               <Text fw={600}>{formatPara(ozet.ihaleToplam)}</Text>
             </div>
             <div>
-              <Text size="xs" c="dimmed">Toplam</Text>
-              <Text fw={700} c="green">{formatPara(ozet.toplam)}</Text>
+              <Text size="xs" c="dimmed">
+                Toplam
+              </Text>
+              <Text fw={700} c="green">
+                {formatPara(ozet.toplam)}
+              </Text>
             </div>
           </Group>
         </Paper>
@@ -1211,8 +1306,12 @@ export default function TeklifModal({
     return (
       <Stack>
         <Group justify="space-between">
-          <Text fw={600} size="lg">⚠️ Risk Payı</Text>
-          <Badge size="xl" color="green" variant="light">{formatPara(ozet.riskTutari)}</Badge>
+          <Text fw={600} size="lg">
+            ⚠️ Risk Payı
+          </Text>
+          <Badge size="xl" color="green" variant="light">
+            {formatPara(ozet.riskTutari)}
+          </Badge>
         </Group>
 
         <Switch
@@ -1232,7 +1331,9 @@ export default function TeklifModal({
           />
         ) : (
           <Stack gap="xs">
-            <Text size="sm" fw={500}>Risk Kategorileri</Text>
+            <Text size="sm" fw={500}>
+              Risk Kategorileri
+            </Text>
             {detay.kategoriler.map((kat, idx) => (
               <Paper key={idx} withBorder p="xs">
                 <Group justify="space-between">
@@ -1241,7 +1342,10 @@ export default function TeklifModal({
                     checked={kat.aktif}
                     onChange={(e) => {
                       const yeniKategoriler = [...detay.kategoriler];
-                      yeniKategoriler[idx] = { ...yeniKategoriler[idx], aktif: e.currentTarget.checked };
+                      yeniKategoriler[idx] = {
+                        ...yeniKategoriler[idx],
+                        aktif: e.currentTarget.checked,
+                      };
                       updateMaliyetDetay('risk_payi', 'kategoriler', yeniKategoriler);
                     }}
                   />
@@ -1269,16 +1373,24 @@ export default function TeklifModal({
         <Paper withBorder p="sm" bg="orange.0">
           <Group justify="space-between">
             <div>
-              <Text size="xs" c="dimmed">Alt Toplam (Risk Hariç)</Text>
+              <Text size="xs" c="dimmed">
+                Alt Toplam (Risk Hariç)
+              </Text>
               <Text fw={600}>{formatPara(riskHaricToplam)}</Text>
             </div>
             <div>
-              <Text size="xs" c="dimmed">Risk Oranı</Text>
+              <Text size="xs" c="dimmed">
+                Risk Oranı
+              </Text>
               <Text fw={600}>%{ozet.toplamOran.toFixed(1)}</Text>
             </div>
             <div>
-              <Text size="xs" c="dimmed">Risk Tutarı</Text>
-              <Text fw={700} c="orange">{formatPara(ozet.riskTutari)}</Text>
+              <Text size="xs" c="dimmed">
+                Risk Tutarı
+              </Text>
+              <Text fw={700} c="orange">
+                {formatPara(ozet.riskTutari)}
+              </Text>
             </div>
           </Group>
         </Paper>
@@ -1321,10 +1433,10 @@ export default function TeklifModal({
         shadow="md"
         radius="lg"
         p="xs"
-        style={{ 
-          width: 200, 
-          flexShrink: 0, 
-          display: 'flex', 
+        style={{
+          width: 200,
+          flexShrink: 0,
+          display: 'flex',
           flexDirection: 'column',
           background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
           border: '1px solid #e2e8f0',
@@ -1339,7 +1451,7 @@ export default function TeklifModal({
               const tutar = hesaplanmisTeklifData.maliyet_detay[kalem.key]?.tutar || 0;
               const isSelected = selectedKalem === kalem.key;
               const yuzde = toplamMaliyet > 0 ? (tutar / toplamMaliyet) * 100 : 0;
-              
+
               return (
                 <Paper
                   key={kalem.key}
@@ -1348,14 +1460,14 @@ export default function TeklifModal({
                   shadow={isSelected ? 'sm' : 'none'}
                   style={{
                     cursor: 'pointer',
-                    background: isSelected 
+                    background: isSelected
                       ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
-                      : tutar > 0 
+                      : tutar > 0
                         ? '#fff'
                         : 'transparent',
-                    border: isSelected 
-                      ? '1px solid #2563eb' 
-                      : tutar > 0 
+                    border: isSelected
+                      ? '1px solid #2563eb'
+                      : tutar > 0
                         ? '1px solid #e2e8f0'
                         : '1px dashed #cbd5e1',
                     transition: 'all 0.15s ease',
@@ -1365,12 +1477,7 @@ export default function TeklifModal({
                   <Group justify="space-between" wrap="nowrap" gap={4}>
                     <Group gap={6} wrap="nowrap">
                       <Text size="sm">{kalem.icon}</Text>
-                      <Text 
-                        size="xs" 
-                        fw={500} 
-                        lineClamp={1}
-                        c={isSelected ? 'white' : 'dark'}
-                      >
+                      <Text size="xs" fw={500} lineClamp={1} c={isSelected ? 'white' : 'dark'}>
                         {kalem.label}
                       </Text>
                     </Group>
@@ -1380,7 +1487,7 @@ export default function TeklifModal({
                       </ThemeIcon>
                     )}
                   </Group>
-                  
+
                   {/* Progress Bar - İnce */}
                   <Box
                     my={3}
@@ -1400,7 +1507,7 @@ export default function TeklifModal({
                       }}
                     />
                   </Box>
-                  
+
                   <Group justify="space-between" wrap="nowrap">
                     <Text
                       size="sm"
@@ -1410,11 +1517,7 @@ export default function TeklifModal({
                     >
                       {formatParaKisa(tutar)}
                     </Text>
-                    <Text 
-                      size="10px" 
-                      c={isSelected ? 'white' : 'dimmed'}
-                      fw={500}
-                    >
+                    <Text size="10px" c={isSelected ? 'white' : 'dimmed'} fw={500}>
                       {yuzde.toFixed(0)}%
                     </Text>
                   </Group>
@@ -1423,7 +1526,7 @@ export default function TeklifModal({
             })}
           </Stack>
         </ScrollArea>
-        
+
         {/* Alt Toplam */}
         <Paper
           mt="sm"
@@ -1435,7 +1538,9 @@ export default function TeklifModal({
           }}
         >
           <Group justify="space-between" align="center">
-            <Text size="xs" c="white" fw={500} style={{ opacity: 0.8 }}>TOPLAM</Text>
+            <Text size="xs" c="white" fw={500} style={{ opacity: 0.8 }}>
+              TOPLAM
+            </Text>
             <Text size="md" fw={800} c="white" style={{ fontFamily: 'system-ui' }}>
               {formatParaKisa(hesaplanmisTeklifData.maliyet_toplam)}
             </Text>
@@ -1444,12 +1549,12 @@ export default function TeklifModal({
       </Paper>
 
       {/* Sağ Panel - Form */}
-      <Paper 
-        shadow="md" 
-        radius="lg" 
-        p="lg" 
-        style={{ 
-          flex: 1, 
+      <Paper
+        shadow="md"
+        radius="lg"
+        p="lg"
+        style={{
+          flex: 1,
           overflow: 'auto',
           background: 'linear-gradient(180deg, #ffffff 0%, #fafafa 100%)',
           border: '1px solid #e2e8f0',
@@ -1462,14 +1567,29 @@ export default function TeklifModal({
 
   // Cetvel görünümü
   const renderCetvelView = () => (
-    <Box style={{ height: 'calc(100vh - 280px)', minHeight: 500, display: 'flex', flexDirection: 'column' }}>
+    <Box
+      style={{
+        height: 'calc(100vh - 280px)',
+        minHeight: 500,
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       <Paper withBorder p="md" style={{ flex: 1, overflow: 'auto' }}>
         <Stack>
           <Group justify="space-between">
             <div>
-              <Text fw={600} size="lg">📜 BİRİM FİYAT TEKLİF CETVELİ</Text>
-              <Text size="sm" c="dimmed">İhale Adı: {ihaleBasligi}</Text>
-              {ihaleKayitNo && <Text size="sm" c="dimmed">İhale Kayıt No: {ihaleKayitNo}</Text>}
+              <Text fw={600} size="lg">
+                📜 BİRİM FİYAT TEKLİF CETVELİ
+              </Text>
+              <Text size="sm" c="dimmed">
+                İhale Adı: {ihaleBasligi}
+              </Text>
+              {ihaleKayitNo && (
+                <Text size="sm" c="dimmed">
+                  İhale Kayıt No: {ihaleKayitNo}
+                </Text>
+              )}
             </div>
           </Group>
 
@@ -1539,7 +1659,9 @@ export default function TeklifModal({
                       <NumberInput
                         variant="unstyled"
                         value={kalem.birimFiyat ?? 0}
-                        onChange={(v) => handleCetvelBirimFiyatChange(idx, typeof v === 'number' ? v : 0)}
+                        onChange={(v) =>
+                          handleCetvelBirimFiyatChange(idx, typeof v === 'number' ? v : 0)
+                        }
                         min={0}
                         decimalScale={2}
                         thousandSeparator="."
@@ -1550,7 +1672,11 @@ export default function TeklifModal({
                       <Text fw={500}>{formatPara(kalem.tutar)}</Text>
                     </Table.Td>
                     <Table.Td>
-                      <ActionIcon color="red" variant="subtle" onClick={() => handleCetvelKalemSil(idx)}>
+                      <ActionIcon
+                        color="red"
+                        variant="subtle"
+                        onClick={() => handleCetvelKalemSil(idx)}
+                      >
                         <IconTrash size={16} />
                       </ActionIcon>
                     </Table.Td>
@@ -1569,30 +1695,47 @@ export default function TeklifModal({
             </Table>
           </ScrollArea>
 
-          <Button variant="light" leftSection={<IconPlus size={16} />} onClick={handleCetvelKalemEkle}>
+          <Button
+            variant="light"
+            leftSection={<IconPlus size={16} />}
+            onClick={handleCetvelKalemEkle}
+          >
             Kalem Ekle
           </Button>
 
           {/* Karşılaştırma */}
           <Paper withBorder p="md" bg="gray.0">
-            <Text fw={600} mb="xs">Karşılaştırma</Text>
+            <Text fw={600} mb="xs">
+              Karşılaştırma
+            </Text>
             <Group justify="space-between">
               <div>
-                <Text size="sm" c="dimmed">Hesaplanan Teklif:</Text>
+                <Text size="sm" c="dimmed">
+                  Hesaplanan Teklif:
+                </Text>
                 <Text fw={600}>{formatPara(hesaplanmisTeklifData.teklif_fiyati)}</Text>
               </div>
               <div>
-                <Text size="sm" c="dimmed">Cetvel Toplamı:</Text>
+                <Text size="sm" c="dimmed">
+                  Cetvel Toplamı:
+                </Text>
                 <Text fw={600}>{formatPara(teklifData.cetvel_toplami)}</Text>
               </div>
               <div>
-                <Text size="sm" c="dimmed">Fark:</Text>
+                <Text size="sm" c="dimmed">
+                  Fark:
+                </Text>
                 <Text
                   fw={600}
-                  c={hesaplanmisTeklifData.teklif_fiyati - teklifData.cetvel_toplami > 0 ? 'red' : 'green'}
+                  c={
+                    hesaplanmisTeklifData.teklif_fiyati - teklifData.cetvel_toplami > 0
+                      ? 'red'
+                      : 'green'
+                  }
                 >
                   {formatPara(teklifData.cetvel_toplami - hesaplanmisTeklifData.teklif_fiyati)}
-                  {Math.abs(hesaplanmisTeklifData.teklif_fiyati - teklifData.cetvel_toplami) > 1000 && ' ⚠️'}
+                  {Math.abs(hesaplanmisTeklifData.teklif_fiyati - teklifData.cetvel_toplami) >
+                    1000 && ' ⚠️'}
                 </Text>
               </div>
             </Group>
@@ -1611,7 +1754,7 @@ export default function TeklifModal({
       radius="lg"
       centered
       styles={{
-        body: { 
+        body: {
           padding: 0,
           display: 'flex',
           flexDirection: 'column',
@@ -1619,7 +1762,7 @@ export default function TeklifModal({
           overflow: 'hidden',
         },
         header: { display: 'none' },
-        content: { 
+        content: {
           borderRadius: 16,
           overflow: 'hidden',
           maxHeight: 'calc(100vh - 40px)',
@@ -1641,11 +1784,11 @@ export default function TeklifModal({
       >
         <Group justify="space-between">
           <Group gap="md">
-            <ThemeIcon 
-              size={48} 
-              radius="xl" 
+            <ThemeIcon
+              size={48}
+              radius="xl"
               variant="filled"
-              style={{ 
+              style={{
                 background: 'rgba(255,255,255,0.2)',
                 backdropFilter: 'blur(10px)',
               }}
@@ -1654,11 +1797,13 @@ export default function TeklifModal({
             </ThemeIcon>
             <div>
               <Group gap="xs">
-                <Text fw={700} size="xl" c="white">TEKLİF OLUŞTUR</Text>
+                <Text fw={700} size="xl" c="white">
+                  TEKLİF OLUŞTUR
+                </Text>
                 {existingTeklifId && (
-                  <Badge 
-                    color="green" 
-                    variant="filled" 
+                  <Badge
+                    color="green"
+                    variant="filled"
                     size="sm"
                     style={{ background: 'rgba(34, 197, 94, 0.9)' }}
                   >
@@ -1671,13 +1816,13 @@ export default function TeklifModal({
               </Text>
             </div>
           </Group>
-          
+
           <Group>
             {/* Tab Butonları */}
-            <Paper 
-              p={4} 
+            <Paper
+              p={4}
               radius="lg"
-              style={{ 
+              style={{
                 background: 'rgba(255,255,255,0.15)',
                 backdropFilter: 'blur(10px)',
               }}
@@ -1689,12 +1834,16 @@ export default function TeklifModal({
                   onClick={() => setViewMode('maliyet')}
                   radius="md"
                   size="sm"
-                  style={viewMode === 'maliyet' ? {
-                    background: 'white',
-                    color: '#1e40af',
-                  } : {
-                    color: 'white',
-                  }}
+                  style={
+                    viewMode === 'maliyet'
+                      ? {
+                          background: 'white',
+                          color: '#1e40af',
+                        }
+                      : {
+                          color: 'white',
+                        }
+                  }
                 >
                   Maliyet Hesaplama
                 </Button>
@@ -1704,26 +1853,30 @@ export default function TeklifModal({
                   onClick={() => setViewMode('cetvel')}
                   radius="md"
                   size="sm"
-                  style={viewMode === 'cetvel' ? {
-                    background: 'white',
-                    color: '#1e40af',
-                  } : {
-                    color: 'white',
-                  }}
+                  style={
+                    viewMode === 'cetvel'
+                      ? {
+                          background: 'white',
+                          color: '#1e40af',
+                        }
+                      : {
+                          color: 'white',
+                        }
+                  }
                 >
                   Teklif Cetveli
                 </Button>
               </Group>
             </Paper>
-            
+
             {/* Kapat Butonu */}
-            <ActionIcon 
-              variant="subtle" 
-              color="white" 
-              size="lg" 
+            <ActionIcon
+              variant="subtle"
+              color="white"
+              size="lg"
               radius="xl"
               onClick={onClose}
-              style={{ 
+              style={{
                 background: 'rgba(255,255,255,0.1)',
               }}
             >
@@ -1733,9 +1886,9 @@ export default function TeklifModal({
         </Group>
       </Box>
 
-      <Box 
-        p="md" 
-        style={{ 
+      <Box
+        p="md"
+        style={{
           background: '#f8fafc',
           flex: 1,
           overflow: 'auto',
@@ -1747,9 +1900,9 @@ export default function TeklifModal({
       </Box>
 
       {/* Alt Bar - Modern (Sticky Bottom) */}
-      <Paper 
-        shadow="lg" 
-        p="md" 
+      <Paper
+        shadow="lg"
+        p="md"
         style={{
           background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
           border: 'none',
@@ -1757,118 +1910,118 @@ export default function TeklifModal({
           borderRadius: 0,
         }}
       >
-          <Group justify="space-between">
-            <Group gap={32}>
-              {/* Maliyet */}
-              <div>
-                <Text size="xs" c="gray.5" fw={500} tt="uppercase" style={{ letterSpacing: 1 }}>
-                  Maliyet
-                </Text>
-                <Text fw={800} size="xl" c="white" style={{ fontFamily: 'system-ui' }}>
-                  {formatPara(hesaplanmisTeklifData.maliyet_toplam)}
-                </Text>
-              </div>
-              
-              {/* Kar Oranı */}
-              <div>
-                <Text size="xs" c="gray.5" fw={500} tt="uppercase" style={{ letterSpacing: 1 }}>
-                  Kar Oranı
-                </Text>
-                <Group gap="xs" align="center">
-                  <NumberInput
-                    value={teklifData.kar_orani}
-                    onChange={handleKarOraniChange}
-                    min={0}
-                    max={100}
-                    w={70}
-                    size="sm"
-                    rightSection="%"
-                    radius="md"
-                    styles={{ 
-                      input: { 
-                        textAlign: 'center', 
-                        fontWeight: 700,
-                        backgroundColor: 'rgba(255,255,255,0.1)',
-                        color: 'white',
-                        border: '1px solid rgba(255,255,255,0.2)',
-                      }
-                    }}
-                    rightSectionProps={{ style: { color: 'white' } }}
-                  />
-                </Group>
-              </div>
-              
-              {/* Kar Tutarı */}
-              <div>
-                <Text size="xs" c="gray.5" fw={500} tt="uppercase" style={{ letterSpacing: 1 }}>
-                  Kar Tutarı
-                </Text>
-                <Text fw={800} size="xl" c="green.4" style={{ fontFamily: 'system-ui' }}>
-                  +{formatPara(hesaplanmisTeklifData.kar_tutari)}
-                </Text>
-              </div>
-              
-              {/* Divider */}
-              <Divider orientation="vertical" color="gray.7" />
-              
-              {/* Teklif Fiyatı */}
-              <div>
-                <Text size="xs" c="gray.5" fw={500} tt="uppercase" style={{ letterSpacing: 1 }}>
-                  Teklif Fiyatı
-                </Text>
-                <Text 
-                  fw={900} 
-                  size="xl" 
-                  style={{ 
-                    fontFamily: 'system-ui',
-                    background: 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    fontSize: 28,
+        <Group justify="space-between">
+          <Group gap={32}>
+            {/* Maliyet */}
+            <div>
+              <Text size="xs" c="gray.5" fw={500} tt="uppercase" style={{ letterSpacing: 1 }}>
+                Maliyet
+              </Text>
+              <Text fw={800} size="xl" c="white" style={{ fontFamily: 'system-ui' }}>
+                {formatPara(hesaplanmisTeklifData.maliyet_toplam)}
+              </Text>
+            </div>
+
+            {/* Kar Oranı */}
+            <div>
+              <Text size="xs" c="gray.5" fw={500} tt="uppercase" style={{ letterSpacing: 1 }}>
+                Kar Oranı
+              </Text>
+              <Group gap="xs" align="center">
+                <NumberInput
+                  value={teklifData.kar_orani}
+                  onChange={handleKarOraniChange}
+                  min={0}
+                  max={100}
+                  w={70}
+                  size="sm"
+                  rightSection="%"
+                  radius="md"
+                  styles={{
+                    input: {
+                      textAlign: 'center',
+                      fontWeight: 700,
+                      backgroundColor: 'rgba(255,255,255,0.1)',
+                      color: 'white',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                    },
                   }}
-                >
-                  {formatPara(hesaplanmisTeklifData.teklif_fiyati)}
-                </Text>
-              </div>
-            </Group>
-            
-            {/* Butonlar */}
-            <Group gap="sm">
-              <Button 
-                variant="subtle" 
-                color="gray" 
-                onClick={onClose}
-                radius="md"
-                styles={{ root: { color: 'white' } }}
-              >
-                İptal
-              </Button>
-              <Button
-                variant="light"
-                leftSection={<IconDownload size={16} />}
-                disabled
-                radius="md"
-                color="gray"
-              >
-                PDF
-              </Button>
-              <Button
-                radius="md"
-                size="md"
-                leftSection={<IconDeviceFloppy size={18} />}
-                onClick={handleKaydet}
-                loading={loading}
+                  rightSectionProps={{ style: { color: 'white' } }}
+                />
+              </Group>
+            </div>
+
+            {/* Kar Tutarı */}
+            <div>
+              <Text size="xs" c="gray.5" fw={500} tt="uppercase" style={{ letterSpacing: 1 }}>
+                Kar Tutarı
+              </Text>
+              <Text fw={800} size="xl" c="green.4" style={{ fontFamily: 'system-ui' }}>
+                +{formatPara(hesaplanmisTeklifData.kar_tutari)}
+              </Text>
+            </div>
+
+            {/* Divider */}
+            <Divider orientation="vertical" color="gray.7" />
+
+            {/* Teklif Fiyatı */}
+            <div>
+              <Text size="xs" c="gray.5" fw={500} tt="uppercase" style={{ letterSpacing: 1 }}>
+                Teklif Fiyatı
+              </Text>
+              <Text
+                fw={900}
+                size="xl"
                 style={{
-                  background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-                  border: 'none',
-                  fontWeight: 700,
+                  fontFamily: 'system-ui',
+                  background: 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  fontSize: 28,
                 }}
               >
-                Kaydet
-              </Button>
-            </Group>
+                {formatPara(hesaplanmisTeklifData.teklif_fiyati)}
+              </Text>
+            </div>
           </Group>
-        </Paper>
+
+          {/* Butonlar */}
+          <Group gap="sm">
+            <Button
+              variant="subtle"
+              color="gray"
+              onClick={onClose}
+              radius="md"
+              styles={{ root: { color: 'white' } }}
+            >
+              İptal
+            </Button>
+            <Button
+              variant="light"
+              leftSection={<IconDownload size={16} />}
+              disabled
+              radius="md"
+              color="gray"
+            >
+              PDF
+            </Button>
+            <Button
+              radius="md"
+              size="md"
+              leftSection={<IconDeviceFloppy size={18} />}
+              onClick={handleKaydet}
+              loading={loading}
+              style={{
+                background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                border: 'none',
+                fontWeight: 700,
+              }}
+            >
+              Kaydet
+            </Button>
+          </Group>
+        </Group>
+      </Paper>
     </Modal>
   );
 }

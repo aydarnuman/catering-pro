@@ -1,50 +1,49 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { API_BASE_URL } from '@/lib/config';
 import {
-  Container,
-  Title,
-  Text,
-  Card,
-  Group,
-  Stack,
-  Badge,
-  Button,
-  Paper,
   ActionIcon,
   Alert,
-  SimpleGrid,
-  ThemeIcon,
-  Table,
   Avatar,
+  Badge,
+  Button,
+  Card,
+  Center,
+  Container,
+  Group,
+  Loader,
   Modal,
-  TextInput,
+  Paper,
   PasswordInput,
   Select,
+  SimpleGrid,
+  Stack,
   Switch,
-  Loader,
-  Center
+  Table,
+  Text,
+  TextInput,
+  ThemeIcon,
+  Title,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
-  IconUsers,
   IconArrowLeft,
-  IconUserPlus,
-  IconShield,
-  IconEdit,
-  IconTrash,
   IconCheck,
-  IconX,
-  IconRefresh,
-  IconShieldLock,
-  IconHistory,
   IconCrown,
-  IconUserShield
+  IconEdit,
+  IconRefresh,
+  IconShield,
+  IconShieldLock,
+  IconTrash,
+  IconUserPlus,
+  IconUserShield,
+  IconUsers,
+  IconX,
 } from '@tabler/icons-react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { API_BASE_URL } from '@/lib/config';
 
 const API_URL = API_BASE_URL;
 
@@ -69,7 +68,7 @@ export default function KullanicilarPage() {
     email: '',
     password: '',
     role: 'user',
-    is_active: true
+    is_active: true,
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -79,8 +78,8 @@ export default function KullanicilarPage() {
       setLoading(true);
       const response = await fetch(`${API_URL}/api/auth/users`, {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
       const data = await response.json();
       if (data.success) {
@@ -97,7 +96,7 @@ export default function KullanicilarPage() {
     if (token) {
       fetchUsers();
     }
-  }, [token]);
+  }, [token, fetchUsers]);
 
   // Yeni kullanıcı formunu aç
   const handleNewUser = () => {
@@ -107,7 +106,7 @@ export default function KullanicilarPage() {
       email: '',
       password: '',
       role: 'user',
-      is_active: true
+      is_active: true,
     });
     open();
   };
@@ -120,7 +119,7 @@ export default function KullanicilarPage() {
       email: user.email,
       password: '',
       role: user.role,
-      is_active: user.is_active
+      is_active: user.is_active,
     });
     open();
   };
@@ -131,7 +130,7 @@ export default function KullanicilarPage() {
       notifications.show({
         title: 'Hata',
         message: 'Ad ve email zorunludur',
-        color: 'red'
+        color: 'red',
       });
       return;
     }
@@ -140,26 +139,26 @@ export default function KullanicilarPage() {
       notifications.show({
         title: 'Hata',
         message: 'Yeni kullanıcı için şifre zorunludur',
-        color: 'red'
+        color: 'red',
       });
       return;
     }
 
     setSubmitting(true);
     try {
-      const url = editingUser 
+      const url = editingUser
         ? `${API_URL}/api/auth/users/${editingUser.id}`
         : `${API_URL}/api/auth/register`;
-      
+
       const method = editingUser ? 'PUT' : 'POST';
-      
+
       const body: any = {
         name: formData.name,
         email: formData.email,
         role: formData.role,
-        is_active: formData.is_active
+        is_active: formData.is_active,
       };
-      
+
       if (formData.password) {
         body.password = formData.password;
       }
@@ -168,9 +167,9 @@ export default function KullanicilarPage() {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
@@ -180,7 +179,7 @@ export default function KullanicilarPage() {
           title: 'Başarılı',
           message: editingUser ? 'Kullanıcı güncellendi' : 'Kullanıcı oluşturuldu',
           color: 'green',
-          icon: <IconCheck size={16} />
+          icon: <IconCheck size={16} />,
         });
         close();
         fetchUsers();
@@ -188,7 +187,7 @@ export default function KullanicilarPage() {
         notifications.show({
           title: 'Hata',
           message: data.error || 'İşlem başarısız',
-          color: 'red'
+          color: 'red',
         });
       }
     } catch (error) {
@@ -196,7 +195,7 @@ export default function KullanicilarPage() {
       notifications.show({
         title: 'Hata',
         message: 'Sunucu hatası',
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setSubmitting(false);
@@ -213,8 +212,8 @@ export default function KullanicilarPage() {
       const response = await fetch(`${API_URL}/api/auth/users/${userId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       const data = await response.json();
@@ -224,14 +223,14 @@ export default function KullanicilarPage() {
           title: 'Başarılı',
           message: 'Kullanıcı silindi',
           color: 'green',
-          icon: <IconCheck size={16} />
+          icon: <IconCheck size={16} />,
         });
         fetchUsers();
       } else {
         notifications.show({
           title: 'Hata',
           message: data.error || 'Silme başarısız',
-          color: 'red'
+          color: 'red',
         });
       }
     } catch (error) {
@@ -243,7 +242,7 @@ export default function KullanicilarPage() {
   const getInitials = (name: string) => {
     return name
       .split(' ')
-      .map(n => n[0])
+      .map((n) => n[0])
       .join('')
       .toUpperCase()
       .slice(0, 2);
@@ -259,7 +258,9 @@ export default function KullanicilarPage() {
               <IconArrowLeft size={20} />
             </ActionIcon>
             <div>
-              <Title order={1} size="h2" mb={4}>👥 Kullanıcı Yönetimi</Title>
+              <Title order={1} size="h2" mb={4}>
+                👥 Kullanıcı Yönetimi
+              </Title>
               <Text c="dimmed">Kullanıcılar, roller ve izinler</Text>
             </div>
           </Group>
@@ -300,29 +301,59 @@ export default function KullanicilarPage() {
                   <Table.Tr key={user.id}>
                     <Table.Td>
                       <Group gap="sm">
-                        <Avatar size="sm" radius="xl" color={user.role === 'admin' ? 'red' : 'blue'}>
+                        <Avatar
+                          size="sm"
+                          radius="xl"
+                          color={user.role === 'admin' ? 'red' : 'blue'}
+                        >
                           {getInitials(user.name)}
                         </Avatar>
-                        <Text size="sm" fw={500}>{user.name}</Text>
+                        <Text size="sm" fw={500}>
+                          {user.name}
+                        </Text>
                       </Group>
                     </Table.Td>
                     <Table.Td>
-                      <Text size="sm" c="dimmed">{user.email}</Text>
+                      <Text size="sm" c="dimmed">
+                        {user.email}
+                      </Text>
                     </Table.Td>
                     <Table.Td>
-                      <Badge 
-                        color={user.user_type === 'super_admin' ? 'red' : user.role === 'admin' ? 'orange' : 'blue'} 
+                      <Badge
+                        color={
+                          user.user_type === 'super_admin'
+                            ? 'red'
+                            : user.role === 'admin'
+                              ? 'orange'
+                              : 'blue'
+                        }
                         variant="light"
-                        leftSection={user.user_type === 'super_admin' ? <IconCrown size={12} /> : user.role === 'admin' ? <IconUserShield size={12} /> : <IconShield size={12} />}
+                        leftSection={
+                          user.user_type === 'super_admin' ? (
+                            <IconCrown size={12} />
+                          ) : user.role === 'admin' ? (
+                            <IconUserShield size={12} />
+                          ) : (
+                            <IconShield size={12} />
+                          )
+                        }
                       >
-                        {user.user_type === 'super_admin' ? 'Süper Admin' : user.role === 'admin' ? 'Yönetici' : 'Kullanıcı'}
+                        {user.user_type === 'super_admin'
+                          ? 'Süper Admin'
+                          : user.role === 'admin'
+                            ? 'Yönetici'
+                            : 'Kullanıcı'}
                       </Badge>
                     </Table.Td>
                     <Table.Td>
                       {user.is_active ? (
-                        <Badge color="green" variant="light">Aktif</Badge>
+                        <Badge color="green" variant="light">
+                          Aktif
+                        </Badge>
                       ) : (
-                        <Badge color="gray" variant="light">Pasif</Badge>
+                        <Badge color="gray" variant="light">
+                          Pasif
+                        </Badge>
                       )}
                     </Table.Td>
                     <Table.Td>
@@ -332,16 +363,16 @@ export default function KullanicilarPage() {
                     </Table.Td>
                     <Table.Td>
                       <Group gap="xs" justify="flex-end">
-                        <ActionIcon 
-                          variant="subtle" 
+                        <ActionIcon
+                          variant="subtle"
                           color="blue"
                           onClick={() => handleEditUser(user)}
                           title="Kullanıcıyı Düzenle"
                         >
                           <IconEdit size={16} />
                         </ActionIcon>
-                        <ActionIcon 
-                          variant="subtle" 
+                        <ActionIcon
+                          variant="subtle"
                           color="violet"
                           component={Link}
                           href="/admin/yetkiler"
@@ -349,8 +380,8 @@ export default function KullanicilarPage() {
                         >
                           <IconShieldLock size={16} />
                         </ActionIcon>
-                        <ActionIcon 
-                          variant="subtle" 
+                        <ActionIcon
+                          variant="subtle"
                           color="red"
                           onClick={() => handleDeleteUser(user.id)}
                           title="Kullanıcıyı Sil"
@@ -371,8 +402,12 @@ export default function KullanicilarPage() {
           <Card padding="lg" radius="md" withBorder>
             <Group justify="space-between">
               <div>
-                <Text size="xl" fw={700}>{users.length}</Text>
-                <Text size="sm" c="dimmed">Toplam Kullanıcı</Text>
+                <Text size="xl" fw={700}>
+                  {users.length}
+                </Text>
+                <Text size="sm" c="dimmed">
+                  Toplam Kullanıcı
+                </Text>
               </div>
               <ThemeIcon size={40} radius="md" variant="light" color="blue">
                 <IconUsers size={22} />
@@ -382,8 +417,12 @@ export default function KullanicilarPage() {
           <Card padding="lg" radius="md" withBorder>
             <Group justify="space-between">
               <div>
-                <Text size="xl" fw={700}>{users.filter(u => u.role === 'admin').length}</Text>
-                <Text size="sm" c="dimmed">Admin</Text>
+                <Text size="xl" fw={700}>
+                  {users.filter((u) => u.role === 'admin').length}
+                </Text>
+                <Text size="sm" c="dimmed">
+                  Admin
+                </Text>
               </div>
               <ThemeIcon size={40} radius="md" variant="light" color="red">
                 <IconShield size={22} />
@@ -393,8 +432,12 @@ export default function KullanicilarPage() {
           <Card padding="lg" radius="md" withBorder>
             <Group justify="space-between">
               <div>
-                <Text size="xl" fw={700}>{users.filter(u => u.is_active).length}</Text>
-                <Text size="sm" c="dimmed">Aktif</Text>
+                <Text size="xl" fw={700}>
+                  {users.filter((u) => u.is_active).length}
+                </Text>
+                <Text size="sm" c="dimmed">
+                  Aktif
+                </Text>
               </div>
               <ThemeIcon size={40} radius="md" variant="light" color="green">
                 <IconCheck size={22} />
@@ -404,8 +447,12 @@ export default function KullanicilarPage() {
           <Card padding="lg" radius="md" withBorder>
             <Group justify="space-between">
               <div>
-                <Text size="xl" fw={700}>{users.filter(u => !u.is_active).length}</Text>
-                <Text size="sm" c="dimmed">Pasif</Text>
+                <Text size="xl" fw={700}>
+                  {users.filter((u) => !u.is_active).length}
+                </Text>
+                <Text size="sm" c="dimmed">
+                  Pasif
+                </Text>
               </div>
               <ThemeIcon size={40} radius="md" variant="light" color="gray">
                 <IconX size={22} />
@@ -449,7 +496,7 @@ export default function KullanicilarPage() {
             label="Rol"
             data={[
               { value: 'user', label: '👤 Kullanıcı' },
-              { value: 'admin', label: '🛡️ Yönetici' }
+              { value: 'admin', label: '🛡️ Yönetici' },
             ]}
             value={formData.role}
             onChange={(value) => setFormData({ ...formData, role: value || 'user' })}

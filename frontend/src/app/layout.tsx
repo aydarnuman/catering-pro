@@ -2,10 +2,10 @@ import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/dropzone/styles.css';
 import './globals.css';
-import { MantineProvider, ColorSchemeScript, Container, Box } from '@mantine/core';
+import { Box, ColorSchemeScript, MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
-import { Navbar } from '@/components/Navbar';
 import { ClientLayout } from '@/components/ClientLayout';
+import { Navbar } from '@/components/Navbar';
 import { AuthProvider } from '@/context/AuthContext';
 
 export const metadata = {
@@ -13,11 +13,7 @@ export const metadata = {
   description: 'AI destekli ihale analiz ve yönetim platformu',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="tr" suppressHydrationWarning>
       <head>
@@ -43,9 +39,11 @@ export default function RootLayout({
                 '#1864ab',
               ],
             },
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+            fontFamily:
+              '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
             headings: {
-              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+              fontFamily:
+                '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
               fontWeight: '700',
             },
           }}
@@ -55,9 +53,7 @@ export default function RootLayout({
             <Box style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
               <Navbar />
               <Box component="main" className="main-content" style={{ flex: 1 }}>
-                <ClientLayout>
-                {children}
-                </ClientLayout>
+                <ClientLayout>{children}</ClientLayout>
               </Box>
             </Box>
           </AuthProvider>

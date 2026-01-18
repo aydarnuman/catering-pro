@@ -1,101 +1,93 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { API_BASE_URL } from '@/lib/config';
-import { useSearchParams, useRouter } from 'next/navigation';
 import {
-  Container,
-  Title,
-  Text,
-  Group,
-  Stack,
-  Paper,
-  Avatar,
-  Skeleton,
-  Badge,
-  NavLink,
-  Box,
-  Divider,
-  useMantineColorScheme,
-  Switch,
-  TextInput,
-  Button,
-  PasswordInput,
-  Select,
-  SegmentedControl,
-  Slider,
-  Alert,
-  Card,
-  SimpleGrid,
-  ThemeIcon,
-  ActionIcon,
-  Tooltip,
-  Modal,
-  ColorSwatch,
-  CheckIcon,
-  ScrollArea,
-  rem,
-  Loader,
   Accordion,
+  ActionIcon,
+  Alert,
+  Avatar,
+  Badge,
+  Box,
+  Button,
   Collapse,
-  NumberInput
+  ColorSwatch,
+  Container,
+  Divider,
+  Group,
+  Loader,
+  Modal,
+  NavLink,
+  Paper,
+  PasswordInput,
+  ScrollArea,
+  SegmentedControl,
+  Select,
+  SimpleGrid,
+  Skeleton,
+  Slider,
+  Stack,
+  Switch,
+  Text,
+  TextInput,
+  ThemeIcon,
+  Title,
+  Tooltip,
+  useMantineColorScheme,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
-  IconUser,
-  IconPalette,
-  IconRobot,
   IconBell,
-  IconSettings,
-  IconMail,
-  IconCalendar,
-  IconLock,
-  IconLogout,
-  IconCheck,
-  IconX,
-  IconSun,
-  IconMoon,
-  IconDeviceDesktop,
-  IconChevronRight,
-  IconChevronDown,
-  IconShieldLock,
-  IconEdit,
-  IconKey,
-  IconEye,
-  IconEyeOff,
-  IconInfoCircle,
   IconBellRinging,
-  IconMailOpened,
-  IconDeviceMobile,
-  IconClock,
-  IconLanguage,
+  IconBuilding,
+  IconCalendar,
   IconCalendarEvent,
+  IconCertificate,
+  IconCheck,
+  IconChevronDown,
+  IconChevronRight,
+  IconClipboardList,
+  IconClock,
   IconCurrencyLira,
   IconDatabase,
-  IconRefresh,
-  IconBuilding,
-  IconPhone,
-  IconMapPin,
+  IconDeviceDesktop,
+  IconDownload,
+  IconEdit,
+  IconEye,
+  IconFileAnalytics,
+  IconFileDescription,
+  IconFileInvoice,
+  IconFileText,
+  IconFolder,
   IconId,
+  IconInfoCircle,
+  IconKey,
+  IconLanguage,
+  IconLock,
+  IconLogout,
+  IconMail,
+  IconMailOpened,
+  IconMapPin,
+  IconMoon,
+  IconPalette,
+  IconPhone,
+  IconPlus,
+  IconReload,
+  IconRobot,
+  IconSettings,
+  IconShieldLock,
   IconSignature,
   IconSparkles,
-  IconFileText,
-  IconUpload,
-  IconDownload,
+  IconSun,
   IconTrash,
-  IconReload,
-  IconFileAnalytics,
-  IconFolder,
-  IconCertificate,
-  IconFileInvoice,
-  IconFileDescription,
-  IconPlus,
-  IconAward,
-  IconClipboardList
+  IconUpload,
+  IconUser,
+  IconX,
 } from '@tabler/icons-react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import ProjeYonetimModal from '@/components/muhasebe/ProjeYonetimModal';
+import { API_BASE_URL } from '@/lib/config';
 
 // Tip tanımları
 interface UserInfo {
@@ -239,7 +231,7 @@ interface Proje {
   firma_unvani?: string;
   // İşveren/Lokasyon
   musteri: string;
-  kurum?: string;  // Kurum bilgisi
+  kurum?: string; // Kurum bilgisi
   lokasyon?: string;
   adres: string;
   il?: string;
@@ -333,7 +325,7 @@ const belgeKategorileri = {
   mali: { label: 'Mali Belgeler', icon: IconFileInvoice, color: 'green' },
   sertifika: { label: 'Sertifikalar', icon: IconCertificate, color: 'orange' },
   referans: { label: 'Referanslar', icon: IconClipboardList, color: 'pink' },
-  diger: { label: 'Diğer Belgeler', icon: IconFileDescription, color: 'gray' }
+  diger: { label: 'Diğer Belgeler', icon: IconFileDescription, color: 'gray' },
 };
 
 const belgeTipleriListe = [
@@ -354,7 +346,7 @@ const belgeTipleriListe = [
   { value: 'tse_sertifika', label: 'TSE Belgesi', kategori: 'sertifika' },
   { value: 'gida_uretim_izni', label: 'Gıda Üretim İzin Belgesi', kategori: 'sertifika' },
   { value: 'is_deneyim_belgesi', label: 'İş Deneyim Belgesi', kategori: 'referans' },
-  { value: 'referans_mektubu', label: 'Referans Mektubu', kategori: 'referans' }
+  { value: 'referans_mektubu', label: 'Referans Mektubu', kategori: 'referans' },
 ];
 
 function FirmaProjelerSection({
@@ -363,7 +355,7 @@ function FirmaProjelerSection({
   handleOpenFirmaModal,
   handleDeleteFirma,
   handleSetVarsayilan,
-  API_URL
+  API_URL,
 }: {
   firmalar: FirmaBilgileri[];
   firmaLoading: boolean;
@@ -380,25 +372,27 @@ function FirmaProjelerSection({
   // Döküman yönetimi state
   const [dokumanlar, setDokumanlar] = useState<FirmaDokuman[]>([]);
   const [loadingDokumanlar, setLoadingDokumanlar] = useState(false);
-  const [dokumanModalOpened, { open: openDokumanModal, close: closeDokumanModal }] = useDisclosure(false);
+  const [dokumanModalOpened, { open: openDokumanModal, close: closeDokumanModal }] =
+    useDisclosure(false);
   const [uploadingDokuman, setUploadingDokuman] = useState(false);
   const [selectedBelgeTipi, setSelectedBelgeTipi] = useState('auto');
   const [selectedBelgeKategori, setSelectedBelgeKategori] = useState('kurumsal');
   const [lastAIAnalysis, setLastAIAnalysis] = useState<any>(null);
-  const [aiApplyModalOpened, { open: openAIApplyModal, close: closeAIApplyModal }] = useDisclosure(false);
+  const [aiApplyModalOpened, { open: openAIApplyModal, close: closeAIApplyModal }] =
+    useDisclosure(false);
   const [selectedDokumanForApply, setSelectedDokumanForApply] = useState<FirmaDokuman | null>(null);
-  
+
   // Ekstra alanlar state
   const [ekstraAlanlar, setEkstraAlanlar] = useState<Record<string, any>>({});
   const [alanSablonlari, setAlanSablonlari] = useState<any[]>([]);
   const [ekstraAlanlarExpanded, setEkstraAlanlarExpanded] = useState(false);
   const [newAlanAdi, setNewAlanAdi] = useState('');
   const [newAlanDeger, setNewAlanDeger] = useState('');
-  const [loadingEkstraAlanlar, setLoadingEkstraAlanlar] = useState(false);
+  const [_loadingEkstraAlanlar, setLoadingEkstraAlanlar] = useState(false);
   const [expandedDocCategories, setExpandedDocCategories] = useState<string[]>(['kurumsal']);
 
   const getToken = () => localStorage.getItem('token');
-  const varsayilanFirma = firmalar.find(f => f.varsayilan) || firmalar[0];
+  const varsayilanFirma = firmalar.find((f) => f.varsayilan) || firmalar[0];
 
   // Projeleri yükle
   const fetchProjeler = async () => {
@@ -406,7 +400,7 @@ function FirmaProjelerSection({
       setLoadingProjeler(true);
       const token = getToken();
       const res = await fetch(`${API_URL}/api/projeler`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
@@ -426,7 +420,7 @@ function FirmaProjelerSection({
       setLoadingDokumanlar(true);
       const token = getToken();
       const res = await fetch(`${API_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
@@ -445,22 +439,22 @@ function FirmaProjelerSection({
     try {
       setLoadingEkstraAlanlar(true);
       const token = getToken();
-      
+
       // Paralel olarak hem şablonları hem firma ekstra alanlarını çek
       const [sablonRes, ekstraRes] = await Promise.all([
         fetch(`${API_URL}/api/firmalar/alan-sablonlari`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         }),
         fetch(`${API_URL}/api/firmalar/${varsayilanFirma.id}/ekstra-alanlar`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
+          headers: { Authorization: `Bearer ${token}` },
+        }),
       ]);
-      
+
       if (sablonRes.ok) {
         const sablonData = await sablonRes.json();
         setAlanSablonlari(sablonData.data || []);
       }
-      
+
       if (ekstraRes.ok) {
         const ekstraData = await ekstraRes.json();
         setEkstraAlanlar(ekstraData.data || {});
@@ -475,28 +469,32 @@ function FirmaProjelerSection({
   // Ekstra alan ekle/güncelle
   const handleAddEkstraAlan = async (alanAdi: string, deger: any) => {
     if (!varsayilanFirma?.id || !alanAdi) return;
-    
+
     try {
       const token = getToken();
       const res = await fetch(`${API_URL}/api/firmalar/${varsayilanFirma.id}/ekstra-alan`, {
         method: 'PATCH',
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ alan_adi: alanAdi, deger })
+        body: JSON.stringify({ alan_adi: alanAdi, deger }),
       });
-      
+
       const data = await res.json();
       if (data.success) {
         setEkstraAlanlar(data.data.ekstra_alanlar || {});
         setNewAlanAdi('');
         setNewAlanDeger('');
-        notifications.show({ title: '✅ Alan Eklendi', message: `${alanAdi} başarıyla kaydedildi`, color: 'green' });
+        notifications.show({
+          title: '✅ Alan Eklendi',
+          message: `${alanAdi} başarıyla kaydedildi`,
+          color: 'green',
+        });
       } else {
         notifications.show({ title: 'Hata', message: data.error, color: 'red' });
       }
-    } catch (err) {
+    } catch (_err) {
       notifications.show({ title: 'Hata', message: 'Alan eklenemedi', color: 'red' });
     }
   };
@@ -504,20 +502,27 @@ function FirmaProjelerSection({
   // Ekstra alan sil
   const handleDeleteEkstraAlan = async (alanAdi: string) => {
     if (!varsayilanFirma?.id) return;
-    
+
     try {
       const token = getToken();
-      const res = await fetch(`${API_URL}/api/firmalar/${varsayilanFirma.id}/ekstra-alan/${alanAdi}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
+      const res = await fetch(
+        `${API_URL}/api/firmalar/${varsayilanFirma.id}/ekstra-alan/${alanAdi}`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
       const data = await res.json();
       if (data.success) {
         setEkstraAlanlar(data.data.ekstra_alanlar || {});
-        notifications.show({ title: '✅ Alan Silindi', message: `${alanAdi} kaldırıldı`, color: 'green' });
+        notifications.show({
+          title: '✅ Alan Silindi',
+          message: `${alanAdi} kaldırıldı`,
+          color: 'green',
+        });
       }
-    } catch (err) {
+    } catch (_err) {
       notifications.show({ title: 'Hata', message: 'Alan silinemedi', color: 'red' });
     }
   };
@@ -538,19 +543,19 @@ function FirmaProjelerSection({
       const token = getToken();
       const res = await fetch(`${API_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
       });
 
       const data = await res.json();
-      
+
       if (data.success) {
         notifications.show({
           title: '✅ Döküman Yüklendi',
-          message: data.analiz?.success 
-            ? 'AI analizi tamamlandı. Verileri firmaya uygulamak ister misiniz?' 
+          message: data.analiz?.success
+            ? 'AI analizi tamamlandı. Verileri firmaya uygulamak ister misiniz?'
             : 'Döküman başarıyla kaydedildi',
-          color: 'green'
+          color: 'green',
         });
 
         // AI analiz varsa modal aç
@@ -565,7 +570,7 @@ function FirmaProjelerSection({
       } else {
         notifications.show({ title: 'Hata', message: data.error, color: 'red' });
       }
-    } catch (err) {
+    } catch (_err) {
       notifications.show({ title: 'Hata', message: 'Döküman yüklenemedi', color: 'red' });
     } finally {
       setUploadingDokuman(false);
@@ -576,28 +581,28 @@ function FirmaProjelerSection({
   // AI verisini firmaya uygula
   const handleApplyAIData = async (secilenAlanlar: string[]) => {
     if (!varsayilanFirma?.id || !selectedDokumanForApply) return;
-    
+
     try {
       const token = getToken();
       const res = await fetch(
         `${API_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar/${selectedDokumanForApply.id}/veriyi-uygula`,
         {
           method: 'POST',
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ secilenAlanlar })
+          body: JSON.stringify({ secilenAlanlar }),
         }
       );
 
       const data = await res.json();
-      
+
       if (data.success) {
         notifications.show({
           title: '✅ Veriler Uygulandı',
           message: `${data.uygulaananAlanlar?.length || 0} alan firmaya başarıyla aktarıldı`,
-          color: 'green'
+          color: 'green',
         });
         closeAIApplyModal();
         // Firma bilgilerini yenile - parent'tan geldiği için burada yapamıyoruz
@@ -606,7 +611,7 @@ function FirmaProjelerSection({
       } else {
         notifications.show({ title: 'Hata', message: data.error, color: 'red' });
       }
-    } catch (err) {
+    } catch (_err) {
       notifications.show({ title: 'Hata', message: 'Veriler uygulanamadı', color: 'red' });
     }
   };
@@ -614,28 +619,28 @@ function FirmaProjelerSection({
   // Dökümanı sil
   const handleDeleteDokuman = async (dokumanId: number) => {
     if (!varsayilanFirma?.id) return;
-    
+
     if (!confirm('Bu dökümanı silmek istediğinize emin misiniz?')) return;
-    
+
     try {
       const token = getToken();
       const res = await fetch(
         `${API_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar/${dokumanId}`,
         {
           method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
       const data = await res.json();
-      
+
       if (data.success) {
         notifications.show({ title: 'Silindi', message: 'Döküman silindi', color: 'green' });
         fetchDokumanlar();
       } else {
         notifications.show({ title: 'Hata', message: data.error, color: 'red' });
       }
-    } catch (err) {
+    } catch (_err) {
       notifications.show({ title: 'Hata', message: 'Döküman silinemedi', color: 'red' });
     }
   };
@@ -643,41 +648,51 @@ function FirmaProjelerSection({
   // Dökümanı yeniden analiz et
   const handleReanalyze = async (dokuman: FirmaDokuman) => {
     if (!varsayilanFirma?.id) return;
-    
+
     try {
-      notifications.show({ title: 'Analiz Ediliyor...', message: 'Lütfen bekleyin', color: 'blue', loading: true, id: 'reanalyze' });
-      
+      notifications.show({
+        title: 'Analiz Ediliyor...',
+        message: 'Lütfen bekleyin',
+        color: 'blue',
+        loading: true,
+        id: 'reanalyze',
+      });
+
       const token = getToken();
       const res = await fetch(
         `${API_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar/${dokuman.id}/yeniden-analiz`,
         {
           method: 'POST',
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ auto_fill: 'false' })
+          body: JSON.stringify({ auto_fill: 'false' }),
         }
       );
 
       const data = await res.json();
-      
+
       notifications.hide('reanalyze');
-      
+
       if (data.success && data.analiz?.success) {
         notifications.show({
           title: '✅ Analiz Tamamlandı',
           message: 'Verileri firmaya uygulamak ister misiniz?',
-          color: 'green'
+          color: 'green',
         });
         setLastAIAnalysis(data.analiz);
         setSelectedDokumanForApply({ ...dokuman, ai_cikartilan_veriler: data.analiz.data });
         openAIApplyModal();
         fetchDokumanlar();
       } else {
-        notifications.show({ title: 'Hata', message: data.message || 'Analiz başarısız', color: 'red' });
+        notifications.show({
+          title: 'Hata',
+          message: data.message || 'Analiz başarısız',
+          color: 'red',
+        });
       }
-    } catch (err) {
+    } catch (_err) {
       notifications.hide('reanalyze');
       notifications.show({ title: 'Hata', message: 'Yeniden analiz yapılamadı', color: 'red' });
     }
@@ -686,22 +701,24 @@ function FirmaProjelerSection({
   // Tüm dökümanları yeniden analiz et
   const handleReanalyzeAll = async () => {
     if (!varsayilanFirma?.id || dokumanlar.length === 0) return;
-    
-    const confirmed = window.confirm(`${dokumanlar.length} döküman yeniden analiz edilecek. Devam etmek istiyor musunuz?`);
+
+    const confirmed = window.confirm(
+      `${dokumanlar.length} döküman yeniden analiz edilecek. Devam etmek istiyor musunuz?`
+    );
     if (!confirmed) return;
-    
-    notifications.show({ 
-      title: '🔄 Toplu Analiz Başladı', 
-      message: `${dokumanlar.length} döküman analiz ediliyor...`, 
-      color: 'blue', 
-      loading: true, 
+
+    notifications.show({
+      title: '🔄 Toplu Analiz Başladı',
+      message: `${dokumanlar.length} döküman analiz ediliyor...`,
+      color: 'blue',
+      loading: true,
       id: 'bulk-reanalyze',
-      autoClose: false
+      autoClose: false,
     });
-    
+
     let success = 0;
     let failed = 0;
-    
+
     for (const doc of dokumanlar) {
       try {
         const token = getToken();
@@ -709,11 +726,11 @@ function FirmaProjelerSection({
           `${API_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar/${doc.id}/yeniden-analiz`,
           {
             method: 'POST',
-            headers: { 
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ auto_fill: 'false' })
+            body: JSON.stringify({ auto_fill: 'false' }),
           }
         );
         const data = await res.json();
@@ -723,12 +740,12 @@ function FirmaProjelerSection({
         failed++;
       }
     }
-    
+
     notifications.hide('bulk-reanalyze');
-    notifications.show({ 
-      title: '✅ Toplu Analiz Tamamlandı', 
-      message: `${success} başarılı, ${failed} başarısız`, 
-      color: failed > 0 ? 'yellow' : 'green' 
+    notifications.show({
+      title: '✅ Toplu Analiz Tamamlandı',
+      message: `${success} başarılı, ${failed} başarısız`,
+      color: failed > 0 ? 'yellow' : 'green',
     });
     fetchDokumanlar();
   };
@@ -736,29 +753,35 @@ function FirmaProjelerSection({
   // Tüm dökümanları ZIP indir
   const handleDownloadAllDocs = async () => {
     if (!varsayilanFirma?.id) return;
-    
+
     const token = getToken();
-    window.open(`${API_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar-zip?token=${token}`, '_blank');
+    window.open(
+      `${API_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar-zip?token=${token}`,
+      '_blank'
+    );
   };
 
   // Firma bilgilerini Excel'e aktar
   const handleExportFirma = async () => {
     if (!varsayilanFirma?.id) return;
-    
+
     const token = getToken();
-    window.open(`${API_URL}/api/firmalar/${varsayilanFirma.id}/export?format=excel&token=${token}`, '_blank');
+    window.open(
+      `${API_URL}/api/firmalar/${varsayilanFirma.id}/export?format=excel&token=${token}`,
+      '_blank'
+    );
   };
 
   useEffect(() => {
     fetchProjeler();
-  }, [API_URL]);
+  }, [fetchProjeler]);
 
   useEffect(() => {
     if (varsayilanFirma?.id) {
       fetchDokumanlar();
       fetchEkstraAlanlar();
     }
-  }, [varsayilanFirma?.id]);
+  }, [varsayilanFirma?.id, fetchDokumanlar, fetchEkstraAlanlar]);
 
   // Modal kapanınca yenile
   const handleCloseProjeModal = () => {
@@ -774,8 +797,12 @@ function FirmaProjelerSection({
   };
 
   const formatCurrency = (value: number | null | undefined) => {
-    if (value === null || value === undefined || isNaN(Number(value))) return '₺0';
-    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(Number(value) || 0);
+    if (value === null || value === undefined || Number.isNaN(Number(value))) return '₺0';
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'TRY',
+      maximumFractionDigits: 0,
+    }).format(Number(value) || 0);
   };
 
   return (
@@ -785,7 +812,9 @@ function FirmaProjelerSection({
         <Group justify="space-between" mb="md">
           <div>
             <Title order={4}>🏢 Firma Bilgileri</Title>
-            <Text size="sm" c="dimmed">Şirket ve yetkili bilgileriniz</Text>
+            <Text size="sm" c="dimmed">
+              Şirket ve yetkili bilgileriniz
+            </Text>
           </div>
           <Button
             leftSection={<IconBuilding size={16} />}
@@ -800,7 +829,15 @@ function FirmaProjelerSection({
         {firmaLoading ? (
           <Skeleton height={150} radius="md" />
         ) : varsayilanFirma ? (
-          <Paper p="lg" radius="md" withBorder style={{ borderColor: 'var(--mantine-color-teal-4)', background: 'rgba(0, 166, 125, 0.02)' }}>
+          <Paper
+            p="lg"
+            radius="md"
+            withBorder
+            style={{
+              borderColor: 'var(--mantine-color-teal-4)',
+              background: 'rgba(0, 166, 125, 0.02)',
+            }}
+          >
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
               {/* Sol: Firma Bilgileri */}
               <Stack gap="sm">
@@ -809,19 +846,50 @@ function FirmaProjelerSection({
                     <IconBuilding size={20} />
                   </ThemeIcon>
                   <div>
-                    <Text fw={700} size="lg">{varsayilanFirma.unvan}</Text>
-                    {varsayilanFirma.kisa_ad && <Text size="xs" c="dimmed">({varsayilanFirma.kisa_ad})</Text>}
+                    <Text fw={700} size="lg">
+                      {varsayilanFirma.unvan}
+                    </Text>
+                    {varsayilanFirma.kisa_ad && (
+                      <Text size="xs" c="dimmed">
+                        ({varsayilanFirma.kisa_ad})
+                      </Text>
+                    )}
                   </div>
                 </Group>
                 <Divider />
                 <SimpleGrid cols={2} spacing="xs">
-                  <Text size="sm"><Text span fw={500}>Vergi No:</Text> {varsayilanFirma.vergi_no || '-'}</Text>
-                  <Text size="sm"><Text span fw={500}>Vergi Dairesi:</Text> {varsayilanFirma.vergi_dairesi || '-'}</Text>
-                  <Text size="sm"><Text span fw={500}>Telefon:</Text> {varsayilanFirma.telefon || '-'}</Text>
-                  <Text size="sm"><Text span fw={500}>E-posta:</Text> {varsayilanFirma.email || '-'}</Text>
+                  <Text size="sm">
+                    <Text span fw={500}>
+                      Vergi No:
+                    </Text>{' '}
+                    {varsayilanFirma.vergi_no || '-'}
+                  </Text>
+                  <Text size="sm">
+                    <Text span fw={500}>
+                      Vergi Dairesi:
+                    </Text>{' '}
+                    {varsayilanFirma.vergi_dairesi || '-'}
+                  </Text>
+                  <Text size="sm">
+                    <Text span fw={500}>
+                      Telefon:
+                    </Text>{' '}
+                    {varsayilanFirma.telefon || '-'}
+                  </Text>
+                  <Text size="sm">
+                    <Text span fw={500}>
+                      E-posta:
+                    </Text>{' '}
+                    {varsayilanFirma.email || '-'}
+                  </Text>
                 </SimpleGrid>
                 {varsayilanFirma.adres && (
-                  <Text size="sm"><Text span fw={500}>Adres:</Text> {varsayilanFirma.adres}</Text>
+                  <Text size="sm">
+                    <Text span fw={500}>
+                      Adres:
+                    </Text>{' '}
+                    {varsayilanFirma.adres}
+                  </Text>
                 )}
               </Stack>
 
@@ -829,32 +897,42 @@ function FirmaProjelerSection({
               <Stack gap="sm">
                 <Group gap="sm">
                   <Avatar size="md" radius="xl" color="violet">
-                    {varsayilanFirma.yetkili_adi?.split(' ').map(n => n[0]).join('').slice(0, 2) || '?'}
+                    {varsayilanFirma.yetkili_adi
+                      ?.split(' ')
+                      .map((n) => n[0])
+                      .join('')
+                      .slice(0, 2) || '?'}
                   </Avatar>
                   <div>
                     <Text fw={600}>{varsayilanFirma.yetkili_adi || 'Yetkili eklenmemiş'}</Text>
-                    <Text size="xs" c="violet">{varsayilanFirma.yetkili_unvani || 'Şirket Yetkilisi'}</Text>
+                    <Text size="xs" c="violet">
+                      {varsayilanFirma.yetkili_unvani || 'Şirket Yetkilisi'}
+                    </Text>
                   </div>
                 </Group>
                 {varsayilanFirma.yetkili_adi && (
                   <>
                     <Divider />
                     <SimpleGrid cols={1} spacing="xs">
-                      {varsayilanFirma.yetkili_telefon && <Text size="sm">📞 {varsayilanFirma.yetkili_telefon}</Text>}
+                      {varsayilanFirma.yetkili_telefon && (
+                        <Text size="sm">📞 {varsayilanFirma.yetkili_telefon}</Text>
+                      )}
                       {varsayilanFirma.imza_yetkisi && (
-                        <Text size="xs" c="dimmed" fs="italic">"{varsayilanFirma.imza_yetkisi}"</Text>
+                        <Text size="xs" c="dimmed" fs="italic">
+                          "{varsayilanFirma.imza_yetkisi}"
+                        </Text>
                       )}
                     </SimpleGrid>
                   </>
                 )}
               </Stack>
             </SimpleGrid>
-            
+
             {/* Ekstra Alanlar - Açılır/Kapanır */}
             <Divider my="sm" />
             <Box>
-              <Group 
-                justify="space-between" 
+              <Group
+                justify="space-between"
                 style={{ cursor: 'pointer' }}
                 onClick={() => setEkstraAlanlarExpanded(!ekstraAlanlarExpanded)}
               >
@@ -862,30 +940,40 @@ function FirmaProjelerSection({
                   <ThemeIcon size="sm" variant="light" color="indigo">
                     <IconPlus size={12} />
                   </ThemeIcon>
-                  <Text size="sm" fw={500}>Ek Bilgiler ({Object.keys(ekstraAlanlar).length})</Text>
+                  <Text size="sm" fw={500}>
+                    Ek Bilgiler ({Object.keys(ekstraAlanlar).length})
+                  </Text>
                 </Group>
                 <ActionIcon variant="subtle" size="sm">
-                  <IconChevronDown 
-                    size={14} 
-                    style={{ 
+                  <IconChevronDown
+                    size={14}
+                    style={{
                       transform: ekstraAlanlarExpanded ? 'rotate(180deg)' : 'rotate(0)',
-                      transition: 'transform 0.2s'
-                    }} 
+                      transition: 'transform 0.2s',
+                    }}
                   />
                 </ActionIcon>
               </Group>
-              
+
               <Collapse in={ekstraAlanlarExpanded}>
                 <Stack gap="xs" mt="sm">
                   {/* Mevcut ekstra alanlar */}
                   {Object.entries(ekstraAlanlar).map(([key, value]) => (
-                    <Group key={key} justify="space-between" p="xs" style={{ background: 'var(--mantine-color-gray-0)', borderRadius: 6 }}>
+                    <Group
+                      key={key}
+                      justify="space-between"
+                      p="xs"
+                      style={{ background: 'var(--mantine-color-gray-0)', borderRadius: 6 }}
+                    >
                       <Text size="sm">
-                        <Text span fw={500} tt="capitalize">{key.replace(/_/g, ' ')}:</Text> {String(value)}
+                        <Text span fw={500} tt="capitalize">
+                          {key.replace(/_/g, ' ')}:
+                        </Text>{' '}
+                        {String(value)}
                       </Text>
-                      <ActionIcon 
-                        size="xs" 
-                        variant="subtle" 
+                      <ActionIcon
+                        size="xs"
+                        variant="subtle"
                         color="red"
                         onClick={() => handleDeleteEkstraAlan(key)}
                       >
@@ -893,13 +981,17 @@ function FirmaProjelerSection({
                       </ActionIcon>
                     </Group>
                   ))}
-                  
+
                   {/* Yeni alan ekleme */}
                   <Group gap="xs" mt="xs">
                     <Select
                       placeholder="Şablon seç veya manuel yaz..."
-                      data={alanSablonlari.map(s => ({ value: s.alan_adi, label: s.gorunen_ad }))}
-                      value={newAlanAdi && alanSablonlari.find(s => s.alan_adi === newAlanAdi) ? newAlanAdi : null}
+                      data={alanSablonlari.map((s) => ({ value: s.alan_adi, label: s.gorunen_ad }))}
+                      value={
+                        newAlanAdi && alanSablonlari.find((s) => s.alan_adi === newAlanAdi)
+                          ? newAlanAdi
+                          : null
+                      }
                       onChange={(val) => {
                         if (val) {
                           setNewAlanAdi(val);
@@ -914,7 +1006,10 @@ function FirmaProjelerSection({
                       placeholder="Alan adı (örn: sgk_sicil_no)"
                       value={newAlanAdi}
                       onChange={(e) => {
-                        const val = e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+                        const val = e.target.value
+                          .toLowerCase()
+                          .replace(/\s+/g, '_')
+                          .replace(/[^a-z0-9_]/g, '');
                         setNewAlanAdi(val);
                       }}
                       size="xs"
@@ -927,9 +1022,9 @@ function FirmaProjelerSection({
                       size="xs"
                       style={{ flex: 1 }}
                     />
-                    <Button 
-                      size="xs" 
-                      variant="light" 
+                    <Button
+                      size="xs"
+                      variant="light"
                       color="indigo"
                       leftSection={<IconPlus size={12} />}
                       onClick={() => handleAddEkstraAlan(newAlanAdi, newAlanDeger)}
@@ -938,21 +1033,24 @@ function FirmaProjelerSection({
                       Ekle
                     </Button>
                   </Group>
-                  
+
                   {/* Hızlı ekle butonları */}
                   <Group gap={4} mt="xs">
-                    {alanSablonlari.slice(0, 6).filter(s => !ekstraAlanlar[s.alan_adi]).map(sablon => (
-                      <Badge 
-                        key={sablon.alan_adi}
-                        size="xs" 
-                        variant="outline" 
-                        color="gray"
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => setNewAlanAdi(sablon.alan_adi)}
-                      >
-                        + {sablon.gorunen_ad}
-                      </Badge>
-                    ))}
+                    {alanSablonlari
+                      .slice(0, 6)
+                      .filter((s) => !ekstraAlanlar[s.alan_adi])
+                      .map((sablon) => (
+                        <Badge
+                          key={sablon.alan_adi}
+                          size="xs"
+                          variant="outline"
+                          color="gray"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setNewAlanAdi(sablon.alan_adi)}
+                        >
+                          + {sablon.gorunen_ad}
+                        </Badge>
+                      ))}
                   </Group>
                 </Stack>
               </Collapse>
@@ -960,9 +1058,20 @@ function FirmaProjelerSection({
           </Paper>
         ) : (
           <Paper p="xl" radius="md" withBorder ta="center">
-            <IconBuilding size={48} color="var(--mantine-color-gray-5)" style={{ marginBottom: 16 }} />
-            <Text c="dimmed" mb="md">Henüz firma bilgisi eklenmemiş</Text>
-            <Button variant="light" color="teal" leftSection={<IconBuilding size={16} />} onClick={() => handleOpenFirmaModal()}>
+            <IconBuilding
+              size={48}
+              color="var(--mantine-color-gray-5)"
+              style={{ marginBottom: 16 }}
+            />
+            <Text c="dimmed" mb="md">
+              Henüz firma bilgisi eklenmemiş
+            </Text>
+            <Button
+              variant="light"
+              color="teal"
+              leftSection={<IconBuilding size={16} />}
+              onClick={() => handleOpenFirmaModal()}
+            >
               Firma Bilgilerini Ekle
             </Button>
           </Paper>
@@ -976,7 +1085,9 @@ function FirmaProjelerSection({
         <Group justify="space-between" mb="md">
           <div>
             <Title order={4}>📋 Projeler</Title>
-            <Text size="sm" c="dimmed">Merkezi proje yönetimi - tüm modüller buradan veri çeker</Text>
+            <Text size="sm" c="dimmed">
+              Merkezi proje yönetimi - tüm modüller buradan veri çeker
+            </Text>
           </div>
           <Button
             leftSection={<IconEdit size={16} />}
@@ -993,8 +1104,16 @@ function FirmaProjelerSection({
           <Skeleton height={100} radius="md" />
         ) : projeler.length === 0 ? (
           <Paper p="lg" radius="md" withBorder ta="center">
-            <Text c="dimmed" mb="sm">Henüz proje eklenmemiş</Text>
-            <Button onClick={openProjeModal} variant="light" color="orange" size="sm" leftSection={<IconEdit size={14} />}>
+            <Text c="dimmed" mb="sm">
+              Henüz proje eklenmemiş
+            </Text>
+            <Button
+              onClick={openProjeModal}
+              variant="light"
+              color="orange"
+              size="sm"
+              leftSection={<IconEdit size={14} />}
+            >
               Proje Yönetimine Git
             </Button>
           </Paper>
@@ -1003,29 +1122,45 @@ function FirmaProjelerSection({
             {/* Özet Kartlar */}
             <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
               <Paper p="sm" radius="md" withBorder>
-                <Text size="xs" c="dimmed">Toplam Proje</Text>
-                <Text size="lg" fw={700}>{projeler.length}</Text>
+                <Text size="xs" c="dimmed">
+                  Toplam Proje
+                </Text>
+                <Text size="lg" fw={700}>
+                  {projeler.length}
+                </Text>
               </Paper>
               <Paper p="sm" radius="md" withBorder>
-                <Text size="xs" c="dimmed">Aktif</Text>
-                <Text size="lg" fw={700} c="green">{projeler.filter(p => p.durum === 'aktif').length}</Text>
+                <Text size="xs" c="dimmed">
+                  Aktif
+                </Text>
+                <Text size="lg" fw={700} c="green">
+                  {projeler.filter((p) => p.durum === 'aktif').length}
+                </Text>
               </Paper>
               <Paper p="sm" radius="md" withBorder>
-                <Text size="xs" c="dimmed">Personel</Text>
-                <Text size="lg" fw={700} c="blue">{projeler.reduce((sum, p) => sum + (Number(p.personel_sayisi) || 0), 0)}</Text>
+                <Text size="xs" c="dimmed">
+                  Personel
+                </Text>
+                <Text size="lg" fw={700} c="blue">
+                  {projeler.reduce((sum, p) => sum + (Number(p.personel_sayisi) || 0), 0)}
+                </Text>
               </Paper>
               <Paper p="sm" radius="md" withBorder>
-                <Text size="xs" c="dimmed">Bütçe</Text>
-                <Text size="lg" fw={700} c="orange">{formatCurrency(projeler.reduce((sum, p) => sum + (Number(p.butce) || 0), 0))}</Text>
+                <Text size="xs" c="dimmed">
+                  Bütçe
+                </Text>
+                <Text size="lg" fw={700} c="orange">
+                  {formatCurrency(projeler.reduce((sum, p) => sum + (Number(p.butce) || 0), 0))}
+                </Text>
               </Paper>
             </SimpleGrid>
 
             {/* Proje Listesi */}
-            {projeler.slice(0, 8).map(proje => (
-              <Paper 
-                key={proje.id} 
-                p="sm" 
-                radius="md" 
+            {projeler.slice(0, 8).map((proje) => (
+              <Paper
+                key={proje.id}
+                p="sm"
+                radius="md"
                 withBorder
                 style={{ cursor: 'pointer' }}
                 onClick={() => handleOpenProjeDetay(proje.id)}
@@ -1036,12 +1171,18 @@ function FirmaProjelerSection({
                       <IconBuilding size={14} />
                     </ThemeIcon>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <Text fw={500} size="sm" truncate>{proje.ad}</Text>
-                      <Text size="xs" c="dimmed">{proje.kurum || proje.musteri || proje.adres || '-'}</Text>
+                      <Text fw={500} size="sm" truncate>
+                        {proje.ad}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {proje.kurum || proje.musteri || proje.adres || '-'}
+                      </Text>
                     </div>
                   </Group>
                   <Group gap="xs">
-                    <Badge size="sm" variant="light" color="blue">{Number(proje.personel_sayisi) || 0} kişi</Badge>
+                    <Badge size="sm" variant="light" color="blue">
+                      {Number(proje.personel_sayisi) || 0} kişi
+                    </Badge>
                     <Badge size="sm" color={proje.durum === 'aktif' ? 'green' : 'gray'}>
                       {proje.durum === 'aktif' ? 'Aktif' : proje.durum || '-'}
                     </Badge>
@@ -1049,7 +1190,7 @@ function FirmaProjelerSection({
                 </Group>
               </Paper>
             ))}
-            
+
             {projeler.length > 8 && (
               <Button onClick={openProjeModal} variant="subtle" color="gray" size="sm" fullWidth>
                 +{projeler.length - 8} proje daha... (Proje Yönetimi)
@@ -1066,7 +1207,9 @@ function FirmaProjelerSection({
         <Group justify="space-between" mb="md">
           <div>
             <Title order={4}>📁 Döküman Yönetimi</Title>
-            <Text size="sm" c="dimmed">Firma belgelerini yükleyin, AI ile analiz edin ve otomatik doldurun</Text>
+            <Text size="sm" c="dimmed">
+              Firma belgelerini yükleyin, AI ile analiz edin ve otomatik doldurun
+            </Text>
           </div>
           <Group gap="xs">
             {dokumanlar.length > 0 && (
@@ -1103,20 +1246,37 @@ function FirmaProjelerSection({
 
         {!varsayilanFirma ? (
           <Paper p="lg" radius="md" withBorder ta="center">
-            <IconFolder size={48} color="var(--mantine-color-gray-5)" style={{ marginBottom: 16 }} />
+            <IconFolder
+              size={48}
+              color="var(--mantine-color-gray-5)"
+              style={{ marginBottom: 16 }}
+            />
             <Text c="dimmed">Döküman yüklemek için önce firma bilgilerini ekleyin</Text>
           </Paper>
         ) : loadingDokumanlar ? (
           <Skeleton height={150} radius="md" />
         ) : dokumanlar.length === 0 ? (
           <Paper p="lg" radius="md" withBorder ta="center">
-            <IconFileText size={48} color="var(--mantine-color-gray-5)" style={{ marginBottom: 16 }} />
-            <Text c="dimmed" mb="md">Henüz döküman yüklenmemiş</Text>
+            <IconFileText
+              size={48}
+              color="var(--mantine-color-gray-5)"
+              style={{ marginBottom: 16 }}
+            />
+            <Text c="dimmed" mb="md">
+              Henüz döküman yüklenmemiş
+            </Text>
             <Text size="xs" c="dimmed" mb="md">
-              Vergi levhası, sicil gazetesi gibi dökümanları yükleyin,<br />
+              Vergi levhası, sicil gazetesi gibi dökümanları yükleyin,
+              <br />
               AI otomatik olarak firma bilgilerini çıkarsın
             </Text>
-            <Button onClick={openDokumanModal} variant="light" color="indigo" size="sm" leftSection={<IconUpload size={14} />}>
+            <Button
+              onClick={openDokumanModal}
+              variant="light"
+              color="indigo"
+              size="sm"
+              leftSection={<IconUpload size={14} />}
+            >
               İlk Dökümanı Yükle
             </Button>
           </Paper>
@@ -1124,67 +1284,79 @@ function FirmaProjelerSection({
           <Stack gap="md">
             {/* Kategori Özet */}
             <SimpleGrid cols={{ base: 2, sm: 5 }} spacing="sm">
-              {Object.entries(belgeKategorileri).filter(([key]) => key !== 'all').map(([key, val]) => {
-                const count = dokumanlar.filter(d => d.belge_kategori === key).length;
-                const KatIcon = val.icon;
-                return (
-                  <Paper 
-                    key={key} 
-                    p="sm" 
-                    radius="md" 
-                    withBorder 
-                    style={{ 
-                      cursor: 'pointer',
-                      borderColor: expandedDocCategories.includes(key) ? `var(--mantine-color-${val.color}-5)` : undefined,
-                      background: expandedDocCategories.includes(key) ? `var(--mantine-color-${val.color}-light)` : undefined
-                    }}
-                    onClick={() => {
-                      setExpandedDocCategories(prev => 
-                        prev.includes(key) 
-                          ? prev.filter(k => k !== key)
-                          : [...prev, key]
-                      );
-                    }}
-                  >
-                    <Group gap="xs">
-                      <ThemeIcon size="sm" radius="md" variant="light" color={val.color}>
-                        <KatIcon size={14} />
-                      </ThemeIcon>
-                      <div>
-                        <Text size="xs" c="dimmed">{val.label}</Text>
-                        <Text size="sm" fw={600}>{count}</Text>
-                      </div>
-                      <ActionIcon size="xs" variant="subtle" ml="auto">
-                        <IconChevronDown 
-                          size={12} 
-                          style={{ 
-                            transform: expandedDocCategories.includes(key) ? 'rotate(180deg)' : 'rotate(0)',
-                            transition: 'transform 0.2s'
-                          }} 
-                        />
-                      </ActionIcon>
-                    </Group>
-                  </Paper>
-                );
-              })}
+              {Object.entries(belgeKategorileri)
+                .filter(([key]) => key !== 'all')
+                .map(([key, val]) => {
+                  const count = dokumanlar.filter((d) => d.belge_kategori === key).length;
+                  const KatIcon = val.icon;
+                  return (
+                    <Paper
+                      key={key}
+                      p="sm"
+                      radius="md"
+                      withBorder
+                      style={{
+                        cursor: 'pointer',
+                        borderColor: expandedDocCategories.includes(key)
+                          ? `var(--mantine-color-${val.color}-5)`
+                          : undefined,
+                        background: expandedDocCategories.includes(key)
+                          ? `var(--mantine-color-${val.color}-light)`
+                          : undefined,
+                      }}
+                      onClick={() => {
+                        setExpandedDocCategories((prev) =>
+                          prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+                        );
+                      }}
+                    >
+                      <Group gap="xs">
+                        <ThemeIcon size="sm" radius="md" variant="light" color={val.color}>
+                          <KatIcon size={14} />
+                        </ThemeIcon>
+                        <div>
+                          <Text size="xs" c="dimmed">
+                            {val.label}
+                          </Text>
+                          <Text size="sm" fw={600}>
+                            {count}
+                          </Text>
+                        </div>
+                        <ActionIcon size="xs" variant="subtle" ml="auto">
+                          <IconChevronDown
+                            size={12}
+                            style={{
+                              transform: expandedDocCategories.includes(key)
+                                ? 'rotate(180deg)'
+                                : 'rotate(0)',
+                              transition: 'transform 0.2s',
+                            }}
+                          />
+                        </ActionIcon>
+                      </Group>
+                    </Paper>
+                  );
+                })}
             </SimpleGrid>
 
             {/* Döküman Listesi - Accordion */}
-            <Accordion 
-              variant="separated" 
+            <Accordion
+              variant="separated"
               radius="md"
               value={expandedDocCategories}
-              onChange={(val) => setExpandedDocCategories(Array.isArray(val) ? val : val ? [val] : [])}
+              onChange={(val) =>
+                setExpandedDocCategories(Array.isArray(val) ? val : val ? [val] : [])
+              }
               multiple
             >
               {Object.entries(belgeKategorileri)
                 .filter(([key]) => key !== 'all')
                 .map(([key, val]) => {
-                  const kategoriDokumanlar = dokumanlar.filter(d => d.belge_kategori === key);
+                  const kategoriDokumanlar = dokumanlar.filter((d) => d.belge_kategori === key);
                   const KatIcon = val.icon;
-                  
+
                   if (kategoriDokumanlar.length === 0) return null;
-                  
+
                   return (
                     <Accordion.Item key={key} value={key}>
                       <Accordion.Control>
@@ -1200,94 +1372,129 @@ function FirmaProjelerSection({
                       </Accordion.Control>
                       <Accordion.Panel>
                         <Stack gap="xs" mt="xs">
-                          {kategoriDokumanlar.map(doc => {
-                  const belgeTip = belgeTipleriListe.find(b => b.value === doc.belge_tipi);
-                  const kategori = belgeKategorileri[doc.belge_kategori as keyof typeof belgeKategorileri];
-                  const KatIcon = kategori?.icon || IconFileText;
-                  
-                  return (
-                    <Paper key={doc.id} p="sm" radius="md" withBorder>
-                      <Group justify="space-between" wrap="nowrap">
-                        <Group gap="sm" style={{ flex: 1, minWidth: 0 }}>
-                          <ThemeIcon size="md" radius="md" variant="light" color={kategori?.color || 'gray'}>
-                            <KatIcon size={16} />
-                          </ThemeIcon>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <Text fw={500} size="sm" truncate>{belgeTip?.label || doc.belge_tipi}</Text>
-                            <Text size="xs" c="dimmed" truncate>{doc.dosya_adi}</Text>
-                          </div>
-                        </Group>
-                        
-                        <Group gap="xs" wrap="nowrap">
-                          {doc.ai_analiz_yapildi && (
-                            <Tooltip label={`AI Güven: %${Math.round((doc.ai_guven_skoru || 0) * 100)}`}>
-                              <Badge size="xs" variant="light" color="violet" leftSection={<IconSparkles size={10} />}>
-                                AI
-                              </Badge>
-                            </Tooltip>
-                          )}
-                          
-                          {doc.gecerlilik_tarihi && (
-                            <Badge size="xs" variant="light" color={
-                              new Date(doc.gecerlilik_tarihi) < new Date() ? 'red' : 'green'
-                            }>
-                              {new Date(doc.gecerlilik_tarihi).toLocaleDateString('tr-TR')}
-                            </Badge>
-                          )}
-                          
-                          <Tooltip label="Görüntüle">
-                            <ActionIcon 
-                              variant="subtle" 
-                              color="blue" 
-                              size="sm"
-                              onClick={() => window.open(`${API_URL}${doc.dosya_url}`, '_blank')}
-                            >
-                              <IconEye size={14} />
-                            </ActionIcon>
-                          </Tooltip>
-                          
-                          {doc.ai_analiz_yapildi && doc.ai_cikartilan_veriler && Object.keys(doc.ai_cikartilan_veriler).length > 0 && (
-                            <Tooltip label="AI Verisini Uygula">
-                              <ActionIcon 
-                                variant="subtle" 
-                                color="violet" 
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedDokumanForApply(doc);
-                                  setLastAIAnalysis({ data: doc.ai_cikartilan_veriler });
-                                  openAIApplyModal();
-                                }}
-                              >
-                                <IconSparkles size={14} />
-                              </ActionIcon>
-                            </Tooltip>
-                          )}
-                          
-                          <Tooltip label="Yeniden Analiz Et">
-                            <ActionIcon 
-                              variant="subtle" 
-                              color="cyan" 
-                              size="sm"
-                              onClick={() => handleReanalyze(doc)}
-                            >
-                              <IconReload size={14} />
-                            </ActionIcon>
-                          </Tooltip>
-                          
-                          <Tooltip label="Sil">
-                            <ActionIcon 
-                              variant="subtle" 
-                              color="red" 
-                              size="sm"
-                              onClick={() => handleDeleteDokuman(doc.id)}
-                            >
-                              <IconTrash size={14} />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Group>
-                      </Group>
-                    </Paper>
-                  );
+                          {kategoriDokumanlar.map((doc) => {
+                            const belgeTip = belgeTipleriListe.find(
+                              (b) => b.value === doc.belge_tipi
+                            );
+                            const kategori =
+                              belgeKategorileri[
+                                doc.belge_kategori as keyof typeof belgeKategorileri
+                              ];
+                            const KatIcon = kategori?.icon || IconFileText;
+
+                            return (
+                              <Paper key={doc.id} p="sm" radius="md" withBorder>
+                                <Group justify="space-between" wrap="nowrap">
+                                  <Group gap="sm" style={{ flex: 1, minWidth: 0 }}>
+                                    <ThemeIcon
+                                      size="md"
+                                      radius="md"
+                                      variant="light"
+                                      color={kategori?.color || 'gray'}
+                                    >
+                                      <KatIcon size={16} />
+                                    </ThemeIcon>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                      <Text fw={500} size="sm" truncate>
+                                        {belgeTip?.label || doc.belge_tipi}
+                                      </Text>
+                                      <Text size="xs" c="dimmed" truncate>
+                                        {doc.dosya_adi}
+                                      </Text>
+                                    </div>
+                                  </Group>
+
+                                  <Group gap="xs" wrap="nowrap">
+                                    {doc.ai_analiz_yapildi && (
+                                      <Tooltip
+                                        label={`AI Güven: %${Math.round((doc.ai_guven_skoru || 0) * 100)}`}
+                                      >
+                                        <Badge
+                                          size="xs"
+                                          variant="light"
+                                          color="violet"
+                                          leftSection={<IconSparkles size={10} />}
+                                        >
+                                          AI
+                                        </Badge>
+                                      </Tooltip>
+                                    )}
+
+                                    {doc.gecerlilik_tarihi && (
+                                      <Badge
+                                        size="xs"
+                                        variant="light"
+                                        color={
+                                          new Date(doc.gecerlilik_tarihi) < new Date()
+                                            ? 'red'
+                                            : 'green'
+                                        }
+                                      >
+                                        {new Date(doc.gecerlilik_tarihi).toLocaleDateString(
+                                          'tr-TR'
+                                        )}
+                                      </Badge>
+                                    )}
+
+                                    <Tooltip label="Görüntüle">
+                                      <ActionIcon
+                                        variant="subtle"
+                                        color="blue"
+                                        size="sm"
+                                        onClick={() =>
+                                          window.open(`${API_URL}${doc.dosya_url}`, '_blank')
+                                        }
+                                      >
+                                        <IconEye size={14} />
+                                      </ActionIcon>
+                                    </Tooltip>
+
+                                    {doc.ai_analiz_yapildi &&
+                                      doc.ai_cikartilan_veriler &&
+                                      Object.keys(doc.ai_cikartilan_veriler).length > 0 && (
+                                        <Tooltip label="AI Verisini Uygula">
+                                          <ActionIcon
+                                            variant="subtle"
+                                            color="violet"
+                                            size="sm"
+                                            onClick={() => {
+                                              setSelectedDokumanForApply(doc);
+                                              setLastAIAnalysis({
+                                                data: doc.ai_cikartilan_veriler,
+                                              });
+                                              openAIApplyModal();
+                                            }}
+                                          >
+                                            <IconSparkles size={14} />
+                                          </ActionIcon>
+                                        </Tooltip>
+                                      )}
+
+                                    <Tooltip label="Yeniden Analiz Et">
+                                      <ActionIcon
+                                        variant="subtle"
+                                        color="cyan"
+                                        size="sm"
+                                        onClick={() => handleReanalyze(doc)}
+                                      >
+                                        <IconReload size={14} />
+                                      </ActionIcon>
+                                    </Tooltip>
+
+                                    <Tooltip label="Sil">
+                                      <ActionIcon
+                                        variant="subtle"
+                                        color="red"
+                                        size="sm"
+                                        onClick={() => handleDeleteDokuman(doc.id)}
+                                      >
+                                        <IconTrash size={14} />
+                                      </ActionIcon>
+                                    </Tooltip>
+                                  </Group>
+                                </Group>
+                              </Paper>
+                            );
                           })}
                         </Stack>
                       </Accordion.Panel>
@@ -1310,13 +1517,19 @@ function FirmaProjelerSection({
       <Modal
         opened={dokumanModalOpened}
         onClose={closeDokumanModal}
-        title={<Group gap="xs"><IconUpload size={20} /><Text fw={600}>Döküman Yükle</Text></Group>}
+        title={
+          <Group gap="xs">
+            <IconUpload size={20} />
+            <Text fw={600}>Döküman Yükle</Text>
+          </Group>
+        }
         size="lg"
       >
         <Stack gap="md">
           <Alert icon={<IconSparkles size={16} />} color="violet" variant="light">
             <Text size="sm">
-              Yüklediğiniz döküman AI tarafından analiz edilecek ve firma bilgileri otomatik olarak çıkarılacaktır.
+              Yüklediğiniz döküman AI tarafından analiz edilecek ve firma bilgileri otomatik olarak
+              çıkarılacaktır.
             </Text>
           </Alert>
 
@@ -1325,7 +1538,7 @@ function FirmaProjelerSection({
             placeholder="Kategori seçin"
             data={Object.entries(belgeKategorileri).map(([key, val]) => ({
               value: key,
-              label: val.label
+              label: val.label,
             }))}
             value={selectedBelgeKategori}
             onChange={(val) => {
@@ -1338,19 +1551,28 @@ function FirmaProjelerSection({
             label="Belge Tipi"
             placeholder="Belge tipini seçin"
             data={belgeTipleriListe
-              .filter(b => b.value === 'auto' || b.kategori === selectedBelgeKategori)
-              .map(b => ({ value: b.value, label: b.label }))}
+              .filter((b) => b.value === 'auto' || b.kategori === selectedBelgeKategori)
+              .map((b) => ({ value: b.value, label: b.label }))}
             value={selectedBelgeTipi}
             onChange={(val) => setSelectedBelgeTipi(val || 'auto')}
             searchable
           />
 
           {selectedBelgeTipi && (
-            <Paper p="md" radius="md" withBorder style={{ background: 'var(--mantine-color-gray-light)' }}>
+            <Paper
+              p="md"
+              radius="md"
+              withBorder
+              style={{ background: 'var(--mantine-color-gray-light)' }}
+            >
               <Stack gap="sm">
-                <Text size="sm" fw={500}>📄 Dosya Seçin</Text>
-                <Text size="xs" c="dimmed">PDF, JPG, PNG, WEBP formatları desteklenir (max 10MB)</Text>
-                
+                <Text size="sm" fw={500}>
+                  📄 Dosya Seçin
+                </Text>
+                <Text size="xs" c="dimmed">
+                  PDF, JPG, PNG, WEBP formatları desteklenir (max 10MB)
+                </Text>
+
                 <input
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx"
@@ -1381,7 +1603,12 @@ function FirmaProjelerSection({
       <Modal
         opened={aiApplyModalOpened}
         onClose={closeAIApplyModal}
-        title={<Group gap="xs"><IconSparkles size={20} color="var(--mantine-color-violet-6)" /><Text fw={600}>AI Analiz Sonuçları</Text></Group>}
+        title={
+          <Group gap="xs">
+            <IconSparkles size={20} color="var(--mantine-color-violet-6)" />
+            <Text fw={600}>AI Analiz Sonuçları</Text>
+          </Group>
+        }
         size="lg"
       >
         <Stack gap="md">
@@ -1403,17 +1630,17 @@ function FirmaProjelerSection({
 }
 
 // AI Veri Seçici Bileşen
-function AIDataSelector({ 
-  aiData, 
-  onApply, 
-  onCancel 
-}: { 
-  aiData: Record<string, string | number | null>; 
+function AIDataSelector({
+  aiData,
+  onApply,
+  onCancel,
+}: {
+  aiData: Record<string, string | number | null>;
   onApply: (fields: string[]) => void;
   onCancel: () => void;
 }) {
   const [selectedFields, setSelectedFields] = useState<string[]>(
-    Object.keys(aiData).filter(k => aiData[k] && k !== 'guven_skoru')
+    Object.keys(aiData).filter((k) => aiData[k] && k !== 'guven_skoru')
   );
 
   const fieldLabels: Record<string, string> = {
@@ -1431,14 +1658,12 @@ function AIDataSelector({
     yetkili_unvani: 'Yetkili Ünvanı',
     imza_yetkisi: 'İmza Yetkisi',
     faaliyet_kodu: 'Faaliyet Kodu',
-    belge_tarihi: 'Belge Tarihi'
+    belge_tarihi: 'Belge Tarihi',
   };
 
   const toggleField = (field: string) => {
-    setSelectedFields(prev => 
-      prev.includes(field) 
-        ? prev.filter(f => f !== field)
-        : [...prev, field]
+    setSelectedFields((prev) =>
+      prev.includes(field) ? prev.filter((f) => f !== field) : [...prev, field]
     );
   };
 
@@ -1450,22 +1675,30 @@ function AIDataSelector({
     <Stack gap="md">
       <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
         {validFields.map(([key, value]) => (
-          <Paper 
-            key={key} 
-            p="sm" 
-            radius="md" 
+          <Paper
+            key={key}
+            p="sm"
+            radius="md"
             withBorder
-            style={{ 
+            style={{
               cursor: 'pointer',
-              borderColor: selectedFields.includes(key) ? 'var(--mantine-color-violet-5)' : undefined,
-              background: selectedFields.includes(key) ? 'var(--mantine-color-violet-light)' : undefined
+              borderColor: selectedFields.includes(key)
+                ? 'var(--mantine-color-violet-5)'
+                : undefined,
+              background: selectedFields.includes(key)
+                ? 'var(--mantine-color-violet-light)'
+                : undefined,
             }}
             onClick={() => toggleField(key)}
           >
             <Group justify="space-between" wrap="nowrap">
               <div style={{ flex: 1, minWidth: 0 }}>
-                <Text size="xs" c="dimmed">{fieldLabels[key] || key}</Text>
-                <Text size="sm" fw={500} truncate>{String(value)}</Text>
+                <Text size="xs" c="dimmed">
+                  {fieldLabels[key] || key}
+                </Text>
+                <Text size="sm" fw={500} truncate>
+                  {String(value)}
+                </Text>
               </div>
               <Switch
                 checked={selectedFields.includes(key)}
@@ -1480,11 +1713,15 @@ function AIDataSelector({
       <Divider />
 
       <Group justify="space-between">
-        <Text size="sm" c="dimmed">{selectedFields.length} alan seçildi</Text>
+        <Text size="sm" c="dimmed">
+          {selectedFields.length} alan seçildi
+        </Text>
         <Group gap="sm">
-          <Button variant="subtle" onClick={onCancel}>İptal</Button>
-          <Button 
-            color="violet" 
+          <Button variant="subtle" onClick={onCancel}>
+            İptal
+          </Button>
+          <Button
+            color="violet"
             leftSection={<IconCheck size={16} />}
             onClick={() => onApply(selectedFields)}
             disabled={selectedFields.length === 0}
@@ -1508,11 +1745,11 @@ const defaultPreferences: UserPreferences = {
     browser: true,
     tenderUpdates: true,
     invoiceReminders: true,
-    weeklyReport: false
+    weeklyReport: false,
   },
   language: 'tr',
   dateFormat: 'DD.MM.YYYY',
-  currency: 'TRY'
+  currency: 'TRY',
 };
 
 // Renk seçenekleri
@@ -1532,23 +1769,23 @@ function AyarlarContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
-  
+
   // Active section
   const [activeSection, setActiveSection] = useState(searchParams.get('section') || 'profil');
-  
+
   // User state
   const [user, setUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  
+
   // Preferences state
   const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences);
-  
+
   // Form states
   const [profileForm, setProfileForm] = useState({ name: '', email: '' });
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
-  const [showPassword, setShowPassword] = useState(false);
+  const [_showPassword, _setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
-  
+
   // Firma bilgileri state - çoklu firma desteği (Database)
   const [firmalar, setFirmalar] = useState<FirmaBilgileri[]>([]);
   const [firmaLoading, setFirmaLoading] = useState(false);
@@ -1560,10 +1797,12 @@ function AyarlarContent() {
   const [uploadingBelge, setUploadingBelge] = useState(false);
   const [analyzingBelge, setAnalyzingBelge] = useState(false);
   const [lastAnalysis, setLastAnalysis] = useState<any>(null);
-  
+
   // Modal states
-  const [passwordModalOpened, { open: openPasswordModal, close: closePasswordModal }] = useDisclosure(false);
-  const [logoutModalOpened, { open: openLogoutModal, close: closeLogoutModal }] = useDisclosure(false);
+  const [passwordModalOpened, { open: openPasswordModal, close: closePasswordModal }] =
+    useDisclosure(false);
+  const [logoutModalOpened, { open: openLogoutModal, close: closeLogoutModal }] =
+    useDisclosure(false);
 
   // Kullanıcı bilgilerini yükle
   useEffect(() => {
@@ -1572,7 +1811,7 @@ function AyarlarContent() {
         const token = localStorage.getItem('token');
         if (token) {
           const res = await fetch(`${API_URL}/api/auth/me`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
           });
           if (res.ok) {
             const data = await res.json();
@@ -1580,31 +1819,29 @@ function AyarlarContent() {
             setProfileForm({ name: data.user.name || '', email: data.user.email || '' });
           }
         }
-      } catch (err) {
+      } catch (_err) {
         console.error('Kullanıcı bilgisi alınamadı');
       } finally {
         setLoading(false);
       }
     };
     fetchUser();
-    
+
     // LocalStorage'dan tercihleri yükle
     const savedPrefs = localStorage.getItem('userPreferences');
     if (savedPrefs) {
       setPreferences({ ...defaultPreferences, ...JSON.parse(savedPrefs) });
     }
-    
-    // Database'den firmalar listesini yükle
-    fetchFirmalar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [API_URL]);
 
   // Firmaları API'den yükle
-  const fetchFirmalar = async () => {
+  const fetchFirmalar = useCallback(async () => {
     try {
       setFirmaLoading(true);
       const token = localStorage.getItem('token');
       const res = await fetch(`${API_URL}/api/firmalar`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
@@ -1615,7 +1852,12 @@ function AyarlarContent() {
     } finally {
       setFirmaLoading(false);
     }
-  };
+  }, [API_URL]);
+
+  // İlk yüklemede firmaları getir
+  useEffect(() => {
+    fetchFirmalar();
+  }, [fetchFirmalar]);
 
   // URL'deki section parametresini takip et
   useEffect(() => {
@@ -1634,7 +1876,7 @@ function AyarlarContent() {
       title: 'Kaydedildi',
       message: 'Tercihleriniz güncellendi',
       color: 'green',
-      icon: <IconCheck size={16} />
+      icon: <IconCheck size={16} />,
     });
   };
 
@@ -1664,17 +1906,17 @@ function AyarlarContent() {
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const url = editingFirma 
+      const url = editingFirma
         ? `${API_URL}/api/firmalar/${editingFirma.id}`
         : `${API_URL}/api/firmalar`;
-      
+
       const res = await fetch(url, {
         method: editingFirma ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(firmaFormData)
+        body: JSON.stringify(firmaFormData),
       });
 
       if (res.ok) {
@@ -1684,7 +1926,7 @@ function AyarlarContent() {
           title: 'Kaydedildi',
           message: editingFirma ? 'Firma bilgileri güncellendi' : 'Yeni firma eklendi',
           color: 'green',
-          icon: <IconCheck size={16} />
+          icon: <IconCheck size={16} />,
         });
       } else {
         const data = await res.json();
@@ -1704,12 +1946,12 @@ function AyarlarContent() {
   // Firma sil - API
   const handleDeleteFirma = async (id: number) => {
     if (!confirm('Bu firmayı silmek istediğinize emin misiniz?')) return;
-    
+
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`${API_URL}/api/firmalar/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (res.ok) {
@@ -1720,7 +1962,7 @@ function AyarlarContent() {
           color: 'orange',
         });
       }
-    } catch (err) {
+    } catch (_err) {
       notifications.show({
         title: 'Hata',
         message: 'Firma silinemedi',
@@ -1735,7 +1977,7 @@ function AyarlarContent() {
       const token = localStorage.getItem('token');
       const res = await fetch(`${API_URL}/api/firmalar/${id}/varsayilan`, {
         method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (res.ok) {
@@ -1746,7 +1988,7 @@ function AyarlarContent() {
           color: 'green',
         });
       }
-    } catch (err) {
+    } catch (_err) {
       notifications.show({
         title: 'Hata',
         message: 'Varsayılan değiştirilemedi',
@@ -1770,8 +2012,8 @@ function AyarlarContent() {
 
       const res = await fetch(`${API_URL}/api/firmalar/${editingFirma.id}/belge`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
       });
 
       if (res.ok) {
@@ -1783,7 +2025,7 @@ function AyarlarContent() {
           color: 'green',
         });
       }
-    } catch (err) {
+    } catch (_err) {
       notifications.show({
         title: 'Hata',
         message: 'Belge yüklenemedi',
@@ -1816,18 +2058,18 @@ function AyarlarContent() {
 
       const res = await fetch(`${API_URL}/api/firmalar/analyze-belge`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
       });
 
       if (res.ok) {
         const data = await res.json();
         setLastAnalysis(data);
-        
+
         if (data.analiz?.success && data.analiz?.data) {
           // Analiz sonuçlarını forma uygula
           const analizData = data.analiz.data;
-          setFirmaFormData(prev => ({
+          setFirmaFormData((prev) => ({
             ...prev,
             unvan: analizData.unvan || prev.unvan,
             vergi_dairesi: analizData.vergi_dairesi || prev.vergi_dairesi,
@@ -1858,7 +2100,7 @@ function AyarlarContent() {
           });
         }
       }
-    } catch (err) {
+    } catch (_err) {
       notifications.show({
         title: 'Hata',
         message: 'Belge analiz edilemedi',
@@ -1888,11 +2130,11 @@ function AyarlarContent() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(profileForm)
+        body: JSON.stringify(profileForm),
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         setUser(data.user);
@@ -1900,17 +2142,17 @@ function AyarlarContent() {
           title: 'Başarılı',
           message: 'Profil bilgileriniz güncellendi',
           color: 'green',
-          icon: <IconCheck size={16} />
+          icon: <IconCheck size={16} />,
         });
       } else {
         throw new Error('Güncelleme başarısız');
       }
-    } catch (err) {
+    } catch (_err) {
       notifications.show({
         title: 'Hata',
         message: 'Profil güncellenirken bir hata oluştu',
         color: 'red',
-        icon: <IconX size={16} />
+        icon: <IconX size={16} />,
       });
     } finally {
       setSaving(false);
@@ -1924,17 +2166,17 @@ function AyarlarContent() {
         title: 'Hata',
         message: 'Yeni şifreler eşleşmiyor',
         color: 'red',
-        icon: <IconX size={16} />
+        icon: <IconX size={16} />,
       });
       return;
     }
-    
+
     if (passwordForm.new.length < 6) {
       notifications.show({
         title: 'Hata',
         message: 'Şifre en az 6 karakter olmalı',
         color: 'red',
-        icon: <IconX size={16} />
+        icon: <IconX size={16} />,
       });
       return;
     }
@@ -1946,20 +2188,20 @@ function AyarlarContent() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           currentPassword: passwordForm.current,
-          newPassword: passwordForm.new
-        })
+          newPassword: passwordForm.new,
+        }),
       });
-      
+
       if (res.ok) {
         notifications.show({
           title: 'Başarılı',
           message: 'Şifreniz değiştirildi',
           color: 'green',
-          icon: <IconCheck size={16} />
+          icon: <IconCheck size={16} />,
         });
         closePasswordModal();
         setPasswordForm({ current: '', new: '', confirm: '' });
@@ -1972,7 +2214,7 @@ function AyarlarContent() {
         title: 'Hata',
         message: err.message || 'Şifre değiştirilirken bir hata oluştu',
         color: 'red',
-        icon: <IconX size={16} />
+        icon: <IconX size={16} />,
       });
     } finally {
       setSaving(false);
@@ -1986,19 +2228,56 @@ function AyarlarContent() {
       title: 'Çıkış Yapıldı',
       message: 'Güvenli bir şekilde çıkış yaptınız',
       color: 'blue',
-      icon: <IconLogout size={16} />
+      icon: <IconLogout size={16} />,
     });
     router.push('/');
   };
 
   // Menü öğeleri
   const menuItems = [
-    { id: 'profil', label: 'Profil', icon: IconUser, color: 'blue', description: 'Hesap bilgileri' },
-    { id: 'firma', label: 'Firma Bilgileri', icon: IconBuilding, color: 'teal', description: 'Şirket bilgileri' },
-    { id: 'gorunum', label: 'Görünüm', icon: IconPalette, color: 'pink', description: 'Tema ve arayüz' },
-    { id: 'bildirimler', label: 'Bildirimler', icon: IconBell, color: 'orange', description: 'Uyarı tercihleri' },
-    { id: 'ai', label: 'AI Ayarları', icon: IconRobot, color: 'violet', description: 'Yapay zeka', href: '/ayarlar/ai' },
-    { id: 'sistem', label: 'Sistem', icon: IconSettings, color: 'gray', description: 'Genel tercihler' },
+    {
+      id: 'profil',
+      label: 'Profil',
+      icon: IconUser,
+      color: 'blue',
+      description: 'Hesap bilgileri',
+    },
+    {
+      id: 'firma',
+      label: 'Firma Bilgileri',
+      icon: IconBuilding,
+      color: 'teal',
+      description: 'Şirket bilgileri',
+    },
+    {
+      id: 'gorunum',
+      label: 'Görünüm',
+      icon: IconPalette,
+      color: 'pink',
+      description: 'Tema ve arayüz',
+    },
+    {
+      id: 'bildirimler',
+      label: 'Bildirimler',
+      icon: IconBell,
+      color: 'orange',
+      description: 'Uyarı tercihleri',
+    },
+    {
+      id: 'ai',
+      label: 'AI Ayarları',
+      icon: IconRobot,
+      color: 'violet',
+      description: 'Yapay zeka',
+      href: '/ayarlar/ai',
+    },
+    {
+      id: 'sistem',
+      label: 'Sistem',
+      icon: IconSettings,
+      color: 'gray',
+      description: 'Genel tercihler',
+    },
   ];
 
   // İçerik render
@@ -2008,8 +2287,12 @@ function AyarlarContent() {
         return (
           <Stack gap="lg">
             <div>
-              <Title order={3} mb={4}>👤 Profil Ayarları</Title>
-              <Text c="dimmed" size="sm">Hesap bilgilerinizi yönetin</Text>
+              <Title order={3} mb={4}>
+                👤 Profil Ayarları
+              </Title>
+              <Text c="dimmed" size="sm">
+                Hesap bilgilerinizi yönetin
+              </Text>
             </div>
 
             {/* Kullanıcı Kartı */}
@@ -2031,10 +2314,14 @@ function AyarlarContent() {
                     <div style={{ flex: 1 }}>
                       <Group justify="space-between">
                         <div>
-                          <Text fw={700} size="xl">{user.name}</Text>
+                          <Text fw={700} size="xl">
+                            {user.name}
+                          </Text>
                           <Group gap="xs" mt={4}>
                             <IconMail size={14} color="var(--mantine-color-dimmed)" />
-                            <Text size="sm" c="dimmed">{user.email}</Text>
+                            <Text size="sm" c="dimmed">
+                              {user.email}
+                            </Text>
                           </Group>
                           {user.created_at && (
                             <Group gap="xs" mt={4}>
@@ -2045,9 +2332,9 @@ function AyarlarContent() {
                             </Group>
                           )}
                         </div>
-                        <Badge 
+                        <Badge
                           size="lg"
-                          color={user.role === 'admin' ? 'red' : 'blue'} 
+                          color={user.role === 'admin' ? 'red' : 'blue'}
                           variant="light"
                           leftSection={user.role === 'admin' ? <IconShieldLock size={14} /> : null}
                         >
@@ -2078,21 +2365,25 @@ function AyarlarContent() {
                       label="Ad Soyad"
                       placeholder="Adınızı girin"
                       value={profileForm.name}
-                      onChange={(e) => setProfileForm({ ...profileForm, name: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setProfileForm({ ...profileForm, name: e.currentTarget.value })
+                      }
                       leftSection={<IconUser size={16} />}
                     />
                     <TextInput
                       label="E-posta"
                       placeholder="E-posta adresiniz"
                       value={profileForm.email}
-                      onChange={(e) => setProfileForm({ ...profileForm, email: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setProfileForm({ ...profileForm, email: e.currentTarget.value })
+                      }
                       leftSection={<IconMail size={16} />}
                       disabled
                       description="E-posta değiştirmek için yöneticiyle iletişime geçin"
                     />
                     <Group justify="flex-end">
-                      <Button 
-                        onClick={handleProfileSave} 
+                      <Button
+                        onClick={handleProfileSave}
                         loading={saving}
                         leftSection={<IconCheck size={16} />}
                       >
@@ -2112,11 +2403,15 @@ function AyarlarContent() {
                     <Divider />
                     <Group justify="space-between">
                       <div>
-                        <Text size="sm" fw={500}>Şifre</Text>
-                        <Text size="xs" c="dimmed">Hesabınızın güvenliği için güçlü bir şifre kullanın</Text>
+                        <Text size="sm" fw={500}>
+                          Şifre
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          Hesabınızın güvenliği için güçlü bir şifre kullanın
+                        </Text>
                       </div>
-                      <Button 
-                        variant="light" 
+                      <Button
+                        variant="light"
                         leftSection={<IconKey size={16} />}
                         onClick={openPasswordModal}
                       >
@@ -2126,11 +2421,15 @@ function AyarlarContent() {
                     <Divider />
                     <Group justify="space-between">
                       <div>
-                        <Text size="sm" fw={500}>Oturumu Kapat</Text>
-                        <Text size="xs" c="dimmed">Tüm cihazlardan çıkış yapın</Text>
+                        <Text size="sm" fw={500}>
+                          Oturumu Kapat
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          Tüm cihazlardan çıkış yapın
+                        </Text>
                       </div>
-                      <Button 
-                        variant="light" 
+                      <Button
+                        variant="light"
                         color="red"
                         leftSection={<IconLogout size={16} />}
                         onClick={openLogoutModal}
@@ -2147,7 +2446,7 @@ function AyarlarContent() {
 
       case 'firma':
         return (
-          <FirmaProjelerSection 
+          <FirmaProjelerSection
             firmalar={firmalar}
             firmaLoading={firmaLoading}
             handleOpenFirmaModal={handleOpenFirmaModal}
@@ -2161,15 +2460,20 @@ function AyarlarContent() {
         return (
           <Stack gap="lg">
             <div>
-              <Title order={3} mb={4}>🏢 Firma Bilgileri</Title>
+              <Title order={3} mb={4}>
+                🏢 Firma Bilgileri
+              </Title>
               <Text c="dimmed" size="sm">
-                Birden fazla firma ekleyebilir, belgelerini yükleyebilir ve İhale Uzmanı sayfasında dilekçe hazırlarken seçebilirsiniz.
+                Birden fazla firma ekleyebilir, belgelerini yükleyebilir ve İhale Uzmanı sayfasında
+                dilekçe hazırlarken seçebilirsiniz.
               </Text>
             </div>
 
             {/* Firma Ekle Butonu */}
             <Group justify="space-between">
-              <Text fw={600} size="sm">Kayıtlı Firmalar ({firmalar.length})</Text>
+              <Text fw={600} size="sm">
+                Kayıtlı Firmalar ({firmalar.length})
+              </Text>
               <Button
                 leftSection={<IconBuilding size={16} />}
                 onClick={() => handleOpenFirmaModal()}
@@ -2187,8 +2491,14 @@ function AyarlarContent() {
               </Paper>
             ) : firmalar.length === 0 ? (
               <Paper p="xl" radius="md" withBorder ta="center">
-                <IconBuilding size={48} color="var(--mantine-color-gray-5)" style={{ marginBottom: 16 }} />
-                <Text c="dimmed" mb="md">Henüz firma eklenmemiş</Text>
+                <IconBuilding
+                  size={48}
+                  color="var(--mantine-color-gray-5)"
+                  style={{ marginBottom: 16 }}
+                />
+                <Text c="dimmed" mb="md">
+                  Henüz firma eklenmemiş
+                </Text>
                 <Button
                   variant="light"
                   color="teal"
@@ -2201,43 +2511,74 @@ function AyarlarContent() {
             ) : (
               <Stack gap="md">
                 {firmalar.map((firma) => (
-                  <Paper key={firma.id} p="md" radius="md" withBorder style={{
-                    borderColor: firma.varsayilan ? 'var(--mantine-color-teal-5)' : undefined,
-                    background: firma.varsayilan ? 'rgba(0, 166, 125, 0.03)' : undefined,
-                  }}>
+                  <Paper
+                    key={firma.id}
+                    p="md"
+                    radius="md"
+                    withBorder
+                    style={{
+                      borderColor: firma.varsayilan ? 'var(--mantine-color-teal-5)' : undefined,
+                      background: firma.varsayilan ? 'rgba(0, 166, 125, 0.03)' : undefined,
+                    }}
+                  >
                     <Group justify="space-between" wrap="nowrap">
                       <Group gap="md" style={{ flex: 1, minWidth: 0 }}>
-                        <ThemeIcon size="lg" radius="md" variant="light" color={firma.varsayilan ? 'teal' : 'gray'}>
+                        <ThemeIcon
+                          size="lg"
+                          radius="md"
+                          variant="light"
+                          color={firma.varsayilan ? 'teal' : 'gray'}
+                        >
                           <IconBuilding size={20} />
                         </ThemeIcon>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <Group gap="xs">
-                            <Text fw={600} truncate>{firma.unvan}</Text>
+                            <Text fw={600} truncate>
+                              {firma.unvan}
+                            </Text>
                             {firma.varsayilan && (
-                              <Badge size="xs" color="teal" variant="filled">Varsayılan</Badge>
+                              <Badge size="xs" color="teal" variant="filled">
+                                Varsayılan
+                              </Badge>
                             )}
                           </Group>
                           <Group gap="xs" mt={4}>
                             {firma.vergi_no && (
-                              <Text size="xs" c="dimmed">VKN: {firma.vergi_no}</Text>
+                              <Text size="xs" c="dimmed">
+                                VKN: {firma.vergi_no}
+                              </Text>
                             )}
                             {firma.yetkili_adi && (
-                              <Text size="xs" c="dimmed">• {firma.yetkili_adi}</Text>
+                              <Text size="xs" c="dimmed">
+                                • {firma.yetkili_adi}
+                              </Text>
                             )}
                           </Group>
                           {/* Belge göstergeleri */}
                           <Group gap={4} mt={6}>
-                            {firma.vergi_levhasi_url && <Badge size="xs" variant="dot" color="green">Vergi Levhası</Badge>}
-                            {firma.sicil_gazetesi_url && <Badge size="xs" variant="dot" color="green">Sicil Gazetesi</Badge>}
-                            {firma.imza_sirküleri_url && <Badge size="xs" variant="dot" color="green">İmza Sirküleri</Badge>}
+                            {firma.vergi_levhasi_url && (
+                              <Badge size="xs" variant="dot" color="green">
+                                Vergi Levhası
+                              </Badge>
+                            )}
+                            {firma.sicil_gazetesi_url && (
+                              <Badge size="xs" variant="dot" color="green">
+                                Sicil Gazetesi
+                              </Badge>
+                            )}
+                            {firma.imza_sirküleri_url && (
+                              <Badge size="xs" variant="dot" color="green">
+                                İmza Sirküleri
+                              </Badge>
+                            )}
                           </Group>
                         </div>
                       </Group>
                       <Group gap="xs">
                         {!firma.varsayilan && (
                           <Tooltip label="Varsayılan Yap">
-                            <ActionIcon 
-                              variant="light" 
+                            <ActionIcon
+                              variant="light"
                               color="teal"
                               onClick={() => handleSetVarsayilan(firma.id)}
                             >
@@ -2246,8 +2587,8 @@ function AyarlarContent() {
                           </Tooltip>
                         )}
                         <Tooltip label="Düzenle">
-                          <ActionIcon 
-                            variant="light" 
+                          <ActionIcon
+                            variant="light"
                             color="blue"
                             onClick={() => handleOpenFirmaModal(firma)}
                           >
@@ -2255,8 +2596,8 @@ function AyarlarContent() {
                           </ActionIcon>
                         </Tooltip>
                         <Tooltip label="Sil">
-                          <ActionIcon 
-                            variant="light" 
+                          <ActionIcon
+                            variant="light"
                             color="red"
                             onClick={() => handleDeleteFirma(firma.id)}
                           >
@@ -2272,8 +2613,8 @@ function AyarlarContent() {
 
             <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
               <Text size="sm">
-                <strong>Varsayılan firma</strong> İhale Uzmanı sayfasında otomatik seçilir. 
-                Dilekçe hazırlarken dropdown'dan farklı bir firma da seçebilirsiniz.
+                <strong>Varsayılan firma</strong> İhale Uzmanı sayfasında otomatik seçilir. Dilekçe
+                hazırlarken dropdown'dan farklı bir firma da seçebilirsiniz.
               </Text>
             </Alert>
 
@@ -2296,22 +2637,41 @@ function AyarlarContent() {
                 <Stack gap="md" pr="sm">
                   {/* Belgeden Tanı - AI ile Otomatik Doldurma */}
                   {!editingFirma && (
-                    <Paper p="md" radius="md" withBorder style={{ background: 'linear-gradient(135deg, rgba(64,192,87,0.05) 0%, rgba(34,139,230,0.05) 100%)' }}>
+                    <Paper
+                      p="md"
+                      radius="md"
+                      withBorder
+                      style={{
+                        background:
+                          'linear-gradient(135deg, rgba(64,192,87,0.05) 0%, rgba(34,139,230,0.05) 100%)',
+                      }}
+                    >
                       <Stack gap="sm">
                         <Group gap="xs">
                           <ThemeIcon size="sm" variant="light" color="green">
                             <IconSparkles size={14} />
                           </ThemeIcon>
-                          <Text fw={600} size="sm">🤖 Belgeden Tanı (AI)</Text>
+                          <Text fw={600} size="sm">
+                            🤖 Belgeden Tanı (AI)
+                          </Text>
                         </Group>
                         <Text size="xs" c="dimmed">
-                          Vergi levhası, sicil gazetesi veya imza sirküleri yükleyin - AI bilgileri otomatik çıkarsın.
+                          Vergi levhası, sicil gazetesi veya imza sirküleri yükleyin - AI bilgileri
+                          otomatik çıkarsın.
                         </Text>
                         <SimpleGrid cols={{ base: 2, sm: 3 }}>
                           {belgeTipleri.slice(0, 3).map((belge) => (
-                            <Paper key={belge.value} p="xs" radius="md" withBorder style={{ cursor: 'pointer' }}>
+                            <Paper
+                              key={belge.value}
+                              p="xs"
+                              radius="md"
+                              withBorder
+                              style={{ cursor: 'pointer' }}
+                            >
                               <Stack gap={4} align="center">
-                                <Text size="xs" fw={500} ta="center">{belge.label}</Text>
+                                <Text size="xs" fw={500} ta="center">
+                                  {belge.label}
+                                </Text>
                                 <label style={{ cursor: 'pointer' }}>
                                   <input
                                     type="file"
@@ -2323,10 +2683,10 @@ function AyarlarContent() {
                                     }}
                                     disabled={analyzingBelge}
                                   />
-                                  <Badge 
-                                    size="xs" 
-                                    variant="light" 
-                                    color="blue" 
+                                  <Badge
+                                    size="xs"
+                                    variant="light"
+                                    color="blue"
                                     style={{ cursor: 'pointer' }}
                                   >
                                     {analyzingBelge ? 'Analiz...' : '📄 Yükle'}
@@ -2339,12 +2699,17 @@ function AyarlarContent() {
                         {analyzingBelge && (
                           <Group gap="xs">
                             <Loader size="xs" />
-                            <Text size="xs" c="dimmed">AI belgeyi analiz ediyor...</Text>
+                            <Text size="xs" c="dimmed">
+                              AI belgeyi analiz ediyor...
+                            </Text>
                           </Group>
                         )}
                         {lastAnalysis?.analiz?.success && (
                           <Alert color="green" variant="light" p="xs">
-                            <Text size="xs">✅ {lastAnalysis.analiz.belgeTipiAd} analiz edildi. Güven: {Math.round((lastAnalysis.analiz.data?.guven_skoru || 0.85) * 100)}%</Text>
+                            <Text size="xs">
+                              ✅ {lastAnalysis.analiz.belgeTipiAd} analiz edildi. Güven:{' '}
+                              {Math.round((lastAnalysis.analiz.data?.guven_skoru || 0.85) * 100)}%
+                            </Text>
                           </Alert>
                         )}
                       </Stack>
@@ -2354,14 +2719,18 @@ function AyarlarContent() {
                   <Divider label="veya manuel girin" labelPosition="center" />
 
                   {/* Temel Bilgiler */}
-                  <Text fw={600} size="sm" c="dimmed">TEMEL BİLGİLER</Text>
-                  
+                  <Text fw={600} size="sm" c="dimmed">
+                    TEMEL BİLGİLER
+                  </Text>
+
                   <SimpleGrid cols={{ base: 1, sm: 2 }}>
                     <TextInput
                       label="Firma Ünvanı"
                       placeholder="ABC Yemek Hizmetleri Ltd. Şti."
                       value={firmaFormData.unvan || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, unvan: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, unvan: e.currentTarget.value })
+                      }
                       leftSection={<IconBuilding size={16} />}
                       required
                     />
@@ -2369,30 +2738,38 @@ function AyarlarContent() {
                       label="Kısa Ad"
                       placeholder="ABC Yemek"
                       value={firmaFormData.kisa_ad || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, kisa_ad: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, kisa_ad: e.currentTarget.value })
+                      }
                     />
                   </SimpleGrid>
-                  
+
                   <SimpleGrid cols={{ base: 1, sm: 3 }}>
                     <TextInput
                       label="Vergi Dairesi"
                       placeholder="Ankara Kurumlar"
                       value={firmaFormData.vergi_dairesi || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, vergi_dairesi: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, vergi_dairesi: e.currentTarget.value })
+                      }
                       leftSection={<IconId size={16} />}
                     />
                     <TextInput
                       label="Vergi No"
                       placeholder="1234567890"
                       value={firmaFormData.vergi_no || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, vergi_no: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, vergi_no: e.currentTarget.value })
+                      }
                       leftSection={<IconId size={16} />}
                     />
                     <TextInput
                       label="MERSİS No"
                       placeholder="0123456789012345"
                       value={firmaFormData.mersis_no || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, mersis_no: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, mersis_no: e.currentTarget.value })
+                      }
                     />
                   </SimpleGrid>
 
@@ -2400,7 +2777,12 @@ function AyarlarContent() {
                     label="Ticaret Sicil No"
                     placeholder="123456"
                     value={firmaFormData.ticaret_sicil_no || ''}
-                    onChange={(e) => setFirmaFormData({ ...firmaFormData, ticaret_sicil_no: e.currentTarget.value })}
+                    onChange={(e) =>
+                      setFirmaFormData({
+                        ...firmaFormData,
+                        ticaret_sicil_no: e.currentTarget.value,
+                      })
+                    }
                   />
 
                   <Divider label="İletişim" labelPosition="center" />
@@ -2409,63 +2791,82 @@ function AyarlarContent() {
                     label="Adres"
                     placeholder="Firma adresi"
                     value={firmaFormData.adres || ''}
-                    onChange={(e) => setFirmaFormData({ ...firmaFormData, adres: e.currentTarget.value })}
+                    onChange={(e) =>
+                      setFirmaFormData({ ...firmaFormData, adres: e.currentTarget.value })
+                    }
                     leftSection={<IconMapPin size={16} />}
                   />
-                  
+
                   <SimpleGrid cols={{ base: 1, sm: 3 }}>
                     <TextInput
                       label="İl"
                       placeholder="Ankara"
                       value={firmaFormData.il || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, il: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, il: e.currentTarget.value })
+                      }
                     />
                     <TextInput
                       label="İlçe"
                       placeholder="Çankaya"
                       value={firmaFormData.ilce || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, ilce: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, ilce: e.currentTarget.value })
+                      }
                     />
                     <TextInput
                       label="Telefon"
                       placeholder="0312 XXX XX XX"
                       value={firmaFormData.telefon || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, telefon: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, telefon: e.currentTarget.value })
+                      }
                       leftSection={<IconPhone size={16} />}
                     />
                   </SimpleGrid>
-                  
+
                   <SimpleGrid cols={{ base: 1, sm: 2 }}>
                     <TextInput
                       label="E-posta"
                       placeholder="info@firma.com.tr"
                       value={firmaFormData.email || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, email: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, email: e.currentTarget.value })
+                      }
                       leftSection={<IconMail size={16} />}
                     />
                     <TextInput
                       label="Web Sitesi"
                       placeholder="www.firma.com.tr"
                       value={firmaFormData.web_sitesi || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, web_sitesi: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, web_sitesi: e.currentTarget.value })
+                      }
                     />
                   </SimpleGrid>
 
                   <Divider label="Yetkili Bilgileri" labelPosition="center" />
-                  
+
                   <SimpleGrid cols={{ base: 1, sm: 2 }}>
                     <TextInput
                       label="Yetkili Adı Soyadı"
                       placeholder="Ad Soyad"
                       value={firmaFormData.yetkili_adi || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, yetkili_adi: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, yetkili_adi: e.currentTarget.value })
+                      }
                       leftSection={<IconUser size={16} />}
                     />
                     <TextInput
                       label="Yetkili Unvanı"
                       placeholder="Şirket Müdürü"
                       value={firmaFormData.yetkili_unvani || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, yetkili_unvani: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({
+                          ...firmaFormData,
+                          yetkili_unvani: e.currentTarget.value,
+                        })
+                      }
                       leftSection={<IconId size={16} />}
                     />
                   </SimpleGrid>
@@ -2475,38 +2876,51 @@ function AyarlarContent() {
                       label="Yetkili TC Kimlik No"
                       placeholder="12345678901"
                       value={firmaFormData.yetkili_tc || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, yetkili_tc: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, yetkili_tc: e.currentTarget.value })
+                      }
                     />
                     <TextInput
                       label="Yetkili Telefon"
                       placeholder="0532 XXX XX XX"
                       value={firmaFormData.yetkili_telefon || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, yetkili_telefon: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({
+                          ...firmaFormData,
+                          yetkili_telefon: e.currentTarget.value,
+                        })
+                      }
                     />
                   </SimpleGrid>
-                  
+
                   <TextInput
                     label="İmza Yetkisi Açıklaması"
                     placeholder="Şirketi her türlü konuda temsile yetkilidir"
                     value={firmaFormData.imza_yetkisi || ''}
-                    onChange={(e) => setFirmaFormData({ ...firmaFormData, imza_yetkisi: e.currentTarget.value })}
+                    onChange={(e) =>
+                      setFirmaFormData({ ...firmaFormData, imza_yetkisi: e.currentTarget.value })
+                    }
                     leftSection={<IconSignature size={16} />}
                   />
 
                   <Divider label="Banka Bilgileri" labelPosition="center" />
-                  
+
                   <SimpleGrid cols={{ base: 1, sm: 2 }}>
                     <TextInput
                       label="Banka Adı"
                       placeholder="Ziraat Bankası"
                       value={firmaFormData.banka_adi || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, banka_adi: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, banka_adi: e.currentTarget.value })
+                      }
                     />
                     <TextInput
                       label="Şube"
                       placeholder="Kızılay Şubesi"
                       value={firmaFormData.banka_sube || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, banka_sube: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, banka_sube: e.currentTarget.value })
+                      }
                     />
                   </SimpleGrid>
 
@@ -2514,24 +2928,33 @@ function AyarlarContent() {
                     label="IBAN"
                     placeholder="TR00 0000 0000 0000 0000 0000 00"
                     value={firmaFormData.iban || ''}
-                    onChange={(e) => setFirmaFormData({ ...firmaFormData, iban: e.currentTarget.value })}
+                    onChange={(e) =>
+                      setFirmaFormData({ ...firmaFormData, iban: e.currentTarget.value })
+                    }
                   />
 
                   {/* 2. Yetkili Bilgileri */}
                   <Divider label="2. Yetkili Bilgileri (Opsiyonel)" labelPosition="center" />
-                  
+
                   <SimpleGrid cols={{ base: 1, sm: 2 }}>
                     <TextInput
                       label="2. Yetkili Adı Soyadı"
                       placeholder="Ad Soyad"
                       value={firmaFormData.yetkili2_adi || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, yetkili2_adi: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, yetkili2_adi: e.currentTarget.value })
+                      }
                     />
                     <TextInput
                       label="2. Yetkili Unvanı"
                       placeholder="Genel Müdür Yrd."
                       value={firmaFormData.yetkili2_unvani || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, yetkili2_unvani: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({
+                          ...firmaFormData,
+                          yetkili2_unvani: e.currentTarget.value,
+                        })
+                      }
                     />
                   </SimpleGrid>
 
@@ -2540,31 +2963,42 @@ function AyarlarContent() {
                       label="2. Yetkili TC"
                       placeholder="12345678901"
                       value={firmaFormData.yetkili2_tc || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, yetkili2_tc: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, yetkili2_tc: e.currentTarget.value })
+                      }
                     />
                     <TextInput
                       label="2. Yetkili Telefon"
                       placeholder="0532 XXX XX XX"
                       value={firmaFormData.yetkili2_telefon || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, yetkili2_telefon: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({
+                          ...firmaFormData,
+                          yetkili2_telefon: e.currentTarget.value,
+                        })
+                      }
                     />
                   </SimpleGrid>
 
                   {/* 2. Banka Bilgileri */}
                   <Divider label="2. Banka Hesabı (Opsiyonel)" labelPosition="center" />
-                  
+
                   <SimpleGrid cols={{ base: 1, sm: 2 }}>
                     <TextInput
                       label="2. Banka Adı"
                       placeholder="İş Bankası"
                       value={firmaFormData.banka2_adi || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, banka2_adi: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, banka2_adi: e.currentTarget.value })
+                      }
                     />
                     <TextInput
                       label="2. Şube"
                       placeholder="Ulus Şubesi"
                       value={firmaFormData.banka2_sube || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, banka2_sube: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, banka2_sube: e.currentTarget.value })
+                      }
                     />
                   </SimpleGrid>
 
@@ -2572,50 +3006,69 @@ function AyarlarContent() {
                     label="2. IBAN"
                     placeholder="TR00 0000 0000 0000 0000 0000 00"
                     value={firmaFormData.banka2_iban || ''}
-                    onChange={(e) => setFirmaFormData({ ...firmaFormData, banka2_iban: e.currentTarget.value })}
+                    onChange={(e) =>
+                      setFirmaFormData({ ...firmaFormData, banka2_iban: e.currentTarget.value })
+                    }
                   />
 
                   {/* SGK ve Resmi Bilgiler */}
                   <Divider label="SGK ve Resmi Bilgiler" labelPosition="center" />
-                  
+
                   <SimpleGrid cols={{ base: 1, sm: 3 }}>
                     <TextInput
                       label="SGK Sicil No"
                       placeholder="1234567890"
                       value={firmaFormData.sgk_sicil_no || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, sgk_sicil_no: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, sgk_sicil_no: e.currentTarget.value })
+                      }
                     />
                     <TextInput
                       label="KEP Adresi"
                       placeholder="firma@hs01.kep.tr"
                       value={firmaFormData.kep_adresi || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, kep_adresi: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, kep_adresi: e.currentTarget.value })
+                      }
                     />
                     <TextInput
                       label="NACE Kodu"
                       placeholder="56.29.01"
                       value={firmaFormData.nace_kodu || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, nace_kodu: e.currentTarget.value })}
+                      onChange={(e) =>
+                        setFirmaFormData({ ...firmaFormData, nace_kodu: e.currentTarget.value })
+                      }
                     />
                   </SimpleGrid>
 
                   {/* Kapasite Bilgileri */}
                   <Divider label="Kapasite Bilgileri" labelPosition="center" />
-                  
+
                   <SimpleGrid cols={{ base: 1, sm: 2 }}>
                     <TextInput
                       label="Günlük Üretim Kapasitesi (Porsiyon)"
                       placeholder="5000"
                       type="number"
                       value={firmaFormData.gunluk_uretim_kapasitesi || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, gunluk_uretim_kapasitesi: parseInt(e.currentTarget.value) || undefined })}
+                      onChange={(e) =>
+                        setFirmaFormData({
+                          ...firmaFormData,
+                          gunluk_uretim_kapasitesi:
+                            parseInt(e.currentTarget.value, 10) || undefined,
+                        })
+                      }
                     />
                     <TextInput
                       label="Personel Kapasitesi"
                       placeholder="50"
                       type="number"
                       value={firmaFormData.personel_kapasitesi || ''}
-                      onChange={(e) => setFirmaFormData({ ...firmaFormData, personel_kapasitesi: parseInt(e.currentTarget.value) || undefined })}
+                      onChange={(e) =>
+                        setFirmaFormData({
+                          ...firmaFormData,
+                          personel_kapasitesi: parseInt(e.currentTarget.value, 10) || undefined,
+                        })
+                      }
                     />
                   </SimpleGrid>
 
@@ -2623,7 +3076,7 @@ function AyarlarContent() {
                   {editingFirma && (
                     <>
                       <Divider label="Belgeler" labelPosition="center" />
-                      
+
                       <SimpleGrid cols={{ base: 2, sm: 3 }}>
                         {belgeTipleri.map((belge) => {
                           const urlKey = `${belge.value}_url` as keyof FirmaBilgileri;
@@ -2631,23 +3084,27 @@ function AyarlarContent() {
                           return (
                             <Paper key={belge.value} p="sm" radius="md" withBorder>
                               <Stack gap="xs">
-                                <Text size="xs" fw={500}>{belge.label}</Text>
+                                <Text size="xs" fw={500}>
+                                  {belge.label}
+                                </Text>
                                 {hasFile ? (
                                   <Group gap="xs">
-                                    <Badge size="xs" color="green" variant="light">Yüklü</Badge>
-                                    <ActionIcon 
-                                      size="xs" 
-                                      variant="subtle" 
-                                      component="a" 
-                                      href={`${API_URL}${hasFile}`} 
+                                    <Badge size="xs" color="green" variant="light">
+                                      Yüklü
+                                    </Badge>
+                                    <ActionIcon
+                                      size="xs"
+                                      variant="subtle"
+                                      component="a"
+                                      href={`${API_URL}${hasFile}`}
                                       target="_blank"
                                     >
                                       <IconEye size={12} />
                                     </ActionIcon>
                                   </Group>
                                 ) : (
-                                  <Button 
-                                    size="xs" 
+                                  <Button
+                                    size="xs"
                                     variant="light"
                                     onClick={() => {
                                       setSelectedBelgeTipi(belge.value);
@@ -2671,13 +3128,22 @@ function AyarlarContent() {
                     label="Varsayılan firma olarak ayarla"
                     description="İhale Uzmanı sayfasında otomatik seçilir"
                     checked={firmaFormData.varsayilan || false}
-                    onChange={(e) => setFirmaFormData({ ...firmaFormData, varsayilan: e.currentTarget.checked })}
+                    onChange={(e) =>
+                      setFirmaFormData({ ...firmaFormData, varsayilan: e.currentTarget.checked })
+                    }
                     color="teal"
                   />
 
                   <Group justify="flex-end" mt="md">
-                    <Button variant="light" onClick={closeFirmaModal}>İptal</Button>
-                    <Button color="teal" onClick={handleSaveFirma} loading={saving} leftSection={<IconCheck size={16} />}>
+                    <Button variant="light" onClick={closeFirmaModal}>
+                      İptal
+                    </Button>
+                    <Button
+                      color="teal"
+                      onClick={handleSaveFirma}
+                      loading={saving}
+                      leftSection={<IconCheck size={16} />}
+                    >
                       {editingFirma ? 'Güncelle' : 'Ekle'}
                     </Button>
                   </Group>
@@ -2695,7 +3161,8 @@ function AyarlarContent() {
             >
               <Stack gap="md">
                 <Text size="sm">
-                  <strong>{belgeTipleri.find(b => b.value === selectedBelgeTipi)?.label}</strong> yükleyin
+                  <strong>{belgeTipleri.find((b) => b.value === selectedBelgeTipi)?.label}</strong>{' '}
+                  yükleyin
                 </Text>
                 <input
                   type="file"
@@ -2703,7 +3170,11 @@ function AyarlarContent() {
                   onChange={handleBelgeUpload}
                   disabled={uploadingBelge}
                 />
-                {uploadingBelge && <Text size="xs" c="dimmed">Yükleniyor...</Text>}
+                {uploadingBelge && (
+                  <Text size="xs" c="dimmed">
+                    Yükleniyor...
+                  </Text>
+                )}
               </Stack>
             </Modal>
           </Stack>
@@ -2713,8 +3184,12 @@ function AyarlarContent() {
         return (
           <Stack gap="lg">
             <div>
-              <Title order={3} mb={4}>🎨 Görünüm Ayarları</Title>
-              <Text c="dimmed" size="sm">Arayüz tercihlerinizi özelleştirin</Text>
+              <Title order={3} mb={4}>
+                🎨 Görünüm Ayarları
+              </Title>
+              <Text c="dimmed" size="sm">
+                Arayüz tercihlerinizi özelleştirin
+              </Text>
             </div>
 
             {/* Tema Seçimi */}
@@ -2730,32 +3205,32 @@ function AyarlarContent() {
                   onChange={handleThemeChange}
                   fullWidth
                   data={[
-                    { 
+                    {
                       label: (
                         <Group gap="xs" justify="center">
                           <IconSun size={16} />
                           <span>Açık</span>
                         </Group>
-                      ), 
-                      value: 'light' 
+                      ),
+                      value: 'light',
                     },
-                    { 
+                    {
                       label: (
                         <Group gap="xs" justify="center">
                           <IconMoon size={16} />
                           <span>Koyu</span>
                         </Group>
-                      ), 
-                      value: 'dark' 
+                      ),
+                      value: 'dark',
                     },
-                    { 
+                    {
                       label: (
                         <Group gap="xs" justify="center">
                           <IconDeviceDesktop size={16} />
                           <span>Sistem</span>
                         </Group>
-                      ), 
-                      value: 'auto' 
+                      ),
+                      value: 'auto',
                     },
                   ]}
                 />
@@ -2767,7 +3242,13 @@ function AyarlarContent() {
               <Stack gap="md">
                 <Group justify="space-between">
                   <Text fw={600}>Ana Renk</Text>
-                  <ColorSwatch color={colorOptions.find(c => c.value === preferences.accentColor)?.color || '#228be6'} size={20} />
+                  <ColorSwatch
+                    color={
+                      colorOptions.find((c) => c.value === preferences.accentColor)?.color ||
+                      '#228be6'
+                    }
+                    size={20}
+                  />
                 </Group>
                 <Divider />
                 <Group gap="xs">
@@ -2796,8 +3277,12 @@ function AyarlarContent() {
                 <Divider />
                 <Group justify="space-between">
                   <div>
-                    <Text size="sm" fw={500}>Kompakt Mod</Text>
-                    <Text size="xs" c="dimmed">Daha az boşluk, daha fazla içerik</Text>
+                    <Text size="sm" fw={500}>
+                      Kompakt Mod
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Daha az boşluk, daha fazla içerik
+                    </Text>
                   </div>
                   <Switch
                     checked={preferences.compactMode}
@@ -2807,8 +3292,12 @@ function AyarlarContent() {
                 <Divider />
                 <div>
                   <Group justify="space-between" mb="xs">
-                    <Text size="sm" fw={500}>Yazı Boyutu</Text>
-                    <Text size="sm" c="dimmed">{preferences.fontSize}px</Text>
+                    <Text size="sm" fw={500}>
+                      Yazı Boyutu
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      {preferences.fontSize}px
+                    </Text>
                   </Group>
                   <Slider
                     value={preferences.fontSize}
@@ -2834,8 +3323,12 @@ function AyarlarContent() {
         return (
           <Stack gap="lg">
             <div>
-              <Title order={3} mb={4}>🔔 Bildirim Ayarları</Title>
-              <Text c="dimmed" size="sm">Hangi bildirimleri almak istediğinizi seçin</Text>
+              <Title order={3} mb={4}>
+                🔔 Bildirim Ayarları
+              </Title>
+              <Text c="dimmed" size="sm">
+                Hangi bildirimleri almak istediğinizi seçin
+              </Text>
             </div>
 
             {/* E-posta Bildirimleri */}
@@ -2850,12 +3343,19 @@ function AyarlarContent() {
                   </Group>
                   <Switch
                     checked={preferences.notifications.email}
-                    onChange={(e) => savePreferences({ 
-                      notifications: { ...preferences.notifications, email: e.currentTarget.checked }
-                    })}
+                    onChange={(e) =>
+                      savePreferences({
+                        notifications: {
+                          ...preferences.notifications,
+                          email: e.currentTarget.checked,
+                        },
+                      })
+                    }
                   />
                 </Group>
-                <Text size="xs" c="dimmed">Önemli güncellemeler için e-posta alın</Text>
+                <Text size="xs" c="dimmed">
+                  Önemli güncellemeler için e-posta alın
+                </Text>
               </Stack>
             </Paper>
 
@@ -2871,12 +3371,19 @@ function AyarlarContent() {
                   </Group>
                   <Switch
                     checked={preferences.notifications.browser}
-                    onChange={(e) => savePreferences({ 
-                      notifications: { ...preferences.notifications, browser: e.currentTarget.checked }
-                    })}
+                    onChange={(e) =>
+                      savePreferences({
+                        notifications: {
+                          ...preferences.notifications,
+                          browser: e.currentTarget.checked,
+                        },
+                      })
+                    }
                   />
                 </Group>
-                <Text size="xs" c="dimmed">Masaüstü bildirimleri alın (tarayıcı izni gerekli)</Text>
+                <Text size="xs" c="dimmed">
+                  Masaüstü bildirimleri alın (tarayıcı izni gerekli)
+                </Text>
               </Stack>
             </Paper>
 
@@ -2885,47 +3392,74 @@ function AyarlarContent() {
               <Stack gap="md">
                 <Text fw={600}>Bildirim Kategorileri</Text>
                 <Divider />
-                
+
                 <Group justify="space-between">
                   <div>
-                    <Text size="sm" fw={500}>İhale Güncellemeleri</Text>
-                    <Text size="xs" c="dimmed">Yeni ihaleler ve durum değişiklikleri</Text>
+                    <Text size="sm" fw={500}>
+                      İhale Güncellemeleri
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Yeni ihaleler ve durum değişiklikleri
+                    </Text>
                   </div>
                   <Switch
                     checked={preferences.notifications.tenderUpdates}
-                    onChange={(e) => savePreferences({ 
-                      notifications: { ...preferences.notifications, tenderUpdates: e.currentTarget.checked }
-                    })}
+                    onChange={(e) =>
+                      savePreferences({
+                        notifications: {
+                          ...preferences.notifications,
+                          tenderUpdates: e.currentTarget.checked,
+                        },
+                      })
+                    }
                   />
                 </Group>
-                
+
                 <Divider />
-                
+
                 <Group justify="space-between">
                   <div>
-                    <Text size="sm" fw={500}>Fatura Hatırlatıcıları</Text>
-                    <Text size="xs" c="dimmed">Yaklaşan ödeme tarihleri</Text>
+                    <Text size="sm" fw={500}>
+                      Fatura Hatırlatıcıları
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Yaklaşan ödeme tarihleri
+                    </Text>
                   </div>
                   <Switch
                     checked={preferences.notifications.invoiceReminders}
-                    onChange={(e) => savePreferences({ 
-                      notifications: { ...preferences.notifications, invoiceReminders: e.currentTarget.checked }
-                    })}
+                    onChange={(e) =>
+                      savePreferences({
+                        notifications: {
+                          ...preferences.notifications,
+                          invoiceReminders: e.currentTarget.checked,
+                        },
+                      })
+                    }
                   />
                 </Group>
-                
+
                 <Divider />
-                
+
                 <Group justify="space-between">
                   <div>
-                    <Text size="sm" fw={500}>Haftalık Özet Raporu</Text>
-                    <Text size="xs" c="dimmed">Haftanın özeti e-posta ile</Text>
+                    <Text size="sm" fw={500}>
+                      Haftalık Özet Raporu
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Haftanın özeti e-posta ile
+                    </Text>
                   </div>
                   <Switch
                     checked={preferences.notifications.weeklyReport}
-                    onChange={(e) => savePreferences({ 
-                      notifications: { ...preferences.notifications, weeklyReport: e.currentTarget.checked }
-                    })}
+                    onChange={(e) =>
+                      savePreferences({
+                        notifications: {
+                          ...preferences.notifications,
+                          weeklyReport: e.currentTarget.checked,
+                        },
+                      })
+                    }
                   />
                 </Group>
               </Stack>
@@ -2937,8 +3471,12 @@ function AyarlarContent() {
         return (
           <Stack gap="lg">
             <div>
-              <Title order={3} mb={4}>⚙️ Sistem Ayarları</Title>
-              <Text c="dimmed" size="sm">Genel tercihler ve bölgesel ayarlar</Text>
+              <Title order={3} mb={4}>
+                ⚙️ Sistem Ayarları
+              </Title>
+              <Text c="dimmed" size="sm">
+                Genel tercihler ve bölgesel ayarlar
+              </Text>
             </div>
 
             {/* Bölgesel Ayarlar */}
@@ -2949,7 +3487,7 @@ function AyarlarContent() {
                   <IconLanguage size={18} color="var(--mantine-color-dimmed)" />
                 </Group>
                 <Divider />
-                
+
                 <Select
                   label="Dil"
                   value={preferences.language}
@@ -2960,7 +3498,7 @@ function AyarlarContent() {
                   ]}
                   leftSection={<IconLanguage size={16} />}
                 />
-                
+
                 <Select
                   label="Tarih Formatı"
                   value={preferences.dateFormat}
@@ -2973,7 +3511,7 @@ function AyarlarContent() {
                   ]}
                   leftSection={<IconCalendarEvent size={16} />}
                 />
-                
+
                 <Select
                   label="Para Birimi"
                   value={preferences.currency}
@@ -2993,7 +3531,7 @@ function AyarlarContent() {
               <Stack gap="md">
                 <Text fw={600}>Uygulama Ayarları</Text>
                 <Divider />
-                
+
                 <Select
                   label="Sayfa Başına Kayıt"
                   description="Listelerde kaç kayıt gösterilsin"
@@ -3005,7 +3543,7 @@ function AyarlarContent() {
                     { value: '100', label: '100 kayıt' },
                   ]}
                 />
-                
+
                 <Select
                   label="Otomatik Oturum Kapatma"
                   description="İşlem yapılmadığında oturumu kapat"
@@ -3026,21 +3564,27 @@ function AyarlarContent() {
               <Stack gap="md">
                 <Group justify="space-between">
                   <Text fw={600}>Sistem Bilgisi</Text>
-                  <Badge variant="light" color="blue">v1.0.0</Badge>
+                  <Badge variant="light" color="blue">
+                    v1.0.0
+                  </Badge>
                 </Group>
                 <Divider />
                 <SimpleGrid cols={{ base: 1, sm: 2 }}>
                   <div>
-                    <Text size="xs" c="dimmed">Backend</Text>
+                    <Text size="xs" c="dimmed">
+                      Backend
+                    </Text>
                     <Text size="sm">{API_URL}</Text>
                   </div>
                   <div>
-                    <Text size="xs" c="dimmed">Ortam</Text>
+                    <Text size="xs" c="dimmed">
+                      Ortam
+                    </Text>
                     <Text size="sm">{process.env.NODE_ENV}</Text>
                   </div>
                 </SimpleGrid>
-                <Button 
-                  variant="light" 
+                <Button
+                  variant="light"
                   leftSection={<IconDatabase size={16} />}
                   component={Link}
                   href="/admin/sistem"
@@ -3052,7 +3596,12 @@ function AyarlarContent() {
 
             {/* Admin Panel */}
             {user?.role === 'admin' && (
-              <Paper p="lg" radius="md" withBorder style={{ background: 'var(--mantine-color-red-light)' }}>
+              <Paper
+                p="lg"
+                radius="md"
+                withBorder
+                style={{ background: 'var(--mantine-color-red-light)' }}
+              >
                 <Group justify="space-between">
                   <Group gap="sm">
                     <ThemeIcon color="red" variant="filled" size="lg">
@@ -3060,11 +3609,13 @@ function AyarlarContent() {
                     </ThemeIcon>
                     <div>
                       <Text fw={600}>Admin Panel</Text>
-                      <Text size="xs" c="dimmed">Sistem yönetimi ve kullanıcı kontrolü</Text>
+                      <Text size="xs" c="dimmed">
+                        Sistem yönetimi ve kullanıcı kontrolü
+                      </Text>
                     </div>
                   </Group>
-                  <Button 
-                    color="red" 
+                  <Button
+                    color="red"
                     variant="light"
                     rightSection={<IconChevronRight size={16} />}
                     component={Link}
@@ -3089,16 +3640,20 @@ function AyarlarContent() {
         {/* Header */}
         <Group justify="space-between">
           <div>
-            <Title order={1} size="h2" mb={4}>⚙️ Ayarlar</Title>
+            <Title order={1} size="h2" mb={4}>
+              ⚙️ Ayarlar
+            </Title>
             <Text c="dimmed">Hesap ve uygulama tercihlerinizi yönetin</Text>
           </div>
-          <Badge size="lg" variant="light" color="blue">v1.0.0</Badge>
+          <Badge size="lg" variant="light" color="blue">
+            v1.0.0
+          </Badge>
         </Group>
 
         {/* Main Content */}
-        <Box 
-          style={{ 
-            display: 'flex', 
+        <Box
+          style={{
+            display: 'flex',
             flexDirection: 'row',
             alignItems: 'flex-start',
             gap: 'var(--mantine-spacing-xl)',
@@ -3108,10 +3663,10 @@ function AyarlarContent() {
           className="settings-main-content"
         >
           {/* Sidebar */}
-          <Paper 
-            p="md" 
-            radius="md" 
-            withBorder 
+          <Paper
+            p="md"
+            radius="md"
+            withBorder
             w={{ base: '100%', sm: 280 }}
             style={{ position: 'sticky', top: 80, flexShrink: 0 }}
           >
@@ -3124,16 +3679,20 @@ function AyarlarContent() {
                       {user.name?.charAt(0).toUpperCase() || 'U'}
                     </Avatar>
                     <div style={{ flex: 1, overflow: 'hidden' }}>
-                      <Text size="sm" fw={600} truncate>{user.name}</Text>
-                      <Text size="xs" c="dimmed" truncate>{user.email}</Text>
+                      <Text size="sm" fw={600} truncate>
+                        {user.name}
+                      </Text>
+                      <Text size="xs" c="dimmed" truncate>
+                        {user.email}
+                      </Text>
                     </div>
                   </Group>
                   <Divider />
                 </>
               )}
-              
+
               {/* Nav Links */}
-              {menuItems.map((item) => (
+              {menuItems.map((item) =>
                 item.href ? (
                   <NavLink
                     key={item.id}
@@ -3167,7 +3726,7 @@ function AyarlarContent() {
                     style={{ borderRadius: 8 }}
                   />
                 )
-              ))}
+              )}
             </Stack>
           </Paper>
 
@@ -3179,8 +3738,8 @@ function AyarlarContent() {
       </Stack>
 
       {/* Şifre Değiştir Modal */}
-      <Modal 
-        opened={passwordModalOpened} 
+      <Modal
+        opened={passwordModalOpened}
         onClose={closePasswordModal}
         title="Şifre Değiştir"
         size="sm"
@@ -3208,23 +3767,24 @@ function AyarlarContent() {
             leftSection={<IconKey size={16} />}
           />
           <Group justify="flex-end" mt="md">
-            <Button variant="default" onClick={closePasswordModal}>İptal</Button>
-            <Button onClick={handlePasswordChange} loading={saving}>Değiştir</Button>
+            <Button variant="default" onClick={closePasswordModal}>
+              İptal
+            </Button>
+            <Button onClick={handlePasswordChange} loading={saving}>
+              Değiştir
+            </Button>
           </Group>
         </Stack>
       </Modal>
 
       {/* Çıkış Onay Modal */}
-      <Modal 
-        opened={logoutModalOpened} 
-        onClose={closeLogoutModal}
-        title="Çıkış Yap"
-        size="sm"
-      >
+      <Modal opened={logoutModalOpened} onClose={closeLogoutModal} title="Çıkış Yap" size="sm">
         <Stack gap="md">
           <Text>Oturumunuzu kapatmak istediğinize emin misiniz?</Text>
           <Group justify="flex-end">
-            <Button variant="default" onClick={closeLogoutModal}>İptal</Button>
+            <Button variant="default" onClick={closeLogoutModal}>
+              İptal
+            </Button>
             <Button color="red" onClick={handleLogout} leftSection={<IconLogout size={16} />}>
               Çıkış Yap
             </Button>
@@ -3251,22 +3811,41 @@ function AyarlarContent() {
           <Stack gap="md" pr="sm">
             {/* Belgeden Tanı - AI ile Otomatik Doldurma */}
             {!editingFirma && (
-              <Paper p="md" radius="md" withBorder style={{ background: 'linear-gradient(135deg, rgba(64,192,87,0.05) 0%, rgba(34,139,230,0.05) 100%)' }}>
+              <Paper
+                p="md"
+                radius="md"
+                withBorder
+                style={{
+                  background:
+                    'linear-gradient(135deg, rgba(64,192,87,0.05) 0%, rgba(34,139,230,0.05) 100%)',
+                }}
+              >
                 <Stack gap="sm">
                   <Group gap="xs">
                     <ThemeIcon size="sm" variant="light" color="green">
                       <IconSparkles size={14} />
                     </ThemeIcon>
-                    <Text fw={600} size="sm">🤖 Belgeden Tanı (AI)</Text>
+                    <Text fw={600} size="sm">
+                      🤖 Belgeden Tanı (AI)
+                    </Text>
                   </Group>
                   <Text size="xs" c="dimmed">
-                    Vergi levhası, sicil gazetesi veya imza sirküleri yükleyin - AI bilgileri otomatik çıkarsın.
+                    Vergi levhası, sicil gazetesi veya imza sirküleri yükleyin - AI bilgileri
+                    otomatik çıkarsın.
                   </Text>
                   <SimpleGrid cols={{ base: 2, sm: 3 }}>
                     {belgeTipleri.slice(0, 3).map((belge) => (
-                      <Paper key={belge.value} p="xs" radius="md" withBorder style={{ cursor: 'pointer' }}>
+                      <Paper
+                        key={belge.value}
+                        p="xs"
+                        radius="md"
+                        withBorder
+                        style={{ cursor: 'pointer' }}
+                      >
                         <Stack gap={4} align="center">
-                          <Text size="xs" fw={500} ta="center">{belge.label}</Text>
+                          <Text size="xs" fw={500} ta="center">
+                            {belge.label}
+                          </Text>
                           <label style={{ cursor: 'pointer' }}>
                             <input
                               type="file"
@@ -3278,10 +3857,10 @@ function AyarlarContent() {
                               }}
                               disabled={analyzingBelge}
                             />
-                            <Badge 
-                              size="xs" 
-                              variant="light" 
-                              color="blue" 
+                            <Badge
+                              size="xs"
+                              variant="light"
+                              color="blue"
                               style={{ cursor: 'pointer' }}
                             >
                               {analyzingBelge ? 'Analiz...' : '📄 Yükle'}
@@ -3294,12 +3873,17 @@ function AyarlarContent() {
                   {analyzingBelge && (
                     <Group gap="xs">
                       <Loader size="xs" />
-                      <Text size="xs" c="dimmed">AI belgeyi analiz ediyor...</Text>
+                      <Text size="xs" c="dimmed">
+                        AI belgeyi analiz ediyor...
+                      </Text>
                     </Group>
                   )}
                   {lastAnalysis?.analiz?.success && (
                     <Alert color="green" variant="light" p="xs">
-                      <Text size="xs">✅ {lastAnalysis.analiz.belgeTipiAd} analiz edildi. Güven: {Math.round((lastAnalysis.analiz.data?.guven_skoru || 0.85) * 100)}%</Text>
+                      <Text size="xs">
+                        ✅ {lastAnalysis.analiz.belgeTipiAd} analiz edildi. Güven:{' '}
+                        {Math.round((lastAnalysis.analiz.data?.guven_skoru || 0.85) * 100)}%
+                      </Text>
                     </Alert>
                   )}
                 </Stack>
@@ -3309,14 +3893,18 @@ function AyarlarContent() {
             <Divider label="veya manuel girin" labelPosition="center" />
 
             {/* Temel Bilgiler */}
-            <Text fw={600} size="sm" c="dimmed">TEMEL BİLGİLER</Text>
-            
+            <Text fw={600} size="sm" c="dimmed">
+              TEMEL BİLGİLER
+            </Text>
+
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <TextInput
                 label="Firma Ünvanı"
                 placeholder="ABC Yemek Hizmetleri Ltd. Şti."
                 value={firmaFormData.unvan || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, unvan: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, unvan: e.currentTarget.value })
+                }
                 leftSection={<IconBuilding size={16} />}
                 required
               />
@@ -3324,30 +3912,38 @@ function AyarlarContent() {
                 label="Kısa Ad"
                 placeholder="ABC Yemek"
                 value={firmaFormData.kisa_ad || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, kisa_ad: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, kisa_ad: e.currentTarget.value })
+                }
               />
             </SimpleGrid>
-            
+
             <SimpleGrid cols={{ base: 1, sm: 3 }}>
               <TextInput
                 label="Vergi Dairesi"
                 placeholder="Ankara Kurumlar"
                 value={firmaFormData.vergi_dairesi || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, vergi_dairesi: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, vergi_dairesi: e.currentTarget.value })
+                }
                 leftSection={<IconId size={16} />}
               />
               <TextInput
                 label="Vergi No"
                 placeholder="1234567890"
                 value={firmaFormData.vergi_no || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, vergi_no: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, vergi_no: e.currentTarget.value })
+                }
                 leftSection={<IconId size={16} />}
               />
               <TextInput
                 label="MERSİS No"
                 placeholder="0123456789012345"
                 value={firmaFormData.mersis_no || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, mersis_no: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, mersis_no: e.currentTarget.value })
+                }
               />
             </SimpleGrid>
 
@@ -3355,7 +3951,9 @@ function AyarlarContent() {
               label="Ticaret Sicil No"
               placeholder="123456"
               value={firmaFormData.ticaret_sicil_no || ''}
-              onChange={(e) => setFirmaFormData({ ...firmaFormData, ticaret_sicil_no: e.currentTarget.value })}
+              onChange={(e) =>
+                setFirmaFormData({ ...firmaFormData, ticaret_sicil_no: e.currentTarget.value })
+              }
             />
 
             <Divider label="İletişim" labelPosition="center" />
@@ -3367,7 +3965,7 @@ function AyarlarContent() {
               onChange={(e) => setFirmaFormData({ ...firmaFormData, adres: e.currentTarget.value })}
               leftSection={<IconMapPin size={16} />}
             />
-            
+
             <SimpleGrid cols={{ base: 1, sm: 3 }}>
               <TextInput
                 label="İl"
@@ -3379,48 +3977,60 @@ function AyarlarContent() {
                 label="İlçe"
                 placeholder="Çankaya"
                 value={firmaFormData.ilce || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, ilce: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, ilce: e.currentTarget.value })
+                }
               />
               <TextInput
                 label="Telefon"
                 placeholder="0312 XXX XX XX"
                 value={firmaFormData.telefon || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, telefon: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, telefon: e.currentTarget.value })
+                }
                 leftSection={<IconPhone size={16} />}
               />
             </SimpleGrid>
-            
+
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <TextInput
                 label="E-posta"
                 placeholder="info@firma.com.tr"
                 value={firmaFormData.email || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, email: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, email: e.currentTarget.value })
+                }
                 leftSection={<IconMail size={16} />}
               />
               <TextInput
                 label="Web Sitesi"
                 placeholder="www.firma.com.tr"
                 value={firmaFormData.web_sitesi || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, web_sitesi: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, web_sitesi: e.currentTarget.value })
+                }
               />
             </SimpleGrid>
 
             <Divider label="Yetkili Bilgileri" labelPosition="center" />
-            
+
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <TextInput
                 label="Yetkili Adı Soyadı"
                 placeholder="Ad Soyad"
                 value={firmaFormData.yetkili_adi || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, yetkili_adi: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, yetkili_adi: e.currentTarget.value })
+                }
                 leftSection={<IconUser size={16} />}
               />
               <TextInput
                 label="Yetkili Unvanı"
                 placeholder="Şirket Müdürü"
                 value={firmaFormData.yetkili_unvani || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, yetkili_unvani: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, yetkili_unvani: e.currentTarget.value })
+                }
                 leftSection={<IconId size={16} />}
               />
             </SimpleGrid>
@@ -3430,38 +4040,48 @@ function AyarlarContent() {
                 label="Yetkili TC Kimlik No"
                 placeholder="12345678901"
                 value={firmaFormData.yetkili_tc || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, yetkili_tc: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, yetkili_tc: e.currentTarget.value })
+                }
               />
               <TextInput
                 label="Yetkili Telefon"
                 placeholder="0532 XXX XX XX"
                 value={firmaFormData.yetkili_telefon || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, yetkili_telefon: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, yetkili_telefon: e.currentTarget.value })
+                }
               />
             </SimpleGrid>
-            
+
             <TextInput
               label="İmza Yetkisi Açıklaması"
               placeholder="Şirketi her türlü konuda temsile yetkilidir"
               value={firmaFormData.imza_yetkisi || ''}
-              onChange={(e) => setFirmaFormData({ ...firmaFormData, imza_yetkisi: e.currentTarget.value })}
+              onChange={(e) =>
+                setFirmaFormData({ ...firmaFormData, imza_yetkisi: e.currentTarget.value })
+              }
               leftSection={<IconSignature size={16} />}
             />
 
             <Divider label="Banka Bilgileri" labelPosition="center" />
-            
+
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <TextInput
                 label="Banka Adı"
                 placeholder="Ziraat Bankası"
                 value={firmaFormData.banka_adi || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, banka_adi: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, banka_adi: e.currentTarget.value })
+                }
               />
               <TextInput
                 label="Şube"
                 placeholder="Kızılay Şubesi"
                 value={firmaFormData.banka_sube || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, banka_sube: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, banka_sube: e.currentTarget.value })
+                }
               />
             </SimpleGrid>
 
@@ -3474,19 +4094,23 @@ function AyarlarContent() {
 
             {/* 2. Yetkili Bilgileri */}
             <Divider label="2. Yetkili Bilgileri (Opsiyonel)" labelPosition="center" />
-            
+
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <TextInput
                 label="2. Yetkili Adı Soyadı"
                 placeholder="Ad Soyad"
                 value={firmaFormData.yetkili2_adi || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, yetkili2_adi: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, yetkili2_adi: e.currentTarget.value })
+                }
               />
               <TextInput
                 label="2. Yetkili Unvanı"
                 placeholder="Genel Müdür Yrd."
                 value={firmaFormData.yetkili2_unvani || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, yetkili2_unvani: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, yetkili2_unvani: e.currentTarget.value })
+                }
               />
             </SimpleGrid>
 
@@ -3495,31 +4119,39 @@ function AyarlarContent() {
                 label="2. Yetkili TC"
                 placeholder="12345678901"
                 value={firmaFormData.yetkili2_tc || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, yetkili2_tc: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, yetkili2_tc: e.currentTarget.value })
+                }
               />
               <TextInput
                 label="2. Yetkili Telefon"
                 placeholder="0532 XXX XX XX"
                 value={firmaFormData.yetkili2_telefon || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, yetkili2_telefon: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, yetkili2_telefon: e.currentTarget.value })
+                }
               />
             </SimpleGrid>
 
             {/* 2. Banka Bilgileri */}
             <Divider label="2. Banka Hesabı (Opsiyonel)" labelPosition="center" />
-            
+
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <TextInput
                 label="2. Banka Adı"
                 placeholder="İş Bankası"
                 value={firmaFormData.banka2_adi || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, banka2_adi: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, banka2_adi: e.currentTarget.value })
+                }
               />
               <TextInput
                 label="2. Şube"
                 placeholder="Ulus Şubesi"
                 value={firmaFormData.banka2_sube || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, banka2_sube: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, banka2_sube: e.currentTarget.value })
+                }
               />
             </SimpleGrid>
 
@@ -3527,50 +4159,68 @@ function AyarlarContent() {
               label="2. IBAN"
               placeholder="TR00 0000 0000 0000 0000 0000 00"
               value={firmaFormData.banka2_iban || ''}
-              onChange={(e) => setFirmaFormData({ ...firmaFormData, banka2_iban: e.currentTarget.value })}
+              onChange={(e) =>
+                setFirmaFormData({ ...firmaFormData, banka2_iban: e.currentTarget.value })
+              }
             />
 
             {/* SGK ve Resmi Bilgiler */}
             <Divider label="SGK ve Resmi Bilgiler" labelPosition="center" />
-            
+
             <SimpleGrid cols={{ base: 1, sm: 3 }}>
               <TextInput
                 label="SGK Sicil No"
                 placeholder="1234567890"
                 value={firmaFormData.sgk_sicil_no || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, sgk_sicil_no: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, sgk_sicil_no: e.currentTarget.value })
+                }
               />
               <TextInput
                 label="KEP Adresi"
                 placeholder="firma@hs01.kep.tr"
                 value={firmaFormData.kep_adresi || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, kep_adresi: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, kep_adresi: e.currentTarget.value })
+                }
               />
               <TextInput
                 label="NACE Kodu"
                 placeholder="56.29.01"
                 value={firmaFormData.nace_kodu || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, nace_kodu: e.currentTarget.value })}
+                onChange={(e) =>
+                  setFirmaFormData({ ...firmaFormData, nace_kodu: e.currentTarget.value })
+                }
               />
             </SimpleGrid>
 
             {/* Kapasite Bilgileri */}
             <Divider label="Kapasite Bilgileri" labelPosition="center" />
-            
+
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <TextInput
                 label="Günlük Üretim Kapasitesi (Porsiyon)"
                 placeholder="5000"
                 type="number"
                 value={firmaFormData.gunluk_uretim_kapasitesi || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, gunluk_uretim_kapasitesi: parseInt(e.currentTarget.value) || undefined })}
+                onChange={(e) =>
+                  setFirmaFormData({
+                    ...firmaFormData,
+                    gunluk_uretim_kapasitesi: parseInt(e.currentTarget.value, 10) || undefined,
+                  })
+                }
               />
               <TextInput
                 label="Personel Kapasitesi"
                 placeholder="50"
                 type="number"
                 value={firmaFormData.personel_kapasitesi || ''}
-                onChange={(e) => setFirmaFormData({ ...firmaFormData, personel_kapasitesi: parseInt(e.currentTarget.value) || undefined })}
+                onChange={(e) =>
+                  setFirmaFormData({
+                    ...firmaFormData,
+                    personel_kapasitesi: parseInt(e.currentTarget.value, 10) || undefined,
+                  })
+                }
               />
             </SimpleGrid>
 
@@ -3578,7 +4228,7 @@ function AyarlarContent() {
             {editingFirma && (
               <>
                 <Divider label="Belgeler" labelPosition="center" />
-                
+
                 <SimpleGrid cols={{ base: 2, sm: 3 }}>
                   {belgeTipleri.map((belge) => {
                     const urlKey = `${belge.value}_url` as keyof FirmaBilgileri;
@@ -3586,23 +4236,27 @@ function AyarlarContent() {
                     return (
                       <Paper key={belge.value} p="sm" radius="md" withBorder>
                         <Stack gap="xs">
-                          <Text size="xs" fw={500}>{belge.label}</Text>
+                          <Text size="xs" fw={500}>
+                            {belge.label}
+                          </Text>
                           {hasFile ? (
                             <Group gap="xs">
-                              <Badge size="xs" color="green" variant="light">Yüklü</Badge>
-                              <ActionIcon 
-                                size="xs" 
-                                variant="subtle" 
-                                component="a" 
-                                href={`${API_URL}${hasFile}`} 
+                              <Badge size="xs" color="green" variant="light">
+                                Yüklü
+                              </Badge>
+                              <ActionIcon
+                                size="xs"
+                                variant="subtle"
+                                component="a"
+                                href={`${API_URL}${hasFile}`}
                                 target="_blank"
                               >
                                 <IconEye size={12} />
                               </ActionIcon>
                             </Group>
                           ) : (
-                            <Button 
-                              size="xs" 
+                            <Button
+                              size="xs"
                               variant="light"
                               onClick={() => {
                                 setSelectedBelgeTipi(belge.value);
@@ -3626,13 +4280,22 @@ function AyarlarContent() {
               label="Varsayılan firma olarak ayarla"
               description="İhale Uzmanı sayfasında otomatik seçilir"
               checked={firmaFormData.varsayilan || false}
-              onChange={(e) => setFirmaFormData({ ...firmaFormData, varsayilan: e.currentTarget.checked })}
+              onChange={(e) =>
+                setFirmaFormData({ ...firmaFormData, varsayilan: e.currentTarget.checked })
+              }
               color="teal"
             />
 
             <Group justify="flex-end" mt="md">
-              <Button variant="light" onClick={closeFirmaModal}>İptal</Button>
-              <Button color="teal" onClick={handleSaveFirma} loading={saving} leftSection={<IconCheck size={16} />}>
+              <Button variant="light" onClick={closeFirmaModal}>
+                İptal
+              </Button>
+              <Button
+                color="teal"
+                onClick={handleSaveFirma}
+                loading={saving}
+                leftSection={<IconCheck size={16} />}
+              >
                 {editingFirma ? 'Güncelle' : 'Ekle'}
               </Button>
             </Group>
@@ -3650,7 +4313,8 @@ function AyarlarContent() {
       >
         <Stack gap="md">
           <Text size="sm">
-            <strong>{belgeTipleri.find(b => b.value === selectedBelgeTipi)?.label}</strong> yükleyin
+            <strong>{belgeTipleri.find((b) => b.value === selectedBelgeTipi)?.label}</strong>{' '}
+            yükleyin
           </Text>
           <input
             type="file"
@@ -3658,7 +4322,11 @@ function AyarlarContent() {
             onChange={handleBelgeUpload}
             disabled={uploadingBelge}
           />
-          {uploadingBelge && <Text size="xs" c="dimmed">Yükleniyor...</Text>}
+          {uploadingBelge && (
+            <Text size="xs" c="dimmed">
+              Yükleniyor...
+            </Text>
+          )}
         </Stack>
       </Modal>
     </Container>

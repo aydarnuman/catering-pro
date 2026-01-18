@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Center, Container, Loader, Stack, Text } from '@mantine/core';
 import { useRouter } from 'next/navigation';
-import { Container, Center, Loader, Text, Stack } from '@mantine/core';
+import { useEffect } from 'react';
 
 /**
  * İhale Uzmanı sayfası artık /tracking sayfasına entegre edildi.

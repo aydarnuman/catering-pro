@@ -1,27 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import {
-  Paper,
-  Text,
-  Group,
-  Stack,
   Badge,
   Button,
+  Group,
+  Loader,
+  Paper,
   SimpleGrid,
-  RingProgress,
+  Stack,
+  Text,
   ThemeIcon,
   Tooltip,
-  Loader,
 } from '@mantine/core';
 import {
   IconBuilding,
-  IconUsers,
-  IconCash,
-  IconShoppingCart,
   IconChartBar,
   IconSettings,
+  IconShoppingCart,
+  IconUsers,
 } from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
 import { API_BASE_URL } from '@/lib/config';
 
 interface GenelOzet {
@@ -86,6 +84,7 @@ export default function ProjeCard({ onYonetClick }: ProjeCardProps) {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadData = async () => {
@@ -116,39 +115,64 @@ export default function ProjeCard({ onYonetClick }: ProjeCardProps) {
   if (!ozet) {
     return (
       <Paper p="lg" radius="md" withBorder>
-        <Text c="dimmed" ta="center">Proje verileri yüklenemedi</Text>
+        <Text c="dimmed" ta="center">
+          Proje verileri yüklenemedi
+        </Text>
       </Paper>
     );
   }
 
-  const ayAdi = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 
-    'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'][ozet._meta.ay];
+  const ayAdi = [
+    '',
+    'Ocak',
+    'Şubat',
+    'Mart',
+    'Nisan',
+    'Mayıs',
+    'Haziran',
+    'Temmuz',
+    'Ağustos',
+    'Eylül',
+    'Ekim',
+    'Kasım',
+    'Aralık',
+  ][ozet._meta.ay];
 
   return (
-    <Paper 
-      p="lg" 
-      radius="md" 
+    <Paper
+      p="lg"
+      radius="md"
       withBorder
       style={{
-        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%)',
+        background:
+          'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%)',
         borderColor: 'var(--mantine-color-indigo-2)',
       }}
     >
       {/* Header */}
       <Group justify="space-between" mb="md">
         <Group gap="sm">
-          <ThemeIcon size="lg" radius="md" variant="gradient" gradient={{ from: 'indigo', to: 'violet' }}>
+          <ThemeIcon
+            size="lg"
+            radius="md"
+            variant="gradient"
+            gradient={{ from: 'indigo', to: 'violet' }}
+          >
             <IconBuilding size={20} />
           </ThemeIcon>
           <div>
-            <Text fw={700} size="lg">Proje Merkezi</Text>
-            <Text size="xs" c="dimmed">{ayAdi} {ozet._meta.yil} Özet</Text>
+            <Text fw={700} size="lg">
+              Proje Merkezi
+            </Text>
+            <Text size="xs" c="dimmed">
+              {ayAdi} {ozet._meta.yil} Özet
+            </Text>
           </div>
         </Group>
-        <Button 
-          variant="light" 
-          color="indigo" 
-          size="sm" 
+        <Button
+          variant="light"
+          color="indigo"
+          size="sm"
           leftSection={<IconSettings size={16} />}
           onClick={onYonetClick}
         >
@@ -159,20 +183,36 @@ export default function ProjeCard({ onYonetClick }: ProjeCardProps) {
       {/* Proje Sayıları */}
       <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="xs" mb="md">
         <Paper p="xs" radius="sm" bg="white">
-          <Text size="xs" c="dimmed">Aktif</Text>
-          <Text size="xl" fw={700} c="green">{ozet.projeler.aktif}</Text>
+          <Text size="xs" c="dimmed">
+            Aktif
+          </Text>
+          <Text size="xl" fw={700} c="green">
+            {ozet.projeler.aktif}
+          </Text>
         </Paper>
         <Paper p="xs" radius="sm" bg="white">
-          <Text size="xs" c="dimmed">Bekleyen</Text>
-          <Text size="xl" fw={700} c="orange">{ozet.projeler.bekleyen}</Text>
+          <Text size="xs" c="dimmed">
+            Bekleyen
+          </Text>
+          <Text size="xl" fw={700} c="orange">
+            {ozet.projeler.bekleyen}
+          </Text>
         </Paper>
         <Paper p="xs" radius="sm" bg="white">
-          <Text size="xs" c="dimmed">Tamamlanan</Text>
-          <Text size="xl" fw={700} c="blue">{ozet.projeler.tamamlanan}</Text>
+          <Text size="xs" c="dimmed">
+            Tamamlanan
+          </Text>
+          <Text size="xl" fw={700} c="blue">
+            {ozet.projeler.tamamlanan}
+          </Text>
         </Paper>
         <Paper p="xs" radius="sm" bg="white">
-          <Text size="xs" c="dimmed">Toplam</Text>
-          <Text size="xl" fw={700}>{ozet.projeler.toplam}</Text>
+          <Text size="xs" c="dimmed">
+            Toplam
+          </Text>
+          <Text size="xl" fw={700}>
+            {ozet.projeler.toplam}
+          </Text>
         </Paper>
       </SimpleGrid>
 
@@ -182,43 +222,55 @@ export default function ProjeCard({ onYonetClick }: ProjeCardProps) {
         <Paper p="sm" radius="sm" withBorder>
           <Group gap="xs" mb="xs">
             <IconUsers size={16} color="var(--mantine-color-blue-6)" />
-            <Text size="sm" fw={500}>Personel</Text>
+            <Text size="sm" fw={500}>
+              Personel
+            </Text>
           </Group>
-          <Text size="xl" fw={700}>{ozet.personel.toplam}</Text>
-          <Text size="xs" c="dimmed">Maaş Yükü: {formatCurrency(ozet.personel.maas_yuku)}</Text>
+          <Text size="xl" fw={700}>
+            {ozet.personel.toplam}
+          </Text>
+          <Text size="xs" c="dimmed">
+            Maaş Yükü: {formatCurrency(ozet.personel.maas_yuku)}
+          </Text>
         </Paper>
 
         {/* Satın Alma */}
         <Paper p="sm" radius="sm" withBorder>
           <Group gap="xs" mb="xs">
             <IconShoppingCart size={16} color="var(--mantine-color-orange-6)" />
-            <Text size="sm" fw={500}>Satın Alma</Text>
+            <Text size="sm" fw={500}>
+              Satın Alma
+            </Text>
           </Group>
           <Group gap="xs">
-            <Text size="xl" fw={700}>{ozet.satin_alma.toplam_siparis}</Text>
+            <Text size="xl" fw={700}>
+              {ozet.satin_alma.toplam_siparis}
+            </Text>
             {ozet.satin_alma.bekleyen > 0 && (
-              <Badge size="xs" color="orange">{ozet.satin_alma.bekleyen} bekliyor</Badge>
+              <Badge size="xs" color="orange">
+                {ozet.satin_alma.bekleyen} bekliyor
+              </Badge>
             )}
           </Group>
-          <Text size="xs" c="dimmed">Harcama: {formatCurrency(ozet.satin_alma.harcama)}</Text>
+          <Text size="xs" c="dimmed">
+            Harcama: {formatCurrency(ozet.satin_alma.harcama)}
+          </Text>
         </Paper>
 
         {/* Finans */}
         <Paper p="sm" radius="sm" withBorder>
           <Group gap="xs" mb="xs">
             <IconChartBar size={16} color="var(--mantine-color-grape-6)" />
-            <Text size="sm" fw={500}>Bu Ay Net</Text>
+            <Text size="sm" fw={500}>
+              Bu Ay Net
+            </Text>
           </Group>
-          <Text 
-            size="xl" 
-            fw={700} 
-            c={ozet.finans.bu_ay_net >= 0 ? 'green' : 'red'}
-          >
+          <Text size="xl" fw={700} c={ozet.finans.bu_ay_net >= 0 ? 'green' : 'red'}>
             {formatCurrency(ozet.finans.bu_ay_net)}
           </Text>
           <Text size="xs" c="dimmed">
-            Gelir: {formatCurrency(ozet.finans.bu_ay_gelir)} | 
-            Gider: {formatCurrency(ozet.finans.bu_ay_gider)}
+            Gelir: {formatCurrency(ozet.finans.bu_ay_gelir)} | Gider:{' '}
+            {formatCurrency(ozet.finans.bu_ay_gider)}
           </Text>
         </Paper>
       </SimpleGrid>
@@ -226,23 +278,29 @@ export default function ProjeCard({ onYonetClick }: ProjeCardProps) {
       {/* En Aktif Projeler */}
       {ozet.en_aktif_projeler.length > 0 && (
         <div>
-          <Text size="sm" fw={500} mb="xs">En Aktif Projeler</Text>
+          <Text size="sm" fw={500} mb="xs">
+            En Aktif Projeler
+          </Text>
           <Stack gap="xs">
             {ozet.en_aktif_projeler.slice(0, 3).map((proje) => (
               <Paper key={proje.id} p="xs" radius="sm" bg="white">
                 <Group justify="space-between">
                   <Group gap="xs">
-                    <div 
-                      style={{ 
-                        width: 8, 
-                        height: 8, 
-                        borderRadius: '50%', 
-                        backgroundColor: proje.renk 
-                      }} 
+                    <div
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        backgroundColor: proje.renk,
+                      }}
                     />
                     <div>
-                      <Text size="sm" fw={500}>{proje.ad}</Text>
-                      <Text size="xs" c="dimmed">{proje.kod}</Text>
+                      <Text size="sm" fw={500}>
+                        {proje.ad}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {proje.kod}
+                      </Text>
                     </div>
                   </Group>
                   <Group gap="md">
@@ -264,4 +322,3 @@ export default function ProjeCard({ onYonetClick }: ProjeCardProps) {
     </Paper>
   );
 }
-

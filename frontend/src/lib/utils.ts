@@ -9,21 +9,21 @@
  */
 export function formatMoney(amount: number | null | undefined, compact = false): string {
   if (amount === null || amount === undefined) return '₺0';
-  
+
   const absAmount = Math.abs(amount);
-  
+
   if (compact && absAmount >= 1000000) {
     // Millions
     const millions = amount / 1000000;
     return `₺${millions.toFixed(1).replace('.0', '')}M`;
   }
-  
+
   if (compact && absAmount >= 10000) {
     // Thousands (only show K for values 10K+)
     const thousands = amount / 1000;
     return `₺${thousands.toFixed(0)}K`;
   }
-  
+
   // Standard formatting
   return new Intl.NumberFormat('tr-TR', {
     style: 'currency',
@@ -39,21 +39,21 @@ export function formatMoney(amount: number | null | undefined, compact = false):
  */
 export function formatCompact(value: number | null | undefined): string {
   if (value === null || value === undefined) return '0';
-  
+
   const absValue = Math.abs(value);
-  
+
   if (absValue >= 1000000000) {
     return `${(value / 1000000000).toFixed(1).replace('.0', '')}B`;
   }
-  
+
   if (absValue >= 1000000) {
     return `${(value / 1000000).toFixed(1).replace('.0', '')}M`;
   }
-  
+
   if (absValue >= 1000) {
     return `${(value / 1000).toFixed(0)}K`;
   }
-  
+
   return value.toLocaleString('tr-TR');
 }
 
@@ -62,17 +62,20 @@ export function formatCompact(value: number | null | undefined): string {
  * @param date - Date string or Date object
  * @param format - 'short' | 'medium' | 'long'
  */
-export function formatDate(date: string | Date | null | undefined, format: 'short' | 'medium' | 'long' = 'medium'): string {
+export function formatDate(
+  date: string | Date | null | undefined,
+  format: 'short' | 'medium' | 'long' = 'medium'
+): string {
   if (!date) return '-';
-  
+
   const d = typeof date === 'string' ? new Date(date) : date;
-  
+
   const formatOptions: Record<string, Intl.DateTimeFormatOptions> = {
     short: { day: '2-digit', month: '2-digit' },
     medium: { day: '2-digit', month: '2-digit', year: 'numeric' },
     long: { day: 'numeric', month: 'long', year: 'numeric' },
   };
-  
+
   return d.toLocaleDateString('tr-TR', formatOptions[format]);
 }
 
@@ -95,7 +98,7 @@ export function getInitials(name: string | null | undefined): string {
   if (!name) return '?';
   return name
     .split(' ')
-    .map(word => word[0])
+    .map((word) => word[0])
     .join('')
     .toUpperCase()
     .slice(0, 2);

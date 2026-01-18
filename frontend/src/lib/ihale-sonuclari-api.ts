@@ -79,7 +79,7 @@ export interface IhaleSonucu {
   kalan_gun?: number;
 }
 
-export type IhaleSonucDurum = 
+export type IhaleSonucDurum =
   | 'beklemede'
   | 'asiri_dusuk_soruldu'
   | 'asiri_dusuk_cevaplandi'
@@ -148,21 +148,27 @@ export const ihaleSonuclariApi = {
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.offset) searchParams.set('offset', String(params.offset));
 
-    const url = `${API_BASE_URL}/api/ihale-sonuclari${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+    const url = `${API_BASE_URL}/api/ihale-sonuclari${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
     const res = await fetch(url, { headers: getAuthHeaders() });
     const data = await res.json();
-    
+
     if (!data.success) throw new Error(data.error);
-    return data as { success: true; data: IhaleSonucu[]; pagination: { total: number; limit: number; offset: number } };
+    return data as {
+      success: true;
+      data: IhaleSonucu[];
+      pagination: { total: number; limit: number; offset: number };
+    };
   },
 
   /**
    * Tek ihale sonucu getir
    */
   async get(id: number) {
-    const res = await fetch(`${API_BASE_URL}/api/ihale-sonuclari/${id}`, { headers: getAuthHeaders() });
+    const res = await fetch(`${API_BASE_URL}/api/ihale-sonuclari/${id}`, {
+      headers: getAuthHeaders(),
+    });
     const data = await res.json();
-    
+
     if (!data.success) throw new Error(data.error);
     return data as { success: true; data: IhaleSonucu };
   },
@@ -171,20 +177,27 @@ export const ihaleSonuclariApi = {
    * İstatistikler
    */
   async getIstatistikler() {
-    const res = await fetch(`${API_BASE_URL}/api/ihale-sonuclari/istatistikler`, { headers: getAuthHeaders() });
+    const res = await fetch(`${API_BASE_URL}/api/ihale-sonuclari/istatistikler`, {
+      headers: getAuthHeaders(),
+    });
     const data = await res.json();
-    
+
     if (!data.success) throw new Error(data.error);
-    return data as { success: true; data: { ozet: IhaleSonucIstatistik; aktivite: Array<{ tarih: string; sayi: number }> } };
+    return data as {
+      success: true;
+      data: { ozet: IhaleSonucIstatistik; aktivite: Array<{ tarih: string; sayi: number }> };
+    };
   },
 
   /**
    * Aktif süreçler (itiraz süresi dolmamış)
    */
   async getAktifSurecler() {
-    const res = await fetch(`${API_BASE_URL}/api/ihale-sonuclari/aktif-surecler`, { headers: getAuthHeaders() });
+    const res = await fetch(`${API_BASE_URL}/api/ihale-sonuclari/aktif-surecler`, {
+      headers: getAuthHeaders(),
+    });
     const data = await res.json();
-    
+
     if (!data.success) throw new Error(data.error);
     return data as { success: true; data: IhaleSonucu[] };
   },
@@ -199,7 +212,7 @@ export const ihaleSonuclariApi = {
       body: JSON.stringify(input),
     });
     const data = await res.json();
-    
+
     if (!data.success) throw new Error(data.error);
     return data as { success: true; data: IhaleSonucu; message: string };
   },
@@ -214,7 +227,7 @@ export const ihaleSonuclariApi = {
       body: JSON.stringify(input),
     });
     const data = await res.json();
-    
+
     if (!data.success) throw new Error(data.error);
     return data as { success: true; data: IhaleSonucu; message: string };
   },
@@ -229,7 +242,7 @@ export const ihaleSonuclariApi = {
       body: JSON.stringify({ durum }),
     });
     const data = await res.json();
-    
+
     if (!data.success) throw new Error(data.error);
     return data as { success: true; data: IhaleSonucu; message: string };
   },
@@ -237,14 +250,17 @@ export const ihaleSonuclariApi = {
   /**
    * Rakip teklif ekle
    */
-  async addRakipTeklif(id: number, teklif: { firma: string; teklif: number; sira?: number; asiri_dusuk?: boolean }) {
+  async addRakipTeklif(
+    id: number,
+    teklif: { firma: string; teklif: number; sira?: number; asiri_dusuk?: boolean }
+  ) {
     const res = await fetch(`${API_BASE_URL}/api/ihale-sonuclari/${id}/rakip-teklif`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(teklif),
     });
     const data = await res.json();
-    
+
     if (!data.success) throw new Error(data.error);
     return data as { success: true; data: IhaleSonucu; message: string };
   },
@@ -258,7 +274,7 @@ export const ihaleSonuclariApi = {
       headers: getAuthHeaders(),
     });
     const data = await res.json();
-    
+
     if (!data.success) throw new Error(data.error);
     return data as { success: true; data: IhaleSonucu; message: string };
   },
@@ -273,7 +289,7 @@ export const ihaleSonuclariApi = {
       body: JSON.stringify({ tip, sonuc }),
     });
     const data = await res.json();
-    
+
     if (!data.success) throw new Error(data.error);
     return data as { success: true; data: IhaleSonucu; message: string };
   },
@@ -288,7 +304,7 @@ export const ihaleSonuclariApi = {
       body: JSON.stringify({ role, content }),
     });
     const data = await res.json();
-    
+
     if (!data.success) throw new Error(data.error);
     return data as { success: true; data: IhaleSonucu };
   },
@@ -302,7 +318,7 @@ export const ihaleSonuclariApi = {
       headers: getAuthHeaders(),
     });
     const data = await res.json();
-    
+
     if (!data.success) throw new Error(data.error);
     return data as { success: true; message: string };
   },
@@ -316,22 +332,23 @@ export const ihaleSonuclariApi = {
       headers: getAuthHeaders(),
     });
     const data = await res.json();
-    
+
     if (!data.success) throw new Error(data.error);
     return data as { success: true; data: IhaleSonucu; message: string; existing?: boolean };
   },
 };
 
 // Durum label ve renk helper'ları
-export const durumConfig: Record<IhaleSonucDurum, { label: string; color: string; icon: string }> = {
-  beklemede: { label: 'Beklemede', color: 'gray', icon: '⏳' },
-  asiri_dusuk_soruldu: { label: 'Aşırı Düşük Soruldu', color: 'orange', icon: '⚠️' },
-  asiri_dusuk_cevaplandi: { label: 'Açıklama Verildi', color: 'blue', icon: '📝' },
-  kazandik: { label: 'Kazandık', color: 'green', icon: '✅' },
-  elendik: { label: 'Elendik', color: 'red', icon: '❌' },
-  itiraz_edildi: { label: 'İtiraz Edildi', color: 'violet', icon: '⚖️' },
-  kik_basvurusu: { label: 'KİK Başvurusu', color: 'indigo', icon: '🏛️' },
-  sonuclandi: { label: 'Sonuçlandı', color: 'teal', icon: '🏁' },
-};
+export const durumConfig: Record<IhaleSonucDurum, { label: string; color: string; icon: string }> =
+  {
+    beklemede: { label: 'Beklemede', color: 'gray', icon: '⏳' },
+    asiri_dusuk_soruldu: { label: 'Aşırı Düşük Soruldu', color: 'orange', icon: '⚠️' },
+    asiri_dusuk_cevaplandi: { label: 'Açıklama Verildi', color: 'blue', icon: '📝' },
+    kazandik: { label: 'Kazandık', color: 'green', icon: '✅' },
+    elendik: { label: 'Elendik', color: 'red', icon: '❌' },
+    itiraz_edildi: { label: 'İtiraz Edildi', color: 'violet', icon: '⚖️' },
+    kik_basvurusu: { label: 'KİK Başvurusu', color: 'indigo', icon: '🏛️' },
+    sonuclandi: { label: 'Sonuçlandı', color: 'teal', icon: '🏁' },
+  };
 
 export default ihaleSonuclariApi;

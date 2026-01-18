@@ -1,53 +1,47 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { API_BASE_URL } from '@/lib/config';
-import { useAuth } from '@/context/AuthContext';
 import {
-  Container,
-  Title,
-  Text,
-  Card,
-  Group,
-  Stack,
-  SimpleGrid,
-  ThemeIcon,
-  Badge,
-  Button,
-  Paper,
-  Loader,
   ActionIcon,
-  Tooltip,
-  Table,
+  Alert,
   Avatar,
-  Select,
+  Badge,
+  Box,
+  Button,
+  Card,
   Checkbox,
+  Container,
+  Divider,
+  Group,
+  Loader,
   Modal,
   Notification,
-  Tabs,
-  Box,
-  Divider,
-  Alert
+  Paper,
+  Select,
+  SimpleGrid,
+  Stack,
+  Table,
+  Text,
+  ThemeIcon,
+  Title,
+  Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
-  IconShieldLock,
-  IconUsers,
-  IconRefresh,
-  IconCheck,
-  IconX,
-  IconEdit,
-  IconEye,
-  IconPlus,
-  IconTrash,
-  IconDownload,
+  IconAlertTriangle,
   IconArrowLeft,
+  IconCheck,
   IconCrown,
+  IconEdit,
+  IconRefresh,
+  IconShieldLock,
   IconUser,
   IconUserShield,
-  IconAlertTriangle
+  IconX,
 } from '@tabler/icons-react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { API_BASE_URL } from '@/lib/config';
 
 interface Module {
   name: string;
@@ -89,12 +83,12 @@ interface Template {
 export default function YetkilerPage() {
   const { token, user } = useAuth();
   const [users, setUsers] = useState<UserPermission[]>([]);
-  const [modules, setModules] = useState<Module[]>([]);
+  const [_modules, setModules] = useState<Module[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
-  
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   // Edit modal
   const [editModalOpened, { open: openEditModal, close: closeEditModal }] = useDisclosure(false);
   const [selectedUser, setSelectedUser] = useState<UserPermission | null>(null);
@@ -106,11 +100,17 @@ export default function YetkilerPage() {
     setLoading(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      
+
       const [usersRes, modulesRes, templatesRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/permissions/users`, { headers }).then(r => r.json()).catch(() => ({ success: false })),
-        fetch(`${API_BASE_URL}/api/permissions/modules`, { headers }).then(r => r.json()).catch(() => ({ success: false })),
-        fetch(`${API_BASE_URL}/api/permissions/templates`, { headers }).then(r => r.json()).catch(() => ({ success: false }))
+        fetch(`${API_BASE_URL}/api/permissions/users`, { headers })
+          .then((r) => r.json())
+          .catch(() => ({ success: false })),
+        fetch(`${API_BASE_URL}/api/permissions/modules`, { headers })
+          .then((r) => r.json())
+          .catch(() => ({ success: false })),
+        fetch(`${API_BASE_URL}/api/permissions/templates`, { headers })
+          .then((r) => r.json())
+          .catch(() => ({ success: false })),
       ]);
 
       if (usersRes.success) setUsers(usersRes.data);
@@ -126,23 +126,23 @@ export default function YetkilerPage() {
 
   useEffect(() => {
     fetchData();
-  }, [token]);
+  }, [fetchData]);
 
   const handleEditUser = async (userId: number) => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/permissions/user/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      
+
       if (data.success) {
-        const userToEdit = users.find(u => u.user_id === userId);
+        const userToEdit = users.find((u) => u.user_id === userId);
         setSelectedUser(userToEdit || null);
         setEditPermissions(data.data.permissions);
         setEditUserType(data.data.userType || 'user');
         openEditModal();
       }
-    } catch (err) {
+    } catch (_err) {
       setMessage({ type: 'error', text: 'Kullanıcı yetkileri alınamadı' });
     }
   };
@@ -150,29 +150,29 @@ export default function YetkilerPage() {
   const handleSavePermissions = async () => {
     if (!selectedUser) return;
     setSaving(true);
-    
+
     try {
       const res = await fetch(`${API_BASE_URL}/api/permissions/user/${selectedUser.user_id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           userType: editUserType,
-          permissions: editPermissions.map(p => ({
+          permissions: editPermissions.map((p) => ({
             module_name: p.module_name,
             can_view: p.can_view,
             can_create: p.can_create,
             can_edit: p.can_edit,
             can_delete: p.can_delete,
-            can_export: p.can_export
-          }))
-        })
+            can_export: p.can_export,
+          })),
+        }),
       });
 
       const data = await res.json();
-      
+
       if (data.success) {
         setMessage({ type: 'success', text: 'Yetkiler başarıyla güncellendi' });
         closeEditModal();
@@ -180,7 +180,7 @@ export default function YetkilerPage() {
       } else {
         setMessage({ type: 'error', text: data.error || 'Yetkiler güncellenemedi' });
       }
-    } catch (err) {
+    } catch (_err) {
       setMessage({ type: 'error', text: 'Bir hata oluştu' });
     } finally {
       setSaving(false);
@@ -190,19 +190,22 @@ export default function YetkilerPage() {
   const handleApplyTemplate = async (templateName: string) => {
     if (!selectedUser) return;
     setSaving(true);
-    
+
     try {
-      const res = await fetch(`${API_BASE_URL}/api/permissions/user/${selectedUser.user_id}/apply-template`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ templateName })
-      });
+      const res = await fetch(
+        `${API_BASE_URL}/api/permissions/user/${selectedUser.user_id}/apply-template`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ templateName }),
+        }
+      );
 
       const data = await res.json();
-      
+
       if (data.success) {
         setMessage({ type: 'success', text: `${templateName} şablonu uygulandı` });
         // Yetkileri yeniden yükle
@@ -210,7 +213,7 @@ export default function YetkilerPage() {
       } else {
         setMessage({ type: 'error', text: data.error || 'Şablon uygulanamadı' });
       }
-    } catch (err) {
+    } catch (_err) {
       setMessage({ type: 'error', text: 'Bir hata oluştu' });
     } finally {
       setSaving(false);
@@ -218,7 +221,7 @@ export default function YetkilerPage() {
   };
 
   const updatePermission = (moduleIndex: number, field: string, value: boolean) => {
-    setEditPermissions(prev => {
+    setEditPermissions((prev) => {
       const updated = [...prev];
       updated[moduleIndex] = { ...updated[moduleIndex], [field]: value };
       return updated;
@@ -226,37 +229,48 @@ export default function YetkilerPage() {
   };
 
   const setAllPermissions = (value: boolean) => {
-    setEditPermissions(prev => prev.map(p => ({
-      ...p,
-      can_view: value,
-      can_create: value,
-      can_edit: value,
-      can_delete: value,
-      can_export: value
-    })));
+    setEditPermissions((prev) =>
+      prev.map((p) => ({
+        ...p,
+        can_view: value,
+        can_create: value,
+        can_edit: value,
+        can_delete: value,
+        can_export: value,
+      }))
+    );
   };
 
   const getUserTypeIcon = (userType: string) => {
-    switch(userType) {
-      case 'super_admin': return <IconCrown size={16} />;
-      case 'admin': return <IconUserShield size={16} />;
-      default: return <IconUser size={16} />;
+    switch (userType) {
+      case 'super_admin':
+        return <IconCrown size={16} />;
+      case 'admin':
+        return <IconUserShield size={16} />;
+      default:
+        return <IconUser size={16} />;
     }
   };
 
   const getUserTypeColor = (userType: string) => {
-    switch(userType) {
-      case 'super_admin': return 'red';
-      case 'admin': return 'orange';
-      default: return 'gray';
+    switch (userType) {
+      case 'super_admin':
+        return 'red';
+      case 'admin':
+        return 'orange';
+      default:
+        return 'gray';
     }
   };
 
   const getUserTypeName = (userType: string) => {
-    switch(userType) {
-      case 'super_admin': return 'Süper Admin';
-      case 'admin': return 'Admin';
-      default: return 'Kullanıcı';
+    switch (userType) {
+      case 'super_admin':
+        return 'Süper Admin';
+      case 'admin':
+        return 'Admin';
+      default:
+        return 'Kullanıcı';
     }
   };
 
@@ -279,21 +293,30 @@ export default function YetkilerPage() {
               </Button>
             </Group>
             <Group gap="sm" mb={4}>
-              <ThemeIcon size="lg" radius="md" variant="gradient" gradient={{ from: 'violet', to: 'blue' }}>
+              <ThemeIcon
+                size="lg"
+                radius="md"
+                variant="gradient"
+                gradient={{ from: 'violet', to: 'blue' }}
+              >
                 <IconShieldLock size={20} />
               </ThemeIcon>
-              <Title order={1} size="h2">Yetki Yönetimi</Title>
+              <Title order={1} size="h2">
+                Yetki Yönetimi
+              </Title>
             </Group>
             <Text c="dimmed">Kullanıcı rollerini ve modül bazlı yetkileri yönetin</Text>
           </div>
-          
+
           <Group>
             <Tooltip label="Yenile">
               <ActionIcon variant="light" size="lg" onClick={fetchData} loading={loading}>
                 <IconRefresh size={18} />
               </ActionIcon>
             </Tooltip>
-            <Badge size="lg" variant="light" color="red">Sadece Süper Admin</Badge>
+            <Badge size="lg" variant="light" color="red">
+              Sadece Süper Admin
+            </Badge>
           </Group>
         </Group>
 
@@ -335,10 +358,10 @@ export default function YetkilerPage() {
               </Table.Thead>
               <Table.Tbody>
                 {users.map((u) => {
-                  const activePerms = Array.isArray(u.permissions) 
-                    ? u.permissions.filter((p: any) => p.view).length 
+                  const activePerms = Array.isArray(u.permissions)
+                    ? u.permissions.filter((p: any) => p.view).length
                     : 0;
-                  
+
                   return (
                     <Table.Tr key={u.user_id}>
                       <Table.Td>
@@ -346,15 +369,19 @@ export default function YetkilerPage() {
                           <Avatar color={getUserTypeColor(u.user_type)} radius="xl" size="sm">
                             {u.user_name?.charAt(0).toUpperCase()}
                           </Avatar>
-                          <Text size="sm" fw={500}>{u.user_name}</Text>
+                          <Text size="sm" fw={500}>
+                            {u.user_name}
+                          </Text>
                         </Group>
                       </Table.Td>
                       <Table.Td>
-                        <Text size="sm" c="dimmed">{u.email}</Text>
+                        <Text size="sm" c="dimmed">
+                          {u.email}
+                        </Text>
                       </Table.Td>
                       <Table.Td>
-                        <Badge 
-                          leftSection={getUserTypeIcon(u.user_type)} 
+                        <Badge
+                          leftSection={getUserTypeIcon(u.user_type)}
                           color={getUserTypeColor(u.user_type)}
                           variant="light"
                         >
@@ -368,9 +395,13 @@ export default function YetkilerPage() {
                       </Table.Td>
                       <Table.Td>
                         {u.user_type === 'super_admin' ? (
-                          <Badge color="red" variant="light">Tam Yetki</Badge>
+                          <Badge color="red" variant="light">
+                            Tam Yetki
+                          </Badge>
                         ) : (
-                          <Badge color="blue" variant="light">{activePerms} modül</Badge>
+                          <Badge color="blue" variant="light">
+                            {activePerms} modül
+                          </Badge>
                         )}
                       </Table.Td>
                       <Table.Td ta="right">
@@ -388,8 +419,8 @@ export default function YetkilerPage() {
                           </Tooltip>
                         ) : (
                           <Tooltip label="Yetkileri Düzenle">
-                            <ActionIcon 
-                              variant="light" 
+                            <ActionIcon
+                              variant="light"
                               color="blue"
                               onClick={() => handleEditUser(u.user_id)}
                             >
@@ -408,7 +439,9 @@ export default function YetkilerPage() {
 
         {/* Yetki Şablonları */}
         <Paper p="lg" radius="md" withBorder>
-          <Title order={4} mb="md">📋 Hazır Yetki Şablonları</Title>
+          <Title order={4} mb="md">
+            📋 Hazır Yetki Şablonları
+          </Title>
           <Text size="sm" c="dimmed" mb="md">
             Kullanıcıları düzenlerken bu şablonları hızlıca uygulayabilirsiniz
           </Text>
@@ -417,9 +450,15 @@ export default function YetkilerPage() {
               <Card key={t.id} padding="md" radius="md" withBorder>
                 <Group justify="space-between" mb="xs">
                   <Text fw={600}>{t.display_name}</Text>
-                  {t.is_system && <Badge size="xs" color="gray">Sistem</Badge>}
+                  {t.is_system && (
+                    <Badge size="xs" color="gray">
+                      Sistem
+                    </Badge>
+                  )}
                 </Group>
-                <Text size="sm" c="dimmed" lineClamp={2}>{t.description}</Text>
+                <Text size="sm" c="dimmed" lineClamp={2}>
+                  {t.description}
+                </Text>
               </Card>
             ))}
           </SimpleGrid>
@@ -453,12 +492,12 @@ export default function YetkilerPage() {
               onChange={(v) => setEditUserType(v || 'user')}
               data={[
                 { value: 'user', label: '👤 Kullanıcı (Sınırlı Yetki)' },
-                { value: 'admin', label: '🛡️ Admin (Belirlenen Yetkiler)' }
+                { value: 'admin', label: '🛡️ Admin (Belirlenen Yetkiler)' },
               ]}
             />
 
             <Divider label="Şablon Uygula" labelPosition="center" />
-            
+
             {/* Şablon Seçimi */}
             <Group>
               {templates.map((t) => (
@@ -478,10 +517,20 @@ export default function YetkilerPage() {
 
             {/* Toplu İşlem */}
             <Group>
-              <Button size="xs" variant="light" color="green" onClick={() => setAllPermissions(true)}>
+              <Button
+                size="xs"
+                variant="light"
+                color="green"
+                onClick={() => setAllPermissions(true)}
+              >
                 Tümünü Aç
               </Button>
-              <Button size="xs" variant="light" color="red" onClick={() => setAllPermissions(false)}>
+              <Button
+                size="xs"
+                variant="light"
+                color="red"
+                onClick={() => setAllPermissions(false)}
+              >
                 Tümünü Kapat
               </Button>
             </Group>
@@ -503,36 +552,48 @@ export default function YetkilerPage() {
                   {editPermissions.map((perm, index) => (
                     <Table.Tr key={perm.module_name}>
                       <Table.Td>
-                        <Text size="sm" fw={500}>{perm.display_name}</Text>
+                        <Text size="sm" fw={500}>
+                          {perm.display_name}
+                        </Text>
                       </Table.Td>
                       <Table.Td ta="center">
                         <Checkbox
                           checked={perm.can_view || false}
-                          onChange={(e) => updatePermission(index, 'can_view', e.currentTarget.checked)}
+                          onChange={(e) =>
+                            updatePermission(index, 'can_view', e.currentTarget.checked)
+                          }
                         />
                       </Table.Td>
                       <Table.Td ta="center">
                         <Checkbox
                           checked={perm.can_create || false}
-                          onChange={(e) => updatePermission(index, 'can_create', e.currentTarget.checked)}
+                          onChange={(e) =>
+                            updatePermission(index, 'can_create', e.currentTarget.checked)
+                          }
                         />
                       </Table.Td>
                       <Table.Td ta="center">
                         <Checkbox
                           checked={perm.can_edit || false}
-                          onChange={(e) => updatePermission(index, 'can_edit', e.currentTarget.checked)}
+                          onChange={(e) =>
+                            updatePermission(index, 'can_edit', e.currentTarget.checked)
+                          }
                         />
                       </Table.Td>
                       <Table.Td ta="center">
                         <Checkbox
                           checked={perm.can_delete || false}
-                          onChange={(e) => updatePermission(index, 'can_delete', e.currentTarget.checked)}
+                          onChange={(e) =>
+                            updatePermission(index, 'can_delete', e.currentTarget.checked)
+                          }
                         />
                       </Table.Td>
                       <Table.Td ta="center">
                         <Checkbox
                           checked={perm.can_export || false}
-                          onChange={(e) => updatePermission(index, 'can_export', e.currentTarget.checked)}
+                          onChange={(e) =>
+                            updatePermission(index, 'can_export', e.currentTarget.checked)
+                          }
                         />
                       </Table.Td>
                     </Table.Tr>
@@ -543,9 +604,11 @@ export default function YetkilerPage() {
 
             {/* Kaydet */}
             <Group justify="flex-end" mt="md">
-              <Button variant="light" onClick={closeEditModal}>İptal</Button>
-              <Button 
-                color="blue" 
+              <Button variant="light" onClick={closeEditModal}>
+                İptal
+              </Button>
+              <Button
+                color="blue"
                 leftSection={<IconCheck size={16} />}
                 onClick={handleSavePermissions}
                 loading={saving}

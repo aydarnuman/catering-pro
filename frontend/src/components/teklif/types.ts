@@ -94,9 +94,9 @@ export interface SarfMalzemeMaliyet {
 
 export const SARF_KALEMLERI = [
   { ad: 'Peçete', varsayilanBirim: 0.25 },
-  { ad: 'Ambalaj Malzemesi', varsayilanBirim: 0.50 },
-  { ad: 'Temizlik Malzemesi', varsayilanBirim: 0.30 },
-  { ad: 'Hijyen Malzemesi', varsayilanBirim: 0.20 },
+  { ad: 'Ambalaj Malzemesi', varsayilanBirim: 0.5 },
+  { ad: 'Temizlik Malzemesi', varsayilanBirim: 0.3 },
+  { ad: 'Hijyen Malzemesi', varsayilanBirim: 0.2 },
   { ad: 'Tek Kullanımlık', varsayilanBirim: 0.35 },
   { ad: 'Diğer', varsayilanBirim: 0.15 },
 ];
@@ -255,7 +255,7 @@ export const MALIYET_KALEMLERI = [
   { key: 'risk_payi', label: 'Risk Payı', icon: '⚠️' },
 ] as const;
 
-export type MaliyetKalemKey = typeof MALIYET_KALEMLERI[number]['key'];
+export type MaliyetKalemKey = (typeof MALIYET_KALEMLERI)[number]['key'];
 
 // Varsayılan öğünler
 const DEFAULT_OGUNLER: OgunDetay[] = [
@@ -268,9 +268,9 @@ const DEFAULT_OGUNLER: OgunDetay[] = [
 // Varsayılan sarf kalemleri
 const DEFAULT_SARF_KALEMLERI: SarfKalem[] = [
   { ad: 'Peçete', birim: '₺/kişi/gün', miktar: 0.25 },
-  { ad: 'Ambalaj Malzemesi', birim: '₺/kişi/gün', miktar: 0.50 },
-  { ad: 'Temizlik Malzemesi', birim: '₺/kişi/gün', miktar: 0.30 },
-  { ad: 'Hijyen Malzemesi', birim: '₺/kişi/gün', miktar: 0.20 },
+  { ad: 'Ambalaj Malzemesi', birim: '₺/kişi/gün', miktar: 0.5 },
+  { ad: 'Temizlik Malzemesi', birim: '₺/kişi/gün', miktar: 0.3 },
+  { ad: 'Hijyen Malzemesi', birim: '₺/kişi/gün', miktar: 0.2 },
   { ad: 'Diğer', birim: '₺/kişi/gün', miktar: 0.15 },
 ];
 

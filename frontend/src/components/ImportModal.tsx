@@ -1,40 +1,36 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { API_BASE_URL } from '@/lib/config';
 import {
-  Modal,
-  Button,
-  Stack,
-  Group,
-  Text,
-  Select,
-  Paper,
-  Table,
-  Badge,
   Alert,
-  Progress,
-  Stepper,
-  FileButton,
-  ScrollArea,
+  Badge,
+  Button,
   Checkbox,
-  ActionIcon,
-  Tooltip,
-  Box
+  FileButton,
+  Group,
+  Modal,
+  Paper,
+  ScrollArea,
+  Select,
+  Stack,
+  Stepper,
+  Table,
+  Text,
 } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import {
-  IconUpload,
+  IconAlertCircle,
+  IconCheck,
+  IconDownload,
+  IconFile,
   IconFileSpreadsheet,
   IconFileTypePdf,
-  IconFile,
   IconRobot,
-  IconCheck,
+  IconTrash,
+  IconUpload,
   IconX,
-  IconAlertCircle,
-  IconDownload,
-  IconTrash
 } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
+import { useRef, useState } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 
 interface ImportModalProps {
   opened: boolean;
@@ -68,7 +64,7 @@ const typeLabels: Record<string, string> = {
   fatura: 'Fatura',
   cari: 'Cari Hesap',
   stok: 'Stok',
-  bordro: 'Bordro'
+  bordro: 'Bordro',
 };
 
 const formatIcons: Record<string, JSX.Element> = {
@@ -77,10 +73,15 @@ const formatIcons: Record<string, JSX.Element> = {
   CSV: <IconFileSpreadsheet size={20} color="teal" />,
   Word: <IconFile size={20} color="blue" />,
   Text: <IconFile size={20} color="gray" />,
-  Image: <IconFile size={20} color="purple" />
+  Image: <IconFile size={20} color="purple" />,
 };
 
-export function ImportModal({ opened, onClose, defaultType = 'personel', onSuccess }: ImportModalProps) {
+export function ImportModal({
+  opened,
+  onClose,
+  defaultType = 'personel',
+  onSuccess,
+}: ImportModalProps) {
   const [step, setStep] = useState(0);
   const [targetType, setTargetType] = useState<string>(defaultType);
   const [file, setFile] = useState<File | null>(null);
@@ -96,13 +97,13 @@ export function ImportModal({ opened, onClose, defaultType = 'personel', onSucce
         await fetch(`${API_BASE}/import/cancel`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tempFile: analysisResult.tempFile })
+          body: JSON.stringify({ tempFile: analysisResult.tempFile }),
         });
-      } catch (e) {
+      } catch (_e) {
         // Sessiz hata
       }
     }
-    
+
     // Reset
     setStep(0);
     setFile(null);
@@ -124,7 +125,7 @@ export function ImportModal({ opened, onClose, defaultType = 'personel', onSucce
 
       const response = await fetch(`${API_BASE}/import/analyze`, {
         method: 'POST',
-        body: formData
+        body: formData,
       });
 
       const data = await response.json();
@@ -142,15 +143,14 @@ export function ImportModal({ opened, onClose, defaultType = 'personel', onSucce
         title: 'Analiz Tamamlandı',
         message: `${data.stats.total} kayıt bulundu, ${data.stats.valid} geçerli`,
         color: 'green',
-        icon: <IconRobot size={18} />
+        icon: <IconRobot size={18} />,
       });
-
     } catch (error: any) {
       notifications.show({
         title: 'Analiz Hatası',
         message: error.message || 'Dosya analiz edilemedi',
         color: 'red',
-        icon: <IconX size={18} />
+        icon: <IconX size={18} />,
       });
     } finally {
       setLoading(false);
@@ -163,7 +163,7 @@ export function ImportModal({ opened, onClose, defaultType = 'personel', onSucce
 
     setLoading(true);
     try {
-      const recordsToImport = selectedRecords.map(i => analysisResult.allRecords[i]);
+      const recordsToImport = selectedRecords.map((i) => analysisResult.allRecords[i]);
 
       const response = await fetch(`${API_BASE}/import/confirm`, {
         method: 'POST',
@@ -171,8 +171,8 @@ export function ImportModal({ opened, onClose, defaultType = 'personel', onSucce
         body: JSON.stringify({
           targetType: analysisResult.targetType,
           records: recordsToImport,
-          tempFile: analysisResult.tempFile
-        })
+          tempFile: analysisResult.tempFile,
+        }),
       });
 
       const data = await response.json();
@@ -185,18 +185,17 @@ export function ImportModal({ opened, onClose, defaultType = 'personel', onSucce
         title: 'İçe Aktarım Başarılı',
         message: `${data.inserted} kayıt başarıyla eklendi${data.failed > 0 ? `, ${data.failed} hatalı` : ''}`,
         color: 'green',
-        icon: <IconCheck size={18} />
+        icon: <IconCheck size={18} />,
       });
 
       onSuccess?.();
       handleClose();
-
     } catch (error: any) {
       notifications.show({
         title: 'Kayıt Hatası',
         message: error.message || 'Veriler kaydedilemedi',
         color: 'red',
-        icon: <IconX size={18} />
+        icon: <IconX size={18} />,
       });
     } finally {
       setLoading(false);
@@ -222,7 +221,7 @@ export function ImportModal({ opened, onClose, defaultType = 'personel', onSucce
   // Toggle tek kayıt
   const toggleRecord = (index: number) => {
     if (selectedRecords.includes(index)) {
-      setSelectedRecords(selectedRecords.filter(i => i !== index));
+      setSelectedRecords(selectedRecords.filter((i) => i !== index));
     } else {
       setSelectedRecords([...selectedRecords, index]);
     }
@@ -263,12 +262,14 @@ export function ImportModal({ opened, onClose, defaultType = 'personel', onSucce
                 { value: 'bordro', label: '💰 Bordro (Maaş Tablosu)' },
                 { value: 'stok', label: '📦 Stok' },
                 { value: 'cari', label: '🏢 Cari Hesap' },
-                { value: 'fatura', label: '🧾 Fatura' }
+                { value: 'fatura', label: '🧾 Fatura' },
               ]}
             />
 
             <Alert color="blue" variant="light" icon={<IconRobot size={18} />}>
-              <Text size="sm" fw={500}>AI Destekli İçe Aktarım</Text>
+              <Text size="sm" fw={500}>
+                AI Destekli İçe Aktarım
+              </Text>
               <Text size="xs" c="dimmed" mt={4}>
                 Desteklenen formatlar: Excel (.xlsx), PDF, Word (.docx), CSV, Görsel (OCR)
               </Text>
@@ -288,9 +289,7 @@ export function ImportModal({ opened, onClose, defaultType = 'personel', onSucce
             </Group>
 
             <Group justify="flex-end">
-              <Button onClick={() => setStep(1)}>
-                Devam
-              </Button>
+              <Button onClick={() => setStep(1)}>Devam</Button>
             </Group>
           </Stack>
         )}
@@ -304,7 +303,7 @@ export function ImportModal({ opened, onClose, defaultType = 'personel', onSucce
               style={{
                 borderStyle: 'dashed',
                 textAlign: 'center',
-                cursor: 'pointer'
+                cursor: 'pointer',
               }}
             >
               <Stack align="center" gap="sm">
@@ -385,12 +384,18 @@ export function ImportModal({ opened, onClose, defaultType = 'personel', onSucce
             {/* Uyarılar */}
             {analysisResult.warnings.length > 0 && (
               <Alert color="yellow" icon={<IconAlertCircle size={18} />}>
-                <Text size="sm" fw={500}>Uyarılar:</Text>
+                <Text size="sm" fw={500}>
+                  Uyarılar:
+                </Text>
                 {analysisResult.warnings.slice(0, 5).map((w, i) => (
-                  <Text key={i} size="xs" c="dimmed">• {w}</Text>
+                  <Text key={i} size="xs" c="dimmed">
+                    • {w}
+                  </Text>
                 ))}
                 {analysisResult.warnings.length > 5 && (
-                  <Text size="xs" c="dimmed">... ve {analysisResult.warnings.length - 5} uyarı daha</Text>
+                  <Text size="xs" c="dimmed">
+                    ... ve {analysisResult.warnings.length - 5} uyarı daha
+                  </Text>
                 )}
               </Alert>
             )}
@@ -404,14 +409,19 @@ export function ImportModal({ opened, onClose, defaultType = 'personel', onSucce
                       <Table.Th>
                         <Checkbox
                           checked={selectedRecords.length === analysisResult.allRecords.length}
-                          indeterminate={selectedRecords.length > 0 && selectedRecords.length < analysisResult.allRecords.length}
+                          indeterminate={
+                            selectedRecords.length > 0 &&
+                            selectedRecords.length < analysisResult.allRecords.length
+                          }
                           onChange={toggleAll}
                         />
                       </Table.Th>
                       <Table.Th>#</Table.Th>
-                      {Object.keys(analysisResult.preview[0] || {}).slice(0, 5).map(key => (
-                        <Table.Th key={key}>{key}</Table.Th>
-                      ))}
+                      {Object.keys(analysisResult.preview[0] || {})
+                        .slice(0, 5)
+                        .map((key) => (
+                          <Table.Th key={key}>{key}</Table.Th>
+                        ))}
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
@@ -424,13 +434,15 @@ export function ImportModal({ opened, onClose, defaultType = 'personel', onSucce
                           />
                         </Table.Td>
                         <Table.Td>{i + 1}</Table.Td>
-                        {Object.values(record).slice(0, 5).map((val: any, j) => (
-                          <Table.Td key={j}>
-                            <Text size="sm" lineClamp={1}>
-                              {val ?? '-'}
-                            </Text>
-                          </Table.Td>
-                        ))}
+                        {Object.values(record)
+                          .slice(0, 5)
+                          .map((val: any, j) => (
+                            <Table.Td key={j}>
+                              <Text size="sm" lineClamp={1}>
+                                {val ?? '-'}
+                              </Text>
+                            </Table.Td>
+                          ))}
                       </Table.Tr>
                     ))}
                   </Table.Tbody>
@@ -453,11 +465,7 @@ export function ImportModal({ opened, onClose, defaultType = 'personel', onSucce
                 Geri
               </Button>
               <Group>
-                <Button
-                  variant="light"
-                  color="red"
-                  onClick={handleClose}
-                >
+                <Button variant="light" color="red" onClick={handleClose}>
                   İptal
                 </Button>
                 <Button
@@ -477,4 +485,3 @@ export function ImportModal({ opened, onClose, defaultType = 'personel', onSucce
     </Modal>
   );
 }
-

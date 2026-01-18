@@ -36,7 +36,13 @@ api.interceptors.response.use(
 // API functions
 export const apiClient = {
   // Tenders
-  async getTenders(params?: { page?: number; limit?: number; city?: string; search?: string; status?: string }) {
+  async getTenders(params?: {
+    page?: number;
+    limit?: number;
+    city?: string;
+    search?: string;
+    status?: string;
+  }) {
     const response = await api.get('/api/tenders', { params });
     return response.data;
   },
@@ -50,7 +56,7 @@ export const apiClient = {
   async uploadDocument(file: File, metadata?: Record<string, any>) {
     const formData = new FormData();
     formData.append('file', file);
-    
+
     if (metadata) {
       formData.append('metadata', JSON.stringify(metadata));
     }

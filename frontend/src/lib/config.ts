@@ -7,7 +7,7 @@ const getApiBaseUrl = (): string => {
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL;
   }
-  
+
   // Client-side'da hostname'e göre karar ver
   if (typeof window !== 'undefined') {
     const { hostname, protocol } = window.location;
@@ -18,7 +18,7 @@ const getApiBaseUrl = (): string => {
     // Production: aynı hostname'i kullan (Nginx proxy)
     return `${protocol}//${hostname}`;
   }
-  
+
   // Server-side fallback
   return 'http://localhost:3001';
 };
@@ -34,24 +34,24 @@ export const API_ENDPOINTS = {
   AUTH_USERS: `${API_BASE_URL}/api/auth/users`,
   AUTH_PROFILE: `${API_BASE_URL}/api/auth/profile`,
   AUTH_PASSWORD: `${API_BASE_URL}/api/auth/password`,
-  
+
   // Health & Stats
   HEALTH: `${API_BASE_URL}/health`,
   STATS: `${API_BASE_URL}/api/stats`,
-  
+
   // Admin
   ADMIN_STATS: `${API_BASE_URL}/api/database-stats/admin-stats`,
   ADMIN_HEALTH: `${API_BASE_URL}/api/database-stats/health-detailed`,
-  
+
   // AI
   AI_TEMPLATES: `${API_BASE_URL}/api/ai/templates`,
   AI_AGENT: `${API_BASE_URL}/api/ai/agent`,
   AI_FEEDBACK: `${API_BASE_URL}/api/ai/feedback`,
   AI_SETTINGS: `${API_BASE_URL}/api/ai/settings`,
-  
+
   // Tenders
   TENDERS: `${API_BASE_URL}/api/tenders`,
-  
+
   // Documents
   DOCUMENTS: `${API_BASE_URL}/api/documents`,
 };
@@ -63,6 +63,5 @@ export const getApiUrl = (path: string) => {
     return `${API_BASE_URL}${path}`;
   }
   // Değilse /api/ ekle
-  return `${API_BASE_URL}/api${path.startsWith('/') ? path : '/' + path}`;
+  return `${API_BASE_URL}/api${path.startsWith('/') ? path : `/${path}`}`;
 };
-

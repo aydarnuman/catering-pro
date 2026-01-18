@@ -1,55 +1,53 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { API_BASE_URL } from '@/lib/config';
-import { useRouter } from 'next/navigation';
 import {
+  Alert,
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  Center,
   Container,
+  Divider,
+  Grid,
+  Group,
+  Loader,
   Paper,
-  Title,
+  PasswordInput,
+  Stack,
   Text,
   TextInput,
-  PasswordInput,
-  Button,
-  Stack,
-  Group,
-  Avatar,
-  Divider,
-  Alert,
-  Grid,
-  Badge,
-  Card,
   ThemeIcon,
-  Box,
-  rem,
-  Center,
-  Loader
+  Title,
 } from '@mantine/core';
-import { 
-  IconUser, 
-  IconMail, 
-  IconLock, 
-  IconCheck, 
-  IconAlertCircle,
-  IconShieldCheck,
-  IconCalendar,
-  IconKey
-} from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
+import {
+  IconAlertCircle,
+  IconCalendar,
+  IconCheck,
+  IconKey,
+  IconLock,
+  IconMail,
+  IconShieldCheck,
+  IconUser,
+} from '@tabler/icons-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { API_BASE_URL } from '@/lib/config';
 
 const API_URL = API_BASE_URL;
 
 export default function ProfilPage() {
   const router = useRouter();
   const { user, token, isAuthenticated, isLoading: authLoading, refreshUser } = useAuth();
-  
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  
+
   const [isUpdating, setIsUpdating] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [error, setError] = useState('');
@@ -88,9 +86,9 @@ export default function ProfilPage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ name, email })
+        body: JSON.stringify({ name, email }),
       });
 
       const data = await response.json();
@@ -100,13 +98,13 @@ export default function ProfilPage() {
           title: 'Başarılı',
           message: 'Profil bilgileriniz güncellendi',
           color: 'green',
-          icon: <IconCheck size={16} />
+          icon: <IconCheck size={16} />,
         });
         refreshUser();
       } else {
         setError(data.error || 'Güncelleme başarısız');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Sunucu hatası');
     } finally {
       setIsUpdating(false);
@@ -135,12 +133,12 @@ export default function ProfilPage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ 
-          currentPassword, 
-          newPassword 
-        })
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
       });
 
       const data = await response.json();
@@ -150,7 +148,7 @@ export default function ProfilPage() {
           title: 'Başarılı',
           message: 'Şifreniz değiştirildi',
           color: 'green',
-          icon: <IconCheck size={16} />
+          icon: <IconCheck size={16} />,
         });
         setCurrentPassword('');
         setNewPassword('');
@@ -158,7 +156,7 @@ export default function ProfilPage() {
       } else {
         setPasswordError(data.error || 'Şifre değiştirme başarısız');
       }
-    } catch (err) {
+    } catch (_err) {
       setPasswordError('Sunucu hatası');
     } finally {
       setIsChangingPassword(false);
@@ -169,7 +167,7 @@ export default function ProfilPage() {
   const getInitials = (name: string) => {
     return name
       .split(' ')
-      .map(n => n[0])
+      .map((n) => n[0])
       .join('')
       .toUpperCase()
       .slice(0, 2);
@@ -180,12 +178,19 @@ export default function ProfilPage() {
       <Stack gap="xl">
         {/* Header */}
         <Group>
-          <ThemeIcon size={50} radius="xl" variant="gradient" gradient={{ from: 'blue', to: 'cyan' }}>
+          <ThemeIcon
+            size={50}
+            radius="xl"
+            variant="gradient"
+            gradient={{ from: 'blue', to: 'cyan' }}
+          >
             <IconUser size={28} />
           </ThemeIcon>
           <div>
             <Title order={2}>Profilim</Title>
-            <Text c="dimmed" size="sm">Hesap bilgilerinizi yönetin</Text>
+            <Text c="dimmed" size="sm">
+              Hesap bilgilerinizi yönetin
+            </Text>
           </div>
         </Group>
 
@@ -203,16 +208,23 @@ export default function ProfilPage() {
                 >
                   {user?.name ? getInitials(user.name) : 'U'}
                 </Avatar>
-                
+
                 <div style={{ textAlign: 'center' }}>
-                  <Text size="xl" fw={700}>{user?.name}</Text>
-                  <Text size="sm" c="dimmed">{user?.email}</Text>
+                  <Text size="xl" fw={700}>
+                    {user?.name}
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    {user?.email}
+                  </Text>
                 </div>
 
-                <Badge 
-                  size="lg" 
-                  variant="gradient" 
-                  gradient={{ from: user?.role === 'admin' ? 'red' : 'blue', to: user?.role === 'admin' ? 'pink' : 'cyan' }}
+                <Badge
+                  size="lg"
+                  variant="gradient"
+                  gradient={{
+                    from: user?.role === 'admin' ? 'red' : 'blue',
+                    to: user?.role === 'admin' ? 'pink' : 'cyan',
+                  }}
                   leftSection={<IconShieldCheck size={14} />}
                 >
                   {user?.role === 'admin' ? 'Yönetici' : 'Kullanıcı'}
@@ -223,9 +235,13 @@ export default function ProfilPage() {
                 <Stack gap="xs" w="100%">
                   <Group gap="xs">
                     <IconCalendar size={16} style={{ color: 'var(--mantine-color-dimmed)' }} />
-                    <Text size="sm" c="dimmed">Hesap Oluşturulma</Text>
+                    <Text size="sm" c="dimmed">
+                      Hesap Oluşturulma
+                    </Text>
                   </Group>
-                  <Text size="sm" fw={500}>-</Text>
+                  <Text size="sm" fw={500}>
+                    -
+                  </Text>
                 </Stack>
               </Stack>
             </Card>
@@ -242,17 +258,14 @@ export default function ProfilPage() {
                   </ThemeIcon>
                   <div>
                     <Title order={4}>Profil Bilgileri</Title>
-                    <Text size="sm" c="dimmed">Ad ve email adresinizi güncelleyin</Text>
+                    <Text size="sm" c="dimmed">
+                      Ad ve email adresinizi güncelleyin
+                    </Text>
                   </div>
                 </Group>
 
                 {error && (
-                  <Alert 
-                    icon={<IconAlertCircle size={16} />} 
-                    color="red" 
-                    variant="light"
-                    mb="md"
-                  >
+                  <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light" mb="md">
                     {error}
                   </Alert>
                 )}
@@ -279,8 +292,8 @@ export default function ProfilPage() {
                     />
 
                     <Group justify="flex-end" mt="xs">
-                      <Button 
-                        type="submit" 
+                      <Button
+                        type="submit"
                         loading={isUpdating}
                         leftSection={<IconCheck size={16} />}
                       >
@@ -299,17 +312,14 @@ export default function ProfilPage() {
                   </ThemeIcon>
                   <div>
                     <Title order={4}>Şifre Değiştir</Title>
-                    <Text size="sm" c="dimmed">Hesap güvenliğiniz için şifrenizi güncelleyin</Text>
+                    <Text size="sm" c="dimmed">
+                      Hesap güvenliğiniz için şifrenizi güncelleyin
+                    </Text>
                   </div>
                 </Group>
 
                 {passwordError && (
-                  <Alert 
-                    icon={<IconAlertCircle size={16} />} 
-                    color="red" 
-                    variant="light"
-                    mb="md"
-                  >
+                  <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light" mb="md">
                     {passwordError}
                   </Alert>
                 )}
@@ -342,12 +352,16 @@ export default function ProfilPage() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
-                      error={newPassword && confirmPassword && newPassword !== confirmPassword ? 'Şifreler eşleşmiyor' : ''}
+                      error={
+                        newPassword && confirmPassword && newPassword !== confirmPassword
+                          ? 'Şifreler eşleşmiyor'
+                          : ''
+                      }
                     />
 
                     <Group justify="flex-end" mt="xs">
-                      <Button 
-                        type="submit" 
+                      <Button
+                        type="submit"
                         loading={isChangingPassword}
                         color="orange"
                         leftSection={<IconKey size={16} />}
@@ -366,4 +380,3 @@ export default function ProfilPage() {
     </Container>
   );
 }
-

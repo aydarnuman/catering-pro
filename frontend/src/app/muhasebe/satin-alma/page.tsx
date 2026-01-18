@@ -1,62 +1,68 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { API_BASE_URL } from '@/lib/config';
 import {
-  Container,
-  Title,
-  Text,
-  Card,
-  Group,
-  Stack,
-  SimpleGrid,
-  ThemeIcon,
-  Badge,
-  Button,
-  Box,
-  Table,
   ActionIcon,
-  TextInput,
-  Select,
+  Alert,
+  Avatar,
+  Badge,
+  Box,
+  Button,
+  Card,
+  Container,
+  Divider,
+  Group,
+  Loader,
+  Menu,
   Modal,
   NumberInput,
-  Textarea,
-  Tabs,
-  useMantineColorScheme,
   Paper,
-  Menu,
   rem,
+  Select,
+  SimpleGrid,
+  Stack,
   Stepper,
-  Divider,
-  Loader,
-  Alert,
-  Avatar
+  Table,
+  Tabs,
+  Text,
+  Textarea,
+  TextInput,
+  ThemeIcon,
+  Title,
+  useMantineColorScheme,
 } from '@mantine/core';
-import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
-  IconPlus,
-  IconSearch,
-  IconTruck,
-  IconPackage,
-  IconCheck,
-  IconClock,
-  IconTrash,
-  IconDotsVertical,
-  IconCalendar,
-  IconEye,
-  IconClipboardList,
-  IconBuilding,
   IconAlertCircle,
-  IconRefresh,
+  IconBuilding,
+  IconCheck,
+  IconClipboardList,
+  IconClock,
   IconCurrencyLira,
+  IconDotsVertical,
+  IconEye,
+  IconPackage,
+  IconPlus,
+  IconReceipt,
+  IconRefresh,
+  IconSearch,
+  IconTrash,
+  IconTruck,
   IconX,
-  IconReceipt
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import StyledDatePicker from '@/components/ui/StyledDatePicker';
+import { API_BASE_URL } from '@/lib/config';
 import 'dayjs/locale/tr';
-import { projelerAPI, siparislerAPI, Proje, Siparis, SiparisKalem, SiparisOzet } from '@/lib/satin-alma-api';
+import {
+  type Proje,
+  projelerAPI,
+  type Siparis,
+  type SiparisKalem,
+  type SiparisOzet,
+  siparislerAPI,
+} from '@/lib/satin-alma-api';
 
 // Tedarikçileri çekmek için
 const CARILER_API = `${API_BASE_URL}/api/cariler`;
@@ -79,17 +85,17 @@ export default function SatinAlmaPage() {
   const [projeModalOpened, { open: openProjeModal, close: closeProjeModal }] = useDisclosure(false);
   const [formModalOpened, { open: openFormModal, close: closeFormModal }] = useDisclosure(false);
   const [formSiparis, setFormSiparis] = useState<Siparis | null>(null);
-  
+
   const [activeTab, setActiveTab] = useState<string | null>('tumu');
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Data states
   const [siparisler, setSiparisler] = useState<Siparis[]>([]);
   const [projeler, setProjeler] = useState<Proje[]>([]);
   const [tedarikciler, setTedarikciler] = useState<Tedarikci[]>([]);
   const [ozet, setOzet] = useState<SiparisOzet | null>(null);
   const [selectedSiparis, setSelectedSiparis] = useState<Siparis | null>(null);
-  
+
   // Loading states
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -102,15 +108,22 @@ export default function SatinAlmaPage() {
     siparis_tarihi: new Date(),
     teslim_tarihi: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     oncelik: 'normal' as Siparis['oncelik'],
-    notlar: ''
+    notlar: '',
   });
 
   const [kalemler, setKalemler] = useState<SiparisKalem[]>([
-    { urun_adi: '', miktar: 1, birim: 'Adet', tahmini_fiyat: 0 }
+    { urun_adi: '', miktar: 1, birim: 'Adet', tahmini_fiyat: 0 },
   ]);
 
   // Yeni proje formu
-  const [newProje, setNewProje] = useState({ kod: '', ad: '', adres: '', yetkili: '', telefon: '', renk: '#6366f1' });
+  const [newProje, setNewProje] = useState({
+    kod: '',
+    ad: '',
+    adres: '',
+    yetkili: '',
+    telefon: '',
+    renk: '#6366f1',
+  });
 
   // Verileri yükle
   const loadData = useCallback(async () => {
@@ -120,7 +133,7 @@ export default function SatinAlmaPage() {
         siparislerAPI.list(),
         projelerAPI.list(),
         siparislerAPI.getOzet(),
-        fetch(`${CARILER_API}?tip=tedarikci`).then(r => r.json())
+        fetch(`${CARILER_API}?tip=tedarikci`).then((r) => r.json()),
       ]);
 
       if (siparisResult.success) setSiparisler(siparisResult.data);
@@ -141,7 +154,11 @@ export default function SatinAlmaPage() {
 
   // Para formatı
   const formatMoney = (value: number) => {
-    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 0 }).format(value || 0);
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'TRY',
+      minimumFractionDigits: 0,
+    }).format(value || 0);
   };
 
   // Tarih formatı
@@ -151,14 +168,17 @@ export default function SatinAlmaPage() {
   };
 
   // Filtreleme
-  const filteredSiparisler = siparisler.filter(s => {
-    const matchesTab = activeTab === 'tumu' || 
-                      (activeTab === 'bekleyen' && ['talep', 'onay_bekliyor', 'onaylandi', 'siparis_verildi'].includes(s.durum)) ||
-                      (activeTab && s.proje_id === parseInt(activeTab)) ||
-                      s.durum === activeTab;
-    const matchesSearch = s.baslik.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         s.siparis_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (s.tedarikci_unvan || '').toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredSiparisler = siparisler.filter((s) => {
+    const matchesTab =
+      activeTab === 'tumu' ||
+      (activeTab === 'bekleyen' &&
+        ['talep', 'onay_bekliyor', 'onaylandi', 'siparis_verildi'].includes(s.durum)) ||
+      (activeTab && s.proje_id === parseInt(activeTab, 10)) ||
+      s.durum === activeTab;
+    const matchesSearch =
+      s.baslik.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.siparis_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (s.tedarikci_unvan || '').toLowerCase().includes(searchTerm.toLowerCase());
     return matchesTab && matchesSearch;
   });
 
@@ -172,7 +192,7 @@ export default function SatinAlmaPage() {
   };
 
   const updateKalem = (index: number, field: string, value: any) => {
-    setKalemler(kalemler.map((k, i) => i === index ? { ...k, [field]: value } : k));
+    setKalemler(kalemler.map((k, i) => (i === index ? { ...k, [field]: value } : k)));
   };
 
   // Toplam hesapla
@@ -187,15 +207,19 @@ export default function SatinAlmaPage() {
       siparis_tarihi: new Date(),
       teslim_tarihi: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       oncelik: 'normal',
-      notlar: ''
+      notlar: '',
     });
     setKalemler([{ urun_adi: '', miktar: 1, birim: 'Adet', tahmini_fiyat: 0 }]);
   };
 
   // Sipariş kaydet
   const handleSubmit = async () => {
-    if (!formData.baslik || kalemler.some(k => !k.urun_adi)) {
-      notifications.show({ title: 'Hata!', message: 'Lütfen zorunlu alanları doldurun.', color: 'red' });
+    if (!formData.baslik || kalemler.some((k) => !k.urun_adi)) {
+      notifications.show({
+        title: 'Hata!',
+        message: 'Lütfen zorunlu alanları doldurun.',
+        color: 'red',
+      });
       return;
     }
 
@@ -209,18 +233,23 @@ export default function SatinAlmaPage() {
         teslim_tarihi: formData.teslim_tarihi.toISOString().split('T')[0],
         oncelik: formData.oncelik,
         notlar: formData.notlar,
-        kalemler
+        kalemler,
       });
 
       if (result.success) {
-        notifications.show({ title: 'Başarılı!', message: 'Sipariş oluşturuldu.', color: 'green', icon: <IconCheck size={16} /> });
+        notifications.show({
+          title: 'Başarılı!',
+          message: 'Sipariş oluşturuldu.',
+          color: 'green',
+          icon: <IconCheck size={16} />,
+        });
         loadData();
         resetForm();
         close();
       } else {
         throw new Error('Kayıt başarısız');
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ title: 'Hata!', message: 'Sipariş oluşturulamadı.', color: 'red' });
     } finally {
       setSaving(false);
@@ -232,8 +261,12 @@ export default function SatinAlmaPage() {
     try {
       const result = await siparislerAPI.updateDurum(id, durum);
       if (result.success) {
-        setSiparisler(siparisler.map(s => s.id === id ? { ...s, durum } : s));
-        notifications.show({ title: 'Güncellendi', message: 'Sipariş durumu değiştirildi.', color: 'blue' });
+        setSiparisler(siparisler.map((s) => (s.id === id ? { ...s, durum } : s)));
+        notifications.show({
+          title: 'Güncellendi',
+          message: 'Sipariş durumu değiştirildi.',
+          color: 'blue',
+        });
         loadData(); // Özet için
       } else {
         throw new Error('API hatası');
@@ -249,8 +282,12 @@ export default function SatinAlmaPage() {
     try {
       const result = await siparislerAPI.update(id, { oncelik });
       if (result.success) {
-        setSiparisler(siparisler.map(s => s.id === id ? { ...s, oncelik } : s));
-        notifications.show({ title: 'Güncellendi', message: 'Öncelik değiştirildi.', color: 'blue' });
+        setSiparisler(siparisler.map((s) => (s.id === id ? { ...s, oncelik } : s)));
+        notifications.show({
+          title: 'Güncellendi',
+          message: 'Öncelik değiştirildi.',
+          color: 'blue',
+        });
       } else {
         throw new Error('API hatası');
       }
@@ -263,11 +300,11 @@ export default function SatinAlmaPage() {
   // Silme
   const handleDelete = async (id: number) => {
     if (!confirm('Bu siparişi silmek istediğinize emin misiniz?')) return;
-    
+
     try {
       const result = await siparislerAPI.delete(id);
       if (result.success) {
-        setSiparisler(siparisler.filter(s => s.id !== id));
+        setSiparisler(siparisler.filter((s) => s.id !== id));
         notifications.show({ title: 'Silindi', message: 'Sipariş silindi.', color: 'orange' });
         loadData();
       } else {
@@ -289,7 +326,7 @@ export default function SatinAlmaPage() {
       }
       setFormSiparis(result.data);
       openFormModal();
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ title: 'Hata', message: 'Sipariş detayı alınamadı', color: 'red' });
     }
   };
@@ -298,9 +335,9 @@ export default function SatinAlmaPage() {
   const handlePrint = () => {
     const printContent = document.querySelector('.print-content');
     if (!printContent || !formSiparis) return;
-    
-    const proje = projeler.find(p => p.id === formSiparis.proje_id);
-    
+
+    const proje = projeler.find((p) => p.id === formSiparis.proje_id);
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -357,7 +394,9 @@ export default function SatinAlmaPage() {
             </tr>
           </thead>
           <tbody>
-            ${(formSiparis.kalemler || []).map((k, i) => `
+            ${(formSiparis.kalemler || [])
+              .map(
+                (k, i) => `
               <tr>
                 <td>${i + 1}</td>
                 <td>${k.urun_adi}</td>
@@ -365,7 +404,9 @@ export default function SatinAlmaPage() {
                 <td>${k.birim}</td>
                 <td style="text-align:right">${formatMoney(k.tahmini_fiyat)}</td>
               </tr>
-            `).join('')}
+            `
+              )
+              .join('')}
           </tbody>
         </table>
         
@@ -380,7 +421,7 @@ export default function SatinAlmaPage() {
       </body>
       </html>
     `;
-    
+
     const iframe = document.createElement('iframe');
     iframe.style.display = 'none';
     document.body.appendChild(iframe);
@@ -398,7 +439,7 @@ export default function SatinAlmaPage() {
         setSelectedSiparis(result.data);
         openDetail();
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ title: 'Hata', message: 'Detay yüklenemedi', color: 'red' });
     }
   };
@@ -406,17 +447,17 @@ export default function SatinAlmaPage() {
   // Proje sil
   const handleDeleteProje = async (id: number, ad: string) => {
     if (!confirm(`"${ad}" projesini silmek istediğinize emin misiniz?`)) return;
-    
+
     try {
       const result = await projelerAPI.delete(id);
       if (result.success) {
-        setProjeler(projeler.filter(p => p.id !== id));
+        setProjeler(projeler.filter((p) => p.id !== id));
         if (activeTab === String(id)) setActiveTab('tumu');
         notifications.show({ title: 'Silindi', message: 'Proje silindi.', color: 'orange' });
       } else {
         throw new Error('Silme başarısız');
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ title: 'Hata', message: 'Proje silinemedi', color: 'red' });
     }
   };
@@ -427,7 +468,7 @@ export default function SatinAlmaPage() {
       notifications.show({ title: 'Hata', message: 'Kod ve ad zorunludur', color: 'red' });
       return;
     }
-    
+
     try {
       const result = await projelerAPI.create(newProje);
       if (result.success) {
@@ -436,7 +477,7 @@ export default function SatinAlmaPage() {
         closeProjeModal();
         notifications.show({ title: 'Başarılı', message: 'Proje oluşturuldu', color: 'green' });
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ title: 'Hata', message: 'Proje oluşturulamadı', color: 'red' });
     }
   };
@@ -450,7 +491,11 @@ export default function SatinAlmaPage() {
       iptal: { color: 'red', label: 'İptal' },
     };
     const { color, label } = config[durum] || { color: 'gray', label: durum };
-    return <Badge color={color} variant="light">{label}</Badge>;
+    return (
+      <Badge color={color} variant="light">
+        {label}
+      </Badge>
+    );
   };
 
   // Öncelik badge
@@ -462,30 +507,46 @@ export default function SatinAlmaPage() {
       acil: { color: 'red', label: 'ACİL' },
     };
     const { color, label } = config[oncelik] || config.normal;
-    return <Badge color={color} variant="filled" size="xs">{label}</Badge>;
+    return (
+      <Badge color={color} variant="filled" size="xs">
+        {label}
+      </Badge>
+    );
   };
 
   // Stepper aktif adım
   const getStepperActive = (durum: string) => {
-    const steps: Record<string, number> = { talep: 0, siparis_verildi: 1, teslim_alindi: 2, iptal: -1 };
+    const steps: Record<string, number> = {
+      talep: 0,
+      siparis_verildi: 1,
+      teslim_alindi: 2,
+      iptal: -1,
+    };
     return steps[durum] ?? 0;
   };
 
   if (loading) {
     return (
-      <Box style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+      <Box
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '50vh',
+        }}
+      >
         <Loader size="xl" />
       </Box>
     );
   }
 
   return (
-    <Box 
-      style={{ 
-        background: isDark 
-          ? 'linear-gradient(180deg, rgba(51,154,240,0.05) 0%, rgba(0,0,0,0) 100%)' 
+    <Box
+      style={{
+        background: isDark
+          ? 'linear-gradient(180deg, rgba(51,154,240,0.05) 0%, rgba(0,0,0,0) 100%)'
           : 'linear-gradient(180deg, rgba(51,154,240,0.08) 0%, rgba(255,255,255,0) 100%)',
-        minHeight: '100vh' 
+        minHeight: '100vh',
       }}
     >
       <Container size="xl" py="xl">
@@ -493,14 +554,26 @@ export default function SatinAlmaPage() {
           {/* Header */}
           <Group justify="space-between" align="flex-end">
             <Box>
-              <Title order={1} fw={700}>📦 Satın Alma</Title>
-              <Text c="dimmed" size="lg">Sipariş ve tedarik süreçlerinizi yönetin</Text>
+              <Title order={1} fw={700}>
+                📦 Satın Alma
+              </Title>
+              <Text c="dimmed" size="lg">
+                Sipariş ve tedarik süreçlerinizi yönetin
+              </Text>
             </Box>
             <Group>
               <Button variant="light" leftSection={<IconRefresh size={18} />} onClick={loadData}>
                 Yenile
               </Button>
-              <Button leftSection={<IconPlus size={18} />} variant="gradient" gradient={{ from: 'blue', to: 'cyan' }} onClick={() => { resetForm(); open(); }}>
+              <Button
+                leftSection={<IconPlus size={18} />}
+                variant="gradient"
+                gradient={{ from: 'blue', to: 'cyan' }}
+                onClick={() => {
+                  resetForm();
+                  open();
+                }}
+              >
                 Yeni Sipariş
               </Button>
             </Group>
@@ -510,53 +583,82 @@ export default function SatinAlmaPage() {
           <SimpleGrid cols={{ base: 2, md: 4 }}>
             <Card withBorder shadow="sm" p="lg" radius="md">
               <Group justify="space-between">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Toplam Sipariş</Text>
-                <ThemeIcon color="blue" variant="light" size="lg" radius="md"><IconClipboardList size={20} /></ThemeIcon>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                  Toplam Sipariş
+                </Text>
+                <ThemeIcon color="blue" variant="light" size="lg" radius="md">
+                  <IconClipboardList size={20} />
+                </ThemeIcon>
               </Group>
-              <Text fw={700} size="xl" mt="md">{ozet?.toplam_siparis || 0}</Text>
+              <Text fw={700} size="xl" mt="md">
+                {ozet?.toplam_siparis || 0}
+              </Text>
             </Card>
             <Card withBorder shadow="sm" p="lg" radius="md">
               <Group justify="space-between">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Bekleyen</Text>
-                <ThemeIcon color="yellow" variant="light" size="lg" radius="md"><IconClock size={20} /></ThemeIcon>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                  Bekleyen
+                </Text>
+                <ThemeIcon color="yellow" variant="light" size="lg" radius="md">
+                  <IconClock size={20} />
+                </ThemeIcon>
               </Group>
-              <Text fw={700} size="xl" mt="md" c="yellow">{ozet?.bekleyen || 0}</Text>
+              <Text fw={700} size="xl" mt="md" c="yellow">
+                {ozet?.bekleyen || 0}
+              </Text>
             </Card>
             <Card withBorder shadow="sm" p="lg" radius="md">
               <Group justify="space-between">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Tamamlanan</Text>
-                <ThemeIcon color="green" variant="light" size="lg" radius="md"><IconCheck size={20} /></ThemeIcon>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                  Tamamlanan
+                </Text>
+                <ThemeIcon color="green" variant="light" size="lg" radius="md">
+                  <IconCheck size={20} />
+                </ThemeIcon>
               </Group>
-              <Text fw={700} size="xl" mt="md" c="green">{ozet?.tamamlanan || 0}</Text>
+              <Text fw={700} size="xl" mt="md" c="green">
+                {ozet?.tamamlanan || 0}
+              </Text>
             </Card>
             <Card withBorder shadow="sm" p="lg" radius="md">
               <Group justify="space-between">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Beklenen Teslimat</Text>
-                <ThemeIcon color="cyan" variant="light" size="lg" radius="md"><IconTruck size={20} /></ThemeIcon>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                  Beklenen Teslimat
+                </Text>
+                <ThemeIcon color="cyan" variant="light" size="lg" radius="md">
+                  <IconTruck size={20} />
+                </ThemeIcon>
               </Group>
-              <Text fw={700} size="xl" mt="md" c="cyan">{formatMoney(ozet?.beklenen_tutar || 0)}</Text>
+              <Text fw={700} size="xl" mt="md" c="cyan">
+                {formatMoney(ozet?.beklenen_tutar || 0)}
+              </Text>
             </Card>
           </SimpleGrid>
 
           {/* Proje Kartları */}
           {projeler.length > 0 && (
             <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }}>
-              {projeler.map(proje => {
-                const projeSiparisleri = siparisler.filter(s => s.proje_id === proje.id);
-                const bekleyen = projeSiparisleri.filter(s => !['teslim_alindi', 'iptal'].includes(s.durum)).length;
+              {projeler.map((proje) => {
+                const projeSiparisleri = siparisler.filter((s) => s.proje_id === proje.id);
+                const bekleyen = projeSiparisleri.filter(
+                  (s) => !['teslim_alindi', 'iptal'].includes(s.durum)
+                ).length;
                 return (
-                  <Paper 
-                    key={proje.id} 
-                    withBorder 
-                    p="md" 
+                  <Paper
+                    key={proje.id}
+                    withBorder
+                    p="md"
                     radius="md"
-                    style={{ 
+                    style={{
                       borderLeft: `4px solid ${proje.renk}`,
                       cursor: 'pointer',
-                      backgroundColor: activeTab === String(proje.id) ? `${proje.renk}15` : undefined,
-                      position: 'relative'
+                      backgroundColor:
+                        activeTab === String(proje.id) ? `${proje.renk}15` : undefined,
+                      position: 'relative',
                     }}
-                    onClick={() => setActiveTab(activeTab === String(proje.id) ? 'tumu' : String(proje.id))}
+                    onClick={() =>
+                      setActiveTab(activeTab === String(proje.id) ? 'tumu' : String(proje.id))
+                    }
                   >
                     <ActionIcon
                       size="xs"
@@ -575,26 +677,34 @@ export default function SatinAlmaPage() {
                         <IconBuilding size={14} color="white" />
                       </Avatar>
                       <div style={{ flex: 1 }}>
-                        <Text size="sm" fw={600}>{proje.ad}</Text>
-                        <Text size="xs" c="dimmed">{projeSiparisleri.length} sipariş</Text>
+                        <Text size="sm" fw={600}>
+                          {proje.ad}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {projeSiparisleri.length} sipariş
+                        </Text>
                       </div>
                       {bekleyen > 0 && (
-                        <Badge size="sm" color="orange" variant="filled">{bekleyen}</Badge>
+                        <Badge size="sm" color="orange" variant="filled">
+                          {bekleyen}
+                        </Badge>
                       )}
                     </Group>
                   </Paper>
                 );
               })}
-              <Paper 
-                withBorder 
-                p="md" 
+              <Paper
+                withBorder
+                p="md"
                 radius="md"
                 style={{ borderStyle: 'dashed', cursor: 'pointer' }}
                 onClick={openProjeModal}
               >
                 <Group gap="xs" justify="center" h="100%">
                   <IconPlus size={18} style={{ color: 'var(--mantine-color-dimmed)' }} />
-                  <Text size="sm" c="dimmed">Yeni Proje</Text>
+                  <Text size="sm" c="dimmed">
+                    Yeni Proje
+                  </Text>
                 </Group>
               </Paper>
             </SimpleGrid>
@@ -606,16 +716,28 @@ export default function SatinAlmaPage() {
               <Tabs value={activeTab} onChange={setActiveTab}>
                 <Tabs.List>
                   <Tabs.Tab value="tumu">Tümü ({siparisler.length})</Tabs.Tab>
-                  <Tabs.Tab value="bekleyen" color="yellow">Bekleyen ({ozet?.bekleyen || 0})</Tabs.Tab>
-                  <Tabs.Tab value="teslim_alindi" color="green">Tamamlanan</Tabs.Tab>
+                  <Tabs.Tab value="bekleyen" color="yellow">
+                    Bekleyen ({ozet?.bekleyen || 0})
+                  </Tabs.Tab>
+                  <Tabs.Tab value="teslim_alindi" color="green">
+                    Tamamlanan
+                  </Tabs.Tab>
                 </Tabs.List>
               </Tabs>
-              <TextInput placeholder="Sipariş ara..." leftSection={<IconSearch size={16} />} value={searchTerm} onChange={(e) => setSearchTerm(e.currentTarget.value)} style={{ width: 250 }} />
+              <TextInput
+                placeholder="Sipariş ara..."
+                leftSection={<IconSearch size={16} />}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.currentTarget.value)}
+                style={{ width: 250 }}
+              />
             </Group>
 
             {filteredSiparisler.length === 0 ? (
               <Alert icon={<IconAlertCircle size={16} />} color="gray">
-                {siparisler.length === 0 ? 'Henüz sipariş yok. Yeni sipariş oluşturmak için "Yeni Sipariş" butonuna tıklayın.' : 'Arama kriterlerine uygun sipariş bulunamadı.'}
+                {siparisler.length === 0
+                  ? 'Henüz sipariş yok. Yeni sipariş oluşturmak için "Yeni Sipariş" butonuna tıklayın.'
+                  : 'Arama kriterlerine uygun sipariş bulunamadı.'}
               </Alert>
             ) : (
               <Table.ScrollContainer minWidth={900}>
@@ -636,30 +758,55 @@ export default function SatinAlmaPage() {
                     {filteredSiparisler.map((siparis) => (
                       <Table.Tr key={siparis.id}>
                         <Table.Td>
-                          <Text size="sm" fw={600} c="blue" style={{ cursor: 'pointer' }} onClick={() => handleViewDetail(siparis)}>
+                          <Text
+                            size="sm"
+                            fw={600}
+                            c="blue"
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => handleViewDetail(siparis)}
+                          >
                             {siparis.siparis_no}
                           </Text>
                         </Table.Td>
                         <Table.Td>
                           {siparis.proje_ad ? (
-                            <Badge 
-                              variant="light" 
-                              leftSection={<div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: siparis.proje_renk }} />}
+                            <Badge
+                              variant="light"
+                              leftSection={
+                                <div
+                                  style={{
+                                    width: 8,
+                                    height: 8,
+                                    borderRadius: '50%',
+                                    backgroundColor: siparis.proje_renk,
+                                  }}
+                                />
+                              }
                             >
                               {siparis.proje_ad}
                             </Badge>
                           ) : (
-                            <Text size="xs" c="dimmed">-</Text>
+                            <Text size="xs" c="dimmed">
+                              -
+                            </Text>
                           )}
                         </Table.Td>
                         <Table.Td>
-                          <Text size="sm" fw={500}>{siparis.baslik}</Text>
-                          <Text size="xs" c="dimmed">{siparis.tedarikci_unvan || 'Tedarikçi seçilmedi'}</Text>
+                          <Text size="sm" fw={500}>
+                            {siparis.baslik}
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            {siparis.tedarikci_unvan || 'Tedarikçi seçilmedi'}
+                          </Text>
                         </Table.Td>
                         <Table.Td>
-                          <Text size="sm" c="dimmed">{formatDate(siparis.siparis_tarihi)}</Text>
+                          <Text size="sm" c="dimmed">
+                            {formatDate(siparis.siparis_tarihi)}
+                          </Text>
                           {siparis.teslim_tarihi && (
-                            <Text size="xs" c="dimmed">Teslim: {formatDate(siparis.teslim_tarihi)}</Text>
+                            <Text size="xs" c="dimmed">
+                              Teslim: {formatDate(siparis.teslim_tarihi)}
+                            </Text>
                           )}
                         </Table.Td>
                         <Table.Td>
@@ -670,16 +817,28 @@ export default function SatinAlmaPage() {
                               </Box>
                             </Menu.Target>
                             <Menu.Dropdown>
-                              <Menu.Item onClick={() => updateOncelik(siparis.id, 'dusuk')} color={siparis.oncelik === 'dusuk' ? 'gray' : undefined}>
+                              <Menu.Item
+                                onClick={() => updateOncelik(siparis.id, 'dusuk')}
+                                color={siparis.oncelik === 'dusuk' ? 'gray' : undefined}
+                              >
                                 {siparis.oncelik === 'dusuk' && '✓ '}Düşük
                               </Menu.Item>
-                              <Menu.Item onClick={() => updateOncelik(siparis.id, 'normal')} color={siparis.oncelik === 'normal' ? 'blue' : undefined}>
+                              <Menu.Item
+                                onClick={() => updateOncelik(siparis.id, 'normal')}
+                                color={siparis.oncelik === 'normal' ? 'blue' : undefined}
+                              >
                                 {siparis.oncelik === 'normal' && '✓ '}Normal
                               </Menu.Item>
-                              <Menu.Item onClick={() => updateOncelik(siparis.id, 'yuksek')} color={siparis.oncelik === 'yuksek' ? 'orange' : undefined}>
+                              <Menu.Item
+                                onClick={() => updateOncelik(siparis.id, 'yuksek')}
+                                color={siparis.oncelik === 'yuksek' ? 'orange' : undefined}
+                              >
                                 {siparis.oncelik === 'yuksek' && '✓ '}Yüksek
                               </Menu.Item>
-                              <Menu.Item onClick={() => updateOncelik(siparis.id, 'acil')} color={siparis.oncelik === 'acil' ? 'red' : undefined}>
+                              <Menu.Item
+                                onClick={() => updateOncelik(siparis.id, 'acil')}
+                                color={siparis.oncelik === 'acil' ? 'red' : undefined}
+                              >
                                 {siparis.oncelik === 'acil' && '✓ '}ACİL
                               </Menu.Item>
                             </Menu.Dropdown>
@@ -687,46 +846,82 @@ export default function SatinAlmaPage() {
                         </Table.Td>
                         <Table.Td>{getDurumBadge(siparis.durum)}</Table.Td>
                         <Table.Td style={{ textAlign: 'right' }}>
-                          <Text size="sm" fw={600}>{formatMoney(siparis.toplam_tutar)}</Text>
-                          <Text size="xs" c="dimmed">{siparis.kalem_sayisi} kalem</Text>
+                          <Text size="sm" fw={600}>
+                            {formatMoney(siparis.toplam_tutar)}
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            {siparis.kalem_sayisi} kalem
+                          </Text>
                         </Table.Td>
                         <Table.Td>
                           <Menu position="bottom-end" shadow="md">
                             <Menu.Target>
-                              <ActionIcon variant="subtle" color="gray"><IconDotsVertical size={16} /></ActionIcon>
+                              <ActionIcon variant="subtle" color="gray">
+                                <IconDotsVertical size={16} />
+                              </ActionIcon>
                             </Menu.Target>
                             <Menu.Dropdown>
-                              <Menu.Item leftSection={<IconEye style={{ width: rem(14), height: rem(14) }} />} onClick={() => handleViewDetail(siparis)}>Detay</Menu.Item>
-                              <Menu.Item leftSection={<IconClipboardList style={{ width: rem(14), height: rem(14) }} />} onClick={() => handlePrintOrder(siparis)}>Sipariş Formu</Menu.Item>
+                              <Menu.Item
+                                leftSection={
+                                  <IconEye style={{ width: rem(14), height: rem(14) }} />
+                                }
+                                onClick={() => handleViewDetail(siparis)}
+                              >
+                                Detay
+                              </Menu.Item>
+                              <Menu.Item
+                                leftSection={
+                                  <IconClipboardList style={{ width: rem(14), height: rem(14) }} />
+                                }
+                                onClick={() => handlePrintOrder(siparis)}
+                              >
+                                Sipariş Formu
+                              </Menu.Item>
                               <Menu.Divider />
                               <Menu.Label>Durum</Menu.Label>
-                              <Menu.Item 
-                                leftSection={<IconTruck style={{ width: rem(14), height: rem(14) }} />} 
-                                color="cyan" 
+                              <Menu.Item
+                                leftSection={
+                                  <IconTruck style={{ width: rem(14), height: rem(14) }} />
+                                }
+                                color="cyan"
                                 onClick={() => updateDurum(siparis.id, 'siparis_verildi')}
                                 disabled={siparis.durum === 'siparis_verildi'}
                               >
                                 {siparis.durum === 'siparis_verildi' ? '✓ ' : ''}Sipariş Verildi
                               </Menu.Item>
-                              <Menu.Item 
-                                leftSection={<IconPackage style={{ width: rem(14), height: rem(14) }} />} 
-                                color="green" 
+                              <Menu.Item
+                                leftSection={
+                                  <IconPackage style={{ width: rem(14), height: rem(14) }} />
+                                }
+                                color="green"
                                 onClick={() => updateDurum(siparis.id, 'teslim_alindi')}
                                 disabled={siparis.durum === 'teslim_alindi'}
                               >
                                 {siparis.durum === 'teslim_alindi' ? '✓ ' : ''}Teslim Alındı
                               </Menu.Item>
                               {siparis.durum === 'teslim_alindi' && siparis.tedarikci_id && (
-                                <Menu.Item 
-                                  leftSection={<IconReceipt style={{ width: rem(14), height: rem(14) }} />} 
+                                <Menu.Item
+                                  leftSection={
+                                    <IconReceipt style={{ width: rem(14), height: rem(14) }} />
+                                  }
                                   color="violet"
-                                  onClick={() => router.push(`/muhasebe/faturalar?cari=${siparis.tedarikci_id}`)}
+                                  onClick={() =>
+                                    router.push(`/muhasebe/faturalar?cari=${siparis.tedarikci_id}`)
+                                  }
                                 >
                                   Faturayı Gör
                                 </Menu.Item>
                               )}
                               <Menu.Divider />
-                              <Menu.Item color="red" leftSection={<IconTrash style={{ width: rem(14), height: rem(14) }} />} onClick={() => handleDelete(siparis.id)}>Sil</Menu.Item>
+                              <Menu.Item
+                                color="red"
+                                leftSection={
+                                  <IconTrash style={{ width: rem(14), height: rem(14) }} />
+                                }
+                                onClick={() => handleDelete(siparis.id)}
+                              >
+                                Sil
+                              </Menu.Item>
                             </Menu.Dropdown>
                           </Menu>
                         </Table.Td>
@@ -740,58 +935,75 @@ export default function SatinAlmaPage() {
         </Stack>
 
         {/* Yeni Sipariş Modal */}
-        <Modal opened={opened} onClose={() => { resetForm(); close(); }} title={<Text fw={700} size="lg">Yeni Sipariş</Text>} size="xl" fullScreen={isMobile}>
+        <Modal
+          opened={opened}
+          onClose={() => {
+            resetForm();
+            close();
+          }}
+          title={
+            <Text fw={700} size="lg">
+              Yeni Sipariş
+            </Text>
+          }
+          size="xl"
+          fullScreen={isMobile}
+        >
           <Stack gap="md">
-            <TextInput 
-              label="Sipariş Başlığı" 
-              placeholder="Örn: Ocak Ayı Gıda Alımı" 
-              value={formData.baslik} 
-              onChange={(e) => setFormData({ ...formData, baslik: e.currentTarget.value })} 
-              required 
+            <TextInput
+              label="Sipariş Başlığı"
+              placeholder="Örn: Ocak Ayı Gıda Alımı"
+              value={formData.baslik}
+              onChange={(e) => setFormData({ ...formData, baslik: e.currentTarget.value })}
+              required
             />
-            
+
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <Select 
-                label="Proje / Şube" 
-                placeholder="Seçin (opsiyonel)" 
-                data={projeler.map(p => ({ value: String(p.id), label: p.ad }))} 
+              <Select
+                label="Proje / Şube"
+                placeholder="Seçin (opsiyonel)"
+                data={projeler.map((p) => ({ value: String(p.id), label: p.ad }))}
                 value={formData.proje_id ? String(formData.proje_id) : null}
-                onChange={(v) => setFormData({ ...formData, proje_id: v ? parseInt(v) : null })} 
-                searchable 
+                onChange={(v) => setFormData({ ...formData, proje_id: v ? parseInt(v, 10) : null })}
+                searchable
                 clearable
               />
-              <Select 
-                label="Tedarikçi" 
-                placeholder="Seçin (opsiyonel)" 
-                data={tedarikciler.map(t => ({ value: String(t.id), label: t.unvan }))} 
+              <Select
+                label="Tedarikçi"
+                placeholder="Seçin (opsiyonel)"
+                data={tedarikciler.map((t) => ({ value: String(t.id), label: t.unvan }))}
                 value={formData.tedarikci_id ? String(formData.tedarikci_id) : null}
-                onChange={(v) => setFormData({ ...formData, tedarikci_id: v ? parseInt(v) : null })} 
-                searchable 
+                onChange={(v) =>
+                  setFormData({ ...formData, tedarikci_id: v ? parseInt(v, 10) : null })
+                }
+                searchable
                 clearable
               />
             </SimpleGrid>
 
             <SimpleGrid cols={3}>
-              <StyledDatePicker 
-                label="Sipariş Tarihi" 
-                value={formData.siparis_tarihi} 
-                onChange={(v) => setFormData({ ...formData, siparis_tarihi: v || new Date() })} 
+              <StyledDatePicker
+                label="Sipariş Tarihi"
+                value={formData.siparis_tarihi}
+                onChange={(v) => setFormData({ ...formData, siparis_tarihi: v || new Date() })}
               />
-              <StyledDatePicker 
-                label="İstenen Teslim Tarihi" 
-                value={formData.teslim_tarihi} 
-                onChange={(v) => setFormData({ ...formData, teslim_tarihi: v || new Date() })} 
+              <StyledDatePicker
+                label="İstenen Teslim Tarihi"
+                value={formData.teslim_tarihi}
+                onChange={(v) => setFormData({ ...formData, teslim_tarihi: v || new Date() })}
               />
-              <Select 
-                label="Öncelik" 
+              <Select
+                label="Öncelik"
                 data={[
                   { label: 'Düşük', value: 'dusuk' },
                   { label: 'Normal', value: 'normal' },
                   { label: 'Yüksek', value: 'yuksek' },
                   { label: 'ACİL', value: 'acil' },
-                ]} 
-                value={formData.oncelik} 
-                onChange={(v) => setFormData({ ...formData, oncelik: (v as Siparis['oncelik']) || 'normal' })} 
+                ]}
+                value={formData.oncelik}
+                onChange={(v) =>
+                  setFormData({ ...formData, oncelik: (v as Siparis['oncelik']) || 'normal' })
+                }
               />
             </SimpleGrid>
 
@@ -811,19 +1023,52 @@ export default function SatinAlmaPage() {
                 {kalemler.map((kalem, index) => (
                   <Table.Tr key={index}>
                     <Table.Td>
-                      <TextInput size="xs" placeholder="Ürün adı" value={kalem.urun_adi} onChange={(e) => updateKalem(index, 'urun_adi', e.currentTarget.value)} />
+                      <TextInput
+                        size="xs"
+                        placeholder="Ürün adı"
+                        value={kalem.urun_adi}
+                        onChange={(e) => updateKalem(index, 'urun_adi', e.currentTarget.value)}
+                      />
                     </Table.Td>
                     <Table.Td>
-                      <NumberInput size="xs" value={kalem.miktar} onChange={(v) => updateKalem(index, 'miktar', v)} min={0.1} decimalScale={2} style={{ width: 90 }} />
+                      <NumberInput
+                        size="xs"
+                        value={kalem.miktar}
+                        onChange={(v) => updateKalem(index, 'miktar', v)}
+                        min={0.1}
+                        decimalScale={2}
+                        style={{ width: 90 }}
+                      />
                     </Table.Td>
                     <Table.Td>
-                      <Select size="xs" data={birimler} value={kalem.birim} onChange={(v) => updateKalem(index, 'birim', v)} style={{ width: 100 }} />
+                      <Select
+                        size="xs"
+                        data={birimler}
+                        value={kalem.birim}
+                        onChange={(v) => updateKalem(index, 'birim', v)}
+                        style={{ width: 100 }}
+                      />
                     </Table.Td>
                     <Table.Td>
-                      <NumberInput size="xs" value={kalem.tahmini_fiyat} onChange={(v) => updateKalem(index, 'tahmini_fiyat', v || 0)} min={0} prefix="₺" thousandSeparator="." decimalSeparator="," style={{ width: 130 }} />
+                      <NumberInput
+                        size="xs"
+                        value={kalem.tahmini_fiyat}
+                        onChange={(v) => updateKalem(index, 'tahmini_fiyat', v || 0)}
+                        min={0}
+                        prefix="₺"
+                        thousandSeparator="."
+                        decimalSeparator=","
+                        style={{ width: 130 }}
+                      />
                     </Table.Td>
                     <Table.Td>
-                      <ActionIcon variant="subtle" color="red" size="sm" onClick={() => removeKalem(index)} disabled={kalemler.length === 1}>
+                      <ActionIcon
+                        variant="subtle"
+                        color="red"
+                        size="sm"
+                        onClick={() => removeKalem(index)}
+                        disabled={kalemler.length === 1}
+                      >
                         <IconTrash size={14} />
                       </ActionIcon>
                     </Table.Td>
@@ -833,29 +1078,66 @@ export default function SatinAlmaPage() {
             </Table>
 
             <Group justify="space-between">
-              <Button variant="light" size="xs" leftSection={<IconPlus size={14} />} onClick={addKalem}>Ürün Ekle</Button>
+              <Button
+                variant="light"
+                size="xs"
+                leftSection={<IconPlus size={14} />}
+                onClick={addKalem}
+              >
+                Ürün Ekle
+              </Button>
               <Group gap="xs">
                 <IconCurrencyLira size={20} style={{ color: 'var(--mantine-color-green-6)' }} />
-                <Text fw={700} size="lg" c="green">Toplam: {formatMoney(toplamTutar)}</Text>
+                <Text fw={700} size="lg" c="green">
+                  Toplam: {formatMoney(toplamTutar)}
+                </Text>
               </Group>
             </Group>
 
-            <Textarea label="Notlar" placeholder="Ek notlar..." rows={2} value={formData.notlar} onChange={(e) => setFormData({ ...formData, notlar: e.currentTarget.value })} />
+            <Textarea
+              label="Notlar"
+              placeholder="Ek notlar..."
+              rows={2}
+              value={formData.notlar}
+              onChange={(e) => setFormData({ ...formData, notlar: e.currentTarget.value })}
+            />
 
             <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={() => { resetForm(); close(); }}>İptal</Button>
-              <Button color="blue" onClick={handleSubmit} loading={saving}>Sipariş Oluştur</Button>
+              <Button
+                variant="default"
+                onClick={() => {
+                  resetForm();
+                  close();
+                }}
+              >
+                İptal
+              </Button>
+              <Button color="blue" onClick={handleSubmit} loading={saving}>
+                Sipariş Oluştur
+              </Button>
             </Group>
           </Stack>
         </Modal>
 
         {/* Detay Modal */}
-        <Modal opened={detailOpened} onClose={closeDetail} title={<Text fw={700} size="lg">Sipariş Detayı</Text>} size="lg" fullScreen={isMobile}>
+        <Modal
+          opened={detailOpened}
+          onClose={closeDetail}
+          title={
+            <Text fw={700} size="lg">
+              Sipariş Detayı
+            </Text>
+          }
+          size="lg"
+          fullScreen={isMobile}
+        >
           {selectedSiparis && (
             <Stack gap="md">
               <Group justify="space-between">
                 <div>
-                  <Text size="xl" fw={700}>{selectedSiparis.siparis_no}</Text>
+                  <Text size="xl" fw={700}>
+                    {selectedSiparis.siparis_no}
+                  </Text>
                   <Text size="lg">{selectedSiparis.baslik}</Text>
                 </div>
                 <Group>
@@ -874,24 +1156,41 @@ export default function SatinAlmaPage() {
 
               <SimpleGrid cols={{ base: 1, sm: 2 }}>
                 <Paper withBorder p="md" radius="md">
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Proje</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                    Proje
+                  </Text>
                   {selectedSiparis.proje_ad ? (
                     <Group mt="xs" gap="xs">
-                      <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: selectedSiparis.proje_renk }} />
+                      <div
+                        style={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: '50%',
+                          backgroundColor: selectedSiparis.proje_renk,
+                        }}
+                      />
                       <Text fw={500}>{selectedSiparis.proje_ad}</Text>
                     </Group>
                   ) : (
-                    <Text c="dimmed" mt="xs">Proje seçilmedi</Text>
+                    <Text c="dimmed" mt="xs">
+                      Proje seçilmedi
+                    </Text>
                   )}
                 </Paper>
                 <Paper withBorder p="md" radius="md">
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Tedarikçi</Text>
-                  <Text fw={500} mt="xs">{selectedSiparis.tedarikci_unvan || 'Tedarikçi seçilmedi'}</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                    Tedarikçi
+                  </Text>
+                  <Text fw={500} mt="xs">
+                    {selectedSiparis.tedarikci_unvan || 'Tedarikçi seçilmedi'}
+                  </Text>
                 </Paper>
               </SimpleGrid>
 
               <Paper withBorder p="md" radius="md">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Tarihler</Text>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                  Tarihler
+                </Text>
                 <Group justify="space-between" mt="xs">
                   <Text size="sm">Sipariş: {formatDate(selectedSiparis.siparis_tarihi)}</Text>
                   <Text size="sm">Teslim: {formatDate(selectedSiparis.teslim_tarihi || '')}</Text>
@@ -899,7 +1198,9 @@ export default function SatinAlmaPage() {
               </Paper>
 
               <Paper withBorder p="md" radius="md">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700} mb="sm">Ürünler</Text>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700} mb="sm">
+                  Ürünler
+                </Text>
                 <Table>
                   <Table.Thead>
                     <Table.Tr>
@@ -912,41 +1213,55 @@ export default function SatinAlmaPage() {
                     {selectedSiparis.kalemler?.map((k, i) => (
                       <Table.Tr key={i}>
                         <Table.Td>{k.urun_adi}</Table.Td>
-                        <Table.Td>{k.miktar} {k.birim}</Table.Td>
-                        <Table.Td style={{ textAlign: 'right' }}>{formatMoney(k.tahmini_fiyat)}</Table.Td>
+                        <Table.Td>
+                          {k.miktar} {k.birim}
+                        </Table.Td>
+                        <Table.Td style={{ textAlign: 'right' }}>
+                          {formatMoney(k.tahmini_fiyat)}
+                        </Table.Td>
                       </Table.Tr>
                     ))}
                   </Table.Tbody>
                 </Table>
                 <Divider my="sm" />
                 <Group justify="flex-end">
-                  <Text size="lg" fw={700}>Toplam: {formatMoney(selectedSiparis.toplam_tutar)}</Text>
+                  <Text size="lg" fw={700}>
+                    Toplam: {formatMoney(selectedSiparis.toplam_tutar)}
+                  </Text>
                 </Group>
               </Paper>
 
               {selectedSiparis.notlar && (
                 <Paper withBorder p="md" radius="md">
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Notlar</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                    Notlar
+                  </Text>
                   <Text mt="xs">{selectedSiparis.notlar}</Text>
                 </Paper>
               )}
 
               <Group justify="flex-end">
-                <Button variant="default" onClick={closeDetail}>Kapat</Button>
+                <Button variant="default" onClick={closeDetail}>
+                  Kapat
+                </Button>
               </Group>
             </Stack>
           )}
         </Modal>
 
         {/* Sipariş Formu Modal */}
-        <Modal 
-          opened={formModalOpened} 
-          onClose={closeFormModal} 
-          title={<Text fw={700} size="lg">📦 Sipariş Formu</Text>} 
+        <Modal
+          opened={formModalOpened}
+          onClose={closeFormModal}
+          title={
+            <Text fw={700} size="lg">
+              📦 Sipariş Formu
+            </Text>
+          }
           size="lg"
           fullScreen={isMobile}
           styles={{
-            body: { padding: 0 }
+            body: { padding: 0 },
           }}
         >
           {formSiparis && (
@@ -955,27 +1270,43 @@ export default function SatinAlmaPage() {
                 {/* Header */}
                 <Paper withBorder p="md" mb="md" style={{ textAlign: 'center' }}>
                   <Title order={3}>SİPARİŞ FORMU</Title>
-                  <Text size="lg" fw={600} c="blue">{formSiparis.siparis_no}</Text>
-                  <Text size="sm" c="dimmed">Tarih: {formatDate(formSiparis.siparis_tarihi)}</Text>
+                  <Text size="lg" fw={600} c="blue">
+                    {formSiparis.siparis_no}
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    Tarih: {formatDate(formSiparis.siparis_tarihi)}
+                  </Text>
                 </Paper>
 
                 {/* Info Grid */}
                 <SimpleGrid cols={{ base: 1, sm: 2 }} mb="md">
                   <Paper withBorder p="md">
-                    <Text size="xs" c="dimmed" tt="uppercase" fw={700} mb="xs">Tedarikçi</Text>
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={700} mb="xs">
+                      Tedarikçi
+                    </Text>
                     <Text fw={600}>{formSiparis.tedarikci_unvan || 'Belirtilmedi'}</Text>
-                    {formSiparis.tedarikci_vkn && <Text size="sm" c="dimmed">VKN: {formSiparis.tedarikci_vkn}</Text>}
+                    {formSiparis.tedarikci_vkn && (
+                      <Text size="sm" c="dimmed">
+                        VKN: {formSiparis.tedarikci_vkn}
+                      </Text>
+                    )}
                   </Paper>
                   <Paper withBorder p="md">
-                    <Text size="xs" c="dimmed" tt="uppercase" fw={700} mb="xs">Teslimat</Text>
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={700} mb="xs">
+                      Teslimat
+                    </Text>
                     <Text fw={600}>{formSiparis.proje_ad || 'Belirtilmedi'}</Text>
-                    <Text size="sm" c="dimmed">Teslim: {formatDate(formSiparis.teslim_tarihi || '')}</Text>
+                    <Text size="sm" c="dimmed">
+                      Teslim: {formatDate(formSiparis.teslim_tarihi || '')}
+                    </Text>
                   </Paper>
                 </SimpleGrid>
 
                 {/* Ürünler */}
                 <Paper withBorder p="md" mb="md">
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700} mb="sm">Sipariş Kalemleri</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={700} mb="sm">
+                    Sipariş Kalemleri
+                  </Text>
                   <Table>
                     <Table.Thead>
                       <Table.Tr>
@@ -990,21 +1321,37 @@ export default function SatinAlmaPage() {
                         <Table.Tr key={i}>
                           <Table.Td>{i + 1}</Table.Td>
                           <Table.Td>{k.urun_adi}</Table.Td>
-                          <Table.Td>{k.miktar} {k.birim}</Table.Td>
-                          <Table.Td style={{ textAlign: 'right' }}>{formatMoney(k.tahmini_fiyat)}</Table.Td>
+                          <Table.Td>
+                            {k.miktar} {k.birim}
+                          </Table.Td>
+                          <Table.Td style={{ textAlign: 'right' }}>
+                            {formatMoney(k.tahmini_fiyat)}
+                          </Table.Td>
                         </Table.Tr>
                       ))}
                     </Table.Tbody>
                   </Table>
                   <Divider my="sm" />
                   <Group justify="flex-end">
-                    <Text size="lg" fw={700}>Toplam: {formatMoney(Number(formSiparis.toplam_tutar))}</Text>
+                    <Text size="lg" fw={700}>
+                      Toplam: {formatMoney(Number(formSiparis.toplam_tutar))}
+                    </Text>
                   </Group>
                 </Paper>
 
                 {formSiparis.notlar && (
-                  <Paper withBorder p="md" mb="md" style={{ backgroundColor: 'var(--mantine-color-yellow-0)', borderColor: 'var(--mantine-color-yellow-4)' }}>
-                    <Text size="xs" c="dimmed" tt="uppercase" fw={700} mb="xs">Notlar</Text>
+                  <Paper
+                    withBorder
+                    p="md"
+                    mb="md"
+                    style={{
+                      backgroundColor: 'var(--mantine-color-yellow-0)',
+                      borderColor: 'var(--mantine-color-yellow-4)',
+                    }}
+                  >
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={700} mb="xs">
+                      Notlar
+                    </Text>
                     <Text>{formSiparis.notlar}</Text>
                   </Paper>
                 )}
@@ -1012,62 +1359,90 @@ export default function SatinAlmaPage() {
                 {/* İmza Alanları */}
                 <SimpleGrid cols={{ base: 1, sm: 2 }}>
                   <Paper withBorder p="md" style={{ textAlign: 'center' }}>
-                    <Text size="sm" c="dimmed" mb="xl">Sipariş Veren</Text>
+                    <Text size="sm" c="dimmed" mb="xl">
+                      Sipariş Veren
+                    </Text>
                     <Divider />
-                    <Text size="xs" c="dimmed" mt="xs">İmza / Kaşe</Text>
+                    <Text size="xs" c="dimmed" mt="xs">
+                      İmza / Kaşe
+                    </Text>
                   </Paper>
                   <Paper withBorder p="md" style={{ textAlign: 'center' }}>
-                    <Text size="sm" c="dimmed" mb="xl">Tedarikçi Onayı</Text>
+                    <Text size="sm" c="dimmed" mb="xl">
+                      Tedarikçi Onayı
+                    </Text>
                     <Divider />
-                    <Text size="xs" c="dimmed" mt="xs">İmza / Kaşe</Text>
+                    <Text size="xs" c="dimmed" mt="xs">
+                      İmza / Kaşe
+                    </Text>
                   </Paper>
                 </SimpleGrid>
               </Box>
 
               {/* Butonlar */}
-              <Group justify="flex-end" p="md" style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}>
-                <Button variant="default" onClick={closeFormModal}>Kapat</Button>
-                <Button color="blue" onClick={handlePrint}>🖨️ Yazdır</Button>
+              <Group
+                justify="flex-end"
+                p="md"
+                style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}
+              >
+                <Button variant="default" onClick={closeFormModal}>
+                  Kapat
+                </Button>
+                <Button color="blue" onClick={handlePrint}>
+                  🖨️ Yazdır
+                </Button>
               </Group>
             </Box>
           )}
         </Modal>
 
         {/* Yeni Proje Modal */}
-        <Modal opened={projeModalOpened} onClose={closeProjeModal} title={<Text fw={700} size="lg">Yeni Proje / Şube</Text>} size="md" fullScreen={isMobile}>
+        <Modal
+          opened={projeModalOpened}
+          onClose={closeProjeModal}
+          title={
+            <Text fw={700} size="lg">
+              Yeni Proje / Şube
+            </Text>
+          }
+          size="md"
+          fullScreen={isMobile}
+        >
           <Stack gap="md">
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <TextInput 
-                label="Proje Kodu" 
-                placeholder="KYK, HASTANE..." 
+              <TextInput
+                label="Proje Kodu"
+                placeholder="KYK, HASTANE..."
                 value={newProje.kod}
-                onChange={(e) => setNewProje({ ...newProje, kod: e.currentTarget.value.toUpperCase() })}
+                onChange={(e) =>
+                  setNewProje({ ...newProje, kod: e.currentTarget.value.toUpperCase() })
+                }
                 required
               />
-              <TextInput 
-                label="Proje Adı" 
-                placeholder="KYK Yurdu" 
+              <TextInput
+                label="Proje Adı"
+                placeholder="KYK Yurdu"
                 value={newProje.ad}
                 onChange={(e) => setNewProje({ ...newProje, ad: e.currentTarget.value })}
                 required
               />
             </SimpleGrid>
-            <TextInput 
-              label="Adres" 
-              placeholder="Proje adresi" 
+            <TextInput
+              label="Adres"
+              placeholder="Proje adresi"
               value={newProje.adres}
               onChange={(e) => setNewProje({ ...newProje, adres: e.currentTarget.value })}
             />
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <TextInput 
-                label="Yetkili Kişi" 
-                placeholder="Ad Soyad" 
+              <TextInput
+                label="Yetkili Kişi"
+                placeholder="Ad Soyad"
                 value={newProje.yetkili}
                 onChange={(e) => setNewProje({ ...newProje, yetkili: e.currentTarget.value })}
               />
-              <TextInput 
-                label="Telefon" 
-                placeholder="05xx xxx xx xx" 
+              <TextInput
+                label="Telefon"
+                placeholder="05xx xxx xx xx"
                 value={newProje.telefon}
                 onChange={(e) => setNewProje({ ...newProje, telefon: e.currentTarget.value })}
               />
@@ -1087,8 +1462,12 @@ export default function SatinAlmaPage() {
               onChange={(v) => setNewProje({ ...newProje, renk: v || '#6366f1' })}
             />
             <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={closeProjeModal}>İptal</Button>
-              <Button color="blue" onClick={handleCreateProje}>Proje Oluştur</Button>
+              <Button variant="default" onClick={closeProjeModal}>
+                İptal
+              </Button>
+              <Button color="blue" onClick={handleCreateProje}>
+                Proje Oluştur
+              </Button>
             </Group>
           </Stack>
         </Modal>

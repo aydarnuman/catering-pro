@@ -1,14 +1,14 @@
 import type {
-  MaliyetDetay,
-  MalzemeMaliyet,
-  PersonelMaliyet,
-  NakliyeMaliyet,
-  SarfMalzemeMaliyet,
+  CetvelKalemi,
   EkipmanBakimMaliyet,
   GenelGiderMaliyet,
-  YasalGiderlerMaliyet,
+  MaliyetDetay,
+  MalzemeMaliyet,
+  NakliyeMaliyet,
+  PersonelMaliyet,
   RiskPayiMaliyet,
-  CetvelKalemi,
+  SarfMalzemeMaliyet,
+  YasalGiderlerMaliyet,
 } from './types';
 
 // ========== MALZEME HESAPLAMA ==========
@@ -31,32 +31,32 @@ export function hesaplaMalzemeMaliyet(detay: MalzemeMaliyet): number {
 
 // ========== PERSONEL HESAPLAMA ==========
 export function hesaplaPersonelMaliyet(detay: PersonelMaliyet): number {
-  const sgkKatsayi = 1 + (detay.sgkOrani / 100);
+  const sgkKatsayi = 1 + detay.sgkOrani / 100;
   let aylikToplam = 0;
-  
+
   for (const poz of detay.pozisyonlar) {
     const aylikMaliyet = poz.brutMaas * sgkKatsayi;
     aylikToplam += poz.adet * aylikMaliyet;
   }
-  
+
   return aylikToplam * detay.aySayisi;
 }
 
 // Personel özet bilgileri
 export function hesaplaPersonelOzet(detay: PersonelMaliyet) {
-  const sgkKatsayi = 1 + (detay.sgkOrani / 100);
+  const _sgkKatsayi = 1 + detay.sgkOrani / 100;
   let aylikBrut = 0;
   let toplamKisi = 0;
-  
+
   for (const poz of detay.pozisyonlar) {
     aylikBrut += poz.adet * poz.brutMaas;
     toplamKisi += poz.adet;
   }
-  
+
   const aylikSgk = aylikBrut * (detay.sgkOrani / 100);
   const aylikToplam = aylikBrut + aylikSgk;
   const yillikToplam = aylikToplam * detay.aySayisi;
-  
+
   return {
     toplamKisi,
     aylikBrut,
@@ -69,13 +69,13 @@ export function hesaplaPersonelOzet(detay: PersonelMaliyet) {
 // ========== NAKLİYE HESAPLAMA ==========
 export function hesaplaNakliyeMaliyet(detay: NakliyeMaliyet): number {
   let aylikToplam = 0;
-  
+
   for (const arac of detay.araclar) {
     const aylikKira = arac.adet * arac.aylikKira;
     const aylikYakit = arac.adet * (arac.aylikKm / 100) * arac.yakitTuketimi * detay.yakitFiyati;
     aylikToplam += aylikKira + aylikYakit;
   }
-  
+
   return aylikToplam * detay.aySayisi;
 }
 
@@ -84,16 +84,16 @@ export function hesaplaNakliyeOzet(detay: NakliyeMaliyet) {
   let toplamArac = 0;
   let aylikKiraToplam = 0;
   let aylikYakitToplam = 0;
-  
+
   for (const arac of detay.araclar) {
     toplamArac += arac.adet;
     aylikKiraToplam += arac.adet * arac.aylikKira;
     aylikYakitToplam += arac.adet * (arac.aylikKm / 100) * arac.yakitTuketimi * detay.yakitFiyati;
   }
-  
+
   const aylikToplam = aylikKiraToplam + aylikYakitToplam;
   const yillikToplam = aylikToplam * detay.aySayisi;
-  
+
   return {
     toplamArac,
     aylikKiraToplam,
@@ -124,10 +124,10 @@ export function hesaplaSarfOzet(detay: SarfMalzemeMaliyet) {
   for (const kalem of detay.kalemler) {
     kisiBasiGunluk += kalem.miktar;
   }
-  
+
   const gunlukToplam = detay.gunlukKisi * kisiBasiGunluk;
   const yillikToplam = gunlukToplam * detay.gunSayisi;
-  
+
   return {
     kisiBasiGunluk,
     gunlukToplam,
@@ -139,7 +139,7 @@ export function hesaplaSarfOzet(detay: SarfMalzemeMaliyet) {
 export function hesaplaEkipmanBakimMaliyet(detay: EkipmanBakimMaliyet): number {
   let kiraToplam = 0;
   let satinAlmaToplam = 0;
-  
+
   for (const ekipman of detay.ekipmanlar) {
     if (ekipman.tip === 'kira') {
       kiraToplam += ekipman.adet * ekipman.birimFiyat * detay.aySayisi;
@@ -147,9 +147,9 @@ export function hesaplaEkipmanBakimMaliyet(detay: EkipmanBakimMaliyet): number {
       satinAlmaToplam += ekipman.adet * ekipman.birimFiyat;
     }
   }
-  
+
   const bakimToplam = detay.aylikBakimTutar * detay.aySayisi;
-  
+
   return kiraToplam + satinAlmaToplam + bakimToplam;
 }
 
@@ -157,7 +157,7 @@ export function hesaplaEkipmanBakimMaliyet(detay: EkipmanBakimMaliyet): number {
 export function hesaplaEkipmanOzet(detay: EkipmanBakimMaliyet) {
   let aylikKiraToplam = 0;
   let satinAlmaToplam = 0;
-  
+
   for (const ekipman of detay.ekipmanlar) {
     if (ekipman.tip === 'kira') {
       aylikKiraToplam += ekipman.adet * ekipman.birimFiyat;
@@ -165,11 +165,11 @@ export function hesaplaEkipmanOzet(detay: EkipmanBakimMaliyet) {
       satinAlmaToplam += ekipman.adet * ekipman.birimFiyat;
     }
   }
-  
+
   const aylikBakim = detay.aylikBakimTutar;
   const yillikKira = aylikKiraToplam * detay.aySayisi;
   const yillikBakim = aylikBakim * detay.aySayisi;
-  
+
   return {
     aylikKiraToplam,
     satinAlmaToplam,
@@ -204,7 +204,7 @@ export function hesaplaGenelGiderOzet(detay: GenelGiderMaliyet) {
 // ========== YASAL GİDERLER HESAPLAMA ==========
 export function hesaplaYasalGiderlerMaliyet(detay: YasalGiderlerMaliyet): number {
   let toplam = 0;
-  
+
   for (const item of detay.sigortalar) {
     toplam += item.tutar;
   }
@@ -217,7 +217,7 @@ export function hesaplaYasalGiderlerMaliyet(detay: YasalGiderlerMaliyet): number
   for (const item of detay.ihaleGiderleri) {
     toplam += item.tutar;
   }
-  
+
   return toplam;
 }
 
@@ -227,12 +227,12 @@ export function hesaplaYasalGiderOzet(detay: YasalGiderlerMaliyet) {
   let belgeToplam = 0;
   let isgToplam = 0;
   let ihaleToplam = 0;
-  
+
   for (const item of detay.sigortalar) sigortaToplam += item.tutar;
   for (const item of detay.belgeler) belgeToplam += item.tutar;
   for (const item of detay.isg) isgToplam += item.tutar;
   for (const item of detay.ihaleGiderleri) ihaleToplam += item.tutar;
-  
+
   return {
     sigortaToplam,
     belgeToplam,
@@ -247,7 +247,7 @@ export function hesaplaRiskPayi(toplamMaliyet: number, detay: RiskPayiMaliyet): 
   if (detay.kullanManuel) {
     return toplamMaliyet * (detay.manuelOran / 100);
   }
-  
+
   // Kategorilerden toplam oran hesapla
   let toplamOran = 0;
   for (const kategori of detay.kategoriler) {
@@ -255,14 +255,14 @@ export function hesaplaRiskPayi(toplamMaliyet: number, detay: RiskPayiMaliyet): 
       toplamOran += kategori.oran;
     }
   }
-  
+
   return toplamMaliyet * (toplamOran / 100);
 }
 
 // Risk payı özet bilgileri
 export function hesaplaRiskOzet(toplamMaliyet: number, detay: RiskPayiMaliyet) {
   let toplamOran = 0;
-  
+
   if (detay.kullanManuel) {
     toplamOran = detay.manuelOran;
   } else {
@@ -272,9 +272,9 @@ export function hesaplaRiskOzet(toplamMaliyet: number, detay: RiskPayiMaliyet) {
       }
     }
   }
-  
+
   const riskTutari = toplamMaliyet * (toplamOran / 100);
-  
+
   return {
     toplamOran,
     riskTutari,
