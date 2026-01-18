@@ -127,6 +127,79 @@ JSON formatında yanıt ver.
 /**
  * Şehir ismini normalize et (batch)
  */
+/**
+ * Ürün adından ambalaj bilgisi parse et
+ * @param {string|string[]} urunAdlari - Ürün adı veya adları
+ * @returns {Promise<Array<{miktar: number, birim: string, koli_adet: number}>>}
+ */
+export async function parseAmbalajWithAI(urunAdlari) {
+  try {
+    // Tek string gelirse array'e çevir
+    if (typeof urunAdlari === 'string') {
+      urunAdlari = [urunAdlari];
+    }
+    
+    const model = genAI.getGenerativeModel({ 
+      model: process.env.GEMINI_MODEL || 'gemini-2.0-flash-exp'
+    });
+    
+    const inputText = urunAdlari.map((ad, idx) => `${idx + 1}. ${ad}`).join('\n');
+    
+    const prompt = `
+Sen bir ürün ambalaj bilgisi çıkarma uzmanısın.
+Aşağıdaki ürün adlarından ambalaj miktarı, birim ve koli adedini çıkar.
+
+KURALLAR:
+1. Miktar ve birim bul: "5 KG", "500 GR", "1,5 LT", "200 ML" gibi
+2. Koli/paket adedi bul: "*4", "x24", "(1*4)", "24'lü" gibi
+3. GR → KG'a çevir (500 GR = 0.5 KG)
+4. ML → LT'ye çevir (200 ML = 0.2 LT)
+5. Toplam miktarı hesapla: miktar × koli_adet
+6. Birim bulunamazsa "ADET" yaz
+7. Her satır için JSON döndür
+
+ÖRNEKLER:
+- "ÖNCÜ BİBER SALÇASI 5 KG (1*4)" → {"miktar": 5, "birim": "KG", "koli_adet": 4, "toplam": 20}
+- "SANA MARGARİN 200 GR*24" → {"miktar": 0.2, "birim": "KG", "koli_adet": 24, "toplam": 4.8}
+- "COLA TURKA 0,2LTx24" → {"miktar": 0.2, "birim": "LT", "koli_adet": 24, "toplam": 4.8}
+- "Karton Bardak 3000 Li" → {"miktar": 3000, "birim": "ADET", "koli_adet": 1, "toplam": 3000}
+- "PIRINC BALDO 25 KG" → {"miktar": 25, "birim": "KG", "koli_adet": 1, "toplam": 25}
+
+ÜRÜNLER:
+${inputText}
+
+YANIT (sadece JSON array, başka açıklama yok):`.trim();
+    
+    console.log('🤖 Gemini ambalaj parse çağrısı yapılıyor...');
+    
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text().trim();
+    
+    // JSON parse
+    try {
+      // JSON array'i bul
+      const jsonMatch = text.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      // Tek satır JSON'lar varsa
+      const lines = text.split('\n').filter(l => l.trim().startsWith('{'));
+      return lines.map(l => JSON.parse(l));
+    } catch (parseError) {
+      console.warn('Gemini JSON parse hatası:', parseError.message);
+      return urunAdlari.map(() => ({ miktar: 1, birim: 'ADET', koli_adet: 1, toplam: 1 }));
+    }
+    
+  } catch (error) {
+    console.error('Gemini ambalaj parse hatası:', error);
+    return urunAdlari.map(() => ({ miktar: 1, birim: 'ADET', koli_adet: 1, toplam: 1 }));
+  }
+}
+
+/**
+ * Şehir ismini normalize et (batch)
+ */
 export async function normalizeCity(cityInputs) {
   try {
     // cityInputs: [{ rawCity, organization, address }, ...]

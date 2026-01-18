@@ -133,6 +133,119 @@ const PRODUCT_CATEGORIES = {
   }
 };
 
+// Ürün kategorisine göre varsayılan birim mapping
+const CATEGORY_DEFAULT_UNITS = {
+  // Litre ile satılanlar
+  'süt': 'lt', 'ayran': 'lt', 'su': 'lt', 'içecek': 'lt', 'meyve suyu': 'lt',
+  'kola': 'lt', 'gazoz': 'lt', 'soda': 'lt', 'şalgam': 'lt', 'limonata': 'lt',
+  'zeytinyağı': 'lt', 'sızma zeytinyağı': 'lt', 'ayçiçek yağı': 'lt', 
+  'mısır yağı': 'lt', 'fındık yağı': 'lt', 'sıvı yağ': 'lt',
+  
+  // Adet ile satılanlar
+  'yumurta': 'adet', 'ekmek': 'adet', 'pide': 'adet', 'simit': 'adet',
+  'poğaça': 'adet', 'börek': 'adet', 'limon': 'adet', 'portakal': 'adet',
+  'muz': 'adet', 'elma': 'adet', 'armut': 'adet', 'karpuz': 'adet',
+  'kavun': 'adet', 'ananas': 'adet', 'lahana': 'adet', 'marul': 'adet',
+  
+  // Kg ile satılanlar (default)
+  'et': 'kg', 'kıyma': 'kg', 'tavuk': 'kg', 'balık': 'kg', 'dana': 'kg',
+  'kuzu': 'kg', 'pirinç': 'kg', 'bulgur': 'kg', 'makarna': 'kg',
+  'un': 'kg', 'şeker': 'kg', 'tuz': 'kg', 'nohut': 'kg', 'mercimek': 'kg',
+  'fasulye': 'kg', 'barbunya': 'kg', 'yoğurt': 'kg', 'peynir': 'kg',
+  'tereyağı': 'kg', 'margarin': 'kg', 'domates': 'kg', 'biber': 'kg',
+  'soğan': 'kg', 'patates': 'kg', 'havuç': 'kg', 'salatalık': 'kg',
+  'patlıcan': 'kg', 'kabak': 'kg', 'ıspanak': 'kg', 'maydanoz': 'kg',
+  'salça': 'kg', 'bal': 'kg', 'reçel': 'kg', 'zeytin': 'kg',
+  'ceviz': 'kg', 'fındık': 'kg', 'badem': 'kg', 'antep fıstığı': 'kg'
+};
+
+// Ürün adı → Market arama terimi dönüşümü
+const PRODUCT_SEARCH_TERMS = {
+  'su': 'içme suyu',
+  'tuz': 'sofra tuzu',
+  'un': 'buğday unu',
+  'şeker': 'toz şeker',
+  'pirinç': 'baldo pirinç',
+  'bulgur': 'pilavlık bulgur',
+  'makarna': 'spagetti makarna',
+  'yağ': 'ayçiçek yağı',
+  'süt': 'günlük süt',
+  'yoğurt': 'kaymaksız yoğurt',
+  'peynir': 'beyaz peynir',
+  'et': 'dana kıyma',
+  'tavuk': 'tavuk göğüs',
+  'mercimek': 'kırmızı mercimek',
+  'fasulye': 'kuru fasulye',
+  'nohut': 'nohut',
+  'salça': 'domates salçası',
+  'tereyağı': 'tereyağı',
+  'margarin': 'margarin',
+  'zeytinyağı': 'sızma zeytinyağı'
+};
+
+/**
+ * Akıllı ürün adı normalize etme
+ * @param {string} urunAdi - Ham ürün adı
+ * @param {string} birim - Malzeme birimi (gr, kg, ml, lt, adet)
+ * @returns {object} - {normalizedName, searchTerm, defaultUnit}
+ */
+const normalizeProductName = (urunAdi, birim = null) => {
+  const lower = urunAdi.toLowerCase().trim();
+  
+  // Zaten gramaj/miktar içeriyor mu?
+  const hasQty = /\d+\s*(kg|gr|g|lt|l|ml|litre|adet)/i.test(lower);
+  
+  if (hasQty) {
+    // Gramaj varsa direkt kullan
+    return {
+      normalizedName: urunAdi,
+      searchTerm: urunAdi,
+      defaultUnit: null
+    };
+  }
+  
+  // Ürün adı için arama terimi bul
+  let searchTerm = PRODUCT_SEARCH_TERMS[lower] || urunAdi;
+  
+  // Varsayılan birim belirle
+  let defaultUnit = 'kg'; // Fallback
+  
+  // Önce tam eşleşme ara
+  if (CATEGORY_DEFAULT_UNITS[lower]) {
+    defaultUnit = CATEGORY_DEFAULT_UNITS[lower];
+  } else {
+    // Kısmi eşleşme ara (örn: "kaymaksız yoğurt" → "yoğurt" kategorisi)
+    for (const [keyword, unit] of Object.entries(CATEGORY_DEFAULT_UNITS)) {
+      if (lower.includes(keyword)) {
+        defaultUnit = unit;
+        break;
+      }
+    }
+  }
+  
+  // Birim parametresi varsa ona göre düzelt
+  if (birim) {
+    const birimLower = birim.toLowerCase();
+    if (['ml', 'lt', 'l', 'litre'].includes(birimLower)) {
+      defaultUnit = 'lt';
+    } else if (['gr', 'g', 'kg'].includes(birimLower)) {
+      defaultUnit = 'kg';
+    } else if (birimLower === 'adet') {
+      defaultUnit = 'adet';
+    }
+  }
+  
+  // Arama terimi oluştur
+  const quantity = defaultUnit === 'adet' ? '1 adet' : `1${defaultUnit}`;
+  const finalSearchTerm = `${searchTerm} ${quantity}`;
+  
+  return {
+    normalizedName: urunAdi,
+    searchTerm: finalSearchTerm,
+    defaultUnit
+  };
+};
+
 // Yazım hataları sözlüğü (fallback - AI çalışmazsa)
 const SPELLING_CORRECTIONS = {
   'pirnc': 'pirinç', 'pirinc': 'pirinç', 'princ': 'pirinç', 'prınc': 'pirinç',
@@ -515,6 +628,7 @@ export const piyasaToolImplementations = {
       let urunBilgi = null;
       
       // Stok kartından bilgi al
+      let stokBirim = null;
       if (stok_kart_id) {
         const result = await query(`
           SELECT sk.id, sk.ad, sk.son_alis_fiyat, 
@@ -528,11 +642,18 @@ export const piyasaToolImplementations = {
         if (result.rows.length > 0) {
           urunBilgi = result.rows[0];
           sistemFiyat = urunBilgi.son_alis_fiyat;
+          stokBirim = urunBilgi.birim;
         }
       }
       
+      // Ürün adını normalize et (akıllı birim belirleme)
+      const normalized = normalizeProductName(urun_adi, stokBirim);
+      const aramaTermi = normalized.searchTerm;
+      
+      console.log(`🔍 Piyasa Araması: "${urun_adi}" → "${aramaTermi}"`);
+      
       // ScrapingBee ile piyasa fiyatlarını araştır
-      const piyasaData = await searchMarketPrices(urun_adi);
+      const piyasaData = await searchMarketPrices(aramaTermi);
       
       if (!piyasaData.success) {
         return piyasaData;

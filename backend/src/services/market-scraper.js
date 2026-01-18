@@ -222,25 +222,78 @@ async function scrapeTrendyol(searchTerm) {
 }
 
 /**
- * Alakasız ürünleri filtrele
+ * Alakasız ürünleri filtrele (GIDA DIŞI)
  */
 function isRelevantProduct(searchTerm, productName) {
   const search = searchTerm.toLowerCase();
   const product = productName.toLowerCase();
   
-  // Alakasız kategoriler - bunlar hiçbir zaman gıda aramasında çıkmamalı
-  const irrelevantCategories = [
+  // GIDA DIŞI kategoriler - bunlar kesinlikle filtrelenmeli
+  const nonFoodCategories = [
+    // Temizlik
     'deterjan', 'temizlik', 'matik', 'çamaşır', 'bulaşık', 'yumuşatıcı',
+    'çamaşır suyu', 'toz deterjan', 'sıvı deterjan',
+    // Kişisel bakım
     'şampuan', 'krem', 'losyon', 'parfüm', 'deodorant', 'sabun',
-    'tuvalet', 'peçete', 'mendil', 'bebek bezi', 'hijyen',
-    'çöp torbası', 'poşet', 'folyo', 'streç', 'koruyucu',
-    'oyuncak', 'kitap', 'dergi', 'kırtasiye', 'elektronik'
+    'kolonya', 'duş jeli', 'saç kremi', 'cilt bakım',
+    // Bebek (gıda dışı)
+    'bebek bezi', 'ıslak havlu', 'bebek havlusu', 'ıslak mendil',
+    // Kağıt/Ambalaj
+    'tuvalet kağıdı', 'peçete', 'mendil', 'çöp torbası', 'poşet',
+    'folyo', 'streç', 'buzdolabı poşet', 'kese kağıdı',
+    // Mutfak araç/gereç (gıda değil)
+    'silikon', 'demlik', 'süzgeç', 'bardak', 'tabak', 'çatal', 'kaşık',
+    'bıçak', 'tencere', 'tava', 'kevgir', 'rende', 'doğrama tahtası',
+    'spatula', 'servis', 'tepsi', 'kavanoz', 'saklama kabı',
+    // Diğer
+    'oyuncak', 'kitap', 'dergi', 'kırtasiye', 'elektronik',
+    'mum', 'dekoratif', 'figür', 'süs', 'aksesuar'
   ];
   
-  // Ürün alakasız kategoride mi?
-  for (const cat of irrelevantCategories) {
+  // Ürün gıda dışı kategoride mi?
+  for (const cat of nonFoodCategories) {
     if (product.includes(cat) && !search.includes(cat)) {
       return false;
+    }
+  }
+  
+  // Özel durumlar: "havlu" kelimesi geçiyorsa ve gıda araması değilse
+  if (product.includes('havlu') && !search.includes('havlu')) {
+    return false;
+  }
+  
+  // "kokulu" ile biten ürünler genelde gıda değil (limon kokulu vs.)
+  if (product.includes('kokulu') && !search.includes('kokulu')) {
+    return false;
+  }
+  
+  // Gıda takviyesi / vitamin ürünleri
+  const supplementKeywords = ['omega', 'vitamin', 'balance oil', 'takviye', 'kapsül', 'tablet'];
+  for (const kw of supplementKeywords) {
+    if (product.includes(kw) && !search.includes(kw)) {
+      return false;
+    }
+  }
+  
+  // "Kür" ürünleri (sarımsak kürü, limon kürü vs.) - bunlar genelde sağlık ürünü
+  if (product.includes('kür') && !search.includes('kür')) {
+    return false;
+  }
+  
+  // Ürün adında arama terimi + farklı bir gıda varsa (limon tuzu, limon suyu vs.)
+  // Sadece ana ürünü istiyorsak bunları da filtrelemeliyiz
+  const searchMainWord = search.split(/\s+/)[0]; // ilk kelime (örn: "limon")
+  const otherFoods = ['tuzu', 'suyu', 'sosu', 'aroması', 'özü', 'yağı'];
+  
+  // Eğer arama sadece ana ürün ise (örn: "limon" veya "limon kg")
+  // ve üründe "limon tuzu", "limon suyu" gibi bileşik isim varsa
+  if (searchMainWord.length >= 3) {
+    for (const food of otherFoods) {
+      // Arama: "limon" veya "limon kg" gibi basit bir şey
+      // Ürün: "limon tuzu", "limon suyu" gibi bileşik
+      if (product.includes(searchMainWord) && product.includes(food) && !search.includes(food.replace('u', ''))) {
+        return false;
+      }
     }
   }
   

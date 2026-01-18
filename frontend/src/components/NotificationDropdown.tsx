@@ -84,7 +84,9 @@ export function NotificationDropdown() {
       });
       
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        // Sessizce hata at, kullanıcıyı rahatsız etme
+        console.warn(`Bildirim sayısı alınamadı: ${response.status}`);
+        return;
       }
       
       const data = await response.json();

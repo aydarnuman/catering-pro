@@ -138,6 +138,7 @@ import permissionsRouter from './routes/permissions.js';
 import auditLogsRouter from './routes/audit-logs.js';
 import mailRouter from './routes/mail.js';
 import scraperRouter from './routes/scraper.js';
+import maliyetAnaliziRouter from './routes/maliyet-analizi.js';
 import scheduler from './services/sync-scheduler.js';
 import tenderScheduler from './services/tender-scheduler.js';
 import documentQueueProcessor from './services/document-queue-processor.js';
@@ -185,6 +186,7 @@ app.use('/api/permissions', permissionsRouter);
 app.use('/api/audit-logs', auditLogsRouter);
 app.use('/api/mail', mailRouter);
 app.use('/api/scraper', scraperRouter);
+app.use('/api/maliyet-analizi', maliyetAnaliziRouter);
 
 /**
  * @swagger

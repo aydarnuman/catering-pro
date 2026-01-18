@@ -562,28 +562,13 @@ export function Navbar() {
               <Menu.Dropdown>
                 <Menu.Item
                   component={Link}
-                  href="/planlama/piyasa-robotu"
-                  leftSection={<IconRobot size={16} color="var(--mantine-color-violet-6)" />}
-                >
-                  <Box>
-                    <Text size="sm" fw={500}>Piyasa Robotu</Text>
-                    <Text size="xs" c="dimmed">Fiyat Araştırma</Text>
-                  </Box>
-                </Menu.Item>
-                <Menu.Divider />
-                <Menu.Item
-                  component={Link}
                   href="/muhasebe/menu-planlama"
-                  leftSection={<IconToolsKitchen2 size={16} color="var(--mantine-color-orange-6)" />}
+                  leftSection={<IconToolsKitchen2 size={16} color="var(--mantine-color-teal-6)" />}
                 >
                   <Box>
                     <Text size="sm" fw={500}>Menü Planlama</Text>
                     <Text size="xs" c="dimmed">Reçete & Maliyet</Text>
                   </Box>
-                </Menu.Item>
-                <Menu.Divider />
-                <Menu.Item leftSection={<IconReportMoney size={16} />} disabled>
-                  <Text size="sm" c="dimmed">Maliyet Analizi</Text>
                 </Menu.Item>
               </Menu.Dropdown>
             </Menu>

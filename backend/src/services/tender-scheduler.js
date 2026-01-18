@@ -436,33 +436,40 @@ class TenderScheduler {
 
   /**
    * Log kaydet
+   * Not: scraper_logs tablosu migration 059'da yeni şemaya geçirildi
    */
   async logScrape(status, details) {
     try {
+      // Yeni şema: level, module, message, context
+      const level = status === 'error' ? 'ERROR' : (status === 'success' ? 'INFO' : 'WARN');
+      const module = details.mode ? `scheduler:${details.mode}` : 'scheduler';
+      const message = details.error || `${details.mode || 'scrape'} ${status === 'success' ? 'completed' : 'failed'}`;
+      const context = {
+        status,
+        mode: details.mode,
+        type: details.type,
+        startedAt: details.startedAt,
+        finishedAt: details.finishedAt,
+        duration: details.duration,
+        tendersFound: details.tendersFound || 0,
+        tendersNew: details.tendersNew || 0,
+        tendersUpdated: details.tendersUpdated || 0,
+        pages: details.pages || 0,
+        error: details.error
+      };
+
       await query(`
         INSERT INTO scraper_logs (
-          action, 
-          status, 
+          level, 
+          module, 
           message, 
-          metadata,
-          started_at,
-          finished_at,
-          tenders_found,
-          tenders_new,
-          tenders_updated,
-          pages_scraped
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          context
+        ) VALUES ($1, $2, $3, $4)
       `, [
-        `${details.mode}_scrape`,
-        status,
-        details.error || `${details.mode} completed`,
-        JSON.stringify(details),
-        details.startedAt || new Date(),
-        details.finishedAt || new Date(),
-        details.tendersFound || 0,
-        details.tendersNew || 0,
-        details.tendersUpdated || 0,
-        details.pages || 0
+        level,
+        module,
+        message,
+        JSON.stringify(context)
       ]);
     } catch (error) {
       console.error('❌ Log kayıt hatası:', error.message);
@@ -471,14 +478,19 @@ class TenderScheduler {
 
   /**
    * Son başarılı scrape'i getir
+   * Not: Yeni şemada context içinde metadata saklanıyor
    */
   async getLastSuccessfulScrape() {
     try {
       const result = await query(`
-        SELECT started_at, tenders_found, tenders_new, action
+        SELECT 
+          created_at as started_at, 
+          context->>'tendersFound' as tenders_found, 
+          context->>'tendersNew' as tenders_new, 
+          module as action
         FROM scraper_logs 
-        WHERE status = 'success' 
-        ORDER BY started_at DESC 
+        WHERE level = 'INFO' AND context->>'status' = 'success'
+        ORDER BY created_at DESC 
         LIMIT 1
       `);
       return result.rows[0] || null;

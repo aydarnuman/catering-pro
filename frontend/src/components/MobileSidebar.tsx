@@ -77,7 +77,7 @@ const allMenuGroups: MenuGroup[] = [
       { label: 'İhale Listesi', href: '/tenders', icon: IconList },
       { label: 'Yükle & Analiz', href: '/upload', icon: IconSparkles, badge: 'AI', badgeColor: 'violet' },
       { label: 'İhale Takibim', href: '/tracking', icon: IconBookmark },
-      { label: 'İhale Uzmanı', href: '/ihale-uzmani', icon: IconScale, badge: 'AI', badgeColor: 'violet' },
+      // İhale Uzmanı mobilde gizlendi - modal olarak çalışıyor
     ]
   },
   {
@@ -101,7 +101,6 @@ const allMenuGroups: MenuGroup[] = [
     gradient: 'linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%)',
     permission: 'planlama',
     items: [
-      { label: 'Piyasa Robotu', href: '/planlama/piyasa-robotu', icon: IconRobot, badge: 'AI', badgeColor: 'violet' },
       { label: 'Menü Planlama', href: '/muhasebe/menu-planlama', icon: IconToolsKitchen2 },
     ]
   },

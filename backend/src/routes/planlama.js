@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../database.js';
 import aiAgent from '../services/ai-agent.js';
+import { parseWithRegex, smartParse, batchParse } from '../services/ambalajParser.js';
 
 const router = express.Router();
 
@@ -337,6 +338,161 @@ router.post('/piyasa/hizli-arastir', async (req, res) => {
   }
 });
 
+// Detaylı piyasa araştırması - sonuçları kullanıcıya göster
+router.post('/piyasa/detayli-arastir', async (req, res) => {
+  try {
+    const { urun_adi, stok_kart_id, ana_urun_id } = req.body;
+    
+    if (!urun_adi) {
+      return res.status(400).json({ success: false, error: 'Ürün adı zorunludur' });
+    }
+    
+    // AI ile araştırma yap
+    const result = await aiAgent.executeTool('piyasa_fiyat_arastir', {
+      urun_adi,
+      stok_kart_id
+    });
+    
+    if (!result.success || !result.piyasa?.kaynaklar) {
+      return res.json({ success: false, sonuclar: [] });
+    }
+    
+    // Kaynakları formatla
+    const sonuclar = result.piyasa.kaynaklar.map(k => {
+      // Ambalaj miktarını parse et
+      let ambalaj = '1 KG';
+      let ambalajMiktar = 1;
+      
+      // Ürün adından ambalaj bilgisi çıkar
+      const kgMatch = k.urun_adi?.match(/(\d+[,.]?\d*)\s*(kg|kilo)/i);
+      const grMatch = k.urun_adi?.match(/(\d+[,.]?\d*)\s*(gr|gram|g\b)/i);
+      const ltMatch = k.urun_adi?.match(/(\d+[,.]?\d*)\s*(lt|litre|l\b)/i);
+      
+      if (kgMatch) {
+        ambalajMiktar = parseFloat(kgMatch[1].replace(',', '.'));
+        ambalaj = `${ambalajMiktar} KG`;
+      } else if (grMatch) {
+        ambalajMiktar = parseFloat(grMatch[1].replace(',', '.')) / 1000;
+        ambalaj = `${grMatch[1]} GR`;
+      } else if (ltMatch) {
+        ambalajMiktar = parseFloat(ltMatch[1].replace(',', '.'));
+        ambalaj = `${ambalajMiktar} LT`;
+      }
+      
+      const fiyat = k.fiyat || k.price || 0;
+      const birimFiyat = ambalajMiktar > 0 ? fiyat / ambalajMiktar : fiyat;
+      
+      return {
+        market: k.market || k.kaynak || 'Bilinmeyen',
+        urunAdi: k.urun_adi || k.product_name || urun_adi,
+        marka: k.marka || '',
+        fiyat: fiyat,
+        ambalaj: ambalaj,
+        ambalajMiktar: ambalajMiktar,
+        birimFiyat: birimFiyat
+      };
+    });
+    
+    res.json({ 
+      success: true, 
+      sonuclar,
+      ozet: {
+        ortalama: result.piyasa.ortalama,
+        min: result.piyasa.min,
+        max: result.piyasa.max
+      }
+    });
+  } catch (error) {
+    console.error('Detaylı araştırma hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Seçilen AI sonuçlarını kaydet
+router.post('/piyasa/kaydet-sonuclar', async (req, res) => {
+  try {
+    const { stok_kart_id, ana_urun_id, sonuclar } = req.body;
+    
+    if (!sonuclar || sonuclar.length === 0) {
+      return res.status(400).json({ success: false, error: 'En az bir sonuç gerekli' });
+    }
+    
+    let kaydedilen = 0;
+    
+    for (const sonuc of sonuclar) {
+      await query(`
+        INSERT INTO piyasa_fiyat_gecmisi 
+        (stok_kart_id, ana_urun_id, urun_adi, market_adi, marka, 
+         piyasa_fiyat_ort, ambalaj_miktar, bm_fiyat, arastirma_tarihi)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      `, [
+        stok_kart_id || null,
+        ana_urun_id || null,
+        sonuc.urunAdi,
+        sonuc.market,
+        sonuc.marka || null,
+        sonuc.fiyat,
+        sonuc.ambalajMiktar || 1,
+        sonuc.birimFiyat
+      ]);
+      kaydedilen++;
+    }
+    
+    // Ortalama birim fiyatı hesapla
+    const ortBirimFiyat = sonuclar.reduce((a, b) => a + b.birimFiyat, 0) / sonuclar.length;
+    
+    // Stok kartını güncelle (varsa)
+    if (stok_kart_id) {
+      await query(`
+        UPDATE stok_kartlari SET 
+          son_piyasa_fiyat = $1,
+          updated_at = NOW()
+        WHERE id = $2
+      `, [ortBirimFiyat, stok_kart_id]);
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `${kaydedilen} sonuç kaydedildi`,
+      ortalamaBirimFiyat: ortBirimFiyat.toFixed(2)
+    });
+  } catch (error) {
+    console.error('Sonuç kaydetme hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Piyasa fiyatı kaydet (stok kartına bağla)
+router.post('/piyasa/fiyat-kaydet', async (req, res) => {
+  try {
+    const { stok_kart_id, piyasa_fiyat_ort, piyasa_fiyat_min, piyasa_fiyat_max, urun_adi } = req.body;
+    
+    if (!stok_kart_id || !piyasa_fiyat_ort) {
+      return res.status(400).json({ success: false, error: 'stok_kart_id ve piyasa_fiyat_ort zorunludur' });
+    }
+    
+    // piyasa_fiyat_gecmisi tablosuna kaydet
+    await query(`
+      INSERT INTO piyasa_fiyat_gecmisi 
+      (stok_kart_id, urun_adi, piyasa_fiyat_min, piyasa_fiyat_max, piyasa_fiyat_ort, arastirma_tarihi)
+      VALUES ($1, $2, $3, $4, $5, NOW())
+    `, [stok_kart_id, urun_adi || '', piyasa_fiyat_min || piyasa_fiyat_ort, piyasa_fiyat_max || piyasa_fiyat_ort, piyasa_fiyat_ort]);
+    
+    // Stok kartındaki son fiyatı da güncelle
+    await query(`
+      UPDATE stok_kartlari SET 
+        son_piyasa_fiyat = $1,
+        updated_at = NOW()
+      WHERE id = $2
+    `, [piyasa_fiyat_ort, stok_kart_id]);
+    
+    res.json({ success: true, message: 'Fiyat kaydedildi' });
+  } catch (error) {
+    console.error('Fiyat kaydetme hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Stok kartlarını ara (autocomplete için)
 router.get('/piyasa/urun-ara', async (req, res) => {
   try {
@@ -454,6 +610,848 @@ router.get('/market', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message, prices: [] });
+  }
+});
+
+// =============================================
+// FATURA FİYATLARI (Stok Kartlarından)
+// =============================================
+
+// Tüm stok kartlarının fatura fiyatlarını getir
+router.get('/piyasa/fatura-fiyatlari', async (req, res) => {
+  try {
+    const { kategori, arama, limit = 100 } = req.query;
+    
+    let whereConditions = ['sk.aktif = true', 'sk.son_alis_fiyat IS NOT NULL'];
+    let params = [];
+    let paramIndex = 1;
+    
+    if (kategori && kategori !== 'all') {
+      whereConditions.push(`k.kod = $${paramIndex}`);
+      params.push(kategori);
+      paramIndex++;
+    }
+    
+    if (arama) {
+      whereConditions.push(`(sk.ad ILIKE $${paramIndex} OR sk.kod ILIKE $${paramIndex})`);
+      params.push(`%${arama}%`);
+      paramIndex++;
+    }
+    
+    params.push(limit);
+    
+    const result = await query(`
+      SELECT 
+        sk.id,
+        sk.kod,
+        sk.ad,
+        sk.son_alis_fiyat as fatura_fiyat,
+        sk.son_alis_tarihi as fatura_tarih,
+        b.kisa_ad as birim,
+        k.ad as kategori,
+        k.kod as kategori_kod,
+        -- Piyasa fiyatı (varsa)
+        (
+          SELECT piyasa_fiyat_ort 
+          FROM piyasa_fiyat_gecmisi 
+          WHERE stok_kart_id = sk.id 
+          ORDER BY arastirma_tarihi DESC 
+          LIMIT 1
+        ) as piyasa_fiyat,
+        -- Fark yüzdesi
+        CASE 
+          WHEN sk.son_alis_fiyat > 0 AND (
+            SELECT piyasa_fiyat_ort 
+            FROM piyasa_fiyat_gecmisi 
+            WHERE stok_kart_id = sk.id 
+            ORDER BY arastirma_tarihi DESC 
+            LIMIT 1
+          ) IS NOT NULL THEN
+            ROUND((((
+              SELECT piyasa_fiyat_ort 
+              FROM piyasa_fiyat_gecmisi 
+              WHERE stok_kart_id = sk.id 
+              ORDER BY arastirma_tarihi DESC 
+              LIMIT 1
+            ) - sk.son_alis_fiyat) / sk.son_alis_fiyat * 100)::numeric, 1)
+          ELSE NULL
+        END as fark_yuzde
+      FROM stok_kartlari sk
+      LEFT JOIN birimler b ON b.id = sk.ana_birim_id
+      LEFT JOIN stok_kategoriler k ON k.id = sk.kategori_id
+      WHERE ${whereConditions.join(' AND ')}
+      ORDER BY sk.son_alis_tarihi DESC NULLS LAST, sk.ad
+      LIMIT $${paramIndex}
+    `, params);
+    
+    // Kategorileri de döndür
+    const kategoriler = await query(`
+      SELECT DISTINCT k.kod, k.ad
+      FROM stok_kategoriler k
+      JOIN stok_kartlari sk ON sk.kategori_id = k.id
+      WHERE sk.aktif = true AND sk.son_alis_fiyat IS NOT NULL
+      ORDER BY k.ad
+    `);
+    
+    res.json({
+      success: true,
+      data: result.rows,
+      kategoriler: kategoriler.rows,
+      ozet: {
+        toplam: result.rows.length,
+        fiyat_eslesme: result.rows.filter(r => r.piyasa_fiyat).length,
+        ucuz_firsatlar: result.rows.filter(r => r.fark_yuzde && r.fark_yuzde > 5).length,
+        pahali_uyarilar: result.rows.filter(r => r.fark_yuzde && r.fark_yuzde < -5).length
+      }
+    });
+  } catch (error) {
+    console.error('Fatura fiyatları hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Karşılaştırmalı fiyat listesi (Fatura + Piyasa yan yana)
+router.get('/piyasa/karsilastirma', async (req, res) => {
+  try {
+    const { kategori, limit = 50 } = req.query;
+    
+    let whereConditions = ['sk.aktif = true'];
+    let params = [];
+    let paramIndex = 1;
+    
+    if (kategori && kategori !== 'all') {
+      whereConditions.push(`k.kod = $${paramIndex}`);
+      params.push(kategori);
+      paramIndex++;
+    }
+    
+    params.push(limit);
+    
+    const result = await query(`
+      WITH piyasa_son AS (
+        SELECT DISTINCT ON (stok_kart_id)
+          stok_kart_id,
+          piyasa_fiyat_ort,
+          piyasa_fiyat_min,
+          piyasa_fiyat_max,
+          arastirma_tarihi,
+          kaynaklar
+        FROM piyasa_fiyat_gecmisi
+        WHERE stok_kart_id IS NOT NULL
+        ORDER BY stok_kart_id, arastirma_tarihi DESC
+      )
+      SELECT 
+        sk.id,
+        sk.kod,
+        sk.ad,
+        b.kisa_ad as birim,
+        k.ad as kategori,
+        
+        -- Fatura bilgileri
+        sk.son_alis_fiyat as fatura_fiyat,
+        sk.son_alis_tarihi as fatura_tarih,
+        
+        -- Piyasa bilgileri
+        ps.piyasa_fiyat_ort as piyasa_fiyat,
+        ps.piyasa_fiyat_min as piyasa_min,
+        ps.piyasa_fiyat_max as piyasa_max,
+        ps.arastirma_tarihi as piyasa_tarih,
+        ps.kaynaklar as piyasa_kaynaklar,
+        
+        -- Karşılaştırma
+        CASE 
+          WHEN sk.son_alis_fiyat > 0 AND ps.piyasa_fiyat_ort > 0 THEN
+            ROUND(((ps.piyasa_fiyat_ort - sk.son_alis_fiyat) / sk.son_alis_fiyat * 100)::numeric, 1)
+          ELSE NULL
+        END as fark_yuzde,
+        
+        -- Durum
+        CASE 
+          WHEN sk.son_alis_fiyat IS NULL THEN 'fatura_yok'
+          WHEN ps.piyasa_fiyat_ort IS NULL THEN 'piyasa_yok'
+          WHEN ps.piyasa_fiyat_ort > sk.son_alis_fiyat * 1.05 THEN 'ucuz_aldik'
+          WHEN ps.piyasa_fiyat_ort < sk.son_alis_fiyat * 0.95 THEN 'pahali_aldik'
+          ELSE 'normal'
+        END as durum,
+        
+        -- Son Fiyat (ortalama veya mevcut)
+        CASE 
+          WHEN sk.son_alis_fiyat IS NOT NULL AND ps.piyasa_fiyat_ort IS NOT NULL THEN
+            ROUND(((sk.son_alis_fiyat + ps.piyasa_fiyat_ort) / 2)::numeric, 2)
+          WHEN sk.son_alis_fiyat IS NOT NULL THEN
+            sk.son_alis_fiyat
+          WHEN ps.piyasa_fiyat_ort IS NOT NULL THEN
+            ps.piyasa_fiyat_ort
+          ELSE NULL
+        END as son_fiyat
+        
+      FROM stok_kartlari sk
+      LEFT JOIN birimler b ON b.id = sk.ana_birim_id
+      LEFT JOIN stok_kategoriler k ON k.id = sk.kategori_id
+      LEFT JOIN piyasa_son ps ON ps.stok_kart_id = sk.id
+      WHERE ${whereConditions.join(' AND ')}
+        AND (sk.son_alis_fiyat IS NOT NULL OR ps.piyasa_fiyat_ort IS NOT NULL)
+      ORDER BY 
+        CASE 
+          WHEN ps.piyasa_fiyat_ort < sk.son_alis_fiyat * 0.95 THEN 1  -- Pahalı aldıklarımız önce
+          WHEN ps.piyasa_fiyat_ort > sk.son_alis_fiyat * 1.05 THEN 2  -- Ucuz aldıklarımız
+          ELSE 3
+        END,
+        sk.ad
+      LIMIT $${paramIndex}
+    `, params);
+    
+    const data = result.rows;
+    
+    res.json({
+      success: true,
+      data,
+      ozet: {
+        toplam: data.length,
+        ucuz_aldik: data.filter(r => r.durum === 'ucuz_aldik').length,
+        pahali_aldik: data.filter(r => r.durum === 'pahali_aldik').length,
+        normal: data.filter(r => r.durum === 'normal').length,
+        fatura_yok: data.filter(r => r.durum === 'fatura_yok').length,
+        piyasa_yok: data.filter(r => r.durum === 'piyasa_yok').length
+      }
+    });
+  } catch (error) {
+    console.error('Karşılaştırma hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Stok kartı fiyatını manuel güncelle
+router.put('/piyasa/fiyat-guncelle/:stokKartId', async (req, res) => {
+  try {
+    const { stokKartId } = req.params;
+    const { fiyat, kaynak = 'manuel' } = req.body;
+    
+    if (!fiyat || isNaN(fiyat) || fiyat <= 0) {
+      return res.status(400).json({ success: false, error: 'Geçerli bir fiyat giriniz' });
+    }
+    
+    // Stok kartını güncelle
+    const result = await query(`
+      UPDATE stok_kartlari 
+      SET son_alis_fiyat = $1,
+          son_alis_tarihi = NOW(),
+          updated_at = NOW()
+      WHERE id = $2
+      RETURNING id, ad, son_alis_fiyat, son_alis_tarihi
+    `, [fiyat, stokKartId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Stok kartı bulunamadı' });
+    }
+    
+    // Log kaydet (opsiyonel)
+    try {
+      await query(`
+        INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details)
+        VALUES ($1, 'fiyat_guncelle', 'stok_kartlari', $2, $3)
+      `, [
+        req.user?.id || null,
+        stokKartId,
+        JSON.stringify({ yeni_fiyat: fiyat, kaynak, eski_fiyat: null })
+      ]);
+    } catch (logError) {
+      // Log hatası kritik değil, devam et
+      console.warn('Audit log hatası:', logError.message);
+    }
+    
+    res.json({
+      success: true,
+      data: result.rows[0],
+      message: `Fiyat ₺${Number(fiyat).toFixed(2)} olarak güncellendi`
+    });
+  } catch (error) {
+    console.error('Fiyat güncelleme hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ===============================================
+// ANA ÜRÜNLER (MASTER PRODUCTS) API
+// ===============================================
+
+// Ana ürünler listesi (kartlar için)
+router.get('/ana-urunler', async (req, res) => {
+  try {
+    const { kategori } = req.query;
+    
+    let whereConditions = ['au.aktif = true'];
+    let params = [];
+    let paramIndex = 1;
+    
+    if (kategori && kategori !== 'all') {
+      whereConditions.push(`au.kategori = $${paramIndex}`);
+      params.push(kategori);
+      paramIndex++;
+    }
+    
+    const result = await query(`
+      WITH piyasa_son AS (
+        SELECT DISTINCT ON (sk.ana_urun_id)
+          sk.ana_urun_id,
+          pfg.piyasa_fiyat_ort
+        FROM stok_kartlari sk
+        JOIN piyasa_fiyat_gecmisi pfg ON pfg.stok_kart_id = sk.id
+        WHERE sk.ana_urun_id IS NOT NULL
+        ORDER BY sk.ana_urun_id, pfg.arastirma_tarihi DESC
+      )
+      SELECT 
+        au.id,
+        au.kod,
+        au.ad,
+        au.ikon,
+        au.kategori,
+        au.sira,
+        
+        -- İstatistikler
+        COUNT(DISTINCT sk.id) as stok_kart_sayisi,
+        COUNT(DISTINCT CASE WHEN sk.son_alis_fiyat IS NOT NULL THEN sk.id END) as fiyatli_kart_sayisi,
+        
+        -- Ortalama fatura fiyatı
+        ROUND(AVG(sk.son_alis_fiyat)::numeric, 2) as ortalama_fatura_fiyat,
+        
+        -- Piyasa fiyatı (en güncel)
+        ROUND(ps.piyasa_fiyat_ort::numeric, 2) as piyasa_fiyat,
+        
+        -- Son fiyat: fatura ve piyasa ortalaması veya mevcut olan
+        ROUND(
+          COALESCE(
+            CASE 
+              WHEN AVG(sk.son_alis_fiyat) IS NOT NULL AND ps.piyasa_fiyat_ort IS NOT NULL 
+              THEN (AVG(sk.son_alis_fiyat) + ps.piyasa_fiyat_ort) / 2
+              ELSE COALESCE(AVG(sk.son_alis_fiyat), ps.piyasa_fiyat_ort)
+            END,
+            0
+          )::numeric, 2
+        ) as son_fiyat,
+        
+        -- Birim (en çok kullanılan)
+        (
+          SELECT b.kisa_ad
+          FROM stok_kartlari sk4
+          LEFT JOIN birimler b ON b.id = sk4.ana_birim_id
+          WHERE sk4.ana_urun_id = au.id
+          GROUP BY b.kisa_ad
+          ORDER BY COUNT(*) DESC
+          LIMIT 1
+        ) as birim
+        
+      FROM ana_urunler au
+      LEFT JOIN piyasa_son ps ON ps.ana_urun_id = au.id
+      LEFT JOIN stok_kartlari sk ON sk.ana_urun_id = au.id AND sk.aktif = true
+      WHERE ${whereConditions.join(' AND ')}
+      GROUP BY au.id, au.kod, au.ad, au.ikon, au.kategori, au.sira, ps.piyasa_fiyat_ort
+      ORDER BY au.kategori, au.sira, au.ad
+    `, params);
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Ana ürünler listesi hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Ana ürün detayı (stok kartları ve fiyatlarıyla)
+router.get('/ana-urunler/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Ana ürün bilgisi
+    const anaUrunResult = await query(`
+      SELECT id, kod, ad, ikon, kategori
+      FROM ana_urunler
+      WHERE id = $1 AND aktif = true
+    `, [id]);
+    
+    if (anaUrunResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Ana ürün bulunamadı' });
+    }
+    
+    const anaUrun = anaUrunResult.rows[0];
+    
+    // Bu ana ürüne bağlı stok kartları (ambalaj miktarı ve birim fiyat hesaplaması ile)
+    const stokKartlariResult = await query(`
+      SELECT 
+        sk.id,
+        sk.kod,
+        sk.ad,
+        b.kisa_ad as birim,
+        COALESCE(sk.ambalaj_miktari, 1) as ambalaj_miktari,
+        sk.son_alis_fiyat as fatura_fiyat,
+        sk.son_alis_tarihi as fatura_tarih,
+        -- Birim fiyat hesapla (fatura_fiyat / ambalaj_miktari)
+        CASE 
+          WHEN sk.son_alis_fiyat IS NOT NULL AND COALESCE(sk.ambalaj_miktari, 1) > 0 
+          THEN ROUND((sk.son_alis_fiyat / COALESCE(sk.ambalaj_miktari, 1))::numeric, 2)
+          ELSE NULL 
+        END as fatura_birim_fiyat,
+        
+        -- Piyasa fiyatı (stok kartı bazında)
+        pfg.piyasa_fiyat_ort as piyasa_fiyat,
+        pfg.piyasa_fiyat_min as piyasa_min,
+        pfg.piyasa_fiyat_max as piyasa_max,
+        pfg.arastirma_tarihi as piyasa_tarih
+        
+      FROM stok_kartlari sk
+      LEFT JOIN birimler b ON b.id = sk.ana_birim_id
+      LEFT JOIN LATERAL (
+        SELECT piyasa_fiyat_ort, piyasa_fiyat_min, piyasa_fiyat_max, arastirma_tarihi
+        FROM piyasa_fiyat_gecmisi
+        WHERE stok_kart_id = sk.id
+        ORDER BY arastirma_tarihi DESC
+        LIMIT 1
+      ) pfg ON true
+      WHERE sk.ana_urun_id = $1 AND sk.aktif = true
+      ORDER BY sk.son_alis_tarihi DESC NULLS LAST, sk.ad
+    `, [id]);
+    
+    // Ana ürün bazlı piyasa araştırması (farklı marketlerden)
+    const piyasaArastirmaResult = await query(`
+      SELECT 
+        id,
+        market_adi,
+        marka,
+        ambalaj_miktar,
+        piyasa_fiyat_ort as fiyat,
+        bm_fiyat as birim_fiyat,
+        urun_adi,
+        arastirma_tarihi
+      FROM piyasa_fiyat_gecmisi
+      WHERE ana_urun_id = $1
+      ORDER BY arastirma_tarihi DESC, bm_fiyat ASC
+      LIMIT 10
+    `, [id]);
+    
+    // Piyasa özet istatistikleri
+    const piyasaOzetResult = await query(`
+      SELECT 
+        ROUND(AVG(bm_fiyat)::numeric, 2) as ortalama,
+        ROUND(MIN(bm_fiyat)::numeric, 2) as minimum,
+        ROUND(MAX(bm_fiyat)::numeric, 2) as maksimum,
+        COUNT(*) as kayit_sayisi,
+        MAX(arastirma_tarihi) as son_guncelleme
+      FROM piyasa_fiyat_gecmisi
+      WHERE ana_urun_id = $1 AND bm_fiyat IS NOT NULL
+    `, [id]);
+    
+    // Eşleşmemiş stok kartları (öneri için)
+    const eslesmemisResult = await query(`
+      SELECT sk.id, sk.kod, sk.ad, b.kisa_ad as birim, sk.ambalaj_miktari
+      FROM stok_kartlari sk
+      LEFT JOIN birimler b ON b.id = sk.ana_birim_id
+      WHERE sk.ana_urun_id IS NULL
+        AND sk.aktif = true
+        AND (
+          LOWER(sk.ad) LIKE '%' || LOWER($1) || '%'
+          OR LOWER($1) LIKE '%' || LOWER(sk.ad) || '%'
+        )
+      ORDER BY sk.ad
+      LIMIT 10
+    `, [anaUrun.ad]);
+    
+    // Fatura fiyatları özeti (birim bazında)
+    const faturaOzet = stokKartlariResult.rows.reduce((acc, sk) => {
+      if (sk.fatura_birim_fiyat) {
+        acc.toplam += parseFloat(sk.fatura_birim_fiyat);
+        acc.sayac++;
+        if (!acc.min || sk.fatura_birim_fiyat < acc.min) acc.min = sk.fatura_birim_fiyat;
+        if (!acc.max || sk.fatura_birim_fiyat > acc.max) acc.max = sk.fatura_birim_fiyat;
+      }
+      return acc;
+    }, { toplam: 0, sayac: 0, min: null, max: null });
+    
+    res.json({
+      success: true,
+      data: {
+        ...anaUrun,
+        stok_kartlari: stokKartlariResult.rows,
+        piyasa_arastirma: piyasaArastirmaResult.rows,
+        piyasa_ozet: piyasaOzetResult.rows[0],
+        fatura_ozet: {
+          ortalama: faturaOzet.sayac > 0 ? (faturaOzet.toplam / faturaOzet.sayac).toFixed(2) : null,
+          minimum: faturaOzet.min,
+          maksimum: faturaOzet.max,
+          kayit_sayisi: faturaOzet.sayac
+        },
+        eslesmemis_oneriler: eslesmemisResult.rows
+      }
+    });
+  } catch (error) {
+    console.error('Ana ürün detay hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Stok kartını ana ürüne eşleştir
+router.post('/ana-urunler/:id/eslestir', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { stok_kart_id } = req.body;
+    
+    if (!stok_kart_id) {
+      return res.status(400).json({ success: false, error: 'stok_kart_id gerekli' });
+    }
+    
+    // Ana ürün var mı kontrol
+    const anaUrunCheck = await query('SELECT id, ad FROM ana_urunler WHERE id = $1', [id]);
+    if (anaUrunCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Ana ürün bulunamadı' });
+    }
+    
+    // Stok kartını güncelle
+    const result = await query(`
+      UPDATE stok_kartlari 
+      SET ana_urun_id = $1, updated_at = NOW()
+      WHERE id = $2
+      RETURNING id, kod, ad
+    `, [id, stok_kart_id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Stok kartı bulunamadı' });
+    }
+    
+    res.json({
+      success: true,
+      message: `"${result.rows[0].ad}" → "${anaUrunCheck.rows[0].ad}" eşleştirildi`,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Eşleştirme hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Stok kartı eşleştirmesini kaldır
+router.delete('/ana-urunler/:id/eslestir/:stokKartId', async (req, res) => {
+  try {
+    const { id, stokKartId } = req.params;
+    
+    const result = await query(`
+      UPDATE stok_kartlari 
+      SET ana_urun_id = NULL, updated_at = NOW()
+      WHERE id = $1 AND ana_urun_id = $2
+      RETURNING id, kod, ad
+    `, [stokKartId, id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Stok kartı bulunamadı veya bu ana ürüne bağlı değil' });
+    }
+    
+    res.json({
+      success: true,
+      message: `"${result.rows[0].ad}" eşleştirmesi kaldırıldı`,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Eşleştirme kaldırma hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Ana ürün fiyatını güncelle (tüm bağlı stok kartlarına yansır)
+router.put('/ana-urunler/:id/fiyat', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fiyat } = req.body;
+    
+    if (!fiyat || isNaN(fiyat) || fiyat <= 0) {
+      return res.status(400).json({ success: false, error: 'Geçerli bir fiyat giriniz' });
+    }
+    
+    // Tüm bağlı stok kartlarının fiyatını güncelle
+    const result = await query(`
+      UPDATE stok_kartlari 
+      SET son_alis_fiyat = $1, son_alis_tarihi = NOW(), updated_at = NOW()
+      WHERE ana_urun_id = $2
+      RETURNING id, ad
+    `, [fiyat, id]);
+    
+    res.json({
+      success: true,
+      message: `${result.rows.length} stok kartının fiyatı ₺${Number(fiyat).toFixed(2)} olarak güncellendi`,
+      guncellenen: result.rows
+    });
+  } catch (error) {
+    console.error('Ana ürün fiyat güncelleme hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Yeni ana ürün ekle
+router.post('/ana-urunler', async (req, res) => {
+  try {
+    const { kod, ad, ikon, kategori } = req.body;
+    
+    if (!kod || !ad) {
+      return res.status(400).json({ success: false, error: 'kod ve ad gerekli' });
+    }
+    
+    const result = await query(`
+      INSERT INTO ana_urunler (kod, ad, ikon, kategori)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `, [kod, ad, ikon || '📦', kategori || 'diger']);
+    
+    res.json({
+      success: true,
+      data: result.rows[0],
+      message: `"${ad}" ana ürünü oluşturuldu`
+    });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ success: false, error: 'Bu kod zaten kullanılıyor' });
+    }
+    console.error('Ana ürün ekleme hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Ana ürün kategorileri (filter için)
+router.get('/ana-urunler-kategoriler', async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT DISTINCT kategori, COUNT(*) as urun_sayisi
+      FROM ana_urunler
+      WHERE aktif = true
+      GROUP BY kategori
+      ORDER BY kategori
+    `);
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Kategoriler hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Eşleşmemiş stok kartları listesi
+router.get('/eslesmemis-stok-kartlari', async (req, res) => {
+  try {
+    const { arama, limit = 50 } = req.query;
+    
+    let whereConditions = ['sk.ana_urun_id IS NULL', 'sk.aktif = true'];
+    let params = [];
+    let paramIndex = 1;
+    
+    if (arama) {
+      whereConditions.push(`(sk.ad ILIKE $${paramIndex} OR sk.kod ILIKE $${paramIndex})`);
+      params.push(`%${arama}%`);
+      paramIndex++;
+    }
+    
+    params.push(limit);
+    
+    const result = await query(`
+      SELECT 
+        sk.id,
+        sk.kod,
+        sk.ad,
+        b.kisa_ad as birim,
+        k.ad as kategori,
+        sk.son_alis_fiyat
+      FROM stok_kartlari sk
+      LEFT JOIN birimler b ON b.id = sk.ana_birim_id
+      LEFT JOIN stok_kategoriler k ON k.id = sk.kategori_id
+      WHERE ${whereConditions.join(' AND ')}
+      ORDER BY sk.ad
+      LIMIT $${paramIndex}
+    `, params);
+    
+    res.json({
+      success: true,
+      data: result.rows,
+      toplam: result.rows.length
+    });
+  } catch (error) {
+    console.error('Eşleşmemiş stok kartları hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =============================================
+// AMBALAJ MİKTARI PARSE
+// =============================================
+
+// Tek ürün için ambalaj miktarı parse et
+router.post('/ambalaj-parse', async (req, res) => {
+  try {
+    const { urunAdi, forceAI = false } = req.body;
+    
+    if (!urunAdi) {
+      return res.status(400).json({ success: false, error: 'Ürün adı gerekli' });
+    }
+    
+    const result = await smartParse(urunAdi, forceAI);
+    
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Ambalaj parse hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Stok kartının ambalaj miktarını güncelle (tek)
+router.post('/stok-karti/:id/ambalaj-guncelle', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { forceAI = false } = req.body;
+    
+    // Stok kartını al
+    const skResult = await query('SELECT id, ad, ambalaj_miktari FROM stok_kartlari WHERE id = $1', [id]);
+    if (skResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Stok kartı bulunamadı' });
+    }
+    
+    const stokKarti = skResult.rows[0];
+    
+    // Parse et
+    const parseResult = await smartParse(stokKarti.ad, forceAI);
+    
+    if (parseResult.success && parseResult.amount) {
+      // Güncelle
+      await query(
+        'UPDATE stok_kartlari SET ambalaj_miktari = $1 WHERE id = $2',
+        [parseResult.amount, id]
+      );
+      
+      res.json({
+        success: true,
+        data: {
+          id: stokKarti.id,
+          ad: stokKarti.ad,
+          eskiAmbalaj: stokKarti.ambalaj_miktari,
+          yeniAmbalaj: parseResult.amount,
+          birim: parseResult.unit,
+          method: parseResult.method,
+          confidence: parseResult.confidence,
+          explanation: parseResult.explanation
+        }
+      });
+    } else {
+      res.json({
+        success: false,
+        error: 'Ambalaj miktarı parse edilemedi',
+        data: parseResult
+      });
+    }
+  } catch (error) {
+    console.error('Ambalaj güncelleme hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Tüm stok kartlarının ambalaj miktarını toplu güncelle
+router.post('/stok-karti/toplu-ambalaj-guncelle', async (req, res) => {
+  try {
+    const { sadeceBoslar = true, limit = 50 } = req.body;
+    
+    // Güncellenecek stok kartlarını al
+    let whereClause = 'WHERE aktif = true';
+    if (sadeceBoslar) {
+      whereClause += ' AND (ambalaj_miktari IS NULL OR ambalaj_miktari = 1)';
+    }
+    
+    const skResult = await query(`
+      SELECT id, ad, ambalaj_miktari, son_alis_fiyat
+      FROM stok_kartlari 
+      ${whereClause}
+      ORDER BY son_alis_fiyat DESC NULLS LAST
+      LIMIT $1
+    `, [limit]);
+    
+    const results = {
+      toplam: skResult.rows.length,
+      basarili: 0,
+      basarisiz: 0,
+      detaylar: []
+    };
+    
+    for (const sk of skResult.rows) {
+      // Önce regex ile dene (hızlı)
+      const parseResult = parseWithRegex(sk.ad);
+      
+      // Başarılı parse: amount > 1 veya varsayılan birim (regex-default) ise güncelle
+      const shouldUpdate = parseResult.success && parseResult.amount && 
+        (parseResult.amount !== 1 || parseResult.method === 'regex-default');
+      
+      if (shouldUpdate) {
+        // Güncelle
+        await query(
+          'UPDATE stok_kartlari SET ambalaj_miktari = $1 WHERE id = $2',
+          [parseResult.amount, sk.id]
+        );
+        
+        const eskiFiyat = sk.son_alis_fiyat ? parseFloat(sk.son_alis_fiyat) : null;
+        const yeniBirimFiyat = eskiFiyat ? (eskiFiyat / parseResult.amount).toFixed(2) : null;
+        
+        results.basarili++;
+        results.detaylar.push({
+          id: sk.id,
+          ad: sk.ad,
+          eskiAmbalaj: sk.ambalaj_miktari,
+          yeniAmbalaj: parseResult.amount,
+          birim: parseResult.unit,
+          method: parseResult.method,
+          explanation: parseResult.explanation,
+          eskiFiyat,
+          yeniBirimFiyat,
+          status: 'updated'
+        });
+      } else {
+        results.basarisiz++;
+        results.detaylar.push({
+          id: sk.id,
+          ad: sk.ad,
+          status: 'skipped',
+          reason: 'Parse edilemedi veya miktar 1'
+        });
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: results
+    });
+  } catch (error) {
+    console.error('Toplu ambalaj güncelleme hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Ambalaj durumu özeti
+router.get('/stok-karti/ambalaj-ozet', async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT 
+        COUNT(*) as toplam,
+        COUNT(CASE WHEN ambalaj_miktari IS NULL OR ambalaj_miktari = 1 THEN 1 END) as parse_gerekli,
+        COUNT(CASE WHEN ambalaj_miktari > 1 THEN 1 END) as parse_edilmis,
+        COUNT(CASE WHEN son_alis_fiyat IS NOT NULL THEN 1 END) as fiyatli
+      FROM stok_kartlari
+      WHERE aktif = true
+    `);
+    
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Ambalaj özet hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
