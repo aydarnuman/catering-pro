@@ -139,6 +139,7 @@ import auditLogsRouter from './routes/audit-logs.js';
 import mailRouter from './routes/mail.js';
 import scraperRouter from './routes/scraper.js';
 import maliyetAnaliziRouter from './routes/maliyet-analizi.js';
+import tenderNotesRouter from './routes/tender-notes.js';
 import scheduler from './services/sync-scheduler.js';
 import tenderScheduler from './services/tender-scheduler.js';
 import documentQueueProcessor from './services/document-queue-processor.js';
@@ -187,6 +188,7 @@ app.use('/api/audit-logs', auditLogsRouter);
 app.use('/api/mail', mailRouter);
 app.use('/api/scraper', scraperRouter);
 app.use('/api/maliyet-analizi', maliyetAnaliziRouter);
+app.use('/api/tender-notes', tenderNotesRouter);
 
 /**
  * @swagger

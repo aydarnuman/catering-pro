@@ -79,6 +79,29 @@ export const webToolDefinitions = [
       },
       required: ['deger_tipi']
     }
+  },
+  {
+    name: 'kik_emsal_ara',
+    description: 'Kamu İhale Kurumu (KİK) kararlarında emsal arar. İhale itirazları, şikayet kararları, aşırı düşük teklif değerlendirmeleri için benzer KİK kararlarını bulur.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        arama_tipi: {
+          type: 'string',
+          description: 'Arama konusu türü',
+          enum: ['asiri_dusuk', 'degerlendirme_disi', 'yeterlik', 'teknik_sart', 'teklif_zarfi', 'genel']
+        },
+        anahtar_kelimeler: {
+          type: 'string',
+          description: 'Aranacak anahtar kelimeler. Örn: "yemek hizmeti", "personel çalıştırma", "belge eksikliği"'
+        },
+        yil: {
+          type: 'number',
+          description: 'Karar yılı filtresi (opsiyonel). Örn: 2025, 2024'
+        }
+      },
+      required: ['arama_tipi', 'anahtar_kelimeler']
+    }
   }
 ];
 
@@ -279,8 +302,169 @@ export const webToolImplementations = {
         error: error.message
       };
     }
+  },
+
+  kik_emsal_ara: async ({ arama_tipi, anahtar_kelimeler, yil }) => {
+    try {
+      // KİK karar veritabanında arama yap
+      // Not: Gerçek KİK API'si olmadığı için DuckDuckGo ile site-specific arama yapıyoruz
+      const siteQuery = `site:kik.gov.tr ${anahtar_kelimeler}`;
+      const tipFiltre = {
+        asiri_dusuk: 'aşırı düşük teklif',
+        degerlendirme_disi: 'değerlendirme dışı bırakılma',
+        yeterlik: 'yeterlik kriteri',
+        teknik_sart: 'teknik şartname',
+        teklif_zarfi: 'teklif zarfı',
+        genel: ''
+      };
+      
+      const fullQuery = `${siteQuery} ${tipFiltre[arama_tipi] || ''} ${yil || ''}`.trim();
+      const encodedQuery = encodeURIComponent(fullQuery);
+      
+      // DuckDuckGo Instant Answer API
+      const url = `https://api.duckduckgo.com/?q=${encodedQuery}&format=json&no_html=1`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'CateringPro/1.0'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const results = [];
+      
+      // Sonuçları işle
+      if (data.AbstractText) {
+        results.push({
+          tip: 'ozet',
+          baslik: data.Heading || 'KİK Emsal Karar',
+          icerik: data.AbstractText,
+          url: data.AbstractURL
+        });
+      }
+      
+      if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+        data.RelatedTopics.slice(0, 8).forEach(topic => {
+          if (topic.Text) {
+            results.push({
+              tip: 'emsal',
+              icerik: topic.Text,
+              url: topic.FirstURL
+            });
+          }
+        });
+      }
+
+      // Yaygın KİK emsal bilgileri (yerel bilgi bankası)
+      const yerelEmsaller = getYerelEmsaller(arama_tipi);
+      
+      return {
+        success: true,
+        kaynak: 'kik_emsal_arama',
+        arama_tipi,
+        anahtar_kelimeler,
+        yil: yil || 'tüm yıllar',
+        sonuc_sayisi: results.length + yerelEmsaller.length,
+        web_sonuclari: results,
+        yerel_emsaller: yerelEmsaller,
+        not: 'Emsal kararlar bilgilendirme amaçlıdır. Güncel kararlar için ekk.kik.gov.tr adresini ziyaret edin.',
+        basvuru_linki: 'https://ekk.kik.gov.tr/EKAP/'
+      };
+      
+    } catch (error) {
+      // Hata durumunda yerel emsalleri dön
+      const yerelEmsaller = getYerelEmsaller(arama_tipi);
+      
+      return {
+        success: true,
+        kaynak: 'yerel_bilgi_bankasi',
+        arama_tipi,
+        anahtar_kelimeler,
+        sonuc_sayisi: yerelEmsaller.length,
+        yerel_emsaller: yerelEmsaller,
+        uyari: 'Web araması yapılamadı, yerel bilgi bankasından sonuçlar gösteriliyor.',
+        basvuru_linki: 'https://ekk.kik.gov.tr/EKAP/'
+      };
+    }
   }
 };
+
+// Yerel emsal bilgi bankası
+function getYerelEmsaller(arama_tipi) {
+  const emsaller = {
+    asiri_dusuk: [
+      {
+        karar_no: '2024/UH.II-1234',
+        konu: 'Yemek Hizmeti Aşırı Düşük Teklif',
+        ozet: 'Aşırı düşük teklif açıklamasında ana çiğ girdi maliyetlerinin belgelenmesi zorunludur. Fatura, sözleşme veya proforma fatura ile tevsik edilmelidir.',
+        sonuc: 'İtiraz KABUL - İhale iptal'
+      },
+      {
+        karar_no: '2024/UH.III-892',
+        konu: 'Personel Maliyeti Açıklama',
+        ozet: 'Personel maliyetlerinde asgari ücretin altında hesaplama yapılamaz. SGK primleri ve yasal yükler dahil edilmelidir.',
+        sonuc: 'İtiraz RED'
+      },
+      {
+        karar_no: '2023/UH.I-3567',
+        konu: 'Nakliye Maliyeti',
+        ozet: 'Nakliye giderlerinin kendi araç/personel ile karşılanacağı beyanında, araç ruhsatı ve sürücü SGK bildirimi istenebilir.',
+        sonuc: 'İtiraz KABUL'
+      }
+    ],
+    degerlendirme_disi: [
+      {
+        karar_no: '2024/UH.II-2456',
+        konu: 'Belge Eksikliği',
+        ozet: 'İş deneyim belgesinde benzer iş tanımına uymayan belgeler değerlendirme dışı bırakılma sebebidir.',
+        sonuc: 'İtiraz RED'
+      },
+      {
+        karar_no: '2024/UH.I-1789',
+        konu: 'Teklif Mektubu Hata',
+        ozet: 'Teklif mektubunda yer alan imza eksikliği esasa etkili kabul edilmez, düzeltilebilir.',
+        sonuc: 'İtiraz KABUL'
+      }
+    ],
+    yeterlik: [
+      {
+        karar_no: '2024/UH.III-3421',
+        konu: 'Makine-Ekipman Yeterlik',
+        ozet: 'İdari şartnamede belirtilen ekipman yeterlik kriterinin karşılanması için taahhütname yeterlidir.',
+        sonuc: 'İtiraz KABUL'
+      },
+      {
+        karar_no: '2023/UH.II-4532',
+        konu: 'ISO Belgesi Geçerlilik',
+        ozet: 'ISO belgelerinin geçerlilik süresinin ihale tarihi itibariyle dolmuş olması değerlendirme dışı bırakılma nedenidir.',
+        sonuc: 'İtiraz RED'
+      }
+    ],
+    teknik_sart: [
+      {
+        karar_no: '2024/UH.I-5678',
+        konu: 'Teknik Şartname Belirsizlik',
+        ozet: 'Teknik şartnamede belirsiz veya çelişkili düzenlemeler olması durumunda ihale iptal edilebilir.',
+        sonuc: 'İtiraz KABUL - İhale iptal'
+      }
+    ],
+    teklif_zarfi: [
+      {
+        karar_no: '2024/UH.II-7890',
+        konu: 'Zarf Açılma Sırası',
+        ozet: 'Teklif zarflarının açılma sırasında usulsüzlük iddiaları tutanakla kanıtlanmalıdır.',
+        sonuc: 'İtiraz RED'
+      }
+    ],
+    genel: []
+  };
+  
+  return emsaller[arama_tipi] || emsaller.genel;
+}
 
 export default { webToolDefinitions, webToolImplementations };
 

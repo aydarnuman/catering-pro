@@ -66,12 +66,16 @@ class AIAgentService {
    */
   async saveConversation(sessionId, role, content, toolsUsed = [], userId = 'default') {
     try {
-      await query(`
+      const result = await query(`
         INSERT INTO ai_conversations (session_id, user_id, role, content, tools_used)
         VALUES ($1, $2, $3, $4, $5)
+        RETURNING id
       `, [sessionId, userId, role, content, toolsUsed]);
+      
+      return { id: result.rows[0]?.id || null };
     } catch (error) {
       console.error('Konuşma kaydetme hatası:', error);
+      return { id: null };
     }
   }
 

@@ -402,6 +402,127 @@ const ihaleTools = {
         }
       };
     }
+  },
+
+  /**
+   * İhale döküman analizlerini getir
+   * AI Agent'ın döküman içeriklerine erişmesi için
+   */
+  get_ihale_dokumanlari: {
+    description: 'Bir ihalenin döküman analizlerini getirir. Teknik şartlar, birim fiyatlar, notlar ve tam metin içerir.',
+    parameters: {
+      type: 'object',
+      properties: {
+        ihale_id: {
+          type: 'number',
+          description: 'İhale ID'
+        },
+        external_id: {
+          type: 'string',
+          description: 'İhale kayıt numarası (örn: 2024/12345)'
+        }
+      }
+    },
+    handler: async (params) => {
+      // İhale ID'yi bul
+      let tenderId = params.ihale_id;
+      
+      if (!tenderId && params.external_id) {
+        const tenderResult = await query(
+          'SELECT id FROM tenders WHERE external_id = $1',
+          [params.external_id]
+        );
+        if (tenderResult.rows.length > 0) {
+          tenderId = tenderResult.rows[0].id;
+        }
+      }
+      
+      if (!tenderId) {
+        return { success: false, error: 'İhale bulunamadı. ihale_id veya external_id gerekli.' };
+      }
+
+      // Döküman analizlerini çek
+      const docsResult = await query(`
+        SELECT 
+          id, original_filename, doc_type, processing_status, 
+          analysis_result
+        FROM documents 
+        WHERE tender_id = $1 
+          AND analysis_result IS NOT NULL
+        ORDER BY doc_type, created_at
+      `, [tenderId]);
+
+      if (docsResult.rows.length === 0) {
+        return { 
+          success: false, 
+          error: 'Bu ihale için analiz edilmiş döküman bulunamadı.',
+          ihale_id: tenderId
+        };
+      }
+
+      // Analiz sonuçlarını birleştir
+      const combinedAnalysis = {
+        teknik_sartlar: [],
+        birim_fiyatlar: [],
+        notlar: [],
+        tam_metin: '',
+        dokuman_sayisi: docsResult.rows.length
+      };
+
+      for (const doc of docsResult.rows) {
+        const analysis = doc.analysis_result || {};
+        
+        // Teknik şartları birleştir
+        if (analysis.teknik_sartlar && Array.isArray(analysis.teknik_sartlar)) {
+          combinedAnalysis.teknik_sartlar.push(...analysis.teknik_sartlar);
+        }
+        
+        // Birim fiyatları birleştir
+        if (analysis.birim_fiyatlar && Array.isArray(analysis.birim_fiyatlar)) {
+          combinedAnalysis.birim_fiyatlar.push(...analysis.birim_fiyatlar);
+        }
+        
+        // Notları birleştir
+        if (analysis.notlar && Array.isArray(analysis.notlar)) {
+          combinedAnalysis.notlar.push(...analysis.notlar);
+        }
+        
+        // Tam metinleri birleştir
+        if (analysis.tam_metin) {
+          combinedAnalysis.tam_metin += `\n--- ${doc.original_filename} ---\n${analysis.tam_metin}`;
+        }
+      }
+
+      // Tekrarları kaldır
+      combinedAnalysis.teknik_sartlar = [...new Set(combinedAnalysis.teknik_sartlar)];
+      combinedAnalysis.notlar = [...new Set(combinedAnalysis.notlar)];
+      
+      // Birim fiyatlardan tekrarları kaldır
+      const uniqueBirimFiyatlar = [];
+      const seen = new Set();
+      for (const item of combinedAnalysis.birim_fiyatlar) {
+        const key = typeof item === 'object' ? JSON.stringify(item) : item;
+        if (!seen.has(key)) {
+          seen.add(key);
+          uniqueBirimFiyatlar.push(item);
+        }
+      }
+      combinedAnalysis.birim_fiyatlar = uniqueBirimFiyatlar;
+
+      return {
+        success: true,
+        ihale_id: tenderId,
+        data: combinedAnalysis,
+        ozet: {
+          teknik_sart_sayisi: combinedAnalysis.teknik_sartlar.length,
+          birim_fiyat_sayisi: combinedAnalysis.birim_fiyatlar.length,
+          not_sayisi: combinedAnalysis.notlar.length,
+          dokuman_sayisi: combinedAnalysis.dokuman_sayisi,
+          tam_metin_uzunluk: combinedAnalysis.tam_metin.length
+        },
+        message: `${combinedAnalysis.dokuman_sayisi} döküman analizi getirildi`
+      };
+    }
   }
 };
 

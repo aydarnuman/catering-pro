@@ -175,7 +175,8 @@ export default function TrackingPage() {
 
   useEffect(() => {
     fetchTenders();
-  }, [fetchTenders]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Durum güncelle
   const updateStatus = async (id: string, newStatus: SavedTender['status']) => {

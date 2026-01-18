@@ -253,7 +253,7 @@ export function FloatingAIChat() {
             position: 'fixed',
             bottom: 24,
             right: 24,
-            zIndex: 1001,
+            zIndex: 99, // Modal'ın arkasında kalması için düşük z-index
           }}
         >
           {/* Outer glow ring */}
@@ -440,7 +440,7 @@ export function FloatingAIChat() {
               right: isMobile ? 0 : 24,
               left: isMobile ? 0 : 'auto',
               top: isMobile ? 0 : 'auto',
-              zIndex: 1001,
+              zIndex: 99, // Modal'ın arkasında kalması için düşük z-index
               width: isMobile ? '100%' : isMinimized ? 340 : 440,
               height: isMobile ? '100%' : isMinimized ? 'auto' : 580,
               maxHeight: isMobile ? '100%' : 'calc(100vh - 150px)',

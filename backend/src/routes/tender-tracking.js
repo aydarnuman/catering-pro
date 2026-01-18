@@ -534,11 +534,15 @@ router.get('/:tenderId/analysis', async (req, res) => {
     combinedAnalysis.tam_metin = combinedAnalysis.tam_metin.trim();
     
     // Döküman istatistikleri (ZIP dosyaları hariç - analiz edilemezler)
+    // analysis_result dolu olan dökümanları da "completed" say (status güncellenmemiş olabilir)
     const totalDocs = await query(`
       SELECT COUNT(*) as total, 
-             COUNT(*) FILTER (WHERE processing_status = 'completed') as completed,
-             COUNT(*) FILTER (WHERE processing_status = 'failed') as failed,
-             COUNT(*) FILTER (WHERE processing_status = 'pending') as pending
+             COUNT(*) FILTER (WHERE 
+               processing_status = 'completed' 
+               OR (analysis_result IS NOT NULL AND analysis_result::text NOT IN ('{}', 'null', ''))
+             ) as completed,
+             COUNT(*) FILTER (WHERE processing_status = 'failed' AND (analysis_result IS NULL OR analysis_result::text IN ('{}', 'null', ''))) as failed,
+             COUNT(*) FILTER (WHERE processing_status = 'pending' AND (analysis_result IS NULL OR analysis_result::text IN ('{}', 'null', ''))) as pending
       FROM documents 
       WHERE tender_id = $1 
         AND (file_type IS NULL OR file_type NOT LIKE '%zip%')
