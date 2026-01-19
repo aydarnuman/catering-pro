@@ -245,7 +245,7 @@ export interface TeklifData {
 
 // Maliyet kalemleri listesi
 export const MALIYET_KALEMLERI = [
-  { key: 'malzeme', label: 'Malzeme', icon: '💰' },
+  { key: 'malzeme', label: 'Öğün Maliyeti', icon: '💰' },
   { key: 'personel', label: 'Personel', icon: '👷' },
   { key: 'nakliye', label: 'Nakliye', icon: '🚚' },
   { key: 'sarf_malzeme', label: 'Sarf Malzeme', icon: '🧴' },

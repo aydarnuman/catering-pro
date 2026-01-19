@@ -282,7 +282,7 @@ export default function TeklifModal({
       <Stack>
         <Group justify="space-between">
           <Text fw={600} size="lg">
-            💰 Malzeme Maliyeti
+            🍽️ Öğün Maliyeti
           </Text>
           <Badge size="xl" color="green" variant="light">
             {formatPara(tutar)}
