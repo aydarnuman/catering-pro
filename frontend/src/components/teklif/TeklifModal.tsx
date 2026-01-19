@@ -29,9 +29,7 @@ import {
   IconCheck,
   IconDeviceFloppy,
   IconDownload,
-  IconExternalLink,
   IconFileSpreadsheet,
-  IconLayoutDashboard,
   IconPlus,
   IconScale,
   IconShieldCheck,
@@ -762,147 +760,118 @@ export default function TeklifModal({
           </Badge>
         </Group>
 
-        <SegmentedControl
-          value={detay.hesaplamaYontemi}
-          onChange={(v) => updateMaliyetDetay('sarf_malzeme', 'hesaplamaYontemi', v)}
-          data={[
-            { label: 'Kişi Başı', value: 'kisi_basi' },
-            { label: 'Aylık Toplam', value: 'toplam' },
-          ]}
-        />
+        <Group>
+          <NumberInput
+            label="Günlük Kişi"
+            value={detay.gunlukKisi}
+            onChange={(v) => updateMaliyetDetay('sarf_malzeme', 'gunlukKisi', Number(v) || 0)}
+            thousandSeparator="."
+            decimalSeparator=","
+            style={{ flex: 1 }}
+          />
+          <NumberInput
+            label="Gün Sayısı"
+            value={detay.gunSayisi}
+            onChange={(v) => updateMaliyetDetay('sarf_malzeme', 'gunSayisi', Number(v) || 0)}
+            style={{ flex: 1 }}
+          />
+        </Group>
 
-        {detay.hesaplamaYontemi === 'kisi_basi' ? (
-          <Stack gap="sm">
-            <Group>
-              <NumberInput
-                label="Günlük Kişi"
-                value={detay.gunlukKisi}
-                onChange={(v) => updateMaliyetDetay('sarf_malzeme', 'gunlukKisi', Number(v) || 0)}
-                thousandSeparator="."
-                decimalSeparator=","
-                style={{ flex: 1 }}
-              />
-              <NumberInput
-                label="Gün Sayısı"
-                value={detay.gunSayisi}
-                onChange={(v) => updateMaliyetDetay('sarf_malzeme', 'gunSayisi', Number(v) || 0)}
-                style={{ flex: 1 }}
-              />
-            </Group>
-
-            <Table withTableBorder withColumnBorders>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Kalem</Table.Th>
-                  <Table.Th w={120}>₺/Kişi/Gün</Table.Th>
-                  <Table.Th w={120}>Toplam</Table.Th>
-                  <Table.Th w={40}></Table.Th>
+        <Table withTableBorder withColumnBorders>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Kalem</Table.Th>
+              <Table.Th w={120}>₺/Kişi/Gün</Table.Th>
+              <Table.Th w={120}>Toplam</Table.Th>
+              <Table.Th w={40}></Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {detay.kalemler.map((kalem, idx) => {
+              const kalemToplam = detay.gunlukKisi * detay.gunSayisi * kalem.miktar;
+              return (
+                <Table.Tr key={idx}>
+                  <Table.Td>
+                    <TextInput
+                      variant="unstyled"
+                      value={kalem.ad}
+                      onChange={(e) => {
+                        const yeniKalemler = [...detay.kalemler];
+                        yeniKalemler[idx] = { ...yeniKalemler[idx], ad: e.target.value };
+                        updateMaliyetDetay('sarf_malzeme', 'kalemler', yeniKalemler);
+                      }}
+                    />
+                  </Table.Td>
+                  <Table.Td>
+                    <NumberInput
+                      variant="unstyled"
+                      value={kalem.miktar}
+                      onChange={(v) => {
+                        const yeniKalemler = [...detay.kalemler];
+                        yeniKalemler[idx] = { ...yeniKalemler[idx], miktar: Number(v) || 0 };
+                        updateMaliyetDetay('sarf_malzeme', 'kalemler', yeniKalemler);
+                      }}
+                      decimalScale={2}
+                    />
+                  </Table.Td>
+                  <Table.Td>
+                    <Text fw={500}>{formatParaKisa(kalemToplam)}</Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <ActionIcon
+                      color="red"
+                      variant="subtle"
+                      size="sm"
+                      onClick={() => {
+                        const yeniKalemler = detay.kalemler.filter((_, i) => i !== idx);
+                        updateMaliyetDetay('sarf_malzeme', 'kalemler', yeniKalemler);
+                      }}
+                    >
+                      <IconTrash size={14} />
+                    </ActionIcon>
+                  </Table.Td>
                 </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {detay.kalemler.map((kalem, idx) => {
-                  const kalemToplam = detay.gunlukKisi * detay.gunSayisi * kalem.miktar;
-                  return (
-                    <Table.Tr key={idx}>
-                      <Table.Td>
-                        <TextInput
-                          variant="unstyled"
-                          value={kalem.ad}
-                          onChange={(e) => {
-                            const yeniKalemler = [...detay.kalemler];
-                            yeniKalemler[idx] = { ...yeniKalemler[idx], ad: e.target.value };
-                            updateMaliyetDetay('sarf_malzeme', 'kalemler', yeniKalemler);
-                          }}
-                        />
-                      </Table.Td>
-                      <Table.Td>
-                        <NumberInput
-                          variant="unstyled"
-                          value={kalem.miktar}
-                          onChange={(v) => {
-                            const yeniKalemler = [...detay.kalemler];
-                            yeniKalemler[idx] = { ...yeniKalemler[idx], miktar: Number(v) || 0 };
-                            updateMaliyetDetay('sarf_malzeme', 'kalemler', yeniKalemler);
-                          }}
-                          decimalScale={2}
-                        />
-                      </Table.Td>
-                      <Table.Td>
-                        <Text fw={500}>{formatParaKisa(kalemToplam)}</Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <ActionIcon
-                          color="red"
-                          variant="subtle"
-                          size="sm"
-                          onClick={() => {
-                            const yeniKalemler = detay.kalemler.filter((_, i) => i !== idx);
-                            updateMaliyetDetay('sarf_malzeme', 'kalemler', yeniKalemler);
-                          }}
-                        >
-                          <IconTrash size={14} />
-                        </ActionIcon>
-                      </Table.Td>
-                    </Table.Tr>
-                  );
-                })}
-              </Table.Tbody>
-            </Table>
+              );
+            })}
+          </Table.Tbody>
+        </Table>
 
-            <Button
-              variant="light"
-              size="xs"
-              leftSection={<IconPlus size={14} />}
-              onClick={() => {
-                const yeniKalem: SarfKalem = { ad: '', birim: '₺/kişi/gün', miktar: 0 };
-                updateMaliyetDetay('sarf_malzeme', 'kalemler', [...detay.kalemler, yeniKalem]);
-              }}
-            >
-              Kalem Ekle
-            </Button>
+        <Button
+          variant="light"
+          size="xs"
+          leftSection={<IconPlus size={14} />}
+          onClick={() => {
+            const yeniKalem: SarfKalem = { ad: '', birim: '₺/kişi/gün', miktar: 0 };
+            updateMaliyetDetay('sarf_malzeme', 'kalemler', [...detay.kalemler, yeniKalem]);
+          }}
+        >
+          Kalem Ekle
+        </Button>
 
-            <Paper withBorder p="sm" bg="blue.0">
-              <Group justify="space-between">
-                <div>
-                  <Text size="xs" c="dimmed">
-                    Kişi Başı/Gün
-                  </Text>
-                  <Text fw={600}>{ozet.kisiBasiGunluk.toFixed(2)} ₺</Text>
-                </div>
-                <div>
-                  <Text size="xs" c="dimmed">
-                    Günlük Toplam
-                  </Text>
-                  <Text fw={600}>{formatPara(ozet.gunlukToplam)}</Text>
-                </div>
-                <div>
-                  <Text size="xs" c="dimmed">
-                    Yıllık Toplam
-                  </Text>
-                  <Text fw={700} c="green">
-                    {formatPara(ozet.yillikToplam)}
-                  </Text>
-                </div>
-              </Group>
-            </Paper>
-          </Stack>
-        ) : (
-          <Stack gap="sm">
-            <NumberInput
-              label="Aylık Tutar (₺)"
-              value={detay.aylikTutar}
-              onChange={(v) => updateMaliyetDetay('sarf_malzeme', 'aylikTutar', Number(v) || 0)}
-              thousandSeparator="."
-              decimalSeparator=","
-            />
-            <NumberInput
-              label="Ay Sayısı"
-              value={detay.aySayisi}
-              onChange={(v) => updateMaliyetDetay('sarf_malzeme', 'aySayisi', Number(v) || 12)}
-              min={1}
-            />
-          </Stack>
-        )}
+        <Paper withBorder p="sm" bg="blue.0">
+          <Group justify="space-between">
+            <div>
+              <Text size="xs" c="dimmed">
+                Kişi Başı/Gün
+              </Text>
+              <Text fw={600}>{ozet.kisiBasiGunluk.toFixed(2)} ₺</Text>
+            </div>
+            <div>
+              <Text size="xs" c="dimmed">
+                Günlük Toplam
+              </Text>
+              <Text fw={600}>{formatPara(ozet.gunlukToplam)}</Text>
+            </div>
+            <div>
+              <Text size="xs" c="dimmed">
+                Yıllık Toplam
+              </Text>
+              <Text fw={700} c="green">
+                {formatPara(ozet.yillikToplam)}
+              </Text>
+            </div>
+          </Group>
+        </Paper>
       </Stack>
     );
   };
@@ -1776,20 +1745,7 @@ export default function TeklifModal({
             </div>
           </Group>
 
-          <Group gap="xs">
-            {/* Pano Butonu */}
-            <Button
-              variant="subtle"
-              leftSection={<IconLayoutDashboard size={16} />}
-              rightSection={<IconExternalLink size={12} />}
-              onClick={() => window.open('/pano', '_blank')}
-              radius="md"
-              size="sm"
-              style={{ color: 'white' }}
-            >
-              Pano
-            </Button>
-
+          <Group>
             {/* Tab Butonları */}
             <Paper
               p={4}

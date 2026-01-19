@@ -105,17 +105,12 @@ export function hesaplaNakliyeOzet(detay: NakliyeMaliyet) {
 
 // ========== SARF MALZEME HESAPLAMA ==========
 export function hesaplaSarfMalzemeMaliyet(detay: SarfMalzemeMaliyet): number {
-  if (detay.hesaplamaYontemi === 'kisi_basi') {
-    // Kişi başı hesaplama
-    let kisiBasiGunlukToplam = 0;
-    for (const kalem of detay.kalemler) {
-      kisiBasiGunlukToplam += kalem.miktar;
-    }
-    return detay.gunlukKisi * detay.gunSayisi * kisiBasiGunlukToplam;
-  } else {
-    // Toplam hesaplama
-    return detay.aylikTutar * detay.aySayisi;
+  // Kişi başı hesaplama (tek mod)
+  let kisiBasiGunlukToplam = 0;
+  for (const kalem of detay.kalemler) {
+    kisiBasiGunlukToplam += kalem.miktar;
   }
+  return detay.gunlukKisi * detay.gunSayisi * kisiBasiGunlukToplam;
 }
 
 // Sarf malzeme özet bilgileri
