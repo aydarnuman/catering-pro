@@ -1428,125 +1428,82 @@ export default function TeklifModal({
   // Maliyet görünümü
   const renderMaliyetView = () => (
     <Box style={{ display: 'flex', height: 'calc(100vh - 280px)', minHeight: 500, gap: 16 }}>
-      {/* Sol Panel - Kalemler (Kompakt) */}
-      <Paper
-        shadow="md"
-        radius="lg"
-        p="xs"
+      {/* Sol Panel - Maliyet Kalemleri (Pro) */}
+      <Box
         style={{
-          width: 200,
+          width: 180,
           flexShrink: 0,
           display: 'flex',
           flexDirection: 'column',
-          background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
-          border: '1px solid #e2e8f0',
+          gap: 2,
         }}
       >
-        <Text size="xs" fw={600} c="dimmed" mb={4} tt="uppercase" style={{ letterSpacing: 1 }}>
-          Kalemler
-        </Text>
-        <ScrollArea style={{ flex: 1 }} scrollbarSize={4}>
-          <Stack gap={3}>
+        <ScrollArea style={{ flex: 1 }} scrollbarSize={3}>
+          <Stack gap={2}>
             {MALIYET_KALEMLERI.map((kalem) => {
               const tutar = hesaplanmisTeklifData.maliyet_detay[kalem.key]?.tutar || 0;
               const isSelected = selectedKalem === kalem.key;
               const yuzde = toplamMaliyet > 0 ? (tutar / toplamMaliyet) * 100 : 0;
 
               return (
-                <Paper
+                <Box
                   key={kalem.key}
-                  p={6}
-                  radius="sm"
-                  shadow={isSelected ? 'sm' : 'none'}
+                  py={8}
+                  px={10}
                   style={{
                     cursor: 'pointer',
-                    background: isSelected
-                      ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
-                      : tutar > 0
-                        ? '#fff'
-                        : 'transparent',
-                    border: isSelected
-                      ? '1px solid #2563eb'
-                      : tutar > 0
-                        ? '1px solid #e2e8f0'
-                        : '1px dashed #cbd5e1',
+                    borderRadius: 6,
+                    background: isSelected ? '#0f172a' : 'transparent',
+                    borderLeft: isSelected ? '3px solid #3b82f6' : '3px solid transparent',
                     transition: 'all 0.15s ease',
                   }}
                   onClick={() => setSelectedKalem(kalem.key)}
                 >
-                  <Group justify="space-between" wrap="nowrap" gap={4}>
-                    <Group gap={6} wrap="nowrap">
-                      <Text size="sm">{kalem.icon}</Text>
-                      <Text size="xs" fw={500} lineClamp={1} c={isSelected ? 'white' : 'dark'}>
-                        {kalem.label}
+                  <Group justify="space-between" wrap="nowrap" mb={4}>
+                    <Text 
+                      size="xs" 
+                      fw={isSelected ? 600 : 500} 
+                      c={isSelected ? 'white' : tutar > 0 ? 'dark' : 'dimmed'}
+                    >
+                      {kalem.label}
+                    </Text>
+                    {tutar > 0 && (
+                      <Text size="10px" c={isSelected ? 'blue.3' : 'dimmed'} fw={500}>
+                        {yuzde.toFixed(0)}%
                       </Text>
-                    </Group>
-                    {isSelected && (
-                      <ThemeIcon size={14} radius="xl" color="white" variant="filled">
-                        <IconCheck size={8} />
-                      </ThemeIcon>
                     )}
                   </Group>
-
-                  {/* Progress Bar - İnce */}
-                  <Box
-                    my={3}
-                    style={{
-                      height: 2,
-                      borderRadius: 1,
-                      backgroundColor: isSelected ? 'rgba(255,255,255,0.3)' : '#e2e8f0',
-                      overflow: 'hidden',
-                    }}
+                  <Text
+                    size="sm"
+                    fw={700}
+                    c={isSelected ? 'blue.3' : tutar > 0 ? 'dark' : 'dimmed'}
                   >
-                    <Box
-                      style={{
-                        height: '100%',
-                        width: `${Math.min(yuzde, 100)}%`,
-                        backgroundColor: isSelected ? '#fff' : '#22c55e',
-                        borderRadius: 1,
-                      }}
-                    />
-                  </Box>
-
-                  <Group justify="space-between" wrap="nowrap">
-                    <Text
-                      size="sm"
-                      fw={700}
-                      c={isSelected ? 'white' : tutar > 0 ? 'green.7' : 'dimmed'}
-                      style={{ fontFamily: 'system-ui' }}
-                    >
-                      {formatParaKisa(tutar)}
-                    </Text>
-                    <Text size="10px" c={isSelected ? 'white' : 'dimmed'} fw={500}>
-                      {yuzde.toFixed(0)}%
-                    </Text>
-                  </Group>
-                </Paper>
+                    {tutar > 0 ? formatParaKisa(tutar) : '—'}
+                  </Text>
+                </Box>
               );
             })}
           </Stack>
         </ScrollArea>
 
         {/* Alt Toplam */}
-        <Paper
-          mt="sm"
-          p="sm"
-          radius="md"
+        <Box
+          mt="xs"
+          py={10}
+          px={12}
           style={{
-            background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-            border: 'none',
+            background: '#0f172a',
+            borderRadius: 8,
           }}
         >
-          <Group justify="space-between" align="center">
-            <Text size="xs" c="white" fw={500} style={{ opacity: 0.8 }}>
-              TOPLAM
-            </Text>
-            <Text size="md" fw={800} c="white" style={{ fontFamily: 'system-ui' }}>
-              {formatParaKisa(hesaplanmisTeklifData.maliyet_toplam)}
-            </Text>
-          </Group>
-        </Paper>
-      </Paper>
+          <Text size="10px" c="gray.5" fw={500} tt="uppercase" mb={2}>
+            Toplam Maliyet
+          </Text>
+          <Text size="md" fw={800} c="white">
+            {formatParaKisa(hesaplanmisTeklifData.maliyet_toplam)}
+          </Text>
+        </Box>
+      </Box>
 
       {/* Sağ Panel - Form */}
       <Paper
