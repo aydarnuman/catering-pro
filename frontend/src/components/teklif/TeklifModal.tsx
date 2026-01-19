@@ -25,6 +25,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import {
   IconAlertTriangle,
+  IconArrowRight,
   IconCalculator,
   IconCheck,
   IconDeviceFloppy,
@@ -1560,43 +1561,16 @@ export default function TeklifModal({
     >
       <Paper withBorder p="md" style={{ flex: 1, overflow: 'auto' }}>
         <Stack>
-          {/* Üst Bilgi Kartı */}
-          <Paper p="md" radius="md" style={{ background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)' }}>
-            <Group justify="space-between" align="flex-start">
-              <div>
-                <Text fw={600} size="lg" c="white">
-                  📜 BİRİM FİYAT TEKLİF CETVELİ
-                </Text>
-                <Text size="sm" c="blue.1">
-                  İhale: {ihaleBasligi}
-                </Text>
-                {ihaleKayitNo && (
-                  <Text size="xs" c="blue.2">
-                    Kayıt No: {ihaleKayitNo}
-                  </Text>
-                )}
-              </div>
-              <Stack gap={4} align="flex-end">
-                <Text size="xs" c="blue.2">Maliyet Hesaplamasından</Text>
-                <Text fw={800} size="xl" c="white">
-                  {formatPara(hesaplanmisTeklifData.teklif_fiyati)}
-                </Text>
-                <Button
-                  size="xs"
-                  variant="white"
-                  color="blue"
-                  leftSection={<IconCalculator size={14} />}
-                  onClick={hesaplaBirimFiyatlarOtomatik}
-                >
-                  Birim Fiyatları Hesapla
-                </Button>
-              </Stack>
-            </Group>
-          </Paper>
-
-          <Text size="xs" c="dimmed" fs="italic">
-            Maliyet hesaplamasından gelen toplam teklif fiyatı, öğün maliyetlerine göre oranlı dağıtılır.
-          </Text>
+          <Group justify="space-between">
+            <div>
+              <Text fw={600} size="lg">
+                📜 BİRİM FİYAT TEKLİF CETVELİ
+              </Text>
+              <Text size="sm" c="dimmed">
+                İhale: {ihaleBasligi} {ihaleKayitNo && `• ${ihaleKayitNo}`}
+              </Text>
+            </div>
+          </Group>
 
           <ScrollArea>
             <Table striped highlightOnHover withTableBorder withColumnBorders>
@@ -1986,6 +1960,20 @@ export default function TeklifModal({
                 {formatPara(hesaplanmisTeklifData.teklif_fiyati)}
               </Text>
             </div>
+
+            {/* Cetvele Aktar */}
+            <Button
+              variant="light"
+              size="xs"
+              color="blue"
+              leftSection={<IconArrowRight size={14} />}
+              onClick={() => {
+                hesaplaBirimFiyatlarOtomatik();
+                setViewMode('cetvel');
+              }}
+            >
+              Cetvele Aktar
+            </Button>
           </Group>
 
           {/* Butonlar */}
