@@ -1455,24 +1455,6 @@ export default function TeklifModal({
             })}
           </Stack>
         </ScrollArea>
-
-        {/* Alt Toplam */}
-        <Box
-          mt="xs"
-          py={10}
-          px={12}
-          style={{
-            background: '#0f172a',
-            borderRadius: 8,
-          }}
-        >
-          <Text size="10px" c="gray.5" fw={500} tt="uppercase" mb={2}>
-            Toplam Maliyet
-          </Text>
-          <Text size="md" fw={800} c="white">
-            {formatParaKisa(hesaplanmisTeklifData.maliyet_toplam)}
-          </Text>
-        </Box>
       </Box>
 
       {/* Sağ Panel - Form */}
