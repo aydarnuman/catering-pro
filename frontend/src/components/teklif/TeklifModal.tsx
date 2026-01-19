@@ -331,10 +331,7 @@ export default function TeklifModal({
                     />
                   </Table.Td>
                   <Table.Td>
-                    <Text fw={500}>
-                      {idx === 0 && '🍳'} {idx === 1 && '🍝'} {idx === 2 && '🍖'}{' '}
-                      {idx === 3 && '🥪'} {ogun.ad}
-                    </Text>
+                    <Text fw={500}>{ogun.ad}</Text>
                   </Table.Td>
                   <Table.Td>
                     <NumberInput
