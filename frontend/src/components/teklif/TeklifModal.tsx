@@ -289,142 +289,101 @@ export default function TeklifModal({
           </Badge>
         </Group>
 
-        <SegmentedControl
-          value={detay.hesaplamaYontemi}
-          onChange={(v) => updateMaliyetDetay('malzeme', 'hesaplamaYontemi', v)}
-          data={[
-            { label: 'Öğün Bazlı', value: 'ogun_bazli' },
-            { label: 'Toplam', value: 'toplam' },
-          ]}
-        />
-
-        {detay.hesaplamaYontemi === 'ogun_bazli' ? (
-          <Stack gap="xs">
-            <Text size="sm" fw={500}>
-              Öğün Detayları
-            </Text>
-            <Table withTableBorder withColumnBorders>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th w={40}></Table.Th>
-                  <Table.Th>Öğün</Table.Th>
-                  <Table.Th w={100}>Kişi</Table.Th>
-                  <Table.Th w={80}>Gün</Table.Th>
-                  <Table.Th w={100}>₺/Kişi</Table.Th>
-                  <Table.Th w={120}>Toplam</Table.Th>
+        <Text size="sm" fw={500}>
+          Öğün Detayları
+        </Text>
+        <Table withTableBorder withColumnBorders>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th w={40}></Table.Th>
+              <Table.Th>Öğün</Table.Th>
+              <Table.Th w={100}>Kişi</Table.Th>
+              <Table.Th w={80}>Gün</Table.Th>
+              <Table.Th w={100}>₺/Kişi</Table.Th>
+              <Table.Th w={120}>Toplam</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {detay.ogunler.map((ogun, idx) => {
+              const ogunToplam = ogun.aktif
+                ? ogun.kisiSayisi * ogun.gunSayisi * ogun.kisiBasiMaliyet
+                : 0;
+              return (
+                <Table.Tr key={idx} style={{ opacity: ogun.aktif ? 1 : 0.5 }}>
+                  <Table.Td>
+                    <Checkbox
+                      checked={ogun.aktif}
+                      onChange={(e) => {
+                        const yeniOgunler = [...detay.ogunler];
+                        yeniOgunler[idx] = {
+                          ...yeniOgunler[idx],
+                          aktif: e.currentTarget.checked,
+                        };
+                        updateMaliyetDetay('malzeme', 'ogunler', yeniOgunler);
+                      }}
+                    />
+                  </Table.Td>
+                  <Table.Td>
+                    <Text fw={500}>
+                      {idx === 0 && '🍳'} {idx === 1 && '🍝'} {idx === 2 && '🍖'}{' '}
+                      {idx === 3 && '🥪'} {ogun.ad}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <NumberInput
+                      size="xs"
+                      variant="unstyled"
+                      value={ogun.kisiSayisi}
+                      onChange={(v) => {
+                        const yeniOgunler = [...detay.ogunler];
+                        yeniOgunler[idx] = { ...yeniOgunler[idx], kisiSayisi: Number(v) || 0 };
+                        updateMaliyetDetay('malzeme', 'ogunler', yeniOgunler);
+                      }}
+                      thousandSeparator="."
+                      decimalSeparator=","
+                      disabled={!ogun.aktif}
+                    />
+                  </Table.Td>
+                  <Table.Td>
+                    <NumberInput
+                      size="xs"
+                      variant="unstyled"
+                      value={ogun.gunSayisi}
+                      onChange={(v) => {
+                        const yeniOgunler = [...detay.ogunler];
+                        yeniOgunler[idx] = { ...yeniOgunler[idx], gunSayisi: Number(v) || 0 };
+                        updateMaliyetDetay('malzeme', 'ogunler', yeniOgunler);
+                      }}
+                      disabled={!ogun.aktif}
+                    />
+                  </Table.Td>
+                  <Table.Td>
+                    <NumberInput
+                      size="xs"
+                      variant="unstyled"
+                      value={ogun.kisiBasiMaliyet}
+                      onChange={(v) => {
+                        const yeniOgunler = [...detay.ogunler];
+                        yeniOgunler[idx] = {
+                          ...yeniOgunler[idx],
+                          kisiBasiMaliyet: Number(v) || 0,
+                        };
+                        updateMaliyetDetay('malzeme', 'ogunler', yeniOgunler);
+                      }}
+                      decimalScale={2}
+                      disabled={!ogun.aktif}
+                    />
+                  </Table.Td>
+                  <Table.Td>
+                    <Text fw={600} c={ogunToplam > 0 ? 'green' : 'dimmed'}>
+                      {formatParaKisa(ogunToplam)}
+                    </Text>
+                  </Table.Td>
                 </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {detay.ogunler.map((ogun, idx) => {
-                  const ogunToplam = ogun.aktif
-                    ? ogun.kisiSayisi * ogun.gunSayisi * ogun.kisiBasiMaliyet
-                    : 0;
-                  return (
-                    <Table.Tr key={idx} style={{ opacity: ogun.aktif ? 1 : 0.5 }}>
-                      <Table.Td>
-                        <Checkbox
-                          checked={ogun.aktif}
-                          onChange={(e) => {
-                            const yeniOgunler = [...detay.ogunler];
-                            yeniOgunler[idx] = {
-                              ...yeniOgunler[idx],
-                              aktif: e.currentTarget.checked,
-                            };
-                            updateMaliyetDetay('malzeme', 'ogunler', yeniOgunler);
-                          }}
-                        />
-                      </Table.Td>
-                      <Table.Td>
-                        <Text fw={500}>
-                          {idx === 0 && '🍳'} {idx === 1 && '🍝'} {idx === 2 && '🍖'}{' '}
-                          {idx === 3 && '🥪'} {ogun.ad}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <NumberInput
-                          size="xs"
-                          variant="unstyled"
-                          value={ogun.kisiSayisi}
-                          onChange={(v) => {
-                            const yeniOgunler = [...detay.ogunler];
-                            yeniOgunler[idx] = { ...yeniOgunler[idx], kisiSayisi: Number(v) || 0 };
-                            updateMaliyetDetay('malzeme', 'ogunler', yeniOgunler);
-                          }}
-                          thousandSeparator="."
-                          decimalSeparator=","
-                          disabled={!ogun.aktif}
-                        />
-                      </Table.Td>
-                      <Table.Td>
-                        <NumberInput
-                          size="xs"
-                          variant="unstyled"
-                          value={ogun.gunSayisi}
-                          onChange={(v) => {
-                            const yeniOgunler = [...detay.ogunler];
-                            yeniOgunler[idx] = { ...yeniOgunler[idx], gunSayisi: Number(v) || 0 };
-                            updateMaliyetDetay('malzeme', 'ogunler', yeniOgunler);
-                          }}
-                          disabled={!ogun.aktif}
-                        />
-                      </Table.Td>
-                      <Table.Td>
-                        <NumberInput
-                          size="xs"
-                          variant="unstyled"
-                          value={ogun.kisiBasiMaliyet}
-                          onChange={(v) => {
-                            const yeniOgunler = [...detay.ogunler];
-                            yeniOgunler[idx] = {
-                              ...yeniOgunler[idx],
-                              kisiBasiMaliyet: Number(v) || 0,
-                            };
-                            updateMaliyetDetay('malzeme', 'ogunler', yeniOgunler);
-                          }}
-                          decimalScale={2}
-                          disabled={!ogun.aktif}
-                        />
-                      </Table.Td>
-                      <Table.Td>
-                        <Text fw={600} c={ogunToplam > 0 ? 'green' : 'dimmed'}>
-                          {formatParaKisa(ogunToplam)}
-                        </Text>
-                      </Table.Td>
-                    </Table.Tr>
-                  );
-                })}
-              </Table.Tbody>
-            </Table>
-          </Stack>
-        ) : (
-          <Stack gap="sm">
-            <NumberInput
-              label="Günlük Kişi Sayısı"
-              value={detay.gunlukKisi}
-              onChange={(v) => updateMaliyetDetay('malzeme', 'gunlukKisi', Number(v) || 0)}
-              thousandSeparator="."
-              decimalSeparator=","
-            />
-            <NumberInput
-              label="Gün Sayısı"
-              value={detay.gunSayisi}
-              onChange={(v) => updateMaliyetDetay('malzeme', 'gunSayisi', Number(v) || 0)}
-            />
-            <NumberInput
-              label="Öğün Sayısı"
-              value={detay.ogunSayisi}
-              onChange={(v) => updateMaliyetDetay('malzeme', 'ogunSayisi', Number(v) || 0)}
-              min={1}
-              max={5}
-            />
-            <NumberInput
-              label="Kişi Başı Öğün Maliyeti (₺)"
-              value={detay.kisiBasiMaliyet}
-              onChange={(v) => updateMaliyetDetay('malzeme', 'kisiBasiMaliyet', Number(v) || 0)}
-              decimalScale={2}
-            />
-          </Stack>
-        )}
+              );
+            })}
+          </Table.Tbody>
+        </Table>
       </Stack>
     );
   };

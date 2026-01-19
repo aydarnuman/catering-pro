@@ -13,20 +13,14 @@ import type {
 
 // ========== MALZEME HESAPLAMA ==========
 export function hesaplaMalzemeMaliyet(detay: MalzemeMaliyet): number {
-  if (detay.hesaplamaYontemi === 'ogun_bazli') {
-    // Öğün bazlı hesaplama
-    let toplam = 0;
-    for (const ogun of detay.ogunler) {
-      if (ogun.aktif) {
-        toplam += ogun.kisiSayisi * ogun.gunSayisi * ogun.kisiBasiMaliyet;
-      }
+  // Öğün bazlı hesaplama (tek mod)
+  let toplam = 0;
+  for (const ogun of detay.ogunler) {
+    if (ogun.aktif) {
+      toplam += ogun.kisiSayisi * ogun.gunSayisi * ogun.kisiBasiMaliyet;
     }
-    return toplam;
-  } else {
-    // Toplam hesaplama
-    const { gunlukKisi, gunSayisi, ogunSayisi, kisiBasiMaliyet } = detay;
-    return gunlukKisi * gunSayisi * ogunSayisi * kisiBasiMaliyet;
   }
+  return toplam;
 }
 
 // ========== PERSONEL HESAPLAMA ==========
