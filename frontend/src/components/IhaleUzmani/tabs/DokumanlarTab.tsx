@@ -49,47 +49,106 @@ export function DokumanlarTab({ analysisData, addToClipboard }: DokumanlarTabPro
   const [aiNotArama, setAiNotArama] = useState('');
 
   return (
-    <Tabs defaultValue="teknik" variant="pills" radius="md">
-      <Tabs.List mb="lg" style={{ gap: 6 }}>
+    <Tabs 
+      defaultValue="teknik" 
+      variant="unstyled"
+      styles={{
+        list: { 
+          gap: 0,
+          borderBottom: '1px solid #e5e7eb',
+          paddingBottom: 0,
+        },
+        tab: {
+          padding: '10px 16px',
+          fontWeight: 500,
+          fontSize: '13px',
+          color: '#6b7280',
+          borderBottom: '2px solid transparent',
+          marginBottom: '-1px',
+          transition: 'all 0.15s ease',
+          '&:hover': {
+            color: '#374151',
+            backgroundColor: 'transparent',
+          },
+          '&[data-active]': {
+            color: '#1f2937',
+            fontWeight: 600,
+            borderBottomColor: '#2563eb',
+            backgroundColor: 'transparent',
+          },
+        },
+      }}
+    >
+      <Tabs.List mb="lg">
         <Tabs.Tab
           value="teknik"
-          leftSection={<IconSettings size={14} />}
-          style={{ fontWeight: 500 }}
+          leftSection={<IconSettings size={15} stroke={1.5} />}
         >
-          Teknik Şartlar
-          <Badge size="xs" variant="filled" color="blue" ml={6}>
-            {analysisData.teknik_sartlar?.length || 0}
-          </Badge>
+          <Group gap={6}>
+            Teknik Şartlar
+            <Badge 
+              size="xs" 
+              variant="light" 
+              styles={{ 
+                root: { 
+                  backgroundColor: '#f3f4f6', 
+                  color: '#374151',
+                  fontWeight: 600,
+                  minWidth: 24,
+                } 
+              }}
+            >
+              {analysisData.teknik_sartlar?.length || 0}
+            </Badge>
+          </Group>
         </Tabs.Tab>
         <Tabs.Tab
           value="fiyat"
-          leftSection={<IconCoin size={14} />}
-          style={{ fontWeight: 500 }}
+          leftSection={<IconCoin size={15} stroke={1.5} />}
         >
-          Birim Fiyatlar
-          <Badge size="xs" variant="filled" color="green" ml={6}>
-            {analysisData.birim_fiyatlar?.length || 0}
-          </Badge>
+          <Group gap={6}>
+            Birim Fiyatlar
+            <Badge 
+              size="xs" 
+              variant="light"
+              styles={{ 
+                root: { 
+                  backgroundColor: '#f3f4f6', 
+                  color: '#374151',
+                  fontWeight: 600,
+                  minWidth: 24,
+                } 
+              }}
+            >
+              {analysisData.birim_fiyatlar?.length || 0}
+            </Badge>
+          </Group>
         </Tabs.Tab>
         <Tabs.Tab
           value="ainotlar"
-          leftSection={<IconBulb size={14} />}
-          style={{ fontWeight: 500 }}
+          leftSection={<IconBulb size={15} stroke={1.5} />}
         >
-          AI Notları
-          <Badge
-            size="xs"
-            variant="gradient"
-            gradient={{ from: 'orange', to: 'yellow' }}
-            ml={6}
-          >
-            {analysisData.notlar?.length || 0}
-          </Badge>
+          <Group gap={6}>
+            AI Notları
+            <Badge 
+              size="xs" 
+              variant="light"
+              styles={{ 
+                root: { 
+                  backgroundColor: '#fef3c7', 
+                  color: '#92400e',
+                  fontWeight: 600,
+                  minWidth: 24,
+                } 
+              }}
+            >
+              {analysisData.notlar?.length || 0}
+            </Badge>
+          </Group>
         </Tabs.Tab>
         <Tabs.Tab
           value="metin"
-          leftSection={<IconClipboardList size={14} />}
-          style={{ fontWeight: 500 }}
+          leftSection={<IconClipboardList size={15} stroke={1.5} />}
         >
           Tam Metin
         </Tabs.Tab>

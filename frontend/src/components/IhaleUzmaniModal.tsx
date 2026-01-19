@@ -1495,49 +1495,76 @@ KURALLAR:
         },
       }}
     >
-      <Tabs value={activeTab} onChange={setActiveTab} variant="pills" radius="lg">
-        <Tabs.List grow mb="lg" style={{ gap: 8 }}>
+      <Tabs 
+        value={activeTab} 
+        onChange={setActiveTab} 
+        variant="unstyled"
+        styles={{
+          root: { borderBottom: '1px solid #e5e7eb' },
+          list: { gap: 0, borderBottom: 'none' },
+          tab: {
+            padding: '14px 24px',
+            fontWeight: 500,
+            fontSize: '14px',
+            color: '#6b7280',
+            borderBottom: '2px solid transparent',
+            marginBottom: '-1px',
+            transition: 'all 0.15s ease',
+            '&:hover': {
+              color: '#374151',
+              backgroundColor: 'transparent',
+            },
+            '&[data-active]': {
+              color: '#1f2937',
+              fontWeight: 600,
+              borderBottomColor: '#2563eb',
+              backgroundColor: 'transparent',
+            },
+          },
+        }}
+      >
+        <Tabs.List grow mb="lg">
           <Tabs.Tab
             value="ozet"
-            leftSection={<IconInfoCircle size={18} />}
-            style={{ fontWeight: 600, padding: '12px 20px' }}
+            leftSection={<IconInfoCircle size={18} stroke={1.5} />}
           >
             Özet
           </Tabs.Tab>
           <Tabs.Tab
             value="dokumanlar"
-            leftSection={<IconClipboardList size={18} />}
-            style={{ fontWeight: 600, padding: '12px 20px' }}
+            leftSection={<IconClipboardList size={18} stroke={1.5} />}
           >
-            Döküman Analizi
-            {analysisStats && (
-              <Badge
-                size="sm"
-                ml={8}
-                variant="gradient"
-                gradient={{ from: 'violet', to: 'blue' }}
-                className="tab-badge-pulse"
-              >
-                {analysisStats.analiz_edilen}/{analysisStats.toplam_dokuman}
-              </Badge>
-            )}
+            <Group gap={8}>
+              Döküman Analizi
+              {analysisStats && (
+                <Badge
+                  size="sm"
+                  variant="light"
+                  color="gray"
+                  styles={{
+                    root: { 
+                      backgroundColor: '#f3f4f6', 
+                      color: '#374151',
+                      fontWeight: 600,
+                    }
+                  }}
+                >
+                  {analysisStats.analiz_edilen}/{analysisStats.toplam_dokuman}
+                </Badge>
+              )}
+            </Group>
           </Tabs.Tab>
           <Tabs.Tab
             value="hesaplamalar"
-            leftSection={<IconCalculator size={18} />}
-            style={{ fontWeight: 600, padding: '12px 20px' }}
+            leftSection={<IconCalculator size={18} stroke={1.5} />}
           >
             Hesaplamalar
           </Tabs.Tab>
           <Tabs.Tab
             value="dilekce"
-            leftSection={<IconBrain size={18} />}
-            style={{ fontWeight: 600, padding: '12px 20px' }}
+            leftSection={<IconBrain size={18} stroke={1.5} />}
           >
-            <Group gap={6}>
-              AI & Dilekçeler
-              <IconSparkles size={14} style={{ color: 'var(--mantine-color-yellow-5)' }} />
-            </Group>
+            AI & Dilekçeler
           </Tabs.Tab>
         </Tabs.List>
 
