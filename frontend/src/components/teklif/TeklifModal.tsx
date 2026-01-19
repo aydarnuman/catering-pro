@@ -1134,16 +1134,26 @@ export default function TeklifModal({
     const tutar = hesaplanmisTeklifData.maliyet_detay.yasal_giderler.tutar;
     const ozet = hesaplaYasalGiderOzet(detay);
 
+    const kategoriAciklamalari: Record<string, string> = {
+      sigortalar: 'İşveren mali mesuliyet, iş kazası, 3. şahıs sorumluluk sigortaları',
+      belgeler: 'ISO, HACCP, TSE belgeleri, hijyen sertifikaları',
+      isg: 'İSG uzmanı, işyeri hekimi, eğitim, koruyucu ekipman',
+      ihaleGiderleri: 'Damga vergisi, teminat mektubu, noter masrafları',
+    };
+
     const renderKategori = (
       kategoriKey: 'sigortalar' | 'belgeler' | 'isg' | 'ihaleGiderleri',
       baslik: string,
       icon: React.ReactNode
     ) => (
       <Paper withBorder p="sm">
-        <Group mb="xs">
+        <Group mb={4}>
           {icon}
           <Text fw={500}>{baslik}</Text>
         </Group>
+        <Text size="xs" c="dimmed" mb="xs">
+          {kategoriAciklamalari[kategoriKey]}
+        </Text>
         {detay[kategoriKey].map((item, idx) => (
           <Group key={idx} mb="xs">
             <TextInput
