@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import {
   ActionIcon,
   Alert,
@@ -108,7 +109,7 @@ const statusConfig: Record<string, { color: string; label: string; icon: any }> 
   iptal: { color: 'gray', label: 'İptal Edildi', icon: IconX },
 };
 
-export default function TrackingPage() {
+function TrackingPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   
@@ -987,5 +988,14 @@ export default function TrackingPage() {
         />
       )}
     </Box>
+  );
+}
+
+// useSearchParams için Suspense wrapper
+export default function TrackingPage() {
+  return (
+    <Suspense fallback={<Box p="xl"><Text>Yükleniyor...</Text></Box>}>
+      <TrackingPageContent />
+    </Suspense>
   );
 }
