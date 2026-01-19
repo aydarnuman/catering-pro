@@ -25,14 +25,18 @@ import {
   IconClipboardList,
   IconCoin,
   IconCopy,
+  IconFileText,
   IconSearch,
   IconSettings,
+  IconX,
 } from '@tabler/icons-react';
 import { useState } from 'react';
-import { AnalysisData, ClipboardItem } from '../types';
+import { AnalysisData, ClipboardItem, AINote, TeknikSart, BirimFiyat } from '../types';
 
 interface DokumanlarTabProps {
   analysisData: AnalysisData;
+  tenderId?: number;
+  onHideNote?: (noteId: string, noteText: string) => Promise<void>;
   addToClipboard: (
     type: ClipboardItem['type'],
     content: string,
@@ -41,12 +45,75 @@ interface DokumanlarTabProps {
   ) => void;
 }
 
-export function DokumanlarTab({ analysisData, addToClipboard }: DokumanlarTabProps) {
+// Teknik şart text'ini normalize et (string veya TeknikSart object olabilir)
+function getTeknikSartText(sart: string | TeknikSart): string {
+  return typeof sart === 'string' ? sart : sart.text;
+}
+
+// Teknik şart kaynak dökümanını al
+function getTeknikSartSource(sart: string | TeknikSart): string | undefined {
+  return typeof sart === 'object' ? sart.source : undefined;
+}
+
+// Not text'ini normalize et (string veya AINote object olabilir)
+function getNoteText(not: string | AINote): string {
+  return typeof not === 'string' ? not : not.text;
+}
+
+// Not'un kaynak dökümanını al
+function getNoteSource(not: string | AINote): string | undefined {
+  return typeof not === 'object' ? not.source : undefined;
+}
+
+// Not'un ID'sini al
+function getNoteId(not: string | AINote, index: number): string {
+  return typeof not === 'object' && not.id ? not.id : `note_${index}`;
+}
+
+// Birim fiyat text'ini al
+function getBirimFiyatDisplay(item: BirimFiyat | string): { kalem: string; miktar: string; birim: string; fiyat: string; source?: string } {
+  if (typeof item === 'string') {
+    return { kalem: item, miktar: '-', birim: '-', fiyat: '-' };
+  }
+  return {
+    kalem: item.kalem || item.aciklama || item.text || '-',
+    miktar: String(item.miktar || '-'),
+    birim: item.birim || '-',
+    fiyat: String(item.fiyat || item.tutar || '-'),
+    source: item.source
+  };
+}
+
+export function DokumanlarTab({ analysisData, tenderId, onHideNote, addToClipboard }: DokumanlarTabProps) {
   // Internal states for filtering
   const [teknikSartArama, setTeknikSartArama] = useState('');
   const [sadeceZorunluGoster, setSadeceZorunluGoster] = useState(false);
   const [birimFiyatArama, setBirimFiyatArama] = useState('');
   const [aiNotArama, setAiNotArama] = useState('');
+  const [hidingNoteId, setHidingNoteId] = useState<string | null>(null);
+  
+  // Not gizleme handler
+  const handleHideNote = async (noteId: string, noteText: string) => {
+    if (!onHideNote) return;
+    
+    setHidingNoteId(noteId);
+    try {
+      await onHideNote(noteId, noteText);
+      notifications.show({
+        title: 'Not gizlendi',
+        message: 'Bu not artık gösterilmeyecek',
+        color: 'orange',
+      });
+    } catch (error) {
+      notifications.show({
+        title: 'Hata',
+        message: 'Not gizlenirken bir hata oluştu',
+        color: 'red',
+      });
+    } finally {
+      setHidingNoteId(null);
+    }
+  };
 
   return (
     <Tabs 
@@ -85,7 +152,7 @@ export function DokumanlarTab({ analysisData, addToClipboard }: DokumanlarTabPro
           leftSection={<IconCoin size={15} stroke={1.5} />}
         >
           <Group gap={6}>
-            Birim Fiyatlar
+            Mal/Hizmet Listesi
             <Badge 
               size="xs" 
               variant="light"
@@ -159,7 +226,7 @@ export function DokumanlarTab({ analysisData, addToClipboard }: DokumanlarTabPro
             </Group>
             <Group gap="xs">
               {(() => {
-                const zorunluSayisi = analysisData.teknik_sartlar?.filter(s => /zorunlu|mecburi|şart|gerekli|mutlaka/i.test(s)).length || 0;
+                const zorunluSayisi = analysisData.teknik_sartlar?.filter(s => /zorunlu|mecburi|şart|gerekli|mutlaka/i.test(getTeknikSartText(s))).length || 0;
                 return (
                   <>
                     <Badge variant="light" color="red" size="sm">
@@ -181,17 +248,20 @@ export function DokumanlarTab({ analysisData, addToClipboard }: DokumanlarTabPro
               {analysisData.teknik_sartlar
                 .map((sart, originalIndex) => ({ sart, originalIndex }))
                 .filter(({ sart }) => {
-                  if (teknikSartArama && !sart.toLowerCase().includes(teknikSartArama.toLowerCase())) {
+                  const sartText = getTeknikSartText(sart);
+                  if (teknikSartArama && !sartText.toLowerCase().includes(teknikSartArama.toLowerCase())) {
                     return false;
                   }
-                  if (sadeceZorunluGoster && !/zorunlu|mecburi|şart|gerekli|mutlaka/i.test(sart)) {
+                  if (sadeceZorunluGoster && !/zorunlu|mecburi|şart|gerekli|mutlaka/i.test(sartText)) {
                     return false;
                   }
                   return true;
                 })
                 .map(({ sart, originalIndex }) => {
-                  const isImportant = /zorunlu|mecburi|şart|gerekli|mutlaka/i.test(sart);
-                  const isWarning = /dikkat|uyarı|önemli|not:|ödeme/i.test(sart);
+                  const sartText = getTeknikSartText(sart);
+                  const sartSource = getTeknikSartSource(sart);
+                  const isImportant = /zorunlu|mecburi|şart|gerekli|mutlaka/i.test(sartText);
+                  const isWarning = /dikkat|uyarı|önemli|not:|ödeme/i.test(sartText);
                   const borderColor = isImportant 
                     ? 'var(--mantine-color-red-4)' 
                     : isWarning 
@@ -234,13 +304,23 @@ export function DokumanlarTab({ analysisData, addToClipboard }: DokumanlarTabPro
                         </Badge>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <Text size="sm" fw={isImportant ? 600 : 500} style={{ lineHeight: 1.5 }}>
-                            {sart}
+                            {sartText}
                           </Text>
-                          {isImportant && (
-                            <Badge size="xs" color="red" variant="light" mt={6}>
-                              ZORUNLU ŞART
-                            </Badge>
-                          )}
+                          <Group gap={6} mt={4}>
+                            {isImportant && (
+                              <Badge size="xs" color="red" variant="light">
+                                ZORUNLU ŞART
+                              </Badge>
+                            )}
+                            {sartSource && (
+                              <Group gap={4}>
+                                <IconFileText size={10} style={{ color: 'var(--mantine-color-gray-5)' }} />
+                                <Text size="xs" c="dimmed" style={{ fontStyle: 'italic' }}>
+                                  {sartSource}
+                                </Text>
+                              </Group>
+                            )}
+                          </Group>
                         </div>
                         <Group gap={4}>
                           <Tooltip label="Panoya Ekle" position="left">
@@ -250,8 +330,8 @@ export function DokumanlarTab({ analysisData, addToClipboard }: DokumanlarTabPro
                               size="sm"
                               onClick={() => addToClipboard(
                                 'teknik',
-                                sart,
-                                `Teknik Şart #${originalIndex + 1}`,
+                                sartText,
+                                sartSource || `Teknik Şart #${originalIndex + 1}`,
                                 { itemIndex: originalIndex + 1, isZorunlu: isImportant }
                               )}
                             >
@@ -264,7 +344,7 @@ export function DokumanlarTab({ analysisData, addToClipboard }: DokumanlarTabPro
                               color="gray" 
                               size="sm"
                               onClick={() => {
-                                navigator.clipboard.writeText(sart);
+                                navigator.clipboard.writeText(sartText);
                                 notifications.show({
                                   message: 'Kopyalandı',
                                   color: 'green',
@@ -282,8 +362,9 @@ export function DokumanlarTab({ analysisData, addToClipboard }: DokumanlarTabPro
                 })}
               {/* Filtreleme sonucu boş mesajı */}
               {analysisData.teknik_sartlar.filter(sart => {
-                if (teknikSartArama && !sart.toLowerCase().includes(teknikSartArama.toLowerCase())) return false;
-                if (sadeceZorunluGoster && !/zorunlu|mecburi|şart|gerekli|mutlaka/i.test(sart)) return false;
+                const sartText = getTeknikSartText(sart);
+                if (teknikSartArama && !sartText.toLowerCase().includes(teknikSartArama.toLowerCase())) return false;
+                if (sadeceZorunluGoster && !/zorunlu|mecburi|şart|gerekli|mutlaka/i.test(sartText)) return false;
                 return true;
               }).length === 0 && (
                 <Center py="xl">
@@ -513,12 +594,17 @@ export function DokumanlarTab({ analysisData, addToClipboard }: DokumanlarTabPro
               {analysisData.notlar
                 .filter(not => {
                   if (!aiNotArama) return true;
-                  return not.toLowerCase().includes(aiNotArama.toLowerCase());
+                  const noteText = getNoteText(not);
+                  return noteText.toLowerCase().includes(aiNotArama.toLowerCase());
                 })
                 .map((not, i) => {
-                  const isNumeric = /\d+[\.,]?\d*\s*(tl|₺|adet|kişi|gün|ay|yıl)/i.test(not);
-                  const isProcedure = /ihale|usul|yöntem|ekap|teklif|başvuru/i.test(not);
-                  const isWarning = /dikkat|uyarı|önemli|risk|zorunlu/i.test(not);
+                  const noteText = getNoteText(not);
+                  const noteSource = getNoteSource(not);
+                  const noteId = getNoteId(not, i);
+                  
+                  const isNumeric = /\d+[\.,]?\d*\s*(tl|₺|adet|kişi|gün|ay|yıl)/i.test(noteText);
+                  const isProcedure = /ihale|usul|yöntem|ekap|teklif|başvuru/i.test(noteText);
+                  const isWarning = /dikkat|uyarı|önemli|risk|zorunlu/i.test(noteText);
                   
                   const bgColor = isWarning 
                     ? 'rgba(254, 226, 226, 0.4)' 
@@ -537,13 +623,14 @@ export function DokumanlarTab({ analysisData, addToClipboard }: DokumanlarTabPro
 
                   return (
                     <Paper
-                      key={i}
+                      key={noteId}
                       p="sm"
                       radius="md"
                       style={{
                         borderLeft: `4px solid ${borderColor}`,
                         background: bgColor,
                         transition: 'all 0.2s ease',
+                        opacity: hidingNoteId === noteId ? 0.5 : 1,
                       }}
                       className="ai-note-compact"
                     >
@@ -557,43 +644,70 @@ export function DokumanlarTab({ analysisData, addToClipboard }: DokumanlarTabPro
                           <IconBulb size={14} />
                         </ThemeIcon>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <Badge
-                            size="xs"
-                            variant="gradient"
-                            gradient={{ 
-                              from: isWarning ? 'red' : isNumeric ? 'blue' : isProcedure ? 'green' : 'orange', 
-                              to: isWarning ? 'pink' : isNumeric ? 'cyan' : isProcedure ? 'teal' : 'yellow' 
-                            }}
-                            mb={6}
-                          >
-                            {isWarning ? '⚠️ Dikkat' : isNumeric ? '📊 Rakamsal' : isProcedure ? '⚖️ Prosedür' : `💡 İçgörü #${i + 1}`}
-                          </Badge>
+                          <Group gap={6} mb={6}>
+                            <Badge
+                              size="xs"
+                              variant="gradient"
+                              gradient={{ 
+                                from: isWarning ? 'red' : isNumeric ? 'blue' : isProcedure ? 'green' : 'orange', 
+                                to: isWarning ? 'pink' : isNumeric ? 'cyan' : isProcedure ? 'teal' : 'yellow' 
+                              }}
+                            >
+                              {isWarning ? '⚠️ Dikkat' : isNumeric ? '📊 Rakamsal' : isProcedure ? '⚖️ Prosedür' : `💡 İçgörü #${i + 1}`}
+                            </Badge>
+                          </Group>
                           <Text size="sm" style={{ lineHeight: 1.5 }}>
-                            {not}
+                            {noteText}
                           </Text>
+                          {/* Kaynak Döküman Gösterimi */}
+                          {noteSource && (
+                            <Group gap={4} mt={6}>
+                              <IconFileText size={12} style={{ color: 'var(--mantine-color-gray-5)' }} />
+                              <Text size="xs" c="dimmed" style={{ fontStyle: 'italic' }}>
+                                {noteSource}
+                              </Text>
+                            </Group>
+                          )}
                         </div>
-                        <Tooltip label="Panoya Ekle" position="left">
-                          <ActionIcon 
-                            variant="light" 
-                            color="orange" 
-                            size="sm"
-                            onClick={() => addToClipboard(
-                              'ai',
-                              not,
-                              `AI Notu #${i + 1}`
-                            )}
-                          >
-                            <IconClipboardCopy size={14} />
-                          </ActionIcon>
-                        </Tooltip>
+                        <Group gap={4}>
+                          <Tooltip label="Panoya Ekle" position="left">
+                            <ActionIcon 
+                              variant="light" 
+                              color="orange" 
+                              size="sm"
+                              onClick={() => addToClipboard(
+                                'ai',
+                                noteText,
+                                noteSource || `AI Notu #${i + 1}`
+                              )}
+                            >
+                              <IconClipboardCopy size={14} />
+                            </ActionIcon>
+                          </Tooltip>
+                          {/* Silme (Gizleme) Butonu */}
+                          {onHideNote && (
+                            <Tooltip label="Bu notu gizle" position="left">
+                              <ActionIcon 
+                                variant="light" 
+                                color="gray" 
+                                size="sm"
+                                loading={hidingNoteId === noteId}
+                                onClick={() => handleHideNote(noteId, noteText)}
+                              >
+                                <IconX size={14} />
+                              </ActionIcon>
+                            </Tooltip>
+                          )}
+                        </Group>
                       </Group>
                     </Paper>
                   );
                 })}
               {/* Arama sonucu boş */}
-              {aiNotArama && analysisData.notlar.filter(not => 
-                not.toLowerCase().includes(aiNotArama.toLowerCase())
-              ).length === 0 && (
+              {aiNotArama && analysisData.notlar.filter(not => {
+                const noteText = getNoteText(not);
+                return noteText.toLowerCase().includes(aiNotArama.toLowerCase());
+              }).length === 0 && (
                 <Center py="xl" style={{ gridColumn: '1 / -1' }}>
                   <Stack align="center" gap="sm">
                     <Text c="dimmed">Arama sonucu bulunamadı</Text>

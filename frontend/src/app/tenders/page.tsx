@@ -50,7 +50,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
-import { apiClient } from '@/lib/api';
+import { api, apiClient } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/config';
 import type { Tender, TendersResponse } from '@/types/api';
 import TenderMapModal from '@/components/TenderMapModal';
@@ -263,13 +263,8 @@ export default function TendersPage() {
 
     setAddingTender(true);
     try {
-      const res = await fetch(`${API_URL}/api/scraper/add-tender`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: tenderUrl.trim() }),
-      });
-
-      const data = await res.json();
+      const res = await api.post('/api/scraper/add-tender', { url: tenderUrl.trim() });
+      const data = res.data;
 
       if (data.success) {
         notifications.show({
@@ -290,7 +285,7 @@ export default function TendersPage() {
     } catch (err: any) {
       notifications.show({
         title: 'Hata',
-        message: err.message || 'Bağlantı hatası',
+        message: err.response?.data?.error || err.message || 'Bağlantı hatası',
         color: 'red',
       });
     } finally {
@@ -306,8 +301,8 @@ export default function TendersPage() {
 
     try {
       // 1. Döküman durumunu kontrol et
-      const checkRes = await fetch(`${API_URL}/api/scraper/check-documents/${tender.id}`);
-      const checkData = await checkRes.json();
+      const checkRes = await api.get(`/api/scraper/check-documents/${tender.id}`);
+      const checkData = checkRes.data;
 
       if (!checkData.success) {
         // Kontrol başarısız, direkt yönlendir
@@ -326,10 +321,8 @@ export default function TendersPage() {
             : "Dökümanlar ihalebul.com'dan çekiliyor..."
         );
 
-        const fetchRes = await fetch(`${API_URL}/api/scraper/fetch-documents/${tender.id}`, {
-          method: 'POST',
-        });
-        const fetchData = await fetchRes.json();
+        const fetchRes = await api.post(`/api/scraper/fetch-documents/${tender.id}`);
+        const fetchData = fetchRes.data;
 
         if (fetchData.success) {
           const newDocCount = fetchData.data?.documentCount || 0;

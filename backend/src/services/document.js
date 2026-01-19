@@ -4,7 +4,7 @@ import os from 'os';
 import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 import xlsx from 'xlsx';
-import { analyzeWithGemini } from './gemini.js';
+import { analyzeDocument } from './document-analyzer.js';
 import { supabase } from '../supabase.js';
 import fetch from 'node-fetch';
 
@@ -72,7 +72,7 @@ export async function processDocument(documentId, filePath, originalFilename) {
     
     // Gemini ile analiz
     console.log('🤖 Gemini ile analiz başlıyor...');
-    const analysis = await analyzeWithGemini(extractedText, tempFilePath || filePath || '', document.file_type);
+    const analysis = await analyzeDocument(extractedText, tempFilePath || filePath || '', document.file_type);
     
     return {
       text: extractedText,
@@ -189,7 +189,7 @@ export async function processContentDocument(documentId) {
     
     // Gemini ile analiz
     console.log('🤖 Gemini ile analiz başlıyor...');
-    const analysis = await analyzeWithGemini(
+    const analysis = await analyzeDocument(
       document.content_text, 
       '', // filePath yok
       document.content_type || 'text'

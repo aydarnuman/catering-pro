@@ -4,7 +4,7 @@ import { API_BASE_URL } from '@/lib/config';
 // Create axios instance
 export const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 60000, // 60 saniye (scraper gibi uzun işlemler için)
   headers: {
     'Content-Type': 'application/json',
   },
@@ -13,7 +13,7 @@ export const api = axios.create({
 // Request interceptor
 api.interceptors.request.use((config) => {
   // Add auth token if available
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('auth_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -26,8 +26,9 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Unauthorized - clear token and redirect to login
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      window.location.href = '/giris';
     }
     return Promise.reject(error);
   }

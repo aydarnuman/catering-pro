@@ -111,7 +111,7 @@ router.post('/chat', optionalAuth, async (req, res) => {
  */
 router.post('/agent', optionalAuth, async (req, res) => {
   try {
-    const { message, history = [], sessionId, department, templateSlug, pageContext } = req.body;
+    const { message, systemContext, history = [], sessionId, department, templateSlug, pageContext } = req.body;
 
     if (!message || message.trim().length === 0) {
       return res.status(400).json({
@@ -122,13 +122,14 @@ router.post('/agent', optionalAuth, async (req, res) => {
 
     console.log(`🤖 [AI Agent] Mesaj: "${message.substring(0, 100)}..." | Session: ${sessionId || 'yok'} | Dept: ${department || 'genel'} | Şablon: ${templateSlug || 'default'} | Context: ${pageContext?.type || 'genel'}${pageContext?.id ? '#' + pageContext.id : ''}`);
 
-    // Options ile sessionId, department, templateSlug ve pageContext gönder
+    // Options ile sessionId, department, templateSlug, pageContext ve systemContext gönder
     const options = {
       sessionId: sessionId || undefined,
       userId: 'default',
       department: department || 'TÜM SİSTEM',
       templateSlug: templateSlug || 'default',
-      pageContext: pageContext || undefined  // Sayfa context'i (ihale, fatura, cari vb.)
+      pageContext: pageContext || undefined,
+      systemContext: systemContext || undefined  // İhale verileri context'i (kaydedilmeyecek)
     };
 
     const result = await aiAgent.processQuery(message, history, options);

@@ -57,6 +57,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { API_BASE_URL } from '@/lib/config';
+import { api } from '@/lib/api';
 
 // ============ INTERFACES ============
 interface Tender {
@@ -411,8 +412,8 @@ export default function TenderDetailPage() {
     // 24 saatten fazla güncellenmemişse otomatik güncelle
     if (hoursSinceUpdate > 24) {
       // Sessizce arka planda güncelle
-      fetch(`${API_BASE_URL}/api/scraper/fetch-documents/${tenderId}`, { method: 'POST' })
-        .then((res) => res.json())
+      api.post(`/api/scraper/fetch-documents/${tenderId}`)
+        .then((res) => res.data)
         .then((result) => {
           if (result.success && result.data.documentCount > 0) {
             notifications.show({
@@ -434,10 +435,8 @@ export default function TenderDetailPage() {
   const handleFetchDocumentLinks = async () => {
     setFetchingDocs(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/scraper/fetch-documents/${tenderId}`, {
-        method: 'POST',
-      });
-      const result = await response.json();
+      const response = await api.post(`/api/scraper/fetch-documents/${tenderId}`);
+      const result = response.data;
 
       if (result.success) {
         const data = result.data;

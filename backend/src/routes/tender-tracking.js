@@ -461,6 +461,12 @@ router.get('/:tenderId/analysis', async (req, res) => {
     const tender = tenderResult.rows[0];
     const documents = docsResult.rows;
     
+    // Gizlenen notları al (kullanıcı tarafından silinen)
+    const trackingResult = await query(`
+      SELECT hidden_notes FROM tender_tracking WHERE tender_id = $1
+    `, [tenderId]);
+    const hiddenNotes = trackingResult.rows[0]?.hidden_notes || [];
+    
     // Analiz sonuçlarını birleştir
     const combinedAnalysis = {
       ihale_basligi: tender.title,
@@ -470,14 +476,18 @@ router.get('/:tenderId/analysis', async (req, res) => {
       sure: '',
       teknik_sartlar: [],
       birim_fiyatlar: [],
-      notlar: [],
+      notlar: [], // Artık object array: { id, text, source, doc_id, verified }
       tam_metin: '',
       iletisim: null,
       dokuman_detaylari: [] // Her dökümanın ayrı analizi
     };
     
+    // Not ID'si için sayaç
+    let noteIdCounter = 1;
+    
     for (const doc of documents) {
       const analysis = doc.analysis_result || {};
+      const sourceName = doc.original_filename || doc.doc_type || 'Bilinmeyen';
       
       // Her dökümanın ayrı analizini ekle
       combinedAnalysis.dokuman_detaylari.push({
@@ -499,28 +509,64 @@ router.get('/:tenderId/analysis', async (req, res) => {
         combinedAnalysis.iletisim = analysis.iletisim;
       }
       
-      // Teknik şartları birleştir
-      if (analysis.teknik_sartlar && Array.isArray(analysis.teknik_sartlar)) {
-        combinedAnalysis.teknik_sartlar.push(...analysis.teknik_sartlar);
+      // Teknik şartları birleştir (kaynak bilgisiyle)
+      // Hem Claude formatı (teknik_sartlar) hem Gemini formatı (technical_specs) destekleniyor
+      const teknikSartlarSource = analysis.teknik_sartlar || analysis.technical_specs || [];
+      if (Array.isArray(teknikSartlarSource)) {
+        for (const sart of teknikSartlarSource) {
+          const sartText = typeof sart === 'string' ? sart : sart.text || String(sart);
+          combinedAnalysis.teknik_sartlar.push({
+            text: sartText,
+            source: sourceName,
+            doc_id: doc.id
+          });
+        }
       }
       
       // Birim fiyatları birleştir - object olanları önce, string olanları sonra
-      if (analysis.birim_fiyatlar && Array.isArray(analysis.birim_fiyatlar)) {
-        for (const item of analysis.birim_fiyatlar) {
+      // Hem Claude formatı (birim_fiyatlar) hem Gemini formatı (unit_prices) destekleniyor
+      const birimFiyatlarSource = analysis.birim_fiyatlar || analysis.unit_prices || [];
+      if (Array.isArray(birimFiyatlarSource)) {
+        for (const item of birimFiyatlarSource) {
           // Object formatındaki birim fiyatları (kalem, miktar, birim_fiyat içerenler)
-          if (typeof item === 'object' && item !== null && item.kalem) {
+          if (typeof item === 'object' && item !== null && (item.kalem || item.name || item.description)) {
             // Başa ekle (öncelikli)
-            combinedAnalysis.birim_fiyatlar.unshift(item);
+            combinedAnalysis.birim_fiyatlar.unshift({ 
+              kalem: item.kalem || item.name || item.description,
+              miktar: item.miktar || item.quantity,
+              birim: item.birim || item.unit,
+              fiyat: item.fiyat || item.tutar || item.price || item.amount,
+              source: sourceName, 
+              doc_id: doc.id 
+            });
           } else if (typeof item === 'string') {
             // String formatındaki açıklamaları sona ekle
-            combinedAnalysis.birim_fiyatlar.push(item);
+            combinedAnalysis.birim_fiyatlar.push({ text: item, source: sourceName, doc_id: doc.id });
           }
         }
       }
       
-      // Notları birleştir
-      if (analysis.notlar && Array.isArray(analysis.notlar)) {
-        combinedAnalysis.notlar.push(...analysis.notlar);
+      // Notları birleştir (kaynak bilgisiyle)
+      // Hem Claude formatı (notlar) hem Gemini formatı (important_notes) destekleniyor
+      const notlarSource = analysis.notlar || analysis.important_notes || [];
+      if (Array.isArray(notlarSource)) {
+        for (const not of notlarSource) {
+          const noteText = typeof not === 'string' ? not : not.text || String(not);
+          const noteId = `note_${doc.id}_${noteIdCounter++}`;
+          
+          // Gizlenen notları atla
+          if (hiddenNotes.includes(noteId) || hiddenNotes.includes(noteText)) {
+            continue;
+          }
+          
+          combinedAnalysis.notlar.push({
+            id: noteId,
+            text: noteText,
+            source: sourceName,
+            doc_id: doc.id,
+            verified: false
+          });
+        }
       }
       
       // Tam metinleri birleştir
@@ -529,16 +575,18 @@ router.get('/:tenderId/analysis', async (req, res) => {
       }
     }
     
-    // Tekrarları kaldır
-    combinedAnalysis.teknik_sartlar = [...new Set(combinedAnalysis.teknik_sartlar)];
+    // Teknik şartları: tüm şartlar gösterilsin (unique filtreleme yok)
+    // İhale Listesi analizi ile aynı sayılar gösterilecek
+    // String formatındakileri object'e çevir
+    combinedAnalysis.teknik_sartlar = combinedAnalysis.teknik_sartlar.map(sart => 
+      typeof sart === 'string' ? { text: sart, source: 'Bilinmeyen' } : sart
+    );
     
-    // Birim fiyatları: object ve string'leri ayrı ayrı unique yap
-    const objectItems = combinedAnalysis.birim_fiyatlar.filter(item => typeof item === 'object');
-    const stringItems = combinedAnalysis.birim_fiyatlar.filter(item => typeof item === 'string');
-    const uniqueObjects = [...new Map(objectItems.map(item => [JSON.stringify(item), item])).values()];
-    const uniqueStrings = [...new Set(stringItems)];
-    combinedAnalysis.birim_fiyatlar = [...uniqueObjects, ...uniqueStrings];
-    combinedAnalysis.notlar = [...new Set(combinedAnalysis.notlar)];
+    // Birim fiyatları: tüm kalemler gösterilsin (unique filtreleme yok)
+    // İhale Listesi analizi ile aynı sayılar gösterilecek
+    
+    // Notları: tüm notlar gösterilsin (unique filtreleme yok)
+    // İhale Listesi analizi ile aynı sayılar gösterilecek
     combinedAnalysis.tam_metin = combinedAnalysis.tam_metin.trim();
     
     // Döküman istatistikleri (ZIP dosyaları hariç - analiz edilemezler)
@@ -571,6 +619,114 @@ router.get('/:tenderId/analysis', async (req, res) => {
     });
   } catch (error) {
     console.error('Analiz getirme hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * AI Notunu gizle (sil)
+ * POST /api/tender-tracking/:tenderId/hide-note
+ */
+router.post('/:tenderId/hide-note', async (req, res) => {
+  try {
+    const { tenderId } = req.params;
+    const { noteId, noteText } = req.body;
+    
+    if (!noteId && !noteText) {
+      return res.status(400).json({ success: false, error: 'noteId veya noteText gerekli' });
+    }
+    
+    // Gizlenecek değeri belirle (ID veya text)
+    const hideValue = noteId || noteText;
+    
+    // Mevcut hidden_notes'a ekle
+    const result = await query(`
+      UPDATE tender_tracking 
+      SET hidden_notes = COALESCE(hidden_notes, '[]'::jsonb) || $1::jsonb,
+          updated_at = NOW()
+      WHERE tender_id = $2
+      RETURNING hidden_notes
+    `, [JSON.stringify([hideValue]), tenderId]);
+    
+    if (result.rows.length === 0) {
+      // Tracking kaydı yoksa oluştur
+      await query(`
+        INSERT INTO tender_tracking (tender_id, status, hidden_notes)
+        VALUES ($1, 'bekliyor', $2::jsonb)
+        ON CONFLICT (tender_id, user_id) DO UPDATE 
+        SET hidden_notes = COALESCE(tender_tracking.hidden_notes, '[]'::jsonb) || $2::jsonb,
+            updated_at = NOW()
+      `, [tenderId, JSON.stringify([hideValue])]);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Not gizlendi',
+      hiddenNote: hideValue
+    });
+  } catch (error) {
+    console.error('Not gizleme hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Gizlenen AI Notunu geri getir
+ * POST /api/tender-tracking/:tenderId/unhide-note
+ */
+router.post('/:tenderId/unhide-note', async (req, res) => {
+  try {
+    const { tenderId } = req.params;
+    const { noteId, noteText } = req.body;
+    
+    if (!noteId && !noteText) {
+      return res.status(400).json({ success: false, error: 'noteId veya noteText gerekli' });
+    }
+    
+    const unhideValue = noteId || noteText;
+    
+    // hidden_notes'dan çıkar
+    const result = await query(`
+      UPDATE tender_tracking 
+      SET hidden_notes = (
+        SELECT COALESCE(jsonb_agg(elem), '[]'::jsonb)
+        FROM jsonb_array_elements(COALESCE(hidden_notes, '[]'::jsonb)) elem
+        WHERE elem::text != $1::text
+      ),
+      updated_at = NOW()
+      WHERE tender_id = $2
+      RETURNING hidden_notes
+    `, [JSON.stringify(unhideValue), tenderId]);
+    
+    res.json({
+      success: true,
+      message: 'Not geri getirildi',
+      unhiddenNote: unhideValue
+    });
+  } catch (error) {
+    console.error('Not geri getirme hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Gizlenen notların listesini getir
+ * GET /api/tender-tracking/:tenderId/hidden-notes
+ */
+router.get('/:tenderId/hidden-notes', async (req, res) => {
+  try {
+    const { tenderId } = req.params;
+    
+    const result = await query(`
+      SELECT hidden_notes FROM tender_tracking WHERE tender_id = $1
+    `, [tenderId]);
+    
+    res.json({
+      success: true,
+      hiddenNotes: result.rows[0]?.hidden_notes || []
+    });
+  } catch (error) {
+    console.error('Gizlenen notlar getirme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

@@ -8,6 +8,7 @@ export interface UseIhaleDataReturn {
   analysisLoading: boolean;
   analysisStats: { toplam_dokuman: number; analiz_edilen: number } | null;
   loadAnalysisData: () => Promise<void>;
+  hideNote: (noteId: string, noteText: string) => Promise<void>;
   
   // Firmalar
   firmalar: FirmaBilgisi[];
@@ -54,6 +55,31 @@ export function useIhaleData(tender: SavedTender | null, opened: boolean): UseIh
       setAnalysisLoading(false);
     }
   }, [tender]);
+
+  // Hide (remove) an AI note
+  const hideNote = useCallback(async (noteId: string, noteText: string) => {
+    if (!tender) return;
+    
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    const response = await fetch(
+      `${API_BASE_URL}/api/tender-tracking/${tender.tender_id}/hide-note`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({ noteId, noteText }),
+      }
+    );
+    
+    if (!response.ok) {
+      throw new Error('Not gizleme başarısız');
+    }
+    
+    // Analiz verilerini yeniden yükle (gizlenen not listeden çıkacak)
+    await loadAnalysisData();
+  }, [tender, loadAnalysisData]);
 
   // Load firmalar
   const loadFirmalar = useCallback(async () => {
@@ -117,6 +143,7 @@ export function useIhaleData(tender: SavedTender | null, opened: boolean): UseIh
     analysisLoading,
     analysisStats,
     loadAnalysisData,
+    hideNote,
     firmalar,
     selectedFirmaId,
     setSelectedFirmaId,

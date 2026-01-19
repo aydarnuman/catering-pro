@@ -214,8 +214,8 @@ router.post('/documents/:documentId/analyze', async (req, res) => {
     sendEvent({ stage: 'analyzing', message: 'AI analiz yapılıyor...', progress: 50 });
     
     // Gemini ile analiz
-    const { analyzeWithGemini } = await import('../services/gemini.js');
-    const analysisResult = await analyzeWithGemini(textContent);
+    const { analyzeDocument } = await import('../services/document-analyzer.js');
+    const analysisResult = await analyzeDocument(textContent);
     
     sendEvent({ stage: 'saving', message: 'Sonuçlar kaydediliyor...', progress: 80 });
     

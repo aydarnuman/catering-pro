@@ -9,6 +9,132 @@ import Anthropic from '@anthropic-ai/sdk';
 import aiTools from './ai-tools/index.js';
 import { query } from '../database.js';
 
+/**
+ * Fiyat Lookup Servisi
+ * Öncelik: 1) Faturalar (son 1 ay) 2) Stok Kartları 3) AI Tahmini
+ */
+async function getProductPrices(productNames = null) {
+  const priceData = {
+    source: null,
+    prices: [],
+    lastUpdate: null,
+    warning: null
+  };
+
+  try {
+    // 1. ÖNCE FATURALARDAN BAK (Son 1 ay - en güncel)
+    const invoicePrices = await query(`
+      SELECT DISTINCT ON (LOWER(ii.description))
+        ii.description as urun_adi,
+        ii.unit_price as birim_fiyat,
+        ii.unit as birim,
+        ii.category as kategori,
+        i.invoice_date as fatura_tarihi,
+        i.customer_name as tedarikci,
+        'fatura' as kaynak
+      FROM invoice_items ii
+      JOIN invoices i ON ii.invoice_id = i.id
+      WHERE i.invoice_type = 'purchase'
+        AND i.invoice_date >= CURRENT_DATE - INTERVAL '30 days'
+        AND i.status != 'cancelled'
+        AND ii.unit_price > 0
+      ORDER BY LOWER(ii.description), i.invoice_date DESC
+    `);
+
+    // Uyumsoft e-faturalardan da bak
+    const uyumsoftPrices = await query(`
+      SELECT DISTINCT ON (LOWER(ui.product_name))
+        ui.product_name as urun_adi,
+        ui.unit_price as birim_fiyat,
+        ui.unit as birim,
+        ui.ai_category as kategori,
+        u.invoice_date as fatura_tarihi,
+        u.sender_name as tedarikci,
+        'e-fatura' as kaynak
+      FROM uyumsoft_invoice_items ui
+      JOIN uyumsoft_invoices u ON ui.uyumsoft_invoice_id = u.id
+      WHERE u.invoice_date >= CURRENT_DATE - INTERVAL '30 days'
+        AND ui.unit_price > 0
+      ORDER BY LOWER(ui.product_name), u.invoice_date DESC
+    `);
+
+    const allInvoicePrices = [...invoicePrices.rows, ...uyumsoftPrices.rows];
+
+    if (allInvoicePrices.length > 0) {
+      priceData.source = 'fatura';
+      priceData.prices = allInvoicePrices;
+      priceData.lastUpdate = allInvoicePrices[0]?.fatura_tarihi;
+      console.log(`💰 [Fiyat] Faturalardan ${allInvoicePrices.length} ürün fiyatı bulundu`);
+      return priceData;
+    }
+
+    // 2. FATURADA YOKSA STOK KARTLARINDAN BAK
+    const stockPrices = await query(`
+      SELECT 
+        ad as urun_adi,
+        alis_fiyati as birim_fiyat,
+        birim,
+        kategori,
+        updated_at as guncelleme_tarihi,
+        'stok_karti' as kaynak
+      FROM stok_kartlari
+      WHERE aktif = true
+        AND alis_fiyati > 0
+      ORDER BY updated_at DESC
+    `);
+
+    if (stockPrices.rows.length > 0) {
+      priceData.source = 'stok_karti';
+      priceData.prices = stockPrices.rows;
+      priceData.lastUpdate = stockPrices.rows[0]?.guncelleme_tarihi;
+      priceData.warning = '⚠️ Fiyatlar stok kartlarından alındı, fatura verisi bulunamadı. Güncelliğini kontrol edin.';
+      console.log(`📦 [Fiyat] Stok kartlarından ${stockPrices.rows.length} ürün fiyatı bulundu`);
+      return priceData;
+    }
+
+    // 3. HİÇ VERİ YOKSA
+    priceData.source = 'yok';
+    priceData.warning = '⚠️ Sistemde fiyat verisi bulunamadı. AI tahmini kullanılacak - DOĞRULUĞU GARANTİ DEĞİL!';
+    console.log('❌ [Fiyat] Sistemde fiyat verisi bulunamadı');
+
+  } catch (error) {
+    console.error('Fiyat lookup hatası:', error);
+    priceData.source = 'hata';
+    priceData.warning = `⚠️ Fiyat verisi çekilemedi: ${error.message}`;
+  }
+
+  return priceData;
+}
+
+/**
+ * Kategori bazlı ortalama fiyatları getir (son 1 ay)
+ */
+async function getCategoryPrices() {
+  try {
+    const result = await query(`
+      SELECT 
+        COALESCE(ii.category, 'Diğer') as kategori,
+        COUNT(*) as urun_sayisi,
+        ROUND(AVG(ii.unit_price)::numeric, 2) as ortalama_fiyat,
+        ROUND(MIN(ii.unit_price)::numeric, 2) as min_fiyat,
+        ROUND(MAX(ii.unit_price)::numeric, 2) as max_fiyat,
+        MAX(i.invoice_date) as son_fatura_tarihi
+      FROM invoice_items ii
+      JOIN invoices i ON ii.invoice_id = i.id
+      WHERE i.invoice_type = 'purchase'
+        AND i.invoice_date >= CURRENT_DATE - INTERVAL '30 days'
+        AND i.status != 'cancelled'
+        AND ii.unit_price > 0
+      GROUP BY COALESCE(ii.category, 'Diğer')
+      ORDER BY urun_sayisi DESC
+    `);
+    return result.rows;
+  } catch (error) {
+    console.error('Kategori fiyat hatası:', error);
+    return [];
+  }
+}
+
 class AIAgentService {
   constructor() {
     this.client = new Anthropic({
@@ -94,12 +220,34 @@ class AIAgentService {
       
       return result.rows.reverse().map(row => ({
         role: row.role,
-        content: row.content
+        content: this.stripContextFromMessage(row.content) // Context'i kaldır
       }));
     } catch (error) {
       console.error('Konuşma yükleme hatası:', error);
       return [];
     }
+  }
+
+  /**
+   * Eski mesajlardan context kısmını kaldır (📋 SEÇİLİ İHALE:... ---\n sonrası asıl mesaj)
+   */
+  stripContextFromMessage(content) {
+    if (!content) return content;
+    
+    // Eğer mesaj "📋 SEÇİLİ İHALE:" ile başlıyorsa, "---" sonrasını al
+    if (content.includes('📋 SEÇİLİ İHALE:') && content.includes('---\n')) {
+      const lastSeparator = content.lastIndexOf('---\n');
+      if (lastSeparator !== -1) {
+        const actualMessage = content.substring(lastSeparator + 4).trim();
+        // Eğer kalan mesaj boş değilse döndür
+        if (actualMessage.length > 0) {
+          return actualMessage;
+        }
+      }
+    }
+    
+    // Context yoksa veya parse edilemezse orijinali döndür
+    return content;
   }
 
   /**
@@ -342,15 +490,17 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
    * Kullanıcı sorusunu işle (Tool Calling ile)
    */
   async processQuery(userMessage, conversationHistory = [], options = {}) {
-    const { sessionId, userId = 'default', templateSlug, pageContext } = options;
+    const { sessionId, userId = 'default', templateSlug, pageContext, systemContext } = options;
     
     try {
       console.log(`🤖 [AI Agent] Sorgu: "${userMessage.substring(0, 100)}..."`);
       if (templateSlug) console.log(`📋 [AI Agent] Şablon: ${templateSlug}`);
       if (pageContext?.type) console.log(`📍 [AI Agent] Sayfa Context: ${pageContext.type}${pageContext.id ? '#' + pageContext.id : ''}`);
+      if (systemContext) console.log(`📄 [AI Agent] System Context: ${systemContext.length} karakter`);
       
       // Sayfa context'i varsa mesajı zenginleştir (OTOMATİK URL-BASED)
-      let enrichedMessage = userMessage;
+      // NOT: systemContext varsa bunu kullan (frontend'den gelen ihale verileri)
+      let enrichedMessage = systemContext ? (systemContext + '\n' + userMessage) : userMessage;
       let contextInfo = '';
       
       // Context type ve department bilgisini al
@@ -384,6 +534,84 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
           }
           if (d.teknik_sart_sayisi > 0) contextParts.push(`Teknik Şart: ${d.teknik_sart_sayisi} adet`);
           if (d.birim_fiyat_sayisi > 0) contextParts.push(`Birim Fiyat: ${d.birim_fiyat_sayisi} adet`);
+        }
+        
+        // Ürün MALİYET sorusu varsa sistemdeki fiyat verilerini çek (son 1 ay)
+        // NOT: "ihale fiyatı", "teklif bedeli" gibi ihale terimleri HARİÇ
+        // Türkçe eklere uyumlu regex pattern'ler
+        const costPatterns = [
+          /maliyet\s*(hesap|analiz)/i,
+          /bütçe\s*(ayır|hesap)/i,
+          /ne\s*kadar\s*tutar/i,
+          /alış\s*fiyat/i,
+          /tedarik\s*fiyat/i,
+          /piyasa\s*fiyat/i,
+          /ürün\s*fiyat/i,
+          /malzeme\s*fiyat/i,
+          /gıda\s*fiyat/i,
+          /kg\s*fiyat/i,
+          /birim\s*maliyet/i,
+          /toplam\s*maliyet/i,
+          /kar\s*marj/i,
+          /kar\s*oran/i,
+          /fiyat\s*analiz/i,
+          /firmamız.*fiyat/i,
+          /sistemdeki.*fiyat/i,
+          /faturadan.*fiyat/i
+        ];
+        const excludePatterns = [
+          /ihale\s*fiyat/i,
+          /teklif\s*bedel/i,
+          /yaklaşık\s*maliyet/i,
+          /tahmini\s*bedel/i,
+          /ihale\s*bedel/i,
+          /birim\s*fiyat\s*cetvel/i
+        ];
+        
+        const hasCostKeyword = costPatterns.some(p => p.test(userMessage));
+        const hasExcludeKeyword = excludePatterns.some(p => p.test(userMessage));
+        const isPriceQuestion = hasCostKeyword && !hasExcludeKeyword;
+        
+        console.log(`💰 [Fiyat Kontrol] Soru: "${userMessage.substring(0, 50)}..." | Maliyet: ${hasCostKeyword} | Hariç: ${hasExcludeKeyword} | Çek: ${isPriceQuestion}`);
+        
+        if (isPriceQuestion) {
+          const priceData = await getProductPrices();
+          const categoryPrices = await getCategoryPrices();
+          
+          if (priceData.source === 'fatura' || priceData.source === 'e-fatura') {
+            contextParts.push('\n💰 FİRMAMIZIN ALIŞ FİYATLARI (Son 1 ay faturalardan - MALİYET HESABI İÇİN):');
+            contextParts.push('⚠️ ÖNEMLİ: Bu fiyatlar firmamızın TEDARİKÇİLERDEN aldığı GERÇEK fiyatlardır.');
+            contextParts.push('⚠️ DİKKAT: Bu fiyatlar İHALE BİRİM FİYAT CETVELİ ile KARIŞTIRILMAMALI!');
+            
+            // İlk 50 ürünü göster (çok fazla olmasın)
+            const topPrices = priceData.prices.slice(0, 50);
+            topPrices.forEach(p => {
+              contextParts.push(`- ${p.urun_adi}: ${p.birim_fiyat}₺/${p.birim || 'adet'} (${p.tedarikci || 'Bilinmiyor'}, ${new Date(p.fatura_tarihi).toLocaleDateString('tr-TR')})`);
+            });
+            
+            if (priceData.prices.length > 50) {
+              contextParts.push(`... ve ${priceData.prices.length - 50} ürün daha`);
+            }
+          } else if (priceData.source === 'stok_karti') {
+            contextParts.push('\n📦 SİSTEMDEKİ FİYATLAR (Stok kartlarından):');
+            contextParts.push(priceData.warning);
+            
+            const topPrices = priceData.prices.slice(0, 30);
+            topPrices.forEach(p => {
+              contextParts.push(`- ${p.urun_adi}: ${p.birim_fiyat}₺/${p.birim || 'adet'} (${p.kategori || 'Genel'})`);
+            });
+          } else {
+            contextParts.push('\n⚠️ DİKKAT: Sistemde güncel fiyat verisi bulunamadı!');
+            contextParts.push('Fiyat tahmini yapacaksan MUTLAKA belirt: "Bu fiyatlar tahminidir, gerçek fatura/piyasa fiyatlarını kontrol edin."');
+          }
+          
+          // Kategori bazlı özet
+          if (categoryPrices.length > 0) {
+            contextParts.push('\n📊 KATEGORİ BAZLI ORTALAMA FİYATLAR (Son 1 ay):');
+            categoryPrices.forEach(c => {
+              contextParts.push(`- ${c.kategori}: Ort. ${c.ortalama_fiyat}₺ (Min: ${c.min_fiyat}₺, Max: ${c.max_fiyat}₺) - ${c.urun_sayisi} ürün`);
+            });
+          }
         }
       } else if (contextType === 'personel') {
         contextParts.push('👤 PERSONEL/HR SAYFASINDAYIM');
@@ -419,7 +647,12 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
       
       if (contextParts.length > 0) {
         contextInfo = `\n\n[SAYFA CONTEXT: ${contextParts.join(' | ')}]`;
-        enrichedMessage = userMessage + contextInfo;
+        // NOT: systemContext varsa onu koruyoruz, sadece contextInfo ekle
+        if (!systemContext) {
+          enrichedMessage = userMessage + contextInfo;
+        } else {
+          enrichedMessage = enrichedMessage + contextInfo;
+        }
       }
 
       // 1. Hafızayı yükle

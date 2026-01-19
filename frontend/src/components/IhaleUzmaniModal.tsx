@@ -217,8 +217,25 @@ export default function IhaleUzmaniModal({
     selectedFirmaId, 
     setSelectedFirmaId, 
     selectedFirma,
-    loadAnalysisData 
+    loadAnalysisData,
+    hideNote
   } = ihaleData;
+
+  // Helper: Mesajdan context kısmını kaldır (eski kayıtlar için)
+  const stripContextFromMessage = (content: string): string => {
+    if (!content) return content;
+    // Eğer mesaj "📋 SEÇİLİ İHALE:" ile başlıyorsa, "---" sonrasını al
+    if (content.includes('📋 SEÇİLİ İHALE:') && content.includes('---\n')) {
+      const lastSeparator = content.lastIndexOf('---\n');
+      if (lastSeparator !== -1) {
+        const actualMessage = content.substring(lastSeparator + 4).trim();
+        if (actualMessage.length > 0) {
+          return actualMessage;
+        }
+      }
+    }
+    return content;
+  };
 
   // dilekceTypeLabels artık types.ts'den import ediliyor
 
@@ -562,7 +579,7 @@ export default function IhaleUzmaniModal({
       if (data.success && data.messages) {
         const formattedMessages = data.messages.map((msg: any) => ({
           role: msg.role,
-          content: msg.content,
+          content: stripContextFromMessage(msg.content), // Eski context'leri temizle
           timestamp: new Date(msg.created_at),
         }));
         setDilekceMessages(formattedMessages);
@@ -662,7 +679,7 @@ export default function IhaleUzmaniModal({
         const loadedMessages: ChatMessage[] = result.messages.map((msg: any, index: number) => ({
           id: `${msg.id || index}`,
           role: msg.role,
-          content: msg.content,
+          content: stripContextFromMessage(msg.content), // Eski context'leri temizle
           timestamp: new Date(msg.created_at),
         }));
         
@@ -692,7 +709,7 @@ export default function IhaleUzmaniModal({
         // Backend'den gelen mesajları dilekçe formatına çevir
         const loadedMessages = result.messages.map((msg: any) => ({
           role: msg.role as 'user' | 'assistant',
-          content: msg.content,
+          content: stripContextFromMessage(msg.content), // Eski context'leri temizle
         }));
         
         setDilekceMessages(loadedMessages);
@@ -884,49 +901,88 @@ export default function IhaleUzmaniModal({
         if (selectedFirma.yetkili_adi) context += `- Yetkili: ${selectedFirma.yetkili_adi} (${selectedFirma.yetkili_unvani || 'Şirket Yetkilisi'})\n`;
       }
       
-      // Döküman analiz verilerini context'e ekle
+      // ========== DÖKÜMAN ANALİZ VERİLERİ ==========
+      // Teknik Şartlar - TÜM şartlar ekleniyor (limit yok)
       if (analysis.teknik_sartlar && analysis.teknik_sartlar.length > 0) {
         context += `\n📝 TEKNİK ŞARTLAR (${analysis.teknik_sartlar.length} adet):\n`;
-        // İlk 20 şartı ekle (token limiti için)
-        analysis.teknik_sartlar.slice(0, 20).forEach((sart, i) => {
-          context += `${i + 1}. ${sart}\n`;
+        analysis.teknik_sartlar.forEach((sart, i) => {
+          const sartText = typeof sart === 'object' ? sart.text : sart;
+          const sartSource = typeof sart === 'object' && sart.source ? ` [${sart.source}]` : '';
+          context += `${i + 1}. ${sartText}${sartSource}\n`;
         });
-        if (analysis.teknik_sartlar.length > 20) {
-          context += `... ve ${analysis.teknik_sartlar.length - 20} şart daha\n`;
-        }
       }
       
+      // Birim Fiyatlar - TÜM kalemler ekleniyor (limit yok)
       if (analysis.birim_fiyatlar && analysis.birim_fiyatlar.length > 0) {
-        context += `\n💰 BİRİM FİYATLAR (${analysis.birim_fiyatlar.length} kalem):\n`;
-        // İlk 15 kalemi ekle
-        analysis.birim_fiyatlar.slice(0, 15).forEach((item, i) => {
+        context += `\n💰 BİRİM FİYATLAR / MAL HİZMET LİSTESİ (${analysis.birim_fiyatlar.length} kalem):\n`;
+        analysis.birim_fiyatlar.forEach((item, i) => {
           if (typeof item === 'object') {
-            context += `${i + 1}. ${item.kalem || item.aciklama || '-'}: ${item.miktar || '-'} ${item.birim || ''} - ${item.fiyat || item.tutar || '-'}\n`;
+            const source = item.source ? ` [${item.source}]` : '';
+            context += `${i + 1}. ${item.kalem || item.aciklama || item.text || '-'}: ${item.miktar || '-'} ${item.birim || ''} - ${item.fiyat || item.tutar || '-'}${source}\n`;
           } else {
             context += `${i + 1}. ${item}\n`;
           }
         });
-        if (analysis.birim_fiyatlar.length > 15) {
-          context += `... ve ${analysis.birim_fiyatlar.length - 15} kalem daha\n`;
-        }
       }
       
+      // AI Notları - TÜM notlar ekleniyor (limit yok)
       if (analysis.notlar && analysis.notlar.length > 0) {
-        context += `\n⚠️ AI NOTLARI:\n`;
-        analysis.notlar.slice(0, 10).forEach((not) => {
-          context += `• ${not}\n`;
+        context += `\n⚠️ AI NOTLARI (${analysis.notlar.length} adet):\n`;
+        analysis.notlar.forEach((not) => {
+          const notText = typeof not === 'object' ? not.text : not;
+          const notSource = typeof not === 'object' && not.source ? ` [${not.source}]` : '';
+          context += `• ${notText}${notSource}\n`;
         });
       }
       
+      // ========== HESAPLAMA VERİLERİ ==========
+      // Rakip Teklifleri
+      const gecerliTeklifler = teklifListesi.filter((t) => t.tutar > 0);
+      if (gecerliTeklifler.length > 0) {
+        context += `\n📊 RAKİP TEKLİFLERİ (${gecerliTeklifler.length} teklif):\n`;
+        gecerliTeklifler.forEach((t, i) => {
+          context += `${i + 1}. ${t.firma || 'Firma ' + (i+1)}: ${t.tutar.toLocaleString('tr-TR')} TL\n`;
+        });
+      }
+      
+      // Maliyet Bileşenleri (eğer girilmişse)
+      const toplamMaliyet = Object.values(maliyetBilesenleri).reduce((a, b) => a + b, 0);
+      if (toplamMaliyet > 0) {
+        context += `\n🧮 MALİYET BİLEŞENLERİ:\n`;
+        context += `- Ana Çiğ Girdi: ${maliyetBilesenleri.anaCigGirdi.toLocaleString('tr-TR')} TL\n`;
+        context += `- Yardımcı Girdi: ${maliyetBilesenleri.yardimciGirdi.toLocaleString('tr-TR')} TL\n`;
+        context += `- İşçilik: ${maliyetBilesenleri.iscilik.toLocaleString('tr-TR')} TL\n`;
+        context += `- Nakliye: ${maliyetBilesenleri.nakliye.toLocaleString('tr-TR')} TL\n`;
+        context += `- Sözleşme Gideri: ${maliyetBilesenleri.sozlesmeGideri.toLocaleString('tr-TR')} TL\n`;
+        context += `- Genel Gider: ${maliyetBilesenleri.genelGider.toLocaleString('tr-TR')} TL\n`;
+        context += `- Kar: ${maliyetBilesenleri.kar.toLocaleString('tr-TR')} TL\n`;
+        context += `- TOPLAM MALİYET: ${toplamMaliyet.toLocaleString('tr-TR')} TL\n`;
+      }
+      
+      // ========== PANO NOTLARI ==========
+      if (clipboardItems.length > 0) {
+        context += `\n📋 KULLANICI PANO NOTLARI (${clipboardItems.length} adet):\n`;
+        clipboardItems.forEach((item, i) => {
+          context += `${i + 1}. [${item.type}] ${item.content}\n`;
+        });
+      }
+      
+      // ========== TAM METİN ==========
       if (analysis.tam_metin && analysis.tam_metin.length > 0) {
-        // Tam metinden özet (ilk 8000 karakter - daha fazla bilgi içermesi için artırıldı)
-        const tamMetinOzet = analysis.tam_metin.substring(0, 8000);
-        context += `\n📄 DÖKÜMAN TAM METİN:\n${tamMetinOzet}${analysis.tam_metin.length > 8000 ? '\n... (devamı var, detay için ihale_get_ihale_dokumanlari tool\'unu kullan)' : ''}\n`;
+        // Tam metin - 20000 karaktere kadar (daha fazla bilgi)
+        const tamMetinOzet = analysis.tam_metin.substring(0, 20000);
+        context += `\n📄 DÖKÜMAN TAM METİN:\n${tamMetinOzet}${analysis.tam_metin.length > 20000 ? '\n... (devamı var)' : ''}\n`;
       }
       
       // İhale ID'sini ekle (AI tool kullanabilsin)
       context += `\n🔑 İHALE ID: ${tender.tender_id || tender.id}\n`;
-      context += '\n---\nYukarıdaki ihale bilgileri ve döküman analizlerini baz alarak cevap ver. Eğer detaylı bilgi gerekirse ihale_get_ihale_dokumanlari tool\'unu kullanabilirsin.\n\n';
+      context += '\n---\nYukarıdaki ihale bilgileri, döküman analizleri, hesaplamalar ve kullanıcı notlarını baz alarak cevap ver. Tüm verilere erişimin var.\n\n';
+
+      // Önceki mesajları history olarak hazırla (AI bağlamı hatırlasın)
+      const conversationHistory = messages.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }));
 
       const response = await fetch(`${API_BASE_URL}/api/ai/agent`, {
         method: 'POST',
@@ -935,9 +991,11 @@ export default function IhaleUzmaniModal({
           Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
         },
         body: JSON.stringify({
-          message: context + inputMessage,
+          message: inputMessage, // Sadece kullanıcı mesajı (context ayrı)
+          systemContext: context, // Context ayrı gönderiliyor (kaydedilmeyecek)
+          history: conversationHistory,
           sessionId: chatSessionId || undefined,
-          templateSlug: 'ihale-uzman', // İhale Stratejisti şablonu (Opus model)
+          templateSlug: 'ihale-uzman',
           pageContext: tender ? {
             type: 'tender',
             id: tender.tender_id || tender.id,
@@ -1561,7 +1619,7 @@ KURALLAR:
             value="hesaplamalar"
             leftSection={<IconCalculator size={18} stroke={1.5} />}
           >
-            Hesaplamalar
+            Araçlar
           </Tabs.Tab>
           <Tabs.Tab
             value="dilekce"
@@ -1591,39 +1649,10 @@ KURALLAR:
                 />
                 {analysisLoading && <Loader size="xs" />}
               </Group>
-              <Group gap="xs">
-                <Button
-                  variant="outline"
-                  size="xs"
-                  leftSection={<IconEye size={14} />}
-                  component={Link}
-                  href={`/tenders/${tender.tender_id}`}
-                  target="_blank"
-                >
-                  Detay
-                </Button>
-                <Button
-                  variant="outline"
-                  size="xs"
-                  leftSection={<IconDownload size={14} />}
-                  onClick={downloadJSON}
-                >
-                  JSON
-                </Button>
-                <Button
-                  variant="outline"
-                  color="red"
-                  size="xs"
-                  leftSection={<IconTrash size={14} />}
-                  onClick={() => onDelete(tender.id)}
-                >
-                  Sil
-                </Button>
-              </Group>
             </Group>
 
             {/* Özet Kartları */}
-            <SimpleGrid cols={{ base: 2, sm: 3, md: 5 }} spacing="sm">
+            <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="sm">
               <Tooltip
                 label={tender.ihale_basligi}
                 multiline
@@ -1668,21 +1697,6 @@ KURALLAR:
                       Belirtilmemiş
                     </Text>
                   )}
-                </Text>
-              </Paper>
-              <Paper
-                p="sm"
-                withBorder
-                radius="md"
-                shadow="xs"
-                style={{ borderColor: tender.bedel ? 'var(--mantine-color-green-5)' : undefined }}
-                className="hover-card"
-              >
-                <Text size="xs" c="gray.6" tt="uppercase" fw={600} mb={4}>
-                  Tahmini Bedel
-                </Text>
-                <Text size="sm" fw={700} c={tender.bedel ? 'green' : 'gray.5'}>
-                  {tender.bedel || 'Belirtilmemiş'}
                 </Text>
               </Paper>
               <Paper p="sm" withBorder radius="md" shadow="xs" className="hover-card">
@@ -1810,7 +1824,10 @@ KURALLAR:
                     <IconReceipt size={20} />
                   </ThemeIcon>
                   <div>
-                    <Text fw={600} size="sm">Teklif Cetveli</Text>
+                    <Group gap={6}>
+                      <Text fw={600} size="sm">Teklif Cetveli</Text>
+                      <Text size="xs" c="dimmed" fs="italic">(ön teklif hesaplama)</Text>
+                    </Group>
                     <Text size="xs" c="dimmed">
                       {teklifOzet 
                         ? `Son güncelleme: ${teklifOzet.sonGuncelleme || 'Bilinmiyor'}`
@@ -1969,6 +1986,8 @@ KURALLAR:
         <Tabs.Panel value="dokumanlar">
           <DokumanlarTab 
             analysisData={analysisData} 
+            tenderId={tender?.tender_id}
+            onHideNote={hideNote}
             addToClipboard={addToClipboard} 
           />
         </Tabs.Panel>
@@ -2384,7 +2403,7 @@ KURALLAR:
                                   c={msg.role === 'user' ? 'white' : 'dark'}
                                   style={{ whiteSpace: 'pre-wrap' }}
                                 >
-                                  {msg.content}
+                                  {stripContextFromMessage(msg.content)}
                                 </Text>
                                 {msg.timestamp && (
                                   <Text size="xs" c={msg.role === 'user' ? 'violet.1' : 'dimmed'} mt={4}>
@@ -2789,7 +2808,7 @@ KURALLAR:
                                   bg={msg.role === 'user' ? 'blue.6' : 'white'}
                                 >
                                   <Text size="xs" c={msg.role === 'user' ? 'white' : undefined} lineClamp={3}>
-                                    {msg.content}
+                                    {stripContextFromMessage(msg.content)}
                                   </Text>
                                 </Paper>
                               </Group>

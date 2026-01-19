@@ -1,7 +1,7 @@
 import XLSX from 'xlsx';
 import pdf from 'pdf-parse/lib/pdf-parse.js';
 import fs from 'fs';
-import { analyzeWithGemini } from './gemini.js';
+import { analyzeDocument } from './document-analyzer.js';
 
 /**
  * Excel dosyasından menü verilerini parse et
@@ -94,7 +94,7 @@ ${text.substring(0, 8000)}
 - Sadece yemek isimlerini al, gramaj/kalori bilgilerini alma
 - JSON formatında döndür, başka açıklama ekleme`;
 
-  const response = await analyzeWithGemini(prompt);
+  const response = await analyzeDocument(prompt);
   
   try {
     // JSON'ı parse et

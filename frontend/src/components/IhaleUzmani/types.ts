@@ -1,14 +1,30 @@
 // IhaleUzmani - Tip Tanımları
 
+// AI tarafından çıkarılan not
+export interface AINote {
+  id: string;
+  text: string;
+  source: string; // Kaynak döküman adı
+  doc_id?: number;
+  verified?: boolean;
+}
+
+// Teknik şart (kaynak bilgisiyle)
+export interface TeknikSart {
+  text: string;
+  source: string;
+  doc_id?: number;
+}
+
 export interface AnalysisData {
   ihale_basligi?: string;
   kurum?: string;
   tarih?: string;
   bedel?: string;
   sure?: string;
-  teknik_sartlar?: string[];
+  teknik_sartlar?: (string | TeknikSart)[];
   birim_fiyatlar?: BirimFiyat[];
-  notlar?: string[];
+  notlar?: (string | AINote)[];
   tam_metin?: string;
   iletisim?: any;
 }
@@ -16,10 +32,13 @@ export interface AnalysisData {
 export interface BirimFiyat {
   kalem?: string;
   aciklama?: string;
+  text?: string; // String formatı için
   birim?: string;
   miktar?: string | number;
   fiyat?: string | number;
   tutar?: string | number;
+  source?: string; // Kaynak döküman
+  doc_id?: number;
 }
 
 export interface UserNote {

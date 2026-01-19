@@ -1,88 +1,174 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import Anthropic from '@anthropic-ai/sdk';
 import fs from 'fs';
 import path from 'path';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 /**
- * Gemini ile döküman analizi
+ * Claude Opus ile döküman analizi
  * @param {string} text - Çıkarılmış metin
- * @param {string} filePath - Dosya yolu (görsel için)
+ * @param {string} filePath - Dosya yolu (kullanılmıyor)
  * @param {string} fileType - Dosya tipi
  * @returns {Promise<object>} - Analiz sonucu
  */
-export async function analyzeWithGemini(text, filePath, fileType) {
+export async function analyzeDocument(text, filePath, fileType) {
   try {
-    const model = genAI.getGenerativeModel({ 
-      model: process.env.GEMINI_MODEL || 'gemini-2.0-flash-exp'
-    });
-    
-    const prompt = `
-Sen bir ihale dökümanı analiz uzmanısın. Aşağıdaki dökümanı analiz et ve şu bilgileri çıkar:
+    // Metin çok kısaysa analiz yapma
+    if (!text || text.trim().length < 50) {
+      console.warn('⚠️ Metin çok kısa, analiz atlanıyor');
+      return {
+        teknik_sartlar: [],
+        birim_fiyatlar: [],
+        notlar: [],
+        tam_metin: text || ''
+      };
+    }
 
-1. **İhale Başlığı**: İhalenin tam adı
-2. **Kurum/Kuruluş**: İhaleyi açan kurum
-3. **Şehir**: İhalenin yapılacağı şehir
-4. **İhale Tarihi**: İhale tarihi ve saati
-5. **Tahmini Bedel**: Yaklaşık maliyet
-6. **İş Süresi**: Projenin süresi
-7. **Teknik Şartname**: Önemli teknik gereksinimler
-8. **Birim Fiyat Cetveli**: Varsa birim fiyatlar
-9. **İletişim Bilgileri**: Telefon, email
-10. **Önemli Notlar**: Dikkat edilmesi gereken hususlar
+    const prompt = `Sen bir YEMEK/CATERİNG ihale dökümanı analiz uzmanısın. Aşağıdaki dökümanı DİKKATLİCE analiz et.
 
-Lütfen JSON formatında yanıt ver:
+## ARADIĞIN BİLGİLER:
+
+### Temel Bilgiler:
+- İhale başlığı
+- Kurum/kuruluş adı
+- Şehir
+- İhale tarihi ve saati
+- Tahmini bedel / yaklaşık maliyet
+- İş süresi (gün/ay/yıl)
+
+### Teknik Şartlar (ÖNEMLİ - HEPSİNİ BUL):
+- Günlük öğün sayısı (kahvaltı, öğle, akşam)
+- Kişi sayısı
+- Gramaj bilgileri
+- Menü çeşitleri ve rotasyonu
+- Gıda güvenliği şartları (HACCP, ISO 22000, TSE)
+- Personel sayısı ve nitelikleri
+- Mutfak/ekipman gereksinimleri
+- Teslimat saatleri ve koşulları
+- Ambalaj ve sunum şartları
+
+### Birim Fiyatlar (tablo varsa):
+- Kalem adı
+- Birim (kişi, porsiyon, kg, adet)
+- Miktar
+- Birim fiyat (varsa)
+
+### Önemli Notlar ve Uyarılar:
+- Ceza/yaptırım maddeleri
+- Zorunlu belgeler
+- Özel şartlar
+- Dikkat edilmesi gereken hususlar
+- Teminat bilgileri
+
+### İletişim:
+- Telefon
+- E-posta
+- Adres
+
+## ÇIKTI FORMATI (JSON):
 
 \`\`\`json
 {
-  "title": "...",
-  "organization": "...",
-  "city": "...",
-  "tender_date": "...",
-  "estimated_cost": "...",
-  "work_duration": "...",
-  "technical_specs": ["...", "..."],
-  "unit_prices": [],
-  "contact": {
-    "phone": "...",
-    "email": "..."
+  "ihale_basligi": "...",
+  "kurum": "...",
+  "sehir": "...",
+  "tarih": "...",
+  "bedel": "...",
+  "sure": "...",
+  "teknik_sartlar": [
+    "Günlük 3 öğün (kahvaltı, öğle, akşam) verilecektir",
+    "Toplam 500 kişiye hizmet verilecektir",
+    "..."
+  ],
+  "birim_fiyatlar": [
+    {"kalem": "Kahvaltı", "birim": "kişi/gün", "miktar": "500", "fiyat": ""},
+    {"kalem": "Öğle Yemeği", "birim": "kişi/gün", "miktar": "500", "fiyat": ""}
+  ],
+  "notlar": [
+    "HACCP belgesi zorunludur",
+    "Gecikme halinde günlük %1 ceza uygulanır",
+    "..."
+  ],
+  "iletisim": {
+    "telefon": "...",
+    "email": "...",
+    "adres": "..."
   },
-  "important_notes": ["...", "..."],
-  "summary": "Kısa özet..."
+  "tam_metin": "Dökümanın özet metni (max 2000 karakter)..."
 }
 \`\`\`
 
+## KURALLAR:
+1. Dökümanı BAŞTAN SONA oku, hiçbir bilgiyi atlama
+2. Teknik şartları AYRINTILI çıkar
+3. Sayısal değerleri (kişi sayısı, gramaj, süre) mutlaka belirt
+4. Birim fiyat tablosu varsa HER KALEMİ ekle
+5. Ceza maddeleri ve zorunlu belgeleri NOTLAR'a ekle
+6. Emin olmadığın bilgileri "Belirtilmemiş" olarak yaz
+7. JSON formatı BOZMA
+
 DÖKÜMAN METNİ:
-${text}
-    `.trim();
+${text.substring(0, 100000)}
+`.trim();
+
+    console.log('🤖 Claude Opus API çağrısı yapılıyor...');
+    const startTime = Date.now();
     
-    console.log('🤖 Gemini API çağrısı yapılıyor...');
+    const response = await anthropic.messages.create({
+      model: 'claude-opus-4-20250514',
+      max_tokens: 8192,
+      messages: [
+        {
+          role: 'user',
+          content: prompt
+        }
+      ]
+    });
     
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const analysisText = response.text();
+    const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+    const analysisText = response.content[0].text;
     
-    console.log('✅ Gemini analiz tamamlandı');
+    console.log(`✅ Claude Opus analiz tamamlandı (${duration}s)`);
     
     // JSON çıkarmaya çalış
     try {
       const jsonMatch = analysisText.match(/```json\s*([\s\S]*?)\s*```/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[1]);
+        const parsed = JSON.parse(jsonMatch[1]);
+        // Frontend ile uyumluluk için alan eşleştirmesi
+        return {
+          ...parsed,
+          // Eski format desteği (backend birleştirme için)
+          technical_specs: parsed.teknik_sartlar,
+          important_notes: parsed.notlar,
+          unit_prices: parsed.birim_fiyatlar
+        };
       } else {
         // JSON tag'i yoksa tüm metni parse et
-        return JSON.parse(analysisText);
+        const parsed = JSON.parse(analysisText);
+        return {
+          ...parsed,
+          technical_specs: parsed.teknik_sartlar,
+          important_notes: parsed.notlar,
+          unit_prices: parsed.birim_fiyatlar
+        };
       }
     } catch (parseError) {
-      console.warn('JSON parse hatası, raw text döndürülüyor');
+      console.warn('JSON parse hatası, raw text döndürülüyor:', parseError.message);
       return {
         raw_analysis: analysisText,
-        parsed: false
+        parsed: false,
+        teknik_sartlar: [],
+        birim_fiyatlar: [],
+        notlar: [],
+        tam_metin: text.substring(0, 2000)
       };
     }
     
   } catch (error) {
-    console.error('Gemini analiz hatası:', error);
+    console.error('Claude Opus analiz hatası:', error);
     throw error;
   }
 }
@@ -277,3 +363,6 @@ YANIT (her satırda bir şehir):`.trim();
     );
   }
 }
+
+// Backward compatibility - eski isimle de export et
+export { analyzeDocument as analyzeWithGemini };

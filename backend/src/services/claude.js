@@ -149,7 +149,7 @@ async function analyzeImage(imagePath, pageNumber) {
     console.log(`🔍 Claude ile sayfa ${pageNumber} analiz ediliyor...`);
 
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-opus-4-20250514',
       max_tokens: 4096,
       messages: [
         {
@@ -416,7 +416,7 @@ async function analyzePdfDirectWithClaude(pdfPath, onProgress) {
     if (onProgress) onProgress({ stage: 'analyzing', message: 'PDF Claude ile analiz ediliyor...' });
     
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-opus-4-20250514',
       max_tokens: 8192,
       messages: [
         {
@@ -432,20 +432,52 @@ async function analyzePdfDirectWithClaude(pdfPath, onProgress) {
             },
             {
               type: 'text',
-              text: `Bu ihale dökümanını analiz et. Tüm bilgileri çıkar.
+              text: `Sen bir YEMEK/CATERİNG ihale dökümanı analiz uzmanısın. Bu PDF'i DİKKATLİCE analiz et ve SOMUT bilgileri çıkar.
+
+ÖNEMLİ TALİMATLAR:
+1. Aşağıdaki STANDART/GENEL bilgileri ASLA yazma (bunlar tüm ihalelerde aynı):
+   - "EKAP üzerinden teklif verilecek/e-imza ile" 
+   - "Açık ihale usulü"
+   - "4734 sayılı Kanun kapsamında"
+   - "Sözleşme Türkçe hazırlanmış"
+   - "Tebligatlar EKAP üzerinden"
+   - "EKAP'a kayıt zorunlu"
+   - "İhale dokümanı EKAP'ta görülebilir"
+   - "Belgeler Türkçe olacak"
+   - "İhale tarihinin tatil gününe rastlaması halinde..."
+   - "Yerli istekliler katılabilir"
+   - "Konsorsiyum olarak teklif verilemez"
+   - "Elektronik eksiltme yapılmayacak"
+   
+2. SADECE BU İHALEYE ÖZGÜ SPESİFİK bilgileri çıkar:
+   - Günlük/haftalık/aylık YEMEK SAYISI
+   - Kaç KİŞİYE yemek verileceği
+   - GRAMAJ bilgileri (et, pilav, salata vb. için gram cinsinden)
+   - MENÜ TİPLERİ (kahvaltı, öğle, akşam, ara öğün)
+   - GIDA GÜVENLİĞİ gereksinimleri (ISO, HACCP, sertifikalar)
+   - KALORİ ihtiyaçları
+   - TESLİMAT saatleri ve yerleri
+   - CEZA ŞARTLARI (gecikme, eksik teslimat için TL cinsinden cezalar)
+   - ZORUNLU BELGELER listesi
+
+3. teknik_sartlar için: Yemek gramajları, porsiyon boyutları, malzeme kalitesi, saklama koşulları gibi SOMUT teknik detaylar
+4. notlar için: Sadece İŞ İÇİN KRİTİK bilgiler (cezalar, zorunlu belgeler, özel koşullar)
+5. birim_fiyatlar için: Her kalemi TAM olarak çıkar (kalem adı, birim, miktar)
 
 JSON formatında yanıt ver:
 {
-  "tam_metin": "Dökümanın özeti...",
+  "tam_metin": "Kısa ve öz ihale özeti (max 500 karakter)",
   "ihale_basligi": "",
   "kurum": "",
   "tarih": "",
   "bedel": "",
   "sure": "",
-  "teknik_sartlar": ["şart1", "şart2"],
-  "birim_fiyatlar": [{"kalem": "", "birim": "", "miktar": "", "fiyat": ""}],
+  "gunluk_ogun_sayisi": "",
+  "kisi_sayisi": "",
+  "teknik_sartlar": ["SOMUT teknik şart 1", "SOMUT teknik şart 2"],
+  "birim_fiyatlar": [{"kalem": "Ürün adı", "birim": "kg/adet/porsiyon", "miktar": "sayı", "fiyat": "varsa"}],
   "iletisim": {"telefon": "", "email": "", "adres": ""},
-  "notlar": ["not1", "not2"]
+  "notlar": ["KRİTİK not 1 - örn: Gecikme cezası günlük %1", "KRİTİK not 2"]
 }`
             }
           ]
@@ -497,45 +529,88 @@ JSON formatında yanıt ver:
  * İç kullanım için metin analizi
  */
 async function analyzeTextWithClaudeInternal(text) {
+  console.log(`🤖 Claude Opus (Internal) API çağrısı yapılıyor... (${text.length} karakter)`);
+  const startTime = Date.now();
+  
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 4096,
+    model: 'claude-opus-4-20250514',
+    max_tokens: 8192,
     messages: [
       {
         role: 'user',
-        content: `Bu ihale dökümanını analiz et:
+        content: `Sen bir YEMEK/CATERİNG ihale dökümanı analiz uzmanısın. Bu dökümanı DİKKATLİCE analiz et ve SOMUT bilgileri çıkar.
 
-${text.substring(0, 30000)}
+DÖKÜMAN:
+${text.substring(0, 35000)}
+
+ÖNEMLİ TALİMATLAR:
+1. Aşağıdaki STANDART/GENEL bilgileri ASLA yazma (bunlar tüm ihalelerde aynı):
+   - "EKAP üzerinden teklif verilecek/e-imza ile" 
+   - "Açık ihale usulü"
+   - "4734 sayılı Kanun kapsamında"
+   - "Sözleşme Türkçe hazırlanmış"
+   - "Tebligatlar EKAP üzerinden"
+   - "EKAP'a kayıt zorunlu"
+   - "İhale dokümanı EKAP'ta görülebilir"
+   - "Belgeler Türkçe olacak"
+   - "İhale tarihinin tatil gününe rastlaması halinde..."
+   - "Yerli istekliler katılabilir"
+   - "Konsorsiyum olarak teklif verilemez"
+   - "Elektronik eksiltme yapılmayacak"
+   
+2. SADECE BU İHALEYE ÖZGÜ SPESİFİK bilgileri çıkar:
+   - Günlük/haftalık/aylık YEMEK SAYISI
+   - Kaç KİŞİYE yemek verileceği
+   - GRAMAJ bilgileri (et, pilav, salata vb. için gram cinsinden)
+   - MENÜ TİPLERİ (kahvaltı, öğle, akşam, ara öğün)
+   - GIDA GÜVENLİĞİ gereksinimleri (ISO, HACCP, sertifikalar)
+   - KALORİ ihtiyaçları
+   - TESLİMAT saatleri ve yerleri
+   - CEZA ŞARTLARI (gecikme, eksik teslimat için TL cinsinden cezalar)
+   - ZORUNLU BELGELER listesi
+
+3. teknik_sartlar için: Yemek gramajları, porsiyon boyutları, malzeme kalitesi, saklama koşulları gibi SOMUT teknik detaylar
+4. notlar için: Sadece İŞ İÇİN KRİTİK bilgiler (cezalar, zorunlu belgeler, özel koşullar)
+5. birim_fiyatlar için: Her kalemi TAM olarak çıkar (kalem adı, birim, miktar)
 
 JSON formatında yanıt ver:
 {
-  "tam_metin": "Özet...",
+  "tam_metin": "Kısa ve öz ihale özeti (max 500 karakter)",
   "ihale_basligi": "",
   "kurum": "",
   "tarih": "",
   "bedel": "",
   "sure": "",
-  "teknik_sartlar": [],
-  "birim_fiyatlar": [],
-  "iletisim": {},
-  "notlar": []
+  "gunluk_ogun_sayisi": "",
+  "kisi_sayisi": "",
+  "teknik_sartlar": ["SOMUT teknik şart 1", "SOMUT teknik şart 2"],
+  "birim_fiyatlar": [{"kalem": "Ürün adı", "birim": "kg/adet/porsiyon", "miktar": "sayı", "fiyat": "varsa"}],
+  "iletisim": {"telefon": "", "email": "", "adres": ""},
+  "notlar": ["KRİTİK not 1 - örn: Gecikme cezası günlük %1", "KRİTİK not 2"]
 }`
       }
     ]
   });
+
+  const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+  console.log(`✅ Claude Opus (Internal) yanıt alındı (${duration}s) - Input: ${response.usage?.input_tokens || 'N/A'}, Output: ${response.usage?.output_tokens || 'N/A'}`);
 
   const responseText = response.content[0].text;
   
   try {
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      console.log(`   📊 Çıkarılan: ${parsed.teknik_sartlar?.length || 0} teknik şart, ${parsed.birim_fiyatlar?.length || 0} birim fiyat, ${parsed.notlar?.length || 0} not`);
       return {
         success: true,
-        analiz: JSON.parse(jsonMatch[0]),
+        analiz: parsed,
         ham_metin: text.substring(0, 5000)
       };
     }
-  } catch (e) {}
+  } catch (e) {
+    console.warn(`   ⚠️ JSON parse hatası (Internal):`, e.message);
+  }
   
   return {
     success: true,
@@ -555,7 +630,7 @@ JSON formatında yanıt ver:
 export async function normalizeCity(cityInput) {
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-opus-4-20250514',
       max_tokens: 100,
       messages: [
         {
@@ -828,41 +903,84 @@ export async function analyzeWithClaude(text, fileType = 'text') {
 }
 
 async function analyzeTextWithClaude(text) {
+  console.log(`🤖 Claude Opus API çağrısı yapılıyor... (${text.length} karakter)`);
+  const startTime = Date.now();
+  
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 4096,
+    model: 'claude-opus-4-20250514',
+    max_tokens: 8192,
     messages: [
       {
         role: 'user',
-        content: `Bu ihale dökümanını analiz et ve bilgileri çıkar:
+        content: `Sen bir YEMEK/CATERİNG ihale dökümanı analiz uzmanısın. Bu dökümanı DİKKATLİCE analiz et ve SOMUT bilgileri çıkar.
 
-${text.substring(0, 15000)}
+DÖKÜMAN:
+${text.substring(0, 25000)}
+
+ÖNEMLİ TALİMATLAR:
+1. Aşağıdaki STANDART/GENEL bilgileri ASLA yazma (bunlar tüm ihalelerde aynı):
+   - "EKAP üzerinden teklif verilecek/e-imza ile" 
+   - "Açık ihale usulü"
+   - "4734 sayılı Kanun kapsamında"
+   - "Sözleşme Türkçe hazırlanmış"
+   - "Tebligatlar EKAP üzerinden"
+   - "EKAP'a kayıt zorunlu"
+   - "İhale dokümanı EKAP'ta görülebilir"
+   - "Belgeler Türkçe olacak"
+   - "İhale tarihinin tatil gününe rastlaması halinde..."
+   - "Yerli istekliler katılabilir"
+   - "Konsorsiyum olarak teklif verilemez"
+   - "Elektronik eksiltme yapılmayacak"
+   
+2. SADECE BU İHALEYE ÖZGÜ SPESİFİK bilgileri çıkar:
+   - Günlük/haftalık/aylık YEMEK SAYISI
+   - Kaç KİŞİYE yemek verileceği
+   - GRAMAJ bilgileri (et, pilav, salata vb. için gram cinsinden)
+   - MENÜ TİPLERİ (kahvaltı, öğle, akşam, ara öğün)
+   - GIDA GÜVENLİĞİ gereksinimleri (ISO, HACCP, sertifikalar)
+   - KALORİ ihtiyaçları
+   - TESLİMAT saatleri ve yerleri
+   - CEZA ŞARTLARI (gecikme, eksik teslimat için TL cinsinden cezalar)
+   - ZORUNLU BELGELER listesi
+
+3. teknik_sartlar için: Yemek gramajları, porsiyon boyutları, malzeme kalitesi, saklama koşulları gibi SOMUT teknik detaylar
+4. notlar için: Sadece İŞ İÇİN KRİTİK bilgiler (cezalar, zorunlu belgeler, özel koşullar)
+5. birim_fiyatlar için: Her kalemi TAM olarak çıkar (kalem adı, birim, miktar)
 
 JSON formatında yanıt ver:
 {
-  "tam_metin": "Özet...",
+  "tam_metin": "Kısa ve öz ihale özeti (max 500 karakter)",
   "ihale_basligi": "",
   "kurum": "",
   "tarih": "",
   "bedel": "",
   "sure": "",
-  "teknik_sartlar": [],
-  "birim_fiyatlar": [],
-  "iletisim": {},
-  "notlar": []
+  "gunluk_ogun_sayisi": "",
+  "kisi_sayisi": "",
+  "teknik_sartlar": ["SOMUT teknik şart 1", "SOMUT teknik şart 2"],
+  "birim_fiyatlar": [{"kalem": "Ürün adı", "birim": "kg/adet/porsiyon", "miktar": "sayı", "fiyat": "varsa"}],
+  "iletisim": {"telefon": "", "email": "", "adres": ""},
+  "notlar": ["KRİTİK not 1 - örn: Gecikme cezası günlük %1", "KRİTİK not 2"]
 }`
       }
     ]
   });
+
+  const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+  console.log(`✅ Claude Opus yanıt alındı (${duration}s) - Input tokens: ${response.usage?.input_tokens || 'N/A'}, Output tokens: ${response.usage?.output_tokens || 'N/A'}`);
 
   const responseText = response.content[0].text;
   
   try {
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
+      const parsed = JSON.parse(jsonMatch[0]);
+      console.log(`   📊 Çıkarılan: ${parsed.teknik_sartlar?.length || 0} teknik şart, ${parsed.birim_fiyatlar?.length || 0} birim fiyat, ${parsed.notlar?.length || 0} not`);
+      return parsed;
     }
-  } catch (e) {}
+  } catch (e) {
+    console.warn(`   ⚠️ JSON parse hatası:`, e.message);
+  }
   
   return {
     tam_metin: text.substring(0, 5000),
@@ -883,7 +1001,7 @@ JSON formatında yanıt ver:
  */
 async function analyzeTableWithClaude(csvText, sheets) {
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-opus-4-20250514',
     max_tokens: 4096,
     messages: [
       {
