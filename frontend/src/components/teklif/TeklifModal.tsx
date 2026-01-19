@@ -29,7 +29,9 @@ import {
   IconCheck,
   IconDeviceFloppy,
   IconDownload,
+  IconExternalLink,
   IconFileSpreadsheet,
+  IconLayoutDashboard,
   IconPlus,
   IconScale,
   IconShieldCheck,
@@ -1774,7 +1776,20 @@ export default function TeklifModal({
             </div>
           </Group>
 
-          <Group>
+          <Group gap="xs">
+            {/* Pano Butonu */}
+            <Button
+              variant="subtle"
+              leftSection={<IconLayoutDashboard size={16} />}
+              rightSection={<IconExternalLink size={12} />}
+              onClick={() => window.open('/pano', '_blank')}
+              radius="md"
+              size="sm"
+              style={{ color: 'white' }}
+            >
+              Pano
+            </Button>
+
             {/* Tab Butonları */}
             <Paper
               p={4}
