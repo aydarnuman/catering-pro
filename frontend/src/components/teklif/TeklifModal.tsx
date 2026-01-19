@@ -297,14 +297,16 @@ export default function TeklifModal({
             <Table.Tr>
               <Table.Th w={40}></Table.Th>
               <Table.Th>Öğün</Table.Th>
-              <Table.Th w={100}>Kişi</Table.Th>
-              <Table.Th w={80}>Gün</Table.Th>
-              <Table.Th w={100}>Kişi Başı ₺</Table.Th>
-              <Table.Th w={140}>Toplam</Table.Th>
+              <Table.Th w={90}>Kişi</Table.Th>
+              <Table.Th w={70}>Gün</Table.Th>
+              <Table.Th w={110}>Toplam Öğün</Table.Th>
+              <Table.Th w={90}>Kişi Başı ₺</Table.Th>
+              <Table.Th w={130}>Toplam ₺</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
             {detay.ogunler.map((ogun, idx) => {
+              const toplamOgun = ogun.aktif ? ogun.kisiSayisi * ogun.gunSayisi : 0;
               const ogunToplam = ogun.aktif
                 ? ogun.kisiSayisi * ogun.gunSayisi * ogun.kisiBasiMaliyet
                 : 0;
@@ -356,6 +358,11 @@ export default function TeklifModal({
                       }}
                       disabled={!ogun.aktif}
                     />
+                  </Table.Td>
+                  <Table.Td>
+                    <Text fw={600} c={toplamOgun > 0 ? 'blue' : 'dimmed'} size="sm">
+                      {toplamOgun.toLocaleString('tr-TR')}
+                    </Text>
                   </Table.Td>
                   <Table.Td>
                     <NumberInput
