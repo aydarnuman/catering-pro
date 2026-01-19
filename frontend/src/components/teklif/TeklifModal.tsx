@@ -299,8 +299,8 @@ export default function TeklifModal({
               <Table.Th>Öğün</Table.Th>
               <Table.Th w={100}>Kişi</Table.Th>
               <Table.Th w={80}>Gün</Table.Th>
-              <Table.Th w={100}>₺/Kişi</Table.Th>
-              <Table.Th w={120}>Toplam</Table.Th>
+              <Table.Th w={100}>Kişi Başı ₺</Table.Th>
+              <Table.Th w={140}>Toplam</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -375,8 +375,8 @@ export default function TeklifModal({
                     />
                   </Table.Td>
                   <Table.Td>
-                    <Text fw={600} c={ogunToplam > 0 ? 'green' : 'dimmed'}>
-                      {formatParaKisa(ogunToplam)}
+                    <Text fw={600} c={ogunToplam > 0 ? 'green' : 'dimmed'} size="sm">
+                      {formatPara(ogunToplam)}
                     </Text>
                   </Table.Td>
                 </Table.Tr>
