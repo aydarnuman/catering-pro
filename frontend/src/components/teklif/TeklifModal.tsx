@@ -1438,10 +1438,10 @@ export default function TeklifModal({
                   px={10}
                   style={{
                     cursor: 'pointer',
-                    borderRadius: 6,
-                    background: isSelected ? '#0f172a' : 'transparent',
+                    borderRadius: 8,
+                    background: isSelected ? 'rgba(59, 130, 246, 0.12)' : 'transparent',
                     borderLeft: isSelected ? '3px solid #3b82f6' : '3px solid transparent',
-                    transition: 'all 0.15s ease',
+                    transition: 'all 0.25s ease',
                   }}
                   onClick={() => setSelectedKalem(kalem.key)}
                 >
@@ -1449,12 +1449,12 @@ export default function TeklifModal({
                     <Text 
                       size="xs" 
                       fw={isSelected ? 600 : 500} 
-                      c={isSelected ? 'white' : tutar > 0 ? 'dark' : 'dimmed'}
+                      c={isSelected ? 'blue.7' : tutar > 0 ? 'dark' : 'dimmed'}
                     >
                       {kalem.label}
                     </Text>
                     {tutar > 0 && (
-                      <Text size="10px" c={isSelected ? 'blue.3' : 'dimmed'} fw={500}>
+                      <Text size="10px" c={isSelected ? 'blue.5' : 'dimmed'} fw={500}>
                         {yuzde.toFixed(0)}%
                       </Text>
                     )}
@@ -1462,7 +1462,7 @@ export default function TeklifModal({
                   <Text
                     size="sm"
                     fw={700}
-                    c={isSelected ? 'blue.3' : tutar > 0 ? 'dark' : 'dimmed'}
+                    c={isSelected ? 'blue.6' : tutar > 0 ? 'dark' : 'dimmed'}
                   >
                     {tutar > 0 ? formatParaKisa(tutar) : '—'}
                   </Text>
@@ -1489,10 +1489,10 @@ export default function TeklifModal({
                   px={10}
                   style={{
                     cursor: 'pointer',
-                    borderRadius: 6,
-                    background: isSelected ? '#0f172a' : 'transparent',
+                    borderRadius: 8,
+                    background: isSelected ? 'rgba(59, 130, 246, 0.12)' : 'transparent',
                     borderLeft: isSelected ? '3px solid #3b82f6' : '3px solid transparent',
-                    transition: 'all 0.15s ease',
+                    transition: 'all 0.25s ease',
                   }}
                   onClick={() => setSelectedKalem(kalem.key)}
                 >
@@ -1500,12 +1500,12 @@ export default function TeklifModal({
                     <Text 
                       size="xs" 
                       fw={isSelected ? 600 : 500} 
-                      c={isSelected ? 'white' : tutar > 0 ? 'dark' : 'dimmed'}
+                      c={isSelected ? 'blue.7' : tutar > 0 ? 'dark' : 'dimmed'}
                     >
                       {kalem.label}
                     </Text>
                     {tutar > 0 && (
-                      <Text size="10px" c={isSelected ? 'blue.3' : 'dimmed'} fw={500}>
+                      <Text size="10px" c={isSelected ? 'blue.5' : 'dimmed'} fw={500}>
                         {yuzde.toFixed(0)}%
                       </Text>
                     )}
@@ -1513,7 +1513,7 @@ export default function TeklifModal({
                   <Text
                     size="sm"
                     fw={700}
-                    c={isSelected ? 'blue.3' : tutar > 0 ? 'dark' : 'dimmed'}
+                    c={isSelected ? 'blue.6' : tutar > 0 ? 'dark' : 'dimmed'}
                   >
                     {tutar > 0 ? formatParaKisa(tutar) : '—'}
                   </Text>
@@ -1540,10 +1540,10 @@ export default function TeklifModal({
                   px={10}
                   style={{
                     cursor: 'pointer',
-                    borderRadius: 6,
-                    background: isSelected ? '#0f172a' : 'transparent',
+                    borderRadius: 8,
+                    background: isSelected ? 'rgba(59, 130, 246, 0.12)' : 'transparent',
                     borderLeft: isSelected ? '3px solid #3b82f6' : '3px solid transparent',
-                    transition: 'all 0.15s ease',
+                    transition: 'all 0.25s ease',
                   }}
                   onClick={() => setSelectedKalem(kalem.key)}
                 >
@@ -1551,12 +1551,12 @@ export default function TeklifModal({
                     <Text 
                       size="xs" 
                       fw={isSelected ? 600 : 500} 
-                      c={isSelected ? 'white' : tutar > 0 ? 'dark' : 'dimmed'}
+                      c={isSelected ? 'blue.7' : tutar > 0 ? 'dark' : 'dimmed'}
                     >
                       {kalem.label}
                     </Text>
                     {tutar > 0 && (
-                      <Text size="10px" c={isSelected ? 'blue.3' : 'dimmed'} fw={500}>
+                      <Text size="10px" c={isSelected ? 'blue.5' : 'dimmed'} fw={500}>
                         {yuzde.toFixed(0)}%
                       </Text>
                     )}
@@ -1564,7 +1564,7 @@ export default function TeklifModal({
                   <Text
                     size="sm"
                     fw={700}
-                    c={isSelected ? 'blue.3' : tutar > 0 ? 'dark' : 'dimmed'}
+                    c={isSelected ? 'blue.6' : tutar > 0 ? 'dark' : 'dimmed'}
                   >
                     {tutar > 0 ? formatParaKisa(tutar) : '—'}
                   </Text>
