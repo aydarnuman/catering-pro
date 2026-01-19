@@ -91,6 +91,8 @@ import { useClipboard, useIhaleData } from './IhaleUzmani/hooks';
 import { ClipboardModal } from './IhaleUzmani/modals/ClipboardModal';
 import { DokumanlarTab } from './IhaleUzmani/tabs/DokumanlarTab';
 import { HesaplamalarTab } from './IhaleUzmani/tabs/HesaplamalarTab';
+import TeklifModal from './teklif/TeklifModal';
+import { IconUsers, IconTruck, IconPackage, IconTool, IconReceipt, IconBuildingBank } from '@tabler/icons-react';
 
 export default function IhaleUzmaniModal({
   opened,
@@ -186,6 +188,25 @@ export default function IhaleUzmaniModal({
   const [isDilekceEditing, setIsDilekceEditing] = useState(false); // Dilekçe düzenleme modu
   const [showChatHistory, setShowChatHistory] = useState(false); // Sohbet geçmişini göster/gizle
   const dilekceEndRef = useRef<HTMLDivElement>(null);
+
+  // Teklif Cetveli States
+  const [teklifModalOpened, setTeklifModalOpened] = useState(false);
+  const [teklifOzet, setTeklifOzet] = useState<{
+    personelSayisi: number;
+    personelMaliyet: number;
+    aracSayisi: number;
+    nakliyeMaliyet: number;
+    sarfKalemSayisi: number;
+    sarfMaliyet: number;
+    ekipmanSayisi: number;
+    ekipmanMaliyet: number;
+    yasalMaliyet: number;
+    genelGiderMaliyet: number;
+    toplamMaliyet: number;
+    karOrani: number;
+    teklifTutari: number;
+    sonGuncelleme: string | null;
+  } | null>(null);
 
   // Firma ve Analysis - useIhaleData hook'tan alias'lar
   const { 
@@ -1764,6 +1785,183 @@ KURALLAR:
               </Paper>
             )}
 
+            {/* TEKLİF CETVELİ KARTI */}
+            <Paper 
+              p="lg" 
+              withBorder 
+              radius="md" 
+              shadow="sm"
+              style={{
+                background: teklifOzet 
+                  ? 'linear-gradient(135deg, rgba(236,253,245,0.5) 0%, rgba(255,255,255,1) 100%)'
+                  : 'var(--mantine-color-gray-0)',
+                border: teklifOzet ? '1px solid var(--mantine-color-teal-3)' : undefined
+              }}
+            >
+              <Group justify="space-between" mb="md">
+                <Group gap="sm">
+                  <ThemeIcon 
+                    size="lg" 
+                    variant={teklifOzet ? 'gradient' : 'light'} 
+                    gradient={{ from: 'teal', to: 'cyan' }}
+                    color="teal"
+                    radius="xl"
+                  >
+                    <IconReceipt size={20} />
+                  </ThemeIcon>
+                  <div>
+                    <Text fw={600} size="sm">Teklif Cetveli</Text>
+                    <Text size="xs" c="dimmed">
+                      {teklifOzet 
+                        ? `Son güncelleme: ${teklifOzet.sonGuncelleme || 'Bilinmiyor'}`
+                        : 'Detaylı maliyet analizi ve teklif hazırlama'
+                      }
+                    </Text>
+                  </div>
+                </Group>
+                {teklifOzet && (
+                  <Badge variant="filled" color="teal" size="lg">
+                    {teklifOzet.teklifTutari.toLocaleString('tr-TR')} ₺
+                  </Badge>
+                )}
+              </Group>
+
+              {teklifOzet ? (
+                <>
+                  {/* Maliyet Kartları */}
+                  <SimpleGrid cols={{ base: 2, sm: 3, md: 6 }} spacing="xs" mb="md">
+                    <Paper p="xs" radius="sm" bg="blue.0" style={{ border: '1px solid var(--mantine-color-blue-2)' }}>
+                      <Group gap={4} mb={2}>
+                        <IconUsers size={14} color="var(--mantine-color-blue-6)" />
+                        <Text size="xs" c="blue.7" fw={600}>Personel</Text>
+                      </Group>
+                      <Text size="xs" c="dimmed">{teklifOzet.personelSayisi} kişi</Text>
+                      <Text size="sm" fw={700} c="blue.7">{teklifOzet.personelMaliyet.toLocaleString('tr-TR')} ₺</Text>
+                    </Paper>
+                    
+                    <Paper p="xs" radius="sm" bg="orange.0" style={{ border: '1px solid var(--mantine-color-orange-2)' }}>
+                      <Group gap={4} mb={2}>
+                        <IconTruck size={14} color="var(--mantine-color-orange-6)" />
+                        <Text size="xs" c="orange.7" fw={600}>Nakliye</Text>
+                      </Group>
+                      <Text size="xs" c="dimmed">{teklifOzet.aracSayisi} araç</Text>
+                      <Text size="sm" fw={700} c="orange.7">{teklifOzet.nakliyeMaliyet.toLocaleString('tr-TR')} ₺</Text>
+                    </Paper>
+                    
+                    <Paper p="xs" radius="sm" bg="green.0" style={{ border: '1px solid var(--mantine-color-green-2)' }}>
+                      <Group gap={4} mb={2}>
+                        <IconPackage size={14} color="var(--mantine-color-green-6)" />
+                        <Text size="xs" c="green.7" fw={600}>Sarf</Text>
+                      </Group>
+                      <Text size="xs" c="dimmed">{teklifOzet.sarfKalemSayisi} kalem</Text>
+                      <Text size="sm" fw={700} c="green.7">{teklifOzet.sarfMaliyet.toLocaleString('tr-TR')} ₺</Text>
+                    </Paper>
+                    
+                    <Paper p="xs" radius="sm" bg="grape.0" style={{ border: '1px solid var(--mantine-color-grape-2)' }}>
+                      <Group gap={4} mb={2}>
+                        <IconTool size={14} color="var(--mantine-color-grape-6)" />
+                        <Text size="xs" c="grape.7" fw={600}>Ekipman</Text>
+                      </Group>
+                      <Text size="xs" c="dimmed">{teklifOzet.ekipmanSayisi} kalem</Text>
+                      <Text size="sm" fw={700} c="grape.7">{teklifOzet.ekipmanMaliyet.toLocaleString('tr-TR')} ₺</Text>
+                    </Paper>
+                    
+                    <Paper p="xs" radius="sm" bg="red.0" style={{ border: '1px solid var(--mantine-color-red-2)' }}>
+                      <Group gap={4} mb={2}>
+                        <IconBuildingBank size={14} color="var(--mantine-color-red-6)" />
+                        <Text size="xs" c="red.7" fw={600}>Yasal</Text>
+                      </Group>
+                      <Text size="xs" c="dimmed">SGK, Vergi</Text>
+                      <Text size="sm" fw={700} c="red.7">{teklifOzet.yasalMaliyet.toLocaleString('tr-TR')} ₺</Text>
+                    </Paper>
+                    
+                    <Paper p="xs" radius="sm" bg="gray.1" style={{ border: '1px solid var(--mantine-color-gray-3)' }}>
+                      <Group gap={4} mb={2}>
+                        <IconReceipt size={14} color="var(--mantine-color-gray-6)" />
+                        <Text size="xs" c="gray.7" fw={600}>Genel</Text>
+                      </Group>
+                      <Text size="xs" c="dimmed">Giderler</Text>
+                      <Text size="sm" fw={700} c="gray.7">{teklifOzet.genelGiderMaliyet.toLocaleString('tr-TR')} ₺</Text>
+                    </Paper>
+                  </SimpleGrid>
+
+                  {/* Özet Satır */}
+                  <Paper p="sm" radius="md" bg="teal.0" style={{ border: '1px solid var(--mantine-color-teal-3)' }}>
+                    <Group justify="space-between">
+                      <div>
+                        <Text size="xs" c="dimmed">Toplam Maliyet</Text>
+                        <Text size="md" fw={700}>{teklifOzet.toplamMaliyet.toLocaleString('tr-TR')} ₺</Text>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <Text size="xs" c="dimmed">Kar Oranı</Text>
+                        <Badge size="lg" variant="light" color="teal">%{teklifOzet.karOrani}</Badge>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <Text size="xs" c="dimmed">Teklif Tutarı</Text>
+                        <Text size="lg" fw={700} c="teal.7">{teklifOzet.teklifTutari.toLocaleString('tr-TR')} ₺</Text>
+                      </div>
+                      {sinirDeger && (
+                        <Badge 
+                          size="lg" 
+                          variant="filled"
+                          color={teklifOzet.teklifTutari < sinirDeger ? 'orange' : 'green'}
+                          leftSection={teklifOzet.teklifTutari < sinirDeger ? <IconAlertTriangle size={14} /> : <IconCheck size={14} />}
+                        >
+                          {teklifOzet.teklifTutari < sinirDeger ? 'Risk' : 'Uygun'}
+                        </Badge>
+                      )}
+                    </Group>
+                  </Paper>
+
+                  {/* Butonlar */}
+                  <Group justify="flex-end" mt="md" gap="xs">
+                    <Button
+                      variant="light"
+                      color="teal"
+                      size="sm"
+                      leftSection={<IconPencil size={16} />}
+                      onClick={() => setTeklifModalOpened(true)}
+                    >
+                      Teklif Düzenle
+                    </Button>
+                    <Button
+                      variant="outline"
+                      color="teal"
+                      size="sm"
+                      leftSection={<IconDownload size={16} />}
+                    >
+                      Excel İndir
+                    </Button>
+                  </Group>
+                </>
+              ) : (
+                /* Teklif Hazırlanmamış Durumu */
+                <Center py="xl">
+                  <Stack align="center" gap="md">
+                    <ThemeIcon size={60} variant="light" color="teal" radius="xl">
+                      <IconReceipt size={30} />
+                    </ThemeIcon>
+                    <div style={{ textAlign: 'center' }}>
+                      <Text fw={600} size="md" mb={4}>Henüz teklif cetveli hazırlanmadı</Text>
+                      <Text size="sm" c="dimmed" maw={400}>
+                        Döküman analizinden elde edilen birim fiyatları kullanarak
+                        detaylı maliyet analizi ve teklif cetveli hazırlayın
+                      </Text>
+                    </div>
+                    <Button
+                      variant="gradient"
+                      gradient={{ from: 'teal', to: 'cyan' }}
+                      size="md"
+                      leftSection={<IconPlus size={18} />}
+                      onClick={() => setTeklifModalOpened(true)}
+                    >
+                      Teklif Cetveli Hazırla
+                    </Button>
+                  </Stack>
+                </Center>
+              )}
+            </Paper>
+
           </Stack>
         </Tabs.Panel>
 
@@ -2732,6 +2930,20 @@ KURALLAR:
       
       {/* ========== ÇALIŞMA PANOSU MODAL ========== */}
       <ClipboardModal clipboard={clipboard} />
+
+      {/* Teklif Cetveli Modal */}
+      <TeklifModal
+        opened={teklifModalOpened}
+        onClose={() => setTeklifModalOpened(false)}
+        ihaleBasligi={tender?.ihale_basligi || 'İsimsiz İhale'}
+        ihaleBedeli={tender?.bedel ? parseFloat(tender.bedel.replace(/[^\d,]/g, '').replace(',', '.')) : undefined}
+        ihaleId={tender?.tender_id}
+        birimFiyatlar={analysisData?.birim_fiyatlar?.map(bf => ({
+          kalem: bf.kalem || '',
+          birim: bf.birim || 'adet',
+          miktar: Number(bf.miktar) || 0
+        }))}
+      />
     </Modal>
   );
 }
