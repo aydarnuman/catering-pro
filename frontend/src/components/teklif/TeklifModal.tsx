@@ -1433,41 +1433,59 @@ export default function TeklifModal({
               const yuzde = toplamMaliyet > 0 ? (tutar / toplamMaliyet) * 100 : 0;
 
               return (
-                <Box
+                <Paper
                   key={kalem.key}
-                  py={6}
+                  py={8}
                   px={10}
+                  radius="md"
+                  shadow={isSelected ? 'xs' : 'none'}
+                  withBorder={tutar > 0 || isSelected}
                   style={{
                     cursor: 'pointer',
-                    borderRadius: 8,
-                    background: isSelected ? 'rgba(59, 130, 246, 0.12)' : 'transparent',
-                    borderLeft: isSelected ? '3px solid #3b82f6' : '3px solid transparent',
-                    transition: 'all 0.25s ease',
+                    background: isSelected 
+                      ? 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)' 
+                      : tutar > 0 
+                        ? '#ffffff' 
+                        : 'transparent',
+                    borderColor: isSelected ? '#3b82f6' : '#e5e7eb',
+                    borderWidth: isSelected ? 2 : 1,
+                    transition: 'all 0.2s ease',
                   }}
                   onClick={() => setSelectedKalem(kalem.key)}
                 >
                   <Group justify="space-between" wrap="nowrap" mb={2}>
-                    <Text 
-                      size="xs" 
-                      fw={isSelected ? 600 : 500} 
-                      c={isSelected ? 'blue.7' : tutar > 0 ? 'dark' : 'dimmed'}
-                    >
-                      {kalem.label}
-                    </Text>
-                    {tutar > 0 && (
-                      <Text size="10px" c={isSelected ? 'blue.5' : 'dimmed'} fw={500}>
-                        {yuzde.toFixed(0)}%
+                    <Group gap={6} wrap="nowrap">
+                      <Box
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          background: tutar > 0 ? '#22c55e' : '#d1d5db',
+                        }}
+                      />
+                      <Text 
+                        size="xs" 
+                        fw={isSelected ? 600 : 500} 
+                        c={isSelected ? 'blue.7' : tutar > 0 ? 'dark' : 'dimmed'}
+                      >
+                        {kalem.label}
                       </Text>
+                    </Group>
+                    {tutar > 0 && (
+                      <Badge size="xs" variant="light" color={isSelected ? 'blue' : 'gray'}>
+                        {yuzde.toFixed(0)}%
+                      </Badge>
                     )}
                   </Group>
                   <Text
                     size="sm"
                     fw={700}
-                    c={isSelected ? 'blue.6' : tutar > 0 ? 'dark' : 'dimmed'}
+                    c={isSelected ? 'blue.6' : tutar > 0 ? 'dark.6' : 'dimmed'}
+                    pl={12}
                   >
                     {tutar > 0 ? formatParaKisa(tutar) : '—'}
                   </Text>
-                </Box>
+                </Paper>
               );
             })}
 
@@ -1484,41 +1502,59 @@ export default function TeklifModal({
               const yuzde = toplamMaliyet > 0 ? (tutar / toplamMaliyet) * 100 : 0;
 
               return (
-                <Box
+                <Paper
                   key={kalem.key}
-                  py={6}
+                  py={8}
                   px={10}
+                  radius="md"
+                  shadow={isSelected ? 'xs' : 'none'}
+                  withBorder={tutar > 0 || isSelected}
                   style={{
                     cursor: 'pointer',
-                    borderRadius: 8,
-                    background: isSelected ? 'rgba(59, 130, 246, 0.12)' : 'transparent',
-                    borderLeft: isSelected ? '3px solid #3b82f6' : '3px solid transparent',
-                    transition: 'all 0.25s ease',
+                    background: isSelected 
+                      ? 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)' 
+                      : tutar > 0 
+                        ? '#ffffff' 
+                        : 'transparent',
+                    borderColor: isSelected ? '#3b82f6' : '#e5e7eb',
+                    borderWidth: isSelected ? 2 : 1,
+                    transition: 'all 0.2s ease',
                   }}
                   onClick={() => setSelectedKalem(kalem.key)}
                 >
                   <Group justify="space-between" wrap="nowrap" mb={2}>
-                    <Text 
-                      size="xs" 
-                      fw={isSelected ? 600 : 500} 
-                      c={isSelected ? 'blue.7' : tutar > 0 ? 'dark' : 'dimmed'}
-                    >
-                      {kalem.label}
-                    </Text>
-                    {tutar > 0 && (
-                      <Text size="10px" c={isSelected ? 'blue.5' : 'dimmed'} fw={500}>
-                        {yuzde.toFixed(0)}%
+                    <Group gap={6} wrap="nowrap">
+                      <Box
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          background: tutar > 0 ? '#22c55e' : '#d1d5db',
+                        }}
+                      />
+                      <Text 
+                        size="xs" 
+                        fw={isSelected ? 600 : 500} 
+                        c={isSelected ? 'blue.7' : tutar > 0 ? 'dark' : 'dimmed'}
+                      >
+                        {kalem.label}
                       </Text>
+                    </Group>
+                    {tutar > 0 && (
+                      <Badge size="xs" variant="light" color={isSelected ? 'blue' : 'gray'}>
+                        {yuzde.toFixed(0)}%
+                      </Badge>
                     )}
                   </Group>
                   <Text
                     size="sm"
                     fw={700}
-                    c={isSelected ? 'blue.6' : tutar > 0 ? 'dark' : 'dimmed'}
+                    c={isSelected ? 'blue.6' : tutar > 0 ? 'dark.6' : 'dimmed'}
+                    pl={12}
                   >
                     {tutar > 0 ? formatParaKisa(tutar) : '—'}
                   </Text>
-                </Box>
+                </Paper>
               );
             })}
 
@@ -1535,41 +1571,59 @@ export default function TeklifModal({
               const yuzde = toplamMaliyet > 0 ? (tutar / toplamMaliyet) * 100 : 0;
 
               return (
-                <Box
+                <Paper
                   key={kalem.key}
-                  py={6}
+                  py={8}
                   px={10}
+                  radius="md"
+                  shadow={isSelected ? 'xs' : 'none'}
+                  withBorder={tutar > 0 || isSelected}
                   style={{
                     cursor: 'pointer',
-                    borderRadius: 8,
-                    background: isSelected ? 'rgba(59, 130, 246, 0.12)' : 'transparent',
-                    borderLeft: isSelected ? '3px solid #3b82f6' : '3px solid transparent',
-                    transition: 'all 0.25s ease',
+                    background: isSelected 
+                      ? 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)' 
+                      : tutar > 0 
+                        ? '#ffffff' 
+                        : 'transparent',
+                    borderColor: isSelected ? '#3b82f6' : '#e5e7eb',
+                    borderWidth: isSelected ? 2 : 1,
+                    transition: 'all 0.2s ease',
                   }}
                   onClick={() => setSelectedKalem(kalem.key)}
                 >
                   <Group justify="space-between" wrap="nowrap" mb={2}>
-                    <Text 
-                      size="xs" 
-                      fw={isSelected ? 600 : 500} 
-                      c={isSelected ? 'blue.7' : tutar > 0 ? 'dark' : 'dimmed'}
-                    >
-                      {kalem.label}
-                    </Text>
-                    {tutar > 0 && (
-                      <Text size="10px" c={isSelected ? 'blue.5' : 'dimmed'} fw={500}>
-                        {yuzde.toFixed(0)}%
+                    <Group gap={6} wrap="nowrap">
+                      <Box
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          background: tutar > 0 ? '#22c55e' : '#d1d5db',
+                        }}
+                      />
+                      <Text 
+                        size="xs" 
+                        fw={isSelected ? 600 : 500} 
+                        c={isSelected ? 'blue.7' : tutar > 0 ? 'dark' : 'dimmed'}
+                      >
+                        {kalem.label}
                       </Text>
+                    </Group>
+                    {tutar > 0 && (
+                      <Badge size="xs" variant="light" color={isSelected ? 'blue' : 'gray'}>
+                        {yuzde.toFixed(0)}%
+                      </Badge>
                     )}
                   </Group>
                   <Text
                     size="sm"
                     fw={700}
-                    c={isSelected ? 'blue.6' : tutar > 0 ? 'dark' : 'dimmed'}
+                    c={isSelected ? 'blue.6' : tutar > 0 ? 'dark.6' : 'dimmed'}
+                    pl={12}
                   >
                     {tutar > 0 ? formatParaKisa(tutar) : '—'}
                   </Text>
-                </Box>
+                </Paper>
               );
             })}
           </Stack>
