@@ -1422,208 +1422,154 @@ export default function TeklifModal({
         <ScrollArea style={{ flex: 1 }} scrollbarSize={3}>
           <Stack gap={3}>
             {/* Direkt Maliyetler */}
-            <Box px={10} py={6} style={{ background: 'rgba(59, 130, 246, 0.08)', borderRadius: 4 }}>
-              <Text size="10px" c="blue.6" fw={700} tt="uppercase" style={{ letterSpacing: 1 }}>
-                Direkt
-              </Text>
-            </Box>
+            <Text size="10px" c="gray.5" fw={600} tt="uppercase" px={12} pt={8} pb={4} style={{ letterSpacing: 1 }}>
+              Direkt
+            </Text>
             {MALIYET_KALEMLERI.slice(0, 3).map((kalem) => {
               const tutar = hesaplanmisTeklifData.maliyet_detay[kalem.key]?.tutar || 0;
               const isSelected = selectedKalem === kalem.key;
               const yuzde = toplamMaliyet > 0 ? (tutar / toplamMaliyet) * 100 : 0;
 
               return (
-                <Paper
+                <Box
                   key={kalem.key}
-                  py={8}
-                  px={10}
-                  radius="md"
-                  shadow={isSelected ? 'xs' : 'none'}
-                  withBorder={tutar > 0 || isSelected}
+                  py={10}
+                  px={12}
                   style={{
                     cursor: 'pointer',
-                    background: isSelected 
-                      ? 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)' 
-                      : tutar > 0 
-                        ? '#ffffff' 
-                        : 'transparent',
-                    borderColor: isSelected ? '#3b82f6' : '#e5e7eb',
-                    borderWidth: isSelected ? 2 : 1,
-                    transition: 'all 0.2s ease',
+                    background: isSelected ? '#1e40af' : 'transparent',
+                    borderRadius: 8,
+                    transition: 'all 0.15s ease',
                   }}
                   onClick={() => setSelectedKalem(kalem.key)}
                 >
-                  <Group justify="space-between" wrap="nowrap" mb={2}>
-                    <Group gap={6} wrap="nowrap">
-                      <Box
-                        style={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: '50%',
-                          background: tutar > 0 ? '#22c55e' : '#d1d5db',
-                        }}
-                      />
-                      <Text 
-                        size="xs" 
-                        fw={isSelected ? 600 : 500} 
-                        c={isSelected ? 'blue.7' : tutar > 0 ? 'dark' : 'dimmed'}
-                      >
-                        {kalem.label}
-                      </Text>
-                    </Group>
-                    {tutar > 0 && (
-                      <Badge size="xs" variant="light" color={isSelected ? 'blue' : 'gray'}>
-                        {yuzde.toFixed(0)}%
-                      </Badge>
-                    )}
+                  <Group justify="space-between" wrap="nowrap">
+                    <Text 
+                      size="xs" 
+                      fw={600} 
+                      c={isSelected ? 'white' : tutar > 0 ? 'dark.7' : 'gray.5'}
+                    >
+                      {kalem.label}
+                    </Text>
+                    <Text 
+                      size="xs" 
+                      fw={500} 
+                      c={isSelected ? 'blue.2' : 'gray.5'}
+                    >
+                      {tutar > 0 ? `${yuzde.toFixed(0)}%` : ''}
+                    </Text>
                   </Group>
                   <Text
                     size="sm"
                     fw={700}
-                    c={isSelected ? 'blue.6' : tutar > 0 ? 'dark.6' : 'dimmed'}
-                    pl={12}
+                    c={isSelected ? 'white' : tutar > 0 ? 'dark.8' : 'gray.4'}
+                    mt={2}
                   >
                     {tutar > 0 ? formatParaKisa(tutar) : '—'}
                   </Text>
-                </Paper>
+                </Box>
               );
             })}
 
             {/* Operasyonel Maliyetler */}
-            <Divider my={8} color="gray.4" size="sm" />
-            <Box px={10} py={6} style={{ background: 'rgba(16, 185, 129, 0.08)', borderRadius: 4 }}>
-              <Text size="10px" c="teal.7" fw={700} tt="uppercase" style={{ letterSpacing: 1 }}>
-                Operasyonel
-              </Text>
-            </Box>
+            <Divider my={10} color="gray.3" />
+            <Text size="10px" c="gray.5" fw={600} tt="uppercase" px={12} pb={4} style={{ letterSpacing: 1 }}>
+              Operasyonel
+            </Text>
             {MALIYET_KALEMLERI.slice(3, 5).map((kalem) => {
               const tutar = hesaplanmisTeklifData.maliyet_detay[kalem.key]?.tutar || 0;
               const isSelected = selectedKalem === kalem.key;
               const yuzde = toplamMaliyet > 0 ? (tutar / toplamMaliyet) * 100 : 0;
 
               return (
-                <Paper
+                <Box
                   key={kalem.key}
-                  py={8}
-                  px={10}
-                  radius="md"
-                  shadow={isSelected ? 'xs' : 'none'}
-                  withBorder={tutar > 0 || isSelected}
+                  py={10}
+                  px={12}
                   style={{
                     cursor: 'pointer',
-                    background: isSelected 
-                      ? 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)' 
-                      : tutar > 0 
-                        ? '#ffffff' 
-                        : 'transparent',
-                    borderColor: isSelected ? '#3b82f6' : '#e5e7eb',
-                    borderWidth: isSelected ? 2 : 1,
-                    transition: 'all 0.2s ease',
+                    background: isSelected ? '#1e40af' : 'transparent',
+                    borderRadius: 8,
+                    transition: 'all 0.15s ease',
                   }}
                   onClick={() => setSelectedKalem(kalem.key)}
                 >
-                  <Group justify="space-between" wrap="nowrap" mb={2}>
-                    <Group gap={6} wrap="nowrap">
-                      <Box
-                        style={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: '50%',
-                          background: tutar > 0 ? '#22c55e' : '#d1d5db',
-                        }}
-                      />
-                      <Text 
-                        size="xs" 
-                        fw={isSelected ? 600 : 500} 
-                        c={isSelected ? 'blue.7' : tutar > 0 ? 'dark' : 'dimmed'}
-                      >
-                        {kalem.label}
-                      </Text>
-                    </Group>
-                    {tutar > 0 && (
-                      <Badge size="xs" variant="light" color={isSelected ? 'blue' : 'gray'}>
-                        {yuzde.toFixed(0)}%
-                      </Badge>
-                    )}
+                  <Group justify="space-between" wrap="nowrap">
+                    <Text 
+                      size="xs" 
+                      fw={600} 
+                      c={isSelected ? 'white' : tutar > 0 ? 'dark.7' : 'gray.5'}
+                    >
+                      {kalem.label}
+                    </Text>
+                    <Text 
+                      size="xs" 
+                      fw={500} 
+                      c={isSelected ? 'blue.2' : 'gray.5'}
+                    >
+                      {tutar > 0 ? `${yuzde.toFixed(0)}%` : ''}
+                    </Text>
                   </Group>
                   <Text
                     size="sm"
                     fw={700}
-                    c={isSelected ? 'blue.6' : tutar > 0 ? 'dark.6' : 'dimmed'}
-                    pl={12}
+                    c={isSelected ? 'white' : tutar > 0 ? 'dark.8' : 'gray.4'}
+                    mt={2}
                   >
                     {tutar > 0 ? formatParaKisa(tutar) : '—'}
                   </Text>
-                </Paper>
+                </Box>
               );
             })}
 
             {/* Genel Giderler */}
-            <Divider my={8} color="gray.4" size="sm" />
-            <Box px={10} py={6} style={{ background: 'rgba(139, 92, 246, 0.08)', borderRadius: 4 }}>
-              <Text size="10px" c="violet.7" fw={700} tt="uppercase" style={{ letterSpacing: 1 }}>
-                Genel
-              </Text>
-            </Box>
+            <Divider my={10} color="gray.3" />
+            <Text size="10px" c="gray.5" fw={600} tt="uppercase" px={12} pb={4} style={{ letterSpacing: 1 }}>
+              Genel
+            </Text>
             {MALIYET_KALEMLERI.slice(5).map((kalem) => {
               const tutar = hesaplanmisTeklifData.maliyet_detay[kalem.key]?.tutar || 0;
               const isSelected = selectedKalem === kalem.key;
               const yuzde = toplamMaliyet > 0 ? (tutar / toplamMaliyet) * 100 : 0;
 
               return (
-                <Paper
+                <Box
                   key={kalem.key}
-                  py={8}
-                  px={10}
-                  radius="md"
-                  shadow={isSelected ? 'xs' : 'none'}
-                  withBorder={tutar > 0 || isSelected}
+                  py={10}
+                  px={12}
                   style={{
                     cursor: 'pointer',
-                    background: isSelected 
-                      ? 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)' 
-                      : tutar > 0 
-                        ? '#ffffff' 
-                        : 'transparent',
-                    borderColor: isSelected ? '#3b82f6' : '#e5e7eb',
-                    borderWidth: isSelected ? 2 : 1,
-                    transition: 'all 0.2s ease',
+                    background: isSelected ? '#1e40af' : 'transparent',
+                    borderRadius: 8,
+                    transition: 'all 0.15s ease',
                   }}
                   onClick={() => setSelectedKalem(kalem.key)}
                 >
-                  <Group justify="space-between" wrap="nowrap" mb={2}>
-                    <Group gap={6} wrap="nowrap">
-                      <Box
-                        style={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: '50%',
-                          background: tutar > 0 ? '#22c55e' : '#d1d5db',
-                        }}
-                      />
-                      <Text 
-                        size="xs" 
-                        fw={isSelected ? 600 : 500} 
-                        c={isSelected ? 'blue.7' : tutar > 0 ? 'dark' : 'dimmed'}
-                      >
-                        {kalem.label}
-                      </Text>
-                    </Group>
-                    {tutar > 0 && (
-                      <Badge size="xs" variant="light" color={isSelected ? 'blue' : 'gray'}>
-                        {yuzde.toFixed(0)}%
-                      </Badge>
-                    )}
+                  <Group justify="space-between" wrap="nowrap">
+                    <Text 
+                      size="xs" 
+                      fw={600} 
+                      c={isSelected ? 'white' : tutar > 0 ? 'dark.7' : 'gray.5'}
+                    >
+                      {kalem.label}
+                    </Text>
+                    <Text 
+                      size="xs" 
+                      fw={500} 
+                      c={isSelected ? 'blue.2' : 'gray.5'}
+                    >
+                      {tutar > 0 ? `${yuzde.toFixed(0)}%` : ''}
+                    </Text>
                   </Group>
                   <Text
                     size="sm"
                     fw={700}
-                    c={isSelected ? 'blue.6' : tutar > 0 ? 'dark.6' : 'dimmed'}
-                    pl={12}
+                    c={isSelected ? 'white' : tutar > 0 ? 'dark.8' : 'gray.4'}
+                    mt={2}
                   >
                     {tutar > 0 ? formatParaKisa(tutar) : '—'}
                   </Text>
-                </Paper>
+                </Box>
               );
             })}
           </Stack>
