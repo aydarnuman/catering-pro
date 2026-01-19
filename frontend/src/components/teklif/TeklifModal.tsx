@@ -289,6 +289,10 @@ export default function TeklifModal({
           </Badge>
         </Group>
 
+        <Text size="xs" c="dimmed" fs="italic">
+          Sadece yemek hammadde maliyetini girin. Personel, nakliye ve diğer giderler ayrı hesaplanır.
+        </Text>
+
         <Text size="sm" fw={500}>
           Öğün Detayları
         </Text>
@@ -411,6 +415,10 @@ export default function TeklifModal({
             {formatPara(tutar)}
           </Badge>
         </Group>
+
+        <Text size="xs" c="dimmed" fs="italic">
+          Brüt maaş üzerinden hesaplanır. SGK işveren payı (%22.5) ve işsizlik (%2) otomatik eklenir.
+        </Text>
 
         <Group>
           <NumberInput
@@ -554,6 +562,10 @@ export default function TeklifModal({
             {formatPara(tutar)}
           </Badge>
         </Group>
+
+        <Text size="xs" c="dimmed" fs="italic">
+          Araç kirası ve yakıt maliyetini içerir. Aylık km × yakıt tüketimi formülüyle hesaplanır.
+        </Text>
 
         <Group>
           <NumberInput
@@ -726,6 +738,10 @@ export default function TeklifModal({
           </Badge>
         </Group>
 
+        <Text size="xs" c="dimmed" fs="italic">
+          Peçete, ambalaj, temizlik malzemesi vb. Kişi başı günlük maliyet olarak girin.
+        </Text>
+
         <Group>
           <NumberInput
             label="Günlük Kişi"
@@ -858,6 +874,10 @@ export default function TeklifModal({
             {formatPara(tutar)}
           </Badge>
         </Group>
+
+        <Text size="xs" c="dimmed" fs="italic">
+          Mutfak ekipmanları için kira veya satın alma seçebilirsiniz. Bakım maliyetini ayrıca ekleyin.
+        </Text>
 
         <NumberInput
           label="Süre (Ay)"
@@ -1023,6 +1043,10 @@ export default function TeklifModal({
           </Badge>
         </Group>
 
+        <Text size="xs" c="dimmed" fs="italic">
+          Kira, elektrik, su, doğalgaz gibi sabit giderler. Aylık tutarları girin.
+        </Text>
+
         <NumberInput
           label="Süre (Ay)"
           value={detay.aySayisi}
@@ -1182,6 +1206,10 @@ export default function TeklifModal({
           </Badge>
         </Group>
 
+        <Text size="xs" c="dimmed" fs="italic">
+          Sigorta, belge, İSG ve ihale giderleri. Damga vergisi, teminat mektubu maliyetlerini unutmayın.
+        </Text>
+
         {renderKategori('sigortalar', 'Sigortalar', <IconShieldCheck size={16} />)}
         {renderKategori('belgeler', 'Belgeler & Sertifikalar', <IconScale size={16} />)}
         {renderKategori('isg', 'İş Sağlığı & Güvenliği', <IconAlertTriangle size={16} />)}
@@ -1250,6 +1278,10 @@ export default function TeklifModal({
             {formatPara(ozet.riskTutari)}
           </Badge>
         </Group>
+
+        <Text size="xs" c="dimmed" fs="italic">
+          Beklenmedik giderler için güvenlik payı. Önerilen: Yeni projeler %10, deneyimli %5.
+        </Text>
 
         <Switch
           label="Manuel oran gir"
