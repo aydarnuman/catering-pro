@@ -1421,9 +1421,11 @@ export default function TeklifModal({
         <ScrollArea style={{ flex: 1 }} scrollbarSize={3}>
           <Stack gap={2}>
             {/* Direkt Maliyetler */}
-            <Text size="9px" c="dimmed" fw={600} tt="uppercase" px={10} pt={4}>
-              Direkt
-            </Text>
+            <Box px={10} py={6} style={{ background: 'rgba(59, 130, 246, 0.08)', borderRadius: 4 }}>
+              <Text size="10px" c="blue.6" fw={700} tt="uppercase" style={{ letterSpacing: 1 }}>
+                Direkt
+              </Text>
+            </Box>
             {MALIYET_KALEMLERI.slice(0, 3).map((kalem) => {
               const tutar = hesaplanmisTeklifData.maliyet_detay[kalem.key]?.tutar || 0;
               const isSelected = selectedKalem === kalem.key;
@@ -1469,10 +1471,12 @@ export default function TeklifModal({
             })}
 
             {/* Operasyonel Maliyetler */}
-            <Divider my={6} color="gray.3" />
-            <Text size="9px" c="dimmed" fw={600} tt="uppercase" px={10}>
-              Operasyonel
-            </Text>
+            <Divider my={8} color="gray.4" size="sm" />
+            <Box px={10} py={6} style={{ background: 'rgba(16, 185, 129, 0.08)', borderRadius: 4 }}>
+              <Text size="10px" c="teal.7" fw={700} tt="uppercase" style={{ letterSpacing: 1 }}>
+                Operasyonel
+              </Text>
+            </Box>
             {MALIYET_KALEMLERI.slice(3, 5).map((kalem) => {
               const tutar = hesaplanmisTeklifData.maliyet_detay[kalem.key]?.tutar || 0;
               const isSelected = selectedKalem === kalem.key;
@@ -1518,10 +1522,12 @@ export default function TeklifModal({
             })}
 
             {/* Genel Giderler */}
-            <Divider my={6} color="gray.3" />
-            <Text size="9px" c="dimmed" fw={600} tt="uppercase" px={10}>
-              Genel
-            </Text>
+            <Divider my={8} color="gray.4" size="sm" />
+            <Box px={10} py={6} style={{ background: 'rgba(139, 92, 246, 0.08)', borderRadius: 4 }}>
+              <Text size="10px" c="violet.7" fw={700} tt="uppercase" style={{ letterSpacing: 1 }}>
+                Genel
+              </Text>
+            </Box>
             {MALIYET_KALEMLERI.slice(5).map((kalem) => {
               const tutar = hesaplanmisTeklifData.maliyet_detay[kalem.key]?.tutar || 0;
               const isSelected = selectedKalem === kalem.key;
