@@ -16,6 +16,10 @@ google-credentials.json
 *.log
 logs/*
 !logs/.gitkeep
+backend/logs/*-audit.json
+
+# Build artifacts
+frontend/tsconfig.tsbuildinfo
 
 # Build
 dist/

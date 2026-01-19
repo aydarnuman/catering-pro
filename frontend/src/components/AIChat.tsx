@@ -12,14 +12,15 @@ import {
   Group,
   Loader,
   Paper,
+  Popover,
   ScrollArea,
-  Select,
   SimpleGrid,
   Stack,
   Text,
   TextInput,
   ThemeIcon,
   Tooltip,
+  UnstyledButton,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -399,11 +400,31 @@ export function AIChat({
     });
   };
 
-  // Şablon seçici - Select data formatı
-  const templateSelectData = promptTemplates.map((t) => ({
-    value: t.slug,
-    label: `${t.icon} ${t.name.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, '')}`,
-  }));
+  // Şablonları kategoriye göre grupla
+  const templatesByCategory = promptTemplates.reduce(
+    (acc, t) => {
+      const category = t.category || 'Genel';
+      if (!acc[category]) acc[category] = [];
+      acc[category].push(t);
+      return acc;
+    },
+    {} as Record<string, PromptTemplate[]>
+  );
+
+  // Kategori renkleri
+  const categoryColors: Record<string, string> = {
+    Genel: 'blue',
+    Muhasebe: 'green',
+    İhale: 'violet',
+    Operasyon: 'orange',
+    İK: 'indigo',
+    Risk: 'red',
+    Strateji: 'cyan',
+    Yazışma: 'grape',
+  };
+
+  // Template seçim popover state
+  const [templatePopoverOpened, setTemplatePopoverOpened] = useState(false);
 
   if (compact) {
     return (
@@ -427,16 +448,87 @@ export function AIChat({
                 AI Agent
               </Text>
             </Group>
-            <Select
-              data={templateSelectData}
-              value={selectedTemplate}
-              onChange={(value) => setSelectedTemplate(value || 'default')}
-              size="xs"
-              w={130}
-              placeholder="Şablon"
-              styles={{ input: { fontSize: 11 } }}
-              comboboxProps={{ withinPortal: true, zIndex: 10000 }}
-            />
+            <Popover
+              opened={templatePopoverOpened}
+              onChange={setTemplatePopoverOpened}
+              position="bottom-end"
+              shadow="lg"
+              radius="md"
+              withinPortal
+              zIndex={10000}
+            >
+              <Popover.Target>
+                <UnstyledButton
+                  onClick={() => setTemplatePopoverOpened((o) => !o)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '4px 8px',
+                    borderRadius: 6,
+                    background: 'var(--mantine-color-gray-0)',
+                    border: '1px solid var(--mantine-color-gray-3)',
+                    fontSize: 12,
+                  }}
+                >
+                  <Text size="md">{currentTemplate?.icon || '🤖'}</Text>
+                  <Text size="xs" fw={500} style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {currentTemplate?.name?.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, '') || 'Şablon'}
+                  </Text>
+                  <IconChevronDown size={12} style={{ opacity: 0.5 }} />
+                </UnstyledButton>
+              </Popover.Target>
+              <Popover.Dropdown p="sm" style={{ maxHeight: 400, overflowY: 'auto' }}>
+                <Text size="xs" fw={600} c="dimmed" mb="xs">
+                  Şablon Seçin
+                </Text>
+                <Stack gap="xs">
+                  {Object.entries(templatesByCategory).map(([category, templates]) => (
+                    <Box key={category}>
+                      <Text size="xs" fw={600} c={categoryColors[category] || 'gray'} mb={4}>
+                        {category}
+                      </Text>
+                      <Stack gap={4}>
+                        {templates.map((t) => (
+                          <UnstyledButton
+                            key={t.slug}
+                            onClick={() => {
+                              setSelectedTemplate(t.slug);
+                              setTemplatePopoverOpened(false);
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              padding: '6px 8px',
+                              borderRadius: 6,
+                              background:
+                                selectedTemplate === t.slug
+                                  ? 'var(--mantine-color-violet-0)'
+                                  : 'transparent',
+                              border:
+                                selectedTemplate === t.slug
+                                  ? '1px solid var(--mantine-color-violet-3)'
+                                  : '1px solid transparent',
+                            }}
+                          >
+                            <Text size="lg">{t.icon}</Text>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <Text size="xs" fw={500}>
+                                {t.name.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, '')}
+                              </Text>
+                            </div>
+                            {selectedTemplate === t.slug && (
+                              <IconCheck size={14} color="var(--mantine-color-violet-6)" />
+                            )}
+                          </UnstyledButton>
+                        ))}
+                      </Stack>
+                    </Box>
+                  ))}
+                </Stack>
+              </Popover.Dropdown>
+            </Popover>
           </Group>
         </Box>
 
@@ -609,23 +701,107 @@ export function AIChat({
           </Group>
 
           <Group gap="md">
-            {/* Şablon Seçici */}
-            <Group gap="xs">
-              <Text size="xs" c="dimmed">
-                Şablon:
-              </Text>
-              <Select
-                data={templateSelectData}
-                value={selectedTemplate}
-                onChange={(value) => setSelectedTemplate(value || 'default')}
-                size="xs"
-                w={180}
-                placeholder="Şablon seçin"
-                leftSection={
-                  currentTemplate?.icon ? <Text size="sm">{currentTemplate.icon}</Text> : undefined
-                }
-              />
-            </Group>
+            {/* Şablon Seçici - Popover */}
+            <Popover
+              opened={templatePopoverOpened}
+              onChange={setTemplatePopoverOpened}
+              position="bottom-end"
+              shadow="xl"
+              radius="md"
+              width={340}
+            >
+              <Popover.Target>
+                <UnstyledButton
+                  onClick={() => setTemplatePopoverOpened((o) => !o)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    background: 'var(--mantine-color-gray-0)',
+                    border: '1px solid var(--mantine-color-gray-3)',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <Text size="xl">{currentTemplate?.icon || '🤖'}</Text>
+                  <div>
+                    <Text size="sm" fw={500}>
+                      {currentTemplate?.name?.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, '') || 'Şablon Seç'}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      {currentTemplate?.category || 'Genel'}
+                    </Text>
+                  </div>
+                  <IconChevronDown size={16} style={{ marginLeft: 8, opacity: 0.5 }} />
+                </UnstyledButton>
+              </Popover.Target>
+              <Popover.Dropdown p="md" style={{ maxHeight: 450, overflowY: 'auto' }}>
+                <Text size="sm" fw={600} mb="sm">
+                  🎯 Şablon Seçin
+                </Text>
+                <Stack gap="md">
+                  {Object.entries(templatesByCategory).map(([category, templates]) => (
+                    <Box key={category}>
+                      <Group gap="xs" mb="xs">
+                        <Badge size="xs" color={categoryColors[category] || 'gray'} variant="light">
+                          {category}
+                        </Badge>
+                        <Text size="xs" c="dimmed">
+                          {templates.length} şablon
+                        </Text>
+                      </Group>
+                      <SimpleGrid cols={1} spacing="xs">
+                        {templates.map((t) => (
+                          <UnstyledButton
+                            key={t.slug}
+                            onClick={() => {
+                              setSelectedTemplate(t.slug);
+                              setTemplatePopoverOpened(false);
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 12,
+                              padding: '10px 12px',
+                              borderRadius: 8,
+                              background:
+                                selectedTemplate === t.slug
+                                  ? `var(--mantine-color-${categoryColors[category] || 'violet'}-0)`
+                                  : 'var(--mantine-color-gray-0)',
+                              border:
+                                selectedTemplate === t.slug
+                                  ? `2px solid var(--mantine-color-${categoryColors[category] || 'violet'}-4)`
+                                  : '1px solid var(--mantine-color-gray-2)',
+                              transition: 'all 0.15s',
+                            }}
+                          >
+                            <Text size="xl">{t.icon}</Text>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <Text size="sm" fw={500}>
+                                {t.name.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, '')}
+                              </Text>
+                              <Text size="xs" c="dimmed" lineClamp={1}>
+                                {t.description}
+                              </Text>
+                            </div>
+                            {selectedTemplate === t.slug && (
+                              <ThemeIcon
+                                size="sm"
+                                radius="xl"
+                                color={categoryColors[category] || 'violet'}
+                              >
+                                <IconCheck size={12} />
+                              </ThemeIcon>
+                            )}
+                          </UnstyledButton>
+                        ))}
+                      </SimpleGrid>
+                    </Box>
+                  ))}
+                </Stack>
+              </Popover.Dropdown>
+            </Popover>
 
             <Tooltip label="Sohbet Geçmişi">
               <ActionIcon variant="subtle" color="violet" component="a" href="/ai-chat/history">

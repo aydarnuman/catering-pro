@@ -26,6 +26,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import {
   IconAlertCircle,
+  IconArrowsSort,
   IconBuilding,
   IconCalendar,
   IconClock,
@@ -35,11 +36,14 @@ import {
   IconFileText,
   IconFilter,
   IconLink,
+  IconMap,
   IconMapPin,
   IconPlus,
   IconRefresh,
   IconSearch,
   IconSparkles,
+  IconStar,
+  IconStarFilled,
   IconX,
 } from '@tabler/icons-react';
 import Link from 'next/link';
@@ -49,6 +53,7 @@ import useSWR from 'swr';
 import { apiClient } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/config';
 import type { Tender, TendersResponse } from '@/types/api';
+import TenderMapModal from '@/components/TenderMapModal';
 
 const API_URL = API_BASE_URL;
 
@@ -72,6 +77,13 @@ export default function TendersPage() {
   const [fetchingDocsTender, setFetchingDocsTender] = useState<Tender | null>(null);
   const [fetchingDocsProgress, setFetchingDocsProgress] = useState<string>('Kontrol ediliyor...');
 
+  // Takip listesi durumları
+  const [trackingIds, setTrackingIds] = useState<Set<number>>(new Set());
+  const [togglingTrack, setTogglingTrack] = useState<number | null>(null);
+
+  // Harita modal durumu
+  const [mapModalOpen, setMapModalOpen] = useState(false);
+
   // Debounce search - 500ms bekle
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -82,12 +94,13 @@ export default function TendersPage() {
   }, [searchQuery]);
 
   const { data, error, isLoading, mutate } = useSWR<TendersResponse>(
-    ['tenders', currentPage, pageSize, debouncedSearch],
+    ['tenders', currentPage, pageSize, debouncedSearch, statusFilter],
     () =>
       apiClient.getTenders({
         page: currentPage,
         limit: pageSize,
         search: debouncedSearch || undefined,
+        status: statusFilter || 'active', // Backend'e status gönder
       })
   );
 
@@ -124,6 +137,109 @@ export default function TendersPage() {
   );
 
   const [showStats, setShowStats] = useState<'new' | 'updated' | false>(false);
+
+  // Takip listesindeki ihale ID'lerini çek
+  const { data: trackingData, mutate: mutateTracking } = useSWR<{ success: boolean; data: Array<{ tender_id: number }> }>(
+    'tender-tracking-ids',
+    () => fetch(`${API_URL}/api/tender-tracking`).then((r) => r.json()),
+    { revalidateOnFocus: false }
+  );
+
+  // Takip ID'lerini Set'e dönüştür
+  useEffect(() => {
+    if (trackingData?.data) {
+      const ids = new Set(trackingData.data.map((t) => t.tender_id));
+      setTrackingIds(ids);
+    }
+  }, [trackingData]);
+
+  // Takibe ekle/çıkar toggle
+  const handleToggleTracking = async (e: React.MouseEvent, tender: Tender) => {
+    e.stopPropagation(); // Kart tıklamasını engelle
+    e.preventDefault();
+    
+    const isTracking = trackingIds.has(tender.id);
+    setTogglingTrack(tender.id);
+
+    try {
+      if (isTracking) {
+        // Takipten çıkar - önce tracking ID'yi bul
+        const checkRes = await fetch(`${API_URL}/api/tender-tracking/check/${tender.id}`);
+        const checkData = await checkRes.json();
+        
+        console.log('Check response:', checkData);
+        
+        if (checkData.success && checkData.data) {
+          const trackingId = checkData.data.id;
+          console.log('Deleting tracking ID:', trackingId);
+          
+          const deleteRes = await fetch(`${API_URL}/api/tender-tracking/${trackingId}`, {
+            method: 'DELETE',
+          });
+          const deleteData = await deleteRes.json();
+          console.log('Delete response:', deleteData);
+          
+          if (deleteData.success) {
+            setTrackingIds((prev) => {
+              const newSet = new Set(prev);
+              newSet.delete(tender.id);
+              return newSet;
+            });
+            
+            notifications.show({
+              title: 'Takipten Çıkarıldı',
+              message: `${tender.title?.substring(0, 40)}...`,
+              color: 'gray',
+            });
+          } else {
+            throw new Error(deleteData.error || 'Silme başarısız');
+          }
+        } else {
+          // Tracking bulunamadı, UI'dan kaldır
+          setTrackingIds((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(tender.id);
+            return newSet;
+          });
+        }
+      } else {
+        // Takibe ekle
+        const addRes = await fetch(`${API_URL}/api/tender-tracking`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tender_id: tender.id,
+            status: 'inceleniyor',
+            priority: 0,
+          }),
+        });
+        const addData = await addRes.json();
+        
+        if (addData.success) {
+          setTrackingIds((prev) => new Set(prev).add(tender.id));
+          
+          notifications.show({
+            title: '⭐ Takibe Alındı',
+            message: `${tender.title?.substring(0, 40)}...`,
+            color: 'yellow',
+          });
+        } else {
+          throw new Error(addData.error || 'Ekleme başarısız');
+        }
+      }
+      
+      mutateTracking();
+    } catch (err: any) {
+      console.error('Tracking error:', err);
+      notifications.show({
+        title: 'Hata',
+        message: err.message || 'İşlem başarısız oldu',
+        color: 'red',
+      });
+    } finally {
+      setTogglingTrack(null);
+    }
+  };
 
   // URL ile ihale ekleme handler
   const handleAddTenderByUrl = async () => {
@@ -264,17 +380,24 @@ export default function TendersPage() {
   const getStatusBadge = (tender: Tender) => {
     const deadline = new Date(tender.deadline);
     const now = new Date();
-    const diffMs = deadline.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffMs / (24 * 60 * 60 * 1000));
+    
+    // Gün bazlı karşılaştırma (saat değil)
+    const deadlineDate = new Date(deadline.getFullYear(), deadline.getMonth(), deadline.getDate());
+    const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const diffDays = Math.round((deadlineDate.getTime() - todayDate.getTime()) / (24 * 60 * 60 * 1000));
 
-    if (diffMs < 0) {
-      return <Badge color="red">Süresi Dolmuş</Badge>;
-    } else if (diffDays <= 1) {
-      return <Badge color="red">BUGÜN!</Badge>;
+    if (diffDays < 0) {
+      // Geçmiş tarih
+      const absDays = Math.abs(diffDays);
+      return <Badge color="red">Süresi Dolmuş ({absDays} gün önce)</Badge>;
+    } else if (diffDays === 0) {
+      return <Badge color="orange" variant="filled">🔥 BUGÜN!</Badge>;
+    } else if (diffDays === 1) {
+      return <Badge color="yellow" variant="filled">⚠️ YARIN</Badge>;
     } else if (diffDays <= 3) {
-      return <Badge color="orange">{diffDays} Gün Kaldı</Badge>;
-    } else if (diffDays <= 7) {
       return <Badge color="yellow">{diffDays} Gün Kaldı</Badge>;
+    } else if (diffDays <= 7) {
+      return <Badge color="lime">{diffDays} Gün Kaldı</Badge>;
     } else {
       return <Badge color="green">Aktif</Badge>;
     }
@@ -283,31 +406,31 @@ export default function TendersPage() {
   const getStatus = (tender: Tender) => {
     const deadline = new Date(tender.deadline);
     const now = new Date();
+    
+    // Gün bazlı karşılaştırma
+    const deadlineDate = new Date(deadline.getFullYear(), deadline.getMonth(), deadline.getDate());
+    const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    if (deadline < now) return 'expired';
-    if (deadline.getTime() - now.getTime() < 7 * 24 * 60 * 60 * 1000) return 'urgent';
+    if (deadlineDate < todayDate) return 'expired';
+    if (deadlineDate.getTime() - todayDate.getTime() < 7 * 24 * 60 * 60 * 1000) return 'urgent';
     return 'active';
   };
 
-  // Filter tenders (arama artık backend'de yapılıyor, sadece client-side status/city filtresi)
+  // Backend'de filtreleme yapıldığı için client-side filtreleme gerekmiyor
+  // Sadece city filter client-side yapılıyor (backend'de multi-select desteği yok)
   const filteredTenders = useMemo(() => {
     if (!data?.tenders) return [];
 
-    return data.tenders.filter((tender) => {
-      // Status filter (client-side)
-      if (statusFilter) {
-        const status = getStatus(tender);
-        if (status !== statusFilter) return false;
-      }
+    // City filter (client-side - backend'de multi-select yok)
+    if (cityFilter.length > 0) {
+      return data.tenders.filter((tender) => {
+        if (!tender.city) return false;
+        return cityFilter.includes(tender.city);
+      });
+    }
 
-      // City filter (client-side)
-      if (cityFilter.length > 0 && tender.city) {
-        if (!cityFilter.includes(tender.city)) return false;
-      }
-
-      return true;
-    });
-  }, [data?.tenders, statusFilter, cityFilter, getStatus]);
+    return data.tenders;
+  }, [data?.tenders, cityFilter]);
 
   // Get unique cities for filter
   const availableCities = useMemo(() => {
@@ -358,6 +481,14 @@ export default function TendersPage() {
                 loading={isLoading}
               >
                 Yenile
+              </Button>
+              <Button
+                leftSection={<IconMap size={16} />}
+                variant="gradient"
+                gradient={{ from: 'violet', to: 'indigo' }}
+                onClick={() => setMapModalOpen(true)}
+              >
+                Haritada Göster
               </Button>
               <Button
                 leftSection={<IconLink size={16} />}
@@ -548,46 +679,152 @@ export default function TendersPage() {
 
               {/* Advanced Filters */}
               <Collapse in={showFilters}>
-                <Grid>
-                  <Grid.Col span={{ base: 12, md: 6 }}>
-                    <Select
-                      label="Durum"
-                      placeholder="Tüm ihaleler"
-                      value={statusFilter}
-                      onChange={setStatusFilter}
-                      clearable
-                      data={[
-                        { value: 'active', label: '✅ Aktif İhaleler' },
-                        { value: 'urgent', label: '⚠️ Son 7 Gün' },
-                        { value: 'expired', label: '❌ Süresi Dolmuş' },
-                      ]}
-                    />
-                  </Grid.Col>
-                  <Grid.Col span={{ base: 12, md: 6 }}>
-                    <MultiSelect
-                      label="Şehir"
-                      placeholder="Şehir seçin"
-                      value={cityFilter}
-                      onChange={setCityFilter}
-                      data={availableCities}
-                      searchable
-                      clearable
-                    />
-                  </Grid.Col>
-                </Grid>
+                <Stack gap="md">
+                  {/* Hızlı Durum Filtreleri */}
+                  <Box>
+                    <Text size="sm" fw={500} mb="xs" c="dimmed">Hızlı Filtreler</Text>
+                    <Group gap="xs">
+                      <Badge
+                        size="lg"
+                        variant={!statusFilter || statusFilter === 'active' ? 'filled' : 'light'}
+                        color="blue"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => setStatusFilter('active')}
+                      >
+                        📅 Güncel İhaleler
+                      </Badge>
+                      <Badge
+                        size="lg"
+                        variant={statusFilter === 'urgent' ? 'filled' : 'light'}
+                        color="orange"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => setStatusFilter('urgent')}
+                      >
+                        ⚡ Bu Hafta Dolacak
+                      </Badge>
+                      <Badge
+                        size="lg"
+                        variant={statusFilter === 'expired' ? 'filled' : 'light'}
+                        color="red"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => setStatusFilter('expired')}
+                      >
+                        ⏰ Süresi Dolmuş
+                      </Badge>
+                      <Badge
+                        size="lg"
+                        variant={statusFilter === 'all' ? 'filled' : 'light'}
+                        color="gray"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => setStatusFilter('all')}
+                      >
+                        📋 Tümü
+                      </Badge>
+                    </Group>
+                  </Box>
 
-                {(searchQuery || statusFilter || cityFilter.length > 0) && (
-                  <Group justify="flex-end" mt="sm">
-                    <Button
-                      variant="subtle"
-                      size="xs"
-                      onClick={clearFilters}
-                      leftSection={<IconX size={14} />}
-                    >
-                      Filtreleri Temizle
-                    </Button>
-                  </Group>
-                )}
+                  <Divider />
+
+                  {/* Detaylı Filtreler */}
+                  <Grid>
+                    <Grid.Col span={{ base: 12, md: 4 }}>
+                      <Select
+                        label="İhale Durumu"
+                        placeholder="Varsayılan: Güncel İhaleler"
+                        value={statusFilter}
+                        onChange={setStatusFilter}
+                        clearable
+                        leftSection={<IconFilter size={16} />}
+                        data={[
+                          { 
+                            group: 'Aktif İhaleler',
+                            items: [
+                              { value: 'active', label: '📅 Güncel İhaleler (Aktif + Son 1 Hafta)' },
+                              { value: 'urgent', label: '⚡ Bu Hafta Dolacaklar (Acil)' },
+                            ]
+                          },
+                          {
+                            group: 'Geçmiş İhaleler',
+                            items: [
+                              { value: 'expired', label: '⏰ Süresi Dolmuş (Tümü)' },
+                              { value: 'archived', label: '📦 Arşiv (1 Haftadan Eski)' },
+                            ]
+                          },
+                          {
+                            group: 'Diğer',
+                            items: [
+                              { value: 'all', label: '📋 Tüm İhaleler' },
+                            ]
+                          }
+                        ]}
+                      />
+                    </Grid.Col>
+                    <Grid.Col span={{ base: 12, md: 4 }}>
+                      <MultiSelect
+                        label="Şehir Filtresi"
+                        placeholder="Tüm şehirler"
+                        value={cityFilter}
+                        onChange={setCityFilter}
+                        data={availableCities}
+                        searchable
+                        clearable
+                        maxDropdownHeight={300}
+                        leftSection={<IconMapPin size={16} />}
+                        nothingFoundMessage="Şehir bulunamadı"
+                      />
+                    </Grid.Col>
+                    <Grid.Col span={{ base: 12, md: 4 }}>
+                      <Select
+                        label="Sıralama"
+                        placeholder="Varsayılan sıralama"
+                        value={null}
+                        onChange={() => {}}
+                        disabled
+                        leftSection={<IconArrowsSort size={16} />}
+                        data={[
+                          { value: 'deadline_asc', label: '📆 Tarihe Göre (Yakın → Uzak)' },
+                          { value: 'deadline_desc', label: '📆 Tarihe Göre (Uzak → Yakın)' },
+                          { value: 'created_desc', label: '🆕 Yeni Eklenenler Önce' },
+                        ]}
+                      />
+                    </Grid.Col>
+                  </Grid>
+
+                  {/* Aktif Filtre Özeti ve Temizle */}
+                  {(searchQuery || statusFilter || cityFilter.length > 0) && (
+                    <Paper p="xs" withBorder radius="md" bg="gray.0">
+                      <Group justify="space-between">
+                        <Group gap="xs">
+                          <Text size="sm" c="dimmed">Aktif Filtreler:</Text>
+                          {searchQuery && (
+                            <Badge variant="outline" color="blue" size="sm">
+                              Arama: &quot;{searchQuery}&quot;
+                            </Badge>
+                          )}
+                          {statusFilter && (
+                            <Badge variant="outline" color="violet" size="sm">
+                              Durum: {statusFilter === 'active' ? 'Güncel' : statusFilter === 'urgent' ? 'Acil' : statusFilter === 'expired' ? 'Dolmuş' : statusFilter === 'archived' ? 'Arşiv' : 'Tümü'}
+                            </Badge>
+                          )}
+                          {cityFilter.length > 0 && (
+                            <Badge variant="outline" color="teal" size="sm">
+                              Şehir: {cityFilter.length} seçili
+                            </Badge>
+                          )}
+                        </Group>
+                        <Button
+                          variant="subtle"
+                          size="xs"
+                          color="red"
+                          onClick={clearFilters}
+                          leftSection={<IconX size={14} />}
+                        >
+                          Temizle
+                        </Button>
+                      </Group>
+                    </Paper>
+                  )}
+                </Stack>
               </Collapse>
             </Stack>
           </Paper>
@@ -623,6 +860,9 @@ export default function TendersPage() {
                     style={{
                       transition: 'all 0.2s ease',
                       cursor: 'pointer',
+                      borderColor: trackingIds.has(tender.id) ? 'var(--mantine-color-yellow-5)' : undefined,
+                      borderWidth: trackingIds.has(tender.id) ? 2 : undefined,
+                      background: trackingIds.has(tender.id) ? 'linear-gradient(135deg, rgba(255,212,59,0.05) 0%, rgba(255,255,255,1) 100%)' : undefined,
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.transform = 'translateY(-4px)';
@@ -650,19 +890,38 @@ export default function TendersPage() {
                           )}
                         </Group>
                         <Group gap="xs">
+                          {/* Takip Yıldızı */}
+                          <ActionIcon
+                            variant="transparent"
+                            color={trackingIds.has(tender.id) ? 'yellow' : 'gray'}
+                            size="xs"
+                            loading={togglingTrack === tender.id}
+                            onClick={(e) => handleToggleTracking(e, tender)}
+                            title={trackingIds.has(tender.id) ? 'Takipten Çıkar' : 'Takibe Al'}
+                            style={{ 
+                              opacity: trackingIds.has(tender.id) ? 1 : 0.4,
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            {trackingIds.has(tender.id) ? (
+                              <IconStarFilled size={16} style={{ color: '#fab005' }} />
+                            ) : (
+                              <IconStar size={16} />
+                            )}
+                          </ActionIcon>
                           {tender.url && (
-                            <Button
-                              size="xs"
+                            <ActionIcon
+                              size="sm"
                               variant="subtle"
-                              p={4}
                               component="a"
                               href={tender.url}
                               target="_blank"
                               rel="noopener noreferrer"
                               title="İhale sayfasını aç"
+                              onClick={(e) => e.stopPropagation()}
                             >
                               <IconExternalLink size={14} />
-                            </Button>
+                            </ActionIcon>
                           )}
                           <Text size="xs" c="dimmed">
                             #{tender.id}
@@ -900,6 +1159,13 @@ export default function TendersPage() {
             </Text>
           </Stack>
         </Modal>
+
+        {/* Harita Modal */}
+        <TenderMapModal
+          opened={mapModalOpen}
+          onClose={() => setMapModalOpen(false)}
+          tenders={data?.tenders || []}
+        />
       </Container>
     </Box>
   );

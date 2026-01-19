@@ -370,10 +370,18 @@ router.get('/check/:tenderId', async (req, res) => {
     const { tenderId } = req.params;
     const { user_id } = req.query;
     
-    const result = await query(`
-      SELECT * FROM tender_tracking 
-      WHERE tender_id = $1 AND (user_id = $2 OR user_id IS NULL)
-    `, [tenderId, user_id || null]);
+    // user_id varsa ona göre, yoksa tüm user_id NULL olanları da dahil et
+    let sql, params;
+    if (user_id) {
+      sql = `SELECT * FROM tender_tracking WHERE tender_id = $1 AND user_id = $2`;
+      params = [tenderId, user_id];
+    } else {
+      // user_id yoksa, bu tender için herhangi bir takip var mı?
+      sql = `SELECT * FROM tender_tracking WHERE tender_id = $1`;
+      params = [tenderId];
+    }
+    
+    const result = await query(sql, params);
     
     res.json({
       success: true,

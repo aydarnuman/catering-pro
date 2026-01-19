@@ -16,7 +16,8 @@ import {
   createCariExcel,
   createCariPDF,
   createStokExcel,
-  createStokPDF
+  createStokPDF,
+  createDilekcePDF
 } from '../services/export-service.js';
 
 const router = express.Router();
@@ -902,6 +903,97 @@ router.get('/cari/bakiye', async (req, res) => {
     console.log(`📥 Cari bakiye raporu: ${result.rows.length} kayıt`);
   } catch (error) {
     console.error('❌ Cari bakiye raporu hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =====================================================
+// DİLEKÇE EXPORT
+// =====================================================
+
+/**
+ * POST /api/export/dilekce/pdf
+ * Dilekçe PDF olarak indir
+ */
+router.post('/dilekce/pdf', async (req, res) => {
+  try {
+    const { title, type, content, ihale } = req.body;
+
+    if (!content) {
+      return res.status(400).json({ error: 'Dilekçe içeriği gerekli' });
+    }
+
+    const buffer = await createDilekcePDF({
+      title: title || 'DİLEKÇE',
+      type: type || 'genel',
+      content,
+      ihale: ihale || {},
+      footer: 'Catering Pro - İhale Yönetimi'
+    });
+
+    const typeLabels = {
+      asiri_dusuk: 'Asiri-Dusuk-Aciklama',
+      idare_sikayet: 'Idareye-Sikayet',
+      kik_itiraz: 'KIK-Itiraz',
+      aciklama_cevabi: 'Aciklama-Cevabi'
+    };
+
+    const filename = `${typeLabels[type] || 'Dilekce'}_${ihale?.ihale_no || new Date().getTime()}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
+
+    console.log(`📥 Dilekçe PDF indirildi: ${type} - ${ihale?.baslik || 'Genel'}`);
+  } catch (error) {
+    console.error('❌ Dilekçe PDF hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/export/dilekce/docx
+ * Dilekçe Word olarak indir (basit txt olarak, Word'de açılabilir)
+ */
+router.post('/dilekce/docx', async (req, res) => {
+  try {
+    const { title, type, content, ihale } = req.body;
+
+    if (!content) {
+      return res.status(400).json({ error: 'Dilekçe içeriği gerekli' });
+    }
+
+    // Basit metin olarak oluştur (Word açabilir)
+    let fullContent = '';
+    
+    if (title) {
+      fullContent += `${title.toUpperCase()}\n${'='.repeat(50)}\n\n`;
+    }
+    
+    if (ihale?.kurum) fullContent += `Kurum: ${ihale.kurum}\n`;
+    if (ihale?.baslik) fullContent += `İhale: ${ihale.baslik}\n`;
+    if (ihale?.ihale_no) fullContent += `İhale No: ${ihale.ihale_no}\n`;
+    if (ihale?.kurum || ihale?.baslik) fullContent += '\n';
+    
+    fullContent += content;
+    fullContent += `\n\n${'─'.repeat(50)}\nOluşturulma: ${new Date().toLocaleDateString('tr-TR')} ${new Date().toLocaleTimeString('tr-TR')}\nCatering Pro - İhale Yönetimi`;
+
+    const typeLabels = {
+      asiri_dusuk: 'Asiri-Dusuk-Aciklama',
+      idare_sikayet: 'Idareye-Sikayet',
+      kik_itiraz: 'KIK-Itiraz',
+      aciklama_cevabi: 'Aciklama-Cevabi'
+    };
+
+    const filename = `${typeLabels[type] || 'Dilekce'}_${ihale?.ihale_no || new Date().getTime()}.txt`;
+
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(fullContent);
+
+    console.log(`📥 Dilekçe TXT indirildi: ${type} - ${ihale?.baslik || 'Genel'}`);
+  } catch (error) {
+    console.error('❌ Dilekçe TXT hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });

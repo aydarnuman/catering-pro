@@ -17,13 +17,29 @@ const app = express();
 const PORT = process.env.PORT || process.env.API_PORT || 3001;
 
 // Middleware
+// CORS yapılandırması - Development ve Production
+const allowedOrigins = [
+  'http://localhost:3000', 
+  'http://127.0.0.1:3000',
+  'http://localhost:3002', 
+  'http://127.0.0.1:3002',
+  // Production domains
+  'https://catering-tr.com',
+  'https://www.catering-tr.com'
+];
+
 app.use(cors({
-  origin: [
-    'http://localhost:3000', 
-    'http://127.0.0.1:3000',
-    'http://localhost:3002', 
-    'http://127.0.0.1:3002'
-  ],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️ CORS blocked request from: ${origin}`);
+      callback(null, false);
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control']
@@ -140,6 +156,7 @@ import mailRouter from './routes/mail.js';
 import scraperRouter from './routes/scraper.js';
 import maliyetAnaliziRouter from './routes/maliyet-analizi.js';
 import tenderNotesRouter from './routes/tender-notes.js';
+import tenderDilekceRouter from './routes/tender-dilekce.js';
 import scheduler from './services/sync-scheduler.js';
 import tenderScheduler from './services/tender-scheduler.js';
 import documentQueueProcessor from './services/document-queue-processor.js';
@@ -189,6 +206,7 @@ app.use('/api/mail', mailRouter);
 app.use('/api/scraper', scraperRouter);
 app.use('/api/maliyet-analizi', maliyetAnaliziRouter);
 app.use('/api/tender-notes', tenderNotesRouter);
+app.use('/api/tender-dilekce', tenderDilekceRouter);
 
 /**
  * @swagger

@@ -876,3 +876,129 @@ a {
 .no-pull-refresh {
   overscroll-behavior-y: none;
 }
+
+/* ============================================
+   İHALE UZMANI MODAL - UI İYİLEŞTİRMELERİ
+   ============================================ */
+
+/* Teknik Şart Kartları - Hover Effect */
+.teknik-sart-item {
+  transition: all 0.2s ease;
+}
+
+.teknik-sart-item:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* AI Not Kartları - Hover Effect */
+.ai-note-compact {
+  transition: all 0.2s ease;
+}
+
+.ai-note-compact:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+}
+
+/* Staggered Animation for List Items */
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.teknik-sart-item,
+.ai-note-compact {
+  animation: fadeInSlide 0.3s ease-out;
+  animation-fill-mode: both;
+}
+
+/* Stagger delays for first 10 items */
+.teknik-sart-item:nth-child(1),
+.ai-note-compact:nth-child(1) { animation-delay: 0.02s; }
+.teknik-sart-item:nth-child(2),
+.ai-note-compact:nth-child(2) { animation-delay: 0.04s; }
+.teknik-sart-item:nth-child(3),
+.ai-note-compact:nth-child(3) { animation-delay: 0.06s; }
+.teknik-sart-item:nth-child(4),
+.ai-note-compact:nth-child(4) { animation-delay: 0.08s; }
+.teknik-sart-item:nth-child(5),
+.ai-note-compact:nth-child(5) { animation-delay: 0.1s; }
+.teknik-sart-item:nth-child(6),
+.ai-note-compact:nth-child(6) { animation-delay: 0.12s; }
+.teknik-sart-item:nth-child(7),
+.ai-note-compact:nth-child(7) { animation-delay: 0.14s; }
+.teknik-sart-item:nth-child(8),
+.ai-note-compact:nth-child(8) { animation-delay: 0.16s; }
+.teknik-sart-item:nth-child(9),
+.ai-note-compact:nth-child(9) { animation-delay: 0.18s; }
+.teknik-sart-item:nth-child(10),
+.ai-note-compact:nth-child(10) { animation-delay: 0.2s; }
+
+/* Birim Fiyat Tablosu - Row Hover */
+.mantine-Table-tr:hover {
+  background-color: rgba(64, 192, 87, 0.06) !important;
+}
+
+/* Badge Number Animation */
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0);
+  }
+}
+
+.number-badge:hover {
+  animation: pulseGlow 1s ease-in-out infinite;
+}
+
+/* Search Input Focus Effect */
+.mantine-TextInput-input:focus {
+  border-color: var(--mantine-color-blue-5) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Chip Toggle Active State */
+.mantine-Chip-label[data-checked="true"] {
+  font-weight: 600;
+}
+
+/* Modal Header Glass Effect Enhancement */
+.modal-header-glass {
+  background: linear-gradient(135deg, 
+    rgba(139, 92, 246, 0.08) 0%, 
+    rgba(59, 130, 246, 0.05) 50%,
+    rgba(236, 72, 153, 0.03) 100%
+  ) !important;
+  backdrop-filter: blur(10px);
+}
+
+/* Smooth Tab Transition */
+.mantine-Tabs-tab {
+  transition: all 0.2s ease !important;
+}
+
+.mantine-Tabs-tab:hover:not([data-active]) {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+/* Responsive adjustments for mobile */
+@media (max-width: 768px) {
+  .teknik-sart-item,
+  .ai-note-compact {
+    animation: none;
+  }
+  
+  .teknik-sart-item:hover,
+  .ai-note-compact:hover {
+    transform: none;
+  }
+}

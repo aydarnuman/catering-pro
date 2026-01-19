@@ -465,6 +465,92 @@ export function createStokPDF(stoklar) {
   });
 }
 
+/**
+ * Dilekçe için PDF oluştur
+ * @param {Object} dilekce - Dilekçe bilgileri
+ * @returns {Promise<Buffer>} - PDF buffer'ı
+ */
+export function createDilekcePDF(dilekce) {
+  return new Promise((resolve, reject) => {
+    const {
+      title = 'DİLEKÇE',
+      type = 'genel',
+      content = '',
+      ihale = {},
+      footer = null
+    } = dilekce;
+
+    const doc = new PDFDocument({
+      margin: 60,
+      size: 'A4',
+      layout: 'portrait',
+      bufferPages: true
+    });
+
+    const chunks = [];
+    doc.on('data', chunk => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    try {
+      // Font kayıt
+      let fontLoaded = false;
+      if (fs.existsSync(FONT_REGULAR) && fs.existsSync(FONT_BOLD)) {
+        doc.registerFont('Roboto', FONT_REGULAR);
+        doc.registerFont('Roboto-Bold', FONT_BOLD);
+        doc.font('Roboto');
+        fontLoaded = true;
+      }
+
+      const pageWidth = doc.page.width - 120;
+      const startX = 60;
+
+      // Başlık
+      if (fontLoaded) doc.font('Roboto-Bold');
+      doc.fontSize(14).text(title.toUpperCase(), { align: 'center' });
+      doc.moveDown(0.5);
+
+      // İhale bilgileri (varsa)
+      if (ihale.baslik || ihale.kurum) {
+        if (fontLoaded) doc.font('Roboto');
+        doc.fontSize(10).fillColor('#555');
+        if (ihale.kurum) doc.text(`Kurum: ${ihale.kurum}`, { align: 'center' });
+        if (ihale.baslik) doc.text(`İhale: ${ihale.baslik}`, { align: 'center' });
+        if (ihale.ihale_no) doc.text(`İhale No: ${ihale.ihale_no}`, { align: 'center' });
+        doc.fillColor('black');
+        doc.moveDown(1.5);
+      } else {
+        doc.moveDown(1);
+      }
+
+      // Dilekçe içeriği
+      if (fontLoaded) doc.font('Roboto');
+      doc.fontSize(11).text(content, {
+        width: pageWidth,
+        align: 'justify',
+        lineGap: 5,
+        paragraphGap: 10
+      });
+
+      // Footer
+      doc.moveDown(2);
+      if (fontLoaded) doc.font('Roboto');
+      doc.fontSize(8).fillColor('#888').text(
+        `Oluşturulma: ${new Date().toLocaleDateString('tr-TR')} ${new Date().toLocaleTimeString('tr-TR')}`,
+        { align: 'right' }
+      );
+      
+      if (footer) {
+        doc.text(footer, { align: 'center' });
+      }
+
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 export default {
   createExcel,
   createPDF,
@@ -476,6 +562,7 @@ export default {
   createCariExcel,
   createCariPDF,
   createStokExcel,
-  createStokPDF
+  createStokPDF,
+  createDilekcePDF
 };
 

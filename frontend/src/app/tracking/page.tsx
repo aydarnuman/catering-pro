@@ -32,10 +32,14 @@ import {
   IconChevronRight,
   IconClock,
   IconCoin,
+  IconCurrencyLira,
   IconDotsVertical,
+  IconExternalLink,
   IconEye,
   IconFileAnalytics,
+  IconFileText,
   IconFilter,
+  IconMapPin,
   IconNote,
   IconSearch,
   IconTrash,
@@ -76,7 +80,7 @@ interface SavedTender {
   city?: string;
   external_id?: string;
   url?: string;
-  status: 'bekliyor' | 'basvuruldu' | 'kazanildi' | 'kaybedildi' | 'iptal';
+  status: 'inceleniyor' | 'bekliyor' | 'basvuruldu' | 'kazanildi' | 'kaybedildi' | 'iptal';
   notes: string;
   notlar?: string;
   user_notes?: UserNote[];
@@ -94,7 +98,8 @@ interface SavedTender {
   hesaplama_verileri?: any;
 }
 
-const statusConfig = {
+const statusConfig: Record<string, { color: string; label: string; icon: any }> = {
+  inceleniyor: { color: 'cyan', label: 'İnceleniyor', icon: IconEye },
   bekliyor: { color: 'yellow', label: 'Bekliyor', icon: IconClock },
   basvuruldu: { color: 'blue', label: 'Başvuruldu', icon: IconFileAnalytics },
   kazanildi: { color: 'green', label: 'Kazanıldı', icon: IconCheck },
@@ -360,7 +365,7 @@ export default function TrackingPage() {
         tarih: tender.tarih,
         bedel: tender.bedel,
         sure: tender.sure,
-        durum: statusConfig[tender.status].label,
+        durum: (statusConfig[tender.status] || statusConfig.bekliyor).label,
       },
       analiz_data: tender.analiz_data,
       kullanici_notu: tender.notlar,
@@ -652,7 +657,8 @@ export default function TrackingPage() {
                 const daysRemaining = getDaysRemaining(tender.tarih);
                 const isUrgent = daysRemaining !== null && daysRemaining <= 7 && daysRemaining >= 0;
                 const isPast = daysRemaining !== null && daysRemaining < 0;
-                const StatusIcon = statusConfig[tender.status].icon;
+                const config = statusConfig[tender.status] || statusConfig.bekliyor;
+                const StatusIcon = config.icon;
 
                 return (
                   <Card
@@ -669,11 +675,11 @@ export default function TrackingPage() {
                     {/* Üst Kısım - Durum ve Menü */}
                     <Group justify="space-between" mb="md">
                       <Badge
-                        color={statusConfig[tender.status].color}
+                        color={config.color}
                         variant="light"
                         leftSection={<StatusIcon size={12} />}
                       >
-                        {statusConfig[tender.status].label}
+                        {config.label}
                       </Badge>
                       <Menu shadow="md" width={180}>
                         <Menu.Target>
@@ -739,6 +745,16 @@ export default function TrackingPage() {
                         <IconBuilding size={16} color="var(--mantine-color-gray-6)" />
                         <Text size="sm" c="dimmed" lineClamp={1}>
                           {tender.kurum}
+                        </Text>
+                      </Group>
+                    )}
+
+                    {/* Şehir */}
+                    {tender.city && (
+                      <Group gap="xs" mb="xs">
+                        <IconMapPin size={16} color="var(--mantine-color-blue-6)" />
+                        <Text size="sm" c="blue.6" fw={500}>
+                          {tender.city}
                         </Text>
                       </Group>
                     )}
@@ -832,14 +848,49 @@ export default function TrackingPage() {
                           </Tooltip>
                         )}
                       </Group>
-                      <Button
-                        variant="light"
-                        size="xs"
-                        rightSection={<IconChevronRight size={14} />}
-                        onClick={() => handleOpenDetail(tender)}
-                      >
-                        Detay
-                      </Button>
+                      <Group gap="xs">
+                        {tender.url && (
+                          <Tooltip label="İhale sayfasını aç">
+                            <ActionIcon
+                              variant="subtle"
+                              color="gray"
+                              size="sm"
+                              component="a"
+                              href={tender.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <IconExternalLink size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
+                        <Button
+                          variant="light"
+                          size="xs"
+                          rightSection={<IconChevronRight size={14} />}
+                          onClick={() => handleOpenDetail(tender)}
+                        >
+                          Detay
+                        </Button>
+                      </Group>
+                    </Group>
+
+                    {/* Alt Bilgi - İhale No ve Döküman Durumu */}
+                    <Group justify="space-between" mt="xs">
+                      {tender.external_id && (
+                        <Text size="xs" c="dimmed">
+                          #{tender.external_id}
+                        </Text>
+                      )}
+                      {tender.dokuman_sayisi > 0 && (
+                        <Group gap={4}>
+                          <IconFileText size={12} color="var(--mantine-color-gray-5)" />
+                          <Text size="xs" c="dimmed">
+                            {tender.analiz_edilen_dokuman || 0}/{tender.dokuman_sayisi} analiz
+                          </Text>
+                        </Group>
+                      )}
                     </Group>
                   </Card>
                 );

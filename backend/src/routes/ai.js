@@ -9,14 +9,18 @@ import claudeAI from '../services/claude-ai.js';
 import aiAgent from '../services/ai-agent.js';
 import { executeInvoiceQuery, formatInvoiceResponse } from '../services/invoice-ai.js';
 import { query } from '../database.js';
+import { authenticate, optionalAuth, requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Tüm AI endpoint'leri için authentication gerekli (status ve chat hariç)
+// Status public kalabilir (health check amaçlı)
 
 /**
  * POST /api/ai/chat
  * AI ile sohbet et (Eski endpoint - geriye uyumluluk için)
  */
-router.post('/chat', async (req, res) => {
+router.post('/chat', optionalAuth, async (req, res) => {
   try {
     const { question, department = 'TÜM SİSTEM', promptTemplate = 'default' } = req.body;
 
@@ -105,7 +109,7 @@ router.post('/chat', async (req, res) => {
  * AI Agent - Tool Calling ile akıllı asistan
  * Tüm sisteme erişebilir, veri okuyabilir ve yazabilir
  */
-router.post('/agent', async (req, res) => {
+router.post('/agent', optionalAuth, async (req, res) => {
   try {
     const { message, history = [], sessionId, department, templateSlug, pageContext } = req.body;
 
@@ -326,9 +330,9 @@ router.get('/templates/:id', async (req, res) => {
 
 /**
  * POST /api/ai/templates
- * Yeni şablon oluştur
+ * Yeni şablon oluştur (Admin only)
  */
-router.post('/templates', async (req, res) => {
+router.post('/templates', authenticate, requireAdmin, async (req, res) => {
   try {
     const { name, description, prompt, category, icon, color, is_active, preferred_model } = req.body;
     
@@ -388,9 +392,9 @@ router.post('/templates', async (req, res) => {
 
 /**
  * PUT /api/ai/templates/:id
- * Şablon güncelle
+ * Şablon güncelle (Admin only)
  */
-router.put('/templates/:id', async (req, res) => {
+router.put('/templates/:id', authenticate, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, prompt, category, icon, color, is_active, preferred_model } = req.body;
@@ -442,9 +446,9 @@ router.put('/templates/:id', async (req, res) => {
 
 /**
  * DELETE /api/ai/templates/:id
- * Şablon sil (sistem şablonları silinemez)
+ * Şablon sil (sistem şablonları silinemez) (Admin only)
  */
-router.delete('/templates/:id', async (req, res) => {
+router.delete('/templates/:id', authenticate, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -690,9 +694,9 @@ router.get('/settings', async (req, res) => {
 
 /**
  * PUT /api/ai/settings
- * AI ayarlarını güncelle
+ * AI ayarlarını güncelle (Admin only)
  */
-router.put('/settings', async (req, res) => {
+router.put('/settings', authenticate, requireAdmin, async (req, res) => {
   try {
     const { settings } = req.body;
     
@@ -769,9 +773,9 @@ router.get('/settings/models', async (req, res) => {
 
 /**
  * PUT /api/ai/settings/model
- * Aktif AI modelini değiştir
+ * Aktif AI modelini değiştir (Admin only)
  */
-router.put('/settings/model', async (req, res) => {
+router.put('/settings/model', authenticate, requireAdmin, async (req, res) => {
   try {
     const { model } = req.body;
     
@@ -1027,9 +1031,9 @@ router.post('/memory', async (req, res) => {
 
 /**
  * DELETE /api/ai/memory/:id
- * Hafıza sil
+ * Hafıza sil (Admin only)
  */
-router.delete('/memory/:id', async (req, res) => {
+router.delete('/memory/:id', authenticate, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -1277,6 +1281,79 @@ router.get('/conversations', async (req, res) => {
 });
 
 /**
+ * GET /api/ai/conversations/list
+ * Prefix ile filtrelenmiş konuşma listesi (dilekçe türüne göre)
+ */
+router.get('/conversations/list', async (req, res) => {
+  try {
+    const { prefix, userId = 'default', limit = 50 } = req.query;
+    
+    if (!prefix) {
+      return res.status(400).json({
+        success: false,
+        error: 'Prefix parametresi gerekli'
+      });
+    }
+    
+    // Prefix ile başlayan session'ları getir
+    const { rows } = await query(`
+      WITH session_summary AS (
+        SELECT 
+          session_id,
+          user_id,
+          MIN(created_at) as started_at,
+          MAX(created_at) as last_message_at,
+          COUNT(*) as message_count,
+          COUNT(CASE WHEN role = 'user' THEN 1 END) as user_messages,
+          COUNT(CASE WHEN role = 'assistant' THEN 1 END) as ai_messages
+        FROM ai_conversations
+        WHERE session_id LIKE $1 || '%'
+        GROUP BY session_id, user_id
+      ),
+      first_message AS (
+        SELECT DISTINCT ON (session_id) 
+          session_id,
+          content as first_user_message
+        FROM ai_conversations
+        WHERE role = 'user' AND session_id LIKE $1 || '%'
+        ORDER BY session_id, created_at ASC
+      ),
+      last_assistant AS (
+        SELECT DISTINCT ON (session_id) 
+          session_id,
+          SUBSTRING(content, 1, 200) as last_response_preview
+        FROM ai_conversations
+        WHERE role = 'assistant' AND session_id LIKE $1 || '%'
+        ORDER BY session_id, created_at DESC
+      )
+      SELECT 
+        s.*,
+        f.first_user_message,
+        SUBSTRING(f.first_user_message, 1, 150) as preview,
+        la.last_response_preview
+      FROM session_summary s
+      LEFT JOIN first_message f ON s.session_id = f.session_id
+      LEFT JOIN last_assistant la ON s.session_id = la.session_id
+      ORDER BY s.last_message_at DESC
+      LIMIT $2
+    `, [prefix, parseInt(limit)]);
+    
+    return res.json({
+      success: true,
+      conversations: rows,
+      count: rows.length
+    });
+    
+  } catch (error) {
+    console.error('❌ [AI Conversations List] Hata:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Konuşma listesi yüklenemedi'
+    });
+  }
+});
+
+/**
  * GET /api/ai/conversations/search
  * Sohbet geçmişinde ara
  */
@@ -1348,10 +1425,12 @@ router.get('/conversations/:sessionId', async (req, res) => {
       ORDER BY created_at ASC
     `, [sessionId, userId]);
     
+    // Konuşma yoksa boş döndür (404 yerine)
     if (rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Sohbet oturumu bulunamadı'
+      return res.json({
+        success: true,
+        session: null,
+        messages: []
       });
     }
     

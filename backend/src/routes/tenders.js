@@ -15,11 +15,53 @@ router.get('/', async (req, res) => {
       search 
     } = req.query;
     
+    // Süresi dolan ihalelerin status'unu güncelle
+    // Tüm süresi dolan ihaleleri expired yap (1 hafta içinde veya daha eski)
+    // Bu işlem sadece aktif ihaleler için yapılır, performans için sadece gerekli durumlarda
+    try {
+      await query(`
+        UPDATE tenders 
+        SET status = 'expired', updated_at = NOW()
+        WHERE status = 'active' 
+          AND tender_date IS NOT NULL 
+          AND tender_date < NOW()
+      `);
+    } catch (error) {
+      // Status güncelleme hatası kritik değil, devam et
+      console.warn('Status güncelleme hatası (kritik değil):', error.message);
+    }
+    
     const offset = (page - 1) * limit;
     
-    let whereClause = ['status = $1'];
-    let params = [status];
-    let paramIndex = 2;
+    // Status filtreleme: 'active' ise sadece aktif olanları, 'expired' ise süresi dolanları, 'all' ise hepsini göster
+    let whereClause = [];
+    let params = [];
+    let paramIndex = 1;
+    
+    if (status === 'active') {
+      // Varsayılan görünüm: Aktif ihaleler + Son 1 hafta içinde süresi dolanlar
+      // tender_date NULL ise veya > NOW() ise VEYA son 1 hafta içinde süresi dolduysa göster
+      whereClause.push(`(
+        (tender_date IS NULL OR tender_date > NOW()) 
+        OR (tender_date >= NOW() - INTERVAL '7 days' AND tender_date < NOW())
+      )`);
+    } else if (status === 'expired') {
+      // Süresi dolan ihaleler (tümü): tender_date < NOW()
+      whereClause.push(`(tender_date IS NOT NULL AND tender_date < NOW())`);
+    } else if (status === 'urgent') {
+      // Son 7 gün içinde süresi dolacak ihaleler
+      whereClause.push(`(tender_date IS NOT NULL AND tender_date > NOW() AND tender_date <= NOW() + INTERVAL '7 days')`);
+    } else if (status === 'archived') {
+      // Arşiv: 1 haftadan fazla geçmiş ihaleler
+      whereClause.push(`(tender_date IS NOT NULL AND tender_date < NOW() - INTERVAL '7 days')`);
+    } else if (status === 'all') {
+      // Tüm ihaleler - filtre yok
+    } else {
+      // Diğer status değerleri için normal filtreleme
+      whereClause.push(`status = $${paramIndex}`);
+      params.push(status);
+      paramIndex++;
+    }
     
     if (city) {
       whereClause.push(`city = $${paramIndex}`);
@@ -33,7 +75,12 @@ router.get('/', async (req, res) => {
       paramIndex++;
     }
     
-    const whereString = whereClause.join(' AND ');
+    const whereString = whereClause.length > 0 ? whereClause.join(' AND ') : '1=1';
+    
+    // Debug: Status filtreleme bilgisi
+    if (status === 'expired') {
+      console.log(`[TENDERS] Expired filter - WHERE: ${whereString}, Params:`, params);
+    }
     
     // Toplam sayı
     const countResult = await query(
@@ -41,6 +88,11 @@ router.get('/', async (req, res) => {
       params
     );
     const total = parseInt(countResult.rows[0].count);
+    
+    // Debug: Toplam sayı
+    if (status === 'expired') {
+      console.log(`[TENDERS] Expired filter - Total count: ${total}`);
+    }
     
     // Veri - Frontend mapping için field'ları düzenleyelim
     const result = await query(
@@ -74,7 +126,19 @@ router.get('/', async (req, res) => {
         raw_data
        FROM tenders 
        WHERE ${whereString}
-       ORDER BY tender_date DESC NULLS LAST, created_at DESC
+       ORDER BY 
+         CASE 
+           WHEN tender_date IS NULL THEN 2                              -- Tarihi belirsiz olanlar sonda
+           WHEN tender_date::date >= CURRENT_DATE THEN 0                -- Bugün veya gelecek → Önce
+           ELSE 1                                                       -- Geçmiş tarihli → En sonda
+         END,
+         CASE 
+           WHEN tender_date::date >= CURRENT_DATE THEN tender_date      -- Aktifler: en yakın tarih önce (bugün, yarın, 2 gün...)
+         END ASC NULLS LAST,
+         CASE 
+           WHEN tender_date::date < CURRENT_DATE THEN tender_date       -- Süresi dolanlar: en yeni dolan önce
+         END DESC NULLS LAST,
+         created_at DESC
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...params, limit, offset]
     );
@@ -182,6 +246,70 @@ router.get('/:id', async (req, res) => {
     
   } catch (error) {
     console.error('İhale detay hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// İhale güncelleme
+router.patch('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tender_date, status, city, organization_name, title, estimated_cost } = req.body;
+    
+    // Güncelleme alanlarını dinamik oluştur
+    const updates = [];
+    const params = [];
+    let paramIndex = 1;
+    
+    if (tender_date !== undefined) {
+      updates.push(`tender_date = $${paramIndex++}`);
+      params.push(tender_date);
+    }
+    if (status !== undefined) {
+      updates.push(`status = $${paramIndex++}`);
+      params.push(status);
+    }
+    if (city !== undefined) {
+      updates.push(`city = $${paramIndex++}`);
+      params.push(city);
+    }
+    if (organization_name !== undefined) {
+      updates.push(`organization_name = $${paramIndex++}`);
+      params.push(organization_name);
+    }
+    if (title !== undefined) {
+      updates.push(`title = $${paramIndex++}`);
+      params.push(title);
+    }
+    if (estimated_cost !== undefined) {
+      updates.push(`estimated_cost = $${paramIndex++}`);
+      params.push(estimated_cost);
+    }
+    
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'Güncellenecek alan belirtilmedi' });
+    }
+    
+    updates.push(`updated_at = NOW()`);
+    params.push(id);
+    
+    const result = await query(
+      `UPDATE tenders SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+      params
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'İhale bulunamadı' });
+    }
+    
+    res.json({
+      success: true,
+      data: result.rows[0],
+      message: 'İhale güncellendi'
+    });
+    
+  } catch (error) {
+    console.error('İhale güncelleme hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -12,8 +12,12 @@ import fs from 'fs';
 import { query } from '../database.js';
 import { logError, logAPI } from '../utils/logger.js';
 import { analyzeFirmaBelgesi, getDesteklenenBelgeTipleri } from '../services/firma-belge-service.js';
+import { authenticate, requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Tüm firmalar endpoint'leri için authentication gerekli
+router.use(authenticate);
 
 // Dosya upload ayarları
 const storage = multer.diskStorage({
