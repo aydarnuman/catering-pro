@@ -1447,13 +1447,24 @@ export default function TeklifModal({
                   onClick={() => setSelectedKalem(kalem.key)}
                 >
                   <Group justify="space-between" wrap="nowrap">
-                    <Text 
-                      size="xs" 
-                      fw={600} 
-                      c={isSelected ? 'white' : tutar > 0 ? 'dark.7' : 'gray.5'}
-                    >
-                      {kalem.label}
-                    </Text>
+                    <Group gap={8} wrap="nowrap">
+                      <Box 
+                        style={{ 
+                          width: 6, 
+                          height: 6, 
+                          borderRadius: '50%', 
+                          background: tutar > 0 ? '#22c55e' : '#ef4444',
+                          flexShrink: 0,
+                        }} 
+                      />
+                      <Text 
+                        size="xs" 
+                        fw={600} 
+                        c={isSelected ? 'white' : tutar > 0 ? 'dark.7' : 'gray.5'}
+                      >
+                        {kalem.label}
+                      </Text>
+                    </Group>
                     <Text 
                       size="xs" 
                       fw={500} 
@@ -1462,13 +1473,9 @@ export default function TeklifModal({
                       {tutar > 0 ? `${yuzde.toFixed(0)}%` : ''}
                     </Text>
                   </Group>
-                  {tutar > 0 ? (
-                    <Text size="sm" fw={700} c={isSelected ? 'white' : 'dark.8'} mt={2}>
-                      {formatParaKisa(tutar)}
-                    </Text>
-                  ) : (
-                    <Box mt={4} style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444' }} />
-                  )}
+                  <Text size="sm" fw={700} c={isSelected ? 'white' : tutar > 0 ? 'dark.8' : 'gray.4'} mt={2} pl={14}>
+                    {tutar > 0 ? formatParaKisa(tutar) : '—'}
+                  </Text>
                 </Box>
               );
             })}
@@ -1499,13 +1506,24 @@ export default function TeklifModal({
                   onClick={() => setSelectedKalem(kalem.key)}
                 >
                   <Group justify="space-between" wrap="nowrap">
-                    <Text 
-                      size="xs" 
-                      fw={600} 
-                      c={isSelected ? 'white' : tutar > 0 ? 'dark.7' : 'gray.5'}
-                    >
-                      {kalem.label}
-                    </Text>
+                    <Group gap={8} wrap="nowrap">
+                      <Box 
+                        style={{ 
+                          width: 6, 
+                          height: 6, 
+                          borderRadius: '50%', 
+                          background: tutar > 0 ? '#22c55e' : '#ef4444',
+                          flexShrink: 0,
+                        }} 
+                      />
+                      <Text 
+                        size="xs" 
+                        fw={600} 
+                        c={isSelected ? 'white' : tutar > 0 ? 'dark.7' : 'gray.5'}
+                      >
+                        {kalem.label}
+                      </Text>
+                    </Group>
                     <Text 
                       size="xs" 
                       fw={500} 
@@ -1514,13 +1532,9 @@ export default function TeklifModal({
                       {tutar > 0 ? `${yuzde.toFixed(0)}%` : ''}
                     </Text>
                   </Group>
-                  {tutar > 0 ? (
-                    <Text size="sm" fw={700} c={isSelected ? 'white' : 'dark.8'} mt={2}>
-                      {formatParaKisa(tutar)}
-                    </Text>
-                  ) : (
-                    <Box mt={4} style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444' }} />
-                  )}
+                  <Text size="sm" fw={700} c={isSelected ? 'white' : tutar > 0 ? 'dark.8' : 'gray.4'} mt={2} pl={14}>
+                    {tutar > 0 ? formatParaKisa(tutar) : '—'}
+                  </Text>
                 </Box>
               );
             })}
@@ -1551,13 +1565,24 @@ export default function TeklifModal({
                   onClick={() => setSelectedKalem(kalem.key)}
                 >
                   <Group justify="space-between" wrap="nowrap">
-                    <Text 
-                      size="xs" 
-                      fw={600} 
-                      c={isSelected ? 'white' : tutar > 0 ? 'dark.7' : 'gray.5'}
-                    >
-                      {kalem.label}
-                    </Text>
+                    <Group gap={8} wrap="nowrap">
+                      <Box 
+                        style={{ 
+                          width: 6, 
+                          height: 6, 
+                          borderRadius: '50%', 
+                          background: tutar > 0 ? '#22c55e' : '#ef4444',
+                          flexShrink: 0,
+                        }} 
+                      />
+                      <Text 
+                        size="xs" 
+                        fw={600} 
+                        c={isSelected ? 'white' : tutar > 0 ? 'dark.7' : 'gray.5'}
+                      >
+                        {kalem.label}
+                      </Text>
+                    </Group>
                     <Text 
                       size="xs" 
                       fw={500} 
@@ -1566,13 +1591,9 @@ export default function TeklifModal({
                       {tutar > 0 ? `${yuzde.toFixed(0)}%` : ''}
                     </Text>
                   </Group>
-                  {tutar > 0 ? (
-                    <Text size="sm" fw={700} c={isSelected ? 'white' : 'dark.8'} mt={2}>
-                      {formatParaKisa(tutar)}
-                    </Text>
-                  ) : (
-                    <Box mt={4} style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444' }} />
-                  )}
+                  <Text size="sm" fw={700} c={isSelected ? 'white' : tutar > 0 ? 'dark.8' : 'gray.4'} mt={2} pl={14}>
+                    {tutar > 0 ? formatParaKisa(tutar) : '—'}
+                  </Text>
                 </Box>
               );
             })}
