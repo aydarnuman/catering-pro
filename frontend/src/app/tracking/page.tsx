@@ -190,8 +190,11 @@ function TrackingPageContent() {
   }, []);
 
   // URL'den tender id oku ve modal aç
+  // Modal kapanma işlemi devam ediyorsa tekrar açmayı engelle
+  const [isClosing, setIsClosing] = useState(false);
+  
   useEffect(() => {
-    if (!initialLoadDone || loading || tenders.length === 0) return;
+    if (!initialLoadDone || loading || tenders.length === 0 || isClosing) return;
     
     const tenderId = searchParams.get('tender');
     if (tenderId) {
@@ -201,7 +204,7 @@ function TrackingPageContent() {
         openDetail();
       }
     }
-  }, [searchParams, tenders, loading, initialLoadDone, detailOpened, openDetail]);
+  }, [searchParams, tenders, loading, initialLoadDone, detailOpened, openDetail, isClosing]);
 
   // Tenders yüklenince initialLoadDone'u true yap
   useEffect(() => {
@@ -955,13 +958,17 @@ function TrackingPageContent() {
       <IhaleUzmaniModal
         opened={detailOpened}
         onClose={() => {
+          setIsClosing(true); // Kapanma işlemi başladı - tekrar açılmayı engelle
           closeDetail();
+          setSelectedTender(null); // Tender'ı da temizle
           setLiveAnalysisData(null);
           setAnalysisStats(null);
           // URL'den tender parametresini kaldır
           const url = new URL(window.location.href);
           url.searchParams.delete('tender');
           router.replace(url.pathname + url.search, { scroll: false });
+          // Kısa bir gecikme sonrası isClosing'i sıfırla
+          setTimeout(() => setIsClosing(false), 100);
           // AI Context'i sıfırla
           if (typeof window !== 'undefined') {
             const contextEvent = new CustomEvent('ai-context-update', {
