@@ -1899,10 +1899,11 @@ export default function TeklifModal({
         {viewMode === 'maliyet' ? renderMaliyetView() : renderCetvelView()}
       </Box>
 
-      {/* Alt Bar - Modern (Sticky Bottom) */}
+      {/* Alt Bar - Kompakt */}
       <Paper
-        shadow="lg"
-        p="md"
+        shadow="md"
+        py="xs"
+        px="md"
         style={{
           background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
           border: 'none',
@@ -1910,74 +1911,71 @@ export default function TeklifModal({
           borderRadius: 0,
         }}
       >
-        <Group justify="space-between">
-          <Group gap={32}>
+        <Group justify="space-between" align="center">
+          <Group gap="lg">
             {/* Maliyet */}
             <div>
-              <Text size="xs" c="gray.5" fw={500} tt="uppercase" style={{ letterSpacing: 1 }}>
+              <Text size="10px" c="gray.5" fw={500} tt="uppercase" style={{ letterSpacing: 0.5 }}>
                 Maliyet
               </Text>
-              <Text fw={800} size="xl" c="white" style={{ fontFamily: 'system-ui' }}>
+              <Text fw={700} size="sm" c="white">
                 {formatPara(hesaplanmisTeklifData.maliyet_toplam)}
               </Text>
             </div>
 
             {/* Kar Oranı */}
             <div>
-              <Text size="xs" c="gray.5" fw={500} tt="uppercase" style={{ letterSpacing: 1 }}>
-                Kar Oranı
+              <Text size="10px" c="gray.5" fw={500} tt="uppercase" style={{ letterSpacing: 0.5 }}>
+                Kar
               </Text>
-              <Group gap="xs" align="center">
-                <NumberInput
-                  value={teklifData.kar_orani}
-                  onChange={handleKarOraniChange}
-                  min={0}
-                  max={100}
-                  w={70}
-                  size="sm"
-                  rightSection="%"
-                  radius="md"
-                  styles={{
-                    input: {
-                      textAlign: 'center',
-                      fontWeight: 700,
-                      backgroundColor: 'rgba(255,255,255,0.1)',
-                      color: 'white',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                    },
-                  }}
-                  rightSectionProps={{ style: { color: 'white' } }}
-                />
-              </Group>
+              <NumberInput
+                value={teklifData.kar_orani}
+                onChange={handleKarOraniChange}
+                min={0}
+                max={100}
+                w={55}
+                size="xs"
+                rightSection="%"
+                hideControls
+                styles={{
+                  input: {
+                    textAlign: 'center',
+                    fontWeight: 700,
+                    backgroundColor: 'rgba(255,255,255,0.1)',
+                    color: 'white',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    padding: '4px 6px',
+                    height: 26,
+                  },
+                }}
+                rightSectionProps={{ style: { color: 'white', fontSize: 11 } }}
+              />
             </div>
 
             {/* Kar Tutarı */}
             <div>
-              <Text size="xs" c="gray.5" fw={500} tt="uppercase" style={{ letterSpacing: 1 }}>
+              <Text size="10px" c="gray.5" fw={500} tt="uppercase" style={{ letterSpacing: 0.5 }}>
                 Kar Tutarı
               </Text>
-              <Text fw={800} size="xl" c="green.4" style={{ fontFamily: 'system-ui' }}>
+              <Text fw={700} size="sm" c="green.4">
                 +{formatPara(hesaplanmisTeklifData.kar_tutari)}
               </Text>
             </div>
 
-            {/* Divider */}
-            <Divider orientation="vertical" color="gray.7" />
+            <Divider orientation="vertical" color="gray.7" size="sm" />
 
             {/* Teklif Fiyatı */}
             <div>
-              <Text size="xs" c="gray.5" fw={500} tt="uppercase" style={{ letterSpacing: 1 }}>
+              <Text size="10px" c="gray.5" fw={500} tt="uppercase" style={{ letterSpacing: 0.5 }}>
                 Teklif Fiyatı
               </Text>
               <Text
-                fw={900}
-                size="xl"
+                fw={800}
+                size="md"
                 style={{
-                  fontFamily: 'system-ui',
                   background: 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
-                  fontSize: 28,
                 }}
               >
                 {formatPara(hesaplanmisTeklifData.teklif_fiyati)}
@@ -1986,35 +1984,34 @@ export default function TeklifModal({
           </Group>
 
           {/* Butonlar */}
-          <Group gap="sm">
+          <Group gap="xs">
             <Button
               variant="subtle"
               color="gray"
+              size="xs"
               onClick={onClose}
-              radius="md"
               styles={{ root: { color: 'white' } }}
             >
               İptal
             </Button>
             <Button
               variant="light"
-              leftSection={<IconDownload size={16} />}
+              size="xs"
+              leftSection={<IconDownload size={14} />}
               disabled
-              radius="md"
               color="gray"
             >
               PDF
             </Button>
             <Button
-              radius="md"
-              size="md"
-              leftSection={<IconDeviceFloppy size={18} />}
+              size="sm"
+              leftSection={<IconDeviceFloppy size={16} />}
               onClick={handleKaydet}
               loading={loading}
               style={{
                 background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
                 border: 'none',
-                fontWeight: 700,
+                fontWeight: 600,
               }}
             >
               Kaydet
