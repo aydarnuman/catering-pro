@@ -1499,28 +1499,10 @@ KURALLAR:
         value={activeTab} 
         onChange={setActiveTab} 
         variant="unstyled"
-        styles={{
-          root: { borderBottom: '1px solid #e5e7eb' },
-          list: { gap: 0, borderBottom: 'none' },
-          tab: {
-            padding: '14px 24px',
-            fontWeight: 500,
-            fontSize: '14px',
-            color: '#6b7280',
-            borderBottom: '2px solid transparent',
-            marginBottom: '-1px',
-            transition: 'all 0.15s ease',
-            '&:hover': {
-              color: '#374151',
-              backgroundColor: 'transparent',
-            },
-            '&[data-active]': {
-              color: '#1f2937',
-              fontWeight: 600,
-              borderBottomColor: '#2563eb',
-              backgroundColor: 'transparent',
-            },
-          },
+        classNames={{
+          root: 'ihale-tabs-root',
+          list: 'ihale-tabs-list',
+          tab: 'ihale-tabs-tab',
         }}
       >
         <Tabs.List grow mb="lg">

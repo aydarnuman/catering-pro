@@ -2,7 +2,6 @@
 
 import {
   ActionIcon,
-  Alert,
   Badge,
   Box,
   Button,
@@ -16,7 +15,6 @@ import {
   Stack,
   Text,
   TextInput,
-  ThemeIcon,
 } from '@mantine/core';
 import {
   IconAlertTriangle,
@@ -89,6 +87,36 @@ interface HesaplamalarTabProps {
   hesaplaBedel: () => void;
 }
 
+// Pro Theme Colors - Light uyumlu
+const theme = {
+  bg: '#f8fafc',
+  cardBg: '#ffffff',
+  border: '#e2e8f0',
+  borderFocus: '#0ea5e9',
+  text: '#0f172a',
+  textMuted: '#64748b',
+  textDimmed: '#94a3b8',
+  accent: '#0ea5e9',
+  accentLight: '#e0f2fe',
+  success: '#059669',
+  successLight: '#d1fae5',
+  warning: '#d97706',
+  warningLight: '#fef3c7',
+  danger: '#dc2626',
+};
+
+// Clean input styles
+const inputStyles = {
+  input: {
+    backgroundColor: '#f8fafc',
+    borderColor: theme.border,
+    color: theme.text,
+    fontWeight: 600,
+    '&:focus': { borderColor: theme.borderFocus },
+  },
+  label: { color: theme.textMuted, fontSize: 11, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
+};
+
 export function HesaplamalarTab({
   yaklasikMaliyet,
   setYaklasikMaliyet,
@@ -114,291 +142,275 @@ export function HesaplamalarTab({
 }: HesaplamalarTabProps) {
   return (
     <ScrollArea h="calc(100vh - 200px)" offsetScrollbars>
-      <Stack gap="lg">
+      <Stack gap="md">
         {/* ÜST BÖLÜM: TEMEL VERİLER */}
         <Paper 
           p="lg" 
-          withBorder 
-          radius="lg" 
-          shadow="sm"
-          style={{
-            background: sinirDeger && bizimTeklif > 0
-              ? bizimTeklif < sinirDeger 
-                ? 'linear-gradient(135deg, rgba(255,244,230,0.7) 0%, rgba(255,255,255,1) 100%)'
-                : 'linear-gradient(135deg, rgba(235,251,238,0.7) 0%, rgba(255,255,255,1) 100%)'
-              : 'linear-gradient(135deg, rgba(248,249,250,1) 0%, rgba(255,255,255,1) 100%)'
-          }}
+          radius="md"
+          style={{ background: theme.cardBg, border: `1px solid ${theme.border}` }}
         >
-          <Group justify="space-between" mb="lg">
-            <Group gap="sm">
-              <ThemeIcon size="xl" variant="gradient" gradient={{ from: 'violet', to: 'indigo' }} radius="xl">
-                <IconCalculator size={24} />
-              </ThemeIcon>
-              <div>
-                <Text fw={700} size="lg">Teklif Verileri</Text>
-                <Text size="xs" c="dimmed">Hesaplamalarda kullanılacak temel değerler</Text>
-              </div>
+          <Group justify="space-between" mb="md">
+            <Group gap="xs">
+              <IconCalculator size={18} color={theme.accent} stroke={1.5} />
+              <Text fw={600} size="sm" c={theme.text}>Teklif Verileri</Text>
             </Group>
-            {/* Save Status */}
             {saveStatus === 'saving' && (
-              <Badge size="sm" variant="light" color="blue" leftSection={<Loader size={10} />}>
-                Kaydediliyor...
+              <Badge size="xs" variant="light" color="blue" leftSection={<Loader size={8} />}>
+                Kaydediliyor
               </Badge>
             )}
             {saveStatus === 'saved' && (
-              <Badge size="sm" variant="light" color="green" leftSection={<IconCloudCheck size={12} />}>
+              <Badge size="xs" variant="light" color="green" leftSection={<IconCloudCheck size={10} />}>
                 Kaydedildi
               </Badge>
             )}
           </Group>
 
-          <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
-            <Paper p="md" radius="md" withBorder bg="white" shadow="xs">
-              <Group gap="xs" mb="sm">
-                <ThemeIcon size="sm" variant="light" color="blue" radius="xl">
-                  <IconCoin size={14} />
-                </ThemeIcon>
-                <Text size="sm" fw={600} c="blue.7">Yaklaşık Maliyet</Text>
-              </Group>
+          <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+            {/* Yaklaşık Maliyet */}
+            <Box>
+              <Text size="xs" fw={600} c={theme.textMuted} mb={4} tt="uppercase" style={{ letterSpacing: 0.5 }}>
+                Yaklaşık Maliyet
+              </Text>
               <NumberInput
-                placeholder="İdarenin belirlediği tutar"
+                placeholder="0"
                 value={yaklasikMaliyet || ''}
                 onChange={(val) => setYaklasikMaliyet(Number(val) || 0)}
                 thousandSeparator="."
                 decimalSeparator=","
                 min={0}
                 variant="filled"
-                size="lg"
+                size="md"
                 hideControls
-                styles={{ input: { fontWeight: 700, fontSize: 18 } }}
-                rightSection={<Text size="sm" c="dimmed" mr={12}>TL</Text>}
+                styles={{
+                  input: {
+                    backgroundColor: theme.bg,
+                    border: `1px solid ${theme.border}`,
+                    fontWeight: 700,
+                    fontSize: 20,
+                    color: theme.text,
+                  },
+                }}
+                rightSection={<Text size="sm" c={theme.textDimmed} mr={8}>₺</Text>}
               />
-            </Paper>
-            <Paper p="md" radius="md" withBorder bg="white" shadow="xs">
-              <Group gap="xs" mb="sm">
-                <ThemeIcon size="sm" variant="light" color="orange" radius="xl">
-                  <IconAlertTriangle size={14} />
-                </ThemeIcon>
-                <Text size="sm" fw={600} c="orange.7">Sınır Değer</Text>
-              </Group>
+            </Box>
+
+            {/* Sınır Değer */}
+            <Box>
+              <Text size="xs" fw={600} c={theme.warning} mb={4} tt="uppercase" style={{ letterSpacing: 0.5 }}>
+                Sınır Değer
+              </Text>
               <NumberInput
-                placeholder="Hesapla veya gir"
+                placeholder="0"
                 value={sinirDeger || ''}
                 onChange={(val) => setSinirDeger(Number(val) || null)}
                 thousandSeparator="."
                 decimalSeparator=","
                 min={0}
                 variant="filled"
-                size="lg"
+                size="md"
                 hideControls
-                styles={{ input: { fontWeight: 700, fontSize: 18 } }}
-                rightSection={<Text size="sm" c="dimmed" mr={12}>TL</Text>}
+                styles={{
+                  input: {
+                    backgroundColor: theme.bg,
+                    border: `1px solid ${theme.border}`,
+                    fontWeight: 700,
+                    fontSize: 20,
+                    color: theme.text,
+                  },
+                }}
+                rightSection={<Text size="sm" c={theme.textDimmed} mr={8}>₺</Text>}
               />
-            </Paper>
-            <Paper p="md" radius="md" withBorder bg="white" shadow="xs">
-              <Group gap="xs" mb="sm">
-                <ThemeIcon size="sm" variant="light" color="green" radius="xl">
-                  <IconReportMoney size={14} />
-                </ThemeIcon>
-                <Text size="sm" fw={600} c="green.7">Bizim Teklifimiz</Text>
-              </Group>
+            </Box>
+
+            {/* Bizim Teklifimiz */}
+            <Box>
+              <Text size="xs" fw={600} c={theme.accent} mb={4} tt="uppercase" style={{ letterSpacing: 0.5 }}>
+                Bizim Teklifimiz
+              </Text>
               <NumberInput
-                placeholder="Vereceğiniz teklif"
+                placeholder="0"
                 value={bizimTeklif || ''}
                 onChange={(val) => setBizimTeklif(Number(val) || 0)}
                 thousandSeparator="."
                 decimalSeparator=","
                 min={0}
                 variant="filled"
-                size="lg"
+                size="md"
                 hideControls
-                styles={{ input: { fontWeight: 700, fontSize: 18 } }}
-                rightSection={<Text size="sm" c="dimmed" mr={12}>TL</Text>}
+                styles={{
+                  input: {
+                    backgroundColor: theme.bg,
+                    border: `1px solid ${theme.border}`,
+                    fontWeight: 700,
+                    fontSize: 20,
+                    color: theme.text,
+                  },
+                }}
+                rightSection={<Text size="sm" c={theme.textDimmed} mr={8}>₺</Text>}
               />
-            </Paper>
+            </Box>
           </SimpleGrid>
 
-          {/* Progress Bar & Durum */}
+          {/* Progress Bar */}
           {sinirDeger && sinirDeger > 0 && bizimTeklif > 0 && (
-            <Box mt="lg">
-              <Group justify="space-between" mb="xs">
-                <Text size="sm" fw={500}>Teklif / Sınır Değer Oranı</Text>
+            <Box mt="md" pt="md" style={{ borderTop: `1px solid ${theme.border}` }}>
+              <Group justify="space-between" mb={6}>
+                <Text size="xs" fw={500} c={theme.textMuted}>Teklif / Sınır Değer</Text>
                 <Badge 
-                  size="lg" 
-                  variant="filled"
-                  color={bizimTeklif < sinirDeger ? 'orange' : 'green'}
-                  leftSection={bizimTeklif < sinirDeger ? <IconAlertTriangle size={14} /> : <IconCheck size={14} />}
+                  size="sm" 
+                  variant="light"
+                  color={bizimTeklif < sinirDeger ? 'orange' : 'teal'}
+                  leftSection={bizimTeklif < sinirDeger ? <IconAlertTriangle size={10} /> : <IconCheck size={10} />}
                 >
-                  %{Math.round((bizimTeklif / sinirDeger) * 100)} {bizimTeklif < sinirDeger ? '- Aşırı Düşük Riski' : '- Uygun'}
+                  %{Math.round((bizimTeklif / sinirDeger) * 100)}
                 </Badge>
               </Group>
-              <Progress.Root size={24} radius="xl">
+              <Progress.Root size={6} radius="xl">
                 <Progress.Section 
                   value={Math.min((bizimTeklif / sinirDeger) * 100, 100)} 
-                  color={bizimTeklif < sinirDeger ? 'orange' : 'green'}
-                >
-                  <Progress.Label style={{ fontSize: 12, fontWeight: 600 }}>
-                    {bizimTeklif.toLocaleString('tr-TR')} TL
-                  </Progress.Label>
-                </Progress.Section>
+                  color={bizimTeklif < sinirDeger ? 'orange' : 'teal'}
+                />
               </Progress.Root>
-              <Group justify="space-between" mt={6}>
-                <Text size="xs" c="dimmed">0 TL</Text>
-                <Text size="xs" c="dimmed" fw={500}>Sınır: {sinirDeger.toLocaleString('tr-TR')} TL</Text>
+              <Group justify="space-between" mt={4}>
+                <Text size="xs" c={theme.textDimmed}>0 ₺</Text>
+                <Text size="xs" c={theme.textDimmed}>{sinirDeger.toLocaleString('tr-TR')} ₺</Text>
               </Group>
-              {bizimTeklif < sinirDeger && (
-                <Alert mt="md" color="orange" variant="light" icon={<IconAlertTriangle size={18} />}>
-                  <Text size="sm">
-                    Teklifiniz sınır değerin <strong>%{((1 - bizimTeklif / sinirDeger) * 100).toFixed(1)}</strong> altında. 
-                    Aşırı düşük teklif açıklaması hazırlamanız gerekebilir.
-                  </Text>
-                </Alert>
-              )}
             </Box>
           )}
         </Paper>
 
-        {/* ALT BÖLÜM: HESAPLAMA KARTLARI */}
+        {/* HESAPLAMA KARTLARI */}
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-          {/* Sınır Değer Hesaplama Kartı */}
-          <Paper p="lg" withBorder radius="lg" shadow="sm" style={{ background: 'white' }}>
-            <Group gap="sm" mb="lg">
-              <ThemeIcon size="lg" variant="gradient" gradient={{ from: 'violet', to: 'indigo' }} radius="xl">
-                <IconMathFunction size={20} />
-              </ThemeIcon>
+          {/* Sınır Değer Hesaplama */}
+          <Paper p="md" radius="md" style={{ background: theme.cardBg, border: `1px solid ${theme.border}` }}>
+            <Group gap="xs" mb="md">
+              <IconMathFunction size={16} color={theme.accent} stroke={1.5} />
               <div>
-                <Text fw={600}>Sınır Değer Hesaplama</Text>
-                <Text size="xs" c="dimmed">KİK formülü ile hesapla</Text>
+                <Text fw={600} size="sm" c={theme.text}>Sınır Değer Hesaplama</Text>
+                <Text size="xs" c={theme.textDimmed}>KİK formülü</Text>
               </div>
             </Group>
 
-            <div>
-              <Group justify="space-between" mb="sm">
-                <Text size="sm" fw={500}>Teklif Listesi</Text>
-                <Button
-                  size="xs"
-                  variant="light"
-                  color="violet"
-                  leftSection={<IconPlus size={14} />}
-                  onClick={() => setTeklifListesi((prev) => [...prev, { firma: '', tutar: 0 }])}
-                >
-                  Ekle
-                </Button>
-              </Group>
-              <Stack gap="xs">
-                {teklifListesi.map((teklif, index) => (
-                  <Group key={index} gap="xs">
-                    <TextInput
-                      placeholder={`Firma ${index + 1}`}
-                      value={teklif.firma}
-                      onChange={(e) =>
-                        setTeklifListesi((prev) =>
-                          prev.map((t, i) => i === index ? { ...t, firma: e.target.value } : t)
-                        )
-                      }
-                      style={{ flex: 1, maxWidth: 140 }}
-                      size="xs"
-                    />
-                    <NumberInput
-                      placeholder="Tutar"
-                      value={teklif.tutar || ''}
-                      onChange={(val) =>
-                        setTeklifListesi((prev) =>
-                          prev.map((t, i) => i === index ? { ...t, tutar: Number(val) || 0 } : t)
-                        )
-                      }
-                      thousandSeparator="."
-                      decimalSeparator=","
-                      min={0}
-                      style={{ flex: 1 }}
-                      size="xs"
-                      rightSection={<Text size="xs" c="dimmed">TL</Text>}
-                    />
-                    {teklifListesi.length > 2 && (
-                      <ActionIcon
-                        variant="light"
-                        color="red"
-                        size="sm"
-                        onClick={() => setTeklifListesi((prev) => prev.filter((_, i) => i !== index))}
-                      >
-                        <IconTrash size={14} />
-                      </ActionIcon>
-                    )}
-                  </Group>
-                ))}
-              </Stack>
-            </div>
+            <Group justify="space-between" mb="xs">
+              <Text size="xs" fw={500} c={theme.textMuted}>Teklif Listesi</Text>
+              <Button
+                size="compact-xs"
+                variant="subtle"
+                color="blue"
+                leftSection={<IconPlus size={12} />}
+                onClick={() => setTeklifListesi((prev) => [...prev, { firma: '', tutar: 0 }])}
+              >
+                Ekle
+              </Button>
+            </Group>
+            
+            <Stack gap={6}>
+              {teklifListesi.map((teklif, index) => (
+                <Group key={index} gap={6}>
+                  <TextInput
+                    placeholder={`Firma ${index + 1}`}
+                    value={teklif.firma}
+                    onChange={(e) =>
+                      setTeklifListesi((prev) =>
+                        prev.map((t, i) => i === index ? { ...t, firma: e.target.value } : t)
+                      )
+                    }
+                    style={{ flex: 1, maxWidth: 100 }}
+                    size="xs"
+                    styles={inputStyles}
+                  />
+                  <NumberInput
+                    placeholder="Tutar"
+                    value={teklif.tutar || ''}
+                    onChange={(val) =>
+                      setTeklifListesi((prev) =>
+                        prev.map((t, i) => i === index ? { ...t, tutar: Number(val) || 0 } : t)
+                      )
+                    }
+                    thousandSeparator="."
+                    decimalSeparator=","
+                    min={0}
+                    style={{ flex: 1 }}
+                    size="xs"
+                    rightSection={<Text size="xs" c={theme.textDimmed}>₺</Text>}
+                    styles={inputStyles}
+                  />
+                  {teklifListesi.length > 2 && (
+                    <ActionIcon
+                      variant="subtle"
+                      color="red"
+                      size="sm"
+                      onClick={() => setTeklifListesi((prev) => prev.filter((_, i) => i !== index))}
+                    >
+                      <IconTrash size={14} />
+                    </ActionIcon>
+                  )}
+                </Group>
+              ))}
+            </Stack>
 
             <Button
               fullWidth
-              mt="md"
-              variant="gradient"
-              gradient={{ from: 'violet', to: 'indigo' }}
-              leftSection={<IconCalculator size={16} />}
+              mt="sm"
+              size="sm"
+              variant="light"
+              color="blue"
+              leftSection={<IconCalculator size={14} />}
               onClick={hesaplaSinirDeger}
               disabled={teklifListesi.filter((t) => t.tutar > 0).length < 2}
             >
-              Sınır Değer Hesapla
+              Hesapla
             </Button>
 
             {hesaplananSinirDeger && (
-              <Paper mt="md" p="md" radius="md" bg="green.0" withBorder style={{ borderColor: 'var(--mantine-color-green-4)' }}>
+              <Paper mt="sm" p="sm" radius="sm" bg={theme.successLight} style={{ border: `1px solid ${theme.success}30` }}>
                 <Group justify="space-between">
                   <div>
-                    <Text size="xs" c="dimmed">Hesaplanan Değer</Text>
-                    <Text size="xl" fw={700} c="green.7">
-                      {hesaplananSinirDeger.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL
+                    <Text size="xs" c={theme.textMuted}>Sonuç</Text>
+                    <Text size="lg" fw={700} c={theme.success}>
+                      {hesaplananSinirDeger.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺
                     </Text>
                   </div>
-                  <Button size="sm" color="green" onClick={() => setSinirDeger(Math.round(hesaplananSinirDeger))}>
-                    Kaydet
+                  <Button size="xs" color="teal" variant="filled" onClick={() => setSinirDeger(Math.round(hesaplananSinirDeger))}>
+                    Uygula
                   </Button>
                 </Group>
               </Paper>
             )}
           </Paper>
 
-          {/* Aşırı Düşük Analiz Kartı */}
-          <Paper p="lg" withBorder radius="lg" shadow="sm" style={{ background: 'white' }}>
-            <Group gap="sm" mb="md">
-              <ThemeIcon size="lg" variant="gradient" gradient={{ from: 'orange', to: 'red' }} radius="xl">
-                <IconReportMoney size={20} />
-              </ThemeIcon>
+          {/* Aşırı Düşük Analizi */}
+          <Paper p="md" radius="md" style={{ background: theme.cardBg, border: `1px solid ${theme.border}` }}>
+            <Group gap="xs" mb="md">
+              <IconReportMoney size={16} color={theme.warning} stroke={1.5} />
               <div>
-                <Text fw={600}>Aşırı Düşük Analizi</Text>
-                <Text size="xs" c="dimmed">Sınır değer karşılaştırması</Text>
+                <Text fw={600} size="sm" c={theme.text}>Aşırı Düşük Analizi</Text>
+                <Text size="xs" c={theme.textDimmed}>Sınır değer kontrolü</Text>
               </div>
             </Group>
 
-            {/* Durum Göstergesi */}
             {sinirDeger && bizimTeklif > 0 && (
               <Paper 
-                p="sm" 
-                mb="md" 
-                radius="md" 
-                bg={bizimTeklif < sinirDeger ? 'orange.0' : 'green.0'}
-                withBorder
-                style={{ borderColor: bizimTeklif < sinirDeger ? 'var(--mantine-color-orange-4)' : 'var(--mantine-color-green-4)' }}
+                p="xs" 
+                mb="sm" 
+                radius="sm"
+                bg={bizimTeklif < sinirDeger ? theme.warningLight : theme.successLight}
+                style={{ border: `1px solid ${bizimTeklif < sinirDeger ? theme.warning : theme.success}30` }}
               >
                 <Group justify="space-between">
-                  <div>
-                    <Text size="xs" c="dimmed">Durum</Text>
-                    <Text fw={700} c={bizimTeklif < sinirDeger ? 'orange.7' : 'green.7'}>
-                      {bizimTeklif < sinirDeger ? '⚠️ AÇIKLAMA GEREKLİ' : '✅ AÇIKLAMA GEREKMİYOR'}
-                    </Text>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <Text size="xs" c="dimmed">Fark</Text>
-                    <Text fw={600} c={bizimTeklif < sinirDeger ? 'orange.7' : 'green.7'}>
-                      {(sinirDeger - bizimTeklif).toLocaleString('tr-TR')} TL
-                    </Text>
-                  </div>
+                  <Text fw={600} size="xs" c={bizimTeklif < sinirDeger ? theme.warning : theme.success}>
+                    {bizimTeklif < sinirDeger ? '⚠ Açıklama Gerekli' : '✓ Uygun'}
+                  </Text>
+                  <Text fw={600} size="xs" c={bizimTeklif < sinirDeger ? theme.warning : theme.success}>
+                    {Math.abs(sinirDeger - bizimTeklif).toLocaleString('tr-TR')} ₺
+                  </Text>
                 </Group>
               </Paper>
             )}
 
-            <Text size="xs" fw={500} mb="xs" c="dimmed">Maliyet Bileşenleri (EK-H.4 için)</Text>
-            <SimpleGrid cols={2} spacing="xs">
+            <Text size="xs" fw={500} mb={6} c={theme.textMuted}>Maliyet Bileşenleri</Text>
+            <SimpleGrid cols={2} spacing={6}>
               <NumberInput
                 label="Ana Çiğ Girdi"
                 placeholder="0"
@@ -408,6 +420,7 @@ export function HesaplamalarTab({
                 decimalSeparator=","
                 min={0}
                 size="xs"
+                styles={inputStyles}
               />
               <NumberInput
                 label="Yardımcı Girdi"
@@ -418,6 +431,7 @@ export function HesaplamalarTab({
                 decimalSeparator=","
                 min={0}
                 size="xs"
+                styles={inputStyles}
               />
               <NumberInput
                 label="İşçilik"
@@ -428,6 +442,7 @@ export function HesaplamalarTab({
                 decimalSeparator=","
                 min={0}
                 size="xs"
+                styles={inputStyles}
               />
               <NumberInput
                 label="Nakliye"
@@ -438,6 +453,7 @@ export function HesaplamalarTab({
                 decimalSeparator=","
                 min={0}
                 size="xs"
+                styles={inputStyles}
               />
               <NumberInput
                 label="Sözleşme Gideri"
@@ -448,6 +464,7 @@ export function HesaplamalarTab({
                 decimalSeparator=","
                 min={0}
                 size="xs"
+                styles={inputStyles}
               />
               <NumberInput
                 label="Genel Gider + Kâr"
@@ -458,146 +475,139 @@ export function HesaplamalarTab({
                 decimalSeparator=","
                 min={0}
                 size="xs"
+                styles={inputStyles}
               />
             </SimpleGrid>
 
             <Button
               fullWidth
-              mt="md"
-              variant="gradient"
-              gradient={{ from: 'orange', to: 'red' }}
-              leftSection={<IconCalculator size={16} />}
+              mt="sm"
+              size="sm"
+              variant="light"
+              color="orange"
+              leftSection={<IconCalculator size={14} />}
               onClick={hesaplaAsiriDusuk}
               disabled={!sinirDeger || bizimTeklif <= 0}
             >
-              Detaylı Analiz
+              Analiz Et
             </Button>
 
             {asiriDusukSonuc && (
               <Paper 
-                mt="md" 
-                p="md" 
-                radius="md" 
-                bg={asiriDusukSonuc.asiriDusukMu ? 'orange.0' : 'green.0'} 
-                withBorder 
-                style={{ borderColor: asiriDusukSonuc.asiriDusukMu ? 'var(--mantine-color-orange-4)' : 'var(--mantine-color-green-4)' }}
+                mt="sm" 
+                p="sm" 
+                radius="sm"
+                bg={asiriDusukSonuc.asiriDusukMu ? theme.warningLight : theme.successLight}
+                style={{ border: `1px solid ${asiriDusukSonuc.asiriDusukMu ? theme.warning : theme.success}30` }}
               >
-                <Group justify="space-between" mb="xs">
-                  <Badge color={asiriDusukSonuc.asiriDusukMu ? 'orange' : 'green'} size="lg">
-                    {asiriDusukSonuc.asiriDusukMu ? 'AŞIRI DÜŞÜK' : 'NORMAL TEKLİF'}
+                <Group justify="space-between" mb={4}>
+                  <Badge color={asiriDusukSonuc.asiriDusukMu ? 'orange' : 'teal'} size="sm" variant="filled">
+                    {asiriDusukSonuc.asiriDusukMu ? 'Aşırı Düşük' : 'Normal'}
                   </Badge>
                   {asiriDusukSonuc.toplamMaliyet > 0 && (
-                    <Text size="sm" fw={600}>
-                      Toplam Maliyet: {asiriDusukSonuc.toplamMaliyet.toLocaleString('tr-TR')} TL
+                    <Text size="xs" fw={600} c={theme.text}>
+                      {asiriDusukSonuc.toplamMaliyet.toLocaleString('tr-TR')} ₺
                     </Text>
                   )}
                 </Group>
-                <Text size="sm">{asiriDusukSonuc.aciklama}</Text>
+                <Text size="xs" c={theme.textMuted}>{asiriDusukSonuc.aciklama}</Text>
               </Paper>
             )}
           </Paper>
 
-          {/* İtirazen Şikayet Bedeli Kartı */}
-          <Paper p="lg" withBorder radius="lg" shadow="sm" style={{ background: 'white' }}>
-            <Group gap="sm" mb="lg">
-              <ThemeIcon size="lg" variant="gradient" gradient={{ from: 'teal', to: 'green' }} radius="xl">
-                <IconCoin size={20} />
-              </ThemeIcon>
+          {/* İtirazen Şikayet Bedeli */}
+          <Paper p="md" radius="md" style={{ background: theme.cardBg, border: `1px solid ${theme.border}` }}>
+            <Group gap="xs" mb="md">
+              <IconCoin size={16} color={theme.success} stroke={1.5} />
               <div>
-                <Text fw={600}>İtirazen Şikayet Bedeli</Text>
-                <Text size="xs" c="dimmed">2026 yılı güncel tarifeleri</Text>
+                <Text fw={600} size="sm" c={theme.text}>İtirazen Şikayet Bedeli</Text>
+                <Text size="xs" c={theme.textDimmed}>2026 tarifeleri</Text>
               </div>
             </Group>
 
             <NumberInput
-              label="Yaklaşık Maliyet (TL)"
-              placeholder="Otomatik: üstteki değer kullanılır"
+              label="Yaklaşık Maliyet"
+              placeholder="Üstteki değer kullanılır"
               value={bedelData.yaklasikMaliyet || yaklasikMaliyet || ''}
               onChange={(val) => setBedelData({ yaklasikMaliyet: Number(val) || 0 })}
               thousandSeparator="."
               decimalSeparator=","
               min={0}
-              size="sm"
+              size="xs"
+              styles={inputStyles}
             />
 
             <Button
               fullWidth
-              mt="md"
-              variant="gradient"
-              gradient={{ from: 'teal', to: 'green' }}
-              leftSection={<IconCoin size={16} />}
+              mt="sm"
+              size="sm"
+              variant="light"
+              color="teal"
+              leftSection={<IconCoin size={14} />}
               onClick={hesaplaBedel}
             >
-              Bedel Hesapla
+              Hesapla
             </Button>
 
             {bedelSonuc && (
-              <Paper 
-                mt="md" 
-                p="md" 
-                radius="md" 
-                bg="green.0" 
-                withBorder 
-                style={{ borderColor: 'var(--mantine-color-green-4)' }}
-              >
-                <Text size="xl" fw={700} c="green.7">
-                  {bedelSonuc.bedel.toLocaleString('tr-TR')} TL
+              <Paper mt="sm" p="sm" radius="sm" bg={theme.successLight} style={{ border: `1px solid ${theme.success}30` }}>
+                <Text size="lg" fw={700} c={theme.success}>
+                  {bedelSonuc.bedel.toLocaleString('tr-TR')} ₺
                 </Text>
-                <Text size="xs" c="dimmed">{bedelSonuc.aciklama}</Text>
+                <Text size="xs" c={theme.textMuted}>{bedelSonuc.aciklama}</Text>
               </Paper>
             )}
           </Paper>
 
-          {/* Teminat Hesaplama Kartı */}
-          <Paper p="lg" withBorder radius="lg" shadow="sm" style={{ background: 'white' }}>
-            <Group gap="sm" mb="lg">
-              <ThemeIcon size="lg" variant="gradient" gradient={{ from: 'pink', to: 'grape' }} radius="xl">
-                <IconScale size={20} />
-              </ThemeIcon>
+          {/* Teminat Hesaplama */}
+          <Paper p="md" radius="md" style={{ background: theme.cardBg, border: `1px solid ${theme.border}` }}>
+            <Group gap="xs" mb="md">
+              <IconScale size={16} color={theme.accent} stroke={1.5} />
               <div>
-                <Text fw={600}>Teminat Hesaplama</Text>
-                <Text size="xs" c="dimmed">Geçici %3, Kesin %6, Damga Vergisi</Text>
+                <Text fw={600} size="sm" c={theme.text}>Teminat Hesaplama</Text>
+                <Text size="xs" c={theme.textDimmed}>Geçici %3, Kesin %6</Text>
               </div>
             </Group>
 
-            <Text size="sm" c="dimmed" mb="md">
-              Bizim Teklifimiz: <strong>{bizimTeklif > 0 ? `${bizimTeklif.toLocaleString('tr-TR')} TL` : 'Girilmedi'}</strong>
+            <Text size="xs" c={theme.textMuted} mb="sm">
+              Teklif: <strong style={{ color: theme.text }}>{bizimTeklif > 0 ? `${bizimTeklif.toLocaleString('tr-TR')} ₺` : '-'}</strong>
             </Text>
 
             <Button
               fullWidth
-              variant="gradient"
-              gradient={{ from: 'pink', to: 'grape' }}
-              leftSection={<IconScale size={16} />}
+              size="sm"
+              variant="light"
+              color="blue"
+              leftSection={<IconScale size={14} />}
               onClick={hesaplaTeminat}
               disabled={bizimTeklif <= 0}
             >
-              Teminat Hesapla
+              Hesapla
             </Button>
 
             {teminatSonuc && (
-              <Stack gap="sm" mt="md">
-                <Paper p="sm" radius="md" bg="violet.0" withBorder style={{ borderColor: 'var(--mantine-color-violet-4)' }}>
+              <Stack gap={6} mt="sm">
+                <Paper p="xs" radius="sm" bg={theme.accentLight} style={{ border: `1px solid ${theme.accent}30` }}>
                   <Group justify="space-between">
-                    <Text size="sm" fw={500}>Geçici Teminat (%3)</Text>
-                    <Text size="md" fw={700} c="violet.7">
-                      {teminatSonuc.geciciTeminat.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL
+                    <Text size="xs" c={theme.textMuted}>Geçici Teminat (%3)</Text>
+                    <Text size="sm" fw={700} c={theme.accent}>
+                      {teminatSonuc.geciciTeminat.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺
                     </Text>
                   </Group>
                 </Paper>
-                <Paper p="sm" radius="md" bg="grape.0" withBorder style={{ borderColor: 'var(--mantine-color-grape-4)' }}>
+                <Paper p="xs" radius="sm" bg={theme.accentLight} style={{ border: `1px solid ${theme.accent}30` }}>
                   <Group justify="space-between">
-                    <Text size="sm" fw={500}>Kesin Teminat (%6)</Text>
-                    <Text size="md" fw={700} c="grape.7">
-                      {teminatSonuc.kesinTeminat.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL
+                    <Text size="xs" c={theme.textMuted}>Kesin Teminat (%6)</Text>
+                    <Text size="sm" fw={700} c={theme.accent}>
+                      {teminatSonuc.kesinTeminat.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺
                     </Text>
                   </Group>
                 </Paper>
-                <Paper p="sm" radius="md" bg="pink.0" withBorder style={{ borderColor: 'var(--mantine-color-pink-4)' }}>
+                <Paper p="xs" radius="sm" bg={theme.accentLight} style={{ border: `1px solid ${theme.accent}30` }}>
                   <Group justify="space-between">
-                    <Text size="sm" fw={500}>Damga Vergisi (‰5.69)</Text>
-                    <Text size="md" fw={700} c="pink.7">
-                      {teminatSonuc.damgaVergisi.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL
+                    <Text size="xs" c={theme.textMuted}>Damga Vergisi</Text>
+                    <Text size="sm" fw={700} c={theme.accent}>
+                      {teminatSonuc.damgaVergisi.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺
                     </Text>
                   </Group>
                 </Paper>

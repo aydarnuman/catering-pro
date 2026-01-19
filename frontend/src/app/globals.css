@@ -1002,3 +1002,98 @@ a {
     transform: none;
   }
 }
+
+/* ============================================
+   İHALE UZMANI - PROFESYONEL TAB STİLLERİ
+   ============================================ */
+
+/* Ana Sekmeler (Özet, Döküman Analizi, Hesaplamalar, AI & Dilekçeler) */
+.ihale-tabs-root {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.ihale-tabs-list {
+  gap: 0 !important;
+  border-bottom: none !important;
+}
+
+.ihale-tabs-tab {
+  padding: 14px 24px !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  color: #6b7280 !important;
+  border-bottom: 2px solid transparent !important;
+  margin-bottom: -1px !important;
+  transition: all 0.15s ease !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
+.ihale-tabs-tab:hover {
+  color: #374151 !important;
+  background: transparent !important;
+}
+
+.ihale-tabs-tab[data-active="true"],
+.ihale-tabs-tab[data-active] {
+  color: #1f2937 !important;
+  font-weight: 600 !important;
+  border-bottom-color: #2563eb !important;
+  background: transparent !important;
+}
+
+/* Alt Sekmeler (Teknik Şartlar, Birim Fiyatlar, AI Notları, Tam Metin) */
+.ihale-subtabs-list {
+  gap: 0 !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  padding-bottom: 0 !important;
+}
+
+.ihale-subtabs-tab {
+  padding: 10px 16px !important;
+  font-weight: 500 !important;
+  font-size: 13px !important;
+  color: #6b7280 !important;
+  border-bottom: 2px solid transparent !important;
+  margin-bottom: -1px !important;
+  transition: all 0.15s ease !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
+.ihale-subtabs-tab:hover {
+  color: #374151 !important;
+  background: transparent !important;
+}
+
+.ihale-subtabs-tab[data-active="true"],
+.ihale-subtabs-tab[data-active] {
+  color: #1f2937 !important;
+  font-weight: 600 !important;
+  border-bottom-color: #2563eb !important;
+  background: transparent !important;
+}
+
+/* Dark mode desteği */
+[data-mantine-color-scheme='dark'] .ihale-tabs-root,
+[data-mantine-color-scheme='dark'] .ihale-subtabs-list {
+  border-color: #374151 !important;
+}
+
+[data-mantine-color-scheme='dark'] .ihale-tabs-tab,
+[data-mantine-color-scheme='dark'] .ihale-subtabs-tab {
+  color: #9ca3af !important;
+}
+
+[data-mantine-color-scheme='dark'] .ihale-tabs-tab:hover,
+[data-mantine-color-scheme='dark'] .ihale-subtabs-tab:hover {
+  color: #d1d5db !important;
+}
+
+[data-mantine-color-scheme='dark'] .ihale-tabs-tab[data-active="true"],
+[data-mantine-color-scheme='dark'] .ihale-tabs-tab[data-active],
+[data-mantine-color-scheme='dark'] .ihale-subtabs-tab[data-active="true"],
+[data-mantine-color-scheme='dark'] .ihale-subtabs-tab[data-active] {
+  color: #f3f4f6 !important;
+  border-bottom-color: #3b82f6 !important;
+}

@@ -52,31 +52,9 @@ export function DokumanlarTab({ analysisData, addToClipboard }: DokumanlarTabPro
     <Tabs 
       defaultValue="teknik" 
       variant="unstyled"
-      styles={{
-        list: { 
-          gap: 0,
-          borderBottom: '1px solid #e5e7eb',
-          paddingBottom: 0,
-        },
-        tab: {
-          padding: '10px 16px',
-          fontWeight: 500,
-          fontSize: '13px',
-          color: '#6b7280',
-          borderBottom: '2px solid transparent',
-          marginBottom: '-1px',
-          transition: 'all 0.15s ease',
-          '&:hover': {
-            color: '#374151',
-            backgroundColor: 'transparent',
-          },
-          '&[data-active]': {
-            color: '#1f2937',
-            fontWeight: 600,
-            borderBottomColor: '#2563eb',
-            backgroundColor: 'transparent',
-          },
-        },
+      classNames={{
+        list: 'ihale-subtabs-list',
+        tab: 'ihale-subtabs-tab',
       }}
     >
       <Tabs.List mb="lg">
