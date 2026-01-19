@@ -1406,17 +1406,21 @@ export default function TeklifModal({
   const renderMaliyetView = () => (
     <Box style={{ display: 'flex', height: 'calc(100vh - 280px)', minHeight: 500, gap: 16 }}>
       {/* Sol Panel - Maliyet Kalemleri (Pro) */}
-      <Box
+      <Paper
+        shadow="sm"
+        radius="md"
+        p="xs"
         style={{
-          width: 180,
+          width: 190,
           flexShrink: 0,
           display: 'flex',
           flexDirection: 'column',
-          gap: 2,
+          background: '#f8fafc',
+          border: '1px solid #e2e8f0',
         }}
       >
         <ScrollArea style={{ flex: 1 }} scrollbarSize={3}>
-          <Stack gap={2}>
+          <Stack gap={3}>
             {/* Direkt Maliyetler */}
             <Box px={10} py={6} style={{ background: 'rgba(59, 130, 246, 0.08)', borderRadius: 4 }}>
               <Text size="10px" c="blue.6" fw={700} tt="uppercase" style={{ letterSpacing: 1 }}>
@@ -1570,7 +1574,7 @@ export default function TeklifModal({
             })}
           </Stack>
         </ScrollArea>
-      </Box>
+      </Paper>
 
       {/* Sağ Panel - Form */}
       <Paper
