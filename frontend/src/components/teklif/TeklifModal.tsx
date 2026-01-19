@@ -1491,6 +1491,63 @@ export default function TeklifModal({
     </Box>
   );
 
+  // Maliyet hesaplamasından birim fiyatları otomatik hesapla
+  const hesaplaBirimFiyatlarOtomatik = () => {
+    const teklifFiyati = hesaplanmisTeklifData.teklif_fiyati;
+    const ogunDetay = teklifData.maliyet_detay.malzeme.detay;
+    
+    // Aktif öğünlerin toplam maliyetini ve oranlarını hesapla
+    let toplamOgunMaliyeti = 0;
+    const ogunMaliyetleri: { ad: string; maliyet: number; miktar: number }[] = [];
+    
+    for (const ogun of ogunDetay.ogunler) {
+      if (ogun.aktif) {
+        const ogunMaliyeti = ogun.kisiSayisi * ogun.gunSayisi * ogun.kisiBasiMaliyet;
+        const ogunMiktari = ogun.kisiSayisi * ogun.gunSayisi;
+        toplamOgunMaliyeti += ogunMaliyeti;
+        ogunMaliyetleri.push({ ad: ogun.ad, maliyet: ogunMaliyeti, miktar: ogunMiktari });
+      }
+    }
+    
+    if (toplamOgunMaliyeti === 0 || ogunMaliyetleri.length === 0) {
+      notifications.show({
+        title: 'Uyarı',
+        message: 'Önce Maliyet Hesaplama sekmesinde öğün bilgilerini girin.',
+        color: 'orange',
+      });
+      return;
+    }
+    
+    // Her öğün için teklif fiyatından pay hesapla
+    const yeniCetvel: CetvelKalemi[] = ogunMaliyetleri.map((ogun, idx) => {
+      const oran = ogun.maliyet / toplamOgunMaliyeti;
+      const payTutar = teklifFiyati * oran;
+      const birimFiyat = ogun.miktar > 0 ? payTutar / ogun.miktar : 0;
+      
+      return {
+        sira: idx + 1,
+        isKalemi: ogun.ad,
+        birim: 'Öğün',
+        miktar: ogun.miktar,
+        birimFiyat: Math.round(birimFiyat * 100) / 100, // 2 ondalık
+        tutar: Math.round(payTutar * 100) / 100,
+      };
+    });
+    
+    const cetvelToplami = hesaplaCetvelToplami(yeniCetvel);
+    setTeklifData((prev) => ({
+      ...prev,
+      birim_fiyat_cetveli: yeniCetvel,
+      cetvel_toplami: cetvelToplami,
+    }));
+    
+    notifications.show({
+      title: 'Başarılı',
+      message: 'Birim fiyatlar maliyet oranlarına göre hesaplandı.',
+      color: 'green',
+    });
+  };
+
   // Cetvel görünümü
   const renderCetvelView = () => (
     <Box
@@ -1503,21 +1560,43 @@ export default function TeklifModal({
     >
       <Paper withBorder p="md" style={{ flex: 1, overflow: 'auto' }}>
         <Stack>
-          <Group justify="space-between">
-            <div>
-              <Text fw={600} size="lg">
-                📜 BİRİM FİYAT TEKLİF CETVELİ
-              </Text>
-              <Text size="sm" c="dimmed">
-                İhale Adı: {ihaleBasligi}
-              </Text>
-              {ihaleKayitNo && (
-                <Text size="sm" c="dimmed">
-                  İhale Kayıt No: {ihaleKayitNo}
+          {/* Üst Bilgi Kartı */}
+          <Paper p="md" radius="md" style={{ background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)' }}>
+            <Group justify="space-between" align="flex-start">
+              <div>
+                <Text fw={600} size="lg" c="white">
+                  📜 BİRİM FİYAT TEKLİF CETVELİ
                 </Text>
-              )}
-            </div>
-          </Group>
+                <Text size="sm" c="blue.1">
+                  İhale: {ihaleBasligi}
+                </Text>
+                {ihaleKayitNo && (
+                  <Text size="xs" c="blue.2">
+                    Kayıt No: {ihaleKayitNo}
+                  </Text>
+                )}
+              </div>
+              <Stack gap={4} align="flex-end">
+                <Text size="xs" c="blue.2">Maliyet Hesaplamasından</Text>
+                <Text fw={800} size="xl" c="white">
+                  {formatPara(hesaplanmisTeklifData.teklif_fiyati)}
+                </Text>
+                <Button
+                  size="xs"
+                  variant="white"
+                  color="blue"
+                  leftSection={<IconCalculator size={14} />}
+                  onClick={hesaplaBirimFiyatlarOtomatik}
+                >
+                  Birim Fiyatları Hesapla
+                </Button>
+              </Stack>
+            </Group>
+          </Paper>
+
+          <Text size="xs" c="dimmed" fs="italic">
+            Maliyet hesaplamasından gelen toplam teklif fiyatı, öğün maliyetlerine göre oranlı dağıtılır.
+          </Text>
 
           <ScrollArea>
             <Table striped highlightOnHover withTableBorder withColumnBorders>
