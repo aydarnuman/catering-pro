@@ -1420,7 +1420,11 @@ export default function TeklifModal({
       >
         <ScrollArea style={{ flex: 1 }} scrollbarSize={3}>
           <Stack gap={2}>
-            {MALIYET_KALEMLERI.map((kalem) => {
+            {/* Direkt Maliyetler */}
+            <Text size="9px" c="dimmed" fw={600} tt="uppercase" px={10} pt={4}>
+              Direkt
+            </Text>
+            {MALIYET_KALEMLERI.slice(0, 3).map((kalem) => {
               const tutar = hesaplanmisTeklifData.maliyet_detay[kalem.key]?.tutar || 0;
               const isSelected = selectedKalem === kalem.key;
               const yuzde = toplamMaliyet > 0 ? (tutar / toplamMaliyet) * 100 : 0;
@@ -1428,7 +1432,7 @@ export default function TeklifModal({
               return (
                 <Box
                   key={kalem.key}
-                  py={8}
+                  py={6}
                   px={10}
                   style={{
                     cursor: 'pointer',
@@ -1439,7 +1443,105 @@ export default function TeklifModal({
                   }}
                   onClick={() => setSelectedKalem(kalem.key)}
                 >
-                  <Group justify="space-between" wrap="nowrap" mb={4}>
+                  <Group justify="space-between" wrap="nowrap" mb={2}>
+                    <Text 
+                      size="xs" 
+                      fw={isSelected ? 600 : 500} 
+                      c={isSelected ? 'white' : tutar > 0 ? 'dark' : 'dimmed'}
+                    >
+                      {kalem.label}
+                    </Text>
+                    {tutar > 0 && (
+                      <Text size="10px" c={isSelected ? 'blue.3' : 'dimmed'} fw={500}>
+                        {yuzde.toFixed(0)}%
+                      </Text>
+                    )}
+                  </Group>
+                  <Text
+                    size="sm"
+                    fw={700}
+                    c={isSelected ? 'blue.3' : tutar > 0 ? 'dark' : 'dimmed'}
+                  >
+                    {tutar > 0 ? formatParaKisa(tutar) : '—'}
+                  </Text>
+                </Box>
+              );
+            })}
+
+            {/* Operasyonel Maliyetler */}
+            <Divider my={6} color="gray.3" />
+            <Text size="9px" c="dimmed" fw={600} tt="uppercase" px={10}>
+              Operasyonel
+            </Text>
+            {MALIYET_KALEMLERI.slice(3, 5).map((kalem) => {
+              const tutar = hesaplanmisTeklifData.maliyet_detay[kalem.key]?.tutar || 0;
+              const isSelected = selectedKalem === kalem.key;
+              const yuzde = toplamMaliyet > 0 ? (tutar / toplamMaliyet) * 100 : 0;
+
+              return (
+                <Box
+                  key={kalem.key}
+                  py={6}
+                  px={10}
+                  style={{
+                    cursor: 'pointer',
+                    borderRadius: 6,
+                    background: isSelected ? '#0f172a' : 'transparent',
+                    borderLeft: isSelected ? '3px solid #3b82f6' : '3px solid transparent',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onClick={() => setSelectedKalem(kalem.key)}
+                >
+                  <Group justify="space-between" wrap="nowrap" mb={2}>
+                    <Text 
+                      size="xs" 
+                      fw={isSelected ? 600 : 500} 
+                      c={isSelected ? 'white' : tutar > 0 ? 'dark' : 'dimmed'}
+                    >
+                      {kalem.label}
+                    </Text>
+                    {tutar > 0 && (
+                      <Text size="10px" c={isSelected ? 'blue.3' : 'dimmed'} fw={500}>
+                        {yuzde.toFixed(0)}%
+                      </Text>
+                    )}
+                  </Group>
+                  <Text
+                    size="sm"
+                    fw={700}
+                    c={isSelected ? 'blue.3' : tutar > 0 ? 'dark' : 'dimmed'}
+                  >
+                    {tutar > 0 ? formatParaKisa(tutar) : '—'}
+                  </Text>
+                </Box>
+              );
+            })}
+
+            {/* Genel Giderler */}
+            <Divider my={6} color="gray.3" />
+            <Text size="9px" c="dimmed" fw={600} tt="uppercase" px={10}>
+              Genel
+            </Text>
+            {MALIYET_KALEMLERI.slice(5).map((kalem) => {
+              const tutar = hesaplanmisTeklifData.maliyet_detay[kalem.key]?.tutar || 0;
+              const isSelected = selectedKalem === kalem.key;
+              const yuzde = toplamMaliyet > 0 ? (tutar / toplamMaliyet) * 100 : 0;
+
+              return (
+                <Box
+                  key={kalem.key}
+                  py={6}
+                  px={10}
+                  style={{
+                    cursor: 'pointer',
+                    borderRadius: 6,
+                    background: isSelected ? '#0f172a' : 'transparent',
+                    borderLeft: isSelected ? '3px solid #3b82f6' : '3px solid transparent',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onClick={() => setSelectedKalem(kalem.key)}
+                >
+                  <Group justify="space-between" wrap="nowrap" mb={2}>
                     <Text 
                       size="xs" 
                       fw={isSelected ? 600 : 500} 
