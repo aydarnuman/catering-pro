@@ -45,7 +45,8 @@ import {
   IconTrash,
   IconX,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import IhaleUzmaniModal from '@/components/IhaleUzmaniModal';
 import TeklifModal from '@/components/teklif/TeklifModal';
 import { API_BASE_URL } from '@/lib/config';
@@ -108,6 +109,9 @@ const statusConfig: Record<string, { color: string; label: string; icon: any }> 
 };
 
 export default function TrackingPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  
   const [tenders, setTenders] = useState<SavedTender[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTender, setSelectedTender] = useState<SavedTender | null>(null);
@@ -126,6 +130,7 @@ export default function TrackingPage() {
   } | null>(null);
   const [_notesExpanded, setNotesExpanded] = useState(false);
   const [_expandedNoteId, _setExpandedNoteId] = useState<string | null>(null);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
 
   // Veritabanından verileri yükle
   const fetchTenders = async () => {
@@ -182,6 +187,46 @@ export default function TrackingPage() {
     fetchTenders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // URL'den tender id oku ve modal aç
+  useEffect(() => {
+    if (!initialLoadDone || loading || tenders.length === 0) return;
+    
+    const tenderId = searchParams.get('tender');
+    if (tenderId) {
+      const tender = tenders.find(t => t.id === tenderId || t.tender_id?.toString() === tenderId);
+      if (tender && !detailOpened) {
+        setSelectedTender(tender);
+        openDetail();
+      }
+    }
+  }, [searchParams, tenders, loading, initialLoadDone, detailOpened, openDetail]);
+
+  // Tenders yüklenince initialLoadDone'u true yap
+  useEffect(() => {
+    if (!loading && tenders.length >= 0) {
+      setInitialLoadDone(true);
+    }
+  }, [loading, tenders]);
+
+  // Modal açıldığında URL'i güncelle
+  const openTenderDetail = useCallback((tender: SavedTender) => {
+    setSelectedTender(tender);
+    openDetail();
+    // URL'i güncelle
+    const url = new URL(window.location.href);
+    url.searchParams.set('tender', tender.id);
+    router.replace(url.pathname + url.search, { scroll: false });
+  }, [openDetail, router]);
+
+  // Modal kapandığında URL'den tender param'ı kaldır
+  const closeTenderDetail = useCallback(() => {
+    closeDetail();
+    // URL'den tender param'ı kaldır
+    const url = new URL(window.location.href);
+    url.searchParams.delete('tender');
+    router.replace(url.pathname + url.search, { scroll: false });
+  }, [closeDetail, router]);
 
   // Durum güncelle
   const updateStatus = async (id: string, newStatus: SavedTender['status']) => {
@@ -388,6 +433,11 @@ export default function TrackingPage() {
     setAnalysisStats(null);
     setNotesExpanded(false); // Notlar kapalı başlasın
     openDetail();
+    
+    // URL'i güncelle (sayfa yenilendiğinde aynı modal açık kalsın)
+    const url = new URL(window.location.href);
+    url.searchParams.set('tender', tender.id);
+    router.replace(url.pathname + url.search, { scroll: false });
 
     // AI Context'i güncelle - FloatingAIChat'e bildir
     if (typeof window !== 'undefined') {
@@ -907,6 +957,10 @@ export default function TrackingPage() {
           closeDetail();
           setLiveAnalysisData(null);
           setAnalysisStats(null);
+          // URL'den tender parametresini kaldır
+          const url = new URL(window.location.href);
+          url.searchParams.delete('tender');
+          router.replace(url.pathname + url.search, { scroll: false });
           // AI Context'i sıfırla
           if (typeof window !== 'undefined') {
             const contextEvent = new CustomEvent('ai-context-update', {
