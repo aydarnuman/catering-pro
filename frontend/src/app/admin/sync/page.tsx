@@ -172,14 +172,8 @@ export default function SyncControlPage() {
     }, 10000);
 
     return () => clearInterval(interval);
-  }, [
-    activeTab,
-    loadDatabaseStats,
-    loadSchedulerStatus,
-    loadSettings,
-    loadSyncLogs,
-    loadTenderSchedulerStatus,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   // Manuel sync
   const handleManualSync = async () => {

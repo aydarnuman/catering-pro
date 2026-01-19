@@ -34,7 +34,7 @@ import {
   IconRefresh,
   IconX,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { API_BASE_URL } from '@/lib/config';
 
 interface HealthStatus {
@@ -54,7 +54,7 @@ export default function AdminSistemPage() {
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsError, setLogsError] = useState<string | null>(null);
 
-  const fetchHealth = async () => {
+  const fetchHealth = useCallback(async () => {
     setHealthLoading(true);
     setHealthError(null);
     try {
@@ -66,7 +66,7 @@ export default function AdminSistemPage() {
     } finally {
       setHealthLoading(false);
     }
-  };
+  }, [API_URL]);
 
   const fetchLogs = async () => {
     setLogsLoading(true);

@@ -41,7 +41,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { API_BASE_URL } from '@/lib/config';
 
@@ -73,7 +73,7 @@ export default function KullanicilarPage() {
   const [submitting, setSubmitting] = useState(false);
 
   // Kullanıcıları getir
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`${API_URL}/api/auth/users`, {
@@ -90,7 +90,7 @@ export default function KullanicilarPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     if (token) {

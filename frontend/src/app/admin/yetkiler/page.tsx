@@ -39,7 +39,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { API_BASE_URL } from '@/lib/config';
 
@@ -95,7 +95,7 @@ export default function YetkilerPage() {
   const [editPermissions, setEditPermissions] = useState<Permission[]>([]);
   const [editUserType, setEditUserType] = useState<string>('user');
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
@@ -122,7 +122,7 @@ export default function YetkilerPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchData();

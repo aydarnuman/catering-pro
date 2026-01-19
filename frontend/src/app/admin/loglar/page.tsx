@@ -44,7 +44,7 @@ import {
   IconUser,
 } from '@tabler/icons-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { useAuth } from '@/context/AuthContext';
 import { API_BASE_URL } from '@/lib/config';
@@ -101,7 +101,7 @@ export default function LoglarPage() {
     useDisclosure(false);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
@@ -130,9 +130,9 @@ export default function LoglarPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, page, filterUserId, filterAction, filterEntityType, filterSearch, filterStartDate, filterEndDate]);
 
-  const fetchSummary = async () => {
+  const fetchSummary = useCallback(async () => {
     if (!token) return;
     try {
       const res = await fetch(`${API_BASE_URL}/api/audit-logs/summary`, {
@@ -143,9 +143,9 @@ export default function LoglarPage() {
     } catch (err) {
       console.error('Özet alınamadı:', err);
     }
-  };
+  }, [token]);
 
-  const fetchFilters = async () => {
+  const fetchFilters = useCallback(async () => {
     if (!token) return;
     try {
       const res = await fetch(`${API_BASE_URL}/api/audit-logs/meta/filters`, {
@@ -156,17 +156,22 @@ export default function LoglarPage() {
     } catch (err) {
       console.error('Filtreler alınamadı:', err);
     }
-  };
+  }, [token]);
 
+  // İlk yükleme - sadece token değiştiğinde
   useEffect(() => {
-    fetchLogs();
-    fetchSummary();
-    fetchFilters();
-  }, [fetchFilters, fetchLogs, fetchSummary]);
+    if (token) {
+      fetchSummary();
+      fetchFilters();
+    }
+  }, [token, fetchSummary, fetchFilters]);
 
+  // Logları filtre/sayfa değiştiğinde yükle
   useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
+    if (token) {
+      fetchLogs();
+    }
+  }, [token, fetchLogs]);
 
   const handleSearch = () => {
     setPage(1);

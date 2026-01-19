@@ -38,7 +38,7 @@ import {
   IconUsers,
   IconX,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { API_BASE_URL } from '@/lib/config';
 
 interface AdminStats {
@@ -64,7 +64,7 @@ export default function AdminPage() {
   const [health, setHealth] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [statsRes, healthRes] = await Promise.all([
@@ -83,7 +83,7 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL]);
 
   useEffect(() => {
     fetchData();
