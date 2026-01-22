@@ -202,40 +202,45 @@ async def get_posts(limit: int = 12):
     try:
         posts = []
         
-        # Try multiple methods to get user medias
-        medias = []
-        
-        # Method 1: Try user_medias with error handling
+        # Use raw API request to avoid pydantic validation errors
         try:
-            medias = cl.user_medias(cl.user_id, amount=limit)
-        except Exception as e1:
-            print(f"user_medias failed: {e1}")
+            # Direct Instagram API call
+            result = cl.private_request(
+                f"feed/user/{cl.user_id}/",
+                params={"count": limit}
+            )
             
-            # Method 2: Try getting from timeline/feed
-            try:
-                feed = cl.get_timeline_feed()
-                if feed and hasattr(feed, 'feed_items'):
-                    for item in feed.feed_items[:limit]:
-                        if hasattr(item, 'media_or_ad') and item.media_or_ad:
-                            medias.append(item.media_or_ad)
-            except Exception as e2:
-                print(f"timeline_feed failed: {e2}")
-        
-        for media in medias:
-            try:
-                posts.append({
-                    "id": str(media.pk) if hasattr(media, 'pk') else str(media.id),
-                    "code": getattr(media, 'code', ''),
-                    "caption": getattr(media, 'caption_text', '') or '',
-                    "likes": getattr(media, 'like_count', 0) or 0,
-                    "comments": getattr(media, 'comment_count', 0) or 0,
-                    "media_type": getattr(media, 'media_type', 1),
-                    "thumbnail": str(media.thumbnail_url) if hasattr(media, 'thumbnail_url') and media.thumbnail_url else None,
-                    "timestamp": media.taken_at.isoformat() if hasattr(media, 'taken_at') and media.taken_at else None
-                })
-            except Exception as pe:
-                print(f"Error parsing media: {pe}")
-                continue
+            items = result.get("items", [])
+            for item in items:
+                try:
+                    # Get image URL from different possible locations
+                    image_url = None
+                    if "image_versions2" in item:
+                        candidates = item["image_versions2"].get("candidates", [])
+                        if candidates:
+                            image_url = candidates[0].get("url")
+                    elif "carousel_media" in item:
+                        first_media = item["carousel_media"][0] if item["carousel_media"] else {}
+                        candidates = first_media.get("image_versions2", {}).get("candidates", [])
+                        if candidates:
+                            image_url = candidates[0].get("url")
+                    
+                    posts.append({
+                        "id": str(item.get("pk", item.get("id", ""))),
+                        "code": item.get("code", ""),
+                        "caption": item.get("caption", {}).get("text", "") if item.get("caption") else "",
+                        "likes": item.get("like_count", 0),
+                        "comments": item.get("comment_count", 0),
+                        "media_type": item.get("media_type", 1),
+                        "thumbnail": image_url,
+                        "timestamp": None  # Can parse taken_at if needed
+                    })
+                except Exception as pe:
+                    print(f"Error parsing item: {pe}")
+                    continue
+                    
+        except Exception as e:
+            print(f"Raw API failed: {e}")
                 
         return {"success": True, "posts": posts}
     except Exception as e:
