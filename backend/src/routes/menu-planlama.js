@@ -178,60 +178,53 @@ router.get('/receteler/:id', async (req, res) => {
       SELECT 
         rm.*,
         
-        -- Ürün kartı bilgileri (öncelikli)
+        -- Ürün kartı bilgileri (YENİ SİSTEM)
         uk.ad as urun_adi,
+        uk.kod as urun_kod,
+        uk.kod as stok_kod,
+        uk.ad as stok_adi,
+        COALESCE(b.kisa_ad, 'Ad') as stok_birim,
         uk.varsayilan_birim as urun_birim,
         uk.ikon as urun_ikon,
-        
-        -- Stok kartı bilgileri (fallback)
-        sk.kod as stok_kod,
-        sk.ad as stok_adi,
-        b.kisa_ad as stok_birim,
-        
-        -- FATURA FİYATI (ürün kartı > stok kartı)
+
+        -- FATURA FİYATI (YENİ SİSTEM: urun_kartlari.son_alis_fiyati)
         COALESCE(
-          rm.fatura_fiyat, 
-          uk_sk.son_alis_fiyat,
-          sk.son_alis_fiyat
+          rm.fatura_fiyat,
+          uk.son_alis_fiyati
         ) as fatura_fiyat,
-        
-        -- PİYASA FİYATI (AI araştırmasından)
+
+        -- PİYASA FİYATI (AI araştırmasından veya fiyat geçmişi)
         COALESCE(
           rm.piyasa_fiyat,
           uk.manuel_fiyat,
-          -- 1. Öncelik: stok_kart_id ile eşleşen fiyat
           (
-            SELECT piyasa_fiyat_ort 
-            FROM piyasa_fiyat_gecmisi 
-            WHERE stok_kart_id = COALESCE(uk.stok_kart_id, rm.stok_kart_id) 
-              AND COALESCE(uk.stok_kart_id, rm.stok_kart_id) IS NOT NULL
-            ORDER BY arastirma_tarihi DESC 
+            SELECT fiyat
+            FROM urun_fiyat_gecmisi
+            WHERE urun_kart_id = uk.id
+            ORDER BY tarih DESC
             LIMIT 1
           ),
-          -- 2. Öncelik: Malzeme adı ile eşleşen fiyat
           (
-            SELECT piyasa_fiyat_ort 
-            FROM piyasa_fiyat_gecmisi 
+            SELECT piyasa_fiyat_ort
+            FROM piyasa_fiyat_gecmisi
             WHERE LOWER(urun_adi) LIKE '%' || LOWER(COALESCE(uk.ad, rm.malzeme_adi)) || '%'
-            ORDER BY arastirma_tarihi DESC 
+            ORDER BY arastirma_tarihi DESC
             LIMIT 1
           )
         ) as piyasa_fiyat,
-        
+
         -- Fiyat tercihi (auto = fatura varsa fatura, yoksa piyasa)
         COALESCE(rm.fiyat_tercihi, 'auto') as fiyat_tercihi,
-        
+
         -- Eşleştirme güvenilirliği
         COALESCE(rm.eslestirme_guvenilirligi, 0) as eslestirme_guvenilirligi,
-        
-        -- Birim (ürün kartı > stok kartı)
-        COALESCE(uk.varsayilan_birim, b.kisa_ad) as fiyat_birimi
-        
+
+        -- Birim (ürün kartı birimi)
+        COALESCE(uk.varsayilan_birim, b.kisa_ad, 'Ad') as fiyat_birimi
+
       FROM recete_malzemeler rm
       LEFT JOIN urun_kartlari uk ON uk.id = rm.urun_kart_id
-      LEFT JOIN stok_kartlari uk_sk ON uk_sk.id = uk.stok_kart_id
-      LEFT JOIN stok_kartlari sk ON sk.id = rm.stok_kart_id
-      LEFT JOIN birimler b ON b.id = sk.ana_birim_id
+      LEFT JOIN birimler b ON b.id = uk.ana_birim_id
       WHERE rm.recete_id = $1
       ORDER BY rm.sira, rm.id
     `, [id]);
@@ -485,7 +478,7 @@ router.post('/receteler/:id/malzemeler', async (req, res) => {
           uk.stok_kart_id,
           COALESCE(uk.manuel_fiyat, sk.son_alis_fiyat) as fiyat
         FROM urun_kartlari uk
-        LEFT JOIN stok_kartlari sk ON sk.id = uk.stok_kart_id
+        -- stok_kartlari artık kullanılmıyor, uk zaten urun_kartlari
         WHERE uk.id = $1
       `, [urun_kart_id]);
       
@@ -500,15 +493,15 @@ router.post('/receteler/:id/malzemeler', async (req, res) => {
       }
     }
     
-    // Fallback: Stok kartından fiyat çek
+    // Fallback: Ürün kartından fiyat çek - YENİ SİSTEM: urun_kartlari
     if (finalStokKartId && !finalFiyat) {
-      const stokResult = await query(`
-        SELECT son_alis_fiyat, ad FROM stok_kartlari WHERE id = $1
+      const urunResult = await query(`
+        SELECT son_alis_fiyati, ad FROM urun_kartlari WHERE id = $1
       `, [finalStokKartId]);
-      
-      if (stokResult.rows.length > 0 && stokResult.rows[0].son_alis_fiyat) {
-        finalFiyat = stokResult.rows[0].son_alis_fiyat;
-        fiyatKaynagi = 'stok_kart';
+
+      if (urunResult.rows.length > 0 && urunResult.rows[0].son_alis_fiyati) {
+        finalFiyat = urunResult.rows[0].son_alis_fiyati;
+        fiyatKaynagi = 'urun_kart';
       }
     }
     
@@ -540,15 +533,15 @@ router.put('/malzemeler/:id', async (req, res) => {
     let finalFiyat = birim_fiyat;
     let fiyatKaynagi = birim_fiyat ? 'manuel' : null;
     
-    // Eğer stok kartı seçilmişse ve fiyat verilmemişse, stok kartından çek
+    // Eğer stok kartı seçilmişse ve fiyat verilmemişse, ürün kartından çek - YENİ SİSTEM
     if (stok_kart_id && !birim_fiyat) {
-      const stokResult = await query(`
-        SELECT son_alis_fiyat FROM stok_kartlari WHERE id = $1
+      const urunResult = await query(`
+        SELECT son_alis_fiyati FROM urun_kartlari WHERE id = $1
       `, [stok_kart_id]);
-      
-      if (stokResult.rows.length > 0 && stokResult.rows[0].son_alis_fiyat) {
-        finalFiyat = stokResult.rows[0].son_alis_fiyat;
-        fiyatKaynagi = 'stok_kart';
+
+      if (urunResult.rows.length > 0 && urunResult.rows[0].son_alis_fiyati) {
+        finalFiyat = urunResult.rows[0].son_alis_fiyati;
+        fiyatKaynagi = 'urun_kart';
       }
     }
     
@@ -638,7 +631,7 @@ async function hesaplaReceteMaliyet(receteId) {
           )
         ) as piyasa_fiyat
       FROM recete_malzemeler rm
-      LEFT JOIN stok_kartlari sk ON sk.id = rm.stok_kart_id
+      LEFT JOIN urun_kartlari urk ON urk.id = rm.urun_kart_id
       WHERE rm.recete_id = $1
     `, [receteId]);
     
@@ -1730,7 +1723,7 @@ router.get('/recete/:receteId/gramaj-kontrol', async (req, res) => {
     const malzemeler = await query(`
       SELECT rm.*, sk.ad as stok_adi
       FROM recete_malzemeler rm
-      LEFT JOIN stok_kartlari sk ON sk.id = rm.stok_kart_id
+      LEFT JOIN urun_kartlari urk ON urk.id = rm.urun_kart_id
       WHERE rm.recete_id = $1
     `, [receteId]);
     
@@ -2049,7 +2042,7 @@ router.post('/receteler/:id/ai-malzeme-oneri', async (req, res) => {
         COALESCE(uk.manuel_fiyat, sk.son_alis_fiyat) as fiyat
       FROM urun_kartlari uk
       LEFT JOIN urun_kategorileri kat ON kat.id = uk.kategori_id
-      LEFT JOIN stok_kartlari sk ON sk.id = uk.stok_kart_id
+      -- stok_kartlari artık kullanılmıyor, uk zaten urun_kartlari
       WHERE uk.aktif = true
       ORDER BY kat.sira, uk.ad
     `);
@@ -2381,7 +2374,7 @@ router.get('/urun-kartlari', async (req, res) => {
         COALESCE(uk.manuel_fiyat, sk.son_alis_fiyat) as guncel_fiyat
       FROM urun_kartlari uk
       LEFT JOIN urun_kategorileri kat ON kat.id = uk.kategori_id
-      LEFT JOIN stok_kartlari sk ON sk.id = uk.stok_kart_id
+      -- stok_kartlari artık kullanılmıyor, uk zaten urun_kartlari
       LEFT JOIN birimler b ON b.id = sk.ana_birim_id
       WHERE 1=1
     `;
@@ -2429,7 +2422,7 @@ router.get('/urun-kartlari/:id', async (req, res) => {
         COALESCE(uk.manuel_fiyat, sk.son_alis_fiyat) as guncel_fiyat
       FROM urun_kartlari uk
       LEFT JOIN urun_kategorileri kat ON kat.id = uk.kategori_id
-      LEFT JOIN stok_kartlari sk ON sk.id = uk.stok_kart_id
+      -- stok_kartlari artık kullanılmıyor, uk zaten urun_kartlari
       LEFT JOIN birimler b ON b.id = sk.ana_birim_id
       WHERE uk.id = $1
     `, [id]);
@@ -2606,26 +2599,27 @@ router.get('/stok-kartlari-listesi', async (req, res) => {
   try {
     const { arama } = req.query;
     
+    // YENİ SİSTEM: urun_kartlari
     let sql = `
-      SELECT 
-        sk.id, 
-        sk.kod,
-        sk.ad, 
-        b.kisa_ad as birim, 
-        sk.son_alis_fiyat
-      FROM stok_kartlari sk
-      LEFT JOIN birimler b ON b.id = sk.ana_birim_id
-      WHERE sk.aktif = true
+      SELECT
+        uk.id,
+        uk.kod,
+        uk.ad,
+        b.kisa_ad as birim,
+        uk.son_alis_fiyati as son_alis_fiyat
+      FROM urun_kartlari uk
+      LEFT JOIN birimler b ON b.id = uk.ana_birim_id
+      WHERE uk.aktif = true
     `;
-    
+
     const params = [];
-    
+
     if (arama) {
       params.push(`%${arama}%`);
-      sql += ` AND (sk.ad ILIKE $1 OR sk.kod ILIKE $1)`;
+      sql += ` AND (uk.ad ILIKE $1 OR uk.kod ILIKE $1)`;
     }
-    
-    sql += ' ORDER BY sk.ad LIMIT 100';
+
+    sql += ' ORDER BY uk.ad LIMIT 100';
     
     const result = await query(sql, params);
     

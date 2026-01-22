@@ -19,27 +19,27 @@ DIGITALOCEAN DROPLET (Ubuntu 22.04)
   |
   +-- NGINX (Reverse Proxy) - catering-tr.com
   |     |
-  |     +-- :3000 (/) --> PM2: Frontend (Next.js 14)
+  |     +-- :3000 (/) --> PM2: Frontend (Next.js 15)
   |     |
-  |     +-- :3001 (/api) --> PM2: Backend (Express.js)
+  |     +-- :3001 (/api) --> PM2: Backend (Express.js ES Modules)
   |
   +-- External Services
         |
         +-- SUPABASE (PostgreSQL)
         +-- CLAUDE API (Anthropic)
-        +-- GEMINI API (Google)
 ```
 
 ---
 
 ## Frontend Mimarisi
 
-**Framework:** Next.js 14 (App Router)
+**Framework:** Next.js 15 (App Router)
 **Port:** 3000
 
 ### Moduller
 - Dashboard (/)
 - Ihale Modulu (/tenders)
+- Ihale Takip (/tracking)
 - Muhasebe Modulu (/muhasebe)
 - Planlama Modulu (/planlama)
 - AI Chat (/ai-chat)
@@ -47,10 +47,10 @@ DIGITALOCEAN DROPLET (Ubuntu 22.04)
 - Ayarlar (/ayarlar)
 
 ### UI Stack
-- Mantine UI v7
-- Tailwind CSS
+- Mantine UI v7.17
 - Tabler Icons
 - Recharts
+- React Query (@tanstack/react-query)
 
 ### Onemli Dosyalar
 - `lib/config.ts` - API_BASE_URL (ONEMLI!)
@@ -63,19 +63,21 @@ DIGITALOCEAN DROPLET (Ubuntu 22.04)
 ## Backend Mimarisi
 
 **Framework:** Express.js (Node.js)
+**Module System:** ES Modules (import/export)
 **Port:** 3001
 
-### Routes (39 dosya)
+### Routes (46 dosya)
 - Auth, Tenders, Documents, Cariler, Stok
 - Personel, Bordro, Invoices, Kasa-Banka
 - Planlama, AI, Notifications, Search, Export
-- Teklifler, Tracking, ve digerleri
+- Teklifler, Tracking, Ihale Sonuclari, Scraper
+- Firmalar, Mail, Permissions, Audit-logs
 
-### Services (33+ dosya)
-- claude-ai-service.js - Claude AI entegrasyonu
-- gemini.js - Gemini AI/OCR
-- document-analysis.js - Dokuman isleme
-- bordro-service.js - Bordro hesaplama
+### Services (~36 dosya, ai-tools dahil)
+- claude-ai.js - Claude AI entegrasyonu
+- claude.js - Dokuman analizi (Vision)
+- document-analyzer.js - Dokuman isleme
+- bordro-template-service.js - Bordro hesaplama
 - sync-scheduler.js - Otomatik sync
 - tender-scheduler.js - Ihale scraper
 
@@ -142,7 +144,7 @@ DIGITALOCEAN DROPLET (Ubuntu 22.04)
 ## Veritabani
 
 **Platform:** Supabase (PostgreSQL)
-**Migrations:** 54 dosya
+**Migrations:** 72 dosya
 
 ### Ana Tablolar
 - tenders, documents, tender_tracking
@@ -158,8 +160,9 @@ DIGITALOCEAN DROPLET (Ubuntu 22.04)
 
 ### Authentication
 - JWT token based
-- NextAuth.js (frontend)
+- Custom AuthContext (frontend)
 - bcrypt password hashing
+- localStorage token storage
 
 ### Data Protection
 - Parameterized SQL queries

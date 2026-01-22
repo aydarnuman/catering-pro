@@ -49,6 +49,21 @@
             "date": 1768823676794,
             "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-19.log",
             "hash": "af89987af3533223805c70814ef01cc8cdb7f0f1024720d86ef3ffe48687d266"
+        },
+        {
+            "date": 1768895280280,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-20.log",
+            "hash": "1ee5c77b2d76999debe624deb7b1c15e1b32ad44ace4c9c792f0ed465190f383"
+        },
+        {
+            "date": 1768945845688,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-21.log",
+            "hash": "e266fe84e3c3da853ab723b918e3e5b4ac6bd66fc94f67c7ac67ec2d65ab0ee7"
+        },
+        {
+            "date": 1769031093597,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-22.log",
+            "hash": "8ded394324d10b62ffcfa2a9d1651010f6c91fd2dfe1bc32746f617354952478"
         }
     ],
     "hashType": "sha256"

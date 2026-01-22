@@ -24,7 +24,7 @@ router.get('/piyasa/takip-listesi', async (req, res) => {
         k.ad as kategori,
         b.kisa_ad as birim
       FROM piyasa_takip_listesi ptl
-      LEFT JOIN stok_kartlari sk ON sk.id = ptl.stok_kart_id
+      LEFT JOIN urun_kartlari uk ON uk.id = ptl.stok_kart_id
       LEFT JOIN stok_kategoriler k ON k.id = sk.kategori_id
       LEFT JOIN birimler b ON b.id = sk.ana_birim_id
       ${sadece_aktif === 'true' ? 'WHERE ptl.aktif = true' : ''}
@@ -139,7 +139,7 @@ router.post('/piyasa/toplu-guncelle', async (req, res) => {
         const urunResult = await query(`
           SELECT ptl.*, sk.ad as stok_adi
           FROM piyasa_takip_listesi ptl
-          LEFT JOIN stok_kartlari sk ON sk.id = ptl.stok_kart_id
+          LEFT JOIN urun_kartlari uk ON uk.id = ptl.stok_kart_id
           WHERE ptl.id = $1
         `, [id]);
         
@@ -441,10 +441,10 @@ router.post('/piyasa/kaydet-sonuclar', async (req, res) => {
     // Ortalama birim fiyatı hesapla
     const ortBirimFiyat = sonuclar.reduce((a, b) => a + b.birimFiyat, 0) / sonuclar.length;
     
-    // Stok kartını güncelle (varsa)
+    // Ürün kartını güncelle (varsa) - YENİ SİSTEM: urun_kartlari
     if (stok_kart_id) {
       await query(`
-        UPDATE stok_kartlari SET 
+        UPDATE urun_kartlari SET
           son_piyasa_fiyat = $1,
           updated_at = NOW()
         WHERE id = $2
@@ -478,9 +478,9 @@ router.post('/piyasa/fiyat-kaydet', async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, NOW())
     `, [stok_kart_id, urun_adi || '', piyasa_fiyat_min || piyasa_fiyat_ort, piyasa_fiyat_max || piyasa_fiyat_ort, piyasa_fiyat_ort]);
     
-    // Stok kartındaki son fiyatı da güncelle
+    // Ürün kartındaki son fiyatı da güncelle - YENİ SİSTEM: urun_kartlari
     await query(`
-      UPDATE stok_kartlari SET 
+      UPDATE urun_kartlari SET
         son_piyasa_fiyat = $1,
         updated_at = NOW()
       WHERE id = $2
@@ -502,21 +502,22 @@ router.get('/piyasa/urun-ara', async (req, res) => {
       return res.json({ success: true, data: [] });
     }
     
+    // YENİ SİSTEM: urun_kartlari + urun_kategorileri
     const result = await query(`
-      SELECT 
-        sk.id,
-        sk.kod,
-        sk.ad,
-        sk.son_alis_fiyat,
-        sk.toplam_stok,
+      SELECT
+        uk.id,
+        uk.kod,
+        uk.ad,
+        uk.son_alis_fiyati as son_alis_fiyat,
+        uk.toplam_stok,
         k.ad as kategori,
         b.kisa_ad as birim
-      FROM stok_kartlari sk
-      LEFT JOIN stok_kategoriler k ON k.id = sk.kategori_id
-      LEFT JOIN birimler b ON b.id = sk.ana_birim_id
-      WHERE sk.aktif = true
-        AND (sk.ad ILIKE $1 OR sk.kod ILIKE $1)
-      ORDER BY sk.ad
+      FROM urun_kartlari uk
+      LEFT JOIN urun_kategorileri k ON k.id = uk.kategori_id
+      LEFT JOIN birimler b ON b.id = uk.ana_birim_id
+      WHERE uk.aktif = true
+        AND (uk.ad ILIKE $1 OR uk.kod ILIKE $1)
+      ORDER BY uk.ad
       LIMIT 10
     `, [`%${q}%`]);
     
@@ -614,82 +615,83 @@ router.get('/market', async (req, res) => {
 });
 
 // =============================================
-// FATURA FİYATLARI (Stok Kartlarından)
+// FATURA FİYATLARI (Ürün Kartlarından) - YENİ SİSTEM
 // =============================================
 
-// Tüm stok kartlarının fatura fiyatlarını getir
+// Tüm ürün kartlarının fatura fiyatlarını getir
 router.get('/piyasa/fatura-fiyatlari', async (req, res) => {
   try {
     const { kategori, arama, limit = 100 } = req.query;
-    
-    let whereConditions = ['sk.aktif = true', 'sk.son_alis_fiyat IS NOT NULL'];
+
+    let whereConditions = ['uk.aktif = true', 'uk.son_alis_fiyati IS NOT NULL'];
     let params = [];
     let paramIndex = 1;
-    
+
     if (kategori && kategori !== 'all') {
       whereConditions.push(`k.kod = $${paramIndex}`);
       params.push(kategori);
       paramIndex++;
     }
-    
+
     if (arama) {
-      whereConditions.push(`(sk.ad ILIKE $${paramIndex} OR sk.kod ILIKE $${paramIndex})`);
+      whereConditions.push(`(uk.ad ILIKE $${paramIndex} OR uk.kod ILIKE $${paramIndex})`);
       params.push(`%${arama}%`);
       paramIndex++;
     }
-    
+
     params.push(limit);
-    
+
+    // YENİ SİSTEM: urun_kartlari + urun_kategorileri
     const result = await query(`
-      SELECT 
-        sk.id,
-        sk.kod,
-        sk.ad,
-        sk.son_alis_fiyat as fatura_fiyat,
-        sk.son_alis_tarihi as fatura_tarih,
+      SELECT
+        uk.id,
+        uk.kod,
+        uk.ad,
+        uk.son_alis_fiyati as fatura_fiyat,
+        uk.son_alis_tarihi as fatura_tarih,
         b.kisa_ad as birim,
         k.ad as kategori,
         k.kod as kategori_kod,
         -- Piyasa fiyatı (varsa)
         (
-          SELECT piyasa_fiyat_ort 
-          FROM piyasa_fiyat_gecmisi 
-          WHERE stok_kart_id = sk.id 
-          ORDER BY arastirma_tarihi DESC 
+          SELECT piyasa_fiyat_ort
+          FROM piyasa_fiyat_gecmisi
+          WHERE stok_kart_id = uk.id
+          ORDER BY arastirma_tarihi DESC
           LIMIT 1
         ) as piyasa_fiyat,
         -- Fark yüzdesi
-        CASE 
-          WHEN sk.son_alis_fiyat > 0 AND (
-            SELECT piyasa_fiyat_ort 
-            FROM piyasa_fiyat_gecmisi 
-            WHERE stok_kart_id = sk.id 
-            ORDER BY arastirma_tarihi DESC 
+        CASE
+          WHEN uk.son_alis_fiyati > 0 AND (
+            SELECT piyasa_fiyat_ort
+            FROM piyasa_fiyat_gecmisi
+            WHERE stok_kart_id = uk.id
+            ORDER BY arastirma_tarihi DESC
             LIMIT 1
           ) IS NOT NULL THEN
             ROUND((((
-              SELECT piyasa_fiyat_ort 
-              FROM piyasa_fiyat_gecmisi 
-              WHERE stok_kart_id = sk.id 
-              ORDER BY arastirma_tarihi DESC 
+              SELECT piyasa_fiyat_ort
+              FROM piyasa_fiyat_gecmisi
+              WHERE stok_kart_id = uk.id
+              ORDER BY arastirma_tarihi DESC
               LIMIT 1
-            ) - sk.son_alis_fiyat) / sk.son_alis_fiyat * 100)::numeric, 1)
+            ) - uk.son_alis_fiyati) / uk.son_alis_fiyati * 100)::numeric, 1)
           ELSE NULL
         END as fark_yuzde
-      FROM stok_kartlari sk
-      LEFT JOIN birimler b ON b.id = sk.ana_birim_id
-      LEFT JOIN stok_kategoriler k ON k.id = sk.kategori_id
+      FROM urun_kartlari uk
+      LEFT JOIN birimler b ON b.id = uk.ana_birim_id
+      LEFT JOIN urun_kategorileri k ON k.id = uk.kategori_id
       WHERE ${whereConditions.join(' AND ')}
-      ORDER BY sk.son_alis_tarihi DESC NULLS LAST, sk.ad
+      ORDER BY uk.son_alis_tarihi DESC NULLS LAST, uk.ad
       LIMIT $${paramIndex}
     `, params);
-    
-    // Kategorileri de döndür
+
+    // Kategorileri de döndür - YENİ SİSTEM
     const kategoriler = await query(`
       SELECT DISTINCT k.kod, k.ad
-      FROM stok_kategoriler k
-      JOIN stok_kartlari sk ON sk.kategori_id = k.id
-      WHERE sk.aktif = true AND sk.son_alis_fiyat IS NOT NULL
+      FROM urun_kategorileri k
+      JOIN urun_kartlari uk ON uk.kategori_id = k.id
+      WHERE uk.aktif = true AND uk.son_alis_fiyati IS NOT NULL
       ORDER BY k.ad
     `);
     
@@ -710,23 +712,24 @@ router.get('/piyasa/fatura-fiyatlari', async (req, res) => {
   }
 });
 
-// Karşılaştırmalı fiyat listesi (Fatura + Piyasa yan yana)
+// Karşılaştırmalı fiyat listesi (Fatura + Piyasa yan yana) - YENİ SİSTEM
 router.get('/piyasa/karsilastirma', async (req, res) => {
   try {
     const { kategori, limit = 50 } = req.query;
-    
-    let whereConditions = ['sk.aktif = true'];
+
+    let whereConditions = ['uk.aktif = true'];
     let params = [];
     let paramIndex = 1;
-    
+
     if (kategori && kategori !== 'all') {
       whereConditions.push(`k.kod = $${paramIndex}`);
       params.push(kategori);
       paramIndex++;
     }
-    
+
     params.push(limit);
-    
+
+    // YENİ SİSTEM: urun_kartlari + urun_kategorileri
     const result = await query(`
       WITH piyasa_son AS (
         SELECT DISTINCT ON (stok_kart_id)
@@ -740,64 +743,64 @@ router.get('/piyasa/karsilastirma', async (req, res) => {
         WHERE stok_kart_id IS NOT NULL
         ORDER BY stok_kart_id, arastirma_tarihi DESC
       )
-      SELECT 
-        sk.id,
-        sk.kod,
-        sk.ad,
+      SELECT
+        uk.id,
+        uk.kod,
+        uk.ad,
         b.kisa_ad as birim,
         k.ad as kategori,
-        
+
         -- Fatura bilgileri
-        sk.son_alis_fiyat as fatura_fiyat,
-        sk.son_alis_tarihi as fatura_tarih,
-        
+        uk.son_alis_fiyati as fatura_fiyat,
+        uk.son_alis_tarihi as fatura_tarih,
+
         -- Piyasa bilgileri
         ps.piyasa_fiyat_ort as piyasa_fiyat,
         ps.piyasa_fiyat_min as piyasa_min,
         ps.piyasa_fiyat_max as piyasa_max,
         ps.arastirma_tarihi as piyasa_tarih,
         ps.kaynaklar as piyasa_kaynaklar,
-        
+
         -- Karşılaştırma
-        CASE 
-          WHEN sk.son_alis_fiyat > 0 AND ps.piyasa_fiyat_ort > 0 THEN
-            ROUND(((ps.piyasa_fiyat_ort - sk.son_alis_fiyat) / sk.son_alis_fiyat * 100)::numeric, 1)
+        CASE
+          WHEN uk.son_alis_fiyati > 0 AND ps.piyasa_fiyat_ort > 0 THEN
+            ROUND(((ps.piyasa_fiyat_ort - uk.son_alis_fiyati) / uk.son_alis_fiyati * 100)::numeric, 1)
           ELSE NULL
         END as fark_yuzde,
-        
+
         -- Durum
-        CASE 
-          WHEN sk.son_alis_fiyat IS NULL THEN 'fatura_yok'
+        CASE
+          WHEN uk.son_alis_fiyati IS NULL THEN 'fatura_yok'
           WHEN ps.piyasa_fiyat_ort IS NULL THEN 'piyasa_yok'
-          WHEN ps.piyasa_fiyat_ort > sk.son_alis_fiyat * 1.05 THEN 'ucuz_aldik'
-          WHEN ps.piyasa_fiyat_ort < sk.son_alis_fiyat * 0.95 THEN 'pahali_aldik'
+          WHEN ps.piyasa_fiyat_ort > uk.son_alis_fiyati * 1.05 THEN 'ucuz_aldik'
+          WHEN ps.piyasa_fiyat_ort < uk.son_alis_fiyati * 0.95 THEN 'pahali_aldik'
           ELSE 'normal'
         END as durum,
-        
+
         -- Son Fiyat (ortalama veya mevcut)
-        CASE 
-          WHEN sk.son_alis_fiyat IS NOT NULL AND ps.piyasa_fiyat_ort IS NOT NULL THEN
-            ROUND(((sk.son_alis_fiyat + ps.piyasa_fiyat_ort) / 2)::numeric, 2)
-          WHEN sk.son_alis_fiyat IS NOT NULL THEN
-            sk.son_alis_fiyat
+        CASE
+          WHEN uk.son_alis_fiyati IS NOT NULL AND ps.piyasa_fiyat_ort IS NOT NULL THEN
+            ROUND(((uk.son_alis_fiyati + ps.piyasa_fiyat_ort) / 2)::numeric, 2)
+          WHEN uk.son_alis_fiyati IS NOT NULL THEN
+            uk.son_alis_fiyati
           WHEN ps.piyasa_fiyat_ort IS NOT NULL THEN
             ps.piyasa_fiyat_ort
           ELSE NULL
         END as son_fiyat
-        
-      FROM stok_kartlari sk
-      LEFT JOIN birimler b ON b.id = sk.ana_birim_id
-      LEFT JOIN stok_kategoriler k ON k.id = sk.kategori_id
-      LEFT JOIN piyasa_son ps ON ps.stok_kart_id = sk.id
+
+      FROM urun_kartlari uk
+      LEFT JOIN birimler b ON b.id = uk.ana_birim_id
+      LEFT JOIN urun_kategorileri k ON k.id = uk.kategori_id
+      LEFT JOIN piyasa_son ps ON ps.stok_kart_id = uk.id
       WHERE ${whereConditions.join(' AND ')}
-        AND (sk.son_alis_fiyat IS NOT NULL OR ps.piyasa_fiyat_ort IS NOT NULL)
-      ORDER BY 
-        CASE 
-          WHEN ps.piyasa_fiyat_ort < sk.son_alis_fiyat * 0.95 THEN 1  -- Pahalı aldıklarımız önce
-          WHEN ps.piyasa_fiyat_ort > sk.son_alis_fiyat * 1.05 THEN 2  -- Ucuz aldıklarımız
+        AND (uk.son_alis_fiyati IS NOT NULL OR ps.piyasa_fiyat_ort IS NOT NULL)
+      ORDER BY
+        CASE
+          WHEN ps.piyasa_fiyat_ort < uk.son_alis_fiyati * 0.95 THEN 1  -- Pahalı aldıklarımız önce
+          WHEN ps.piyasa_fiyat_ort > uk.son_alis_fiyati * 1.05 THEN 2  -- Ucuz aldıklarımız
           ELSE 3
         END,
-        sk.ad
+        uk.ad
       LIMIT $${paramIndex}
     `, params);
     
@@ -821,35 +824,35 @@ router.get('/piyasa/karsilastirma', async (req, res) => {
   }
 });
 
-// Stok kartı fiyatını manuel güncelle
+// Ürün kartı fiyatını manuel güncelle - YENİ SİSTEM
 router.put('/piyasa/fiyat-guncelle/:stokKartId', async (req, res) => {
   try {
     const { stokKartId } = req.params;
     const { fiyat, kaynak = 'manuel' } = req.body;
-    
+
     if (!fiyat || isNaN(fiyat) || fiyat <= 0) {
       return res.status(400).json({ success: false, error: 'Geçerli bir fiyat giriniz' });
     }
-    
-    // Stok kartını güncelle
+
+    // Ürün kartını güncelle - YENİ SİSTEM: urun_kartlari
     const result = await query(`
-      UPDATE stok_kartlari 
-      SET son_alis_fiyat = $1,
+      UPDATE urun_kartlari
+      SET son_alis_fiyati = $1,
           son_alis_tarihi = NOW(),
           updated_at = NOW()
       WHERE id = $2
-      RETURNING id, ad, son_alis_fiyat, son_alis_tarihi
+      RETURNING id, ad, son_alis_fiyati as son_alis_fiyat, son_alis_tarihi
     `, [fiyat, stokKartId]);
-    
+
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Stok kartı bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Ürün kartı bulunamadı' });
     }
-    
+
     // Log kaydet (opsiyonel)
     try {
       await query(`
         INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details)
-        VALUES ($1, 'fiyat_guncelle', 'stok_kartlari', $2, $3)
+        VALUES ($1, 'fiyat_guncelle', 'urun_kartlari', $2, $3)
       `, [
         req.user?.id || null,
         stokKartId,
@@ -875,75 +878,76 @@ router.put('/piyasa/fiyat-guncelle/:stokKartId', async (req, res) => {
 // ANA ÜRÜNLER (MASTER PRODUCTS) API
 // ===============================================
 
-// Ana ürünler listesi (kartlar için)
+// Ana ürünler listesi (kartlar için) - YENİ SİSTEM
 router.get('/ana-urunler', async (req, res) => {
   try {
     const { kategori } = req.query;
-    
+
     let whereConditions = ['au.aktif = true'];
     let params = [];
     let paramIndex = 1;
-    
+
     if (kategori && kategori !== 'all') {
       whereConditions.push(`au.kategori = $${paramIndex}`);
       params.push(kategori);
       paramIndex++;
     }
-    
+
+    // YENİ SİSTEM: urun_kartlari
     const result = await query(`
       WITH piyasa_son AS (
-        SELECT DISTINCT ON (sk.ana_urun_id)
-          sk.ana_urun_id,
+        SELECT DISTINCT ON (uk.ana_urun_id)
+          uk.ana_urun_id,
           pfg.piyasa_fiyat_ort
-        FROM stok_kartlari sk
-        JOIN piyasa_fiyat_gecmisi pfg ON pfg.stok_kart_id = sk.id
-        WHERE sk.ana_urun_id IS NOT NULL
-        ORDER BY sk.ana_urun_id, pfg.arastirma_tarihi DESC
+        FROM urun_kartlari uk
+        JOIN piyasa_fiyat_gecmisi pfg ON pfg.stok_kart_id = uk.id
+        WHERE uk.ana_urun_id IS NOT NULL
+        ORDER BY uk.ana_urun_id, pfg.arastirma_tarihi DESC
       )
-      SELECT 
+      SELECT
         au.id,
         au.kod,
         au.ad,
         au.ikon,
         au.kategori,
         au.sira,
-        
+
         -- İstatistikler
-        COUNT(DISTINCT sk.id) as stok_kart_sayisi,
-        COUNT(DISTINCT CASE WHEN sk.son_alis_fiyat IS NOT NULL THEN sk.id END) as fiyatli_kart_sayisi,
-        
+        COUNT(DISTINCT uk.id) as stok_kart_sayisi,
+        COUNT(DISTINCT CASE WHEN uk.son_alis_fiyati IS NOT NULL THEN uk.id END) as fiyatli_kart_sayisi,
+
         -- Ortalama fatura fiyatı
-        ROUND(AVG(sk.son_alis_fiyat)::numeric, 2) as ortalama_fatura_fiyat,
-        
+        ROUND(AVG(uk.son_alis_fiyati)::numeric, 2) as ortalama_fatura_fiyat,
+
         -- Piyasa fiyatı (en güncel)
         ROUND(ps.piyasa_fiyat_ort::numeric, 2) as piyasa_fiyat,
-        
+
         -- Son fiyat: fatura ve piyasa ortalaması veya mevcut olan
         ROUND(
           COALESCE(
-            CASE 
-              WHEN AVG(sk.son_alis_fiyat) IS NOT NULL AND ps.piyasa_fiyat_ort IS NOT NULL 
-              THEN (AVG(sk.son_alis_fiyat) + ps.piyasa_fiyat_ort) / 2
-              ELSE COALESCE(AVG(sk.son_alis_fiyat), ps.piyasa_fiyat_ort)
+            CASE
+              WHEN AVG(uk.son_alis_fiyati) IS NOT NULL AND ps.piyasa_fiyat_ort IS NOT NULL
+              THEN (AVG(uk.son_alis_fiyati) + ps.piyasa_fiyat_ort) / 2
+              ELSE COALESCE(AVG(uk.son_alis_fiyati), ps.piyasa_fiyat_ort)
             END,
             0
           )::numeric, 2
         ) as son_fiyat,
-        
+
         -- Birim (en çok kullanılan)
         (
           SELECT b.kisa_ad
-          FROM stok_kartlari sk4
-          LEFT JOIN birimler b ON b.id = sk4.ana_birim_id
-          WHERE sk4.ana_urun_id = au.id
+          FROM urun_kartlari uk4
+          LEFT JOIN birimler b ON b.id = uk4.ana_birim_id
+          WHERE uk4.ana_urun_id = au.id
           GROUP BY b.kisa_ad
           ORDER BY COUNT(*) DESC
           LIMIT 1
         ) as birim
-        
+
       FROM ana_urunler au
       LEFT JOIN piyasa_son ps ON ps.ana_urun_id = au.id
-      LEFT JOIN stok_kartlari sk ON sk.ana_urun_id = au.id AND sk.aktif = true
+      LEFT JOIN urun_kartlari uk ON uk.ana_urun_id = au.id AND uk.aktif = true
       WHERE ${whereConditions.join(' AND ')}
       GROUP BY au.id, au.kod, au.ad, au.ikon, au.kategori, au.sira, ps.piyasa_fiyat_ort
       ORDER BY au.kategori, au.sira, au.ad
@@ -977,40 +981,40 @@ router.get('/ana-urunler/:id', async (req, res) => {
     
     const anaUrun = anaUrunResult.rows[0];
     
-    // Bu ana ürüne bağlı stok kartları (ambalaj miktarı ve birim fiyat hesaplaması ile)
+    // Bu ana ürüne bağlı ürün kartları (ambalaj miktarı ve birim fiyat hesaplaması ile) - YENİ SİSTEM
     const stokKartlariResult = await query(`
-      SELECT 
-        sk.id,
-        sk.kod,
-        sk.ad,
+      SELECT
+        uk.id,
+        uk.kod,
+        uk.ad,
         b.kisa_ad as birim,
-        COALESCE(sk.ambalaj_miktari, 1) as ambalaj_miktari,
-        sk.son_alis_fiyat as fatura_fiyat,
-        sk.son_alis_tarihi as fatura_tarih,
+        COALESCE(uk.ambalaj_miktari, 1) as ambalaj_miktari,
+        uk.son_alis_fiyati as fatura_fiyat,
+        uk.son_alis_tarihi as fatura_tarih,
         -- Birim fiyat hesapla (fatura_fiyat / ambalaj_miktari)
-        CASE 
-          WHEN sk.son_alis_fiyat IS NOT NULL AND COALESCE(sk.ambalaj_miktari, 1) > 0 
-          THEN ROUND((sk.son_alis_fiyat / COALESCE(sk.ambalaj_miktari, 1))::numeric, 2)
-          ELSE NULL 
+        CASE
+          WHEN uk.son_alis_fiyati IS NOT NULL AND COALESCE(uk.ambalaj_miktari, 1) > 0
+          THEN ROUND((uk.son_alis_fiyati / COALESCE(uk.ambalaj_miktari, 1))::numeric, 2)
+          ELSE NULL
         END as fatura_birim_fiyat,
-        
-        -- Piyasa fiyatı (stok kartı bazında)
+
+        -- Piyasa fiyatı (ürün kartı bazında)
         pfg.piyasa_fiyat_ort as piyasa_fiyat,
         pfg.piyasa_fiyat_min as piyasa_min,
         pfg.piyasa_fiyat_max as piyasa_max,
         pfg.arastirma_tarihi as piyasa_tarih
-        
-      FROM stok_kartlari sk
-      LEFT JOIN birimler b ON b.id = sk.ana_birim_id
+
+      FROM urun_kartlari uk
+      LEFT JOIN birimler b ON b.id = uk.ana_birim_id
       LEFT JOIN LATERAL (
         SELECT piyasa_fiyat_ort, piyasa_fiyat_min, piyasa_fiyat_max, arastirma_tarihi
         FROM piyasa_fiyat_gecmisi
-        WHERE stok_kart_id = sk.id
+        WHERE stok_kart_id = uk.id
         ORDER BY arastirma_tarihi DESC
         LIMIT 1
       ) pfg ON true
-      WHERE sk.ana_urun_id = $1 AND sk.aktif = true
-      ORDER BY sk.son_alis_tarihi DESC NULLS LAST, sk.ad
+      WHERE uk.ana_urun_id = $1 AND uk.aktif = true
+      ORDER BY uk.son_alis_tarihi DESC NULLS LAST, uk.ad
     `, [id]);
     
     // Ana ürün bazlı piyasa araştırması (farklı marketlerden)
@@ -1042,18 +1046,18 @@ router.get('/ana-urunler/:id', async (req, res) => {
       WHERE ana_urun_id = $1 AND bm_fiyat IS NOT NULL
     `, [id]);
     
-    // Eşleşmemiş stok kartları (öneri için)
+    // Eşleşmemiş ürün kartları (öneri için) - YENİ SİSTEM
     const eslesmemisResult = await query(`
-      SELECT sk.id, sk.kod, sk.ad, b.kisa_ad as birim, sk.ambalaj_miktari
-      FROM stok_kartlari sk
-      LEFT JOIN birimler b ON b.id = sk.ana_birim_id
-      WHERE sk.ana_urun_id IS NULL
-        AND sk.aktif = true
+      SELECT uk.id, uk.kod, uk.ad, b.kisa_ad as birim, uk.ambalaj_miktari
+      FROM urun_kartlari uk
+      LEFT JOIN birimler b ON b.id = uk.ana_birim_id
+      WHERE uk.ana_urun_id IS NULL
+        AND uk.aktif = true
         AND (
-          LOWER(sk.ad) LIKE '%' || LOWER($1) || '%'
-          OR LOWER($1) LIKE '%' || LOWER(sk.ad) || '%'
+          LOWER(uk.ad) LIKE '%' || LOWER($1) || '%'
+          OR LOWER($1) LIKE '%' || LOWER(uk.ad) || '%'
         )
-      ORDER BY sk.ad
+      ORDER BY uk.ad
       LIMIT 10
     `, [anaUrun.ad]);
     
@@ -1090,34 +1094,34 @@ router.get('/ana-urunler/:id', async (req, res) => {
   }
 });
 
-// Stok kartını ana ürüne eşleştir
+// Ürün kartını ana ürüne eşleştir - YENİ SİSTEM
 router.post('/ana-urunler/:id/eslestir', async (req, res) => {
   try {
     const { id } = req.params;
     const { stok_kart_id } = req.body;
-    
+
     if (!stok_kart_id) {
       return res.status(400).json({ success: false, error: 'stok_kart_id gerekli' });
     }
-    
+
     // Ana ürün var mı kontrol
     const anaUrunCheck = await query('SELECT id, ad FROM ana_urunler WHERE id = $1', [id]);
     if (anaUrunCheck.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Ana ürün bulunamadı' });
     }
-    
-    // Stok kartını güncelle
+
+    // Ürün kartını güncelle - YENİ SİSTEM: urun_kartlari
     const result = await query(`
-      UPDATE stok_kartlari 
+      UPDATE urun_kartlari
       SET ana_urun_id = $1, updated_at = NOW()
       WHERE id = $2
       RETURNING id, kod, ad
     `, [id, stok_kart_id]);
-    
+
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Stok kartı bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Ürün kartı bulunamadı' });
     }
-    
+
     res.json({
       success: true,
       message: `"${result.rows[0].ad}" → "${anaUrunCheck.rows[0].ad}" eşleştirildi`,
@@ -1129,22 +1133,22 @@ router.post('/ana-urunler/:id/eslestir', async (req, res) => {
   }
 });
 
-// Stok kartı eşleştirmesini kaldır
+// Ürün kartı eşleştirmesini kaldır - YENİ SİSTEM
 router.delete('/ana-urunler/:id/eslestir/:stokKartId', async (req, res) => {
   try {
     const { id, stokKartId } = req.params;
-    
+
     const result = await query(`
-      UPDATE stok_kartlari 
+      UPDATE urun_kartlari
       SET ana_urun_id = NULL, updated_at = NOW()
       WHERE id = $1 AND ana_urun_id = $2
       RETURNING id, kod, ad
     `, [stokKartId, id]);
-    
+
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Stok kartı bulunamadı veya bu ana ürüne bağlı değil' });
+      return res.status(404).json({ success: false, error: 'Ürün kartı bulunamadı veya bu ana ürüne bağlı değil' });
     }
-    
+
     res.json({
       success: true,
       message: `"${result.rows[0].ad}" eşleştirmesi kaldırıldı`,
@@ -1156,27 +1160,27 @@ router.delete('/ana-urunler/:id/eslestir/:stokKartId', async (req, res) => {
   }
 });
 
-// Ana ürün fiyatını güncelle (tüm bağlı stok kartlarına yansır)
+// Ana ürün fiyatını güncelle (tüm bağlı ürün kartlarına yansır) - YENİ SİSTEM
 router.put('/ana-urunler/:id/fiyat', async (req, res) => {
   try {
     const { id } = req.params;
     const { fiyat } = req.body;
-    
+
     if (!fiyat || isNaN(fiyat) || fiyat <= 0) {
       return res.status(400).json({ success: false, error: 'Geçerli bir fiyat giriniz' });
     }
-    
-    // Tüm bağlı stok kartlarının fiyatını güncelle
+
+    // Tüm bağlı ürün kartlarının fiyatını güncelle - YENİ SİSTEM: urun_kartlari
     const result = await query(`
-      UPDATE stok_kartlari 
-      SET son_alis_fiyat = $1, son_alis_tarihi = NOW(), updated_at = NOW()
+      UPDATE urun_kartlari
+      SET son_alis_fiyati = $1, son_alis_tarihi = NOW(), updated_at = NOW()
       WHERE ana_urun_id = $2
       RETURNING id, ad
     `, [fiyat, id]);
-    
+
     res.json({
       success: true,
-      message: `${result.rows.length} stok kartının fiyatı ₺${Number(fiyat).toFixed(2)} olarak güncellendi`,
+      message: `${result.rows.length} ürün kartının fiyatı ₺${Number(fiyat).toFixed(2)} olarak güncellendi`,
       guncellenen: result.rows
     });
   } catch (error) {
@@ -1235,46 +1239,47 @@ router.get('/ana-urunler-kategoriler', async (req, res) => {
   }
 });
 
-// Eşleşmemiş stok kartları listesi
+// Eşleşmemiş ürün kartları listesi - YENİ SİSTEM
 router.get('/eslesmemis-stok-kartlari', async (req, res) => {
   try {
     const { arama, limit = 50 } = req.query;
-    
-    let whereConditions = ['sk.ana_urun_id IS NULL', 'sk.aktif = true'];
+
+    let whereConditions = ['uk.ana_urun_id IS NULL', 'uk.aktif = true'];
     let params = [];
     let paramIndex = 1;
-    
+
     if (arama) {
-      whereConditions.push(`(sk.ad ILIKE $${paramIndex} OR sk.kod ILIKE $${paramIndex})`);
+      whereConditions.push(`(uk.ad ILIKE $${paramIndex} OR uk.kod ILIKE $${paramIndex})`);
       params.push(`%${arama}%`);
       paramIndex++;
     }
-    
+
     params.push(limit);
-    
+
+    // YENİ SİSTEM: urun_kartlari + urun_kategorileri
     const result = await query(`
-      SELECT 
-        sk.id,
-        sk.kod,
-        sk.ad,
+      SELECT
+        uk.id,
+        uk.kod,
+        uk.ad,
         b.kisa_ad as birim,
         k.ad as kategori,
-        sk.son_alis_fiyat
-      FROM stok_kartlari sk
-      LEFT JOIN birimler b ON b.id = sk.ana_birim_id
-      LEFT JOIN stok_kategoriler k ON k.id = sk.kategori_id
+        uk.son_alis_fiyati as son_alis_fiyat
+      FROM urun_kartlari uk
+      LEFT JOIN birimler b ON b.id = uk.ana_birim_id
+      LEFT JOIN urun_kategorileri k ON k.id = uk.kategori_id
       WHERE ${whereConditions.join(' AND ')}
-      ORDER BY sk.ad
+      ORDER BY uk.ad
       LIMIT $${paramIndex}
     `, params);
-    
+
     res.json({
       success: true,
       data: result.rows,
       toplam: result.rows.length
     });
   } catch (error) {
-    console.error('Eşleşmemiş stok kartları hatası:', error);
+    console.error('Eşleşmemiş ürün kartları hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1304,36 +1309,36 @@ router.post('/ambalaj-parse', async (req, res) => {
   }
 });
 
-// Stok kartının ambalaj miktarını güncelle (tek)
+// Ürün kartının ambalaj miktarını güncelle (tek) - YENİ SİSTEM
 router.post('/stok-karti/:id/ambalaj-guncelle', async (req, res) => {
   try {
     const { id } = req.params;
     const { forceAI = false } = req.body;
-    
-    // Stok kartını al
-    const skResult = await query('SELECT id, ad, ambalaj_miktari FROM stok_kartlari WHERE id = $1', [id]);
-    if (skResult.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Stok kartı bulunamadı' });
+
+    // Ürün kartını al - YENİ SİSTEM: urun_kartlari
+    const ukResult = await query('SELECT id, ad, ambalaj_miktari FROM urun_kartlari WHERE id = $1', [id]);
+    if (ukResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Ürün kartı bulunamadı' });
     }
-    
-    const stokKarti = skResult.rows[0];
-    
+
+    const urunKarti = ukResult.rows[0];
+
     // Parse et
-    const parseResult = await smartParse(stokKarti.ad, forceAI);
-    
+    const parseResult = await smartParse(urunKarti.ad, forceAI);
+
     if (parseResult.success && parseResult.amount) {
       // Güncelle
       await query(
-        'UPDATE stok_kartlari SET ambalaj_miktari = $1 WHERE id = $2',
+        'UPDATE urun_kartlari SET ambalaj_miktari = $1 WHERE id = $2',
         [parseResult.amount, id]
       );
-      
+
       res.json({
         success: true,
         data: {
-          id: stokKarti.id,
-          ad: stokKarti.ad,
-          eskiAmbalaj: stokKarti.ambalaj_miktari,
+          id: urunKarti.id,
+          ad: urunKarti.ad,
+          eskiAmbalaj: urunKarti.ambalaj_miktari,
           yeniAmbalaj: parseResult.amount,
           birim: parseResult.unit,
           method: parseResult.method,
@@ -1354,55 +1359,55 @@ router.post('/stok-karti/:id/ambalaj-guncelle', async (req, res) => {
   }
 });
 
-// Tüm stok kartlarının ambalaj miktarını toplu güncelle
+// Tüm ürün kartlarının ambalaj miktarını toplu güncelle - YENİ SİSTEM
 router.post('/stok-karti/toplu-ambalaj-guncelle', async (req, res) => {
   try {
     const { sadeceBoslar = true, limit = 50 } = req.body;
-    
-    // Güncellenecek stok kartlarını al
+
+    // Güncellenecek ürün kartlarını al - YENİ SİSTEM: urun_kartlari
     let whereClause = 'WHERE aktif = true';
     if (sadeceBoslar) {
       whereClause += ' AND (ambalaj_miktari IS NULL OR ambalaj_miktari = 1)';
     }
-    
-    const skResult = await query(`
-      SELECT id, ad, ambalaj_miktari, son_alis_fiyat
-      FROM stok_kartlari 
+
+    const ukResult = await query(`
+      SELECT id, ad, ambalaj_miktari, son_alis_fiyati as son_alis_fiyat
+      FROM urun_kartlari
       ${whereClause}
-      ORDER BY son_alis_fiyat DESC NULLS LAST
+      ORDER BY son_alis_fiyati DESC NULLS LAST
       LIMIT $1
     `, [limit]);
-    
+
     const results = {
-      toplam: skResult.rows.length,
+      toplam: ukResult.rows.length,
       basarili: 0,
       basarisiz: 0,
       detaylar: []
     };
-    
-    for (const sk of skResult.rows) {
+
+    for (const uk of ukResult.rows) {
       // Önce regex ile dene (hızlı)
-      const parseResult = parseWithRegex(sk.ad);
-      
+      const parseResult = parseWithRegex(uk.ad);
+
       // Başarılı parse: amount > 1 veya varsayılan birim (regex-default) ise güncelle
-      const shouldUpdate = parseResult.success && parseResult.amount && 
+      const shouldUpdate = parseResult.success && parseResult.amount &&
         (parseResult.amount !== 1 || parseResult.method === 'regex-default');
-      
+
       if (shouldUpdate) {
         // Güncelle
         await query(
-          'UPDATE stok_kartlari SET ambalaj_miktari = $1 WHERE id = $2',
-          [parseResult.amount, sk.id]
+          'UPDATE urun_kartlari SET ambalaj_miktari = $1 WHERE id = $2',
+          [parseResult.amount, uk.id]
         );
         
-        const eskiFiyat = sk.son_alis_fiyat ? parseFloat(sk.son_alis_fiyat) : null;
+        const eskiFiyat = uk.son_alis_fiyat ? parseFloat(uk.son_alis_fiyat) : null;
         const yeniBirimFiyat = eskiFiyat ? (eskiFiyat / parseResult.amount).toFixed(2) : null;
-        
+
         results.basarili++;
         results.detaylar.push({
-          id: sk.id,
-          ad: sk.ad,
-          eskiAmbalaj: sk.ambalaj_miktari,
+          id: uk.id,
+          ad: uk.ad,
+          eskiAmbalaj: uk.ambalaj_miktari,
           yeniAmbalaj: parseResult.amount,
           birim: parseResult.unit,
           method: parseResult.method,
@@ -1414,8 +1419,8 @@ router.post('/stok-karti/toplu-ambalaj-guncelle', async (req, res) => {
       } else {
         results.basarisiz++;
         results.detaylar.push({
-          id: sk.id,
-          ad: sk.ad,
+          id: uk.id,
+          ad: uk.ad,
           status: 'skipped',
           reason: 'Parse edilemedi veya miktar 1'
         });
@@ -1432,16 +1437,17 @@ router.post('/stok-karti/toplu-ambalaj-guncelle', async (req, res) => {
   }
 });
 
-// Ambalaj durumu özeti
+// Ambalaj durumu özeti - YENİ SİSTEM
 router.get('/stok-karti/ambalaj-ozet', async (req, res) => {
   try {
+    // YENİ SİSTEM: urun_kartlari
     const result = await query(`
-      SELECT 
+      SELECT
         COUNT(*) as toplam,
         COUNT(CASE WHEN ambalaj_miktari IS NULL OR ambalaj_miktari = 1 THEN 1 END) as parse_gerekli,
         COUNT(CASE WHEN ambalaj_miktari > 1 THEN 1 END) as parse_edilmis,
-        COUNT(CASE WHEN son_alis_fiyat IS NOT NULL THEN 1 END) as fiyatli
-      FROM stok_kartlari
+        COUNT(CASE WHEN son_alis_fiyati IS NOT NULL THEN 1 END) as fiyatli
+      FROM urun_kartlari
       WHERE aktif = true
     `);
     

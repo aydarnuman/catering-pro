@@ -404,6 +404,71 @@ router.get('/cari/pdf', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/export/cari/mail
+ * Cari listesini mail olarak gönder
+ */
+router.post('/cari/mail', async (req, res) => {
+  try {
+    const { email, format = 'excel', tip, aktif } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'E-posta adresi gerekli' });
+    }
+    
+    let sql = 'SELECT * FROM cariler WHERE 1=1';
+    const params = [];
+    
+    if (tip) {
+      params.push(tip);
+      sql += ` AND tip = $${params.length}`;
+    }
+    if (aktif !== undefined) {
+      params.push(aktif === 'true');
+      sql += ` AND aktif = $${params.length}`;
+    }
+    
+    sql += ' ORDER BY unvan';
+    
+    const result = await query(sql, params);
+    
+    let buffer, attachmentName, attachmentType;
+    if (format === 'pdf') {
+      buffer = await createCariPDF(result.rows);
+      attachmentName = `cari-listesi-${new Date().toISOString().split('T')[0]}.pdf`;
+      attachmentType = 'application/pdf';
+    } else {
+      buffer = createCariExcel(result.rows);
+      attachmentName = `cari-listesi-${new Date().toISOString().split('T')[0]}.xlsx`;
+      attachmentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    }
+    
+    await sendMail({
+      to: email,
+      subject: `Cari Listesi - ${new Date().toLocaleDateString('tr-TR')}`,
+      text: `Cari listesi ekte gönderilmiştir.\n\nToplam: ${result.rows.length} cari`,
+      html: `
+        <h2>Cari Listesi</h2>
+        <p>Cari listesi ekte gönderilmiştir.</p>
+        <ul>
+          <li><strong>Toplam:</strong> ${result.rows.length} cari hesap</li>
+          <li><strong>Oluşturulma:</strong> ${new Date().toLocaleString('tr-TR')}</li>
+        </ul>
+        <hr>
+        <p style="color: gray; font-size: 12px;">Catering Pro - Cari Yönetimi</p>
+      `,
+      attachmentName,
+      attachmentType
+    }, buffer);
+    
+    res.json({ success: true, message: `Mail ${email} adresine gönderildi` });
+    console.log(`📧 Cari listesi mail gönderildi: ${email}`);
+  } catch (error) {
+    console.error('❌ Cari mail hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // =====================================================
 // STOK EXPORT
 // =====================================================
@@ -415,7 +480,7 @@ router.get('/stok/excel', async (req, res) => {
   try {
     const { kategori, kritik } = req.query;
     
-    let sql = 'SELECT * FROM stok_kartlari WHERE 1=1';
+    let sql = 'SELECT *, son_alis_fiyati as son_alis_fiyat FROM urun_kartlari WHERE aktif = true';
     const params = [];
     
     if (kategori) {
@@ -450,7 +515,7 @@ router.get('/stok/pdf', async (req, res) => {
   try {
     const { kategori, kritik } = req.query;
     
-    let sql = 'SELECT * FROM stok_kartlari WHERE 1=1';
+    let sql = 'SELECT *, son_alis_fiyati as son_alis_fiyat FROM urun_kartlari WHERE aktif = true';
     const params = [];
     
     if (kategori) {
@@ -474,6 +539,70 @@ router.get('/stok/pdf', async (req, res) => {
     console.log(`📥 Stok PDF indirildi: ${result.rows.length} kayıt`);
   } catch (error) {
     console.error('❌ Stok PDF hatası:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/export/stok/mail
+ * Stok listesini mail olarak gönder
+ */
+router.post('/stok/mail', async (req, res) => {
+  try {
+    const { email, format = 'excel', kategori, kritik } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'E-posta adresi gerekli' });
+    }
+    
+    let sql = 'SELECT *, son_alis_fiyati as son_alis_fiyat FROM urun_kartlari WHERE aktif = true';
+    const params = [];
+    
+    if (kategori) {
+      params.push(kategori);
+      sql += ` AND kategori = $${params.length}`;
+    }
+    if (kritik === 'true' || kritik === true) {
+      sql += ' AND miktar <= kritik_stok';
+    }
+    
+    sql += ' ORDER BY ad';
+    
+    const result = await query(sql, params);
+    
+    let buffer, attachmentName, attachmentType;
+    if (format === 'pdf') {
+      buffer = await createStokPDF(result.rows);
+      attachmentName = `stok-listesi-${new Date().toISOString().split('T')[0]}.pdf`;
+      attachmentType = 'application/pdf';
+    } else {
+      buffer = createStokExcel(result.rows);
+      attachmentName = `stok-listesi-${new Date().toISOString().split('T')[0]}.xlsx`;
+      attachmentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    }
+    
+    await sendMail({
+      to: email,
+      subject: `Stok Listesi - ${new Date().toLocaleDateString('tr-TR')}`,
+      text: `Stok listesi ekte gönderilmiştir.\n\nToplam: ${result.rows.length} ürün`,
+      html: `
+        <h2>Stok Listesi</h2>
+        <p>Stok listesi ekte gönderilmiştir.</p>
+        <ul>
+          <li><strong>Toplam:</strong> ${result.rows.length} ürün</li>
+          <li><strong>Oluşturulma:</strong> ${new Date().toLocaleString('tr-TR')}</li>
+        </ul>
+        <hr>
+        <p style="color: gray; font-size: 12px;">Catering Pro - Stok Yönetimi</p>
+      `,
+      attachmentName,
+      attachmentType
+    }, buffer);
+    
+    res.json({ success: true, message: `Mail ${email} adresine gönderildi` });
+    console.log(`📧 Stok listesi mail gönderildi: ${email}`);
+  } catch (error) {
+    console.error('❌ Stok mail hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -806,19 +935,19 @@ router.get('/stok/kritik', async (req, res) => {
     
     // Stok miktarları ayrı tabloda tutulduğu için join yapıyoruz
     const sql = `
-      SELECT 
-        sk.*,
-        COALESCE(SUM(sd.miktar), 0) as toplam_miktar,
+      SELECT
+        uk.*,
+        uk.toplam_stok as toplam_miktar,
         COALESCE(k.ad, '-') as kategori_adi,
         COALESCE(b.kisa_ad, b.ad, '-') as birim_adi
-      FROM stok_kartlari sk
-      LEFT JOIN stok_depo_durumlari sd ON sd.stok_kart_id = sk.id
-      LEFT JOIN stok_kategoriler k ON k.id = sk.kategori_id
-      LEFT JOIN birimler b ON b.id = sk.ana_birim_id
-      WHERE sk.kritik_stok IS NOT NULL AND sk.kritik_stok > 0
-      GROUP BY sk.id, k.ad, b.kisa_ad, b.ad
-      HAVING COALESCE(SUM(sd.miktar), 0) <= sk.kritik_stok
-      ORDER BY (sk.kritik_stok - COALESCE(SUM(sd.miktar), 0)) DESC
+      FROM urun_kartlari uk
+      LEFT JOIN urun_kategorileri k ON k.id = uk.kategori_id
+      LEFT JOIN birimler b ON b.id = uk.ana_birim_id
+      WHERE uk.aktif = true
+        AND uk.kritik_stok IS NOT NULL
+        AND uk.kritik_stok > 0
+        AND uk.toplam_stok <= uk.kritik_stok
+      ORDER BY (uk.kritik_stok - uk.toplam_stok) DESC
     `;
     
     const result = await query(sql);

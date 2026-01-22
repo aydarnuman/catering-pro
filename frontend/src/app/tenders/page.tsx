@@ -18,11 +18,13 @@ import {
   Pagination,
   Paper,
   Select,
+  SimpleGrid,
   Stack,
   Text,
   TextInput,
   Title,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
   IconAlertCircle,
@@ -54,11 +56,14 @@ import { api, apiClient } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/config';
 import type { Tender, TendersResponse } from '@/types/api';
 import TenderMapModal from '@/components/TenderMapModal';
+import { MobileFilterDrawer, MobileHide, MobileShow, MobileStack } from '@/components/mobile';
+import { useResponsive } from '@/hooks/useResponsive';
 
 const API_URL = API_BASE_URL;
 
 export default function TendersPage() {
   const router = useRouter();
+  const { isMobile, isTablet, isMounted } = useResponsive();
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
   const [searchQuery, setSearchQuery] = useState('');
@@ -66,6 +71,9 @@ export default function TendersPage() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [cityFilter, setCityFilter] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Mobil filtre drawer
+  const [mobileFilterOpened, { open: openMobileFilter, close: closeMobileFilter }] = useDisclosure(false);
 
   // URL ile ihale ekleme
   const [addUrlModalOpen, setAddUrlModalOpen] = useState(false);
@@ -448,112 +456,149 @@ export default function TendersPage() {
       <Container size="xl" py="xl">
         <Stack gap="xl">
           {/* Header */}
-          <Group justify="space-between">
+          <MobileStack stackOnMobile stackOnTablet={false} justify="space-between" align="flex-start">
             <div>
-              <Title order={1}>İhale Listesi</Title>
-              <Text c="dimmed" size="lg">
+              <Title order={isMobile ? 2 : 1}>İhale Listesi</Title>
+              <Text c="dimmed" size={isMobile ? 'sm' : 'lg'}>
                 {isLoading
                   ? 'Aranıyor...'
                   : debouncedSearch
-                    ? `"${debouncedSearch}" için ${data?.total || 0} sonuç bulundu`
+                    ? `"${debouncedSearch}" için ${data?.total || 0} sonuç`
                     : `${data?.total || 0} ihale bulundu`}
               </Text>
             </div>
-            <Group>
-              <Button
-                leftSection={<IconFilter size={16} />}
-                variant={showFilters ? 'filled' : 'outline'}
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                Filtreler
-              </Button>
-              <Button
-                leftSection={<IconRefresh size={16} />}
-                variant="outline"
-                onClick={() => mutate()}
-                loading={isLoading}
-              >
-                Yenile
-              </Button>
-              <Button
-                leftSection={<IconMap size={16} />}
-                variant="gradient"
-                gradient={{ from: 'violet', to: 'indigo' }}
-                onClick={() => setMapModalOpen(true)}
-              >
-                Haritada Göster
-              </Button>
-              <Button
-                leftSection={<IconLink size={16} />}
-                variant="gradient"
-                gradient={{ from: 'teal', to: 'cyan' }}
-                onClick={() => setAddUrlModalOpen(true)}
-              >
-                URL ile Ekle
-              </Button>
-            </Group>
-          </Group>
+            
+            {/* Desktop Buttons */}
+            <MobileHide hideOnMobile hideOnTablet={false}>
+              <Group>
+                <Button
+                  leftSection={<IconFilter size={16} />}
+                  variant={showFilters ? 'filled' : 'outline'}
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  Filtreler
+                </Button>
+                <Button
+                  leftSection={<IconRefresh size={16} />}
+                  variant="outline"
+                  onClick={() => mutate()}
+                  loading={isLoading}
+                >
+                  Yenile
+                </Button>
+                <Button
+                  leftSection={<IconMap size={16} />}
+                  variant="gradient"
+                  gradient={{ from: 'violet', to: 'indigo' }}
+                  onClick={() => setMapModalOpen(true)}
+                >
+                  Haritada Göster
+                </Button>
+                <Button
+                  leftSection={<IconLink size={16} />}
+                  variant="gradient"
+                  gradient={{ from: 'teal', to: 'cyan' }}
+                  onClick={() => setAddUrlModalOpen(true)}
+                >
+                  URL ile Ekle
+                </Button>
+              </Group>
+            </MobileHide>
+            
+            {/* Mobile Buttons - Compact */}
+            <MobileShow showOnMobile showOnTablet={false}>
+              <Group gap="xs" w="100%">
+                <Button
+                  leftSection={<IconFilter size={14} />}
+                  variant="light"
+                  size="sm"
+                  onClick={openMobileFilter}
+                  style={{ flex: 1 }}
+                >
+                  Filtreler
+                </Button>
+                <ActionIcon
+                  variant="light"
+                  size="lg"
+                  onClick={() => mutate()}
+                  loading={isLoading}
+                >
+                  <IconRefresh size={16} />
+                </ActionIcon>
+                <ActionIcon
+                  variant="gradient"
+                  gradient={{ from: 'violet', to: 'indigo' }}
+                  size="lg"
+                  onClick={() => setMapModalOpen(true)}
+                >
+                  <IconMap size={16} />
+                </ActionIcon>
+                <ActionIcon
+                  variant="gradient"
+                  gradient={{ from: 'teal', to: 'cyan' }}
+                  size="lg"
+                  onClick={() => setAddUrlModalOpen(true)}
+                >
+                  <IconLink size={16} />
+                </ActionIcon>
+              </Group>
+            </MobileShow>
+          </MobileStack>
 
           {/* Bugünün Özeti - Dashboard Kartları */}
           {statsData?.data && (
-            <Grid gutter="sm">
+            <SimpleGrid cols={{ base: 3, sm: 4 }} spacing="xs">
               {/* Stat Kartları */}
-              <Grid.Col span={{ base: 4, sm: 2 }}>
-                <Paper p="xs" radius="md" bg="blue.0" ta="center">
-                  <Text size="xl" fw={700} c="blue.7">
-                    {statsData.data.totalCount}
-                  </Text>
-                  <Text size="xs" c="blue.6">
-                    Toplam
-                  </Text>
-                </Paper>
-              </Grid.Col>
+              <Paper p="xs" radius="md" bg="blue.0" ta="center">
+                <Text size={isMobile ? 'lg' : 'xl'} fw={700} c="blue.7">
+                  {statsData.data.totalCount}
+                </Text>
+                <Text size="xs" c="blue.6">
+                  Toplam
+                </Text>
+              </Paper>
 
-              <Grid.Col span={{ base: 4, sm: 2 }}>
-                <Paper
-                  p="xs"
-                  radius="md"
-                  bg="green.0"
-                  ta="center"
-                  style={{ cursor: statsData.data.today.newCount > 0 ? 'pointer' : 'default' }}
-                  onClick={() =>
-                    statsData.data.today.newCount > 0 &&
-                    setShowStats(showStats === 'new' ? false : 'new')
-                  }
-                >
-                  <Text size="xl" fw={700} c="green.7">
-                    {statsData.data.today.newCount}
-                  </Text>
-                  <Text size="xs" c="green.6">
-                    Yeni {statsData.data.today.newCount > 0 && '▾'}
-                  </Text>
-                </Paper>
-              </Grid.Col>
+              <Paper
+                p="xs"
+                radius="md"
+                bg="green.0"
+                ta="center"
+                style={{ cursor: statsData.data.today.newCount > 0 ? 'pointer' : 'default' }}
+                onClick={() =>
+                  statsData.data.today.newCount > 0 &&
+                  setShowStats(showStats === 'new' ? false : 'new')
+                }
+              >
+                <Text size={isMobile ? 'lg' : 'xl'} fw={700} c="green.7">
+                  {statsData.data.today.newCount}
+                </Text>
+                <Text size="xs" c="green.6">
+                  Yeni {statsData.data.today.newCount > 0 && '▾'}
+                </Text>
+              </Paper>
 
-              <Grid.Col span={{ base: 4, sm: 2 }}>
-                <Paper
-                  p="xs"
-                  radius="md"
-                  bg="orange.0"
-                  ta="center"
-                  style={{ cursor: statsData.data.today.updatedCount > 0 ? 'pointer' : 'default' }}
-                  onClick={() =>
-                    statsData.data.today.updatedCount > 0 &&
-                    setShowStats(showStats === 'updated' ? false : 'updated')
-                  }
-                >
-                  <Text size="xl" fw={700} c="orange.7">
-                    {statsData.data.today.updatedCount}
-                  </Text>
-                  <Text size="xs" c="orange.6">
-                    Güncellenen {statsData.data.today.updatedCount > 0 && '▾'}
-                  </Text>
-                </Paper>
-              </Grid.Col>
+              <Paper
+                p="xs"
+                radius="md"
+                bg="orange.0"
+                ta="center"
+                style={{ cursor: statsData.data.today.updatedCount > 0 ? 'pointer' : 'default' }}
+                onClick={() =>
+                  statsData.data.today.updatedCount > 0 &&
+                  setShowStats(showStats === 'updated' ? false : 'updated')
+                }
+              >
+                <Text size={isMobile ? 'lg' : 'xl'} fw={700} c="orange.7">
+                  {statsData.data.today.updatedCount}
+                </Text>
+                <Text size="xs" c="orange.6">
+                  Güncellenen {statsData.data.today.updatedCount > 0 && '▾'}
+                </Text>
+              </Paper>
 
-              <Grid.Col span={{ base: 12, sm: 6 }}>
+              <MobileHide hideOnMobile>
                 <Paper p="xs" radius="md" bg="gray.0">
-                  <Group gap="xs" justify="center">
+                  <Group gap="xs" justify="center" h="100%" align="center">
                     <IconClock size={14} color="var(--mantine-color-gray-6)" />
                     <Text size="xs" c="dimmed">
                       {new Date(statsData.data.lastUpdate).toLocaleString('tr-TR', {
@@ -565,262 +610,302 @@ export default function TendersPage() {
                     </Text>
                   </Group>
                 </Paper>
-              </Grid.Col>
+              </MobileHide>
 
-              {/* Yeni Eklenen İhaleler - Açılır Liste */}
-              {showStats === 'new' && statsData.data.today.newTenders.length > 0 && (
-                <Grid.Col span={12}>
-                  <Paper
-                    p="sm"
-                    radius="md"
-                    withBorder
-                    style={{ borderColor: 'var(--mantine-color-green-3)' }}
-                  >
-                    <Group justify="space-between" mb="xs">
-                      <Text size="sm" fw={600} c="green.7">
-                        Bugün Eklenen İhaleler
-                      </Text>
-                      <ActionIcon variant="subtle" size="xs" onClick={() => setShowStats(false)}>
-                        <IconX size={12} />
-                      </ActionIcon>
-                    </Group>
-                    <Stack gap={4}>
-                      {statsData.data.today.newTenders.map((t) => (
-                        <Group key={t.id} gap="xs" wrap="nowrap">
-                          <Badge size="xs" color="green" variant="light" style={{ minWidth: 70 }}>
-                            {t.city}
-                          </Badge>
-                          <Text
-                            size="xs"
-                            lineClamp={1}
-                            component={Link}
-                            href={`/tenders/${t.id}`}
-                            c="dark"
-                            style={{ flex: 1, textDecoration: 'none' }}
-                          >
-                            {t.title}
-                          </Text>
-                        </Group>
-                      ))}
-                    </Stack>
-                  </Paper>
-                </Grid.Col>
-              )}
+            </SimpleGrid>
+          )}
+          
+          {/* Yeni Eklenen İhaleler - Açılır Liste */}
+          {statsData?.data && showStats === 'new' && statsData.data.today.newTenders.length > 0 && (
+            <Paper
+              p="sm"
+              radius="md"
+              withBorder
+              style={{ borderColor: 'var(--mantine-color-green-3)' }}
+            >
+              <Group justify="space-between" mb="xs">
+                <Text size="sm" fw={600} c="green.7">
+                  Bugün Eklenen İhaleler
+                </Text>
+                <ActionIcon variant="subtle" size="xs" onClick={() => setShowStats(false)}>
+                  <IconX size={12} />
+                </ActionIcon>
+              </Group>
+              <Stack gap={4}>
+                {statsData.data.today.newTenders.map((t) => (
+                  <Group key={t.id} gap="xs" wrap="nowrap">
+                    <Badge size="xs" color="green" variant="light" style={{ minWidth: isMobile ? 50 : 70 }}>
+                      {t.city}
+                    </Badge>
+                    <Text
+                      size="xs"
+                      lineClamp={1}
+                      component={Link}
+                      href={`/tenders/${t.id}`}
+                      c="dark"
+                      style={{ flex: 1, textDecoration: 'none' }}
+                    >
+                      {t.title}
+                    </Text>
+                  </Group>
+                ))}
+              </Stack>
+            </Paper>
+          )}
 
-              {/* Güncellenen İhaleler - Açılır Liste */}
-              {showStats === 'updated' && statsData.data.today.updatedTenders.length > 0 && (
-                <Grid.Col span={12}>
-                  <Paper
-                    p="sm"
-                    radius="md"
-                    withBorder
-                    style={{ borderColor: 'var(--mantine-color-orange-3)' }}
-                  >
-                    <Group justify="space-between" mb="xs">
-                      <Text size="sm" fw={600} c="orange.7">
-                        Bugün Güncellenen İhaleler
-                      </Text>
-                      <ActionIcon variant="subtle" size="xs" onClick={() => setShowStats(false)}>
-                        <IconX size={12} />
-                      </ActionIcon>
-                    </Group>
-                    <Stack gap={4}>
-                      {statsData.data.today.updatedTenders.map((t) => (
-                        <Group key={t.id} gap="xs" wrap="nowrap">
-                          <Badge size="xs" color="orange" variant="light" style={{ minWidth: 70 }}>
-                            {t.city}
-                          </Badge>
-                          <Text
-                            size="xs"
-                            lineClamp={1}
-                            component={Link}
-                            href={`/tenders/${t.id}`}
-                            c="dark"
-                            style={{ flex: 1, textDecoration: 'none' }}
-                          >
-                            {t.title}
-                          </Text>
-                        </Group>
-                      ))}
-                    </Stack>
-                  </Paper>
-                </Grid.Col>
-              )}
-            </Grid>
+          {/* Güncellenen İhaleler - Açılır Liste */}
+          {statsData?.data && showStats === 'updated' && statsData.data.today.updatedTenders.length > 0 && (
+            <Paper
+              p="sm"
+              radius="md"
+              withBorder
+              style={{ borderColor: 'var(--mantine-color-orange-3)' }}
+            >
+              <Group justify="space-between" mb="xs">
+                <Text size="sm" fw={600} c="orange.7">
+                  Bugün Güncellenen İhaleler
+                </Text>
+                <ActionIcon variant="subtle" size="xs" onClick={() => setShowStats(false)}>
+                  <IconX size={12} />
+                </ActionIcon>
+              </Group>
+              <Stack gap={4}>
+                {statsData.data.today.updatedTenders.map((t) => (
+                  <Group key={t.id} gap="xs" wrap="nowrap">
+                    <Badge size="xs" color="orange" variant="light" style={{ minWidth: isMobile ? 50 : 70 }}>
+                      {t.city}
+                    </Badge>
+                    <Text
+                      size="xs"
+                      lineClamp={1}
+                      component={Link}
+                      href={`/tenders/${t.id}`}
+                      c="dark"
+                      style={{ flex: 1, textDecoration: 'none' }}
+                    >
+                      {t.title}
+                    </Text>
+                  </Group>
+                ))}
+              </Stack>
+            </Paper>
           )}
 
           {/* Search and Filters */}
-          <Paper shadow="sm" p="md" radius="md" withBorder>
+          <Paper shadow="sm" p={isMobile ? 'sm' : 'md'} radius="md" withBorder>
             <Stack gap="md">
               {/* Search Bar - Tüm veritabanında arama yapar */}
               <TextInput
-                placeholder="Tüm ihalelerde ara... (başlık, kuruluş, şehir, ihale no)"
+                placeholder={isMobile ? 'İhale ara...' : 'Tüm ihalelerde ara... (başlık, kuruluş, şehir, ihale no)'}
                 leftSection={<IconSearch size={16} />}
-                size="md"
+                size={isMobile ? 'sm' : 'md'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 rightSection={
                   isLoading && debouncedSearch ? (
                     <Loader size="xs" />
                   ) : searchQuery ? (
-                    <ActionIcon onClick={() => setSearchQuery('')} variant="subtle">
+                    <ActionIcon onClick={() => setSearchQuery('')} variant="subtle" size="sm">
                       <IconX size={16} />
                     </ActionIcon>
                   ) : null
                 }
               />
 
-              {/* Advanced Filters */}
-              <Collapse in={showFilters}>
-                <Stack gap="md">
-                  {/* Hızlı Durum Filtreleri */}
-                  <Box>
-                    <Text size="sm" fw={500} mb="xs" c="dimmed">Hızlı Filtreler</Text>
-                    <Group gap="xs">
-                      <Badge
-                        size="lg"
-                        variant={!statusFilter || statusFilter === 'active' ? 'filled' : 'light'}
-                        color="blue"
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => setStatusFilter('active')}
-                      >
-                        📅 Güncel İhaleler
-                      </Badge>
-                      <Badge
-                        size="lg"
-                        variant={statusFilter === 'urgent' ? 'filled' : 'light'}
-                        color="orange"
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => setStatusFilter('urgent')}
-                      >
-                        ⚡ Bu Hafta Dolacak
-                      </Badge>
-                      <Badge
-                        size="lg"
-                        variant={statusFilter === 'expired' ? 'filled' : 'light'}
-                        color="red"
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => setStatusFilter('expired')}
-                      >
-                        ⏰ Süresi Dolmuş
-                      </Badge>
-                      <Badge
-                        size="lg"
-                        variant={statusFilter === 'all' ? 'filled' : 'light'}
-                        color="gray"
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => setStatusFilter('all')}
-                      >
-                        📋 Tümü
-                      </Badge>
-                    </Group>
-                  </Box>
-
-                  <Divider />
-
-                  {/* Detaylı Filtreler */}
-                  <Grid>
-                    <Grid.Col span={{ base: 12, md: 4 }}>
-                      <Select
-                        label="İhale Durumu"
-                        placeholder="Varsayılan: Güncel İhaleler"
-                        value={statusFilter}
-                        onChange={setStatusFilter}
-                        clearable
-                        leftSection={<IconFilter size={16} />}
-                        data={[
-                          { 
-                            group: 'Aktif İhaleler',
-                            items: [
-                              { value: 'active', label: '📅 Güncel İhaleler (Aktif + Son 1 Hafta)' },
-                              { value: 'urgent', label: '⚡ Bu Hafta Dolacaklar (Acil)' },
-                            ]
-                          },
-                          {
-                            group: 'Geçmiş İhaleler',
-                            items: [
-                              { value: 'expired', label: '⏰ Süresi Dolmuş (Tümü)' },
-                              { value: 'archived', label: '📦 Arşiv (1 Haftadan Eski)' },
-                            ]
-                          },
-                          {
-                            group: 'Diğer',
-                            items: [
-                              { value: 'all', label: '📋 Tüm İhaleler' },
-                            ]
-                          }
-                        ]}
-                      />
-                    </Grid.Col>
-                    <Grid.Col span={{ base: 12, md: 4 }}>
-                      <MultiSelect
-                        label="Şehir Filtresi"
-                        placeholder="Tüm şehirler"
-                        value={cityFilter}
-                        onChange={setCityFilter}
-                        data={availableCities}
-                        searchable
-                        clearable
-                        maxDropdownHeight={300}
-                        leftSection={<IconMapPin size={16} />}
-                        nothingFoundMessage="Şehir bulunamadı"
-                      />
-                    </Grid.Col>
-                    <Grid.Col span={{ base: 12, md: 4 }}>
-                      <Select
-                        label="Sıralama"
-                        placeholder="Varsayılan sıralama"
-                        value={null}
-                        onChange={() => {}}
-                        disabled
-                        leftSection={<IconArrowsSort size={16} />}
-                        data={[
-                          { value: 'deadline_asc', label: '📆 Tarihe Göre (Yakın → Uzak)' },
-                          { value: 'deadline_desc', label: '📆 Tarihe Göre (Uzak → Yakın)' },
-                          { value: 'created_desc', label: '🆕 Yeni Eklenenler Önce' },
-                        ]}
-                      />
-                    </Grid.Col>
-                  </Grid>
-
-                  {/* Aktif Filtre Özeti ve Temizle */}
-                  {(searchQuery || statusFilter || cityFilter.length > 0) && (
-                    <Paper p="xs" withBorder radius="md" bg="gray.0">
-                      <Group justify="space-between">
-                        <Group gap="xs">
-                          <Text size="sm" c="dimmed">Aktif Filtreler:</Text>
-                          {searchQuery && (
-                            <Badge variant="outline" color="blue" size="sm">
-                              Arama: &quot;{searchQuery}&quot;
-                            </Badge>
-                          )}
-                          {statusFilter && (
-                            <Badge variant="outline" color="violet" size="sm">
-                              Durum: {statusFilter === 'active' ? 'Güncel' : statusFilter === 'urgent' ? 'Acil' : statusFilter === 'expired' ? 'Dolmuş' : statusFilter === 'archived' ? 'Arşiv' : 'Tümü'}
-                            </Badge>
-                          )}
-                          {cityFilter.length > 0 && (
-                            <Badge variant="outline" color="teal" size="sm">
-                              Şehir: {cityFilter.length} seçili
-                            </Badge>
-                          )}
-                        </Group>
-                        <Button
-                          variant="subtle"
-                          size="xs"
-                          color="red"
-                          onClick={clearFilters}
-                          leftSection={<IconX size={14} />}
-                        >
-                          Temizle
-                        </Button>
-                      </Group>
-                    </Paper>
+              {/* Aktif Filtre Özeti - Mobilde de göster */}
+              {(statusFilter || cityFilter.length > 0) && (
+                <Group gap="xs" wrap="wrap">
+                  <Text size="xs" c="dimmed">Filtreler:</Text>
+                  {statusFilter && (
+                    <Badge variant="outline" color="violet" size="xs">
+                      {statusFilter === 'active' ? 'Güncel' : statusFilter === 'urgent' ? 'Acil' : statusFilter === 'expired' ? 'Dolmuş' : statusFilter === 'archived' ? 'Arşiv' : 'Tümü'}
+                    </Badge>
                   )}
-                </Stack>
-              </Collapse>
+                  {cityFilter.length > 0 && (
+                    <Badge variant="outline" color="teal" size="xs">
+                      {cityFilter.length} şehir
+                    </Badge>
+                  )}
+                  <ActionIcon variant="subtle" size="xs" color="red" onClick={clearFilters}>
+                    <IconX size={12} />
+                  </ActionIcon>
+                </Group>
+              )}
+
+              {/* Advanced Filters - Desktop Only */}
+              <MobileHide hideOnMobile>
+                <Collapse in={showFilters}>
+                  <Stack gap="md">
+                    {/* Hızlı Durum Filtreleri */}
+                    <Box>
+                      <Text size="sm" fw={500} mb="xs" c="dimmed">Hızlı Filtreler</Text>
+                      <Group gap="xs" wrap="wrap">
+                        <Badge
+                          size="lg"
+                          variant={!statusFilter || statusFilter === 'active' ? 'filled' : 'light'}
+                          color="blue"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setStatusFilter('active')}
+                        >
+                          📅 Güncel İhaleler
+                        </Badge>
+                        <Badge
+                          size="lg"
+                          variant={statusFilter === 'urgent' ? 'filled' : 'light'}
+                          color="orange"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setStatusFilter('urgent')}
+                        >
+                          ⚡ Bu Hafta Dolacak
+                        </Badge>
+                        <Badge
+                          size="lg"
+                          variant={statusFilter === 'expired' ? 'filled' : 'light'}
+                          color="red"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setStatusFilter('expired')}
+                        >
+                          ⏰ Süresi Dolmuş
+                        </Badge>
+                        <Badge
+                          size="lg"
+                          variant={statusFilter === 'all' ? 'filled' : 'light'}
+                          color="gray"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setStatusFilter('all')}
+                        >
+                          📋 Tümü
+                        </Badge>
+                      </Group>
+                    </Box>
+
+                    <Divider />
+
+                    {/* Detaylı Filtreler */}
+                    <Grid>
+                      <Grid.Col span={{ base: 12, md: 4 }}>
+                        <Select
+                          label="İhale Durumu"
+                          placeholder="Varsayılan: Güncel İhaleler"
+                          value={statusFilter}
+                          onChange={setStatusFilter}
+                          clearable
+                          leftSection={<IconFilter size={16} />}
+                          data={[
+                            { 
+                              group: 'Aktif İhaleler',
+                              items: [
+                                { value: 'active', label: '📅 Güncel İhaleler (Aktif + Son 1 Hafta)' },
+                                { value: 'urgent', label: '⚡ Bu Hafta Dolacaklar (Acil)' },
+                              ]
+                            },
+                            {
+                              group: 'Geçmiş İhaleler',
+                              items: [
+                                { value: 'expired', label: '⏰ Süresi Dolmuş (Tümü)' },
+                                { value: 'archived', label: '📦 Arşiv (1 Haftadan Eski)' },
+                              ]
+                            },
+                            {
+                              group: 'Diğer',
+                              items: [
+                                { value: 'all', label: '📋 Tüm İhaleler' },
+                              ]
+                            }
+                          ]}
+                        />
+                      </Grid.Col>
+                      <Grid.Col span={{ base: 12, md: 4 }}>
+                        <MultiSelect
+                          label="Şehir Filtresi"
+                          placeholder="Tüm şehirler"
+                          value={cityFilter}
+                          onChange={setCityFilter}
+                          data={availableCities}
+                          searchable
+                          clearable
+                          maxDropdownHeight={300}
+                          leftSection={<IconMapPin size={16} />}
+                          nothingFoundMessage="Şehir bulunamadı"
+                        />
+                      </Grid.Col>
+                      <Grid.Col span={{ base: 12, md: 4 }}>
+                        <Select
+                          label="Sıralama"
+                          placeholder="Varsayılan sıralama"
+                          value={null}
+                          onChange={() => {}}
+                          disabled
+                          leftSection={<IconArrowsSort size={16} />}
+                          data={[
+                            { value: 'deadline_asc', label: '📆 Tarihe Göre (Yakın → Uzak)' },
+                            { value: 'deadline_desc', label: '📆 Tarihe Göre (Uzak → Yakın)' },
+                            { value: 'created_desc', label: '🆕 Yeni Eklenenler Önce' },
+                          ]}
+                        />
+                      </Grid.Col>
+                    </Grid>
+                  </Stack>
+                </Collapse>
+              </MobileHide>
             </Stack>
           </Paper>
+          
+          {/* Mobile Filter Drawer */}
+          <MobileFilterDrawer
+            opened={mobileFilterOpened}
+            onClose={closeMobileFilter}
+            title="İhale Filtreleri"
+            onApply={closeMobileFilter}
+            onReset={clearFilters}
+          >
+            <Stack gap="lg">
+              {/* Hızlı Durum Filtreleri */}
+              <Box>
+                <Text size="sm" fw={500} mb="sm">İhale Durumu</Text>
+                <Stack gap="xs">
+                  {[
+                    { value: 'active', label: '📅 Güncel İhaleler', color: 'blue' },
+                    { value: 'urgent', label: '⚡ Bu Hafta Dolacak', color: 'orange' },
+                    { value: 'expired', label: '⏰ Süresi Dolmuş', color: 'red' },
+                    { value: 'all', label: '📋 Tüm İhaleler', color: 'gray' },
+                  ].map((item) => (
+                    <Paper
+                      key={item.value}
+                      p="sm"
+                      radius="md"
+                      withBorder
+                      style={{
+                        cursor: 'pointer',
+                        borderColor: statusFilter === item.value ? `var(--mantine-color-${item.color}-5)` : undefined,
+                        backgroundColor: statusFilter === item.value ? `var(--mantine-color-${item.color}-0)` : undefined,
+                      }}
+                      onClick={() => setStatusFilter(item.value)}
+                    >
+                      <Text size="sm" fw={statusFilter === item.value ? 600 : 400}>
+                        {item.label}
+                      </Text>
+                    </Paper>
+                  ))}
+                </Stack>
+              </Box>
+
+              <Divider />
+
+              {/* Şehir Filtresi */}
+              <MultiSelect
+                label="Şehir Filtresi"
+                placeholder="Şehir seçin"
+                value={cityFilter}
+                onChange={setCityFilter}
+                data={availableCities}
+                searchable
+                clearable
+                maxDropdownHeight={200}
+                leftSection={<IconMapPin size={16} />}
+              />
+            </Stack>
+          </MobileFilterDrawer>
 
           {/* Error Alert */}
           {error && (
@@ -841,31 +926,35 @@ export default function TendersPage() {
 
           {/* Tenders Grid */}
           {filteredTenders.length > 0 && (
-            <Grid>
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing={isMobile ? 'sm' : 'md'}>
               {filteredTenders.map((tender) => (
-                <Grid.Col key={tender.id} span={{ base: 12, md: 6, lg: 4 }}>
-                  <Card
-                    shadow="sm"
-                    padding="lg"
-                    radius="md"
-                    withBorder
-                    h="100%"
-                    style={{
-                      transition: 'all 0.2s ease',
-                      cursor: 'pointer',
-                      borderColor: trackingIds.has(tender.id) ? 'var(--mantine-color-yellow-5)' : undefined,
-                      borderWidth: trackingIds.has(tender.id) ? 2 : undefined,
-                      background: trackingIds.has(tender.id) ? 'linear-gradient(135deg, rgba(255,212,59,0.05) 0%, rgba(255,255,255,1) 100%)' : undefined,
-                    }}
-                    onMouseEnter={(e) => {
+                <Card
+                  key={tender.id}
+                  shadow="sm"
+                  padding={isMobile ? 'sm' : 'lg'}
+                  radius="md"
+                  withBorder
+                  h="100%"
+                  style={{
+                    transition: 'all 0.2s ease',
+                    cursor: 'pointer',
+                    borderColor: trackingIds.has(tender.id) ? 'var(--mantine-color-yellow-5)' : undefined,
+                    borderWidth: trackingIds.has(tender.id) ? 2 : undefined,
+                    background: trackingIds.has(tender.id) ? 'linear-gradient(135deg, rgba(255,212,59,0.05) 0%, rgba(255,255,255,1) 100%)' : undefined,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isMobile) {
                       e.currentTarget.style.transform = 'translateY(-4px)';
                       e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.1)';
-                    }}
-                    onMouseLeave={(e) => {
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isMobile) {
                       e.currentTarget.style.transform = 'translateY(0)';
                       e.currentTarget.style.boxShadow = '';
-                    }}
-                  >
+                    }
+                  }}
+                >
                     <Stack gap="sm" h="100%">
                       {/* Header */}
                       <Group justify="space-between" align="flex-start">
@@ -924,19 +1013,19 @@ export default function TendersPage() {
 
                       {/* Title - Tıklandığında on-demand döküman çekme */}
                       <Title
-                        order={4}
+                        order={isMobile ? 5 : 4}
                         lineClamp={2}
-                        h={48}
+                        h={isMobile ? 40 : 48}
                         style={{
                           cursor: 'pointer',
                           transition: 'color 0.2s',
                         }}
                         onClick={() => handleTenderClick(tender)}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.color = '#228be6';
+                          if (!isMobile) e.currentTarget.style.color = '#228be6';
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.color = '';
+                          if (!isMobile) e.currentTarget.style.color = '';
                         }}
                       >
                         {tender.title}
@@ -1013,9 +1102,8 @@ export default function TendersPage() {
                       </Stack>
                     </Stack>
                   </Card>
-                </Grid.Col>
               ))}
-            </Grid>
+            </SimpleGrid>
           )}
 
           {/* Empty State */}
@@ -1045,18 +1133,20 @@ export default function TendersPage() {
 
           {/* Pagination */}
           {data && data.totalPages > 1 && (
-            <Group justify="center" mt="xl">
+            <Stack gap="sm" align="center" mt="xl">
               <Pagination
                 total={data.totalPages}
                 value={currentPage}
                 onChange={setCurrentPage}
-                size="lg"
-                withEdges
+                size={isMobile ? 'sm' : 'lg'}
+                withEdges={!isMobile}
+                siblings={isMobile ? 0 : 1}
+                boundaries={isMobile ? 1 : 2}
               />
-              <Text size="sm" c="dimmed">
+              <Text size="xs" c="dimmed">
                 Sayfa {currentPage} / {data.totalPages} ({data.total} ihale)
               </Text>
-            </Group>
+            </Stack>
           )}
 
           {/* Back Button */}

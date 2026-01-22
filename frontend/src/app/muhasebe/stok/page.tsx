@@ -17,6 +17,7 @@ import {
   Modal,
   NumberInput,
   Paper,
+  ScrollArea,
   Select,
   SimpleGrid,
   Stack,
@@ -31,6 +32,8 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
+import { useResponsive } from '@/hooks/useResponsive';
+import { MobileHide, MobileShow, MobileStack } from '@/components/mobile';
 import {
   IconAlertCircle,
   IconAlertTriangle,
@@ -47,6 +50,7 @@ import {
   IconPackage,
   IconPackages,
   IconPlus,
+  IconWand,
   IconRefresh,
   IconSearch,
   IconShoppingCart,
@@ -58,6 +62,8 @@ import {
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState, useCallback } from 'react';
 import { DataActions } from '@/components/DataActions';
+import UrunDetayModal from '@/components/UrunDetayModal';
+import UrunKartlariModal from '@/components/UrunKartlariModal';
 import { usePermissions } from '@/hooks/usePermissions';
 import { API_BASE_URL } from '@/lib/config';
 
@@ -131,22 +137,12 @@ interface Birim {
   tip: string;
 }
 
-const _COLORS = [
-  '#4dabf7',
-  '#51cf66',
-  '#ff922b',
-  '#ff6b6b',
-  '#845ef7',
-  '#339af0',
-  '#20c997',
-  '#f06595',
-];
-
 function StokPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { colorScheme } = useMantineColorScheme();
   const _isDark = colorScheme === 'dark';
+  const { isMobile, isTablet, isMounted } = useResponsive();
 
   // === YETKİ KONTROLÜ ===
   const { canCreate, canEdit, canDelete, isSuperAdmin } = usePermissions();
@@ -162,6 +158,7 @@ function StokPageContent() {
 
   // Data states
   const [stoklar, setStoklar] = useState<StokItem[]>([]);
+  const [tumUrunler, setTumUrunler] = useState<StokItem[]>([]); // Tüm ürün kartları (fatura eşleştirme için)
   const [tumStokSayisi, setTumStokSayisi] = useState<number>(0); // Toplam stok kartı sayısı
   const [depolar, setDepolar] = useState<Depo[]>([]);
   const [kategoriler, setKategoriler] = useState<Kategori[]>([]);
@@ -248,9 +245,18 @@ function StokPageContent() {
   const [faturalar, setFaturalar] = useState<any[]>([]);
   const [faturaLoading, setFaturaLoading] = useState(false);
   const [selectedFatura, setSelectedFatura] = useState<any>(null);
+  
+  // Ürün detay modalı (ortak bileşen)
+  const [detayModalOpened, setDetayModalOpened] = useState(false);
+  const [detayUrunId, setDetayUrunId] = useState<number | null>(null);
+  
+  // Tüm ürün kartları modalı
+  const [urunKartlariModalOpened, setUrunKartlariModalOpened] = useState(false);
   const [faturaKalemler, setFaturaKalemler] = useState<any[]>([]);
   const [faturaGirisDepo, setFaturaGirisDepo] = useState<number | null>(null);
   const [kalemEslestirme, setKalemEslestirme] = useState<{ [key: number]: number | null }>({});
+  const [faturaOzet, setFaturaOzet] = useState<any>(null);
+  const [topluIslemLoading, setTopluIslemLoading] = useState(false);
 
   // Depo yönetimi fonksiyonları
   const _handleEditDepo = (depoId: number) => {
@@ -366,30 +372,56 @@ function StokPageContent() {
     setLoading(true);
     setError(null);
     try {
-      // Paralel istekler
-      const [stokRes, depoRes, katRes, birimRes] = await Promise.all([
-        fetch(`${API_URL}/stok/kartlar?limit=100`),
+      // Paralel istekler - Yeni ürün kartları sistemini kullan
+      const [urunRes, depoRes, katRes, birimRes] = await Promise.all([
+        fetch(`${API_URL}/urunler?limit=500`),
         fetch(`${API_URL}/stok/depolar`),
-        fetch(`${API_URL}/stok/kategoriler`),
+        fetch(`${API_URL}/urunler/kategoriler/liste`),
         fetch(`${API_URL}/stok/birimler`),
       ]);
 
-      if (!stokRes.ok || !depoRes.ok || !katRes.ok || !birimRes.ok) {
+      if (!urunRes.ok || !depoRes.ok || !katRes.ok || !birimRes.ok) {
         throw new Error('Veri yüklenemedi');
       }
 
-      const [stokData, depoData, katData, birimData] = await Promise.all([
-        stokRes.json(),
+      const [urunData, depoData, katData, birimData] = await Promise.all([
+        urunRes.json(),
         depoRes.json(),
         katRes.json(),
         birimRes.json(),
       ]);
 
-      const stokList = stokData.data || [];
-      setStoklar(stokList);
-      setTumStokSayisi(stokList.length); // Toplam stok kartı sayısını kaydet
+      // Ürün kartlarını stok formatına dönüştür
+      const urunList = (urunData.data || []).map((u: any) => ({
+        id: u.id,
+        kod: u.kod,
+        ad: u.ad,
+        kategori: u.kategori || 'Kategorisiz',
+        kategori_id: u.kategori_id,
+        birim: u.birim_kisa || u.birim || 'Ad',
+        ana_birim_id: u.ana_birim_id,
+        toplam_stok: parseFloat(u.toplam_stok) || 0,
+        min_stok: parseFloat(u.min_stok) || 0,
+        max_stok: parseFloat(u.max_stok) || 0,
+        kritik_stok: parseFloat(u.kritik_stok) || 0,
+        son_alis_fiyat: parseFloat(u.son_alis_fiyati) || 0,
+        durum: u.durum || 'normal',
+      }));
+      
+      // SADECE STOKTA OLANLARI GÖSTER (toplam_stok > 0)
+      const stokluUrunler = urunList.filter((u: StokItem) => u.toplam_stok > 0);
+      setStoklar(stokluUrunler);
+      setTumUrunler(urunList); // Tüm ürünler (fatura eşleştirme için)
+      setTumStokSayisi(urunList.length);
       setDepolar(depoData.data || []);
-      setKategoriler(katData.data || []);
+      
+      // Kategorileri dönüştür
+      const katList = (katData.data || []).map((k: any) => ({
+        id: k.id,
+        kod: k.kod || `KAT${k.id}`,
+        ad: k.ad,
+      }));
+      setKategoriler(katList);
       setBirimler(birimData.data || []);
     } catch (err) {
       console.error('Veri yükleme hatası:', err);
@@ -462,12 +494,13 @@ function StokPageContent() {
     }
   };
 
-  // Stok sil
-  const handleDeleteStok = async (stokId: number) => {
+  // Ürün sil
+  const handleDeleteStok = async (urunId: number) => {
     try {
       setLoading(true);
 
-      const res = await fetch(`${API_URL}/stok/kartlar/${stokId}`, {
+      // Yeni ürün kartları sistemini kullan
+      const res = await fetch(`${API_URL}/urunler/${urunId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${getToken()}` },
       });
@@ -499,7 +532,7 @@ function StokPageContent() {
     }
   };
 
-  // Toplu stok sil
+  // Toplu ürün sil
   const handleBulkDelete = async () => {
     if (selectedStoklar.length === 0) return;
 
@@ -512,9 +545,10 @@ function StokPageContent() {
       let basarili = 0;
       let hatali = 0;
 
-      for (const stokId of selectedStoklar) {
+      // Yeni ürün kartları sistemini kullan
+      for (const urunId of selectedStoklar) {
         try {
-          const res = await fetch(`${API_URL}/stok/kartlar/${stokId}`, {
+          const res = await fetch(`${API_URL}/urunler/${urunId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${getToken()}` },
           });
@@ -580,30 +614,129 @@ function StokPageContent() {
     }
   };
 
-  // Fatura kalemlerini yükle
+  // Fatura kalemlerini akıllı eşleştirme ile yükle
   const loadFaturaKalemler = async (ettn: string) => {
     setFaturaLoading(true);
     try {
-      const response = await fetch(`${API_URL}/stok/faturalar/${ettn}/kalemler`);
+      // Yeni akıllı endpoint'i kullan
+      const response = await fetch(`${API_URL}/stok/faturalar/${ettn}/akilli-kalemler`);
       const result = await response.json();
       if (result.success) {
         setFaturaKalemler(result.kalemler);
-        // Önerilen eşleştirmeleri otomatik doldur
+        setFaturaOzet(result.ozet);
+        // Akıllı eşleştirmeleri otomatik doldur
         const eslestirmeler: { [key: number]: number | null } = {};
         result.kalemler.forEach((k: any) => {
-          eslestirmeler[k.sira] = k.onerilen_stok_kart_id;
+          // Eşleşme varsa stok_kart_id'yi al
+          eslestirmeler[k.sira] = k.eslesme?.stok_kart_id || null;
         });
         setKalemEslestirme(eslestirmeler);
+        
+        // Özet bilgilendirmesi
+        if (result.ozet) {
+          const { otomatik_onay, manuel_gereken, anomali_sayisi } = result.ozet;
+          if (anomali_sayisi > 0) {
+            notifications.show({
+              title: '⚠️ Fiyat Anomalisi',
+              message: `${anomali_sayisi} kalemde anormal fiyat değişimi tespit edildi`,
+              color: 'orange',
+              autoClose: 5000,
+            });
+          }
+          if (otomatik_onay > 0) {
+            notifications.show({
+              title: '✅ Akıllı Eşleştirme',
+              message: `${otomatik_onay}/${result.kalemler.length} kalem otomatik eşleştirildi`,
+              color: 'green',
+              autoClose: 3000,
+            });
+          }
+        }
       }
     } catch (error: any) {
       console.error('Fatura kalem hatası:', error);
+      // Fallback: Eski endpoint'i dene
+      try {
+        const fallbackResponse = await fetch(`${API_URL}/stok/faturalar/${ettn}/kalemler`);
+        const fallbackResult = await fallbackResponse.json();
+        if (fallbackResult.success) {
+          setFaturaKalemler(fallbackResult.kalemler);
+          const eslestirmeler: { [key: number]: number | null } = {};
+          fallbackResult.kalemler.forEach((k: any) => {
+            eslestirmeler[k.sira] = k.onerilen_stok_kart_id;
+          });
+          setKalemEslestirme(eslestirmeler);
+        }
+      } catch {
+        notifications.show({
+          title: 'Hata',
+          message: 'Fatura kalemleri yüklenemedi',
+          color: 'red',
+        });
+      }
+    } finally {
+      setFaturaLoading(false);
+    }
+  };
+
+  // Toplu fatura işleme
+  const handleTopluFaturaIsle = async () => {
+    if (!faturaGirisDepo) {
+      notifications.show({
+        title: 'Uyarı',
+        message: 'Lütfen depo seçin',
+        color: 'yellow',
+      });
+      return;
+    }
+
+    // İşlenmemiş faturaları al
+    const islenmemisFaturalar = faturalar.filter((f) => !f.stok_islendi);
+    if (islenmemisFaturalar.length === 0) {
+      notifications.show({
+        title: 'Bilgi',
+        message: 'İşlenecek fatura bulunamadı',
+        color: 'blue',
+      });
+      return;
+    }
+
+    setTopluIslemLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/stok/toplu-fatura-isle`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({
+          fatura_ettnler: islenmemisFaturalar.map((f) => f.ettn),
+          depo_id: faturaGirisDepo,
+          sadece_otomatik: true, // Sadece %90+ güvenli olanları işle
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        notifications.show({
+          title: '✅ Toplu İşlem Tamamlandı',
+          message: `${result.ozet.basarili} fatura işlendi, ${result.ozet.otomatik_eslesen} kalem eşleştirildi`,
+          color: 'green',
+          autoClose: 5000,
+        });
+        loadFaturalar();
+        loadData();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error: any) {
       notifications.show({
         title: 'Hata',
-        message: 'Fatura kalemleri yüklenemedi',
+        message: error.message || 'Toplu işlem başarısız',
         color: 'red',
       });
     } finally {
-      setFaturaLoading(false);
+      setTopluIslemLoading(false);
     }
   };
 
@@ -716,16 +849,23 @@ function StokPageContent() {
     try {
       setLoading(true);
 
-      const res = await fetch(`${API_URL}/stok/kartlar`, {
+      // Yeni ürün kartları sistemini kullan
+      const res = await fetch(`${API_URL}/urunler`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${getToken()}`,
         },
         body: JSON.stringify({
-          ...urunForm,
+          kod: urunForm.kod,
+          ad: urunForm.ad,
           kategori_id: parseInt(urunForm.kategori_id, 10),
           ana_birim_id: parseInt(urunForm.ana_birim_id, 10),
+          barkod: urunForm.barkod,
+          min_stok: urunForm.min_stok,
+          max_stok: urunForm.max_stok,
+          kdv_orani: urunForm.kdv_orani,
+          aciklama: urunForm.aciklama,
         }),
       });
 
@@ -768,21 +908,10 @@ function StokPageContent() {
     }
   };
 
-  // Stok detayını yükle
-  const _loadStokDetay = async (stokId: number) => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/stok/kartlar/${stokId}`);
-      const result = await response.json();
-
-      if (result.success) {
-        setSelectedStok(result.data);
-      }
-    } catch (err) {
-      console.error('Stok detay yükleme hatası:', err);
-    } finally {
-      setLoading(false);
-    }
+  // Ürün detay modalını aç (ortak bileşen kullanır)
+  const loadUrunDetay = (urunId: number) => {
+    setDetayUrunId(urunId);
+    setDetayModalOpened(true);
   };
 
   // Transfer yap
@@ -1178,122 +1307,123 @@ function StokPageContent() {
         </Alert>
       )}
 
-      <Group justify="space-between" mb="md">
+      <MobileStack stackOnMobile justify="space-between" mb="md" align="flex-start">
         <Group gap="md">
           <ThemeIcon
-            size={42}
+            size={isMobile ? 36 : 42}
             radius="xl"
             variant="gradient"
             gradient={{ from: 'blue', to: 'cyan' }}
           >
-            <IconPackage size={24} />
+            <IconPackage size={isMobile ? 20 : 24} />
           </ThemeIcon>
           <Box>
-            <Title order={3}>Stok Yönetimi</Title>
-            <Text size="xs" c="dimmed">
-              Ürün ve malzeme stoklarınızı takip edin
-            </Text>
+            <Title order={isMobile ? 4 : 3}>Stok Yönetimi</Title>
+            <MobileHide hideOnMobile>
+              <Text size="xs" c="dimmed">
+                Ürün ve malzeme stoklarınızı takip edin
+              </Text>
+            </MobileHide>
           </Box>
         </Group>
-        <Group gap="xs">
-          <ActionIcon
-            variant="light"
-            size="lg"
-            radius="xl"
-            onClick={() => loadData()}
-            title="Yenile"
-          >
-            <IconRefresh size={18} />
-          </ActionIcon>
-          <Button
-            variant="light"
-            color="teal"
-            size="sm"
-            radius="xl"
-            leftSection={<IconBuilding size={16} />}
-            onClick={() => setDepoModalOpened(true)}
-          >
-            Depo Ekle
-          </Button>
-          <Menu shadow="md" width={220}>
-            <Menu.Target>
-              <Button
-                variant="filled"
-                color="grape"
-                size="sm"
-                radius="xl"
-                leftSection={<IconPlus size={16} />}
-                rightSection={<IconChevronDown size={14} />}
-              >
-                İşlemler
-              </Button>
-            </Menu.Target>
-            <Menu.Dropdown>
-              <Menu.Label>Stok Hareketleri</Menu.Label>
-              <Menu.Item
-                leftSection={<IconTrendingUp size={16} color="green" />}
-                onClick={() => setStokGirisModalOpened(true)}
-              >
-                Stok Girişi
-              </Menu.Item>
-              <Menu.Item
-                leftSection={<IconTrendingDown size={16} color="red" />}
-                onClick={() => setStokCikisModalOpened(true)}
-              >
-                Stok Çıkışı
-              </Menu.Item>
-              <Menu.Item
-                leftSection={<IconArrowsExchange size={16} color="blue" />}
-                onClick={openTransfer}
-              >
-                Depolar Arası Transfer
-              </Menu.Item>
-              <Menu.Item
-                leftSection={<IconClipboardList size={16} color="orange" />}
-                onClick={() => setSayimModalOpened(true)}
-              >
-                Stok Sayımı
-              </Menu.Item>
-
-              {canCreateStok && (
-                <>
-                  <Menu.Divider />
-                  <Menu.Label>Ürün İşlemleri</Menu.Label>
-                  <Menu.Item
-                    leftSection={<IconFileInvoice size={16} color="teal" />}
-                    onClick={() => {
-                      setFaturaModalOpened(true);
-                      loadFaturalar();
-                    }}
-                  >
-                    Faturadan Ekle
-                  </Menu.Item>
-                  <Menu.Item leftSection={<IconPlus size={16} color="grape" />} onClick={open}>
-                    Yeni Ürün
-                  </Menu.Item>
-                </>
-              )}
-
-              <Menu.Divider />
-              <Menu.Item
-                leftSection={<IconHistory size={16} color="gray" />}
-                onClick={() => setHareketlerModalOpened(true)}
-              >
-                Hareketleri Görüntüle
-              </Menu.Item>
-            </Menu.Dropdown>
-          </Menu>
-          <DataActions
-            type="stok"
-            onImportSuccess={() => loadData()}
-            kategoriler={kategoriler.map((k) => k.ad)}
-          />
-        </Group>
-      </Group>
+        
+        {/* Mobil Butonlar */}
+        <MobileShow showOnMobile>
+          <Group gap="xs" w="100%">
+            <ActionIcon variant="light" size="lg" radius="xl" onClick={() => loadData()}>
+              <IconRefresh size={18} />
+            </ActionIcon>
+            <Button
+              variant="light"
+              color="blue"
+              size="xs"
+              radius="xl"
+              leftSection={<IconPackage size={14} />}
+              onClick={() => setUrunKartlariModalOpened(true)}
+              style={{ flex: 1 }}
+            >
+              Kartlar ({tumStokSayisi})
+            </Button>
+            <Menu shadow="md" width={200}>
+              <Menu.Target>
+                <Button
+                  variant="filled"
+                  color="grape"
+                  size="xs"
+                  radius="xl"
+                  leftSection={<IconPlus size={14} />}
+                >
+                  İşlem
+                </Button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item leftSection={<IconTrendingUp size={16} color="green" />} onClick={() => { setFaturaModalOpened(true); loadFaturalar(); }}>Stok Girişi</Menu.Item>
+                <Menu.Item leftSection={<IconTrendingDown size={16} color="red" />} onClick={() => setStokCikisModalOpened(true)}>Stok Çıkışı</Menu.Item>
+                <Menu.Item leftSection={<IconArrowsExchange size={16} color="blue" />} onClick={openTransfer}>Transfer</Menu.Item>
+                <Menu.Item leftSection={<IconClipboardList size={16} color="orange" />} onClick={() => setSayimModalOpened(true)}>Sayım</Menu.Item>
+                <Menu.Divider />
+                <Menu.Item leftSection={<IconHistory size={16} color="gray" />} onClick={() => setHareketlerModalOpened(true)}>Hareketler</Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          </Group>
+        </MobileShow>
+        
+        {/* Desktop Butonlar */}
+        <MobileHide hideOnMobile>
+          <Group gap="xs">
+            <ActionIcon
+              variant="light"
+              size="lg"
+              radius="xl"
+              onClick={() => loadData()}
+              title="Yenile"
+            >
+              <IconRefresh size={18} />
+            </ActionIcon>
+            <Button
+              variant="light"
+              color="blue"
+              size="sm"
+              radius="xl"
+              leftSection={<IconPackage size={16} />}
+              onClick={() => setUrunKartlariModalOpened(true)}
+            >
+              Ürün Kartları ({tumStokSayisi})
+            </Button>
+            <Menu shadow="md" width={200}>
+              <Menu.Target>
+                <Button
+                  variant="filled"
+                  color="grape"
+                  size="sm"
+                  radius="xl"
+                  leftSection={<IconPlus size={16} />}
+                  rightSection={<IconChevronDown size={14} />}
+                >
+                  Stok İşlemleri
+                </Button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item leftSection={<IconTrendingUp size={16} color="green" />} onClick={() => { setFaturaModalOpened(true); loadFaturalar(); }}>Stok Girişi</Menu.Item>
+                <Menu.Item leftSection={<IconTrendingDown size={16} color="red" />} onClick={() => setStokCikisModalOpened(true)}>Stok Çıkışı</Menu.Item>
+                <Menu.Item leftSection={<IconArrowsExchange size={16} color="blue" />} onClick={openTransfer}>Transfer</Menu.Item>
+                <Menu.Item leftSection={<IconClipboardList size={16} color="orange" />} onClick={() => setSayimModalOpened(true)}>Sayım</Menu.Item>
+                <Menu.Divider />
+                <Menu.Item leftSection={<IconHistory size={16} color="gray" />} onClick={() => setHareketlerModalOpened(true)}>Hareketler</Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+            <DataActions
+              type="stok"
+              onImportSuccess={() => loadData()}
+              kategoriler={kategoriler.map((k) => k.ad)}
+            />
+          </Group>
+        </MobileHide>
+      </MobileStack>
 
       {/* Modern İstatistik Kartları */}
       <Paper
-        p="md"
+        p={isMobile ? 'sm' : 'md'}
         radius="lg"
         mb="lg"
         style={{
@@ -1302,33 +1432,38 @@ function StokPageContent() {
           border: '1px solid var(--mantine-color-gray-2)',
         }}
       >
-        <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
+        <SimpleGrid cols={{ base: 2, sm: 4 }} spacing={isMobile ? 'xs' : 'md'}>
           <Box ta="center" py="xs">
-            <Text size="2rem" fw={800} c="blue">
-              {toplamKalem}
+            <Text size={isMobile ? 'xl' : '2rem'} fw={800} c="blue">
+              {stoklar.length}
             </Text>
             <Text size="xs" tt="uppercase" fw={600} c="dimmed">
-              Toplam Ürün
+              Stokta Ürün
             </Text>
+            <MobileHide hideOnMobile>
+              <Text size="xs" c="dimmed">
+                ({tumStokSayisi} ürün kartı)
+              </Text>
+            </MobileHide>
           </Box>
-          <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
-            <Text size="2rem" fw={800} c="red">
+          <Box ta="center" py="xs" style={{ borderLeft: isMobile ? 'none' : '1px solid var(--mantine-color-gray-3)' }}>
+            <Text size={isMobile ? 'xl' : '2rem'} fw={800} c="red">
               {kritikStok}
             </Text>
             <Text size="xs" tt="uppercase" fw={600} c="dimmed">
               Kritik Stok
             </Text>
           </Box>
-          <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
-            <Text size="2rem" fw={800} c="teal">
+          <Box ta="center" py="xs" style={{ borderLeft: isMobile ? 'none' : '1px solid var(--mantine-color-gray-3)' }}>
+            <Text size={isMobile ? 'lg' : '2rem'} fw={800} c="teal">
               {formatMoney(toplamDeger)}
             </Text>
             <Text size="xs" tt="uppercase" fw={600} c="dimmed">
               Stok Değeri
             </Text>
           </Box>
-          <Box ta="center" py="xs" style={{ borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
-            <Text size="2rem" fw={800} c="grape">
+          <Box ta="center" py="xs" style={{ borderLeft: isMobile ? 'none' : '1px solid var(--mantine-color-gray-3)' }}>
+            <Text size={isMobile ? 'xl' : '2rem'} fw={800} c="grape">
               {kategoriSayisi}
             </Text>
             <Text size="xs" tt="uppercase" fw={600} c="dimmed">
@@ -1340,7 +1475,8 @@ function StokPageContent() {
 
       {/* Modern Depo Seçimi */}
       <Box mb="lg">
-        <Group gap="md" wrap="wrap">
+        <ScrollArea scrollbarSize={isMobile ? 4 : 8} type={isMobile ? 'scroll' : 'hover'}>
+        <Group gap={isMobile ? 'xs' : 'md'} wrap="nowrap" style={{ minWidth: 'max-content' }}>
           {/* Tüm Depolar Kartı */}
           <Box
             onClick={() => {
@@ -1383,9 +1519,9 @@ function StokPageContent() {
                 Tüm Depolar
               </Text>
               <Text size="lg" fw={700}>
-                {tumStokSayisi}{' '}
+                {stoklar.length}{' '}
                 <Text span size="sm" fw={400}>
-                  ürün
+                  stokta
                 </Text>
               </Text>
             </Stack>
@@ -1479,7 +1615,47 @@ function StokPageContent() {
               </Box>
             );
           })}
+          
+          {/* Depo Ekle Kartı */}
+          <Box
+            onClick={() => setDepoModalOpened(true)}
+            style={{
+              cursor: 'pointer',
+              padding: '14px 20px',
+              borderRadius: '16px',
+              background: 'white',
+              border: '2px dashed var(--mantine-color-gray-4)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              minWidth: '120px',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--mantine-color-teal-5)';
+              e.currentTarget.style.background = 'var(--mantine-color-teal-0)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--mantine-color-gray-4)';
+              e.currentTarget.style.background = 'white';
+            }}
+          >
+            <Box
+              style={{
+                background: '#20c99715',
+                borderRadius: '12px',
+                padding: '10px',
+                display: 'flex',
+              }}
+            >
+              <IconPlus size={22} color="#20c997" />
+            </Box>
+            <Text size="sm" fw={500} c="dimmed">
+              Depo Ekle
+            </Text>
+          </Box>
         </Group>
+        </ScrollArea>
       </Box>
 
       {/* Modern Lokasyon Seçimi */}
@@ -1598,6 +1774,82 @@ function StokPageContent() {
                   </Paper>
                 )}
 
+                {/* Mobil Kart Görünümü */}
+                {isMobile && isMounted ? (
+                  <Stack gap="sm">
+                    {filteredStoklar.map((item) => (
+                      <Paper
+                        key={item.id}
+                        p="sm"
+                        radius="md"
+                        withBorder
+                        style={{
+                          borderLeft: `3px solid ${
+                            item.durum === 'kritik' ? 'var(--mantine-color-red-5)' :
+                            item.durum === 'dusuk' ? 'var(--mantine-color-orange-5)' :
+                            'var(--mantine-color-green-5)'
+                          }`,
+                          background: selectedStoklar.includes(item.id) ? 'var(--mantine-color-blue-0)' : undefined,
+                        }}
+                      >
+                        <Group justify="space-between" mb="xs">
+                          <Group gap="xs">
+                            <Checkbox
+                              size="sm"
+                              checked={selectedStoklar.includes(item.id)}
+                              onChange={() => handleSelectStok(item.id)}
+                            />
+                            <Badge size="xs" variant="light">{item.kod}</Badge>
+                          </Group>
+                          <Badge
+                            size="xs"
+                            color={
+                              item.durum === 'kritik' ? 'red' :
+                              item.durum === 'dusuk' ? 'orange' :
+                              item.durum === 'fazla' ? 'blue' : 'green'
+                            }
+                          >
+                            {item.durum.toUpperCase()}
+                          </Badge>
+                        </Group>
+                        
+                        <Text fw={600} size="sm" mb="xs" onClick={() => loadUrunDetay(item.id)} c="blue" style={{ cursor: 'pointer' }}>
+                          {item.ad}
+                        </Text>
+                        
+                        <Group justify="space-between" mb="xs">
+                          <Text size="xs" c="dimmed">{item.kategori}</Text>
+                          <Text size="sm" fw={600}>
+                            {formatMiktar(item.toplam_stok)} {item.birim}
+                          </Text>
+                        </Group>
+                        
+                        <Group justify="space-between" align="center">
+                          <Text size="xs" c="dimmed">
+                            {item.son_alis_fiyat ? `${formatMoney(item.son_alis_fiyat)}/${item.birim}` : '-'}
+                          </Text>
+                          <Group gap="xs">
+                            {(item.durum === 'kritik' || item.durum === 'dusuk') && (
+                              <ActionIcon variant="filled" color="blue" size="sm" onClick={() => router.push(`/muhasebe/satin-alma?urun=${encodeURIComponent(item.ad)}&miktar=${item.min_stok - item.toplam_stok}`)}>
+                                <IconShoppingCart size={14} />
+                              </ActionIcon>
+                            )}
+                            <ActionIcon variant="subtle" color="green" size="sm" onClick={() => { setTransferForm({ ...transferForm, stok_kart_id: item.id }); openTransfer(); }}>
+                              <IconArrowsExchange size={14} />
+                            </ActionIcon>
+                            {canDeleteStok && (
+                              <ActionIcon variant="subtle" color="red" size="sm" onClick={() => { if (confirm(`"${item.ad}" ürününü silmek?`)) handleDeleteStok(item.id); }}>
+                                <IconTrash size={14} />
+                              </ActionIcon>
+                            )}
+                          </Group>
+                        </Group>
+                      </Paper>
+                    ))}
+                  </Stack>
+                ) : (
+                  /* Desktop Tablo Görünümü */
+                  <ScrollArea>
                 <Table>
                   <Table.Thead>
                     <Table.Tr>
@@ -1647,7 +1899,14 @@ function StokPageContent() {
                           </Group>
                         </Table.Td>
                         <Table.Td>
-                          <Text fw={500}>{item.ad}</Text>
+                          <Text 
+                            fw={500} 
+                            style={{ cursor: 'pointer' }}
+                            c="blue"
+                            onClick={() => loadUrunDetay(item.id)}
+                          >
+                            {item.ad}
+                          </Text>
                         </Table.Td>
                         <Table.Td>{item.kategori}</Table.Td>
                         <Table.Td>
@@ -1733,6 +1992,8 @@ function StokPageContent() {
                     ))}
                   </Table.Tbody>
                 </Table>
+                </ScrollArea>
+                )}
               </Box>
             </Tabs>
           </Card>
@@ -2370,7 +2631,23 @@ function StokPageContent() {
         </Group>
       </Modal>
 
-      {/* Faturadan Stok Girişi Modal */}
+      {/* Ürün Detay Modal - Ortak Bileşen */}
+      <UrunDetayModal
+        opened={detayModalOpened}
+        onClose={() => {
+          setDetayModalOpened(false);
+          setDetayUrunId(null);
+        }}
+        urunId={detayUrunId}
+      />
+
+      {/* Tüm Ürün Kartları Modal */}
+      <UrunKartlariModal
+        opened={urunKartlariModalOpened}
+        onClose={() => setUrunKartlariModalOpened(false)}
+      />
+
+      {/* Stok Girişi Modal - Faturadan veya Manuel */}
       <Modal
         opened={faturaModalOpened}
         onClose={() => {
@@ -2379,18 +2656,102 @@ function StokPageContent() {
           setFaturaKalemler([]);
           setKalemEslestirme({});
         }}
-        title={selectedFatura ? `📄 ${selectedFatura.sender_name}` : '📄 Faturadan Stok Girişi'}
+        title={
+          selectedFatura 
+            ? `📄 ${selectedFatura.sender_name}` 
+            : (
+              <Group gap="sm">
+                <ThemeIcon size="lg" radius="xl" variant="gradient" gradient={{ from: 'green', to: 'teal' }}>
+                  <IconTrendingUp size={18} />
+                </ThemeIcon>
+                <Text fw={600}>Stok Girişi</Text>
+              </Group>
+            )
+        }
         size="xl"
         styles={{ body: { maxHeight: '70vh', overflowY: 'auto' } }}
       >
         <LoadingOverlay visible={faturaLoading} />
 
         {!selectedFatura ? (
-          // Fatura Listesi
+          // Ana Menü - Faturadan veya Manuel Seçim
           <Stack>
-            <Text size="sm" c="dimmed" mb="md">
-              Son 3 ayın gelen faturaları listeleniyor. İşlemek istediğiniz faturayı seçin.
-            </Text>
+            <SimpleGrid cols={2} spacing="md" mb="lg">
+              <Paper
+                p="lg"
+                withBorder
+                radius="md"
+                style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                onClick={() => {
+                  setFaturaModalOpened(false); // Önce bu modalı kapat
+                  setTimeout(() => open(), 100); // Sonra yeni ürün modalını aç
+                }}
+              >
+                <Stack align="center" gap="sm">
+                  <ThemeIcon size={50} radius="xl" variant="light" color="grape">
+                    <IconPlus size={24} />
+                  </ThemeIcon>
+                  <Text fw={600}>Manuel Giriş</Text>
+                  <Text size="xs" c="dimmed" ta="center">
+                    Tek tek ürün ekle, miktar ve fiyat gir
+                  </Text>
+                </Stack>
+              </Paper>
+              <Paper
+                p="lg"
+                withBorder
+                radius="md"
+                bg="teal.0"
+                style={{ cursor: 'default' }}
+              >
+                <Stack align="center" gap="sm">
+                  <ThemeIcon size={50} radius="xl" variant="gradient" gradient={{ from: 'teal', to: 'green' }}>
+                    <IconFileInvoice size={24} />
+                  </ThemeIcon>
+                  <Text fw={600}>Faturadan Ekle</Text>
+                  <Text size="xs" c="dimmed" ta="center">
+                    Uyumsoft faturalarından otomatik aktar
+                  </Text>
+                </Stack>
+              </Paper>
+            </SimpleGrid>
+            
+            <Divider label="Fatura Listesi" labelPosition="center" />
+            
+            <Group justify="space-between" mb="md">
+              <Text size="sm" c="dimmed">
+                Son 3 ayın gelen faturaları. İşlemek istediğiniz faturayı seçin.
+              </Text>
+              <Group>
+                <Select
+                  placeholder="Toplu işlem için depo seçin"
+                  data={depolar.map((d) => ({ value: d.id.toString(), label: d.ad }))}
+                  value={faturaGirisDepo?.toString() || null}
+                  onChange={(val) => setFaturaGirisDepo(val ? parseInt(val, 10) : null)}
+                  size="xs"
+                  style={{ width: 200 }}
+                />
+                <Button
+                  size="xs"
+                  variant="gradient"
+                  gradient={{ from: 'violet', to: 'blue' }}
+                  leftSection={<IconPackages size={14} />}
+                  loading={topluIslemLoading}
+                  disabled={!faturaGirisDepo || faturalar.filter((f) => !f.stok_islendi).length === 0}
+                  onClick={handleTopluFaturaIsle}
+                >
+                  Tümünü İşle ({faturalar.filter((f) => !f.stok_islendi).length})
+                </Button>
+              </Group>
+            </Group>
+
+            <Alert color="blue" variant="light" mb="sm">
+              <Text size="xs">
+                💡 <strong>Toplu İşlem:</strong> Depo seçip "Tümünü İşle" butonuna basarsanız, 
+                %90+ güven skorlu tüm kalemler otomatik stok girişi yapılır. 
+                Düşük güvenli olanlar manuel onay için bekletilir.
+              </Text>
+            </Alert>
 
             <Table striped highlightOnHover>
               <Table.Thead>
@@ -2485,6 +2846,28 @@ function StokPageContent() {
               required
             />
 
+            {/* Özet Kartları */}
+            {faturaOzet && (
+              <SimpleGrid cols={4} mb="md">
+                <Paper p="xs" withBorder>
+                  <Text size="xs" c="dimmed">Toplam Kalem</Text>
+                  <Text size="lg" fw={700}>{faturaOzet.toplam_kalem}</Text>
+                </Paper>
+                <Paper p="xs" withBorder style={{ borderColor: 'var(--mantine-color-green-5)' }}>
+                  <Text size="xs" c="green">Otomatik Eşleşen</Text>
+                  <Text size="lg" fw={700} c="green">{faturaOzet.otomatik_onay}</Text>
+                </Paper>
+                <Paper p="xs" withBorder style={{ borderColor: 'var(--mantine-color-yellow-5)' }}>
+                  <Text size="xs" c="yellow.7">Manuel Gereken</Text>
+                  <Text size="lg" fw={700} c="yellow.7">{faturaOzet.manuel_gereken}</Text>
+                </Paper>
+                <Paper p="xs" withBorder style={{ borderColor: faturaOzet.anomali_sayisi > 0 ? 'var(--mantine-color-red-5)' : undefined }}>
+                  <Text size="xs" c={faturaOzet.anomali_sayisi > 0 ? 'red' : 'dimmed'}>Fiyat Anomalisi</Text>
+                  <Text size="lg" fw={700} c={faturaOzet.anomali_sayisi > 0 ? 'red' : undefined}>{faturaOzet.anomali_sayisi}</Text>
+                </Paper>
+              </SimpleGrid>
+            )}
+
             <Divider my="sm" label="Fatura Kalemleri" labelPosition="center" />
 
             <Table striped>
@@ -2493,38 +2876,80 @@ function StokPageContent() {
                   <Table.Th>Ürün</Table.Th>
                   <Table.Th>Miktar</Table.Th>
                   <Table.Th>Fiyat</Table.Th>
+                  <Table.Th>Güven</Table.Th>
                   <Table.Th>Stok Kartı Eşleştirme</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
                 {faturaKalemler.map((kalem) => (
-                  <Table.Tr key={kalem.sira}>
+                  <Table.Tr 
+                    key={kalem.sira}
+                    style={{ 
+                      backgroundColor: kalem.anomali?.var ? 'rgba(255, 107, 107, 0.1)' : undefined 
+                    }}
+                  >
                     <Table.Td>
                       <Stack gap={0}>
-                        <Text size="sm" fw={500}>
-                          {kalem.urun_adi}
-                        </Text>
+                        <Group gap="xs">
+                          <Text size="sm" fw={500}>
+                            {kalem.urun_adi}
+                          </Text>
+                          {kalem.anomali?.var && (
+                            <ThemeIcon size="xs" color="red" variant="light" title={kalem.anomali.aciklama}>
+                              <IconAlertTriangle size={12} />
+                            </ThemeIcon>
+                          )}
+                        </Group>
                         <Text size="xs" c="dimmed">
-                          Kod: {kalem.urun_kodu}
+                          Kod: {kalem.urun_kodu || '-'}
                         </Text>
+                        {kalem.anomali?.var && (
+                          <Text size="xs" c="red">
+                            ⚠️ {kalem.anomali.aciklama}
+                          </Text>
+                        )}
                       </Stack>
                     </Table.Td>
                     <Table.Td>
-                      <Text>
-                        {formatMiktar(kalem.miktar)}{' '}
-                        {kalem.birim === 'KGM' ? 'Kg' : kalem.birim === 'C62' ? 'Ad' : kalem.birim}
-                      </Text>
+                      <Stack gap={0}>
+                        <Text>
+                          {formatMiktar(kalem.miktar)} {kalem.birim || 'Ad'}
+                        </Text>
+                        {kalem.birim_donusturuldu && (
+                          <Text size="xs" c="blue">
+                            ({formatMiktar(kalem.orijinal_miktar)} {kalem.orijinal_birim})
+                          </Text>
+                        )}
+                      </Stack>
                     </Table.Td>
                     <Table.Td>
-                      <Text>{kalem.birim_fiyat.toLocaleString('tr-TR')} ₺</Text>
+                      <Stack gap={0}>
+                        <Text>{(kalem.birim_fiyat || 0).toLocaleString('tr-TR')} ₺</Text>
+                        {kalem.anomali?.var && kalem.anomali.onceki_fiyat && (
+                          <Text size="xs" c="dimmed" style={{ textDecoration: 'line-through' }}>
+                            {kalem.anomali.onceki_fiyat.toLocaleString('tr-TR')} ₺
+                          </Text>
+                        )}
+                      </Stack>
+                    </Table.Td>
+                    <Table.Td>
+                      {kalem.eslesme ? (
+                        <Badge 
+                          color={kalem.eslesme.guven_skoru >= 90 ? 'green' : kalem.eslesme.guven_skoru >= 70 ? 'yellow' : 'red'}
+                          variant="light"
+                          size="sm"
+                        >
+                          %{Math.round(kalem.eslesme.guven_skoru)}
+                        </Badge>
+                      ) : (
+                        <Badge color="gray" variant="light" size="sm">-</Badge>
+                      )}
                     </Table.Td>
                     <Table.Td>
                       <Group gap="xs">
                         <Select
-                          placeholder="Stok kartı seç"
-                          data={stoklar
-                            .filter((s) => !s.kod?.startsWith('FAT-')) // Faturadan otomatik oluşturulanları hariç tut
-                            .map((s) => ({ value: s.id.toString(), label: `${s.kod} - ${s.ad}` }))}
+                          placeholder="Ürün kartı seç"
+                          data={tumUrunler.map((s) => ({ value: s.id.toString(), label: `${s.kod} - ${s.ad}` }))}
                           value={kalemEslestirme[kalem.sira]?.toString() || null}
                           onChange={(val) =>
                             setKalemEslestirme((prev) => ({
@@ -2545,60 +2970,35 @@ function StokPageContent() {
                           style={{ flex: 1 }}
                         />
                         <ActionIcon
-                          variant="light"
-                          color="green"
-                          title="Bu ürünü yeni stok kartı olarak ekle"
-                          onClick={async () => {
-                            // Fatura kaleminden stok kartı oluştur
-                            try {
-                              const birimId =
-                                birimler.find(
-                                  (b) =>
-                                    b.kisa_ad === (kalem.birim === 'KGM' ? 'kg' : 'adet') ||
-                                    b.kod === (kalem.birim === 'KGM' ? 'KG' : 'ADET')
-                                )?.id || birimler[0]?.id;
-
-                              const res = await fetch(`${API_URL}/stok/kartlar`, {
-                                method: 'POST',
-                                headers: { 
-                                  'Content-Type': 'application/json',
-                                  'Authorization': `Bearer ${getToken()}`,
-                                },
-                                body: JSON.stringify({
-                                  kod: kalem.urun_kodu || `FAT-${kalem.sira}`,
-                                  ad: kalem.urun_adi,
-                                  ana_birim_id: birimId,
-                                  kategori_id: kategoriler[0]?.id,
-                                  son_alis_fiyat: kalem.birim_fiyat,
-                                  kdv_orani: kalem.kdv_orani || 0,
-                                }),
-                              });
-                              const result = await res.json();
-                              if (result.success) {
-                                notifications.show({
-                                  title: 'Başarılı',
-                                  message: `"${kalem.urun_adi}" stok kartı oluşturuldu`,
-                                  color: 'green',
-                                });
-                                // Stokları yenile ve eşleştir
-                                await loadData();
-                                setKalemEslestirme((prev) => ({
-                                  ...prev,
-                                  [kalem.sira]: result.data.id,
-                                }));
-                              } else {
-                                throw new Error(result.error);
-                              }
-                            } catch (error: any) {
+                          variant={kalem.eslesme ? 'filled' : 'light'}
+                          color={kalem.eslesme ? 'blue' : 'gray'}
+                          title={kalem.eslesme 
+                            ? `🤖 "${kalem.eslesme.stok_adi}" (%${Math.round(kalem.eslesme.guven_skoru)}) - Tıkla eşleştir` 
+                            : 'Öneri yok - Soldaki listeden seç'
+                          }
+                          onClick={() => {
+                            if (kalem.eslesme) {
+                              // AI önerisi varsa, direkt eşleştir
+                              setKalemEslestirme((prev) => ({
+                                ...prev,
+                                [kalem.sira]: kalem.eslesme.stok_kart_id,
+                              }));
                               notifications.show({
-                                title: 'Hata',
-                                message: error.message,
-                                color: 'red',
+                                title: '🤖 AI Eşleştirme',
+                                message: `"${kalem.urun_adi}" → "${kalem.eslesme.stok_adi}"`,
+                                color: 'blue',
+                              });
+                            } else {
+                              notifications.show({
+                                title: '⚠️ Öneri Bulunamadı',
+                                message: `"${kalem.urun_adi}" için eşleşme yok. Soldaki Select'ten manuel seçin veya yeni ürün kartı oluşturun.`,
+                                color: 'yellow',
+                                autoClose: 5000,
                               });
                             }
                           }}
                         >
-                          <IconPlus size={14} />
+                          <IconWand size={14} />
                         </ActionIcon>
                       </Group>
                     </Table.Td>
@@ -2626,6 +3026,7 @@ function StokPageContent() {
           </Stack>
         )}
       </Modal>
+
     </Container>
   );
 }

@@ -18,5 +18,45 @@ services:
       timeout: 5s
       retries: 5
 
+  # WhatsApp Service (Node.js + whatsapp-web.js)
+  whatsapp-service:
+    build:
+      context: ./services/whatsapp
+      dockerfile: Dockerfile
+    container_name: catering_whatsapp
+    ports:
+      - "3002:3002"
+    volumes:
+      - whatsapp_session:/app/session
+    environment:
+      - PORT=3002
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Instagram Service (Python + instagrapi)
+  instagram-service:
+    build:
+      context: ./services/instagram
+      dockerfile: Dockerfile
+    container_name: catering_instagram
+    ports:
+      - "3003:3003"
+    volumes:
+      - instagram_session:/app
+    environment:
+      - PORT=3003
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 volumes:
   postgres_data:
+  whatsapp_session:
+  instagram_session:

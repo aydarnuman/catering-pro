@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../database.js';
 import tenderScheduler from '../services/tender-scheduler.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -28,7 +29,7 @@ router.get('/', async (req, res) => {
       `);
     } catch (error) {
       // Status güncelleme hatası kritik değil, devam et
-      console.warn('Status güncelleme hatası (kritik değil):', error.message);
+      logger.warn('Status güncelleme hatası (kritik değil)', { error: error.message });
     }
     
     const offset = (page - 1) * limit;
@@ -78,8 +79,8 @@ router.get('/', async (req, res) => {
     const whereString = whereClause.length > 0 ? whereClause.join(' AND ') : '1=1';
     
     // Debug: Status filtreleme bilgisi
-    if (status === 'expired') {
-      console.log(`[TENDERS] Expired filter - WHERE: ${whereString}, Params:`, params);
+    if (status === 'expired' && process.env.LOG_LEVEL === 'debug') {
+      logger.debug('Expired filter', { where: whereString, params });
     }
     
     // Toplam sayı
@@ -90,8 +91,8 @@ router.get('/', async (req, res) => {
     const total = parseInt(countResult.rows[0].count);
     
     // Debug: Toplam sayı
-    if (status === 'expired') {
-      console.log(`[TENDERS] Expired filter - Total count: ${total}`);
+    if (status === 'expired' && process.env.LOG_LEVEL === 'debug') {
+      logger.debug('Expired filter total', { total });
     }
     
     // Veri - Frontend mapping için field'ları düzenleyelim
@@ -153,7 +154,7 @@ router.get('/', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('İhale listesi hatası:', error);
+    logger.error('İhale listesi hatası', { error: error.message });
     res.status(500).json({ error: error.message });
   }
 });
@@ -189,7 +190,7 @@ router.get('/stats', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('İstatistik hatası:', error);
+    logger.error('İstatistik hatası', { error: error.message });
     res.status(500).json({ error: error.message });
   }
 });
@@ -211,7 +212,7 @@ router.get('/cities', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Şehir listesi hatası:', error);
+    logger.error('Şehir listesi hatası', { error: error.message });
     res.status(500).json({ error: error.message });
   }
 });
@@ -245,7 +246,7 @@ router.get('/:id', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('İhale detay hatası:', error);
+    logger.error('İhale detay hatası', { error: error.message });
     res.status(500).json({ error: error.message });
   }
 });
@@ -309,7 +310,7 @@ router.patch('/:id', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('İhale güncelleme hatası:', error);
+    logger.error('İhale güncelleme hatası', { error: error.message });
     res.status(500).json({ error: error.message });
   }
 });
@@ -334,7 +335,7 @@ router.delete('/:id', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('İhale silme hatası:', error);
+    logger.error('İhale silme hatası', { error: error.message });
     res.status(500).json({ error: error.message });
   }
 });
@@ -344,7 +345,7 @@ router.post('/scrape', async (req, res) => {
   try {
     const { maxPages = 3 } = req.body;
     
-    console.log(`📲 Manuel ihale scrape isteği: ${maxPages} sayfa`);
+    logger.info('Manuel ihale scrape isteği', { maxPages });
     
     const result = await tenderScheduler.triggerManualScrape({ maxPages });
     
@@ -355,7 +356,7 @@ router.post('/scrape', async (req, res) => {
       error: result.error
     });
   } catch (error) {
-    console.error('❌ Manuel scrape hatası:', error);
+    logger.error('Manuel scrape hatası', { error: error.message });
     res.status(500).json({
       success: false,
       error: error.message
@@ -514,7 +515,7 @@ router.get('/stats/updates', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Stats error:', error);
+    logger.error('Stats error', { error: error.message });
     res.status(500).json({
       success: false,
       error: error.message

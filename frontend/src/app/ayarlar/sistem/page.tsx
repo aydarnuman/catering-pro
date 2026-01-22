@@ -43,10 +43,6 @@ interface HealthStatus {
   database: string;
 }
 
-interface LogEntry {
-  line: string;
-}
-
 export default function SistemPage() {
   const API_URL = API_BASE_URL;
 

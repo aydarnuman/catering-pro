@@ -98,15 +98,15 @@ router.get('/', async (req, res) => {
         LIMIT $2
       `, [searchTerm, limitNum]),
       
-      // Stok Kartları
+      // Ürün Kartları - YENİ SİSTEM: urun_kartlari
       query(`
-        SELECT 
+        SELECT
           id,
           ad as title,
           kod,
           marka as kategori,
           'stok' as type
-        FROM stok_kartlari 
+        FROM urun_kartlari
         WHERE (ad ILIKE $1 OR kod ILIKE $1 OR barkod ILIKE $1)
           AND aktif = true
         ORDER BY ad ASC

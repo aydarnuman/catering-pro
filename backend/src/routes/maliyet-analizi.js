@@ -179,16 +179,16 @@ router.get('/sablonlar/:id', async (req, res) => {
           const malzemeResult = await query(`
             SELECT 
               rm.id,
-              COALESCE(sk.ad, rm.malzeme_adi) as malzeme_adi,
+              COALESCE(uk.ad, rm.malzeme_adi) as malzeme_adi,
               rm.miktar,
               rm.birim,
               rm.birim_fiyat as sistem_fiyat,
               rm.toplam_fiyat as sistem_toplam,
               (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi 
-               WHERE stok_kart_id = rm.stok_kart_id 
+               WHERE urun_kart_id = rm.urun_kart_id 
                ORDER BY arastirma_tarihi DESC LIMIT 1) as piyasa_fiyat
             FROM recete_malzemeler rm
-            LEFT JOIN stok_kartlari sk ON sk.id = rm.stok_kart_id
+            LEFT JOIN urun_kartlari uk ON uk.id = rm.urun_kart_id
             WHERE rm.recete_id = $1
             ORDER BY rm.sira
           `, [yemek.recete_id]);
@@ -558,11 +558,11 @@ async function hesaplaSablonMaliyet(sablonId) {
             rm.birim,
             rm.toplam_fiyat as sistem_toplam,
             (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi 
-             WHERE stok_kart_id = rm.stok_kart_id 
+             WHERE urun_kart_id = rm.urun_kart_id 
              ORDER BY arastirma_tarihi DESC LIMIT 1) as piyasa_fiyat,
-            sk.son_alis_fiyat
+            uk.son_alis_fiyati
           FROM recete_malzemeler rm
-          LEFT JOIN stok_kartlari sk ON sk.id = rm.stok_kart_id
+          LEFT JOIN urun_kartlari uk ON uk.id = rm.urun_kart_id
           WHERE rm.recete_id = $1
         `, [yemek.recete_id]);
         
@@ -823,19 +823,19 @@ router.get('/receteler', async (req, res) => {
         (SELECT COALESCE(SUM(
           CASE 
             WHEN rm.birim IN ('g', 'gr', 'ml') THEN (rm.miktar / 1000.0) * COALESCE(
-              (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi WHERE stok_kart_id = rm.stok_kart_id ORDER BY arastirma_tarihi DESC LIMIT 1),
-              sk.son_alis_fiyat,
+              (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi WHERE urun_kart_id = rm.urun_kart_id ORDER BY arastirma_tarihi DESC LIMIT 1),
+              uk.son_alis_fiyati,
               rm.birim_fiyat
             )
             ELSE rm.miktar * COALESCE(
-              (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi WHERE stok_kart_id = rm.stok_kart_id ORDER BY arastirma_tarihi DESC LIMIT 1),
-              sk.son_alis_fiyat,
+              (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi WHERE urun_kart_id = rm.urun_kart_id ORDER BY arastirma_tarihi DESC LIMIT 1),
+              uk.son_alis_fiyati,
               rm.birim_fiyat
             )
           END
         ), 0)
         FROM recete_malzemeler rm
-        LEFT JOIN stok_kartlari sk ON sk.id = rm.stok_kart_id
+        LEFT JOIN urun_kartlari uk ON uk.id = rm.urun_kart_id
         WHERE rm.recete_id = r.id) as piyasa_maliyet
       FROM receteler r
       LEFT JOIN recete_kategoriler rk ON rk.id = r.kategori_id
@@ -919,14 +919,14 @@ router.get('/receteler/:id/maliyet', async (req, res) => {
     const malzemelerResult = await query(`
       SELECT 
         rm.id,
-        COALESCE(sk.ad, rm.malzeme_adi) as malzeme_adi,
+        COALESCE(uk.ad, rm.malzeme_adi) as malzeme_adi,
         rm.miktar,
         rm.birim,
         rm.birim_fiyat as sistem_birim_fiyat,
         rm.toplam_fiyat as sistem_toplam,
-        sk.son_alis_fiyat,
+        uk.son_alis_fiyati,
         (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi 
-         WHERE stok_kart_id = rm.stok_kart_id 
+         WHERE urun_kart_id = rm.urun_kart_id 
          ORDER BY arastirma_tarihi DESC LIMIT 1) as piyasa_fiyat,
         (SELECT json_build_object(
           'min', piyasa_fiyat_min,
@@ -934,10 +934,10 @@ router.get('/receteler/:id/maliyet', async (req, res) => {
           'ort', piyasa_fiyat_ort,
           'tarih', arastirma_tarihi
         ) FROM piyasa_fiyat_gecmisi 
-         WHERE stok_kart_id = rm.stok_kart_id 
+         WHERE urun_kart_id = rm.urun_kart_id 
          ORDER BY arastirma_tarihi DESC LIMIT 1) as piyasa_detay
       FROM recete_malzemeler rm
-      LEFT JOIN stok_kartlari sk ON sk.id = rm.stok_kart_id
+      LEFT JOIN urun_kartlari uk ON uk.id = rm.urun_kart_id
       WHERE rm.recete_id = $1
       ORDER BY rm.sira
     `, [id]);

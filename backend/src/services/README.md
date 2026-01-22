@@ -40,8 +40,8 @@ Ana AI asistan servisi. Streaming chat, tool calling ve context management sağl
 - Conversation memory
 - System prompt management
 
-// Kullanım
-const { chat, agentChat } = require('./services/claude-ai-service');
+// Kullanım (ES Modules)
+import { chat, agentChat } from './services/claude-ai.js';
 
 // Streaming chat
 await chat(messages, onChunk, { stream: true });
@@ -56,19 +56,19 @@ await agentChat(messages, tools, onChunk);
 - Tool execution dispatcher
 - System context generator
 
-### gemini.js - Gemini AI Servisi
-Döküman analizi ve OCR işlemleri için Gemini Vision API kullanır.
+### claude.js - Claude AI Döküman Analiz Servisi
+Döküman analizi ve OCR işlemleri için Claude Vision API kullanır.
 
 ```javascript
 // Özellikler
-- PDF/Döküman analizi
+- PDF/Döküman analizi (Claude Vision)
 - OCR (görüntüden metin)
 - Yapılandırılmış veri çıkarma
 - Multimodal analysis
 
-// Kullanım
-const gemini = require('./services/gemini');
-const result = await gemini.analyzeDocument(filePath);
+// Kullanım (ES Modules)
+import { analyzeDocument } from './services/claude.js';
+const result = await analyzeDocument(filePath);
 ```
 
 ### document-analysis.js - Döküman Analiz Servisi
@@ -83,8 +83,8 @@ const result = await gemini.analyzeDocument(filePath);
 - Şartname maddeleri
 - Gramaj tabloları
 
-// Kullanım
-const { analyzeDocument } = require('./services/document-analysis');
+// Kullanım (ES Modules)
+import { analyzeDocument } from './services/document-analyzer.js';
 const result = await analyzeDocument(documentId);
 ```
 
@@ -472,13 +472,13 @@ logs/exceptions-YYYY-MM-DD.log
 ## 📚 Kullanım Örneği
 
 ```javascript
-// Route'tan servis çağırma
-const cariService = require('../services/cari-service');
+// Route'tan servis çağırma (ES Modules)
+import { getCariler } from '../services/cari-service.js';
 
 router.get('/', async (req, res) => {
   try {
     const { page, limit, tip, search } = req.query;
-    const result = await cariService.getCariler({ tip, search }, { page, limit });
+    const result = await getCariler({ tip, search }, { page, limit });
     res.json({ success: true, ...result });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });

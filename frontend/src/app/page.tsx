@@ -10,6 +10,7 @@ import {
   Container,
   Grid,
   Group,
+  Modal,
   Paper,
   ScrollArea,
   SimpleGrid,
@@ -18,16 +19,14 @@ import {
   Text,
   TextInput,
   ThemeIcon,
-  Transition,
+  Tooltip,
   useMantineColorScheme,
 } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
+import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import {
-  IconActivity,
   IconAlertCircle,
   IconArrowRight,
   IconBuildingBank,
-  IconBulb,
   IconCalendar,
   IconClock,
   IconFileText,
@@ -44,7 +43,6 @@ import {
   IconUpload,
   IconUsers,
   IconWallet,
-  IconX,
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -240,9 +238,9 @@ export default function HomePage() {
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [newNote, setNewNote] = useState('');
-  const [isAddingNote, setIsAddingNote] = useState(false);
   const [aiTip, setAiTip] = useState<string>('');
   const [_aiTipIndex, setAiTipIndex] = useState(0);
+  const [notesModalOpened, { open: openNotesModal, close: closeNotesModal }] = useDisclosure(false);
   const greeting = getGreeting();
   const GreetingIcon = greeting.icon;
 
@@ -315,7 +313,6 @@ export default function HomePage() {
         body: JSON.stringify({ content: newNote.trim() }),
       });
       setNewNote('');
-      setIsAddingNote(false);
       mutateNotlar();
     } catch (error) {
       console.error('Not ekleme hatası:', error);
@@ -468,7 +465,7 @@ export default function HomePage() {
                 </Box>
               )}
 
-              {/* Sağ: Mini Stats */}
+              {/* Sağ: Mini Stats + Notes Button */}
               {!isMobile && !isTablet && (
                 <Group gap="xl" style={{ flex: '0 0 auto' }}>
                   <Box ta="center">
@@ -494,7 +491,47 @@ export default function HomePage() {
                       Bekleyen Not
                     </Text>
                   </Box>
+                  <Box
+                    style={{
+                      width: 1,
+                      height: 40,
+                      background: 'rgba(255,255,255,0.15)',
+                    }}
+                  />
+                  <Tooltip label="Notlarım" position="bottom" withArrow>
+                    <ActionIcon
+                      variant="gradient"
+                      gradient={{ from: 'violet', to: 'purple', deg: 135 }}
+                      size="xl"
+                      radius="xl"
+                      onClick={openNotesModal}
+                      style={{
+                        boxShadow: '0 4px 20px rgba(139, 92, 246, 0.4)',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      <IconNote size={22} />
+                    </ActionIcon>
+                  </Tooltip>
                 </Group>
+              )}
+
+              {/* Mobile/Tablet: Notes Button */}
+              {(isMobile || isTablet) && (
+                <Tooltip label="Notlarım" position="bottom" withArrow>
+                  <ActionIcon
+                    variant="gradient"
+                    gradient={{ from: 'violet', to: 'purple', deg: 135 }}
+                    size="lg"
+                    radius="xl"
+                    onClick={openNotesModal}
+                    style={{
+                      boxShadow: '0 4px 20px rgba(139, 92, 246, 0.4)',
+                    }}
+                  >
+                    <IconNote size={18} />
+                  </ActionIcon>
+                </Tooltip>
               )}
             </Group>
 
@@ -509,12 +546,9 @@ export default function HomePage() {
                   border: '1px solid rgba(255, 255, 255, 0.1)',
                 }}
               >
-                <Group gap="xs" wrap="nowrap">
-                  <IconBulb size={16} color="#fbbf24" />
-                  <Text size="xs" c="white" style={{ flex: 1 }} lineClamp={2}>
-                    {aiTip}
-                  </Text>
-                </Group>
+                <Text size="xs" c="white" lineClamp={2}>
+                  {aiTip}
+                </Text>
               </Paper>
             )}
           </Box>
@@ -626,7 +660,7 @@ export default function HomePage() {
           {/* ========== MAIN CONTENT GRID ========== */}
           <Grid gutter="lg">
             {/* Yaklaşan İhaleler */}
-            <Grid.Col span={{ base: 12, md: 6, lg: 4 }}>
+            <Grid.Col span={12}>
               <Paper
                 p="lg"
                 radius="lg"
@@ -697,255 +731,189 @@ export default function HomePage() {
               </Paper>
             </Grid.Col>
 
-            {/* Notlarım */}
-            <Grid.Col span={{ base: 12, md: 6, lg: 4 }}>
-              <Paper
-                p="lg"
-                radius="lg"
-                style={{
-                  background: isDark ? 'rgba(255,255,255,0.03)' : 'white',
-                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
-                  height: '100%',
-                }}
-              >
-                <Group justify="space-between" mb="md">
-                  <Group gap="xs">
-                    <ThemeIcon size={32} radius="lg" variant="light" color="violet">
-                      <IconNote size={18} />
-                    </ThemeIcon>
-                    <Text fw={700} size="md">
-                      Notlarım
-                    </Text>
-                  </Group>
-                  <ActionIcon
-                    variant="light"
-                    color="violet"
-                    radius="md"
-                    onClick={() => setIsAddingNote(!isAddingNote)}
-                  >
-                    {isAddingNote ? <IconX size={16} /> : <IconPlus size={16} />}
-                  </ActionIcon>
-                </Group>
-
-                {/* Not ekleme */}
-                <Transition mounted={isAddingNote} transition="slide-down" duration={200}>
-                  {(styles) => (
-                    <Box style={styles} mb="sm">
-                      <TextInput
-                        placeholder="Yeni not ekle..."
-                        value={newNote}
-                        onChange={(e) => setNewNote(e.currentTarget.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
-                        size="sm"
-                        radius="md"
-                        rightSection={
-                          <ActionIcon
-                            variant="filled"
-                            color="violet"
-                            size="sm"
-                            radius="md"
-                            onClick={handleAddNote}
-                            disabled={!newNote.trim()}
-                          >
-                            <IconPlus size={14} />
-                          </ActionIcon>
-                        }
-                      />
-                    </Box>
-                  )}
-                </Transition>
-
-                {/* Notlar listesi */}
-                <ScrollArea h={220} scrollbarSize={4}>
-                  <Stack gap={8}>
-                    {notlar.length === 0 ? (
-                      <Text size="sm" c="dimmed" ta="center" py="xl">
-                        Henüz not yok. + ile ekleyin.
-                      </Text>
-                    ) : (
-                      notlar.map((not) => (
-                        <Group
-                          key={not.id}
-                          gap="xs"
-                          p="sm"
-                          style={{
-                            background: not.is_completed
-                              ? isDark
-                                ? 'rgba(34, 197, 94, 0.1)'
-                                : 'rgba(34, 197, 94, 0.08)'
-                              : isDark
-                                ? 'rgba(255,255,255,0.03)'
-                                : 'rgba(0,0,0,0.02)',
-                            borderRadius: 10,
-                            borderLeft: `3px solid ${not.is_completed ? '#22c55e' : '#8B5CF6'}`,
-                            transition: 'all 0.2s ease',
-                          }}
-                          className="note-item"
-                        >
-                          <Checkbox
-                            checked={not.is_completed}
-                            onChange={() => handleToggleNote(not.id)}
-                            size="sm"
-                            color="green"
-                            radius="md"
-                          />
-                          <Text
-                            size="sm"
-                            c={not.is_completed ? 'dimmed' : undefined}
-                            td={not.is_completed ? 'line-through' : undefined}
-                            style={{ flex: 1 }}
-                            lineClamp={1}
-                          >
-                            {not.content}
-                          </Text>
-                          <ActionIcon
-                            variant="subtle"
-                            color="red"
-                            size="sm"
-                            radius="md"
-                            onClick={() => handleDeleteNote(not.id)}
-                          >
-                            <IconTrash size={14} />
-                          </ActionIcon>
-                        </Group>
-                      ))
-                    )}
-                  </Stack>
-                </ScrollArea>
-              </Paper>
-            </Grid.Col>
-
-            {/* Aktivite & Durum */}
-            <Grid.Col span={{ base: 12, lg: 4 }}>
-              <Paper
-                p="lg"
-                radius="lg"
-                style={{
-                  background: isDark ? 'rgba(255,255,255,0.03)' : 'white',
-                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
-                  height: '100%',
-                }}
-              >
-                <Group justify="space-between" mb="md">
-                  <Group gap="xs">
-                    <ThemeIcon size={32} radius="lg" variant="light" color="teal">
-                      <IconActivity size={18} />
-                    </ThemeIcon>
-                    <Text fw={700} size="md">
-                      Sistem Durumu
-                    </Text>
-                  </Group>
-                  <Badge size="sm" variant="dot" color="green" radius="md">
-                    Aktif
-                  </Badge>
-                </Group>
-
-                <Stack gap="md">
-                  {/* AI Status */}
-                  <Paper
-                    p="sm"
-                    radius="md"
-                    style={{
-                      background: isDark ? 'rgba(139, 92, 246, 0.1)' : 'rgba(139, 92, 246, 0.05)',
-                      border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.1)'}`,
-                    }}
-                  >
-                    <Group justify="space-between">
-                      <Group gap="xs">
-                        <Box
-                          style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: '50%',
-                            background: '#22c55e',
-                            boxShadow: '0 0 8px #22c55e',
-                          }}
-                        />
-                        <Text size="sm" fw={500}>
-                          AI Analiz
-                        </Text>
-                      </Group>
-                      <Text size="sm" fw={700} c="violet">
-                        {stats?.aiAnalysisCount || 0}
-                      </Text>
-                    </Group>
-                    <Text size="xs" c="dimmed" mt={4}>
-                      Gemini API bağlantısı aktif
-                    </Text>
-                  </Paper>
-
-                  {/* Database Status */}
-                  <Paper
-                    p="sm"
-                    radius="md"
-                    style={{
-                      background: isDark ? 'rgba(20, 184, 166, 0.1)' : 'rgba(20, 184, 166, 0.05)',
-                      border: `1px solid ${isDark ? 'rgba(20, 184, 166, 0.2)' : 'rgba(20, 184, 166, 0.1)'}`,
-                    }}
-                  >
-                    <Group justify="space-between">
-                      <Group gap="xs">
-                        <Box
-                          style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: '50%',
-                            background: '#22c55e',
-                            boxShadow: '0 0 8px #22c55e',
-                          }}
-                        />
-                        <Text size="sm" fw={500}>
-                          Veritabanı
-                        </Text>
-                      </Group>
-                      <Text size="sm" fw={700} c="teal">
-                        Supabase
-                      </Text>
-                    </Group>
-                    <Text size="xs" c="dimmed" mt={4}>
-                      PostgreSQL bağlantısı aktif
-                    </Text>
-                  </Paper>
-
-                  {/* Quick Stats */}
-                  <SimpleGrid cols={2} spacing="xs">
-                    <Paper
-                      p="sm"
-                      radius="md"
-                      ta="center"
-                      style={{
-                        background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-                      }}
-                    >
-                      <Text size="xl" fw={800} c="blue">
-                        {totalTenders}
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        Toplam İhale
-                      </Text>
-                    </Paper>
-                    <Paper
-                      p="sm"
-                      radius="md"
-                      ta="center"
-                      style={{
-                        background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-                      }}
-                    >
-                      <Text size="xl" fw={800} c="teal">
-                        {notlar.filter((n) => n.is_completed).length}
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        Tamamlanan
-                      </Text>
-                    </Paper>
-                  </SimpleGrid>
-                </Stack>
-              </Paper>
-            </Grid.Col>
           </Grid>
         </Stack>
       </Container>
+
+      {/* ========== NOTES MODAL ========== */}
+      <Modal
+        opened={notesModalOpened}
+        onClose={closeNotesModal}
+        title={
+          <Group gap="sm">
+            <ThemeIcon size={32} radius="lg" variant="gradient" gradient={{ from: 'violet', to: 'purple' }}>
+              <IconNote size={18} />
+            </ThemeIcon>
+            <Box>
+              <Text fw={700} size="lg">Notlarım</Text>
+              <Text size="xs" c="dimmed">Yapışkan notlar ve hatırlatıcılar</Text>
+            </Box>
+          </Group>
+        }
+        size="lg"
+        radius="xl"
+        padding="xl"
+        overlayProps={{
+          backgroundOpacity: 0.55,
+          blur: 3,
+        }}
+        styles={{
+          header: {
+            paddingBottom: 16,
+            borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+          },
+          content: {
+            background: isDark ? '#1a1b26' : 'white',
+          },
+        }}
+      >
+        <Stack gap="md" pt="sm">
+          {/* Not ekleme formu */}
+          <Paper
+            p="md"
+            radius="lg"
+            style={{
+              background: isDark ? 'rgba(139, 92, 246, 0.1)' : 'rgba(139, 92, 246, 0.05)',
+              border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.3)' : 'rgba(139, 92, 246, 0.2)'}`,
+            }}
+          >
+            <TextInput
+              placeholder="Yeni not ekle... (Enter ile kaydet)"
+              value={newNote}
+              onChange={(e) => setNewNote(e.currentTarget.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
+              size="md"
+              radius="lg"
+              leftSection={<IconPlus size={16} color="#8B5CF6" />}
+              rightSection={
+                <ActionIcon
+                  variant="gradient"
+                  gradient={{ from: 'violet', to: 'purple' }}
+                  size="md"
+                  radius="lg"
+                  onClick={handleAddNote}
+                  disabled={!newNote.trim()}
+                >
+                  <IconPlus size={16} />
+                </ActionIcon>
+              }
+              styles={{
+                input: {
+                  background: isDark ? 'rgba(0,0,0,0.3)' : 'white',
+                  border: 'none',
+                  '&:focus': {
+                    borderColor: '#8B5CF6',
+                  },
+                },
+              }}
+            />
+          </Paper>
+
+          {/* Stats */}
+          <Group justify="space-between">
+            <Group gap="xl">
+              <Box>
+                <Text size="xl" fw={800} c="violet">{notlar.filter((n) => !n.is_completed).length}</Text>
+                <Text size="xs" c="dimmed">Bekleyen</Text>
+              </Box>
+              <Box>
+                <Text size="xl" fw={800} c="teal">{notlar.filter((n) => n.is_completed).length}</Text>
+                <Text size="xs" c="dimmed">Tamamlanan</Text>
+              </Box>
+            </Group>
+            <Badge size="lg" variant="light" color="violet" radius="md">
+              Toplam: {notlar.length}
+            </Badge>
+          </Group>
+
+          {/* Notlar listesi */}
+          <ScrollArea h={350} scrollbarSize={6} offsetScrollbars>
+            <Stack gap="xs">
+              {notlar.length === 0 ? (
+                <Paper
+                  p="xl"
+                  radius="lg"
+                  ta="center"
+                  style={{
+                    background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                    border: `2px dashed ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                  }}
+                >
+                  <IconNote size={48} color={isDark ? '#555' : '#ccc'} style={{ marginBottom: 12 }} />
+                  <Text size="md" c="dimmed" fw={500}>Henüz not yok</Text>
+                  <Text size="sm" c="dimmed" mt={4}>
+                    Yukarıdaki alana yazarak ilk notunuzu ekleyin
+                  </Text>
+                </Paper>
+              ) : (
+                notlar.map((not) => (
+                  <Paper
+                    key={not.id}
+                    p="md"
+                    radius="lg"
+                    style={{
+                      background: not.is_completed
+                        ? isDark
+                          ? 'rgba(34, 197, 94, 0.1)'
+                          : 'rgba(34, 197, 94, 0.08)'
+                        : isDark
+                          ? 'rgba(255,255,255,0.03)'
+                          : 'rgba(0,0,0,0.02)',
+                      borderLeft: `4px solid ${not.is_completed ? '#22c55e' : '#8B5CF6'}`,
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <Group justify="space-between" wrap="nowrap">
+                      <Group gap="sm" wrap="nowrap" style={{ flex: 1 }}>
+                        <Checkbox
+                          checked={not.is_completed}
+                          onChange={() => handleToggleNote(not.id)}
+                          size="md"
+                          color="green"
+                          radius="xl"
+                          styles={{
+                            input: {
+                              cursor: 'pointer',
+                            },
+                          }}
+                        />
+                        <Box style={{ flex: 1, minWidth: 0 }}>
+                          <Text
+                            size="sm"
+                            fw={500}
+                            c={not.is_completed ? 'dimmed' : undefined}
+                            td={not.is_completed ? 'line-through' : undefined}
+                            lineClamp={2}
+                          >
+                            {not.content}
+                          </Text>
+                          <Text size="xs" c="dimmed" mt={4}>
+                            {new Date(not.created_at).toLocaleDateString('tr-TR', {
+                              day: 'numeric',
+                              month: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </Text>
+                        </Box>
+                      </Group>
+                      <ActionIcon
+                        variant="subtle"
+                        color="red"
+                        size="md"
+                        radius="lg"
+                        onClick={() => handleDeleteNote(not.id)}
+                      >
+                        <IconTrash size={16} />
+                      </ActionIcon>
+                    </Group>
+                  </Paper>
+                ))
+              )}
+            </Stack>
+          </ScrollArea>
+        </Stack>
+      </Modal>
     </Box>
   );
 }

@@ -60,27 +60,28 @@ Hazır yemek sektörü için kapsamlı ERP-benzeri kurumsal iş yönetim sistemi
 
 ```
 CATERİNG/
-├── backend/                  # Node.js + Express API
+├── backend/                  # Node.js + Express API (ES Modules)
 │   └── src/
-│       ├── routes/           # API endpoints (39 dosya)
-│       ├── services/         # Business logic (33+ dosya)
-│       │   └── ai-tools/     # AI araç modülleri
-│       ├── migrations/       # SQL migrations (54 dosya)
+│       ├── routes/           # API endpoints (46 dosya)
+│       ├── services/         # Business logic (~36 dosya)
+│       │   └── ai-tools/     # AI araç modülleri (10 dosya)
+│       ├── migrations/       # SQL migrations (72 dosya)
 │       ├── scraper/          # ihalebul.com scraper
 │       ├── database.js       # PostgreSQL connection
 │       └── server.js         # Express entry point
 │
-├── frontend/                 # Next.js 14 + React
+├── frontend/                 # Next.js 15 + React
 │   └── src/
 │       ├── app/              # App Router pages
 │       │   ├── tenders/      # İhale modülü
+│       │   ├── tracking/     # İhale takip
 │       │   ├── muhasebe/     # Muhasebe modülü
 │       │   ├── planlama/     # Üretim planlama
 │       │   └── ai-chat/      # AI asistan
 │       ├── components/       # UI components
-│       ├── context/          # React context
+│       ├── context/          # AuthContext
 │       ├── hooks/            # Custom hooks
-│       └── lib/              # Utilities
+│       └── lib/              # Utilities + API config
 │
 ├── docs/                     # Dokümantasyon
 │   ├── ARCHITECTURE.md
@@ -108,17 +109,16 @@ CATERİNG/
 ### Frontend
 | Teknoloji | Açıklama |
 |-----------|----------|
-| Next.js 14 | React framework (App Router) |
-| Mantine UI | Component library |
-| Tailwind CSS | Styling |
+| Next.js 15 | React framework (App Router) |
+| Mantine UI 7.17 | Component library |
+| React Query | Data fetching (@tanstack/react-query) |
 | Recharts | Grafikler |
-| SWR | Data fetching |
+| Custom AuthContext | JWT Authentication |
 
 ### AI
 | Teknoloji | Açıklama |
 |-----------|----------|
-| Claude AI | Chat & analiz (@anthropic-ai/sdk) |
-| Gemini AI | Döküman OCR & analiz |
+| Claude AI | Chat, analiz & döküman işleme (@anthropic-ai/sdk) |
 
 ### Deployment
 | Teknoloji | Açıklama |
@@ -166,9 +166,9 @@ NODE_ENV=development
 **Frontend (.env.local):**
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3001
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your-nextauth-secret
 ```
+
+> **Not:** Auth sistemi Custom AuthContext + JWT kullanmaktadır. NextAuth kullanılmamaktadır.
 
 ### 3. Bağımlılıkları Yükle
 

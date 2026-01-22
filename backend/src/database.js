@@ -1,4 +1,5 @@
 import pg from 'pg';
+import logger from './utils/logger.js';
 // Note: .env is loaded by env-loader.js in server.js
 
 const { Pool } = pg;
@@ -14,7 +15,7 @@ const pool = new Pool({
 
 // Bağlantı hatası yönetimi
 pool.on('error', (err) => {
-  console.error('Database pool error:', err);
+  logger.error('Database pool error', { error: err.message, stack: err.stack });
 });
 
 // Query helper
@@ -23,10 +24,13 @@ export async function query(text, params) {
   try {
     const res = await pool.query(text, params);
     const duration = Date.now() - start;
-    console.log('Executed query', { text, duration, rows: res.rowCount });
+    // Sadece debug modunda query log (çok fazla log oluşturur)
+    if (process.env.LOG_LEVEL === 'debug') {
+      logger.debug('Executed query', { text: text.substring(0, 100), duration, rows: res.rowCount });
+    }
     return res;
   } catch (error) {
-    console.error('Query error:', error);
+    logger.error('Query error', { query: text.substring(0, 200), error: error.message });
     throw error;
   }
 }

@@ -6,11 +6,12 @@
 import jwt from 'jsonwebtoken';
 import PermissionService from '../services/permission-service.js';
 import AuditService from '../services/audit-service.js';
+import logger from '../utils/logger.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET) {
-  console.error('⚠️  UYARI: JWT_SECRET tanımlanmamış! Bu güvenlik açığıdır.');
+  logger.error('UYARI: JWT_SECRET tanımlanmamış! Bu güvenlik açığıdır.');
 }
 
 /**
@@ -51,7 +52,7 @@ const authenticate = async (req, res, next) => {
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ success: false, error: 'Geçersiz token' });
     }
-    console.error('Auth error:', error);
+    logger.error('Auth error', { error: error.message });
     return res.status(500).json({ success: false, error: 'Kimlik doğrulama hatası' });
   }
 };
@@ -151,7 +152,7 @@ const requirePermission = (moduleName, action) => {
 
       next();
     } catch (error) {
-      console.error('Permission check error:', error);
+      logger.error('Permission check error', { error: error.message });
       return res.status(500).json({ success: false, error: 'Yetki kontrolü hatası' });
     }
   };
@@ -188,7 +189,7 @@ const auditLog = (entityType) => {
             });
           }
         } catch (error) {
-          console.error('Audit log error:', error);
+          logger.error('Audit log error', { error: error.message });
         }
       }
       

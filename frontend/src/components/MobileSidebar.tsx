@@ -14,10 +14,13 @@ import {
 } from '@mantine/core';
 import {
   IconBookmark,
+  IconBrandInstagram,
+  IconBrandWhatsapp,
   IconBuildingStore,
   IconChartBar,
   IconChartPie,
   IconChevronRight,
+  IconDeviceMobile,
   IconHome,
   IconList,
   IconLogout,
@@ -131,6 +134,17 @@ const allMenuGroups: MenuGroup[] = [
         permission: 'personel',
       },
       { label: 'Demirbaş', href: '/muhasebe/demirbas', icon: IconBuildingStore, permission: 'demirbas' },
+    ],
+  },
+  {
+    title: 'Sosyal Medya',
+    color: '#EC4899',
+    gradient: 'linear-gradient(135deg, #EC4899 0%, #F472B6 100%)',
+    permission: 'sosyal_medya',
+    items: [
+      { label: 'Dashboard', href: '/sosyal-medya', icon: IconDeviceMobile },
+      { label: 'Instagram', href: '/sosyal-medya/instagram', icon: IconBrandInstagram },
+      { label: 'WhatsApp', href: '/sosyal-medya/whatsapp', icon: IconBrandWhatsapp },
     ],
   },
   {
@@ -291,27 +305,17 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                 }}
               />
 
-              <Group justify="space-between" align="flex-start">
+              <Group justify="space-between" align="center">
                 <Box>
                   <img
-                    src="/logo.svg"
+                    src="/logo-transparent.png"
                     alt="Catering Pro"
                     style={{
-                      height: 56,
+                      height: 64,
                       width: 'auto',
-                      filter: 'brightness(1.2)',
-                      marginBottom: 8,
+                      filter: 'brightness(1.1)',
                     }}
                   />
-                  <Text
-                    size="xs"
-                    c="rgba(255,255,255,0.7)"
-                    fw={500}
-                    tt="uppercase"
-                    style={{ letterSpacing: 1 }}
-                  >
-                    ERP Yönetim Sistemi
-                  </Text>
                 </Box>
 
                 <UnstyledButton

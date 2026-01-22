@@ -30,8 +30,8 @@ Mevcut modüller: İhale takip, Muhasebe, Stok, Personel/Bordro, Menü Planlama
 [Özelliğin detaylı açıklaması]
 
 ### Teknik Gereksinimler
-- Backend: Node.js + Express (CommonJS)
-- Frontend: Next.js 14 App Router
+- Backend: Node.js + Express (ES Modules)
+- Frontend: Next.js 15 App Router
 - Database: PostgreSQL (Supabase)
 - API format: { success: true/false, data/error }
 

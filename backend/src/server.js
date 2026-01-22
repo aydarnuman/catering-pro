@@ -36,7 +36,7 @@ app.use(cors({
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.warn(`⚠️ CORS blocked request from: ${origin}`);
+      logger.warn(`CORS blocked request`, { origin });
       callback(null, false);
     }
   },
@@ -127,6 +127,7 @@ import satinAlmaRouter from './routes/satin-alma.js';
 import aiMemoryRouter from './routes/ai-memory.js';
 import duplicateCheckRouter from './routes/duplicate-check.js';
 import stokRouter from './routes/stok.js';
+import urunlerRouter from './routes/urunler.js';
 import personelRouter from './routes/personel.js';
 import bordroRouter from './routes/bordro.js';
 import izinRouter from './routes/izin.js';
@@ -157,6 +158,8 @@ import scraperRouter from './routes/scraper.js';
 import maliyetAnaliziRouter from './routes/maliyet-analizi.js';
 import tenderNotesRouter from './routes/tender-notes.js';
 import tenderDilekceRouter from './routes/tender-dilekce.js';
+import socialRouter from './routes/social.js';
+import systemRouter from './routes/system.js';
 import scheduler from './services/sync-scheduler.js';
 import tenderScheduler from './services/tender-scheduler.js';
 import documentQueueProcessor from './services/document-queue-processor.js';
@@ -177,6 +180,7 @@ app.use('/api/satin-alma', satinAlmaRouter);
 app.use('/api/ai/memory', aiMemoryRouter);
 app.use('/api/duplicates', duplicateCheckRouter);
 app.use('/api/stok', stokRouter);
+app.use('/api/urunler', urunlerRouter);
 app.use('/api/personel', personelRouter);
 app.use('/api/bordro', bordroRouter);
 app.use('/api/izin', izinRouter);
@@ -207,6 +211,8 @@ app.use('/api/scraper', scraperRouter);
 app.use('/api/maliyet-analizi', maliyetAnaliziRouter);
 app.use('/api/tender-notes', tenderNotesRouter);
 app.use('/api/tender-dilekce', tenderDilekceRouter);
+app.use('/api/social', socialRouter);
+app.use('/api/system', systemRouter);
 
 /**
  * @swagger
@@ -326,10 +332,7 @@ app.listen(PORT, () => {
   logger.info(`📚 API Docs: http://localhost:${PORT}/api-docs`);
   logger.info(`📊 Health check: http://localhost:${PORT}/health`);
   
-  // Console'a da yaz (development için)
-  console.log(`\n🚀 API Server çalışıyor: http://localhost:${PORT}`);
-  console.log(`📚 API Docs: http://localhost:${PORT}/api-docs`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health\n`);
+  // Winston zaten development'ta console'a yazıyor
   
   // Scheduler'ları başlat
   logger.info('🔄 Otomatik senkronizasyon scheduler başlatılıyor...');

@@ -93,6 +93,7 @@ import { DokumanlarTab } from './IhaleUzmani/tabs/DokumanlarTab';
 import { HesaplamalarTab } from './IhaleUzmani/tabs/HesaplamalarTab';
 import TeklifModal from './teklif/TeklifModal';
 import { IconUsers, IconTruck, IconPackage, IconTool, IconReceipt, IconBuildingBank } from '@tabler/icons-react';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export default function IhaleUzmaniModal({
   opened,
@@ -104,6 +105,9 @@ export default function IhaleUzmaniModal({
   onAddNote: _onAddNote,
   onDeleteNote: _onDeleteNote,
 }: IhaleUzmaniModalProps) {
+  // Responsive hook
+  const { isMobile, isMounted } = useResponsive();
+  
   // Tab state
   const [activeTab, setActiveTab] = useState<string | null>('ozet');
   
@@ -1487,77 +1491,124 @@ KURALLAR:
       title={
         <Box
           className="modal-header-glass"
-          style={{ margin: 0, padding: '16px 20px', borderRadius: 16 }}
+          style={{ margin: 0, padding: isMobile && isMounted ? '12px 12px' : '16px 20px', borderRadius: 16 }}
         >
-          <Group gap="md">
+          <Group gap={isMobile && isMounted ? 'xs' : 'md'} wrap={isMobile && isMounted ? 'wrap' : 'nowrap'}>
             <ThemeIcon
-              size={48}
+              size={isMobile && isMounted ? 36 : 48}
               radius="xl"
               variant="gradient"
               gradient={{ from: 'violet', to: 'blue' }}
               style={{ boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)' }}
             >
-              <IconScale size={24} />
+              <IconScale size={isMobile && isMounted ? 18 : 24} />
             </ThemeIcon>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <Group gap="xs">
-                <Text fw={700} size="lg">
+                <Text fw={700} size={isMobile && isMounted ? 'md' : 'lg'}>
                   İhale Uzmanı
                 </Text>
-                <Badge variant="gradient" gradient={{ from: 'violet', to: 'grape' }} size="sm">
+                <Badge variant="gradient" gradient={{ from: 'violet', to: 'grape' }} size="xs">
                   PRO
                 </Badge>
               </Group>
-              <Text size="sm" c="dimmed" lineClamp={1} maw={500}>
+              <Text size="xs" c="dimmed" lineClamp={1} maw={isMobile && isMounted ? '100%' : 500}>
                 {tender.ihale_basligi}
               </Text>
             </div>
-            {/* Firma Seçici */}
-            {firmalar.length > 0 && (
-              <Select
-                size="xs"
-                placeholder="Firma seçin"
-                data={firmalar.map(f => ({ 
-                  value: f.id.toString(), 
-                  label: (f.kisa_ad && f.kisa_ad !== 'Kısa Ad' && f.kisa_ad.length > 2) 
-                    ? f.kisa_ad 
-                    : (f.unvan?.length > 30 ? f.unvan.substring(0, 30) + '...' : f.unvan)
-                }))}
-                value={selectedFirmaId?.toString() || null}
-                onChange={(val) => setSelectedFirmaId(val ? parseInt(val) : null)}
-                leftSection={<IconBuilding size={14} />}
-                styles={{
-                  root: { width: 220 },
-                  input: { fontSize: 12 },
-                }}
-                comboboxProps={{ withinPortal: true }}
-              />
-            )}
             
-            {/* Çalışma Panosu Butonu */}
-            <Tooltip label="Çalışma Panosu" position="bottom">
-              <Button
-                variant="light"
-                color="orange"
-                size="sm"
-                leftSection={<IconClipboardCopy size={16} />}
-                onClick={() => setClipboardModalOpened(true)}
-                style={{ fontWeight: 600 }}
-              >
-                Pano
-                {clipboardItems.length > 0 && (
-                  <Badge 
-                    size="xs" 
-                    variant="filled" 
-                    color="orange" 
-                    ml={6}
-                    style={{ minWidth: 18 }}
-                  >
-                    {clipboardItems.length}
-                  </Badge>
+            {/* Mobilde Firma ve Pano butonları alt satırda */}
+            {isMobile && isMounted ? (
+              <Group gap="xs" w="100%" justify="space-between">
+                {/* Firma Seçici - Mobil */}
+                {firmalar.length > 0 && (
+                  <Select
+                    size="xs"
+                    placeholder="Firma"
+                    data={firmalar.map(f => ({ 
+                      value: f.id.toString(), 
+                      label: (f.kisa_ad && f.kisa_ad !== 'Kısa Ad' && f.kisa_ad.length > 2) 
+                        ? f.kisa_ad 
+                        : (f.unvan?.length > 15 ? f.unvan.substring(0, 15) + '...' : f.unvan)
+                    }))}
+                    value={selectedFirmaId?.toString() || null}
+                    onChange={(val) => setSelectedFirmaId(val ? parseInt(val) : null)}
+                    leftSection={<IconBuilding size={12} />}
+                    styles={{
+                      root: { flex: 1, maxWidth: 140 },
+                      input: { fontSize: 11 },
+                    }}
+                    comboboxProps={{ withinPortal: true }}
+                  />
                 )}
-              </Button>
-            </Tooltip>
+                
+                {/* Çalışma Panosu Butonu - Mobil */}
+                <Button
+                  variant="light"
+                  color="orange"
+                  size="xs"
+                  leftSection={<IconClipboardCopy size={14} />}
+                  onClick={() => setClipboardModalOpened(true)}
+                  style={{ fontWeight: 600 }}
+                >
+                  Pano
+                  {clipboardItems.length > 0 && (
+                    <Badge size="xs" variant="filled" color="orange" ml={4}>
+                      {clipboardItems.length}
+                    </Badge>
+                  )}
+                </Button>
+              </Group>
+            ) : (
+              <>
+                {/* Firma Seçici - Desktop */}
+                {firmalar.length > 0 && (
+                  <Select
+                    size="xs"
+                    placeholder="Firma seçin"
+                    data={firmalar.map(f => ({ 
+                      value: f.id.toString(), 
+                      label: (f.kisa_ad && f.kisa_ad !== 'Kısa Ad' && f.kisa_ad.length > 2) 
+                        ? f.kisa_ad 
+                        : (f.unvan?.length > 30 ? f.unvan.substring(0, 30) + '...' : f.unvan)
+                    }))}
+                    value={selectedFirmaId?.toString() || null}
+                    onChange={(val) => setSelectedFirmaId(val ? parseInt(val) : null)}
+                    leftSection={<IconBuilding size={14} />}
+                    styles={{
+                      root: { width: 220 },
+                      input: { fontSize: 12 },
+                    }}
+                    comboboxProps={{ withinPortal: true }}
+                  />
+                )}
+                
+                {/* Çalışma Panosu Butonu - Desktop */}
+                <Tooltip label="Çalışma Panosu" position="bottom">
+                  <Button
+                    variant="light"
+                    color="orange"
+                    size="sm"
+                    leftSection={<IconClipboardCopy size={16} />}
+                    onClick={() => setClipboardModalOpened(true)}
+                    style={{ fontWeight: 600 }}
+                  >
+                    Pano
+                    {clipboardItems.length > 0 && (
+                      <Badge 
+                        size="xs" 
+                        variant="filled" 
+                        color="orange" 
+                        ml={6}
+                        style={{ minWidth: 18 }}
+                      >
+                        {clipboardItems.length}
+                      </Badge>
+                    )}
+                  </Button>
+                </Tooltip>
+              </>
+            )}
           </Group>
         </Box>
       }
@@ -1567,10 +1618,10 @@ KURALLAR:
       styles={{
         header: {
           background: 'transparent',
-          padding: '12px 20px',
+          padding: isMobile && isMounted ? '8px 12px' : '12px 20px',
         },
         body: {
-          padding: '0 24px 24px 24px',
+          padding: isMobile && isMounted ? '0 12px 12px 12px' : '0 24px 24px 24px',
         },
       }}
     >
@@ -1584,50 +1635,56 @@ KURALLAR:
           tab: 'ihale-tabs-tab',
         }}
       >
-        <Tabs.List grow mb="lg">
-          <Tabs.Tab
-            value="ozet"
-            leftSection={<IconInfoCircle size={18} stroke={1.5} />}
-          >
-            Özet
-          </Tabs.Tab>
-          <Tabs.Tab
-            value="dokumanlar"
-            leftSection={<IconClipboardList size={18} stroke={1.5} />}
-          >
-            <Group gap={8}>
-              Döküman Analizi
-              {analysisStats && (
-                <Badge
-                  size="sm"
-                  variant="light"
-                  color="gray"
-                  styles={{
-                    root: { 
-                      backgroundColor: '#f3f4f6', 
-                      color: '#374151',
-                      fontWeight: 600,
-                    }
-                  }}
-                >
-                  {analysisStats.analiz_edilen}/{analysisStats.toplam_dokuman}
-                </Badge>
-              )}
-            </Group>
-          </Tabs.Tab>
-          <Tabs.Tab
-            value="hesaplamalar"
-            leftSection={<IconCalculator size={18} stroke={1.5} />}
-          >
-            Araçlar
-          </Tabs.Tab>
-          <Tabs.Tab
-            value="dilekce"
-            leftSection={<IconBrain size={18} stroke={1.5} />}
-          >
-            AI & Dilekçeler
-          </Tabs.Tab>
-        </Tabs.List>
+        <ScrollArea type={isMobile && isMounted ? 'scroll' : 'never'} scrollbarSize={4}>
+          <Tabs.List grow={!(isMobile && isMounted)} mb={isMobile && isMounted ? 'sm' : 'lg'} style={{ flexWrap: 'nowrap' }}>
+            <Tabs.Tab
+              value="ozet"
+              leftSection={<IconInfoCircle size={isMobile && isMounted ? 16 : 18} stroke={1.5} />}
+              style={{ whiteSpace: 'nowrap', fontSize: isMobile && isMounted ? 13 : undefined }}
+            >
+              Özet
+            </Tabs.Tab>
+            <Tabs.Tab
+              value="dokumanlar"
+              leftSection={<IconClipboardList size={isMobile && isMounted ? 16 : 18} stroke={1.5} />}
+              style={{ whiteSpace: 'nowrap', fontSize: isMobile && isMounted ? 13 : undefined }}
+            >
+              <Group gap={4}>
+                {isMobile && isMounted ? 'Döküman' : 'Döküman Analizi'}
+                {analysisStats && (
+                  <Badge
+                    size="xs"
+                    variant="light"
+                    color="gray"
+                    styles={{
+                      root: { 
+                        backgroundColor: '#f3f4f6', 
+                        color: '#374151',
+                        fontWeight: 600,
+                      }
+                    }}
+                  >
+                    {analysisStats.analiz_edilen}/{analysisStats.toplam_dokuman}
+                  </Badge>
+                )}
+              </Group>
+            </Tabs.Tab>
+            <Tabs.Tab
+              value="hesaplamalar"
+              leftSection={<IconCalculator size={isMobile && isMounted ? 16 : 18} stroke={1.5} />}
+              style={{ whiteSpace: 'nowrap', fontSize: isMobile && isMounted ? 13 : undefined }}
+            >
+              Araçlar
+            </Tabs.Tab>
+            <Tabs.Tab
+              value="dilekce"
+              leftSection={<IconBrain size={isMobile && isMounted ? 16 : 18} stroke={1.5} />}
+              style={{ whiteSpace: 'nowrap', fontSize: isMobile && isMounted ? 13 : undefined }}
+            >
+              {isMobile && isMounted ? 'AI' : 'AI & Dilekçeler'}
+            </Tabs.Tab>
+          </Tabs.List>
+        </ScrollArea>
 
         {/* ÖZET TAB */}
         <Tabs.Panel value="ozet">

@@ -9,6 +9,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { query } from '../database.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -116,7 +117,7 @@ router.post('/login', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Login hatası:', error);
+    logger.error('Login hatası', { error: error.message });
     res.status(500).json({ error: error.message });
   }
 });
@@ -212,7 +213,7 @@ router.post('/register', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Register hatası:', error);
+    logger.error('Register hatası', { error: error.message });
     res.status(500).json({ error: error.message });
   }
 });
@@ -281,7 +282,7 @@ router.get('/me', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Auth hatası:', error);
+    logger.error('Auth hatası', { error: error.message });
     res.status(401).json({ error: 'Geçersiz token' });
   }
 });
@@ -344,7 +345,7 @@ router.put('/profile', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Profil güncelleme hatası:', error);
+    logger.error('Profil güncelleme hatası', { error: error.message });
     res.status(500).json({ error: error.message });
   }
 });
@@ -438,7 +439,7 @@ router.put('/password', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Şifre değiştirme hatası:', error);
+    logger.error('Şifre değiştirme hatası', { error: error.message });
     res.status(500).json({ error: error.message });
   }
 });
@@ -484,7 +485,7 @@ router.get('/users', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Kullanıcı listeleme hatası:', error);
+    logger.error('Kullanıcı listeleme hatası', { error: error.message });
     res.status(500).json({ error: error.message });
   }
 });
@@ -569,7 +570,7 @@ router.put('/users/:id', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Kullanıcı güncelleme hatası:', error);
+    logger.error('Kullanıcı güncelleme hatası', { error: error.message });
     res.status(500).json({ error: error.message });
   }
 });
@@ -621,7 +622,7 @@ router.delete('/users/:id', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Kullanıcı silme hatası:', error);
+    logger.error('Kullanıcı silme hatası', { error: error.message });
     res.status(500).json({ error: error.message });
   }
 });
@@ -669,7 +670,7 @@ router.post('/setup-super-admin', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Super admin setup hatasi:', error);
+    logger.error('Super admin setup hatası', { error: error.message });
     res.status(500).json({ error: error.message });
   }
 });

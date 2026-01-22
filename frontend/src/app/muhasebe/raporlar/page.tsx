@@ -49,18 +49,6 @@ import {
 } from 'recharts';
 import 'dayjs/locale/tr';
 
-// Renk paleti
-const _COLORS = [
-  '#4dabf7',
-  '#51cf66',
-  '#ff922b',
-  '#ff6b6b',
-  '#845ef7',
-  '#339af0',
-  '#20c997',
-  '#f06595',
-];
-
 // Demo veriler - Gerçek uygulamada localStorage'dan gelecek
 const aylikGelirGider = [
   { ay: 'Oca', gelir: 125000, gider: 98000 },

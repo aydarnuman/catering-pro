@@ -19,12 +19,15 @@ import {
 import { useDisclosure, useHotkeys, useMediaQuery } from '@mantine/hooks';
 import {
   IconBookmark,
+  IconBrandInstagram,
+  IconBrandWhatsapp,
   IconBuildingFactory2,
   IconBuildingStore,
   IconChartBar,
   IconChartPie,
   IconChevronDown,
   IconCoin,
+  IconDeviceMobile,
   IconFolder,
   IconHome,
   IconList,
@@ -54,6 +57,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { MobileSidebar } from './MobileSidebar';
 import { NotificationDropdown } from './NotificationDropdown';
 import { SearchModal } from './SearchModal';
+import { WhatsAppNavButton } from './WhatsAppNavButton';
 
 export function Navbar() {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
@@ -67,8 +71,6 @@ export function Navbar() {
   const { user, isAuthenticated, isAdmin: userIsAdmin, isLoading, logout } = useAuth();
   const { canView, isSuperAdmin, loading: permLoading } = usePermissions();
 
-  const isDark = colorScheme === 'dark';
-
   // Responsive breakpoints
   const isMobile = useMediaQuery('(max-width: 768px)');
   const isTablet = useMediaQuery('(max-width: 1024px)');
@@ -79,6 +81,9 @@ export function Navbar() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Use mounted check to avoid hydration mismatch
+  const isDark = mounted ? colorScheme === 'dark' : true; // Default to dark for SSR
 
   // Route helpers
   const isActive = (path: string) => pathname === path;
@@ -100,6 +105,9 @@ export function Navbar() {
     pathname === '/muhasebe/menu-planlama' ||
     pathname === '/muhasebe/personel' ||
     pathname === '/muhasebe/demirbas';
+  
+  // Sosyal Medya sayfaları
+  const isSosyalMedya = pathname.startsWith('/sosyal-medya');
   
   const _isAyarlar = pathname.startsWith('/ayarlar');
   const _isAdminPage = pathname.startsWith('/admin');
@@ -269,6 +277,9 @@ export function Navbar() {
                 </ActionIcon>
               </Tooltip>
             )}
+
+            {/* WhatsApp */}
+            <WhatsAppNavButton />
 
             {/* Notifications */}
             <NotificationDropdown />
@@ -686,6 +697,74 @@ export function Navbar() {
                       Demirbaş
                     </Menu.Item>
                   )}
+                </Menu.Dropdown>
+              </Menu>
+            )}
+
+            {/* Sosyal Medya Dropdown */}
+            {(isSuperAdmin || canView('sosyal_medya')) && (
+              <Menu
+                shadow="lg"
+                width={240}
+                position="bottom-start"
+                transitionProps={{ transition: 'pop-top-left' }}
+              >
+                <Menu.Target>
+                  <Button
+                    rightSection={<IconChevronDown size={14} />}
+                    leftSection={<IconDeviceMobile size={16} />}
+                    variant={isSosyalMedya ? 'light' : 'subtle'}
+                    color={isSosyalMedya ? 'pink' : 'gray'}
+                    size="compact-sm"
+                    radius="md"
+                  >
+                    Sosyal Medya
+                  </Button>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Item
+                    component={Link}
+                    href="/sosyal-medya"
+                    leftSection={<IconChartPie size={16} />}
+                  >
+                    <Group justify="space-between" w="100%">
+                      <Text size="sm">Dashboard</Text>
+                      {isActive('/sosyal-medya') && pathname === '/sosyal-medya' && (
+                        <Badge size="xs" color="pink">
+                          Aktif
+                        </Badge>
+                      )}
+                    </Group>
+                  </Menu.Item>
+                  <Menu.Divider />
+                  <Menu.Item
+                    component={Link}
+                    href="/sosyal-medya/instagram"
+                    leftSection={<IconBrandInstagram size={16} color="#E4405F" />}
+                  >
+                    <Box>
+                      <Text size="sm" fw={500}>
+                        Instagram
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        Post, Story, DM
+                      </Text>
+                    </Box>
+                  </Menu.Item>
+                  <Menu.Item
+                    component={Link}
+                    href="/sosyal-medya/whatsapp"
+                    leftSection={<IconBrandWhatsapp size={16} color="#25D366" />}
+                  >
+                    <Box>
+                      <Text size="sm" fw={500}>
+                        WhatsApp
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        Mesajlar, Sohbet
+                      </Text>
+                    </Box>
+                  </Menu.Item>
                 </Menu.Dropdown>
               </Menu>
             )}

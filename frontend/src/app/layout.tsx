@@ -7,6 +7,7 @@ import { Notifications } from '@mantine/notifications';
 import { ClientLayout } from '@/components/ClientLayout';
 import { Navbar } from '@/components/Navbar';
 import { AuthProvider } from '@/context/AuthContext';
+import { Providers } from '@/components/Providers';
 
 export const metadata = {
   title: 'Catering Pro - İhale Yönetim Sistemi',
@@ -48,15 +49,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             },
           }}
         >
-          <AuthProvider>
-            <Notifications position="top-right" />
-            <Box style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-              <Navbar />
-              <Box component="main" className="main-content" style={{ flex: 1 }}>
-                <ClientLayout>{children}</ClientLayout>
+          <Providers>
+            <AuthProvider>
+              <Notifications position="top-right" />
+              <Box style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+                <Navbar />
+                <Box component="main" className="main-content" style={{ flex: 1 }}>
+                  <ClientLayout>{children}</ClientLayout>
+                </Box>
               </Box>
-            </Box>
-          </AuthProvider>
+            </AuthProvider>
+          </Providers>
         </MantineProvider>
       </body>
     </html>

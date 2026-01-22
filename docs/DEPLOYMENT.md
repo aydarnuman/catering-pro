@@ -133,14 +133,12 @@ PORT=3001
 ```env
 # API - Domain üzerinden (Cloudflare proxy)
 NEXT_PUBLIC_API_URL=https://catering-tr.com
-NEXTAUTH_URL=https://catering-tr.com
 ```
 
 ### Frontend (.env.local) - Local Development için
 ```env
 # API - Localhost
 NEXT_PUBLIC_API_URL=http://localhost:3001
-NEXTAUTH_URL=http://localhost:3000
 ```
 
 > ⚠️ **ÖNEMLİ:** Production'da `.env.local` dosyası OLMAMALI!

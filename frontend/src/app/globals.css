@@ -1097,3 +1097,478 @@ a {
   color: #f3f4f6 !important;
   border-bottom-color: #3b82f6 !important;
 }
+
+/* ============================================
+   MOBİL UYUMLULUK - EK STİLLER
+   ============================================ */
+
+/* Mobilde yatay scroll'u önle */
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden !important;
+  }
+  
+  /* Container'ları mobil için optimize et */
+  .mantine-Container-root {
+    max-width: 100% !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  
+  /* Paper/Card bileşenlerinde taşmayı önle */
+  .mantine-Paper-root,
+  .mantine-Card-root {
+    overflow: hidden;
+    max-width: 100%;
+  }
+  
+  /* Group ve Stack - wrap özelliği */
+  .mobile-wrap .mantine-Group-root {
+    flex-wrap: wrap !important;
+  }
+  
+  /* Grid kolonları otomatik daralsın */
+  .mantine-Grid-col {
+    flex-basis: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  /* SimpleGrid mobil tek kolon */
+  .mantine-SimpleGrid-root {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Modal tam ekran */
+  .mantine-Modal-content {
+    max-height: 95vh !important;
+    border-radius: 16px 16px 0 0 !important;
+  }
+  
+  .mantine-Modal-body {
+    max-height: calc(95vh - 80px) !important;
+    overflow-y: auto !important;
+  }
+  
+  /* Drawer animasyonu iyileştirmesi */
+  .mantine-Drawer-content {
+    border-radius: 16px 16px 0 0 !important;
+  }
+  
+  /* Buton grupları wrap olsun */
+  .mantine-Group-root[data-wrap] {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  
+  /* Text truncation */
+  .mobile-truncate {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    max-width: 100% !important;
+  }
+  
+  /* Badge'ler küçülsün */
+  .mantine-Badge-root {
+    font-size: 10px !important;
+    padding: 2px 6px !important;
+  }
+  
+  /* Tabs yatay scroll */
+  .mantine-Tabs-list {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .mantine-Tabs-list::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Tab'lar küçülmesin */
+  .mantine-Tabs-tab {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+  }
+  
+  /* Tooltip mobilde gösterme */
+  .mantine-Tooltip-tooltip {
+    display: none !important;
+  }
+  
+  /* NumberInput ve Select genişliği */
+  .mantine-NumberInput-root,
+  .mantine-Select-root,
+  .mantine-TextInput-root,
+  .mantine-Textarea-root {
+    width: 100% !important;
+  }
+  
+  /* ActionIcon grupları */
+  .mantine-ActionIcon-root {
+    touch-action: manipulation;
+  }
+  
+  /* Segmented Control yatay scroll */
+  .mantine-SegmentedControl-root {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* DatePicker mobil */
+  .mantine-DatePickerInput-root,
+  .mantine-DateInput-root {
+    width: 100% !important;
+  }
+  
+  /* Stats grid mobil */
+  .stats-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  
+  /* Hero section mobil */
+  .hero-section {
+    padding: 16px !important;
+    border-radius: 12px !important;
+  }
+  
+  /* Kart hover'ları mobilde kaldır */
+  .hover-card:hover,
+  .hover-lift:hover,
+  .ihale-card:hover,
+  .kpi-card:hover {
+    transform: none !important;
+  }
+}
+
+/* Küçük mobil ekranlar (< 480px) */
+@media (max-width: 480px) {
+  /* Daha küçük padding'ler */
+  .mantine-Container-root {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+  
+  /* Daha küçük font boyutları */
+  .mantine-Title-root[data-order="1"] {
+    font-size: 1.5rem !important;
+  }
+  
+  .mantine-Title-root[data-order="2"] {
+    font-size: 1.25rem !important;
+  }
+  
+  .mantine-Title-root[data-order="3"] {
+    font-size: 1.1rem !important;
+  }
+  
+  /* Stats tek kolon */
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Butonlar tam genişlik */
+  .mobile-full-width .mantine-Button-root {
+    width: 100% !important;
+  }
+  
+  /* Avatar küçülsün */
+  .mantine-Avatar-root {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+  }
+}
+
+/* Touch cihazlar için optimize */
+@media (pointer: coarse) {
+  /* Daha büyük dokunma alanları */
+  .mantine-Button-root,
+  .mantine-ActionIcon-root,
+  .mantine-CloseButton-root {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+  
+  /* Checkbox/Radio büyüsün */
+  .mantine-Checkbox-input,
+  .mantine-Radio-radio {
+    width: 22px !important;
+    height: 22px !important;
+  }
+  
+  /* Switch büyüsün */
+  .mantine-Switch-track {
+    min-width: 46px !important;
+    min-height: 24px !important;
+  }
+  
+  /* Menu item'lar */
+  .mantine-Menu-item {
+    min-height: 48px !important;
+    padding: 12px 16px !important;
+  }
+  
+  /* Accordion header */
+  .mantine-Accordion-control {
+    min-height: 52px !important;
+  }
+  
+  /* List item'lar */
+  .mantine-NavLink-root {
+    min-height: 48px !important;
+  }
+}
+
+/* Landscape mobil */
+@media (max-width: 768px) and (orientation: landscape) {
+  /* Modal yüksekliği azalt */
+  .mantine-Modal-content {
+    max-height: 90vh !important;
+  }
+  
+  /* Drawer daha dar */
+  .mantine-Drawer-content {
+    max-width: 50vw !important;
+  }
+}
+
+/* Safe area (iPhone notch) desteği */
+@supports (padding-top: env(safe-area-inset-top)) {
+  @media (max-width: 768px) {
+    /* Header safe area */
+    .navbar-header {
+      padding-top: calc(env(safe-area-inset-top) + 8px) !important;
+    }
+    
+    /* Bottom safe area */
+    .mobile-bottom-bar,
+    .fab-button-container {
+      padding-bottom: calc(env(safe-area-inset-bottom) + 16px) !important;
+    }
+    
+    /* Modal bottom safe area */
+    .mantine-Modal-body {
+      padding-bottom: env(safe-area-inset-bottom) !important;
+    }
+  }
+}
+
+/* Mobil tablo stilleri */
+@media (max-width: 768px) {
+  /* Horizontal scroll table container */
+  .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 16px;
+  }
+  
+  /* Min-width for tables */
+  .table-responsive .mantine-Table-root {
+    min-width: 600px;
+  }
+  
+  /* Card-based table alternative */
+  .table-cards .mantine-Table-root {
+    display: none !important;
+  }
+  
+  /* Action column sticky */
+  .table-responsive .mantine-Table-th:last-child,
+  .table-responsive .mantine-Table-td:last-child {
+    position: sticky;
+    right: 0;
+    background: inherit;
+    box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+  }
+}
+
+/* Floating Action Button (FAB) */
+.fab-button {
+  position: fixed !important;
+  bottom: 24px !important;
+  right: 24px !important;
+  z-index: 100 !important;
+  width: 56px !important;
+  height: 56px !important;
+  border-radius: 50% !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+@media (max-width: 768px) {
+  .fab-button {
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+    right: 16px !important;
+  }
+}
+
+/* Pull to refresh desteği */
+.pull-to-refresh-container {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* Skeleton loading mobil */
+@media (max-width: 768px) {
+  .mantine-Skeleton-root {
+    border-radius: 8px !important;
+  }
+}
+
+/* Form layout mobil */
+@media (max-width: 768px) {
+  /* Form row'ları stack olsun */
+  .form-row {
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+  
+  .form-row > * {
+    width: 100% !important;
+  }
+  
+  /* Label'lar üstte */
+  .mantine-InputWrapper-root {
+    flex-direction: column !important;
+  }
+  
+  /* Submit buton tam genişlik */
+  .form-actions {
+    flex-direction: column-reverse !important;
+    gap: 8px !important;
+  }
+  
+  .form-actions .mantine-Button-root {
+    width: 100% !important;
+  }
+}
+
+/* ============================================
+   MOBİL MODAL - TAM EKRAN DENEYİMİ
+   ============================================ */
+@media (max-width: 768px) {
+  /* Tüm Modal'ları tam ekran yap */
+  .mantine-Modal-root .mantine-Modal-content {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    max-height: 92vh !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 20px 20px 0 0 !important;
+    transform: none !important;
+  }
+  
+  .mantine-Modal-inner {
+    padding: 0 !important;
+    align-items: flex-end !important;
+  }
+  
+  .mantine-Modal-header {
+    padding: 16px 20px 12px !important;
+    border-bottom: 1px solid var(--mantine-color-gray-2) !important;
+    position: sticky !important;
+    top: 0 !important;
+    background: inherit !important;
+    z-index: 10 !important;
+  }
+  
+  [data-mantine-color-scheme='dark'] .mantine-Modal-header {
+    border-bottom-color: var(--mantine-color-dark-4) !important;
+  }
+  
+  .mantine-Modal-body {
+    padding: 16px !important;
+    overflow-y: auto !important;
+    max-height: calc(92vh - 70px) !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  /* Handle bar - iOS tarzı */
+  .mantine-Modal-header::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--mantine-color-gray-3);
+  }
+  
+  [data-mantine-color-scheme='dark'] .mantine-Modal-header::before {
+    background: var(--mantine-color-dark-3);
+  }
+  
+  .mantine-Modal-title {
+    padding-top: 4px !important;
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+  }
+  
+  /* Kapatma butonu */
+  .mantine-Modal-close {
+    position: absolute !important;
+    right: 12px !important;
+    top: 16px !important;
+  }
+  
+  /* Modal backdrop */
+  .mantine-Modal-overlay {
+    background: rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(2px) !important;
+  }
+}
+
+/* Drawer mobil iyileştirmeleri */
+@media (max-width: 768px) {
+  /* Bottom drawer */
+  .mantine-Drawer-root[data-position="bottom"] .mantine-Drawer-content {
+    max-height: 90vh !important;
+    border-radius: 20px 20px 0 0 !important;
+  }
+  
+  .mantine-Drawer-header {
+    padding: 16px 20px 12px !important;
+    border-bottom: 1px solid var(--mantine-color-gray-2) !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
+  }
+  
+  [data-mantine-color-scheme='dark'] .mantine-Drawer-header {
+    border-bottom-color: var(--mantine-color-dark-4) !important;
+  }
+  
+  /* Handle bar for drawer */
+  .mantine-Drawer-root[data-position="bottom"] .mantine-Drawer-header::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--mantine-color-gray-3);
+  }
+  
+  [data-mantine-color-scheme='dark'] .mantine-Drawer-root[data-position="bottom"] .mantine-Drawer-header::before {
+    background: var(--mantine-color-dark-3);
+  }
+  
+  .mantine-Drawer-body {
+    padding: 16px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom)) !important;
+  }
+}

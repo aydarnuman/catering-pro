@@ -12,12 +12,12 @@ import {
   Transition,
   useMantineColorScheme,
 } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
 import { IconBolt, IconMaximize, IconMinus, IconX } from '@tabler/icons-react';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { API_BASE_URL } from '@/lib/config';
 import { AIChat } from './AIChat';
+import { useResponsive } from '@/hooks/useResponsive';
 
 // Path'e göre department mapping
 const pathToDepartment: Record<string, string> = {
@@ -88,7 +88,7 @@ export function FloatingAIChat() {
   const { colorScheme } = useMantineColorScheme();
   const pathname = usePathname();
   const isDark = colorScheme === 'dark';
-  const isMobile = useMediaQuery('(max-width: 768px)');
+  const { isMobile, isMounted } = useResponsive();
 
   // Path'e göre department belirle
   const department = pathToDepartment[pathname] || 'TÜM SİSTEM';
@@ -251,8 +251,8 @@ export function FloatingAIChat() {
         <Box
           style={{
             position: 'fixed',
-            bottom: 24,
-            right: 24,
+            bottom: isMobile && isMounted ? 'calc(16px + env(safe-area-inset-bottom, 0px))' : 24,
+            right: isMobile && isMounted ? 12 : 24,
             zIndex: 99, // Modal'ın arkasında kalması için düşük z-index
           }}
         >
@@ -274,8 +274,8 @@ export function FloatingAIChat() {
           <Box
             style={{
               position: 'relative',
-              width: 68,
-              height: 68,
+              width: isMobile && isMounted ? 56 : 68,
+              height: isMobile && isMounted ? 56 : 68,
               borderRadius: '50%',
               background: 'linear-gradient(145deg, #ffffff, #f5f5f5)',
               boxShadow: isOpen
@@ -293,16 +293,18 @@ export function FloatingAIChat() {
             }}
             onClick={() => setIsOpen(!isOpen)}
             onMouseEnter={(e) => {
-              if (!isOpen) {
+              if (!isOpen && !isMobile) {
                 e.currentTarget.style.transform = 'scale(1.08)';
                 e.currentTarget.style.boxShadow = '0 10px 40px rgba(102, 126, 234, 0.6)';
               }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.transform = isOpen ? 'scale(0.95)' : 'scale(1)';
-              e.currentTarget.style.boxShadow = isOpen
-                ? '0 8px 32px rgba(102, 126, 234, 0.6), inset 0 1px 0 rgba(255,255,255,0.8)'
-                : '0 6px 24px rgba(102, 126, 234, 0.4), inset 0 1px 0 rgba(255,255,255,0.8)';
+              if (!isMobile) {
+                e.currentTarget.style.transform = isOpen ? 'scale(0.95)' : 'scale(1)';
+                e.currentTarget.style.boxShadow = isOpen
+                  ? '0 8px 32px rgba(102, 126, 234, 0.6), inset 0 1px 0 rgba(255,255,255,0.8)'
+                  : '0 6px 24px rgba(102, 126, 234, 0.4), inset 0 1px 0 rgba(255,255,255,0.8)';
+              }
             }}
           >
             {/* Gradient border */}
@@ -328,8 +330,8 @@ export function FloatingAIChat() {
               alt="AI Asistan"
               style={{
                 position: 'relative',
-                width: 56,
-                height: 56,
+                width: isMobile && isMounted ? 44 : 56,
+                height: isMobile && isMounted ? 44 : 56,
                 objectFit: 'cover',
                 borderRadius: '50%',
               }}
@@ -436,20 +438,20 @@ export function FloatingAIChat() {
               ...styles,
               position: 'fixed',
               // Mobilde tam ekran, desktop'ta normal
-              bottom: isMobile ? 0 : 110,
-              right: isMobile ? 0 : 24,
-              left: isMobile ? 0 : 'auto',
-              top: isMobile ? 0 : 'auto',
-              zIndex: 99, // Modal'ın arkasında kalması için düşük z-index
-              width: isMobile ? '100%' : isMinimized ? 340 : 440,
-              height: isMobile ? '100%' : isMinimized ? 'auto' : 580,
-              maxHeight: isMobile ? '100%' : 'calc(100vh - 150px)',
+              bottom: isMobile && isMounted ? 0 : 110,
+              right: isMobile && isMounted ? 0 : 24,
+              left: isMobile && isMounted ? 0 : 'auto',
+              top: isMobile && isMounted ? 0 : 'auto',
+              zIndex: 9999, // Modal'ın üstünde kalması için yüksek z-index
+              width: isMobile && isMounted ? '100%' : isMinimized ? 340 : 440,
+              height: isMobile && isMounted ? '100%' : isMinimized ? 'auto' : 580,
+              maxHeight: isMobile && isMounted ? '100%' : 'calc(100vh - 150px)',
               overflow: 'hidden',
-              borderRadius: isMobile ? 0 : 20,
-              boxShadow: isMobile
+              borderRadius: isMobile && isMounted ? 0 : 20,
+              boxShadow: isMobile && isMounted
                 ? 'none'
                 : '0 25px 50px -12px rgba(102, 126, 234, 0.25), 0 0 0 1px rgba(102, 126, 234, 0.1)',
-              border: isMobile ? 'none' : 'none',
+              border: 'none',
               display: 'flex',
               flexDirection: 'column',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -461,6 +463,7 @@ export function FloatingAIChat() {
               style={{
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
                 padding: isMinimized ? '10px 16px' : '14px 16px',
+                paddingTop: isMobile && isMounted ? 'calc(env(safe-area-inset-top, 0px) + 14px)' : (isMinimized ? '10px' : '14px'),
                 cursor: 'pointer',
                 position: 'relative',
                 overflow: 'hidden',

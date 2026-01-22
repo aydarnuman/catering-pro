@@ -2,7 +2,6 @@
 
 import {
   ActionIcon,
-  Autocomplete,
   Badge,
   Box,
   Button,
@@ -12,24 +11,24 @@ import {
   Loader,
   Menu,
   Modal,
-  NumberInput,
   Paper,
   ScrollArea,
   Select,
   SimpleGrid,
   Stack,
+  Table,
   Text,
   TextInput,
   ThemeIcon,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
+  IconBuilding,
   IconCheck,
-  IconCurrencyLira,
   IconDotsVertical,
   IconEdit,
+  IconHistory,
   IconLink,
-  IconLinkOff,
   IconPackage,
   IconPlus,
   IconSearch,
@@ -68,26 +67,24 @@ interface UrunKarti {
   kod: string;
   ad: string;
   kategori_id: number;
-  kategori_adi: string;
+  kategori: string;
   kategori_ikon: string;
-  varsayilan_birim: string;
-  stok_kart_id: number | null;
-  stok_kart_adi: string | null;
-  stok_fiyat: number | null;
-  stok_birim: string | null;
+  birim: string;
+  birim_kisa: string;
+  ana_birim_id: number | null;
+  barkod: string | null;
+  min_stok: number;
+  max_stok: number | null;
+  kritik_stok: number | null;
+  toplam_stok: number;
+  ortalama_fiyat: number | null;
+  son_alis_fiyati: number | null;
+  son_alis_tarihi: string | null;
   manuel_fiyat: number | null;
   fiyat_birimi: string;
-  guncel_fiyat: number | null;
   ikon: string | null;
   aktif: boolean;
-}
-
-interface StokKarti {
-  id: number;
-  kod: string;
-  ad: string;
-  birim: string;
-  son_alis_fiyat: number;
+  durum: 'normal' | 'dusuk' | 'kritik' | 'fazla' | 'tukendi';
 }
 
 interface Props {
@@ -100,8 +97,11 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
   // States
   const [kategoriler, setKategoriler] = useState<Kategori[]>([]);
   const [urunler, setUrunler] = useState<UrunKarti[]>([]);
-  const [stokKartlari, setStokKartlari] = useState<StokKarti[]>([]);
   const [loading, setLoading] = useState(false);
+  const [detayLoading, setDetayLoading] = useState(false);
+  
+  // Detay bilgileri (direkt panelde gösterilecek)
+  const [urunDetay, setUrunDetay] = useState<any>(null);
 
   // Filtreler
   const [aramaText, setAramaText] = useState('');
@@ -117,20 +117,15 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
     ad: '',
     kategori_id: '',
     varsayilan_birim: 'gr',
-    stok_kart_id: null as number | null,
     manuel_fiyat: null as number | null,
     fiyat_birimi: 'kg',
   });
-
-  // Stok arama
-  const [stokArama, setStokArama] = useState('');
 
   // Data yükle
   useEffect(() => {
     if (opened) {
       fetchKategoriler();
       fetchUrunler();
-      fetchStokKartlari();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened]);
@@ -138,7 +133,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
   // Kategorileri yükle
   const fetchKategoriler = async () => {
     try {
-      const res = await fetch(`${API_URL}/menu-planlama/urun-kategorileri`);
+      const res = await fetch(`${API_URL}/urunler/kategoriler/liste`);
       const result = await res.json();
       if (result.success) {
         setKategoriler(result.data);
@@ -156,7 +151,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
       if (selectedKategori) params.append('kategori_id', selectedKategori);
       if (aramaText) params.append('arama', aramaText);
 
-      const res = await fetch(`${API_URL}/menu-planlama/urun-kartlari?${params}`);
+      const res = await fetch(`${API_URL}/urunler?${params}`);
       const result = await res.json();
       if (result.success) {
         setUrunler(result.data);
@@ -165,20 +160,6 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
       console.error('Ürün yükleme hatası:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Stok kartlarını yükle
-  const fetchStokKartlari = async (arama?: string) => {
-    try {
-      const params = arama ? `?arama=${encodeURIComponent(arama)}` : '';
-      const res = await fetch(`${API_URL}/menu-planlama/stok-kartlari-listesi${params}`);
-      const result = await res.json();
-      if (result.success) {
-        setStokKartlari(result.data);
-      }
-    } catch (error) {
-      console.error('Stok kartı yükleme hatası:', error);
     }
   };
 
@@ -201,11 +182,11 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
     }
 
     try {
-      const res = await fetch(`${API_URL}/menu-planlama/urun-kartlari`, {
+      const res = await fetch(`${API_URL}/urunler`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formData,
+          ad: formData.ad,
           kategori_id: formData.kategori_id ? parseInt(formData.kategori_id, 10) : null,
         }),
       });
@@ -236,11 +217,11 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
     if (!selectedUrun) return;
 
     try {
-      const res = await fetch(`${API_URL}/menu-planlama/urun-kartlari/${selectedUrun.id}`, {
+      const res = await fetch(`${API_URL}/urunler/${selectedUrun.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formData,
+          ad: formData.ad,
           kategori_id: formData.kategori_id ? parseInt(formData.kategori_id, 10) : null,
         }),
       });
@@ -272,7 +253,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
     if (!confirm('Bu ürün kartını silmek istediğinize emin misiniz?')) return;
 
     try {
-      const res = await fetch(`${API_URL}/menu-planlama/urun-kartlari/${urunId}`, {
+      const res = await fetch(`${API_URL}/urunler/${urunId}`, {
         method: 'DELETE',
       });
 
@@ -281,7 +262,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
       if (result.success) {
         notifications.show({
           title: 'Başarılı',
-          message: result.soft_deleted ? 'Ürün kartı pasife alındı' : 'Ürün kartı silindi',
+          message: 'Ürün kartı silindi',
           color: 'green',
         });
         if (selectedUrun?.id === urunId) {
@@ -304,11 +285,9 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
       ad: '',
       kategori_id: '',
       varsayilan_birim: 'gr',
-      stok_kart_id: null,
       manuel_fiyat: null,
       fiyat_birimi: 'kg',
     });
-    setStokArama('');
   };
 
   // Düzenleme moduna geç
@@ -316,30 +295,64 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
     setFormData({
       ad: urun.ad,
       kategori_id: urun.kategori_id?.toString() || '',
-      varsayilan_birim: urun.varsayilan_birim || 'gr',
-      stok_kart_id: urun.stok_kart_id,
+      varsayilan_birim: urun.birim || 'gr',
       manuel_fiyat: urun.manuel_fiyat,
       fiyat_birimi: urun.fiyat_birimi || 'kg',
     });
-    setStokArama(urun.stok_kart_adi || '');
     setEditMode(true);
   };
 
-  // Ürün seç (reçeteye eklemek için)
-  const handleUrunSec = (urun: UrunKarti) => {
+  // Ürün seç ve detay yükle
+  const handleUrunSec = async (urun: UrunKarti) => {
     setSelectedUrun(urun);
     if (onUrunSelect) {
       onUrunSelect(urun);
     }
+    // Detay bilgilerini yükle
+    await loadUrunDetay(urun.id);
+  };
+  
+  // Ürün detayını yükle
+  const loadUrunDetay = async (id: number) => {
+    setDetayLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/urunler/${id}`);
+      const result = await res.json();
+      if (result.success) {
+        setUrunDetay(result.data);
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error: any) {
+      console.error('Ürün detay hatası:', error);
+      setUrunDetay(null);
+    } finally {
+      setDetayLoading(false);
+    }
   };
 
-  const formatMoney = (value: number | null) => {
+  // Miktar formatı (string veya number olabilir)
+  const formatMiktar = (value: number | string | null | undefined) => {
+    if (value === null || value === undefined) return '0';
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    if (Number.isNaN(num)) return '0';
+    if (Number.isInteger(num)) return num.toLocaleString('tr-TR');
+    return num.toLocaleString('tr-TR', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    });
+  };
+
+  const formatMoney = (value: number | string | null | undefined) => {
     if (value === null || value === undefined) return '—';
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    if (Number.isNaN(num)) return '—';
     return new Intl.NumberFormat('tr-TR', {
       style: 'currency',
       currency: 'TRY',
-      minimumFractionDigits: 2,
-    }).format(value);
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(num);
   };
 
   // Filtrelenmiş ürünler
@@ -459,7 +472,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                     >
                       <Group justify="space-between" wrap="nowrap">
                         <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-                          <Text size="lg">{urun.ikon || urun.kategori_ikon || '📦'}</Text>
+                              <Text size="lg">{urun.ikon || urun.kategori_ikon || '📦'}</Text>
                           <Box style={{ flex: 1, minWidth: 0 }}>
                             <Text fw={500} size="sm" truncate>
                               {urun.ad}
@@ -468,11 +481,18 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                               <Badge size="xs" variant="light" color="gray">
                                 {urun.kod}
                               </Badge>
-                              {urun.guncel_fiyat && (
+                              {urun.son_alis_fiyati && (
                                 <Badge size="xs" variant="filled" color="green">
-                                  {formatMoney(urun.guncel_fiyat)}/{urun.fiyat_birimi}
+                                  {formatMoney(urun.son_alis_fiyati)}/{urun.birim_kisa || 'kg'}
                                 </Badge>
                               )}
+                              <Badge 
+                                size="xs" 
+                                variant="light" 
+                                color={urun.durum === 'normal' ? 'green' : urun.durum === 'tukendi' ? 'red' : 'orange'}
+                              >
+                                {urun.durum === 'tukendi' ? 'Stok Yok' : urun.durum === 'kritik' ? 'Kritik' : urun.durum === 'dusuk' ? 'Düşük' : ''}
+                              </Badge>
                             </Group>
                           </Box>
                         </Group>
@@ -581,88 +601,6 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                   w="50%"
                 />
 
-                <Divider label="Fiyat Bilgisi" labelPosition="center" />
-
-                <Paper p="md" withBorder radius="md" bg="blue.0">
-                  <Stack gap="sm">
-                    <Text size="sm" fw={500}>
-                      <IconLink size={14} style={{ marginRight: 4 }} />
-                      Stok Kartı ile Eşleştir (Opsiyonel)
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      Stok kartı ile eşleştirirseniz fiyat otomatik güncel kalır
-                    </Text>
-                    <Autocomplete
-                      placeholder="Stok kartı ara..."
-                      data={stokKartlari.map((sk) => ({
-                        value: sk.ad,
-                        label: `${sk.kod} - ${sk.ad} (${formatMoney(sk.son_alis_fiyat)}/${sk.birim || 'kg'})`,
-                      }))}
-                      value={stokArama}
-                      onChange={(val) => {
-                        setStokArama(val);
-                        fetchStokKartlari(val);
-                      }}
-                      onOptionSubmit={(val) => {
-                        const selected = stokKartlari.find((sk) => sk.ad === val);
-                        if (selected) {
-                          setFormData({ ...formData, stok_kart_id: selected.id });
-                          setStokArama(selected.ad);
-                        }
-                      }}
-                    />
-                    {formData.stok_kart_id && (
-                      <Group>
-                        <Badge color="green" leftSection={<IconCheck size={12} />}>
-                          Stok kartı seçildi
-                        </Badge>
-                        <Button
-                          size="xs"
-                          variant="subtle"
-                          color="red"
-                          onClick={() => {
-                            setFormData({ ...formData, stok_kart_id: null });
-                            setStokArama('');
-                          }}
-                        >
-                          Kaldır
-                        </Button>
-                      </Group>
-                    )}
-                  </Stack>
-                </Paper>
-
-                <Paper p="md" withBorder radius="md">
-                  <Stack gap="sm">
-                    <Text size="sm" fw={500}>
-                      <IconCurrencyLira size={14} style={{ marginRight: 4 }} />
-                      Manuel Fiyat (Stok kartı yoksa)
-                    </Text>
-                    <SimpleGrid cols={2}>
-                      <NumberInput
-                        label="Fiyat (₺)"
-                        placeholder="0.00"
-                        value={formData.manuel_fiyat || ''}
-                        onChange={(val) =>
-                          setFormData({
-                            ...formData,
-                            manuel_fiyat: typeof val === 'number' ? val : null,
-                          })
-                        }
-                        min={0}
-                        decimalScale={2}
-                        disabled={!!formData.stok_kart_id}
-                      />
-                      <Select
-                        label="Fiyat Birimi"
-                        data={FIYAT_BIRIMLERI}
-                        value={formData.fiyat_birimi}
-                        onChange={(val) => setFormData({ ...formData, fiyat_birimi: val || 'kg' })}
-                      />
-                    </SimpleGrid>
-                  </Stack>
-                </Paper>
-
                 <Group justify="flex-end" mt="md">
                   <Button
                     variant="light"
@@ -686,7 +624,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                 </Group>
               </Stack>
             ) : selectedUrun ? (
-              // Ürün Detayı
+              // Ürün Detayı - Tüm bilgiler tek panelde
               <Stack gap="md">
                 <Group justify="space-between">
                   <Group gap="sm">
@@ -702,7 +640,13 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                           {selectedUrun.kod}
                         </Badge>
                         <Badge variant="light" color="gray">
-                          {selectedUrun.kategori_adi}
+                          {selectedUrun.kategori}
+                        </Badge>
+                        <Badge 
+                          variant="filled" 
+                          color={selectedUrun.durum === 'normal' ? 'green' : selectedUrun.durum === 'tukendi' ? 'red' : 'orange'}
+                        >
+                          {selectedUrun.durum === 'tukendi' ? 'Stok Yok' : selectedUrun.durum === 'kritik' ? 'Kritik' : selectedUrun.durum === 'dusuk' ? 'Düşük' : 'Normal'}
                         </Badge>
                       </Group>
                     </Box>
@@ -718,96 +662,148 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
 
                 <Divider />
 
-                <SimpleGrid cols={3}>
-                  <Paper p="md" withBorder radius="md" ta="center">
-                    <Text size="xs" c="dimmed">
-                      Varsayılan Birim
-                    </Text>
-                    <Text fw={600} size="lg">
-                      {selectedUrun.varsayilan_birim?.toUpperCase()}
-                    </Text>
+                {/* Genel Bilgiler */}
+                <SimpleGrid cols={4}>
+                  <Paper p="sm" withBorder radius="md" ta="center">
+                    <Text size="xs" c="dimmed">Birim</Text>
+                    <Text fw={600}>{selectedUrun.birim || selectedUrun.birim_kisa || '—'}</Text>
                   </Paper>
-                  <Paper p="md" withBorder radius="md" ta="center">
-                    <Text size="xs" c="dimmed">
-                      Fiyat Birimi
-                    </Text>
-                    <Text fw={600} size="lg">
-                      {selectedUrun.fiyat_birimi?.toUpperCase()}
-                    </Text>
+                  <Paper p="sm" withBorder radius="md" ta="center">
+                    <Text size="xs" c="dimmed">Mevcut Stok</Text>
+                    <Text fw={600} c="blue">{formatMiktar(selectedUrun.toplam_stok)} {selectedUrun.birim_kisa || 'Ad'}</Text>
                   </Paper>
-                  <Paper
-                    p="md"
-                    withBorder
-                    radius="md"
-                    ta="center"
-                    bg={selectedUrun.guncel_fiyat ? 'green.0' : 'gray.0'}
-                  >
-                    <Text size="xs" c="dimmed">
-                      Güncel Fiyat
-                    </Text>
-                    <Text fw={600} size="lg" c={selectedUrun.guncel_fiyat ? 'green' : 'dimmed'}>
-                      {formatMoney(selectedUrun.guncel_fiyat)}
-                    </Text>
+                  <Paper p="sm" withBorder radius="md" ta="center" bg={selectedUrun.son_alis_fiyati ? 'green.0' : undefined}>
+                    <Text size="xs" c="dimmed">Son Alış</Text>
+                    <Text fw={600} c={selectedUrun.son_alis_fiyati ? 'green' : 'dimmed'}>{formatMoney(selectedUrun.son_alis_fiyati)}</Text>
+                  </Paper>
+                  <Paper p="sm" withBorder radius="md" ta="center">
+                    <Text size="xs" c="dimmed">Min / Kritik</Text>
+                    <Text fw={600}>{formatMiktar(selectedUrun.min_stok)} / {formatMiktar(selectedUrun.kritik_stok)}</Text>
                   </Paper>
                 </SimpleGrid>
 
-                {/* Stok Kartı Eşleştirme */}
-                <Paper p="md" withBorder radius="md">
-                  <Group justify="space-between" mb="sm">
-                    <Text fw={500}>
-                      {selectedUrun.stok_kart_id ? (
-                        <>
-                          <IconLink size={16} style={{ marginRight: 4 }} /> Bağlı Stok Kartı
-                        </>
-                      ) : (
-                        <>
-                          <IconLinkOff size={16} style={{ marginRight: 4 }} /> Stok Kartı Bağlantısı
-                          Yok
-                        </>
-                      )}
-                    </Text>
-                  </Group>
-
-                  {selectedUrun.stok_kart_id ? (
-                    <Paper p="sm" withBorder bg="blue.0">
-                      <Group justify="space-between">
-                        <Box>
-                          <Text fw={500}>{selectedUrun.stok_kart_adi}</Text>
-                          <Text size="xs" c="dimmed">
-                            Stok fiyatı: {formatMoney(selectedUrun.stok_fiyat)}/
-                            {selectedUrun.stok_birim || 'kg'}
-                          </Text>
-                        </Box>
-                        <Badge color="green" size="lg">
-                          <IconCheck size={12} /> Eşleştirildi
+                {detayLoading ? (
+                  <Center py="xl">
+                    <Loader size="sm" color="violet" />
+                  </Center>
+                ) : urunDetay && (
+                  <>
+                    {/* Depo Durumları */}
+                    <Box>
+                      <Group gap="xs" mb="xs">
+                        <IconBuilding size={16} />
+                        <Text size="sm" fw={600}>Depo Durumları</Text>
+                        <Badge size="xs" variant="light" color="cyan">
+                          {urunDetay.depo_durumlari?.length || 0} depo
                         </Badge>
                       </Group>
-                    </Paper>
-                  ) : (
-                    <Text size="sm" c="dimmed">
-                      Bu ürün kartı henüz bir stok kartı ile eşleştirilmemiş.
-                      {selectedUrun.manuel_fiyat
-                        ? ' Manuel fiyat kullanılıyor.'
-                        : ' Fiyat bilgisi yok.'}
-                    </Text>
-                  )}
-                </Paper>
+                      
+                      {urunDetay.depo_durumlari && urunDetay.depo_durumlari.length > 0 ? (
+                        <SimpleGrid cols={3} spacing="xs">
+                          {urunDetay.depo_durumlari.map((dd: any) => (
+                            <Paper key={dd.depo_id} p="xs" withBorder radius="md">
+                              <Group justify="space-between" mb={4}>
+                                <Text size="xs" fw={600}>{dd.depo_ad}</Text>
+                                <Badge size="xs" variant="light">{dd.depo_kod}</Badge>
+                              </Group>
+                              <Text size="lg" fw={700} c="blue">
+                                {formatMiktar(dd.miktar)} {selectedUrun.birim_kisa || 'Ad'}
+                              </Text>
+                            </Paper>
+                          ))}
+                        </SimpleGrid>
+                      ) : (
+                        <Paper p="sm" withBorder ta="center" c="dimmed">
+                          <Text size="xs">Bu ürün hiçbir depoda stokta yok</Text>
+                        </Paper>
+                      )}
+                    </Box>
 
-                {/* Manuel Fiyat */}
-                {selectedUrun.manuel_fiyat && (
-                  <Paper p="md" withBorder radius="md" bg="orange.0">
-                    <Group justify="space-between">
-                      <Box>
-                        <Text fw={500}>Manuel Fiyat</Text>
-                        <Text size="xs" c="dimmed">
-                          Elle girilen fiyat değeri
-                        </Text>
-                      </Box>
-                      <Text fw={600} size="lg" c="orange">
-                        {formatMoney(selectedUrun.manuel_fiyat)}/{selectedUrun.fiyat_birimi}
-                      </Text>
-                    </Group>
-                  </Paper>
+                    {/* Fiyat Geçmişi */}
+                    <Box>
+                      <Group gap="xs" mb="xs">
+                        <IconHistory size={16} />
+                        <Text size="sm" fw={600}>Fiyat Geçmişi</Text>
+                        <Badge size="xs" variant="light">
+                          {urunDetay.fiyat_gecmisi?.length || 0} kayıt
+                        </Badge>
+                      </Group>
+                      
+                      {urunDetay.fiyat_gecmisi && urunDetay.fiyat_gecmisi.length > 0 ? (
+                        <Table striped highlightOnHover withTableBorder>
+                          <Table.Thead>
+                            <Table.Tr>
+                              <Table.Th>Tarih</Table.Th>
+                              <Table.Th>Tedarikçi</Table.Th>
+                              <Table.Th>Fiyat</Table.Th>
+                            </Table.Tr>
+                          </Table.Thead>
+                          <Table.Tbody>
+                            {urunDetay.fiyat_gecmisi.slice(0, 5).map((fg: any) => (
+                              <Table.Tr key={fg.id}>
+                                <Table.Td>
+                                  <Text size="xs">{fg.tarih ? new Date(fg.tarih).toLocaleDateString('tr-TR') : '-'}</Text>
+                                </Table.Td>
+                                <Table.Td>
+                                  <Text size="xs" lineClamp={1}>{fg.tedarikci || '-'}</Text>
+                                </Table.Td>
+                                <Table.Td>
+                                  <Text size="xs" fw={500} c="blue">{formatMoney(fg.fiyat)}</Text>
+                                </Table.Td>
+                              </Table.Tr>
+                            ))}
+                          </Table.Tbody>
+                        </Table>
+                      ) : (
+                        <Paper p="sm" withBorder ta="center" c="dimmed">
+                          <Text size="xs">Henüz fiyat kaydı yok</Text>
+                        </Paper>
+                      )}
+                    </Box>
+
+                    {/* Tedarikçi Eşleştirmeleri */}
+                    <Box>
+                      <Group gap="xs" mb="xs">
+                        <IconLink size={16} />
+                        <Text size="sm" fw={600}>Tedarikçi Eşleştirmeleri</Text>
+                        <Badge size="xs" variant="light" color="grape">
+                          {urunDetay.tedarikci_eslestirmeleri?.length || 0} kayıt
+                        </Badge>
+                      </Group>
+                      
+                      {urunDetay.tedarikci_eslestirmeleri && urunDetay.tedarikci_eslestirmeleri.length > 0 ? (
+                        <Table striped highlightOnHover withTableBorder>
+                          <Table.Thead>
+                            <Table.Tr>
+                              <Table.Th>Tedarikçi Ürün Adı</Table.Th>
+                              <Table.Th>Kod</Table.Th>
+                              <Table.Th>Kullanım</Table.Th>
+                            </Table.Tr>
+                          </Table.Thead>
+                          <Table.Tbody>
+                            {urunDetay.tedarikci_eslestirmeleri.slice(0, 5).map((te: any) => (
+                              <Table.Tr key={te.id}>
+                                <Table.Td>
+                                  <Text size="xs" fw={500}>{te.tedarikci_urun_adi}</Text>
+                                </Table.Td>
+                                <Table.Td>
+                                  <Badge size="xs" variant="light">{te.tedarikci_urun_kodu || '-'}</Badge>
+                                </Table.Td>
+                                <Table.Td>
+                                  <Text size="xs" c="dimmed">{te.eslestirme_sayisi || 0}x</Text>
+                                </Table.Td>
+                              </Table.Tr>
+                            ))}
+                          </Table.Tbody>
+                        </Table>
+                      ) : (
+                        <Paper p="sm" withBorder ta="center" c="dimmed">
+                          <Text size="xs">Henüz tedarikçi eşleştirmesi yok</Text>
+                          <Text size="xs" c="dimmed">Faturadan stok girişi yapıldığında otomatik oluşturulur</Text>
+                        </Paper>
+                      )}
+                    </Box>
+                  </>
                 )}
               </Stack>
             ) : (
