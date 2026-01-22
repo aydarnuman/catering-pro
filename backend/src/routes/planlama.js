@@ -17,16 +17,16 @@ router.get('/piyasa/takip-listesi', async (req, res) => {
     const result = await query(`
       SELECT 
         ptl.*,
-        sk.kod as stok_kod,
-        sk.ad as stok_adi,
-        sk.toplam_stok,
-        sk.son_alis_fiyat as guncel_sistem_fiyat,
+        uk.kod as stok_kod,
+        uk.ad as stok_adi,
+        uk.toplam_stok,
+        uk.son_alis_fiyat as guncel_sistem_fiyat,
         k.ad as kategori,
         b.kisa_ad as birim
       FROM piyasa_takip_listesi ptl
       LEFT JOIN urun_kartlari uk ON uk.id = ptl.stok_kart_id
-      LEFT JOIN stok_kategoriler k ON k.id = sk.kategori_id
-      LEFT JOIN birimler b ON b.id = sk.ana_birim_id
+      LEFT JOIN stok_kategoriler k ON k.id = uk.kategori_id
+      LEFT JOIN birimler b ON b.id = uk.ana_birim_id
       ${sadece_aktif === 'true' ? 'WHERE ptl.aktif = true' : ''}
       ORDER BY 
         CASE ptl.durum 
