@@ -50,18 +50,44 @@ def save_session():
 
 def load_session():
     global is_logged_in, current_user
+    
+    # Get credentials from .env
+    username = os.getenv("INSTAGRAM_USERNAME", "")
+    password = os.getenv("INSTAGRAM_PASSWORD", "")
+    
+    # Try to load existing session first
     if os.path.exists(SESSION_FILE):
         try:
             with open(SESSION_FILE, "r") as f:
                 session_data = json.load(f)
             cl.set_settings(session_data)
-            cl.login(session_data.get("username", ""), "")
+            
+            # Try to use session without re-login
+            try:
+                cl.get_timeline_feed()  # Test if session is valid
+                is_logged_in = True
+                current_user = cl.user_info_by_username(cl.username)
+                print(f"Session loaded successfully for {cl.username}")
+                return True
+            except Exception:
+                pass  # Session invalid, try login
+        except Exception as e:
+            print(f"Session file load failed: {e}")
+    
+    # If session failed, try login with credentials
+    if username and password:
+        try:
+            cl.login(username, password)
             is_logged_in = True
             current_user = cl.user_info_by_username(cl.username)
+            save_session()  # Save new session
+            print(f"Logged in successfully as {username}")
             return True
         except Exception as e:
-            print(f"Session load failed: {e}")
+            print(f"Login failed: {e}")
             return False
+    
+    print("Session load failed: Both username and password must be provided.")
     return False
 
 # Routes
