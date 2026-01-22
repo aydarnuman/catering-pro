@@ -66,8 +66,12 @@ def load_session():
             try:
                 cl.get_timeline_feed()  # Test if session is valid
                 is_logged_in = True
-                current_user = cl.user_info_by_username(cl.username)
-                print(f"Session loaded successfully for {cl.username}")
+                # Use user_info with user_id instead of username
+                try:
+                    current_user = cl.user_info(cl.user_id)
+                except Exception:
+                    current_user = None
+                print(f"Session loaded successfully for user_id {cl.user_id}")
                 return True
             except Exception:
                 pass  # Session invalid, try login
@@ -79,7 +83,11 @@ def load_session():
         try:
             cl.login(username, password)
             is_logged_in = True
-            current_user = cl.user_info_by_username(cl.username)
+            # Use user_info with user_id
+            try:
+                current_user = cl.user_info(cl.user_id)
+            except Exception:
+                current_user = None
             save_session()  # Save new session
             print(f"Logged in successfully as {username}")
             return True
@@ -125,16 +133,22 @@ async def login(request: LoginRequest):
         # Try to login
         cl.login(request.username, request.password, verification_code=request.verification_code)
         is_logged_in = True
-        current_user = cl.user_info_by_username(request.username)
+        
+        # Get user info using user_id
+        try:
+            current_user = cl.user_info(cl.user_id)
+        except Exception:
+            current_user = None
+            
         save_session()
         
         return {
             "success": True,
             "user": {
-                "id": str(current_user.pk),
-                "username": current_user.username,
-                "full_name": current_user.full_name,
-                "followers": current_user.follower_count
+                "id": str(current_user.pk) if current_user else str(cl.user_id),
+                "username": current_user.username if current_user else request.username,
+                "full_name": current_user.full_name if current_user else "",
+                "followers": current_user.follower_count if current_user else 0
             }
         }
     except TwoFactorRequired:
@@ -162,7 +176,8 @@ async def get_profile():
         raise HTTPException(status_code=401, detail="Not logged in")
     
     try:
-        user = cl.user_info_by_username(cl.username)
+        # Use user_info with user_id instead of username
+        user = cl.user_info(cl.user_id)
         return {
             "success": True,
             "profile": {
@@ -185,19 +200,43 @@ async def get_posts(limit: int = 12):
         raise HTTPException(status_code=401, detail="Not logged in")
     
     try:
-        medias = cl.user_medias(cl.user_id, amount=limit)
         posts = []
+        
+        # Try multiple methods to get user medias
+        medias = []
+        
+        # Method 1: Try user_medias with error handling
+        try:
+            medias = cl.user_medias(cl.user_id, amount=limit)
+        except Exception as e1:
+            print(f"user_medias failed: {e1}")
+            
+            # Method 2: Try getting from timeline/feed
+            try:
+                feed = cl.get_timeline_feed()
+                if feed and hasattr(feed, 'feed_items'):
+                    for item in feed.feed_items[:limit]:
+                        if hasattr(item, 'media_or_ad') and item.media_or_ad:
+                            medias.append(item.media_or_ad)
+            except Exception as e2:
+                print(f"timeline_feed failed: {e2}")
+        
         for media in medias:
-            posts.append({
-                "id": str(media.pk),
-                "code": media.code,
-                "caption": media.caption_text,
-                "likes": media.like_count,
-                "comments": media.comment_count,
-                "media_type": media.media_type,
-                "thumbnail": str(media.thumbnail_url) if media.thumbnail_url else None,
-                "timestamp": media.taken_at.isoformat() if media.taken_at else None
-            })
+            try:
+                posts.append({
+                    "id": str(media.pk) if hasattr(media, 'pk') else str(media.id),
+                    "code": getattr(media, 'code', ''),
+                    "caption": getattr(media, 'caption_text', '') or '',
+                    "likes": getattr(media, 'like_count', 0) or 0,
+                    "comments": getattr(media, 'comment_count', 0) or 0,
+                    "media_type": getattr(media, 'media_type', 1),
+                    "thumbnail": str(media.thumbnail_url) if hasattr(media, 'thumbnail_url') and media.thumbnail_url else None,
+                    "timestamp": media.taken_at.isoformat() if hasattr(media, 'taken_at') and media.taken_at else None
+                })
+            except Exception as pe:
+                print(f"Error parsing media: {pe}")
+                continue
+                
         return {"success": True, "posts": posts}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
