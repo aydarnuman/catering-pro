@@ -19,14 +19,11 @@ router.get('/piyasa/takip-listesi', async (req, res) => {
         ptl.*,
         uk.kod as stok_kod,
         uk.ad as stok_adi,
-        uk.stok_miktari as toplam_stok,
-        uk.alis_fiyati as guncel_sistem_fiyat,
-        k.ad as kategori,
-        b.kisa_ad as birim
+        ptl.sistem_fiyat as guncel_sistem_fiyat,
+        k.ad as kategori
       FROM piyasa_takip_listesi ptl
       LEFT JOIN urun_kartlari uk ON uk.id = ptl.stok_kart_id
       LEFT JOIN stok_kategoriler k ON k.id = uk.kategori_id
-      LEFT JOIN birimler b ON b.id = uk.ana_birim_id
       ${sadece_aktif === 'true' ? 'WHERE ptl.aktif = true' : ''}
       ORDER BY 
         CASE ptl.durum 
