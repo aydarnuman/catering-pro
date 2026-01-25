@@ -70,12 +70,16 @@ export default function ProfilPage() {
     }
   }, [user]);
 
-  // Auth kontrolü ve redirect
+  // Auth kontrolü ve redirect - sadece gerçekten authenticated değilse yönlendir
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
+    // Loading bitene kadar bekle
+    if (authLoading) return;
+    
+    // Eğer authenticated değilse ve user da yoksa login'e yönlendir
+    if (!isAuthenticated && !user) {
       router.push('/giris');
     }
-  }, [authLoading, isAuthenticated, router]);
+  }, [authLoading, isAuthenticated, user, router]);
 
   // Session'ları yükle (opsiyonel - 401 hatası normal)
   useEffect(() => {
@@ -189,7 +193,18 @@ export default function ProfilPage() {
   };
 
   // Giriş yapmamışsa login sayfasına yönlendir
-  if (authLoading || !isAuthenticated) {
+  // Loading state veya user yoksa loader göster
+  if (authLoading) {
+    return (
+      <Center h="100vh">
+        <Loader size="lg" />
+      </Center>
+    );
+  }
+
+  // Eğer authenticated değilse ve user da yoksa, redirect zaten useEffect'te yapılıyor
+  // Burada sadece loader göster (redirect olana kadar)
+  if (!isAuthenticated && !user) {
     return (
       <Center h="100vh">
         <Loader size="lg" />
