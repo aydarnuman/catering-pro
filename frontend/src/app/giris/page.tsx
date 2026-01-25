@@ -22,30 +22,38 @@ import {
   IconLock,
   IconShieldCheck,
 } from '@tabler/icons-react';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const hasRedirected = useRef(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Zaten giriş yapmışsa ana sayfaya yönlendir
+  // Zaten giriş yapmışsa ana sayfaya yönlendir - SADECE BİR KEZ
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      // Kısa bir gecikme ile redirect yap (state güncellenmesi için)
-      const timer = setTimeout(() => {
-        router.push('/');
-      }, 50);
-      return () => clearTimeout(timer);
+    // Login sayfasında değilsek veya zaten redirect yaptıysak çık
+    if (pathname !== '/giris' || hasRedirected.current) return;
+    
+    // Loading bitene kadar bekle
+    if (authLoading) return;
+    
+    // Authenticated ise ve daha önce redirect yapmadıysak
+    if (isAuthenticated) {
+      hasRedirected.current = true;
+      // Ana sayfaya yönlendir
+      router.replace('/');
     }
-  }, [authLoading, isAuthenticated, router]);
+  }, [authLoading, isAuthenticated, router, pathname]);
 
+  // Loading state
   if (authLoading) {
     return (
       <Center h="100vh">
@@ -54,7 +62,8 @@ export default function LoginPage() {
     );
   }
 
-  if (isAuthenticated) {
+  // Authenticated ise kısa bir süre loader göster (redirect olana kadar)
+  if (isAuthenticated && !hasRedirected.current) {
     return (
       <Center h="100vh">
         <Text>Yönlendiriliyor...</Text>
@@ -76,11 +85,9 @@ export default function LoginPage() {
     const result = await login(email, password);
 
     if (result.success) {
-      // Login başarılı - kısa bir gecikme ile redirect yap (state güncellenmesi için)
-      setTimeout(() => {
-        router.push('/');
-        router.refresh(); // Sayfayı yenile
-      }, 100);
+      // Login başarılı - direkt ana sayfaya yönlendir
+      hasRedirected.current = true;
+      router.replace('/');
     } else {
       setError(result.error || 'Giriş başarısız');
       setIsLoading(false);

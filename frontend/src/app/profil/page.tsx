@@ -39,7 +39,7 @@ import {
   IconUser,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { adminAPI } from '@/lib/api/services/admin';
 
@@ -71,13 +71,18 @@ export default function ProfilPage() {
   }, [user]);
 
   // Auth kontrolü ve redirect - sadece gerçekten authenticated değilse yönlendir
+  const hasRedirected = useRef(false);
   useEffect(() => {
     // Loading bitene kadar bekle
     if (authLoading) return;
     
+    // Zaten redirect yaptıysak tekrar yapma
+    if (hasRedirected.current) return;
+    
     // Eğer authenticated değilse ve user da yoksa login'e yönlendir
     if (!isAuthenticated && !user) {
-      router.push('/giris');
+      hasRedirected.current = true;
+      router.replace('/giris');
     }
   }, [authLoading, isAuthenticated, user, router]);
 

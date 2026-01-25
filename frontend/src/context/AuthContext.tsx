@@ -46,9 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('Token expired event received');
       setUser(null);
       setToken(null);
-      // Login sayfasında değilsek yönlendir
+      // Login sayfasında değilsek yönlendir - replace kullan (history'ye ekleme)
       if (pathname !== '/giris') {
-        router.push('/giris');
+        router.replace('/giris');
       }
     };
 
