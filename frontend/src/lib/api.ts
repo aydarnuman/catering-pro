@@ -1,5 +1,5 @@
 import axios, { type InternalAxiosRequestConfig, type AxiosError } from 'axios';
-import { API_BASE_URL } from '@/lib/config';
+import { getApiBaseUrlDynamic } from '@/lib/config';
 import { createClient } from '@/lib/supabase/client';
 
 // Retry flag için tip genişletmesi
@@ -8,8 +8,9 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
 }
 
 // Create axios instance
+// baseURL dinamik olarak interceptor'da ayarlanacak
 export const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: '', // Runtime'da dinamik olarak ayarlanacak
   timeout: 60000, // 60 saniye (scraper gibi uzun işlemler için)
   headers: {
     'Content-Type': 'application/json',
@@ -36,9 +37,18 @@ function getSupabase() {
   return supabaseClient;
 }
 
-// Request interceptor - Supabase token ekle
+// Request interceptor - BaseURL ve Supabase token ekle
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   try {
+    // BaseURL'i dinamik olarak ayarla (her request'te güncel değer)
+    // Sadece relative URL'ler için (absolute URL'ler için baseURL kullanılmaz)
+    if (config.url && !config.url.startsWith('http://') && !config.url.startsWith('https://')) {
+      const baseUrl = getApiBaseUrlDynamic();
+      if (baseUrl) {
+        config.baseURL = baseUrl;
+      }
+    }
+    
     const supabase = getSupabase();
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
@@ -254,7 +264,7 @@ export const apiClient = {
   },
 
   getDocumentDownloadUrl(tenderId: string, docType: string) {
-    return `${API_BASE_URL}/api/documents/download/${tenderId}/${docType}`;
+    return `${getApiBaseUrlDynamic()}/api/documents/download/${tenderId}/${docType}`;
   },
 
   async scrapeDocumentsForTender(tenderId: string) {
