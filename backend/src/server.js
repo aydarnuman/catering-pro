@@ -23,7 +23,8 @@ const app = express();
 const PORT = process.env.PORT || process.env.API_PORT || 3001;
 
 // Trust proxy - Rate limiter için gerekli (X-Forwarded-For header'ı için)
-app.set('trust proxy', true);
+// Sadece bir proxy'ye güven (nginx) - permissive trust proxy hatasını önler
+app.set('trust proxy', 1);
 
 // Middleware
 // Security Headers (Helmet)
