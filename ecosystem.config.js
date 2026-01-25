@@ -39,8 +39,9 @@ module.exports = {
       name: 'catering-frontend',
       // Standalone output için: node .next/standalone/server.js
       // Normal output için: npm start
-      script: 'node',
-      args: '.next/standalone/server.js',
+      // Geçici olarak npm start kullanıyoruz (standalone build yapılana kadar)
+      script: 'npm',
+      args: 'start',
       cwd: './frontend',
       instances: 1,
       exec_mode: 'fork',
