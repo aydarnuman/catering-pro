@@ -37,16 +37,22 @@ module.exports = {
     },
     {
       name: 'catering-frontend',
-      script: 'npm',
-      args: 'start',
+      // Standalone output için: node .next/standalone/server.js
+      // Normal output için: npm start
+      script: 'node',
+      args: '.next/standalone/server.js',
       cwd: './frontend',
       instances: 1,
       exec_mode: 'fork',
       watch: false,
       max_memory_restart: '300M', // 300MB'da restart
+      env_file: './frontend/.env.production', // Environment variables dosyası
       env: {
         NODE_ENV: 'production',
         PORT: 3000,
+        // Supabase env vars (env_file ile de yüklenir ama burada da belirtiyoruz)
+        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://vpobejfxqihvgsjwnyku.supabase.co',
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwb2JlamZ4cWlodmdzandueWt1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ4NTk4MDMsImV4cCI6MjA4MDQzNTgwM30.47p2YAH4KLS4G8wbQMPkj7PUGuWHGfyNfTL03RNfgKc',
       },
       error_file: './logs/pm2-frontend-error.log',
       out_file: './logs/pm2-frontend-out.log',
