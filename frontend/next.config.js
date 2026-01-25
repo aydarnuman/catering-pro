@@ -1,4 +1,5 @@
 const path = require('path');
+const { execSync } = require('child_process');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -13,6 +14,15 @@ const nextConfig = {
   // Asset prefix - undefined = relative path (IP veya domain fark etmez)
   // Sadece belirtilirse kullanılır, yoksa Next.js otomatik relative path kullanır
   ...(process.env.NEXT_PUBLIC_ASSET_PREFIX ? { assetPrefix: process.env.NEXT_PUBLIC_ASSET_PREFIX } : {}),
+  // Build ID'yi git commit hash'inden al (cache sorunlarını önler)
+  generateBuildId: async () => {
+    try {
+      return execSync('git rev-parse HEAD').toString().trim().substring(0, 7);
+    } catch {
+      // Git yoksa timestamp kullan
+      return Date.now().toString();
+    }
+  },
   // Output file tracing root - workspace root'u belirt (warning'i kaldırmak için)
   outputFileTracingRoot: path.join(__dirname),
   // Webpack config - chunk sorunlarını önlemek için
