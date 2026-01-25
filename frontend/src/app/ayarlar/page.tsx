@@ -89,6 +89,7 @@ import { Suspense, useCallback, useEffect, useState } from 'react';
 import ProjeYonetimModal from '@/components/muhasebe/ProjeYonetimModal';
 import { API_BASE_URL } from '@/lib/config';
 import { useAuth } from '@/context/AuthContext';
+import { firmalarAPI } from '@/lib/api/services/firmalar';
 
 // Tip tanımları
 interface UserInfo {
@@ -1850,19 +1851,16 @@ function AyarlarContent() {
   const fetchFirmalar = useCallback(async () => {
     try {
       setFirmaLoading(true);
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      const res = await fetch(`${API_BASE_URL}/api/firmalar`, {
-        credentials: 'include', // Cookie'leri gönder
-        headers,
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setFirmalar(data.data || []);
+      const response = await firmalarAPI.getFirmalar();
+      if (response.success && response.data) {
+        setFirmalar(response.data);
+      } else {
+        console.error('Firmalar yüklenemedi:', response.error);
+        setFirmalar([]);
       }
     } catch (err) {
       console.error('Firmalar yüklenemedi:', err);
+      setFirmalar([]);
     } finally {
       setFirmaLoading(false);
     }
