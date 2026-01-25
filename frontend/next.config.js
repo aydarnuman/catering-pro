@@ -10,6 +10,18 @@ const nextConfig = {
   },
   // Output file tracing root - workspace root'u belirt (warning'i kaldırmak için)
   outputFileTracingRoot: path.join(__dirname),
+  // Webpack config - chunk sorunlarını önlemek için
+  webpack: (config, { isServer, dev }) => {
+    if (dev && !isServer) {
+      // Development'ta chunk sorunlarını önlemek için
+      config.optimization = {
+        ...config.optimization,
+        removeAvailableModules: false,
+        removeEmptyChunks: false,
+      };
+    }
+    return config;
+  },
 }
 
 module.exports = nextConfig
