@@ -1853,7 +1853,7 @@ function AyarlarContent() {
       setFirmaLoading(true);
       const response = await firmalarAPI.getFirmalar();
       if (response.success && response.data) {
-        setFirmalar(response.data);
+        setFirmalar(response.data as FirmaBilgileri[]);
       } else {
         console.error('Firmalar yüklenemedi:', response.error);
         setFirmalar([]);
