@@ -1,67 +1,87 @@
 // Merkezi API Konfigürasyonu
 // Tüm API çağrıları bu dosyadan import etmeli
 
-// Runtime'da API URL belirleme - hem local hem production için çalışır
+// ÖNEMLI: Bu fonksiyon SADECE client-side'da çalışır
+// Build sırasında hiçbir env variable kullanılmaz
+// Bu sayede production'da hostname otomatik olarak kullanılır
+
+// Lazy initialization için cache
+let cachedApiBaseUrl: string | null = null;
+
 const getApiBaseUrl = (): string => {
-  // Build-time env varsa onu kullan (SSR/SSG için)
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
+  // Cache varsa döndür (performance için)
+  if (cachedApiBaseUrl) {
+    return cachedApiBaseUrl;
   }
 
   // Client-side'da hostname'e göre karar ver
   if (typeof window !== 'undefined') {
     const { hostname, protocol } = window.location;
+    
     // Localhost ise local backend
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost:3001';
+      cachedApiBaseUrl = 'http://localhost:3001';
+      return cachedApiBaseUrl;
     }
+    
     // Production: aynı hostname'i kullan (Nginx proxy)
-    return `${protocol}//${hostname}`;
+    // IP adresi veya domain fark etmez, her ikisi de çalışır
+    cachedApiBaseUrl = `${protocol}//${hostname}`;
+    return cachedApiBaseUrl;
   }
 
-  // Server-side fallback
-  return 'http://localhost:3001';
+  // Server-side (SSR) - relative URL kullan
+  // Bu sayede SSR sırasında da sorun olmaz
+  return '';
 };
 
-export const API_BASE_URL = getApiBaseUrl();
+// Getter function - her çağrıda güncel değer alır
+export const getApiBaseUrlDynamic = (): string => {
+  return getApiBaseUrl();
+};
 
-// API endpoint'leri için helper
+// Legacy uyumluluk için - ama artık dinamik
+export const API_BASE_URL = typeof window !== 'undefined' ? getApiBaseUrl() : '';
+
+// API endpoint'leri için helper - dinamik URL kullanır
 export const API_ENDPOINTS = {
   // Auth
-  AUTH_LOGIN: `${API_BASE_URL}/api/auth/login`,
-  AUTH_ME: `${API_BASE_URL}/api/auth/me`,
-  AUTH_REGISTER: `${API_BASE_URL}/api/auth/register`,
-  AUTH_USERS: `${API_BASE_URL}/api/auth/users`,
-  AUTH_PROFILE: `${API_BASE_URL}/api/auth/profile`,
-  AUTH_PASSWORD: `${API_BASE_URL}/api/auth/password`,
+  get AUTH_LOGIN() { return `${getApiBaseUrl()}/api/auth/login`; },
+  get AUTH_ME() { return `${getApiBaseUrl()}/api/auth/me`; },
+  get AUTH_REGISTER() { return `${getApiBaseUrl()}/api/auth/register`; },
+  get AUTH_USERS() { return `${getApiBaseUrl()}/api/auth/users`; },
+  get AUTH_PROFILE() { return `${getApiBaseUrl()}/api/auth/profile`; },
+  get AUTH_PASSWORD() { return `${getApiBaseUrl()}/api/auth/password`; },
 
   // Health & Stats
-  HEALTH: `${API_BASE_URL}/health`,
-  STATS: `${API_BASE_URL}/api/stats`,
+  get HEALTH() { return `${getApiBaseUrl()}/health`; },
+  get STATS() { return `${getApiBaseUrl()}/api/stats`; },
 
   // Admin
-  ADMIN_STATS: `${API_BASE_URL}/api/database-stats/admin-stats`,
-  ADMIN_HEALTH: `${API_BASE_URL}/api/database-stats/health-detailed`,
+  get ADMIN_STATS() { return `${getApiBaseUrl()}/api/database-stats/admin-stats`; },
+  get ADMIN_HEALTH() { return `${getApiBaseUrl()}/api/database-stats/health-detailed`; },
 
   // AI
-  AI_TEMPLATES: `${API_BASE_URL}/api/ai/templates`,
-  AI_AGENT: `${API_BASE_URL}/api/ai/agent`,
-  AI_FEEDBACK: `${API_BASE_URL}/api/ai/feedback`,
-  AI_SETTINGS: `${API_BASE_URL}/api/ai/settings`,
+  get AI_TEMPLATES() { return `${getApiBaseUrl()}/api/ai/templates`; },
+  get AI_AGENT() { return `${getApiBaseUrl()}/api/ai/agent`; },
+  get AI_FEEDBACK() { return `${getApiBaseUrl()}/api/ai/feedback`; },
+  get AI_SETTINGS() { return `${getApiBaseUrl()}/api/ai/settings`; },
 
   // Tenders
-  TENDERS: `${API_BASE_URL}/api/tenders`,
+  get TENDERS() { return `${getApiBaseUrl()}/api/tenders`; },
 
   // Documents
-  DOCUMENTS: `${API_BASE_URL}/api/documents`,
+  get DOCUMENTS() { return `${getApiBaseUrl()}/api/documents`; },
 };
 
 // Dinamik endpoint oluşturucu
-export const getApiUrl = (path: string) => {
+export const getApiUrl = (path: string): string => {
+  const baseUrl = getApiBaseUrl();
+  
   // Eğer path zaten /api ile başlıyorsa direkt ekle
   if (path.startsWith('/api/')) {
-    return `${API_BASE_URL}${path}`;
+    return `${baseUrl}${path}`;
   }
   // Değilse /api/ ekle
-  return `${API_BASE_URL}/api${path.startsWith('/') ? path : `/${path}`}`;
+  return `${baseUrl}/api${path.startsWith('/') ? path : `/${path}`}`;
 };

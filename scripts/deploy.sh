@@ -153,14 +153,21 @@ case $DEPLOY_TYPE in
             cd ../frontend
             npm install --silent
             
-            echo '🔨 Frontend build...'
+            echo '🔨 Frontend build (tam temizlik)...'
+            # Tüm cache'leri temizle
             rm -rf .next
+            rm -rf node_modules/.cache
+            # Environment variables'ı temizle (eski build cache'i için)
+            unset NEXT_PUBLIC_API_URL
             npm run build
             
             echo ''
-            echo '🔄 PM2 restart...'
+            echo '🔄 PM2 tam restart (stop/start)...'
             cd ..
-            pm2 restart all || pm2 start ecosystem.config.js
+            # PM2'yi tamamen durdur ve yeniden başlat (env cache'i temizlemek için)
+            pm2 stop all || true
+            pm2 delete all || true
+            pm2 start ecosystem.config.js
             
             echo ''
             pm2 list

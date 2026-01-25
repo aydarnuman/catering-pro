@@ -6,9 +6,9 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['@mantine/core', '@mantine/hooks'],
   },
-  env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
-  },
+  // NOT: NEXT_PUBLIC_API_URL artık kullanılmıyor
+  // config.ts dosyası dinamik olarak hostname'den URL oluşturuyor
+  // Bu sayede build sırasında hardcoded URL'ler oluşmuyor
   // Production'da standalone output - şimdilik kapalı (npm start ile çalışması için)
   // ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
   // Asset prefix - undefined = relative path (IP veya domain fark etmez)
