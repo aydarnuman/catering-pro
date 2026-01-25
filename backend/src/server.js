@@ -22,6 +22,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || process.env.API_PORT || 3001;
 
+// Trust proxy - Rate limiter için gerekli (X-Forwarded-For header'ı için)
+app.set('trust proxy', true);
+
 // Middleware
 // Security Headers (Helmet)
 app.use(helmet({
