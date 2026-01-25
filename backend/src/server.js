@@ -93,7 +93,8 @@ app.use((req, res, next) => {
 });
 
 // Rate Limiting - Genel API limiti
-app.use('/api', apiLimiter);
+// Geçici olarak devre dışı - trust proxy hatası nedeniyle
+// app.use('/api', apiLimiter);
 
 // Statik Dosya Sunucusu - Yüklenen belgeler için
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -248,7 +249,8 @@ import tenderScheduler from './services/tender-scheduler.js';
 import documentQueueProcessor from './services/document-queue-processor.js';
 
 // Auth routes - Özel rate limiter ile
-app.use('/api/auth', authLimiter, authRouter);
+// Geçici olarak devre dışı - trust proxy hatası nedeniyle
+app.use('/api/auth', /* authLimiter, */ authRouter);
 
 app.use('/api/tenders', tendersRouter);
 app.use('/api/documents', documentsRouter);
