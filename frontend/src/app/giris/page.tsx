@@ -38,7 +38,11 @@ export default function LoginPage() {
   // Zaten giriş yapmışsa ana sayfaya yönlendir
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      router.push('/');
+      // Kısa bir gecikme ile redirect yap (state güncellenmesi için)
+      const timer = setTimeout(() => {
+        router.push('/');
+      }, 50);
+      return () => clearTimeout(timer);
     }
   }, [authLoading, isAuthenticated, router]);
 
@@ -72,12 +76,15 @@ export default function LoginPage() {
     const result = await login(email, password);
 
     if (result.success) {
-      router.push('/');
+      // Login başarılı - kısa bir gecikme ile redirect yap (state güncellenmesi için)
+      setTimeout(() => {
+        router.push('/');
+        router.refresh(); // Sayfayı yenile
+      }, 100);
     } else {
       setError(result.error || 'Giriş başarısız');
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   return (

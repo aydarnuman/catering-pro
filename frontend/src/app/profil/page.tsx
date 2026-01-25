@@ -70,9 +70,18 @@ export default function ProfilPage() {
     }
   }, [user]);
 
+  // Auth kontrolü ve redirect
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push('/giris');
+    }
+  }, [authLoading, isAuthenticated, router]);
+
   // Session'ları yükle
   useEffect(() => {
     const fetchSessions = async () => {
+      if (!isAuthenticated) return;
+      
       setSessionsLoading(true);
       try {
         const data = await adminAPI.getSessions();
@@ -82,8 +91,11 @@ export default function ProfilPage() {
           // Mevcut session'ı belirle (refresh token'dan)
           // Not: Backend'den mevcut session bilgisi gelirse daha iyi olur
         }
-      } catch (error) {
-        console.error('Session yükleme hatası:', error);
+      } catch (error: any) {
+        // 401 hatası normal olabilir (token süresi dolmuş olabilir)
+        if (error.response?.status !== 401) {
+          console.error('Session yükleme hatası:', error);
+        }
       } finally {
         setSessionsLoading(false);
       }
@@ -171,17 +183,12 @@ export default function ProfilPage() {
   };
 
   // Giriş yapmamışsa login sayfasına yönlendir
-  if (authLoading) {
+  if (authLoading || !isAuthenticated) {
     return (
       <Center h="100vh">
         <Loader size="lg" />
       </Center>
     );
-  }
-
-  if (!isAuthenticated) {
-    router.push('/giris');
-    return null;
   }
 
   // Profil güncelleme

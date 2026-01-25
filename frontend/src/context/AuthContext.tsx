@@ -171,6 +171,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok && data.success) {
         setToken('cookie-based'); // Token artık HttpOnly cookie'de
         setUser(data.user);
+        setIsLoading(false); // Loading state'i kapat
+        // hasInitializedRef'i sıfırla ki verifyAndLoadUser tekrar çalışabilsin
+        hasInitializedRef.current = false;
         return { success: true };
       } else {
         return { success: false, error: data.error || 'Giriş başarısız' };
