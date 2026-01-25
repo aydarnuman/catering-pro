@@ -53,11 +53,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     // Token refreshed event listener - api interceptor'dan gelen
+    const lastRefreshEventId = useRef<string | null>(null);
     const handleTokenRefreshed = (event: any) => {
-      const { user: refreshedUser } = event.detail || {};
+      const { user: refreshedUser, eventId } = event.detail || {};
       if (refreshedUser) {
-        console.log('Token refreshed, updating user state');
-        setUser(refreshedUser);
+        // Aynı event'i tekrar işleme (duplicate event'leri önle)
+        if (lastRefreshEventId.current === eventId) {
+          return;
+        }
+        lastRefreshEventId.current = eventId || null;
+        
+        // Sadece user değiştiyse state güncelle (gereksiz re-render'ları önle)
+        setUser((currentUser) => {
+          if (currentUser?.id === refreshedUser.id && 
+              currentUser?.email === refreshedUser.email &&
+              JSON.stringify(currentUser) === JSON.stringify(refreshedUser)) {
+            // User tamamen aynıysa state güncelleme (re-render önle)
+            return currentUser;
+          }
+          return refreshedUser;
+        });
         setToken('cookie-based');
         setIsLoading(false);
       }

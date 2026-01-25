@@ -61,7 +61,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import 'dayjs/locale/tr';
@@ -239,7 +239,7 @@ export default function FaturalarPage() {
   }, []);
 
   // Carileri yükle
-  const loadCariler = async () => {
+  const loadCariler = useCallback(async () => {
     try {
       const result = await muhasebeAPI.getCariler() as any;
       if (result.success) {
@@ -248,10 +248,10 @@ export default function FaturalarPage() {
     } catch (error) {
       console.error('Cariler yükleme hatası:', error);
     }
-  };
+  }, []);
 
   // Manuel faturaları yükle
-  const loadInvoices = async () => {
+  const loadInvoices = useCallback(async () => {
     setIsLoadingInvoices(true);
     setLoadError(null);
     try {
@@ -275,10 +275,10 @@ export default function FaturalarPage() {
     } finally {
       setIsLoadingInvoices(false);
     }
-  };
+  }, []);
 
   // Uyumsoft faturalarını yükle
-  const loadUyumsoftInvoices = async () => {
+  const loadUyumsoftInvoices = useCallback(async () => {
     setIsLoadingUyumsoft(true);
     setUyumsoftError(null);
     try {
@@ -293,7 +293,7 @@ export default function FaturalarPage() {
     } finally {
       setIsLoadingUyumsoft(false);
     }
-  };
+  }, []);
 
   // Uyumsoft durumunu kontrol et
   const checkUyumsoftStatus = async () => {

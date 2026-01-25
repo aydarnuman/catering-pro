@@ -119,9 +119,12 @@ api.interceptors.response.use(
             const token = 'cookie-based';
             
             // AuthContext'e token refresh başarılı olduğunu bildir
+            // Sadece user bilgisi değiştiyse event gönder (gereksiz re-render'ları önle)
             if (typeof window !== 'undefined' && meData.user) {
+              // Debounce: Aynı anda birden fazla refresh event'i gönderme
+              const eventId = `token-refreshed-${Date.now()}`;
               window.dispatchEvent(new CustomEvent('auth:token-refreshed', { 
-                detail: { user: meData.user } 
+                detail: { user: meData.user, eventId } 
               }));
             }
             

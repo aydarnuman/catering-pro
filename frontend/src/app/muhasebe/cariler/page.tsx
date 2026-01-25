@@ -39,7 +39,7 @@ import {
   IconUserCheck,
   IconUsers,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { DataActions } from '@/components/DataActions';
 import CariDetayModal from '@/components/muhasebe/CariDetayModal';
 import MutabakatModal from '@/components/muhasebe/MutabakatModal';
@@ -155,7 +155,7 @@ export default function CarilerPage() {
   });
 
   // API'den carileri yükle
-  const loadCariler = async () => {
+  const loadCariler = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -173,7 +173,7 @@ export default function CarilerPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // Boş dependency array - sadece mount'ta çalışsın
 
   // Component mount olduğunda verileri yükle
   useEffect(() => {
