@@ -279,18 +279,37 @@ export default function PersonelPage() {
 
   const fetchProjeler = useCallback(async () => {
     try {
+      setLoading(true);
       const result = await personelAPI.getProjeler({ durum: 'aktif' });
       if (result.success) {
         setProjeler(result.data || []);
-        // İlk projeyi seç
-        if (result.data && result.data.length > 0 && !selectedProje) {
-          setSelectedProje(result.data[0].id);
-        }
+        // İlk projeyi seç (sadece hiç proje seçilmemişse)
+        setSelectedProje((current) => {
+          if (!current && result.data && result.data.length > 0) {
+            return result.data[0].id;
+          }
+          return current;
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Proje yükleme hatası:', error);
+      // 401 hatası ise login sayfasına yönlendir
+      if (error?.response?.status === 401) {
+        notifications.show({
+          title: 'Oturum Süresi Doldu',
+          message: 'Lütfen tekrar giriş yapın',
+          color: 'red',
+        });
+        setTimeout(() => {
+          window.location.href = '/giris';
+        }, 2000);
+      }
+      // Hata durumunda da projeler listesini boş array olarak set et
+      setProjeler([]);
+    } finally {
+      setLoading(false);
     }
-  }, [selectedProje]);
+  }, []); // selectedProje dependency'sini kaldırdık - functional update kullanıyoruz
 
   const fetchPersoneller = useCallback(async () => {
     if (!selectedProje) return;
@@ -300,8 +319,19 @@ export default function PersonelPage() {
       if (result.success) {
         setPersoneller(result.data || []);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Personel yükleme hatası:', error);
+      // 401 hatası ise login sayfasına yönlendir
+      if (error?.response?.status === 401) {
+        notifications.show({
+          title: 'Oturum Süresi Doldu',
+          message: 'Lütfen tekrar giriş yapın',
+          color: 'red',
+        });
+        setTimeout(() => {
+          window.location.href = '/giris';
+        }, 2000);
+      }
     } finally {
       setLoading(false);
     }
@@ -311,19 +341,31 @@ export default function PersonelPage() {
     if (!selectedProje) return;
     setBordroLoading(true);
     try {
-      const [tahakkukRes, ozetRes] = await Promise.all([
+      const [tahakkukRes, ozetRes] = await Promise.allSettled([
         personelAPI.getBordroTahakkuk(selectedProje, bordroYil, bordroAy),
         personelAPI.getBordroOzet(bordroYil, bordroAy, selectedProje),
       ]);
 
-      if (tahakkukRes.success) {
-        setTahakkuk(tahakkukRes.data);
+      if (tahakkukRes.status === 'fulfilled' && tahakkukRes.value.success) {
+        setTahakkuk(tahakkukRes.value.data);
+      } else if (tahakkukRes.status === 'rejected') {
+        console.error('Tahakkuk yükleme hatası:', tahakkukRes.reason);
       }
-      if (ozetRes.success) {
-        setBordroOzet(ozetRes.data);
+
+      if (ozetRes.status === 'fulfilled' && ozetRes.value.success) {
+        setBordroOzet(ozetRes.value.data);
+      } else if (ozetRes.status === 'rejected') {
+        console.error('Bordro özet yükleme hatası:', ozetRes.reason);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Bordro yükleme hatası:', error);
+      if (error?.response?.status === 401) {
+        notifications.show({
+          title: 'Oturum Süresi Doldu',
+          message: 'Lütfen tekrar giriş yapın',
+          color: 'red',
+        });
+      }
     } finally {
       setBordroLoading(false);
     }
@@ -338,8 +380,15 @@ export default function PersonelPage() {
         setMaasOdemePersoneller(result.data?.personeller || []);
         setMaasOdemeOzet(result.data?.ozet || null);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Maaş ödeme yükleme hatası:', error);
+      if (error?.response?.status === 401) {
+        notifications.show({
+          title: 'Oturum Süresi Doldu',
+          message: 'Lütfen tekrar giriş yapın',
+          color: 'red',
+        });
+      }
     } finally {
       setMaasOdemeLoading(false);
     }
@@ -388,8 +437,15 @@ export default function PersonelPage() {
       if (result.success) {
         setAylikOdeme(result.data as any);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Aylık ödeme yükleme hatası:', error);
+      if (error?.response?.status === 401) {
+        notifications.show({
+          title: 'Oturum Süresi Doldu',
+          message: 'Lütfen tekrar giriş yapın',
+          color: 'red',
+        });
+      }
     }
   }, [selectedProje, bordroYil, bordroAy]);
 
@@ -422,7 +478,7 @@ export default function PersonelPage() {
     }
   };
 
-  const handleTumunuOde = async (odendi: boolean) => {
+  const handleTumunuOde = useCallback(async (odendi: boolean) => {
     if (!selectedProje) return;
     const fields = [
       'maas_banka_odendi',
@@ -438,9 +494,13 @@ export default function PersonelPage() {
       }
 
       // Tüm ödemeler tamamlandıysa proje_hareketler'e kayıt ekle
-      if (odendi && tahakkuk) {
-        await personelAPI.finalizeOdeme(selectedProje, bordroYil, bordroAy);
-      }
+      // tahakkuk state'ini functional update ile kullan
+      setTahakkuk((currentTahakkuk) => {
+        if (odendi && currentTahakkuk) {
+          personelAPI.finalizeOdeme(selectedProje, bordroYil, bordroAy).catch(console.error);
+        }
+        return currentTahakkuk;
+      });
 
       notifications.show({
         message: odendi ? '✅ Tüm ödemeler tamamlandı' : '○ Tüm ödemeler sıfırlandı',
@@ -451,7 +511,7 @@ export default function PersonelPage() {
     } catch (_error) {
       notifications.show({ message: '✗ İşlem başarısız', color: 'red', autoClose: 2500 });
     }
-  };
+  }, [selectedProje, bordroYil, bordroAy, fetchAylikOdeme]);
 
   // Personel ödeme düzenleme
   const handleEditOdeme = (personel: MaasOdemePersonel) => {
@@ -499,7 +559,7 @@ export default function PersonelPage() {
       fetchMaasOdeme();
       fetchAylikOdeme();
     }
-  }, [selectedProje, activeTab, fetchBordro, fetchMaasOdeme, fetchAylikOdeme]);
+  }, [selectedProje, activeTab, bordroYil, bordroAy, fetchBordro, fetchMaasOdeme, fetchAylikOdeme]);
 
   // =====================================================
   // CRUD FONKSİYONLARI
@@ -646,10 +706,14 @@ export default function PersonelPage() {
   // RENDER
   // =====================================================
 
+  // Loading state - sadece ilk yüklemede göster (projeler yüklenene kadar)
   if (loading && projeler.length === 0) {
     return (
       <Center h="100vh">
-        <Loader size="xl" color="violet" />
+        <Stack align="center" gap="md">
+          <Loader size="xl" color="violet" />
+          <Text c="dimmed" size="sm">Projeler yükleniyor...</Text>
+        </Stack>
       </Center>
     );
   }

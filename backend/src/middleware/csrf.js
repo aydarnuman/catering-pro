@@ -98,6 +98,12 @@ export const csrfProtection = (req, res, next) => {
   
   // Unsafe methods için token doğrula
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    // Bearer token ile gelen istekler (Supabase Auth) CSRF atlanır
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      return next();
+    }
+
     // CSRF koruması olmayan endpoint'ler (login, register gibi)
     const excludedPaths = [
       '/api/auth/login',
@@ -105,9 +111,9 @@ export const csrfProtection = (req, res, next) => {
       '/api/auth/refresh',
       '/api/auth/logout'
     ];
-    
+
     const isExcluded = excludedPaths.some(path => req.path.startsWith(path));
-    
+
     if (isExcluded) {
       return next();
     }

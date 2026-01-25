@@ -22,14 +22,17 @@ import {
   IconLock,
   IconShieldCheck,
 } from '@tabler/icons-react';
-import { useRouter, usePathname } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const pathname = usePathname();
-  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
+  const { signIn, isAuthenticated, isLoading: authLoading } = useAuth();
+  const redirectTo = searchParams.get('redirect') || '/';
   const hasRedirected = useRef(false);
 
   const [email, setEmail] = useState('');
@@ -37,21 +40,17 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Zaten giriş yapmışsa ana sayfaya yönlendir - SADECE BİR KEZ
+  // Zaten giriş yapmışsa yönlendir
   useEffect(() => {
-    // Login sayfasında değilsek veya zaten redirect yaptıysak çık
     if (pathname !== '/giris' || hasRedirected.current) return;
-    
-    // Loading bitene kadar bekle
     if (authLoading) return;
     
-    // Authenticated ise ve daha önce redirect yapmadıysak
     if (isAuthenticated) {
       hasRedirected.current = true;
-      // Ana sayfaya yönlendir
-      router.replace('/');
+      const target = redirectTo.startsWith('/') ? redirectTo : '/';
+      router.replace(target);
     }
-  }, [authLoading, isAuthenticated, router, pathname]);
+  }, [authLoading, isAuthenticated, router, pathname, redirectTo]);
 
   // Loading state
   if (authLoading) {
@@ -62,7 +61,7 @@ export default function LoginPage() {
     );
   }
 
-  // Authenticated ise kısa bir süre loader göster (redirect olana kadar)
+  // Authenticated ise redirect bekle
   if (isAuthenticated && !hasRedirected.current) {
     return (
       <Center h="100vh">
@@ -82,12 +81,13 @@ export default function LoginPage() {
       return;
     }
 
-    const result = await login(email, password);
+    const result = await signIn(email, password);
 
     if (result.success) {
-      // Login başarılı - direkt ana sayfaya yönlendir
       hasRedirected.current = true;
-      router.replace('/');
+      const target = redirectTo.startsWith('/') ? redirectTo : '/';
+      // Supabase session set edildi, sayfayı yenile
+      window.location.href = target;
     } else {
       setError(result.error || 'Giriş başarısız');
       setIsLoading(false);
@@ -158,16 +158,30 @@ export default function LoginPage() {
             {/* Logo & Header */}
             <Center>
               <Stack align="center" gap="md">
-                <img
-                  src="/logo.png"
-                  alt="Catering Pro Logo"
+                <Box
                   style={{
+                    position: 'relative',
                     height: 80,
                     width: 'auto',
-                    objectFit: 'contain',
-                    filter: 'drop-shadow(0 10px 30px rgba(34, 139, 230, 0.3))',
+                    minWidth: 200,
                   }}
-                />
+                >
+                  <Image
+                    src="/logo-transparent.png"
+                    alt="Catering Pro Logo"
+                    width={200}
+                    height={80}
+                    style={{
+                      height: 'auto',
+                      width: 'auto',
+                      maxHeight: 80,
+                      objectFit: 'contain',
+                      filter: 'drop-shadow(0 10px 30px rgba(34, 139, 230, 0.3))',
+                    }}
+                    priority
+                    unoptimized
+                  />
+                </Box>
                 <Text size="sm" c="dimmed" ta="center">
                   İş Yönetim Sistemine Hoş Geldiniz
                 </Text>
@@ -320,5 +334,17 @@ export default function LoginPage() {
         </Paper>
       </Container>
     </Box>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <Center h="100vh">
+        <Text>Yükleniyor...</Text>
+      </Center>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -29,8 +29,10 @@ import { notifications } from '@mantine/notifications';
 import {
   IconArrowLeft,
   IconCheck,
+  IconClock,
   IconCrown,
   IconEdit,
+  IconHistory,
   IconLock,
   IconLockOpen,
   IconRefresh,
@@ -56,9 +58,14 @@ export default function KullanicilarPage() {
     email: '',
     password: '',
     role: 'user',
+    user_type: 'user' as 'super_admin' | 'admin' | 'user',
     is_active: true,
   });
   const [submitting, setSubmitting] = useState(false);
+  const [loginHistoryModal, { open: openLoginHistory, close: closeLoginHistory }] = useDisclosure(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [loginHistory, setLoginHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   // Kullanıcıları getir
   const fetchUsers = useCallback(async () => {
@@ -87,6 +94,7 @@ export default function KullanicilarPage() {
       email: '',
       password: '',
       role: 'user',
+      user_type: 'user',
       is_active: true,
     });
     open();
@@ -100,6 +108,7 @@ export default function KullanicilarPage() {
       email: user.email,
       password: '',
       role: user.role,
+      user_type: (user.user_type as 'super_admin' | 'admin' | 'user') || 'user',
       is_active: user.is_active,
     });
     open();
@@ -131,6 +140,7 @@ export default function KullanicilarPage() {
         name: formData.name,
         email: formData.email,
         role: formData.role,
+        user_type: formData.user_type,
         is_active: formData.is_active,
       };
 
@@ -263,6 +273,28 @@ export default function KullanicilarPage() {
     }
   };
 
+  // Login geçmişini getir
+  const handleViewLoginHistory = async (user: User) => {
+    setSelectedUser(user);
+    setLoadingHistory(true);
+    openLoginHistory();
+    try {
+      const data = await adminAPI.getUserLoginAttempts(user.id, 50);
+      if (data.success) {
+        setLoginHistory(data.data?.history || []);
+      }
+    } catch (error) {
+      console.error('Login geçmişi yüklenemedi:', error);
+      notifications.show({
+        title: 'Hata',
+        message: 'Login geçmişi yüklenemedi',
+        color: 'red',
+      });
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   // Get user initials for avatar
   const getInitials = (name: string) => {
     return name
@@ -391,6 +423,15 @@ export default function KullanicilarPage() {
                             {user.failedAttempts}/5 başarısız deneme
                           </Text>
                         )}
+                        <Button
+                          size="xs"
+                          variant="subtle"
+                          leftSection={<IconHistory size={14} />}
+                          onClick={() => handleViewLoginHistory(user)}
+                          mt={4}
+                        >
+                          Giriş Geçmişi
+                        </Button>
                       </Stack>
                     </Table.Td>
                     <Table.Td>
@@ -549,13 +590,20 @@ export default function KullanicilarPage() {
             required={!editingUser}
           />
           <Select
-            label="Rol"
+            label="Kullanıcı Tipi"
+            description="Kullanıcının yetki seviyesini belirler"
             data={[
               { value: 'user', label: '👤 Kullanıcı' },
               { value: 'admin', label: '🛡️ Yönetici' },
+              { value: 'super_admin', label: '👑 Süper Admin' },
             ]}
-            value={formData.role}
-            onChange={(value) => setFormData({ ...formData, role: value || 'user' })}
+            value={formData.user_type}
+            onChange={(value) => {
+              const userType = (value || 'user') as 'super_admin' | 'admin' | 'user';
+              // user_type'a göre role'ü otomatik ayarla
+              const role = (userType === 'super_admin' || userType === 'admin') ? 'admin' : 'user';
+              setFormData({ ...formData, user_type: userType, role });
+            }}
           />
           <Switch
             label="Aktif"
@@ -571,6 +619,77 @@ export default function KullanicilarPage() {
             </Button>
           </Group>
         </Stack>
+      </Modal>
+
+      {/* Login Geçmişi Modal */}
+      <Modal
+        opened={loginHistoryModal}
+        onClose={closeLoginHistory}
+        title={
+          <Group>
+            <IconHistory size={20} />
+            <Text fw={600}>
+              {selectedUser?.name} - Giriş Geçmişi
+            </Text>
+          </Group>
+        }
+        size="xl"
+      >
+        {loadingHistory ? (
+          <Center py="xl">
+            <Loader />
+          </Center>
+        ) : loginHistory.length === 0 ? (
+          <Alert color="blue" icon={<IconHistory size={16} />}>
+            Henüz giriş kaydı bulunmuyor
+          </Alert>
+        ) : (
+          <Stack gap="md">
+            <Table>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Tarih</Table.Th>
+                  <Table.Th>Durum</Table.Th>
+                  <Table.Th>IP Adresi</Table.Th>
+                  <Table.Th>User Agent</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {loginHistory.map((attempt: any, index: number) => (
+                  <Table.Tr key={index}>
+                    <Table.Td>
+                      <Group gap="xs">
+                        <IconClock size={14} />
+                        <Text size="sm">
+                          {new Date(attempt.attempted_at || attempt.created_at).toLocaleString('tr-TR')}
+                        </Text>
+                      </Group>
+                    </Table.Td>
+                    <Table.Td>
+                      <Badge
+                        color={attempt.success ? 'green' : 'red'}
+                        variant="light"
+                        leftSection={attempt.success ? <IconCheck size={12} /> : <IconX size={12} />}
+                      >
+                        {attempt.success ? 'Başarılı' : 'Başarısız'}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm" ff="monospace">
+                        {attempt.ip_address || 'N/A'}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="xs" c="dimmed" style={{ maxWidth: 300 }} truncate>
+                        {attempt.user_agent || 'N/A'}
+                      </Text>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </Stack>
+        )}
       </Modal>
     </Container>
   );

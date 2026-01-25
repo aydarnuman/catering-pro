@@ -167,237 +167,9 @@ router.post('/agent', optionalAuth, async (req, res) => {
 });
 
 // ============================================================
-// GOD MODE ENDPOINT'LERİ (Sadece Super Admin)
-// ============================================================
-
-/**
- * POST /api/ai/god-mode
- * 🔥 GOD MODE AI Agent - SINIRSIZ YETKİ
- * Sadece super_admin erişebilir
- * Tüm işlemler audit log'a kaydedilir
- */
-router.post('/god-mode', authenticate, requireSuperAdmin, async (req, res) => {
-  try {
-    const { message, history = [], sessionId } = req.body;
-    const userId = req.user?.id || req.user?.email || 'unknown_admin';
-
-    if (!message || message.trim().length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Mesaj boş olamaz'
-      });
-    }
-
-    logger.warn(`[GOD MODE] User: ${userId} | Message: "${message.substring(0, 100)}..."`, { userId, messageLength: message.length });
-
-    // God Mode için özel system prompt
-    const godModeSystemPrompt = `Sen bir **GOD MODE AI Agent**'sın. SINIRSIZ YETKİYE SAHİPSİN.
-
-## 🔥 GOD MODE YETKİLERİN
-- **code_execute**: JavaScript kodu çalıştır (veritabanı, hesaplama, her şey)
-- **sql_execute**: Raw SQL sorguları (SELECT, INSERT, UPDATE, DELETE, CREATE, DROP)
-- **file_read/write**: Tüm proje dosyalarını oku/yaz
-- **shell_execute**: Terminal komutları (pm2, git, npm, sistem)
-- **http_request**: Dış API'lara istek
-- **create_tool**: YENİ TOOL OLUŞTUR (meta-programming)
-
-## 🎯 ÇALIŞMA PRENSİBİN
-1. Kullanıcı ne isterse YAP - sınır yok
-2. Gerekirse KOD YAZ ve ÇALIŞTIR
-3. Gerekirse SQL YAZ ve ÇALIŞTIR
-4. Gerekirse DOSYA OLUŞTUR
-5. Gerekirse SİSTEM KOMUTU ÇALIŞTIR
-
-## ⚠️ DİKKAT
-- Tüm işlemler loglanıyor
-- Geri alınamaz işlemlerde (DROP, DELETE, rm) dikkatli ol
-- Hata durumunda detaylı bilgi ver
-
-## 📋 MEVCUT PROJE
-- Backend: Node.js + Express (port 3001)
-- Frontend: Next.js (port 3000)
-- Database: PostgreSQL (Supabase)
-- Proje kökü: ${process.cwd()}
-
-Şu an tarih: ${new Date().toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-Kullanıcı: ${userId} (Super Admin)`;
-
-    // God Mode tool'larını al
-    const godModeTools = aiTools.getGodModeToolDefinitions();
-
-    // Anthropic API çağrısı
-    const Anthropic = (await import('@anthropic-ai/sdk')).default;
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-    // Aktif modeli al
-    const modelResult = await query(`SELECT setting_value FROM ai_settings WHERE setting_key = 'default_model'`);
-    let activeModel = modelResult.rows[0]?.setting_value || 'claude-sonnet-4-20250514';
-    if (typeof activeModel === 'string' && activeModel.startsWith('"')) {
-      activeModel = JSON.parse(activeModel);
-    }
-
-    const messages = [
-      ...history,
-      { role: 'user', content: message }
-    ];
-
-    let iteration = 0;
-    const maxIterations = 15; // God Mode için daha fazla iterasyon
-    let finalResponse = null;
-    let toolResults = [];
-
-    // Tool calling döngüsü
-    while (iteration < maxIterations) {
-      iteration++;
-      logger.debug(`[GOD MODE] İterasyon ${iteration}`);
-
-      const response = await client.messages.create({
-        model: activeModel,
-        max_tokens: 8192, // God Mode için daha fazla token
-        system: godModeSystemPrompt,
-        tools: godModeTools,
-        messages: messages
-      });
-
-      if (response.stop_reason === 'end_turn') {
-        const textContent = response.content.find(c => c.type === 'text');
-        finalResponse = textContent ? textContent.text : 'İşlem tamamlandı.';
-        break;
-      }
-
-      if (response.stop_reason === 'tool_use') {
-        const toolUses = response.content.filter(c => c.type === 'tool_use');
-        messages.push({ role: 'assistant', content: response.content });
-
-        const toolResultContents = [];
-        
-        for (const toolUse of toolUses) {
-          logger.warn(`[GOD MODE] Tool: ${toolUse.name}`, { tool: toolUse.name, userId });
-          
-          // God Mode tool çalıştır (audit log dahil)
-          const result = await aiTools.executeGodModeTool(toolUse.name, toolUse.input, userId);
-          
-          toolResults.push({
-            tool: toolUse.name,
-            input: toolUse.input,
-            result: result
-          });
-
-          toolResultContents.push({
-            type: 'tool_result',
-            tool_use_id: toolUse.id,
-            content: JSON.stringify(result, null, 2)
-          });
-        }
-
-        messages.push({ role: 'user', content: toolResultContents });
-      } else {
-        logger.warn(`[GOD MODE] Beklenmeyen stop_reason: ${response.stop_reason}`, { stopReason: response.stop_reason });
-        const textContent = response.content.find(c => c.type === 'text');
-        finalResponse = textContent ? textContent.text : 'Bir sorun oluştu.';
-        break;
-      }
-    }
-
-    if (iteration >= maxIterations) {
-      finalResponse = 'Maksimum iterasyon sayısına ulaşıldı. İşlem çok karmaşık olabilir.';
-    }
-
-    // Konuşmayı kaydet
-    if (sessionId) {
-      await query(`
-        INSERT INTO ai_conversations (session_id, user_id, role, content, tools_used, metadata)
-        VALUES ($1, $2, 'user', $3, NULL, '{"god_mode": true}'::jsonb)
-      `, [sessionId, userId, message]).catch(() => {});
-      
-      await query(`
-        INSERT INTO ai_conversations (session_id, user_id, role, content, tools_used, metadata)
-        VALUES ($1, $2, 'assistant', $3, $4, '{"god_mode": true}'::jsonb)
-      `, [sessionId, userId, finalResponse, toolResults.map(t => t.tool)]).catch(() => {});
-    }
-
-    logger.info(`[GOD MODE] Tamamlandı | İterasyonlar: ${iteration} | Tools: ${toolResults.length}`, { userId, iterations: iteration, toolsCount: toolResults.length });
-
-    return res.json({
-      success: true,
-      response: finalResponse,
-      toolsUsed: toolResults.map(t => t.tool),
-      toolResults: toolResults,
-      iterations: iteration,
-      godMode: true,
-      timestamp: new Date().toISOString()
-    });
-
-  } catch (error) {
-    logger.error('[GOD MODE] Hata', { error: error.message, stack: error.stack, userId });
-    return res.status(500).json({
-      success: false,
-      error: error.message,
-      response: `God Mode hatası: ${error.message}`
-    });
-  }
-});
-
-/**
- * GET /api/ai/god-mode/tools
- * God Mode tool listesi (Super Admin only)
- */
-router.get('/god-mode/tools', authenticate, requireSuperAdmin, async (req, res) => {
-  try {
-    const tools = aiTools.getGodModeToolDefinitions();
-    const godModeOnly = aiTools.listGodModeTools();
-    
-    return res.json({
-      success: true,
-      totalTools: tools.length,
-      godModeTools: godModeOnly,
-      allTools: tools.map(t => ({
-        name: t.name,
-        description: t.description,
-        isGodMode: godModeOnly.includes(t.name)
-      }))
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-/**
- * GET /api/ai/god-mode/logs
- * God Mode audit logları (Super Admin only)
- */
-router.get('/god-mode/logs', authenticate, requireSuperAdmin, async (req, res) => {
-  try {
-    const { limit = 50, offset = 0 } = req.query;
-    
-    const result = await query(`
-      SELECT * FROM ai_god_mode_logs
-      ORDER BY created_at DESC
-      LIMIT $1 OFFSET $2
-    `, [parseInt(limit), parseInt(offset)]);
-    
-    const countResult = await query(`SELECT COUNT(*) as total FROM ai_god_mode_logs`);
-    
-    return res.json({
-      success: true,
-      logs: result.rows,
-      total: parseInt(countResult.rows[0]?.total || 0),
-      pagination: { limit: parseInt(limit), offset: parseInt(offset) }
-    });
-  } catch (error) {
-    // Tablo yoksa boş dön
-    return res.json({
-      success: true,
-      logs: [],
-      total: 0,
-      note: 'Henüz God Mode kullanılmamış veya log tablosu oluşturulmamış'
-    });
-  }
-});
-
-// ============================================================
 // NORMAL AI ENDPOINT'LERİ
 // ============================================================
+// NOT: God Mode endpoint'leri aşağıda tanımlı (satır ~1970)
 
 /**
  * GET /api/ai/agent/tools
@@ -2129,6 +1901,177 @@ router.get('/dashboard', async (req, res) => {
     return res.status(500).json({
       success: false,
       error: 'Dashboard yüklenemedi'
+    });
+  }
+});
+
+// ============================================
+// GOD MODE ENDPOINTS (Super Admin Only)
+// ============================================
+// NOT: Daha spesifik route'lar önce tanımlanmalı (Express route matching için)
+
+/**
+ * POST /api/ai/god-mode/execute
+ * God Mode ile AI Agent çalıştır
+ * Super Admin yetkisi gerekli
+ */
+router.post('/god-mode/execute', authenticate, requireSuperAdmin, async (req, res) => {
+  try {
+    const { message, sessionId, history = [] } = req.body;
+    
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Mesaj boş olamaz'
+      });
+    }
+    
+    logger.warn('[God Mode Execute] Super Admin komutu', {
+      userId: req.user?.id,
+      email: req.user?.email,
+      messagePreview: message.substring(0, 100),
+      sessionId,
+      historyLength: history.length
+    });
+    
+    // God Mode ile AI Agent çalıştır
+    const result = await aiAgent.processQuery(message, history, {
+      sessionId: sessionId || `god-mode-${Date.now()}`,
+      userId: req.user?.id || 'super_admin',
+      department: 'GOD_MODE',
+      isGodMode: true,
+      pageContext: {
+        isGodMode: true,
+        page: 'admin/god-mode',
+        user: {
+          id: req.user?.id,
+          email: req.user?.email,
+          role: 'super_admin'
+        }
+      }
+    });
+    
+    return res.json({
+      success: result.success,
+      response: result.response,
+      toolsUsed: result.toolsUsed || [],
+      iterations: result.iterations || 0,
+      executionTime: result.executionTime || 0,
+      godMode: true, // God Mode flag'i
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    logger.error('[God Mode Execute] Hata', { 
+      error: error.message, 
+      stack: error.stack,
+      userId: req.user?.id 
+    });
+    return res.status(500).json({
+      success: false,
+      error: 'God Mode komutu çalıştırılamadı: ' + error.message
+    });
+  }
+});
+
+/**
+ * GET /api/ai/god-mode/tools
+ * God Mode için mevcut tool listesini döndür
+ * Super Admin yetkisi gerekli
+ */
+router.get('/god-mode/tools', authenticate, requireSuperAdmin, async (req, res) => {
+  try {
+    // AI Tools'dan tüm tool'ları al
+    const allTools = aiTools.getToolDefinitions();
+    
+    // God mode tool'ları filtrele
+    const godModeTools = allTools.filter(tool => 
+      tool.name.startsWith('god_') || tool.isGodMode === true
+    );
+    
+    // Normal tool'lar
+    const normalTools = allTools.filter(tool => 
+      !tool.name.startsWith('god_') && tool.isGodMode !== true
+    );
+    
+    logger.info('[God Mode] Tool listesi istendi', { 
+      userId: req.user?.id,
+      godModeCount: godModeTools.length,
+      normalCount: normalTools.length
+    });
+    
+    return res.json({
+      success: true,
+      allTools: allTools.map(t => ({
+        name: t.name,
+        description: t.description,
+        isGodMode: t.name.startsWith('god_') || t.isGodMode === true
+      })),
+      godModeTools: godModeTools.map(t => ({
+        name: t.name,
+        description: t.description
+      })),
+      normalTools: normalTools.map(t => ({
+        name: t.name,
+        description: t.description
+      })),
+      counts: {
+        total: allTools.length,
+        godMode: godModeTools.length,
+        normal: normalTools.length
+      }
+    });
+    
+  } catch (error) {
+    logger.error('[God Mode Tools] Hata', { error: error.message, stack: error.stack });
+    return res.status(500).json({
+      success: false,
+      error: 'Tool listesi alınamadı'
+    });
+  }
+});
+
+/**
+ * GET /api/ai/god-mode/logs
+ * God Mode işlem loglarını getir
+ * Super Admin yetkisi gerekli
+ */
+router.get('/god-mode/logs', authenticate, requireSuperAdmin, async (req, res) => {
+  try {
+    const { limit = 50, offset = 0 } = req.query;
+    
+    // God mode loglarını getir (ai_conversations tablosundan)
+    const result = await query(`
+      SELECT 
+        id,
+        session_id,
+        user_id,
+        message,
+        response,
+        tools_used,
+        created_at
+      FROM ai_conversations
+      WHERE session_id LIKE 'god-mode-%'
+         OR (metadata->>'isGodMode')::boolean = true
+      ORDER BY created_at DESC
+      LIMIT $1 OFFSET $2
+    `, [parseInt(limit), parseInt(offset)]);
+    
+    return res.json({
+      success: true,
+      logs: result.rows,
+      pagination: {
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        count: result.rows.length
+      }
+    });
+    
+  } catch (error) {
+    logger.error('[God Mode Logs] Hata', { error: error.message });
+    return res.status(500).json({
+      success: false,
+      error: 'Loglar alınamadı'
     });
   }
 });

@@ -50,7 +50,7 @@ import {
   IconWallet,
 } from '@tabler/icons-react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -62,14 +62,28 @@ import { WhatsAppNavButton } from './WhatsAppNavButton';
 export function Navbar() {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const pathname = usePathname();
-  const router = useRouter();
   const [mobileMenuOpened, setMobileMenuOpened] = useState(false);
   const [_mobileSearchOpened, _setMobileSearchOpened] = useState(false);
   const [searchModalOpened, { open: openSearchModal, close: closeSearchModal }] =
     useDisclosure(false);
   const [mounted, setMounted] = useState(false);
-  const { user, isAuthenticated, isAdmin: userIsAdmin, isLoading, logout } = useAuth();
+  const { user, isAuthenticated, isAdmin: userIsAdmin, isLoading, signOut } = useAuth();
   const { canView, isSuperAdmin, loading: permLoading } = usePermissions();
+  
+  // Auth yükleniyorsa veya authenticated değilse minimal navbar göster
+  if (isLoading) {
+    return (
+      <Box h={60} bg="dark.7" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100 }}>
+        <Box style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+          <Loader size="sm" />
+        </Box>
+      </Box>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    return null; // Login sayfasında navbar yok
+  }
 
   // Responsive breakpoints
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -113,17 +127,16 @@ export function Navbar() {
   const _isAdminPage = pathname.startsWith('/admin');
 
   const handleLogout = () => {
-    logout();
-    router.push('/giris');
+    signOut();
   };
 
   const getInitials = (name: string) => {
-    return name
+    return (name ?? '')
       .split(' ')
       .map((n) => n[0])
       .join('')
       .toUpperCase()
-      .slice(0, 2);
+      .slice(0, 2) || '?';
   };
 
   // Glassmorphism styles - More transparent
@@ -324,13 +337,13 @@ export function Navbar() {
                         color="blue"
                         variant="filled"
                       >
-                        {getInitials(user.name)}
+                        {getInitials(user.name ?? '')}
                       </Avatar>
                       {mounted && !isMobile && (
                         <>
                           <Box style={{ lineHeight: 1.2 }}>
                             <Text size="sm" fw={500} style={{ lineHeight: 1.2 }}>
-                              {user.name.split(' ')[0]}
+                              {(user.name ?? user.email).split(' ')[0]}
                             </Text>
                             {userIsAdmin && (
                               <Badge size="xs" color="red" variant="light">
@@ -348,7 +361,7 @@ export function Navbar() {
                 <Menu.Dropdown>
                   <Menu.Label>
                     <Text size="sm" fw={500}>
-                      {user.name}
+                      {user.name ?? user.email}
                     </Text>
                     <Text size="xs" c="dimmed">
                       {user.email}

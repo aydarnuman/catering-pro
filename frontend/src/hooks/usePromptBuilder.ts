@@ -110,7 +110,7 @@ export function useGeneratePrompt() {
  * Prompt kaydet
  */
 export function useSavePrompt() {
-  const { token } = useAuth();
+  // Cookie-only authentication - token gerekmiyor
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -127,8 +127,9 @@ export function useSavePrompt() {
         `${API_URL}/save`,
         {
           method: 'POST',
+          credentials: 'include',
           headers: {
-            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify(data),
         }
@@ -148,7 +149,7 @@ export function useSavedPrompts(options?: {
   categoryId?: number;
   favoriteOnly?: boolean;
 }) {
-  const { token } = useAuth();
+  // Cookie-only authentication - token gerekmiyor
 
   return useQuery({
     queryKey: ['pb-saved-prompts', options],
@@ -160,14 +161,15 @@ export function useSavedPrompts(options?: {
       const data = await fetchJson<{ success: boolean; data: PBSavedPrompt[] }>(
         `${API_URL}/saved?${params}`,
         {
+          credentials: 'include',
           headers: {
-            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
           },
         }
       );
       return data.data;
     },
-    enabled: !!token,
+    enabled: true,
     staleTime: 30 * 1000, // 30 saniye
   });
 }
@@ -176,7 +178,7 @@ export function useSavedPrompts(options?: {
  * Kayıtlı prompt güncelle
  */
 export function useUpdateSavedPrompt() {
-  const { token } = useAuth();
+  // Cookie-only authentication - token gerekmiyor
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -194,8 +196,9 @@ export function useUpdateSavedPrompt() {
         `${API_URL}/saved/${id}`,
         {
           method: 'PATCH',
+          credentials: 'include',
           headers: {
-            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify(data),
         }
@@ -212,15 +215,16 @@ export function useUpdateSavedPrompt() {
  * Kayıtlı prompt sil
  */
 export function useDeleteSavedPrompt() {
-  const { token } = useAuth();
+  // Cookie-only authentication - token gerekmiyor
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (id: number) => {
       await fetchJson<{ success: boolean }>(`${API_URL}/saved/${id}`, {
         method: 'DELETE',
+        credentials: 'include',
         headers: {
-          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
       return id;
@@ -255,7 +259,7 @@ export function useGallery(options?: { categoryId?: number; sortBy?: string }) {
  * Kullanıcı istatistikleri
  */
 export function useUserStats() {
-  const { token } = useAuth();
+  // Cookie-only authentication - token gerekmiyor
 
   return useQuery({
     queryKey: ['pb-user-stats'],
@@ -263,14 +267,15 @@ export function useUserStats() {
       const data = await fetchJson<{ success: boolean; data: PBUserStats }>(
         `${API_URL}/my-stats`,
         {
+          credentials: 'include',
           headers: {
-            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
           },
         }
       );
       return data.data;
     },
-    enabled: !!token,
+    enabled: true,
     staleTime: 60 * 1000,
   });
 }
@@ -279,7 +284,7 @@ export function useUserStats() {
  * Kullanım istatistiği kaydet
  */
 export function useLogUsage() {
-  const { token } = useAuth();
+  // Cookie-only authentication - token gerekmiyor
 
   return useMutation({
     mutationFn: async (data: {
@@ -291,7 +296,10 @@ export function useLogUsage() {
     }) => {
       await fetchJson<{ success: boolean }>(`${API_URL}/stats`, {
         method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(data),
       });
     },

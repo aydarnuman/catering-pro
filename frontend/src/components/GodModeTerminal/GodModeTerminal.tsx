@@ -114,7 +114,7 @@ const PRESET_CATEGORIES = {
 const ALL_PRESETS: PresetCommand[] = Object.values(PRESET_CATEGORIES).flatMap((cat) => cat.commands);
 
 export function GodModeTerminal() {
-  const { token } = useAuth();
+  // Cookie-only authentication - token gerekmiyor
   const [command, setCommand] = useState('');
   const [outputs, setOutputs] = useState<CommandOutput[]>([]);
   const presets = ALL_PRESETS;
@@ -143,9 +143,9 @@ export function GodModeTerminal() {
     try {
       const res = await fetch(`${API_BASE_URL}/api/system/terminal/execute`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ command: cmd, confirmed }),
       });
@@ -219,7 +219,7 @@ export function GodModeTerminal() {
       setLoading(false);
       inputRef.current?.focus();
     }
-  }, [token, openConfirm]);
+  }, [openConfirm]);
 
   // Preset komut çalıştır (preset komutu direkt execute endpoint'ine gönder)
   const executePreset = useCallback(async (presetId: string) => {
@@ -230,9 +230,9 @@ export function GodModeTerminal() {
     try {
       const res = await fetch(`${API_BASE_URL}/api/system/terminal/execute`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}` 
         },
         body: JSON.stringify({ command: preset.command }),
       });
@@ -263,7 +263,7 @@ export function GodModeTerminal() {
     } finally {
       setPresetLoading(null);
     }
-  }, [token, presets]);
+  }, [presets]);
 
   // Onaylı komut çalıştır
   const confirmAndExecute = useCallback(() => {

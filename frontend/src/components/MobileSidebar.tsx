@@ -45,7 +45,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 interface MobileSidebarProps {
   opened: boolean;
   onClose: () => void;
-  user: { name: string; email: string } | null;
+  user: { name?: string; email: string } | null;
   isAdmin: boolean;
   onLogout: () => void;
 }
@@ -193,12 +193,12 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
   }, [canView, isSuperAdmin]);
 
   const getInitials = (name: string) => {
-    return name
+    return (name ?? '')
       .split(' ')
       .map((n) => n[0])
       .join('')
       .toUpperCase()
-      .slice(0, 2);
+      .slice(0, 2) || '?';
   };
 
   const handleNavigation = (href: string) => {
@@ -624,11 +624,11 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                       variant="gradient"
                       gradient={{ from: 'blue', to: 'cyan', deg: 90 }}
                     >
-                      {getInitials(user.name)}
+                      {getInitials(user.name ?? '')}
                     </Avatar>
                     <Box>
                       <Text fw={600} size="sm" c={isDark ? 'white' : '#111827'}>
-                        {user.name}
+                        {user.name ?? user.email}
                       </Text>
                       <Text size="xs" c="dimmed" truncate style={{ maxWidth: 160 }}>
                         {user.email}

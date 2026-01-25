@@ -66,7 +66,7 @@ interface PermissionTemplate {
 }
 
 export default function YetkiSablonlariPage() {
-  const { token, isSuperAdmin } = useAuth();
+  const { isSuperAdmin } = useAuth();
   const [templates, setTemplates] = useState<PermissionTemplate[]>([]);
   const [modules, setModules] = useState<Module[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,16 +89,16 @@ export default function YetkiSablonlariPage() {
 
   // Verileri yükle
   const fetchData = useCallback(async () => {
-    if (!token) return;
-    
     setLoading(true);
     try {
       const [templatesRes, modulesRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/permissions/templates`, {
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
         }),
         fetch(`${API_BASE_URL}/api/permissions/modules`, {
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
         }),
       ]);
 
@@ -136,7 +136,7 @@ export default function YetkiSablonlariPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, editingTemplate]);
+  }, [editingTemplate]);
 
   useEffect(() => {
     fetchData();
@@ -238,9 +238,9 @@ export default function YetkiSablonlariPage() {
 
       const res = await fetch(url, {
         method,
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(body),
       });
@@ -284,7 +284,8 @@ export default function YetkiSablonlariPage() {
     try {
       const res = await fetch(`${API_BASE_URL}/api/permissions/templates/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
       });
 
       const data = await res.json();

@@ -27,7 +27,7 @@ import {
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
+import { api } from '@/lib/api';
 import { PromptBuilderModal } from '@/components/PromptBuilder/PromptBuilderModal';
 
 interface SavedPrompt {
@@ -48,11 +48,8 @@ export default function PromptBuilderPage() {
 
   const loadSavedPrompts = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/prompt-builder/saved`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      });
-      const data = await res.json();
-      if (data.success) setSavedPrompts(data.data || []);
+      const res = await api.get('/api/prompt-builder/saved');
+      if (res.data.success) setSavedPrompts(res.data.data || []);
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -67,11 +64,8 @@ export default function PromptBuilderPage() {
   const handleDelete = useCallback(async (id: number) => {
     setDeletingId(id);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/prompt-builder/saved/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      });
-      if ((await res.json()).success) {
+      const res = await api.delete(`/api/prompt-builder/saved/${id}`);
+      if (res.data.success) {
         setSavedPrompts((prev) => prev.filter((p) => p.id !== id));
         notifications.show({ message: 'Silindi', color: 'green' });
       }

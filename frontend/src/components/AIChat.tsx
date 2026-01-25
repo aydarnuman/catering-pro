@@ -128,7 +128,7 @@ export function AIChat({
   defaultGodMode = false,
 }: AIChatProps) {
   // Auth context - God Mode için
-  const { isSuperAdmin, token, user } = useAuth();
+  const { isSuperAdmin, user } = useAuth();
   
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -357,12 +357,42 @@ export function AIChat({
       };
 
       // God Mode veya normal Agent endpoint'i kullan
-      const data = godModeEnabled && isSuperAdmin
-        ? await aiAPI.sendGodModeMessage(messageData)
-        : await aiAPI.sendAgentMessage(messageData);
+      let data;
+      try {
+        data = godModeEnabled && isSuperAdmin
+          ? await aiAPI.sendGodModeMessage(messageData)
+          : await aiAPI.sendAgentMessage(messageData);
+      } catch (error: any) {
+        console.error('[AIChat] API çağrısı hatası:', error);
+        const errorMessage = error?.response?.data?.error || error?.message || 'API hatası';
+        const statusCode = error?.response?.status;
+        throw new Error(
+          statusCode === 404 
+            ? `Endpoint bulunamadı (404). Backend çalışıyor mu? Endpoint: ${godModeEnabled ? '/api/ai/god-mode/execute' : '/api/ai/agent'}`
+            : statusCode === 401
+            ? 'Yetkilendirme hatası (401). Lütfen tekrar giriş yapın.'
+            : statusCode === 403
+            ? 'Yetki hatası (403). Bu işlem için Super Admin yetkisi gerekli.'
+            : errorMessage
+        );
+      }
 
       if (!data.success) {
-        throw new Error(data.error || 'API hatası');
+        console.error('[AIChat] API response başarısız:', {
+          success: data.success,
+          error: data.error,
+          message: data.message,
+          data: data,
+          endpoint: godModeEnabled ? '/api/ai/god-mode/execute' : '/api/ai/agent',
+          godMode: godModeEnabled,
+        });
+        
+        const errorMessage = data.error || data.message || 'API hatası';
+        throw new Error(
+          errorMessage.includes('Endpoint') 
+            ? errorMessage
+            : `API hatası: ${errorMessage}`
+        );
       }
 
       const aiMessage: ChatMessage = {

@@ -346,12 +346,12 @@ export default function ProfilPage() {
                   size="lg"
                   variant="gradient"
                   gradient={{
-                    from: user?.role === 'admin' ? 'red' : 'blue',
-                    to: user?.role === 'admin' ? 'pink' : 'cyan',
+                    from: (user?.user_type === 'admin' || user?.user_type === 'super_admin') ? 'red' : 'blue',
+                    to: (user?.user_type === 'admin' || user?.user_type === 'super_admin') ? 'pink' : 'cyan',
                   }}
                   leftSection={<IconShieldCheck size={14} />}
                 >
-                  {user?.role === 'admin' ? 'Yönetici' : 'Kullanıcı'}
+                  {(user?.user_type === 'admin' || user?.user_type === 'super_admin') ? 'Yönetici' : 'Kullanıcı'}
                 </Badge>
 
                 <Divider w="100%" my="xs" />

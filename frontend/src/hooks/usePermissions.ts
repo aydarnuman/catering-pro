@@ -23,7 +23,7 @@ interface PermissionsData {
 }
 
 export function usePermissions() {
-  const { token, user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [userType, setUserType] = useState<string>('user');
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -31,29 +31,49 @@ export function usePermissions() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchPermissions = useCallback(async () => {
-    if (!token) {
+    // Token yoksa veya authenticated değilse API çağrısı yapma
+    if (!isAuthenticated || !user) {
       setLoading(false);
       return;
     }
-
+    
+    // Session'ın hazır olmasını bekle
     try {
+      // Kısa bir gecikme ekle - session tam hazır olsun
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const data = await adminAPI.getMyPermissions();
       if (data.success) {
         setPermissions(data.data?.permissions || []);
         setUserType(data.data?.userType || 'user');
         setIsSuperAdmin(data.data?.isSuperAdmin || false);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Permissions fetch error:', err);
-      setError('Yetkiler yüklenemedi');
+      // 401 hatası ise session henüz hazır değil, tekrar dene
+      if (err.response?.status === 401) {
+        console.warn('401 hatası - session henüz hazır değil, 2 saniye sonra tekrar denenecek');
+        setTimeout(() => {
+          if (isAuthenticated && user) {
+            fetchPermissions();
+          }
+        }, 2000);
+      } else {
+        setError('Yetkiler yüklenemedi');
+      }
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [isAuthenticated, user]);
 
   useEffect(() => {
-    fetchPermissions();
-  }, [fetchPermissions]);
+    // Sadece authenticated ise fetch yap
+    if (isAuthenticated && user) {
+      fetchPermissions();
+    } else {
+      setLoading(false);
+    }
+  }, [fetchPermissions, isAuthenticated, user]);
 
   /**
    * Belirli bir modül ve işlem için yetki kontrolü

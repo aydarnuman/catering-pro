@@ -59,10 +59,10 @@ router.get('/', async (req, res) => {
     sql += ' ORDER BY p.ad ASC';
     
     const result = await query(sql, params);
-    res.json(result.rows);
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Projeler listeleme hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -119,10 +119,10 @@ router.get('/:id/personeller', async (req, res) => {
       ORDER BY per.ad, per.soyad
     `, [id]);
     
-    res.json(result.rows);
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Proje personelleri hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

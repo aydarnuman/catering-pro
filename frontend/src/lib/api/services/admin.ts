@@ -58,6 +58,7 @@ export const adminAPI = {
     email: string;
     password: string;
     role?: string;
+    user_type?: 'super_admin' | 'admin' | 'user';
     is_active?: boolean;
   }): Promise<ApiResponse<User>> {
     const response = await api.post('/api/auth/register', data);
@@ -72,6 +73,7 @@ export const adminAPI = {
     email?: string;
     password?: string;
     role?: string;
+    user_type?: 'super_admin' | 'admin' | 'user';
     is_active?: boolean;
   }): Promise<ApiResponse<User>> {
     const response = await api.put(`/api/auth/users/${userId}`, data);
@@ -105,7 +107,10 @@ export const adminAPI = {
   /**
    * Login attempt geçmişi
    */
-  async getUserLoginAttempts(userId: number, limit?: number): Promise<ApiResponse<any>> {
+  async getUserLoginAttempts(userId: number, limit?: number): Promise<ApiResponse<{
+    history: any[];
+    userStatus: any;
+  }>> {
     const response = await api.get(`/api/auth/users/${userId}/login-attempts`, {
       params: { limit: limit || 50 },
     });
@@ -237,8 +242,54 @@ export const adminAPI = {
    * Kullanıcının yetkilerini getir
    */
   async getMyPermissions(): Promise<ApiResponse<any>> {
-    const response = await api.get('/api/permissions/my');
-    return response.data;
+    try {
+      // Cache busting ile fresh request
+      const response = await api.get('/api/permissions/my', {
+        params: { _t: Date.now() }, // Cache busting
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      // 200 OK - başarılı
+      if (response.status === 200) {
+        return response.data;
+      }
+      
+      // 304 Not Modified - cache'den geliyor, data olabilir veya olmayabilir
+      if (response.status === 304) {
+        // Eğer data varsa kullan, yoksa tekrar dene
+        if (response.data) {
+          return response.data;
+        }
+        // Data yoksa fresh request yap
+        const freshResponse = await api.get('/api/permissions/my', {
+          params: { _t: Date.now() },
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
+        return freshResponse.data;
+      }
+      
+      // Diğer durumlar
+      if (response.data) {
+        return response.data;
+      }
+      
+      // Data yoksa hata fırlat
+      throw new Error(`Unexpected status: ${response.status}`);
+    } catch (error: any) {
+      // 401 hatası ise tekrar fırlat (token refresh interceptor handle edecek)
+      if (error.response?.status === 401) {
+        console.warn('401 hatası - token refresh deneniyor...');
+        throw error;
+      }
+      console.error('getMyPermissions error:', error);
+      throw error;
+    }
   },
 
   // ========== DÖKÜMAN ANALİZ ==========

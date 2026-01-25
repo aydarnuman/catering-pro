@@ -2,12 +2,9 @@ import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/dropzone/styles.css';
 import './globals.css';
-import { Box, ColorSchemeScript, MantineProvider } from '@mantine/core';
-import { Notifications } from '@mantine/notifications';
-import { ClientLayout } from '@/components/ClientLayout';
-import { Navbar } from '@/components/Navbar';
-import { AuthProvider } from '@/context/AuthContext';
+import { ColorSchemeScript, MantineProvider } from '@mantine/core';
 import { Providers } from '@/components/Providers';
+import { AppLayout } from '@/components/AppLayout';
 
 export const metadata = {
   title: 'Catering Pro - İhale Yönetim Sistemi',
@@ -16,7 +13,7 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="tr" suppressHydrationWarning>
+    <html lang="tr" suppressHydrationWarning data-scroll-behavior="smooth">
       <head>
         <ColorSchemeScript defaultColorScheme="auto" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
@@ -50,15 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         >
           <Providers>
-            <AuthProvider>
-              <Notifications position="top-right" />
-              <Box style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-                <Navbar />
-                <Box component="main" className="main-content" style={{ flex: 1 }}>
-                  <ClientLayout>{children}</ClientLayout>
-                </Box>
-              </Box>
-            </AuthProvider>
+            <AppLayout>{children}</AppLayout>
           </Providers>
         </MantineProvider>
       </body>

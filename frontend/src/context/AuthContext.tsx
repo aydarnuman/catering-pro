@@ -1,263 +1,263 @@
 'use client';
 
-import { createContext, type ReactNode, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { API_ENDPOINTS, API_BASE_URL } from '@/lib/config';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 
-interface User {
-  id: number;
+// App User tipi - Supabase user + public.users profil
+interface AppUser {
+  id: number; // public.users.id (integer)
+  authId: string; // Supabase auth.users.id (uuid)
   email: string;
   name: string;
-  role: 'admin' | 'user';
-  user_type?: 'super_admin' | 'admin' | 'user';
+  user_type: 'super_admin' | 'admin' | 'user';
 }
 
 interface AuthContextType {
-  user: User | null;
-  token: string | null;
+  user: AppUser | null;
+  session: Session | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
+  logout: () => Promise<void>;
+  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
-  refreshToken: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
-  const isLoadingRef = useRef(false);
-  const hasInitializedRef = useRef(false);
+  const initRef = useRef(false);
+  
+  const supabase = createClient();
 
-  // Client-side mount kontrolü (hydration hatası önleme)
+  // public.users tablosundan profil bilgisi al
+  const fetchUserProfile = useCallback(async (authUser: SupabaseUser): Promise<AppUser | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, email, name, user_type')
+        .eq('email', authUser.email)
+        .single();
+
+      if (error || !data) {
+        console.warn('User profile not found in public.users:', authUser.email);
+        // Fallback - minimal user objesi
+        return {
+          id: 0,
+          authId: authUser.id,
+          email: authUser.email || '',
+          name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Kullanıcı',
+          user_type: 'user',
+        };
+      }
+
+      return {
+        id: data.id,
+        authId: authUser.id,
+        email: data.email,
+        name: data.name || authUser.email?.split('@')[0] || 'Kullanıcı',
+        user_type: data.user_type || 'user',
+      };
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      return null;
+    }
+  }, [supabase]);
+
+  // Auth durumunu başlat
   useEffect(() => {
     setMounted(true);
+    
+    if (initRef.current) return;
+    initRef.current = true;
 
-    // Token expired event listener - api interceptor'dan gelen
-    const handleTokenExpired = () => {
-      console.log('Token expired event received');
-      setUser(null);
-      setToken(null);
-      // Login sayfasında değilsek yönlendir - replace kullan (history'ye ekleme)
-      if (pathname !== '/giris') {
-        router.replace('/giris');
-      }
-    };
-
-    // Token refreshed event listener - api interceptor'dan gelen
-    const lastRefreshEventId = useRef<string | null>(null);
-    const handleTokenRefreshed = (event: any) => {
-      const { user: refreshedUser, eventId } = event.detail || {};
-      if (refreshedUser) {
-        // Aynı event'i tekrar işleme (duplicate event'leri önle)
-        if (lastRefreshEventId.current === eventId) {
+    const initAuth = async () => {
+      try {
+        // Mevcut session'ı al
+        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.warn('Session alınamadı:', sessionError);
+          setIsLoading(false);
           return;
         }
-        lastRefreshEventId.current = eventId || null;
         
-        // Sadece user değiştiyse state güncelle (gereksiz re-render'ları önle)
-        setUser((currentUser) => {
-          if (currentUser?.id === refreshedUser.id && 
-              currentUser?.email === refreshedUser.email &&
-              JSON.stringify(currentUser) === JSON.stringify(refreshedUser)) {
-            // User tamamen aynıysa state güncelleme (re-render önle)
-            return currentUser;
+        if (currentSession?.user && currentSession?.access_token) {
+          // Token formatını kontrol et
+          const tokenParts = currentSession.access_token.split('.');
+          if (tokenParts.length !== 3) {
+            console.warn('⚠️ Token formatı geçersiz, session temizleniyor');
+            await supabase.auth.signOut();
+            setIsLoading(false);
+            return;
           }
-          return refreshedUser;
-        });
-        setToken('cookie-based');
+          
+          setSession(currentSession);
+          const profile = await fetchUserProfile(currentSession.user);
+          setUser(profile);
+          
+          // Debug: Session bilgilerini logla
+          if (process.env.NODE_ENV === 'development') {
+            console.log('✅ Session yüklendi:', {
+              userId: currentSession.user.id,
+              email: currentSession.user.email,
+              tokenLength: currentSession.access_token.length,
+              expiresAt: currentSession.expires_at ? new Date(currentSession.expires_at * 1000).toISOString() : 'N/A'
+            });
+          }
+        } else {
+          // Session yok veya token eksik
+          if (process.env.NODE_ENV === 'development') {
+            console.log('ℹ️ Session yok veya token eksik');
+          }
+        }
+      } catch (error) {
+        console.error('Init auth error:', error);
+      } finally {
         setIsLoading(false);
       }
     };
 
-    window.addEventListener('auth:token-expired', handleTokenExpired);
-    window.addEventListener('auth:token-refreshed', handleTokenRefreshed as EventListener);
+    initAuth();
 
-    return () => {
-      window.removeEventListener('auth:token-expired', handleTokenExpired);
-      window.removeEventListener('auth:token-refreshed', handleTokenRefreshed as EventListener);
-    };
-  }, [pathname, router]);
-
-  // Token yenileme
-  const refreshToken = useCallback(async (): Promise<boolean> => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include', // HttpOnly cookie'leri gönder
-      });
-
-      if (response.ok) {
-        // Yeni access token cookie'ye set edildi, kullanıcıyı tekrar yükle
-        const meResponse = await fetch(API_ENDPOINTS.AUTH_ME, {
-          credentials: 'include',
+    // Auth state değişikliklerini dinle
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, newSession) => {
+        console.log('Auth state changed:', event, {
+          hasSession: !!newSession,
+          hasUser: !!newSession?.user,
+          hasAccessToken: !!newSession?.access_token
         });
 
-        if (meResponse.ok) {
-          const data = await meResponse.json();
-          if (data.user) {
-            setUser(data.user);
-            setToken('cookie-based');
-            return true;
+        if (event === 'SIGNED_IN' && newSession?.user) {
+          setSession(newSession);
+          const profile = await fetchUserProfile(newSession.user);
+          setUser(profile);
+          setIsLoading(false);
+        } else if (event === 'INITIAL_SESSION' && newSession?.user) {
+          // İlk session yüklendiğinde
+          setSession(newSession);
+          const profile = await fetchUserProfile(newSession.user);
+          setUser(profile);
+          setIsLoading(false);
+        } else if (event === 'SIGNED_OUT') {
+          setSession(null);
+          setUser(null);
+          setIsLoading(false);
+        } else if (event === 'TOKEN_REFRESHED' && newSession) {
+          setSession(newSession);
+          // Token refresh edildiğinde user profilini de güncelle
+          if (newSession.user) {
+            const profile = await fetchUserProfile(newSession.user);
+            setUser(profile);
           }
         }
       }
-      return false;
-    } catch (error) {
-      console.error('Token refresh error:', error);
-      return false;
-    }
-  }, []);
+    );
 
-  // Kullanıcı doğrulama ve yükleme
-  const verifyAndLoadUser = useCallback(async () => {
-    // Çift çalışmayı önle
-    if (hasInitializedRef.current || isLoadingRef.current) return;
-    hasInitializedRef.current = true;
-    isLoadingRef.current = true;
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase, fetchUserProfile]);
 
+  // Sign In (Supabase)
+  const signIn = useCallback(async (email: string, password: string) => {
     try {
-      const response = await fetch(API_ENDPOINTS.AUTH_ME, {
-        credentials: 'include', // HttpOnly cookie'leri gönder
+      setIsLoading(true);
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.user) {
-          setUser(data.user);
-          setToken('cookie-based'); // Token artık cookie'de
+      if (error) {
+        console.error('Sign in error:', error);
+        let errorMessage = 'Giriş başarısız';
+        
+        if (error.message === 'Invalid login credentials') {
+          errorMessage = 'Geçersiz email veya şifre';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = 'Email adresi doğrulanmamış';
         } else {
-          setUser(null);
-          setToken(null);
+          errorMessage = error.message;
         }
-      } else if (response.status === 401) {
-        // Token geçersiz veya yok - refresh dene
-        const refreshed = await refreshToken();
-        if (!refreshed) {
-          setUser(null);
-          setToken(null);
-        }
-      } else {
-        setUser(null);
-        setToken(null);
+        
+        return { success: false, error: errorMessage };
       }
-    } catch (error) {
-      console.error('User verification error:', error);
-      setUser(null);
-      setToken(null);
+
+      if (data.user && data.session) {
+        const profile = await fetchUserProfile(data.user);
+        setUser(profile);
+        setSession(data.session);
+        return { success: true };
+      }
+
+      return { success: false, error: 'Beklenmeyen hata' };
+    } catch (error: any) {
+      console.error('Sign in exception:', error);
+      return { success: false, error: 'Giriş sırasında bir hata oluştu' };
     } finally {
       setIsLoading(false);
-      isLoadingRef.current = false;
     }
-  }, [refreshToken]);
+  }, [supabase, fetchUserProfile]);
 
-  // Sayfa yüklendiğinde kullanıcı durumunu kontrol et
-  // Token artık HttpOnly cookie'de, localStorage'dan okumuyoruz
-  useEffect(() => {
-    if (!mounted) return;
-
-    // mounted olduğunda ref'i sıfırla ki verifyAndLoadUser çalışabilsin
-    hasInitializedRef.current = false;
-
-    // Geriye uyumluluk: localStorage'da token varsa temizle (migration)
-    const oldToken = localStorage.getItem('auth_token');
-    if (oldToken) {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_user');
-    }
-
-    // Cookie'deki token ile kullanıcı bilgisini al
-    verifyAndLoadUser();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted]); // Sadece mounted değiştiğinde çalışsın
-
-  // Giriş yap
-  const login = async (
-    email: string,
-    password: string
-  ): Promise<{ success: boolean; error?: string }> => {
+  // Sign Out (Supabase)
+  const signOut = useCallback(async () => {
     try {
-      const response = await fetch(API_ENDPOINTS.AUTH_LOGIN, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Cookie'leri al
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        setToken('cookie-based'); // Token artık HttpOnly cookie'de
-        setUser(data.user);
-        setIsLoading(false); // Loading state'i kapat
-        // hasInitializedRef'i sıfırla ki verifyAndLoadUser tekrar çalışabilsin
-        hasInitializedRef.current = false;
-        return { success: true };
-      } else {
-        return { success: false, error: data.error || 'Giriş başarısız' };
-      }
+      await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
+      // Sayfayı yenile - middleware login'e yönlendirecek
+      window.location.href = '/giris';
     } catch (error) {
-      console.error('Login error:', error);
-      return { success: false, error: 'Sunucu hatası' };
+      console.error('Sign out error:', error);
+      // Hata olsa bile state temizle ve yönlendir
+      setUser(null);
+      setSession(null);
+      window.location.href = '/giris';
     }
-  };
+  }, [supabase]);
 
-  // Çıkış yap
-  const logout = async () => {
-    try {
-      // Backend'e logout isteği gönder (cookie'leri temizler)
-      await fetch(`${API_BASE_URL}/api/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-
-    setToken(null);
-    setUser(null);
-
-    // Geriye uyumluluk: eski localStorage verilerini temizle
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_user');
-  };
-
-  // Kullanıcı bilgilerini yenile
+  // Kullanıcı bilgisini yenile
   const refreshUser = useCallback(async () => {
-    // Ref'i sıfırla ki tekrar çalışabilsin
-    hasInitializedRef.current = false;
-    await verifyAndLoadUser();
-  }, [verifyAndLoadUser]);
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (authUser) {
+      const profile = await fetchUserProfile(authUser);
+      setUser(profile);
+    }
+  }, [supabase, fetchUserProfile]);
 
-  // isLoading: mounted olmadan veya auth kontrolü tamamlanmadan true
-  const actualIsLoading = !mounted || isLoading;
+  // Geriye uyumluluk için login/logout alias
+  const login = signIn;
+  const logout = signOut;
 
   const value: AuthContextType = {
     user,
-    token,
-    isLoading: actualIsLoading,
-    isAuthenticated: mounted && !!user,
-    isAdmin:
-      mounted &&
-      (user?.role === 'admin' || user?.user_type === 'super_admin' || user?.user_type === 'admin'),
+    session,
+    isLoading: !mounted || isLoading,
+    isAuthenticated: mounted && !!user && !!session,
+    isAdmin: mounted && (user?.user_type === 'admin' || user?.user_type === 'super_admin'),
     isSuperAdmin: mounted && user?.user_type === 'super_admin',
     login,
     logout,
+    signIn,
+    signOut,
     refreshUser,
-    refreshToken,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

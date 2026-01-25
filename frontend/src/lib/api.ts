@@ -1,6 +1,11 @@
-import axios, { type AxiosRequestConfig } from 'axios';
-import { API_BASE_URL, API_ENDPOINTS } from '@/lib/config';
-import { getCsrfToken } from '@/lib/csrf';
+import axios, { type InternalAxiosRequestConfig, type AxiosError } from 'axios';
+import { API_BASE_URL } from '@/lib/config';
+import { createClient } from '@/lib/supabase/client';
+
+// Retry flag için tip genişletmesi
+interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean;
+}
 
 // Create axios instance
 export const api = axios.create({
@@ -8,90 +13,130 @@ export const api = axios.create({
   timeout: 60000, // 60 saniye (scraper gibi uzun işlemler için)
   headers: {
     'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
   },
-  withCredentials: true, // Cookie'leri göndermek için
+  withCredentials: true,
+  // 304 response'ları da handle et
+  validateStatus: (status) => status < 500, // 200-499 arası status kodları başarılı say
 });
 
-// Token refresh durumu için flag (sonsuz döngüyü önlemek için)
+// Token refresh durumu için flag
 let isRefreshing = false;
-let refreshSubscribers: Array<(token: string | null) => void> = [];
+let refreshSubscribers: Array<(token: string) => void> = [];
 
-// Request interceptor
-api.interceptors.request.use((config: any) => {
-  // Add auth token if available
-  const token = localStorage.getItem('auth_token');
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
+// Supabase client (singleton)
+let supabaseClient: ReturnType<typeof createClient> | null = null;
+
+function getSupabase() {
+  if (!supabaseClient) {
+    supabaseClient = createClient();
   }
-  
-  // Add CSRF token for unsafe methods
-  const unsafeMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
-  const method = config.method?.toUpperCase();
-  
-  if (method && unsafeMethods.includes(method)) {
-    // CSRF koruması olmayan endpoint'ler
-    const excludedPaths = [
-      '/api/auth/login',
-      '/api/auth/register',
-      '/api/auth/refresh',
-      '/api/auth/logout'
-    ];
+  return supabaseClient;
+}
+
+// Request interceptor - Supabase token ekle
+api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
+  try {
+    const supabase = getSupabase();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
-    const url = config.url || '';
-    const isExcluded = excludedPaths.some(path => url.includes(path));
+    if (sessionError) {
+      console.warn('Supabase session error:', sessionError);
+    }
     
-    if (!isExcluded && config.headers) {
-      const csrfToken = getCsrfToken();
-      if (csrfToken) {
-        config.headers['X-CSRF-Token'] = csrfToken;
+    if (session?.access_token) {
+      // Token'ın geçerli olduğunu kontrol et (JWT formatında olmalı)
+      const tokenParts = session.access_token.split('.');
+      if (tokenParts.length !== 3) {
+        console.warn('⚠️ Token formatı geçersiz (JWT 3 parça olmalı):', {
+          url: config.url,
+          tokenLength: session.access_token.length,
+          tokenParts: tokenParts.length
+        });
+      }
+      
+      config.headers.Authorization = `Bearer ${session.access_token}`;
+      // Debug: Token gönderildiğini logla (sadece development'ta ve önemli endpoint'ler için)
+      if (process.env.NODE_ENV === 'development' && (
+        config.url?.includes('/permissions') || 
+        config.url?.includes('/urunler') || 
+        config.url?.includes('/stok')
+      )) {
+        console.log('🔑 Token gönderiliyor:', {
+          url: config.url,
+          method: config.method,
+          tokenPreview: session.access_token.substring(0, 30) + '...',
+          tokenLength: session.access_token.length,
+          tokenParts: tokenParts.length,
+          hasToken: !!session.access_token
+        });
+      }
+    } else {
+      // Debug: Token yoksa logla (tüm endpoint'ler için)
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('⚠️ Token bulunamadı:', {
+          url: config.url,
+          method: config.method,
+          hasSession: !!session,
+          hasAccessToken: !!session?.access_token,
+          sessionKeys: session ? Object.keys(session) : []
+        });
       }
     }
+  } catch (error) {
+    console.warn('Could not get Supabase session:', error);
   }
   
   return config;
 });
 
-// Response interceptor
+// Response interceptor - 401'de token refresh dene
 api.interceptors.response.use(
   (response) => {
-    // CSRF token'ı response header'dan al ve cache'le (varsa)
-    const csrfToken = response.headers['x-csrf-token'];
-    if (csrfToken && typeof window !== 'undefined') {
-      // Cookie zaten set edilmiş olacak, sadece cache'le
-      try {
-        localStorage.setItem('csrf_token_cache', csrfToken);
-      } catch (e) {
-        // localStorage kullanılamıyorsa sessizce devam et
-      }
+    // 304 Not Modified başarılı bir response, ama body olmayabilir
+    // Eğer 304 ise ve data yoksa, cache'den geliyor demektir - bu normal
+    if (response.status === 304 && !response.data) {
+      // 304 response'u olduğu gibi döndür (cache'den geliyor)
+      return response;
     }
     return response;
   },
-  async (error) => {
-    const originalRequest = error.config;
+  async (error: AxiosError) => {
+    const originalRequest = error.config as CustomAxiosRequestConfig | undefined;
+    
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
 
     // 401 hatası - token refresh dene
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
-      // Bazı endpoint'ler için 401'i ignore et (opsiyonel özellikler)
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      // Bazı endpoint'ler için 401'i ignore et
       const url = originalRequest.url || '';
       const ignoredEndpoints = [
-        '/api/auth/sessions', // Session endpoint opsiyonel
-        '/api/auth/login',    // Login endpoint zaten auth gerektirmez
-        '/api/auth/register', // Register endpoint zaten auth gerektirmez
+        '/api/auth/login',
+        '/api/auth/register',
       ];
       
-      const shouldIgnore = ignoredEndpoints.some(endpoint => url.includes(endpoint));
-      
-      if (shouldIgnore) {
+      if (ignoredEndpoints.some(endpoint => url.includes(endpoint))) {
         return Promise.reject(error);
       }
 
-      // Token refresh zaten yapılıyorsa, bekleyen istekleri queue'ya ekle
+      // Debug: 401 hatası logla
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('⚠️ 401 Unauthorized - Token refresh deneniyor:', {
+          url: originalRequest.url,
+          method: originalRequest.method,
+          hasAuthHeader: !!originalRequest.headers?.Authorization
+        });
+      }
+
+      // Token refresh zaten yapılıyorsa bekle
       if (isRefreshing) {
         return new Promise((resolve) => {
-          refreshSubscribers.push((token) => {
-            if (token && originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${token}`;
-            }
+          refreshSubscribers.push((token: string) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
             resolve(api(originalRequest));
           });
         });
@@ -101,83 +146,61 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // Token refresh dene
-        const refreshResponse = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
-          method: 'POST',
-          credentials: 'include',
-        });
+        const supabase = getSupabase();
+        const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
 
-        if (refreshResponse.ok) {
-          // Refresh başarılı - kullanıcı bilgisini tekrar al
-          const meResponse = await fetch(API_ENDPOINTS.AUTH_ME, {
-            credentials: 'include',
-          });
-
-          if (meResponse.ok) {
-            const meData = await meResponse.json();
-            // Token cookie'de, localStorage'a eklemeye gerek yok
-            const token = 'cookie-based';
-            
-            // AuthContext'e token refresh başarılı olduğunu bildir
-            // Sadece user bilgisi değiştiyse event gönder (gereksiz re-render'ları önle)
-            if (typeof window !== 'undefined' && meData.user) {
-              // Debounce: Aynı anda birden fazla refresh event'i gönderme
-              const eventId = `token-refreshed-${Date.now()}`;
-              window.dispatchEvent(new CustomEvent('auth:token-refreshed', { 
-                detail: { user: meData.user, eventId } 
-              }));
-            }
-            
-            // Bekleyen tüm istekleri notify et
-            refreshSubscribers.forEach(cb => cb(token));
-            refreshSubscribers = [];
-
-            // Orijinal isteği tekrar dene
-            if (originalRequest.headers) {
-              // Cookie-based auth kullanıyoruz, Bearer token gerekmez
-              delete originalRequest.headers.Authorization;
-            }
-            return api(originalRequest);
+        if (refreshError || !session) {
+          // Refresh başarısız - login'e yönlendir
+          isRefreshing = false;
+          refreshSubscribers = [];
+          
+          if (typeof window !== 'undefined' && !window.location.pathname.includes('/giris')) {
+            window.location.href = '/giris';
           }
+          
+          return Promise.reject(error);
         }
 
-        // Refresh başarısız - logout yap
-        isRefreshing = false;
-        refreshSubscribers = [];
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_user');
+        const newToken = session.access_token;
         
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('auth:token-expired'));
+        // Bekleyen istekleri bilgilendir
+        refreshSubscribers.forEach(cb => cb(newToken));
+        refreshSubscribers = [];
+        isRefreshing = false;
+
+      // Orijinal isteği yeni token ile tekrar dene
+      if (newToken) {
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return api(originalRequest);
+      } else {
+        // Token refresh başarısız - login'e yönlendir
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/giris')) {
+          window.location.href = '/giris';
         }
-        
         return Promise.reject(error);
+      }
       } catch (refreshError) {
-        // Refresh hatası - logout yap
         isRefreshing = false;
         refreshSubscribers = [];
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_user');
         
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('auth:token-expired'));
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/giris')) {
+          window.location.href = '/giris';
         }
         
         return Promise.reject(error);
       }
     }
-    
-    // CSRF hatası durumunda token'ı yenile (reload yapma)
-    if (error.response?.status === 403 && error.response?.data?.code === 'CSRF_ERROR') {
-      // CSRF token'ı cache'den temizle, bir sonraki istekte yeniden alınacak
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.removeItem('csrf_token_cache');
-        } catch (e) {
-          // Sessizce devam et
-        }
-        console.warn('CSRF token hatası, token temizlendi. İstek tekrar denenebilir.');
-      }
+
+    // Diğer hataları logla (development'ta)
+    if (process.env.NODE_ENV === 'development' && error.response) {
+      console.error('❌ API Hatası:', {
+        url: originalRequest?.url,
+        method: originalRequest?.method,
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data,
+        headers: error.response.headers
+      });
     }
     
     return Promise.reject(error);
@@ -204,7 +227,7 @@ export const apiClient = {
   },
 
   // Documents
-  async uploadDocument(file: File, metadata?: Record<string, any>) {
+  async uploadDocument(file: File, metadata?: Record<string, unknown>) {
     const formData = new FormData();
     formData.append('file', file);
 

@@ -354,14 +354,24 @@ function StokPageContent() {
     }
   };
 
-  // Token helper
-  const getToken = () => localStorage.getItem('token');
+  // Cookie-only authentication - token gerekmiyor
 
   // API'den verileri yükle
   const loadData = useCallback(async () => {
+    console.log('🔄 loadData başlatıldı');
     setLoading(true);
     setError(null);
+    
+    let timeoutId: NodeJS.Timeout | null = null;
+    
     try {
+      // Timeout: 30 saniye sonra loading'i zorla bitir
+      timeoutId = setTimeout(() => {
+        console.warn('⏰ loadData timeout - 30 saniye geçti, loading zorla bitiriliyor');
+        setLoading(false);
+        setError('Veri yükleme çok uzun sürdü. Sayfayı yenileyin.');
+      }, 30000);
+      console.log('📡 API çağrıları başlatılıyor...');
       // Paralel istekler - Yeni ürün kartları sistemini kullan
       const [urunData, depoData, katData, birimData] = await Promise.all([
         urunlerAPI.getUrunler({ limit: 500 }),
@@ -369,6 +379,23 @@ function StokPageContent() {
         urunlerAPI.getKategoriler(),
         stokAPI.getBirimler(),
       ]);
+
+      console.log('✅ API çağrıları tamamlandı:', {
+        urunler: urunData.success ? `${urunData.data?.length || 0} ürün` : 'HATA',
+        depolar: depoData.success ? `${depoData.data?.length || 0} depo` : 'HATA',
+        kategoriler: katData.success ? `${katData.data?.length || 0} kategori` : 'HATA',
+        birimler: birimData.success ? `${birimData.data?.length || 0} birim` : 'HATA',
+      });
+
+      // API response kontrolü
+      if (!urunData.success) {
+        console.error('❌ Ürün verileri başarısız:', urunData);
+        throw new Error(urunData.error || 'Ürün verileri alınamadı');
+      }
+      if (!depoData.success) {
+        console.error('❌ Depo verileri başarısız:', depoData);
+        throw new Error(depoData.error || 'Depo verileri alınamadı');
+      }
 
       // Ürün kartlarını stok formatına dönüştür
       const urunList = ((urunData.success ? urunData.data : []) || []).map((u: any) => ({
@@ -387,9 +414,9 @@ function StokPageContent() {
         durum: u.durum || 'normal',
       }));
       
-      // SADECE STOKTA OLANLARI GÖSTER (toplam_stok > 0)
-      const stokluUrunler = urunList.filter((u: StokItem) => u.toplam_stok > 0);
-      setStoklar(stokluUrunler);
+      // TÜM ÜRÜNLERİ GÖSTER (stok girişi yapılmamış ürünler de dahil)
+      // Kullanıcı stok girişi yapabilir
+      setStoklar(urunList); // Tüm ürünleri göster
       setTumUrunler(urunList); // Tüm ürünler (fatura eşleştirme için)
       setTumStokSayisi(urunList.length);
       setDepolar((depoData.data || []) as unknown as Depo[]);
@@ -402,16 +429,58 @@ function StokPageContent() {
       }));
       setKategoriler(katList);
       setBirimler((birimData.success ? birimData.data : []) || []);
-    } catch (err) {
-      console.error('Veri yükleme hatası:', err);
-      setError('Veriler yüklenirken hata oluştu');
+      
+      console.log('✅ Veriler başarıyla yüklendi:', {
+        stoklar: urunList.length,
+        toplamUrun: urunList.length,
+        depolar: (depoData.data || []).length,
+        kategoriler: katList.length,
+        birimler: (birimData.success ? birimData.data : []).length,
+      });
+    } catch (err: any) {
+      console.error('❌ Veri yükleme hatası:', err);
+      console.error('Hata detayları:', {
+        message: err?.message,
+        response: err?.response,
+        status: err?.response?.status,
+        data: err?.response?.data,
+        stack: err?.stack,
+      });
+      
+      // Daha açıklayıcı hata mesajı
+      let errorMessage = 'Veriler yüklenirken hata oluştu';
+      if (err?.response?.status === 401) {
+        errorMessage = 'Oturum süresi dolmuş. Lütfen tekrar giriş yapın.';
+      } else if (err?.response?.status === 403) {
+        errorMessage = 'Bu sayfaya erişim yetkiniz yok.';
+      } else if (err?.response?.status === 404) {
+        errorMessage = 'Endpoint bulunamadı. Backend çalışıyor mu?';
+      } else if (err?.response?.status === 500) {
+        errorMessage = 'Sunucu hatası. Backend loglarını kontrol edin.';
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      // Hata durumunda state'leri boş array olarak set et
+      setStoklar([]);
+      setTumUrunler([]);
+      setTumStokSayisi(0);
+      setDepolar([]);
+      setKategoriler([]);
+      setBirimler([]);
       notifications.show({
         title: 'Hata',
-        message: 'Veriler yüklenemedi',
+        message: errorMessage,
         color: 'red',
         icon: <IconAlertCircle />,
+        autoClose: 5000,
       });
     } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      console.log('🏁 loadData tamamlandı, loading: false');
       setLoading(false);
     }
   }, []);
@@ -427,6 +496,8 @@ function StokPageContent() {
       const lokResult = await stokAPI.getDepoLokasyonlar(depoId);
       if (lokResult.success) {
         setLokasyonlar(lokResult.data || []);
+      } else {
+        setLokasyonlar([]);
       }
 
       // Stokları yükle
@@ -434,9 +505,13 @@ function StokPageContent() {
 
       if (result.success) {
         setStoklar((result.data || []) as unknown as StokItem[]);
+      } else {
+        setStoklar([]);
       }
     } catch (err) {
       console.error('Depo stok yükleme hatası:', err);
+      setStoklar([]);
+      setLokasyonlar([]);
       notifications.show({
         title: 'Hata',
         message: 'Depo stokları yüklenemedi',
@@ -457,9 +532,12 @@ function StokPageContent() {
 
       if (result.success) {
         setStoklar((result.data || []) as unknown as StokItem[]);
+      } else {
+        setStoklar([]);
       }
     } catch (err) {
       console.error('Lokasyon stok yükleme hatası:', err);
+      setStoklar([]);
       notifications.show({
         title: 'Hata',
         message: 'Lokasyon stokları yüklenemedi',
@@ -1259,6 +1337,16 @@ function StokPageContent() {
       {error && (
         <Alert icon={<IconAlertCircle size={16} />} color="red" mb="md">
           {error}
+        </Alert>
+      )}
+
+      {/* Stok girişi yapılmamış ürünler için bilgilendirme */}
+      {!loading && !error && stoklar.length > 0 && stoklar.filter(s => s.toplam_stok === 0).length === stoklar.length && (
+        <Alert icon={<IconAlertTriangle size={16} />} color="blue" mb="md">
+          <Text size="sm" fw={500} mb={4}>Stok girişi yapılmamış</Text>
+          <Text size="xs" c="dimmed">
+            Tüm ürünlerin stoku 0. Stok girişi yapmak için "Stok İşlemleri" butonuna tıklayın.
+          </Text>
         </Alert>
       )}
 

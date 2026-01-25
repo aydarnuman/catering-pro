@@ -54,7 +54,7 @@ import {
   IconUser,
   IconX,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import { demirbasAPI } from '@/lib/api/services/demirbas';
@@ -256,12 +256,12 @@ export default function DemirbasPage() {
 
 
   // Verileri yükle
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const [demirbasRes, kategoriRes, lokasyonRes, projelerRes, personelRes, istatistikRes] =
-        await Promise.all([
+        await Promise.allSettled([
           demirbasAPI.getDemirbaslar(),
           demirbasAPI.getKategoriler(),
           demirbasAPI.getLokasyonlar(),
@@ -270,26 +270,82 @@ export default function DemirbasPage() {
           demirbasAPI.getIstatistikOzet(),
         ]);
 
-      if (demirbasRes.success) setDemirbaslar(demirbasRes.data as any || []);
-      if (kategoriRes.success) {
-        setKategoriler(kategoriRes.data as any || []);
+      // Her bir sonucu kontrol et
+      if (demirbasRes.status === 'fulfilled' && demirbasRes.value.success) {
+        setDemirbaslar(demirbasRes.value.data as any || []);
+      } else {
+        console.error('Demirbaş yükleme hatası:', demirbasRes.status === 'rejected' ? demirbasRes.reason : 'API başarısız');
+        setDemirbaslar([]);
       }
-      if (lokasyonRes.success) setLokasyonlar(lokasyonRes.data as any || []);
-      if (projelerRes.success) setProjeler(projelerRes.data || []);
-      if (personelRes.success) setPersoneller(personelRes.data as any || []);
-      if (istatistikRes.success && istatistikRes.data) {
-        setIstatistik(istatistikRes.data.ozet);
-        setKategoriDagilimi(istatistikRes.data.kategoriDagilimi || []);
-        setGarantiYaklasan(istatistikRes.data.garantiYaklasan || []);
-        setBakimdakiler(istatistikRes.data.bakimdakiler || []);
+
+      if (kategoriRes.status === 'fulfilled' && kategoriRes.value.success) {
+        setKategoriler(kategoriRes.value.data as any || []);
+      } else {
+        console.error('Kategori yükleme hatası:', kategoriRes.status === 'rejected' ? kategoriRes.reason : 'API başarısız');
+        setKategoriler([]);
       }
-    } catch (err) {
+
+      if (lokasyonRes.status === 'fulfilled' && lokasyonRes.value.success) {
+        setLokasyonlar(lokasyonRes.value.data as any || []);
+      } else {
+        console.error('Lokasyon yükleme hatası:', lokasyonRes.status === 'rejected' ? lokasyonRes.reason : 'API başarısız');
+        setLokasyonlar([]);
+      }
+
+      if (projelerRes.status === 'fulfilled' && projelerRes.value.success) {
+        setProjeler(projelerRes.value.data || []);
+      } else {
+        console.error('Proje yükleme hatası:', projelerRes.status === 'rejected' ? projelerRes.reason : 'API başarısız');
+        setProjeler([]);
+      }
+
+      if (personelRes.status === 'fulfilled' && personelRes.value.success) {
+        setPersoneller(personelRes.value.data as any || []);
+      } else {
+        console.error('Personel yükleme hatası:', personelRes.status === 'rejected' ? personelRes.reason : 'API başarısız');
+        setPersoneller([]);
+      }
+
+      if (istatistikRes.status === 'fulfilled' && istatistikRes.value.success && istatistikRes.value.data) {
+        setIstatistik(istatistikRes.value.data.ozet);
+        setKategoriDagilimi(istatistikRes.value.data.kategoriDagilimi || []);
+        setGarantiYaklasan(istatistikRes.value.data.garantiYaklasan || []);
+        setBakimdakiler(istatistikRes.value.data.bakimdakiler || []);
+      } else {
+        console.error('İstatistik yükleme hatası:', istatistikRes.status === 'rejected' ? istatistikRes.reason : 'API başarısız');
+        setIstatistik(null);
+        setKategoriDagilimi([]);
+        setGarantiYaklasan([]);
+        setBakimdakiler([]);
+      }
+    } catch (err: any) {
       console.error('Veri yükleme hatası:', err);
-      setError('Veriler yüklenirken hata oluştu');
+      const errorMessage = err?.response?.status === 401 
+        ? 'Oturum süresi doldu. Lütfen tekrar giriş yapın.'
+        : err?.message || 'Veriler yüklenirken hata oluştu';
+      setError(errorMessage);
+      
+      // Hata durumunda state'leri boş array olarak set et
+      setDemirbaslar([]);
+      setKategoriler([]);
+      setLokasyonlar([]);
+      setProjeler([]);
+      setPersoneller([]);
+      setIstatistik(null);
+      setKategoriDagilimi([]);
+      setGarantiYaklasan([]);
+      setBakimdakiler([]);
+      
+      // 401 hatası ise login sayfasına yönlendir
+      if (err?.response?.status === 401) {
+        setTimeout(() => {
+          window.location.href = '/giris';
+        }, 2000);
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // Boş dependency array - sadece mount'ta çalışsın
 
   useEffect(() => {
     loadData();

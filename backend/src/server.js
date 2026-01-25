@@ -66,7 +66,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'X-CSRF-Token']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma', 'Expires', 'X-CSRF-Token']
 }));
 
 // Cookie Parser
@@ -85,8 +85,9 @@ app.use(csrfProtection);
 // NOT: Health check ve auth endpoint'leri hariç
 app.use((req, res, next) => {
   // Health check ve auth endpoint'leri için IP kontrolü atla
-  const excludedPaths = ['/health', '/api/auth/login', '/api/auth/register'];
-  if (excludedPaths.some(path => req.path.startsWith(path))) {
+  const skip = req.path === '/' || req.path === '/health' || req.path.startsWith('/api-docs')
+    || req.path.startsWith('/api/auth/login') || req.path.startsWith('/api/auth/register');
+  if (skip) {
     return next();
   }
   ipAccessControl(req, res, next);
@@ -109,6 +110,19 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 app.get('/api-docs.json', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.send(swaggerSpec);
+});
+
+// Root – API bilgisi ve linkler (404 yerine anlamlı yanıt)
+app.get('/', (req, res) => {
+  const base = req.protocol + '://' + (req.get('host') || `localhost:${PORT}`);
+  res.json({
+    name: 'Catering Pro API',
+    version: '1.0.0',
+    status: 'ok',
+    docs: `${base}/api-docs`,
+    openApi: `${base}/api-docs.json`,
+    health: `${base}/health`,
+  });
 });
 
 /**

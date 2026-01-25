@@ -14,6 +14,7 @@ import logger from '../utils/logger.js';
 import loginAttemptService from '../services/login-attempt-service.js';
 import adminNotificationService from '../services/admin-notification-service.js';
 import sessionService from '../services/session-service.js';
+import { supabase } from '../supabase.js';
 
 const router = express.Router();
 
@@ -45,7 +46,7 @@ const validatePassword = (password) => {
 const getCookieOptions = (maxAge) => ({
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict',
+  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax', // Development'ta lax, production'da strict
   maxAge,
   path: '/'
 });
@@ -140,71 +141,133 @@ router.post('/login', async (req, res) => {
       });
     }
     
+    // Supabase Auth ile giriş yap
+    let authUser;
+    let authSession;
+    
+    try {
+      // Supabase client'ı al (anon key ile - kullanıcı girişi için)
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseAnonKey) {
+        logger.error('Supabase config eksik - fallback to PostgreSQL');
+        // Fallback: Eski PostgreSQL sistemi
+        return await handlePostgresLogin(req, res, email, password, ipAddress, userAgent);
+      }
+      
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+      
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error || !data.user) {
+        // Supabase Auth hatası - attempt kaydet
+        const attemptResult = await loginAttemptService.recordFailedLogin(email, ipAddress, userAgent);
+        
+        logger.warn('Supabase Auth login failed', { 
+          email, 
+          error: error?.message,
+          remainingAttempts: attemptResult.remainingAttempts,
+          isLocked: attemptResult.isLocked
+        });
+        
+        // Hesap kilitlendiyse özel mesaj
+        if (attemptResult.isLocked) {
+          const minutesRemaining = attemptResult.lockedUntil 
+            ? Math.ceil((attemptResult.lockedUntil.getTime() - Date.now()) / 60000)
+            : 0;
+          
+          return res.status(423).json({ 
+            error: `Çok fazla başarısız deneme. Hesabınız ${minutesRemaining} dakika kilitlendi.`,
+            code: 'ACCOUNT_LOCKED',
+            lockedUntil: attemptResult.lockedUntil?.toISOString(),
+            minutesRemaining,
+            remainingAttempts: 0
+          });
+        }
+        
+        return res.status(401).json({ 
+          error: error?.message === 'Invalid login credentials' 
+            ? 'Geçersiz email veya şifre' 
+            : error?.message || 'Giriş başarısız',
+          remainingAttempts: attemptResult.remainingAttempts
+        });
+      }
+      
+      authUser = data.user;
+      authSession = data.session;
+      
+    } catch (supabaseError) {
+      logger.error('Supabase Auth error', { error: supabaseError.message });
+      // Fallback: Eski PostgreSQL sistemi
+      return await handlePostgresLogin(req, res, email, password, ipAddress, userAgent);
+    }
+    
+    // PostgreSQL'den kullanıcı profilini al
     const result = await query(
       'SELECT * FROM users WHERE email = $1 AND is_active = true',
       [email]
     );
     
     if (result.rows.length === 0) {
-      // Kullanıcı bulunamadı - attempt kaydetme (email yoksa kaydetmez)
-      logger.warn('Login attempt failed - user not found', { email });
-      return res.status(401).json({ error: 'Geçersiz email veya şifre' });
-    }
-    
-    const user = result.rows[0];
-    
-    const validPassword = await bcrypt.compare(password, user.password_hash);
-    
-    if (!validPassword) {
-      // Başarısız login - attempt kaydet
-      const attemptResult = await loginAttemptService.recordFailedLogin(email, ipAddress, userAgent);
+      // Kullanıcı Supabase Auth'ta var ama PostgreSQL'de yok - oluştur
+      logger.info('Creating user profile in PostgreSQL', { email, authUserId: authUser.id });
       
-      logger.warn('Login attempt failed - invalid password', { 
-        email, 
-        userId: user.id,
-        remainingAttempts: attemptResult.remainingAttempts,
-        isLocked: attemptResult.isLocked
-      });
+      const insertResult = await query(`
+        INSERT INTO users (email, name, role, user_type, auth_user_id, is_active)
+        VALUES ($1, $2, $3, $4, $5, true)
+        RETURNING *
+      `, [
+        email,
+        authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
+        authUser.user_metadata?.role || 'user',
+        authUser.user_metadata?.user_type || 'user',
+        authUser.id
+      ]);
       
-      // Hesap kilitlendiyse özel mesaj
-      if (attemptResult.isLocked) {
-        const minutesRemaining = attemptResult.lockedUntil 
-          ? Math.ceil((attemptResult.lockedUntil.getTime() - Date.now()) / 60000)
-          : 0;
-        
-        return res.status(423).json({ 
-          error: `Çok fazla başarısız deneme. Hesabınız ${minutesRemaining} dakika kilitlendi.`,
-          code: 'ACCOUNT_LOCKED',
-          lockedUntil: attemptResult.lockedUntil?.toISOString(),
-          minutesRemaining,
-          remainingAttempts: 0
-        });
+      var user = insertResult.rows[0];
+    } else {
+      var user = result.rows[0];
+      
+      // auth_user_id'yi güncelle (eğer yoksa)
+      if (!user.auth_user_id && authUser.id) {
+        await query(
+          'UPDATE users SET auth_user_id = $1 WHERE id = $2',
+          [authUser.id, user.id]
+        );
       }
-      
-      return res.status(401).json({ 
-        error: 'Geçersiz email veya şifre',
-        remainingAttempts: attemptResult.remainingAttempts
-      });
     }
     
     // Başarılı login - attempt'leri sıfırla
     await loginAttemptService.recordSuccessfulLogin(user.id, ipAddress, userAgent);
     
-    logger.info('User logged in successfully', { userId: user.id, email: user.email, role: user.role });
+    logger.info('User logged in successfully via Supabase Auth', { 
+      userId: user.id, 
+      email: user.email, 
+      role: user.role,
+      authUserId: authUser.id 
+    });
 
-    // Access token oluştur (kısa süreli)
+    // Kendi JWT token'ımızı oluştur (Supabase token yerine - cookie-based auth için)
+    // Supabase Auth sadece kimlik doğrulama için, token'lar kendi sistemimizden
     const accessToken = jwt.sign(
       {
         id: user.id,
         email: user.email,
         role: user.role,
-        type: 'access'
+        user_type: user.user_type || 'user',
+        type: 'access',
+        auth_user_id: authUser?.id // Supabase Auth user ID'yi de ekle
       },
       JWT_SECRET,
       { expiresIn: ACCESS_TOKEN_EXPIRY }
     );
 
-    // Refresh token oluştur (uzun süreli)
+    // Refresh token - kendi sistemimizden
     const refreshToken = crypto.randomBytes(64).toString('hex');
     const refreshTokenHash = hashToken(refreshToken);
 
@@ -245,13 +308,13 @@ router.post('/login', async (req, res) => {
 
     res.json({
       success: true,
-      token: accessToken, // Geriye uyumluluk için
+      token: accessToken, // Geriye uyumluluk için (cookie zaten set edildi)
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
         role: user.role,
-        user_type: user.user_type || 'user'
+        user_type: user.user_type || 'user' // user_type her zaman döndürülmeli
       }
     });
     
@@ -260,6 +323,104 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Fallback: PostgreSQL login (Supabase Auth yoksa)
+async function handlePostgresLogin(req, res, email, password, ipAddress, userAgent) {
+  try {
+    const result = await query(
+      'SELECT * FROM users WHERE email = $1 AND is_active = true',
+      [email]
+    );
+    
+    if (result.rows.length === 0) {
+      logger.warn('Login attempt failed - user not found', { email });
+      return res.status(401).json({ error: 'Geçersiz email veya şifre' });
+    }
+    
+    const user = result.rows[0];
+    
+    // password_hash NULL kontrolü
+    if (!user.password_hash) {
+      logger.warn('Login attempt failed - password_hash is NULL', { email, userId: user.id });
+      return res.status(401).json({ 
+        error: 'Bu kullanıcı için şifre tanımlanmamış. Lütfen yöneticinizle iletişime geçin.',
+        code: 'PASSWORD_NOT_SET'
+      });
+    }
+    
+    const validPassword = await bcrypt.compare(password, user.password_hash);
+    
+    if (!validPassword) {
+      const attemptResult = await loginAttemptService.recordFailedLogin(email, ipAddress, userAgent);
+      
+      if (attemptResult.isLocked) {
+        const minutesRemaining = attemptResult.lockedUntil 
+          ? Math.ceil((attemptResult.lockedUntil.getTime() - Date.now()) / 60000)
+          : 0;
+        
+        return res.status(423).json({ 
+          error: `Çok fazla başarısız deneme. Hesabınız ${minutesRemaining} dakika kilitlendi.`,
+          code: 'ACCOUNT_LOCKED',
+          minutesRemaining
+        });
+      }
+      
+      return res.status(401).json({ 
+        error: 'Geçersiz email veya şifre',
+        remainingAttempts: attemptResult.remainingAttempts
+      });
+    }
+    
+    await loginAttemptService.recordSuccessfulLogin(user.id, ipAddress, userAgent);
+    
+    const accessToken = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        user_type: user.user_type || 'user',
+        type: 'access'
+      },
+      JWT_SECRET,
+      { expiresIn: ACCESS_TOKEN_EXPIRY }
+    );
+
+    const refreshToken = crypto.randomBytes(64).toString('hex');
+    const refreshTokenHash = hashToken(refreshToken);
+
+    try {
+      await query(`
+        INSERT INTO refresh_tokens (user_id, token_hash, device_info, ip_address, expires_at)
+        VALUES ($1, $2, $3, $4, NOW() + INTERVAL '30 days')
+      `, [
+        user.id,
+        refreshTokenHash,
+        JSON.stringify({ userAgent }),
+        ipAddress
+      ]);
+    } catch (dbError) {
+      logger.warn('Refresh token kaydedilemedi', { error: dbError.message });
+    }
+
+    res.cookie('access_token', accessToken, getCookieOptions(COOKIE_MAX_AGE));
+    res.cookie('refresh_token', refreshToken, getCookieOptions(REFRESH_COOKIE_MAX_AGE));
+
+    return res.json({
+      success: true,
+      token: accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        user_type: user.user_type || 'user'
+      }
+    });
+  } catch (error) {
+    logger.error('PostgreSQL login fallback error', { error: error.message });
+    return res.status(500).json({ error: error.message });
+  }
+}
 
 /**
  * @swagger
@@ -394,17 +555,80 @@ router.post('/register', async (req, res) => {
  */
 router.get('/me', async (req, res) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
+    // Cookie-based authentication - önce cookie'den al, yoksa Authorization header'dan
+    let token = req.cookies?.access_token;
+    
+    if (!token) {
+      // Geriye uyumluluk için Authorization header'dan da al
+      token = req.headers.authorization?.replace('Bearer ', '');
+    }
     
     if (!token) {
       return res.status(401).json({ error: 'Token gerekli' });
     }
     
-    const decoded = jwt.verify(token, JWT_SECRET);
+    let decoded;
+    let userId;
     
+    // Önce kendi JWT token'ımızı dene
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+      userId = decoded.id;
+    } catch (jwtError) {
+      // JWT verify başarısız - Supabase token olabilir, Supabase ile verify et
+      try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        
+        if (supabaseUrl && supabaseServiceKey) {
+          const { createClient } = await import('@supabase/supabase-js');
+          const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+          
+          const { data: { user: authUser }, error: supabaseError } = await supabaseClient.auth.getUser(token);
+          
+          if (supabaseError || !authUser) {
+            throw new Error('Supabase token geçersiz');
+          }
+          
+          // Supabase Auth user'dan PostgreSQL user'ı bul
+          const profileResult = await query(
+            'SELECT id, email, name, role, user_type, created_at FROM users WHERE email = $1 AND is_active = true',
+            [authUser.email]
+          );
+          
+          if (profileResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+          }
+          
+          const user = profileResult.rows[0];
+          
+          return res.json({
+            success: true,
+            user: {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              role: user.role,
+              user_type: user.user_type || 'user'
+            }
+          });
+        } else {
+          throw jwtError; // Supabase config yoksa JWT hatasını fırlat
+        }
+      } catch (supabaseError) {
+        // Her iki yöntem de başarısız
+        if (jwtError.name === 'TokenExpiredError') {
+          return res.status(401).json({ error: 'Token süresi dolmuş' });
+        }
+        logger.error('Auth hatası', { error: jwtError.message, supabaseError: supabaseError.message });
+        return res.status(401).json({ error: 'Geçersiz token' });
+      }
+    }
+    
+    // Kendi JWT token'ımız geçerli
     const result = await query(
       'SELECT id, email, name, role, user_type, created_at FROM users WHERE id = $1 AND is_active = true',
-      [decoded.id]
+      [userId]
     );
     
     if (result.rows.length === 0) {
@@ -412,15 +636,23 @@ router.get('/me', async (req, res) => {
     }
     
     const user = result.rows[0];
+    
+    // user_type'ı her zaman döndür (varsayılan 'user')
     res.json({
       success: true,
       user: {
-        ...user,
-        user_type: user.user_type || 'user'
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        user_type: user.user_type || 'user' // Her zaman user_type döndür
       }
     });
     
   } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Token süresi dolmuş' });
+    }
     logger.error('Auth hatası', { error: error.message });
     res.status(401).json({ error: 'Geçersiz token' });
   }
@@ -601,42 +833,91 @@ router.put('/password', async (req, res) => {
  */
 router.get('/users', async (req, res) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
+    // Token'ı önce cookie'den, sonra header'dan al
+    let token = req.cookies?.access_token;
+    if (!token) {
+      token = req.headers.authorization?.replace('Bearer ', '');
+    }
     
     if (!token) {
       return res.status(401).json({ error: 'Token gerekli' });
     }
     
-    const decoded = jwt.verify(token, JWT_SECRET);
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (jwtError) {
+      logger.error('JWT verification failed', { error: jwtError.message });
+      return res.status(401).json({ error: 'Geçersiz token' });
+    }
     
-    // Admin kontrolü
-    if (decoded.role !== 'admin') {
+    // Admin kontrolü - role veya user_type kontrolü
+    const isAdmin = decoded.role === 'admin' || decoded.user_type === 'admin' || decoded.user_type === 'super_admin';
+    if (!isAdmin) {
+      logger.warn('Unauthorized access attempt to /users endpoint', { 
+        userId: decoded.id, 
+        role: decoded.role, 
+        user_type: decoded.user_type 
+      });
       return res.status(403).json({ error: 'Bu işlem için admin yetkisi gerekli' });
     }
     
-    const result = await query(`
-      SELECT id, email, name, role, user_type, is_active, 
-             failed_login_attempts, locked_until, lockout_count, last_failed_login,
-             created_at, updated_at
-      FROM users
-      ORDER BY created_at DESC
-    `);
+    // Try to select all columns, but handle missing columns gracefully
+    let result;
+    try {
+      // First, try the full query with all columns
+      result = await query(`
+        SELECT id, email, name, role, user_type, is_active, 
+               failed_login_attempts, locked_until, lockout_count, last_failed_login,
+               created_at, updated_at
+        FROM users
+        ORDER BY created_at DESC
+      `);
+    } catch (dbError) {
+      // If columns don't exist (migrations not run), use fallback query
+      if (dbError.message && (
+        dbError.message.includes('column') && dbError.message.includes('does not exist') ||
+        dbError.message.includes('does not exist')
+      )) {
+        logger.warn('Some user columns missing, using fallback query. Run migrations to enable full features.', { 
+          error: dbError.message 
+        });
+        // Fallback: only select columns that definitely exist
+        result = await query(`
+          SELECT id, email, name, role, is_active, created_at, updated_at
+          FROM users
+          ORDER BY created_at DESC
+        `);
+      } else {
+        // Re-throw other errors
+        logger.error('Database query error', { error: dbError.message, stack: dbError.stack });
+        throw dbError;
+      }
+    }
     
     res.json({
       success: true,
       users: result.rows.map(u => ({
         ...u,
         user_type: u.user_type || 'user',
-        isLocked: u.locked_until && new Date(u.locked_until) > new Date(),
-        lockedUntil: u.locked_until,
+        isLocked: u.locked_until ? new Date(u.locked_until) > new Date() : false,
+        lockedUntil: u.locked_until || null,
         failedAttempts: u.failed_login_attempts || 0,
-        lockoutCount: u.lockout_count || 0
+        lockoutCount: u.lockout_count || 0,
+        lastFailedLogin: u.last_failed_login || null
       }))
     });
     
   } catch (error) {
-    logger.error('Kullanıcı listeleme hatası', { error: error.message });
-    res.status(500).json({ error: error.message });
+    logger.error('Kullanıcı listeleme hatası', { 
+      error: error.message, 
+      stack: error.stack,
+      name: error.name 
+    });
+    res.status(500).json({ 
+      error: 'Kullanıcılar yüklenemedi',
+      message: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -659,19 +940,41 @@ router.put('/users/:id', async (req, res) => {
     
     const decoded = jwt.verify(token, JWT_SECRET);
     
-    // Admin kontrolü
-    if (decoded.role !== 'admin') {
+    // Admin kontrolü - role veya user_type kontrolü
+    const isAdmin = decoded.role === 'admin' || decoded.user_type === 'admin' || decoded.user_type === 'super_admin';
+    if (!isAdmin) {
       return res.status(403).json({ error: 'Bu işlem için admin yetkisi gerekli' });
     }
     
     const { id } = req.params;
-    const { name, email, password, role, is_active } = req.body;
+    const { name, email, password, role, user_type, is_active } = req.body;
     
     // Şifre değişikliği varsa hashle
     let passwordHash = null;
     if (password && password.length >= 6) {
       const salt = await bcrypt.genSalt(10);
       passwordHash = await bcrypt.hash(password, salt);
+    }
+    
+    // user_type ve role senkronizasyonu
+    // Eğer user_type verilmişse, role'ü de ona göre ayarla
+    let finalRole = role;
+    let finalUserType = user_type;
+    
+    if (user_type) {
+      // user_type'a göre role belirle
+      if (user_type === 'super_admin' || user_type === 'admin') {
+        finalRole = 'admin';
+      } else {
+        finalRole = 'user';
+      }
+    } else if (role) {
+      // role'e göre user_type belirle
+      if (role === 'admin') {
+        finalUserType = 'admin';
+      } else {
+        finalUserType = 'user';
+      }
     }
     
     // Kullanıcıyı güncelle
@@ -691,9 +994,13 @@ router.put('/users/:id', async (req, res) => {
       updateFields.push(`password_hash = $${paramCount++}`);
       values.push(passwordHash);
     }
-    if (role) {
+    if (finalRole) {
       updateFields.push(`role = $${paramCount++}`);
-      values.push(role);
+      values.push(finalRole);
+    }
+    if (finalUserType) {
+      updateFields.push(`user_type = $${paramCount++}`);
+      values.push(finalUserType);
     }
     if (typeof is_active === 'boolean') {
       updateFields.push(`is_active = $${paramCount++}`);
@@ -706,17 +1013,21 @@ router.put('/users/:id', async (req, res) => {
     const result = await query(`
       UPDATE users SET ${updateFields.join(', ')}
       WHERE id = $${paramCount}
-      RETURNING id, email, name, role, is_active, created_at
+      RETURNING id, email, name, role, user_type, is_active, created_at
     `, values);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
     }
     
+    const updatedUser = result.rows[0];
     res.json({
       success: true,
       message: 'Kullanıcı güncellendi',
-      user: result.rows[0]
+      user: {
+        ...updatedUser,
+        user_type: updatedUser.user_type || 'user' // Her zaman user_type döndür
+      }
     });
     
   } catch (error) {
@@ -871,12 +1182,20 @@ router.post('/refresh', async (req, res) => {
       logger.debug('Session activity güncellenemedi', { error: sessionError.message });
     }
 
-    // Yeni access token oluştur
+    // Kullanıcının user_type'ını al
+    const userResult = await query(
+      'SELECT user_type FROM users WHERE id = $1',
+      [tokenRecord.user_id]
+    );
+    const userType = userResult.rows[0]?.user_type || 'user';
+    
+    // Yeni access token oluştur - user_type dahil
     const newAccessToken = jwt.sign(
       {
         id: tokenRecord.user_id,
         email: tokenRecord.email,
         role: tokenRecord.role,
+        user_type: userType, // user_type token'a ekle
         type: 'access'
       },
       JWT_SECRET,
@@ -1236,10 +1555,53 @@ router.get('/admin/notifications/unread-count', async (req, res) => {
       return res.status(401).json({ error: 'Token gerekli' });
     }
     
-    const decoded = jwt.verify(token, JWT_SECRET);
+    let decoded;
+    let isAdmin = false;
+    
+    // Önce kendi JWT token'ımızı dene
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+      isAdmin = decoded.role === 'admin' || decoded.user_type === 'admin' || decoded.user_type === 'super_admin';
+    } catch (jwtError) {
+      // JWT verify başarısız - Supabase token olabilir, Supabase ile verify et
+      try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        
+        if (supabaseUrl && supabaseServiceKey) {
+          const { createClient } = await import('@supabase/supabase-js');
+          const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+          
+          const { data: { user: authUser }, error: supabaseError } = await supabaseClient.auth.getUser(token);
+          
+          if (supabaseError || !authUser) {
+            throw new Error('Supabase token geçersiz');
+          }
+          
+          // Supabase Auth user'dan PostgreSQL user'ı bul
+          const profileResult = await query(
+            'SELECT id, email, name, role, user_type FROM users WHERE email = $1 AND is_active = true',
+            [authUser.email]
+          );
+          
+          if (profileResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+          }
+          
+          const user = profileResult.rows[0];
+          isAdmin = user.role === 'admin' || user.user_type === 'admin' || user.user_type === 'super_admin';
+        } else {
+          throw jwtError; // Supabase config yoksa JWT hatasını fırlat
+        }
+      } catch (supabaseError) {
+        // Her iki yöntem de başarısız
+        logger.error('Unread count error', { error: jwtError.message, supabaseError: supabaseError.message });
+        return res.status(401).json({ error: 'Geçersiz token' });
+      }
+    }
     
     // Admin kontrolü
-    if (decoded.role !== 'admin') {
+    if (!isAdmin) {
       return res.status(403).json({ error: 'Bu işlem için admin yetkisi gerekli' });
     }
     
@@ -1395,8 +1757,49 @@ router.get('/sessions', async (req, res) => {
       return res.status(401).json({ error: 'Token gerekli' });
     }
     
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const userId = decoded.id;
+    let decoded;
+    let userId;
+    
+    // Önce kendi JWT token'ımızı dene
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+      userId = decoded.id;
+    } catch (jwtError) {
+      // JWT verify başarısız - Supabase token olabilir, Supabase ile verify et
+      try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        
+        if (supabaseUrl && supabaseServiceKey) {
+          const { createClient } = await import('@supabase/supabase-js');
+          const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+          
+          const { data: { user: authUser }, error: supabaseError } = await supabaseClient.auth.getUser(token);
+          
+          if (supabaseError || !authUser) {
+            throw new Error('Supabase token geçersiz');
+          }
+          
+          // Supabase Auth user'dan PostgreSQL user'ı bul
+          const profileResult = await query(
+            'SELECT id, email, name, role, user_type FROM users WHERE email = $1 AND is_active = true',
+            [authUser.email]
+          );
+          
+          if (profileResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+          }
+          
+          userId = profileResult.rows[0].id;
+        } else {
+          throw jwtError; // Supabase config yoksa JWT hatasını fırlat
+        }
+      } catch (supabaseError) {
+        // Her iki yöntem de başarısız
+        logger.error('Get sessions error', { error: jwtError.message, supabaseError: supabaseError.message });
+        return res.status(401).json({ error: 'Geçersiz token' });
+      }
+    }
     
     // Mevcut refresh token hash'ini al
     const refreshToken = req.cookies?.refresh_token;

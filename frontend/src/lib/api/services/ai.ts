@@ -238,7 +238,12 @@ export const aiAPI = {
     templateSlug?: string;
     pageContext?: any;
   }): Promise<ApiResponse<any>> {
-    const response = await api.post('/api/ai/god-mode', data);
+    // Modern endpoint kullan (aiAgent.processQuery ile)
+    const response = await api.post('/api/ai/god-mode/execute', {
+      message: data.message,
+      sessionId: data.sessionId,
+      history: data.history || [],
+    });
     return response.data;
   },
 

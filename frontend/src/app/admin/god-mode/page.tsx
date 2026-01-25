@@ -37,7 +37,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { AIChat } from '@/components/AIChat';
 import { GodModeTerminal } from '@/components/GodModeTerminal';
-import { API_BASE_URL } from '@/lib/config';
+import { api } from '@/lib/api';
 
 interface GodModeTool {
   name: string;
@@ -47,7 +47,7 @@ interface GodModeTool {
 
 export default function GodModePage() {
   const router = useRouter();
-  const { isSuperAdmin, isLoading: authLoading, token } = useAuth();
+  const { isSuperAdmin, isLoading: authLoading } = useAuth();
   const [tools, setTools] = useState<GodModeTool[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -61,12 +61,9 @@ export default function GodModePage() {
   // Tool listesini al
   useEffect(() => {
     const fetchTools = async () => {
-      if (!token) return;
       try {
-        const res = await fetch(`${API_BASE_URL}/api/ai/god-mode/tools`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
+        const res = await api.get('/api/ai/god-mode/tools');
+        const data = res.data;
         if (data.success) {
           setTools(data.allTools || []);
         }
@@ -80,7 +77,7 @@ export default function GodModePage() {
     if (isSuperAdmin) {
       fetchTools();
     }
-  }, [isSuperAdmin, token]);
+  }, [isSuperAdmin]);
 
   if (authLoading) {
     return (

@@ -128,28 +128,17 @@ class ApiError extends Error {
 }
 
 /**
- * JWT token'ı localStorage'dan al
- */
-function getAuthToken(): string | null {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('token');
-  }
-  return null;
-}
-
-/**
- * HTTP isteği yapar
+ * HTTP isteği yapar - cookie-only authentication
  */
 async function fetchAPI(endpoint: string, options?: RequestInit) {
   const url = `${API_URL}${endpoint}`;
-  const token = getAuthToken();
 
   try {
     const response = await fetch(url, {
       ...options,
+      credentials: 'include', // Cookie'leri gönder
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options?.headers,
       },
     });

@@ -121,7 +121,7 @@ router.get('/admin-stats', async (req, res) => {
         sync_type as baslik,
         status,
         created_at as tarih,
-        COALESCE(records_synced, 0) as detay
+        COALESCE(invoices_synced, 0) as detay
       FROM sync_logs 
       ORDER BY created_at DESC 
       LIMIT 5

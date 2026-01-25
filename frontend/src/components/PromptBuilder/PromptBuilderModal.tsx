@@ -51,7 +51,7 @@ import {
   IconWand,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
+import { api } from '@/lib/api';
 
 interface Message {
   id: string;
@@ -172,12 +172,11 @@ export function PromptBuilderModal({ opened, onClose, onSaved, onUseInChat }: Pr
     setMessages([userMsg]);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/prompt-builder/ask`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userInput: userInput.trim(), conversationHistory: [] }),
+      const res = await api.post('/api/prompt-builder/ask', {
+        userInput: userInput.trim(),
+        conversationHistory: [],
       });
-      const data = await res.json();
+      const data = res.data;
 
       if (data.success && data.data) {
         if (data.data.isComplete) {
@@ -223,12 +222,11 @@ export function PromptBuilderModal({ opened, onClose, onSaved, onUseInChat }: Pr
 
       try {
         const originalInput = messages.find((m) => m.type === 'user')?.content || '';
-        const res = await fetch(`${API_BASE_URL}/api/prompt-builder/ask`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userInput: originalInput, conversationHistory: newHistory }),
+        const res = await api.post('/api/prompt-builder/ask', {
+          userInput: originalInput,
+          conversationHistory: newHistory,
         });
-        const data = await res.json();
+        const data = res.data;
 
         if (data.success && data.data) {
           if (data.data.isComplete) {
@@ -288,12 +286,11 @@ export function PromptBuilderModal({ opened, onClose, onSaved, onUseInChat }: Pr
       };
 
       try {
-        const res = await fetch(`${API_BASE_URL}/api/prompt-builder/transform`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: actionPrompts[action], action }),
+        const res = await api.post('/api/prompt-builder/transform', {
+          prompt: actionPrompts[action],
+          action,
         });
-        const data = await res.json();
+        const data = res.data;
 
         if (data.success && data.data?.result) {
           setPromptHistory((prev) => [...prev, generatedPrompt]);
@@ -344,20 +341,13 @@ export function PromptBuilderModal({ opened, onClose, onSaved, onUseInChat }: Pr
     }
     setIsSaving(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/prompt-builder/save`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({
-          name: `${promptName} v${promptVersion}`,
-          generatedPrompt,
-          answers: { conversationHistory },
-          style: 'interactive',
-        }),
+      const res = await api.post('/api/prompt-builder/save', {
+        name: `${promptName} v${promptVersion}`,
+        generatedPrompt,
+        answers: { conversationHistory },
+        style: 'interactive',
       });
-      if ((await res.json()).success) {
+      if (res.data.success) {
         notifications.show({
           title: 'Kaydedildi!',
           message: 'Prompt başarıyla kaydedildi',

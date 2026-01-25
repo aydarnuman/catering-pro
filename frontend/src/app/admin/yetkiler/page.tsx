@@ -81,7 +81,7 @@ interface Template {
 }
 
 export default function YetkilerPage() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [users, setUsers] = useState<UserPermission[]>([]);
   const [_modules, setModules] = useState<Module[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -96,19 +96,25 @@ export default function YetkilerPage() {
   const [editUserType, setEditUserType] = useState<string>('user');
 
   const fetchData = useCallback(async () => {
-    if (!token) return;
     setLoading(true);
     try {
-      const headers = { Authorization: `Bearer ${token}` };
-
       const [usersRes, modulesRes, templatesRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/permissions/users`, { headers })
+        fetch(`${API_BASE_URL}/api/permissions/users`, { 
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        })
           .then((r) => r.json())
           .catch(() => ({ success: false })),
-        fetch(`${API_BASE_URL}/api/permissions/modules`, { headers })
+        fetch(`${API_BASE_URL}/api/permissions/modules`, { 
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        })
           .then((r) => r.json())
           .catch(() => ({ success: false })),
-        fetch(`${API_BASE_URL}/api/permissions/templates`, { headers })
+        fetch(`${API_BASE_URL}/api/permissions/templates`, { 
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        })
           .then((r) => r.json())
           .catch(() => ({ success: false })),
       ]);
@@ -122,7 +128,7 @@ export default function YetkilerPage() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -131,7 +137,8 @@ export default function YetkilerPage() {
   const handleEditUser = async (userId: number) => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/permissions/user/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
       });
       const data = await res.json();
 
@@ -154,9 +161,9 @@ export default function YetkilerPage() {
     try {
       const res = await fetch(`${API_BASE_URL}/api/permissions/user/${selectedUser.user_id}`, {
         method: 'PUT',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           userType: editUserType,
@@ -196,9 +203,9 @@ export default function YetkilerPage() {
         `${API_BASE_URL}/api/permissions/user/${selectedUser.user_id}/apply-template`,
         {
           method: 'POST',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ templateName }),
         }
