@@ -38,8 +38,8 @@ import {
   IconTrash,
   IconX,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { getApiBaseUrlDynamic } from '@/lib/config';
 import { useAuth } from '@/context/AuthContext';
 
 interface CommandOutput {
@@ -57,6 +57,7 @@ interface PresetCommand {
   command: string;
   description: string;
   safe: boolean;
+  dynamic?: boolean; // Runtime'da oluşturulacak komutlar için
 }
 
 interface WarningResponse {
@@ -67,7 +68,13 @@ interface WarningResponse {
 }
 
 // Kategorize edilmiş hazır komutlar - macOS uyumlu
-const PRESET_CATEGORIES = {
+const PRESET_CATEGORIES: {
+  [key: string]: {
+    label: string;
+    icon: any;
+    commands: (PresetCommand | (PresetCommand & { dynamic: true }))[];
+  };
+} = {
   sistem: {
     label: '💻 Sistem',
     icon: IconServer,
@@ -102,22 +109,44 @@ const PRESET_CATEGORIES = {
   diger: {
     label: '⚙️ Diğer',
     icon: IconCommand,
+    // db_connection komutu runtime'da dinamik URL ile oluşturulacak
     commands: [
-      { id: 'db_connection', command: `curl -s ${process.env.NEXT_PUBLIC_API_URL || ''}/health | grep -q ok && echo "✅ DB Aktif" || echo "❌ DB Yok"`, description: 'DB Test', safe: true },
+      { id: 'db_connection', command: '', description: 'DB Test', safe: true, dynamic: true },
       { id: 'clear_cache', command: 'rm -rf /tmp/catering-cache/* 2>/dev/null; echo "✅ Temizlendi"', description: 'Cache', safe: false },
       { id: 'env_check', command: 'cd /Users/numanaydar/Desktop/CATERİNG/backend && cat .env | grep -E "^[A-Z]" | cut -d= -f1 | head -10', description: 'ENV', safe: true },
     ],
   },
 };
 
-// Tüm komutları düz liste olarak da tut (arama/history için)
-const ALL_PRESETS: PresetCommand[] = Object.values(PRESET_CATEGORIES).flatMap((cat) => cat.commands);
-
 export function GodModeTerminal() {
   // Cookie-only authentication - token gerekmiyor
   const [command, setCommand] = useState('');
   const [outputs, setOutputs] = useState<CommandOutput[]>([]);
-  const presets = ALL_PRESETS;
+  
+  // Runtime'da dinamik komutları oluştur (hardcoded URL'leri önlemek için)
+  const presets = useMemo(() => {
+    const allPresets: PresetCommand[] = Object.values(PRESET_CATEGORIES).flatMap((cat) => {
+      return cat.commands.map((cmd): PresetCommand => {
+        // db_connection komutunu runtime'da dinamik URL ile oluştur
+        if (cmd.id === 'db_connection' && 'dynamic' in cmd && cmd.dynamic) {
+          const apiUrl = getApiBaseUrlDynamic();
+          return {
+            id: cmd.id,
+            command: `curl -s ${apiUrl || ''}/health | grep -q ok && echo "✅ DB Aktif" || echo "❌ DB Yok"`,
+            description: cmd.description,
+            safe: cmd.safe,
+          };
+        }
+        return {
+          id: cmd.id,
+          command: cmd.command,
+          description: cmd.description,
+          safe: cmd.safe,
+        };
+      });
+    });
+    return allPresets;
+  }, []);
   const [loading, setLoading] = useState(false);
   const [presetLoading, setPresetLoading] = useState<string | null>(null);
   const [pendingCommand, setPendingCommand] = useState<string | null>(null);
@@ -141,7 +170,7 @@ export function GodModeTerminal() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/system/terminal/execute`, {
+      const res = await fetch(`${getApiBaseUrlDynamic()}/api/system/terminal/execute`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -228,7 +257,7 @@ export function GodModeTerminal() {
     
     setPresetLoading(presetId);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/system/terminal/execute`, {
+      const res = await fetch(`${getApiBaseUrlDynamic()}/api/system/terminal/execute`, {
         method: 'POST',
         credentials: 'include',
         headers: { 
