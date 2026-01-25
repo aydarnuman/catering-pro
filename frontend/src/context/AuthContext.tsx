@@ -52,10 +52,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
+    // Token refreshed event listener - api interceptor'dan gelen
+    const handleTokenRefreshed = (event: any) => {
+      const { user: refreshedUser } = event.detail || {};
+      if (refreshedUser) {
+        console.log('Token refreshed, updating user state');
+        setUser(refreshedUser);
+        setToken('cookie-based');
+        setIsLoading(false);
+      }
+    };
+
     window.addEventListener('auth:token-expired', handleTokenExpired);
+    window.addEventListener('auth:token-refreshed', handleTokenRefreshed as EventListener);
 
     return () => {
       window.removeEventListener('auth:token-expired', handleTokenExpired);
+      window.removeEventListener('auth:token-refreshed', handleTokenRefreshed as EventListener);
     };
   }, [pathname, router]);
 

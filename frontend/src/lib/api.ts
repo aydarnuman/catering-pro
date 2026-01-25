@@ -1,5 +1,5 @@
 import axios, { type AxiosRequestConfig } from 'axios';
-import { API_BASE_URL } from '@/lib/config';
+import { API_BASE_URL, API_ENDPOINTS } from '@/lib/config';
 import { getCsrfToken } from '@/lib/csrf';
 
 // Create axios instance
@@ -11,6 +11,10 @@ export const api = axios.create({
   },
   withCredentials: true, // Cookie'leri göndermek için
 });
+
+// Token refresh durumu için flag (sonsuz döngüyü önlemek için)
+let isRefreshing = false;
+let refreshSubscribers: Array<(token: string | null) => void> = [];
 
 // Request interceptor
 api.interceptors.request.use((config: any) => {
@@ -62,22 +66,101 @@ api.interceptors.response.use(
     }
     return response;
   },
-  (error) => {
-    if (error.response?.status === 401) {
+  async (error) => {
+    const originalRequest = error.config;
+
+    // 401 hatası - token refresh dene
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
       // Bazı endpoint'ler için 401'i ignore et (opsiyonel özellikler)
-      const url = error.config?.url || '';
-      const ignoredEndpoints = ['/api/auth/sessions']; // Session endpoint opsiyonel
+      const url = originalRequest.url || '';
+      const ignoredEndpoints = [
+        '/api/auth/sessions', // Session endpoint opsiyonel
+        '/api/auth/login',    // Login endpoint zaten auth gerektirmez
+        '/api/auth/register', // Register endpoint zaten auth gerektirmez
+      ];
       
       const shouldIgnore = ignoredEndpoints.some(endpoint => url.includes(endpoint));
       
-      if (!shouldIgnore) {
-        // Unauthorized - clear token, AuthContext otomatik yönlendirecek
+      if (shouldIgnore) {
+        return Promise.reject(error);
+      }
+
+      // Token refresh zaten yapılıyorsa, bekleyen istekleri queue'ya ekle
+      if (isRefreshing) {
+        return new Promise((resolve) => {
+          refreshSubscribers.push((token) => {
+            if (token && originalRequest.headers) {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+            }
+            resolve(api(originalRequest));
+          });
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        // Token refresh dene
+        const refreshResponse = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+        });
+
+        if (refreshResponse.ok) {
+          // Refresh başarılı - kullanıcı bilgisini tekrar al
+          const meResponse = await fetch(API_ENDPOINTS.AUTH_ME, {
+            credentials: 'include',
+          });
+
+          if (meResponse.ok) {
+            const meData = await meResponse.json();
+            // Token cookie'de, localStorage'a eklemeye gerek yok
+            const token = 'cookie-based';
+            
+            // AuthContext'e token refresh başarılı olduğunu bildir
+            if (typeof window !== 'undefined' && meData.user) {
+              window.dispatchEvent(new CustomEvent('auth:token-refreshed', { 
+                detail: { user: meData.user } 
+              }));
+            }
+            
+            // Bekleyen tüm istekleri notify et
+            refreshSubscribers.forEach(cb => cb(token));
+            refreshSubscribers = [];
+
+            // Orijinal isteği tekrar dene
+            if (originalRequest.headers) {
+              // Cookie-based auth kullanıyoruz, Bearer token gerekmez
+              delete originalRequest.headers.Authorization;
+            }
+            return api(originalRequest);
+          }
+        }
+
+        // Refresh başarısız - logout yap
+        isRefreshing = false;
+        refreshSubscribers = [];
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_user');
-        // Token expired event'i gönder (AuthContext dinliyor)
+        
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('auth:token-expired'));
         }
+        
+        return Promise.reject(error);
+      } catch (refreshError) {
+        // Refresh hatası - logout yap
+        isRefreshing = false;
+        refreshSubscribers = [];
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
+        
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:token-expired'));
+        }
+        
+        return Promise.reject(error);
       }
     }
     
