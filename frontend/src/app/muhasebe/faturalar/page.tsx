@@ -63,7 +63,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
-import { API_BASE_URL } from '@/lib/config';
+import { formatMoney, formatDate } from '@/lib/formatters';
 import 'dayjs/locale/tr';
 import { DataActions } from '@/components/DataActions';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -72,10 +72,9 @@ import {
   convertToFrontendFormat,
   invoiceAPI,
   uyumsoftAPI,
+  uyumsoftDocUrls,
 } from '@/lib/invoice-api';
-
-// API URL
-const API_URL = `${API_BASE_URL}/api`;
+import { muhasebeAPI } from '@/lib/api/services/muhasebe';
 
 // Tip tanımları
 interface FaturaKalem {
@@ -242,10 +241,10 @@ export default function FaturalarPage() {
   // Carileri yükle
   const loadCariler = async () => {
     try {
-      const response = await fetch(`${API_URL}/cariler`);
-      if (!response.ok) throw new Error('Cariler yüklenemedi');
-      const result = await response.json();
-      setCariler(result.data || []);
+      const result = await muhasebeAPI.getCariler() as any;
+      if (result.success) {
+        setCariler((result.data || []) as any);
+      }
     } catch (error) {
       console.error('Cariler yükleme hatası:', error);
     }
@@ -445,16 +444,8 @@ export default function FaturalarPage() {
   };
 
   // Para formatı
-  const formatMoney = (value: number) => {
-    return new Intl.NumberFormat('tr-TR', {
-      style: 'currency',
-      currency: 'TRY',
-      minimumFractionDigits: 2,
-    }).format(value);
-  };
-
-  // Tarih formatı
-  const formatDate = (dateStr: string) => {
+  // Uyumsoft özel tarih formatı için helper
+  const formatUyumsoftDate = (dateStr: string) => {
     if (!dateStr) return '-';
     // Uyumsoft formatı: "31.12.2025 17:46:18"
     if (dateStr.includes('.')) {
@@ -463,7 +454,7 @@ export default function FaturalarPage() {
         return `${parts[0]}.${parts[1]}.${parts[2]}`;
       }
     }
-    return new Date(dateStr).toLocaleDateString('tr-TR');
+    return formatDate(dateStr, 'short');
   };
 
   // Filtreleme - Manuel faturalar
@@ -884,7 +875,7 @@ export default function FaturalarPage() {
       <Container size="xl" py="xl">
         <Stack gap="xl">
           {/* Header */}
-          <Group justify="space-between" align="flex-start">
+          <Group justify="space-between" align="flex-start" wrap="wrap">
             <Box>
               <Title order={1} fw={700}>
                 🧾 Faturalar
@@ -893,9 +884,9 @@ export default function FaturalarPage() {
                 Satış ve alış faturalarınızı yönetin
               </Text>
             </Box>
-            <Group>
+            <Group wrap="wrap">
               {/* Uyumsoft Bağlantı Durumu */}
-              <Paper withBorder p="sm" radius="md" style={{ minWidth: 200 }}>
+              <Paper withBorder p="sm" radius="md" miw={{ base: '100%', sm: 200 }}>
                 <Group justify="space-between" mb="xs">
                   <Group gap="xs">
                     <ThemeIcon
@@ -1148,12 +1139,12 @@ export default function FaturalarPage() {
                           </Table.Td>
                           <Table.Td>
                             <Text size="sm" c="dimmed">
-                              {formatDate(fatura.tarih)}
+                              {formatUyumsoftDate(fatura.tarih)}
                             </Text>
                           </Table.Td>
                           <Table.Td>
                             <Text size="sm" c="dimmed">
-                              {formatDate(fatura.vadeTarihi)}
+                              {formatUyumsoftDate(fatura.vadeTarihi)}
                             </Text>
                             {fatura.durum !== 'odendi' && fatura.durum !== 'iptal' && (
                               <Text
@@ -1267,7 +1258,7 @@ export default function FaturalarPage() {
                         </Table.Td>
                         <Table.Td>
                           <Text size="sm" c="dimmed">
-                            {formatDate(fatura.faturaTarihi)}
+                            {formatUyumsoftDate(fatura.faturaTarihi)}
                           </Text>
                         </Table.Td>
                         <Table.Td>
@@ -1318,10 +1309,7 @@ export default function FaturalarPage() {
                                   <IconDownload style={{ width: rem(14), height: rem(14) }} />
                                 }
                                 onClick={() =>
-                                  window.open(
-                                    `${API_URL}/uyumsoft/invoice/${fatura.ettn}/pdf`,
-                                    '_blank'
-                                  )
+                                  window.open(uyumsoftDocUrls.pdf(fatura.ettn), '_blank')
                                 }
                               >
                                 PDF İndir
@@ -1332,7 +1320,7 @@ export default function FaturalarPage() {
                                 }
                                 onClick={() => {
                                   const printWindow = window.open(
-                                    `${API_URL}/uyumsoft/invoice/${fatura.ettn}/html`,
+                                    uyumsoftDocUrls.html(fatura.ettn),
                                     '_blank'
                                   );
                                   if (printWindow) {
@@ -1640,10 +1628,10 @@ export default function FaturalarPage() {
                                     size={14}
                                     style={{ color: 'var(--mantine-color-dimmed)' }}
                                   />
-                                  <Text size="sm">{formatDate(fatura.faturaTarihi)}</Text>
+                                  <Text size="sm">{formatUyumsoftDate(fatura.faturaTarihi)}</Text>
                                 </Group>
                                 <Text size="xs" c="dimmed">
-                                  Oluşturma: {formatDate(fatura.olusturmaTarihi)}
+                                  Oluşturma: {formatUyumsoftDate(fatura.olusturmaTarihi)}
                                 </Text>
                               </Stack>
                             </Table.Td>
@@ -1685,10 +1673,7 @@ export default function FaturalarPage() {
                                     <Menu.Item
                                       leftSection={<IconDownload size={14} />}
                                       onClick={() =>
-                                        window.open(
-                                          `${API_URL}/uyumsoft/invoice/${fatura.ettn}/pdf`,
-                                          '_blank'
-                                        )
+                                        window.open(uyumsoftDocUrls.pdf(fatura.ettn), '_blank')
                                       }
                                     >
                                       PDF İndir
@@ -1696,10 +1681,7 @@ export default function FaturalarPage() {
                                     <Menu.Item
                                       leftSection={<IconDownload size={14} />}
                                       onClick={() =>
-                                        window.open(
-                                          `${API_URL}/uyumsoft/invoice/${fatura.ettn}/xml`,
-                                          '_blank'
-                                        )
+                                        window.open(uyumsoftDocUrls.xml(fatura.ettn), '_blank')
                                       }
                                     >
                                       XML İndir
@@ -1709,7 +1691,7 @@ export default function FaturalarPage() {
                                       leftSection={<IconPrinter size={14} />}
                                       onClick={() => {
                                         const printWindow = window.open(
-                                          `${API_URL}/uyumsoft/invoice/${fatura.ettn}/html`,
+                                          uyumsoftDocUrls.html(fatura.ettn),
                                           '_blank'
                                         );
                                         if (printWindow) {
@@ -1829,12 +1811,12 @@ export default function FaturalarPage() {
                             </Table.Td>
                             <Table.Td>
                               <Text size="sm" c="dimmed">
-                                {formatDate(fatura.tarih)}
+                                {formatUyumsoftDate(fatura.tarih)}
                               </Text>
                             </Table.Td>
                             <Table.Td>
                               <Text size="sm" c="dimmed">
-                                {formatDate(fatura.vadeTarihi)}
+                                {formatUyumsoftDate(fatura.vadeTarihi)}
                               </Text>
                               {fatura.durum !== 'odendi' && fatura.durum !== 'iptal' && (
                                 <Text
@@ -2257,10 +2239,7 @@ export default function FaturalarPage() {
                       size="xs"
                       leftSection={<IconDownload size={14} />}
                       onClick={() =>
-                        window.open(
-                          `${API_URL}/uyumsoft/invoice/${selectedUyumsoftFatura.ettn}/pdf`,
-                          '_blank'
-                        )
+                        window.open(uyumsoftDocUrls.pdf(selectedUyumsoftFatura.ettn), '_blank')
                       }
                     >
                       PDF

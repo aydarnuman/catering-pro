@@ -1,5 +1,6 @@
-import axios from 'axios';
+import axios, { type AxiosRequestConfig } from 'axios';
 import { API_BASE_URL } from '@/lib/config';
+import { getCsrfToken } from '@/lib/csrf';
 
 // Create axios instance
 export const api = axios.create({
@@ -8,28 +9,78 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Cookie'leri göndermek için
 });
 
 // Request interceptor
-api.interceptors.request.use((config) => {
+api.interceptors.request.use((config: any) => {
   // Add auth token if available
   const token = localStorage.getItem('auth_token');
-  if (token) {
+  if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  
+  // Add CSRF token for unsafe methods
+  const unsafeMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
+  const method = config.method?.toUpperCase();
+  
+  if (method && unsafeMethods.includes(method)) {
+    // CSRF koruması olmayan endpoint'ler
+    const excludedPaths = [
+      '/api/auth/login',
+      '/api/auth/register',
+      '/api/auth/refresh',
+      '/api/auth/logout'
+    ];
+    
+    const url = config.url || '';
+    const isExcluded = excludedPaths.some(path => url.includes(path));
+    
+    if (!isExcluded && config.headers) {
+      const csrfToken = getCsrfToken();
+      if (csrfToken) {
+        config.headers['X-CSRF-Token'] = csrfToken;
+      }
+    }
+  }
+  
   return config;
 });
 
 // Response interceptor
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // CSRF token'ı response header'dan al ve cache'le (varsa)
+    const csrfToken = response.headers['x-csrf-token'];
+    if (csrfToken && typeof window !== 'undefined') {
+      // Cookie zaten set edilmiş olacak, sadece cache'le
+      try {
+        localStorage.setItem('csrf_token_cache', csrfToken);
+      } catch (e) {
+        // localStorage kullanılamıyorsa sessizce devam et
+      }
+    }
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401) {
       // Unauthorized - clear token and redirect to login
       localStorage.removeItem('auth_token');
       localStorage.removeItem('auth_user');
-      window.location.href = '/giris';
+      if (typeof window !== 'undefined') {
+        window.location.href = '/giris';
+      }
     }
+    
+    // CSRF hatası durumunda token'ı yenile
+    if (error.response?.status === 403 && error.response?.data?.code === 'CSRF_ERROR') {
+      // Sayfayı yenile (yeni token almak için)
+      if (typeof window !== 'undefined') {
+        console.warn('CSRF token hatası, sayfa yenileniyor...');
+        window.location.reload();
+      }
+    }
+    
     return Promise.reject(error);
   }
 );

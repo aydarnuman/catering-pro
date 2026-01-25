@@ -588,18 +588,18 @@ export function WhatsAppWidget() {
               <Group gap="xs">
                 {connected && (
                   <Tooltip label="Bağlantıyı Kes">
-                    <ActionIcon variant="subtle" color="red" size="sm" onClick={handleDisconnect}>
+                    <ActionIcon variant="subtle" color="red" size="md" onClick={handleDisconnect}>
                       <IconPlugOff size={16} />
                     </ActionIcon>
                   </Tooltip>
                 )}
                 <Tooltip label={expanded ? 'Küçült' : 'Genişlet'}>
-                  <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => setExpanded(!expanded)}>
+                  <ActionIcon variant="subtle" color="gray" size="md" onClick={() => setExpanded(!expanded)}>
                     {expanded ? <IconMinimize size={16} /> : <IconMaximize size={16} />}
                   </ActionIcon>
                 </Tooltip>
                 <Tooltip label="Tam Sayfa">
-                  <ActionIcon variant="subtle" color="gray" size="sm" component={Link} href="/sosyal-medya/whatsapp">
+                  <ActionIcon variant="subtle" color="gray" size="md" component={Link} href="/sosyal-medya/whatsapp">
                     <IconMaximize size={16} />
                   </ActionIcon>
                 </Tooltip>
@@ -671,7 +671,7 @@ export function WhatsAppWidget() {
                     </Box>
                   </Group>
                   <Group gap={4}>
-                    <ActionIcon variant="subtle" color="gray" size="sm"><IconPhone size={16} /></ActionIcon>
+                    <ActionIcon variant="subtle" color="gray" size="md"><IconPhone size={16} /></ActionIcon>
                     <ActionIcon variant="subtle" color="gray" size="sm"><IconVideo size={16} /></ActionIcon>
                     <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => setMessageSearch(messageSearch ? '' : ' ')}>
                       <IconSearch size={16} />
@@ -942,7 +942,7 @@ function ChatItem({ chat, onClick, selected }: { chat: Chat; onClick: () => void
           </Avatar>
         </Indicator>
         <Box style={{ flex: 1, overflow: 'hidden' }}>
-          <Group justify="space-between" wrap="nowrap">
+          <Group justify="space-between" wrap="wrap">
             <Text fw={500} c="white" size="sm" truncate>{chat.name}</Text>
             <Text size="xs" c="gray.6">{chat.timestamp}</Text>
           </Group>

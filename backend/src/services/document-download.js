@@ -1,5 +1,6 @@
 import sessionManager from '../scraper/session-manager.js';
 import fetch from 'node-fetch';
+import logger from '../utils/logger.js';
 
 /**
  * Authenticated döküman indirme servisi
@@ -14,7 +15,7 @@ class DocumentDownloadService {
      * Dökümanı indir ve buffer olarak döndür
      */
     async downloadDocument(documentUrl) {
-        console.log(`📥 Döküman indiriliyor: ${documentUrl}`);
+        logger.info(`Döküman indiriliyor: ${documentUrl}`);
         
         try {
             // Session cookie'lerini al (varsa)
@@ -35,12 +36,12 @@ class DocumentDownloadService {
                         .join('; ');
                     
                     headers['Cookie'] = cookieHeader;
-                    console.log(`🍪 ${session.cookies.length} cookie kullanılıyor`);
+                    logger.debug(`${session.cookies.length} cookie kullanılıyor`);
                 } else {
-                    console.log(`⚠️ Session bulunamadı, cookie olmadan deneniyor...`);
+                    logger.warn('Session bulunamadı, cookie olmadan deneniyor');
                 }
             } catch (sessionError) {
-                console.log(`⚠️ Session yüklenemedi: ${sessionError.message}, cookie olmadan deneniyor...`);
+                logger.warn(`Session yüklenemedi: ${sessionError.message}, cookie olmadan deneniyor`);
             }
             
             // Fetch ile indir (cookie ile veya olmadan)
@@ -54,12 +55,12 @@ class DocumentDownloadService {
             }
             
             const buffer = await response.buffer();
-            console.log(`✅ Döküman indirildi: ${buffer.length} bytes`);
+            logger.info(`Döküman indirildi: ${buffer.length} bytes`);
             
             return buffer;
             
         } catch (error) {
-            console.error('❌ Döküman indirme hatası:', error.message);
+            logger.error('Döküman indirme hatası', { error: error.message, url: documentUrl });
             throw error;
         }
     }

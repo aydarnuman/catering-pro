@@ -586,10 +586,14 @@ export const piyasaToolImplementations = {
 
   piyasa_urun_ara: async ({ urun_adi }) => {
     try {
+      if (!urun_adi) {
+        return { success: false, error: 'Ürün adı gerekli' };
+      }
+      
       const corrected = correctSpelling(urun_adi);
       
       const result = await query(`
-        SELECT id, kod, ad, son_alis_fiyat, toplam_stok,
+        SELECT sk.id, sk.kod, sk.ad, sk.son_alis_fiyat, sk.toplam_stok,
                k.ad as kategori, b.kisa_ad as birim
         FROM stok_kartlari sk
         LEFT JOIN stok_kategoriler k ON k.id = sk.kategori_id

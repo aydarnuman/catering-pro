@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../database.js';
 import documentDownloadService from '../services/document-download.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -12,7 +13,7 @@ router.get('/download/:tenderId/:type', async (req, res) => {
     try {
         const { tenderId, type } = req.params;
         
-        console.log(`📥 Döküman indirilecek: İhale ${tenderId}, Tip: ${type}`);
+        logger.info(`Döküman indirilecek: İhale ${tenderId}, Tip: ${type}`);
         
         // İhale döküman linklerini database'den al
         const result = await query(`
@@ -75,7 +76,7 @@ router.get('/download/:tenderId/:type', async (req, res) => {
             });
         }
         
-        console.log(`🔗 Authenticated download başlıyor: ${downloadUrl}`);
+        logger.info(`Authenticated download başlıyor: ${downloadUrl}`);
         
         // Puppeteer session ile indir
         const fileBuffer = await documentDownloadService.downloadDocument(downloadUrl);
@@ -104,10 +105,10 @@ router.get('/download/:tenderId/:type', async (req, res) => {
         // Buffer'ı gönder
         res.send(fileBuffer);
         
-        console.log(`✅ Döküman başarıyla indirildi: ${fileName}${extension} (${fileBuffer.length} bytes)`);
+        logger.info(`Döküman başarıyla indirildi: ${fileName}${extension} (${fileBuffer.length} bytes)`);
         
     } catch (error) {
-        console.error('❌ Döküman proxy hatası:', error);
+        logger.error('Döküman proxy hatası', { error: error.message, stack: error.stack, tenderId, type });
         res.status(500).json({ 
             error: 'Döküman indirme hatası',
             message: error.message 
@@ -164,7 +165,7 @@ router.get('/list/:tenderId', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('❌ Döküman listeleme hatası:', error);
+        logger.error('Döküman listeleme hatası', { error: error.message, stack: error.stack, tenderId });
         res.status(500).json({ error: 'Döküman listeleme hatası' });
     }
 });
@@ -247,7 +248,7 @@ router.post('/scrape/:tenderId', async (req, res) => {
             });
         }
         
-        console.log(`📚 On-demand scraping: İhale ${tenderId}`);
+        logger.info(`On-demand scraping: İhale ${tenderId}`);
         
         // Dynamic import to avoid circular dependency
         const { default: documentScraper } = await import('../scraper/document-scraper.js');
@@ -262,7 +263,7 @@ router.post('/scrape/:tenderId', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('❌ On-demand scraping hatası:', error);
+        logger.error('On-demand scraping hatası', { error: error.message, stack: error.stack, tenderId });
         res.status(500).json({ 
             error: 'Döküman çekme hatası',
             message: error.message 

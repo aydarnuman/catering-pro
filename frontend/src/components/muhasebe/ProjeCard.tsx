@@ -20,7 +20,7 @@ import {
   IconUsers,
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
+import { muhasebeAPI } from '@/lib/api/services/muhasebe';
 
 interface GenelOzet {
   projeler: {
@@ -89,10 +89,12 @@ export default function ProjeCard({ onYonetClick }: ProjeCardProps) {
 
   const loadData = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/projeler/stats/genel-ozet`);
-      if (res.ok) {
-        const data = await res.json();
-        setOzet(data);
+      const result = await muhasebeAPI.getProjeGenelOzet();
+      if (result.success) {
+        setOzet(result.data);
+      } else if (result) {
+        // Doğrudan data döndüyse
+        setOzet(result as any);
       }
     } catch (error) {
       console.error('Proje özet yüklenemedi:', error);

@@ -188,12 +188,106 @@ class PermissionService {
   static async getTemplates() {
     try {
       const result = await pool.query(
-        'SELECT * FROM permission_templates ORDER BY name'
+        'SELECT * FROM permission_templates ORDER BY is_system DESC, name'
       );
       return result.rows;
     } catch (error) {
       console.error('Get templates error:', error);
       return [];
+    }
+  }
+
+  /**
+   * Belirli bir şablonu getir
+   */
+  static async getTemplate(id) {
+    try {
+      const result = await pool.query(
+        'SELECT * FROM permission_templates WHERE id = $1',
+        [id]
+      );
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('Get template error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Yeni şablon oluştur
+   */
+  static async createTemplate({ name, display_name, description, permissions }) {
+    try {
+      const result = await pool.query(
+        `INSERT INTO permission_templates (name, display_name, description, permissions, is_system)
+         VALUES ($1, $2, $3, $4, false)
+         RETURNING *`,
+        [name, display_name, description, JSON.stringify(permissions)]
+      );
+      return result.rows[0];
+    } catch (error) {
+      console.error('Create template error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Şablonu güncelle
+   */
+  static async updateTemplate(id, { display_name, description, permissions }) {
+    try {
+      const updates = [];
+      const values = [];
+      let paramCount = 1;
+      
+      if (display_name !== undefined) {
+        updates.push(`display_name = $${paramCount++}`);
+        values.push(display_name);
+      }
+      
+      if (description !== undefined) {
+        updates.push(`description = $${paramCount++}`);
+        values.push(description);
+      }
+      
+      if (permissions !== undefined) {
+        updates.push(`permissions = $${paramCount++}`);
+        values.push(JSON.stringify(permissions));
+      }
+      
+      if (updates.length === 0) {
+        return await this.getTemplate(id);
+      }
+      
+      values.push(id);
+      const result = await pool.query(
+        `UPDATE permission_templates 
+         SET ${updates.join(', ')}
+         WHERE id = $${paramCount}
+         RETURNING *`,
+        values
+      );
+      
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('Update template error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Şablonu sil
+   */
+  static async deleteTemplate(id) {
+    try {
+      await pool.query(
+        'DELETE FROM permission_templates WHERE id = $1 AND is_system = false',
+        [id]
+      );
+      return true;
+    } catch (error) {
+      console.error('Delete template error:', error);
+      throw error;
     }
   }
 

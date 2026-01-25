@@ -46,8 +46,8 @@ import {
 import Link from 'next/link';
 import { useEffect, useState, useCallback } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
-import { useAuth } from '@/context/AuthContext';
-import { API_BASE_URL } from '@/lib/config';
+import { adminAPI } from '@/lib/api/services/admin';
+import { formatDate } from '@/lib/formatters';
 import 'dayjs/locale/tr';
 
 interface AuditLog {
@@ -80,7 +80,6 @@ interface Filters {
 }
 
 export default function LoglarPage() {
-  const { token } = useAuth();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [filters, setFilters] = useState<Filters | null>(null);
@@ -102,76 +101,58 @@ export default function LoglarPage() {
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
   const fetchLogs = useCallback(async () => {
-    if (!token) return;
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      params.append('page', page.toString());
-      params.append('limit', '30');
-
-      if (filterUserId) params.append('user_id', filterUserId);
-      if (filterAction) params.append('action', filterAction);
-      if (filterEntityType) params.append('entity_type', filterEntityType);
-      if (filterSearch) params.append('search', filterSearch);
-      if (filterStartDate) params.append('start_date', filterStartDate.toISOString());
-      if (filterEndDate) params.append('end_date', filterEndDate.toISOString());
-
-      const res = await fetch(`${API_BASE_URL}/api/audit-logs?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const data = await adminAPI.getAuditLogs({
+        page,
+        limit: 30,
+        user_id: filterUserId || undefined,
+        action: filterAction || undefined,
+        entity_type: filterEntityType || undefined,
+        search: filterSearch || undefined,
+        start_date: filterStartDate?.toISOString(),
+        end_date: filterEndDate?.toISOString(),
       });
-      const data = await res.json();
 
       if (data.success) {
-        setLogs(data.logs);
-        setTotalPages(data.pagination.totalPages);
+        setLogs((data as any).logs || []);
+        setTotalPages((data as any).pagination?.totalPages || 1);
       }
     } catch (err) {
       console.error('Loglar alınamadı:', err);
     } finally {
       setLoading(false);
     }
-  }, [token, page, filterUserId, filterAction, filterEntityType, filterSearch, filterStartDate, filterEndDate]);
+  }, [page, filterUserId, filterAction, filterEntityType, filterSearch, filterStartDate, filterEndDate]);
 
   const fetchSummary = useCallback(async () => {
-    if (!token) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/audit-logs/summary`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const data = await adminAPI.getAuditLogSummary();
       if (data.success) setSummary(data.data);
     } catch (err) {
       console.error('Özet alınamadı:', err);
     }
-  }, [token]);
+  }, []);
 
   const fetchFilters = useCallback(async () => {
-    if (!token) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/audit-logs/meta/filters`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const data = await adminAPI.getAuditLogFilters();
       if (data.success) setFilters(data.data);
     } catch (err) {
       console.error('Filtreler alınamadı:', err);
     }
-  }, [token]);
+  }, []);
 
-  // İlk yükleme - sadece token değiştiğinde
+  // İlk yükleme
   useEffect(() => {
-    if (token) {
-      fetchSummary();
-      fetchFilters();
-    }
-  }, [token, fetchSummary, fetchFilters]);
+    fetchSummary();
+    fetchFilters();
+  }, [fetchSummary, fetchFilters]);
 
   // Logları filtre/sayfa değiştiğinde yükle
   useEffect(() => {
-    if (token) {
-      fetchLogs();
-    }
-  }, [token, fetchLogs]);
+    fetchLogs();
+  }, [fetchLogs]);
 
   const handleSearch = () => {
     setPage(1);
@@ -190,10 +171,7 @@ export default function LoglarPage() {
 
   const viewLogDetail = async (logId: number) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/audit-logs/${logId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const data = await adminAPI.getAuditLogDetail(logId);
       if (data.success) {
         setSelectedLog(data.data);
         openDetailModal();
@@ -281,16 +259,6 @@ export default function LoglarPage() {
       recete: 'Reçete',
     };
     return names[type] || type;
-  };
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('tr-TR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   return (
@@ -595,7 +563,7 @@ export default function LoglarPage() {
                 <Text size="xs" c="dimmed">
                   Tarih
                 </Text>
-                <Text fw={500}>{formatDate(selectedLog.created_at)}</Text>
+                <Text fw={500}>{formatDate(selectedLog.created_at, 'datetime')}</Text>
               </div>
               <div>
                 <Text size="xs" c="dimmed">

@@ -88,7 +88,7 @@ case $DEPLOY_TYPE in
             npm run build
             
             echo '🔄 PM2 restart...'
-            pm2 restart catering-frontend
+            pm2 restart catering-frontend || pm2 start ecosystem.config.js --only catering-frontend
             
             echo ''
             echo '✅ Frontend deploy tamamlandı!'
@@ -111,7 +111,7 @@ case $DEPLOY_TYPE in
             npm run migrate
             
             echo '🔄 PM2 restart...'
-            pm2 restart catering-backend
+            pm2 restart catering-backend || pm2 start ecosystem.config.js --only catering-backend
             
             echo ''
             echo '✅ Backend deploy tamamlandı!'
@@ -160,7 +160,7 @@ case $DEPLOY_TYPE in
             echo ''
             echo '🔄 PM2 restart...'
             cd ..
-            pm2 restart all
+            pm2 restart all || pm2 start ecosystem.config.js
             
             echo ''
             pm2 list
@@ -176,6 +176,12 @@ sleep 5
 HEALTH=$(curl -s --connect-timeout 10 http://${SERVER_IP}/health 2>/dev/null || echo '{"status":"error"}')
 if echo "$HEALTH" | grep -q '"status":"ok"'; then
     echo -e "${GREEN}✅ Backend sağlıklı${NC}"
+    # Memory ve uptime bilgilerini göster
+    MEMORY=$(echo "$HEALTH" | grep -o '"heapUsed":[0-9]*' | cut -d':' -f2 || echo "N/A")
+    UPTIME=$(echo "$HEALTH" | grep -o '"uptime":[0-9]*' | cut -d':' -f2 || echo "N/A")
+    if [ "$MEMORY" != "N/A" ]; then
+        echo -e "   ${BLUE}Memory: ${MEMORY}MB, Uptime: ${UPTIME}s${NC}"
+    fi
 else
     echo -e "${YELLOW}⚠️  Backend yanıt vermiyor, bekleyin...${NC}"
     sleep 5
@@ -184,6 +190,7 @@ else
         echo -e "${GREEN}✅ Backend sağlıklı (2. deneme)${NC}"
     else
         echo -e "${RED}❌ Backend hala yanıt vermiyor!${NC}"
+        echo -e "${YELLOW}💡 PM2 loglarını kontrol edin: pm2 logs${NC}"
     fi
 fi
 

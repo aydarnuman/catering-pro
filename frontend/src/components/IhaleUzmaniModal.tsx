@@ -73,7 +73,8 @@ import {
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
+import { tendersAPI } from '@/lib/api/services/tenders';
+import { aiAPI } from '@/lib/api/services/ai';
 // NotesSection kaldırıldı - Çalışma Panosu kullanılacak
 
 // Modüler yapıdan import
@@ -255,15 +256,11 @@ export default function IhaleUzmaniModal({
         son_kayit: new Date().toISOString(),
       };
 
-      await fetch(`${API_BASE_URL}/api/tender-tracking/${tender.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          yaklasik_maliyet: yaklasikMaliyet || null,
-          sinir_deger: sinirDeger || null,
-          bizim_teklif: bizimTeklif || null,
-          hesaplama_verileri: hesaplamaVerileri,
-        }),
+      await tendersAPI.updateTracking(Number(tender.id), {
+        yaklasik_maliyet: yaklasikMaliyet || null,
+        sinir_deger: sinirDeger || null,
+        bizim_teklif: bizimTeklif || null,
+        hesaplama_verileri: hesaplamaVerileri,
       });
 
       setSaveStatus('saved');
@@ -390,8 +387,7 @@ export default function IhaleUzmaniModal({
 
     try {
       // Önce API'den güncel veriyi çek
-      const response = await fetch(`${API_BASE_URL}/api/tender-tracking`);
-      const result = await response.json();
+      const result = await tendersAPI.getTrackingList();
 
       if (result.success && result.data) {
         // Bu ihale için güncel kaydı bul
@@ -536,24 +532,14 @@ export default function IhaleUzmaniModal({
   // Belirli türdeki tüm konuşmaları yükle (kart listesi için)
   const loadDilekceConversationsList = async (type: string) => {
     if (!tender) return;
-    
+
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/ai/conversations/list?prefix=ihale_${tender.tender_id || tender.id}_dilekce_${type}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-          },
-        }
+      const result = await aiAPI.listConversationsByPrefix(
+        `ihale_${tender.tender_id || tender.id}_dilekce_${type}`
       );
-      
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.conversations) {
-          setDilekceConversations(result.conversations);
-        } else {
-          setDilekceConversations([]);
-        }
+
+      if (result.success && (result as any).conversations) {
+        setDilekceConversations((result as any).conversations);
       } else {
         setDilekceConversations([]);
       }
@@ -569,27 +555,20 @@ export default function IhaleUzmaniModal({
     setShowDilekceChat(true);
     setShowChatHistory(false); // Sohbet varsayılan olarak gizli
     setIsDilekceEditing(false); // Düzenleme modu kapalı başla
-    
-    // Konuşmayı yükle
-    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-    if (!token) return;
-    
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/ai/conversations/${sessionId}?userId=default`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
-      
-      if (data.success && data.messages) {
-        const formattedMessages = data.messages.map((msg: any) => ({
+      const data = await aiAPI.getConversation(sessionId);
+
+      if (data.success && (data as any).messages) {
+        const formattedMessages = (data as any).messages.map((msg: any) => ({
           role: msg.role,
           content: stripContextFromMessage(msg.content), // Eski context'leri temizle
           timestamp: new Date(msg.created_at),
         }));
         setDilekceMessages(formattedMessages);
-        
+
         // AI'ın son mesajını dilekçe içeriği olarak ayarla (düzenleme için)
-        const lastAiMessage = [...data.messages].reverse().find((m: any) => m.role === 'assistant');
+        const lastAiMessage = [...(data as any).messages].reverse().find((m: any) => m.role === 'assistant');
         if (lastAiMessage) {
           setDilekceContent(lastAiMessage.content);
         }
@@ -618,22 +597,14 @@ export default function IhaleUzmaniModal({
 
   // Konuşmayı sil
   const deleteDilekceConversation = async (sessionId: string) => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-    if (!token) return;
-
     if (!window.confirm('Bu konuşmayı silmek istediğinize emin misiniz?')) {
       return;
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/ai/conversations/${sessionId}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const result = await aiAPI.deleteConversation(sessionId);
 
-      if (response.ok) {
+      if (result.success) {
         notifications.show({
           title: 'Silindi',
           message: 'Konuşma başarıyla silindi',
@@ -667,26 +638,17 @@ export default function IhaleUzmaniModal({
   // Önceki conversation'ları yükle
   const loadConversations = async (sessionId: string) => {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/ai/conversations/${sessionId}?userId=default`
-      );
-      
-      if (!response.ok) {
-        // Session yoksa boş array döndür
-        return;
-      }
-      
-      const result = await response.json();
-      
-      if (result.success && result.messages && result.messages.length > 0) {
+      const result = await aiAPI.getConversation(sessionId);
+
+      if (result.success && (result as any).messages && (result as any).messages.length > 0) {
         // Backend'den gelen mesajları ChatMessage formatına çevir
-        const loadedMessages: ChatMessage[] = result.messages.map((msg: any, index: number) => ({
+        const loadedMessages: ChatMessage[] = (result as any).messages.map((msg: any, index: number) => ({
           id: `${msg.id || index}`,
           role: msg.role,
           content: stripContextFromMessage(msg.content), // Eski context'leri temizle
           timestamp: new Date(msg.created_at),
         }));
-        
+
         setMessages(loadedMessages);
       }
     } catch (error) {
@@ -698,24 +660,15 @@ export default function IhaleUzmaniModal({
   // Dilekçe conversation'larını yükle
   const loadDilekceConversations = async (sessionId: string) => {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/ai/conversations/${sessionId}?userId=default`
-      );
-      
-      if (!response.ok) {
-        // Session yoksa boş array döndür
-        return;
-      }
-      
-      const result = await response.json();
-      
-      if (result.success && result.messages && result.messages.length > 0) {
+      const result = await aiAPI.getConversation(sessionId);
+
+      if (result.success && (result as any).messages && (result as any).messages.length > 0) {
         // Backend'den gelen mesajları dilekçe formatına çevir
-        const loadedMessages = result.messages.map((msg: any) => ({
+        const loadedMessages = (result as any).messages.map((msg: any) => ({
           role: msg.role as 'user' | 'assistant',
           content: stripContextFromMessage(msg.content), // Eski context'leri temizle
         }));
-        
+
         setDilekceMessages(loadedMessages);
       }
     } catch (error) {
@@ -988,39 +941,30 @@ export default function IhaleUzmaniModal({
         content: msg.content
       }));
 
-      const response = await fetch(`${API_BASE_URL}/api/ai/agent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-        body: JSON.stringify({
-          message: inputMessage, // Sadece kullanıcı mesajı (context ayrı)
-          systemContext: context, // Context ayrı gönderiliyor (kaydedilmeyecek)
-          history: conversationHistory,
-          sessionId: chatSessionId || undefined,
-          templateSlug: 'ihale-uzman',
-          pageContext: tender ? {
-            type: 'tender',
-            id: tender.tender_id || tender.id,
-            title: tender.ihale_basligi,
-          } : undefined,
-        }),
+      const data = await aiAPI.sendAgentMessage({
+        message: inputMessage, // Sadece kullanıcı mesajı (context ayrı)
+        systemContext: context, // Context ayrı gönderiliyor (kaydedilmeyecek)
+        history: conversationHistory,
+        sessionId: chatSessionId || undefined,
+        templateSlug: 'ihale-uzman',
+        pageContext: tender ? {
+          type: 'tender',
+          id: tender.tender_id || tender.id,
+          title: tender.ihale_basligi,
+        } : undefined,
       });
 
-      if (!response.ok) throw new Error('AI yanıt vermedi');
-
-      const data = await response.json();
+      if (!data.success && !(data as any).response) throw new Error('AI yanıt vermedi');
 
       // Backend'den sessionId gelirse onu kullan (eğer henüz set edilmemişse)
-      if (data.sessionId && !chatSessionId) {
-        setChatSessionId(data.sessionId);
+      if ((data as any).sessionId && !chatSessionId) {
+        setChatSessionId((data as any).sessionId);
       }
 
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: data.response || data.message || 'Yanıt alınamadı',
+        content: (data as any).response || data.message || 'Yanıt alınamadı',
         timestamp: new Date(),
       };
 
@@ -1046,20 +990,16 @@ export default function IhaleUzmaniModal({
       
       // Kullanıcı mesajını backend'e kaydet
       try {
-        await fetch(`${API_BASE_URL}/api/ai-memory/conversation`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-          },
-          body: JSON.stringify({
+        await aiAPI.saveConversationToMemory({
+          sessionId: dilekceSessionId,
+          context: {
             session_id: dilekceSessionId,
             user_id: 'default',
             role: 'user',
             content: userInput,
             tools_used: [],
             metadata: { type: 'dilekce_chat', dilekce_type: dilekceType },
-          }),
+          },
         });
       } catch (error) {
         console.error('Kullanıcı mesajı kaydetme hatası:', error);
@@ -1186,33 +1126,24 @@ KURALLAR:
       }
 
       // AI'a gönder
-      const response = await fetch(`${API_BASE_URL}/api/ai/agent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-        body: JSON.stringify({
-          message: prompt,
-          sessionId: dilekceSessionId || undefined,
-          templateSlug: 'resmi-yazi', // Resmi Yazı Uzmanı şablonu (Opus model)
-          pageContext: tender ? {
-            type: 'tender',
-            id: tender.tender_id || tender.id,
-            title: tender.ihale_basligi,
-          } : undefined,
-        }),
+      const data = await aiAPI.sendAgentMessage({
+        message: prompt,
+        sessionId: dilekceSessionId || undefined,
+        templateSlug: 'resmi-yazi', // Resmi Yazı Uzmanı şablonu (Opus model)
+        pageContext: tender ? {
+          type: 'tender',
+          id: tender.tender_id || tender.id,
+          title: tender.ihale_basligi,
+        } : undefined,
       });
 
-      if (!response.ok) throw new Error('AI yanıt vermedi');
-
-      const data = await response.json();
-      const aiResponse = data.response || data.message || 'Dilekçe oluşturulamadı';
+      if (!data.success && !(data as any).response) throw new Error('AI yanıt vermedi');
+      const aiResponse = (data as any).response || data.message || 'Dilekçe oluşturulamadı';
 
       // Backend'den sessionId gelirse onu kullan (eğer henüz set edilmemişse)
-      const finalSessionId = data.sessionId || dilekceSessionId;
-      if (data.sessionId && !dilekceSessionId) {
-        setDilekceSessionId(data.sessionId);
+      const finalSessionId = (data as any).sessionId || dilekceSessionId;
+      if ((data as any).sessionId && !dilekceSessionId) {
+        setDilekceSessionId((data as any).sessionId);
       }
 
       // AI cevabını mesajlara ekle
@@ -1222,24 +1153,20 @@ KURALLAR:
       // AI cevabını backend'e kaydet (eğer sessionId varsa)
       if (finalSessionId) {
         try {
-          await fetch(`${API_BASE_URL}/api/ai-memory/conversation`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-            },
-            body: JSON.stringify({
+          await aiAPI.saveConversationToMemory({
+            sessionId: finalSessionId,
+            context: {
               session_id: finalSessionId,
               user_id: 'default',
               role: 'assistant',
               content: assistantMessageContent,
-              tools_used: data.toolsUsed || [],
-              metadata: { 
-                type: 'dilekce_chat', 
+              tools_used: (data as any).toolsUsed || [],
+              metadata: {
+                type: 'dilekce_chat',
                 dilekce_type: dilekceType,
                 dilekce_content_preview: aiResponse.substring(0, 500) // İlk 500 karakter önizleme
               },
-            }),
+            },
           });
         } catch (error) {
           console.error('AI cevabı kaydetme hatası:', error);
@@ -1268,37 +1195,17 @@ KURALLAR:
     if (!dilekceContent || !tender) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/export/dilekce/${format}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+      const blob = await aiAPI.exportDilekce(format, {
+        title: dilekceTypeLabels[dilekceType || 'dilekce'],
+        type: dilekceType,
+        content: dilekceContent,
+        ihale: {
+          baslik: tender.ihale_basligi,
+          kurum: tender.kurum,
+          ihale_no: tender.external_id,
         },
-        body: JSON.stringify({
-          title: dilekceTypeLabels[dilekceType || 'dilekce'],
-          type: dilekceType,
-          content: dilekceContent,
-          ihale: {
-            baslik: tender.ihale_basligi,
-            kurum: tender.kurum,
-            ihale_no: tender.external_id,
-          },
-        }),
       });
-
-      if (!response.ok) {
-        throw new Error('İndirme başarısız');
-      }
-
-      // Blob olarak al ve indir
-      const blob = await response.blob();
-      const contentDisposition = response.headers.get('Content-Disposition');
-      let filename = `dilekce.${format === 'pdf' ? 'pdf' : 'txt'}`;
-      
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="(.+)"/);
-        if (match) filename = match[1];
-      }
+      const filename = `dilekce_${dilekceType || 'genel'}_${Date.now()}.${format === 'pdf' ? 'pdf' : 'docx'}`;
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1331,34 +1238,25 @@ KURALLAR:
 
     setDilekceSaving(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tender-dilekce`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+      const data = await aiAPI.saveDilekce({
+        tender_tracking_id: tender.id,
+        tender_id: tender.tender_id,
+        dilekce_type: dilekceType,
+        title: dilekceTypeLabels[dilekceType],
+        content: dilekceContent,
+        ihale_bilgileri: {
+          baslik: tender.ihale_basligi,
+          kurum: tender.kurum,
+          ihale_no: tender.external_id,
+          tarih: tender.tarih,
         },
-        body: JSON.stringify({
-          tender_tracking_id: tender.id,
-          tender_id: tender.tender_id,
-          dilekce_type: dilekceType,
-          title: dilekceTypeLabels[dilekceType],
-          content: dilekceContent,
-          ihale_bilgileri: {
-            baslik: tender.ihale_basligi,
-            kurum: tender.kurum,
-            ihale_no: tender.external_id,
-            tarih: tender.tarih,
-          },
-          maliyet_bilgileri: {
-            yaklasik_maliyet: yaklasikMaliyet,
-            sinir_deger: sinirDeger,
-            bizim_teklif: bizimTeklif,
-            maliyet_bilesenleri: maliyetBilesenleri,
-          },
-        }),
-      });
-
-      const data = await response.json();
+        maliyet_bilgileri: {
+          yaklasik_maliyet: yaklasikMaliyet,
+          sinir_deger: sinirDeger,
+          bizim_teklif: bizimTeklif,
+          maliyet_bilesenleri: maliyetBilesenleri,
+        },
+      } as any);
 
       if (data.success) {
         notifications.show({
@@ -1390,16 +1288,7 @@ KURALLAR:
 
     setDilekceListLoading(true);
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/tender-dilekce/${tender.tender_id || tender.id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-          },
-        }
-      );
-
-      const data = await response.json();
+      const data = await aiAPI.getDilekceByTender(tender.tender_id || tender.id);
       if (data.success) {
         setSavedDilekces(data.data || []);
       }
@@ -1426,14 +1315,7 @@ KURALLAR:
   // Dilekçe sil
   const deleteDilekce = async (id: number) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tender-dilekce/${id}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-      });
-
-      const data = await response.json();
+      const data = await aiAPI.deleteDilekce(id);
       if (data.success) {
         notifications.show({
           title: 'Silindi',

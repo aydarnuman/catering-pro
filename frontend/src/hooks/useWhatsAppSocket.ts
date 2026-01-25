@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { API_BASE_URL } from '@/lib/config';
+import logger from '@/lib/logger';
 
 // Extract base URL without /api path
 const getSocketUrl = () => {
@@ -120,12 +121,12 @@ export function useWhatsAppSocket(options: UseWhatsAppSocketOptions = {}) {
 
     // Prevent multiple connections
     if (socketRef.current?.connected) {
-      console.log('[WhatsApp Socket] Already connected, skipping');
+      logger.debug('[WhatsApp Socket] Already connected, skipping');
       return;
     }
 
     const socketUrl = getSocketUrl();
-    console.log('[WhatsApp Socket] Connecting to:', socketUrl);
+    logger.debug('[WhatsApp Socket] Connecting to:', { socketUrl });
 
     const socket = io(socketUrl, {
       transports: ['websocket', 'polling'],
@@ -139,23 +140,23 @@ export function useWhatsAppSocket(options: UseWhatsAppSocketOptions = {}) {
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('[WhatsApp Socket] Connected:', socket.id);
+      logger.info('[WhatsApp Socket] Connected', { socketId: socket.id });
       setIsSocketConnected(true);
     });
 
     socket.on('disconnect', (reason) => {
-      console.log('[WhatsApp Socket] Disconnected:', reason);
+      logger.warn('[WhatsApp Socket] Disconnected', { reason });
       setIsSocketConnected(false);
     });
 
     socket.on('connect_error', (error) => {
-      console.error('[WhatsApp Socket] Connection error:', error.message);
+      logger.error('[WhatsApp Socket] Connection error', { error: error.message });
       setIsSocketConnected(false);
     });
 
     // WhatsApp connection status
     socket.on('connection:status', (status: ConnectionStatus) => {
-      console.log('[WhatsApp Socket] WA Status:', status.status);
+      logger.debug('[WhatsApp Socket] WA Status', { status: status.status });
       setWaStatus(status);
       callbackRefs.current.onConnectionStatus?.(status);
       
@@ -167,14 +168,14 @@ export function useWhatsAppSocket(options: UseWhatsAppSocketOptions = {}) {
 
     // QR code updates
     socket.on('qr:update', (data: { qr: string }) => {
-      console.log('[WhatsApp Socket] QR received');
+      logger.info('[WhatsApp Socket] QR received');
       setQrCode(data.qr);
       callbackRefs.current.onQRUpdate?.(data.qr);
     });
 
     // New messages
     socket.on('message:new', (message: WhatsAppMessage) => {
-      console.log('[WhatsApp Socket] New message from:', message.senderName);
+      logger.debug('[WhatsApp Socket] New message from:', { senderName: message.senderName });
       callbackRefs.current.onNewMessage?.(message);
     });
 
@@ -212,7 +213,7 @@ export function useWhatsAppSocket(options: UseWhatsAppSocketOptions = {}) {
     });
 
     return () => {
-      console.log('[WhatsApp Socket] Cleaning up');
+      logger.debug('[WhatsApp Socket] Cleaning up');
       socket.removeAllListeners();
       socket.disconnect();
       socketRef.current = null;

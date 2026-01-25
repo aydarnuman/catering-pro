@@ -5,6 +5,7 @@ import {
   Badge,
   Button,
   Card,
+  Collapse,
   Container,
   Group,
   Paper,
@@ -13,11 +14,16 @@ import {
   Skeleton,
   Stack,
   Table,
+  Tabs,
   Text,
   ThemeIcon,
   Title,
   Tooltip,
+  UnstyledButton,
+  Box,
+  rem,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
   IconActivity,
   IconBriefcase,
@@ -29,17 +35,23 @@ import {
   IconDatabase,
   IconExternalLink,
   IconFileText,
+  IconFlame,
+  IconLock,
   IconReceipt,
   IconRefresh,
+  IconRobot,
   IconServer,
   IconSettings,
   IconShieldLock,
   IconUser,
   IconUsers,
+  IconWand,
   IconX,
 } from '@tabler/icons-react';
 import { useEffect, useState, useCallback } from 'react';
-import { API_BASE_URL } from '@/lib/config';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+import { adminAPI } from '@/lib/api/services/admin';
 
 interface AdminStats {
   tablolar: { ad: string; kayit: number }[];
@@ -58,22 +70,21 @@ interface HealthData {
 }
 
 export default function AdminPage() {
-  const API_URL = API_BASE_URL;
+  // API_URL kaldırıldı - adminAPI kullanılıyor (özel endpoint'ler için API_BASE_URL kullanılıyor)
+  const router = useRouter();
+  const { isSuperAdmin, user } = useAuth();
 
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [health, setHealth] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activityOpen, { toggle: toggleActivity }] = useDisclosure(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [statsRes, healthRes] = await Promise.all([
-        fetch(`${API_URL}/api/database-stats/admin-stats`)
-          .then((r) => r.json())
-          .catch(() => null),
-        fetch(`${API_URL}/api/database-stats/health-detailed`)
-          .then((r) => r.json())
-          .catch(() => null),
+        adminAPI.getAdminStats().catch(() => null),
+        adminAPI.getHealthDetailed().catch(() => null),
       ]);
 
       if (statsRes?.success) setStats(statsRes.data);
@@ -83,7 +94,7 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, [API_URL]);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -92,62 +103,36 @@ export default function AdminPage() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  const adminCards = [
-    {
-      id: 'kullanicilar',
-      title: 'Kullanıcı Yönetimi',
-      description: 'Kullanıcı ekleme, silme ve düzenleme',
-      icon: IconUsers,
+  // Kategorize edilmiş admin modülleri
+  const adminCategories = {
+    guvenlik: {
+      label: '🔐 Güvenlik',
       color: 'blue',
-      path: '/admin/kullanicilar',
-      badge: null,
+      items: [
+        { id: 'kullanicilar', title: 'Kullanıcılar', description: 'Kullanıcı ekleme, silme, düzenleme ve yetki atama işlemleri', icon: IconUsers, color: 'blue', path: '/admin/kullanicilar', stat: null },
+        { id: 'yetkiler', title: 'Yetkiler', description: 'Modül bazlı yetkilendirme, rol tanımlama ve erişim kontrolü', icon: IconShieldLock, color: 'violet', path: '/admin/yetkiler', stat: null },
+        { id: 'yetki-sablonlari', title: 'Yetki Şablonları', description: 'Önceden tanımlı yetki profilleri oluşturma ve yönetimi', icon: IconShieldLock, color: 'grape', path: '/admin/yetki-sablonlari', stat: null },
+        { id: 'ip-management', title: 'IP Erişim Yönetimi', description: 'IP whitelist ve blacklist kuralları - Erişim kontrolü', icon: IconLock, color: 'orange', path: '/admin/ip-management', stat: null },
+        { id: 'loglar', title: 'İşlem Logları', description: 'Tüm sistem aktivitelerinin detaylı kaydı - Kim, ne zaman, ne yaptı', icon: IconActivity, color: 'teal', path: '/admin/loglar', stat: null },
+      ]
     },
-    {
-      id: 'yetkiler',
-      title: 'Yetki Yönetimi',
-      description: 'Modül bazlı yetkilendirme ve roller',
-      icon: IconShieldLock,
-      color: 'violet',
-      path: '/admin/yetkiler',
-      badge: null,
-    },
-    {
-      id: 'loglar',
-      title: 'İşlem Geçmişi',
-      description: 'Kim ne zaman ne değiştirdi',
-      icon: IconActivity,
-      color: 'teal',
-      path: '/admin/loglar',
-      badge: null,
-    },
-    {
-      id: 'veri',
-      title: 'Veri Yönetimi',
-      description: 'Senkronizasyon, yedekleme, import/export',
-      icon: IconCloudDownload,
+    sistem: {
+      label: '⚙️ Sistem',
       color: 'cyan',
-      path: '/admin/sync',
-      badge: null,
+      items: [
+        { id: 'veri', title: 'Veri Yönetimi', description: 'Uyumsoft senkronizasyonu, veritabanı yedekleme, import/export işlemleri', icon: IconCloudDownload, color: 'cyan', path: '/admin/sync', stat: null },
+        { id: 'sistem', title: 'Geliştirici Araçları', description: 'Swagger API Docs, sistem logları, performans metrikleri', icon: IconServer, color: 'gray', path: '/admin/sistem', stat: null },
+      ]
     },
-    {
-      id: 'sistem',
-      title: 'Sistem & Geliştirici',
-      description: 'API Docs, loglar, sistem durumu',
-      icon: IconServer,
-      color: 'gray',
-      path: '/admin/sistem',
-      badge: null,
-    },
-    {
-      id: 'scraper',
-      title: 'Scraper Dashboard',
-      description: 'İhale scraper durumu ve yönetimi',
-      icon: IconBug,
+    otomasyon: {
+      label: '🤖 AI & Otomasyon',
       color: 'grape',
-      path: '/admin/scraper',
-      badge: null,
-    },
-  ];
+      items: [
+        { id: 'scraper', title: 'İhale Scraper', description: 'ihalebul.com otomatik tarama, döküman indirme ve analiz durumu', icon: IconBug, color: 'grape', path: '/admin/scraper', stat: null },
+        { id: 'prompt-builder', title: 'AI Prompt Builder', description: 'Adım adım interaktif AI prompt oluşturma ve şablon yönetimi', icon: IconWand, color: 'violet', path: '/admin/prompt-builder', stat: null },
+      ]
+    }
+  };
 
   // DB boyutu yüzdesi (500MB limit varsayımı)
   const dbPercentage = stats
@@ -182,11 +167,167 @@ export default function AdminPage() {
                 <IconRefresh size={18} />
               </ActionIcon>
             </Tooltip>
+            
+            {/* 📊 Bugünkü Aktivite Button */}
+            <Tooltip label={activityOpen ? 'Aktiviteyi Kapat' : 'Bugünkü Aktivite'}>
+              <ActionIcon
+                size="lg"
+                radius="md"
+                variant={activityOpen ? 'filled' : 'light'}
+                color="blue"
+                onClick={toggleActivity}
+                style={{
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                <IconActivity size={20} />
+              </ActionIcon>
+            </Tooltip>
+            
+            {/* 🔥 God Mode Button - Super Admin Only */}
+            {isSuperAdmin && (
+              <Button
+                size="sm"
+                radius="md"
+                variant="gradient"
+                gradient={{ from: 'red', to: 'orange' }}
+                leftSection={<IconFlame size={18} />}
+                onClick={() => router.push('/admin/god-mode')}
+                style={{
+                  boxShadow: '0 0 15px rgba(255, 71, 87, 0.4)',
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                GOD MODE
+              </Button>
+            )}
+            
             <Badge size="lg" variant="light" color="red">
               Admin Only
             </Badge>
           </Group>
         </Group>
+
+        {/* 📊 Bugünkü Aktivite Panel - Header'dan açılır */}
+        <Collapse in={activityOpen}>
+          <Paper p="md" radius="md" withBorder>
+            <Group justify="space-between" mb="md">
+              <Text fw={600}>📊 Bugünkü Aktivite</Text>
+              <Badge color="blue" variant="light">Canlı</Badge>
+            </Group>
+            <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
+              <Group>
+                <ThemeIcon size={40} radius="md" variant="light" color="green">
+                  <IconReceipt size={20} />
+                </ThemeIcon>
+                <div>
+                  <Text size="xl" fw={700}>{stats?.bugun.fatura || 0}</Text>
+                  <Text size="xs" c="dimmed">Yeni Fatura</Text>
+                </div>
+              </Group>
+              <Group>
+                <ThemeIcon size={40} radius="md" variant="light" color="blue">
+                  <IconBriefcase size={20} />
+                </ThemeIcon>
+                <div>
+                  <Text size="xl" fw={700}>{stats?.bugun.ihale || 0}</Text>
+                  <Text size="xs" c="dimmed">Yeni İhale</Text>
+                </div>
+              </Group>
+              <Group>
+                <ThemeIcon size={40} radius="md" variant="light" color="violet">
+                  <IconUsers size={20} />
+                </ThemeIcon>
+                <div>
+                  <Text size="xl" fw={700}>{stats?.bugun.cari || 0}</Text>
+                  <Text size="xs" c="dimmed">Yeni Cari</Text>
+                </div>
+              </Group>
+              <Group>
+                <ThemeIcon size={40} radius="md" variant="light" color="orange">
+                  <IconUser size={20} />
+                </ThemeIcon>
+                <div>
+                  <Text size="xl" fw={700}>{stats?.bugun.personel || 0}</Text>
+                  <Text size="xs" c="dimmed">Yeni Personel</Text>
+                </div>
+              </Group>
+            </SimpleGrid>
+          </Paper>
+        </Collapse>
+
+
+        {/* 🔧 Yönetim - Tab Bar + Kompakt Kartlar */}
+        <Paper p="lg" radius="md" withBorder>
+          <Title order={3} mb="md">
+            🔧 Yönetim
+          </Title>
+          
+          <Tabs defaultValue="guvenlik" variant="pills" radius="md">
+            <Tabs.List mb="md" style={{ gap: rem(8) }}>
+              {Object.entries(adminCategories).map(([key, category]) => (
+                <Tabs.Tab 
+                  key={key} 
+                  value={key}
+                  leftSection={
+                    <Text size="sm">{category.label.split(' ')[0]}</Text>
+                  }
+                  style={{ fontWeight: 500 }}
+                >
+                  {category.label.split(' ').slice(1).join(' ')}
+                </Tabs.Tab>
+              ))}
+            </Tabs.List>
+
+            {Object.entries(adminCategories).map(([key, category]) => (
+              <Tabs.Panel key={key} value={key}>
+                <SimpleGrid cols={{ base: 1, sm: 2, md: category.items.length }} spacing="md">
+                  {category.items.map((item) => (
+                    <Tooltip 
+                      key={item.id}
+                      label={item.description}
+                      position="bottom"
+                      withArrow
+                      multiline
+                      w={220}
+                    >
+                      <UnstyledButton
+                        component="a"
+                        href={item.path}
+                        style={{ width: '100%' }}
+                      >
+                        <Card 
+                          padding="lg" 
+                          radius="md" 
+                          withBorder
+                          style={{ 
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                          }}
+                          className="admin-card-hover"
+                        >
+                          <Stack gap="sm" align="center">
+                            <ThemeIcon size={50} radius="xl" variant="light" color={item.color}>
+                              <item.icon size={26} />
+                            </ThemeIcon>
+                            <div style={{ textAlign: 'center' }}>
+                              <Text fw={600} size="sm">{item.title}</Text>
+                              {item.stat && (
+                                <Badge size="sm" variant="light" color={item.color} mt={4}>
+                                  {item.stat}
+                                </Badge>
+                              )}
+                            </div>
+                          </Stack>
+                        </Card>
+                      </UnstyledButton>
+                    </Tooltip>
+                  ))}
+                </SimpleGrid>
+              </Tabs.Panel>
+            ))}
+          </Tabs>
+        </Paper>
 
         {/* Sistem Durumu Kartları */}
         <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
@@ -315,69 +456,6 @@ export default function AdminPage() {
           </Card>
         </SimpleGrid>
 
-        {/* İkinci Satır - Bugünkü Aktivite */}
-        <Paper p="lg" radius="md" withBorder>
-          <Group justify="space-between" mb="md">
-            <Title order={4}>📊 Bugünkü Aktivite</Title>
-            <Badge color="blue" variant="light">
-              Canlı
-            </Badge>
-          </Group>
-          <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
-            <Group>
-              <ThemeIcon size={40} radius="md" variant="light" color="green">
-                <IconReceipt size={20} />
-              </ThemeIcon>
-              <div>
-                <Text size="xl" fw={700}>
-                  {stats?.bugun.fatura || 0}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  Yeni Fatura
-                </Text>
-              </div>
-            </Group>
-            <Group>
-              <ThemeIcon size={40} radius="md" variant="light" color="blue">
-                <IconBriefcase size={20} />
-              </ThemeIcon>
-              <div>
-                <Text size="xl" fw={700}>
-                  {stats?.bugun.ihale || 0}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  Yeni İhale
-                </Text>
-              </div>
-            </Group>
-            <Group>
-              <ThemeIcon size={40} radius="md" variant="light" color="violet">
-                <IconUsers size={20} />
-              </ThemeIcon>
-              <div>
-                <Text size="xl" fw={700}>
-                  {stats?.bugun.cari || 0}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  Yeni Cari
-                </Text>
-              </div>
-            </Group>
-            <Group>
-              <ThemeIcon size={40} radius="md" variant="light" color="orange">
-                <IconUser size={20} />
-              </ThemeIcon>
-              <div>
-                <Text size="xl" fw={700}>
-                  {stats?.bugun.personel || 0}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  Yeni Personel
-                </Text>
-              </div>
-            </Group>
-          </SimpleGrid>
-        </Paper>
 
         {/* İki Kolon - Tablolar ve Yönetim */}
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
@@ -450,56 +528,6 @@ export default function AdminPage() {
           </Paper>
         </SimpleGrid>
 
-        {/* Yönetim Kartları */}
-        <div>
-          <Title order={3} mb="md">
-            🔧 Yönetim
-          </Title>
-          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="lg">
-            {adminCards.map((card) => (
-              <Card key={card.id} padding="xl" radius="md" withBorder>
-                <Stack gap="md">
-                  <Group justify="space-between">
-                    <ThemeIcon size={50} radius="md" variant="light" color={card.color}>
-                      <card.icon size={28} />
-                    </ThemeIcon>
-                    {card.badge ? (
-                      <Badge color="gray" variant="light">
-                        {card.badge}
-                      </Badge>
-                    ) : (
-                      <ActionIcon variant="subtle" color="gray">
-                        <IconChevronRight size={16} />
-                      </ActionIcon>
-                    )}
-                  </Group>
-
-                  <div>
-                    <Title order={4} mb={4}>
-                      {card.title}
-                    </Title>
-                    <Text c="dimmed" size="sm">
-                      {card.description}
-                    </Text>
-                  </div>
-
-                  <Button
-                    variant="light"
-                    color={card.color}
-                    fullWidth
-                    leftSection={<IconSettings size={16} />}
-                    component="a"
-                    href={card.path}
-                    disabled={!!card.badge}
-                  >
-                    {card.badge ? 'Yakında' : 'Yönet'}
-                  </Button>
-                </Stack>
-              </Card>
-            ))}
-          </SimpleGrid>
-        </div>
-
         {/* Hızlı Linkler */}
         <Paper p="lg" radius="md" withBorder>
           <Title order={3} mb="md">
@@ -510,7 +538,7 @@ export default function AdminPage() {
               variant="light"
               leftSection={<IconFileText size={16} />}
               rightSection={<IconExternalLink size={14} />}
-              onClick={() => window.open(`${API_URL}/api-docs`, '_blank')}
+              onClick={() => window.open(adminAPI.getApiDocsUrl(), '_blank')}
             >
               API Docs
             </Button>
@@ -519,7 +547,7 @@ export default function AdminPage() {
               color="green"
               leftSection={<IconActivity size={16} />}
               rightSection={<IconExternalLink size={14} />}
-              onClick={() => window.open(`${API_URL}/health`, '_blank')}
+              onClick={() => window.open(adminAPI.getHealthUrl(), '_blank')}
             >
               Health Check
             </Button>

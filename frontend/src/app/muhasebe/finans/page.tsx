@@ -49,9 +49,9 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
-import { API_BASE_URL } from '@/lib/config';
-
-const API_URL = `${API_BASE_URL}/api`;
+import { formatMoney } from '@/lib/formatters';
+import { muhasebeAPI } from '@/lib/api/services/muhasebe';
+import { personelAPI } from '@/lib/api/services/personel';
 
 // ==================== INTERFACES ====================
 
@@ -122,14 +122,6 @@ interface Cari {
 
 // ==================== HELPERS ====================
 
-const formatMoney = (value: number) => {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-};
 
 const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString('tr-TR', {
@@ -200,18 +192,18 @@ export default function FinansMerkeziPage() {
     setLoading(true);
     try {
       const [hesapRes, hareketRes, cekRes, projeRes, cariRes] = await Promise.all([
-        fetch(`${API_URL}/kasa-banka/hesaplar`),
-        fetch(`${API_URL}/kasa-banka/hareketler?limit=50`),
-        fetch(`${API_URL}/kasa-banka/cek-senetler`),
-        fetch(`${API_URL}/projeler?durum=aktif`),
-        fetch(`${API_URL}/kasa-banka/cariler`),
+        muhasebeAPI.getKasaBankaHesaplar(),
+        muhasebeAPI.getKasaBankaHareketler({ limit: 50 }),
+        muhasebeAPI.getCekSenetlerListe(),
+        personelAPI.getProjeler({ durum: 'aktif' }),
+        muhasebeAPI.getCariler(),
       ]);
 
-      if (hesapRes.ok) setHesaplar(await hesapRes.json());
-      if (hareketRes.ok) setHareketler(await hareketRes.json());
-      if (cekRes.ok) setCekSenetler(await cekRes.json());
-      if (projeRes.ok) setProjeler(await projeRes.json());
-      if (cariRes.ok) setCariler(await cariRes.json());
+      if (hesapRes.success) setHesaplar(hesapRes.data as unknown as Hesap[]);
+      if (hareketRes.success) setHareketler(hareketRes.data as unknown as Hareket[]);
+      if (cekRes.success) setCekSenetler(cekRes.data || []);
+      if (projeRes.success) setProjeler(projeRes.data || []);
+      if (cariRes.success) setCariler(cariRes.data as unknown as Cari[]);
     } catch (error) {
       console.error('Veri yükleme hatası:', error);
     } finally {
@@ -222,11 +214,12 @@ export default function FinansMerkeziPage() {
   const loadProjeHareketler = useCallback(async () => {
     if (!selectedProje) return;
     try {
-      const res = await fetch(
-        `${API_URL}/proje-hareketler/${selectedProje}?yil=${projeYil}&ay=${projeAy}`
-      );
-      if (res.ok) {
-        setProjeHareketler(await res.json());
+      const result = await muhasebeAPI.getProjeHareketler(selectedProje, {
+        yil: projeYil,
+        ay: projeAy,
+      });
+      if (result.success) {
+        setProjeHareketler(result.data || []);
       }
     } catch (error) {
       console.error('Proje hareketleri yükleme hatası:', error);
@@ -276,12 +269,8 @@ export default function FinansMerkeziPage() {
 
   const handleSaveHesap = async () => {
     try {
-      const res = await fetch(`${API_URL}/kasa-banka/hesaplar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(hesapForm),
-      });
-      if (res.ok) {
+      const result = await muhasebeAPI.createKasaBankaHesap(hesapForm as any);
+      if (result.success) {
         notifications.show({ message: '✓ Hesap eklendi', color: 'green' });
         setHesapModalOpen(false);
         loadData();
@@ -302,15 +291,12 @@ export default function FinansMerkeziPage() {
 
   const handleSaveHareket = async () => {
     try {
-      const res = await fetch(`${API_URL}/kasa-banka/hareketler`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...hareketForm,
-          tarih: hareketForm.tarih.toISOString().split('T')[0],
-        }),
-      });
-      if (res.ok) {
+      const result = await muhasebeAPI.createKasaBankaHareket({
+        ...hareketForm,
+        tarih: hareketForm.tarih.toISOString().split('T')[0],
+        cari_id: hareketForm.cari_id ?? undefined,
+      } as any);
+      if (result.success) {
         notifications.show({ message: '✓ Hareket kaydedildi', color: 'green' });
         setHareketModalOpen(false);
         loadData();
@@ -323,16 +309,12 @@ export default function FinansMerkeziPage() {
   const handleSaveProjeHareket = async () => {
     if (!selectedProje) return;
     try {
-      const res = await fetch(`${API_URL}/proje-hareketler`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          proje_id: selectedProje,
-          ...hareketForm,
-          tarih: hareketForm.tarih.toISOString().split('T')[0],
-        }),
+      const result = await muhasebeAPI.createProjeHareket({
+        proje_id: selectedProje,
+        ...hareketForm,
+        tarih: hareketForm.tarih.toISOString().split('T')[0],
       });
-      if (res.ok) {
+      if (result.success) {
         notifications.show({ message: '✓ Hareket eklendi', color: 'green' });
         setProjeHareketModalOpen(false);
         loadProjeHareketler();

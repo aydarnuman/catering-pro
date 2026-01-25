@@ -50,7 +50,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import IhaleUzmaniModal from '@/components/IhaleUzmaniModal';
 import TeklifModal from '@/components/teklif/TeklifModal';
-import { API_BASE_URL } from '@/lib/config';
+import { tendersAPI } from '@/lib/api/services/tenders';
+import { useResponsive } from '@/hooks/useResponsive';
 
 interface AnalysisData {
   ihale_basligi?: string;
@@ -112,6 +113,7 @@ const statusConfig: Record<string, { color: string; label: string; icon: any }> 
 function TrackingPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { isMobile, isMounted } = useResponsive();
   
   const [tenders, setTenders] = useState<SavedTender[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,12 +139,11 @@ function TrackingPageContent() {
   const fetchTenders = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/tender-tracking`);
-      const result = await response.json();
+      const result = await tendersAPI.getTrackingList();
 
       if (result.success) {
         // API verisini frontend formatına dönüştür
-        const formattedTenders: SavedTender[] = result.data.map((t: any) => ({
+        const formattedTenders: SavedTender[] = (result.data || []).map((t: any) => ({
           id: t.id.toString(),
           tender_id: t.tender_id,
           ihale_basligi: t.ihale_basligi || '',
@@ -235,13 +236,9 @@ function TrackingPageContent() {
   // Durum güncelle
   const updateStatus = async (id: string, newStatus: SavedTender['status']) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tender-tracking/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      });
+      const result = await tendersAPI.updateTracking(Number(id), { status: newStatus });
 
-      if (!response.ok) throw new Error('Güncelleme hatası');
+      if (!result.success) throw new Error('Güncelleme hatası');
 
       const updated = tenders.map((t) => (t.id === id ? { ...t, status: newStatus } : t));
       setTenders(updated);
@@ -267,13 +264,9 @@ function TrackingPageContent() {
   // Not güncelle
   const _updateNote = async (id: string, note: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tender-tracking/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notes: note }),
-      });
+      const result = await tendersAPI.updateTracking(Number(id), { notes: note });
 
-      if (!response.ok) throw new Error('Güncelleme hatası');
+      if (!result.success) throw new Error('Güncelleme hatası');
 
       const updated = tenders.map((t) => (t.id === id ? { ...t, notlar: note, notes: note } : t));
       setTenders(updated);
@@ -299,16 +292,11 @@ function TrackingPageContent() {
   // Not ekle
   const addUserNote = async (id: string, text: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tender-tracking/${id}/notes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
+      const result = await tendersAPI.addTrackingNote(Number(id), text);
 
-      if (!response.ok) throw new Error('Not ekleme hatası');
+      if (!result.success) throw new Error('Not ekleme hatası');
 
-      const result = await response.json();
-      const newNote = result.note;
+      const newNote = (result as any).note;
 
       const updated = tenders.map((t) =>
         t.id === id ? { ...t, user_notes: [...(t.user_notes || []), newNote] } : t
@@ -341,14 +329,9 @@ function TrackingPageContent() {
   // Not sil
   const deleteUserNote = async (trackingId: string, noteId: string) => {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/tender-tracking/${trackingId}/notes/${noteId}`,
-        {
-          method: 'DELETE',
-        }
-      );
+      const result = await tendersAPI.deleteTrackingNote(Number(trackingId), Number(noteId));
 
-      if (!response.ok) throw new Error('Not silme hatası');
+      if (!result.success) throw new Error('Not silme hatası');
 
       const updated = tenders.map((t) =>
         t.id === trackingId
@@ -381,11 +364,9 @@ function TrackingPageContent() {
   // İhale sil
   const deleteTender = async (id: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tender-tracking/${id}`, {
-        method: 'DELETE',
-      });
+      const result = await tendersAPI.removeTracking(Number(id));
 
-      if (!response.ok) throw new Error('Silme hatası');
+      if (!result.success) throw new Error('Silme hatası');
 
       const updated = tenders.filter((t) => t.id !== id);
       setTenders(updated);
@@ -466,10 +447,7 @@ function TrackingPageContent() {
     // Güncel analiz verilerini API'den çek
     try {
       setAnalysisLoading(true);
-      const response = await fetch(
-        `${API_BASE_URL}/api/tender-tracking/${tender.tender_id}/analysis`
-      );
-      const result = await response.json();
+      const result = await tendersAPI.getTrackingAnalysis(tender.tender_id);
 
       if (result.success && result.data) {
         setLiveAnalysisData(result.data.analysis);
@@ -565,31 +543,33 @@ function TrackingPageContent() {
       <Container size="xl" py="xl">
         <Stack gap="xl">
           {/* Header */}
-          <Group justify="space-between" align="flex-start">
-            <div>
-              <Group gap="sm" mb="xs">
-                <ThemeIcon
-                  size={44}
-                  radius="md"
-                  variant="gradient"
-                  gradient={{ from: 'blue', to: 'cyan' }}
-                >
-                  <IconBookmark size={26} />
-                </ThemeIcon>
-                <div>
-                  <Title order={1}>İhale Takibim</Title>
-                  <Text c="dimmed">Kaydettiğiniz ihaleleri takip edin</Text>
-                </div>
-              </Group>
-            </div>
-            <Text size="sm" c="dimmed">
-              İhale kartına tıklayarak{' '}
-              <Text component="span" fw={600} c="violet">
-                İhale Uzmanı
-              </Text>{' '}
-              araçlarına erişin
-            </Text>
-          </Group>
+          <Stack gap="xs">
+            <Group gap="sm" wrap="nowrap">
+              <ThemeIcon
+                size={isMobile && isMounted ? 36 : 44}
+                radius="md"
+                variant="gradient"
+                gradient={{ from: 'blue', to: 'cyan' }}
+              >
+                <IconBookmark size={isMobile && isMounted ? 20 : 26} />
+              </ThemeIcon>
+              <Box>
+                <Title order={isMobile && isMounted ? 3 : 1}>İhale Takibim</Title>
+                <Text c="dimmed" size={isMobile && isMounted ? 'xs' : 'sm'}>
+                  Kaydettiğiniz ihaleleri takip edin
+                </Text>
+              </Box>
+            </Group>
+            {(!isMobile || !isMounted) && (
+              <Text size="sm" c="dimmed">
+                İhale kartına tıklayarak{' '}
+                <Text component="span" fw={600} c="violet">
+                  İhale Uzmanı
+                </Text>{' '}
+                araçlarına erişin
+              </Text>
+            )}
+          </Stack>
 
           {/* İstatistik Kartları */}
           <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
@@ -672,30 +652,32 @@ function TrackingPageContent() {
 
           {/* Filtreler */}
           <Paper p="md" radius="md" withBorder>
-            <Group>
-              <TextInput
-                placeholder="İhale ara..."
-                leftSection={<IconSearch size={16} />}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ flex: 1 }}
-              />
-              <Select
-                placeholder="Durum filtrele"
-                leftSection={<IconFilter size={16} />}
-                clearable
-                value={filterStatus}
-                onChange={setFilterStatus}
-                data={[
-                  { value: 'bekliyor', label: '🟡 Bekliyor' },
-                  { value: 'basvuruldu', label: '🔵 Başvuruldu' },
-                  { value: 'kazanildi', label: '🟢 Kazanıldı' },
-                  { value: 'kaybedildi', label: '🔴 Kaybedildi' },
-                  { value: 'iptal', label: '⚫ İptal' },
-                ]}
-                w={180}
-              />
-            </Group>
+            <Stack gap="xs">
+              <Group gap="xs" grow={isMobile && isMounted}>
+                <TextInput
+                  placeholder="İhale ara..."
+                  leftSection={<IconSearch size={16} />}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <Select
+                  placeholder="Durum"
+                  leftSection={<IconFilter size={16} />}
+                  clearable
+                  value={filterStatus}
+                  onChange={setFilterStatus}
+                  data={[
+                    { value: 'bekliyor', label: '🟡 Bekliyor' },
+                    { value: 'basvuruldu', label: '🔵 Başvuruldu' },
+                    { value: 'kazanildi', label: '🟢 Kazanıldı' },
+                    { value: 'kaybedildi', label: '🔴 Kaybedildi' },
+                    { value: 'iptal', label: '⚫ İptal' },
+                  ]}
+                  w={isMobile && isMounted ? undefined : 180}
+                />
+              </Group>
+            </Stack>
           </Paper>
 
           {/* İhale Kartları */}
@@ -849,27 +831,39 @@ function TrackingPageContent() {
                     <Divider my="sm" />
 
                     {/* Alt Bilgiler */}
-                    <Group justify="space-between">
-                      <Group gap="xs">
+                    <Group justify="space-between" wrap="wrap" gap="xs">
+                      <Group gap="xs" wrap="wrap">
                         {tender.teknik_sart_sayisi > 0 && (
-                          <Tooltip label="Teknik Şart">
-                            <Badge size="sm" variant="dot" color="blue">
+                          isMobile && isMounted ? (
+                            <Badge size="xs" variant="dot" color="blue">
                               {tender.teknik_sart_sayisi} şart
                             </Badge>
-                          </Tooltip>
+                          ) : (
+                            <Tooltip label="Teknik Şart">
+                              <Badge size="sm" variant="dot" color="blue">
+                                {tender.teknik_sart_sayisi} şart
+                              </Badge>
+                            </Tooltip>
+                          )
                         )}
                         {tender.birim_fiyat_sayisi > 0 && (
-                          <Tooltip label="Birim Fiyat">
-                            <Badge size="sm" variant="dot" color="green">
+                          isMobile && isMounted ? (
+                            <Badge size="xs" variant="dot" color="green">
                               {tender.birim_fiyat_sayisi} kalem
                             </Badge>
-                          </Tooltip>
+                          ) : (
+                            <Tooltip label="Birim Fiyat">
+                              <Badge size="sm" variant="dot" color="green">
+                                {tender.birim_fiyat_sayisi} kalem
+                              </Badge>
+                            </Tooltip>
+                          )
                         )}
                         {/* Not sayısı badge - Tıklanabilir */}
                         {tender.user_notes && tender.user_notes.length > 0 && (
-                          <Tooltip label="Notları göster">
+                          isMobile && isMounted ? (
                             <Badge
-                              size="sm"
+                              size="xs"
                               variant="light"
                               color="yellow"
                               leftSection={<IconNote size={10} />}
@@ -882,11 +876,28 @@ function TrackingPageContent() {
                             >
                               {tender.user_notes.length}
                             </Badge>
-                          </Tooltip>
+                          ) : (
+                            <Tooltip label="Notları göster">
+                              <Badge
+                                size="sm"
+                                variant="light"
+                                color="yellow"
+                                leftSection={<IconNote size={10} />}
+                                style={{ cursor: 'pointer' }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenDetail(tender);
+                                  setTimeout(() => setNotesExpanded(true), 100);
+                                }}
+                              >
+                                {tender.user_notes.length}
+                              </Badge>
+                            </Tooltip>
+                          )
                         )}
                         {/* Not ekle ikonu - Not yoksa */}
                         {(!tender.user_notes || tender.user_notes.length === 0) && (
-                          <Tooltip label="Not ekle">
+                          isMobile && isMounted ? (
                             <ActionIcon
                               size="sm"
                               variant="subtle"
@@ -899,25 +910,55 @@ function TrackingPageContent() {
                             >
                               <IconNote size={14} />
                             </ActionIcon>
-                          </Tooltip>
+                          ) : (
+                            <Tooltip label="Not ekle">
+                              <ActionIcon
+                                size="sm"
+                                variant="subtle"
+                                color="gray"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenDetail(tender);
+                                  setTimeout(() => setNotesExpanded(true), 100);
+                                }}
+                              >
+                                <IconNote size={14} />
+                              </ActionIcon>
+                            </Tooltip>
+                          )
                         )}
                       </Group>
-                      <Group gap="xs">
+                      <Group gap="xs" wrap="nowrap">
                         {tender.url && (
-                          <Tooltip label="İhale sayfasını aç">
+                          isMobile && isMounted ? (
                             <ActionIcon
                               variant="subtle"
                               color="gray"
-                              size="sm"
+                              size="md"
                               component="a"
                               href={tender.url}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <IconExternalLink size={16} />
+                              <IconExternalLink size={18} />
                             </ActionIcon>
-                          </Tooltip>
+                          ) : (
+                            <Tooltip label="İhale sayfasını aç">
+                              <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                size="sm"
+                                component="a"
+                                href={tender.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <IconExternalLink size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                          )
                         )}
                         <Button
                           variant="light"

@@ -1,9 +1,7 @@
 'use client';
 
-import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
-
-const API_URL = API_BASE_URL;
+import { createContext, type ReactNode, useContext, useEffect, useState, useCallback } from 'react';
+import { API_ENDPOINTS, API_BASE_URL } from '@/lib/config';
 
 interface User {
   id: number;
@@ -23,6 +21,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  refreshToken: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,57 +35,103 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Client-side mount kontrolü (hydration hatası önleme)
   useEffect(() => {
     setMounted(true);
+
+    // Token expired event listener - api interceptor'dan gelen
+    const handleTokenExpired = () => {
+      console.log('Token expired event received');
+      setUser(null);
+      setToken(null);
+    };
+
+    window.addEventListener('auth:token-expired', handleTokenExpired);
+
+    return () => {
+      window.removeEventListener('auth:token-expired', handleTokenExpired);
+    };
   }, []);
 
-  // Sayfa yüklendiğinde localStorage'dan token kontrol et
+  // Sayfa yüklendiğinde kullanıcı durumunu kontrol et
+  // Token artık HttpOnly cookie'de, localStorage'dan okumuyoruz
   useEffect(() => {
     if (!mounted) return;
 
-    const storedToken = localStorage.getItem('auth_token');
-    const storedUser = localStorage.getItem('auth_user');
-
-    if (storedToken && storedUser) {
-      try {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-
-        // Token'ın hala geçerli olup olmadığını kontrol et
-        verifyToken(storedToken);
-      } catch (error) {
-        console.error('Error parsing stored user:', error);
-        setIsLoading(false);
-      }
-    } else {
-      setIsLoading(false);
+    // Geriye uyumluluk: localStorage'da token varsa temizle (migration)
+    const oldToken = localStorage.getItem('auth_token');
+    if (oldToken) {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
     }
+
+    // Cookie'deki token ile kullanıcı bilgisini al
+    verifyAndLoadUser();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted]);
 
-  // Token doğrulama
-  const verifyToken = async (authToken: string) => {
+  // Kullanıcı doğrulama ve yükleme
+  const verifyAndLoadUser = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
+      const response = await fetch(API_ENDPOINTS.AUTH_ME, {
+        credentials: 'include', // HttpOnly cookie'leri gönder
       });
 
       if (response.ok) {
         const data = await response.json();
         if (data.user) {
           setUser(data.user);
-          localStorage.setItem('auth_user', JSON.stringify(data.user));
+          setToken('cookie-based'); // Token artık cookie'de
+        } else {
+          setUser(null);
+          setToken(null);
+        }
+      } else if (response.status === 401) {
+        // Token geçersiz veya yok - refresh dene
+        const refreshed = await refreshToken();
+        if (!refreshed) {
+          setUser(null);
+          setToken(null);
         }
       } else {
-        // Token geçersiz - çıkış yap
-        logout();
+        setUser(null);
+        setToken(null);
       }
     } catch (error) {
-      console.error('Token verification error:', error);
+      console.error('User verification error:', error);
+      setUser(null);
+      setToken(null);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Token yenileme
+  const refreshToken = useCallback(async (): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include', // HttpOnly cookie'leri gönder
+      });
+
+      if (response.ok) {
+        // Yeni access token cookie'ye set edildi, kullanıcıyı tekrar yükle
+        const meResponse = await fetch(API_ENDPOINTS.AUTH_ME, {
+          credentials: 'include',
+        });
+
+        if (meResponse.ok) {
+          const data = await meResponse.json();
+          if (data.user) {
+            setUser(data.user);
+            setToken('cookie-based');
+            return true;
+          }
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      return false;
+    }
+  }, []);
 
   // Giriş yap
   const login = async (
@@ -94,23 +139,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const response = await fetch(`${API_URL}/api/auth/login`, {
+      const response = await fetch(API_ENDPOINTS.AUTH_LOGIN, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Cookie'leri al
         body: JSON.stringify({ email, password }),
       });
 
       const data = await response.json();
 
       if (response.ok && data.success) {
-        setToken(data.token);
+        setToken('cookie-based'); // Token artık HttpOnly cookie'de
         setUser(data.user);
-
-        localStorage.setItem('auth_token', data.token);
-        localStorage.setItem('auth_user', JSON.stringify(data.user));
-
         return { success: true };
       } else {
         return { success: false, error: data.error || 'Giriş başarısız' };
@@ -122,18 +164,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Çıkış yap
-  const logout = () => {
+  const logout = async () => {
+    try {
+      // Backend'e logout isteği gönder (cookie'leri temizler)
+      await fetch(`${API_BASE_URL}/api/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+
     setToken(null);
     setUser(null);
+
+    // Geriye uyumluluk: eski localStorage verilerini temizle
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_user');
   };
 
   // Kullanıcı bilgilerini yenile
   const refreshUser = async () => {
-    if (token) {
-      await verifyToken(token);
-    }
+    await verifyAndLoadUser();
   };
 
   // isLoading: mounted olmadan veya auth kontrolü tamamlanmadan true
@@ -143,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     token,
     isLoading: actualIsLoading,
-    isAuthenticated: mounted && !!user && !!token,
+    isAuthenticated: mounted && !!user,
     isAdmin:
       mounted &&
       (user?.role === 'admin' || user?.user_type === 'super_admin' || user?.user_type === 'admin'),
@@ -151,6 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     refreshUser,
+    refreshToken,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

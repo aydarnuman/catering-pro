@@ -38,8 +38,6 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { API_BASE_URL } from '@/lib/config';
 
-const API_URL = `${API_BASE_URL}/api`;
-
 interface Proje {
   id: number;
   ad: string;
@@ -202,7 +200,7 @@ export function BordroImportModal({
 
   const fetchProjeler = async () => {
     try {
-      const res = await fetch(`${API_URL}/bordro-import/projeler`);
+      const res = await fetch(`${API_BASE_URL}/api/bordro-import/projeler`);
       if (res.ok) {
         const data = await res.json();
         setProjeler(data);
@@ -216,8 +214,8 @@ export function BordroImportModal({
     try {
       const url =
         projeId && projeId !== '0'
-          ? `${API_URL}/bordro-import/templates?projeId=${projeId}`
-          : `${API_URL}/bordro-import/templates`;
+          ? `${API_BASE_URL}/api/bordro-import/templates?projeId=${projeId}`
+          : `${API_BASE_URL}/api/bordro-import/templates`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -232,7 +230,7 @@ export function BordroImportModal({
     // Temp dosyayı temizle
     if (analysisResult?.tempFile) {
       try {
-        await fetch(`${API_URL}/bordro-import/cancel`, {
+        await fetch(`${API_BASE_URL}/api/bordro-import/cancel`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tempFile: analysisResult.tempFile }),
@@ -274,7 +272,7 @@ export function BordroImportModal({
         formData.append('templateId', selectedTemplateId);
       }
 
-      const response = await fetch(`${API_URL}/bordro-import/analyze`, {
+      const response = await fetch(`${API_BASE_URL}/api/bordro-import/analyze`, {
         method: 'POST',
         body: formData,
       });
@@ -325,7 +323,7 @@ export function BordroImportModal({
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/bordro-import/templates/from-analysis`, {
+      const response = await fetch(`${API_BASE_URL}/api/bordro-import/templates/from-analysis`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -373,7 +371,7 @@ export function BordroImportModal({
     try {
       const recordsToImport = selectedRecords.map((i) => analysisResult.matched[i]);
 
-      const response = await fetch(`${API_URL}/bordro-import/confirm`, {
+      const response = await fetch(`${API_BASE_URL}/api/bordro-import/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -418,7 +416,7 @@ export function BordroImportModal({
   // Tek personel oluştur
   const handleCreatePersonel = async (record: any, index: number) => {
     try {
-      const response = await fetch(`${API_URL}/bordro-import/create-personel`, {
+      const response = await fetch(`${API_BASE_URL}/api/bordro-import/create-personel`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -490,7 +488,7 @@ export function BordroImportModal({
     for (let i = analysisResult.unmatched.length - 1; i >= 0; i--) {
       try {
         const record = analysisResult.unmatched[i];
-        const response = await fetch(`${API_URL}/bordro-import/create-personel`, {
+        const response = await fetch(`${API_BASE_URL}/api/bordro-import/create-personel`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

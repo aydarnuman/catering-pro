@@ -8,6 +8,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import aiTools from './ai-tools/index.js';
 import { query } from '../database.js';
+import logger from '../utils/logger.js';
 
 /**
  * Fiyat Lookup Servisi
@@ -64,7 +65,7 @@ async function getProductPrices(productNames = null) {
       priceData.source = 'fatura';
       priceData.prices = allInvoicePrices;
       priceData.lastUpdate = allInvoicePrices[0]?.fatura_tarihi;
-      console.log(`💰 [Fiyat] Faturalardan ${allInvoicePrices.length} ürün fiyatı bulundu`);
+      logger.debug(`[Fiyat] Faturalardan ${allInvoicePrices.length} ürün fiyatı bulundu`, { count: allInvoicePrices.length });
       return priceData;
     }
 
@@ -88,17 +89,17 @@ async function getProductPrices(productNames = null) {
       priceData.prices = stockPrices.rows;
       priceData.lastUpdate = stockPrices.rows[0]?.guncelleme_tarihi;
       priceData.warning = '⚠️ Fiyatlar stok kartlarından alındı, fatura verisi bulunamadı. Güncelliğini kontrol edin.';
-      console.log(`📦 [Fiyat] Stok kartlarından ${stockPrices.rows.length} ürün fiyatı bulundu`);
+      logger.debug(`[Fiyat] Stok kartlarından ${stockPrices.rows.length} ürün fiyatı bulundu`, { count: stockPrices.rows.length });
       return priceData;
     }
 
     // 3. HİÇ VERİ YOKSA
     priceData.source = 'yok';
     priceData.warning = '⚠️ Sistemde fiyat verisi bulunamadı. AI tahmini kullanılacak - DOĞRULUĞU GARANTİ DEĞİL!';
-    console.log('❌ [Fiyat] Sistemde fiyat verisi bulunamadı');
+    logger.warn('[Fiyat] Sistemde fiyat verisi bulunamadı', { urunAdi });
 
   } catch (error) {
-    console.error('Fiyat lookup hatası:', error);
+    logger.error('Fiyat lookup hatası', { error: error.message, stack: error.stack, urunAdi });
     priceData.source = 'hata';
     priceData.warning = `⚠️ Fiyat verisi çekilemedi: ${error.message}`;
   }
@@ -130,7 +131,7 @@ async function getCategoryPrices() {
     `);
     return result.rows;
   } catch (error) {
-    console.error('Kategori fiyat hatası:', error);
+    logger.error('Kategori fiyat hatası', { error: error.message, stack: error.stack, kategoriId });
     return [];
   }
 }
@@ -162,7 +163,7 @@ class AIAgentService {
       }
       return this.defaultModel;
     } catch (error) {
-      console.error('Model yükleme hatası, varsayılan kullanılıyor:', error.message);
+      logger.warn('Model yükleme hatası, varsayılan kullanılıyor', { error: error.message });
       return this.defaultModel;
     }
   }
@@ -182,7 +183,7 @@ class AIAgentService {
       
       return result.rows;
     } catch (error) {
-      console.error('Hafıza yükleme hatası:', error);
+      logger.error('Hafıza yükleme hatası', { error: error.message, stack: error.stack });
       return [];
     }
   }
@@ -200,7 +201,7 @@ class AIAgentService {
       
       return { id: result.rows[0]?.id || null };
     } catch (error) {
-      console.error('Konuşma kaydetme hatası:', error);
+      logger.error('Konuşma kaydetme hatası', { error: error.message, stack: error.stack });
       return { id: null };
     }
   }
@@ -223,7 +224,7 @@ class AIAgentService {
         content: this.stripContextFromMessage(row.content) // Context'i kaldır
       }));
     } catch (error) {
-      console.error('Konuşma yükleme hatası:', error);
+      logger.error('Konuşma yükleme hatası', { error: error.message, stack: error.stack });
       return [];
     }
   }
@@ -270,7 +271,7 @@ class AIAgentService {
       }
       return true;
     } catch (error) {
-      console.error('Öğrenme hatası:', error);
+      logger.error('Öğrenme hatası', { error: error.message, stack: error.stack });
       return false;
     }
   }
@@ -297,7 +298,7 @@ class AIAgentService {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error('Şablon yükleme hatası:', error);
+      logger.error('Şablon yükleme hatası', { error: error.message, stack: error.stack });
       return null;
     }
   }
@@ -309,7 +310,7 @@ class AIAgentService {
   async getModelForTemplate(template) {
     // Şablonun özel modeli varsa onu kullan
     if (template && template.preferred_model) {
-      console.log(`🎯 [AI Agent] Şablon modeli: ${template.preferred_model}`);
+      logger.debug(`[AI Agent] Şablon modeli: ${template.preferred_model}`, { model: template.preferred_model });
       return template.preferred_model;
     }
     
@@ -493,10 +494,7 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
     const { sessionId, userId = 'default', templateSlug, pageContext, systemContext } = options;
     
     try {
-      console.log(`🤖 [AI Agent] Sorgu: "${userMessage.substring(0, 100)}..."`);
-      if (templateSlug) console.log(`📋 [AI Agent] Şablon: ${templateSlug}`);
-      if (pageContext?.type) console.log(`📍 [AI Agent] Sayfa Context: ${pageContext.type}${pageContext.id ? '#' + pageContext.id : ''}`);
-      if (systemContext) console.log(`📄 [AI Agent] System Context: ${systemContext.length} karakter`);
+      logger.debug(`[AI Agent] Sorgu: "${userMessage.substring(0, 100)}..."`, { messageLength: userMessage.length, templateSlug, pageContext, systemContextLength: systemContext?.length });
       
       // Sayfa context'i varsa mesajı zenginleştir (OTOMATİK URL-BASED)
       // NOT: systemContext varsa bunu kullan (frontend'den gelen ihale verileri)
@@ -572,7 +570,7 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
         const hasExcludeKeyword = excludePatterns.some(p => p.test(userMessage));
         const isPriceQuestion = hasCostKeyword && !hasExcludeKeyword;
         
-        console.log(`💰 [Fiyat Kontrol] Soru: "${userMessage.substring(0, 50)}..." | Maliyet: ${hasCostKeyword} | Hariç: ${hasExcludeKeyword} | Çek: ${isPriceQuestion}`);
+        logger.debug(`[Fiyat Kontrol] Soru: "${userMessage.substring(0, 50)}..." | Maliyet: ${hasCostKeyword} | Hariç: ${hasExcludeKeyword} | Çek: ${isPriceQuestion}`, { hasCostKeyword, hasExcludeKeyword, isPriceQuestion });
         
         if (isPriceQuestion) {
           const priceData = await getProductPrices();
@@ -657,7 +655,7 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
 
       // 1. Hafızayı yükle
       const memories = await this.loadMemoryContext(userId);
-      console.log(`📚 [AI Agent] ${memories.length} hafıza yüklendi`);
+      logger.debug(`[AI Agent] ${memories.length} hafıza yüklendi`, { memoryCount: memories.length });
 
       // 2. Şablonu yükle (varsa) - preferred_model dahil
       let templatePrompt = null;
@@ -666,9 +664,9 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
         loadedTemplate = await this.getTemplateFromDB(templateSlug);
         if (loadedTemplate) {
           templatePrompt = loadedTemplate.prompt;
-          console.log(`🎯 [AI Agent] Şablon yüklendi: ${loadedTemplate.name}`);
+          logger.debug(`[AI Agent] Şablon yüklendi: ${loadedTemplate.name}`, { templateName: loadedTemplate.name });
           if (loadedTemplate.preferred_model) {
-            console.log(`🧠 [AI Agent] Şablon özel modeli: ${loadedTemplate.preferred_model}`);
+            logger.debug(`[AI Agent] Şablon özel modeli: ${loadedTemplate.preferred_model}`, { model: loadedTemplate.preferred_model });
           }
         }
       }
@@ -677,7 +675,7 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
       let previousConversations = [];
       if (sessionId && conversationHistory.length === 0) {
         previousConversations = await this.loadPreviousConversations(sessionId, 10);
-        console.log(`💬 [AI Agent] ${previousConversations.length} önceki konuşma yüklendi`);
+        logger.debug(`[AI Agent] ${previousConversations.length} önceki konuşma yüklendi`, { conversationCount: previousConversations.length });
       }
 
       // 4. Kullanıcı mesajını kaydet
@@ -704,12 +702,12 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
 
       // Modeli seç: Şablonun özel modeli varsa onu kullan, yoksa global ayarı
       const activeModel = await this.getModelForTemplate(loadedTemplate);
-      console.log(`🧠 [AI Agent] Model: ${activeModel}`);
+      logger.debug(`[AI Agent] Model: ${activeModel}`, { model: activeModel });
 
       // Tool calling döngüsü
       while (iteration < this.maxIterations) {
         iteration++;
-        console.log(`🔄 [AI Agent] İterasyon ${iteration}`);
+        logger.debug(`[AI Agent] İterasyon ${iteration}`, { iteration });
 
         // Claude API çağrısı
         const response = await this.client.messages.create({
@@ -739,7 +737,7 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
           const toolResultContents = [];
           
           for (const toolUse of toolUses) {
-            console.log(`🔧 [AI Agent] Tool çağırılıyor: ${toolUse.name}`);
+            logger.debug(`[AI Agent] Tool çağırılıyor: ${toolUse.name}`, { toolName: toolUse.name });
             
             const result = await aiTools.executeTool(toolUse.name, toolUse.input);
             
@@ -760,7 +758,7 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
           messages.push({ role: 'user', content: toolResultContents });
         } else {
           // Beklenmeyen stop reason
-          console.log(`⚠️ [AI Agent] Beklenmeyen stop_reason: ${response.stop_reason}`);
+          logger.warn(`[AI Agent] Beklenmeyen stop_reason: ${response.stop_reason}`, { stopReason: response.stop_reason });
           const textContent = response.content.find(c => c.type === 'text');
           finalResponse = textContent ? textContent.text : 'Bir sorun oluştu.';
           break;
@@ -768,7 +766,7 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
       }
 
       if (iteration >= this.maxIterations) {
-        console.log(`⚠️ [AI Agent] Maksimum iterasyon sayısına ulaşıldı`);
+        logger.warn('[AI Agent] Maksimum iterasyon sayısına ulaşıldı', { maxIterations });
         finalResponse = 'İşlem çok uzun sürdü, lütfen sorunuzu basitleştirin.';
       }
 
@@ -789,12 +787,12 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
       this.extractLearningFromConversation(userMessage, finalResponse, conversationId)
         .then(result => {
           if (result.facts && result.facts.length > 0) {
-            console.log(`📚 [AI Agent] Otomatik öğrenme: ${result.facts.length} fact`);
+            logger.info(`[AI Agent] Otomatik öğrenme: ${result.facts.length} fact`, { factCount: result.facts.length });
           }
         })
-        .catch(err => console.error('Öğrenme hatası:', err.message));
+        .catch(err => logger.error('Öğrenme hatası', { error: err.message, stack: err.stack }));
 
-      console.log(`✅ [AI Agent] Cevap hazırlandı (${iteration} iterasyon, model: ${activeModel})`);
+      logger.info(`[AI Agent] Cevap hazırlandı (${iteration} iterasyon, model: ${activeModel})`, { iteration, model: activeModel });
 
       return {
         success: true,
@@ -808,7 +806,7 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
       };
 
     } catch (error) {
-      console.error('❌ [AI Agent] Hata:', error);
+      logger.error('[AI Agent] Hata', { error: error.message, stack: error.stack });
       
       return {
         success: false,

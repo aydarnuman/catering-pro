@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { API_BASE_URL } from '@/lib/config';
+import { tendersAPI } from '@/lib/api/services/tenders';
 import { AnalysisData, SavedTender, FirmaBilgisi } from '../types';
 
 export interface UseIhaleDataReturn {
@@ -41,10 +41,7 @@ export function useIhaleData(tender: SavedTender | null, opened: boolean): UseIh
     if (!tender) return;
     try {
       setAnalysisLoading(true);
-      const response = await fetch(
-        `${API_BASE_URL}/api/tender-tracking/${tender.tender_id}/analysis`
-      );
-      const result = await response.json();
+      const result = await tendersAPI.getTrackingAnalysis(tender.tender_id);
       if (result.success && result.data) {
         setLiveAnalysisData(result.data.analysis);
         setAnalysisStats(result.data.stats);
@@ -59,24 +56,13 @@ export function useIhaleData(tender: SavedTender | null, opened: boolean): UseIh
   // Hide (remove) an AI note
   const hideNote = useCallback(async (noteId: string, noteText: string) => {
     if (!tender) return;
-    
-    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-    const response = await fetch(
-      `${API_BASE_URL}/api/tender-tracking/${tender.tender_id}/hide-note`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : '',
-        },
-        body: JSON.stringify({ noteId, noteText }),
-      }
-    );
-    
-    if (!response.ok) {
+
+    const result = await tendersAPI.hideTrackingNote(tender.tender_id, noteId, noteText);
+
+    if (!result.success) {
       throw new Error('Not gizleme başarısız');
     }
-    
+
     // Analiz verilerini yeniden yükle (gizlenen not listeden çıkacak)
     await loadAnalysisData();
   }, [tender, loadAnalysisData]);
@@ -84,13 +70,7 @@ export function useIhaleData(tender: SavedTender | null, opened: boolean): UseIh
   // Load firmalar
   const loadFirmalar = useCallback(async () => {
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-      const response = await fetch(`${API_BASE_URL}/api/firmalar`, {
-        headers: { 
-          Authorization: token ? `Bearer ${token}` : '',
-        },
-      });
-      const data = await response.json();
+      const data = await tendersAPI.getFirmalar();
       if (data.success && data.data) {
         setFirmalar(data.data);
         // Varsayılan firmayı seç

@@ -37,9 +37,8 @@ import {
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
-
-const API_URL = `${API_BASE_URL}/api`;
+import { aiAPI } from '@/lib/api/services/ai';
+import { formatDate } from '@/lib/formatters';
 
 interface ConversationSummary {
   session_id: string;
@@ -77,11 +76,10 @@ export default function ChatHistoryPage() {
   const fetchConversations = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/ai/conversations?limit=100`);
-      const data = await response.json();
+      const data = await aiAPI.getConversations({ limit: 100 });
 
       if (data.success) {
-        setConversations(data.conversations);
+        setConversations((data as any).conversations || []);
       } else {
         notifications.show({
           title: 'Hata',
@@ -117,14 +115,11 @@ export default function ChatHistoryPage() {
 
     try {
       setSearching(true);
-      const response = await fetch(
-        `${API_URL}/ai/conversations/search?q=${encodeURIComponent(searchQuery)}&limit=50`
-      );
-      const data = await response.json();
+      const data = await aiAPI.searchConversations(searchQuery, 50);
 
       if (data.success) {
-        setSearchResults(data.results);
-        if (data.results.length === 0) {
+        setSearchResults((data as any).results || []);
+        if (!(data as any).results || (data as any).results.length === 0) {
           notifications.show({
             title: 'Sonuç Yok',
             message: 'Aramanızla eşleşen sonuç bulunamadı',
@@ -150,11 +145,10 @@ export default function ChatHistoryPage() {
       setSelectedSession(sessionId);
       setDetailModalOpen(true);
 
-      const response = await fetch(`${API_URL}/ai/conversations/${sessionId}`);
-      const data = await response.json();
+      const data = await aiAPI.getConversation(sessionId);
 
       if (data.success) {
-        setSessionMessages(data.messages);
+        setSessionMessages((data as any).messages || []);
       } else {
         notifications.show({
           title: 'Hata',
@@ -180,15 +174,12 @@ export default function ChatHistoryPage() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/ai/conversations/${sessionId}`, {
-        method: 'DELETE',
-      });
-      const data = await response.json();
+      const data = await aiAPI.deleteConversation(sessionId);
 
       if (data.success) {
         notifications.show({
           title: 'Başarılı',
-          message: `${data.deletedCount} mesaj silindi`,
+          message: `${(data as any).deletedCount || 0} mesaj silindi`,
           color: 'green',
         });
         fetchConversations();
@@ -209,18 +200,6 @@ export default function ChatHistoryPage() {
         color: 'red',
       });
     }
-  };
-
-  // Tarih formatla
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('tr-TR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   // Zaman farkı hesapla

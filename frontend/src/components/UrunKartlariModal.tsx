@@ -35,10 +35,10 @@ import {
   IconTrash,
   IconX,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
-
-const API_URL = `${API_BASE_URL}/api`;
+import { useEffect, useState, useMemo } from 'react';
+import { useResponsive } from '@/hooks/useResponsive';
+import { formatMoney } from '@/lib/formatters';
+import { urunlerAPI } from '@/lib/api/services/urunler';
 
 // Birimler
 const BIRIMLER = [
@@ -85,6 +85,8 @@ interface UrunKarti {
   ikon: string | null;
   aktif: boolean;
   durum: 'normal' | 'dusuk' | 'kritik' | 'fazla' | 'tukendi';
+  ana_urun_id?: number | null;
+  varyant_tipi?: string | null;
 }
 
 interface Props {
@@ -94,6 +96,8 @@ interface Props {
 }
 
 export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Props) {
+  const { isMobile, isMounted } = useResponsive();
+  
   // States
   const [kategoriler, setKategoriler] = useState<Kategori[]>([]);
   const [urunler, setUrunler] = useState<UrunKarti[]>([]);
@@ -109,6 +113,9 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
 
   // Seçili ürün
   const [selectedUrun, setSelectedUrun] = useState<UrunKarti | null>(null);
+  
+  // Mobil görünüm - panel kontrolü
+  const [mobileShowDetail, setMobileShowDetail] = useState(false);
 
   // Düzenleme/Yeni ekleme modu
   const [editMode, setEditMode] = useState(false);
@@ -133,10 +140,9 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
   // Kategorileri yükle
   const fetchKategoriler = async () => {
     try {
-      const res = await fetch(`${API_URL}/urunler/kategoriler/liste`);
-      const result = await res.json();
+      const result = await urunlerAPI.getKategoriler() as any;
       if (result.success) {
-        setKategoriler(result.data);
+        setKategoriler(result.data as any);
       }
     } catch (error) {
       console.error('Kategori yükleme hatası:', error);
@@ -151,10 +157,12 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
       if (selectedKategori) params.append('kategori_id', selectedKategori);
       if (aramaText) params.append('arama', aramaText);
 
-      const res = await fetch(`${API_URL}/urunler?${params}`);
-      const result = await res.json();
+      const result = await urunlerAPI.getUrunler({
+        kategori_id: selectedKategori || undefined,
+        arama: aramaText || undefined,
+      }) as any;
       if (result.success) {
-        setUrunler(result.data);
+        setUrunler(result.data as any);
       }
     } catch (error) {
       console.error('Ürün yükleme hatası:', error);
@@ -174,6 +182,28 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, aramaText, selectedKategori]);
 
+  // Filtrelenmiş ürünler (client-side ek filtreleme için)
+  const filteredUrunler = useMemo(() => {
+    return urunler.filter((urun) => {
+      // Arama metni kontrolü
+      if (aramaText) {
+        const searchLower = aramaText.toLowerCase();
+        const matchesSearch = 
+          urun.ad.toLowerCase().includes(searchLower) ||
+          urun.kod.toLowerCase().includes(searchLower) ||
+          (urun.barkod && urun.barkod.toLowerCase().includes(searchLower));
+        if (!matchesSearch) return false;
+      }
+      
+      // Kategori kontrolü (API'de zaten filtreleniyor ama client-side da kontrol edelim)
+      if (selectedKategori && urun.kategori_id !== parseInt(selectedKategori, 10)) {
+        return false;
+      }
+      
+      return true;
+    });
+  }, [urunler, aramaText, selectedKategori]);
+
   // Yeni ürün oluştur
   const handleYeniUrun = async () => {
     if (!formData.ad.trim()) {
@@ -182,16 +212,10 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
     }
 
     try {
-      const res = await fetch(`${API_URL}/urunler`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ad: formData.ad,
-          kategori_id: formData.kategori_id ? parseInt(formData.kategori_id, 10) : null,
-        }),
+      const result = await urunlerAPI.createUrun({
+        ad: formData.ad,
+        kategori_id: formData.kategori_id ? parseInt(formData.kategori_id, 10) : undefined,
       });
-
-      const result = await res.json();
 
       if (result.success) {
         notifications.show({
@@ -204,7 +228,11 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
         fetchUrunler();
         fetchKategoriler();
       } else {
-        notifications.show({ title: 'Hata', message: result.error, color: 'red' });
+        notifications.show({ 
+          title: 'Hata', 
+          message: result.error || 'Ürün oluşturulamadı', 
+          color: 'red' 
+        });
       }
     } catch (error) {
       console.error('Ürün oluşturma hatası:', error);
@@ -217,16 +245,10 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
     if (!selectedUrun) return;
 
     try {
-      const res = await fetch(`${API_URL}/urunler/${selectedUrun.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ad: formData.ad,
-          kategori_id: formData.kategori_id ? parseInt(formData.kategori_id, 10) : null,
-        }),
+      const result = await urunlerAPI.updateUrun(selectedUrun.id, {
+        ad: formData.ad,
+        kategori_id: formData.kategori_id ? parseInt(formData.kategori_id, 10) : undefined,
       });
-
-      const result = await res.json();
 
       if (result.success) {
         notifications.show({
@@ -238,9 +260,13 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
         fetchUrunler();
         fetchKategoriler();
         // Seçili ürünü güncelle
-        setSelectedUrun({ ...selectedUrun, ...result.data });
+        setSelectedUrun({ ...selectedUrun, ...result.data } as any);
       } else {
-        notifications.show({ title: 'Hata', message: result.error, color: 'red' });
+        notifications.show({ 
+          title: 'Hata', 
+          message: result.error || 'Ürün güncellenemedi', 
+          color: 'red' 
+        });
       }
     } catch (error) {
       console.error('Ürün güncelleme hatası:', error);
@@ -253,11 +279,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
     if (!confirm('Bu ürün kartını silmek istediğinize emin misiniz?')) return;
 
     try {
-      const res = await fetch(`${API_URL}/urunler/${urunId}`, {
-        method: 'DELETE',
-      });
-
-      const result = await res.json();
+      const result = await urunlerAPI.deleteUrun(urunId);
 
       if (result.success) {
         notifications.show({
@@ -271,11 +293,22 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
         fetchUrunler();
         fetchKategoriler();
       } else {
-        notifications.show({ title: 'Hata', message: result.error, color: 'red' });
+        notifications.show({ 
+          title: 'Hata', 
+          message: result.error || 'Ürün silinemedi', 
+          color: 'red' 
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Ürün silme hatası:', error);
-      notifications.show({ title: 'Hata', message: 'Ürün silinemedi', color: 'red' });
+      const errorMessage = error.message === 'Failed to fetch' 
+        ? 'Backend sunucusuna bağlanılamıyor. Lütfen backend\'in çalıştığından emin olun.'
+        : error.message || 'Ürün silinemedi';
+      notifications.show({ 
+        title: 'Hata', 
+        message: errorMessage, 
+        color: 'red' 
+      });
     }
   };
 
@@ -310,14 +343,17 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
     }
     // Detay bilgilerini yükle
     await loadUrunDetay(urun.id);
+    // Mobilde detay paneline geç
+    if (isMobile && isMounted) {
+      setMobileShowDetail(true);
+    }
   };
   
   // Ürün detayını yükle
   const loadUrunDetay = async (id: number) => {
     setDetayLoading(true);
     try {
-      const res = await fetch(`${API_URL}/urunler/${id}`);
-      const result = await res.json();
+      const result = await urunlerAPI.getUrun(id);
       if (result.success) {
         setUrunDetay(result.data);
       } else {
@@ -343,20 +379,19 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
     });
   };
 
-  const formatMoney = (value: number | string | null | undefined) => {
-    if (value === null || value === undefined) return '—';
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    if (Number.isNaN(num)) return '—';
-    return new Intl.NumberFormat('tr-TR', {
-      style: 'currency',
-      currency: 'TRY',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(num);
-  };
 
-  // Filtrelenmiş ürünler
-  const filteredUrunler = urunler;
+  // Filtrelenmiş ürünler - Ana ürünler ve varyantları grupla
+  const anaUrunler = urunler.filter(u => !u.ana_urun_id);
+  const varyantlar = urunler.filter(u => u.ana_urun_id);
+  
+  // Ana ürünleri varyantlarıyla birlikte grupla
+  const gruplanmisUrunler = anaUrunler.map(ana => ({
+    ana,
+    varyantlar: varyantlar.filter(v => v.ana_urun_id === ana.id)
+  }));
+  
+  // Toplam sayı (ana + varyant)
+  const toplamUrunSayisi = urunler.length;
 
   return (
     <Modal
@@ -365,37 +400,45 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
       title={
         <Group gap="sm">
           <ThemeIcon
-            size="lg"
+            size={isMobile && isMounted ? 'md' : 'lg'}
             radius="xl"
             variant="gradient"
             gradient={{ from: 'violet', to: 'indigo' }}
           >
-            <IconPackage size={20} />
+            <IconPackage size={isMobile && isMounted ? 16 : 20} />
           </ThemeIcon>
           <Box>
-            <Text fw={600} size="lg">
+            <Text fw={600} size={isMobile && isMounted ? 'md' : 'lg'}>
               Ürün Kartları
             </Text>
-            <Text size="xs" c="dimmed">
-              Reçete malzemeleri için temiz ürün tanımları
-            </Text>
+            {(!isMobile || !isMounted) && (
+              <Text size="xs" c="dimmed">
+                Reçete malzemeleri için temiz ürün tanımları
+              </Text>
+            )}
           </Box>
         </Group>
       }
-      size="95%"
+      size={isMobile && isMounted ? '100%' : '95%'}
+      fullScreen={isMobile && isMounted}
       styles={{
         body: { padding: 0 },
-        content: { height: '90vh' },
+        content: { height: isMobile && isMounted ? '100%' : '90vh' },
       }}
     >
-      <Box style={{ display: 'flex', height: 'calc(90vh - 70px)' }}>
+      <Box style={{ 
+        display: 'flex', 
+        flexDirection: isMobile && isMounted ? 'column' : 'row',
+        height: isMobile && isMounted ? 'calc(100vh - 60px)' : 'calc(90vh - 70px)' 
+      }}>
         {/* Sol Panel - Ürün Listesi */}
         <Box
           style={{
-            width: 350,
-            borderRight: '1px solid var(--mantine-color-default-border)',
-            display: 'flex',
+            width: isMobile && isMounted ? '100%' : 350,
+            borderRight: isMobile && isMounted ? 'none' : '1px solid var(--mantine-color-default-border)',
+            display: isMobile && isMounted && mobileShowDetail ? 'none' : 'flex',
             flexDirection: 'column',
+            flex: isMobile && isMounted ? 1 : undefined,
           }}
         >
           {/* Arama ve Filtre */}
@@ -412,7 +455,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                 placeholder="Kategori seç"
                 data={kategoriler.map((k) => ({
                   value: k.id.toString(),
-                  label: `${k.ikon} ${k.ad} (${k.urun_sayisi})`,
+                  label: `${k.ad} (${k.urun_sayisi})`,
                 }))}
                 value={selectedKategori}
                 onChange={setSelectedKategori}
@@ -444,7 +487,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
               <Center py="xl">
                 <Loader color="violet" />
               </Center>
-            ) : filteredUrunler.length === 0 ? (
+            ) : gruplanmisUrunler.length === 0 ? (
               <Center py="xl">
                 <Text c="dimmed" size="sm">
                   Ürün bulunamadı
@@ -452,86 +495,175 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
               </Center>
             ) : (
               <Stack gap={0}>
-                {filteredUrunler.map((urun) => {
-                  const isSelected = selectedUrun?.id === urun.id;
+                {gruplanmisUrunler.map(({ ana, varyantlar: anaVaryantlar }) => {
+                  const isAnaSelected = selectedUrun?.id === ana.id;
+                  
                   return (
-                    <Box
-                      key={urun.id}
-                      p="xs"
-                      style={{
-                        borderBottom: '1px solid var(--mantine-color-default-border)',
-                        cursor: 'pointer',
-                        background: isSelected ? 'var(--mantine-color-violet-light)' : undefined,
-                        transition: 'background 0.15s',
-                      }}
-                      onClick={() => {
-                        handleUrunSec(urun);
-                        setShowYeniUrun(false);
-                        setEditMode(false);
-                      }}
-                    >
-                      <Group justify="space-between" wrap="nowrap">
-                        <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-                              <Text size="lg">{urun.ikon || urun.kategori_ikon || '📦'}</Text>
-                          <Box style={{ flex: 1, minWidth: 0 }}>
-                            <Text fw={500} size="sm" truncate>
-                              {urun.ad}
-                            </Text>
-                            <Group gap={4}>
-                              <Badge size="xs" variant="light" color="gray">
-                                {urun.kod}
-                              </Badge>
-                              {urun.son_alis_fiyati && (
-                                <Badge size="xs" variant="filled" color="green">
-                                  {formatMoney(urun.son_alis_fiyati)}/{urun.birim_kisa || 'kg'}
+                    <Box key={ana.id}>
+                      {/* Ana Ürün */}
+                      <Box
+                        p="xs"
+                        style={{
+                          borderBottom: '1px solid var(--mantine-color-default-border)',
+                          cursor: 'pointer',
+                          background: isAnaSelected ? 'var(--mantine-color-violet-light)' : undefined,
+                          transition: 'background 0.15s',
+                        }}
+                        onClick={() => {
+                          handleUrunSec(ana);
+                          setShowYeniUrun(false);
+                          setEditMode(false);
+                        }}
+                      >
+                        <Group justify="space-between" wrap="wrap">
+                          <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                            <Box style={{ flex: 1, minWidth: 0 }}>
+                              <Text fw={500} size="sm" truncate>
+                                {ana.ad}
+                              </Text>
+                              <Group gap={4}>
+                                <Badge size="xs" variant="light" color="gray">
+                                  {ana.kod}
                                 </Badge>
-                              )}
-                              <Badge 
-                                size="xs" 
-                                variant="light" 
-                                color={urun.durum === 'normal' ? 'green' : urun.durum === 'tukendi' ? 'red' : 'orange'}
+                                {ana.son_alis_fiyati && (
+                                  <Badge size="xs" variant="filled" color="green">
+                                    {formatMoney(ana.son_alis_fiyati, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}/{ana.birim_kisa || 'kg'}
+                                  </Badge>
+                                )}
+                                <Badge 
+                                  size="xs" 
+                                  variant="light" 
+                                  color={ana.durum === 'normal' ? 'green' : ana.durum === 'tukendi' ? 'red' : 'orange'}
+                                >
+                                  {ana.durum === 'tukendi' ? 'Stok Yok' : ana.durum === 'kritik' ? 'Kritik' : ana.durum === 'dusuk' ? 'Düşük' : ''}
+                                </Badge>
+                                {anaVaryantlar.length > 0 && (
+                                  <Badge size="xs" variant="dot" color="violet">
+                                    {anaVaryantlar.length} varyant
+                                  </Badge>
+                                )}
+                              </Group>
+                            </Box>
+                          </Group>
+                          <Menu shadow="md" width={130} position="bottom-end">
+                            <Menu.Target>
+                              <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                size="sm"
+                                onClick={(e) => e.stopPropagation()}
                               >
-                                {urun.durum === 'tukendi' ? 'Stok Yok' : urun.durum === 'kritik' ? 'Kritik' : urun.durum === 'dusuk' ? 'Düşük' : ''}
-                              </Badge>
-                            </Group>
-                          </Box>
+                                <IconDotsVertical size={14} />
+                              </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                              <Menu.Item
+                                leftSection={<IconEdit size={14} />}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUrunSec(ana);
+                                  startEdit(ana);
+                                  setShowYeniUrun(false);
+                                }}
+                              >
+                                Düzenle
+                              </Menu.Item>
+                              <Menu.Item
+                                leftSection={<IconTrash size={14} />}
+                                color="red"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSil(ana.id);
+                                }}
+                              >
+                                Sil
+                              </Menu.Item>
+                            </Menu.Dropdown>
+                          </Menu>
                         </Group>
-                        <Menu shadow="md" width={130} position="bottom-end">
-                          <Menu.Target>
-                            <ActionIcon
-                              variant="subtle"
-                              color="gray"
-                              size="sm"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <IconDotsVertical size={14} />
-                            </ActionIcon>
-                          </Menu.Target>
-                          <Menu.Dropdown>
-                            <Menu.Item
-                              leftSection={<IconEdit size={14} />}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleUrunSec(urun);
-                                startEdit(urun);
-                                setShowYeniUrun(false);
-                              }}
-                            >
-                              Düzenle
-                            </Menu.Item>
-                            <Menu.Item
-                              leftSection={<IconTrash size={14} />}
-                              color="red"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSil(urun.id);
-                              }}
-                            >
-                              Sil
-                            </Menu.Item>
-                          </Menu.Dropdown>
-                        </Menu>
-                      </Group>
+                      </Box>
+                      
+                      {/* Varyantlar - Girintili */}
+                      {anaVaryantlar.length > 0 && (
+                        <Box pl="md" style={{ borderLeft: '2px solid var(--mantine-color-violet-2)' }}>
+                          {anaVaryantlar.map((varyant) => {
+                            const isVaryantSelected = selectedUrun?.id === varyant.id;
+                            return (
+                              <Box
+                                key={varyant.id}
+                                p="xs"
+                                style={{
+                                  borderBottom: '1px solid var(--mantine-color-default-border)',
+                                  cursor: 'pointer',
+                                  background: isVaryantSelected ? 'var(--mantine-color-violet-light)' : 'var(--mantine-color-gray-0)',
+                                  transition: 'background 0.15s',
+                                }}
+                                onClick={() => {
+                                  handleUrunSec(varyant);
+                                  setShowYeniUrun(false);
+                                  setEditMode(false);
+                                }}
+                              >
+                                <Group justify="space-between" wrap="wrap">
+                                  <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                                    <Text size="sm" c="dimmed">└─</Text>
+                                    <Box style={{ flex: 1, minWidth: 0 }}>
+                                      <Text fw={400} size="xs" truncate c="dimmed">
+                                        {varyant.ad}
+                                      </Text>
+                                      <Group gap={4}>
+                                        <Badge size="xs" variant="light" color="gray">
+                                          {varyant.kod}
+                                        </Badge>
+                                        {varyant.son_alis_fiyati && (
+                                          <Badge size="xs" variant="filled" color="green">
+                                            {formatMoney(varyant.son_alis_fiyati, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}/{varyant.birim_kisa || 'kg'}
+                                          </Badge>
+                                        )}
+                                      </Group>
+                                    </Box>
+                                  </Group>
+                                  <Menu shadow="md" width={130} position="bottom-end">
+                                    <Menu.Target>
+                                      <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
+                                        size="sm"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <IconDotsVertical size={12} />
+                                      </ActionIcon>
+                                    </Menu.Target>
+                                    <Menu.Dropdown>
+                                      <Menu.Item
+                                        leftSection={<IconEdit size={14} />}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleUrunSec(varyant);
+                                          startEdit(varyant);
+                                          setShowYeniUrun(false);
+                                        }}
+                                      >
+                                        Düzenle
+                                      </Menu.Item>
+                                      <Menu.Item
+                                        leftSection={<IconTrash size={14} />}
+                                        color="red"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleSil(varyant.id);
+                                        }}
+                                      >
+                                        Sil
+                                      </Menu.Item>
+                                    </Menu.Dropdown>
+                                  </Menu>
+                                </Group>
+                              </Box>
+                            );
+                          })}
+                        </Box>
+                      )}
                     </Box>
                   );
                 })}
@@ -542,13 +674,47 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
           {/* Alt Bilgi */}
           <Box p="xs" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
             <Text size="xs" c="dimmed" ta="center">
-              {filteredUrunler.length} ürün kartı
+              {toplamUrunSayisi} ürün kartı ({anaUrunler.length} ana, {varyantlar.length} varyant)
             </Text>
           </Box>
         </Box>
 
         {/* Sağ Panel - Detay/Form */}
-        <Box style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <Box style={{ 
+          flex: 1, 
+          display: isMobile && isMounted && !mobileShowDetail && !showYeniUrun && !editMode ? 'none' : 'flex', 
+          flexDirection: 'column', 
+          overflow: 'hidden',
+          position: isMobile && isMounted ? 'absolute' : 'relative',
+          top: isMobile && isMounted ? 0 : undefined,
+          left: isMobile && isMounted ? 0 : undefined,
+          right: isMobile && isMounted ? 0 : undefined,
+          bottom: isMobile && isMounted ? 0 : undefined,
+          background: 'var(--mantine-color-body)',
+          zIndex: isMobile && isMounted ? 10 : undefined,
+        }}>
+          {/* Mobilde geri butonu */}
+          {isMobile && isMounted && (mobileShowDetail || showYeniUrun || editMode) && (
+            <Box p="xs" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
+              <Button
+                variant="subtle"
+                color="gray"
+                size="xs"
+                onClick={() => {
+                  setMobileShowDetail(false);
+                  if (showYeniUrun || editMode) {
+                    setShowYeniUrun(false);
+                    setEditMode(false);
+                    resetForm();
+                  }
+                }}
+                leftSection={<IconX size={14} />}
+              >
+                Geri
+              </Button>
+            </Box>
+          )}
+          
           <ScrollArea style={{ flex: 1 }} p="md">
             {showYeniUrun || editMode ? (
               // Yeni Ürün / Düzenleme Formu
@@ -557,17 +723,19 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                   <Text fw={600} size="lg">
                     {editMode ? '✏️ Ürün Kartını Düzenle' : '➕ Yeni Ürün Kartı'}
                   </Text>
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    onClick={() => {
-                      setShowYeniUrun(false);
-                      setEditMode(false);
-                      resetForm();
-                    }}
-                  >
-                    <IconX size={18} />
-                  </ActionIcon>
+                  {(!isMobile || !isMounted) && (
+                    <ActionIcon
+                      variant="subtle"
+                      color="gray"
+                      onClick={() => {
+                        setShowYeniUrun(false);
+                        setEditMode(false);
+                        resetForm();
+                      }}
+                    >
+                      <IconX size={18} />
+                    </ActionIcon>
+                  )}
                 </Group>
 
                 <Divider />
@@ -585,7 +753,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                     placeholder="Kategori seç"
                     data={kategoriler.map((k) => ({
                       value: k.id.toString(),
-                      label: `${k.ikon} ${k.ad}`,
+                      label: k.ad,
                     }))}
                     value={formData.kategori_id}
                     onChange={(val) => setFormData({ ...formData, kategori_id: val || '' })}
@@ -628,9 +796,6 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
               <Stack gap="md">
                 <Group justify="space-between">
                   <Group gap="sm">
-                    <Text size="2rem">
-                      {selectedUrun.ikon || selectedUrun.kategori_ikon || '📦'}
-                    </Text>
                     <Box>
                       <Text fw={600} size="xl">
                         {selectedUrun.ad}
@@ -674,7 +839,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                   </Paper>
                   <Paper p="sm" withBorder radius="md" ta="center" bg={selectedUrun.son_alis_fiyati ? 'green.0' : undefined}>
                     <Text size="xs" c="dimmed">Son Alış</Text>
-                    <Text fw={600} c={selectedUrun.son_alis_fiyati ? 'green' : 'dimmed'}>{formatMoney(selectedUrun.son_alis_fiyati)}</Text>
+                    <Text fw={600} c={selectedUrun.son_alis_fiyati ? 'green' : 'dimmed'}>{formatMoney(selectedUrun.son_alis_fiyati, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</Text>
                   </Paper>
                   <Paper p="sm" withBorder radius="md" ta="center">
                     <Text size="xs" c="dimmed">Min / Kritik</Text>
@@ -748,7 +913,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                                   <Text size="xs" lineClamp={1}>{fg.tedarikci || '-'}</Text>
                                 </Table.Td>
                                 <Table.Td>
-                                  <Text size="xs" fw={500} c="blue">{formatMoney(fg.fiyat)}</Text>
+                                  <Text size="xs" fw={500} c="blue">{formatMoney(fg.fiyat, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</Text>
                                 </Table.Td>
                               </Table.Tr>
                             ))}

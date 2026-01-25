@@ -355,14 +355,14 @@ function FirmaProjelerSection({
   handleOpenFirmaModal,
   handleDeleteFirma,
   handleSetVarsayilan,
-  API_URL,
+  API_BASE_URL,
 }: {
   firmalar: FirmaBilgileri[];
   firmaLoading: boolean;
   handleOpenFirmaModal: (firma?: FirmaBilgileri) => void;
   handleDeleteFirma: (id: number) => void;
   handleSetVarsayilan: (id: number) => void;
-  API_URL: string;
+  API_BASE_URL: string;
 }) {
   const [projeler, setProjeler] = useState<Proje[]>([]);
   const [loadingProjeler, setLoadingProjeler] = useState(true);
@@ -399,7 +399,7 @@ function FirmaProjelerSection({
     try {
       setLoadingProjeler(true);
       const token = getToken();
-      const res = await fetch(`${API_URL}/api/projeler`, {
+      const res = await fetch(`${API_BASE_URL}/api/projeler`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -419,7 +419,7 @@ function FirmaProjelerSection({
     try {
       setLoadingDokumanlar(true);
       const token = getToken();
-      const res = await fetch(`${API_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar`, {
+      const res = await fetch(`${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -442,10 +442,10 @@ function FirmaProjelerSection({
 
       // Paralel olarak hem şablonları hem firma ekstra alanlarını çek
       const [sablonRes, ekstraRes] = await Promise.all([
-        fetch(`${API_URL}/api/firmalar/alan-sablonlari`, {
+        fetch(`${API_BASE_URL}/api/firmalar/alan-sablonlari`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`${API_URL}/api/firmalar/${varsayilanFirma.id}/ekstra-alanlar`, {
+        fetch(`${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/ekstra-alanlar`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -472,7 +472,7 @@ function FirmaProjelerSection({
 
     try {
       const token = getToken();
-      const res = await fetch(`${API_URL}/api/firmalar/${varsayilanFirma.id}/ekstra-alan`, {
+      const res = await fetch(`${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/ekstra-alan`, {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -506,7 +506,7 @@ function FirmaProjelerSection({
     try {
       const token = getToken();
       const res = await fetch(
-        `${API_URL}/api/firmalar/${varsayilanFirma.id}/ekstra-alan/${alanAdi}`,
+        `${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/ekstra-alan/${alanAdi}`,
         {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` },
@@ -541,7 +541,7 @@ function FirmaProjelerSection({
       formData.append('auto_fill', 'false'); // İlk yüklemede otomatik doldurma yapma, kullanıcı seçsin
 
       const token = getToken();
-      const res = await fetch(`${API_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar`, {
+      const res = await fetch(`${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -585,7 +585,7 @@ function FirmaProjelerSection({
     try {
       const token = getToken();
       const res = await fetch(
-        `${API_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar/${selectedDokumanForApply.id}/veriyi-uygula`,
+        `${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar/${selectedDokumanForApply.id}/veriyi-uygula`,
         {
           method: 'POST',
           headers: {
@@ -625,7 +625,7 @@ function FirmaProjelerSection({
     try {
       const token = getToken();
       const res = await fetch(
-        `${API_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar/${dokumanId}`,
+        `${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar/${dokumanId}`,
         {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` },
@@ -660,7 +660,7 @@ function FirmaProjelerSection({
 
       const token = getToken();
       const res = await fetch(
-        `${API_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar/${dokuman.id}/yeniden-analiz`,
+        `${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar/${dokuman.id}/yeniden-analiz`,
         {
           method: 'POST',
           headers: {
@@ -723,7 +723,7 @@ function FirmaProjelerSection({
       try {
         const token = getToken();
         const res = await fetch(
-          `${API_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar/${doc.id}/yeniden-analiz`,
+          `${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar/${doc.id}/yeniden-analiz`,
           {
             method: 'POST',
             headers: {
@@ -756,7 +756,7 @@ function FirmaProjelerSection({
 
     const token = getToken();
     window.open(
-      `${API_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar-zip?token=${token}`,
+      `${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar-zip?token=${token}`,
       '_blank'
     );
   };
@@ -767,7 +767,7 @@ function FirmaProjelerSection({
 
     const token = getToken();
     window.open(
-      `${API_URL}/api/firmalar/${varsayilanFirma.id}/export?format=excel&token=${token}`,
+      `${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/export?format=excel&token=${token}`,
       '_blank'
     );
   };
@@ -1442,7 +1442,7 @@ function FirmaProjelerSection({
                                         color="blue"
                                         size="sm"
                                         onClick={() =>
-                                          window.open(`${API_URL}${doc.dosya_url}`, '_blank')
+                                          window.open(`${API_BASE_URL}${doc.dosya_url}`, '_blank')
                                         }
                                       >
                                         <IconEye size={14} />
@@ -1765,7 +1765,6 @@ const colorOptions = [
 ];
 
 function AyarlarContent() {
-  const API_URL = API_BASE_URL;
   const router = useRouter();
   const searchParams = useSearchParams();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
@@ -1810,7 +1809,7 @@ function AyarlarContent() {
       try {
         const token = localStorage.getItem('token');
         if (token) {
-          const res = await fetch(`${API_URL}/api/auth/me`, {
+          const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (res.ok) {
@@ -1833,14 +1832,14 @@ function AyarlarContent() {
       setPreferences({ ...defaultPreferences, ...JSON.parse(savedPrefs) });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [API_URL]);
+  }, []);
 
   // Firmaları API'den yükle
   const fetchFirmalar = useCallback(async () => {
     try {
       setFirmaLoading(true);
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/api/firmalar`, {
+      const res = await fetch(`${API_BASE_URL}/api/firmalar`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -1852,7 +1851,7 @@ function AyarlarContent() {
     } finally {
       setFirmaLoading(false);
     }
-  }, [API_URL]);
+  }, []);
 
   // İlk yüklemede firmaları getir
   useEffect(() => {
@@ -1907,8 +1906,8 @@ function AyarlarContent() {
     try {
       const token = localStorage.getItem('token');
       const url = editingFirma
-        ? `${API_URL}/api/firmalar/${editingFirma.id}`
-        : `${API_URL}/api/firmalar`;
+        ? `${API_BASE_URL}/api/firmalar/${editingFirma.id}`
+        : `${API_BASE_URL}/api/firmalar`;
 
       const res = await fetch(url, {
         method: editingFirma ? 'PUT' : 'POST',
@@ -1949,7 +1948,7 @@ function AyarlarContent() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/api/firmalar/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/firmalar/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -1975,7 +1974,7 @@ function AyarlarContent() {
   const handleSetVarsayilan = async (id: number) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/api/firmalar/${id}/varsayilan`, {
+      const res = await fetch(`${API_BASE_URL}/api/firmalar/${id}/varsayilan`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -2010,7 +2009,7 @@ function AyarlarContent() {
       formData.append('belge_tipi', selectedBelgeTipi);
       formData.append('tarih', new Date().toISOString().split('T')[0]);
 
-      const res = await fetch(`${API_URL}/api/firmalar/${editingFirma.id}/belge`, {
+      const res = await fetch(`${API_BASE_URL}/api/firmalar/${editingFirma.id}/belge`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -2056,7 +2055,7 @@ function AyarlarContent() {
       formData.append('dosya', file);
       formData.append('belge_tipi', belgeTipi);
 
-      const res = await fetch(`${API_URL}/api/firmalar/analyze-belge`, {
+      const res = await fetch(`${API_BASE_URL}/api/firmalar/analyze-belge`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -2126,7 +2125,7 @@ function AyarlarContent() {
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/api/auth/profile`, {
+      const res = await fetch(`${API_BASE_URL}/api/auth/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -2184,7 +2183,7 @@ function AyarlarContent() {
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/api/auth/password`, {
+      const res = await fetch(`${API_BASE_URL}/api/auth/password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -2452,7 +2451,7 @@ function AyarlarContent() {
             handleOpenFirmaModal={handleOpenFirmaModal}
             handleDeleteFirma={handleDeleteFirma}
             handleSetVarsayilan={handleSetVarsayilan}
-            API_URL={API_URL}
+            API_BASE_URL={API_BASE_URL}
           />
         );
 
@@ -3096,7 +3095,7 @@ function AyarlarContent() {
                                       size="xs"
                                       variant="subtle"
                                       component="a"
-                                      href={`${API_URL}${hasFile}`}
+                                      href={`${API_BASE_URL}${hasFile}`}
                                       target="_blank"
                                     >
                                       <IconEye size={12} />
@@ -3574,7 +3573,7 @@ function AyarlarContent() {
                     <Text size="xs" c="dimmed">
                       Backend
                     </Text>
-                    <Text size="sm">{API_URL}</Text>
+                    <Text size="sm">{API_BASE_URL}</Text>
                   </div>
                   <div>
                     <Text size="xs" c="dimmed">
@@ -3635,8 +3634,8 @@ function AyarlarContent() {
   };
 
   return (
-    <Container size="xl" py="xl" style={{ overflow: 'hidden' }}>
-      <Stack gap="xl" style={{ overflow: 'hidden' }}>
+    <Container size="xl" py="xl">
+      <Stack gap="xl">
         {/* Header */}
         <Group justify="space-between">
           <div>
@@ -3731,7 +3730,7 @@ function AyarlarContent() {
           </Paper>
 
           {/* Content */}
-          <Box style={{ flex: 1, minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
+          <Box style={{ flex: 1, minWidth: 0, maxWidth: '100%', overflow: 'visible' }}>
             {renderContent()}
           </Box>
         </Box>
@@ -4248,7 +4247,7 @@ function AyarlarContent() {
                                 size="xs"
                                 variant="subtle"
                                 component="a"
-                                href={`${API_URL}${hasFile}`}
+                                href={`${API_BASE_URL}${hasFile}`}
                                 target="_blank"
                               >
                                 <IconEye size={12} />

@@ -15,7 +15,8 @@ import {
 import { IconBolt, IconMaximize, IconMinus, IconX } from '@tabler/icons-react';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
+import { tendersAPI } from '@/lib/api/services/tenders';
+import { muhasebeAPI } from '@/lib/api/services/muhasebe';
 import { AIChat } from './AIChat';
 import { useResponsive } from '@/hooks/useResponsive';
 
@@ -102,26 +103,23 @@ export function FloatingAIChat() {
       if (tenderMatch) {
         const tenderId = tenderMatch[1];
         try {
-          const res = await fetch(`${API_BASE_URL}/api/tenders/${tenderId}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (data.success && data.data) {
-              setPageContext({
-                type: 'tender',
-                id: tenderId,
-                title: data.data.title,
-                pathname,
-                department,
-                data: {
-                  title: data.data.title,
-                  organization: data.data.organization_name,
-                  city: data.data.city,
-                  deadline: data.data.deadline,
-                  estimated_cost: data.data.estimated_cost,
-                },
-              });
-              return;
-            }
+          const result = await tendersAPI.getTender(Number(tenderId));
+          if (result.success && result.data) {
+            setPageContext({
+              type: 'tender',
+              id: tenderId,
+              title: result.data.title,
+              pathname,
+              department,
+              data: {
+                title: result.data.title,
+                organization: result.data.organization_name,
+                city: result.data.city,
+                deadline: result.data.deadline,
+                estimated_cost: result.data.estimated_cost,
+              },
+            });
+            return;
           }
         } catch (e) {
           console.error('Tender context fetch error:', e);
@@ -195,21 +193,18 @@ export function FloatingAIChat() {
     setShowPulse(true);
     const timer = setTimeout(() => setShowPulse(false), 3000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [pathname]);
 
   // Uyarı sayısını al
   useEffect(() => {
     const fetchAlerts = async () => {
       try {
-        const [invoiceRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/invoices/stats`).catch(() => null),
-        ]);
+        const result = await muhasebeAPI.getInvoiceStats();
 
         let count = 0;
-        if (invoiceRes?.ok) {
-          const data = await invoiceRes.json();
-          count += data.bekleyen_fatura || 0;
-          count += data.geciken_fatura || 0;
+        if (result.success && result.data) {
+          count += result.data.bekleyen_fatura || 0;
+          count += result.data.geciken_fatura || 0;
         }
         setAlertCount(count);
       } catch (e) {

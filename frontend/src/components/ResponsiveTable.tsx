@@ -17,6 +17,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import { ReactNode } from 'react';
 import { useResponsive } from '@/hooks/useResponsive';
+import { LoadingState, EmptyState } from '@/components/common';
 
 interface Column<T> {
   key: keyof T | string;
@@ -70,19 +71,11 @@ export function ResponsiveTable<T extends Record<string, unknown>>({
   const isDark = colorScheme === 'dark';
 
   if (loading) {
-    return (
-      <Box py="xl" ta="center">
-        <Text c="dimmed">Yükleniyor...</Text>
-      </Box>
-    );
+    return <LoadingState loading={true} message="Yükleniyor..." />;
   }
 
   if (data.length === 0) {
-    return (
-      <Box py="xl" ta="center">
-        <Text c="dimmed">{emptyMessage}</Text>
-      </Box>
-    );
+    return <EmptyState title={emptyMessage} compact />;
   }
 
   // Desktop: Normal tablo

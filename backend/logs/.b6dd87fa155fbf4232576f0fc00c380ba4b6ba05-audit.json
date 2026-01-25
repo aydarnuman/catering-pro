@@ -54,6 +54,16 @@
             "date": 1769072035841,
             "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/rejections-2026-01-22.log",
             "hash": "7b90fb222727b944725dc26f1734c3df129a3e048d1decb8981306392b545cc0"
+        },
+        {
+            "date": 1769252400874,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/rejections-2026-01-24.log",
+            "hash": "70487cf443543b230309fd1c5bb6ecd578c3a2fd878d6b1fcd90b4fc980a4178"
+        },
+        {
+            "date": 1769347419863,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/rejections-2026-01-25.log",
+            "hash": "c85e7cd6bd50d8e15e64f297721db3d262aa50b438d6055eabd3d77a965f7c50"
         }
     ],
     "hashType": "sha256"

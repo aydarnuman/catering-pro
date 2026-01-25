@@ -44,10 +44,9 @@ import { DataActions } from '@/components/DataActions';
 import CariDetayModal from '@/components/muhasebe/CariDetayModal';
 import MutabakatModal from '@/components/muhasebe/MutabakatModal';
 import { usePermissions } from '@/hooks/usePermissions';
-import { API_BASE_URL } from '@/lib/config';
-
-// API URL - config'den al
-const API_URL = `${API_BASE_URL}/api`;
+import { formatMoney } from '@/lib/formatters';
+import { EmptyState, Breadcrumbs } from '@/components/common';
+import { muhasebeAPI } from '@/lib/api/services/muhasebe';
 
 // Tip tanımları
 interface Cari {
@@ -160,11 +159,8 @@ export default function CarilerPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_URL}/cariler`);
-      if (!response.ok) throw new Error('Veri yüklenemedi');
-
-      const result = await response.json();
-      setCariler(result.data || []);
+      const result = await muhasebeAPI.getCariler();
+      setCariler((result.data || []) as unknown as Cari[]);
     } catch (error) {
       console.error('Cariler yükleme hatası:', error);
       setError('Veriler yüklenirken hata oluştu');
@@ -197,19 +193,11 @@ export default function CarilerPage() {
 
     setLoading(true);
     try {
-      const url = editingItem ? `${API_URL}/cariler/${editingItem.id}` : `${API_URL}/cariler`;
+      const result = editingItem
+        ? await muhasebeAPI.updateCari(editingItem.id, formData)
+        : await muhasebeAPI.createCari(formData);
 
-      const method = editingItem ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) throw new Error('İşlem başarısız');
-
-      const result = await response.json();
+      if (!result.success) throw new Error(result.error || 'İşlem başarısız');
 
       notifications.show({
         title: 'Başarılı',
@@ -242,11 +230,9 @@ export default function CarilerPage() {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/cariler/${id}`, {
-        method: 'DELETE',
-      });
+      const result = await muhasebeAPI.deleteCari(id);
 
-      if (!response.ok) throw new Error('Silme başarısız');
+      if (!result.success) throw new Error('Silme başarısız');
 
       notifications.show({
         title: 'Başarılı',
@@ -338,23 +324,20 @@ export default function CarilerPage() {
     toplamAlacak: cariler.reduce((sum, c) => sum + Number(c.alacak), 0),
   };
 
-  // Para formatı
-  const formatMoney = (value: number) => {
-    return new Intl.NumberFormat('tr-TR', {
-      style: 'currency',
-      currency: 'TRY',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
 
   return (
     <Container size="xl" py="md">
+      <Breadcrumbs
+        items={[
+          { label: 'Muhasebe', href: '/muhasebe' },
+          { label: 'Cari Hesaplar' },
+        ]}
+      />
       <LoadingOverlay visible={loading} />
 
       <Stack gap="md">
         {/* Header */}
-        <Group justify="space-between">
+        <Group justify="space-between" wrap="wrap">
           <div>
             <Title order={2}>Cariler</Title>
             <Text c="dimmed" size="sm">
@@ -445,7 +428,7 @@ export default function CarilerPage() {
                   size="xl"
                   c={ozet.toplamAlacak - ozet.toplamBorc >= 0 ? 'green' : 'red'}
                 >
-                  {formatMoney(ozet.toplamAlacak - ozet.toplamBorc)}
+                  {formatMoney(ozet.toplamAlacak - ozet.toplamBorc, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </Text>
               </div>
             </Group>
@@ -474,26 +457,20 @@ export default function CarilerPage() {
 
         {/* Cari Listesi - Kart Görünümü */}
         {filteredCariler.length === 0 ? (
-          <Card withBorder>
-            <Stack align="center" py="xl" gap="md">
-              <ThemeIcon size={60} variant="light" color="gray" radius="xl">
-                <IconUsers size={30} />
-              </ThemeIcon>
-              <Text c="dimmed" size="lg">
-                Kayıt bulunamadı
-              </Text>
-              <Button
-                variant="light"
-                leftSection={<IconPlus size={16} />}
-                onClick={() => {
-                  resetForm();
-                  open();
-                }}
-              >
-                İlk Carinizi Ekleyin
-              </Button>
-            </Stack>
-          </Card>
+          <EmptyState
+            title="Kayıt bulunamadı"
+            description="İlk carinizi ekleyerek başlayın"
+            icon={<IconUsers size={30} />}
+            iconColor="blue"
+            action={{
+              label: 'İlk Carinizi Ekleyin',
+              onClick: () => {
+                resetForm();
+                open();
+              },
+              icon: <IconPlus size={16} />,
+            }}
+          />
         ) : (
           <>
             <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="md">
@@ -527,7 +504,7 @@ export default function CarilerPage() {
                     className="cari-card"
                   >
                     {/* Header */}
-                    <Group justify="space-between" mb="sm">
+                    <Group justify="space-between" mb="sm" wrap="wrap">
                       <Group gap="sm">
                         <Avatar color={tipRenk} radius="xl" size={40} variant="light">
                           <TipIcon size={20} />
@@ -588,7 +565,7 @@ export default function CarilerPage() {
                     <Divider mb="sm" />
 
                     {/* Bakiye */}
-                    <Group justify="space-between" align="center">
+                    <Group justify="space-between" align="center" wrap="wrap">
                       <div>
                         <Text size="xs" c="dimmed">
                           Bakiye
@@ -610,7 +587,7 @@ export default function CarilerPage() {
                             size="lg"
                             c={bakiye > 0 ? 'green' : bakiye < 0 ? 'red' : 'dimmed'}
                           >
-                            {formatMoney(Math.abs(bakiye))}
+                            {formatMoney(Math.abs(bakiye), { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                           </Text>
                         </Group>
                       </div>
@@ -632,7 +609,7 @@ export default function CarilerPage() {
 
             {/* Alt Bilgi */}
             <Paper withBorder p="md" radius="md" mt="md">
-              <Group justify="space-between">
+              <Group justify="space-between" wrap="wrap">
                 <Text size="sm" c="dimmed">
                   Toplam <strong>{filteredCariler.length}</strong> cari gösteriliyor
                 </Text>

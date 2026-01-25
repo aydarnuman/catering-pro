@@ -31,7 +31,8 @@ import {
   IconUsers,
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
+import { muhasebeAPI } from '@/lib/api/services/muhasebe';
+import { formatDate } from '@/lib/formatters';
 
 interface Proje {
   id: number;
@@ -172,10 +173,9 @@ export default function ProjeYonetimModal({
   const loadProjeler = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/projeler`);
-      if (res.ok) {
-        const data = await res.json();
-        setProjeler(data);
+      const result = await muhasebeAPI.getProjeler();
+      if (result.success || Array.isArray(result)) {
+        setProjeler(Array.isArray(result) ? result : (result.data || []));
       }
     } catch (error) {
       console.error('Projeler yüklenemedi:', error);
@@ -213,18 +213,11 @@ export default function ProjeYonetimModal({
 
     setSaving(true);
     try {
-      const url = selectedProje
-        ? `${API_BASE_URL}/api/projeler/${selectedProje.id}`
-        : `${API_BASE_URL}/api/projeler`;
-      const method = selectedProje ? 'PUT' : 'POST';
+      const result = selectedProje
+        ? await muhasebeAPI.updateProje(selectedProje.id, form)
+        : await muhasebeAPI.createProje(form);
 
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-
-      if (res.ok) {
+      if (result.success) {
         notifications.show({
           title: 'Başarılı',
           message: selectedProje ? 'Proje güncellendi' : 'Proje oluşturuldu',
@@ -233,8 +226,7 @@ export default function ProjeYonetimModal({
         loadProjeler();
         setView('list');
       } else {
-        const error = await res.json();
-        throw new Error(error.error);
+        throw new Error(result.error);
       }
     } catch (error: any) {
       notifications.show({
@@ -253,11 +245,9 @@ export default function ProjeYonetimModal({
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/projeler/${proje.id}`, {
-        method: 'DELETE',
-      });
+      const result = await muhasebeAPI.deleteProje(proje.id);
 
-      if (res.ok) {
+      if (result.success) {
         notifications.show({
           title: 'Başarılı',
           message: 'Proje pasif yapıldı',
@@ -658,10 +648,6 @@ export default function ProjeYonetimModal({
       }).format(val);
     };
 
-    const formatDate = (date: string | undefined | null) => {
-      if (!date) return '-';
-      return new Date(date).toLocaleDateString('tr-TR');
-    };
 
     return (
       <Stack gap="md">

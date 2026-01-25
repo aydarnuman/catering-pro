@@ -57,7 +57,7 @@ const ihaleTools = {
       let sql = `
         SELECT 
           id, external_id, title, organization_name, tender_date,
-          estimated_cost, city, source, status, created_at
+          estimated_cost, city, status, created_at
         FROM tenders
         WHERE 1=1
       `;

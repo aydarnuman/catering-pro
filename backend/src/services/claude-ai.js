@@ -5,6 +5,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { query } from '../database.js';
+import logger from '../utils/logger.js';
 
 class ClaudeAIService {
   constructor() {
@@ -107,7 +108,7 @@ class ClaudeAIService {
             }))
           };
         } catch (dbError) {
-          console.log('İhale verileri çekilemedi:', dbError.message);
+          logger.warn('İhale verileri çekilemedi', { error: dbError.message });
           data.ihale = {
             error: 'Veritabanı bağlantısı yok',
             description: 'İhale verileri şu anda erişilebilir değil'
@@ -159,7 +160,7 @@ class ClaudeAIService {
                 totalAmount: faturaListesi.reduce((sum, f) => sum + (f.tutar || 0), 0)
               };
             } catch (uyumError) {
-              console.log('Uyumsoft veri hatası:', uyumError.message);
+              logger.warn('Uyumsoft veri hatası', { error: uyumError.message });
             }
           }
 
@@ -184,7 +185,7 @@ class ClaudeAIService {
             lastUpdate: new Date().toISOString()
           };
         } catch (muhasebeError) {
-          console.log('Muhasebe veri hatası:', muhasebeError.message);
+          logger.warn('Muhasebe veri hatası', { error: muhasebeError.message });
           data.muhasebe = {
             description: 'Muhasebe modülü aktif ancak veri erişimi sınırlı',
             status: 'Kısmi erişim',
@@ -226,7 +227,7 @@ class ClaudeAIService {
       return data;
 
     } catch (error) {
-      console.error('Veri hazırlama hatası:', error);
+      logger.error('Veri hazırlama hatası', { error: error.message, stack: error.stack });
       
       // Fallback: Minimal sistem bilgileri
       return {
@@ -284,7 +285,7 @@ Yukarıdaki veriler ışığında kullanıcının sorusunu yanıtla.`;
       };
 
     } catch (error) {
-      console.error('Claude API Error:', error);
+      logger.error('Claude API Error', { error: error.message, stack: error.stack });
       
       return {
         success: false,
@@ -346,7 +347,7 @@ JSON formatında döndür:
       }
 
     } catch (error) {
-      console.error('Product Analysis Error:', error);
+      logger.error('Product Analysis Error', { error: error.message, stack: error.stack });
       return {
         success: false,
         error: error.message
@@ -397,7 +398,7 @@ Her biri için JSON array döndür:
       }
 
     } catch (error) {
-      console.error('Batch Analysis Error:', error);
+      logger.error('Batch Analysis Error', { error: error.message, stack: error.stack });
       return {
         success: false,
         error: error.message

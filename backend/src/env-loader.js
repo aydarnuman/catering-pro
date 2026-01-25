@@ -6,6 +6,7 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { validateEnvironment } from './utils/env-validator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,14 +16,20 @@ const envPath = path.join(__dirname, '../.env');
 const result = dotenv.config({ path: envPath });
 
 if (result.error) {
-  console.error('❌ .env dosyası yüklenemedi:', envPath);
-  console.error(result.error);
-} else {
-  console.log('✅ .env yüklendi:', envPath);
+  // Development'ta .env dosyası yoksa uyarı ver ama devam et
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn('⚠️ .env dosyası yüklenemedi (development modunda devam ediliyor):', envPath);
+  } else {
+    console.error('❌ .env dosyası yüklenemedi:', envPath);
+    console.error(result.error);
+    process.exit(1);
+  }
 }
 
-// Debug: Kritik değişkenleri kontrol et
-console.log('🔍 Environment Check:');
-console.log('  DATABASE_URL:', process.env.DATABASE_URL ? '✓' : '✗');
-console.log('  NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? '✓' : '✗');
-console.log('  SUPABASE_SERVICE_KEY:', process.env.SUPABASE_SERVICE_KEY ? '✓' : '✗');
+// Environment variable'ları validate et
+try {
+  validateEnvironment();
+} catch (error) {
+  console.error('❌ Environment validation hatası:', error.message);
+  process.exit(1);
+}

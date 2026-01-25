@@ -27,7 +27,7 @@ import {
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
+import { adminAPI } from '@/lib/api/services/admin';
 
 interface SearchResult {
   id: number;
@@ -124,13 +124,10 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
 
     setLoading(true);
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/search?q=${encodeURIComponent(searchQuery)}&limit=5`
-      );
-      const data = await response.json();
+      const data = await adminAPI.search(searchQuery, 5);
 
       if (data.success) {
-        setResults(data.results);
+        setResults((data as any).results);
       }
     } catch (error) {
       console.error('Arama hatası:', error);

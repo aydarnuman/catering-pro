@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Accordion,
   Badge,
   Button,
   Card,
@@ -8,6 +9,7 @@ import {
   Loader,
   Modal,
   Paper,
+  ScrollArea,
   Select,
   SimpleGrid,
   Stack,
@@ -23,6 +25,7 @@ import {
   IconCalendar,
   IconCash,
   IconChartBar,
+  IconChevronDown,
   IconCoin,
   IconDownload,
   IconEdit,
@@ -37,8 +40,10 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { StyledDateRangePicker } from '@/components/ui/StyledDatePicker';
-import { API_BASE_URL } from '@/lib/config';
 import { uyumsoftAPI } from '@/lib/invoice-api';
+import { muhasebeAPI } from '@/lib/api/services/muhasebe';
+import { useResponsive } from '@/hooks/useResponsive';
+import { formatMoney, formatDate } from '@/lib/formatters';
 
 interface Cari {
   id: number;
@@ -94,6 +99,7 @@ export default function CariDetayModal({
   onMutabakat,
   onDelete,
 }: CariDetayModalProps) {
+  const { isMobile, isMounted } = useResponsive();
   const [activeTab, setActiveTab] = useState<string | null>('ozet');
   const [hareketler, setHareketler] = useState<CariHareket[]>([]);
   const [aylikOzet, setAylikOzet] = useState<any[]>([]);
@@ -124,28 +130,24 @@ export default function CariDetayModal({
   }, [cari?.id, opened, dateRange, filterType]);
 
   const loadCariHareketler = async () => {
+    if (!cari?.id) return;
     setLoading(true);
     try {
-      // URL parametrelerini oluştur
-      const params = new URLSearchParams();
+      const params: { baslangic?: string; bitis?: string; tip?: string } = {};
 
       if (dateRange[0]) {
-        params.append('baslangic', dateRange[0].toISOString().split('T')[0]);
+        params.baslangic = dateRange[0].toISOString().split('T')[0];
       }
       if (dateRange[1]) {
-        params.append('bitis', dateRange[1].toISOString().split('T')[0]);
+        params.bitis = dateRange[1].toISOString().split('T')[0];
       }
       if (filterType && filterType !== 'all') {
-        params.append('tip', filterType);
+        params.tip = filterType;
       }
 
-      const queryString = params.toString();
-      const url = `${API_BASE_URL}/api/cariler/${cari?.id}/hareketler${queryString ? `?${queryString}` : ''}`;
-
-      const response = await fetch(url);
-      if (response.ok) {
-        const data = await response.json();
-        setHareketler(data.data || []);
+      const result = await muhasebeAPI.getCariHareketler(cari.id, params);
+      if (result.success) {
+        setHareketler(result.data || []);
       }
     } catch (error) {
       console.error('Hareketler yüklenemedi:', error);
@@ -155,27 +157,17 @@ export default function CariDetayModal({
   };
 
   const loadAylikOzet = async () => {
+    if (!cari?.id) return;
     try {
-      const response = await fetch(`${API_BASE_URL}/api/cariler/${cari?.id}/aylik-ozet`);
-      if (response.ok) {
-        const data = await response.json();
-        setAylikOzet(data.data || []);
+      const result = await muhasebeAPI.getCariAylikOzet(cari.id);
+      if (result.success) {
+        setAylikOzet(result.data || []);
       }
     } catch (error) {
       console.error('Aylık özet yüklenemedi:', error);
     }
   };
 
-  const formatMoney = (value: number) => {
-    return new Intl.NumberFormat('tr-TR', {
-      style: 'currency',
-      currency: 'TRY',
-    }).format(value);
-  };
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('tr-TR');
-  };
 
   // Excel'e aktar
   const exportToExcel = () => {
@@ -348,23 +340,24 @@ export default function CariDetayModal({
         opened={opened}
         onClose={onClose}
         size="xl"
+        fullScreen={isMobile && isMounted}
         title={
-          <Group>
+          <Group gap="sm" wrap="nowrap">
             <ThemeIcon
-              size="lg"
+              size={isMobile ? 'md' : 'lg'}
               variant="light"
               color={
                 cari.tip === 'musteri' ? 'green' : cari.tip === 'tedarikci' ? 'orange' : 'blue'
               }
             >
-              <IconUser size={20} />
+              <IconUser size={isMobile ? 16 : 20} />
             </ThemeIcon>
-            <div>
-              <Text size="lg" fw={600}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <Text size={isMobile ? 'sm' : 'lg'} fw={600} lineClamp={1}>
                 {cari.unvan}
               </Text>
-              <Group gap="xs">
-                <Text size="sm" c="dimmed">
+              <Group gap="xs" wrap="nowrap">
+                <Text size="xs" c="dimmed">
                   {cari.tip === 'musteri'
                     ? 'Müşteri'
                     : cari.tip === 'tedarikci'
@@ -372,7 +365,7 @@ export default function CariDetayModal({
                       : 'Her İkisi'}
                 </Text>
                 {cari.etiket && (
-                  <Badge size="sm" variant="light" color="violet">
+                  <Badge size="xs" variant="light" color="violet">
                     {cari.etiket}
                   </Badge>
                 )}
@@ -380,14 +373,19 @@ export default function CariDetayModal({
             </div>
           </Group>
         }
+        styles={{
+          body: {
+            padding: isMobile ? 12 : undefined,
+          },
+        }}
       >
         {/* İşlem Butonları */}
-        <Group justify="flex-end" mb="md" gap="xs">
+        <Group justify="flex-end" mb="md" gap="xs" wrap="wrap">
           {onEdit && (
             <Button
               variant="light"
               color="blue"
-              size="xs"
+              size={isMobile ? 'sm' : 'xs'}
               leftSection={<IconEdit size={14} />}
               onClick={() => {
                 onClose();
@@ -401,7 +399,7 @@ export default function CariDetayModal({
             <Button
               variant="light"
               color="teal"
-              size="xs"
+              size={isMobile ? 'sm' : 'xs'}
               leftSection={<IconScale size={14} />}
               onClick={() => {
                 onClose();
@@ -415,7 +413,7 @@ export default function CariDetayModal({
             <Button
               variant="light"
               color="red"
-              size="xs"
+              size={isMobile ? 'sm' : 'xs'}
               leftSection={<IconTrash size={14} />}
               onClick={() => {
                 if (confirm('Bu cariyi silmek istediğinizden emin misiniz?')) {
@@ -430,20 +428,22 @@ export default function CariDetayModal({
         </Group>
 
         <Tabs value={activeTab} onChange={setActiveTab}>
-          <Tabs.List>
-            <Tabs.Tab value="ozet" leftSection={<IconChartBar size={16} />}>
-              Özet
-            </Tabs.Tab>
-            <Tabs.Tab value="ekstre" leftSection={<IconReceipt size={16} />}>
-              Ekstre
-            </Tabs.Tab>
-            <Tabs.Tab value="gelir-gider" leftSection={<IconCash size={16} />}>
-              Gelir/Gider
-            </Tabs.Tab>
-            <Tabs.Tab value="vade" leftSection={<IconCalendar size={16} />}>
-              Vade Analizi
-            </Tabs.Tab>
-          </Tabs.List>
+          <ScrollArea type="never" offsetScrollbars={false}>
+            <Tabs.List style={{ flexWrap: 'nowrap' }}>
+              <Tabs.Tab value="ozet" leftSection={<IconChartBar size={isMobile ? 14 : 16} />}>
+                {isMobile ? 'Özet' : 'Özet'}
+              </Tabs.Tab>
+              <Tabs.Tab value="ekstre" leftSection={<IconReceipt size={isMobile ? 14 : 16} />}>
+                {isMobile ? 'Ekstre' : 'Ekstre'}
+              </Tabs.Tab>
+              <Tabs.Tab value="gelir-gider" leftSection={<IconCash size={isMobile ? 14 : 16} />}>
+                {isMobile ? 'G/G' : 'Gelir/Gider'}
+              </Tabs.Tab>
+              <Tabs.Tab value="vade" leftSection={<IconCalendar size={isMobile ? 14 : 16} />}>
+                {isMobile ? 'Vade' : 'Vade Analizi'}
+              </Tabs.Tab>
+            </Tabs.List>
+          </ScrollArea>
 
           <Tabs.Panel value="ozet" pt="md">
             <Stack gap="md">
@@ -628,41 +628,84 @@ export default function CariDetayModal({
 
           <Tabs.Panel value="ekstre" pt="md">
             <Stack gap="md">
-              <Group>
-                <StyledDateRangePicker
-                  label="Tarih Aralığı"
-                  placeholder="Tarih seçin"
-                  value={dateRange}
-                  onChange={setDateRange}
-                  w="100%"
-                />
-                <Select
-                  label="Hareket Tipi"
-                  data={[
-                    { value: 'all', label: 'Tümü' },
-                    { value: 'fatura_alis', label: 'Alış Faturaları' },
-                    { value: 'fatura_satis', label: 'Satış Faturaları' },
-                    { value: 'tahsilat', label: 'Tahsilatlar' },
-                    { value: 'odeme', label: 'Ödemeler' },
-                  ]}
-                  value={filterType}
-                  onChange={setFilterType}
-                />
-                <Button
-                  variant="light"
-                  leftSection={<IconDownload size={16} />}
-                  onClick={() => exportToExcel()}
-                >
-                  Excel
-                </Button>
-                <Button
-                  variant="light"
-                  leftSection={<IconPrinter size={16} />}
-                  onClick={() => handlePrint()}
-                >
-                  Yazdır
-                </Button>
-              </Group>
+              {/* Filtre Alanları - Mobilde Stack, Desktop'ta Group */}
+              {isMobile ? (
+                <Stack gap="sm">
+                  <StyledDateRangePicker
+                    label="Tarih Aralığı"
+                    placeholder="Tarih seçin"
+                    value={dateRange}
+                    onChange={setDateRange}
+                    w="100%"
+                  />
+                  <Select
+                    label="Hareket Tipi"
+                    data={[
+                      { value: 'all', label: 'Tümü' },
+                      { value: 'fatura_alis', label: 'Alış Faturaları' },
+                      { value: 'fatura_satis', label: 'Satış Faturaları' },
+                      { value: 'tahsilat', label: 'Tahsilatlar' },
+                      { value: 'odeme', label: 'Ödemeler' },
+                    ]}
+                    value={filterType}
+                    onChange={setFilterType}
+                  />
+                  <Group gap="xs" grow>
+                    <Button
+                      variant="light"
+                      size="sm"
+                      leftSection={<IconDownload size={16} />}
+                      onClick={() => exportToExcel()}
+                    >
+                      Excel
+                    </Button>
+                    <Button
+                      variant="light"
+                      size="sm"
+                      leftSection={<IconPrinter size={16} />}
+                      onClick={() => handlePrint()}
+                    >
+                      Yazdır
+                    </Button>
+                  </Group>
+                </Stack>
+              ) : (
+                <Group>
+                  <StyledDateRangePicker
+                    label="Tarih Aralığı"
+                    placeholder="Tarih seçin"
+                    value={dateRange}
+                    onChange={setDateRange}
+                    w="100%"
+                  />
+                  <Select
+                    label="Hareket Tipi"
+                    data={[
+                      { value: 'all', label: 'Tümü' },
+                      { value: 'fatura_alis', label: 'Alış Faturaları' },
+                      { value: 'fatura_satis', label: 'Satış Faturaları' },
+                      { value: 'tahsilat', label: 'Tahsilatlar' },
+                      { value: 'odeme', label: 'Ödemeler' },
+                    ]}
+                    value={filterType}
+                    onChange={setFilterType}
+                  />
+                  <Button
+                    variant="light"
+                    leftSection={<IconDownload size={16} />}
+                    onClick={() => exportToExcel()}
+                  >
+                    Excel
+                  </Button>
+                  <Button
+                    variant="light"
+                    leftSection={<IconPrinter size={16} />}
+                    onClick={() => handlePrint()}
+                  >
+                    Yazdır
+                  </Button>
+                </Group>
+              )}
 
               <Table.ScrollContainer minWidth={700}>
                 <Table striped highlightOnHover>

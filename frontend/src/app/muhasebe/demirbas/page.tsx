@@ -56,10 +56,10 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
-import { API_BASE_URL } from '@/lib/config';
+import { formatMoney, formatDate } from '@/lib/formatters';
+import { demirbasAPI } from '@/lib/api/services/demirbas';
+import { personelAPI } from '@/lib/api/services/personel';
 import 'dayjs/locale/tr';
-
-const API_URL = `${API_BASE_URL}/api`;
 
 // Tip tanımları
 interface Kategori {
@@ -254,11 +254,6 @@ export default function DemirbasPage() {
     }).format(value || 0);
   };
 
-  // Tarih formatı
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('tr-TR');
-  };
 
   // Verileri yükle
   const loadData = async () => {
@@ -267,34 +262,26 @@ export default function DemirbasPage() {
     try {
       const [demirbasRes, kategoriRes, lokasyonRes, projelerRes, personelRes, istatistikRes] =
         await Promise.all([
-          fetch(`${API_URL}/demirbas`),
-          fetch(`${API_URL}/demirbas/kategoriler`),
-          fetch(`${API_URL}/demirbas/lokasyonlar`),
-          fetch(`${API_URL}/projeler?durum=aktif`),
-          fetch(`${API_URL}/personel`),
-          fetch(`${API_URL}/demirbas/istatistik/ozet`),
+          demirbasAPI.getDemirbaslar(),
+          demirbasAPI.getKategoriler(),
+          demirbasAPI.getLokasyonlar(),
+          personelAPI.getProjeler({ durum: 'aktif' }),
+          personelAPI.getPersoneller(),
+          demirbasAPI.getIstatistikOzet(),
         ]);
 
-      // Response'ları JSON'a çevir (hata durumunda bile)
-      const demirbasData = demirbasRes.ok ? await demirbasRes.json() : { success: false };
-      const kategoriData = kategoriRes.ok ? await kategoriRes.json() : { success: false };
-      const lokasyonData = lokasyonRes.ok ? await lokasyonRes.json() : { success: false };
-      const projelerData = projelerRes.ok ? await projelerRes.json() : [];
-      const personelData = personelRes.ok ? await personelRes.json() : { success: false };
-      const istatistikData = istatistikRes.ok ? await istatistikRes.json() : { success: false };
-
-      if (demirbasData.success) setDemirbaslar(demirbasData.data || []);
-      if (kategoriData.success) {
-        setKategoriler(kategoriData.data || []);
+      if (demirbasRes.success) setDemirbaslar(demirbasRes.data as any || []);
+      if (kategoriRes.success) {
+        setKategoriler(kategoriRes.data as any || []);
       }
-      if (lokasyonData.success) setLokasyonlar(lokasyonData.data || []);
-      if (Array.isArray(projelerData)) setProjeler(projelerData);
-      if (personelData.success) setPersoneller(personelData.data || []);
-      if (istatistikData.success) {
-        setIstatistik(istatistikData.data.ozet);
-        setKategoriDagilimi(istatistikData.data.kategoriDagilimi || []);
-        setGarantiYaklasan(istatistikData.data.garantiYaklasan || []);
-        setBakimdakiler(istatistikData.data.bakimdakiler || []);
+      if (lokasyonRes.success) setLokasyonlar(lokasyonRes.data as any || []);
+      if (projelerRes.success) setProjeler(projelerRes.data || []);
+      if (personelRes.success) setPersoneller(personelRes.data as any || []);
+      if (istatistikRes.success && istatistikRes.data) {
+        setIstatistik(istatistikRes.data.ozet);
+        setKategoriDagilimi(istatistikRes.data.kategoriDagilimi || []);
+        setGarantiYaklasan(istatistikRes.data.garantiYaklasan || []);
+        setBakimdakiler(istatistikRes.data.bakimdakiler || []);
       }
     } catch (err) {
       console.error('Veri yükleme hatası:', err);
@@ -360,19 +347,13 @@ export default function DemirbasPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/demirbas`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...demirbasForm,
-          kategori_id: parseInt(demirbasForm.kategori_id, 10),
-          lokasyon_id: demirbasForm.lokasyon_id ? parseInt(demirbasForm.lokasyon_id, 10) : null,
-          proje_id: demirbasForm.proje_id ? parseInt(demirbasForm.proje_id, 10) : null,
-          alis_tarihi: demirbasForm.alis_tarihi?.toISOString().split('T')[0],
-        }),
-      });
-
-      const result = await res.json();
+      const result = await demirbasAPI.createDemirbas({
+        ...demirbasForm,
+        kategori_id: parseInt(demirbasForm.kategori_id, 10),
+        lokasyon_id: demirbasForm.lokasyon_id ? parseInt(demirbasForm.lokasyon_id, 10) : null,
+        proje_id: demirbasForm.proje_id ? parseInt(demirbasForm.proje_id, 10) : null,
+        alis_tarihi: demirbasForm.alis_tarihi?.toISOString().split('T')[0],
+      } as any);
 
       if (result.success) {
         notifications.show({
@@ -436,24 +417,18 @@ export default function DemirbasPage() {
         kasko_bitis: aracForm.kasko_bitis?.toISOString().split('T')[0],
       });
 
-      const res = await fetch(`${API_URL}/demirbas`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ad: aracForm.ad,
-          kategori_id: aracKategori.id,
-          marka: aracForm.marka,
-          model: aracForm.model,
-          seri_no: aracForm.plaka, // Plaka seri no olarak
-          alis_tarihi: aracForm.alis_tarihi?.toISOString().split('T')[0],
-          alis_fiyati: aracForm.alis_fiyati,
-          lokasyon_id: aracForm.lokasyon_id ? parseInt(aracForm.lokasyon_id, 10) : null,
-          aciklama: aracForm.aciklama,
-          teknik_ozellik: teknikOzellik,
-        }),
-      });
-
-      const result = await res.json();
+      const result = await demirbasAPI.createDemirbas({
+        ad: aracForm.ad,
+        kategori_id: aracKategori.id,
+        marka: aracForm.marka,
+        model: aracForm.model,
+        seri_no: aracForm.plaka, // Plaka seri no olarak
+        alis_tarihi: aracForm.alis_tarihi?.toISOString().split('T')[0],
+        alis_fiyati: aracForm.alis_fiyati,
+        lokasyon_id: aracForm.lokasyon_id ? parseInt(aracForm.lokasyon_id, 10) : null,
+        aciklama: aracForm.aciklama,
+        teknik_ozellik: teknikOzellik,
+      } as any);
 
       if (result.success) {
         notifications.show({
@@ -529,17 +504,11 @@ export default function DemirbasPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/demirbas/${selectedDemirbas.id}/zimmet`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          personel_id: parseInt(zimmetForm.personel_id, 10),
-          tarih: zimmetForm.tarih?.toISOString().split('T')[0],
-          notlar: zimmetForm.notlar,
-        }),
+      const result = await demirbasAPI.zimmetAta(selectedDemirbas.id, {
+        personel_id: parseInt(zimmetForm.personel_id, 10),
+        tarih: zimmetForm.tarih?.toISOString().split('T')[0],
+        aciklama: zimmetForm.notlar,
       });
-
-      const result = await res.json();
 
       if (result.success) {
         notifications.show({ title: 'Başarılı', message: 'Zimmet verildi', color: 'green' });
@@ -562,13 +531,10 @@ export default function DemirbasPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/demirbas/${demirbasId}/zimmet-iade`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tarih: new Date().toISOString().split('T')[0] }),
+      const result = await demirbasAPI.zimmetIade(demirbasId, {
+        tarih: new Date().toISOString().split('T')[0],
       });
 
-      const result = await res.json();
       if (result.success) {
         notifications.show({ title: 'Başarılı', message: 'Zimmet iade alındı', color: 'green' });
         loadData();
@@ -595,16 +561,13 @@ export default function DemirbasPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/demirbas/${selectedDemirbas.id}/bakim`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...bakimForm,
-          tahmini_donus: bakimForm.tahmini_donus?.toISOString().split('T')[0],
-        }),
+      const result = await demirbasAPI.bakimEkle(selectedDemirbas.id, {
+        tarih: new Date().toISOString().split('T')[0],
+        aciklama: bakimForm.bakim_nedeni,
+        maliyet: bakimForm.tahmini_maliyet,
+        sonraki_bakim: bakimForm.tahmini_donus?.toISOString().split('T')[0],
       });
 
-      const result = await res.json();
       if (result.success) {
         notifications.show({ title: 'Başarılı', message: 'Bakıma gönderildi', color: 'green' });
         closeBakimModal();
@@ -640,17 +603,11 @@ export default function DemirbasPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/demirbas/${selectedDemirbas.id}/transfer`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lokasyon_id: parseInt(transferForm.lokasyon_id, 10),
-          lokasyon_detay: transferForm.lokasyon_detay,
-          aciklama: transferForm.aciklama,
-        }),
+      const result = await demirbasAPI.transfer(selectedDemirbas.id, {
+        hedef_lokasyon_id: parseInt(transferForm.lokasyon_id, 10),
+        aciklama: transferForm.aciklama,
       });
 
-      const result = await res.json();
       if (result.success) {
         notifications.show({ title: 'Başarılı', message: 'Transfer yapıldı', color: 'green' });
         closeTransferModal();
@@ -672,8 +629,7 @@ export default function DemirbasPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/demirbas/${demirbasId}`, { method: 'DELETE' });
-      const result = await res.json();
+      const result = await demirbasAPI.deleteDemirbas(demirbasId);
       if (result.success) {
         notifications.show({ title: 'Başarılı', message: 'Envanter silindi', color: 'green' });
         loadData();
@@ -694,14 +650,9 @@ export default function DemirbasPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/demirbas/toplu/sil`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedItems }),
-      });
-      const result = await res.json();
+      const result = await demirbasAPI.deleteToplu(selectedItems);
       if (result.success) {
-        notifications.show({ title: 'Başarılı', message: result.message, color: 'green' });
+        notifications.show({ title: 'Başarılı', message: result.message || 'Silindi', color: 'green' });
         setSelectedItems([]);
         loadData();
       } else {
@@ -740,17 +691,10 @@ export default function DemirbasPage() {
 
     setLoading(true);
     try {
-      const url = editingLokasyon
-        ? `${API_URL}/demirbas/lokasyonlar/${editingLokasyon.id}`
-        : `${API_URL}/demirbas/lokasyonlar`;
+      const result = editingLokasyon
+        ? await demirbasAPI.updateLokasyon(editingLokasyon.id, lokasyonForm as any)
+        : await demirbasAPI.createLokasyon(lokasyonForm as any);
 
-      const res = await fetch(url, {
-        method: editingLokasyon ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(lokasyonForm),
-      });
-
-      const result = await res.json();
       if (result.success) {
         notifications.show({
           title: 'Başarılı',
@@ -775,10 +719,7 @@ export default function DemirbasPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/demirbas/lokasyonlar/${lokasyonId}`, {
-        method: 'DELETE',
-      });
-      const result = await res.json();
+      const result = await demirbasAPI.deleteLokasyon(lokasyonId);
       if (result.success) {
         notifications.show({ title: 'Başarılı', message: 'Lokasyon silindi', color: 'green' });
         loadData();
@@ -796,8 +737,7 @@ export default function DemirbasPage() {
   const handleShowDetay = async (demirbasId: number) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/demirbas/${demirbasId}`);
-      const result = await res.json();
+      const result = await demirbasAPI.getDemirbas(demirbasId);
       if (result.success) {
         setDetayData(result.data);
         openDetayModal();

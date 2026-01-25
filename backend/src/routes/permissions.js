@@ -39,6 +39,160 @@ router.get('/templates', authenticate, requireAdmin, async (req, res) => {
 });
 
 /**
+ * GET /api/permissions/templates/:id
+ * Belirli bir şablonu getir
+ */
+router.get('/templates/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const template = await PermissionService.getTemplate(parseInt(id));
+    
+    if (!template) {
+      return res.status(404).json({ success: false, error: 'Şablon bulunamadı' });
+    }
+    
+    res.json({ success: true, data: template });
+  } catch (error) {
+    console.error('Get template error:', error);
+    res.status(500).json({ success: false, error: 'Şablon alınamadı' });
+  }
+});
+
+/**
+ * POST /api/permissions/templates
+ * Yeni şablon oluştur
+ */
+router.post('/templates', authenticate, requireSuperAdmin, async (req, res) => {
+  try {
+    const { name, display_name, description, permissions } = req.body;
+    
+    if (!name || !display_name || !permissions) {
+      return res.status(400).json({ success: false, error: 'name, display_name ve permissions gerekli' });
+    }
+    
+    const template = await PermissionService.createTemplate({
+      name,
+      display_name,
+      description: description || null,
+      permissions
+    });
+    
+    // Audit log
+    await AuditService.log({
+      userId: req.user.id,
+      action: 'create',
+      entityType: 'permission_template',
+      entityId: template.id,
+      entityName: display_name,
+      newData: { name, display_name, description, permissions },
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+      requestPath: req.originalUrl,
+      description: `Yeni yetki şablonu oluşturuldu: ${display_name}`
+    });
+    
+    res.json({ success: true, data: template, message: 'Şablon oluşturuldu' });
+  } catch (error) {
+    console.error('Create template error:', error);
+    if (error.message.includes('unique')) {
+      return res.status(400).json({ success: false, error: 'Bu isimde bir şablon zaten var' });
+    }
+    res.status(500).json({ success: false, error: 'Şablon oluşturulamadı' });
+  }
+});
+
+/**
+ * PUT /api/permissions/templates/:id
+ * Şablonu güncelle
+ */
+router.put('/templates/:id', authenticate, requireSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { display_name, description, permissions } = req.body;
+    
+    // Sistem şablonlarını güncellemeyi engelle
+    const existing = await PermissionService.getTemplate(parseInt(id));
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Şablon bulunamadı' });
+    }
+    
+    if (existing.is_system) {
+      return res.status(400).json({ success: false, error: 'Sistem şablonları düzenlenemez' });
+    }
+    
+    // Eski verileri al (audit log için)
+    const oldData = { ...existing };
+    
+    const template = await PermissionService.updateTemplate(parseInt(id), {
+      display_name,
+      description,
+      permissions
+    });
+    
+    // Audit log
+    await AuditService.log({
+      userId: req.user.id,
+      action: 'update',
+      entityType: 'permission_template',
+      entityId: parseInt(id),
+      entityName: existing.display_name,
+      oldData,
+      newData: { display_name, description, permissions },
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+      requestPath: req.originalUrl,
+      description: `Yetki şablonu güncellendi: ${display_name}`
+    });
+    
+    res.json({ success: true, data: template, message: 'Şablon güncellendi' });
+  } catch (error) {
+    console.error('Update template error:', error);
+    res.status(500).json({ success: false, error: 'Şablon güncellenemedi' });
+  }
+});
+
+/**
+ * DELETE /api/permissions/templates/:id
+ * Şablonu sil
+ */
+router.delete('/templates/:id', authenticate, requireSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Sistem şablonlarını silmeyi engelle
+    const existing = await PermissionService.getTemplate(parseInt(id));
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Şablon bulunamadı' });
+    }
+    
+    if (existing.is_system) {
+      return res.status(400).json({ success: false, error: 'Sistem şablonları silinemez' });
+    }
+    
+    await PermissionService.deleteTemplate(parseInt(id));
+    
+    // Audit log
+    await AuditService.log({
+      userId: req.user.id,
+      action: 'delete',
+      entityType: 'permission_template',
+      entityId: parseInt(id),
+      entityName: existing.display_name,
+      oldData: existing,
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+      requestPath: req.originalUrl,
+      description: `Yetki şablonu silindi: ${existing.display_name}`
+    });
+    
+    res.json({ success: true, message: 'Şablon silindi' });
+  } catch (error) {
+    console.error('Delete template error:', error);
+    res.status(500).json({ success: false, error: 'Şablon silinemedi' });
+  }
+});
+
+/**
  * GET /api/permissions/my
  * Giriş yapan kullanıcının yetkilerini getir
  */

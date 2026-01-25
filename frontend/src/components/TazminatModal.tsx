@@ -35,10 +35,9 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
-import { API_BASE_URL } from '@/lib/config';
+import { formatMoney, formatDate } from '@/lib/formatters';
+import { personelAPI } from '@/lib/api/services/personel';
 import 'dayjs/locale/tr';
-
-const API_URL = `${API_BASE_URL}/api`;
 
 // Çıkış sebepleri tip tanımı
 interface CikisSebebi {
@@ -176,9 +175,10 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
 
   const fetchCikisSebepler = async () => {
     try {
-      const res = await fetch(`${API_URL}/personel/tazminat/sebepler`);
-      const data = await res.json();
-      setCikisSebepler(data);
+      const result = await personelAPI.getTazminatSebepler() as any;
+      if (result.success) {
+        setCikisSebepler(result.data as any);
+      }
     } catch (error) {
       console.error('Çıkış sebepleri yüklenemedi:', error);
     }
@@ -189,24 +189,18 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
 
     setCalculating(true);
     try {
-      const res = await fetch(`${API_URL}/personel/tazminat/hesapla`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          personelId: personel.id,
-          cikisSebebi: selectedSebep,
-          cikisTarihi: cikisTarihi.toISOString().split('T')[0],
-          kalanIzinGun: Number(kalanIzinGun) || 0,
-        }),
+      const result = await personelAPI.hesaplaTazminat({
+        personelId: personel.id,
+        cikisSebebi: selectedSebep,
+        cikisTarihi: cikisTarihi.toISOString().split('T')[0],
+        kalanIzinGun: Number(kalanIzinGun) || 0,
       });
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error);
+      if (!result.success) {
+        throw new Error(result.error || 'Hesaplama hatası');
       }
 
-      const data = await res.json();
-      setHesap(data);
+      setHesap(result.data);
     } catch (error: any) {
       notifications.show({
         title: 'Hesaplama Hatası',
@@ -223,22 +217,17 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/personel/tazminat/kaydet`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          personelId: personel?.id,
-          cikisSebebi: selectedSebep,
-          cikisTarihi: cikisTarihi?.toISOString().split('T')[0],
-          kalanIzinGun: Number(kalanIzinGun) || 0,
-          notlar,
-          istenCikar,
-        }),
+      const result = await personelAPI.kaydetTazminat({
+        personelId: personel?.id,
+        cikisSebebi: selectedSebep,
+        cikisTarihi: cikisTarihi?.toISOString().split('T')[0],
+        kalanIzinGun: Number(kalanIzinGun) || 0,
+        notlar,
+        istenCikar,
       });
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error);
+      if (!result.success) {
+        throw new Error(result.error || 'Kayıt hatası');
       }
 
       notifications.show({
@@ -272,14 +261,6 @@ export function TazminatModal({ opened, onClose, personel, onSuccess }: Tazminat
     onClose();
   };
 
-  const formatMoney = (val: number) => {
-    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(val || 0);
-  };
-
-  const formatDate = (date: string) => {
-    if (!date) return '-';
-    return new Date(date).toLocaleDateString('tr-TR');
-  };
 
   const sebepOptions = Object.values(cikisSebepler).map((s) => ({
     value: s.kod,

@@ -53,13 +53,15 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { api, apiClient } from '@/lib/api';
-import { API_BASE_URL } from '@/lib/config';
+import { tendersAPI } from '@/lib/api/services/tenders';
+import { formatDate } from '@/lib/formatters';
+import { EmptyState, EmptySearch, LoadingState, showError, showSuccess } from '@/components/common';
 import type { Tender, TendersResponse } from '@/types/api';
 import TenderMapModal from '@/components/TenderMapModal';
 import { MobileFilterDrawer, MobileHide, MobileShow, MobileStack } from '@/components/mobile';
 import { useResponsive } from '@/hooks/useResponsive';
 
-const API_URL = API_BASE_URL;
+// API_URL kaldırıldı - tendersAPI kullanılıyor
 
 export default function TendersPage() {
   const router = useRouter();
@@ -140,7 +142,7 @@ export default function TendersPage() {
 
   const { data: statsData } = useSWR<{ success: boolean; data: UpdateStats }>(
     'tender-stats',
-    () => fetch(`${API_URL}/api/tenders/stats/updates`).then((r) => r.json()),
+    () => tendersAPI.getTenderStats(),
     { refreshInterval: 60000 } // Her 1 dakikada yenile
   );
 
@@ -149,7 +151,7 @@ export default function TendersPage() {
   // Takip listesindeki ihale ID'lerini çek
   const { data: trackingData, mutate: mutateTracking } = useSWR<{ success: boolean; data: Array<{ tender_id: number }> }>(
     'tender-tracking-ids',
-    () => fetch(`${API_URL}/api/tender-tracking`).then((r) => r.json()),
+    () => tendersAPI.getTrackingIds(),
     { revalidateOnFocus: false }
   );
 
@@ -172,20 +174,12 @@ export default function TendersPage() {
     try {
       if (isTracking) {
         // Takipten çıkar - önce tracking ID'yi bul
-        const checkRes = await fetch(`${API_URL}/api/tender-tracking/check/${tender.id}`);
-        const checkData = await checkRes.json();
-        
-        console.log('Check response:', checkData);
+        const checkData = await tendersAPI.checkTracking(tender.id);
         
         if (checkData.success && checkData.data) {
           const trackingId = checkData.data.id;
-          console.log('Deleting tracking ID:', trackingId);
           
-          const deleteRes = await fetch(`${API_URL}/api/tender-tracking/${trackingId}`, {
-            method: 'DELETE',
-          });
-          const deleteData = await deleteRes.json();
-          console.log('Delete response:', deleteData);
+          const deleteData = await tendersAPI.removeTracking(trackingId);
           
           if (deleteData.success) {
             setTrackingIds((prev) => {
@@ -212,16 +206,7 @@ export default function TendersPage() {
         }
       } else {
         // Takibe ekle
-        const addRes = await fetch(`${API_URL}/api/tender-tracking`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tender_id: tender.id,
-            status: 'inceleniyor',
-            priority: 0,
-          }),
-        });
-        const addData = await addRes.json();
+        const addData = await tendersAPI.addTracking(tender.id);
         
         if (addData.success) {
           setTrackingIds((prev) => new Set(prev).add(tender.id));
@@ -275,27 +260,18 @@ export default function TendersPage() {
       const data = res.data;
 
       if (data.success) {
-        notifications.show({
-          title: '✅ Başarılı!',
-          message: `${data.data.isNew ? 'Yeni ihale eklendi' : 'İhale güncellendi'}: ${data.data.title?.substring(0, 50) || 'İhale'}... (${data.data.documentCount} döküman)`,
-          color: 'green',
-        });
+        showSuccess(
+          `${data.data.isNew ? 'Yeni ihale eklendi' : 'İhale güncellendi'}: ${data.data.title?.substring(0, 50) || 'İhale'}... (${data.data.documentCount} döküman)`,
+          '✅ Başarılı!'
+        );
         setAddUrlModalOpen(false);
         setTenderUrl('');
         mutate(); // Listeyi yenile
       } else {
-        notifications.show({
-          title: 'Hata',
-          message: data.error || 'İhale eklenemedi',
-          color: 'red',
-        });
+        showError(data.error || 'İhale eklenemedi', { title: 'Hata' });
       }
     } catch (err: any) {
-      notifications.show({
-        title: 'Hata',
-        message: err.response?.data?.error || err.message || 'Bağlantı hatası',
-        color: 'red',
-      });
+      showError(err, { title: 'İhale Ekleme Hatası' });
     } finally {
       setAddingTender(false);
     }
@@ -366,16 +342,6 @@ export default function TendersPage() {
       style: 'currency',
       currency: 'TRY',
     }).format(amount);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('tr-TR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   const getStatusBadge = (tender: Tender) => {
@@ -703,9 +669,9 @@ export default function TendersPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 rightSection={
                   isLoading && debouncedSearch ? (
-                    <Loader size="xs" />
+                    <LoadingState loading={true} variant="inline" size="xs" />
                   ) : searchQuery ? (
-                    <ActionIcon onClick={() => setSearchQuery('')} variant="subtle" size="sm">
+                    <ActionIcon onClick={() => setSearchQuery('')} variant="subtle" size="md">
                       <IconX size={16} />
                     </ActionIcon>
                   ) : null
@@ -915,14 +881,7 @@ export default function TendersPage() {
           )}
 
           {/* Loading State */}
-          {isLoading && (
-            <Box ta="center" py="xl">
-              <Loader size="lg" />
-              <Text mt="md" c="dimmed">
-                İhaleler yükleniyor...
-              </Text>
-            </Box>
-          )}
+          {isLoading && <LoadingState loading={true} message="İhaleler yükleniyor..." />}
 
           {/* Tenders Grid */}
           {filteredTenders.length > 0 && (
@@ -1055,7 +1014,7 @@ export default function TendersPage() {
                             Teklif tarihi:
                           </Text>
                           <Text size="sm">
-                            {tender.deadline ? formatDate(tender.deadline) : 'Belirtilmemiş'}
+                            {tender.deadline ? formatDate(tender.deadline, 'datetime') : 'Belirtilmemiş'}
                           </Text>
                         </Group>
 
@@ -1093,7 +1052,7 @@ export default function TendersPage() {
                         </Button>
                         <Group justify="space-between">
                           <Text size="xs" c="dimmed">
-                            {formatDate(tender.created_at)}
+                            {formatDate(tender.created_at, 'datetime')}
                           </Text>
                           <Text size="xs" c="dimmed">
                             #{tender.external_id}
@@ -1108,27 +1067,23 @@ export default function TendersPage() {
 
           {/* Empty State */}
           {data?.tenders && data.tenders.length === 0 && (
-            <Box ta="center" py="xl">
-              <IconAlertCircle size={48} color="gray" />
-              <Text mt="md" size="lg" fw={500}>
-                Henüz ihale bulunmuyor
-              </Text>
-              <Text c="dimmed">İhale verileri scraper ile toplanacak</Text>
-            </Box>
+            <EmptyState
+              title="Henüz ihale bulunmuyor"
+              description="İhale verileri scraper ile toplanacak"
+              icon={<IconFileText size={48} />}
+              iconColor="blue"
+            />
           )}
 
           {/* No Results State */}
           {data?.tenders && data.tenders.length > 0 && filteredTenders.length === 0 && (
-            <Box ta="center" py="xl">
-              <IconSearch size={48} color="gray" />
-              <Text mt="md" size="lg" fw={500}>
-                Arama sonucu bulunamadı
-              </Text>
-              <Text c="dimmed">Farklı filtreler veya arama terimleri deneyin</Text>
-              <Button variant="light" mt="md" onClick={clearFilters}>
-                Filtreleri Temizle
-              </Button>
-            </Box>
+            <EmptySearch
+              query={debouncedSearch}
+              action={{
+                label: 'Filtreleri Temizle',
+                onClick: clearFilters,
+              }}
+            />
           )}
 
           {/* Pagination */}

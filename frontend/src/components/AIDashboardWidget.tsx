@@ -25,7 +25,8 @@ import {
   IconUsers,
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
+import { personelAPI } from '@/lib/api/services/personel';
+import { muhasebeAPI } from '@/lib/api/services/muhasebe';
 
 interface Insight {
   type: 'warning' | 'info' | 'success';
@@ -46,16 +47,16 @@ export function AIDashboardWidget() {
     setLoading(true);
     try {
       // Paralel API çağrıları
-      const [personelRes, faturaRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/personel/stats`).catch(() => null),
-        fetch(`${API_BASE_URL}/api/invoices/stats`).catch(() => null),
+      const [personelResult, faturaResult] = await Promise.all([
+        personelAPI.getStats().catch(() => null),
+        muhasebeAPI.getInvoiceStats().catch(() => null),
       ]);
 
       const newInsights: Insight[] = [];
 
       // Personel insights
-      if (personelRes?.ok) {
-        const personelData = await personelRes.json();
+      const personelData = (personelResult as any)?.data || personelResult;
+      if (personelData) {
         if (personelData.izinli_personel > 0) {
           newInsights.push({
             type: 'info',
@@ -77,8 +78,8 @@ export function AIDashboardWidget() {
       }
 
       // Fatura insights
-      if (faturaRes?.ok) {
-        const faturaData = await faturaRes.json();
+      const faturaData = (faturaResult as any)?.data || faturaResult;
+      if (faturaData) {
         if (faturaData.bekleyen_fatura > 0) {
           newInsights.push({
             type: 'warning',

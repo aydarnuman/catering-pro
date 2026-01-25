@@ -3,12 +3,18 @@ import './env-loader.js';
 
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { pool, query } from './database.js';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger.js';
 import logger, { httpLogger, logError } from './utils/logger.js';
+import { apiLimiter, authLimiter } from './middleware/rate-limiter.js';
+import { globalErrorHandler, notFoundHandler } from './middleware/error-handler.js';
+import { csrfProtection } from './middleware/csrf.js';
+import { ipAccessControl } from './middleware/ip-access-control.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,6 +23,20 @@ const app = express();
 const PORT = process.env.PORT || process.env.API_PORT || 3001;
 
 // Middleware
+// Security Headers (Helmet)
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"], // Swagger UI için
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Swagger UI için
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // Swagger UI için
+}));
+
 // CORS yapılandırması - Development ve Production
 const allowedOrigins = [
   'http://localhost:3000', 
@@ -32,7 +52,7 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
-    
+
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -42,13 +62,34 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'X-CSRF-Token']
 }));
+
+// Cookie Parser
+app.use(cookieParser());
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // HTTP Request Logger (Winston)
 app.use(httpLogger);
+
+// CSRF Protection - Cookie parser'dan sonra, route'lardan önce
+app.use(csrfProtection);
+
+// IP Access Control - Rate limiting'den önce (güvenlik için)
+// NOT: Health check ve auth endpoint'leri hariç
+app.use((req, res, next) => {
+  // Health check ve auth endpoint'leri için IP kontrolü atla
+  const excludedPaths = ['/health', '/api/auth/login', '/api/auth/register'];
+  if (excludedPaths.some(path => req.path.startsWith(path))) {
+    return next();
+  }
+  ipAccessControl(req, res, next);
+});
+
+// Rate Limiting - Genel API limiti
+app.use('/api', apiLimiter);
 
 // Statik Dosya Sunucusu - Yüklenen belgeler için
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -94,18 +135,54 @@ app.get('/api-docs.json', (req, res) => {
  */
 app.get('/health', async (req, res) => {
   try {
-    const result = await pool.query('SELECT NOW()');
+    // Database bağlantısını test et
+    const dbResult = await pool.query('SELECT NOW()');
+    const dbConnected = dbResult.rows.length > 0;
+    
+    // Memory kullanımı
+    const memUsage = process.memoryUsage();
+    const memInfo = {
+      rss: Math.round(memUsage.rss / 1024 / 1024), // MB
+      heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024), // MB
+      heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024), // MB
+      external: Math.round(memUsage.external / 1024 / 1024), // MB
+    };
+    
+    // Disk kullanımı (sadece process.cwd() için)
+    let diskInfo = null;
+    try {
+      const fs = await import('fs').then(m => m.promises);
+      const stats = await fs.statfs(process.cwd());
+      diskInfo = {
+        free: Math.round(stats.bavail * stats.bsize / 1024 / 1024), // MB
+        total: Math.round(stats.blocks * stats.bsize / 1024 / 1024), // MB
+        used: Math.round((stats.blocks - stats.bavail) * stats.bsize / 1024 / 1024), // MB
+      };
+    } catch (diskError) {
+      // statfs bazı sistemlerde mevcut olmayabilir, hata verme
+      logger.debug('Disk usage bilgisi alınamadı', { error: diskError.message });
+    }
+    
+    // Uptime
+    const uptime = Math.round(process.uptime());
+    
     res.json({ 
       status: 'ok', 
-      timestamp: result.rows[0].now,
-      database: 'connected'
+      timestamp: dbResult.rows[0].now,
+      database: dbConnected ? 'connected' : 'disconnected',
+      memory: memInfo,
+      ...(diskInfo && { disk: diskInfo }),
+      uptime: uptime, // saniye
+      nodeVersion: process.version,
+      environment: process.env.NODE_ENV || 'development',
     });
   } catch (error) {
     logError('Health Check', error);
     res.status(500).json({ 
       status: 'error', 
       message: error.message,
-      database: 'disconnected'
+      database: 'disconnected',
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -160,14 +237,18 @@ import tenderNotesRouter from './routes/tender-notes.js';
 import tenderDilekceRouter from './routes/tender-dilekce.js';
 import socialRouter from './routes/social.js';
 import systemRouter from './routes/system.js';
+import promptBuilderRouter from './routes/prompt-builder.js';
+import preferencesRouter from './routes/preferences.js';
 import scheduler from './services/sync-scheduler.js';
 import tenderScheduler from './services/tender-scheduler.js';
 import documentQueueProcessor from './services/document-queue-processor.js';
 
+// Auth routes - Özel rate limiter ile
+app.use('/api/auth', authLimiter, authRouter);
+
 app.use('/api/tenders', tendersRouter);
 app.use('/api/documents', documentsRouter);
 app.use('/api/documents', documentProxyRouter);
-app.use('/api/auth', authRouter);
 app.use('/api/content', contentExtractorRouter);
 app.use('/api/uyumsoft', uyumsoftRouter);
 app.use('/api/ai', aiRouter);
@@ -213,6 +294,8 @@ app.use('/api/tender-notes', tenderNotesRouter);
 app.use('/api/tender-dilekce', tenderDilekceRouter);
 app.use('/api/social', socialRouter);
 app.use('/api/system', systemRouter);
+app.use('/api/prompt-builder', promptBuilderRouter);
+app.use('/api/preferences', preferencesRouter);
 
 /**
  * @swagger
@@ -308,23 +391,10 @@ app.get('/api/logs/recent', async (req, res) => {
 });
 
 // 404 handler
-app.use((req, res) => {
-  logger.warn(`404 Not Found: ${req.method} ${req.originalUrl}`);
-  res.status(404).json({ error: 'Endpoint bulunamadı' });
-});
+app.use(notFoundHandler);
 
-// Error handler
-app.use((err, req, res, next) => {
-  logError('Unhandled Error', err, { 
-    method: req.method, 
-    url: req.originalUrl 
-  });
-  
-  res.status(err.status || 500).json({
-    error: err.message || 'Sunucu hatası',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
-});
+// Global Error Handler (en sonda olmalı)
+app.use(globalErrorHandler);
 
 // Start server
 app.listen(PORT, () => {

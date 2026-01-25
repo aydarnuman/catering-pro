@@ -172,6 +172,22 @@ html {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
 }
 
+/* Admin panel card hover */
+.admin-card-hover {
+  transition: all 0.2s ease !important;
+}
+
+.admin-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+  border-color: var(--mantine-color-blue-4) !important;
+}
+
+[data-mantine-color-scheme='dark'] .admin-card-hover:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  border-color: var(--mantine-color-blue-6) !important;
+}
+
 /* Hover red for menu items - click to delete */
 .hover-red {
   transition: all 0.15s ease;
@@ -1571,4 +1587,214 @@ a {
     -webkit-overflow-scrolling: touch !important;
     padding-bottom: calc(16px + env(safe-area-inset-bottom)) !important;
   }
+}
+
+/* ============================================
+   MOBİL - EK KRİTİK İYİLEŞTİRMELER
+   ============================================ */
+
+/* Touch cihazlarda hover efektlerini tamamen kaldır */
+@media (hover: none) and (pointer: coarse) {
+  .hover-card:hover,
+  .hover-lift:hover,
+  .ihale-card:hover,
+  .kpi-card:hover,
+  .card-hover:hover,
+  .settings-card:hover,
+  .admin-card-hover:hover,
+  .cari-card:hover,
+  .price-row:hover,
+  .teknik-sart-item:hover,
+  .ai-note-compact:hover,
+  .menu-item:hover {
+    transform: none !important;
+    box-shadow: inherit !important;
+  }
+  
+  .mantine-ActionIcon-root:hover,
+  .mantine-Button-root:hover {
+    transform: none !important;
+  }
+  
+  /* Active durumu için hafif geri bildirim */
+  .mantine-Button-root:active,
+  .mantine-ActionIcon-root:active {
+    transform: scale(0.96) !important;
+    transition: transform 0.1s ease !important;
+  }
+}
+
+/* iOS form zoom sorunu - 16px altı font'larda zoom yapar */
+@media (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  input[type="date"],
+  textarea,
+  select,
+  .mantine-Input-input,
+  .mantine-TextInput-input,
+  .mantine-NumberInput-input,
+  .mantine-Select-input,
+  .mantine-Textarea-input,
+  .mantine-PasswordInput-input,
+  .mantine-DateInput-input,
+  .mantine-DatePickerInput-input {
+    font-size: 16px !important;
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+/* Mobil Responsive Table - Kart Görünümü Desteği */
+@media (max-width: 768px) {
+  /* Desktop table gizle, card göster */
+  .responsive-table-desktop {
+    display: none !important;
+  }
+  
+  .responsive-table-mobile {
+    display: block !important;
+  }
+  
+  /* Mobil kart stili */
+  .mobile-data-card {
+    background: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-gray-3);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 8px;
+    transition: border-color 0.2s ease;
+  }
+  
+  .mobile-data-card:active {
+    border-color: var(--mantine-color-blue-4);
+    background: var(--mantine-color-blue-0);
+  }
+  
+  [data-mantine-color-scheme='dark'] .mobile-data-card {
+    border-color: var(--mantine-color-dark-4);
+  }
+  
+  [data-mantine-color-scheme='dark'] .mobile-data-card:active {
+    border-color: var(--mantine-color-blue-6);
+    background: var(--mantine-color-dark-6);
+  }
+}
+
+@media (min-width: 769px) {
+  .responsive-table-desktop {
+    display: block !important;
+  }
+  
+  .responsive-table-mobile {
+    display: none !important;
+  }
+}
+
+/* Mobil Detay Modal İyileştirmeleri */
+@media (max-width: 768px) {
+  /* Detay modal tam ekran */
+  .detail-modal .mantine-Modal-content {
+    max-height: 100vh !important;
+    height: 100vh !important;
+    border-radius: 0 !important;
+  }
+  
+  .detail-modal .mantine-Modal-body {
+    max-height: calc(100vh - 60px) !important;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom)) !important;
+  }
+  
+  /* Scroll indicator - sayfanın devam ettiğini göster */
+  .detail-modal .mantine-Modal-body::after {
+    content: '';
+    position: fixed;
+    bottom: env(safe-area-inset-bottom, 0);
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: linear-gradient(transparent, var(--mantine-color-body));
+    pointer-events: none;
+  }
+}
+
+/* Mobil buton grupları için utility class */
+.mobile-button-stack {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+}
+
+@media (max-width: 480px) {
+  .mobile-button-stack {
+    flex-direction: column;
+  }
+  
+  .mobile-button-stack > * {
+    width: 100%;
+  }
+}
+
+/* Sticky footer buttons (form submit vb.) */
+.sticky-footer-buttons {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px;
+  background: var(--mantine-color-body);
+  border-top: 1px solid var(--mantine-color-gray-2);
+  margin: 0 -16px -16px -16px;
+  z-index: 10;
+}
+
+@media (max-width: 768px) {
+  .sticky-footer-buttons {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+}
+
+[data-mantine-color-scheme='dark'] .sticky-footer-buttons {
+  border-top-color: var(--mantine-color-dark-4);
+}
+
+/* Loading overlay mobil düzeltmesi */
+@media (max-width: 768px) {
+  .mantine-LoadingOverlay-root {
+    border-radius: inherit !important;
+  }
+}
+
+/* Tabs scroll indicator - daha fazla sekme olduğunu göster */
+@media (max-width: 768px) {
+  .mantine-Tabs-list::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 40px;
+    background: linear-gradient(to right, transparent, var(--mantine-color-body));
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  
+  .mantine-Tabs-list:not(:has([data-active]:last-child))::after {
+    opacity: 1;
+  }
+}
+
+/* Swipe hint animation */
+@keyframes swipeHint {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-10px); }
+}
+
+.swipe-hint {
+  animation: swipeHint 1.5s ease-in-out 2;
 }

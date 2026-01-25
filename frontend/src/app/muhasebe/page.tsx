@@ -48,6 +48,7 @@ import {
 } from 'recharts';
 import ProjeCard from '@/components/muhasebe/ProjeCard';
 import ProjeYonetimModal from '@/components/muhasebe/ProjeYonetimModal';
+import { formatMoney } from '@/lib/formatters';
 
 // Demo veriler
 const monthlyData = [
@@ -129,20 +130,12 @@ export default function MuhasebeDashboard() {
   const [projeModalOpen, setProjeModalOpen] = useState(false);
 
   // Para formatı
-  const formatMoney = (value: number) => {
-    return new Intl.NumberFormat('tr-TR', {
-      style: 'currency',
-      currency: 'TRY',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
 
   // Özet kartları
   const stats = [
     {
       title: 'Toplam Gelir',
-      value: formatMoney(2356000),
+      value: formatMoney(2356000, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
       change: '+12.5%',
       trend: 'up',
       icon: IconTrendingUp,
@@ -151,7 +144,7 @@ export default function MuhasebeDashboard() {
     },
     {
       title: 'Toplam Gider',
-      value: formatMoney(1519000),
+      value: formatMoney(1519000, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
       change: '+8.2%',
       trend: 'up',
       icon: IconTrendingDown,
@@ -160,7 +153,7 @@ export default function MuhasebeDashboard() {
     },
     {
       title: 'Net Kâr',
-      value: formatMoney(837000),
+      value: formatMoney(837000, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
       change: '+23.1%',
       trend: 'up',
       icon: IconCash,

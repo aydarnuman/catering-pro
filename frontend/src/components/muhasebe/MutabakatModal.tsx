@@ -38,9 +38,8 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
-
-const API_URL = `${API_BASE_URL}/api`;
+import { muhasebeAPI } from '@/lib/api/services/muhasebe';
+import { formatMoney, formatDate } from '@/lib/formatters';
 
 interface Cari {
   id: number;
@@ -55,20 +54,8 @@ interface MutabakatModalProps {
   cari: Cari | null;
 }
 
-// Para formatı
-const formatMoney = (value: number) => {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-};
+// Para formatı - @/lib/formatters'dan import ediliyor
 
-// Tarih formatı
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('tr-TR');
-};
 
 // Aylar listesi
 const aylar = [
@@ -129,28 +116,27 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
       const bitis = `${selectedYil}-${selectedAy.padStart(2, '0')}-${sonGun}`;
 
       if (activeTab === 'ekstre') {
-        const res = await fetch(
-          `${API_URL}/mutabakat/ekstre/${cari.id}?baslangic=${baslangic}&bitis=${bitis}`
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setEkstreData(data);
+        const result = await muhasebeAPI.getMutabakatEkstre(cari.id, baslangic, bitis);
+        if (result.success) {
+          setEkstreData(result.data);
         }
       } else if (activeTab === 'fatura-bazli') {
-        const res = await fetch(
-          `${API_URL}/mutabakat/fatura-bazli/${cari.id}?durum=${faturaFiltre}&yil=${selectedYil}&ay=${selectedAy}`
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setFaturaBazliData(data);
+        const result = await muhasebeAPI.getMutabakatFaturaBazli(cari.id, {
+          durum: faturaFiltre,
+          yil: parseInt(selectedYil, 10),
+          ay: parseInt(selectedAy, 10),
+        });
+        if (result.success) {
+          setFaturaBazliData(result.data);
         }
       } else if (activeTab === 'donemsel') {
-        const res = await fetch(
-          `${API_URL}/mutabakat/donemsel/${cari.id}?yil=${selectedYil}&ay=${selectedAy}`
+        const result = await muhasebeAPI.getMutabakatDonemsel(
+          cari.id,
+          parseInt(selectedYil, 10),
+          parseInt(selectedAy, 10)
         );
-        if (res.ok) {
-          const data = await res.json();
-          setDonemselData(data);
+        if (result.success) {
+          setDonemselData(result.data);
         }
       }
     } catch (error) {

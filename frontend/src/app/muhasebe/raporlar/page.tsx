@@ -48,6 +48,7 @@ import {
   YAxis,
 } from 'recharts';
 import 'dayjs/locale/tr';
+import { formatMoney } from '@/lib/formatters';
 
 // Demo veriler - Gerçek uygulamada localStorage'dan gelecek
 const aylikGelirGider = [
@@ -100,15 +101,6 @@ export default function RaporlarPage() {
   const isDark = colorScheme === 'dark';
   const [donem, setDonem] = useState('yillik');
   const [_raporTipi, _setRaporTipi] = useState('genel');
-
-  // Para formatı
-  const formatMoney = (value: number) => {
-    return new Intl.NumberFormat('tr-TR', {
-      style: 'currency',
-      currency: 'TRY',
-      minimumFractionDigits: 0,
-    }).format(value);
-  };
 
   // Özet hesaplamalar
   const toplamGelir = aylikGelirGider.reduce((acc, d) => acc + d.gelir, 0);

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { API_BASE_URL } from '@/lib/config';
+import { adminAPI } from '@/lib/api/services/admin';
 
 interface Permission {
   module_name: string;
@@ -37,17 +37,11 @@ export function usePermissions() {
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/permissions/my`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          setPermissions(data.data.permissions || []);
-          setUserType(data.data.userType || 'user');
-          setIsSuperAdmin(data.data.isSuperAdmin || false);
-        }
+      const data = await adminAPI.getMyPermissions();
+      if (data.success) {
+        setPermissions(data.data?.permissions || []);
+        setUserType(data.data?.userType || 'user');
+        setIsSuperAdmin(data.data?.isSuperAdmin || false);
       }
     } catch (err) {
       console.error('Permissions fetch error:', err);

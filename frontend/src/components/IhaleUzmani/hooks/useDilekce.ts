@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { notifications } from '@mantine/notifications';
-import { API_BASE_URL } from '@/lib/config';
+import { aiAPI } from '@/lib/api/services/ai';
 import { SavedTender, DilekceMessage, DilekceConversation, FirmaBilgisi, AnalysisData } from '../types';
 
 export interface UseDilekceReturn {
@@ -85,22 +85,12 @@ export function useDilekce(
     if (!tender) return;
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/ai/conversations/list?prefix=ihale_${tender.tender_id || tender.id}_dilekce_${type}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-          },
-        }
+      const result = await aiAPI.listConversationsByPrefix(
+        `ihale_${tender.tender_id || tender.id}_dilekce_${type}`
       );
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.conversations) {
-          setDilekceConversations(result.conversations);
-        } else {
-          setDilekceConversations([]);
-        }
+      if (result.success && (result as any).conversations) {
+        setDilekceConversations((result as any).conversations);
       } else {
         setDilekceConversations([]);
       }
@@ -131,24 +121,18 @@ export function useDilekce(
     setShowChatHistory(false);
     setIsDilekceEditing(false);
 
-    const token = localStorage.getItem('auth_token');
-    if (!token) return;
-
     try {
-      const response = await fetch(`${API_BASE_URL}/api/ai/conversations/${sessionId}?userId=default`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
+      const data = await aiAPI.getConversation(sessionId);
 
-      if (data.success && data.messages) {
-        const formattedMessages = data.messages.map((msg: any) => ({
+      if (data.success && (data as any).messages) {
+        const formattedMessages = (data as any).messages.map((msg: any) => ({
           role: msg.role,
           content: msg.content,
         }));
         setDilekceMessages(formattedMessages);
 
         // Set last AI message as dilekce content
-        const lastAiMessage = [...data.messages].reverse().find((m: any) => m.role === 'assistant');
+        const lastAiMessage = [...(data as any).messages].reverse().find((m: any) => m.role === 'assistant');
         if (lastAiMessage) {
           setDilekceContent(lastAiMessage.content);
         }
@@ -176,20 +160,14 @@ export function useDilekce(
 
   // Delete conversation
   const deleteDilekceConversation = useCallback(async (sessionId: string) => {
-    const token = localStorage.getItem('auth_token');
-    if (!token) return;
-
     if (!window.confirm('Bu konuşmayı silmek istediğinize emin misiniz?')) {
       return;
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/ai/conversations/${sessionId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const result = await aiAPI.deleteConversation(sessionId);
 
-      if (response.ok) {
+      if (result.success) {
         notifications.show({
           title: 'Silindi',
           message: 'Konuşma başarıyla silindi',
@@ -222,7 +200,7 @@ export function useDilekce(
 
   // Send message
   const sendDilekceMessage = useCallback(async () => {
-    if (!dilekceInput.trim() || !dilekceSessionId || !tender) return;
+    if (!dilekceInput.trim() || !dilekceSessionId || !tender || !dilekceType) return;
 
     const userMessage = dilekceInput.trim();
     setDilekceInput('');
@@ -232,8 +210,6 @@ export function useDilekce(
     setDilekceMessages(prev => [...prev, { role: 'user', content: userMessage }]);
 
     try {
-      const token = localStorage.getItem('auth_token');
-      
       // Build context
       const context = {
         ihale: {
@@ -253,25 +229,16 @@ export function useDilekce(
         birim_fiyatlar: analysisData.birim_fiyatlar?.slice(0, 10),
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/ai/dilekce-chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          message: userMessage,
-          sessionId: dilekceSessionId,
-          dilekceType,
-          context,
-        }),
+      const data = await aiAPI.sendDilekceChat({
+        message: userMessage,
+        sessionId: dilekceSessionId,
+        dilekceType,
+        context,
       });
 
-      const data = await response.json();
-
-      if (data.success && data.response) {
-        setDilekceMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
-        setDilekceContent(data.response);
+      if (data.success && (data as any).response) {
+        setDilekceMessages(prev => [...prev, { role: 'assistant', content: (data as any).response }]);
+        setDilekceContent((data as any).response);
       } else {
         throw new Error(data.error || 'AI yanıt vermedi');
       }
@@ -289,25 +256,16 @@ export function useDilekce(
 
   // Save dilekce
   const saveDilekce = useCallback(async () => {
-    if (!dilekceContent.trim() || !tender) return;
+    if (!dilekceContent.trim() || !tender || !dilekceType) return;
 
     setDilekceSaving(true);
     try {
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${API_BASE_URL}/api/tender-dilekce`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          tender_tracking_id: tender.id,
-          dilekce_type: dilekceType,
-          content: dilekceContent,
-        }),
+      const data = await aiAPI.saveDilekce({
+        tender_tracking_id: tender.id,
+        dilekce_type: dilekceType,
+        content: dilekceContent,
       });
 
-      const data = await response.json();
       if (data.success) {
         notifications.show({
           title: 'Kaydedildi',

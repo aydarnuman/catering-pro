@@ -169,7 +169,7 @@ export default function SosyalMedyaDashboard() {
             </Group>
 
             {instagramStatus.connected ? (
-              <SimpleGrid cols={3} spacing="md" mb="lg">
+              <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md" mb="lg">
                 <Box ta="center">
                   <Text size="2rem" fw={800} c="#E4405F">
                     {instagramStatus.stats?.followers?.toLocaleString()}
@@ -269,7 +269,7 @@ export default function SosyalMedyaDashboard() {
             </Group>
 
             {whatsappStatus.connected ? (
-              <SimpleGrid cols={3} spacing="md" mb="lg">
+              <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md" mb="lg">
                 <Box ta="center">
                   <Text size="2rem" fw={800} c="#25D366">
                     {whatsappStatus.stats?.messages}

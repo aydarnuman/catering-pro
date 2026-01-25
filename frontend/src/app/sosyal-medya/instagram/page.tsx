@@ -1367,36 +1367,89 @@ export default function InstagramPage() {
 
           <Tabs.Panel value="caption">
             <Stack gap="md">
+              {/* Açıklama */}
+              <Paper p="sm" radius="md" style={{ 
+                background: isDark 
+                  ? 'linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(244, 114, 182, 0.05) 100%)' 
+                  : 'linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(244, 114, 182, 0.04) 100%)',
+                border: `1px solid ${isDark ? 'rgba(236, 72, 153, 0.2)' : 'rgba(236, 72, 153, 0.15)'}`,
+              }}>
+                <Group gap="xs" align="flex-start">
+                  <ThemeIcon size={28} radius="md" variant="light" color="pink">
+                    <IconCamera size={14} />
+                  </ThemeIcon>
+                  <Box style={{ flex: 1 }}>
+                    <Text size="sm" fw={600}>Görsel → Caption</Text>
+                    <Text size="xs" style={subtleText}>
+                      Görseli yükleyin, AI içeriğe uygun Türkçe açıklama oluştursun. Yemek fotoğraflarında harika çalışır!
+                    </Text>
+                  </Box>
+                </Group>
+              </Paper>
+
               <FileInput 
                 label="Görsel Seç" 
-                placeholder="Bir görsel seçin" 
+                placeholder="Bir görsel seçin veya sürükleyip bırakın" 
                 accept="image/*" 
                 value={selectedFile} 
                 onChange={setSelectedFile}
                 leftSection={<IconPhoto size={14} />}
+                styles={{
+                  input: {
+                    background: isDark ? 'rgba(255,255,255,0.02)' : '#fff',
+                  }
+                }}
               />
               {selectedFile && (
-                <Box style={{ borderRadius: 8, overflow: 'hidden', height: 150 }}>
+                <Box style={{ borderRadius: 12, overflow: 'hidden', height: 180, position: 'relative' }}>
                   <img src={URL.createObjectURL(selectedFile)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <Box style={{ 
+                    position: 'absolute', 
+                    bottom: 0, 
+                    left: 0, 
+                    right: 0, 
+                    padding: '8px 12px',
+                    background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
+                  }}>
+                    <Text size="xs" c="white" truncate>{selectedFile.name}</Text>
+                  </Box>
                 </Box>
               )}
               <Button 
-                leftSection={isGeneratingCaption ? <Loader size={14} /> : <IconWand size={14} />}
+                variant="gradient"
+                gradient={{ from: 'pink', to: 'grape', deg: 135 }}
+                leftSection={isGeneratingCaption ? <Loader size={14} color="white" /> : <IconWand size={16} />}
                 onClick={handleGenerateCaption}
                 loading={isGeneratingCaption}
                 disabled={!selectedFile}
+                fullWidth
               >
                 Caption Üret
               </Button>
               {caption && (
-                <Paper p="md" radius="md" style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
+                <Paper p="md" radius="md" style={{ 
+                  background: isDark ? 'rgba(34, 197, 94, 0.05)' : 'rgba(34, 197, 94, 0.03)',
+                  border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.15)'}`,
+                }}>
                   <Group justify="space-between" mb="xs">
-                    <Text size="sm" fw={500}>Oluşturulan Caption</Text>
-                    <ActionIcon variant="subtle" size="sm" onClick={() => navigator.clipboard.writeText(caption)}>
-                      <IconCopy size={12} />
-                    </ActionIcon>
+                    <Group gap="xs">
+                      <IconCheck size={14} style={{ color: '#22c55e' }} />
+                      <Text size="sm" fw={600}>Oluşturulan Caption</Text>
+                    </Group>
+                    <Tooltip label="Kopyala">
+                      <ActionIcon 
+                        variant="subtle" 
+                        size="sm" 
+                        onClick={() => {
+                          navigator.clipboard.writeText(caption);
+                          notifications.show({ message: 'Caption kopyalandı', color: 'green' });
+                        }}
+                      >
+                        <IconCopy size={12} />
+                      </ActionIcon>
+                    </Tooltip>
                   </Group>
-                  <Text size="sm">{caption}</Text>
+                  <Text size="sm" style={{ lineHeight: 1.6 }}>{caption}</Text>
                 </Paper>
               )}
             </Stack>
@@ -1404,83 +1457,243 @@ export default function InstagramPage() {
 
           <Tabs.Panel value="hashtag">
             <Stack gap="md">
+              {/* Açıklama */}
+              <Paper p="sm" radius="md" style={{ 
+                background: isDark 
+                  ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%)' 
+                  : 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.04) 100%)',
+                border: `1px solid ${isDark ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.15)'}`,
+              }}>
+                <Group gap="xs" align="flex-start">
+                  <ThemeIcon size={28} radius="md" variant="light" color="indigo">
+                    <IconHash size={14} />
+                  </ThemeIcon>
+                  <Box style={{ flex: 1 }}>
+                    <Text size="sm" fw={600}>Akıllı Hashtag Önerici</Text>
+                    <Text size="xs" style={subtleText}>
+                      İçeriğinize uygun, trend ve lokasyon bazlı hashtagler önerir. Tıklayarak caption'a ekleyebilirsiniz.
+                    </Text>
+                  </Box>
+                </Group>
+              </Paper>
+
+              {/* Hızlı Başlangıç Önerileri */}
+              <Box>
+                <Text size="xs" fw={500} mb={6} style={subtleText}>💡 Hızlı başlangıç:</Text>
+                <ScrollArea type="never">
+                  <Group gap={6} wrap="nowrap">
+                    {['Bugünkü öğle menümüz hazır! 🍽️', 'Taze malzeme, lezzetli yemek', 'Haftalık menü planı açıklandı', 'Kurumsal catering hizmeti'].map((s) => (
+                      <Badge 
+                        key={s} 
+                        size="sm" 
+                        variant="outline"
+                        color="gray"
+                        style={{ cursor: 'pointer', flexShrink: 0 }} 
+                        onClick={() => setCaption(s)}
+                      >
+                        {s}
+                      </Badge>
+                    ))}
+                  </Group>
+                </ScrollArea>
+              </Box>
+
+              {/* Caption Input */}
               <Textarea 
-                label="Caption" 
-                placeholder="Hashtag önerisi için caption yazın..." 
+                label={
+                  <Group justify="space-between" w="100%">
+                    <Text size="sm" fw={500}>Caption</Text>
+                    <Text size="xs" style={subtleText}>{caption.length} karakter</Text>
+                  </Group>
+                }
+                placeholder="Hashtag önerisi için caption veya konu yazın..." 
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 minRows={3}
+                styles={{
+                  input: {
+                    background: isDark ? 'rgba(255,255,255,0.02)' : '#fff',
+                    '&:focus': { borderColor: 'var(--mantine-color-indigo-5)' }
+                  }
+                }}
               />
+              
+              {/* Hashtag Üret Butonu */}
               <Button 
-                leftSection={isGeneratingHashtags ? <Loader size={14} /> : <IconHash size={14} />}
+                variant="gradient"
+                gradient={{ from: 'indigo', to: 'violet', deg: 135 }}
+                leftSection={isGeneratingHashtags ? <Loader size={14} color="white" /> : <IconHash size={16} />}
                 onClick={handleGenerateHashtags}
                 loading={isGeneratingHashtags}
                 disabled={!caption}
+                fullWidth
               >
                 Hashtag Öner
               </Button>
+
+              {/* Önerilen Hashtagler */}
               {suggestedHashtags.length > 0 && (
-                <Paper p="md" radius="md" style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
-                  <Text size="sm" fw={500} mb="sm">Önerilen Hashtagler</Text>
-                  <Group gap={4}>
+                <Paper p="md" radius="md" style={{ 
+                  background: isDark ? 'rgba(34, 197, 94, 0.05)' : 'rgba(34, 197, 94, 0.03)',
+                  border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.15)'}`,
+                }}>
+                  <Group justify="space-between" mb="sm">
+                    <Group gap="xs">
+                      <IconCheck size={14} style={{ color: '#22c55e' }} />
+                      <Text size="sm" fw={600}>{suggestedHashtags.length} Hashtag Önerildi</Text>
+                    </Group>
+                    <Tooltip label="Tümünü kopyala">
+                      <ActionIcon 
+                        variant="subtle" 
+                        size="sm" 
+                        onClick={() => {
+                          navigator.clipboard.writeText(suggestedHashtags.map(t => `#${t}`).join(' '));
+                          notifications.show({ message: 'Hashtagler kopyalandı', color: 'green' });
+                        }}
+                      >
+                        <IconCopy size={12} />
+                      </ActionIcon>
+                    </Tooltip>
+                  </Group>
+                  <Text size="xs" style={subtleText} mb="sm">🎯 Tıklayarak caption'a ekle</Text>
+                  <Group gap={6}>
                     {suggestedHashtags.map((tag) => (
-                      <Badge key={tag} size="sm" variant="light" style={{ cursor: 'pointer' }} onClick={() => addHashtagToCaption(tag)}>
+                      <Badge 
+                        key={tag} 
+                        size="sm" 
+                        variant="light" 
+                        color="teal"
+                        style={{ cursor: 'pointer', transition: 'transform 0.15s ease' }}
+                        styles={{ root: { '&:hover': { transform: 'scale(1.05)' } } }}
+                        onClick={() => {
+                          addHashtagToCaption(tag);
+                          notifications.show({ message: `#${tag} eklendi`, color: 'green', autoClose: 1500 });
+                        }}
+                      >
                         #{tag}
                       </Badge>
                     ))}
                   </Group>
                 </Paper>
               )}
+
+              {/* İpucu */}
+              <Text size="xs" style={subtleText} ta="center">
+                💡 En iyi sonuç için yemek türü, lokasyon ve hedef kitle bilgisi ekleyin
+              </Text>
             </Stack>
           </Tabs.Panel>
 
           <Tabs.Panel value="image">
             <Stack gap="md">
-              <Text size="sm" style={subtleText}>Türkçe açıklama yazın, AI İngilizce prompt'a çevirip görsel üretecek.</Text>
-              <ScrollArea type="never">
-                <Group gap={4} wrap="nowrap">
-                  {['Izgara tavuk, pilav', 'Taze salata, stüdyo', 'Mercimek çorbası', 'Et sote'].map((s) => (
-                    <Badge key={s} size="sm" variant="light" style={{ cursor: 'pointer', flexShrink: 0 }} onClick={() => setImagePrompt(s)}>
-                      {s}
-                    </Badge>
-                  ))}
+              {/* Açıklama */}
+              <Paper p="sm" radius="md" style={{ 
+                background: isDark 
+                  ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(34, 211, 238, 0.05) 100%)' 
+                  : 'linear-gradient(135deg, rgba(6, 182, 212, 0.08) 0%, rgba(34, 211, 238, 0.04) 100%)',
+                border: `1px solid ${isDark ? 'rgba(6, 182, 212, 0.2)' : 'rgba(6, 182, 212, 0.15)'}`,
+              }}>
+                <Group gap="xs" align="flex-start">
+                  <ThemeIcon size={28} radius="md" variant="light" color="cyan">
+                    <IconPhoto size={14} />
+                  </ThemeIcon>
+                  <Box style={{ flex: 1 }}>
+                    <Text size="sm" fw={600}>AI Görsel Üretici</Text>
+                    <Text size="xs" style={subtleText}>
+                      Türkçe yaz, AI İngilizce prompt'a çevirip profesyonel görsel üretsin. Flux Schnell ile ~3 saniyede hazır!
+                    </Text>
+                  </Box>
                 </Group>
-              </ScrollArea>
+              </Paper>
+
+              {/* Hızlı Öneriler */}
+              <Box>
+                <Text size="xs" fw={500} mb={6} style={subtleText}>🍽️ Popüler yemek görselleri:</Text>
+                <ScrollArea type="never">
+                  <Group gap={6} wrap="nowrap">
+                    {['Izgara tavuk, pilav', 'Taze salata, stüdyo', 'Mercimek çorbası', 'Et sote, sebze', 'Kahvaltı tabağı'].map((s) => (
+                      <Badge 
+                        key={s} 
+                        size="sm" 
+                        variant="outline"
+                        color="cyan"
+                        style={{ cursor: 'pointer', flexShrink: 0 }} 
+                        onClick={() => setImagePrompt(s)}
+                      >
+                        {s}
+                      </Badge>
+                    ))}
+                  </Group>
+                </ScrollArea>
+              </Box>
+
               <Textarea 
-                placeholder="Örn: Profesyonel fotoğraf, pilav üstü et sote, stüdyo ışığında..." 
+                label="Görsel Açıklaması"
+                placeholder="Örn: Profesyonel fotoğraf, pilav üstü et sote, stüdyo ışığında, beyaz tabakta..." 
                 value={imagePrompt}
                 onChange={(e) => setImagePrompt(e.target.value)}
                 minRows={2}
+                styles={{
+                  input: {
+                    background: isDark ? 'rgba(255,255,255,0.02)' : '#fff',
+                  }
+                }}
               />
+
               {generatedPrompt && (
-                <Paper p="sm" radius="md" style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
+                <Paper p="sm" radius="md" style={{ 
+                  background: isDark ? 'rgba(139, 92, 246, 0.05)' : 'rgba(139, 92, 246, 0.03)',
+                  border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.15)'}`,
+                }}>
                   <Group justify="space-between" mb={4}>
-                    <Text size="xs" fw={500}>İngilizce Prompt</Text>
-                    <ActionIcon variant="subtle" size="xs" onClick={() => navigator.clipboard.writeText(generatedPrompt.prompt)}>
-                      <IconCopy size={10} />
-                    </ActionIcon>
+                    <Group gap="xs">
+                      <IconCheck size={12} style={{ color: '#8b5cf6' }} />
+                      <Text size="xs" fw={500}>İngilizce Prompt</Text>
+                    </Group>
+                    <Tooltip label="Kopyala">
+                      <ActionIcon variant="subtle" size="xs" onClick={() => {
+                        navigator.clipboard.writeText(generatedPrompt.prompt);
+                        notifications.show({ message: 'Prompt kopyalandı', color: 'violet' });
+                      }}>
+                        <IconCopy size={10} />
+                      </ActionIcon>
+                    </Tooltip>
                   </Group>
                   <Text size="xs" style={subtleText} lineClamp={2}>{generatedPrompt.prompt}</Text>
                 </Paper>
               )}
+
               {generatedImage && (
-                <Box style={{ borderRadius: 8, overflow: 'hidden' }}>
-                  <img src={generatedImage} alt="AI Generated" style={{ width: '100%', height: 200, objectFit: 'cover' }} />
-                  <Group gap="xs" mt="xs">
-                    <Button size="xs" variant="light" leftSection={<IconDownload size={12} />} onClick={() => {
-                      const link = document.createElement('a');
-                      link.href = generatedImage;
-                      link.download = `ai-gorsel-${Date.now()}.webp`;
-                      link.click();
-                    }}>
-                      İndir
+                <Paper p="xs" radius="md" style={{ 
+                  background: isDark ? 'rgba(34, 197, 94, 0.05)' : 'rgba(34, 197, 94, 0.03)',
+                  border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.15)'}`,
+                }}>
+                  <Box style={{ borderRadius: 8, overflow: 'hidden', marginBottom: 8 }}>
+                    <img src={generatedImage} alt="AI Generated" style={{ width: '100%', height: 200, objectFit: 'cover' }} />
+                  </Box>
+                  <Group justify="center">
+                    <Button 
+                      size="xs" 
+                      variant="light" 
+                      color="green"
+                      leftSection={<IconDownload size={12} />} 
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = generatedImage;
+                        link.download = `ai-gorsel-${Date.now()}.webp`;
+                        link.click();
+                      }}
+                    >
+                      İndir (1024x1024)
                     </Button>
                   </Group>
-                </Box>
+                </Paper>
               )}
+
               <Group gap="xs">
                 <Button 
                   variant="light"
+                  color="violet"
                   leftSection={isGeneratingPrompt ? <Loader size={14} /> : <IconWand size={14} />}
                   onClick={handleGenerateImagePrompt}
                   loading={isGeneratingPrompt}
@@ -1490,7 +1703,9 @@ export default function InstagramPage() {
                   1. Prompt Oluştur
                 </Button>
                 <Button 
-                  leftSection={isGeneratingImage ? <Loader size={14} /> : <IconSparkles size={14} />}
+                  variant="gradient"
+                  gradient={{ from: 'cyan', to: 'teal', deg: 135 }}
+                  leftSection={isGeneratingImage ? <Loader size={14} color="white" /> : <IconSparkles size={14} />}
                   onClick={handleGenerateImage}
                   loading={isGeneratingImage}
                   disabled={!generatedPrompt}
@@ -1499,36 +1714,87 @@ export default function InstagramPage() {
                   2. Görsel Üret
                 </Button>
               </Group>
-              <Text size="xs" style={subtleText} ta="center">Flux Schnell • ~3 saniye • 1024x1024px</Text>
+
+              <Text size="xs" style={subtleText} ta="center">
+                ⚡ Flux Schnell • ~3 saniye • 1024x1024px
+              </Text>
             </Stack>
           </Tabs.Panel>
 
           <Tabs.Panel value="menu">
             <Stack gap="md">
+              {/* Açıklama */}
+              <Paper p="sm" radius="md" style={{ 
+                background: isDark 
+                  ? 'linear-gradient(135deg, rgba(251, 146, 60, 0.1) 0%, rgba(249, 115, 22, 0.05) 100%)' 
+                  : 'linear-gradient(135deg, rgba(251, 146, 60, 0.08) 0%, rgba(249, 115, 22, 0.04) 100%)',
+                border: `1px solid ${isDark ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.15)'}`,
+              }}>
+                <Group gap="xs" align="flex-start">
+                  <ThemeIcon size={28} radius="md" variant="light" color="orange">
+                    <IconTemplate size={14} />
+                  </ThemeIcon>
+                  <Box style={{ flex: 1 }}>
+                    <Text size="sm" fw={600}>Menü Kartı Oluşturucu</Text>
+                    <Text size="xs" style={subtleText}>
+                      Hazır şablonlarla profesyonel menü görselleri oluşturun. Instagram post veya story için ideal!
+                    </Text>
+                  </Box>
+                </Group>
+              </Paper>
+
               <Select 
-                label="Şablon"
+                label="Şablon Seç"
+                description="Menü kartınız için görsel stil seçin"
                 value={menuCardTemplate}
                 onChange={(v) => setMenuCardTemplate(v || 'modern')}
                 data={[
-                  { value: 'modern', label: 'Modern' },
-                  { value: 'classic', label: 'Klasik' },
-                  { value: 'minimal', label: 'Minimal' },
-                  { value: 'story', label: 'Story' },
+                  { value: 'modern', label: '🎨 Modern - Gradient arka plan' },
+                  { value: 'classic', label: '📜 Klasik - Zarif ve minimal' },
+                  { value: 'minimal', label: '⚪ Minimal - Temiz ve sade' },
+                  { value: 'story', label: '📱 Story - Dikey format (9:16)' },
                 ]}
+                styles={{
+                  input: {
+                    background: isDark ? 'rgba(255,255,255,0.02)' : '#fff',
+                  }
+                }}
               />
-              <Text size="sm" style={subtleText}>Örnek menü: {menuCardItems.map(i => i.name).join(', ')}</Text>
+
+              <Paper p="sm" radius="md" style={{ 
+                background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
+              }}>
+                <Text size="xs" fw={500} mb={4}>📋 Örnek Menü İçeriği:</Text>
+                <Text size="xs" style={subtleText}>{menuCardItems.map(i => i.name).join(' • ')}</Text>
+              </Paper>
+
               {menuCardHtml && (
-                <Paper p="sm" radius="md" style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
-                  <Text size="sm" color="green">✓ HTML şablonu hazır!</Text>
+                <Paper p="md" radius="md" style={{ 
+                  background: isDark ? 'rgba(34, 197, 94, 0.05)' : 'rgba(34, 197, 94, 0.03)',
+                  border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.15)'}`,
+                }}>
+                  <Group gap="xs">
+                    <IconCheck size={16} style={{ color: '#22c55e' }} />
+                    <Text size="sm" fw={500} c="green">HTML şablonu hazır!</Text>
+                  </Group>
                 </Paper>
               )}
+
               <Button 
-                leftSection={isGeneratingMenuCard ? <Loader size={14} /> : <IconPalette size={14} />}
+                variant="gradient"
+                gradient={{ from: 'orange', to: 'red', deg: 135 }}
+                leftSection={isGeneratingMenuCard ? <Loader size={14} color="white" /> : <IconPalette size={16} />}
                 onClick={handleGenerateMenuCard}
                 loading={isGeneratingMenuCard}
+                fullWidth
               >
                 Menü Kartı Oluştur
               </Button>
+
+              <Text size="xs" style={subtleText} ta="center">
+                💡 Oluşturulan kart indirilebilir PNG/HTML formatında
+              </Text>
             </Stack>
           </Tabs.Panel>
         </Tabs>

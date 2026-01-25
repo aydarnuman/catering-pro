@@ -6,16 +6,6 @@
     "auditLog": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/.618ac170c378bb374bf5dfaf63fcfd05a0506d0a-audit.json",
     "files": [
         {
-            "date": 1768054424745,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-10.log",
-            "hash": "1d8579d4d180f173fa344ebf903a10fd40e08f2102fe84b19f85b0fd304f0c81"
-        },
-        {
-            "date": 1768082844311,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-11.log",
-            "hash": "13582207fd19b9d0315d30ce2f0d23eae40e7d969cc0a4c5017b667e37618899"
-        },
-        {
             "date": 1768165648735,
             "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-12.log",
             "hash": "6569c82afcd2861898eeab8ceeca3d96ad870cf31dd955c3acff3607c636333e"
@@ -64,6 +54,21 @@
             "date": 1769031093597,
             "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-22.log",
             "hash": "8ded394324d10b62ffcfa2a9d1651010f6c91fd2dfe1bc32746f617354952478"
+        },
+        {
+            "date": 1769116863996,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-23.log",
+            "hash": "caf5de6ed94c5c36cc028ca33022558b98ec75ae5f033cb95df1e75c091101e0"
+        },
+        {
+            "date": 1769205565702,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-24.log",
+            "hash": "a6d7e6ec05d52be8fc684f1699ea9c383df7b907d822ef7e12316e0dca18c362"
+        },
+        {
+            "date": 1769347419858,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-25.log",
+            "hash": "4b7ee83037ecb1fa95a86bd9a212c3cd1e16f8beb26b11c2e6637c4dc053aacb"
         }
     ],
     "hashType": "sha256"

@@ -9,7 +9,10 @@ import claudeAI from '../services/claude-ai.js';
 import aiAgent from '../services/ai-agent.js';
 import { executeInvoiceQuery, formatInvoiceResponse } from '../services/invoice-ai.js';
 import { query } from '../database.js';
-import { authenticate, optionalAuth, requireAdmin } from '../middleware/auth.js';
+import { authenticate, optionalAuth, requireAdmin, requireSuperAdmin } from '../middleware/auth.js';
+import aiTools from '../services/ai-tools/index.js';
+import logger from '../utils/logger.js';
+import SettingsVersionService from '../services/settings-version-service.js';
 
 const router = express.Router();
 
@@ -31,7 +34,7 @@ router.post('/chat', optionalAuth, async (req, res) => {
       });
     }
 
-    console.log(`🤖 [AI Chat] Soru: "${question}" | Departman: ${department} | Prompt: ${promptTemplate}`);
+    logger.debug(`[AI Chat] Soru: "${question}" | Departman: ${department} | Prompt: ${promptTemplate}`);
 
     // Fatura ile ilgili sorgu kontrolü
     const lowerQuestion = question.toLowerCase();
@@ -42,7 +45,7 @@ router.post('/chat', optionalAuth, async (req, res) => {
     
     if (isInvoiceQuery) {
       // Fatura sorgusunu çalıştır
-      console.log('📊 Fatura sorgusu tespit edildi, veritabanından sorgulama yapılıyor...');
+      logger.debug('[AI Chat] Fatura sorgusu tespit edildi, veritabanından sorgulama yapılıyor');
       
       try {
         const invoiceResult = await executeInvoiceQuery(question);
@@ -66,7 +69,7 @@ router.post('/chat', optionalAuth, async (req, res) => {
           result.response = `📊 **Veritabanı Sorgu Sonuçları:**\n\n${formattedResponse}\n\n---\n\n${result.response}`;
         }
       } catch (invoiceError) {
-        console.error('❌ Fatura sorgu hatası:', invoiceError);
+        logger.error('[AI Chat] Fatura sorgu hatası', { error: invoiceError.message, stack: invoiceError.stack });
         // Hata durumunda normal AI'ya devam et
         result = await claudeAI.askQuestion(question, department, promptTemplate);
       }
@@ -83,7 +86,7 @@ router.post('/chat', optionalAuth, async (req, res) => {
       });
     }
 
-    console.log(`✅ [AI Chat] Cevap uzunluğu: ${result.response.length} karakter`);
+    logger.debug(`[AI Chat] Cevap uzunluğu: ${result.response.length} karakter`);
 
     return res.json({
       success: true,
@@ -95,7 +98,7 @@ router.post('/chat', optionalAuth, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ [AI Chat] Hata:', error);
+    logger.error('[AI Chat] Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
       error: 'Sunucu hatası',
@@ -120,7 +123,7 @@ router.post('/agent', optionalAuth, async (req, res) => {
       });
     }
 
-    console.log(`🤖 [AI Agent] Mesaj: "${message.substring(0, 100)}..." | Session: ${sessionId || 'yok'} | Dept: ${department || 'genel'} | Şablon: ${templateSlug || 'default'} | Context: ${pageContext?.type || 'genel'}${pageContext?.id ? '#' + pageContext.id : ''}`);
+    logger.debug(`[AI Agent] Mesaj: "${message.substring(0, 100)}..." | Session: ${sessionId || 'yok'} | Dept: ${department || 'genel'} | Şablon: ${templateSlug || 'default'} | Context: ${pageContext?.type || 'genel'}${pageContext?.id ? '#' + pageContext.id : ''}`);
 
     // Options ile sessionId, department, templateSlug, pageContext ve systemContext gönder
     const options = {
@@ -142,7 +145,7 @@ router.post('/agent', optionalAuth, async (req, res) => {
       });
     }
 
-    console.log(`✅ [AI Agent] Cevap hazırlandı | Tools: ${result.toolsUsed.length} | İterasyonlar: ${result.iterations} | Session: ${sessionId || 'yok'}`);
+    logger.info(`[AI Agent] Cevap hazırlandı | Tools: ${result.toolsUsed.length} | İterasyonlar: ${result.iterations} | Session: ${sessionId || 'yok'}`);
 
     return res.json({
       success: true,
@@ -154,7 +157,7 @@ router.post('/agent', optionalAuth, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ [AI Agent] Hata:', error);
+    logger.error('[AI Agent] Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
       error: 'Sunucu hatası',
@@ -162,6 +165,239 @@ router.post('/agent', optionalAuth, async (req, res) => {
     });
   }
 });
+
+// ============================================================
+// GOD MODE ENDPOINT'LERİ (Sadece Super Admin)
+// ============================================================
+
+/**
+ * POST /api/ai/god-mode
+ * 🔥 GOD MODE AI Agent - SINIRSIZ YETKİ
+ * Sadece super_admin erişebilir
+ * Tüm işlemler audit log'a kaydedilir
+ */
+router.post('/god-mode', authenticate, requireSuperAdmin, async (req, res) => {
+  try {
+    const { message, history = [], sessionId } = req.body;
+    const userId = req.user?.id || req.user?.email || 'unknown_admin';
+
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Mesaj boş olamaz'
+      });
+    }
+
+    logger.warn(`[GOD MODE] User: ${userId} | Message: "${message.substring(0, 100)}..."`, { userId, messageLength: message.length });
+
+    // God Mode için özel system prompt
+    const godModeSystemPrompt = `Sen bir **GOD MODE AI Agent**'sın. SINIRSIZ YETKİYE SAHİPSİN.
+
+## 🔥 GOD MODE YETKİLERİN
+- **code_execute**: JavaScript kodu çalıştır (veritabanı, hesaplama, her şey)
+- **sql_execute**: Raw SQL sorguları (SELECT, INSERT, UPDATE, DELETE, CREATE, DROP)
+- **file_read/write**: Tüm proje dosyalarını oku/yaz
+- **shell_execute**: Terminal komutları (pm2, git, npm, sistem)
+- **http_request**: Dış API'lara istek
+- **create_tool**: YENİ TOOL OLUŞTUR (meta-programming)
+
+## 🎯 ÇALIŞMA PRENSİBİN
+1. Kullanıcı ne isterse YAP - sınır yok
+2. Gerekirse KOD YAZ ve ÇALIŞTIR
+3. Gerekirse SQL YAZ ve ÇALIŞTIR
+4. Gerekirse DOSYA OLUŞTUR
+5. Gerekirse SİSTEM KOMUTU ÇALIŞTIR
+
+## ⚠️ DİKKAT
+- Tüm işlemler loglanıyor
+- Geri alınamaz işlemlerde (DROP, DELETE, rm) dikkatli ol
+- Hata durumunda detaylı bilgi ver
+
+## 📋 MEVCUT PROJE
+- Backend: Node.js + Express (port 3001)
+- Frontend: Next.js (port 3000)
+- Database: PostgreSQL (Supabase)
+- Proje kökü: ${process.cwd()}
+
+Şu an tarih: ${new Date().toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+Kullanıcı: ${userId} (Super Admin)`;
+
+    // God Mode tool'larını al
+    const godModeTools = aiTools.getGodModeToolDefinitions();
+
+    // Anthropic API çağrısı
+    const Anthropic = (await import('@anthropic-ai/sdk')).default;
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    // Aktif modeli al
+    const modelResult = await query(`SELECT setting_value FROM ai_settings WHERE setting_key = 'default_model'`);
+    let activeModel = modelResult.rows[0]?.setting_value || 'claude-sonnet-4-20250514';
+    if (typeof activeModel === 'string' && activeModel.startsWith('"')) {
+      activeModel = JSON.parse(activeModel);
+    }
+
+    const messages = [
+      ...history,
+      { role: 'user', content: message }
+    ];
+
+    let iteration = 0;
+    const maxIterations = 15; // God Mode için daha fazla iterasyon
+    let finalResponse = null;
+    let toolResults = [];
+
+    // Tool calling döngüsü
+    while (iteration < maxIterations) {
+      iteration++;
+      logger.debug(`[GOD MODE] İterasyon ${iteration}`);
+
+      const response = await client.messages.create({
+        model: activeModel,
+        max_tokens: 8192, // God Mode için daha fazla token
+        system: godModeSystemPrompt,
+        tools: godModeTools,
+        messages: messages
+      });
+
+      if (response.stop_reason === 'end_turn') {
+        const textContent = response.content.find(c => c.type === 'text');
+        finalResponse = textContent ? textContent.text : 'İşlem tamamlandı.';
+        break;
+      }
+
+      if (response.stop_reason === 'tool_use') {
+        const toolUses = response.content.filter(c => c.type === 'tool_use');
+        messages.push({ role: 'assistant', content: response.content });
+
+        const toolResultContents = [];
+        
+        for (const toolUse of toolUses) {
+          logger.warn(`[GOD MODE] Tool: ${toolUse.name}`, { tool: toolUse.name, userId });
+          
+          // God Mode tool çalıştır (audit log dahil)
+          const result = await aiTools.executeGodModeTool(toolUse.name, toolUse.input, userId);
+          
+          toolResults.push({
+            tool: toolUse.name,
+            input: toolUse.input,
+            result: result
+          });
+
+          toolResultContents.push({
+            type: 'tool_result',
+            tool_use_id: toolUse.id,
+            content: JSON.stringify(result, null, 2)
+          });
+        }
+
+        messages.push({ role: 'user', content: toolResultContents });
+      } else {
+        logger.warn(`[GOD MODE] Beklenmeyen stop_reason: ${response.stop_reason}`, { stopReason: response.stop_reason });
+        const textContent = response.content.find(c => c.type === 'text');
+        finalResponse = textContent ? textContent.text : 'Bir sorun oluştu.';
+        break;
+      }
+    }
+
+    if (iteration >= maxIterations) {
+      finalResponse = 'Maksimum iterasyon sayısına ulaşıldı. İşlem çok karmaşık olabilir.';
+    }
+
+    // Konuşmayı kaydet
+    if (sessionId) {
+      await query(`
+        INSERT INTO ai_conversations (session_id, user_id, role, content, tools_used, metadata)
+        VALUES ($1, $2, 'user', $3, NULL, '{"god_mode": true}'::jsonb)
+      `, [sessionId, userId, message]).catch(() => {});
+      
+      await query(`
+        INSERT INTO ai_conversations (session_id, user_id, role, content, tools_used, metadata)
+        VALUES ($1, $2, 'assistant', $3, $4, '{"god_mode": true}'::jsonb)
+      `, [sessionId, userId, finalResponse, toolResults.map(t => t.tool)]).catch(() => {});
+    }
+
+    logger.info(`[GOD MODE] Tamamlandı | İterasyonlar: ${iteration} | Tools: ${toolResults.length}`, { userId, iterations: iteration, toolsCount: toolResults.length });
+
+    return res.json({
+      success: true,
+      response: finalResponse,
+      toolsUsed: toolResults.map(t => t.tool),
+      toolResults: toolResults,
+      iterations: iteration,
+      godMode: true,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    logger.error('[GOD MODE] Hata', { error: error.message, stack: error.stack, userId });
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+      response: `God Mode hatası: ${error.message}`
+    });
+  }
+});
+
+/**
+ * GET /api/ai/god-mode/tools
+ * God Mode tool listesi (Super Admin only)
+ */
+router.get('/god-mode/tools', authenticate, requireSuperAdmin, async (req, res) => {
+  try {
+    const tools = aiTools.getGodModeToolDefinitions();
+    const godModeOnly = aiTools.listGodModeTools();
+    
+    return res.json({
+      success: true,
+      totalTools: tools.length,
+      godModeTools: godModeOnly,
+      allTools: tools.map(t => ({
+        name: t.name,
+        description: t.description,
+        isGodMode: godModeOnly.includes(t.name)
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/ai/god-mode/logs
+ * God Mode audit logları (Super Admin only)
+ */
+router.get('/god-mode/logs', authenticate, requireSuperAdmin, async (req, res) => {
+  try {
+    const { limit = 50, offset = 0 } = req.query;
+    
+    const result = await query(`
+      SELECT * FROM ai_god_mode_logs
+      ORDER BY created_at DESC
+      LIMIT $1 OFFSET $2
+    `, [parseInt(limit), parseInt(offset)]);
+    
+    const countResult = await query(`SELECT COUNT(*) as total FROM ai_god_mode_logs`);
+    
+    return res.json({
+      success: true,
+      logs: result.rows,
+      total: parseInt(countResult.rows[0]?.total || 0),
+      pagination: { limit: parseInt(limit), offset: parseInt(offset) }
+    });
+  } catch (error) {
+    // Tablo yoksa boş dön
+    return res.json({
+      success: true,
+      logs: [],
+      total: 0,
+      note: 'Henüz God Mode kullanılmamış veya log tablosu oluşturulmamış'
+    });
+  }
+});
+
+// ============================================================
+// NORMAL AI ENDPOINT'LERİ
+// ============================================================
 
 /**
  * GET /api/ai/agent/tools
@@ -183,7 +419,7 @@ router.get('/agent/tools', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ [AI Agent Tools] Hata:', error);
+    logger.error('[AI Agent Tools] Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
       error: 'Tool listesi alınamadı'
@@ -206,14 +442,14 @@ router.post('/agent/execute', async (req, res) => {
       });
     }
 
-    console.log(`🔧 [AI Agent] Tool çalıştırılıyor: ${tool}`);
+    logger.debug(`[AI Agent] Tool çalıştırılıyor: ${tool}`);
 
     const result = await aiAgent.executeTool(tool, parameters);
 
     return res.json(result);
 
   } catch (error) {
-    console.error('❌ [AI Agent Execute] Hata:', error);
+    logger.error('[AI Agent Execute] Hata', { error: error.message, stack: error.stack, tool });
     return res.status(500).json({
       success: false,
       error: error.message
@@ -258,7 +494,7 @@ router.get('/templates', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ [AI Templates] Hata:', error);
+    logger.error('[AI Templates] Hata', { error: error.message, stack: error.stack });
     
     // Fallback: Service'den al (tablo henüz oluşturulmamışsa)
     try {
@@ -321,7 +557,7 @@ router.get('/templates/:id', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ [AI Template Get] Hata:', error);
+    logger.error('[AI Template Get] Hata', { error: error.message, stack: error.stack, id });
     return res.status(500).json({
       success: false,
       error: 'Şablon getirilemedi'
@@ -374,7 +610,7 @@ router.post('/templates', authenticate, requireAdmin, async (req, res) => {
       preferred_model || null  // Boş string = NULL
     ]);
     
-    console.log(`✅ [AI Template] Yeni şablon oluşturuldu: ${name}`);
+    logger.info(`[AI Template] Yeni şablon oluşturuldu: ${name}`, { templateId: result.rows[0].id, slug: finalSlug });
     
     return res.json({
       success: true,
@@ -383,7 +619,7 @@ router.post('/templates', authenticate, requireAdmin, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ [AI Template Create] Hata:', error);
+    logger.error('[AI Template Create] Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
       error: 'Şablon oluşturulamadı: ' + error.message
@@ -428,7 +664,7 @@ router.put('/templates/:id', authenticate, requireAdmin, async (req, res) => {
       RETURNING *
     `, [name, description, prompt, category, icon, color, is_active, id, modelValue]);
     
-    console.log(`✅ [AI Template] Şablon güncellendi: ${id}`);
+    logger.info(`[AI Template] Şablon güncellendi: ${id}`, { templateId: id });
     
     return res.json({
       success: true,
@@ -437,7 +673,7 @@ router.put('/templates/:id', authenticate, requireAdmin, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ [AI Template Update] Hata:', error);
+    logger.error('[AI Template Update] Hata', { error: error.message, stack: error.stack, id });
     return res.status(500).json({
       success: false,
       error: 'Şablon güncellenemedi'
@@ -472,7 +708,7 @@ router.delete('/templates/:id', authenticate, requireAdmin, async (req, res) => 
     
     await query('DELETE FROM ai_prompt_templates WHERE id = $1', [id]);
     
-    console.log(`✅ [AI Template] Şablon silindi: ${id}`);
+    logger.info(`[AI Template] Şablon silindi: ${id}`, { templateId: id });
     
     return res.json({
       success: true,
@@ -480,7 +716,7 @@ router.delete('/templates/:id', authenticate, requireAdmin, async (req, res) => 
     });
 
   } catch (error) {
-    console.error('❌ [AI Template Delete] Hata:', error);
+    logger.error('[AI Template Delete] Hata', { error: error.message, stack: error.stack, id });
     return res.status(500).json({
       success: false,
       error: 'Şablon silinemedi'
@@ -505,7 +741,7 @@ router.post('/templates/:id/increment-usage', async (req, res) => {
     return res.json({ success: true });
 
   } catch (error) {
-    console.error('❌ [AI Template Usage] Hata:', error);
+    logger.error('[AI Template Usage] Hata', { error: error.message, stack: error.stack, id });
     return res.status(500).json({ success: false });
   }
 });
@@ -525,7 +761,7 @@ router.post('/analyze-product', async (req, res) => {
       });
     }
 
-    console.log(`🔍 [Product Analysis] Analiz ediliyor: "${itemDescription}"`);
+    logger.debug(`[Product Analysis] Analiz ediliyor: "${itemDescription}"`);
 
     const result = await claudeAI.analyzeProduct(itemDescription);
 
@@ -537,7 +773,7 @@ router.post('/analyze-product', async (req, res) => {
       });
     }
 
-    console.log(`✅ [Product Analysis] Kategori: ${result.data.category} | Güven: ${result.data.confidence}`);
+    logger.info(`[Product Analysis] Kategori: ${result.data.category} | Güven: ${result.data.confidence}`, { category: result.data.category, confidence: result.data.confidence });
 
     return res.json({
       success: true,
@@ -546,7 +782,7 @@ router.post('/analyze-product', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ [Product Analysis] Hata:', error);
+    logger.error('[Product Analysis] Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
       error: 'Ürün analizi yapılamadı'
@@ -576,7 +812,7 @@ router.post('/analyze-products-batch', async (req, res) => {
       });
     }
 
-    console.log(`🔍 [Batch Analysis] ${items.length} ürün analiz ediliyor...`);
+    logger.info(`[Batch Analysis] ${items.length} ürün analiz ediliyor`, { itemCount: items.length });
 
     const result = await claudeAI.analyzeBatchProducts(items);
 
@@ -588,7 +824,7 @@ router.post('/analyze-products-batch', async (req, res) => {
       });
     }
 
-    console.log(`✅ [Batch Analysis] ${result.data.length} ürün analiz edildi`);
+    logger.info(`[Batch Analysis] ${result.data.length} ürün analiz edildi`, { analyzedCount: result.data.length, totalItems: items.length });
 
     return res.json({
       success: true,
@@ -598,7 +834,7 @@ router.post('/analyze-products-batch', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ [Batch Analysis] Hata:', error);
+    logger.error('[Batch Analysis] Hata', { error: error.message, stack: error.stack, itemCount: items.length });
     return res.status(500).json({
       success: false,
       error: 'Toplu ürün analizi yapılamadı'
@@ -635,7 +871,7 @@ router.get('/status', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ [AI Status] Hata:', error);
+    logger.error('[AI Status] Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
       error: 'Durum kontrol edilemedi'
@@ -685,7 +921,7 @@ router.get('/settings', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [AI Settings] GET Hata:', error);
+    logger.error('[AI Settings] GET Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
       error: 'Ayarlar yüklenemedi'
@@ -699,7 +935,7 @@ router.get('/settings', async (req, res) => {
  */
 router.put('/settings', authenticate, requireAdmin, async (req, res) => {
   try {
-    const { settings } = req.body;
+    const { settings, changeNote } = req.body;
     
     if (!settings || typeof settings !== 'object') {
       return res.status(400).json({
@@ -709,21 +945,55 @@ router.put('/settings', authenticate, requireAdmin, async (req, res) => {
     }
     
     const updatedKeys = [];
+    const oldValues = {};
     
+    // Önce eski değerleri al (versiyonlama için)
+    for (const key of Object.keys(settings)) {
+      const oldResult = await query(
+        'SELECT setting_value FROM ai_settings WHERE setting_key = $1',
+        [key]
+      );
+      if (oldResult.rows.length > 0) {
+        oldValues[key] = oldResult.rows[0].setting_value;
+      }
+    }
+    
+    // Ayarları güncelle ve versiyon kaydet
     for (const [key, value] of Object.entries(settings)) {
+      const oldValue = oldValues[key];
+      const newValue = JSON.stringify(value);
+      
+      // Değer değişti mi kontrol et
+      if (oldValue && JSON.stringify(oldValue) === newValue) {
+        continue; // Değişiklik yok, versiyon kaydetme
+      }
+      
       const result = await query(`
         UPDATE ai_settings 
         SET setting_value = $1, updated_at = CURRENT_TIMESTAMP
         WHERE setting_key = $2
         RETURNING setting_key
-      `, [JSON.stringify(value), key]);
+      `, [newValue, key]);
       
       if (result.rows.length > 0) {
         updatedKeys.push(key);
+        
+        // Versiyon geçmişine kaydet
+        try {
+          await SettingsVersionService.saveVersion(
+            key,
+            value,
+            req.user.id,
+            changeNote || `Ayar güncellendi`
+          );
+        } catch (versionError) {
+          logger.warn('Version save failed', { key, error: versionError.message });
+          // Versiyon kaydı başarısız olsa bile ayar güncellemesi devam eder
+        }
       }
     }
     
-    console.log(`✅ [AI Settings] ${updatedKeys.length} ayar güncellendi:`, updatedKeys);
+    logger.info(`[AI Settings] ${updatedKeys.length} ayar güncellendi`, { updatedKeys, count: updatedKeys.length });
     
     return res.json({
       success: true,
@@ -732,10 +1002,309 @@ router.put('/settings', authenticate, requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [AI Settings] PUT Hata:', error);
+    logger.error('[AI Settings] PUT Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
       error: 'Ayarlar güncellenemedi'
+    });
+  }
+});
+
+/**
+ * GET /api/ai/settings/export
+ * AI ayarlarını JSON olarak export et (Admin only)
+ */
+router.get('/settings/export', authenticate, requireAdmin, async (req, res) => {
+  try {
+    // Tüm ayarları al
+    const result = await query(`
+      SELECT setting_key, setting_value, category, description, updated_at
+      FROM ai_settings
+      ORDER BY category, setting_key
+    `);
+    
+    const settings = {};
+    const metadata = {
+      version: '1.0',
+      exported_at: new Date().toISOString(),
+      exported_by: req.user?.id || null,
+      count: result.rows.length
+    };
+    
+    result.rows.forEach(row => {
+      let value = row.setting_value;
+      // JSON string ise parse et
+      if (typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {
+        try {
+          value = JSON.parse(value);
+        } catch (e) {
+          // Parse edilemezse string olarak bırak
+        }
+      }
+      
+      settings[row.setting_key] = {
+        value,
+        category: row.category,
+        description: row.description,
+        updated_at: row.updated_at
+      };
+    });
+    
+    const exportData = {
+      metadata,
+      settings
+    };
+    
+    // JSON dosyası olarak döndür
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="ai-settings-export-${Date.now()}.json"`);
+    res.json(exportData);
+    
+    logger.info('[AI Settings Export] Ayarlar export edildi', { 
+      count: result.rows.length,
+      userId: req.user?.id 
+    });
+    
+  } catch (error) {
+    logger.error('[AI Settings Export] Hata', { error: error.message, stack: error.stack });
+    return res.status(500).json({
+      success: false,
+      error: 'Ayarlar export edilemedi'
+    });
+  }
+});
+
+/**
+ * POST /api/ai/settings/import
+ * AI ayarlarını JSON'dan import et (Admin only)
+ */
+router.post('/settings/import', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { settings, overwrite = false } = req.body;
+    
+    if (!settings || typeof settings !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Geçersiz import verisi. settings objesi gerekli.'
+      });
+    }
+    
+    // Mevcut ayarları yedekle (rollback için)
+    const currentSettingsResult = await query(`
+      SELECT setting_key, setting_value FROM ai_settings
+    `);
+    const backup = {};
+    currentSettingsResult.rows.forEach(row => {
+      backup[row.setting_key] = row.setting_value;
+    });
+    
+    const importedKeys = [];
+    const skippedKeys = [];
+    const errors = [];
+    
+    // Transaction başlat (her ayar için ayrı işlem)
+    for (const [key, data] of Object.entries(settings)) {
+      try {
+        let value = data;
+        
+        // Eğer data bir obje ise ve value property'si varsa
+        if (typeof data === 'object' && data !== null && 'value' in data) {
+          value = data.value;
+        }
+        
+        // Mevcut ayar var mı kontrol et
+        const existingResult = await query(`
+          SELECT setting_key FROM ai_settings WHERE setting_key = $1
+        `, [key]);
+        
+        if (existingResult.rows.length > 0) {
+          if (!overwrite) {
+            skippedKeys.push(key);
+            continue;
+          }
+        }
+        
+        // Ayarı güncelle veya ekle
+        const valueJson = JSON.stringify(value);
+        
+        if (existingResult.rows.length > 0) {
+          await query(`
+            UPDATE ai_settings 
+            SET setting_value = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE setting_key = $2
+          `, [valueJson, key]);
+        } else {
+          // Yeni ayar ekle (category ve description varsa kullan)
+          const category = typeof data === 'object' && data.category ? data.category : 'general';
+          const description = typeof data === 'object' && data.description ? data.description : null;
+          
+          await query(`
+            INSERT INTO ai_settings (setting_key, setting_value, category, description, updated_at)
+            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+          `, [key, valueJson, category, description]);
+        }
+        
+        importedKeys.push(key);
+        
+      } catch (error) {
+        errors.push({
+          key,
+          error: error.message
+        });
+        logger.error(`[AI Settings Import] Ayar import hatası: ${key}`, { error: error.message });
+      }
+    }
+    
+    // Hata varsa rollback yap
+    if (errors.length > 0 && importedKeys.length === 0) {
+      // Hiçbir ayar import edilemediyse rollback
+      for (const [key, value] of Object.entries(backup)) {
+        try {
+          await query(`
+            UPDATE ai_settings 
+            SET setting_value = $1
+            WHERE setting_key = $2
+          `, [value, key]);
+        } catch (e) {
+          logger.error(`[AI Settings Import] Rollback hatası: ${key}`, { error: e.message });
+        }
+      }
+      
+      return res.status(400).json({
+        success: false,
+        error: 'Import başarısız, rollback yapıldı',
+        errors
+      });
+    }
+    
+    logger.info('[AI Settings Import] Ayarlar import edildi', { 
+      imported: importedKeys.length,
+      skipped: skippedKeys.length,
+      errors: errors.length,
+      userId: req.user?.id 
+    });
+    
+    return res.json({
+      success: true,
+      imported: importedKeys.length,
+      skipped: skippedKeys.length,
+      errors: errors.length,
+      importedKeys,
+      skippedKeys,
+      errors: errors.length > 0 ? errors : undefined,
+      message: `${importedKeys.length} ayar import edildi${skippedKeys.length > 0 ? `, ${skippedKeys.length} ayar atlandı` : ''}`
+    });
+    
+  } catch (error) {
+    logger.error('[AI Settings Import] Hata', { error: error.message, stack: error.stack });
+    return res.status(500).json({
+      success: false,
+      error: 'Ayarlar import edilemedi: ' + error.message
+    });
+  }
+});
+
+/**
+ * GET /api/ai/settings/history
+ * AI ayarları versiyon geçmişini getir (Admin only)
+ */
+router.get('/settings/history', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { settingKey, limit = 50 } = req.query;
+    
+    let history;
+    if (settingKey) {
+      history = await SettingsVersionService.getHistory(settingKey, parseInt(limit));
+    } else {
+      history = await SettingsVersionService.getAllHistory(parseInt(limit));
+    }
+    
+    return res.json({
+      success: true,
+      history,
+      count: history.length
+    });
+    
+  } catch (error) {
+    logger.error('[AI Settings History] GET Hata', { error: error.message, stack: error.stack });
+    return res.status(500).json({
+      success: false,
+      error: 'Versiyon geçmişi alınamadı'
+    });
+  }
+});
+
+/**
+ * GET /api/ai/settings/history/:settingKey/:version
+ * Belirli bir versiyonu getir (Admin only)
+ */
+router.get('/settings/history/:settingKey/:version', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { settingKey, version } = req.params;
+    
+    const versionData = await SettingsVersionService.getVersion(settingKey, parseInt(version));
+    
+    if (!versionData) {
+      return res.status(404).json({
+        success: false,
+        error: 'Versiyon bulunamadı'
+      });
+    }
+    
+    return res.json({
+      success: true,
+      version: versionData
+    });
+    
+  } catch (error) {
+    logger.error('[AI Settings Version] GET Hata', { error: error.message, stack: error.stack });
+    return res.status(500).json({
+      success: false,
+      error: 'Versiyon alınamadı'
+    });
+  }
+});
+
+/**
+ * POST /api/ai/settings/restore/:settingKey/:version
+ * Belirli bir versiyona geri dön (Admin only)
+ */
+router.post('/settings/restore/:settingKey/:version', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { settingKey, version } = req.params;
+    const { changeNote } = req.body;
+    
+    await SettingsVersionService.restoreVersion(
+      settingKey,
+      parseInt(version),
+      req.user.id
+    );
+    
+    // Eğer changeNote varsa, geri yükleme kaydına ekle
+    if (changeNote) {
+      const versionData = await SettingsVersionService.getVersion(settingKey, parseInt(version));
+      if (versionData) {
+        await SettingsVersionService.saveVersion(
+          settingKey,
+          versionData.setting_value,
+          req.user.id,
+          changeNote
+        );
+      }
+    }
+    
+    logger.info(`[AI Settings] Versiyon geri yüklendi`, { settingKey, version, userId: req.user.id });
+    
+    return res.json({
+      success: true,
+      message: `Versiyon ${version} geri yüklendi`
+    });
+    
+  } catch (error) {
+    logger.error('[AI Settings Restore] POST Hata', { error: error.message, stack: error.stack });
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Versiyon geri yüklenemedi'
     });
   }
 });
@@ -764,7 +1333,7 @@ router.get('/settings/models', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [AI Models] Hata:', error);
+    logger.error('[AI Models] Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
       error: 'Modeller yüklenemedi'
@@ -809,7 +1378,7 @@ router.put('/settings/model', authenticate, requireAdmin, async (req, res) => {
       WHERE setting_key = 'default_model'
     `, [JSON.stringify(model)]);
     
-    console.log(`✅ [AI Model] Model değiştirildi: ${model}`);
+    logger.info(`[AI Model] Model değiştirildi: ${model}`, { model, modelInfo: validModel });
     
     return res.json({
       success: true,
@@ -819,7 +1388,7 @@ router.put('/settings/model', authenticate, requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [AI Model] Hata:', error);
+    logger.error('[AI Model] Hata', { error: error.message, stack: error.stack, model });
     return res.status(500).json({
       success: false,
       error: 'Model değiştirilemedi'
@@ -877,7 +1446,7 @@ router.post('/feedback', async (req, res) => {
       responseTimeMs || null
     ]);
     
-    console.log(`📝 [AI Feedback] Kayıt: ${result.rows[0].id}, Rating: ${rating}, Type: ${feedbackType}`);
+    logger.info(`[AI Feedback] Kayıt: ${result.rows[0].id}, Rating: ${rating}, Type: ${feedbackType}`, { feedbackId: result.rows[0].id, rating, feedbackType });
     
     return res.json({
       success: true,
@@ -886,7 +1455,7 @@ router.post('/feedback', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [AI Feedback] Hata:', error);
+    logger.error('[AI Feedback] Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
       error: 'Geri bildirim kaydedilemedi'
@@ -929,7 +1498,7 @@ router.get('/feedback/stats', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [AI Feedback Stats] Hata:', error);
+    logger.error('[AI Feedback Stats] Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
       error: 'İstatistikler yüklenemedi'
@@ -981,7 +1550,7 @@ router.get('/memory', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [AI Memory] Hata:', error);
+    logger.error('[AI Memory] Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
       error: 'Hafıza yüklenemedi'
@@ -1022,7 +1591,7 @@ router.post('/memory', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [AI Memory POST] Hata:', error);
+    logger.error('[AI Memory POST] Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
       error: 'Hafıza kaydedilemedi'
@@ -1053,7 +1622,7 @@ router.delete('/memory/:id', authenticate, requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [AI Memory DELETE] Hata:', error);
+    logger.error('[AI Memory DELETE] Hata', { error: error.message, stack: error.stack, id });
     return res.status(500).json({
       success: false,
       error: 'Hafıza silinemedi'
@@ -1101,7 +1670,7 @@ router.get('/learned-facts', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [AI Learned Facts] Hata:', error);
+    logger.error('[AI Learned Facts] Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
       error: 'Öğrenilen bilgiler yüklenemedi'
@@ -1144,7 +1713,7 @@ router.put('/learned-facts/:id/verify', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [AI Verify Fact] Hata:', error);
+    logger.error('[AI Verify Fact] Hata', { error: error.message, stack: error.stack, id });
     return res.status(500).json({
       success: false,
       error: 'İşlem yapılamadı'
@@ -1170,7 +1739,7 @@ router.post('/snapshot', async (req, res) => {
       return res.status(500).json(result);
     }
   } catch (error) {
-    console.error('❌ [AI Snapshot] Hata:', error);
+    logger.error('[AI Snapshot] Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
       error: 'Snapshot oluşturulamadı'
@@ -1201,7 +1770,7 @@ router.get('/snapshots', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [AI Snapshots] Hata:', error);
+    logger.error('[AI Snapshots] Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
       error: 'Snapshot\'lar yüklenemedi'
@@ -1273,7 +1842,7 @@ router.get('/conversations', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [AI Conversations] Hata:', error);
+    logger.error('[AI Conversations] Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
       error: 'Sohbet geçmişi yüklenemedi'
@@ -1346,7 +1915,7 @@ router.get('/conversations/list', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [AI Conversations List] Hata:', error);
+    logger.error('[AI Conversations List] Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
       error: 'Konuşma listesi yüklenemedi'
@@ -1394,7 +1963,7 @@ router.get('/conversations/search', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [AI Conversations Search] Hata:', error);
+    logger.error('[AI Conversations Search] Hata', { error: error.message, stack: error.stack, query: q });
     return res.status(500).json({
       success: false,
       error: 'Arama yapılamadı'
@@ -1452,7 +2021,7 @@ router.get('/conversations/:sessionId', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [AI Conversation Detail] Hata:', error);
+    logger.error('[AI Conversation Detail] Hata', { error: error.message, stack: error.stack, sessionId });
     return res.status(500).json({
       success: false,
       error: 'Sohbet detayı yüklenemedi'
@@ -1482,7 +2051,7 @@ router.delete('/conversations/:sessionId', async (req, res) => {
       });
     }
     
-    console.log(`🗑️ [AI Conversation] Silindi: ${sessionId} (${result.rows.length} mesaj)`);
+    logger.info(`[AI Conversation] Silindi: ${sessionId} (${result.rows.length} mesaj)`, { sessionId, deletedCount: result.rows.length });
     
     return res.json({
       success: true,
@@ -1491,7 +2060,7 @@ router.delete('/conversations/:sessionId', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [AI Conversation Delete] Hata:', error);
+    logger.error('[AI Conversation Delete] Hata', { error: error.message, stack: error.stack, sessionId });
     return res.status(500).json({
       success: false,
       error: 'Sohbet silinemedi'
@@ -1556,7 +2125,7 @@ router.get('/dashboard', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ [AI Dashboard] Hata:', error);
+    logger.error('[AI Dashboard] Hata', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
       error: 'Dashboard yüklenemedi'

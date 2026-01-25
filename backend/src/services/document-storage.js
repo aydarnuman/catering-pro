@@ -15,6 +15,7 @@ import { promisify } from 'util';
 import { exec } from 'child_process';
 import crypto from 'crypto';
 import AdmZip from 'adm-zip';
+import logger from '../utils/logger.js';
 
 const execAsync = promisify(exec);
 
@@ -135,7 +136,7 @@ class DocumentStorageService {
    * @returns {Object} - İndirme sonuçları
    */
   async downloadTenderDocuments(tenderId) {
-    console.log(`📥 İhale ${tenderId} dökümanları indiriliyor...`);
+    logger.info(`İhale ${tenderId} dökümanları indiriliyor`);
     
     const results = {
       tenderId,
@@ -161,7 +162,7 @@ class DocumentStorageService {
       const documentLinks = tender.document_links || {};
 
       if (Object.keys(documentLinks).length === 0) {
-        console.log('⚠️ Bu ihalede döküman linki yok');
+        logger.warn(`İhale ${tenderId}: Döküman linki yok`);
         return { ...results, message: 'Döküman linki bulunamadı' };
       }
 
@@ -180,18 +181,18 @@ class DocumentStorageService {
           const name = typeof docData === 'object' ? docData?.name : null;
 
           if (!url) {
-            console.log(`⚠️ ${docType}: URL bulunamadı`);
+            logger.warn(`${docType}: URL bulunamadı`);
             continue;
           }
 
           // Daha önce indirilmiş mi kontrol et
           if (downloadedUrls.has(url)) {
-            console.log(`⏭️ ${docType}: Zaten indirilmiş`);
+            logger.debug(`${docType}: Zaten indirilmiş`);
             results.skipped.push({ docType, reason: 'already_downloaded' });
             continue;
           }
 
-          console.log(`📄 ${docType}: İndiriliyor... ${url.substring(0, 50)}...`);
+          logger.info(`${docType}: İndiriliyor... ${url.substring(0, 50)}...`);
 
           // Rate limiting
           await this.sleep(this.downloadDelay);
@@ -207,7 +208,7 @@ class DocumentStorageService {
           results.totalSize += downloadResult.totalSize || 0;
 
         } catch (error) {
-          console.error(`❌ ${docType}: İndirme hatası -`, error.message);
+          logger.error(`${docType}: İndirme hatası`, { error: error.message, docType, tenderId });
           results.failed.push({
             docType,
             error: error.message
@@ -215,8 +216,13 @@ class DocumentStorageService {
         }
       }
 
-      console.log(`✅ İhale ${tenderId} dökümanları tamamlandı: ${results.success.length} başarılı, ${results.failed.length} başarısız, ${results.skipped.length} atlandı`);
-      console.log(`📊 Toplam: ${results.totalDownloaded} dosya, ${(results.totalSize / 1024 / 1024).toFixed(2)} MB`);
+      logger.info(`İhale ${tenderId} dökümanları tamamlandı`, {
+        success: results.success.length,
+        failed: results.failed.length,
+        skipped: results.skipped.length,
+        totalFiles: results.totalDownloaded,
+        totalSizeMB: (results.totalSize / 1024 / 1024).toFixed(2)
+      });
       
       // Başarılı indirmelerin Supabase'e kaydedildiğini doğrula
       if (results.success.length > 0) {
@@ -227,13 +233,13 @@ class DocumentStorageService {
           [tenderId]
         );
         const verified = verifyResult.rows[0];
-        console.log(`✅ Doğrulama: ${verified.count} döküman DB'de pending durumunda (${(verified.total_size / 1024 / 1024).toFixed(2)} MB)`);
+        logger.debug(`Doğrulama: ${verified.count} döküman DB'de pending durumunda (${(verified.total_size / 1024 / 1024).toFixed(2)} MB)`);
       }
       
       return results;
 
     } catch (error) {
-      console.error(`❌ İhale ${tenderId} döküman indirme hatası:`, error);
+      logger.error(`İhale ${tenderId} döküman indirme hatası`, { error: error.message, stack: error.stack });
       throw error;
     }
   }
@@ -252,7 +258,7 @@ class DocumentStorageService {
       let extension = this.detectFileType(fileBuffer) || this.getExtensionFromUrl(url) || '.pdf';
       const isZip = extension === '.zip' || extension === '.rar';
       
-      console.log(`📄 Dosya tipi tespit edildi: ${extension} (URL: ${url.substring(0, 50)}...)`);
+      logger.debug(`Dosya tipi tespit edildi: ${extension} (URL: ${url.substring(0, 50)}...)`);
       
       // 3. Temp dosyaya kaydet
       const tempFilePath = path.join(tempDir, `download${extension}`);
@@ -288,7 +294,7 @@ class DocumentStorageService {
       try {
         await fs.rm(tempDir, { recursive: true });
       } catch (e) {
-        console.warn('Temp klasör temizleme hatası:', e.message);
+        logger.warn('Temp klasör temizleme hatası', { error: e.message });
       }
     }
   }
@@ -307,11 +313,11 @@ class DocumentStorageService {
       
       if (ext === '.zip') {
         // adm-zip ile ZIP aç (Türkçe karakter desteği)
-        console.log(`📦 ZIP dosyası açılıyor (adm-zip): ${zipPath}`);
+        logger.info(`ZIP dosyası açılıyor (adm-zip): ${zipPath}`);
         const zip = new AdmZip(zipPath);
         const zipEntries = zip.getEntries();
         
-        console.log(`📦 ZIP içinde ${zipEntries.length} dosya bulundu`);
+        logger.info(`ZIP içinde ${zipEntries.length} dosya bulundu`);
         
         for (const entry of zipEntries) {
           // Klasörleri atla
@@ -339,13 +345,13 @@ class DocumentStorageService {
           
           // Desteklenen dosya mı kontrol et
           if (!SUPPORTED_EXTENSIONS.includes(fileExt)) {
-            console.log(`⚠️ Desteklenmeyen dosya atlandı: ${fileName}`);
+            logger.warn(`Desteklenmeyen dosya atlandı: ${fileName}`);
             continue;
           }
           
           // Dosya içeriğini al
           const buffer = entry.getData();
-          console.log(`  📄 İşleniyor: ${fileName} (${(buffer.length / 1024).toFixed(1)} KB)`);
+          logger.debug(`İşleniyor: ${fileName} (${(buffer.length / 1024).toFixed(1)} KB)`);
           
           // ZIP'ten çıkan dosyalar için unique source_url oluştur
           // (aynı ZIP'ten birden fazla dosya çıkabilir)
@@ -375,14 +381,14 @@ class DocumentStorageService {
           
           // Açılan dosyaları bul
           const extractedFiles = await this.walkDirectory(extractDir);
-          console.log(`📦 RAR'dan ${extractedFiles.length} dosya çıkarıldı`);
+          logger.info(`RAR'dan ${extractedFiles.length} dosya çıkarıldı`);
           
           for (const filePath of extractedFiles) {
             const fileName = path.basename(filePath);
             const fileExt = path.extname(fileName).toLowerCase();
             
             if (!SUPPORTED_EXTENSIONS.includes(fileExt)) {
-              console.log(`⚠️ Desteklenmeyen dosya atlandı: ${fileName}`);
+              logger.warn(`Desteklenmeyen dosya atlandı: ${fileName}`);
               continue;
             }
             
@@ -393,7 +399,7 @@ class DocumentStorageService {
             uploadResults.push(result);
           }
         } catch (e) {
-          console.warn('RAR açılamadı (unrar yüklü olmayabilir):', e.message);
+          logger.warn('RAR açılamadı (unrar yüklü olmayabilir)', { error: e.message });
           // RAR'ı direkt yükle
           const buffer = await fs.readFile(zipPath);
           const result = await this.uploadSingleFile(
@@ -419,11 +425,11 @@ class DocumentStorageService {
         );
       }
 
-      console.log(`✅ ZIP'ten ${uploadResults.length} dosya yüklendi`);
+      logger.info(`ZIP'ten ${uploadResults.length} dosya yüklendi`);
       return [archiveResult, ...uploadResults];
 
     } catch (error) {
-      console.error('ZIP açma hatası:', error);
+      logger.error('ZIP açma hatası', { error: error.message, stack: error.stack });
       throw error;
     }
   }
@@ -463,7 +469,7 @@ class DocumentStorageService {
 
       if (uploadError) {
         // Detaylı hata logla
-        console.error(`❌ Supabase Storage yükleme hatası:`, {
+        logger.error('Supabase Storage yükleme hatası', {
           error: uploadError.message,
           code: uploadError.statusCode,
           storagePath,
@@ -477,7 +483,7 @@ class DocumentStorageService {
         throw new Error('Supabase upload başarılı görünüyor ama data dönmedi');
       }
 
-      console.log(`✅ Supabase'e yüklendi: ${storagePath} (${buffer.length} bytes, path: ${uploadData.path})`);
+      logger.info(`Supabase'e yüklendi: ${storagePath} (${buffer.length} bytes, path: ${uploadData.path})`);
 
       // 2. Public URL al
       const { data: urlData } = supabase.storage
@@ -526,10 +532,10 @@ class DocumentStorageService {
       
       // Duplike uyarısı
       if (!insertedDoc.is_new) {
-        console.log(`⚠️ Döküman zaten mevcut, güncellendi: ${displayName}`);
+        logger.warn(`Döküman zaten mevcut, güncellendi: ${displayName}`);
       }
 
-      console.log(`✅ Döküman DB'ye kaydedildi: ID=${insertedDoc.id}, storage_path=${insertedDoc.storage_path}, storage_url=${insertedDoc.storage_url || 'NULL'}`);
+      logger.debug(`Döküman DB'ye kaydedildi: ID=${insertedDoc.id}, storage_path=${insertedDoc.storage_path}, storage_url=${insertedDoc.storage_url || 'NULL'}`);
 
       return {
         documentId: insertedDoc.id,
@@ -543,7 +549,7 @@ class DocumentStorageService {
       };
 
     } catch (error) {
-      console.error(`❌ Dosya yükleme hatası: ${displayName}`, error);
+      logger.error(`Dosya yükleme hatası: ${displayName}`, { error: error.message, stack: error.stack, displayName });
       throw error;
     }
   }
@@ -691,7 +697,7 @@ class DocumentStorageService {
     if (buffer[0] === 0x50 && buffer[1] === 0x4B && buffer[2] === 0x03 && buffer[3] === 0x04) {
       // ZIP içeriğine bakarak DOCX/XLSX mi yoksa gerçek ZIP mi anlamaya çalış
       // Basit bir kontrol: ZIP header'ı varsa ZIP olarak işle
-      console.log(`📦 ZIP formatı tespit edildi (magic bytes: PK)`);
+      logger.debug('ZIP formatı tespit edildi (magic bytes: PK)');
       return '.zip';
     }
     

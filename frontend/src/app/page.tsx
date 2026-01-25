@@ -50,6 +50,9 @@ import useSWR from 'swr';
 import { useAuth } from '@/context/AuthContext';
 import { apiClient } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/config';
+import { muhasebeAPI } from '@/lib/api/services/muhasebe';
+import { formatDate } from '@/lib/formatters';
+import { EmptyState, LoadingState, showError } from '@/components/common';
 import type { StatsResponse } from '@/types/api';
 
 // Types
@@ -73,15 +76,6 @@ const getGreeting = () => {
   return { text: 'İyi geceler', icon: IconMoon, color: 'indigo' };
 };
 
-// Tarih formatla
-const formatDate = (date: Date) => {
-  return date.toLocaleDateString('tr-TR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-};
 
 // KPI Card Component
 interface KPICardProps {
@@ -166,14 +160,14 @@ function KPICard({
       </Group>
 
       {isLoading ? (
-        <Skeleton height={36} width="60%" mt="sm" />
+        <LoadingState loading={true} variant="skeleton" skeletonHeight={36} skeletonLines={1} />
       ) : (
         <Text
           size="1.75rem"
           fw={800}
           mt="sm"
           style={{
-            color: isDark ? 'white' : '#1a1a2e',
+            color: isDark ? 'var(--mantine-color-gray-0)' : 'var(--mantine-color-dark-9)',
             lineHeight: 1.1,
           }}
         >
@@ -219,7 +213,7 @@ function QuickAction({ href, icon: Icon, label, color, gradient }: QuickActionPr
         background: isDark ? `${color}15` : `${color}10`,
         border: `1px solid ${color}30`,
         color: isDark ? 'white' : color,
-        minWidth: 140,
+        minWidth: 'min(140px, 42vw)',
         transition: 'all 0.2s ease',
       }}
       className="quick-action-btn"
@@ -278,7 +272,7 @@ export default function HomePage() {
   // Stats fetch
   const { data: stats, error, isLoading } = useSWR<StatsResponse>('stats', apiClient.getStats);
 
-  // Notlar fetch
+  // Notlar fetch - özel endpoint, şimdilik fetch kullan
   const { data: notlarData, mutate: mutateNotlar } = useSWR('notlar', async () => {
     const res = await fetch(`${API_BASE_URL}/api/notlar?limit=10`);
     return res.json();
@@ -287,20 +281,20 @@ export default function HomePage() {
 
   // Finans özeti fetch
   const { data: finansOzet } = useSWR(isAuthenticated ? 'finans-ozet' : null, async () => {
-    const res = await fetch(`${API_BASE_URL}/api/kasa-banka/ozet`);
-    return res.json();
+    const data = await muhasebeAPI.getKasaBankaOzet();
+    return data;
   });
 
   // Yaklaşan ihaleler
   const { data: yaklasanIhaleler } = useSWR('yaklasan-ihaleler', async () => {
-    const res = await fetch(`${API_BASE_URL}/api/tenders?limit=5&sort=tender_date&order=asc`);
-    const data = await res.json();
+    const { tendersAPI } = await import('@/lib/api/services/tenders');
+    const data = await tendersAPI.getTenders({ limit: 5, status: 'active' });
     return data.tenders?.slice(0, 5) || [];
   });
 
   const totalTenders = stats?.totalTenders || 0;
   const activeTenders = stats?.activeTenders || 0;
-  const kasaBakiye = finansOzet?.kasa?.toplam || finansOzet?.kasaBakiye || 0;
+  const kasaBakiye = (finansOzet as any)?.kasa?.toplam || (finansOzet as any)?.kasaBakiye || 0;
 
   // Not ekle
   const handleAddNote = async () => {
@@ -315,7 +309,7 @@ export default function HomePage() {
       setNewNote('');
       mutateNotlar();
     } catch (error) {
-      console.error('Not ekleme hatası:', error);
+      showError(error, { title: 'Not Ekleme Hatası' });
     }
   };
 
@@ -325,7 +319,7 @@ export default function HomePage() {
       await fetch(`${API_BASE_URL}/api/notlar/${id}/toggle`, { method: 'PUT' });
       mutateNotlar();
     } catch (error) {
-      console.error('Not toggle hatası:', error);
+      showError(error, { title: 'Not Güncelleme Hatası' });
     }
   };
 
@@ -335,7 +329,7 @@ export default function HomePage() {
       await fetch(`${API_BASE_URL}/api/notlar/${id}`, { method: 'DELETE' });
       mutateNotlar();
     } catch (error) {
-      console.error('Not silme hatası:', error);
+      showError(error, { title: 'Not Silme Hatası' });
     }
   };
 
@@ -405,7 +399,7 @@ export default function HomePage() {
             <Group
               justify="space-between"
               align="center"
-              wrap="nowrap"
+              wrap={isMobile ? 'wrap' : 'nowrap'}
               style={{ position: 'relative', zIndex: 1 }}
             >
               {/* Sol: Tarih ve Selamlama */}
@@ -413,7 +407,7 @@ export default function HomePage() {
                 <Group gap="xs" mb="xs">
                   <IconCalendar size={14} color="rgba(255,255,255,0.6)" />
                   <Text size="xs" c="rgba(255,255,255,0.6)" fw={500}>
-                    {formatDate(currentTime)}
+                    {formatDate(currentTime, 'long')}
                   </Text>
                 </Group>
 
@@ -830,21 +824,12 @@ export default function HomePage() {
           <ScrollArea h={350} scrollbarSize={6} offsetScrollbars>
             <Stack gap="xs">
               {notlar.length === 0 ? (
-                <Paper
-                  p="xl"
-                  radius="lg"
-                  ta="center"
-                  style={{
-                    background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-                    border: `2px dashed ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
-                  }}
-                >
-                  <IconNote size={48} color={isDark ? '#555' : '#ccc'} style={{ marginBottom: 12 }} />
-                  <Text size="md" c="dimmed" fw={500}>Henüz not yok</Text>
-                  <Text size="sm" c="dimmed" mt={4}>
-                    Yukarıdaki alana yazarak ilk notunuzu ekleyin
-                  </Text>
-                </Paper>
+                <EmptyState
+                  title="Henüz not yok"
+                  description="Yukarıdaki alana yazarak ilk notunuzu ekleyin"
+                  icon={<IconNote size={48} />}
+                  iconColor="violet"
+                />
               ) : (
                 notlar.map((not) => (
                   <Paper
@@ -863,7 +848,7 @@ export default function HomePage() {
                       transition: 'all 0.2s ease',
                     }}
                   >
-                    <Group justify="space-between" wrap="nowrap">
+                    <Group justify="space-between" wrap="wrap">
                       <Group gap="sm" wrap="nowrap" style={{ flex: 1 }}>
                         <Checkbox
                           checked={not.is_completed}

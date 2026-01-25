@@ -44,8 +44,6 @@ interface HealthStatus {
 }
 
 export default function AdminSistemPage() {
-  const API_URL = API_BASE_URL;
-
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [healthLoading, setHealthLoading] = useState(true);
   const [healthError, setHealthError] = useState<string | null>(null);
@@ -58,7 +56,7 @@ export default function AdminSistemPage() {
     setHealthLoading(true);
     setHealthError(null);
     try {
-      const res = await fetch(`${API_URL}/health`);
+      const res = await fetch(`${API_BASE_URL}/health`);
       const data = await res.json();
       setHealth(data);
     } catch (_err) {
@@ -66,13 +64,13 @@ export default function AdminSistemPage() {
     } finally {
       setHealthLoading(false);
     }
-  }, [API_URL]);
+  }, []);
 
   const fetchLogs = async () => {
     setLogsLoading(true);
     setLogsError(null);
     try {
-      const res = await fetch(`${API_URL}/logs/recent`);
+      const res = await fetch(`${API_BASE_URL}/logs/recent`);
       const data = await res.json();
       setLogs(data.data || []);
     } catch (_err) {
@@ -87,10 +85,10 @@ export default function AdminSistemPage() {
   }, [fetchHealth]);
 
   const systemInfo = [
-    { label: 'Backend URL', value: API_URL },
-    { label: 'API Docs', value: `${API_URL}/api-docs` },
-    { label: 'OpenAPI JSON', value: `${API_URL}/api-docs.json` },
-    { label: 'Health Endpoint', value: `${API_URL}/health` },
+    { label: 'Backend URL', value: API_BASE_URL },
+    { label: 'API Docs', value: `${API_BASE_URL}/api-docs` },
+    { label: 'OpenAPI JSON', value: `${API_BASE_URL}/api-docs.json` },
+    { label: 'Health Endpoint', value: `${API_BASE_URL}/health` },
   ];
 
   return (
@@ -168,7 +166,7 @@ export default function AdminSistemPage() {
               size="xs"
               fullWidth
               rightSection={<IconExternalLink size={14} />}
-              onClick={() => window.open(`${API_URL}/api-docs`, '_blank')}
+              onClick={() => window.open(`${API_BASE_URL}/api-docs`, '_blank')}
             >
               Swagger Aç
             </Button>
@@ -277,7 +275,7 @@ export default function AdminSistemPage() {
               variant="light"
               leftSection={<IconFileText size={16} />}
               rightSection={<IconExternalLink size={14} />}
-              onClick={() => window.open(`${API_URL}/api-docs`, '_blank')}
+              onClick={() => window.open(`${API_BASE_URL}/api-docs`, '_blank')}
             >
               Swagger UI
             </Button>
@@ -286,7 +284,7 @@ export default function AdminSistemPage() {
               color="cyan"
               leftSection={<IconApi size={16} />}
               rightSection={<IconExternalLink size={14} />}
-              onClick={() => window.open(`${API_URL}/api-docs.json`, '_blank')}
+              onClick={() => window.open(`${API_BASE_URL}/api-docs.json`, '_blank')}
             >
               OpenAPI JSON
             </Button>
@@ -295,7 +293,7 @@ export default function AdminSistemPage() {
               color="green"
               leftSection={<IconActivity size={16} />}
               rightSection={<IconExternalLink size={14} />}
-              onClick={() => window.open(`${API_URL}/health`, '_blank')}
+              onClick={() => window.open(`${API_BASE_URL}/health`, '_blank')}
             >
               Health Check
             </Button>
@@ -304,7 +302,7 @@ export default function AdminSistemPage() {
               color="orange"
               leftSection={<IconDatabase size={16} />}
               rightSection={<IconExternalLink size={14} />}
-              onClick={() => window.open(`${API_URL}/stats`, '_blank')}
+              onClick={() => window.open(`${API_BASE_URL}/stats`, '_blank')}
             >
               API Stats
             </Button>

@@ -34,6 +34,7 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { invoiceAPI, uyumsoftAPI } from '@/lib/invoice-api';
+import { formatMoney } from '@/lib/formatters';
 
 // Kategori ikonları
 const categoryIcons: Record<string, any> = {
@@ -70,13 +71,6 @@ export default function DashboardPage() {
   const [currentMonthData, setCurrentMonthData] = useState<any>(null);
 
   // Para formatı
-  const formatMoney = (value: number) => {
-    return new Intl.NumberFormat('tr-TR', {
-      style: 'currency',
-      currency: 'TRY',
-      minimumFractionDigits: 2,
-    }).format(value || 0);
-  };
 
   // Yüzde hesapla
   const calculatePercentage = (value: number, total: number) => {

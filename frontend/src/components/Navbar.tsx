@@ -168,7 +168,7 @@ export function Navbar() {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                padding: '4px 8px',
+                padding: 'xs',
                 borderRadius: 12,
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 background: 'transparent',
@@ -230,19 +230,19 @@ export function Navbar() {
 
           {/* CENTER: Search Bar (Desktop & Tablet) */}
           {mounted && !isMobile && (
-            <Box style={{ flex: 1, maxWidth: 480, margin: '0 24px' }}>
+            <Box style={{ flex: 1, maxWidth: 480 }} mx="lg">
               <UnstyledButton
                 onClick={openSearchModal}
                 style={{
                   width: '100%',
-                  padding: '10px 16px',
+                  padding: 'var(--mantine-spacing-sm)',
                   borderRadius: 12,
                   backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
                   border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
                   transition: 'all 0.2s ease',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 12,
+                  gap: 'var(--mantine-spacing-sm)',
                 }}
                 className="search-trigger"
               >
@@ -309,7 +309,7 @@ export function Navbar() {
                 <Menu.Target>
                   <UnstyledButton
                     style={{
-                      padding: mounted && isMobile ? 4 : '6px 12px',
+                      p: mounted && isMobile ? 'xs' : 'sm',
                       borderRadius: 12,
                       backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
                       border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
@@ -434,7 +434,7 @@ export function Navbar() {
               display: 'flex',
               alignItems: 'center',
               borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'}`,
-              gap: 4,
+              gap: "xs",
             }}
           >
             {/* Ana Sayfa */}

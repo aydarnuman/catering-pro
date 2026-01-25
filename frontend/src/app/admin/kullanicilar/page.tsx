@@ -31,6 +31,8 @@ import {
   IconCheck,
   IconCrown,
   IconEdit,
+  IconLock,
+  IconLockOpen,
   IconRefresh,
   IconShield,
   IconShieldLock,
@@ -42,23 +44,9 @@ import {
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useEffect, useState, useCallback } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { API_BASE_URL } from '@/lib/config';
-
-const API_URL = API_BASE_URL;
-
-interface User {
-  id: number;
-  email: string;
-  name: string;
-  role: 'admin' | 'user';
-  user_type?: 'super_admin' | 'admin' | 'user';
-  is_active: boolean;
-  created_at: string;
-}
+import { adminAPI, type User } from '@/lib/api/services/admin';
 
 export default function KullanicilarPage() {
-  const { token } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [opened, { open, close }] = useDisclosure(false);
@@ -76,27 +64,20 @@ export default function KullanicilarPage() {
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/api/auth/users`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
+      const data = await adminAPI.getUsers();
       if (data.success) {
-        setUsers(data.users);
+        setUsers((data as any).users || []);
       }
     } catch (error) {
       console.error('Kullanıcılar yüklenemedi:', error);
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
   useEffect(() => {
-    if (token) {
-      fetchUsers();
-    }
-  }, [token, fetchUsers]);
+    fetchUsers();
+  }, [fetchUsers]);
 
   // Yeni kullanıcı formunu aç
   const handleNewUser = () => {
@@ -146,12 +127,6 @@ export default function KullanicilarPage() {
 
     setSubmitting(true);
     try {
-      const url = editingUser
-        ? `${API_URL}/api/auth/users/${editingUser.id}`
-        : `${API_URL}/api/auth/register`;
-
-      const method = editingUser ? 'PUT' : 'POST';
-
       const body: any = {
         name: formData.name,
         email: formData.email,
@@ -163,18 +138,11 @@ export default function KullanicilarPage() {
         body.password = formData.password;
       }
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
-      });
+      const data = editingUser
+        ? await adminAPI.updateUser(editingUser.id, body)
+        : await adminAPI.createUser(body);
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (data.success) {
         notifications.show({
           title: 'Başarılı',
           message: editingUser ? 'Kullanıcı güncellendi' : 'Kullanıcı oluşturuldu',
@@ -209,16 +177,9 @@ export default function KullanicilarPage() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/auth/users/${userId}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const data = await adminAPI.deleteUser(userId);
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (data.success) {
         notifications.show({
           title: 'Başarılı',
           message: 'Kullanıcı silindi',
@@ -235,6 +196,70 @@ export default function KullanicilarPage() {
       }
     } catch (error) {
       console.error('Silme hatası:', error);
+    }
+  };
+
+  // Hesabı kilitle
+  const handleLockUser = async (userId: number) => {
+    if (!confirm('Bu hesabı kilitlemek istediğinize emin misiniz? (Varsayılan: 1 saat)')) {
+      return;
+    }
+
+    try {
+      const data = await adminAPI.lockUser(userId, 60);
+
+      if (data.success) {
+        notifications.show({
+          title: 'Başarılı',
+          message: 'Hesap kilitlendi',
+          color: 'orange',
+          icon: <IconLock size={16} />,
+        });
+        fetchUsers();
+      } else {
+        notifications.show({
+          title: 'Hata',
+          message: data.error || 'Kilitleme başarısız',
+          color: 'red',
+        });
+      }
+    } catch (error) {
+      console.error('Kilitleme hatası:', error);
+      notifications.show({
+        title: 'Hata',
+        message: 'Sunucu hatası',
+        color: 'red',
+      });
+    }
+  };
+
+  // Hesabı aç
+  const handleUnlockUser = async (userId: number) => {
+    try {
+      const data = await adminAPI.unlockUser(userId);
+
+      if (data.success) {
+        notifications.show({
+          title: 'Başarılı',
+          message: 'Hesap açıldı',
+          color: 'green',
+          icon: <IconLockOpen size={16} />,
+        });
+        fetchUsers();
+      } else {
+        notifications.show({
+          title: 'Hata',
+          message: data.error || 'Açma başarısız',
+          color: 'red',
+        });
+      }
+    } catch (error) {
+      console.error('Açma hatası:', error);
+      notifications.show({
+        title: 'Hata',
+        message: 'Sunucu hatası',
+        color: 'red',
+      });
     }
   };
 
@@ -346,15 +371,27 @@ export default function KullanicilarPage() {
                       </Badge>
                     </Table.Td>
                     <Table.Td>
-                      {user.is_active ? (
-                        <Badge color="green" variant="light">
-                          Aktif
-                        </Badge>
-                      ) : (
-                        <Badge color="gray" variant="light">
-                          Pasif
-                        </Badge>
-                      )}
+                      <Stack gap="xs">
+                        {user.is_active ? (
+                          <Badge color="green" variant="light">
+                            Aktif
+                          </Badge>
+                        ) : (
+                          <Badge color="gray" variant="light">
+                            Pasif
+                          </Badge>
+                        )}
+                        {user.isLocked && user.lockedUntil && (
+                          <Badge color="red" variant="light" leftSection={<IconLock size={12} />}>
+                            Kilitli
+                          </Badge>
+                        )}
+                        {user.failedAttempts && user.failedAttempts > 0 && (
+                          <Text size="xs" c="orange">
+                            {user.failedAttempts}/5 başarısız deneme
+                          </Text>
+                        )}
+                      </Stack>
                     </Table.Td>
                     <Table.Td>
                       <Text size="sm" c="dimmed">
@@ -371,6 +408,25 @@ export default function KullanicilarPage() {
                         >
                           <IconEdit size={16} />
                         </ActionIcon>
+                        {user.isLocked ? (
+                          <ActionIcon
+                            variant="subtle"
+                            color="green"
+                            onClick={() => handleUnlockUser(user.id)}
+                            title="Hesabı Aç"
+                          >
+                            <IconLockOpen size={16} />
+                          </ActionIcon>
+                        ) : (
+                          <ActionIcon
+                            variant="subtle"
+                            color="orange"
+                            onClick={() => handleLockUser(user.id)}
+                            title="Hesabı Kilitle"
+                          >
+                            <IconLock size={16} />
+                          </ActionIcon>
+                        )}
                         <ActionIcon
                           variant="subtle"
                           color="violet"

@@ -51,6 +51,7 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { API_BASE_URL } from '@/lib/config';
+import { scraperAPI } from '@/lib/api/services/scraper';
 
 // ============================================================================
 // TYPES
@@ -124,7 +125,7 @@ interface LogEntry {
 // ============================================================================
 
 export default function ScraperDashboardPage() {
-  const API_URL = API_BASE_URL;
+  // API_URL kaldırıldı - scraperAPI kullanılıyor
 
   // State
   const [loading, setLoading] = useState(true);
@@ -149,45 +150,41 @@ export default function ScraperDashboardPage() {
 
   const fetchHealth = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/scraper/health`);
-      const data = await res.json();
-      if (data.success) setHealth(data.data);
+      const data = await scraperAPI.getHealth();
+      if (data.success) setHealth(data.data as unknown as HealthData);
     } catch (err) {
       console.error('Health fetch error:', err);
     }
-  }, [API_URL]);
+  }, []);
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/scraper/stats`);
-      const data = await res.json();
-      if (data.success) setStats(data.data);
+      const data = await scraperAPI.getStats();
+      if (data.success) setStats(data.data as unknown as StatsData);
     } catch (err) {
       console.error('Stats fetch error:', err);
     }
-  }, [API_URL]);
+  }, []);
 
   const fetchJobs = useCallback(async () => {
     try {
-      const statusParam = jobFilter !== 'all' ? `?status=${jobFilter}` : '?status=all';
-      const res = await fetch(`${API_URL}/api/scraper/jobs${statusParam}&limit=50`);
-      const data = await res.json();
-      if (data.success) setJobs(data.data.jobs);
+      const status = jobFilter !== 'all' ? jobFilter : undefined;
+      const data = await scraperAPI.getJobs({ status, limit: 50 });
+      if (data.success) setJobs(data.data as unknown as Job[]);
     } catch (err) {
       console.error('Jobs fetch error:', err);
     }
-  }, [API_URL, jobFilter]);
+  }, [jobFilter]);
 
   const fetchLogs = useCallback(async () => {
     try {
-      const levelParam = logLevel !== 'all' ? `?level=${logLevel}` : '?level=all';
-      const res = await fetch(`${API_URL}/api/scraper/logs${levelParam}&limit=100`);
-      const data = await res.json();
-      if (data.success) setLogs(data.data);
+      const level = logLevel !== 'all' ? logLevel : undefined;
+      const data = await scraperAPI.getLogs({ level, limit: 100 });
+      if (data.success) setLogs(data.data as unknown as LogEntry[]);
     } catch (err) {
       console.error('Logs fetch error:', err);
     }
-  }, [API_URL, logLevel]);
+  }, [logLevel]);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -223,28 +220,45 @@ export default function ScraperDashboardPage() {
   const handleAction = async (action: string, body?: any) => {
     setActionLoading(action);
     try {
-      const res = await fetch(`${API_URL}/api/scraper/${action}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: body ? JSON.stringify(body) : undefined,
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        notifications.show({
-          title: 'Başarılı',
-          message: data.message,
-          color: 'green',
-          icon: <IconCheck size={16} />,
+      // action: 'start' | 'stop' | 'restart' | 'trigger'
+      if (action === 'trigger') {
+        // Trigger için özel endpoint gerekebilir, şimdilik fetch kullan
+        const res = await fetch(`${API_BASE_URL}/api/scraper/trigger`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: body ? JSON.stringify(body) : undefined,
         });
-        fetchAll();
+        const data = await res.json();
+        if (data.success) {
+          notifications.show({
+            title: 'Başarılı',
+            message: data.message,
+            color: 'green',
+            icon: <IconCheck size={16} />,
+          });
+          fetchAll();
+        } else {
+          throw new Error(data.error);
+        }
       } else {
-        throw new Error(data.error);
+        // start, stop, restart için scraperAPI kullan
+        const data = await scraperAPI.control(action as 'start' | 'stop' | 'restart');
+        if (data.success) {
+          notifications.show({
+            title: 'Başarılı',
+            message: data.message || 'İşlem başarılı',
+            color: 'green',
+            icon: <IconCheck size={16} />,
+          });
+          fetchAll();
+        } else {
+          throw new Error(data.error || 'İşlem başarısız');
+        }
       }
     } catch (err: any) {
       notifications.show({
         title: 'Hata',
-        message: err.message,
+        message: err.message || 'Bir hata oluştu',
         color: 'red',
         icon: <IconX size={16} />,
       });
@@ -288,13 +302,7 @@ export default function ScraperDashboardPage() {
 
     setActionLoading('addUrl');
     try {
-      const res = await fetch(`${API_URL}/api/scraper/add-tender`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: tenderUrl.trim() }),
-      });
-
-      const data = await res.json();
+      const data = await scraperAPI.addTender(tenderUrl.trim());
 
       if (data.success) {
         notifications.show({
@@ -708,58 +716,60 @@ export default function ScraperDashboardPage() {
                     <Text c="dimmed">Henüz job kaydı yok</Text>
                   </Center>
                 ) : (
-                  <Table striped highlightOnHover>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>ID</Table.Th>
-                        <Table.Th>İhale</Table.Th>
-                        <Table.Th>Durum</Table.Th>
-                        <Table.Th>Retry</Table.Th>
-                        <Table.Th>Süre</Table.Th>
-                        <Table.Th>Tarih</Table.Th>
-                        <Table.Th>Hata</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {jobs.map((job) => (
-                        <Table.Tr key={job.id}>
-                          <Table.Td>#{job.id}</Table.Td>
-                          <Table.Td>
-                            <Tooltip label={job.tender_title || job.tender_url}>
-                              <Text size="sm" lineClamp={1} style={{ maxWidth: 200 }}>
-                                {job.external_id}
-                              </Text>
-                            </Tooltip>
-                          </Table.Td>
-                          <Table.Td>
-                            <Badge
-                              color={getStatusColor(job.status)}
-                              size="sm"
-                              leftSection={getStatusIcon(job.status)}
-                            >
-                              {job.status}
-                            </Badge>
-                          </Table.Td>
-                          <Table.Td>
-                            {job.retry_count}/{job.max_retries}
-                          </Table.Td>
-                          <Table.Td>{formatDuration(job.duration_ms)}</Table.Td>
-                          <Table.Td>
-                            <Text size="xs">{formatDate(job.created_at)}</Text>
-                          </Table.Td>
-                          <Table.Td>
-                            {job.error_message && (
-                              <Tooltip label={job.error_message}>
-                                <Badge color="red" size="xs">
-                                  Hata
-                                </Badge>
-                              </Tooltip>
-                            )}
-                          </Table.Td>
+                  <Table.ScrollContainer minWidth={700}>
+                    <Table striped highlightOnHover>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>ID</Table.Th>
+                          <Table.Th>İhale</Table.Th>
+                          <Table.Th>Durum</Table.Th>
+                          <Table.Th>Retry</Table.Th>
+                          <Table.Th>Süre</Table.Th>
+                          <Table.Th>Tarih</Table.Th>
+                          <Table.Th>Hata</Table.Th>
                         </Table.Tr>
-                      ))}
-                    </Table.Tbody>
-                  </Table>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {jobs.map((job) => (
+                          <Table.Tr key={job.id}>
+                            <Table.Td>#{job.id}</Table.Td>
+                            <Table.Td>
+                              <Tooltip label={job.tender_title || job.tender_url}>
+                                <Text size="sm" lineClamp={1} style={{ maxWidth: 200 }}>
+                                  {job.external_id}
+                                </Text>
+                              </Tooltip>
+                            </Table.Td>
+                            <Table.Td>
+                              <Badge
+                                color={getStatusColor(job.status)}
+                                size="sm"
+                                leftSection={getStatusIcon(job.status)}
+                              >
+                                {job.status}
+                              </Badge>
+                            </Table.Td>
+                            <Table.Td>
+                              {job.retry_count}/{job.max_retries}
+                            </Table.Td>
+                            <Table.Td>{formatDuration(job.duration_ms)}</Table.Td>
+                            <Table.Td>
+                              <Text size="xs">{formatDate(job.created_at)}</Text>
+                            </Table.Td>
+                            <Table.Td>
+                              {job.error_message && (
+                                <Tooltip label={job.error_message}>
+                                  <Badge color="red" size="xs">
+                                    Hata
+                                  </Badge>
+                                </Tooltip>
+                              )}
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                  </Table.ScrollContainer>
                 )}
               </ScrollArea>
             </Tabs.Panel>

@@ -56,8 +56,10 @@ import {
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
 import { api } from '@/lib/api';
+import { tendersAPI } from '@/lib/api/services/tenders';
+import { useResponsive } from '@/hooks/useResponsive';
+import { Breadcrumbs } from '@/components/common';
 
 // ============ INTERFACES ============
 interface Tender {
@@ -190,6 +192,7 @@ const getDocTypeLabel = (docType: string): string => {
 export default function TenderDetailPage() {
   const params = useParams();
   const tenderId = params.id as string;
+  const { isMobile, isMounted } = useResponsive();
 
   // State
   const [tender, setTender] = useState<Tender | null>(null);
@@ -328,16 +331,14 @@ export default function TenderDetailPage() {
   const fetchData = useCallback(async () => {
     try {
       // İhale detayı
-      const tenderRes = await fetch(`${API_BASE_URL}/api/tenders/${tenderId}`);
-      if (!tenderRes.ok) throw new Error('İhale bulunamadı');
-      const tenderData = await tenderRes.json();
-      if (tenderData.success) setTender(tenderData.data);
+      const tenderData = await tendersAPI.getTenderById(tenderId);
+      if (!tenderData.success) throw new Error('İhale bulunamadı');
+      if (tenderData.success) setTender(tenderData.data as any);
 
       // Content dökümanları
-      const contentRes = await fetch(`${API_BASE_URL}/api/tender-content/${tenderId}/documents`);
       let contentDocs: Document[] = [];
-      if (contentRes.ok) {
-        const contentData = await contentRes.json();
+      try {
+        const contentData = await tendersAPI.getTenderContentDocuments(tenderId);
         if (contentData.success && contentData.data?.documents) {
           contentDocs = contentData.data.documents.map((doc: any) => ({
             id: doc.id,
@@ -353,15 +354,14 @@ export default function TenderDetailPage() {
             extracted_text: doc.content_text,
           }));
         }
+      } catch {
+        // Content dökümanları yoksa devam et
       }
 
       // İndirilen dökümanlar
-      const downloadRes = await fetch(
-        `${API_BASE_URL}/api/tender-docs/${tenderId}/downloaded-documents`
-      );
       let downloadDocs: Document[] = [];
-      if (downloadRes.ok) {
-        const downloadData = await downloadRes.json();
+      try {
+        const downloadData = await tendersAPI.getDownloadedDocuments(tenderId);
         if (downloadData.success && downloadData.data?.documents) {
           downloadDocs = downloadData.data.documents.flatMap((group: any) =>
             group.files.map((file: any) => ({
@@ -370,24 +370,28 @@ export default function TenderDetailPage() {
             }))
           );
         }
+      } catch {
+        // İndirilen dökümanlar yoksa devam et
       }
 
       // Tüm dökümanları birleştir
       setDocuments([...contentDocs, ...downloadDocs]);
 
       // İndirme durumu
-      const statusRes = await fetch(`${API_BASE_URL}/api/tender-docs/${tenderId}/download-status`);
-      if (statusRes.ok) {
-        const statusData = await statusRes.json();
+      try {
+        const statusData = await tendersAPI.getDownloadStatus(tenderId);
         if (statusData.success) setDownloadStatus(statusData.data);
+      } catch {
+        // İndirme durumu yoksa devam et
       }
 
       // Takip listesi durumu kontrol
-      const trackingRes = await fetch(`${API_BASE_URL}/api/tender-tracking/check/${tenderId}`);
-      if (trackingRes.ok) {
-        const trackingResult = await trackingRes.json();
-        setIsTracked(trackingResult.isTracked);
-        setTrackingData(trackingResult.data);
+      try {
+        const trackingResult = await tendersAPI.checkTracking(Number(tenderId));
+        setIsTracked((trackingResult as any).isTracked);
+        setTrackingData((trackingResult as any).data);
+      } catch {
+        // Takip durumu hatası
       }
     } catch (err: any) {
       setError(err.message);
@@ -470,13 +474,7 @@ export default function TenderDetailPage() {
   const handleDownloadDocuments = async () => {
     setDownloading(true);
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/tender-docs/${tenderId}/download-documents`,
-        {
-          method: 'POST',
-        }
-      );
-      const result = await response.json();
+      const result = await tendersAPI.downloadTenderDocuments(tenderId);
 
       if (result.success) {
         const data = result.data;
@@ -511,13 +509,7 @@ export default function TenderDetailPage() {
   // İçerik dökümanlarını oluştur
   const handleCreateContentDocs = async () => {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/tender-content/${tenderId}/create-documents`,
-        {
-          method: 'POST',
-        }
-      );
-      const result = await response.json();
+      const result = await tendersAPI.createContentDocuments(tenderId);
 
       if (result.success) {
         notifications.show({
@@ -619,7 +611,7 @@ export default function TenderDetailPage() {
     });
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tender-content/analyze-batch`, {
+      const response = await fetch(tendersAPI.getAnalyzeBatchUrl(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ documentIds }),
@@ -695,11 +687,7 @@ export default function TenderDetailPage() {
 
         // Analiz tamamlandığında otomatik takip listesine ekle
         try {
-          await fetch(`${API_BASE_URL}/api/tender-tracking/add-from-analysis`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tender_id: parseInt(tenderId, 10) }),
-          });
+          await tendersAPI.addTrackingFromAnalysis(parseInt(tenderId, 10));
           setIsTracked(true);
           notifications.show({
             title: '📌 Takip Listesine Eklendi',
@@ -833,21 +821,15 @@ export default function TenderDetailPage() {
 
     // Önce hatalı dökümanların durumunu "pending" yap
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tender-content/documents/reset-failed`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentIds: failedDocIds }),
-      });
+      const result = await tendersAPI.resetFailedDocuments(failedDocIds);
 
-      if (!response.ok) throw new Error('Reset hatası');
+      if (!result.success) throw new Error('Reset hatası');
 
-      const result = await response.json();
-
-      const resetIds = result.resetIds || failedDocIds;
+      const resetIds = (result as any).resetIds || failedDocIds;
 
       notifications.show({
         title: '🔄 Tekrar Deneniyor',
-        message: `${result.resetCount} hatalı döküman tekrar analiz edilecek`,
+        message: `${(result as any).resetCount} hatalı döküman tekrar analiz edilecek`,
         color: 'blue',
       });
 
@@ -870,13 +852,24 @@ export default function TenderDetailPage() {
   };
 
   return (
-    <Container size="lg" py="xl">
-      <Stack gap="lg">
+    <Container size="lg" py={isMobile && isMounted ? 'md' : 'xl'} px={isMobile && isMounted ? 'xs' : undefined}>
+      <Stack gap={isMobile && isMounted ? 'md' : 'lg'}>
+        {/* Breadcrumb */}
+        <Breadcrumbs
+          items={[
+            { label: 'İhale Merkezi', href: '/tenders' },
+            { label: tender?.title || 'İhale Detay' },
+          ]}
+        />
         {/* Header */}
-        <Group justify="space-between">
+        <Group justify="space-between" wrap="wrap">
           <Link href="/tenders" style={{ textDecoration: 'none' }}>
-            <Button variant="subtle" leftSection={<IconArrowLeft size={16} />}>
-              İhale Listesi
+            <Button 
+              variant="subtle" 
+              leftSection={<IconArrowLeft size={16} />}
+              size={isMobile && isMounted ? 'sm' : 'md'}
+            >
+              {isMobile && isMounted ? 'Geri' : 'İhale Listesi'}
             </Button>
           </Link>
           <Button
@@ -884,24 +877,55 @@ export default function TenderDetailPage() {
             href={tender.url}
             target="_blank"
             variant="light"
-            rightSection={<IconExternalLink size={16} />}
+            size={isMobile && isMounted ? 'sm' : 'md'}
+            rightSection={<IconExternalLink size={14} />}
           >
-            Kaynağa Git
+            {isMobile && isMounted ? 'Kaynak' : 'Kaynağa Git'}
           </Button>
         </Group>
 
         {/* İhale Başlığı */}
-        <Group gap="md" align="center" justify="space-between">
-          <Group gap="md" align="center">
-            <Title order={2}>
+        <Stack gap="xs">
+          <Group gap="xs" align="center" justify="space-between" wrap="wrap">
+            <Title order={isMobile && isMounted ? 4 : 2} lineClamp={isMobile && isMounted ? 2 : undefined} style={{ flex: 1 }}>
               {tender.external_id} - {tender.title}
             </Title>
+            <Tooltip label={isTracked ? 'Takip listesinde' : 'Takip listesine ekle'}>
+              <ActionIcon
+                size="lg"
+                variant={isTracked ? 'filled' : 'light'}
+                color="teal"
+                onClick={async () => {
+                  if (!isTracked) {
+                    try {
+                      await tendersAPI.addTracking(parseInt(tenderId, 10));
+                      setIsTracked(true);
+                      notifications.show({
+                        title: '📌 Takip Listesine Eklendi',
+                        message: 'Bu ihale takip listenize eklendi',
+                        color: 'teal',
+                      });
+                    } catch (_err) {
+                      notifications.show({
+                        title: '❌ Hata',
+                        message: 'Takip listesine eklenemedi',
+                        color: 'red',
+                      });
+                    }
+                  }
+                }}
+              >
+                {isTracked ? <IconBookmarkFilled size={20} /> : <IconBookmark size={20} />}
+              </ActionIcon>
+            </Tooltip>
+          </Group>
+          <Group gap="xs" wrap="wrap">
             {tender.is_updated && (
               <Badge
                 color="yellow"
-                size="lg"
+                size={isMobile && isMounted ? 'sm' : 'lg'}
                 variant="filled"
-                leftSection={<IconSparkles size={14} />}
+                leftSection={<IconSparkles size={12} />}
               >
                 Güncellendi
               </Badge>
@@ -909,89 +933,57 @@ export default function TenderDetailPage() {
             {isTracked && (
               <Badge
                 color="teal"
-                size="lg"
+                size={isMobile && isMounted ? 'sm' : 'lg'}
                 variant="filled"
-                leftSection={<IconBookmarkFilled size={14} />}
+                leftSection={<IconBookmarkFilled size={12} />}
               >
                 Takip Ediliyor
               </Badge>
             )}
           </Group>
-          <Tooltip label={isTracked ? 'Takip listesinde' : 'Takip listesine ekle'}>
-            <ActionIcon
-              size="lg"
-              variant={isTracked ? 'filled' : 'light'}
-              color="teal"
-              onClick={async () => {
-                if (!isTracked) {
-                  try {
-                    await fetch(`${API_BASE_URL}/api/tender-tracking`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ tender_id: parseInt(tenderId, 10) }),
-                    });
-                    setIsTracked(true);
-                    notifications.show({
-                      title: '📌 Takip Listesine Eklendi',
-                      message: 'Bu ihale takip listenize eklendi',
-                      color: 'teal',
-                    });
-                  } catch (_err) {
-                    notifications.show({
-                      title: '❌ Hata',
-                      message: 'Takip listesine eklenemedi',
-                      color: 'red',
-                    });
-                  }
-                }
-              }}
-            >
-              {isTracked ? <IconBookmarkFilled size={20} /> : <IconBookmark size={20} />}
-            </ActionIcon>
-          </Tooltip>
-        </Group>
+        </Stack>
 
         {/* İhale Bilgileri */}
-        <Card shadow="sm" padding="lg" radius="md" withBorder>
-          <Group gap="xl" wrap="wrap">
-            <Group gap="xs">
-              <ThemeIcon variant="light" size="lg">
-                <IconBuilding size={18} />
+        <Card shadow="sm" padding={isMobile && isMounted ? 'sm' : 'lg'} radius="md" withBorder>
+          <SimpleGrid cols={{ base: 2, sm: 2, md: 4 }} spacing={isMobile && isMounted ? 'xs' : 'md'}>
+            <Group gap="xs" wrap="nowrap">
+              <ThemeIcon variant="light" size={isMobile && isMounted ? 'md' : 'lg'}>
+                <IconBuilding size={isMobile && isMounted ? 14 : 18} />
               </ThemeIcon>
-              <div>
+              <div style={{ minWidth: 0, flex: 1 }}>
                 <Text size="xs" c="dimmed">
                   KURUM
                 </Text>
-                <Text size="sm" fw={500}>
+                <Text size={isMobile && isMounted ? 'xs' : 'sm'} fw={500} lineClamp={2}>
                   {tender.organization_name}
                 </Text>
               </div>
             </Group>
-            <Group gap="xs">
-              <ThemeIcon variant="light" size="lg">
-                <IconMapPin size={18} />
+            <Group gap="xs" wrap="nowrap">
+              <ThemeIcon variant="light" size={isMobile && isMounted ? 'md' : 'lg'}>
+                <IconMapPin size={isMobile && isMounted ? 14 : 18} />
               </ThemeIcon>
               <div>
                 <Text size="xs" c="dimmed">
                   ŞEHİR
                 </Text>
-                <Text size="sm" fw={500}>
+                <Text size={isMobile && isMounted ? 'xs' : 'sm'} fw={500}>
                   {tender.city}
                 </Text>
               </div>
             </Group>
-            <Group gap="xs">
-              <ThemeIcon variant="light" size="lg">
-                <IconCalendar size={18} />
+            <Group gap="xs" wrap="nowrap">
+              <ThemeIcon variant="light" size={isMobile && isMounted ? 'md' : 'lg'}>
+                <IconCalendar size={isMobile && isMounted ? 14 : 18} />
               </ThemeIcon>
               <div>
                 <Text size="xs" c="dimmed">
                   İHALE TARİHİ
                 </Text>
-                <Text size="sm" fw={500}>
+                <Text size={isMobile && isMounted ? 'xs' : 'sm'} fw={500}>
                   {new Date(tender.tender_date).toLocaleDateString('tr-TR', {
                     day: 'numeric',
-                    month: 'long',
+                    month: isMobile && isMounted ? 'short' : 'long',
                     year: 'numeric',
                     hour: '2-digit',
                     minute: '2-digit',
@@ -1000,21 +992,21 @@ export default function TenderDetailPage() {
               </div>
             </Group>
             {tender.estimated_cost && (
-              <Group gap="xs">
-                <ThemeIcon variant="light" size="lg" color="green">
-                  <IconCurrencyLira size={18} />
+              <Group gap="xs" wrap="nowrap">
+                <ThemeIcon variant="light" size={isMobile && isMounted ? 'md' : 'lg'} color="green">
+                  <IconCurrencyLira size={isMobile && isMounted ? 14 : 18} />
                 </ThemeIcon>
                 <div>
                   <Text size="xs" c="dimmed">
                     TAHMİNİ MALİYET
                   </Text>
-                  <Text size="sm" fw={500} c="green">
+                  <Text size={isMobile && isMounted ? 'xs' : 'sm'} fw={500} c="green">
                     {tender.estimated_cost.toLocaleString('tr-TR')} ₺
                   </Text>
                 </div>
               </Group>
             )}
-          </Group>
+          </SimpleGrid>
         </Card>
 
         {/* ============ ZEYİLNAME VE DÜZELTME İLANI ============ */}
@@ -1391,26 +1383,50 @@ export default function TenderDetailPage() {
           )}
 
           {/* Aksiyon Bar */}
-          <Box p="md" bg="gray.0" style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
-            <Group justify="space-between">
-              <Checkbox
-                checked={selectedDocs.size === selectableDocs.length && selectableDocs.length > 0}
-                indeterminate={selectedDocs.size > 0 && selectedDocs.size < selectableDocs.length}
-                onChange={toggleSelectAll}
-                label={<Text size="sm">Tümünü Seç ({selectableDocs.length})</Text>}
-                disabled={analyzing}
-              />
-              <Button
-                variant="gradient"
-                gradient={{ from: 'violet', to: 'grape' }}
-                leftSection={<IconSparkles size={16} />}
-                loading={analyzing}
-                onClick={() => handleAnalyzeSelected()}
-                disabled={selectedDocs.size === 0}
-              >
-                🤖 Seçilenleri Analiz Et ({selectedDocs.size})
-              </Button>
-            </Group>
+          <Box p={isMobile && isMounted ? 'sm' : 'md'} bg="gray.0" style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
+            {isMobile && isMounted ? (
+              <Stack gap="xs">
+                <Checkbox
+                  checked={selectedDocs.size === selectableDocs.length && selectableDocs.length > 0}
+                  indeterminate={selectedDocs.size > 0 && selectedDocs.size < selectableDocs.length}
+                  onChange={toggleSelectAll}
+                  label={<Text size="xs">Tümünü Seç ({selectableDocs.length})</Text>}
+                  disabled={analyzing}
+                />
+                <Button
+                  variant="gradient"
+                  gradient={{ from: 'violet', to: 'grape' }}
+                  leftSection={<IconSparkles size={14} />}
+                  loading={analyzing}
+                  onClick={() => handleAnalyzeSelected()}
+                  disabled={selectedDocs.size === 0}
+                  size="sm"
+                  fullWidth
+                >
+                  🤖 Analiz Et ({selectedDocs.size})
+                </Button>
+              </Stack>
+            ) : (
+              <Group justify="space-between">
+                <Checkbox
+                  checked={selectedDocs.size === selectableDocs.length && selectableDocs.length > 0}
+                  indeterminate={selectedDocs.size > 0 && selectedDocs.size < selectableDocs.length}
+                  onChange={toggleSelectAll}
+                  label={<Text size="sm">Tümünü Seç ({selectableDocs.length})</Text>}
+                  disabled={analyzing}
+                />
+                <Button
+                  variant="gradient"
+                  gradient={{ from: 'violet', to: 'grape' }}
+                  leftSection={<IconSparkles size={16} />}
+                  loading={analyzing}
+                  onClick={() => handleAnalyzeSelected()}
+                  disabled={selectedDocs.size === 0}
+                >
+                  🤖 Seçilenleri Analiz Et ({selectedDocs.size})
+                </Button>
+              </Group>
+            )}
           </Box>
 
           {/* Döküman Listesi */}
@@ -1429,7 +1445,7 @@ export default function TenderDetailPage() {
                   return (
                     <Paper
                       key={`${doc.source_type}-${doc.id}`}
-                      p="sm"
+                      p={isMobile && isMounted ? 'xs' : 'sm'}
                       withBorder
                       style={{
                         borderColor:
@@ -1445,38 +1461,39 @@ export default function TenderDetailPage() {
                           : undefined,
                       }}
                     >
-                      <Group justify="space-between" wrap="nowrap">
-                        <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-                          {/* Checkbox */}
-                          <Checkbox
-                            checked={selectedDocs.has(doc.id)}
-                            onChange={() => toggleDoc(doc.id)}
-                            disabled={isProcessing || analyzing}
-                          />
-
-                          {/* İkon */}
-                          <ThemeIcon
-                            variant="light"
-                            size="lg"
-                            color={
-                              doc.processing_status === 'completed'
-                                ? 'green'
-                                : doc.processing_status === 'failed'
-                                  ? 'red'
-                                  : isProcessing
-                                    ? 'blue'
-                                    : 'gray'
-                            }
-                          >
-                            {isProcessing ? <Loader size={16} /> : <DocIcon size={18} />}
-                          </ThemeIcon>
-
-                          {/* Bilgi */}
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <Text size="sm" fw={500} truncate>
-                              {doc.original_filename || getDocTypeLabel(doc.doc_type)}
-                            </Text>
-                            <Group gap="xs">
+                      {isMobile && isMounted ? (
+                        /* Mobil: Stack düzeni */
+                        <Stack gap="xs">
+                          <Group gap="xs" wrap="nowrap">
+                            <Checkbox
+                              checked={selectedDocs.has(doc.id)}
+                              onChange={() => toggleDoc(doc.id)}
+                              disabled={isProcessing || analyzing}
+                            />
+                            <ThemeIcon
+                              variant="light"
+                              size="md"
+                              color={
+                                doc.processing_status === 'completed'
+                                  ? 'green'
+                                  : doc.processing_status === 'failed'
+                                    ? 'red'
+                                    : isProcessing
+                                      ? 'blue'
+                                      : 'gray'
+                              }
+                            >
+                              {isProcessing ? <Loader size={14} /> : <DocIcon size={14} />}
+                            </ThemeIcon>
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <Text size="xs" fw={500} lineClamp={1}>
+                                {doc.original_filename || getDocTypeLabel(doc.doc_type)}
+                              </Text>
+                            </div>
+                            {getStatusBadge(doc.processing_status)}
+                          </Group>
+                          <Group gap="xs" justify="space-between">
+                            <Group gap={4}>
                               <Badge
                                 size="xs"
                                 variant="dot"
@@ -1490,36 +1507,94 @@ export default function TenderDetailPage() {
                                 {getDocTypeLabel(doc.doc_type)}
                               </Text>
                             </Group>
-                          </div>
+                            <Group gap={4}>
+                              {doc.source_type === 'content' && (
+                                <ActionIcon variant="subtle" size="md" onClick={() => showContent(doc)}>
+                                  <IconEye size={14} />
+                                </ActionIcon>
+                              )}
+                              {doc.storage_url && (
+                                <ActionIcon
+                                  variant="subtle"
+                                  size="sm"
+                                  component="a"
+                                  href={doc.storage_url}
+                                  target="_blank"
+                                >
+                                  <IconDownload size={14} />
+                                </ActionIcon>
+                              )}
+                            </Group>
+                          </Group>
+                        </Stack>
+                      ) : (
+                        /* Desktop: Yatay düzen */
+                        <Group justify="space-between" wrap="nowrap">
+                          <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                            <Checkbox
+                              checked={selectedDocs.has(doc.id)}
+                              onChange={() => toggleDoc(doc.id)}
+                              disabled={isProcessing || analyzing}
+                            />
+                            <ThemeIcon
+                              variant="light"
+                              size="lg"
+                              color={
+                                doc.processing_status === 'completed'
+                                  ? 'green'
+                                  : doc.processing_status === 'failed'
+                                    ? 'red'
+                                    : isProcessing
+                                      ? 'blue'
+                                      : 'gray'
+                              }
+                            >
+                              {isProcessing ? <Loader size={16} /> : <DocIcon size={18} />}
+                            </ThemeIcon>
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <Text size="sm" fw={500} truncate>
+                                {doc.original_filename || getDocTypeLabel(doc.doc_type)}
+                              </Text>
+                              <Group gap="xs">
+                                <Badge
+                                  size="xs"
+                                  variant="dot"
+                                  color={doc.source_type === 'content' ? 'blue' : 'orange'}
+                                >
+                                  {doc.source_type === 'content'
+                                    ? 'İçerik'
+                                    : doc.file_type?.toUpperCase() || 'PDF'}
+                                </Badge>
+                                <Text size="xs" c="dimmed">
+                                  {getDocTypeLabel(doc.doc_type)}
+                                </Text>
+                              </Group>
+                            </div>
+                          </Group>
+                          <Group gap="sm" wrap="nowrap">
+                            {getStatusBadge(doc.processing_status)}
+                            {doc.source_type === 'content' && (
+                              <Tooltip label="İçeriği Gör">
+                                <ActionIcon variant="subtle" onClick={() => showContent(doc)}>
+                                  <IconEye size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                            )}
+                            {doc.storage_url && (
+                              <Tooltip label="Dosyayı İndir">
+                                <ActionIcon
+                                  variant="subtle"
+                                  component="a"
+                                  href={doc.storage_url}
+                                  target="_blank"
+                                >
+                                  <IconDownload size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                            )}
+                          </Group>
                         </Group>
-
-                        {/* Sağ: Durum ve aksiyonlar */}
-                        <Group gap="sm" wrap="nowrap">
-                          {getStatusBadge(doc.processing_status)}
-
-                          {/* Aksiyonlar */}
-                          {doc.source_type === 'content' && (
-                            <Tooltip label="İçeriği Gör">
-                              <ActionIcon variant="subtle" onClick={() => showContent(doc)}>
-                                <IconEye size={16} />
-                              </ActionIcon>
-                            </Tooltip>
-                          )}
-
-                          {doc.storage_url && (
-                            <Tooltip label="Dosyayı İndir">
-                              <ActionIcon
-                                variant="subtle"
-                                component="a"
-                                href={doc.storage_url}
-                                target="_blank"
-                              >
-                                <IconDownload size={16} />
-                              </ActionIcon>
-                            </Tooltip>
-                          )}
-                        </Group>
-                      </Group>
+                      )}
                     </Paper>
                   );
                 })}
@@ -1551,16 +1626,17 @@ export default function TenderDetailPage() {
       <Modal
         opened={analysisModalOpen}
         onClose={() => setAnalysisModalOpen(false)}
+        fullScreen={isMobile && isMounted}
         title={
-          <Group>
-            <ThemeIcon size={40} color="green" variant="light" radius="xl">
-              <IconCheck size={24} />
+          <Group gap="sm" wrap="nowrap">
+            <ThemeIcon size={isMobile && isMounted ? 32 : 40} color="green" variant="light" radius="xl">
+              <IconCheck size={isMobile && isMounted ? 18 : 24} />
             </ThemeIcon>
             <div>
-              <Text fw={600} size="lg">
+              <Text fw={600} size={isMobile && isMounted ? 'sm' : 'lg'}>
                 ✅ Analiz Tamamlandı
               </Text>
-              <Text size="sm" c="dimmed">
+              <Text size="xs" c="dimmed">
                 {combinedResult?.teknik_sartlar?.length || 0} teknik şart •
                 {combinedResult?.birim_fiyatlar?.length || 0} kalem •
                 {combinedResult?.notlar?.length || 0} not

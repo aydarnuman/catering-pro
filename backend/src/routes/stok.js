@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../database.js';
 import { authenticate, requirePermission, auditLog } from '../middleware/auth.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -32,7 +33,7 @@ router.get('/depolar', async (req, res) => {
       data: result.rows
     });
   } catch (error) {
-    console.error('Depo listesi hatası:', error);
+    logger.error('Depo listesi hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -66,7 +67,7 @@ router.get('/depolar/:depoId/lokasyonlar', async (req, res) => {
       data: result.rows
     });
   } catch (error) {
-    console.error('Lokasyon listesi hatası:', error);
+    logger.error('Lokasyon listesi hatası', { error: error.message, stack: error.stack, depoId });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -129,7 +130,7 @@ router.get('/lokasyonlar/:lokasyonId/stoklar', async (req, res) => {
       data: result.rows
     });
   } catch (error) {
-    console.error('Lokasyon stok listesi hatası:', error);
+    logger.error('Lokasyon stok listesi hatası', { error: error.message, stack: error.stack, depoId, lokasyonId });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -203,7 +204,7 @@ router.get('/depolar/:depoId/stoklar', async (req, res) => {
       data: result.rows
     });
   } catch (error) {
-    console.error('Depo stok listesi hatası:', error);
+    logger.error('Depo stok listesi hatası', { error: error.message, stack: error.stack, depoId });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -221,7 +222,7 @@ router.get('/depolar/karsilastirma', async (req, res) => {
       data: result.rows
     });
   } catch (error) {
-    console.error('Depo karşılaştırma hatası:', error);
+    logger.error('Depo karşılaştırma hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -251,7 +252,7 @@ router.post('/depolar', async (req, res) => {
       data: result.rows[0]
     });
   } catch (error) {
-    console.error('Depo ekleme hatası:', error);
+    logger.error('Depo ekleme hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -279,7 +280,7 @@ router.put('/depolar/:id', async (req, res) => {
       data: result.rows[0]
     });
   } catch (error) {
-    console.error('Depo güncelleme hatası:', error);
+    logger.error('Depo güncelleme hatası', { error: error.message, stack: error.stack, id });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -320,7 +321,7 @@ router.delete('/depolar/:id', async (req, res) => {
       data: result.rows[0]
     });
   } catch (error) {
-    console.error('Depo silme hatası:', error);
+    logger.error('Depo silme hatası', { error: error.message, stack: error.stack, id });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -427,7 +428,7 @@ router.get('/kartlar', async (req, res) => {
       offset: parseInt(offset)
     });
   } catch (error) {
-    console.error('Stok kartları listesi hatası:', error);
+    logger.error('Stok kartları listesi hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -482,7 +483,7 @@ router.delete('/kartlar/:id', authenticate, requirePermission('stok', 'delete'),
       data: result.rows[0]
     });
   } catch (error) {
-    console.error('Ürün silme hatası:', error);
+    logger.error('Ürün silme hatası', { error: error.message, stack: error.stack, id });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -554,7 +555,7 @@ router.get('/kartlar/:id', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Ürün kartı detay hatası:', error);
+    logger.error('Ürün kartı detay hatası', { error: error.message, stack: error.stack, id });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -602,7 +603,7 @@ router.post('/kartlar', authenticate, requirePermission('stok', 'create'), audit
       message: 'Ürün kartı başarıyla oluşturuldu'
     });
   } catch (error) {
-    console.error('Ürün kartı oluşturma hatası:', error);
+    logger.error('Ürün kartı oluşturma hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -671,7 +672,7 @@ router.get('/hareketler', async (req, res) => {
       data: result.rows
     });
   } catch (error) {
-    console.error('Stok hareketleri listesi hatası:', error);
+    logger.error('Stok hareketleri listesi hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -723,7 +724,7 @@ router.post('/hareketler/giris', async (req, res) => {
       message: `${miktar} birim stok girişi yapıldı`
     });
   } catch (error) {
-    console.error('Stok giriş hatası:', error);
+    logger.error('Stok giriş hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -778,7 +779,7 @@ router.post('/hareketler/cikis', async (req, res) => {
       message: `${miktar} birim stok çıkışı yapıldı`
     });
   } catch (error) {
-    console.error('Stok çıkış hatası:', error);
+    logger.error('Stok çıkış hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -835,7 +836,7 @@ router.post('/hareketler/transfer', async (req, res) => {
       message: `${miktar} birim transfer yapıldı`
     });
   } catch (error) {
-    console.error('Transfer hatası:', error);
+    logger.error('Transfer hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -901,7 +902,7 @@ router.get('/kritik', async (req, res) => {
       data: result.rows
     });
   } catch (error) {
-    console.error('Kritik stok hatası:', error);
+    logger.error('Kritik stok hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -933,7 +934,7 @@ router.get('/rapor/deger', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Değer raporu hatası:', error);
+    logger.error('Değer raporu hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1020,7 +1021,7 @@ router.get('/faturalar', async (req, res) => {
       offset: parseInt(offset)
     });
   } catch (error) {
-    console.error('Fatura listesi hatası:', error);
+    logger.error('Fatura listesi hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1120,7 +1121,7 @@ router.get('/faturalar/:ettn/kalemler', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Fatura kalem hatası:', error);
+    logger.error('Fatura kalem hatası', { error: error.message, stack: error.stack, faturaId });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1277,7 +1278,7 @@ router.post('/faturadan-giris', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Faturadan stok giriş hatası:', error);
+    logger.error('Faturadan stok giriş hatası', { error: error.message, stack: error.stack, faturaId });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1343,7 +1344,7 @@ async function donusturBirim(ublKodu, miktar) {
       donusturuldu: true
     };
   } catch (error) {
-    console.error('Birim dönüşüm hatası:', error);
+    logger.error('Birim dönüşüm hatası', { error: error.message, stack: error.stack });
     return { birim_id: null, birim_kod: ublKodu, birim_ad: ublKodu, miktar, donusturuldu: false };
   }
 }
@@ -1371,7 +1372,7 @@ router.post('/akilli-eslestir', async (req, res) => {
       otomatik_onay: result.rows.length > 0 && parseFloat(result.rows[0].guven_skoru) >= 90
     });
   } catch (error) {
-    console.error('Akıllı eşleştirme hatası:', error);
+    logger.error('Akıllı eşleştirme hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1455,17 +1456,21 @@ router.get('/faturalar/:ettn/akilli-kalemler', async (req, res) => {
       // Fiyat anomali kontrolü (eğer eşleşme varsa)
       let anomali = null;
       if (enIyiEslesme && birimFiyat > 0) {
-        const anomaliResult = await query(`
-          SELECT * FROM kontrol_fiyat_anomali($1, $2, 30)
-        `, [enIyiEslesme.stok_kart_id, birimFiyat]);
-        
-        if (anomaliResult.rows[0]?.anomali_var) {
-          anomali = {
-            var: true,
-            onceki_fiyat: parseFloat(anomaliResult.rows[0].onceki_fiyat),
-            degisim_yuzde: parseFloat(anomaliResult.rows[0].fiyat_degisim_yuzde),
-            aciklama: anomaliResult.rows[0].aciklama
-          };
+        try {
+          const anomaliResult = await query(`
+            SELECT * FROM kontrol_fiyat_anomali($1, $2, 30)
+          `, [enIyiEslesme.stok_kart_id, birimFiyat]);
+          
+          if (anomaliResult.rows[0]?.anomali_var) {
+            anomali = {
+              var: true,
+              onceki_fiyat: parseFloat(anomaliResult.rows[0].onceki_fiyat),
+              degisim_yuzde: parseFloat(anomaliResult.rows[0].fiyat_degisim_yuzde),
+              aciklama: anomaliResult.rows[0].aciklama
+            };
+          }
+        } catch (anomaliErr) {
+          logger.warn('Anomali kontrolü atlandı', { error: anomaliErr.message });
         }
       }
       
@@ -1519,7 +1524,7 @@ router.get('/faturalar/:ettn/akilli-kalemler', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Akıllı fatura kalem hatası:', error);
+    logger.error('Akıllı fatura kalem hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1628,11 +1633,15 @@ router.post('/toplu-fatura-isle', authenticate, async (req, res) => {
           
           if (eslesme && guvenSkoru >= 90) {
             // Fiyat anomali kontrolü
-            const anomaliResult = await query(`
-              SELECT * FROM kontrol_fiyat_anomali($1, $2, 30)
-            `, [eslesme.stok_kart_id, birimFiyat]);
-            
-            const anomaliVar = anomaliResult.rows[0]?.anomali_var;
+            let anomaliVar = false;
+            try {
+              const anomaliResult = await query(`
+                SELECT * FROM kontrol_fiyat_anomali($1, $2, 30)
+              `, [eslesme.stok_kart_id, birimFiyat]);
+              anomaliVar = anomaliResult.rows[0]?.anomali_var;
+            } catch (anomaliErr) {
+              logger.warn('Anomali kontrolü atlandı', { error: anomaliErr.message });
+            }
             
             // Anomali yoksa veya sadece_otomatik=false ise işle
             if (!anomaliVar || !sadece_otomatik) {
@@ -1771,7 +1780,7 @@ router.post('/toplu-fatura-isle', authenticate, async (req, res) => {
         });
         
       } catch (faturaError) {
-        console.error(`Fatura işleme hatası (${ettn}):`, faturaError);
+        logger.error(`Fatura işleme hatası (${ettn})`, { error: faturaError.message, stack: faturaError.stack, ettn });
         hatali++;
         sonuclar.push({ ettn, durum: 'hata', hata: faturaError.message });
       }
@@ -1801,7 +1810,7 @@ router.post('/toplu-fatura-isle', authenticate, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Toplu fatura işleme hatası:', error);
+    logger.error('Toplu fatura işleme hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1836,7 +1845,7 @@ router.get('/faturalar/islenmemis', async (req, res) => {
       toplam: result.rows.length
     });
   } catch (error) {
-    console.error('İşlenmemiş fatura listesi hatası:', error);
+    logger.error('İşlenmemiş fatura listesi hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1865,7 +1874,7 @@ router.get('/fiyat-anomaliler', async (req, res) => {
       toplam: result.rows.length
     });
   } catch (error) {
-    console.error('Fiyat anomali raporu hatası:', error);
+    logger.error('Fiyat anomali raporu hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });

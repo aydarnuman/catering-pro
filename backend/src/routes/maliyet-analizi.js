@@ -1,5 +1,7 @@
 import express from 'express';
 import { query } from '../database.js';
+import { miktarDonustur, standartBirimAl } from '../utils/birim-donusum.js';
+import { getFiyat, hesaplaMalzemeMaliyet, fiyatFarkiHesapla } from '../utils/fiyat-hesaplama.js';
 
 const router = express.Router();
 
@@ -524,7 +526,7 @@ async function hesaplaSablonMaliyet(sablonId) {
       [sablonId]
     );
     
-    if (sablon.rows.length === 0) return;
+    if (sablon.rows.length === 0) return null;
     
     const kisiSayisi = sablon.rows[0].kisi_sayisi || 1000;
     
@@ -536,49 +538,63 @@ async function hesaplaSablonMaliyet(sablonId) {
       WHERE my.sablon_id = $1
     `, [sablonId]);
     
-    let toplamSistemMaliyet = 0;
+    let toplamFaturaMaliyet = 0;
     let toplamPiyasaMaliyet = 0;
     let toplamKalori = 0;
     let toplamProtein = 0;
+    let uyarilar = [];
     
     for (const yemek of yemekler.rows) {
-      let sistemMaliyet = 0;
+      let faturaMaliyet = 0;
       let piyasaMaliyet = 0;
       let kalori = 0;
       let protein = 0;
+      let yemekUyarilari = [];
       
       if (yemek.recete_id) {
-        // Reçeteden maliyet al
-        sistemMaliyet = parseFloat(yemek.recete_maliyet) || 0;
-        
-        // Piyasa maliyeti hesapla
+        // Reçeteden malzemeleri al ve maliyet hesapla
         const malzemeler = await query(`
           SELECT 
-            rm.miktar,
-            rm.birim,
-            rm.toplam_fiyat as sistem_toplam,
-            (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi 
-             WHERE urun_kart_id = rm.urun_kart_id 
-             ORDER BY arastirma_tarihi DESC LIMIT 1) as piyasa_fiyat,
-            uk.son_alis_fiyati
+            rm.*,
+            sk.son_alis_fiyat as stok_fatura_fiyat,
+            sk.birim as stok_birim
           FROM recete_malzemeler rm
-          LEFT JOIN urun_kartlari uk ON uk.id = rm.urun_kart_id
+          LEFT JOIN stok_kartlari sk ON sk.id = rm.stok_kart_id
           WHERE rm.recete_id = $1
         `, [yemek.recete_id]);
         
+        // Malzeme maliyetlerini hesapla ve cache'le
         for (const m of malzemeler.rows) {
-          const birim = (m.birim || '').toLowerCase();
-          const miktar = parseFloat(m.miktar) || 0;
-          const pFiyat = parseFloat(m.piyasa_fiyat) || parseFloat(m.son_alis_fiyat) || 0;
+          // Yeni hesaplama fonksiyonunu kullan
+          const maliyet = await hesaplaMalzemeMaliyet({
+            miktar: m.miktar,
+            birim: m.birim,
+            fatura_fiyat: m.fatura_fiyat || m.stok_fatura_fiyat,
+            fatura_fiyat_tarihi: m.fatura_fiyat_tarihi,
+            piyasa_fiyat: m.piyasa_fiyat || m.birim_fiyat,
+            piyasa_fiyat_tarihi: m.piyasa_fiyat_tarihi,
+            fiyat_birimi: m.stok_birim || 'kg'
+          }, 'auto');
           
-          // Birim dönüşümü
-          if (birim === 'g' || birim === 'gr') {
-            piyasaMaliyet += (miktar / 1000) * pFiyat;
-          } else if (birim === 'ml') {
-            piyasaMaliyet += (miktar / 1000) * pFiyat;
-          } else {
-            piyasaMaliyet += miktar * pFiyat;
+          faturaMaliyet += maliyet.fatura.toplam;
+          piyasaMaliyet += maliyet.piyasa.toplam;
+          
+          // Uyarıları topla
+          if (maliyet.uyarilar.length > 0) {
+            yemekUyarilari.push({
+              malzeme: m.malzeme_adi,
+              uyarilar: maliyet.uyarilar
+            });
           }
+          
+          // Cache'i güncelle
+          await query(`
+            UPDATE recete_malzemeler 
+            SET hesaplanan_fatura_maliyet = $1,
+                hesaplanan_piyasa_maliyet = $2,
+                son_maliyet_hesaplama = NOW()
+            WHERE id = $3
+          `, [maliyet.fatura.toplam, maliyet.piyasa.toplam, m.id]);
         }
         
         // Besin değerleri
@@ -590,9 +606,9 @@ async function hesaplaSablonMaliyet(sablonId) {
         protein = parseFloat(besinResult.rows[0]?.protein) || 0;
         
       } else {
-        // Manuel yemek maliyeti - doğrudan yemek tablosundan al
-        sistemMaliyet = parseFloat(yemek.manuel_maliyet) || parseFloat(yemek.sistem_maliyet) || 0;
-        piyasaMaliyet = sistemMaliyet;
+        // Manuel yemek - doğrudan fiyatı kullan
+        faturaMaliyet = parseFloat(yemek.manuel_maliyet) || parseFloat(yemek.sistem_maliyet) || 0;
+        piyasaMaliyet = faturaMaliyet;
       }
       
       // Yemek maliyetini güncelle
@@ -600,13 +616,20 @@ async function hesaplaSablonMaliyet(sablonId) {
         UPDATE maliyet_menu_yemekleri 
         SET sistem_maliyet = $1, piyasa_maliyet = $2, kalori = $3, protein = $4
         WHERE id = $5
-      `, [sistemMaliyet, piyasaMaliyet || sistemMaliyet, kalori, protein, yemek.id]);
+      `, [faturaMaliyet, piyasaMaliyet, kalori, protein, yemek.id]);
       
-      toplamSistemMaliyet += sistemMaliyet;
-      toplamPiyasaMaliyet += piyasaMaliyet || sistemMaliyet;
+      toplamFaturaMaliyet += faturaMaliyet;
+      toplamPiyasaMaliyet += piyasaMaliyet;
       toplamKalori += kalori;
       toplamProtein += protein;
+      
+      if (yemekUyarilari.length > 0) {
+        uyarilar.push({ yemek: yemek.yemek_adi, detay: yemekUyarilari });
+      }
     }
+    
+    // Fark hesapla
+    const fark = fiyatFarkiHesapla(toplamFaturaMaliyet, toplamPiyasaMaliyet);
     
     // Şablon toplamlarını güncelle
     await query(`
@@ -620,9 +643,9 @@ async function hesaplaSablonMaliyet(sablonId) {
         son_hesaplama = NOW()
       WHERE id = $7
     `, [
-      toplamSistemMaliyet,
+      toplamFaturaMaliyet,
       toplamPiyasaMaliyet,
-      toplamSistemMaliyet * kisiSayisi,
+      toplamFaturaMaliyet * kisiSayisi,
       toplamPiyasaMaliyet * kisiSayisi,
       toplamKalori,
       toplamProtein,
@@ -630,8 +653,11 @@ async function hesaplaSablonMaliyet(sablonId) {
     ]);
     
     return {
-      sistem_maliyet: toplamSistemMaliyet,
-      piyasa_maliyet: toplamPiyasaMaliyet
+      fatura_maliyet: toplamFaturaMaliyet,
+      piyasa_maliyet: toplamPiyasaMaliyet,
+      sistem_maliyet: toplamFaturaMaliyet, // Geriye uyumluluk için
+      fark: fark,
+      uyarilar: uyarilar
     };
   } catch (error) {
     console.error('Maliyet hesaplama hatası:', error);

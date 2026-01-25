@@ -14,6 +14,7 @@ import {
   Group,
   Loader,
   Modal,
+  NumberInput,
   Paper,
   Progress,
   Select,
@@ -38,10 +39,13 @@ import {
   IconBrain,
   IconCheck,
   IconChevronLeft,
+  IconClock,
   IconCopy,
   IconDatabase,
+  IconDownload,
   IconEdit,
   IconEye,
+  IconHistory,
   IconInfoCircle,
   IconPlus,
   IconRefresh,
@@ -52,12 +56,11 @@ import {
   IconThumbDown,
   IconThumbUp,
   IconTrash,
+  IconUpload,
   IconX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
-
-const API_URL = `${API_BASE_URL}/api`;
+import { aiAPI, type AITemplate } from '@/lib/api/services/ai';
 
 // Tip tanımları
 interface PromptTemplate {
@@ -169,11 +172,34 @@ export default function AIAyarlariPage() {
   const [selectedModel, setSelectedModel] = useState<string>('');
   const [_settingsLoading, setSettingsLoading] = useState(false);
   const [modelSaving, setModelSaving] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  
+  // Editable settings state
+  const [editableSettings, setEditableSettings] = useState({
+    auto_learn_enabled: true,
+    daily_snapshot_enabled: true,
+    max_memory_items: 100,
+    memory_retention_days: 365,
+    auto_learn_threshold: 0.8,
+    snapshot_time: '04:00',
+  });
 
   // Feedback & Memory state
   const [feedbackStats, setFeedbackStats] = useState<FeedbackStats | null>(null);
   const [memories, setMemories] = useState<MemoryItem[]>([]);
   const [memoriesLoading, setMemoriesLoading] = useState(false);
+
+  // Version History state
+  const [versionHistory, setVersionHistory] = useState<any[]>([]);
+  const [versionHistoryLoading, setVersionHistoryLoading] = useState(false);
+  const [selectedSettingKey, setSelectedSettingKey] = useState<string>('');
+
+  // Import/Export state
+  const [importModalOpened, { open: openImportModal, close: closeImportModal }] = useDisclosure(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importPreview, setImportPreview] = useState<any>(null);
+  const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -195,11 +221,10 @@ export default function AIAyarlariPage() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_URL}/ai/templates`);
-      const data = await response.json();
+      const data = await aiAPI.getTemplates();
 
       if (data.success) {
-        setTemplates(data.templates);
+        setTemplates(data.data.templates as unknown as PromptTemplate[]);
       } else {
         setError(data.error || 'Şablonlar yüklenemedi');
       }
@@ -215,21 +240,42 @@ export default function AIAyarlariPage() {
   const fetchAISettings = useCallback(async () => {
     try {
       setSettingsLoading(true);
-      const [settingsRes, modelsRes] = await Promise.all([
-        fetch(`${API_URL}/ai/settings`),
-        fetch(`${API_URL}/ai/settings/models`),
+      const [settingsData, modelsData] = await Promise.all([
+        aiAPI.getSettings(),
+        aiAPI.getModels(),
       ]);
 
-      const settingsData = await settingsRes.json();
-      const modelsData = await modelsRes.json();
-
       if (settingsData.success) {
-        setAiSettings(settingsData.settings);
+        const settings = settingsData.data.settings as any;
+        setAiSettings(settings as unknown as AISettings);
+        
+        // Editable settings'i parse et (JSONB'den gelen değerler parse edilmiş olabilir)
+        const parseValue = (value: any, defaultValue: any) => {
+          if (value === null || value === undefined) return defaultValue;
+          // Eğer string ise ve JSON gibi görünüyorsa parse et
+          if (typeof value === 'string' && (value.startsWith('"') || value.startsWith('[') || value.startsWith('{'))) {
+            try {
+              return JSON.parse(value);
+            } catch {
+              return value;
+            }
+          }
+          return value;
+        };
+        
+        setEditableSettings({
+          auto_learn_enabled: parseValue(settings.auto_learn_enabled, true),
+          daily_snapshot_enabled: parseValue(settings.daily_snapshot_enabled, true),
+          max_memory_items: parseValue(settings.max_memory_items, 100),
+          memory_retention_days: parseValue(settings.memory_retention_days, 365),
+          auto_learn_threshold: parseValue(settings.auto_learn_threshold, 0.8),
+          snapshot_time: parseValue(settings.snapshot_time, '04:00'),
+        });
       }
 
       if (modelsData.success) {
-        setAvailableModels(modelsData.models);
-        setSelectedModel(modelsData.defaultModel);
+        setAvailableModels(modelsData.data.models as unknown as AIModel[]);
+        setSelectedModel(modelsData.data.defaultModel);
       }
     } catch (err) {
       console.error('Settings fetch error:', err);
@@ -237,14 +283,225 @@ export default function AIAyarlariPage() {
       setSettingsLoading(false);
     }
   }, []);
+  
+  // AI ayarlarını export et
+  const handleExportSettings = async () => {
+    setExporting(true);
+    try {
+      const blob = await aiAPI.exportSettings();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ai-settings-export-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      notifications.show({
+        title: 'Başarılı',
+        message: 'AI ayarları export edildi',
+        color: 'green',
+        icon: <IconCheck size={16} />,
+      });
+    } catch (error: any) {
+      notifications.show({
+        title: 'Hata',
+        message: error.response?.data?.error || 'Export başarısız',
+        color: 'red',
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Import dosyası seçildiğinde
+  const handleImportFileSelect = (file: File | null) => {
+    if (!file) {
+      setImportFile(null);
+      setImportPreview(null);
+      return;
+    }
+
+    setImportFile(file);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const parsed = JSON.parse(content);
+        setImportPreview(parsed);
+      } catch (error) {
+        notifications.show({
+          title: 'Hata',
+          message: 'Geçersiz JSON dosyası',
+          color: 'red',
+        });
+        setImportFile(null);
+        setImportPreview(null);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // AI ayarlarını import et
+  const handleImportSettings = async (overwrite: boolean = false) => {
+    if (!importPreview?.settings) {
+      notifications.show({
+        title: 'Hata',
+        message: 'Geçersiz import dosyası',
+        color: 'red',
+      });
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const data = await aiAPI.importSettings(importPreview.settings, overwrite);
+      
+      if (data.success) {
+        notifications.show({
+          title: 'Başarılı',
+          message: (data.data as any).message || `${data.data.imported} ayar import edildi`,
+          color: 'green',
+          icon: <IconCheck size={16} />,
+        });
+        
+        // Ayarları yeniden yükle
+        await fetchAISettings();
+        closeImportModal();
+        setImportFile(null);
+        setImportPreview(null);
+      } else {
+        notifications.show({
+          title: 'Hata',
+          message: data.error || 'Import başarısız',
+          color: 'red',
+        });
+      }
+    } catch (error: any) {
+      notifications.show({
+        title: 'Hata',
+        message: error.response?.data?.error || 'Import başarısız',
+        color: 'red',
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // Versiyon geçmişini yükle
+  const fetchVersionHistory = useCallback(async () => {
+    setVersionHistoryLoading(true);
+    try {
+      const data = await aiAPI.getSettingsHistory(selectedSettingKey || undefined, 100);
+      if (data.success) {
+        setVersionHistory(data.data.history || []);
+      }
+    } catch (error) {
+      console.error('Version history fetch error:', error);
+      notifications.show({
+        title: 'Hata',
+        message: 'Versiyon geçmişi yüklenemedi',
+        color: 'red',
+      });
+    } finally {
+      setVersionHistoryLoading(false);
+    }
+  }, [selectedSettingKey]);
+
+  useEffect(() => {
+    if (activeTab === 'history') {
+      fetchVersionHistory();
+    }
+  }, [activeTab, fetchVersionHistory]);
+
+  // Versiyona geri dön
+  const handleRestoreVersion = async (settingKey: string, version: number) => {
+    if (!confirm(`Versiyon ${version} geri yüklenecek. Devam etmek istediğinize emin misiniz?`)) {
+      return;
+    }
+
+    try {
+      const data = await aiAPI.restoreVersion(settingKey, version, 'Versiyon geri yüklendi');
+      
+      if (data.success) {
+        notifications.show({
+          title: 'Başarılı',
+          message: `Versiyon ${version} geri yüklendi`,
+          color: 'green',
+          icon: <IconCheck size={16} />,
+        });
+        fetchVersionHistory();
+        // Ayarları da yeniden yükle
+        await fetchAISettings();
+      } else {
+        notifications.show({
+          title: 'Hata',
+          message: data.error || 'Geri yükleme başarısız',
+          color: 'red',
+        });
+      }
+    } catch (error) {
+      notifications.show({
+        title: 'Hata',
+        message: 'Sunucu hatası',
+        color: 'red',
+      });
+    }
+  };
+
+  // AI ayarlarını kaydet
+  const handleSaveSettings = async () => {
+    setSettingsSaving(true);
+    try {
+      // JSON parse edilmiş değerleri string'e çevir
+      const settingsToSave: Record<string, any> = {
+        auto_learn_enabled: editableSettings.auto_learn_enabled,
+        daily_snapshot_enabled: editableSettings.daily_snapshot_enabled,
+        max_memory_items: editableSettings.max_memory_items,
+        memory_retention_days: editableSettings.memory_retention_days,
+        auto_learn_threshold: editableSettings.auto_learn_threshold,
+        snapshot_time: editableSettings.snapshot_time,
+      };
+      
+      const data = await aiAPI.updateSettings(settingsToSave);
+      
+      if (data.success) {
+        notifications.show({
+          title: 'Başarılı',
+          message: 'AI ayarları güncellendi',
+          color: 'green',
+          icon: <IconCheck size={16} />,
+        });
+        // Ayarları yeniden yükle
+        await fetchAISettings();
+      } else {
+        notifications.show({
+          title: 'Hata',
+          message: data.error || 'Ayarlar güncellenemedi',
+          color: 'red',
+          icon: <IconX size={16} />,
+        });
+      }
+    } catch (err) {
+      console.error('Save settings error:', err);
+      notifications.show({
+        title: 'Hata',
+        message: 'Sunucu hatası oluştu',
+        color: 'red',
+        icon: <IconX size={16} />,
+      });
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
 
   // Feedback istatistiklerini yükle
   const fetchFeedbackStats = useCallback(async () => {
     try {
-      const response = await fetch(`${API_URL}/ai/feedback/stats`);
-      const data = await response.json();
+      const data = await aiAPI.getFeedbackStats();
       if (data.success) {
-        setFeedbackStats(data.stats);
+        setFeedbackStats(data.data.stats as unknown as FeedbackStats);
       }
     } catch (err) {
       console.error('Feedback stats error:', err);
@@ -255,10 +512,9 @@ export default function AIAyarlariPage() {
   const fetchMemories = useCallback(async () => {
     try {
       setMemoriesLoading(true);
-      const response = await fetch(`${API_URL}/ai/memory?limit=20`);
-      const data = await response.json();
+      const data = await aiAPI.getMemories({ limit: 20 });
       if (data.success) {
-        setMemories(data.memories);
+        setMemories(data.data.memories as unknown as MemoryItem[]);
       }
     } catch (err) {
       console.error('Memory fetch error:', err);
@@ -280,26 +536,20 @@ export default function AIAyarlariPage() {
 
     setModelSaving(true);
     try {
-      const response = await fetch(`${API_URL}/ai/settings/model`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: modelId }),
-      });
-
-      const data = await response.json();
+      const data = await aiAPI.updateModel(modelId);
 
       if (data.success) {
         setSelectedModel(modelId);
         notifications.show({
           title: 'Model Değiştirildi',
-          message: data.message,
+          message: data.message || 'Model başarıyla değiştirildi',
           color: 'green',
           icon: <IconCheck size={16} />,
         });
       } else {
         notifications.show({
           title: 'Hata',
-          message: data.error,
+          message: data.error || 'Model değiştirilemedi',
           color: 'red',
           icon: <IconX size={16} />,
         });
@@ -319,11 +569,7 @@ export default function AIAyarlariPage() {
   // Hafıza sil
   const handleDeleteMemory = async (id: number) => {
     try {
-      const response = await fetch(`${API_URL}/ai/memory/${id}`, {
-        method: 'DELETE',
-      });
-
-      const data = await response.json();
+      const data = await aiAPI.deleteMemory(id);
 
       if (data.success) {
         setMemories((prev) => prev.filter((m) => m.id !== id));
@@ -356,19 +602,9 @@ export default function AIAyarlariPage() {
     setSaving(true);
 
     try {
-      const url = editingTemplate
-        ? `${API_URL}/ai/templates/${editingTemplate.id}`
-        : `${API_URL}/ai/templates`;
-
-      const method = editingTemplate ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
+      const data = editingTemplate
+        ? await aiAPI.updateTemplate(editingTemplate.id, formData)
+        : await aiAPI.createTemplate(formData);
 
       if (data.success) {
         notifications.show({
@@ -448,11 +684,7 @@ export default function AIAyarlariPage() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/ai/templates/${id}`, {
-        method: 'DELETE',
-      });
-
-      const data = await response.json();
+      const data = await aiAPI.deleteTemplate(id);
 
       if (data.success) {
         notifications.show({
@@ -483,13 +715,7 @@ export default function AIAyarlariPage() {
 
   const toggleActive = async (template: PromptTemplate) => {
     try {
-      const response = await fetch(`${API_URL}/ai/templates/${template.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_active: !template.is_active }),
-      });
-
-      const data = await response.json();
+      const data = await aiAPI.updateTemplate(template.id, { is_active: !template.is_active } as Partial<AITemplate>);
 
       if (data.success) {
         setTemplates((prev) =>
@@ -548,6 +774,23 @@ export default function AIAyarlariPage() {
           </Group>
           <Group>
             <Button
+              variant="light"
+              color="green"
+              leftSection={<IconDownload size={16} />}
+              onClick={handleExportSettings}
+              loading={exporting}
+            >
+              Export
+            </Button>
+            <Button
+              variant="light"
+              color="blue"
+              leftSection={<IconUpload size={16} />}
+              onClick={openImportModal}
+            >
+              Import
+            </Button>
+            <Button
               variant="subtle"
               leftSection={<IconRefresh size={16} />}
               onClick={fetchTemplates}
@@ -578,6 +821,9 @@ export default function AIAyarlariPage() {
             <Tabs.Tab value="settings" leftSection={<IconSettings size={16} />}>
               Genel Ayarlar
             </Tabs.Tab>
+            <Tabs.Tab value="history" leftSection={<IconHistory size={16} />}>
+              Versiyon Geçmişi
+            </Tabs.Tab>
           </Tabs.List>
 
           <Tabs.Panel value="templates" pt="xl">
@@ -606,43 +852,44 @@ export default function AIAyarlariPage() {
                 </Stack>
               ) : (
                 <Paper withBorder>
-                  <Table striped highlightOnHover>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>Şablon</Table.Th>
-                        <Table.Th>Kategori</Table.Th>
-                        <Table.Th>Kullanım</Table.Th>
-                        <Table.Th>Durum</Table.Th>
-                        <Table.Th style={{ width: 140 }}>İşlemler</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {templates.length === 0 ? (
+                  <Table.ScrollContainer minWidth={600}>
+                    <Table striped highlightOnHover>
+                      <Table.Thead>
                         <Table.Tr>
-                          <Table.Td colSpan={5}>
-                            <Center py="xl">
-                              <Stack align="center" gap="xs">
-                                <IconRobot size={48} stroke={1.5} color="gray" />
-                                <Text c="dimmed">Henüz şablon yok</Text>
-                                <Button
-                                  size="sm"
-                                  variant="light"
-                                  onClick={() => {
-                                    resetForm();
-                                    open();
-                                  }}
-                                >
-                                  İlk şablonu oluştur
-                                </Button>
-                              </Stack>
-                            </Center>
-                          </Table.Td>
+                          <Table.Th>Şablon</Table.Th>
+                          <Table.Th>Kategori</Table.Th>
+                          <Table.Th>Kullanım</Table.Th>
+                          <Table.Th>Durum</Table.Th>
+                          <Table.Th style={{ width: 140 }}>İşlemler</Table.Th>
                         </Table.Tr>
-                      ) : (
-                        templates.map((template) => (
-                          <Table.Tr key={template.id}>
-                            <Table.Td>
-                              <Stack gap={4}>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {templates.length === 0 ? (
+                          <Table.Tr>
+                            <Table.Td colSpan={5}>
+                              <Center py="xl">
+                                <Stack align="center" gap="xs">
+                                  <IconRobot size={48} stroke={1.5} color="gray" />
+                                  <Text c="dimmed">Henüz şablon yok</Text>
+                                  <Button
+                                    size="sm"
+                                    variant="light"
+                                    onClick={() => {
+                                      resetForm();
+                                      open();
+                                    }}
+                                  >
+                                    İlk şablonu oluştur
+                                  </Button>
+                                </Stack>
+                              </Center>
+                            </Table.Td>
+                          </Table.Tr>
+                        ) : (
+                          templates.map((template) => (
+                            <Table.Tr key={template.id}>
+                              <Table.Td>
+                                <Stack gap={4}>
                                 <Group gap="xs">
                                   <Text size="lg">{template.icon}</Text>
                                   <Text fw={500}>
@@ -738,6 +985,7 @@ export default function AIAyarlariPage() {
                       )}
                     </Table.Tbody>
                   </Table>
+                  </Table.ScrollContainer>
                 </Paper>
               )}
             </Stack>
@@ -1002,50 +1250,247 @@ export default function AIAyarlariPage() {
               {/* Öğrenme Ayarları */}
               <Card withBorder p="lg">
                 <Stack gap="md">
-                  <div>
-                    <Text fw={600} size="lg">
-                      ⚙️ Öğrenme Ayarları
-                    </Text>
-                    <Text c="dimmed" size="sm">
-                      Otomatik öğrenme ve hafıza ayarları
-                    </Text>
-                  </div>
+                  <Group justify="space-between">
+                    <div>
+                      <Text fw={600} size="lg">
+                        ⚙️ Öğrenme Ayarları
+                      </Text>
+                      <Text c="dimmed" size="sm">
+                        Otomatik öğrenme ve hafıza ayarları
+                      </Text>
+                    </div>
+                    <Button
+                      onClick={handleSaveSettings}
+                      loading={settingsSaving}
+                      leftSection={<IconCheck size={16} />}
+                      color="violet"
+                    >
+                      Kaydet
+                    </Button>
+                  </Group>
 
                   <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
                     <Switch
                       label="Otomatik Öğrenme"
                       description="Konuşmalardan otomatik bilgi çıkarımı"
-                      checked={aiSettings?.auto_learn_enabled ?? true}
-                      disabled
+                      checked={editableSettings.auto_learn_enabled}
+                      onChange={(e) =>
+                        setEditableSettings({
+                          ...editableSettings,
+                          auto_learn_enabled: e.currentTarget.checked,
+                        })
+                      }
                     />
                     <Switch
                       label="Günlük Özet"
                       description="Her gün sistem durumu özeti oluştur"
-                      checked={aiSettings?.daily_snapshot_enabled ?? true}
-                      disabled
+                      checked={editableSettings.daily_snapshot_enabled}
+                      onChange={(e) =>
+                        setEditableSettings({
+                          ...editableSettings,
+                          daily_snapshot_enabled: e.currentTarget.checked,
+                        })
+                      }
                     />
                   </SimpleGrid>
 
-                  <Group gap="lg">
+                  <Divider />
+
+                  <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
+                    <NumberInput
+                      label="Maksimum Hafıza"
+                      description="AI'ın saklayabileceği maksimum hafıza öğesi sayısı"
+                      value={editableSettings.max_memory_items}
+                      onChange={(value) =>
+                        setEditableSettings({
+                          ...editableSettings,
+                          max_memory_items: Number(value) || 100,
+                        })
+                      }
+                      min={10}
+                      max={1000}
+                      step={10}
+                    />
+                    <NumberInput
+                      label="Saklama Süresi (Gün)"
+                      description="Hafıza öğelerinin saklanacağı süre"
+                      value={editableSettings.memory_retention_days}
+                      onChange={(value) =>
+                        setEditableSettings({
+                          ...editableSettings,
+                          memory_retention_days: Number(value) || 365,
+                        })
+                      }
+                      min={30}
+                      max={3650}
+                      step={30}
+                    />
+                    <NumberInput
+                      label="Güven Eşiği (%)"
+                      description="Otomatik öğrenme için minimum güven seviyesi"
+                      value={editableSettings.auto_learn_threshold * 100}
+                      onChange={(value) =>
+                        setEditableSettings({
+                          ...editableSettings,
+                          auto_learn_threshold: (Number(value) || 80) / 100,
+                        })
+                      }
+                      min={50}
+                      max={100}
+                      step={5}
+                      suffix="%"
+                    />
+                  </SimpleGrid>
+
+                  {editableSettings.daily_snapshot_enabled && (
+                    <TextInput
+                      label="Günlük Özet Saati"
+                      description="Günlük özetin oluşturulacağı saat (HH:MM formatında)"
+                      type="time"
+                      value={editableSettings.snapshot_time}
+                      onChange={(e) =>
+                        setEditableSettings({
+                          ...editableSettings,
+                          snapshot_time: e.currentTarget.value || '04:00',
+                        })
+                      }
+                    />
+                  )}
+                </Stack>
+              </Card>
+            </Stack>
+          </Tabs.Panel>
+
+          <Tabs.Panel value="history" pt="xl">
+            <Stack gap="lg">
+              <Card withBorder p="lg">
+                <Stack gap="md">
+                  <Group justify="space-between">
                     <div>
-                      <Text size="sm" c="dimmed">
-                        Maksimum Hafıza
+                      <Text fw={600} size="lg">
+                        📚 Versiyon Geçmişi
                       </Text>
-                      <Text fw={500}>{aiSettings?.max_memory_items || 100} öğe</Text>
-                    </div>
-                    <div>
-                      <Text size="sm" c="dimmed">
-                        Saklama Süresi
+                      <Text c="dimmed" size="sm">
+                        AI ayarlarının değişiklik geçmişi ve geri yükleme
                       </Text>
-                      <Text fw={500}>{aiSettings?.memory_retention_days || 365} gün</Text>
                     </div>
-                    <div>
-                      <Text size="sm" c="dimmed">
-                        Güven Eşiği
-                      </Text>
-                      <Text fw={500}>{(aiSettings?.auto_learn_threshold || 0.8) * 100}%</Text>
-                    </div>
+                    <Group>
+                      <Select
+                        placeholder="Tüm ayarlar"
+                        value={selectedSettingKey}
+                        onChange={(value) => setSelectedSettingKey(value || '')}
+                        data={[
+                          { value: '', label: 'Tüm Ayarlar' },
+                          { value: 'default_model', label: 'Varsayılan Model' },
+                          { value: 'auto_learn_enabled', label: 'Otomatik Öğrenme' },
+                          { value: 'max_memory_items', label: 'Maksimum Hafıza' },
+                          { value: 'memory_retention_days', label: 'Hafıza Saklama Süresi' },
+                          { value: 'auto_learn_threshold', label: 'Öğrenme Eşiği' },
+                          { value: 'daily_snapshot_enabled', label: 'Günlük Özet' },
+                          { value: 'snapshot_time', label: 'Özet Saati' },
+                        ]}
+                        clearable
+                        style={{ width: 200 }}
+                      />
+                      <ActionIcon variant="light" size="lg" onClick={fetchVersionHistory} loading={versionHistoryLoading}>
+                        <IconRefresh size={18} />
+                      </ActionIcon>
+                    </Group>
                   </Group>
+
+                  {versionHistoryLoading ? (
+                    <Center py="xl">
+                      <Loader />
+                    </Center>
+                  ) : versionHistory.length === 0 ? (
+                    <Alert color="blue" icon={<IconInfoCircle size={16} />}>
+                      Henüz versiyon geçmişi yok
+                    </Alert>
+                  ) : (
+                    <Paper withBorder>
+                      <Table>
+                        <Table.Thead>
+                          <Table.Tr>
+                            <Table.Th>Ayar</Table.Th>
+                            <Table.Th>Versiyon</Table.Th>
+                            <Table.Th>Değer</Table.Th>
+                            <Table.Th>Değiştiren</Table.Th>
+                            <Table.Th>Not</Table.Th>
+                            <Table.Th>Tarih</Table.Th>
+                            <Table.Th ta="right">İşlem</Table.Th>
+                          </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                          {versionHistory.map((item) => {
+                            let displayValue = '';
+                            try {
+                              const parsed = typeof item.setting_value === 'string' 
+                                ? JSON.parse(item.setting_value) 
+                                : item.setting_value;
+                              
+                              if (typeof parsed === 'boolean') {
+                                displayValue = parsed ? 'Açık' : 'Kapalı';
+                              } else if (typeof parsed === 'number') {
+                                displayValue = parsed.toString();
+                              } else if (typeof parsed === 'string') {
+                                displayValue = parsed.length > 50 ? parsed.substring(0, 50) + '...' : parsed;
+                              } else {
+                                displayValue = JSON.stringify(parsed).substring(0, 50) + '...';
+                              }
+                            } catch {
+                              displayValue = String(item.setting_value).substring(0, 50);
+                            }
+
+                            return (
+                              <Table.Tr key={item.id}>
+                                <Table.Td>
+                                  <Text size="sm" fw={500} ff="monospace">
+                                    {item.setting_key}
+                                  </Text>
+                                </Table.Td>
+                                <Table.Td>
+                                  <Badge variant="light" color="blue">
+                                    v{item.version}
+                                  </Badge>
+                                </Table.Td>
+                                <Table.Td>
+                                  <Text size="sm" c="dimmed" style={{ maxWidth: 200 }} lineClamp={1}>
+                                    {displayValue}
+                                  </Text>
+                                </Table.Td>
+                                <Table.Td>
+                                  <Text size="sm">
+                                    {item.user_name || item.user_email || 'Sistem'}
+                                  </Text>
+                                </Table.Td>
+                                <Table.Td>
+                                  <Text size="sm" c="dimmed" style={{ maxWidth: 150 }} lineClamp={1}>
+                                    {item.change_note || '-'}
+                                  </Text>
+                                </Table.Td>
+                                <Table.Td>
+                                  <Text size="sm" c="dimmed">
+                                    {new Date(item.created_at).toLocaleString('tr-TR')}
+                                  </Text>
+                                </Table.Td>
+                                <Table.Td>
+                                  <Tooltip label="Bu versiyona geri dön">
+                                    <ActionIcon
+                                      variant="subtle"
+                                      color="green"
+                                      onClick={() => handleRestoreVersion(item.setting_key, item.version)}
+                                    >
+                                      <IconClock size={16} />
+                                    </ActionIcon>
+                                  </Tooltip>
+                                </Table.Td>
+                              </Table.Tr>
+                            );
+                          })}
+                        </Table.Tbody>
+                      </Table>
+                    </Paper>
+                  )}
                 </Stack>
               </Card>
             </Stack>
@@ -1090,8 +1535,8 @@ export default function AIAyarlariPage() {
               placeholder="Varsayılan modeli kullan"
               data={[
                 { value: '', label: '⚡ Varsayılan (Ayarlardan)' },
-                ...availableModels.map((m) => ({
-                  value: m.id,
+                ...(availableModels || []).map((m) => ({
+                  value: String(m.id),
                   label: `${m.icon} ${m.name} - ${m.description}`,
                 })),
               ]}
@@ -1224,6 +1669,99 @@ export default function AIAyarlariPage() {
               </Group>
             </Stack>
           )}
+        </Modal>
+
+        {/* Import Modal */}
+        <Modal
+          opened={importModalOpened}
+          onClose={closeImportModal}
+          title="AI Ayarları Import"
+          size="lg"
+        >
+          <Stack gap="md">
+            <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
+              <Text size="sm">
+                JSON formatında export edilmiş ayar dosyasını seçin. Mevcut ayarların üzerine yazılacak.
+              </Text>
+            </Alert>
+
+            <div>
+              <Text size="sm" fw={500} mb="xs">
+                Dosya Seç
+              </Text>
+              <input
+                type="file"
+                accept=".json"
+                onChange={(e) => handleImportFileSelect(e.target.files?.[0] || null)}
+                style={{ display: 'none' }}
+                id="import-file-input"
+              />
+              <label htmlFor="import-file-input">
+                <Button
+                  component="span"
+                  variant="light"
+                  leftSection={<IconUpload size={16} />}
+                  fullWidth
+                >
+                  {importFile ? importFile.name : 'Dosya Seç'}
+                </Button>
+              </label>
+            </div>
+
+            {importPreview && (
+              <div>
+                <Text size="sm" fw={500} mb="xs">
+                  Önizleme
+                </Text>
+                <Paper withBorder p="md" style={{ maxHeight: 300, overflow: 'auto' }}>
+                  <Code block>
+                    {JSON.stringify(importPreview, null, 2)}
+                  </Code>
+                </Paper>
+                {importPreview.metadata && (
+                  <Text size="xs" c="dimmed" mt="xs">
+                    Export Tarihi: {new Date(importPreview.metadata.exported_at).toLocaleString('tr-TR')} | 
+                    Versiyon: {importPreview.metadata.version} | 
+                    Ayar Sayısı: {importPreview.metadata.count}
+                  </Text>
+                )}
+              </div>
+            )}
+
+            {importPreview && (
+              <Alert icon={<IconAlertCircle size={16} />} color="yellow" variant="light">
+                <Text size="sm">
+                  <strong>Uyarı:</strong> Bu işlem mevcut ayarların üzerine yazacak. Devam etmek istediğinize emin misiniz?
+                </Text>
+              </Alert>
+            )}
+
+            <Group justify="flex-end" mt="md">
+              <Button variant="default" onClick={closeImportModal}>
+                İptal
+              </Button>
+              {importPreview && (
+                <>
+                  <Button
+                    variant="light"
+                    color="orange"
+                    onClick={() => handleImportSettings(false)}
+                    loading={importing}
+                  >
+                    Mevcutları Koru
+                  </Button>
+                  <Button
+                    color="red"
+                    onClick={() => handleImportSettings(true)}
+                    loading={importing}
+                    leftSection={<IconCheck size={16} />}
+                  >
+                    Üzerine Yaz
+                  </Button>
+                </>
+              )}
+            </Group>
+          </Stack>
         </Modal>
       </Stack>
     </Container>

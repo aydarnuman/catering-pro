@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  ActionIcon,
   Alert,
   Avatar,
   Badge,
@@ -15,32 +16,36 @@ import {
   Paper,
   PasswordInput,
   Stack,
+  Table,
   Text,
   TextInput,
   ThemeIcon,
   Title,
+  Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
   IconAlertCircle,
   IconCalendar,
   IconCheck,
+  IconDeviceDesktop,
+  IconDeviceMobile,
   IconKey,
   IconLock,
+  IconLockOpen,
   IconMail,
   IconShieldCheck,
+  IconTrash,
   IconUser,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { API_BASE_URL } from '@/lib/config';
-
-const API_URL = API_BASE_URL;
+import { adminAPI } from '@/lib/api/services/admin';
 
 export default function ProfilPage() {
   const router = useRouter();
-  const { user, token, isAuthenticated, isLoading: authLoading, refreshUser } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, refreshUser } = useAuth();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -52,6 +57,10 @@ export default function ProfilPage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [error, setError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  
+  // Session management
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
 
   // Kullanıcı bilgilerini yükle
   useEffect(() => {
@@ -60,6 +69,106 @@ export default function ProfilPage() {
       setEmail(user.email || '');
     }
   }, [user]);
+
+  // Session'ları yükle
+  useEffect(() => {
+    const fetchSessions = async () => {
+      setSessionsLoading(true);
+      try {
+        const data = await adminAPI.getSessions();
+        if (data.success) {
+          setSessions((data as any).sessions || []);
+          
+          // Mevcut session'ı belirle (refresh token'dan)
+          // Not: Backend'den mevcut session bilgisi gelirse daha iyi olur
+        }
+      } catch (error) {
+        console.error('Session yükleme hatası:', error);
+      } finally {
+        setSessionsLoading(false);
+      }
+    };
+
+    if (isAuthenticated) {
+      fetchSessions();
+    }
+  }, [isAuthenticated]);
+
+  // Session sonlandır
+  const handleTerminateSession = async (sessionId: number) => {
+    if (!confirm('Bu oturumu sonlandırmak istediğinize emin misiniz?')) {
+      return;
+    }
+
+    try {
+      const data = await adminAPI.terminateSession(sessionId);
+      if (data.success) {
+        notifications.show({
+          title: 'Başarılı',
+          message: 'Oturum sonlandırıldı',
+          color: 'green',
+          icon: <IconCheck size={16} />,
+        });
+        // Session listesini yenile
+        const sessionsData = await adminAPI.getSessions();
+        if (sessionsData.success) {
+          setSessions((sessionsData as any).sessions || []);
+        }
+      }
+    } catch (error) {
+      notifications.show({
+        title: 'Hata',
+        message: 'Oturum sonlandırılamadı',
+        color: 'red',
+      });
+    }
+  };
+
+  // Diğer tüm oturumları sonlandır
+  const handleTerminateOtherSessions = async () => {
+    if (!confirm('Diğer tüm oturumları sonlandırmak istediğinize emin misiniz?')) {
+      return;
+    }
+
+    try {
+      const data = await adminAPI.terminateOtherSessions();
+      if (data.success) {
+        notifications.show({
+          title: 'Başarılı',
+          message: `${(data as any).count || 0} oturum sonlandırıldı`,
+          color: 'green',
+          icon: <IconCheck size={16} />,
+        });
+        // Session listesini yenile
+        const sessionsData = await adminAPI.getSessions();
+        if (sessionsData.success) {
+          setSessions((sessionsData as any).sessions || []);
+        }
+      }
+    } catch (error) {
+      notifications.show({
+        title: 'Hata',
+        message: 'Oturumlar sonlandırılamadı',
+        color: 'red',
+      });
+    }
+  };
+
+  // Device icon belirle
+  const getDeviceIcon = (deviceInfo: any) => {
+    const device = deviceInfo?.device || 'Desktop';
+    return device === 'Mobile' ? IconDeviceMobile : IconDeviceDesktop;
+  };
+
+  // Device bilgisi formatla
+  const formatDeviceInfo = (deviceInfo: any) => {
+    if (!deviceInfo) return 'Bilinmiyor';
+    const parts = [];
+    if (deviceInfo.os) parts.push(deviceInfo.os);
+    if (deviceInfo.browser) parts.push(deviceInfo.browser);
+    if (deviceInfo.device) parts.push(deviceInfo.device);
+    return parts.join(' • ') || 'Bilinmiyor';
+  };
 
   // Giriş yapmamışsa login sayfasına yönlendir
   if (authLoading) {
@@ -82,18 +191,9 @@ export default function ProfilPage() {
     setIsUpdating(true);
 
     try {
-      const response = await fetch(`${API_URL}/api/auth/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ name, email }),
-      });
+      const data = await adminAPI.updateProfile({ name, email });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (data.success) {
         notifications.show({
           title: 'Başarılı',
           message: 'Profil bilgileriniz güncellendi',
@@ -129,21 +229,12 @@ export default function ProfilPage() {
     setIsChangingPassword(true);
 
     try {
-      const response = await fetch(`${API_URL}/api/auth/password`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          currentPassword,
-          newPassword,
-        }),
+      const data = await adminAPI.changePassword({
+        currentPassword,
+        newPassword,
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (data.success) {
         notifications.show({
           title: 'Başarılı',
           message: 'Şifreniz değiştirildi',
@@ -372,6 +463,128 @@ export default function ProfilPage() {
                     </Group>
                   </Stack>
                 </form>
+              </Paper>
+
+              {/* Aktif Oturumlar */}
+              <Paper shadow="sm" radius="lg" p="xl" withBorder>
+                <Group mb="lg" justify="space-between">
+                  <Group>
+                    <ThemeIcon size={36} radius="md" variant="light" color="violet">
+                      <IconDeviceDesktop size={20} />
+                    </ThemeIcon>
+                    <div>
+                      <Title order={4}>Aktif Oturumlar</Title>
+                      <Text size="sm" c="dimmed">
+                        Tüm cihazlardaki oturumlarınızı yönetin
+                      </Text>
+                    </div>
+                  </Group>
+                  {sessions.filter(s => s.isActive).length > 1 && (
+                    <Button
+                      variant="light"
+                      color="red"
+                      size="xs"
+                      leftSection={<IconLockOpen size={14} />}
+                      onClick={handleTerminateOtherSessions}
+                    >
+                      Diğerlerini Sonlandır
+                    </Button>
+                  )}
+                </Group>
+
+                {sessionsLoading ? (
+                  <Center py="xl">
+                    <Loader size="sm" />
+                  </Center>
+                ) : sessions.length === 0 ? (
+                  <Alert color="blue" icon={<IconAlertCircle size={16} />}>
+                    Aktif oturum bulunmuyor
+                  </Alert>
+                ) : (
+                  <Table>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Cihaz</Table.Th>
+                        <Table.Th>IP Adresi</Table.Th>
+                        <Table.Th>Son Aktivite</Table.Th>
+                        <Table.Th>Oluşturulma</Table.Th>
+                        <Table.Th ta="right">İşlem</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {sessions.map((session) => {
+                        const DeviceIcon = getDeviceIcon(session.deviceInfo);
+                        const isCurrent = session.isCurrent || false;
+                        
+                        return (
+                          <Table.Tr key={session.id}>
+                            <Table.Td>
+                              <Group gap="xs">
+                                <DeviceIcon size={18} />
+                                <div>
+                                  <Text size="sm" fw={500}>
+                                    {formatDeviceInfo(session.deviceInfo)}
+                                  </Text>
+                                  {session.userAgent && (
+                                    <Text size="xs" c="dimmed" lineClamp={1}>
+                                      {session.userAgent.substring(0, 50)}...
+                                    </Text>
+                                  )}
+                                </div>
+                              </Group>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="sm">{session.ipAddress || 'Bilinmiyor'}</Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="sm" c="dimmed">
+                                {session.lastActivity
+                                  ? new Date(session.lastActivity).toLocaleString('tr-TR', {
+                                      day: '2-digit',
+                                      month: '2-digit',
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })
+                                  : '-'}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="sm" c="dimmed">
+                                {new Date(session.createdAt).toLocaleDateString('tr-TR')}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Group gap="xs" justify="flex-end">
+                                {isCurrent && (
+                                  <Badge size="sm" color="green" variant="light">
+                                    Mevcut
+                                  </Badge>
+                                )}
+                                {session.isActive && !isCurrent && (
+                                  <Tooltip label="Oturumu Sonlandır">
+                                    <ActionIcon
+                                      variant="subtle"
+                                      color="red"
+                                      onClick={() => handleTerminateSession(session.id)}
+                                    >
+                                      <IconTrash size={16} />
+                                    </ActionIcon>
+                                  </Tooltip>
+                                )}
+                                {!session.isActive && (
+                                  <Badge size="sm" color="gray" variant="light">
+                                    Sonlandırılmış
+                                  </Badge>
+                                )}
+                              </Group>
+                            </Table.Td>
+                          </Table.Tr>
+                        );
+                      })}
+                    </Table.Tbody>
+                  </Table>
+                )}
               </Paper>
             </Stack>
           </Grid.Col>

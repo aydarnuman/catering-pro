@@ -43,6 +43,7 @@ import {
   IconCheck,
   IconChevronDown,
   IconClipboardList,
+  IconCurrencyLira,
   IconFileInvoice,
   IconHistory,
   IconLink,
@@ -50,7 +51,6 @@ import {
   IconPackage,
   IconPackages,
   IconPlus,
-  IconWand,
   IconRefresh,
   IconSearch,
   IconShoppingCart,
@@ -65,10 +65,10 @@ import { DataActions } from '@/components/DataActions';
 import UrunDetayModal from '@/components/UrunDetayModal';
 import UrunKartlariModal from '@/components/UrunKartlariModal';
 import { usePermissions } from '@/hooks/usePermissions';
-import { API_BASE_URL } from '@/lib/config';
-
-// API URL
-const API_URL = `${API_BASE_URL}/api`;
+import { formatMoney } from '@/lib/formatters';
+import { EmptyState, LoadingState, Breadcrumbs } from '@/components/common';
+import { stokAPI } from '@/lib/api/services/stok';
+import { urunlerAPI } from '@/lib/api/services/urunler';
 
 // Tip tanımları
 interface StokItem {
@@ -172,9 +172,11 @@ function StokPageContent() {
   // Transfer form
   const [transferForm, setTransferForm] = useState({
     stok_kart_id: 0,
+    urun_id: 0,
     kaynak_depo_id: 0,
     hedef_depo_id: 0,
     miktar: 0,
+    birim: 'kg',
     belge_no: '',
     aciklama: '',
   });
@@ -219,8 +221,10 @@ function StokPageContent() {
   // Stok girişi form state
   const [girisForm, setGirisForm] = useState({
     stok_kart_id: null as number | null,
+    urun_id: null as number | null,
     depo_id: null as number | null,
     miktar: 0,
+    birim: 'kg',
     birim_fiyat: 0,
     giris_tipi: 'SATIN_ALMA',
     aciklama: '',
@@ -229,8 +233,10 @@ function StokPageContent() {
   // Stok çıkışı form state
   const [cikisForm, setCikisForm] = useState({
     stok_kart_id: null as number | null,
+    urun_id: null as number | null,
     depo_id: null as number | null,
     miktar: 0,
+    birim: 'kg',
     cikis_tipi: 'TUKETIM',
     aciklama: '',
   });
@@ -280,24 +286,12 @@ function StokPageContent() {
   const handleSaveDepo = async () => {
     try {
       setLoading(true);
-      const url = editingDepo
-        ? `${API_URL}/stok/depolar/${editingDepo.id}`
-        : `${API_URL}/stok/depolar`;
+      const result = editingDepo
+        ? await stokAPI.updateDepo(editingDepo.id, depoForm)
+        : await stokAPI.createDepo(depoForm);
 
-      const method = editingDepo ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify(depoForm),
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || 'İşlem başarısız');
+      if (!result.success) {
+        throw new Error(result.error || 'İşlem başarısız');
       }
 
       notifications.show({
@@ -336,14 +330,10 @@ function StokPageContent() {
 
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/stok/depolar/${depoId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${getToken()}` },
-      });
+      const result = await stokAPI.deleteDepo(depoId);
 
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || 'Silme işlemi başarısız');
+      if (!result.success) {
+        throw new Error(result.error || 'Silme işlemi başarısız');
       }
 
       notifications.show({
@@ -373,26 +363,15 @@ function StokPageContent() {
     setError(null);
     try {
       // Paralel istekler - Yeni ürün kartları sistemini kullan
-      const [urunRes, depoRes, katRes, birimRes] = await Promise.all([
-        fetch(`${API_URL}/urunler?limit=500`),
-        fetch(`${API_URL}/stok/depolar`),
-        fetch(`${API_URL}/urunler/kategoriler/liste`),
-        fetch(`${API_URL}/stok/birimler`),
-      ]);
-
-      if (!urunRes.ok || !depoRes.ok || !katRes.ok || !birimRes.ok) {
-        throw new Error('Veri yüklenemedi');
-      }
-
       const [urunData, depoData, katData, birimData] = await Promise.all([
-        urunRes.json(),
-        depoRes.json(),
-        katRes.json(),
-        birimRes.json(),
+        urunlerAPI.getUrunler({ limit: 500 }),
+        stokAPI.getDepolar(),
+        urunlerAPI.getKategoriler(),
+        stokAPI.getBirimler(),
       ]);
 
       // Ürün kartlarını stok formatına dönüştür
-      const urunList = (urunData.data || []).map((u: any) => ({
+      const urunList = ((urunData.success ? urunData.data : []) || []).map((u: any) => ({
         id: u.id,
         kod: u.kod,
         ad: u.ad,
@@ -413,7 +392,7 @@ function StokPageContent() {
       setStoklar(stokluUrunler);
       setTumUrunler(urunList); // Tüm ürünler (fatura eşleştirme için)
       setTumStokSayisi(urunList.length);
-      setDepolar(depoData.data || []);
+      setDepolar((depoData.data || []) as unknown as Depo[]);
       
       // Kategorileri dönüştür
       const katList = (katData.data || []).map((k: any) => ({
@@ -422,7 +401,7 @@ function StokPageContent() {
         ad: k.ad,
       }));
       setKategoriler(katList);
-      setBirimler(birimData.data || []);
+      setBirimler((birimData.success ? birimData.data : []) || []);
     } catch (err) {
       console.error('Veri yükleme hatası:', err);
       setError('Veriler yüklenirken hata oluştu');
@@ -445,18 +424,16 @@ function StokPageContent() {
       setSelectedLokasyon(null);
 
       // Lokasyonları yükle
-      const lokRes = await fetch(`${API_URL}/stok/depolar/${depoId}/lokasyonlar`);
-      const lokResult = await lokRes.json();
+      const lokResult = await stokAPI.getDepoLokasyonlar(depoId);
       if (lokResult.success) {
         setLokasyonlar(lokResult.data || []);
       }
 
       // Stokları yükle
-      const response = await fetch(`${API_URL}/stok/depolar/${depoId}/stoklar`);
-      const result = await response.json();
+      const result = await stokAPI.getDepoStoklar(depoId);
 
       if (result.success) {
-        setStoklar(result.data || []);
+        setStoklar((result.data || []) as unknown as StokItem[]);
       }
     } catch (err) {
       console.error('Depo stok yükleme hatası:', err);
@@ -476,11 +453,10 @@ function StokPageContent() {
     try {
       setSelectedLokasyon(lokasyonId);
 
-      const response = await fetch(`${API_URL}/stok/lokasyonlar/${lokasyonId}/stoklar`);
-      const result = await response.json();
+      const result = await stokAPI.getLokasyonStoklar(lokasyonId);
 
       if (result.success) {
-        setStoklar(result.data || []);
+        setStoklar((result.data || []) as unknown as StokItem[]);
       }
     } catch (err) {
       console.error('Lokasyon stok yükleme hatası:', err);
@@ -500,14 +476,9 @@ function StokPageContent() {
       setLoading(true);
 
       // Yeni ürün kartları sistemini kullan
-      const res = await fetch(`${API_URL}/urunler/${urunId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${getToken()}` },
-      });
+      const result = await urunlerAPI.deleteUrun(urunId);
 
-      const result = await res.json();
-
-      if (!res.ok) {
+      if (!result.success) {
         throw new Error(result.error || 'Silme işlemi başarısız');
       }
 
@@ -548,11 +519,8 @@ function StokPageContent() {
       // Yeni ürün kartları sistemini kullan
       for (const urunId of selectedStoklar) {
         try {
-          const res = await fetch(`${API_URL}/urunler/${urunId}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${getToken()}` },
-          });
-          if (res.ok) basarili++;
+          const result = await urunlerAPI.deleteUrun(urunId);
+          if (result.success) basarili++;
           else hatali++;
         } catch {
           hatali++;
@@ -602,8 +570,7 @@ function StokPageContent() {
   const loadFaturalar = async () => {
     setFaturaLoading(true);
     try {
-      const response = await fetch(`${API_URL}/stok/faturalar?limit=50`);
-      const result = await response.json();
+      const result = await stokAPI.getFaturalar({ limit: 50 });
       if (result.success) {
         setFaturalar(result.data);
       }
@@ -618,62 +585,39 @@ function StokPageContent() {
   const loadFaturaKalemler = async (ettn: string) => {
     setFaturaLoading(true);
     try {
-      // Yeni akıllı endpoint'i kullan
-      const response = await fetch(`${API_URL}/stok/faturalar/${ettn}/akilli-kalemler`);
-      const result = await response.json();
+      // Sadece normal kalemler endpoint'i kullan - otomatik eşleştirme YOK
+      const result = await stokAPI.getFaturaKalemler(ettn) as any;
       if (result.success) {
-        setFaturaKalemler(result.kalemler);
-        setFaturaOzet(result.ozet);
-        // Akıllı eşleştirmeleri otomatik doldur
+        // eslesme verilerini temizle - sadece ham kalem verileri
+        const temizKalemler = (result.kalemler || result.data || []).map((k: any) => ({
+          ...k,
+          eslesme: null // AI önerisi yok
+        }));
+
+        setFaturaKalemler(temizKalemler);
+        setFaturaOzet((result.data as any) || {});
+        
+        // Eşleştirmeler boş başlasın - kullanıcı manuel seçecek
         const eslestirmeler: { [key: number]: number | null } = {};
-        result.kalemler.forEach((k: any) => {
-          // Eşleşme varsa stok_kart_id'yi al
-          eslestirmeler[k.sira] = k.eslesme?.stok_kart_id || null;
+        temizKalemler.forEach((k: any) => {
+          eslestirmeler[k.sira] = null; // Başlangıçta boş
         });
         setKalemEslestirme(eslestirmeler);
         
-        // Özet bilgilendirmesi
-        if (result.ozet) {
-          const { otomatik_onay, manuel_gereken, anomali_sayisi } = result.ozet;
-          if (anomali_sayisi > 0) {
-            notifications.show({
-              title: '⚠️ Fiyat Anomalisi',
-              message: `${anomali_sayisi} kalemde anormal fiyat değişimi tespit edildi`,
-              color: 'orange',
-              autoClose: 5000,
-            });
-          }
-          if (otomatik_onay > 0) {
-            notifications.show({
-              title: '✅ Akıllı Eşleştirme',
-              message: `${otomatik_onay}/${result.kalemler.length} kalem otomatik eşleştirildi`,
-              color: 'green',
-              autoClose: 3000,
-            });
-          }
-        }
+        notifications.show({
+          title: '📋 Fatura Kalemleri',
+          message: `${temizKalemler.length} kalem yüklendi - lütfen ürün kartlarını manuel seçin`,
+          color: 'blue',
+          autoClose: 3000,
+        });
       }
     } catch (error: any) {
       console.error('Fatura kalem hatası:', error);
-      // Fallback: Eski endpoint'i dene
-      try {
-        const fallbackResponse = await fetch(`${API_URL}/stok/faturalar/${ettn}/kalemler`);
-        const fallbackResult = await fallbackResponse.json();
-        if (fallbackResult.success) {
-          setFaturaKalemler(fallbackResult.kalemler);
-          const eslestirmeler: { [key: number]: number | null } = {};
-          fallbackResult.kalemler.forEach((k: any) => {
-            eslestirmeler[k.sira] = k.onerilen_stok_kart_id;
-          });
-          setKalemEslestirme(eslestirmeler);
-        }
-      } catch {
-        notifications.show({
-          title: 'Hata',
-          message: 'Fatura kalemleri yüklenemedi',
-          color: 'red',
-        });
-      }
+      notifications.show({
+        title: 'Hata',
+        message: 'Fatura kalemleri yüklenemedi',
+        color: 'red',
+      });
     } finally {
       setFaturaLoading(false);
     }
@@ -703,24 +647,14 @@ function StokPageContent() {
 
     setTopluIslemLoading(true);
     try {
-      const response = await fetch(`${API_URL}/stok/toplu-fatura-isle`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({
-          fatura_ettnler: islenmemisFaturalar.map((f) => f.ettn),
-          depo_id: faturaGirisDepo,
-          sadece_otomatik: true, // Sadece %90+ güvenli olanları işle
-        }),
-      });
-
-      const result = await response.json();
+      const result = await stokAPI.topluFaturaIsle({
+        faturalar: islenmemisFaturalar.map((f) => f.ettn),
+        depo_id: faturaGirisDepo,
+      }) as any;
       if (result.success) {
         notifications.show({
           title: '✅ Toplu İşlem Tamamlandı',
-          message: `${result.ozet.basarili} fatura işlendi, ${result.ozet.otomatik_eslesen} kalem eşleştirildi`,
+          message: `${result.ozet?.basarili || 0} fatura işlendi, ${result.ozet?.otomatik_eslesen || 0} kalem eşleştirildi`,
           color: 'green',
           autoClose: 5000,
         });
@@ -737,6 +671,73 @@ function StokPageContent() {
       });
     } finally {
       setTopluIslemLoading(false);
+    }
+  };
+
+  // Tek kalem için fiyat güncelle (stok girişi yapmadan)
+  const handleFiyatGuncelle = async (urunKartId: number, birimFiyat: number, urunAdi: string) => {
+    try {
+      const result = await urunlerAPI.updateFiyat(urunKartId, {
+        birim_fiyat: birimFiyat,
+        kaynak: 'fatura_manuel',
+        aciklama: `Faturadan manuel güncelleme - ${selectedFatura?.sender_name || ''}`,
+      });
+
+      if (result.success) {
+        notifications.show({
+          title: '💰 Fiyat Güncellendi',
+          message: `${urunAdi}: ${(result as any).eski_fiyat || 0}₺ → ${birimFiyat}₺`,
+          color: 'green',
+          autoClose: 3000,
+        });
+        // Ürün listesini yenile
+        loadData();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error: any) {
+      notifications.show({
+        title: 'Hata',
+        message: error.message || 'Fiyat güncellenemedi',
+        color: 'red',
+      });
+    }
+  };
+
+  // Fatura kaleminden yeni ürün kartı oluştur
+  const handleYeniUrunOlustur = async (kalem: any, anaUrunId?: number) => {
+    try {
+      const result = await urunlerAPI.createVaryant({
+        urun_kart_id: anaUrunId || 0,
+        varyant_adi: kalem.urun_adi,
+        fiyat_farki: kalem.birim_fiyat,
+      });
+
+      if (result.success) {
+        notifications.show({
+          title: anaUrunId ? '🔗 Varyant Oluşturuldu' : '✨ Yeni Ürün Kartı',
+          message: `${result.data.kod} - ${result.data.ad}`,
+          color: 'green',
+          autoClose: 4000,
+        });
+        
+        // Yeni ürünü otomatik eşleştir
+        setKalemEslestirme((prev) => ({
+          ...prev,
+          [kalem.sira]: result.data.id,
+        }));
+        
+        // Ürün listesini yenile
+        loadData();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error: any) {
+      notifications.show({
+        title: 'Hata',
+        message: error.message || 'Ürün oluşturulamadı',
+        color: 'red',
+      });
     }
   };
 
@@ -773,20 +774,11 @@ function StokPageContent() {
 
     setFaturaLoading(true);
     try {
-      const response = await fetch(`${API_URL}/stok/faturadan-giris`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({
-          ettn: selectedFatura.ettn,
-          depo_id: faturaGirisDepo,
-          kalemler: eslesmisKalemler,
-        }),
+      const result = await stokAPI.faturadanGiris({
+        ettn: selectedFatura.ettn,
+        depo_id: faturaGirisDepo,
+        kalemler: eslesmisKalemler.map((k: any) => k.sira),
       });
-
-      const result = await response.json();
 
       if (result.success) {
         notifications.show({
@@ -824,8 +816,7 @@ function StokPageContent() {
       return;
     }
     try {
-      const response = await fetch(`${API_URL}/stok/kartlar/ara?q=${encodeURIComponent(query)}`);
-      const result = await response.json();
+      const result = await stokAPI.araKartlar(query);
       if (result.success) {
         setStokAramaSonuclari(result.data);
       }
@@ -850,28 +841,19 @@ function StokPageContent() {
       setLoading(true);
 
       // Yeni ürün kartları sistemini kullan
-      const res = await fetch(`${API_URL}/urunler`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({
-          kod: urunForm.kod,
-          ad: urunForm.ad,
-          kategori_id: parseInt(urunForm.kategori_id, 10),
-          ana_birim_id: parseInt(urunForm.ana_birim_id, 10),
-          barkod: urunForm.barkod,
-          min_stok: urunForm.min_stok,
-          max_stok: urunForm.max_stok,
-          kdv_orani: urunForm.kdv_orani,
-          aciklama: urunForm.aciklama,
-        }),
+      const result = await urunlerAPI.createUrun({
+        kod: urunForm.kod,
+        ad: urunForm.ad,
+        kategori_id: parseInt(urunForm.kategori_id, 10),
+        ana_birim_id: parseInt(urunForm.ana_birim_id, 10),
+        barkod: urunForm.barkod,
+        min_stok: urunForm.min_stok,
+        max_stok: urunForm.max_stok,
+        kdv_orani: urunForm.kdv_orani,
+        aciklama: urunForm.aciklama,
       });
 
-      const result = await res.json();
-
-      if (!res.ok) {
+      if (!result.success) {
         throw new Error(result.error || 'Kayıt başarısız');
       }
 
@@ -932,20 +914,16 @@ function StokPageContent() {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/stok/hareketler/transfer`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({
-          ...transferForm,
-          belge_no: transferForm.belge_no || `TRF-${Date.now()}`,
-          belge_tarihi: new Date().toISOString().split('T')[0],
-        }),
+      const result = await stokAPI.transferHareket({
+        kaynak_depo_id: transferForm.kaynak_depo_id,
+        hedef_depo_id: transferForm.hedef_depo_id,
+        urun_id: (transferForm.urun_id || transferForm.stok_kart_id) as number,
+        miktar: transferForm.miktar,
+        birim: transferForm.birim,
+        belge_no: transferForm.belge_no || `TRF-${Date.now()}`,
+        belge_tarihi: new Date().toISOString().split('T')[0],
+        aciklama: transferForm.aciklama,
       });
-
-      const result = await response.json();
 
       if (result.success) {
         notifications.show({
@@ -983,24 +961,15 @@ function StokPageContent() {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/stok/hareketler/giris`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({
-          stok_kart_id: girisForm.stok_kart_id,
-          depo_id: girisForm.depo_id,
-          miktar: girisForm.miktar,
-          birim_fiyat: girisForm.birim_fiyat || 0,
-          belge_no: `GRS-${Date.now()}`,
-          belge_tarihi: new Date().toISOString().split('T')[0],
-          aciklama: `${girisForm.giris_tipi}: ${girisForm.aciklama}`,
-        }),
+      const result = await stokAPI.girisHareket({
+        depo_id: girisForm.depo_id,
+        urun_id: girisForm.stok_kart_id,
+        miktar: girisForm.miktar,
+        birim: girisForm.birim || 'adet',
+        belge_no: `GRS-${Date.now()}`,
+        belge_tarihi: new Date().toISOString().split('T')[0],
+        aciklama: `${girisForm.giris_tipi}: ${girisForm.aciklama}`,
       });
-
-      const result = await response.json();
 
       if (result.success) {
         notifications.show({
@@ -1012,8 +981,10 @@ function StokPageContent() {
         setStokGirisModalOpened(false);
         setGirisForm({
           stok_kart_id: null,
+          urun_id: null,
           depo_id: null,
           miktar: 0,
+          birim: 'kg',
           birim_fiyat: 0,
           giris_tipi: 'SATIN_ALMA',
           aciklama: '',
@@ -1046,23 +1017,15 @@ function StokPageContent() {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/stok/hareketler/cikis`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({
-          stok_kart_id: cikisForm.stok_kart_id,
-          depo_id: cikisForm.depo_id,
-          miktar: cikisForm.miktar,
-          belge_no: `CKS-${Date.now()}`,
-          belge_tarihi: new Date().toISOString().split('T')[0],
-          aciklama: `${cikisForm.cikis_tipi}: ${cikisForm.aciklama}`,
-        }),
+      const result = await stokAPI.cikisHareket({
+        depo_id: cikisForm.depo_id,
+        urun_id: cikisForm.stok_kart_id,
+        miktar: cikisForm.miktar,
+        birim: cikisForm.birim || 'adet',
+        belge_no: `CKS-${Date.now()}`,
+        belge_tarihi: new Date().toISOString().split('T')[0],
+        aciklama: `${cikisForm.cikis_tipi}: ${cikisForm.aciklama}`,
       });
-
-      const result = await response.json();
 
       if (result.success) {
         notifications.show({
@@ -1074,8 +1037,10 @@ function StokPageContent() {
         setStokCikisModalOpened(false);
         setCikisForm({
           stok_kart_id: null,
+          urun_id: null,
           depo_id: null,
           miktar: 0,
+          birim: 'kg',
           cikis_tipi: 'TUKETIM',
           aciklama: '',
         });
@@ -1098,8 +1063,7 @@ function StokPageContent() {
   const loadHareketler = useCallback(async () => {
     setHareketlerLoading(true);
     try {
-      const response = await fetch(`${API_URL}/stok/hareketler?limit=100`);
-      const result = await response.json();
+      const result = await stokAPI.getHareketler({ limit: 100 });
       if (result.success) {
         setHareketler(result.data || []);
       }
@@ -1114,8 +1078,7 @@ function StokPageContent() {
   const loadSayimVerileri = async (depoId: number) => {
     setSayimDepoId(depoId);
     try {
-      const response = await fetch(`${API_URL}/stok/depolar/${depoId}/stoklar`);
-      const result = await response.json();
+      const result = await stokAPI.getDepoStoklar(depoId);
       if (result.success) {
         // Mevcut stokları sayım verilerine kopyala
         const initialSayim: { [key: number]: number } = {};
@@ -1147,22 +1110,21 @@ function StokPageContent() {
         const fark = sayimStok - sistemStok;
 
         if (fark !== 0) {
-          const endpoint = fark > 0 ? 'giris' : 'cikis';
-          await fetch(`${API_URL}/stok/hareketler/${endpoint}`, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${getToken()}`,
-            },
-            body: JSON.stringify({
-              stok_kart_id: item.id,
-              depo_id: sayimDepoId,
-              miktar: Math.abs(fark),
-              belge_no: `SAYIM-${Date.now()}`,
-              belge_tarihi: new Date().toISOString().split('T')[0],
-              aciklama: `Stok sayımı: ${fark > 0 ? 'Fazla' : 'Eksik'} (${Math.abs(fark)} ${item.birim})`,
-            }),
-          });
+          const hareketData = {
+            depo_id: sayimDepoId,
+            urun_id: item.id,
+            miktar: Math.abs(fark),
+            birim: item.birim || 'adet',
+            belge_no: `SAYIM-${Date.now()}`,
+            belge_tarihi: new Date().toISOString().split('T')[0],
+            aciklama: `Stok sayımı: ${fark > 0 ? 'Fazla' : 'Eksik'} (${Math.abs(fark)} ${item.birim})`,
+          };
+          
+          if (fark > 0) {
+            await stokAPI.girisHareket(hareketData);
+          } else {
+            await stokAPI.cikisHareket(hareketData);
+          }
           islemSayisi++;
         }
       }
@@ -1200,8 +1162,7 @@ function StokPageContent() {
       const loadAndSelectFatura = async () => {
         setFaturaLoading(true);
         try {
-          const response = await fetch(`${API_URL}/stok/faturalar?limit=100`);
-          const result = await response.json();
+          const result = await stokAPI.getFaturalar({ limit: 100 });
           if (result.success) {
             setFaturalar(result.data);
             // Gelen faturalardan parametredeki ETTN'i bul
@@ -1229,12 +1190,8 @@ function StokPageContent() {
       // URL'den parametreyi temizle
       router.replace('/muhasebe/stok');
     }
-  }, [
-    searchParams,
-    depolar, // Fatura kalemlerini yükle
-    loadFaturaKalemler, // URL'den parametreyi temizle
-    router.replace,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, depolar, loadFaturaKalemler]);
 
   // Hareketler modalı açıldığında verileri yükle
   useEffect(() => {
@@ -1260,14 +1217,6 @@ function StokPageContent() {
   };
 
   // Para formatı (kuruşsuz)
-  const formatMoney = (value: number) => {
-    return new Intl.NumberFormat('tr-TR', {
-      style: 'currency',
-      currency: 'TRY',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value || 0);
-  };
 
   // Filtreleme
   const filteredStoklar = stoklar.filter((item) => {
@@ -1299,6 +1248,12 @@ function StokPageContent() {
 
   return (
     <Container fluid>
+      <Breadcrumbs
+        items={[
+          { label: 'Muhasebe', href: '/muhasebe' },
+          { label: 'Stok Takibi' },
+        ]}
+      />
       <LoadingOverlay visible={loading} />
 
       {error && (
@@ -1456,7 +1411,7 @@ function StokPageContent() {
           </Box>
           <Box ta="center" py="xs" style={{ borderLeft: isMobile ? 'none' : '1px solid var(--mantine-color-gray-3)' }}>
             <Text size={isMobile ? 'lg' : '2rem'} fw={800} c="teal">
-              {formatMoney(toplamDeger)}
+              {formatMoney(toplamDeger, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </Text>
             <Text size="xs" tt="uppercase" fw={600} c="dimmed">
               Stok Değeri
@@ -1826,19 +1781,19 @@ function StokPageContent() {
                         
                         <Group justify="space-between" align="center">
                           <Text size="xs" c="dimmed">
-                            {item.son_alis_fiyat ? `${formatMoney(item.son_alis_fiyat)}/${item.birim}` : '-'}
+                            {item.son_alis_fiyat ? `${formatMoney(item.son_alis_fiyat, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}/${item.birim}` : '-'}
                           </Text>
                           <Group gap="xs">
                             {(item.durum === 'kritik' || item.durum === 'dusuk') && (
-                              <ActionIcon variant="filled" color="blue" size="sm" onClick={() => router.push(`/muhasebe/satin-alma?urun=${encodeURIComponent(item.ad)}&miktar=${item.min_stok - item.toplam_stok}`)}>
+                              <ActionIcon variant="filled" color="blue" size="md" onClick={() => router.push(`/muhasebe/satin-alma?urun=${encodeURIComponent(item.ad)}&miktar=${item.min_stok - item.toplam_stok}`)}>
                                 <IconShoppingCart size={14} />
                               </ActionIcon>
                             )}
-                            <ActionIcon variant="subtle" color="green" size="sm" onClick={() => { setTransferForm({ ...transferForm, stok_kart_id: item.id }); openTransfer(); }}>
+                            <ActionIcon variant="subtle" color="green" size="md" onClick={() => { setTransferForm({ ...transferForm, stok_kart_id: item.id }); openTransfer(); }}>
                               <IconArrowsExchange size={14} />
                             </ActionIcon>
                             {canDeleteStok && (
-                              <ActionIcon variant="subtle" color="red" size="sm" onClick={() => { if (confirm(`"${item.ad}" ürününü silmek?`)) handleDeleteStok(item.id); }}>
+                              <ActionIcon variant="subtle" color="red" size="md" onClick={() => { if (confirm(`"${item.ad}" ürününü silmek?`)) handleDeleteStok(item.id); }}>
                                 <IconTrash size={14} />
                               </ActionIcon>
                             )}
@@ -1915,7 +1870,7 @@ function StokPageContent() {
                         <Table.Td>
                           <Text size="sm" fw={500} c="blue">
                             {item.son_alis_fiyat
-                              ? `${formatMoney(item.son_alis_fiyat)}/${item.birim}`
+                              ? `${formatMoney(item.son_alis_fiyat, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}/${item.birim}`
                               : '-'}
                           </Text>
                         </Table.Td>
@@ -1934,7 +1889,7 @@ function StokPageContent() {
                             {item.durum.toUpperCase()}
                           </Badge>
                         </Table.Td>
-                        <Table.Td>{formatMoney(item.toplam_stok * item.son_alis_fiyat)}</Table.Td>
+                        <Table.Td>{formatMoney(item.toplam_stok * item.son_alis_fiyat, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</Table.Td>
                         <Table.Td>
                           <Group gap="xs">
                             {(item.durum === 'kritik' || item.durum === 'dusuk') && (
@@ -2488,9 +2443,12 @@ function StokPageContent() {
             {hareketler.length === 0 ? (
               <Table.Tr>
                 <Table.Td colSpan={6}>
-                  <Text ta="center" c="dimmed" py="xl">
-                    Henüz hareket kaydı yok
-                  </Text>
+                  <EmptyState
+                    title="Henüz hareket kaydı yok"
+                    compact
+                    icon={<IconHistory size={24} />}
+                    iconColor="gray"
+                  />
                 </Table.Td>
               </Table.Tr>
             ) : (
@@ -2718,18 +2676,18 @@ function StokPageContent() {
             
             <Divider label="Fatura Listesi" labelPosition="center" />
             
-            <Group justify="space-between" mb="md">
+            <Group justify="space-between" mb="md" wrap="wrap">
               <Text size="sm" c="dimmed">
                 Son 3 ayın gelen faturaları. İşlemek istediğiniz faturayı seçin.
               </Text>
-              <Group>
+              <Group wrap="wrap" style={isMobile ? { width: '100%' } : undefined}>
                 <Select
                   placeholder="Toplu işlem için depo seçin"
                   data={depolar.map((d) => ({ value: d.id.toString(), label: d.ad }))}
                   value={faturaGirisDepo?.toString() || null}
                   onChange={(val) => setFaturaGirisDepo(val ? parseInt(val, 10) : null)}
                   size="xs"
-                  style={{ width: 200 }}
+                  style={{ width: isMobile ? '100%' : 200 }}
                 />
                 <Button
                   size="xs"
@@ -2810,9 +2768,12 @@ function StokPageContent() {
             </Table>
 
             {faturalar.length === 0 && (
-              <Text ta="center" c="dimmed" py="xl">
-                Henüz işlenecek fatura bulunmuyor
-              </Text>
+              <EmptyState
+                title="Henüz işlenecek fatura bulunmuyor"
+                compact
+                icon={<IconFileInvoice size={32} />}
+                iconColor="blue"
+              />
             )}
           </Stack>
         ) : (
@@ -2846,24 +2807,24 @@ function StokPageContent() {
               required
             />
 
-            {/* Özet Kartları */}
-            {faturaOzet && (
-              <SimpleGrid cols={4} mb="md">
+            {/* Özet Kartları - Dinamik Seçim Durumu */}
+            {faturaKalemler.length > 0 && (
+              <SimpleGrid cols={3} mb="md">
                 <Paper p="xs" withBorder>
                   <Text size="xs" c="dimmed">Toplam Kalem</Text>
-                  <Text size="lg" fw={700}>{faturaOzet.toplam_kalem}</Text>
+                  <Text size="lg" fw={700}>{faturaKalemler.length}</Text>
                 </Paper>
                 <Paper p="xs" withBorder style={{ borderColor: 'var(--mantine-color-green-5)' }}>
-                  <Text size="xs" c="green">Otomatik Eşleşen</Text>
-                  <Text size="lg" fw={700} c="green">{faturaOzet.otomatik_onay}</Text>
+                  <Text size="xs" c="green">Seçilen</Text>
+                  <Text size="lg" fw={700} c="green">
+                    {Object.values(kalemEslestirme).filter(v => v !== null).length}
+                  </Text>
                 </Paper>
                 <Paper p="xs" withBorder style={{ borderColor: 'var(--mantine-color-yellow-5)' }}>
-                  <Text size="xs" c="yellow.7">Manuel Gereken</Text>
-                  <Text size="lg" fw={700} c="yellow.7">{faturaOzet.manuel_gereken}</Text>
-                </Paper>
-                <Paper p="xs" withBorder style={{ borderColor: faturaOzet.anomali_sayisi > 0 ? 'var(--mantine-color-red-5)' : undefined }}>
-                  <Text size="xs" c={faturaOzet.anomali_sayisi > 0 ? 'red' : 'dimmed'}>Fiyat Anomalisi</Text>
-                  <Text size="lg" fw={700} c={faturaOzet.anomali_sayisi > 0 ? 'red' : undefined}>{faturaOzet.anomali_sayisi}</Text>
+                  <Text size="xs" c="yellow.7">Seçilmemiş</Text>
+                  <Text size="lg" fw={700} c="yellow.7">
+                    {Object.values(kalemEslestirme).filter(v => v === null).length}
+                  </Text>
                 </Paper>
               </SimpleGrid>
             )}
@@ -2876,8 +2837,7 @@ function StokPageContent() {
                   <Table.Th>Ürün</Table.Th>
                   <Table.Th>Miktar</Table.Th>
                   <Table.Th>Fiyat</Table.Th>
-                  <Table.Th>Güven</Table.Th>
-                  <Table.Th>Stok Kartı Eşleştirme</Table.Th>
+                  <Table.Th>Ürün Kartı Seçimi</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
@@ -2933,22 +2893,9 @@ function StokPageContent() {
                       </Stack>
                     </Table.Td>
                     <Table.Td>
-                      {kalem.eslesme ? (
-                        <Badge 
-                          color={kalem.eslesme.guven_skoru >= 90 ? 'green' : kalem.eslesme.guven_skoru >= 70 ? 'yellow' : 'red'}
-                          variant="light"
-                          size="sm"
-                        >
-                          %{Math.round(kalem.eslesme.guven_skoru)}
-                        </Badge>
-                      ) : (
-                        <Badge color="gray" variant="light" size="sm">-</Badge>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
                       <Group gap="xs">
                         <Select
-                          placeholder="Ürün kartı seç"
+                          placeholder="Ürün kartı ara ve seç..."
                           data={tumUrunler.map((s) => ({ value: s.id.toString(), label: `${s.kod} - ${s.ad}` }))}
                           value={kalemEslestirme[kalem.sira]?.toString() || null}
                           onChange={(val) =>
@@ -2959,7 +2906,7 @@ function StokPageContent() {
                           }
                           searchable
                           clearable
-                          nothingFoundMessage="Stok kartı bulunamadı"
+                          nothingFoundMessage="Ürün kartı bulunamadı"
                           leftSection={
                             kalemEslestirme[kalem.sira] ? (
                               <IconLink size={14} color="green" />
@@ -2967,39 +2914,50 @@ function StokPageContent() {
                               <IconLinkOff size={14} color="gray" />
                             )
                           }
-                          style={{ flex: 1 }}
+                          style={{ flex: 1, minWidth: 220 }}
                         />
-                        <ActionIcon
-                          variant={kalem.eslesme ? 'filled' : 'light'}
-                          color={kalem.eslesme ? 'blue' : 'gray'}
-                          title={kalem.eslesme 
-                            ? `🤖 "${kalem.eslesme.stok_adi}" (%${Math.round(kalem.eslesme.guven_skoru)}) - Tıkla eşleştir` 
-                            : 'Öneri yok - Soldaki listeden seç'
-                          }
-                          onClick={() => {
-                            if (kalem.eslesme) {
-                              // AI önerisi varsa, direkt eşleştir
+                        {/* Fiyat Güncelle Butonu - eşleştirme yapıldıysa göster */}
+                        {kalemEslestirme[kalem.sira] && kalem.birim_fiyat > 0 && (
+                          <ActionIcon
+                            variant="filled"
+                            color="green"
+                            title={`💰 ${kalem.birim_fiyat}₺ fiyatını güncelle`}
+                            onClick={() => {
+                              const secilenUrun = tumUrunler.find(u => u.id === kalemEslestirme[kalem.sira]);
+                              if (secilenUrun) {
+                                handleFiyatGuncelle(secilenUrun.id, kalem.birim_fiyat, secilenUrun.ad);
+                              }
+                            }}
+                          >
+                            <IconCurrencyLira size={16} />
+                          </ActionIcon>
+                        )}
+                        {/* Yeni Ürün Kartı Oluştur - eşleşme yoksa göster */}
+                        {!kalemEslestirme[kalem.sira] && (
+                          <ActionIcon
+                            variant="filled"
+                            color="violet"
+                            title={`➕ "${kalem.urun_adi}" için YENİ ÜRÜN KARTI oluştur`}
+                            onClick={() => handleYeniUrunOlustur(kalem)}
+                          >
+                            <IconPlus size={16} />
+                          </ActionIcon>
+                        )}
+                        {kalemEslestirme[kalem.sira] && (
+                          <ActionIcon
+                            variant="subtle"
+                            color="red"
+                            title="Seçimi kaldır"
+                            onClick={() => {
                               setKalemEslestirme((prev) => ({
                                 ...prev,
-                                [kalem.sira]: kalem.eslesme.stok_kart_id,
+                                [kalem.sira]: null,
                               }));
-                              notifications.show({
-                                title: '🤖 AI Eşleştirme',
-                                message: `"${kalem.urun_adi}" → "${kalem.eslesme.stok_adi}"`,
-                                color: 'blue',
-                              });
-                            } else {
-                              notifications.show({
-                                title: '⚠️ Öneri Bulunamadı',
-                                message: `"${kalem.urun_adi}" için eşleşme yok. Soldaki Select'ten manuel seçin veya yeni ürün kartı oluşturun.`,
-                                color: 'yellow',
-                                autoClose: 5000,
-                              });
-                            }
-                          }}
-                        >
-                          <IconWand size={14} />
-                        </ActionIcon>
+                            }}
+                          >
+                            <IconX size={14} />
+                          </ActionIcon>
+                        )}
                       </Group>
                     </Table.Td>
                   </Table.Tr>
@@ -3037,11 +2995,7 @@ import { Center, Loader } from '@mantine/core';
 export default function StokPage() {
   return (
     <Suspense
-      fallback={
-        <Center h="50vh">
-          <Loader size="lg" />
-        </Center>
-      }
+      fallback={<LoadingState loading={true} fullHeight message="Yükleniyor..." />}
     >
       <StokPageContent />
     </Suspense>

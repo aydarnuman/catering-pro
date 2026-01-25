@@ -44,6 +44,7 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
+import { formatMoney, formatDate } from '@/lib/formatters';
 import 'dayjs/locale/tr';
 
 // Tip tanımları
@@ -226,11 +227,6 @@ export default function GelirGiderPage() {
     }).format(value);
   };
 
-  // Tarih formatı
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('tr-TR');
-  };
 
   // Filtreleme
   const filteredIslemler = islemler

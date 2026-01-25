@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useDebouncedCallback } from '@mantine/hooks';
-import { API_BASE_URL } from '@/lib/config';
+import { tendersAPI } from '@/lib/api/services/tenders';
 import {
   SavedTender,
   TeklifItem,
@@ -120,15 +120,11 @@ export function useHesaplamalar(tender: SavedTender | null, opened: boolean): Us
         son_kayit: new Date().toISOString(),
       };
 
-      await fetch(`${API_BASE_URL}/api/tender-tracking/${tender.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          yaklasik_maliyet: yaklasikMaliyet || null,
-          sinir_deger: sinirDeger || null,
-          bizim_teklif: bizimTeklif || null,
-          hesaplama_verileri: hesaplamaVerileri,
-        }),
+      await tendersAPI.updateTracking(Number(tender.id), {
+        yaklasik_maliyet: yaklasikMaliyet || null,
+        sinir_deger: sinirDeger || null,
+        bizim_teklif: bizimTeklif || null,
+        hesaplama_verileri: hesaplamaVerileri,
       });
 
       setSaveStatus('saved');
@@ -151,8 +147,7 @@ export function useHesaplamalar(tender: SavedTender | null, opened: boolean): Us
     if (!tender) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tender-tracking`);
-      const result = await response.json();
+      const result = await tendersAPI.getTrackingList();
 
       if (result.success && result.data) {
         const currentTracking = result.data.find(

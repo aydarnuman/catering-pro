@@ -7,6 +7,15 @@ import { API_BASE_URL } from '@/lib/config';
 
 const API_URL = API_BASE_URL;
 
+/**
+ * Uyumsoft fatura doküman URL'leri
+ */
+export const uyumsoftDocUrls = {
+  pdf: (ettn: string) => `${API_BASE_URL}/api/uyumsoft/invoice/${ettn}/pdf`,
+  html: (ettn: string) => `${API_BASE_URL}/api/uyumsoft/invoice/${ettn}/html`,
+  xml: (ettn: string) => `${API_BASE_URL}/api/uyumsoft/invoice/${ettn}/xml`,
+};
+
 // Tip tanımları
 export interface Invoice {
   id?: number;

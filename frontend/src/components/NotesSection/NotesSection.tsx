@@ -74,7 +74,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { API_BASE_URL } from '@/lib/config';
+import { tendersAPI } from '@/lib/api/services/tenders';
 
 // Types
 export interface NoteAttachment {
@@ -351,7 +351,7 @@ function SortableNoteCard({
                     </ActionIcon>
                   }
                   style={{ cursor: 'pointer' }}
-                  onClick={() => window.open(`${API_BASE_URL}/api/tender-notes/attachments/${att.id}/download`, '_blank')}
+                  onClick={() => window.open(tendersAPI.getAttachmentDownloadUrl(att.id), '_blank')}
                 >
                   {att.original_filename.length > 10
                     ? `${att.original_filename.substring(0, 10)}...`
@@ -433,14 +433,13 @@ export default function NotesSection({
   // Fetch notes
   const fetchNotes = useCallback(async () => {
     if (!trackingId) return;
-    
+
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/tender-notes/${trackingId}`);
-      const data = await res.json();
+      const data = await tendersAPI.getTenderNotes(trackingId);
       if (data.success) {
-        setNotes(data.data);
-        onNotesChange?.(data.data);
+        setNotes(data.data || []);
+        onNotesChange?.(data.data || []);
       }
     } catch (error) {
       console.error('Not yükleme hatası:', error);
@@ -452,10 +451,9 @@ export default function NotesSection({
   // Fetch tag suggestions
   const fetchTagSuggestions = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/tender-notes/tags/suggestions`);
-      const data = await res.json();
+      const data = await tendersAPI.getTagSuggestions();
       if (data.success) {
-        setTagSuggestions(data.data);
+        setTagSuggestions(data.data || []);
       }
     } catch (error) {
       console.error('Tag suggestions hatası:', error);
@@ -492,21 +490,16 @@ export default function NotesSection({
     if (!newNoteText.trim()) return;
 
     const reminderDate = getCombinedReminderDate();
-    
+
     try {
-      const res = await fetch(`${API_BASE_URL}/api/tender-notes/${trackingId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: newNoteText,
-          color: newNoteColor,
-          pinned: newNotePinned,
-          tags: newNoteTags,
-          reminder_date: reminderDate?.toISOString() || null,
-        }),
+      const data = await tendersAPI.createTenderNote(trackingId, {
+        text: newNoteText,
+        color: newNoteColor,
+        pinned: newNotePinned,
+        tags: newNoteTags,
+        reminder_date: reminderDate?.toISOString() || null,
       });
 
-      const data = await res.json();
       if (data.success) {
         setNotes((prev) => {
           const newNotes = newNotePinned
@@ -537,21 +530,16 @@ export default function NotesSection({
     if (!editingNote || !newNoteText.trim()) return;
 
     const reminderDate = getCombinedReminderDate();
-    
+
     try {
-      const res = await fetch(`${API_BASE_URL}/api/tender-notes/${trackingId}/${editingNote.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: newNoteText,
-          color: newNoteColor,
-          pinned: newNotePinned,
-          tags: newNoteTags,
-          reminder_date: reminderDate?.toISOString() || null,
-        }),
+      const data = await tendersAPI.updateTenderNote(trackingId, Number(editingNote.id), {
+        text: newNoteText,
+        color: newNoteColor,
+        pinned: newNotePinned,
+        tags: newNoteTags,
+        reminder_date: reminderDate?.toISOString() || null,
       });
 
-      const data = await res.json();
       if (data.success) {
         setNotes((prev) => {
           const newNotes = prev.map((n) => (n.id === editingNote.id ? data.data : n));
@@ -578,11 +566,8 @@ export default function NotesSection({
   // Delete note
   const handleDeleteNote = async (noteId: string) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/tender-notes/${trackingId}/${noteId}`, {
-        method: 'DELETE',
-      });
+      const data = await tendersAPI.deleteTenderNote(trackingId, Number(noteId));
 
-      const data = await res.json();
       if (data.success) {
         setNotes((prev) => {
           const newNotes = prev.filter((n) => n.id !== noteId);
@@ -607,11 +592,9 @@ export default function NotesSection({
   // Toggle pin
   const handlePinToggle = async (noteId: string) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/tender-notes/${trackingId}/${noteId}/pin`, {
-        method: 'POST',
-      });
+      const note = notes.find((n) => n.id === noteId);
+      const data = await tendersAPI.pinTenderNote(trackingId, Number(noteId), !note?.pinned);
 
-      const data = await res.json();
       if (data.success) {
         setNotes((prev) => {
           const newNotes = prev.map((n) => (n.id === noteId ? data.data : n));
@@ -637,13 +620,8 @@ export default function NotesSection({
   // Change color
   const handleColorChange = async (noteId: string, color: NoteColor) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/tender-notes/${trackingId}/${noteId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ color }),
-      });
+      const data = await tendersAPI.updateTenderNote(trackingId, Number(noteId), { color });
 
-      const data = await res.json();
       if (data.success) {
         setNotes((prev) => {
           const newNotes = prev.map((n) => (n.id === noteId ? data.data : n));
@@ -662,12 +640,8 @@ export default function NotesSection({
     formData.append('file', file);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/tender-notes/${trackingId}/${noteId}/attachments`, {
-        method: 'POST',
-        body: formData,
-      });
+      const data = await tendersAPI.addTenderNoteAttachment(trackingId, Number(noteId), formData);
 
-      const data = await res.json();
       if (data.success) {
         // Refresh notes to get updated attachments
         await fetchNotes();
@@ -689,12 +663,8 @@ export default function NotesSection({
   // Delete attachment
   const handleDeleteAttachment = async (noteId: string, attachmentId: number) => {
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/api/tender-notes/${trackingId}/${noteId}/attachments/${attachmentId}`,
-        { method: 'DELETE' }
-      );
+      const data = await tendersAPI.deleteTenderNoteAttachment(trackingId, Number(noteId), attachmentId);
 
-      const data = await res.json();
       if (data.success) {
         setNotes((prev) => {
           const newNotes = prev.map((n) =>
@@ -730,11 +700,7 @@ export default function NotesSection({
 
     // Save new order to backend
     try {
-      await fetch(`${API_BASE_URL}/api/tender-notes/${trackingId}/reorder`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ noteIds: newNotes.map((n) => n.id) }),
-      });
+      await tendersAPI.reorderTenderNotes(trackingId, newNotes.map((n) => Number(n.id)));
     } catch (error) {
       console.error('Sıralama kaydetme hatası:', error);
     }

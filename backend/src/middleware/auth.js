@@ -16,17 +16,25 @@ if (!JWT_SECRET) {
 
 /**
  * Token doğrulama middleware
+ * Cookie'den veya Authorization header'dan token alır
  */
 const authenticate = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // 1. Önce HttpOnly cookie'den kontrol et
+    // 2. Sonra Authorization header'dan kontrol et (geriye uyumluluk)
+    let token = req.cookies?.access_token;
+
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
+
+    if (!token) {
       return res.status(401).json({ success: false, error: 'Yetkilendirme gerekli' });
     }
 
-    const token = authHeader.substring(7);
-    
     if (!JWT_SECRET) {
       return res.status(500).json({ success: false, error: 'Sunucu yapılandırma hatası' });
     }
@@ -59,13 +67,22 @@ const authenticate = async (req, res, next) => {
 
 /**
  * Opsiyonel token doğrulama (giriş yapmadan da çalışan sayfalar için)
+ * Cookie'den veya Authorization header'dan token alır
  */
 const optionalAuth = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    
-    if (authHeader && authHeader.startsWith('Bearer ') && JWT_SECRET) {
-      const token = authHeader.substring(7);
+    // 1. Önce HttpOnly cookie'den kontrol et
+    // 2. Sonra Authorization header'dan kontrol et (geriye uyumluluk)
+    let token = req.cookies?.access_token;
+
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
+
+    if (token && JWT_SECRET) {
       const decoded = jwt.verify(token, JWT_SECRET);
       req.user = {
         id: decoded.id,

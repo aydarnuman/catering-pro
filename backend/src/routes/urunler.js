@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../database.js';
 import { authenticate, requirePermission, auditLog } from '../middleware/auth.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -118,6 +119,8 @@ router.get('/', async (req, res) => {
         uk.resim_url,
         uk.aktif,
         uk.created_at,
+        uk.ana_urun_id,
+        uk.varyant_tipi,
         CASE 
           WHEN uk.toplam_stok <= 0 THEN 'tukendi'
           WHEN uk.kritik_stok IS NOT NULL AND uk.toplam_stok <= uk.kritik_stok THEN 'kritik'
@@ -129,7 +132,7 @@ router.get('/', async (req, res) => {
       LEFT JOIN urun_kategorileri kat ON kat.id = uk.kategori_id
       LEFT JOIN birimler b ON b.id = uk.ana_birim_id
       ${whereClause}
-      ORDER BY uk.kategori_id, uk.ad
+      ORDER BY COALESCE(uk.ana_urun_id, uk.id), uk.ana_urun_id NULLS FIRST, uk.ad
     `, queryParams);
     
     res.json({
@@ -137,7 +140,7 @@ router.get('/', async (req, res) => {
       data: result.rows
     });
   } catch (error) {
-    console.error('Ürün listesi hatası:', error);
+    logger.error('Ürün listesi hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -226,13 +229,13 @@ router.get('/:id', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Ürün detay hatası:', error);
+    logger.error('Ürün detay hatası', { error: error.message, stack: error.stack, id });
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 // Yeni ürün ekle
-router.post('/', authenticate, async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const {
       kod,
@@ -272,7 +275,7 @@ router.post('/', authenticate, async (req, res) => {
     if (!finalKategoriId) {
       finalKategoriId = tahminKategori(ad);
       kategoriOtomatik = true;
-      console.log(`📦 Otomatik kategori tespiti: "${ad}" → Kategori ID: ${finalKategoriId}`);
+      logger.info(`Otomatik kategori tespiti: "${ad}" → Kategori ID: ${finalKategoriId}`, { urunAdi: ad, kategoriId: finalKategoriId });
     }
     
     const result = await query(`
@@ -298,13 +301,13 @@ router.post('/', authenticate, async (req, res) => {
         : 'Ürün başarıyla eklendi'
     });
   } catch (error) {
-    console.error('Ürün ekleme hatası:', error);
+    logger.error('Ürün ekleme hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 // Ürün güncelle
-router.put('/:id', authenticate, async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -319,7 +322,12 @@ router.put('/:id', authenticate, async (req, res) => {
       kdv_orani,
       raf_omru_gun,
       aciklama,
-      aktif
+      aktif,
+      // Varyant alanları
+      ana_urun_id,
+      varyant_tipi,
+      varyant_aciklama,
+      tedarikci_urun_adi
     } = req.body;
     
     // Mevcut veriyi al
@@ -342,10 +350,14 @@ router.put('/:id', authenticate, async (req, res) => {
         raf_omru_gun = COALESCE($11, raf_omru_gun),
         aciklama = COALESCE($12, aciklama),
         aktif = COALESCE($13, aktif),
+        ana_urun_id = COALESCE($14, ana_urun_id),
+        varyant_tipi = COALESCE($15, varyant_tipi),
+        varyant_aciklama = COALESCE($16, varyant_aciklama),
+        tedarikci_urun_adi = COALESCE($17, tedarikci_urun_adi),
         updated_at = NOW()
       WHERE id = $1
       RETURNING *
-    `, [id, kod, ad, kategori_id, ana_birim_id, barkod, min_stok, max_stok, kritik_stok, kdv_orani, raf_omru_gun, aciklama, aktif]);
+    `, [id, kod, ad, kategori_id, ana_birim_id, barkod, min_stok, max_stok, kritik_stok, kdv_orani, raf_omru_gun, aciklama, aktif, ana_urun_id, varyant_tipi, varyant_aciklama, tedarikci_urun_adi]);
     
     await auditLog(req, 'urun_kartlari', id, 'UPDATE', eskiVeri.rows[0], result.rows[0]);
     
@@ -355,13 +367,13 @@ router.put('/:id', authenticate, async (req, res) => {
       message: 'Ürün başarıyla güncellendi'
     });
   } catch (error) {
-    console.error('Ürün güncelleme hatası:', error);
+    logger.error('Ürün güncelleme hatası', { error: error.message, stack: error.stack, id });
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 // Ürün sil (soft delete)
-router.delete('/:id', authenticate, async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -397,14 +409,71 @@ router.delete('/:id', authenticate, async (req, res) => {
       )
     `);
     
-    console.log(`🗑️ Ürün silindi: ${result.rows[0]?.ad} (ID: ${id})`);
+    logger.info(`Ürün silindi: ${result.rows[0]?.ad} (ID: ${id})`, { urunId: id, urunAdi: result.rows[0]?.ad });
     
     res.json({
       success: true,
       message: 'Ürün ve ilişkili tüm veriler başarıyla silindi'
     });
   } catch (error) {
-    console.error('Ürün silme hatası:', error);
+    logger.error('Ürün silme hatası', { error: error.message, stack: error.stack, id });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =============================================
+// FİYAT GÜNCELLEME
+// =============================================
+
+/**
+ * PATCH /api/urunler/:id/fiyat
+ * Fatura kaleminden direkt fiyat güncelleme
+ */
+router.patch('/:id/fiyat', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { birim_fiyat, kaynak, aciklama } = req.body;
+    
+    if (!birim_fiyat || birim_fiyat <= 0) {
+      return res.status(400).json({ success: false, error: 'Geçerli bir birim fiyat giriniz' });
+    }
+    
+    // Ürün var mı kontrol et
+    const urunCheck = await query('SELECT * FROM urun_kartlari WHERE id = $1 AND aktif = true', [id]);
+    if (urunCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Ürün bulunamadı' });
+    }
+    
+    const urun = urunCheck.rows[0];
+    const eskiFiyat = urun.son_alis_fiyati;
+    
+    // Fiyatı güncelle
+    const result = await query(`
+      UPDATE urun_kartlari 
+      SET son_alis_fiyati = $1, 
+          son_alis_tarihi = NOW(),
+          updated_at = NOW()
+      WHERE id = $2 
+      RETURNING *
+    `, [birim_fiyat, id]);
+    
+    // Fiyat geçmişine kaydet
+    await query(`
+      INSERT INTO urun_fiyat_gecmisi (urun_kart_id, fiyat, kaynak, aciklama, tarih)
+      VALUES ($1, $2, $3, $4, NOW())
+    `, [id, birim_fiyat, kaynak || 'fatura_manuel', aciklama || 'Faturadan manuel fiyat güncellemesi']);
+    
+    logger.info(`Fiyat güncellendi: ${urun.ad} | ${eskiFiyat || 0}₺ → ${birim_fiyat}₺`, { urunId: id, urunAdi: urun.ad, eskiFiyat, yeniFiyat: birim_fiyat });
+    
+    res.json({
+      success: true,
+      data: result.rows[0],
+      eski_fiyat: eskiFiyat,
+      yeni_fiyat: birim_fiyat,
+      message: `${urun.ad} fiyatı güncellendi: ${birim_fiyat}₺`
+    });
+  } catch (error) {
+    logger.error('Fiyat güncelleme hatası', { error: error.message, stack: error.stack, id });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -434,7 +503,7 @@ router.get('/kategoriler/liste', async (req, res) => {
       data: result.rows
     });
   } catch (error) {
-    console.error('Kategori listesi hatası:', error);
+    logger.error('Kategori listesi hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -492,7 +561,7 @@ router.post('/:id/giris', authenticate, async (req, res) => {
       message: 'Stok girişi başarıyla kaydedildi'
     });
   } catch (error) {
-    console.error('Stok giriş hatası:', error);
+    logger.error('Stok giriş hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -540,7 +609,7 @@ router.post('/:id/cikis', authenticate, async (req, res) => {
       message: 'Stok çıkışı başarıyla kaydedildi'
     });
   } catch (error) {
-    console.error('Stok çıkış hatası:', error);
+    logger.error('Stok çıkış hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -608,7 +677,7 @@ router.post('/eslestir', authenticate, async (req, res) => {
       message: 'Eşleştirme kaydedildi'
     });
   } catch (error) {
-    console.error('Eşleştirme hatası:', error);
+    logger.error('Eşleştirme hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -687,7 +756,7 @@ router.post('/akilli-eslesdir', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Akıllı eşleştirme hatası:', error);
+    logger.error('Akıllı eşleştirme hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -729,7 +798,339 @@ router.get('/ozet/istatistikler', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('İstatistik hatası:', error);
+    logger.error('İstatistik hatası', { error: error.message, stack: error.stack });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =============================================
+// ÜRÜN VARYANTLARI SİSTEMİ
+// =============================================
+
+/**
+ * POST /api/urunler/varyant-sistemi-kur
+ * Varyant sistemini kur (migration)
+ */
+router.post('/varyant-sistemi-kur', async (req, res) => {
+  try {
+    // Kolonları ekle
+    await query(`ALTER TABLE urun_kartlari ADD COLUMN IF NOT EXISTS ana_urun_id INTEGER REFERENCES urun_kartlari(id) ON DELETE SET NULL`);
+    await query(`ALTER TABLE urun_kartlari ADD COLUMN IF NOT EXISTS varyant_tipi VARCHAR(50)`);
+    await query(`ALTER TABLE urun_kartlari ADD COLUMN IF NOT EXISTS varyant_aciklama VARCHAR(200)`);
+    await query(`ALTER TABLE urun_kartlari ADD COLUMN IF NOT EXISTS tedarikci_urun_adi TEXT`);
+    
+    // İndeks ekle
+    await query(`CREATE INDEX IF NOT EXISTS idx_urun_kartlari_ana_urun ON urun_kartlari(ana_urun_id)`);
+    
+    logger.info('Varyant sistemi kuruldu');
+    res.json({ success: true, message: 'Varyant sistemi kuruldu' });
+  } catch (error) {
+    logger.error('Varyant sistemi kurulum hatası', { error: error.message, stack: error.stack });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/urunler/:id/varyantlar
+ * Bir ürünün varyantlarını listele
+ */
+router.get('/:id/varyantlar', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await query(`
+      SELECT 
+        uk.id, uk.kod, uk.ad, uk.varyant_tipi, uk.varyant_aciklama,
+        uk.tedarikci_urun_adi, uk.son_alis_fiyati, uk.toplam_stok,
+        b.kisa_ad as birim
+      FROM urun_kartlari uk
+      LEFT JOIN birimler b ON b.id = uk.ana_birim_id
+      WHERE uk.ana_urun_id = $1 AND uk.aktif = TRUE
+      ORDER BY uk.ad
+    `, [id]);
+    
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/urunler/ana-urunler
+ * Sadece ana ürünleri listele (varyant olmayanlar)
+ */
+router.get('/ana-urunler/liste', async (req, res) => {
+  try {
+    const { kategori_id } = req.query;
+    
+    let sql = `
+      SELECT 
+        uk.id, uk.kod, uk.ad, uk.kategori_id,
+        kat.ad as kategori_adi,
+        (SELECT COUNT(*) FROM urun_kartlari v WHERE v.ana_urun_id = uk.id AND v.aktif = TRUE) as varyant_sayisi
+      FROM urun_kartlari uk
+      LEFT JOIN urun_kategorileri kat ON kat.id = uk.kategori_id
+      WHERE uk.aktif = TRUE AND uk.ana_urun_id IS NULL
+    `;
+    
+    const params = [];
+    if (kategori_id) {
+      params.push(kategori_id);
+      sql += ` AND uk.kategori_id = $${params.length}`;
+    }
+    
+    sql += ` ORDER BY uk.ad`;
+    
+    const result = await query(sql, params);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/urunler/varyant-olustur
+ * Fatura kaleminden yeni varyant oluştur
+ */
+router.post('/varyant-olustur', async (req, res) => {
+  try {
+    const { 
+      ana_urun_id, 
+      fatura_urun_adi, 
+      varyant_tipi = 'ambalaj',
+      birim_fiyat,
+      kategori_id 
+    } = req.body;
+    
+    if (!fatura_urun_adi) {
+      return res.status(400).json({ success: false, error: 'Ürün adı zorunludur' });
+    }
+    
+    // Ana ürün bilgilerini al (varsa veya otomatik bul)
+    let anaUrun = null;
+    let bulunanAnaUrunId = ana_urun_id;
+    let yeniKod = '';
+    let yeniKategoriId = kategori_id;
+    let yeniBirim = 'KG';
+    
+    // Eğer ana_urun_id verilmemişse, fatura ürün adından otomatik bul
+    if (!bulunanAnaUrunId) {
+      // Fatura ürün adını normalize et
+      const faturaAdiLower = fatura_urun_adi.toLowerCase()
+        .replace(/[^a-zçğıöşü\s]/g, ' ') // Özel karakterleri temizle
+        .replace(/\s+/g, ' ')
+        .trim();
+      
+      // Anahtar kelime eşleştirmeleri (fatura adı → ana ürün adı)
+      const anahtarKelimeMap = {
+        'şeker': 'Şeker',
+        'seker': 'Şeker',
+        'toz şeker': 'Şeker',
+        'küp şeker': 'Şeker',
+        'pudra şekeri': 'Şeker',
+        'zeytin': 'Zeytinyağı',
+        'zeytinyağı': 'Zeytinyağı',
+        'sızma zeytinyağı': 'Zeytinyağı',
+        'makarna': 'Makarna (Spagetti)',
+        'spagetti': 'Makarna (Spagetti)',
+        'penne': 'Makarna (Spagetti)',
+        'fiyonk': 'Makarna (Spagetti)',
+        'salça': 'Domates Salçası',
+        'domates salçası': 'Domates Salçası',
+        'biber salçası': 'Biber Salçası',
+      };
+      
+      // Anahtar kelime kontrolü
+      let bulunanAnaUrunAdi = null;
+      for (const [anahtar, anaUrunAdi] of Object.entries(anahtarKelimeMap)) {
+        if (faturaAdiLower.includes(anahtar)) {
+          bulunanAnaUrunAdi = anaUrunAdi;
+          break;
+        }
+      }
+      
+      // Ana ürünü bul
+      if (bulunanAnaUrunAdi) {
+        const anaUrunResult = await query(`
+          SELECT uk.id, uk.kod, uk.ad, uk.kategori_id
+          FROM urun_kartlari uk
+          WHERE uk.aktif = TRUE 
+            AND uk.ana_urun_id IS NULL
+            AND LOWER(uk.ad) = LOWER($1)
+          LIMIT 1
+        `, [bulunanAnaUrunAdi]);
+        
+        if (anaUrunResult.rows.length > 0) {
+          bulunanAnaUrunId = anaUrunResult.rows[0].id;
+        }
+      }
+    }
+    
+    if (bulunanAnaUrunId) {
+      const anaResult = await query('SELECT * FROM urun_kartlari WHERE id = $1', [bulunanAnaUrunId]);
+      if (anaResult.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Ana ürün bulunamadı' });
+      }
+      anaUrun = anaResult.rows[0];
+      yeniKategoriId = yeniKategoriId || anaUrun.kategori_id;
+      
+      // Varyant kodu: ANA-V1, ANA-V2, ...
+      const varyantSayisi = await query(
+        'SELECT COUNT(*) as cnt FROM urun_kartlari WHERE ana_urun_id = $1',
+        [bulunanAnaUrunId]
+      );
+      yeniKod = `${anaUrun.kod}-V${parseInt(varyantSayisi.rows[0].cnt) + 1}`;
+    } else {
+      // Yeni bağımsız ürün kodu
+      const lastKod = await query(`
+        SELECT kod FROM urun_kartlari 
+        WHERE kod LIKE 'YNI-%' 
+        ORDER BY id DESC LIMIT 1
+      `);
+      const nextNum = lastKod.rows.length > 0 
+        ? parseInt(lastKod.rows[0].kod.replace('YNI-', '')) + 1 
+        : 1;
+      yeniKod = `YNI-${String(nextNum).padStart(4, '0')}`;
+    }
+    
+    // Yeni ürün/varyant oluştur
+    const result = await query(`
+      INSERT INTO urun_kartlari (
+        kod, ad, ana_urun_id, varyant_tipi, tedarikci_urun_adi,
+        son_alis_fiyati, kategori_id, aktif, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE, NOW())
+      RETURNING *
+    `, [
+      yeniKod,
+      fatura_urun_adi,
+      bulunanAnaUrunId || null,
+      bulunanAnaUrunId ? varyant_tipi : null,
+      fatura_urun_adi,
+      birim_fiyat || null,
+      yeniKategoriId || 13  // Varsayılan: Diğer kategorisi
+    ]);
+    
+    // Fiyat geçmişine kaydet
+    if (birim_fiyat) {
+      await query(`
+        INSERT INTO urun_fiyat_gecmisi (urun_kart_id, fiyat, kaynak, aciklama, tarih)
+        VALUES ($1, $2, 'fatura_yeni_urun', 'Faturadan yeni ürün/varyant oluşturuldu', NOW())
+      `, [result.rows[0].id, birim_fiyat]);
+    }
+    
+    logger.info(`Yeni ürün/varyant: ${fatura_urun_adi} (${yeniKod})${bulunanAnaUrunId ? ` → ${anaUrun.ad} varyantı` : ''}`, { urunAdi: fatura_urun_adi, kod: yeniKod, anaUrunId: bulunanAnaUrunId });
+    
+    res.json({
+      success: true,
+      data: result.rows[0],
+      message: bulunanAnaUrunId 
+        ? `"${anaUrun.ad}" altına "${fatura_urun_adi}" varyantı oluşturuldu`
+        : `"${fatura_urun_adi}" yeni ürün kartı oluşturuldu`
+    });
+  } catch (error) {
+    logger.error('Varyant oluşturma hatası', { error: error.message, stack: error.stack });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/urunler/varyant-bagla
+ * Mevcut bir ürünü başka bir ürünün varyantı olarak bağla
+ */
+router.post('/varyant-bagla', async (req, res) => {
+  try {
+    const { urun_id, ana_urun_id, varyant_tipi, varyant_aciklama } = req.body;
+    
+    if (!urun_id || !ana_urun_id) {
+      return res.status(400).json({ success: false, error: 'urun_id ve ana_urun_id zorunlu' });
+    }
+    
+    // Kendine bağlama kontrolü
+    if (urun_id === ana_urun_id) {
+      return res.status(400).json({ success: false, error: 'Ürün kendisinin varyantı olamaz' });
+    }
+    
+    // Ana ürün kontrolü
+    const anaCheck = await query('SELECT * FROM urun_kartlari WHERE id = $1', [ana_urun_id]);
+    if (anaCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Ana ürün bulunamadı' });
+    }
+    
+    // Varyant yapılacak ürün kontrolü
+    const urunCheck = await query('SELECT * FROM urun_kartlari WHERE id = $1', [urun_id]);
+    if (urunCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Ürün bulunamadı' });
+    }
+    
+    // Güncelle
+    const result = await query(`
+      UPDATE urun_kartlari SET
+        ana_urun_id = $1,
+        varyant_tipi = $2,
+        varyant_aciklama = $3,
+        updated_at = NOW()
+      WHERE id = $4
+      RETURNING *
+    `, [ana_urun_id, varyant_tipi || 'genel', varyant_aciklama || null, urun_id]);
+    
+    logger.info(`Varyant bağlandı: ${urunCheck.rows[0].ad} → ${anaCheck.rows[0].ad}`, { varyantId: urunId, anaUrunId });
+    
+    res.json({
+      success: true,
+      data: result.rows[0],
+      message: `"${urunCheck.rows[0].ad}" artık "${anaCheck.rows[0].ad}" ürününün varyantı`
+    });
+  } catch (error) {
+    logger.error('Varyant bağlama hatası', { error: error.message, stack: error.stack, urunId, anaUrunId });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/urunler/toplu-varyant-bagla
+ * Birden fazla ürünü varyant olarak bağla
+ */
+router.post('/toplu-varyant-bagla', async (req, res) => {
+  try {
+    const { baglamalar } = req.body;
+    // baglamalar: [{urun_id, ana_urun_id, varyant_tipi, varyant_aciklama}, ...]
+    
+    if (!baglamalar || !Array.isArray(baglamalar)) {
+      return res.status(400).json({ success: false, error: 'baglamalar dizisi gerekli' });
+    }
+    
+    const sonuclar = [];
+    
+    for (const baglama of baglamalar) {
+      try {
+        const { urun_id, ana_urun_id, varyant_tipi, varyant_aciklama } = baglama;
+        
+        if (urun_id === ana_urun_id) continue;
+        
+        await query(`
+          UPDATE urun_kartlari SET
+            ana_urun_id = $1,
+            varyant_tipi = $2,
+            varyant_aciklama = $3,
+            updated_at = NOW()
+          WHERE id = $4
+        `, [ana_urun_id, varyant_tipi || 'genel', varyant_aciklama || null, urun_id]);
+        
+        sonuclar.push({ urun_id, ana_urun_id, basarili: true });
+      } catch (err) {
+        sonuclar.push({ urun_id: baglama.urun_id, basarili: false, hata: err.message });
+      }
+    }
+    
+    console.log(`🔗 Toplu varyant bağlama: ${sonuclar.filter(s => s.basarili).length}/${baglamalar.length} başarılı`);
+    
+    res.json({
+      success: true,
+      data: sonuclar,
+      message: `${sonuclar.filter(s => s.basarili).length} varyant bağlandı`
+    });
+  } catch (error) {
+    logger.error('Toplu varyant bağlama hatası', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: error.message });
   }
 });

@@ -53,7 +53,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
-import { API_BASE_URL } from '@/lib/config';
+import { formatMoney, formatDate } from '@/lib/formatters';
 import 'dayjs/locale/tr';
 import {
   type Proje,
@@ -63,9 +63,7 @@ import {
   type SiparisOzet,
   siparislerAPI,
 } from '@/lib/satin-alma-api';
-
-// Tedarikçileri çekmek için
-const CARILER_API = `${API_BASE_URL}/api/cariler`;
+import { muhasebeAPI } from '@/lib/api/services/muhasebe';
 
 interface Tedarikci {
   id: number;
@@ -133,13 +131,13 @@ export default function SatinAlmaPage() {
         siparislerAPI.list(),
         projelerAPI.list(),
         siparislerAPI.getOzet(),
-        fetch(`${CARILER_API}?tip=tedarikci`).then((r) => r.json()),
+        muhasebeAPI.getCariler({ tip: 'tedarikci' }),
       ]);
 
       if (siparisResult.success) setSiparisler(siparisResult.data);
       if (projeResult.success) setProjeler(projeResult.data);
       if (ozetResult.success) setOzet(ozetResult.data);
-      if (tedarikciResult.success) setTedarikciler(tedarikciResult.data);
+      if (tedarikciResult.success) setTedarikciler(tedarikciResult.data as any);
     } catch (error) {
       console.error('Veri yükleme hatası:', error);
       notifications.show({ title: 'Hata', message: 'Veriler yüklenemedi', color: 'red' });
@@ -161,11 +159,6 @@ export default function SatinAlmaPage() {
     }).format(value || 0);
   };
 
-  // Tarih formatı
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('tr-TR');
-  };
 
   // Filtreleme
   const filteredSiparisler = siparisler.filter((s) => {

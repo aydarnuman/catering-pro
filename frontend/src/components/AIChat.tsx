@@ -33,11 +33,13 @@ import {
   IconCopy,
   IconDatabase,
   IconFileInvoice,
+  IconFlame,
   IconHistory,
   IconRefresh,
   IconRobot,
   IconSend,
   IconSettings,
+  IconShieldCheck,
   IconSparkles,
   IconThumbDown,
   IconThumbUp,
@@ -46,9 +48,8 @@ import {
   IconUsers,
 } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
-
-const API_URL = `${API_BASE_URL}/api`;
+import { useAuth } from '@/context/AuthContext';
+import { aiAPI } from '@/lib/api/services/ai';
 
 // Tip tanımları
 interface ChatMessage {
@@ -58,6 +59,7 @@ interface ChatMessage {
   timestamp: Date;
   toolsUsed?: string[];
   iterations?: number;
+  godMode?: boolean; // God Mode ile mi yanıtlandı?
 }
 
 interface PromptTemplate {
@@ -72,18 +74,21 @@ interface PromptTemplate {
 }
 
 interface PageContext {
-  type: 'tender' | 'invoice' | 'cari' | 'personel' | 'stok' | 'planlama' | 'muhasebe' | 'general';
+  type?: 'tender' | 'invoice' | 'cari' | 'personel' | 'stok' | 'planlama' | 'muhasebe' | 'general';
   id?: number | string;
   title?: string;
   data?: any;
   pathname?: string;
   department?: string;
+  page?: string;
+  isGodMode?: boolean;
 }
 
 interface AIChatProps {
   defaultDepartment?: string;
   compact?: boolean;
   pageContext?: PageContext;
+  defaultGodMode?: boolean; // God Mode varsayılan olarak aktif mi?
 }
 
 // Tool ikon mapping
@@ -120,7 +125,11 @@ export function AIChat({
   defaultDepartment = 'TÜM SİSTEM',
   compact = false,
   pageContext,
+  defaultGodMode = false,
 }: AIChatProps) {
+  // Auth context - God Mode için
+  const { isSuperAdmin, token, user } = useAuth();
+  
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -128,6 +137,7 @@ export function AIChat({
   const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
   const [feedbackGiven, setFeedbackGiven] = useState<Set<string>>(new Set()); // Feedback verilen mesajlar
+  const [godModeEnabled, setGodModeEnabled] = useState(defaultGodMode); // God Mode toggle - varsayılan prop'tan
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Session ID - tarayıcı oturumu boyunca aynı kalır, hafıza için kullanılır
@@ -193,6 +203,12 @@ export function AIChat({
       { label: '📋 Proje harcamaları', value: 'Proje bazlı harcama raporu göster' },
       { label: '🏢 Tedarikçi analizi', value: 'En çok alım yaptığımız tedarikçileri listele' },
     ],
+    'GOD_MODE': [
+      { label: '🔥 SQL Çalıştır', value: 'SELECT COUNT(*) FROM users sorgusunu çalıştır' },
+      { label: '📁 Dosya Listele', value: 'Backend src klasöründeki tüm dosyaları listele' },
+      { label: '🔑 Secretları Göster', value: 'Sistemdeki tüm API keylerini ve secretları listele' },
+      { label: '⚡ Shell Komutu', value: 'df -h komutu ile disk kullanımını göster' },
+    ],
   };
 
   // Şablona göre önerilen sorular
@@ -227,6 +243,12 @@ export function AIChat({
       '👥 Personel sayısı?',
       '📈 Bugünkü satışlar?',
     ],
+    'god-mode': [
+      '🔥 Veritabanındaki tüm tabloları listele',
+      '⚡ SELECT * FROM users LIMIT 10 sorgusunu çalıştır',
+      '📁 Backend klasöründeki dosyaları listele',
+      '🔑 Sistemdeki tüm secret ve API keylerini göster',
+    ],
     'strateji-danismani': [
       '🎯 SWOT analizi yap',
       '📊 Pazar payı değerlendirmesi',
@@ -235,19 +257,23 @@ export function AIChat({
     ],
   };
 
-  // Seçili şablona göre önerileri al
-  const suggestedQuestions = templateQuestions[selectedTemplate] || templateQuestions.default;
-  const quickCommands = departmentCommands[defaultDepartment] || departmentCommands['TÜM SİSTEM'];
+  // Seçili şablona göre önerileri al - God Mode aktifse özel sorular
+  const suggestedQuestions = godModeEnabled 
+    ? templateQuestions['god-mode'] 
+    : (templateQuestions[selectedTemplate] || templateQuestions.default);
+  const quickCommands = godModeEnabled 
+    ? departmentCommands['GOD_MODE'] 
+    : (departmentCommands[defaultDepartment] || departmentCommands['TÜM SİSTEM']);
 
   // Prompt şablonlarını yükle
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
-        const response = await fetch(`${API_URL}/ai/templates`);
-        const data = await response.json();
+        const data = await aiAPI.getTemplates() as any;
 
-        if (data.success && data.templates) {
-          const activeTemplates = data.templates.filter((t: PromptTemplate) => t.is_active);
+        if (data.success && (data.templates || data.data?.templates)) {
+          const templates = data.templates || data.data?.templates;
+          const activeTemplates = templates.filter((t: PromptTemplate) => t.is_active);
           setPromptTemplates(activeTemplates);
         }
       } catch (_error) {
@@ -277,16 +303,12 @@ export function AIChat({
     if (feedbackGiven.has(messageId)) return;
 
     try {
-      await fetch(`${API_URL}/ai/feedback`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rating: isPositive ? 5 : 1,
-          feedbackType: isPositive ? 'helpful' : 'not_helpful',
-          messageContent,
-          aiResponse,
-          templateSlug: selectedTemplate,
-        }),
+      await aiAPI.sendFeedback({
+        rating: isPositive ? 5 : 1,
+        feedbackType: isPositive ? 'helpful' : 'not_helpful',
+        messageContent,
+        aiResponse,
+        templateSlug: selectedTemplate,
       });
 
       setFeedbackGiven((prev) => new Set([...prev, messageId]));
@@ -325,42 +347,39 @@ export function AIChat({
         content: m.content,
       }));
 
-      // AI Agent endpoint'i kullan - şablon bilgisi ve sayfa context'i ile
-      const response = await fetch(`${API_URL}/ai/agent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: userMessage.content,
-          history,
-          sessionId,
-          department: defaultDepartment,
-          templateSlug: selectedTemplate, // Şablon slug'ı gönder
-          pageContext: pageContext, // Sayfa context'i gönder (ihale, fatura, cari vb.)
-        }),
-      });
+      const messageData = {
+        message: userMessage.content,
+        history,
+        sessionId,
+        department: defaultDepartment,
+        templateSlug: selectedTemplate,
+        pageContext: pageContext,
+      };
 
-      const data = await response.json();
+      // God Mode veya normal Agent endpoint'i kullan
+      const data = godModeEnabled && isSuperAdmin
+        ? await aiAPI.sendGodModeMessage(messageData)
+        : await aiAPI.sendAgentMessage(messageData);
 
-      if (!response.ok || !data.success) {
+      if (!data.success) {
         throw new Error(data.error || 'API hatası');
       }
 
       const aiMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
-        content: data.response,
+        content: (data as any).response,
         timestamp: new Date(),
-        toolsUsed: data.toolsUsed || [],
-        iterations: data.iterations,
+        toolsUsed: (data as any).toolsUsed || [],
+        iterations: (data as any).iterations,
+        godMode: godModeEnabled && (data as any).godMode, // God Mode yanıtı mı?
       };
 
       setMessages((prev) => [...prev, aiMessage]);
 
       // Şablon kullanım sayacını artır
       if (selectedTemplate && selectedTemplate !== 'default') {
-        fetch(`${API_URL}/ai/templates/${selectedTemplate}/increment-usage`, {
-          method: 'POST',
-        }).catch(() => {});
+        aiAPI.incrementTemplateUsage(selectedTemplate).catch(() => {});
       }
     } catch (error) {
       console.error('AI API Error:', error);
@@ -677,30 +696,95 @@ export function AIChat({
   }
 
   return (
-    <Paper p="xl" radius="md" withBorder style={{ height: 'calc(100vh - 200px)', minHeight: 600 }}>
-      <Stack gap="md" h="100%">
+    <Paper 
+      p="md" 
+      radius="md" 
+      withBorder 
+      style={{ 
+        height: 'calc(100vh - 280px)', 
+        minHeight: 450, 
+        maxWidth: 900, 
+        margin: '0 auto',
+        // God Mode aktifken dramatik stil değişikliği
+        background: godModeEnabled 
+          ? 'linear-gradient(135deg, rgba(255, 71, 87, 0.08) 0%, rgba(238, 90, 36, 0.08) 100%)' 
+          : undefined,
+        borderColor: godModeEnabled ? 'rgba(255, 71, 87, 0.5)' : undefined,
+        borderWidth: godModeEnabled ? 2 : 1,
+        boxShadow: godModeEnabled ? '0 0 30px rgba(255, 71, 87, 0.2), inset 0 0 60px rgba(255, 71, 87, 0.05)' : undefined,
+        transition: 'all 0.4s ease',
+      }}
+    >
+      <Stack gap="sm" h="100%">
         {/* Header */}
         <Group justify="space-between">
           <Group gap="xs">
             <ThemeIcon
               size="lg"
-              color="violet"
+              color={godModeEnabled ? 'red' : 'violet'}
               variant="gradient"
-              gradient={{ from: 'violet', to: 'purple' }}
+              gradient={godModeEnabled ? { from: 'red', to: 'orange' } : { from: 'violet', to: 'purple' }}
+              style={{
+                boxShadow: godModeEnabled ? '0 0 20px rgba(255, 71, 87, 0.5)' : undefined,
+                transition: 'all 0.3s ease',
+              }}
             >
               <IconBrain size={20} />
             </ThemeIcon>
             <div>
-              <Text size="lg" fw={600}>
-                🤖 AI Agent
+              <Text size="lg" fw={600} style={{ color: godModeEnabled ? '#ff4757' : undefined, transition: 'color 0.3s' }}>
+                {godModeEnabled ? '🔥 GOD MODE AI' : '🤖 AI Agent'}
               </Text>
-              <Text size="xs" c="dimmed">
-                Tüm sisteme erişebilen akıllı asistan
+              <Text size="xs" c={godModeEnabled ? 'orange' : 'dimmed'} style={{ transition: 'color 0.3s' }}>
+                {godModeEnabled ? 'Sınırsız yetki aktif - Dikkatli kullan!' : 'Tüm sisteme erişebilen akıllı asistan'}
               </Text>
             </div>
           </Group>
 
           <Group gap="md">
+            {/* 🔥 God Mode Toggle - Sadece Super Admin */}
+            {isSuperAdmin && (
+              <Tooltip
+                label={godModeEnabled ? 'God Mode Aktif - Sınırsız yetki!' : 'God Mode - Tüm sisteme tam erişim'}
+                position="bottom"
+              >
+                <UnstyledButton
+                  onClick={() => setGodModeEnabled(!godModeEnabled)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    background: godModeEnabled 
+                      ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)' 
+                      : 'var(--mantine-color-gray-0)',
+                    border: godModeEnabled 
+                      ? '2px solid #ff4757' 
+                      : '1px solid var(--mantine-color-gray-3)',
+                    transition: 'all 0.3s',
+                    boxShadow: godModeEnabled ? '0 0 20px rgba(255, 71, 87, 0.4)' : 'none',
+                  }}
+                >
+                  <IconFlame 
+                    size={20} 
+                    color={godModeEnabled ? 'white' : '#666'}
+                    style={{ 
+                      animation: godModeEnabled ? 'pulse 1s infinite' : 'none'
+                    }}
+                  />
+                  <Text size="sm" fw={600} c={godModeEnabled ? 'white' : 'dark'}>
+                    {godModeEnabled ? '🔥 GOD MODE' : 'God Mode'}
+                  </Text>
+                  {godModeEnabled && (
+                    <Badge size="xs" color="yellow" variant="filled">
+                      ADMIN
+                    </Badge>
+                  )}
+                </UnstyledButton>
+              </Tooltip>
+            )}
+
             {/* Şablon Seçici - Popover */}
             <Popover
               opened={templatePopoverOpened}
@@ -857,26 +941,25 @@ export function AIChat({
             },
           }}
         >
-          <Stack gap="md" p="sm">
+          <Stack gap="sm" p="xs">
             {messages.length === 0 ? (
-              <Stack gap="lg" align="center" py="xl">
-                <ThemeIcon size={80} color="violet" variant="light" radius="xl">
-                  <IconSparkles size={40} />
+              <Stack gap="md" align="center" py="md">
+                <ThemeIcon size={50} color="violet" variant="light" radius="xl">
+                  <IconSparkles size={24} />
                 </ThemeIcon>
                 <div style={{ textAlign: 'center' }}>
-                  <Text size="xl" fw={600} mb={4}>
+                  <Text size="lg" fw={600} mb={2}>
                     Merhaba! Ben AI Agent 🤖
                   </Text>
-                  <Text c="dimmed" size="sm" maw={500}>
-                    Tüm sisteme erişebilirim: Siparişler, cariler, faturalar, ihaleler ve raporlar.
-                    Veri sorgulayabilir, yeni kayıtlar oluşturabilir ve analiz yapabilirim.
+                  <Text c="dimmed" size="xs" maw={400}>
+                    Siparişler, cariler, faturalar, ihaleler ve raporlar. Veri sorgulayabilir ve analiz yapabilirim.
                   </Text>
                 </div>
 
                 {/* Önerilen Sorular */}
                 <Stack gap="xs" w="100%" maw={600}>
-                  <Text size="sm" fw={500} c="dimmed">
-                    💡 Önerilen Sorular:
+                  <Text size="sm" fw={500} c={godModeEnabled ? 'red.6' : 'dimmed'}>
+                    {godModeEnabled ? '🔥 God Mode Komutları:' : '💡 Önerilen Sorular:'}
                   </Text>
                   <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
                     {suggestedQuestions.map((question, index) => (
@@ -885,10 +968,15 @@ export function AIChat({
                         p="sm"
                         radius="md"
                         withBorder
-                        style={{ cursor: 'pointer' }}
+                        style={{ 
+                          cursor: 'pointer',
+                          borderColor: godModeEnabled ? 'rgba(255, 71, 87, 0.3)' : undefined,
+                          background: godModeEnabled ? 'rgba(255, 71, 87, 0.05)' : undefined,
+                          transition: 'all 0.2s ease',
+                        }}
                         onClick={() => handleSuggestedQuestion(question)}
                       >
-                        <Text size="sm">{question}</Text>
+                        <Text size="sm" c={godModeEnabled ? 'red.7' : undefined}>{question}</Text>
                       </Card>
                     ))}
                   </SimpleGrid>
@@ -896,17 +984,21 @@ export function AIChat({
 
                 {/* Hızlı Komutlar */}
                 <Stack gap="xs" w="100%" maw={600}>
-                  <Text size="sm" fw={500} c="dimmed">
-                    ⚡ Hızlı Komutlar:
+                  <Text size="sm" fw={500} c={godModeEnabled ? 'orange.6' : 'dimmed'}>
+                    {godModeEnabled ? '⚡ Güçlü Komutlar:' : '⚡ Hızlı Komutlar:'}
                   </Text>
                   <Group gap="xs">
                     {quickCommands.map((cmd, index) => (
                       <Badge
                         key={index}
                         size="lg"
-                        variant="light"
-                        color="violet"
-                        style={{ cursor: 'pointer' }}
+                        variant={godModeEnabled ? 'gradient' : 'light'}
+                        gradient={godModeEnabled ? { from: 'red', to: 'orange' } : undefined}
+                        color={godModeEnabled ? undefined : 'violet'}
+                        style={{ 
+                          cursor: 'pointer',
+                          boxShadow: godModeEnabled ? '0 2px 10px rgba(255, 71, 87, 0.3)' : undefined,
+                        }}
                         onClick={() => handleSuggestedQuestion(cmd.value)}
                       >
                         {cmd.label}
@@ -1085,7 +1177,7 @@ export function AIChat({
         <Group gap="xs">
           <TextInput
             flex={1}
-            placeholder="Soru sorun, komut verin veya işlem yaptırın..."
+            placeholder={godModeEnabled ? "🔥 God Mode: SQL, dosya, shell, kod çalıştır..." : "Soru sorun, komut verin veya işlem yaptırın..."}
             value={inputValue}
             onChange={(e) => setInputValue(e.currentTarget.value)}
             onKeyDown={(e) => {
@@ -1096,11 +1188,23 @@ export function AIChat({
             }}
             disabled={isLoading}
             size="md"
+            styles={{
+              input: godModeEnabled ? {
+                borderColor: 'rgba(255, 71, 87, 0.4)',
+                backgroundColor: 'rgba(255, 71, 87, 0.05)',
+                '&:focus': {
+                  borderColor: '#ff4757',
+                }
+              } : undefined
+            }}
           />
           <Button
-            color="violet"
+            variant={godModeEnabled ? 'gradient' : 'filled'}
+            gradient={godModeEnabled ? { from: 'red', to: 'orange' } : undefined}
+            color={godModeEnabled ? undefined : 'violet'}
             onClick={handleSendMessage}
             loading={isLoading}
+            style={godModeEnabled ? { boxShadow: '0 0 15px rgba(255, 71, 87, 0.4)' } : undefined}
             disabled={!inputValue.trim()}
             leftSection={<IconSend size={16} />}
             size="md"

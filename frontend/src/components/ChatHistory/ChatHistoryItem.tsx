@@ -2,6 +2,7 @@
 
 import { Avatar, Badge, Box, Group, Paper, Text } from '@mantine/core';
 import { IconRobot, IconTool, IconUser } from '@tabler/icons-react';
+import { formatDate } from '@/lib/formatters';
 
 export interface ChatMessage {
   id: number;
@@ -19,13 +20,6 @@ interface ChatHistoryItemProps {
 }
 
 export function ChatHistoryItem({ message, showTime = true }: ChatHistoryItemProps) {
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString('tr-TR', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   const isUser = message.role === 'user';
 
@@ -42,7 +36,7 @@ export function ChatHistoryItem({ message, showTime = true }: ChatHistoryItemPro
           </Text>
           {showTime && (
             <Text size="xs" c="dimmed">
-              {formatDate(message.created_at)}
+              {formatDate(message.created_at, 'time')}
             </Text>
           )}
         </Group>

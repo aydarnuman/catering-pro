@@ -53,10 +53,9 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
-import { API_BASE_URL } from '@/lib/config';
+import { formatMoney, formatDate } from '@/lib/formatters';
+import { muhasebeAPI } from '@/lib/api/services/muhasebe';
 import 'dayjs/locale/tr';
-
-const API_URL = `${API_BASE_URL}/api`;
 
 // Tip tanımları
 interface Hesap {
@@ -247,18 +246,18 @@ export default function KasaBankaPage() {
     setLoading(true);
     try {
       const [hesaplarRes, hareketlerRes, cekSenetRes, carilerRes, ozetRes] = await Promise.all([
-        fetch(`${API_URL}/kasa-banka/hesaplar`),
-        fetch(`${API_URL}/kasa-banka/hareketler?limit=50`),
-        fetch(`${API_URL}/kasa-banka/cek-senet?limit=100`),
-        fetch(`${API_URL}/kasa-banka/cariler`),
-        fetch(`${API_URL}/kasa-banka/ozet`),
+        muhasebeAPI.getKasaBankaHesaplar(),
+        muhasebeAPI.getKasaBankaHareketler({ limit: 50 }),
+        muhasebeAPI.getCekSenetler({ limit: 100 }),
+        muhasebeAPI.getKasaBankaCariler(),
+        muhasebeAPI.getKasaBankaOzet(),
       ]);
 
-      if (hesaplarRes.ok) setHesaplar(await hesaplarRes.json());
-      if (hareketlerRes.ok) setHareketler(await hareketlerRes.json());
-      if (cekSenetRes.ok) setCekSenetler(await cekSenetRes.json());
-      if (carilerRes.ok) setCariler(await carilerRes.json());
-      if (ozetRes.ok) setOzet(await ozetRes.json());
+      if (hesaplarRes.success) setHesaplar((hesaplarRes.data || []) as any);
+      if (hareketlerRes.success) setHareketler((hareketlerRes.data || []) as any);
+      if (cekSenetRes.success) setCekSenetler(cekSenetRes.data || []);
+      if (carilerRes.success) setCariler(carilerRes.data || []);
+      if (ozetRes.success) setOzet(ozetRes.data);
     } catch (error) {
       console.error('Veri yükleme hatası:', error);
       notifications.show({ title: 'Hata', message: 'Veriler yüklenemedi', color: 'red' });
@@ -280,10 +279,6 @@ export default function KasaBankaPage() {
     }).format(value);
   };
 
-  // Tarih formatı
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('tr-TR');
-  };
 
   // Vade durumu hesapla
   const getVadeDurumu = (vade: string) => {
@@ -321,17 +316,11 @@ export default function KasaBankaPage() {
     }
 
     try {
-      const url = editingHesap
-        ? `${API_URL}/kasa-banka/hesaplar/${editingHesap.id}`
-        : `${API_URL}/kasa-banka/hesaplar`;
+      const result = editingHesap
+        ? await muhasebeAPI.updateKasaBankaHesap(editingHesap.id, hesapForm as any)
+        : await muhasebeAPI.createKasaBankaHesap(hesapForm as any);
 
-      const response = await fetch(url, {
-        method: editingHesap ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(hesapForm),
-      });
-
-      if (!response.ok) throw new Error('İşlem başarısız');
+      if (!result.success) throw new Error('İşlem başarısız');
 
       notifications.show({
         title: 'Başarılı!',
@@ -351,7 +340,7 @@ export default function KasaBankaPage() {
     if (!confirm('Bu hesabı silmek istediğinize emin misiniz?')) return;
 
     try {
-      await fetch(`${API_URL}/kasa-banka/hesaplar/${id}`, { method: 'DELETE' });
+      await muhasebeAPI.deleteKasaBankaHesap(id);
       notifications.show({ title: 'Silindi', message: 'Hesap silindi.', color: 'orange' });
       loadData();
     } catch (_error) {
@@ -369,36 +358,26 @@ export default function KasaBankaPage() {
     }
 
     try {
-      const url =
-        hareketForm.hareket_tipi === 'transfer'
-          ? `${API_URL}/kasa-banka/transfer`
-          : `${API_URL}/kasa-banka/hareketler`;
+      let result;
+      if (hareketForm.hareket_tipi === 'transfer') {
+        result = await muhasebeAPI.transferKasaBanka({
+          kaynak_hesap_id: parseInt(hareketForm.hesap_id, 10),
+          hedef_hesap_id: parseInt(hareketForm.karsi_hesap_id, 10),
+          tutar: hareketForm.tutar,
+          aciklama: hareketForm.aciklama,
+          tarih: hareketForm.tarih.toISOString().split('T')[0],
+        });
+      } else {
+        result = await muhasebeAPI.createKasaBankaHareket({
+          hesap_id: parseInt(hareketForm.hesap_id, 10),
+          tip: hareketForm.hareket_tipi as any,
+          tutar: hareketForm.tutar,
+          aciklama: hareketForm.aciklama,
+          tarih: hareketForm.tarih.toISOString().split('T')[0],
+        });
+      }
 
-      const body =
-        hareketForm.hareket_tipi === 'transfer'
-          ? {
-              kaynak_hesap_id: parseInt(hareketForm.hesap_id, 10),
-              hedef_hesap_id: parseInt(hareketForm.karsi_hesap_id, 10),
-              tutar: hareketForm.tutar,
-              aciklama: hareketForm.aciklama,
-              tarih: hareketForm.tarih.toISOString().split('T')[0],
-            }
-          : {
-              hesap_id: parseInt(hareketForm.hesap_id, 10),
-              hareket_tipi: hareketForm.hareket_tipi,
-              tutar: hareketForm.tutar,
-              aciklama: hareketForm.aciklama,
-              belge_no: hareketForm.belge_no,
-              tarih: hareketForm.tarih.toISOString().split('T')[0],
-            };
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      if (!response.ok) throw new Error('İşlem başarısız');
+      if (!result.success) throw new Error('İşlem başarısız');
 
       notifications.show({
         title: 'Başarılı!',
@@ -428,18 +407,14 @@ export default function KasaBankaPage() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/kasa-banka/cek-senet`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...cekSenetForm,
-          kesim_tarihi: cekSenetForm.kesim_tarihi.toISOString().split('T')[0],
-          vade_tarihi: cekSenetForm.vade_tarihi.toISOString().split('T')[0],
-          cari_id: cekSenetForm.cari_id ? parseInt(cekSenetForm.cari_id, 10) : null,
-        }),
+      const result = await muhasebeAPI.createCekSenet({
+        ...cekSenetForm,
+        kesim_tarihi: cekSenetForm.kesim_tarihi.toISOString().split('T')[0],
+        vade_tarihi: cekSenetForm.vade_tarihi.toISOString().split('T')[0],
+        cari_id: cekSenetForm.cari_id ? parseInt(cekSenetForm.cari_id, 10) : null,
       });
 
-      if (!response.ok) throw new Error('İşlem başarısız');
+      if (!result.success) throw new Error('İşlem başarısız');
 
       notifications.show({
         title: 'Başarılı!',
@@ -462,20 +437,12 @@ export default function KasaBankaPage() {
     }
 
     try {
-      const response = await fetch(
-        `${API_URL}/kasa-banka/cek-senet/${selectedCekSenet.id}/tahsil`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            hesap_id: parseInt(tahsilForm.hesap_id, 10),
-            tarih: tahsilForm.tarih.toISOString().split('T')[0],
-            aciklama: tahsilForm.aciklama,
-          }),
-        }
-      );
+      const result = await muhasebeAPI.tahsilCekSenet(selectedCekSenet.id, {
+        hesap_id: parseInt(tahsilForm.hesap_id, 10),
+        tarih: tahsilForm.tarih.toISOString().split('T')[0],
+      });
 
-      if (!response.ok) throw new Error('İşlem başarısız');
+      if (!result.success) throw new Error('İşlem başarısız');
 
       notifications.show({
         title: 'Başarılı!',
@@ -498,17 +465,12 @@ export default function KasaBankaPage() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/kasa-banka/cek-senet/${selectedCekSenet.id}/ciro`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ciro_cari_id: parseInt(ciroForm.ciro_cari_id, 10),
-          tarih: ciroForm.tarih.toISOString().split('T')[0],
-          aciklama: ciroForm.aciklama,
-        }),
+      const result = await muhasebeAPI.ciroCekSenet(selectedCekSenet.id, {
+        ciro_cari_id: parseInt(ciroForm.ciro_cari_id, 10),
+        ciro_tarihi: ciroForm.tarih.toISOString().split('T')[0],
       });
 
-      if (!response.ok) throw new Error('İşlem başarısız');
+      if (!result.success) throw new Error('İşlem başarısız');
 
       notifications.show({
         title: 'Başarılı!',
@@ -529,13 +491,9 @@ export default function KasaBankaPage() {
     if (!neden) return;
 
     try {
-      const response = await fetch(`${API_URL}/kasa-banka/cek-senet/${cekSenet.id}/iade`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ neden }),
-      });
+      const result = await muhasebeAPI.iadeCekSenet(cekSenet.id);
 
-      if (!response.ok) throw new Error('İşlem başarısız');
+      if (!result.success) throw new Error('İşlem başarısız');
 
       notifications.show({ title: 'Kaydedildi', message: 'İade kaydedildi.', color: 'orange' });
       loadData();
@@ -548,7 +506,7 @@ export default function KasaBankaPage() {
     if (!confirm('Bu kaydı silmek istediğinize emin misiniz?')) return;
 
     try {
-      await fetch(`${API_URL}/kasa-banka/cek-senet/${id}`, { method: 'DELETE' });
+      await muhasebeAPI.deleteCekSenet(id);
       notifications.show({ title: 'Silindi', message: 'Kayıt silindi.', color: 'orange' });
       loadData();
     } catch (_error) {

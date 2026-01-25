@@ -22,9 +22,8 @@ import {
   IconPackage,
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
-
-const API_URL = `${API_BASE_URL}/api`;
+import { formatMoney } from '@/lib/formatters';
+import { urunlerAPI } from '@/lib/api/services/urunler';
 
 interface Props {
   opened: boolean;
@@ -46,8 +45,7 @@ export default function UrunDetayModal({ opened, onClose, urunId }: Props) {
   const loadUrunDetay = async (id: number) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/urunler/${id}`);
-      const result = await res.json();
+      const result = await urunlerAPI.getUrun(id);
       if (result.success) {
         setUrunDetay(result.data);
       } else {
@@ -75,19 +73,6 @@ export default function UrunDetayModal({ opened, onClose, urunId }: Props) {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     });
-  };
-
-  // Para formatı
-  const formatMoney = (value: number | string | null | undefined) => {
-    if (value === null || value === undefined) return '—';
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    if (Number.isNaN(num)) return '—';
-    return new Intl.NumberFormat('tr-TR', {
-      style: 'currency',
-      currency: 'TRY',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(num);
   };
 
   return (
@@ -132,13 +117,13 @@ export default function UrunDetayModal({ opened, onClose, urunId }: Props) {
               <Box>
                 <Text size="xs" c="dimmed" tt="uppercase">Son Alış Fiyatı</Text>
                 <Text size="xl" fw={700} c="teal">
-                  {formatMoney(urunDetay.son_alis_fiyati)}
+                  {formatMoney(urunDetay.son_alis_fiyati, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </Text>
               </Box>
               <Box>
                 <Text size="xs" c="dimmed" tt="uppercase">Ort. Fiyat</Text>
                 <Text size="xl" fw={700}>
-                  {formatMoney(urunDetay.ortalama_fiyat)}
+                  {formatMoney(urunDetay.ortalama_fiyat, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </Text>
               </Box>
               <Box>
@@ -185,7 +170,7 @@ export default function UrunDetayModal({ opened, onClose, urunId }: Props) {
                       </Table.Td>
                       <Table.Td>
                         <Text fw={500} c="blue">
-                          {formatMoney(fg.fiyat)}
+                          {formatMoney(fg.fiyat, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                         </Text>
                       </Table.Td>
                       <Table.Td>

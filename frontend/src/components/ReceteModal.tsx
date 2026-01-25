@@ -9,7 +9,6 @@ import {
   Center,
   Divider,
   Group,
-  Loader,
   Menu,
   Modal,
   NumberInput,
@@ -28,6 +27,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import {
   IconAlertCircle,
+  IconArrowLeft,
   IconBook2,
   IconChartPie,
   IconCheck,
@@ -44,11 +44,14 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { API_BASE_URL } from '@/lib/config';
+import { useResponsive } from '@/hooks/useResponsive';
+import { formatMoney } from '@/lib/formatters';
+import { EmptyState, LoadingState } from '@/components/common';
+import { menuPlanlamaAPI } from '@/lib/api/services/menu-planlama';
+import { stokAPI } from '@/lib/api/services/stok';
 import UrunKartlariModal from './UrunKartlariModal';
 
-const API_URL = `${API_BASE_URL}/api`;
+// API_URL kaldırıldı - menuPlanlamaAPI kullanılıyor
 
 // Malzeme ikonları (ürün adına göre)
 const getMalzemeIcon = (ad: string): string => {
@@ -192,8 +195,11 @@ interface Props {
 }
 
 export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) {
-  // Auth
-  const { token } = useAuth();
+  // Responsive
+  const { isMobile, isMounted } = useResponsive();
+
+  // Mobil görünüm: liste mi detay mı
+  const [mobileView, setMobileView] = useState<'list' | 'detail'>('list');
 
   // Ürün Kartları Modal
   const [urunKartlariModalOpened, setUrunKartlariModalOpened] = useState(false);
@@ -270,8 +276,11 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
       if (aramaText) params.append('arama', aramaText);
       params.append('limit', '200');
 
-      const res = await fetch(`${API_URL}/menu-planlama/receteler?${params}`);
-      const result = await res.json();
+      const result = await menuPlanlamaAPI.getReceteler({
+        kategori: selectedKategori || undefined,
+        arama: aramaText || undefined,
+        limit: 200,
+      });
       if (result.success) {
         // Duplicate kontrolü: Aynı isimli reçetelerden sadece birini al (en yüksek ID'li)
         const normalizeKey = (str: string) => {
@@ -310,10 +319,9 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
   // Kategorileri getir
   const fetchKategoriler = async () => {
     try {
-      const res = await fetch(`${API_URL}/menu-planlama/kategoriler`);
-      const result = await res.json();
+      const result = await menuPlanlamaAPI.getKategoriler();
       if (result.success) {
-        setKategoriler(result.data);
+        setKategoriler(result.data as unknown as Kategori[]);
       }
     } catch (error) {
       console.error('Kategori listesi hatası:', error);
@@ -323,8 +331,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
   // Stok kartlarını getir (unique - aynı isimli ürünlerden sadece biri)
   const fetchPiyasaUrunleri = async () => {
     try {
-      const res = await fetch(`${API_URL}/stok/kartlar?limit=500`);
-      const result = await res.json();
+      const result = await stokAPI.getKartlar({ limit: 500 });
       if (result.success) {
         // Unique: Aynı isimli ürünlerden sadece birini al (en yüksek ID'li)
         // Normalizasyon: Boşlukları tamamen kaldır, büyük harfe çevir, özel karakterleri temizle
@@ -375,14 +382,13 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
     setDetayLoading(true);
     try {
       // Maliyet analizi endpoint'ini kullan - piyasa fiyatlarını içerir
-      const res = await fetch(`${API_URL}/maliyet-analizi/recete/${id}`);
-      const result = await res.json();
+      const result = await menuPlanlamaAPI.getMaliyetAnalizi(id) as any;
 
       if (result.success) {
         // Malzeme maliyetlerini hesapla
         // Son fiyat = (fatura + piyasa) / 2 veya mevcut olan
         const malzemelerWithCost =
-          result.data.malzemeler?.map((m: Malzeme) => {
+          (result.data?.malzemeler || []).map((m: any) => {
             const faturaFiyat = m.sistem_fiyat || 0;
             const piyasaFiyat = m.piyasa_fiyat || 0;
             // Son fiyat: her ikisi varsa ortalama, yoksa mevcut olan
@@ -414,15 +420,14 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
           ...result.data,
           malzemeler: malzemelerWithCost,
           toplam_piyasa_maliyet: toplamPiyasa,
-        });
-        setEditingRecete(result.data);
+        } as any);
+        setEditingRecete(result.data as any);
       } else {
         // Fallback: normal endpoint
-        const fallbackRes = await fetch(`${API_URL}/menu-planlama/receteler/${id}`);
-        const fallbackResult = await fallbackRes.json();
+        const fallbackResult = await menuPlanlamaAPI.getRecete(id) as any;
         if (fallbackResult.success) {
-          setSelectedRecete(fallbackResult.data);
-          setEditingRecete(fallbackResult.data);
+          setSelectedRecete(fallbackResult.data as any);
+          setEditingRecete(fallbackResult.data as any);
         }
       }
     } catch (_error) {
@@ -452,12 +457,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
     if (!editingRecete || !selectedRecete) return;
 
     try {
-      const res = await fetch(`${API_URL}/menu-planlama/receteler/${selectedRecete.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingRecete),
-      });
-      const result = await res.json();
+      const result = await menuPlanlamaAPI.updateRecete(selectedRecete.id, editingRecete as any);
 
       if (result.success) {
         notifications.show({
@@ -535,22 +535,13 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
     setMalzemeEklemeLoading(true);
 
     try {
-      const res = await fetch(
-        `${API_URL}/menu-planlama/receteler/${selectedRecete.id}/malzemeler`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            stok_kart_id: selectedStokKart.stok_kart_id,
-            malzeme_adi: selectedStokKart.urun_adi,
-            miktar: miktarGirisi.miktar,
-            birim: miktarGirisi.birim,
-            birim_fiyat: fiyat,
-            zorunlu: true,
-          }),
-        }
-      );
-      const result = await res.json();
+      const result = await menuPlanlamaAPI.saveMalzeme(selectedRecete.id, {
+        stok_kart_id: selectedStokKart.stok_kart_id,
+        urun_adi: selectedStokKart.urun_adi,
+        miktar: miktarGirisi.miktar,
+        birim: miktarGirisi.birim,
+        sistem_fiyat: fiyat,
+      });
 
       if (result.success) {
         const maliyet = hesaplaMaliyet(
@@ -591,14 +582,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
     setAiMalzemeLoading(true);
 
     try {
-      const res = await fetch(
-        `${API_URL}/menu-planlama/receteler/${selectedRecete.id}/ai-malzeme-oneri`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-      const result = await res.json();
+      const result = await menuPlanlamaAPI.getAiMalzemeOneri(selectedRecete.id, '');
 
       if (result.success && result.data.malzemeler && result.data.malzemeler.length > 0) {
         // AI'dan gelen malzemeleri teker teker ekle
@@ -646,17 +630,12 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
               const kategoriId = mal.kategori ? kategoriMap[mal.kategori.toLowerCase()] || 13 : 13;
 
               // Yeni ürün kartı oluştur (kategori ile birlikte)
-              const urunRes = await fetch(`${API_URL}/menu-planlama/urun-kartlari`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  ad: mal.malzeme_adi,
-                  kategori_id: kategoriId,
-                  varsayilan_birim: mal.birim || 'gr',
-                  fiyat_birimi: 'kg',
-                }),
+              const urunResult = await menuPlanlamaAPI.createUrunKarti({
+                ad: mal.malzeme_adi,
+                kategori_id: kategoriId,
+                varsayilan_birim: mal.birim || 'gr',
+                fiyat_birimi: 'kg',
               });
-              const urunResult = await urunRes.json();
 
               if (urunResult.success) {
                 urunKartId = urunResult.data.id;
@@ -664,21 +643,12 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
             }
 
             // Malzemeyi reçeteye ekle
-            const malRes = await fetch(
-              `${API_URL}/menu-planlama/receteler/${selectedRecete.id}/malzemeler`,
-              {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  urun_kart_id: urunKartId,
-                  malzeme_adi: mal.onerilen_urun_adi || mal.malzeme_adi,
-                  miktar: mal.miktar,
-                  birim: mal.birim || 'gr',
-                  zorunlu: true,
-                }),
-              }
-            );
-            const malResult = await malRes.json();
+            const malResult = await menuPlanlamaAPI.saveMalzeme(selectedRecete.id, {
+              urun_kart_id: urunKartId,
+              urun_adi: mal.onerilen_urun_adi || mal.malzeme_adi,
+              miktar: mal.miktar,
+              birim: mal.birim || 'gr',
+            });
 
             if (malResult.success) {
               basarili++;
@@ -775,16 +745,20 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
         const timeoutId = setTimeout(() => controller.abort(), 90000);
         
         // BATCH AI çağrısı (5 reçete birden)
-        const res = await fetch(`${API_URL}/menu-planlama/receteler/batch-ai-malzeme-oneri`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ recete_ids: receteIds }),
-          signal: controller.signal,
+        // Timeout için Promise.race kullanıyoruz
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => {
+            controller.abort();
+            reject(new Error('Timeout'));
+          }, 90000);
         });
-        
+
+        const result = await Promise.race([
+          menuPlanlamaAPI.batchAiMalzemeOneri(receteIds),
+          timeoutPromise,
+        ]);
+
         clearTimeout(timeoutId);
-        
-        const result = await res.json();
         
         if (!result.success || !result.data?.sonuclar) {
           return { success: 0, fail: batch.length };
@@ -808,33 +782,23 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                 
                 if (!urunKartId) {
                   const kategoriId = mal.kategori ? kategoriMap[mal.kategori.toLowerCase()] || 13 : 13;
-                  
-                  const urunRes = await fetch(`${API_URL}/menu-planlama/urun-kartlari`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      ad: mal.malzeme_adi,
-                      kategori_id: kategoriId,
-                      varsayilan_birim: mal.birim || 'gr',
-                      fiyat_birimi: 'kg',
-                    }),
+
+                  const urunResult = await menuPlanlamaAPI.createUrunKarti({
+                    ad: mal.malzeme_adi,
+                    kategori_id: kategoriId,
+                    varsayilan_birim: mal.birim || 'gr',
+                    fiyat_birimi: 'kg',
                   });
-                  const urunResult = await urunRes.json();
                   if (urunResult.success) {
                     urunKartId = urunResult.data.id;
                   }
                 }
-                
-                await fetch(`${API_URL}/menu-planlama/receteler/${sonuc.recete_id}/malzemeler`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    urun_kart_id: urunKartId,
-                    malzeme_adi: mal.malzeme_adi,
-                    miktar: mal.miktar,
-                    birim: mal.birim || 'gr',
-                    zorunlu: true,
-                  }),
+
+                await menuPlanlamaAPI.saveMalzeme(sonuc.recete_id, {
+                  urun_kart_id: urunKartId,
+                  urun_adi: mal.malzeme_adi,
+                  miktar: mal.miktar,
+                  birim: mal.birim || 'gr',
                 });
               } catch (e) {
                 // Tek malzeme hatası, devam
@@ -940,12 +904,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
     if (!editingMalzemeId || !editingMalzemeData || !selectedRecete) return;
 
     try {
-      const res = await fetch(`${API_URL}/menu-planlama/malzemeler/${editingMalzemeId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingMalzemeData),
-      });
-      const result = await res.json();
+      const result = await menuPlanlamaAPI.updateMalzeme(editingMalzemeId, editingMalzemeData);
 
       if (result.success) {
         notifications.show({
@@ -980,10 +939,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
     if (!selectedRecete) return;
 
     try {
-      const res = await fetch(`${API_URL}/menu-planlama/malzemeler/${malzemeId}`, {
-        method: 'DELETE',
-      });
-      const result = await res.json();
+      const result = await menuPlanlamaAPI.deleteMalzeme(malzemeId);
 
       if (result.success) {
         notifications.show({
@@ -1022,12 +978,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
           .replace(/\s+/g, '-')
           .replace(/[^a-z0-9-]/g, '');
 
-      const res = await fetch(`${API_URL}/menu-planlama/receteler`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...yeniRecete, kod }),
-      });
-      const result = await res.json();
+      const result = await menuPlanlamaAPI.createRecete({ ...yeniRecete, kod } as any);
 
       if (result.success) {
         notifications.show({
@@ -1066,10 +1017,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
     if (!confirm('Bu reçeteyi silmek istediğinizden emin misiniz?')) return;
 
     try {
-      const res = await fetch(`${API_URL}/menu-planlama/receteler/${id}`, {
-        method: 'DELETE',
-      });
-      const result = await res.json();
+      const result = await menuPlanlamaAPI.deleteRecete(id);
 
       if (result.success) {
         notifications.show({
@@ -1087,14 +1035,6 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
         color: 'red',
       });
     }
-  };
-
-  const formatMoney = (value: number) => {
-    return new Intl.NumberFormat('tr-TR', {
-      style: 'currency',
-      currency: 'TRY',
-      minimumFractionDigits: 2,
-    }).format(value);
   };
 
   // Maliyet breakdown hesapla
@@ -1119,12 +1059,33 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
   const eksikFiyatlar =
     selectedRecete?.malzemeler?.filter((m) => !m.piyasa_fiyat && !m.sistem_fiyat) || [];
 
+  // Mobilde reçete seçildiğinde detay görünümüne geç
+  const handleReceteSecMobile = (id: number) => {
+    fetchReceteDetay(id);
+    if (isMobile && isMounted) {
+      setMobileView('detail');
+    }
+  };
+
   return (
     <Modal
       opened={opened}
       onClose={onClose}
       title={
         <Group gap="sm">
+          {/* Mobilde geri butonu */}
+          {isMobile && isMounted && mobileView === 'detail' && (
+            <ActionIcon
+              variant="subtle"
+              onClick={() => {
+                setMobileView('list');
+                setSelectedRecete(null);
+              }}
+              mr={4}
+            >
+              <IconArrowLeft size={20} />
+            </ActionIcon>
+          )}
           <ThemeIcon
             size="lg"
             radius="xl"
@@ -1134,8 +1095,8 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
             <IconBook2 size={20} />
           </ThemeIcon>
           <Box>
-            <Text fw={600} size="lg">
-              Reçete ve Maliyet Yönetimi
+            <Text fw={600} size={isMobile && isMounted ? 'md' : 'lg'}>
+              {isMobile && isMounted && mobileView === 'detail' ? 'Reçete Detay' : 'Reçete Yönetimi'}
             </Text>
             <Text size="xs" c="dimmed">
               Piyasa fiyatlarıyla entegre
@@ -1143,20 +1104,23 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
           </Box>
         </Group>
       }
-      size="95%"
+      size={isMobile && isMounted ? '100%' : '95%'}
+      fullScreen={isMobile && isMounted}
       styles={{
         body: { padding: 0 },
-        content: { height: '90vh' },
+        content: { height: isMobile && isMounted ? '100vh' : '90vh' },
       }}
     >
-      <Box style={{ display: 'flex', height: 'calc(90vh - 70px)' }}>
-        {/* Sol Panel - Reçete Listesi */}
+      <Box style={{ display: 'flex', height: isMobile && isMounted ? 'calc(100vh - 60px)' : 'calc(90vh - 70px)', flexDirection: isMobile && isMounted ? 'column' : 'row' }}>
+        {/* Sol Panel - Reçete Listesi (Desktop veya Mobile Liste Görünümü) */}
+        {(!isMobile || !isMounted || mobileView === 'list') && (
         <Box
           style={{
-            width: 320,
-            borderRight: '1px solid var(--mantine-color-default-border)',
+            width: isMobile && isMounted ? '100%' : 320,
+            borderRight: isMobile && isMounted ? 'none' : '1px solid var(--mantine-color-default-border)',
             display: 'flex',
             flexDirection: 'column',
+            flex: isMobile && isMounted ? 1 : 'none',
           }}
         >
           {/* Arama ve Filtre */}
@@ -1239,15 +1203,14 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
           {/* Reçete Listesi */}
           <ScrollArea style={{ flex: 1 }}>
             {loading ? (
-              <Center py="xl">
-                <Loader color="orange" />
-              </Center>
+              <LoadingState loading={true} message="Reçeteler yükleniyor..." />
             ) : receteler.length === 0 ? (
-              <Center py="xl">
-                <Text c="dimmed" size="sm">
-                  Reçete bulunamadı
-                </Text>
-              </Center>
+              <EmptyState
+                title="Reçete bulunamadı"
+                compact
+                icon={<IconBook2 size={32} />}
+                iconColor="orange"
+              />
             ) : (
               <Stack gap={0}>
                 {receteler.map((recete) => {
@@ -1262,9 +1225,9 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                         background: isSelected ? 'var(--mantine-color-orange-light)' : undefined,
                         transition: 'background 0.15s',
                       }}
-                      onClick={() => fetchReceteDetay(recete.id)}
+                      onClick={() => handleReceteSecMobile(recete.id)}
                     >
-                      <Group justify="space-between" wrap="nowrap">
+                      <Group justify="space-between" wrap="wrap">
                         <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
                           <Text size="md">{recete.kategori_ikon || '📋'}</Text>
                           <Box style={{ flex: 1, minWidth: 0 }}>
@@ -1337,13 +1300,13 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
             </Text>
           </Box>
         </Box>
+        )}
 
-        {/* Sağ Panel - Reçete Detay ve Maliyet */}
+        {/* Sağ Panel - Reçete Detay ve Maliyet (Desktop veya Mobile Detay Görünümü) */}
+        {(!isMobile || !isMounted || mobileView === 'detail') && (
         <Box style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {detayLoading ? (
-            <Center style={{ flex: 1 }}>
-              <Loader color="orange" size="lg" />
-            </Center>
+            <LoadingState loading={true} fullHeight message="Reçete detayı yükleniyor..." />
           ) : !selectedRecete ? (
             <Center style={{ flex: 1 }}>
               <Stack align="center" gap="md">
@@ -1699,7 +1662,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                                   boxShadow: '0 0 0 1px var(--mantine-color-blue-2)',
                                 }}
                               >
-                                <Group justify="space-between" wrap="nowrap">
+                                <Group justify="space-between" wrap="wrap">
                                   <Group gap="sm" wrap="nowrap" style={{ flex: 1 }}>
                                     <Text size="lg">
                                       {getMalzemeIcon(m.urun_adi || m.malzeme_adi)}
@@ -1795,7 +1758,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                               className="hover-card"
                               onClick={() => handleMalzemeDuzenleBasla(m)}
                             >
-                              <Group justify="space-between" wrap="nowrap">
+                              <Group justify="space-between" wrap="wrap">
                                 <Group gap="sm" wrap="nowrap" style={{ flex: 1 }}>
                                   <Text size="lg">
                                     {getMalzemeIcon(m.urun_adi || m.malzeme_adi)}
@@ -1829,24 +1792,19 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                           );
                         })
                       ) : (
-                        <Paper
-                          p="xl"
-                          withBorder
-                          radius="md"
-                          ta="center"
-                          bg="var(--mantine-color-gray-0)"
-                        >
-                          <Text c="dimmed">Henüz malzeme eklenmemiş</Text>
-                          <Text size="xs" c="dimmed" mt={4}>
-                            AI ile öner veya manuel ekle
-                          </Text>
-                        </Paper>
+                        <EmptyState
+                          title="Henüz malzeme eklenmemiş"
+                          description="AI ile öner veya manuel ekle"
+                          compact
+                          icon={<IconScale size={32} />}
+                          iconColor="teal"
+                        />
                       )}
                     </Stack>
                   </Box>
 
                   {/* Özet Bilgiler */}
-                  <SimpleGrid cols={4}>
+                  <SimpleGrid cols={{ base: 2, sm: 4 }}>
                     <Paper p="sm" withBorder radius="md" ta="center">
                       <IconScale size={20} color="var(--mantine-color-blue-6)" />
                       <Text size="xs" c="dimmed" mt={4}>
@@ -1950,6 +1908,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
             </>
           )}
         </Box>
+        )}
       </Box>
 
       {/* Yeni Reçete Modal */}
@@ -1965,7 +1924,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
         size="lg"
       >
         <Stack gap="md">
-          <SimpleGrid cols={2}>
+          <SimpleGrid cols={{ base: 1, sm: 2 }}>
             <TextInput
               label="Reçete Adı"
               placeholder="Örn: Pirinç Pilavı"
@@ -1988,7 +1947,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
             />
           </SimpleGrid>
 
-          <SimpleGrid cols={3}>
+          <SimpleGrid cols={{ base: 1, sm: 3 }}>
             <NumberInput
               label="Porsiyon (gr)"
               value={yeniRecete.porsiyon_miktar}

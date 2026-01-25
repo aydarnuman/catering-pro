@@ -24,7 +24,8 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
+import { formatDate } from '@/lib/formatters';
+import { tendersAPI } from '@/lib/api/services/tenders';
 import type { Tender } from '@/types/api';
 
 // Türkiye 81 İl Koordinatları
@@ -260,11 +261,10 @@ export default function TenderMapModal({ opened, onClose, tenders: initialTender
     if (opened) {
       setMapKey((k) => k + 1);
       setSelectedCity(null);
-      
+
       // Tüm ihaleleri çek (limit yüksek)
       setLoading(true);
-      fetch(`${API_BASE_URL}/api/tenders?limit=1000&status=active`)
-        .then((res) => res.json())
+      tendersAPI.getTenders({ limit: 1000, status: 'active' })
         .then((data) => {
           if (data.tenders) {
             setAllTenders(data.tenders);
@@ -339,10 +339,6 @@ export default function TenderMapModal({ opened, onClose, tenders: initialTender
     }).format(value);
   };
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('tr-TR');
-  };
 
   if (!opened) return null;
 

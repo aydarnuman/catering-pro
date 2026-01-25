@@ -9,6 +9,7 @@ import {
   Center,
   Container,
   Divider,
+  Drawer,
   Group,
   Loader,
   Modal,
@@ -40,9 +41,58 @@ import {
 import { useEffect, useState } from 'react';
 import ReceteModal from '@/components/ReceteModal';
 import UrunKartlariModal from '@/components/UrunKartlariModal';
-import { API_BASE_URL } from '@/lib/config';
+import { useResponsive } from '@/hooks/useResponsive';
+import { formatMoney } from '@/lib/formatters';
+import { menuPlanlamaAPI } from '@/lib/api/services/menu-planlama';
 
-const API_URL = `${API_BASE_URL}/api`;
+// Fiyat Badge Komponenti
+const FiyatBadge = ({ 
+  fatura, 
+  piyasa, 
+  faturaGuncel = true,
+  piyasaGuncel = true 
+}: { 
+  fatura?: number; 
+  piyasa?: number;
+  faturaGuncel?: boolean;
+  piyasaGuncel?: boolean;
+}) => {
+  const fark = fatura && piyasa ? ((piyasa - fatura) / fatura * 100) : 0;
+  
+  return (
+    <Group gap={4}>
+      {fatura !== undefined && fatura > 0 && (
+        <Badge 
+          size="xs" 
+          variant="light" 
+          color={faturaGuncel ? 'blue' : 'yellow'}
+          leftSection={<Text size="10px">📄</Text>}
+        >
+          ₺{fatura.toFixed(2)}
+        </Badge>
+      )}
+      {piyasa !== undefined && piyasa > 0 && (
+        <Badge 
+          size="xs" 
+          variant="light" 
+          color={piyasaGuncel ? 'teal' : 'orange'}
+          leftSection={<Text size="10px">📊</Text>}
+        >
+          ₺{piyasa.toFixed(2)}
+        </Badge>
+      )}
+      {fatura && piyasa && Math.abs(fark) > 5 && (
+        <Badge 
+          size="xs" 
+          variant="filled" 
+          color={fark > 0 ? 'red' : 'green'}
+        >
+          {fark > 0 ? '↑' : '↓'}{Math.abs(fark).toFixed(0)}%
+        </Badge>
+      )}
+    </Group>
+  );
+};
 
 // Yemek Kategorileri
 const KATEGORILER = [
@@ -64,6 +114,10 @@ interface ReceteYemek {
   ad: string;
   sistem_maliyet: number;
   piyasa_maliyet: number;
+  fatura_maliyet?: number;
+  fatura_guncel?: boolean;
+  piyasa_guncel?: boolean;
+  fiyat_uyari?: string;
   kalori: number;
 }
 
@@ -80,6 +134,8 @@ interface SeciliYemek {
   kategori: string;
   ad: string;
   fiyat: number;
+  fatura_fiyat?: number;
+  piyasa_fiyat?: number;
 }
 
 interface Malzeme {
@@ -106,11 +162,15 @@ interface ReceteDetay {
 }
 
 export default function MenuMaliyetPage() {
+  const { isMobile, isMounted } = useResponsive();
   const [receteKategorileri, setReceteKategorileri] = useState<ReceteKategori[]>([]);
   const [loading, setLoading] = useState(true);
   const [seciliYemekler, setSeciliYemekler] = useState<SeciliYemek[]>([]);
   const [openedPopover, setOpenedPopover] = useState<string | null>(null);
   const [kisiSayisi, setKisiSayisi] = useState<number>(1000);
+
+  // Mobil drawer için kategori seçimi
+  const [mobileDrawerKategori, setMobileDrawerKategori] = useState<string | null>(null);
 
   // Reçete detay modal
   const [detayModalOpened, setDetayModalOpened] = useState(false);
@@ -132,10 +192,9 @@ export default function MenuMaliyetPage() {
   const fetchReceteler = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/maliyet-analizi/receteler`);
-      const result = await res.json();
+      const result = await menuPlanlamaAPI.getRecetelerMaliyet();
       if (result.success) {
-        setReceteKategorileri(result.data);
+        setReceteKategorileri(result.data as unknown as ReceteKategori[]);
       }
     } catch (error) {
       console.error('Reçete yükleme hatası:', error);
@@ -160,10 +219,9 @@ export default function MenuMaliyetPage() {
     setDetayLoading(true);
     setDetayModalOpened(true);
     try {
-      const res = await fetch(`${API_URL}/menu-planlama/recete/${receteId}`);
-      const result = await res.json();
+      const result = await menuPlanlamaAPI.getMaliyetAnalizi(receteId);
       if (result.success) {
-        setReceteDetay(result.data);
+        setReceteDetay(result.data as unknown as ReceteDetay);
       } else {
         notifications.show({
           title: 'Hata',
@@ -201,6 +259,8 @@ export default function MenuMaliyetPage() {
           kategori,
           ad: yemek.ad,
           fiyat: yemek.piyasa_maliyet || yemek.sistem_maliyet || 0,
+          fatura_fiyat: yemek.fatura_maliyet || yemek.sistem_maliyet || 0,
+          piyasa_fiyat: yemek.piyasa_maliyet || 0,
         },
       ]);
       setOpenedPopover(null);
@@ -222,17 +282,15 @@ export default function MenuMaliyetPage() {
     setSeciliYemekler([]);
   };
 
-  // Toplam maliyet
+  // Toplam maliyetler
   const toplamMaliyet = seciliYemekler.reduce((sum, y) => sum + y.fiyat, 0);
+  const toplamFaturaMaliyet = seciliYemekler.reduce((sum, y) => sum + (y.fatura_fiyat || y.fiyat), 0);
+  const toplamPiyasaMaliyet = seciliYemekler.reduce((sum, y) => sum + (y.piyasa_fiyat || y.fiyat), 0);
+  const maliyetFarki = toplamPiyasaMaliyet - toplamFaturaMaliyet;
+  const maliyetFarkiYuzde = toplamFaturaMaliyet > 0 
+    ? ((maliyetFarki / toplamFaturaMaliyet) * 100) 
+    : 0;
 
-  const formatMoney = (value: number) => {
-    return new Intl.NumberFormat('tr-TR', {
-      style: 'currency',
-      currency: 'TRY',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
 
   if (loading) {
     return (
@@ -255,53 +313,93 @@ export default function MenuMaliyetPage() {
     >
       <Container size="xl" py="xl">
         {/* Header */}
-        <Group justify="space-between" mb="xl">
-          <Group gap="md">
-            <ThemeIcon
-              size={50}
-              radius="xl"
-              variant="gradient"
-              gradient={{ from: 'teal', to: 'cyan' }}
-            >
-              <IconCalculator size={26} />
-            </ThemeIcon>
-            <Box>
-              <Title order={2}>Menü Maliyet Hesaplama</Title>
-              <Text c="dimmed" size="sm">
-                Reçete seçin, maliyeti görün
-              </Text>
-            </Box>
-          </Group>
-
-          <Group>
-            <Button
-              variant="gradient"
-              gradient={{ from: 'indigo', to: 'violet' }}
-              leftSection={<IconPackages size={18} />}
-              onClick={() => setUrunKartlariModalOpened(true)}
-            >
-              Ürün Kartları
-            </Button>
-            <Button
-              variant="gradient"
-              gradient={{ from: 'orange', to: 'red' }}
-              leftSection={<IconBook2 size={18} />}
-              onClick={() => setReceteModalOpened(true)}
-            >
-              Reçete ve Maliyet
-            </Button>
-            {seciliYemekler.length > 0 && (
-              <Button
-                variant="light"
-                color="red"
-                leftSection={<IconTrash size={16} />}
-                onClick={handleTemizle}
+        <Stack gap="md" mb="xl">
+          <Group justify="space-between" wrap="wrap" gap="md">
+            <Group gap="md">
+              <ThemeIcon
+                size={isMobile ? 40 : 50}
+                radius="xl"
+                variant="gradient"
+                gradient={{ from: 'teal', to: 'cyan' }}
               >
-                Temizle
-              </Button>
+                <IconCalculator size={isMobile ? 20 : 26} />
+              </ThemeIcon>
+              <Box>
+                <Title order={isMobile ? 4 : 2}>Menü Maliyet Hesaplama</Title>
+                <Text c="dimmed" size="xs">
+                  Reçete seçin, maliyeti görün
+                </Text>
+              </Box>
+            </Group>
+
+            {/* Masaüstünde butonları göster */}
+            {(!isMobile || !isMounted) && (
+              <Group gap="xs">
+                <Button
+                  variant="gradient"
+                  gradient={{ from: 'indigo', to: 'violet' }}
+                  leftSection={<IconPackages size={18} />}
+                  onClick={() => setUrunKartlariModalOpened(true)}
+                >
+                  Ürün Kartları
+                </Button>
+                <Button
+                  variant="gradient"
+                  gradient={{ from: 'orange', to: 'red' }}
+                  leftSection={<IconBook2 size={18} />}
+                  onClick={() => setReceteModalOpened(true)}
+                >
+                  Reçete ve Maliyet
+                </Button>
+                {seciliYemekler.length > 0 && (
+                  <Button
+                    variant="light"
+                    color="red"
+                    leftSection={<IconTrash size={16} />}
+                    onClick={handleTemizle}
+                  >
+                    Temizle
+                  </Button>
+                )}
+              </Group>
             )}
           </Group>
-        </Group>
+
+          {/* Mobilde butonları alt satıra al */}
+          {isMobile && isMounted && (
+            <Group gap="xs" grow>
+              <Button
+                variant="light"
+                color="indigo"
+                size="xs"
+                leftSection={<IconPackages size={14} />}
+                onClick={() => setUrunKartlariModalOpened(true)}
+              >
+                Ürünler
+              </Button>
+              <Button
+                variant="light"
+                color="orange"
+                size="xs"
+                leftSection={<IconBook2 size={14} />}
+                onClick={() => setReceteModalOpened(true)}
+              >
+                Reçeteler
+              </Button>
+              {seciliYemekler.length > 0 && (
+                <Button
+                  variant="light"
+                  color="red"
+                  size="xs"
+                  leftSection={<IconTrash size={14} />}
+                  onClick={handleTemizle}
+                >
+                  Temizle
+                </Button>
+              )}
+            </Group>
+          )}
+        </Stack>
 
         {/* Ana İçerik */}
         <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="xl">
@@ -323,6 +421,59 @@ export default function MenuMaliyetPage() {
                   const yemekler = getRecetelerForKategori(kat.kod);
                   const isOpen = openedPopover === kat.kod;
 
+                  // Kategori buton komponenti
+                  const KategoriButton = (
+                    <UnstyledButton
+                      style={{
+                        padding: 10,
+                        borderRadius: 'var(--mantine-radius-md)',
+                        border: `${seciliSayisi > 0 ? 2 : 1}px solid`,
+                        borderColor:
+                          seciliSayisi > 0
+                            ? `var(--mantine-color-${kat.renk}-5)`
+                            : 'var(--mantine-color-default-border)',
+                        background:
+                          seciliSayisi > 0
+                            ? `var(--mantine-color-${kat.renk}-light)`
+                            : isOpen || mobileDrawerKategori === kat.kod
+                              ? 'var(--mantine-color-gray-0)'
+                              : undefined,
+                        transition: 'all 0.15s',
+                        width: '100%',
+                      }}
+                      onClick={() => {
+                        if (isMobile && isMounted) {
+                          setMobileDrawerKategori(kat.kod);
+                        } else {
+                          setOpenedPopover(isOpen ? null : kat.kod);
+                        }
+                      }}
+                    >
+                      <Group gap={6} wrap="nowrap">
+                        <Text size="xl">{kat.ikon}</Text>
+                        <Box style={{ flex: 1, minWidth: 0 }}>
+                          <Text fw={500} size="xs" truncate>
+                            {kat.ad}
+                          </Text>
+                          <Text size="10px" c="dimmed">
+                            {yemekler.length} yemek
+                          </Text>
+                        </Box>
+                        {seciliSayisi > 0 && (
+                          <Badge size="xs" color="teal" variant="filled" circle>
+                            {seciliSayisi}
+                          </Badge>
+                        )}
+                      </Group>
+                    </UnstyledButton>
+                  );
+
+                  // Mobilde sadece buton göster, drawer ayrı render edilecek
+                  if (isMobile && isMounted) {
+                    return <Box key={kat.kod}>{KategoriButton}</Box>;
+                  }
+
+                  // Masaüstünde Popover kullan
                   return (
                     <Popover
                       key={kat.kod}
@@ -333,45 +484,7 @@ export default function MenuMaliyetPage() {
                       shadow="lg"
                       width={320}
                     >
-                      <Popover.Target>
-                        <UnstyledButton
-                          style={{
-                            padding: 10,
-                            borderRadius: 'var(--mantine-radius-md)',
-                            border: `${seciliSayisi > 0 ? 2 : 1}px solid`,
-                            borderColor:
-                              seciliSayisi > 0
-                                ? `var(--mantine-color-${kat.renk}-5)`
-                                : 'var(--mantine-color-default-border)',
-                            background:
-                              seciliSayisi > 0
-                                ? `var(--mantine-color-${kat.renk}-light)`
-                                : isOpen
-                                  ? 'var(--mantine-color-gray-0)'
-                                  : undefined,
-                            transition: 'all 0.15s',
-                            width: '100%',
-                          }}
-                          onClick={() => setOpenedPopover(isOpen ? null : kat.kod)}
-                        >
-                          <Group gap={6} wrap="nowrap">
-                            <Text size="xl">{kat.ikon}</Text>
-                            <Box style={{ flex: 1, minWidth: 0 }}>
-                              <Text fw={500} size="xs" truncate>
-                                {kat.ad}
-                              </Text>
-                              <Text size="10px" c="dimmed">
-                                {yemekler.length} yemek
-                              </Text>
-                            </Box>
-                            {seciliSayisi > 0 && (
-                              <Badge size="xs" color="teal" variant="filled" circle>
-                                {seciliSayisi}
-                              </Badge>
-                            )}
-                          </Group>
-                        </UnstyledButton>
-                      </Popover.Target>
+                      <Popover.Target>{KategoriButton}</Popover.Target>
 
                       <Popover.Dropdown p={0}>
                         <Box
@@ -396,7 +509,6 @@ export default function MenuMaliyetPage() {
                               const isSecili = seciliYemekler.some(
                                 (y) => y.id === `recete-${yemek.id}`
                               );
-                              const fiyat = yemek.piyasa_maliyet || yemek.sistem_maliyet || 0;
                               return (
                                 <Box
                                   key={yemek.id}
@@ -426,9 +538,12 @@ export default function MenuMaliyetPage() {
                                       </Group>
                                     </UnstyledButton>
                                     <Group gap="xs" wrap="nowrap">
-                                      <Text size="sm" fw={600} c={fiyat > 0 ? 'teal' : 'dimmed'}>
-                                        {fiyat > 0 ? `₺${fiyat.toFixed(2)}` : '—'}
-                                      </Text>
+                                      <FiyatBadge 
+                                        fatura={yemek.fatura_maliyet || yemek.sistem_maliyet}
+                                        piyasa={yemek.piyasa_maliyet}
+                                        faturaGuncel={yemek.fatura_guncel !== false}
+                                        piyasaGuncel={yemek.piyasa_guncel !== false}
+                                      />
                                       <ActionIcon
                                         variant="subtle"
                                         color="blue"
@@ -561,22 +676,56 @@ export default function MenuMaliyetPage() {
                     </Stack>
                   </ScrollArea>
 
-                  {/* Toplam */}
+                  {/* Toplam - Karşılaştırmalı */}
                   <Box
                     p="md"
                     style={{
                       borderTop: '2px solid var(--mantine-color-teal-5)',
-                      background: 'var(--mantine-color-teal-light)',
+                      background: 'var(--mantine-color-gray-0)',
                     }}
                   >
-                    <Group justify="space-between" mb="md">
-                      <Text fw={700} size="lg">
-                        1 PORSİYON
-                      </Text>
-                      <Text fw={700} size="xl" c="teal">
-                        {formatMoney(toplamMaliyet)}
-                      </Text>
-                    </Group>
+                    <Text fw={700} size="sm" mb="sm">1 PORSİYON MALİYET</Text>
+                    
+                    {/* Fatura vs Piyasa Karşılaştırma */}
+                    <SimpleGrid cols={2} spacing="xs" mb="md">
+                      <Paper p="sm" withBorder radius="md" bg="blue.0">
+                        <Group gap={4} mb={4}>
+                          <Text size="10px">📄</Text>
+                          <Text size="xs" c="dimmed">Fatura</Text>
+                        </Group>
+                        <Text fw={700} size="lg" c="blue.7">
+                          {formatMoney(toplamFaturaMaliyet)}
+                        </Text>
+                      </Paper>
+                      <Paper p="sm" withBorder radius="md" bg="teal.0">
+                        <Group gap={4} mb={4}>
+                          <Text size="10px">📊</Text>
+                          <Text size="xs" c="dimmed">Piyasa</Text>
+                        </Group>
+                        <Text fw={700} size="lg" c="teal.7">
+                          {formatMoney(toplamPiyasaMaliyet)}
+                        </Text>
+                      </Paper>
+                    </SimpleGrid>
+                    
+                    {/* Fark Gösterimi */}
+                    {Math.abs(maliyetFarkiYuzde) > 1 && (
+                      <Paper 
+                        p="xs" 
+                        radius="md" 
+                        mb="md"
+                        bg={maliyetFarki > 0 ? 'red.0' : 'green.0'}
+                      >
+                        <Group justify="space-between">
+                          <Text size="xs" c={maliyetFarki > 0 ? 'red.7' : 'green.7'}>
+                            {maliyetFarki > 0 ? '📈 Piyasa daha pahalı' : '📉 Piyasa daha ucuz'}
+                          </Text>
+                          <Badge color={maliyetFarki > 0 ? 'red' : 'green'} variant="filled">
+                            {maliyetFarki > 0 ? '+' : ''}{formatMoney(maliyetFarki)} ({maliyetFarkiYuzde.toFixed(1)}%)
+                          </Badge>
+                        </Group>
+                      </Paper>
+                    )}
 
                     <Divider mb="md" />
 
@@ -648,6 +797,148 @@ export default function MenuMaliyetPage() {
         </SimpleGrid>
       </Container>
 
+      {/* Mobil Kategori Drawer */}
+      {isMobile && isMounted && (
+        <Drawer
+          opened={!!mobileDrawerKategori}
+          onClose={() => setMobileDrawerKategori(null)}
+          position="bottom"
+          size="70%"
+          withCloseButton={false}
+          styles={{
+            content: {
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+            },
+          }}
+        >
+          {mobileDrawerKategori && (() => {
+            const kat = KATEGORILER.find((k) => k.kod === mobileDrawerKategori);
+            const yemekler = getRecetelerForKategori(mobileDrawerKategori);
+            if (!kat) return null;
+            
+            return (
+              <>
+                {/* Drawer handle */}
+                <Box ta="center" py="xs">
+                  <Box
+                    style={{
+                      width: 40,
+                      height: 4,
+                      borderRadius: 2,
+                      background: 'var(--mantine-color-gray-3)',
+                      margin: '0 auto',
+                    }}
+                  />
+                </Box>
+
+                {/* Header */}
+                <Box
+                  p="md"
+                  style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
+                >
+                  <Group justify="space-between">
+                    <Group gap="sm">
+                      <Text size="xl">{kat.ikon}</Text>
+                      <Box>
+                        <Text fw={600}>{kat.ad}</Text>
+                        <Text size="xs" c="dimmed">
+                          {yemekler.length} reçete
+                        </Text>
+                      </Box>
+                    </Group>
+                    <ActionIcon
+                      variant="subtle"
+                      color="gray"
+                      onClick={() => setMobileDrawerKategori(null)}
+                    >
+                      <IconX size={18} />
+                    </ActionIcon>
+                  </Group>
+                </Box>
+
+                {/* Yemek Listesi */}
+                <ScrollArea style={{ height: 'calc(100% - 80px)' }}>
+                  <Stack gap={0}>
+                    {yemekler.map((yemek) => {
+                      const isSecili = seciliYemekler.some(
+                        (y) => y.id === `recete-${yemek.id}`
+                      );
+                      return (
+                        <Box
+                          key={yemek.id}
+                          p="md"
+                          style={{
+                            borderBottom: '1px solid var(--mantine-color-default-border)',
+                            background: isSecili
+                              ? 'var(--mantine-color-teal-light)'
+                              : undefined,
+                          }}
+                        >
+                          <Group justify="space-between" wrap="nowrap">
+                            <UnstyledButton
+                              onClick={() => {
+                                handleYemekSec(kat.kod, yemek);
+                                // Seçildiğinde drawer'ı kapatma - kullanıcı isterse kapatır
+                              }}
+                              style={{ flex: 1, minWidth: 0 }}
+                            >
+                              <Group gap="sm" wrap="nowrap">
+                                {isSecili ? (
+                                  <ThemeIcon size="sm" color="teal" radius="xl">
+                                    <IconCheck size={12} />
+                                  </ThemeIcon>
+                                ) : (
+                                  <Box
+                                    style={{
+                                      width: 22,
+                                      height: 22,
+                                      borderRadius: '50%',
+                                      border: '2px solid var(--mantine-color-gray-3)',
+                                    }}
+                                  />
+                                )}
+                                <Box style={{ flex: 1, minWidth: 0 }}>
+                                  <Text size="sm" truncate fw={isSecili ? 600 : 400}>
+                                    {yemek.ad}
+                                  </Text>
+                                  <FiyatBadge 
+                                    fatura={yemek.fatura_maliyet || yemek.sistem_maliyet}
+                                    piyasa={yemek.piyasa_maliyet}
+                                    faturaGuncel={yemek.fatura_guncel !== false}
+                                    piyasaGuncel={yemek.piyasa_guncel !== false}
+                                  />
+                                </Box>
+                              </Group>
+                            </UnstyledButton>
+                            <ActionIcon
+                              variant="subtle"
+                              color="blue"
+                              size="lg"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                fetchReceteDetay(yemek.id);
+                              }}
+                            >
+                              <IconInfoCircle size={20} />
+                            </ActionIcon>
+                          </Group>
+                        </Box>
+                      );
+                    })}
+                    {yemekler.length === 0 && (
+                      <Center py="xl">
+                        <Text c="dimmed">Bu kategoride reçete yok</Text>
+                      </Center>
+                    )}
+                  </Stack>
+                </ScrollArea>
+              </>
+            );
+          })()}
+        </Drawer>
+      )}
+
       {/* Reçete Detay Modal */}
       <Modal
         opened={detayModalOpened}
@@ -662,6 +953,7 @@ export default function MenuMaliyetPage() {
           </Group>
         }
         size="lg"
+        fullScreen={isMobile && isMounted}
       >
         {detayLoading ? (
           <Center py="xl">
@@ -670,7 +962,7 @@ export default function MenuMaliyetPage() {
         ) : receteDetay ? (
           <Stack gap="md">
             {/* Özet Bilgiler */}
-            <SimpleGrid cols={3}>
+            <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="xs">
               <Paper p="sm" withBorder radius="md" ta="center">
                 <Text size="xs" c="dimmed">
                   Porsiyon
@@ -702,57 +994,101 @@ export default function MenuMaliyetPage() {
               </Text>
 
               {receteDetay.malzemeler && receteDetay.malzemeler.length > 0 ? (
-                <Table striped highlightOnHover withTableBorder>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Malzeme</Table.Th>
-                      <Table.Th ta="right">Miktar</Table.Th>
-                      <Table.Th ta="right">Birim</Table.Th>
-                      <Table.Th ta="right">Piyasa Fiyat</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
+                isMobile && isMounted ? (
+                  // Mobil: Card listesi
+                  <Stack gap="xs">
                     {receteDetay.malzemeler.map((m) => (
-                      <Table.Tr key={m.id}>
-                        <Table.Td>
-                          <Text size="sm" fw={500}>
-                            {m.malzeme_adi || m.stok_adi}
-                          </Text>
-                          {m.stok_adi && m.malzeme_adi !== m.stok_adi && (
-                            <Text size="xs" c="dimmed">
-                              {m.stok_adi}
+                      <Paper key={m.id} p="sm" withBorder radius="md">
+                        <Group justify="space-between" wrap="nowrap">
+                          <Box style={{ flex: 1, minWidth: 0 }}>
+                            <Text size="sm" fw={500} truncate>
+                              {m.malzeme_adi || m.stok_adi}
                             </Text>
-                          )}
-                        </Table.Td>
-                        <Table.Td ta="right">
-                          <Text size="sm" fw={600}>
-                            {m.miktar}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td ta="right">
-                          <Badge variant="light" color="gray" size="sm">
-                            {m.birim || m.stok_birim || 'gr'}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td ta="right">
-                          {m.piyasa_fiyat ? (
-                            <Text size="sm" c="teal" fw={500}>
-                              ₺{m.piyasa_fiyat.toFixed(2)}/{m.stok_birim || 'kg'}
-                            </Text>
-                          ) : m.sistem_fiyat ? (
-                            <Text size="sm" c="blue" fw={500}>
-                              ₺{m.sistem_fiyat.toFixed(2)}
-                            </Text>
-                          ) : (
-                            <Text size="sm" c="dimmed">
-                              —
-                            </Text>
-                          )}
-                        </Table.Td>
-                      </Table.Tr>
+                            {m.stok_adi && m.malzeme_adi !== m.stok_adi && (
+                              <Text size="xs" c="dimmed" truncate>
+                                {m.stok_adi}
+                              </Text>
+                            )}
+                          </Box>
+                          <Stack gap={2} align="flex-end">
+                            <Group gap="xs">
+                              <Text size="sm" fw={600}>
+                                {m.miktar}
+                              </Text>
+                              <Badge variant="light" color="gray" size="xs">
+                                {m.birim || m.stok_birim || 'gr'}
+                              </Badge>
+                            </Group>
+                            {m.piyasa_fiyat ? (
+                              <Text size="xs" c="teal" fw={500}>
+                                ₺{m.piyasa_fiyat.toFixed(2)}/{m.stok_birim || 'kg'}
+                              </Text>
+                            ) : m.sistem_fiyat ? (
+                              <Text size="xs" c="blue" fw={500}>
+                                ₺{m.sistem_fiyat.toFixed(2)}
+                              </Text>
+                            ) : (
+                              <Text size="xs" c="dimmed">—</Text>
+                            )}
+                          </Stack>
+                        </Group>
+                      </Paper>
                     ))}
-                  </Table.Tbody>
-                </Table>
+                  </Stack>
+                ) : (
+                  // Masaüstü: Tablo
+                  <Table striped highlightOnHover withTableBorder>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Malzeme</Table.Th>
+                        <Table.Th ta="right">Miktar</Table.Th>
+                        <Table.Th ta="right">Birim</Table.Th>
+                        <Table.Th ta="right">Piyasa Fiyat</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {receteDetay.malzemeler.map((m) => (
+                        <Table.Tr key={m.id}>
+                          <Table.Td>
+                            <Text size="sm" fw={500}>
+                              {m.malzeme_adi || m.stok_adi}
+                            </Text>
+                            {m.stok_adi && m.malzeme_adi !== m.stok_adi && (
+                              <Text size="xs" c="dimmed">
+                                {m.stok_adi}
+                              </Text>
+                            )}
+                          </Table.Td>
+                          <Table.Td ta="right">
+                            <Text size="sm" fw={600}>
+                              {m.miktar}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td ta="right">
+                            <Badge variant="light" color="gray" size="sm">
+                              {m.birim || m.stok_birim || 'gr'}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td ta="right">
+                            {m.piyasa_fiyat ? (
+                              <Text size="sm" c="teal" fw={500}>
+                                ₺{m.piyasa_fiyat.toFixed(2)}/{m.stok_birim || 'kg'}
+                              </Text>
+                            ) : m.sistem_fiyat ? (
+                              <Text size="sm" c="blue" fw={500}>
+                                ₺{m.sistem_fiyat.toFixed(2)}
+                              </Text>
+                            ) : (
+                              <Text size="sm" c="dimmed">
+                                —
+                              </Text>
+                            )}
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                )
               ) : (
                 <Paper p="xl" withBorder ta="center" bg="gray.0">
                   <Text c="dimmed">Bu reçeteye henüz malzeme eklenmemiş</Text>

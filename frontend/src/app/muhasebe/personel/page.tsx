@@ -55,10 +55,9 @@ import { BordroImportModal } from '@/components/BordroImportModal';
 import { DataActions } from '@/components/DataActions';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { usePermissions } from '@/hooks/usePermissions';
-import { API_BASE_URL } from '@/lib/config';
+import { formatMoney, formatDate } from '@/lib/formatters';
+import { personelAPI } from '@/lib/api/services/personel';
 import 'dayjs/locale/tr';
-
-const API_URL = `${API_BASE_URL}/api`;
 
 // =====================================================
 // TİP TANIMLARI
@@ -280,14 +279,12 @@ export default function PersonelPage() {
 
   const fetchProjeler = useCallback(async () => {
     try {
-      // Merkezi Proje API kullan
-      const res = await fetch(`${API_URL}/projeler?durum=aktif`);
-      if (res.ok) {
-        const data = await res.json();
-        setProjeler(data);
+      const result = await personelAPI.getProjeler({ durum: 'aktif' });
+      if (result.success) {
+        setProjeler(result.data || []);
         // İlk projeyi seç
-        if (data.length > 0 && !selectedProje) {
-          setSelectedProje(data[0].id);
+        if (result.data && result.data.length > 0 && !selectedProje) {
+          setSelectedProje(result.data[0].id);
         }
       }
     } catch (error) {
@@ -299,11 +296,9 @@ export default function PersonelPage() {
     if (!selectedProje) return;
     setLoading(true);
     try {
-      // Merkezi Proje API kullan
-      const res = await fetch(`${API_URL}/projeler/${selectedProje}/personeller`);
-      if (res.ok) {
-        const data = await res.json();
-        setPersoneller(data || []);
+      const result = await personelAPI.getProjePersoneller(selectedProje);
+      if (result.success) {
+        setPersoneller(result.data || []);
       }
     } catch (error) {
       console.error('Personel yükleme hatası:', error);
@@ -317,15 +312,15 @@ export default function PersonelPage() {
     setBordroLoading(true);
     try {
       const [tahakkukRes, ozetRes] = await Promise.all([
-        fetch(`${API_URL}/bordro-import/tahakkuk/${selectedProje}/${bordroYil}/${bordroAy}`),
-        fetch(`${API_URL}/bordro/ozet/${bordroYil}/${bordroAy}?proje_id=${selectedProje}`),
+        personelAPI.getBordroTahakkuk(selectedProje, bordroYil, bordroAy),
+        personelAPI.getBordroOzet(bordroYil, bordroAy, selectedProje),
       ]);
 
-      if (tahakkukRes.ok) {
-        setTahakkuk(await tahakkukRes.json());
+      if (tahakkukRes.success) {
+        setTahakkuk(tahakkukRes.data);
       }
-      if (ozetRes.ok) {
-        setBordroOzet(await ozetRes.json());
+      if (ozetRes.success) {
+        setBordroOzet(ozetRes.data);
       }
     } catch (error) {
       console.error('Bordro yükleme hatası:', error);
@@ -338,13 +333,10 @@ export default function PersonelPage() {
     if (!selectedProje) return;
     setMaasOdemeLoading(true);
     try {
-      const res = await fetch(
-        `${API_URL}/maas-odeme/ozet/${selectedProje}/${bordroYil}/${bordroAy}`
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setMaasOdemePersoneller(data.personeller || []);
-        setMaasOdemeOzet(data.ozet || null);
+      const result = await personelAPI.getMaasOdemeOzet(selectedProje, bordroYil, bordroAy);
+      if (result.success) {
+        setMaasOdemePersoneller(result.data?.personeller || []);
+        setMaasOdemeOzet(result.data?.ozet || null);
       }
     } catch (error) {
       console.error('Maaş ödeme yükleme hatası:', error);
@@ -356,13 +348,8 @@ export default function PersonelPage() {
   const _handleOlusturMaasOdeme = async () => {
     if (!selectedProje) return;
     try {
-      const res = await fetch(
-        `${API_URL}/maas-odeme/olustur/${selectedProje}/${bordroYil}/${bordroAy}`,
-        {
-          method: 'POST',
-        }
-      );
-      if (res.ok) {
+      const result = await personelAPI.createMaasOdeme(selectedProje, bordroYil, bordroAy);
+      if (result.success) {
         notifications.show({
           message: '✓ Maaş ödemeleri oluşturuldu',
           color: 'green',
@@ -378,15 +365,8 @@ export default function PersonelPage() {
   const _handleTopluOdeme = async (tip: 'banka' | 'elden', odendi: boolean) => {
     if (!selectedProje) return;
     try {
-      const res = await fetch(
-        `${API_URL}/maas-odeme/toplu-odendi/${selectedProje}/${bordroYil}/${bordroAy}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tip, odendi }),
-        }
-      );
-      if (res.ok) {
+      const result = await personelAPI.topluMaasOdendi(selectedProje, bordroYil, bordroAy);
+      if (result.success) {
         notifications.show({
           message: `${tip === 'banka' ? '🏦' : '💵'} ${odendi ? '✓' : '○'}`,
           color: odendi ? 'green' : 'gray',
@@ -404,11 +384,9 @@ export default function PersonelPage() {
   const fetchAylikOdeme = useCallback(async () => {
     if (!selectedProje) return;
     try {
-      const res = await fetch(
-        `${API_URL}/maas-odeme/aylik-odeme/${selectedProje}/${bordroYil}/${bordroAy}`
-      );
-      if (res.ok) {
-        setAylikOdeme(await res.json());
+      const result = await personelAPI.getAylikOdeme(selectedProje, bordroYil, bordroAy) as any;
+      if (result.success) {
+        setAylikOdeme(result.data as any);
       }
     } catch (error) {
       console.error('Aylık ödeme yükleme hatası:', error);
@@ -418,15 +396,11 @@ export default function PersonelPage() {
   const handleToggleOdeme = async (field: string, currentValue: boolean) => {
     if (!selectedProje) return;
     try {
-      const res = await fetch(
-        `${API_URL}/maas-odeme/aylik-odeme/${selectedProje}/${bordroYil}/${bordroAy}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ field, odendi: !currentValue }),
-        }
-      );
-      if (res.ok) {
+      const result = await personelAPI.updateAylikOdeme(selectedProje, bordroYil, bordroAy, {
+        field,
+        odendi: !currentValue,
+      });
+      if (result.success) {
         const fieldNames: Record<string, string> = {
           maas_banka_odendi: 'Banka maaşları',
           maas_elden_odendi: 'Elden ödemeler',
@@ -460,29 +434,12 @@ export default function PersonelPage() {
     ];
     try {
       for (const field of fields) {
-        await fetch(`${API_URL}/maas-odeme/aylik-odeme/${selectedProje}/${bordroYil}/${bordroAy}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ field, odendi }),
-        });
+        await personelAPI.updateAylikOdeme(selectedProje, bordroYil, bordroAy, { field, odendi });
       }
 
       // Tüm ödemeler tamamlandıysa proje_hareketler'e kayıt ekle
       if (odendi && tahakkuk) {
-        const netMaas = parseFloat(String(tahakkuk.odenecek_net_ucret || 0));
-        const sgkPrimi =
-          parseFloat(String(tahakkuk.odenecek_sgk_primi || 0)) +
-          parseFloat(String(tahakkuk.odenecek_sgd_primi || 0)) +
-          parseFloat(String(tahakkuk.odenecek_issizlik || 0));
-        const vergi =
-          parseFloat(String(tahakkuk.odenecek_gelir_vergisi || 0)) +
-          parseFloat(String(tahakkuk.odenecek_damga_vergisi || 0));
-
-        await fetch(`${API_URL}/maas-odeme/finalize/${selectedProje}/${bordroYil}/${bordroAy}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ maas: netMaas, sgk: sgkPrimi, vergi }),
-        });
+        await personelAPI.finalizeOdeme(selectedProje, bordroYil, bordroAy);
       }
 
       notifications.show({
@@ -509,17 +466,13 @@ export default function PersonelPage() {
   const handleSaveOdeme = async () => {
     if (!editingOdeme || !selectedProje) return;
     try {
-      const res = await fetch(`${API_URL}/maas-odeme/personel-odeme/${editingOdeme.personel_id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          proje_id: selectedProje,
-          yil: bordroYil,
-          ay: bordroAy,
-          ...odemeForm,
-        }),
+      const result = await personelAPI.updatePersonelOdeme(editingOdeme.personel_id, {
+        proje_id: selectedProje,
+        yil: bordroYil,
+        ay: bordroAy,
+        ...odemeForm,
       });
-      if (res.ok) {
+      if (result.success) {
         notifications.show({ message: '✓ Ödeme güncellendi', color: 'green', autoClose: 2000 });
         setEditingOdeme(null);
         fetchMaasOdeme();
@@ -563,21 +516,17 @@ export default function PersonelPage() {
     }
 
     try {
-      const url = editingPersonel
-        ? `${API_URL}/personel/${editingPersonel.id}`
-        : `${API_URL}/personel`;
+      const data = {
+        ...personelForm,
+        ise_giris_tarihi: personelForm.ise_giris_tarihi.toISOString().split('T')[0],
+        proje_id: selectedProje,
+      };
 
-      const response = await fetch(url, {
-        method: editingPersonel ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...personelForm,
-          ise_giris_tarihi: personelForm.ise_giris_tarihi.toISOString().split('T')[0],
-          proje_id: selectedProje,
-        }),
-      });
+      const result = editingPersonel
+        ? await personelAPI.updatePersonel(editingPersonel.id, data as any)
+        : await personelAPI.createPersonel(data as any);
 
-      if (!response.ok) throw new Error('İşlem başarısız');
+      if (!result.success) throw new Error('İşlem başarısız');
 
       notifications.show({
         title: 'Başarılı',
@@ -599,8 +548,8 @@ export default function PersonelPage() {
     if (!confirm('Bu personeli silmek istediğinizden emin misiniz?')) return;
 
     try {
-      const response = await fetch(`${API_URL}/personel/${id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Silme başarısız');
+      const result = await personelAPI.deletePersonel(id);
+      if (!result.success) throw new Error('Silme başarısız');
 
       notifications.show({ title: 'Silindi', message: 'Personel kaydı silindi', color: 'orange' });
       fetchPersoneller();
@@ -656,18 +605,6 @@ export default function PersonelPage() {
   // YARDIMCI FONKSİYONLAR
   // =====================================================
 
-  const formatMoney = (value: number) => {
-    return new Intl.NumberFormat('tr-TR', {
-      style: 'currency',
-      currency: 'TRY',
-      minimumFractionDigits: 2,
-    }).format(value);
-  };
-
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('tr-TR');
-  };
 
   const getAvatarColor = (departman: string | null) => {
     const colors: Record<string, string> = {

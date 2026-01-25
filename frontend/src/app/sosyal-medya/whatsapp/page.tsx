@@ -1161,7 +1161,7 @@ export default function WhatsAppPage() {
                 src={msg.mediaUrl} 
                 alt="Image" 
                 style={{ 
-                  maxWidth: 280, 
+                  maxWidth: 'min(280px, 85vw)', 
                   maxHeight: 300, 
                   borderRadius: 8,
                   display: 'block',
@@ -1224,7 +1224,7 @@ export default function WhatsAppPage() {
               <video 
                 src={msg.mediaUrl}
                 controls
-                style={{ maxWidth: 280, maxHeight: 300, borderRadius: 8, display: 'block' }}
+                style={{ maxWidth: 'min(280px, 85vw)', maxHeight: 300, borderRadius: 8, display: 'block' }}
               />
             </Box>
           ) : (
@@ -1270,7 +1270,7 @@ export default function WhatsAppPage() {
       return (
         <Box>
           {msg.mediaUrl ? (
-            <audio src={msg.mediaUrl} controls style={{ maxWidth: 250 }} />
+            <audio src={msg.mediaUrl} controls style={{ maxWidth: 'min(250px, 85vw)' }} />
           ) : (
             <Box 
               p="md" 

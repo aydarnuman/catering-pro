@@ -50,8 +50,6 @@ import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { API_BASE_URL } from '@/lib/config';
 
-const API_URL = `${API_BASE_URL}/api`;
-
 export default function SyncControlPage() {
   const { colorScheme } = useMantineColorScheme();
   const _isDark = colorScheme === 'dark';
@@ -83,7 +81,7 @@ export default function SyncControlPage() {
   // Scheduler durumunu yükle (Fatura)
   const loadSchedulerStatus = async () => {
     try {
-      const res = await fetch(`${API_URL}/sync/status`);
+      const res = await fetch(`${API_BASE_URL}/api/sync/status`);
       const data = await res.json();
       if (data.success) {
         setSchedulerStatus(data);
@@ -96,7 +94,7 @@ export default function SyncControlPage() {
   // İhale scheduler durumunu yükle
   const loadTenderSchedulerStatus = async () => {
     try {
-      const res = await fetch(`${API_URL}/tenders/scheduler/status`);
+      const res = await fetch(`${API_BASE_URL}/api/tenders/scheduler/status`);
       const data = await res.json();
       if (data.success) {
         setTenderSchedulerStatus(data);
@@ -109,7 +107,7 @@ export default function SyncControlPage() {
   // Sync loglarını yükle
   const loadSyncLogs = async () => {
     try {
-      const res = await fetch(`${API_URL}/sync/logs`);
+      const res = await fetch(`${API_BASE_URL}/api/sync/logs`);
       const data = await res.json();
       if (data.success) {
         setSyncLogs(data.logs);
@@ -122,7 +120,7 @@ export default function SyncControlPage() {
   // Ayarları yükle
   const loadSettings = async () => {
     try {
-      const res = await fetch(`${API_URL}/sync/settings`);
+      const res = await fetch(`${API_BASE_URL}/api/sync/settings`);
       const data = await res.json();
       if (data.success) {
         setSettings(data.settings);
@@ -135,7 +133,7 @@ export default function SyncControlPage() {
   // Veritabanı istatistiklerini yükle
   const loadDatabaseStats = async () => {
     try {
-      const res = await fetch(`${API_URL}/database-stats/summary`);
+      const res = await fetch(`${API_BASE_URL}/api/database-stats/summary`);
       const data = await res.json();
       if (data.success) {
         setDatabaseStats(data.data);
@@ -200,7 +198,7 @@ export default function SyncControlPage() {
     }
 
     try {
-      const res = await fetch(`${API_URL}${endpoint}`, {
+      const res = await fetch(`${API_BASE_URL}/api${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -240,7 +238,7 @@ export default function SyncControlPage() {
     const endpoint = schedulerStatus?.isRunning ? '/sync/stop' : '/sync/start';
 
     try {
-      const res = await fetch(`${API_URL}${endpoint}`, { method: 'POST' });
+      const res = await fetch(`${API_BASE_URL}/api${endpoint}`, { method: 'POST' });
       const data = await res.json();
 
       if (data.success) {
@@ -268,7 +266,7 @@ export default function SyncControlPage() {
       : '/tenders/scheduler/start';
 
     try {
-      const res = await fetch(`${API_URL}${endpoint}`, { method: 'POST' });
+      const res = await fetch(`${API_BASE_URL}/api${endpoint}`, { method: 'POST' });
       const data = await res.json();
 
       if (data.success) {
@@ -296,7 +294,7 @@ export default function SyncControlPage() {
     setScrapingTenders(true);
 
     try {
-      const res = await fetch(`${API_URL}/tenders/scrape`, {
+      const res = await fetch(`${API_BASE_URL}/api/tenders/scrape`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ maxPages }),
@@ -333,7 +331,7 @@ export default function SyncControlPage() {
   // Duplicate temizle
   const cleanupDuplicates = async () => {
     try {
-      const res = await fetch(`${API_URL}/sync/cleanup-duplicates`, { method: 'POST' });
+      const res = await fetch(`${API_BASE_URL}/api/sync/cleanup-duplicates`, { method: 'POST' });
       const data = await res.json();
 
       if (data.success) {
@@ -356,7 +354,7 @@ export default function SyncControlPage() {
   // Haftalık rapor oluştur
   const generateReport = async () => {
     try {
-      const res = await fetch(`${API_URL}/sync/generate-report`, { method: 'POST' });
+      const res = await fetch(`${API_BASE_URL}/api/sync/generate-report`, { method: 'POST' });
       const data = await res.json();
 
       if (data.success) {
