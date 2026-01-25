@@ -16,9 +16,26 @@ CREATE TABLE IF NOT EXISTS admin_notifications (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Kolonları kontrol et ve yoksa ekle (mevcut tablolar için)
+DO $$ 
+BEGIN
+    -- is_read kolonu
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'admin_notifications' AND column_name = 'is_read') THEN
+        ALTER TABLE admin_notifications ADD COLUMN is_read BOOLEAN DEFAULT FALSE;
+    END IF;
+    
+    -- read_at kolonu
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'admin_notifications' AND column_name = 'read_at') THEN
+        ALTER TABLE admin_notifications ADD COLUMN read_at TIMESTAMP WITH TIME ZONE;
+    END IF;
+END $$;
+
+-- Indexler (kolonlar var olduğundan emin olduktan sonra)
 CREATE INDEX IF NOT EXISTS idx_admin_notif_type ON admin_notifications(type);
 CREATE INDEX IF NOT EXISTS idx_admin_notif_severity ON admin_notifications(severity);
-CREATE INDEX IF NOT EXISTS idx_admin_notif_read ON admin_notifications(is_read);
+CREATE INDEX IF NOT EXISTS idx_admin_notif_read ON admin_notifications(is_read) WHERE is_read IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_admin_notif_created ON admin_notifications(created_at DESC);
 
 -- 2. LOGIN ATTEMPTS TABLOSU (güvenlik için)
