@@ -1,12 +1,28 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
+// Build-safe env kontrolü
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+const PLACEHOLDER_URL = 'https://placeholder.supabase.co';
+const PLACEHOLDER_KEY = 'placeholder-key-for-build';
+
 export async function createClient() {
   const cookieStore = await cookies();
 
+  // Build sırasında env vars yoksa placeholder kullan
+  const url = supabaseUrl || PLACEHOLDER_URL;
+  const key = supabaseAnonKey || PLACEHOLDER_KEY;
+
+  // Runtime'da uyarı ver (build sırasında değil)
+  if (typeof window === 'undefined' && (!supabaseUrl || !supabaseAnonKey)) {
+    console.warn('[Supabase Server] Environment variables not set. Auth will not work.');
+  }
+
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    key,
     {
       cookies: {
         getAll() {

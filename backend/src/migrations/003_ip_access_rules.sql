@@ -19,7 +19,9 @@ CREATE INDEX IF NOT EXISTS idx_ip_rules_type ON ip_access_rules(type);
 CREATE INDEX IF NOT EXISTS idx_ip_rules_active ON ip_access_rules(is_active);
 CREATE INDEX IF NOT EXISTS idx_ip_rules_ip ON ip_access_rules(ip_address);
 
--- 2. IP KONTROLÜ FONKSİYONU
+-- 2. IP KONTROLÜ FONKSİYONU (Önce drop et, sonra create)
+DROP FUNCTION IF EXISTS check_ip_access(INET);
+
 CREATE OR REPLACE FUNCTION check_ip_access(p_ip_address INET)
 RETURNS TABLE(allowed BOOLEAN, rule_type VARCHAR, description TEXT) AS $$
 BEGIN

@@ -8,6 +8,8 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
   },
+  // Production'da standalone output (PM2 ile daha iyi çalışır)
+  ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
   // Output file tracing root - workspace root'u belirt (warning'i kaldırmak için)
   outputFileTracingRoot: path.join(__dirname),
   // Webpack config - chunk sorunlarını önlemek için
