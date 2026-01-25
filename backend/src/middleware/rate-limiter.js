@@ -15,6 +15,7 @@ export const apiLimiter = rateLimit({
   },
   standardHeaders: true, // Rate limit bilgilerini `RateLimit-*` header'larında döndür
   legacyHeaders: false, // `X-RateLimit-*` header'larını devre dışı bırak
+  validate: false, // Trust proxy validasyonunu atla
   handler: (req, res) => {
     logger.warn('Rate limit aşıldı', {
       ip: req.ip,
@@ -36,6 +37,7 @@ export const authLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false, // Trust proxy validasyonunu atla
   skipSuccessfulRequests: true, // Başarılı istekleri sayma
   handler: (req, res) => {
     logger.warn('Auth rate limit aşıldı', {
@@ -58,6 +60,7 @@ export const scraperLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false, // Trust proxy validasyonunu atla
   handler: (req, res) => {
     logger.warn('Scraper rate limit aşıldı', {
       ip: req.ip,
