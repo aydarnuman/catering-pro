@@ -64,12 +64,20 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      // Unauthorized - clear token, AuthContext otomatik yönlendirecek
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_user');
-      // Token expired event'i gönder (AuthContext dinliyor)
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('auth:token-expired'));
+      // Bazı endpoint'ler için 401'i ignore et (opsiyonel özellikler)
+      const url = error.config?.url || '';
+      const ignoredEndpoints = ['/api/auth/sessions']; // Session endpoint opsiyonel
+      
+      const shouldIgnore = ignoredEndpoints.some(endpoint => url.includes(endpoint));
+      
+      if (!shouldIgnore) {
+        // Unauthorized - clear token, AuthContext otomatik yönlendirecek
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
+        // Token expired event'i gönder (AuthContext dinliyor)
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:token-expired'));
+        }
       }
     }
     
