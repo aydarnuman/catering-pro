@@ -19,6 +19,7 @@ module.exports = {
       exec_mode: 'fork', // 'fork' veya 'cluster'
       watch: false, // Production'da false
       max_memory_restart: '500M', // 500MB'da restart
+      env_file: './backend/.env', // Environment variables dosyası
       env: {
         NODE_ENV: 'production',
         PORT: 3001,
