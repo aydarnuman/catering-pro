@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, type ReactNode, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, type ReactNode, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { API_ENDPOINTS, API_BASE_URL } from '@/lib/config';
 
 interface User {
@@ -31,6 +31,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const isLoadingRef = useRef(false);
+  const hasInitializedRef = useRef(false);
 
   // Client-side mount kontrolü (hydration hatası önleme)
   useEffect(() => {
@@ -50,25 +52,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Sayfa yüklendiğinde kullanıcı durumunu kontrol et
-  // Token artık HttpOnly cookie'de, localStorage'dan okumuyoruz
-  useEffect(() => {
-    if (!mounted) return;
+  // Token yenileme
+  const refreshToken = useCallback(async (): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include', // HttpOnly cookie'leri gönder
+      });
 
-    // Geriye uyumluluk: localStorage'da token varsa temizle (migration)
-    const oldToken = localStorage.getItem('auth_token');
-    if (oldToken) {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_user');
+      if (response.ok) {
+        // Yeni access token cookie'ye set edildi, kullanıcıyı tekrar yükle
+        const meResponse = await fetch(API_ENDPOINTS.AUTH_ME, {
+          credentials: 'include',
+        });
+
+        if (meResponse.ok) {
+          const data = await meResponse.json();
+          if (data.user) {
+            setUser(data.user);
+            setToken('cookie-based');
+            return true;
+          }
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      return false;
     }
-
-    // Cookie'deki token ile kullanıcı bilgisini al
-    verifyAndLoadUser();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted]);
+  }, []);
 
   // Kullanıcı doğrulama ve yükleme
-  const verifyAndLoadUser = async () => {
+  const verifyAndLoadUser = useCallback(async () => {
+    // Çift çalışmayı önle
+    if (hasInitializedRef.current || isLoadingRef.current) return;
+    hasInitializedRef.current = true;
+    isLoadingRef.current = true;
+
     try {
       const response = await fetch(API_ENDPOINTS.AUTH_ME, {
         credentials: 'include', // HttpOnly cookie'leri gönder
@@ -100,38 +120,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(null);
     } finally {
       setIsLoading(false);
+      isLoadingRef.current = false;
     }
-  };
+  }, [refreshToken]);
 
-  // Token yenileme
-  const refreshToken = useCallback(async (): Promise<boolean> => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include', // HttpOnly cookie'leri gönder
-      });
+  // Sayfa yüklendiğinde kullanıcı durumunu kontrol et
+  // Token artık HttpOnly cookie'de, localStorage'dan okumuyoruz
+  useEffect(() => {
+    if (!mounted) return;
 
-      if (response.ok) {
-        // Yeni access token cookie'ye set edildi, kullanıcıyı tekrar yükle
-        const meResponse = await fetch(API_ENDPOINTS.AUTH_ME, {
-          credentials: 'include',
-        });
-
-        if (meResponse.ok) {
-          const data = await meResponse.json();
-          if (data.user) {
-            setUser(data.user);
-            setToken('cookie-based');
-            return true;
-          }
-        }
-      }
-      return false;
-    } catch (error) {
-      console.error('Token refresh error:', error);
-      return false;
+    // Geriye uyumluluk: localStorage'da token varsa temizle (migration)
+    const oldToken = localStorage.getItem('auth_token');
+    if (oldToken) {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
     }
-  }, []);
+
+    // Cookie'deki token ile kullanıcı bilgisini al
+    verifyAndLoadUser();
+  }, [mounted, verifyAndLoadUser]);
 
   // Giriş yap
   const login = async (
@@ -184,9 +191,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Kullanıcı bilgilerini yenile
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
+    // Ref'i sıfırla ki tekrar çalışabilsin
+    hasInitializedRef.current = false;
     await verifyAndLoadUser();
-  };
+  }, [verifyAndLoadUser]);
 
   // isLoading: mounted olmadan veya auth kontrolü tamamlanmadan true
   const actualIsLoading = !mounted || isLoading;
