@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, type ReactNode, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { API_ENDPOINTS, API_BASE_URL } from '@/lib/config';
 
 interface User {
@@ -27,6 +28,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,6 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('Token expired event received');
       setUser(null);
       setToken(null);
+      // Login sayfasında değilsek yönlendir
+      if (pathname !== '/giris') {
+        router.push('/giris');
+      }
     };
 
     window.addEventListener('auth:token-expired', handleTokenExpired);
@@ -50,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       window.removeEventListener('auth:token-expired', handleTokenExpired);
     };
-  }, []);
+  }, [pathname, router]);
 
   // Token yenileme
   const refreshToken = useCallback(async (): Promise<boolean> => {
@@ -129,6 +136,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!mounted) return;
 
+    // mounted olduğunda ref'i sıfırla ki verifyAndLoadUser çalışabilsin
+    hasInitializedRef.current = false;
+
     // Geriye uyumluluk: localStorage'da token varsa temizle (migration)
     const oldToken = localStorage.getItem('auth_token');
     if (oldToken) {
@@ -138,7 +148,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Cookie'deki token ile kullanıcı bilgisini al
     verifyAndLoadUser();
-  }, [mounted, verifyAndLoadUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted]); // Sadece mounted değiştiğinde çalışsın
 
   // Giriş yap
   const login = async (

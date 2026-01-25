@@ -64,20 +64,25 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      // Unauthorized - clear token and redirect to login
+      // Unauthorized - clear token, AuthContext otomatik yönlendirecek
       localStorage.removeItem('auth_token');
       localStorage.removeItem('auth_user');
+      // Token expired event'i gönder (AuthContext dinliyor)
       if (typeof window !== 'undefined') {
-        window.location.href = '/giris';
+        window.dispatchEvent(new CustomEvent('auth:token-expired'));
       }
     }
     
-    // CSRF hatası durumunda token'ı yenile
+    // CSRF hatası durumunda token'ı yenile (reload yapma)
     if (error.response?.status === 403 && error.response?.data?.code === 'CSRF_ERROR') {
-      // Sayfayı yenile (yeni token almak için)
+      // CSRF token'ı cache'den temizle, bir sonraki istekte yeniden alınacak
       if (typeof window !== 'undefined') {
-        console.warn('CSRF token hatası, sayfa yenileniyor...');
-        window.location.reload();
+        try {
+          localStorage.removeItem('csrf_token_cache');
+        } catch (e) {
+          // Sessizce devam et
+        }
+        console.warn('CSRF token hatası, token temizlendi. İstek tekrar denenebilir.');
       }
     }
     
