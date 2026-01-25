@@ -10,9 +10,9 @@ const nextConfig = {
   },
   // Production'da standalone output (PM2 ile daha iyi çalışır)
   ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
-  // Asset prefix - relative path kullan (IP veya domain fark etmez)
-  // Boş bırakılırsa Next.js otomatik olarak relative path kullanır
-  assetPrefix: process.env.NEXT_PUBLIC_ASSET_PREFIX || '',
+  // Asset prefix - undefined = relative path (IP veya domain fark etmez)
+  // Sadece belirtilirse kullanılır, yoksa Next.js otomatik relative path kullanır
+  ...(process.env.NEXT_PUBLIC_ASSET_PREFIX ? { assetPrefix: process.env.NEXT_PUBLIC_ASSET_PREFIX } : {}),
   // Output file tracing root - workspace root'u belirt (warning'i kaldırmak için)
   outputFileTracingRoot: path.join(__dirname),
   // Webpack config - chunk sorunlarını önlemek için
