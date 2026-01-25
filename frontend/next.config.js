@@ -8,8 +8,8 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
   },
-  // Production'da standalone output (PM2 ile daha iyi çalışır)
-  ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
+  // Production'da standalone output - şimdilik kapalı (npm start ile çalışması için)
+  // ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
   // Asset prefix - undefined = relative path (IP veya domain fark etmez)
   // Sadece belirtilirse kullanılır, yoksa Next.js otomatik relative path kullanır
   ...(process.env.NEXT_PUBLIC_ASSET_PREFIX ? { assetPrefix: process.env.NEXT_PUBLIC_ASSET_PREFIX } : {}),
