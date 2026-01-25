@@ -49,7 +49,10 @@ const allowedOrigins = [
   'http://127.0.0.1:3002',
   // Production domains
   'https://catering-tr.com',
-  'https://www.catering-tr.com'
+  'https://www.catering-tr.com',
+  // Production IP (geçici - domain'e geçince kaldırılabilir)
+  'http://46.101.172.210',
+  'https://46.101.172.210'
 ];
 
 app.use(cors({
@@ -57,12 +60,23 @@ app.use(cors({
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
 
+    // Exact match
     if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      logger.warn(`CORS blocked request`, { origin });
-      callback(null, false);
+      return callback(null, true);
     }
+
+    // IP adresi pattern kontrolü (46.101.172.210 ile başlayan)
+    if (origin.startsWith('http://46.101.172.210') || origin.startsWith('https://46.101.172.210')) {
+      return callback(null, true);
+    }
+
+    // Localhost pattern kontrolü (development için)
+    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+      return callback(null, true);
+    }
+
+    logger.warn(`CORS blocked request`, { origin });
+    callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
