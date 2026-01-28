@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS login_attempts (
     success BOOLEAN NOT NULL DEFAULT FALSE,
     attempted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+-- Tablo önceden farklı şemayla oluşturulduysa kolonu ekle
+ALTER TABLE login_attempts ADD COLUMN IF NOT EXISTS attempted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_login_attempts_user ON login_attempts(user_id);

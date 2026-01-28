@@ -9,6 +9,11 @@
 --   └── Pudra Şekeri (ana_urun_id = Şeker.id) → Varyant
 -- =====================================================
 
+-- 0. birim kolonu (urun_kartlari'nda yoksa ekle; 066'da varsayilan_birim/fiyat_birimi var)
+ALTER TABLE urun_kartlari 
+ADD COLUMN IF NOT EXISTS birim VARCHAR(20);
+UPDATE urun_kartlari SET birim = COALESCE(varsayilan_birim, fiyat_birimi, 'ADET') WHERE birim IS NULL;
+
 -- 1. Ana ürün referansı ekle
 ALTER TABLE urun_kartlari 
 ADD COLUMN IF NOT EXISTS ana_urun_id INTEGER REFERENCES urun_kartlari(id) ON DELETE SET NULL;

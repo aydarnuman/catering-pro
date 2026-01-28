@@ -24,6 +24,9 @@ CREATE INDEX IF NOT EXISTS idx_user_sessions_active ON user_sessions(user_id, is
 CREATE INDEX IF NOT EXISTS idx_user_sessions_expires ON user_sessions(expires_at);
 
 -- 2. Eski session'ları temizleme fonksiyonu (süresi dolmuş)
+-- Önce eski imzayı kaldır (001'de RETURNS INTEGER vardı)
+DROP FUNCTION IF EXISTS cleanup_expired_sessions();
+
 CREATE OR REPLACE FUNCTION cleanup_expired_sessions()
 RETURNS void AS $$
 BEGIN
@@ -37,15 +40,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 3. Kullanıcının aktif session sayısını getir
-CREATE OR REPLACE FUNCTION get_active_session_count(user_id_param INTEGER)
+-- 3. Kullanıcının aktif session sayısını getir (parametre adları 001 ile uyumlu)
+CREATE OR REPLACE FUNCTION get_active_session_count(p_user_id INTEGER)
 RETURNS INTEGER AS $$
 DECLARE
     count_val INTEGER;
 BEGIN
     SELECT COUNT(*) INTO count_val
     FROM user_sessions
-    WHERE user_id = user_id_param
+    WHERE user_id = p_user_id
       AND is_active = TRUE
       AND expires_at > NOW();
     
@@ -53,15 +56,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 4. En eski aktif session'ı getir
-CREATE OR REPLACE FUNCTION get_oldest_active_session(user_id_param INTEGER)
+-- 4. En eski aktif session'ı getir (parametre adları 001 ile uyumlu)
+CREATE OR REPLACE FUNCTION get_oldest_active_session(p_user_id INTEGER)
 RETURNS INTEGER AS $$
 DECLARE
     session_id_val INTEGER;
 BEGIN
     SELECT id INTO session_id_val
     FROM user_sessions
-    WHERE user_id = user_id_param
+    WHERE user_id = p_user_id
       AND is_active = TRUE
       AND expires_at > NOW()
     ORDER BY created_at ASC
@@ -71,13 +74,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 5. Session'ı sonlandır
-CREATE OR REPLACE FUNCTION terminate_session(session_id_param INTEGER)
+-- 5. Session'ı sonlandır (parametre adları 001 ile uyumlu)
+CREATE OR REPLACE FUNCTION terminate_session(p_session_id INTEGER)
 RETURNS BOOLEAN AS $$
 BEGIN
     UPDATE user_sessions
     SET is_active = FALSE
-    WHERE id = session_id_param;
+    WHERE id = p_session_id;
     
     -- İlgili refresh token'ı da iptal et
     UPDATE refresh_tokens
@@ -85,7 +88,7 @@ BEGIN
     WHERE token_hash = (
         SELECT refresh_token_hash 
         FROM user_sessions 
-        WHERE id = session_id_param
+        WHERE id = p_session_id
     )
     AND revoked_at IS NULL;
     
@@ -93,16 +96,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 6. Kullanıcının diğer tüm session'larını sonlandır (mevcut hariç)
-CREATE OR REPLACE FUNCTION terminate_other_sessions(user_id_param INTEGER, current_token_hash VARCHAR)
+-- 6. Kullanıcının diğer tüm session'larını sonlandır (mevcut hariç, parametre adları 001 ile uyumlu)
+CREATE OR REPLACE FUNCTION terminate_other_sessions(p_user_id INTEGER, p_current_token_hash VARCHAR)
 RETURNS INTEGER AS $$
 DECLARE
     terminated_count INTEGER;
 BEGIN
     UPDATE user_sessions
     SET is_active = FALSE
-    WHERE user_id = user_id_param
-      AND refresh_token_hash != current_token_hash
+    WHERE user_id = p_user_id
+      AND refresh_token_hash != p_current_token_hash
       AND is_active = TRUE;
     
     GET DIAGNOSTICS terminated_count = ROW_COUNT;
@@ -110,8 +113,8 @@ BEGIN
     -- İlgili refresh token'ları da iptal et
     UPDATE refresh_tokens
     SET revoked_at = NOW()
-    WHERE user_id = user_id_param
-      AND token_hash != current_token_hash
+    WHERE user_id = p_user_id
+      AND token_hash != p_current_token_hash
       AND revoked_at IS NULL;
     
     RETURN terminated_count;

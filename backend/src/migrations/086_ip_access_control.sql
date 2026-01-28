@@ -21,6 +21,9 @@ CREATE INDEX IF NOT EXISTS idx_ip_rules_active ON ip_access_rules(is_active) WHE
 CREATE INDEX IF NOT EXISTS idx_ip_rules_ip ON ip_access_rules USING GIST (ip_address inet_ops); -- GIST index for CIDR
 
 -- 2. IP'nin kurala uyup uymadığını kontrol eden fonksiyon
+-- Önce eski imzayı kaldır (003'te RETURNS TABLE vardı)
+DROP FUNCTION IF EXISTS check_ip_access(INET);
+
 CREATE OR REPLACE FUNCTION check_ip_access(ip_to_check INET)
 RETURNS BOOLEAN AS $$
 DECLARE

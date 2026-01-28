@@ -4,8 +4,15 @@
 
 Bu klasör veritabanı şema değişikliklerini versiyonlu SQL dosyaları olarak içerir. PostgreSQL (Supabase) kullanılır.
 
-**Toplam Migration:** 52
-**Son Güncelleme:** Ocak 2026
+**Toplam Migration:** 102
+**Son Güncelleme:** 28 Ocak 2026
+**Migration Sistemi:** Supabase CLI (v2.72.7+)
+
+> ⚠️ **ÖNEMLİ:** Migration'lar artık Supabase CLI ile yönetiliyor!
+> - Eski `npm run migrate` komutu devre dışı
+> - Yeni komutlar: `supabase migration new`, `supabase db push`
+
+> **Eski tablolar (deprecated):** `invoice_items` ve `uyumsoft_invoice_items` artık uygulama kodunda kullanılmıyor. Yeni sistem tek kaynak: **fatura_kalemleri** tablosu ve `/api/fatura-kalemleri` API'si. 004_invoices_schema.sql ve 011_duplicate_detection.sql referans için duruyor; yeni geliştirme fatura_kalemleri kullanmalıdır.
 
 ---
 
@@ -87,11 +94,13 @@ ihale_sonuclari          -- Sonuç kayıtları
 ```sql
 cariler              -- Müşteri/Tedarikçi
 cari_hareketleri     -- Cari hesap hareketleri
-invoices             -- Faturalar
-invoice_items        -- Fatura kalemleri
+invoices             -- Faturalar (manuel)
+fatura_kalemleri     -- Fatura kalemleri (tek kaynak; Uyumsoft e-fatura kalemleri)
+uyumsoft_invoices    -- Uyumsoft e-faturalar
 gelir_giderler       -- Gelir/gider kayıtları
 firmalar             -- Firma tanımları
 ```
+*(Eski: invoice_items, uyumsoft_invoice_items → deprecated, fatura_kalemleri kullanın.)*
 
 ### Stok Modülü
 ```sql
@@ -145,28 +154,46 @@ sync_logs            -- Senkronizasyon logları
 
 ---
 
-## 🔧 Migration Çalıştırma
+## 🔧 Migration Çalıştırma (Supabase CLI)
 
 ```bash
-cd backend
-npm run migrate
+# Migration durumunu kontrol et
+supabase migration list
+
+# Yeni migration oluştur
+supabase migration new <isim>
+
+# Migration'ları production'a uygula
+supabase db push
+
+# Değişiklikleri önizle (dry-run)
+supabase db push --dry-run
+
+# Veritabanı şemasından otomatik migration oluştur
+supabase db diff -f <isim>
+
+# TypeScript tipleri oluştur
+supabase gen types typescript --local > ../frontend/src/types/database.ts
 ```
 
-**Manuel çalıştırma:**
-```bash
-psql $DATABASE_URL -f src/migrations/XXX_dosya.sql
-```
+> **Not:** Eski `npm run migrate` komutu devre dışı bırakıldı. Yukarıdaki Supabase CLI komutlarını kullanın.
 
 ---
 
 ## 📝 Yeni Migration Oluşturma
 
-### 1. Dosya Adı Formatı
+### 1. Dosya Adı Formatı (Supabase CLI)
 ```
-XXX_aciklama.sql
+YYYYMMDDHHMMSS_aciklama.sql
 ```
-- `XXX`: Sıradaki numara (055, 056, ...)
-- `aciklama`: Kısa açıklama (snake_case)
+- Supabase CLI otomatik timestamp ekler
+- Örnek: `20260128143025_yeni_tablo.sql`
+
+**Yeni migration oluşturmak için:**
+```bash
+supabase migration new yeni_tablo
+# Oluşturur: supabase/migrations/20260128143025_yeni_tablo.sql
+```
 
 ### 2. Dosya Template
 ```sql

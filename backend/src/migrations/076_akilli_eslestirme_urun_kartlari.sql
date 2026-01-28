@@ -15,7 +15,9 @@ DROP FUNCTION IF EXISTS akilli_stok_eslestir(TEXT, TEXT, TEXT);
 
 -- =============================================
 -- ÜRÜN ADI NORMALİZE FONKSİYONU (Türkçe ASCII dönüşümü)
+-- Parametre adı değişikliği için önce drop (PostgreSQL 42P13)
 -- =============================================
+DROP FUNCTION IF EXISTS normalize_urun_adi_v2(text);
 CREATE OR REPLACE FUNCTION normalize_urun_adi_v2(ad TEXT)
 RETURNS TEXT AS $$
 DECLARE

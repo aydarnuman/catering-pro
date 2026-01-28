@@ -23,6 +23,12 @@ CREATE TABLE IF NOT EXISTS urun_kategorileri (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- 066 ile oluşturulmuş tabloda kod/ust_kategori_id/renk yoksa ekle (075 uyumu)
+ALTER TABLE urun_kategorileri ADD COLUMN IF NOT EXISTS kod VARCHAR(20);
+ALTER TABLE urun_kategorileri ADD COLUMN IF NOT EXISTS ust_kategori_id INTEGER REFERENCES urun_kategorileri(id);
+ALTER TABLE urun_kategorileri ADD COLUMN IF NOT EXISTS renk VARCHAR(20);
+CREATE UNIQUE INDEX IF NOT EXISTS urun_kategorileri_kod_key ON urun_kategorileri(kod) WHERE kod IS NOT NULL;
+
 -- Varsayılan kategorileri ekle (eğer yoksa)
 INSERT INTO urun_kategorileri (id, kod, ad, sira) VALUES
 (1, 'ET', 'Et Ürünleri', 1),
@@ -169,6 +175,8 @@ CREATE INDEX IF NOT EXISTS idx_urun_hareketleri_tip ON urun_hareketleri(hareket_
 CREATE INDEX IF NOT EXISTS idx_urun_hareketleri_depo ON urun_hareketleri(hedef_depo_id);
 
 -- 7. ÜRÜN ADI NORMALİZASYON FONKSİYONU
+-- Parametre adı değişikliği için önce drop (PostgreSQL 42P13)
+DROP FUNCTION IF EXISTS normalize_urun_adi_v2(text);
 CREATE OR REPLACE FUNCTION normalize_urun_adi_v2(urun_adi TEXT)
 RETURNS TEXT AS $$
 BEGIN
