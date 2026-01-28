@@ -45,3 +45,12 @@ temp/*
 backend/storage/session.json
 backend/storage/uyumsoft-session.json
 backend/storage/uyumsoft-session-sync.json
+
+# Backups
+backups/
+
+# Test files
+test-*.js
+
+# Audit logs (hidden files)
+backend/logs/.*-audit.json
