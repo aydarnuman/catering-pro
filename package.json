@@ -1,0 +1,55 @@
+{
+  "name": "catering-pro",
+  "version": "1.0.0",
+  "description": "Catering Pro - Kapsamlı Catering Yönetim Sistemi",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\"",
+    "build": "npm run build --workspace=frontend",
+    "start": "concurrently \"npm run start --workspace=backend\" \"npm run start --workspace=frontend\"",
+    "check": "node scripts/audit/menu.js",
+    "start:all": "node scripts/start-all.js",
+    "start:dev": "./start-all.sh --dev",
+    "start:prod": "./start-all.sh --prod",
+    "start:docker": "./start-all.sh --docker",
+    "check:env": "node scripts/services/env-validator.js",
+    "check:health": "node scripts/services/health-checker.js",
+    "services:status": "node scripts/services/orchestrator.js --status",
+    "services:start": "node scripts/services/orchestrator.js --start",
+    "scheduler:status": "node scripts/services/realtime-manager.js --schedulers",
+    "realtime:status": "node scripts/services/realtime-manager.js status",
+    "docker:status": "node scripts/services/docker-manager.js status",
+    "docker:up": "node scripts/services/docker-manager.js up",
+    "docker:down": "node scripts/services/docker-manager.js down",
+    "audit": "node scripts/audit/audit.js",
+    "audit:security": "node scripts/audit/audit.js --category=security",
+    "audit:code": "node scripts/audit/audit.js --category=code-quality",
+    "audit:infra": "node scripts/audit/audit.js --category=infrastructure",
+    "audit:ci": "node scripts/audit/audit.js --ci --fail-on-warning",
+    "audit:fix": "node scripts/audit/audit.js --fix",
+    "audit:verbose": "node scripts/audit/audit.js --verbose",
+    "audit:secrets": "node scripts/audit/audit.js --check=secrets --verbose",
+    "lint:backend": "npm run lint --workspace=backend",
+    "lint:frontend": "npm run lint --workspace=frontend",
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "lint:fix": "npm run lint:fix --workspace=backend && npm run lint:fix --workspace=frontend"
+  },
+  "keywords": [
+    "catering",
+    "erp",
+    "management"
+  ],
+  "author": "Catering Pro",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}

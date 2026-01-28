@@ -1,0 +1,1143 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "timestamp": "2026-01-26T12:28:38.027Z",
+    "duration": 1960,
+    "projectRoot": "/Users/numanaydar/Desktop/CATERİNG",
+    "nodeVersion": "v25.1.0",
+    "outputPath": "/Users/numanaydar/Desktop/CATERİNG/scripts/audit/output/audit-1769430518027.json"
+  },
+  "summary": {
+    "totalChecks": 4,
+    "passed": 0,
+    "errors": 1,
+    "warnings": 3,
+    "info": 69,
+    "skipped": 0,
+    "byCategory": {
+      "infrastructure": {
+        "passed": 0,
+        "errors": 1,
+        "warnings": 3,
+        "info": 69
+      }
+    }
+  },
+  "results": {
+    "infrastructure": {
+      "name": "Altyapı",
+      "description": "Build, database, logging ve performans kontrolleri",
+      "checks": [
+        {
+          "id": "build-health",
+          "name": "Build & Deploy Sağlığı",
+          "status": "error",
+          "severity": "error",
+          "fixable": false,
+          "findings": [
+            {
+              "severity": "warning",
+              "message": "Backend'de \"build\" script eksik",
+              "file": "backend/package.json",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "\"build\" script ekleyin"
+            },
+            {
+              "severity": "error",
+              "message": "TypeScript type check başarısız (30 hata)",
+              "file": "frontend/",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Type hatalarını düzeltin: npx tsc --noEmit"
+            },
+            {
+              "severity": "info",
+              "message": ".nvmrc dosyası bulunamadı",
+              "file": ".nvmrc",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Node version'ı sabitlemek için .nvmrc ekleyin"
+            }
+          ],
+          "summary": {
+            "issues": 3
+          },
+          "duration": 1851
+        },
+        {
+          "id": "database-health",
+          "name": "Database Sağlığı",
+          "status": "warning",
+          "severity": "warning",
+          "fixable": false,
+          "findings": [
+            {
+              "severity": "info",
+              "message": "Migration rollback içermiyor",
+              "file": "backend/src/migrations/081_user_preferences.sql",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Rollback SQL'i yorum olarak ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Migration rollback içermiyor",
+              "file": "backend/src/migrations/082_maliyet_audit_log.sql",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Rollback SQL'i yorum olarak ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Migration rollback içermiyor",
+              "file": "backend/src/migrations/082_refresh_tokens.sql",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Rollback SQL'i yorum olarak ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Migration rollback içermiyor",
+              "file": "backend/src/migrations/083_account_lockout.sql",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Rollback SQL'i yorum olarak ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Migration rollback içermiyor",
+              "file": "backend/src/migrations/084_admin_notifications.sql",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Rollback SQL'i yorum olarak ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Migration rollback içermiyor",
+              "file": "backend/src/migrations/085_user_sessions.sql",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Rollback SQL'i yorum olarak ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Migration rollback içermiyor",
+              "file": "backend/src/migrations/086_ip_access_control.sql",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Rollback SQL'i yorum olarak ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Migration rollback içermiyor",
+              "file": "backend/src/migrations/088_settings_versioning.sql",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Rollback SQL'i yorum olarak ekleyin"
+            },
+            {
+              "severity": "warning",
+              "message": "Potansiyel N+1 query tespit edildi (loop içinde query)",
+              "file": "backend/src/routes/bordro.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "JOIN veya batch query kullanın"
+            },
+            {
+              "severity": "warning",
+              "message": "Potansiyel N+1 query tespit edildi (loop içinde query)",
+              "file": "backend/src/routes/demirbas.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "JOIN veya batch query kullanın"
+            },
+            {
+              "severity": "warning",
+              "message": "Potansiyel N+1 query tespit edildi (loop içinde query)",
+              "file": "backend/src/routes/invoices.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "JOIN veya batch query kullanın"
+            },
+            {
+              "severity": "warning",
+              "message": "Potansiyel N+1 query tespit edildi (loop içinde query)",
+              "file": "backend/src/routes/maliyet-analizi.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "JOIN veya batch query kullanın"
+            },
+            {
+              "severity": "warning",
+              "message": "Potansiyel N+1 query tespit edildi (loop içinde query)",
+              "file": "backend/src/routes/menu-planlama.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "JOIN veya batch query kullanın"
+            },
+            {
+              "severity": "warning",
+              "message": "Potansiyel N+1 query tespit edildi (loop içinde query)",
+              "file": "backend/src/routes/personel.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "JOIN veya batch query kullanın"
+            },
+            {
+              "severity": "warning",
+              "message": "Potansiyel N+1 query tespit edildi (loop içinde query)",
+              "file": "backend/src/routes/planlama.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "JOIN veya batch query kullanın"
+            },
+            {
+              "severity": "warning",
+              "message": "Potansiyel N+1 query tespit edildi (loop içinde query)",
+              "file": "backend/src/routes/projeler.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "JOIN veya batch query kullanın"
+            },
+            {
+              "severity": "warning",
+              "message": "Potansiyel N+1 query tespit edildi (loop içinde query)",
+              "file": "backend/src/routes/satin-alma.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "JOIN veya batch query kullanın"
+            },
+            {
+              "severity": "warning",
+              "message": "Potansiyel N+1 query tespit edildi (loop içinde query)",
+              "file": "backend/src/routes/stok.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "JOIN veya batch query kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda paralel query kullanımı",
+              "file": "backend/src/routes/stok.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Batch query veya transaction kullanmayı düşünün"
+            },
+            {
+              "severity": "info",
+              "message": "Pool max connection sayısı belirtilmemiş",
+              "file": "backend/src/",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "max: 20 gibi bir limit belirleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Pool idle timeout belirtilmemiş",
+              "file": "backend/src/",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "idleTimeoutMillis: 30000 ekleyin"
+            }
+          ],
+          "summary": {
+            "issues": 21
+          },
+          "duration": 35
+        },
+        {
+          "id": "log-analysis",
+          "name": "Log & Hata Analizi",
+          "status": "warning",
+          "severity": "warning",
+          "fixable": false,
+          "findings": [
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (19)",
+              "file": "backend/src/routes/export.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (6)",
+              "file": "backend/src/routes/import.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (21)",
+              "file": "backend/src/routes/scraper.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (8)",
+              "file": "backend/src/routes/sync.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (6)",
+              "file": "backend/src/routes/tender-content-documents.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (8)",
+              "file": "backend/src/routes/uyumsoft.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (6)",
+              "file": "backend/src/scraper/document-scraper.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (11)",
+              "file": "backend/src/scraper/list-scraper.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (20)",
+              "file": "backend/src/scraper/login-service.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (9)",
+              "file": "backend/src/scraper/uyumsoft/fatura-service.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (6)",
+              "file": "backend/src/scraper/uyumsoft/session.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (7)",
+              "file": "backend/src/scripts/add-kyk-malzemeler.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (8)",
+              "file": "backend/src/scripts/add-kyk-recipes.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (10)",
+              "file": "backend/src/scripts/excel-to-menu-plan.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (20)",
+              "file": "backend/src/scripts/import-ocak-menu.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (19)",
+              "file": "backend/src/scripts/import-uyumsoft-cariler.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (8)",
+              "file": "backend/src/scripts/kahvalti-import.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (24)",
+              "file": "backend/src/services/bordro-import-service.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (35)",
+              "file": "backend/src/services/claude.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (10)",
+              "file": "backend/src/services/document-queue-processor.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (15)",
+              "file": "backend/src/services/document.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (10)",
+              "file": "backend/src/services/firma-belge-service.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (10)",
+              "file": "backend/src/services/import-service.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (9)",
+              "file": "backend/src/services/market-scraper.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (18)",
+              "file": "backend/src/services/sync-scheduler.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (27)",
+              "file": "backend/src/services/tender-scheduler.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (6)",
+              "file": "backend/src/supabase.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (6)",
+              "file": "backend/src/utils/birim-donusum.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda console.log kullanımı (8)",
+              "file": "backend/src/utils/fiyat-hesaplama.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Structured logging library kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Error tracking service tespit edilemedi",
+              "file": "backend/src/",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Production için Sentry veya benzeri servis kullanın"
+            },
+            {
+              "severity": "warning",
+              "message": "Global error handler middleware tespit edilemedi",
+              "file": "backend/src/server.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "app.use((err, req, res, next) => { ... }) ekleyin"
+            },
+            {
+              "severity": "warning",
+              "message": "Process error handler eksik",
+              "file": "backend/src/server.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "process.on('uncaughtException') ve 'unhandledRejection' ekleyin"
+            }
+          ],
+          "summary": {
+            "issues": 32
+          },
+          "duration": 27
+        },
+        {
+          "id": "performance",
+          "name": "Performans Denetimi",
+          "status": "warning",
+          "severity": "warning",
+          "fixable": false,
+          "findings": [
+            {
+              "severity": "warning",
+              "message": "Toplam bundle boyutu büyük: 7.72 MB (max: 5 MB)",
+              "file": "frontend/.next/static/chunks",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Code splitting ve lazy loading kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Büyük chunk: main-app.js (7.24 MB)",
+              "file": "frontend/.next/static/chunks/main-app.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Dynamic import ile parçalayın"
+            },
+            {
+              "severity": "info",
+              "message": "Event listener cleanup eksik olabilir",
+              "file": "backend/src/database.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Event listener'ları cleanup edin"
+            },
+            {
+              "severity": "warning",
+              "message": "setInterval clearInterval olmadan kullanılıyor",
+              "file": "backend/src/middleware/csrf.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Interval'ı temizlemeyi unutmayın"
+            },
+            {
+              "severity": "info",
+              "message": "Event listener cleanup eksik olabilir",
+              "file": "backend/src/services/export-service.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Event listener'ları cleanup edin"
+            },
+            {
+              "severity": "info",
+              "message": "Event listener cleanup eksik olabilir",
+              "file": "backend/src/services/tender-scheduler.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Event listener'ları cleanup edin"
+            },
+            {
+              "severity": "info",
+              "message": "Event listener cleanup eksik olabilir",
+              "file": "backend/src/utils/logger.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Event listener'ları cleanup edin"
+            },
+            {
+              "severity": "info",
+              "message": "useEffect içinde fetch AbortController kullanmıyor",
+              "file": "frontend/src/app/admin/scraper/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Race condition önlemek için AbortController kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "useEffect içinde fetch AbortController kullanmıyor",
+              "file": "frontend/src/app/admin/sistem/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Race condition önlemek için AbortController kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "useEffect içinde fetch AbortController kullanmıyor",
+              "file": "frontend/src/app/admin/sync/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Race condition önlemek için AbortController kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "useEffect içinde fetch AbortController kullanmıyor",
+              "file": "frontend/src/app/muhasebe/cariler/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Race condition önlemek için AbortController kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "useEffect içinde fetch AbortController kullanmıyor",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Race condition önlemek için AbortController kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "useEffect içinde fetch AbortController kullanmıyor",
+              "file": "frontend/src/app/muhasebe/faturalar/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Race condition önlemek için AbortController kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "useEffect içinde fetch AbortController kullanmıyor",
+              "file": "frontend/src/app/muhasebe/finans/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Race condition önlemek için AbortController kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "useEffect içinde fetch AbortController kullanmıyor",
+              "file": "frontend/src/app/muhasebe/kasa-banka/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Race condition önlemek için AbortController kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "useEffect içinde fetch AbortController kullanmıyor",
+              "file": "frontend/src/app/muhasebe/menu-planlama/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Race condition önlemek için AbortController kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda inline handler (7)",
+              "file": "frontend/src/app/admin/ip-management/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "useCallback ile memoize edin veya dışarı çıkarın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda inline handler (11)",
+              "file": "frontend/src/app/admin/scraper/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "useCallback ile memoize edin veya dışarı çıkarın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda inline handler (6)",
+              "file": "frontend/src/app/admin/sistem/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "useCallback ile memoize edin veya dışarı çıkarın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda inline handler (6)",
+              "file": "frontend/src/app/admin/yetki-sablonlari/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "useCallback ile memoize edin veya dışarı çıkarın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda inline handler (6)",
+              "file": "frontend/src/app/ai-chat/history/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "useCallback ile memoize edin veya dışarı çıkarın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda inline handler (15)",
+              "file": "frontend/src/app/ayarlar/ai/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "useCallback ile memoize edin veya dışarı çıkarın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda inline handler (24)",
+              "file": "frontend/src/app/ayarlar/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "useCallback ile memoize edin veya dışarı çıkarın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda inline handler (6)",
+              "file": "frontend/src/app/ayarlar/sistem/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "useCallback ile memoize edin veya dışarı çıkarın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda inline handler (26)",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "useCallback ile memoize edin veya dışarı çıkarın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda inline handler (26)",
+              "file": "frontend/src/app/muhasebe/faturalar/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "useCallback ile memoize edin veya dışarı çıkarın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda inline handler (18)",
+              "file": "frontend/src/app/muhasebe/finans/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "useCallback ile memoize edin veya dışarı çıkarın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda inline handler (19)",
+              "file": "frontend/src/app/muhasebe/kasa-banka/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "useCallback ile memoize edin veya dışarı çıkarın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda inline handler (10)",
+              "file": "frontend/src/app/muhasebe/menu-planlama/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "useCallback ile memoize edin veya dışarı çıkarın"
+            },
+            {
+              "severity": "warning",
+              "message": "Sync file operation: existsSync",
+              "file": "backend/src/routes/bordro-import.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Async alternatifi kullanın (readFile, writeFile)"
+            },
+            {
+              "severity": "warning",
+              "message": "Sync file operation: existsSync",
+              "file": "backend/src/routes/documents.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Async alternatifi kullanın (readFile, writeFile)"
+            },
+            {
+              "severity": "warning",
+              "message": "Sync file operation: existsSync",
+              "file": "backend/src/routes/firmalar.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Async alternatifi kullanın (readFile, writeFile)"
+            },
+            {
+              "severity": "warning",
+              "message": "Sync file operation: existsSync",
+              "file": "backend/src/routes/import.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Async alternatifi kullanın (readFile, writeFile)"
+            },
+            {
+              "severity": "warning",
+              "message": "Sync file operation: existsSync",
+              "file": "backend/src/routes/menu-planlama.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Async alternatifi kullanın (readFile, writeFile)"
+            },
+            {
+              "severity": "warning",
+              "message": "Sync file operation: readFileSync",
+              "file": "backend/src/routes/social.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Async alternatifi kullanın (readFile, writeFile)"
+            },
+            {
+              "severity": "warning",
+              "message": "Sync file operation: writeFileSync",
+              "file": "backend/src/routes/tender-content-documents.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Async alternatifi kullanın (readFile, writeFile)"
+            },
+            {
+              "severity": "warning",
+              "message": "Sync file operation: readFileSync",
+              "file": "backend/src/scraper/session-manager.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Async alternatifi kullanın (readFile, writeFile)"
+            },
+            {
+              "severity": "warning",
+              "message": "Sync file operation: readFileSync",
+              "file": "backend/src/scraper/uyumsoft/session.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Async alternatifi kullanın (readFile, writeFile)"
+            },
+            {
+              "severity": "warning",
+              "message": "Sync file operation: readFileSync",
+              "file": "backend/src/services/ai-tools/web-tools.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Async alternatifi kullanın (readFile, writeFile)"
+            },
+            {
+              "severity": "warning",
+              "message": "Sync file operation: readFileSync",
+              "file": "backend/src/services/bordro-import-service.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Async alternatifi kullanın (readFile, writeFile)"
+            },
+            {
+              "severity": "warning",
+              "message": "Sync file operation: readFileSync",
+              "file": "backend/src/services/claude.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Async alternatifi kullanın (readFile, writeFile)"
+            },
+            {
+              "severity": "warning",
+              "message": "Sync file operation: existsSync",
+              "file": "backend/src/services/document.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Async alternatifi kullanın (readFile, writeFile)"
+            },
+            {
+              "severity": "warning",
+              "message": "Sync file operation: existsSync",
+              "file": "backend/src/services/export-service.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Async alternatifi kullanın (readFile, writeFile)"
+            },
+            {
+              "severity": "warning",
+              "message": "Sync file operation: existsSync",
+              "file": "backend/src/services/import-service.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Async alternatifi kullanın (readFile, writeFile)"
+            },
+            {
+              "severity": "warning",
+              "message": "Sync file operation: readFileSync",
+              "file": "backend/src/services/instagram-ai.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Async alternatifi kullanın (readFile, writeFile)"
+            },
+            {
+              "severity": "warning",
+              "message": "Sync file operation: readFileSync",
+              "file": "backend/src/services/menu-import.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Async alternatifi kullanın (readFile, writeFile)"
+            },
+            {
+              "severity": "warning",
+              "message": "Sync file operation: readFileSync",
+              "file": "backend/src/utils/migration-runner.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Async alternatifi kullanın (readFile, writeFile)"
+            }
+          ],
+          "summary": {
+            "issues": 47
+          },
+          "duration": 46
+        }
+      ],
+      "status": "error"
+    }
+  },
+  "recommendations": [
+    {
+      "priority": "high",
+      "category": "infrastructure",
+      "check": "build-health",
+      "action": "Build yapılandırmasını ve script'leri kontrol edin"
+    },
+    {
+      "priority": "medium",
+      "category": "infrastructure",
+      "check": "database-health",
+      "action": "Migration tutarlılığını ve index'leri kontrol edin"
+    },
+    {
+      "priority": "medium",
+      "category": "infrastructure",
+      "check": "log-analysis",
+      "action": "Hata loglarını inceleyin ve çözümleyin"
+    },
+    {
+      "priority": "medium",
+      "category": "infrastructure",
+      "check": "performance",
+      "action": "Bundle boyutunu ve memory kullanımını optimize edin"
+    }
+  ]
+}

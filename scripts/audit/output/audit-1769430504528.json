@@ -1,0 +1,70 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "timestamp": "2026-01-26T12:28:24.528Z",
+    "duration": 50,
+    "projectRoot": "/Users/numanaydar/Desktop/CATERİNG",
+    "nodeVersion": "v25.1.0",
+    "outputPath": "/Users/numanaydar/Desktop/CATERİNG/scripts/audit/output/audit-1769430504528.json"
+  },
+  "summary": {
+    "totalChecks": 1,
+    "passed": 1,
+    "errors": 0,
+    "warnings": 0,
+    "info": 0,
+    "skipped": 0,
+    "byCategory": {
+      "security": {
+        "passed": 1,
+        "errors": 0,
+        "warnings": 0,
+        "info": 0
+      }
+    }
+  },
+  "results": {
+    "security": {
+      "name": "Güvenlik",
+      "description": "Bağımlılık güvenliği, gizli anahtarlar, auth, CORS, rate limiting ve input validation kontrolleri",
+      "checks": [
+        {
+          "id": "secrets",
+          "name": "Gizli Anahtar Tespiti",
+          "status": "passed",
+          "severity": "info",
+          "fixable": false,
+          "findings": [
+            {
+              "severity": "warning",
+              "message": ".env gerçek secret değerleri içeriyor olabilir",
+              "file": ".env",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu dosyanın git'e commit edilmediğinden emin olun"
+            },
+            {
+              "severity": "warning",
+              "message": "backend/.env gerçek secret değerleri içeriyor olabilir",
+              "file": "backend/.env",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu dosyanın git'e commit edilmediğinden emin olun"
+            }
+          ],
+          "summary": {
+            "scannedFiles": 293,
+            "potentialSecrets": 2
+          },
+          "duration": 50
+        }
+      ],
+      "status": "passed"
+    }
+  },
+  "recommendations": []
+}

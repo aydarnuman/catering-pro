@@ -1,0 +1,28 @@
+{
+  "name": "@catering/audit",
+  "version": "1.0.0",
+  "description": "Catering Pro - CLI Denetim Sistemi",
+  "type": "module",
+  "private": true,
+  "main": "audit.js",
+  "bin": {
+    "audit": "./audit.js"
+  },
+  "scripts": {
+    "start": "node audit.js",
+    "audit": "node audit.js",
+    "audit:security": "node audit.js --category=security",
+    "audit:code": "node audit.js --category=code-quality",
+    "audit:infra": "node audit.js --category=infrastructure",
+    "audit:ci": "node audit.js --ci --fail-on-warning",
+    "audit:verbose": "node audit.js --verbose"
+  },
+  "keywords": [
+    "audit",
+    "code-quality",
+    "security",
+    "lint"
+  ],
+  "author": "Catering Pro",
+  "license": "UNLICENSED"
+}

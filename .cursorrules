@@ -347,3 +347,45 @@ chore: Bakım işleri
 2. **Menü Planlama** - Reçete-gramaj entegrasyonu
 3. **Raporlama** - Dashboard ve export
 4. **Mobile** - Responsive iyileştirmeler
+
+---
+
+## 🛠️ Servis Yönetim Komutları
+
+Tüm servis yönetimi için tek bir script kullan: `./service.sh`
+
+```bash
+# Servisleri başlat
+./service.sh start
+
+# Servisleri durdur
+./service.sh stop
+
+# Yeniden başlat
+./service.sh restart
+
+# Durum kontrolü
+./service.sh status
+
+# Canlı log takibi
+./service.sh logs
+
+# Cache ve eski logları temizle
+./service.sh clean
+
+# Sadece backend yeniden başlat
+./service.sh backend
+
+# Sadece frontend yeniden başlat
+./service.sh frontend
+```
+
+### Port Bilgileri
+- **Frontend:** http://localhost:3000
+- **Backend:** http://localhost:3001
+- **WhatsApp:** http://localhost:3002
+
+### Health Check
+```bash
+curl http://localhost:3001/health
+```
