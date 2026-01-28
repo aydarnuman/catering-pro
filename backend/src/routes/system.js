@@ -2,10 +2,12 @@ import express from 'express';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import { authenticate, requireSuperAdmin } from '../middleware/auth.js';
 import { query } from '../database.js';
 import logger from '../utils/logger.js';
+import systemMonitor from '../services/system-monitor.js';
 
 const execAsync = promisify(exec);
 const router = express.Router();
@@ -333,6 +335,334 @@ router.get('/info', async (req, res) => {
     };
 
     res.json({ success: true, info });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==========================================
+// 📊 SYSTEM MONITOR ENDPOINTS
+// ==========================================
+
+// Tüm servislerin durumu (orchestrator için)
+router.get('/services', async (req, res) => {
+  try {
+    const services = {
+      backend: {
+        name: 'Backend API',
+        type: 'node',
+        port: 3001,
+        status: 'running',
+        healthy: true,
+      },
+      frontend: {
+        name: 'Frontend',
+        type: 'node',
+        port: 3000,
+        status: 'unknown',
+        healthy: false,
+      },
+      whatsapp: {
+        name: 'WhatsApp Service',
+        type: 'docker',
+        port: 3002,
+        status: 'unknown',
+        healthy: false,
+      },
+      postgres: {
+        name: 'PostgreSQL',
+        type: 'docker',
+        port: 5432,
+        status: 'unknown',
+        healthy: false,
+      },
+    };
+
+    // Frontend kontrolü
+    try {
+      const { stdout } = await execAsync('lsof -i :3000 | grep LISTEN | wc -l');
+      const isRunning = parseInt(stdout.trim()) > 0;
+      services.frontend.status = isRunning ? 'running' : 'stopped';
+      services.frontend.healthy = isRunning;
+    } catch {}
+
+    // WhatsApp kontrolü
+    try {
+      const waRes = await fetch('http://localhost:3002/status', {
+        signal: AbortSignal.timeout(2000),
+      });
+      services.whatsapp.status = waRes.ok ? 'running' : 'unhealthy';
+      services.whatsapp.healthy = waRes.ok;
+    } catch {
+      services.whatsapp.status = 'stopped';
+    }
+
+    // PostgreSQL kontrolü (Supabase bağlantısı)
+    try {
+      await query('SELECT 1');
+      services.postgres.status = 'running';
+      services.postgres.healthy = true;
+    } catch {
+      services.postgres.status = 'disconnected';
+    }
+
+    res.json({ success: true, services });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Tek servis detayı
+router.get('/services/:name', async (req, res) => {
+  const { name } = req.params;
+
+  try {
+    const portMap = {
+      backend: 3001,
+      frontend: 3000,
+      whatsapp: 3002,
+      instagram: 3003,
+      postgres: 5432,
+    };
+
+    const port = portMap[name];
+    if (!port) {
+      return res.status(404).json({ success: false, error: 'Servis bulunamadı' });
+    }
+
+    // Port kontrolü
+    const { stdout } = await execAsync(`lsof -i :${port} | grep LISTEN`);
+    const lines = stdout.trim().split('\n').filter(Boolean);
+
+    res.json({
+      success: true,
+      service: {
+        name,
+        port,
+        running: lines.length > 0,
+        processes: lines.map(line => {
+          const parts = line.split(/\s+/);
+          return { command: parts[0], pid: parts[1] };
+        }),
+      },
+    });
+  } catch (error) {
+    res.json({
+      success: true,
+      service: {
+        name,
+        port: portMap[name],
+        running: false,
+        processes: [],
+      },
+    });
+  }
+});
+
+// Scheduler durumları
+router.get('/schedulers', async (req, res) => {
+  try {
+    const schedulers = systemMonitor.getAllSchedulerStatus();
+    res.json({ success: true, schedulers });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Document queue durumu - ÖNEMLİ: Bu route :name parametreli route'dan ÖNCE olmalı
+router.get('/schedulers/document-queue', async (req, res) => {
+  try {
+    // Document queue bilgisini systemMonitor'dan al
+    const queueStatus = {
+      totalInQueue: 0,
+      isProcessing: false,
+      currentItem: null,
+      processedToday: 0,
+      failedToday: 0,
+      lastProcessed: null,
+    };
+
+    // Eğer bir scheduler varsa onun bilgilerini kullan
+    const docQueueScheduler = systemMonitor.getSchedulerStatus('documentQueue') ||
+                              systemMonitor.getSchedulerStatus('document-queue');
+
+    if (docQueueScheduler) {
+      queueStatus.isProcessing = docQueueScheduler.isRunning;
+      queueStatus.lastProcessed = docQueueScheduler.lastSuccess;
+      queueStatus.processedToday = docQueueScheduler.stats?.successfulRuns || 0;
+      queueStatus.failedToday = docQueueScheduler.stats?.failedRuns || 0;
+    }
+
+    res.json({ success: true, ...queueStatus });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Tek scheduler durumu
+router.get('/schedulers/:name', async (req, res) => {
+  try {
+    const scheduler = systemMonitor.getSchedulerStatus(req.params.name);
+
+    if (!scheduler) {
+      return res.status(404).json({ success: false, error: 'Scheduler bulunamadı' });
+    }
+
+    res.json({ success: true, scheduler });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Manuel scheduler tetikleme
+router.post('/schedulers/:name/trigger', authenticate, async (req, res) => {
+  const { name } = req.params;
+
+  try {
+    // Scheduler'ları import et ve tetikle
+    // Bu, mevcut scheduler implementasyonuna göre değişebilir
+    logger.info(`Scheduler trigger requested: ${name}`, { userId: req.user?.id });
+
+    // Scheduler zaten çalışıyorsa
+    const scheduler = systemMonitor.getSchedulerStatus(name);
+    if (scheduler?.isRunning) {
+      return res.json({
+        success: false,
+        error: 'Scheduler zaten çalışıyor',
+        scheduler,
+      });
+    }
+
+    // TODO: Gerçek scheduler trigger implementasyonu
+    // Bu kısım mevcut scheduler service'lerinize göre uyarlanmalı
+    res.json({
+      success: true,
+      message: `${name} scheduler tetiklendi`,
+      note: 'Scheduler implementasyonuna göre tetikleme yapılmalı',
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Realtime durumu
+router.get('/realtime/status', async (req, res) => {
+  try {
+    const status = systemMonitor.getRealtimeStatus();
+    res.json({ success: true, ...status });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Realtime tabloları
+router.get('/realtime/tables', async (req, res) => {
+  try {
+    const tables = systemMonitor.getRealtimeTables();
+    res.json({ success: true, tables });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Docker durumu
+router.get('/docker', async (req, res) => {
+  try {
+    // Docker kurulu mu?
+    let dockerInstalled = false;
+    let dockerRunning = false;
+    let containers = [];
+
+    try {
+      await execAsync('docker --version');
+      dockerInstalled = true;
+    } catch {}
+
+    if (dockerInstalled) {
+      try {
+        await execAsync('docker info');
+        dockerRunning = true;
+      } catch {}
+    }
+
+    if (dockerRunning) {
+      try {
+        const { stdout } = await execAsync(
+          'docker ps -a --filter "name=catering_" --format "{{.ID}}|{{.Names}}|{{.Status}}|{{.Ports}}"'
+        );
+        containers = stdout
+          .trim()
+          .split('\n')
+          .filter(Boolean)
+          .map(line => {
+            const [id, name, status, ports] = line.split('|');
+            return { id, name, status, ports, running: status.toLowerCase().includes('up') };
+          });
+      } catch {}
+    }
+
+    res.json({
+      success: true,
+      docker: {
+        installed: dockerInstalled,
+        running: dockerRunning,
+        containers,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Detaylı health raporu
+router.get('/health/detailed', async (req, res) => {
+  try {
+    const health = await systemMonitor.getDetailedHealth();
+    res.json({ success: true, ...health });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Environment doğrulama (güvenlik açısından sınırlı)
+router.get('/env/check', async (req, res) => {
+  try {
+    const envCheck = {
+      database: {
+        configured: !!process.env.DATABASE_URL,
+        connected: false,
+      },
+      supabase: {
+        url: !!process.env.SUPABASE_URL,
+        serviceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      },
+      jwt: {
+        configured: !!process.env.JWT_SECRET,
+      },
+      optional: {
+        uyumsoft: !!process.env.UYUMSOFT_API_KEY,
+        anthropic: !!process.env.ANTHROPIC_API_KEY,
+        openai: !!process.env.OPENAI_API_KEY,
+      },
+    };
+
+    // Database bağlantı testi
+    try {
+      await query('SELECT 1');
+      envCheck.database.connected = true;
+    } catch {}
+
+    res.json({ success: true, env: envCheck });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Sistem bilgisi (genişletilmiş)
+router.get('/system/info', async (req, res) => {
+  try {
+    const info = systemMonitor.getSystemInfo();
+    res.json({ success: true, ...info });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../database.js';
 import { authenticate, requirePermission, auditLog } from '../middleware/auth.js';
+import { faturaKalemleriClient } from '../services/fatura-kalemleri-client.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
@@ -1026,102 +1027,53 @@ router.get('/faturalar', async (req, res) => {
   }
 });
 
-// Fatura kalemlerini API'den çek ve parse et
+// Fatura kalemlerini getir – tek kaynak: faturaKalemleriClient
 router.get('/faturalar/:ettn/kalemler', async (req, res) => {
   try {
     const { ettn } = req.params;
-    
-    // Uyumsoft API'ye bağlan
-    faturaService.initClient();
-    
-    // Fatura XML'ini çek
-    const invoiceData = await faturaService.client.getInboxInvoiceData(ettn);
-    
-    if (!invoiceData.success) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Fatura detayı alınamadı' 
+
+    const rows = await faturaKalemleriClient.getKalemler(ettn);
+
+    if (rows.length === 0) {
+      return res.status(200).json({
+        success: true,
+        fatura: null,
+        kalemler: [],
+        message: 'Bu faturaya ait kalem bulunamadı. Önce Faturalar > Kalemler sayfasında faturayı açıp kalemleri yükleyin.'
       });
     }
-    
-    // Base64 decode ve XML parse
-    const xmlBuffer = Buffer.from(invoiceData.xmlBase64, 'base64');
-    const xmlString = xmlBuffer.toString('utf-8');
-    
-    const parsed = await parseStringPromise(xmlString, {
-      explicitArray: false,
-      ignoreAttrs: false,
-      tagNameProcessors: [(name) => name.replace(/^.*:/, '')]
-    });
-    
-    const invoice = parsed.Invoice;
-    
-    if (!invoice) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Fatura XML parse edilemedi' 
-      });
-    }
-    
-    // Fatura bilgileri
+
+    const toplamTutar = rows.reduce((s, r) => s + (parseFloat(r.tutar) || 0), 0);
     const faturaInfo = {
-      fatura_no: invoice.ID?.['_'] || invoice.ID,
-      tarih: invoice.IssueDate,
-      toplam_tutar: parseFloat(invoice.LegalMonetaryTotal?.PayableAmount?.['_'] || invoice.LegalMonetaryTotal?.PayableAmount || 0),
-      gonderen: invoice.AccountingSupplierParty?.Party?.PartyName?.Name || 
-                invoice.AccountingSupplierParty?.Party?.PartyIdentification?.ID?.['_']
+      fatura_no: ettn,
+      tarih: rows[0]?.fatura_tarihi ?? null,
+      toplam_tutar: toplamTutar,
+      gonderen: rows[0]?.tedarikci_ad ?? null
     };
-    
-    // Kalemleri çıkar
-    let invoiceLines = invoice.InvoiceLine;
-    if (!Array.isArray(invoiceLines)) {
-      invoiceLines = invoiceLines ? [invoiceLines] : [];
-    }
-    
-    const kalemler = await Promise.all(invoiceLines.map(async (line, index) => {
-      const item = line.Item || {};
-      const price = line.Price || {};
-      const urunKodu = item.SellersItemIdentification?.ID?.['_'] || item.SellersItemIdentification?.ID || '';
-      const urunAdi = item.Name || 'Bilinmiyor';
-      
-      // Önceki eşleştirme var mı kontrol et - YENİ SİSTEM: urun_tedarikci_eslestirme + urun_kartlari
-      const eslestirme = await query(`
-        SELECT ute.urun_kart_id as stok_kart_id, uk.kod, uk.ad
-        FROM urun_tedarikci_eslestirme ute
-        JOIN urun_kartlari uk ON uk.id = ute.urun_kart_id
-        WHERE ute.tedarikci_urun_kodu = $1 OR ute.tedarikci_urun_adi ILIKE $2
-        ORDER BY ute.eslestirme_sayisi DESC
-        LIMIT 1
-      `, [urunKodu, `%${urunAdi.substring(0, 20)}%`]);
-      
-      return {
-        sira: index + 1,
-        urun_adi: urunAdi,
-        urun_kodu: urunKodu,
-        miktar: parseFloat(line.InvoicedQuantity?.['_'] || line.InvoicedQuantity || 0),
-        birim: line.InvoicedQuantity?.['$']?.unitCode || 'C62',
-        birim_fiyat: parseFloat(price.PriceAmount?.['_'] || price.PriceAmount || 0),
-        tutar: parseFloat(line.LineExtensionAmount?.['_'] || line.LineExtensionAmount || 0),
-        kdv_orani: parseFloat(line.TaxTotal?.TaxSubtotal?.TaxCategory?.Percent || 0),
-        kdv_tutar: parseFloat(line.TaxTotal?.TaxAmount?.['_'] || line.TaxTotal?.TaxAmount || 0),
-        // Önerilen eşleştirme
-        onerilen_stok_kart_id: eslestirme.rows[0]?.stok_kart_id || null,
-        onerilen_stok_kart: eslestirme.rows[0] ? {
-          id: eslestirme.rows[0].stok_kart_id,
-          kod: eslestirme.rows[0].kod,
-          ad: eslestirme.rows[0].ad
-        } : null
-      };
+
+    const kalemler = rows.map((r) => ({
+      sira: r.kalem_sira,
+      urun_adi: r.orijinal_urun_adi,
+      urun_kodu: r.orijinal_urun_kodu,
+      miktar: parseFloat(r.miktar) || 0,
+      birim: r.birim || 'C62',
+      birim_fiyat: parseFloat(r.birim_fiyat) || 0,
+      tutar: parseFloat(r.tutar) || 0,
+      kdv_orani: parseFloat(r.kdv_orani) || 0,
+      kdv_tutar: parseFloat(r.kdv_tutari) || 0,
+      onerilen_stok_kart_id: r.urun_id ?? null,
+      onerilen_stok_kart: r.urun_id
+        ? { id: r.urun_id, kod: r.urun_kod, ad: r.urun_ad }
+        : null
     }));
-    
+
     res.json({
       success: true,
       fatura: faturaInfo,
-      kalemler: kalemler
+      kalemler
     });
-    
   } catch (error) {
-    logger.error('Fatura kalem hatası', { error: error.message, stack: error.stack, faturaId });
+    logger.error('Fatura kalem hatası', { error: error.message, stack: error.stack, ettn: req.params?.ettn });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1819,8 +1771,9 @@ router.post('/toplu-fatura-isle', authenticate, async (req, res) => {
 router.get('/faturalar/islenmemis', async (req, res) => {
   try {
     const { limit = 50 } = req.query;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       SELECT 
         ui.id,
         ui.ettn,
@@ -1828,8 +1781,7 @@ router.get('/faturalar/islenmemis', async (req, res) => {
         ui.sender_name,
         ui.sender_vkn,
         ui.invoice_date,
-        ui.payable_amount,
-        (SELECT COUNT(*) FROM uyumsoft_invoice_items WHERE uyumsoft_invoice_id = ui.id) as kalem_sayisi
+        ui.payable_amount
       FROM uyumsoft_invoices ui
       LEFT JOIN fatura_stok_islem fsi ON fsi.ettn = ui.ettn
       WHERE ui.invoice_type LIKE '%incoming%'
@@ -1837,12 +1789,20 @@ router.get('/faturalar/islenmemis', async (req, res) => {
         AND fsi.id IS NULL
       ORDER BY ui.invoice_date DESC
       LIMIT $1
-    `, [limit]);
-    
+    `,
+      [limit]
+    );
+
+    const rows = result.rows;
+    const ettnList = rows.map((r) => r.ettn);
+    const kalemSayilari = ettnList.length ? await faturaKalemleriClient.getKalemSayilari(ettnList) : {};
+
+    const data = rows.map((r) => ({ ...r, kalem_sayisi: kalemSayilari[r.ettn] ?? 0 }));
+
     res.json({
       success: true,
-      data: result.rows,
-      toplam: result.rows.length
+      data,
+      toplam: data.length
     });
   } catch (error) {
     logger.error('İşlenmemiş fatura listesi hatası', { error: error.message, stack: error.stack });

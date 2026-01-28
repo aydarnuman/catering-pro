@@ -19,7 +19,7 @@ const router = express.Router();
  * /api/cariler:
  *   get:
  *     summary: Tüm carileri listele
- *     description: Filtreleme ve arama seçenekleriyle cari listesi döner
+ *     description: Filtreleme, arama ve sayfalama seçenekleriyle cari listesi döner
  *     tags: [Cariler]
  *     parameters:
  *       - in: query
@@ -38,7 +38,19 @@ const router = express.Router();
  *         name: search
  *         schema:
  *           type: string
- *         description: Ünvan veya vergi no ile arama
+ *         description: Ünvan, vergi no, telefon veya email ile arama
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Sayfa numarası
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Sayfa başına kayıt sayısı (max 100)
  *     responses:
  *       200:
  *         description: Cari listesi başarıyla döndü
@@ -47,40 +59,70 @@ const router = express.Router();
  */
 router.get('/', async (req, res) => {
   try {
-    const { tip, aktif = true, search } = req.query;
-    
-    let sql = 'SELECT * FROM cariler WHERE 1=1';
+    const { tip, aktif = true, search, page = 1, limit = 20 } = req.query;
+
+    // Limit kontrolü (max 100)
+    const safeLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
+    const safePage = Math.max(parseInt(page) || 1, 1);
+    const offset = (safePage - 1) * safeLimit;
+
+    // Base WHERE koşulları
+    let whereClause = 'WHERE 1=1';
     const params = [];
     let paramIndex = 1;
-    
+
     if (aktif !== undefined) {
-      sql += ` AND aktif = $${paramIndex}`;
+      whereClause += ` AND aktif = $${paramIndex}`;
       params.push(aktif === 'true' || aktif === true);
       paramIndex++;
     }
-    
+
     if (tip) {
-      sql += ` AND tip = $${paramIndex}`;
+      whereClause += ` AND tip = $${paramIndex}`;
       params.push(tip);
       paramIndex++;
     }
-    
+
+    // Çoklu alan araması (unvan, vergi_no, telefon, email)
     if (search) {
-      sql += ` AND (unvan ILIKE $${paramIndex} OR vergi_no ILIKE $${paramIndex})`;
+      whereClause += ` AND (
+        unvan ILIKE $${paramIndex}
+        OR vergi_no ILIKE $${paramIndex}
+        OR telefon ILIKE $${paramIndex}
+        OR email ILIKE $${paramIndex}
+      )`;
       params.push(`%${search}%`);
       paramIndex++;
     }
-    
-    sql += ' ORDER BY unvan ASC';
-    
-    const result = await query(sql, params);
-    
+
+    // Count sorgusu (pagination için)
+    const countSql = `SELECT COUNT(*) FROM cariler ${whereClause}`;
+    const countResult = await query(countSql, params);
+    const total = parseInt(countResult.rows[0].count);
+    const totalPages = Math.ceil(total / safeLimit);
+
+    // Data sorgusu
+    const dataSql = `
+      SELECT * FROM cariler
+      ${whereClause}
+      ORDER BY unvan ASC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+    params.push(safeLimit, offset);
+
+    const result = await query(dataSql, params);
+
     res.json({
       success: true,
       data: result.rows,
-      count: result.rowCount
+      pagination: {
+        page: safePage,
+        limit: safeLimit,
+        total,
+        totalPages
+      }
     });
-    
+
   } catch (error) {
     logError('Cariler Liste', error);
     res.status(500).json({ error: error.message });

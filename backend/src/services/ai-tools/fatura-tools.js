@@ -4,6 +4,7 @@
  */
 
 import { query } from '../../database.js';
+import { faturaKalemleriClient } from '../fatura-kalemleri-client.js';
 
 const faturaTools = {
   
@@ -196,18 +197,14 @@ const faturaTools = {
 
       const fatura = result.rows[0];
 
-      // Kalemleri getir
-      const kalemlerResult = await query(`
-        SELECT * FROM uyumsoft_invoice_items 
-        WHERE invoice_id = $1 
-        ORDER BY id
-      `, [fatura.id]);
+      // Kalemleri getir (tek kaynak: faturaKalemleriClient)
+      const kalemler = await faturaKalemleriClient.getKalemler(fatura.ettn);
 
       return {
         success: true,
         data: {
           ...fatura,
-          kalemler: kalemlerResult.rows
+          kalemler
         }
       };
     }
@@ -371,27 +368,19 @@ const faturaTools = {
         LIMIT 12
       `, [queryParam]);
 
-      // En çok alınan ürünler
-      const urunlerResult = await query(`
-        SELECT 
-          ii.description,
-          ii.ai_category,
-          COUNT(*) as adet,
-          SUM(ii.total_amount) as toplam_tutar
-        FROM uyumsoft_invoice_items ii
-        JOIN uyumsoft_invoices i ON ii.invoice_id = i.id
-        WHERE ${whereClause.replace('sender', 'i.sender')}
-        GROUP BY ii.description, ii.ai_category
-        ORDER BY toplam_tutar DESC
-        LIMIT 10
-      `, [queryParam]);
+      // En çok alınan ürünler (tek kaynak: faturaKalemleriClient)
+      const enCokAlinan = await faturaKalemleriClient.getEnCokAlinanUrunler({
+        tedarikciVkn: params.tedarikci_vkn || undefined,
+        tedarikciUnvanIlike: params.tedarikci_unvan ? `%${params.tedarikci_unvan}%` : undefined,
+        limit: 10
+      });
 
       return {
         success: true,
         data: {
           tedarikci: ozetResult.rows[0],
           aylik_trend: trendResult.rows,
-          en_cok_alinan_urunler: urunlerResult.rows
+          en_cok_alinan_urunler: enCokAlinan
         }
       };
     }
@@ -418,58 +407,49 @@ const faturaTools = {
       }
     },
     handler: async (params) => {
-      let dateFilter = '';
-      
+      let baslangic;
+      let bitis;
+      const now = new Date();
       if (params.donem) {
-        const now = new Date();
-        let startDate;
-        
         switch (params.donem) {
           case 'bu_ay':
-            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            baslangic = new Date(now.getFullYear(), now.getMonth(), 1);
+            bitis = new Date(now.getFullYear(), now.getMonth() + 1, 0);
             break;
           case 'gecen_ay':
-            startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            baslangic = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            bitis = new Date(now.getFullYear(), now.getMonth(), 0);
             break;
           case 'bu_yil':
-            startDate = new Date(now.getFullYear(), 0, 1);
+            baslangic = new Date(now.getFullYear(), 0, 1);
+            bitis = new Date(now.getFullYear(), 11, 31);
             break;
           case 'son_3_ay':
-            startDate = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+            baslangic = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+            bitis = new Date();
             break;
           case 'son_6_ay':
-            startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+            baslangic = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+            bitis = new Date();
+            break;
+          default:
             break;
         }
-        
-        if (startDate) {
-          dateFilter = `AND i.invoice_date >= '${startDate.toISOString().split('T')[0]}'`;
-        }
       }
+      const baslangicStr = baslangic ? baslangic.toISOString().slice(0, 10) : undefined;
+      const bitisStr = bitis ? bitis.toISOString().slice(0, 10) : undefined;
 
-      let kategoriFilter = '';
-      if (params.kategori) {
-        kategoriFilter = `AND ii.ai_category = '${params.kategori}'`;
-      }
-
-      const result = await query(`
-        SELECT 
-          COALESCE(ii.ai_category, 'DİĞER') as kategori,
-          COUNT(DISTINCT i.id) as fatura_sayisi,
-          COUNT(*) as kalem_sayisi,
-          SUM(ii.total_amount) as toplam_tutar,
-          AVG(ii.unit_price) as ortalama_birim_fiyat
-        FROM uyumsoft_invoice_items ii
-        JOIN uyumsoft_invoices i ON ii.invoice_id = i.id
-        WHERE 1=1 ${dateFilter} ${kategoriFilter}
-        GROUP BY ii.ai_category
-        ORDER BY toplam_tutar DESC
-      `);
+      // Tek kaynak: faturaKalemleriClient
+      const kategoriler = await faturaKalemleriClient.getKategoriHarcamaAnaliz({
+        baslangic: baslangicStr,
+        bitis: bitisStr,
+        kategoriKod: params.kategori || undefined
+      });
 
       return {
         success: true,
         data: {
-          kategoriler: result.rows,
+          kategoriler,
           donem: params.donem || 'tum_zamanlar'
         }
       };

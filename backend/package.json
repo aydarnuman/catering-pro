@@ -5,12 +5,21 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "migrate": "node src/migrate.js",
+    "migrate": "echo '⚠️  Supabase CLI kullanın: supabase db push' && exit 1",
+    "migrate:status": "cd .. && supabase migration list",
+    "migrate:new": "cd .. && supabase migration new",
+    "migrate:push": "cd .. && supabase db push",
+    "migrate:reset": "cd .. && supabase db reset",
+    "db:diff": "cd .. && supabase db diff",
+    "db:types": "cd .. && supabase gen types typescript --local > frontend/src/types/database.ts",
     "scraper": "node src/scraper/main.js",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
     "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
-    "test:bordro": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPattern=bordro"
+    "test:bordro": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPattern=bordro",
+    "lint": "npx @biomejs/biome check src/",
+    "lint:fix": "npx @biomejs/biome check --write src/",
+    "audit:deps": "npm audit --json"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
@@ -20,6 +29,7 @@
     "axios": "^1.13.2",
     "bcryptjs": "^2.4.3",
     "cheerio": "^1.1.2",
+    "compression": "^1.7.5",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -48,6 +58,7 @@
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.3.10",
     "jest": "^29.7.0",
     "supertest": "^6.3.3"
   }

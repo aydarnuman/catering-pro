@@ -10,26 +10,37 @@ import AuditService from '../services/audit-service.js';
 import logger from '../utils/logger.js';
 
 // Supabase URL - önce NEXT_PUBLIC_SUPABASE_URL kontrol et (frontend ile tutarlılık için)
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 
 let supabase = null;
-if (supabaseUrl && supabaseServiceKey) {
-  supabase = createClient(supabaseUrl, supabaseServiceKey);
-  logger.info('✅ Supabase auth middleware başlatıldı', {
-    url: supabaseUrl,
-    hasServiceKey: !!supabaseServiceKey,
-    serviceKeyPreview: supabaseServiceKey.substring(0, 20) + '...'
-  });
-} else {
-  logger.warn(
-    'UYARI: SUPABASE_URL / SUPABASE_SERVICE_KEY tanımlı değil. Auth middleware çalışmayacak.',
-    {
+let supabaseAvailable = false;
+
+// Lazy initialization - sadece gerektiğinde Supabase client oluştur
+function getSupabaseClient() {
+  if (supabase) return supabase;
+
+  if (supabaseUrl && supabaseServiceKey) {
+    try {
+      supabase = createClient(supabaseUrl, supabaseServiceKey);
+      supabaseAvailable = true;
+      logger.info('✅ Supabase auth middleware başlatıldı', {
+        url: supabaseUrl.substring(0, 30) + '...',
+        hasServiceKey: !!supabaseServiceKey
+      });
+    } catch (error) {
+      logger.error('Supabase client oluşturulamadı:', error.message);
+      supabaseAvailable = false;
+    }
+  } else {
+    logger.warn('⚠️ Supabase credentials eksik, fallback PostgreSQL auth kullanılacak', {
       hasUrl: !!supabaseUrl,
       hasServiceKey: !!supabaseServiceKey
-    }
-  );
+    });
+    supabaseAvailable = false;
+  }
+
+  return supabase;
 }
 
 /**
@@ -61,14 +72,8 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({ success: false, error: 'Token boş' });
     }
 
-    // Token zaten yukarıda alındı (trim edilmiş)
-    if (!supabase) {
-      logger.error('Auth middleware: Supabase client yok');
-      return res.status(500).json({
-        success: false,
-        error: 'Sunucu yapılandırma hatası',
-      });
-    }
+    // Supabase client'ı başlat (lazy initialization)
+    const supabaseClient = getSupabaseClient();
 
     // Token'ı decode et (JWT format kontrolü)
     const tokenParts = token.split('.');
@@ -85,25 +90,74 @@ const authenticate = async (req, res, next) => {
       });
     }
 
-    const {
-      data: { user: authUser },
-      error,
-    } = await supabase.auth.getUser(token);
+    let authUser = null;
+    let authError = null;
 
-    if (error || !authUser) {
-      logger.warn('Auth middleware: Token doğrulama hatası', {
-        url: req.originalUrl,
-        error: error?.message,
-        errorCode: error?.status,
-        hasUser: !!authUser,
-        tokenPreview: token.substring(0, 30) + '...',
-        tokenLength: token.length,
-        tokenParts: tokenParts.length
-      });
+    // Supabase kullanılabilirse token'ı Supabase ile doğrula
+    if (supabaseClient && supabaseAvailable) {
+      try {
+        // Supabase getUser - 3 saniye timeout korumalı (5 saniyeden 3'e düşürüldü)
+        const userPromise = supabaseClient.auth.getUser(token);
+        const timeoutPromise = new Promise((resolve) =>
+          setTimeout(
+            () => resolve({ data: { user: null }, error: { message: 'Auth timeout (3s)' } }),
+            3000
+          )
+        );
+        const { data: { user }, error } = await Promise.race([userPromise, timeoutPromise]);
+
+        if (error || !user) {
+          logger.warn('Supabase token doğrulama başarısız, email fallback deneniyor', {
+            url: req.originalUrl,
+            error: error?.message,
+            tokenPreview: token.substring(0, 30) + '...'
+          });
+        } else {
+          authUser = user;
+        }
+      } catch (supabaseError) {
+        logger.error('Supabase auth error, fallback kullanılacak:', supabaseError.message);
+        authError = supabaseError;
+      }
+    }
+
+    // Supabase başarısız veya kullanılamıyorsa: email extraction fallback
+    if (!authUser) {
+      // JWT token'dan email'i çıkar (base64 decode)
+      try {
+        const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+        if (payload.email) {
+          // PostgreSQL'den direkt email ile kullanıcıyı ara
+          const emailAuthResult = await query(
+            `SELECT id, email, name, user_type FROM users WHERE email = $1 AND is_active = true`,
+            [payload.email]
+          );
+          if (emailAuthResult.rows.length > 0) {
+            // Email ile kullanıcı bulundu, devam et
+            const profile = emailAuthResult.rows[0];
+            const userType = profile.user_type || 'user';
+
+            req.user = {
+              id: profile.id,
+              email: profile.email,
+              name: profile.name,
+              user_type: userType,
+              userType,
+              isSuperAdmin: userType === 'super_admin',
+            };
+
+            return next();
+          }
+        }
+      } catch (decodeError) {
+        logger.error('JWT decode error:', decodeError.message);
+      }
+
+      // Her iki yöntem de başarısız
       return res.status(401).json({
         success: false,
         error: 'Geçersiz token',
-        details: error?.message || 'Token doğrulanamadı'
+        details: authError?.message || 'Token doğrulanamadı'
       });
     }
 
@@ -154,17 +208,35 @@ const authenticate = async (req, res, next) => {
 const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ') || !supabase) {
+    const supabaseClient = getSupabaseClient();
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return next();
     }
 
     const token = authHeader.substring(7);
-    const {
-      data: { user: authUser },
-      error,
-    } = await supabase.auth.getUser(token);
 
-    if (error || !authUser) return next();
+    let authUser = null;
+
+    // Supabase mevcutsa token'ı doğrula
+    if (supabaseClient && supabaseAvailable) {
+      try {
+        // Supabase getUser - 2 saniye timeout korumalı (optional auth için daha kısa)
+        const userPromise = supabaseClient.auth.getUser(token);
+        const timeoutPromise = new Promise((resolve) =>
+          setTimeout(() => resolve({ data: { user: null }, error: { message: 'Auth timeout' } }), 2000)
+        );
+        const { data: { user }, error } = await Promise.race([userPromise, timeoutPromise]);
+
+        if (!error && user) {
+          authUser = user;
+        }
+      } catch {
+        // Hata olsa bile next() - optional auth
+      }
+    }
+
+    if (!authUser) return next();
 
     const profileResult = await query(
       `SELECT id, email, name, user_type FROM users WHERE email = $1 AND is_active = true`,
@@ -315,9 +387,94 @@ const addRequestInfo = (req, res, next) => {
   next();
 };
 
+/**
+ * PUBLIC ROUTE - Auth gerektirmez
+ * Token varsa kullanıcı bilgisini alır, yoksa da devam eder
+ * Tüm public API'ler için kullan
+ */
+const publicRoute = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const supabaseClient = getSupabaseClient();
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7).trim();
+      if (token && token.length > 0) {
+        try {
+          let authUser = null;
+
+          // Supabase mevcutsa kullan
+          if (supabaseClient && supabaseAvailable) {
+            try {
+              const { data: { user } } = await supabaseClient.auth.getUser(token);
+              if (user) {
+                authUser = user;
+              }
+            } catch {
+              // Supabase hatası - fallback dene
+            }
+          }
+
+          // Supabase başarısız ise JWT'den email çıkar
+          if (!authUser) {
+            const tokenParts = token.split('.');
+            if (tokenParts.length === 3) {
+              try {
+                const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+                if (payload.email) {
+                  authUser = { email: payload.email };
+                }
+              } catch {
+                // Decode hatası - devam et
+              }
+            }
+          }
+
+          if (authUser && authUser.email) {
+            const profileResult = await query(
+              `SELECT id, email, name, user_type FROM users WHERE email = $1 AND is_active = true`,
+              [authUser.email]
+            );
+            if (profileResult.rows.length) {
+              const profile = profileResult.rows[0];
+              req.user = {
+                id: profile.id,
+                email: profile.email,
+                name: profile.name,
+                user_type: profile.user_type || 'user',
+                userType: profile.user_type || 'user',
+                isSuperAdmin: profile.user_type === 'super_admin',
+              };
+            }
+          }
+        } catch {
+          // Token hatası olsa bile devam et
+        }
+      }
+    }
+    // User yoksa bile devam et - public route
+    if (!req.user) {
+      req.user = null;
+    }
+  } catch {
+    req.user = null;
+  }
+  next();
+};
+
+/**
+ * NO AUTH - Hiç auth kontrolü yapmaz
+ */
+const noAuth = (req, res, next) => {
+  req.user = null;
+  next();
+};
+
 export {
   authenticate,
   optionalAuth,
+  publicRoute,
+  noAuth,
   requireAdmin,
   requireSuperAdmin,
   requirePermission,

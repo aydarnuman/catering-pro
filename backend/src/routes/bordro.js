@@ -217,7 +217,7 @@ router.post('/net-brut-hesapla', async (req, res) => {
     } = req.body;
 
     if (!net_maas || net_maas <= 0) {
-      return res.status(400).json({ error: 'Net maaş zorunludur' });
+      return res.status(400).json({ success: false, error: 'Net maaş zorunludur' });
     }
 
     const yil = new Date().getFullYear();
@@ -262,7 +262,7 @@ router.post('/net-brut-hesapla', async (req, res) => {
     // Toplam maliyet
     const toplamMaliyet = Math.round((brutToplam + toplamIsverenSgk) * 100) / 100;
 
-    res.json({
+    const data = {
       brut_maas: Math.round(brutMaas * 100) / 100,
       brut_toplam: Math.round(brutToplam * 100) / 100,
       sgk_isci: sgkIsci,
@@ -276,10 +276,11 @@ router.post('/net-brut-hesapla', async (req, res) => {
       issizlik_isveren: issizlikIsveren,
       toplam_isveren_sgk: Math.round(toplamIsverenSgk * 100) / 100,
       toplam_maliyet: toplamMaliyet
-    });
+    };
+    res.json({ success: true, data });
   } catch (error) {
     console.error('Net-brüt hesaplama hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -304,7 +305,7 @@ router.post('/hesapla', async (req, res) => {
     } = req.body;
 
     if (!personel_id || !yil || !ay || !brut_maas) {
-      return res.status(400).json({ error: 'Personel, yıl, ay ve brüt maaş zorunludur' });
+      return res.status(400).json({ success: false, error: 'Personel, yıl, ay ve brüt maaş zorunludur' });
     }
 
     // Personel bilgilerini al
@@ -313,7 +314,7 @@ router.post('/hesapla', async (req, res) => {
     `, [personel_id]);
 
     if (personelResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Personel bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Personel bulunamadı' });
     }
 
     const personel = personelResult.rows[0];
@@ -418,10 +419,10 @@ router.post('/hesapla', async (req, res) => {
       toplam_maliyet: toplamMaliyet
     };
 
-    res.json(bordro);
+    res.json({ success: true, data: bordro });
   } catch (error) {
     console.error('Bordro hesaplama hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -487,10 +488,10 @@ router.post('/kaydet', async (req, res) => {
       bordro.sgk_isveren, bordro.issizlik_isveren, bordro.toplam_isveren_sgk, bordro.toplam_maliyet
     ]);
 
-    res.status(201).json(result.rows[0]);
+    res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('Bordro kaydetme hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -502,7 +503,7 @@ router.post('/toplu-hesapla', async (req, res) => {
     const { yil, ay, proje_id } = req.body;
 
     if (!yil || !ay) {
-      return res.status(400).json({ error: 'Yıl ve ay zorunludur' });
+      return res.status(400).json({ success: false, error: 'Yıl ve ay zorunludur' });
     }
 
     // Aktif personelleri al
@@ -627,14 +628,12 @@ router.post('/toplu-hesapla', async (req, res) => {
     }
 
     res.json({ 
-      basarili: sonuclar.length,
-      hatali: hatalar.length,
-      sonuclar,
-      hatalar
+      success: true,
+      data: { basarili: sonuclar.length, hatali: hatalar.length, sonuclar, hatalar }
     });
   } catch (error) {
     console.error('Toplu bordro hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -673,10 +672,10 @@ router.get('/', async (req, res) => {
     sql += ` ORDER BY b.yil DESC, b.ay DESC, p.ad, p.soyad`;
 
     const result = await query(sql, params);
-    res.json(result.rows);
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Bordro listeleme hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -704,10 +703,10 @@ router.get('/ozet/:yil/:ay', async (req, res) => {
       WHERE yil = $1 AND ay = $2
     `, [yil, ay]);
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('Bordro özet hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -730,13 +729,13 @@ router.patch('/:id/odeme', async (req, res) => {
     `, [id, odeme_durumu, odeme_tarihi || new Date(), odeme_yontemi]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Bordro kaydı bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Bordro kaydı bulunamadı' });
     }
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('Ödeme güncelleme hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -748,7 +747,7 @@ router.post('/toplu-odeme', async (req, res) => {
     const { bordro_ids, odeme_yontemi } = req.body;
 
     if (!bordro_ids || bordro_ids.length === 0) {
-      return res.status(400).json({ error: 'En az bir bordro seçmelisiniz' });
+      return res.status(400).json({ success: false, error: 'En az bir bordro seçmelisiniz' });
     }
 
     const result = await query(`
@@ -762,12 +761,12 @@ router.post('/toplu-odeme', async (req, res) => {
     `, [bordro_ids, odeme_yontemi || 'banka']);
 
     res.json({ 
-      basarili: result.rows.length,
-      kayitlar: result.rows
+      success: true,
+      data: { basarili: result.rows.length, kayitlar: result.rows }
     });
   } catch (error) {
     console.error('Toplu ödeme hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -779,7 +778,7 @@ router.delete('/donem-sil', async (req, res) => {
     const { yil, ay, proje_id } = req.body;
 
     if (!yil || !ay) {
-      return res.status(400).json({ error: 'Yıl ve ay bilgisi gerekli' });
+      return res.status(400).json({ success: false, error: 'Yıl ve ay bilgisi gerekli' });
     }
 
     let sql = `DELETE FROM bordro_kayitlari WHERE yil = $1 AND ay = $2`;
@@ -803,12 +802,12 @@ router.delete('/donem-sil', async (req, res) => {
     console.log(`🗑️ ${result.rows.length} bordro kaydı silindi (${ay}/${yil}${proje_id ? `, Proje: ${proje_id}` : ', Tüm projeler'})`);
 
     res.json({ 
-      deleted: result.rows.length,
-      message: `${result.rows.length} bordro kaydı silindi`
+      success: true,
+      data: { deleted: result.rows.length, message: `${result.rows.length} bordro kaydı silindi` }
     });
   } catch (error) {
     console.error('Dönem silme hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -821,10 +820,10 @@ router.get('/vergi-dilimleri/:yil', async (req, res) => {
     const result = await query(`
       SELECT * FROM vergi_dilimleri WHERE yil = $1 ORDER BY baslangic
     `, [yil]);
-    res.json(result.rows);
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Vergi dilimleri hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -837,10 +836,10 @@ router.get('/asgari-ucret/:yil', async (req, res) => {
     const result = await query(`
       SELECT * FROM asgari_ucret WHERE yil = $1 ORDER BY donem
     `, [yil]);
-    res.json(result.rows);
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Asgari ücret hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

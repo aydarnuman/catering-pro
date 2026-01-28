@@ -9,6 +9,7 @@ import fetch from 'node-fetch';
 import { parseStringPromise } from 'xml2js';
 
 const API_ENDPOINT = 'https://efatura.uyumsoft.com.tr/Services/Integration';
+const SOAP_TIMEOUT_MS = 60000; // Uyumsoft yanıt süresi limiti (1 dk - sync sayfa sayfa uzun sürebilir)
 
 /**
  * SOAP envelope template with WS-Security header
@@ -42,11 +43,29 @@ export class UyumsoftApiClient {
   }
 
   /**
+   * Parse SOAP Fault mesajı (XML'den metin çıkar)
+   */
+  _faultMessage(fault) {
+    if (!fault) return '';
+    const str =
+      fault.faultstring ??
+      fault.Faultstring ??
+      fault.Reason?.Text ??
+      fault.Reason?.text ??
+      fault['s:faultstring'] ??
+      fault['s:Faultstring'];
+    if (typeof str === 'string') return str.trim();
+    if (str && typeof str === 'object') return (str._ ?? str['#text'] ?? '').trim() || '';
+    return '';
+  }
+
+  /**
    * Make SOAP request
    */
   async soapRequest(action, body) {
     const envelope = createSoapEnvelope(this.username, this.password, body);
-    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), SOAP_TIMEOUT_MS);
     try {
       const response = await fetch(API_ENDPOINT, {
         method: 'POST',
@@ -55,26 +74,42 @@ export class UyumsoftApiClient {
           'SOAPAction': action,
         },
         body: envelope,
+        signal: controller.signal,
       });
 
       const text = await response.text();
-      
-      if (!response.ok) {
-        console.error('SOAP Error Response:', text);
-        throw new Error(`SOAP request failed: ${response.status}`);
-      }
-
-      // Parse XML response
-      const result = await parseStringPromise(text, { 
+      const result = await parseStringPromise(text, {
         explicitArray: false,
         ignoreAttrs: false,
-        tagNameProcessors: [(name) => name.replace(/^.*:/, '')] // Remove namespace prefixes
-      });
+        tagNameProcessors: [(name) => name.replace(/^.*:/, '')],
+      }).catch(() => null);
+
+      const bodyObj = result?.Envelope?.Body ?? result?.body ?? {};
+      const fault = bodyObj.Fault ?? bodyObj.fault;
+
+      if (!response.ok) {
+        const msg = fault ? this._faultMessage(fault) : `HTTP ${response.status}`;
+        console.error('SOAP Error Response:', msg || text.slice(0, 500));
+        throw new Error(msg || `SOAP isteği başarısız: ${response.status}`);
+      }
+
+      if (fault) {
+        const msg = this._faultMessage(fault);
+        throw new Error(msg || 'Uyumsoft servisi hata döndü.');
+      }
 
       return result;
     } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new Error('Uyumsoft servisi zaman aşımına uğradı. İnternet bağlantınızı ve Uyumsoft erişimini kontrol edin.');
+      }
+      if (error.message?.startsWith('Uyumsoft') || error.message?.includes('yetkiniz') || error.message?.includes('Ip:')) {
+        throw error;
+      }
       console.error('SOAP Request Error:', error.message);
       throw error;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -84,12 +119,11 @@ export class UyumsoftApiClient {
   async testConnection() {
     const body = `<tns:TestConnection />`;
     const result = await this.soapRequest('http://tempuri.org/IIntegration/TestConnection', body);
-    
     const response = result?.Envelope?.Body?.TestConnectionResponse?.TestConnectionResult;
-    return {
-      success: response?.['$']?.IsSucceded === 'true',
-      message: response?.['$']?.Message || '',
-    };
+    const attrs = response?.$ ?? {};
+    const ok = attrs.IsSucceded === 'true' || attrs.IsSucceeded === 'true';
+    const message = attrs.Message ?? '';
+    return { success: ok, message };
   }
 
   /**
@@ -98,12 +132,10 @@ export class UyumsoftApiClient {
   async whoAmI() {
     const body = `<tns:WhoAmI />`;
     const result = await this.soapRequest('http://tempuri.org/IIntegration/WhoAmI', body);
-    
     const response = result?.Envelope?.Body?.WhoAmIResponse?.WhoAmIResult;
-    return {
-      success: response?.['$']?.IsSucceded === 'true',
-      value: response?.Value,
-    };
+    const attrs = response?.$ ?? {};
+    const ok = attrs.IsSucceded === 'true' || attrs.IsSucceeded === 'true';
+    return { success: ok, value: response?.Value };
   }
 
   /**
@@ -149,22 +181,22 @@ export class UyumsoftApiClient {
     
     const response = result?.Envelope?.Body?.GetInboxInvoiceListResponse?.GetInboxInvoiceListResult;
     
-    if (response?.['$']?.IsSucceded !== 'true') {
-      throw new Error(response?.['$']?.Message || 'Failed to get invoice list');
+    if (response?.$?.IsSucceded !== 'true') {
+      throw new Error(response?.$?.Message || 'Failed to get invoice list');
     }
 
     const value = response?.Value;
     const items = value?.Items || [];
-    
+
     // Normalize items to array
     const invoices = Array.isArray(items) ? items : (items ? [items] : []);
 
     return {
       success: true,
-      pageIndex: parseInt(value?.['$']?.PageIndex || 0),
-      pageSize: parseInt(value?.['$']?.PageSize || 0),
-      totalCount: parseInt(value?.['$']?.TotalCount || 0),
-      totalPages: parseInt(value?.['$']?.TotalPages || 0),
+      pageIndex: parseInt(String(value?.$?.PageIndex ?? 0), 10),
+      pageSize: parseInt(String(value?.$?.PageSize ?? 0), 10),
+      totalCount: parseInt(String(value?.$?.TotalCount ?? 0), 10),
+      totalPages: parseInt(String(value?.$?.TotalPages ?? 0), 10),
       invoices: invoices.map(this.parseInvoiceListItem),
     };
   }
@@ -205,8 +237,8 @@ export class UyumsoftApiClient {
     
     const response = result?.Envelope?.Body?.GetInboxInvoiceResponse?.GetInboxInvoiceResult;
     
-    if (response?.['$']?.IsSucceded !== 'true') {
-      throw new Error(response?.['$']?.Message || 'Failed to get invoice');
+    if (response?.$?.IsSucceded !== 'true') {
+      throw new Error(response?.$?.Message || 'Failed to get invoice');
     }
 
     return {
@@ -229,14 +261,14 @@ export class UyumsoftApiClient {
     
     const response = result?.Envelope?.Body?.GetInboxInvoiceViewResponse?.GetInboxInvoiceViewResult;
     
-    if (response?.['$']?.IsSucceded !== 'true') {
-      throw new Error(response?.['$']?.Message || 'Failed to get invoice view');
+    if (response?.$?.IsSucceded !== 'true') {
+      throw new Error(response?.$?.Message || 'Failed to get invoice view');
     }
 
     return {
       success: true,
       html: response?.Value?.Html || '',
-      isVerified: response?.Value?.Verification?.['$']?.IsVerified === 'true',
+      isVerified: response?.Value?.Verification?.$?.IsVerified === 'true',
       signingDate: response?.Value?.Verification?.SigningDate,
     };
   }
@@ -255,14 +287,14 @@ export class UyumsoftApiClient {
     
     const response = result?.Envelope?.Body?.GetInboxInvoicePdfResponse?.GetInboxInvoicePdfResult;
     
-    if (response?.['$']?.IsSucceded !== 'true') {
-      throw new Error(response?.['$']?.Message || 'Failed to get invoice PDF');
+    if (response?.$?.IsSucceded !== 'true') {
+      throw new Error(response?.$?.Message || 'Failed to get invoice PDF');
     }
 
     return {
       success: true,
       pdfBase64: response?.Value?.Data || '',
-      invoiceId: response?.Value?.['$']?.InvoiceId,
+      invoiceId: response?.Value?.$?.InvoiceId,
     };
   }
 
@@ -280,14 +312,14 @@ export class UyumsoftApiClient {
     
     const response = result?.Envelope?.Body?.GetInboxInvoiceDataResponse?.GetInboxInvoiceDataResult;
     
-    if (response?.['$']?.IsSucceded !== 'true') {
-      throw new Error(response?.['$']?.Message || 'Failed to get invoice data');
+    if (response?.$?.IsSucceded !== 'true') {
+      throw new Error(response?.$?.Message || 'Failed to get invoice data');
     }
 
     return {
       success: true,
       xmlBase64: response?.Value?.Data || '',
-      invoiceId: response?.Value?.['$']?.InvoiceId,
+      invoiceId: response?.Value?.$?.InvoiceId,
     };
   }
 }

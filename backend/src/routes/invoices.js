@@ -6,6 +6,7 @@
 import express from 'express';
 import { query, transaction } from '../database.js';
 import { authenticate, requirePermission, auditLog } from '../middleware/auth.js';
+import { faturaKalemleriClient } from '../services/fatura-kalemleri-client.js';
 
 const router = express.Router();
 
@@ -67,27 +68,13 @@ router.get('/', async (req, res) => {
       proje_id // Proje bazlı filtreleme
     } = req.query;
 
+    // Kalem verisi tek kaynak: /api/fatura-kalemleri (fatura_kalemleri tablosu). Manuel fatura kalemleri kaldırıldı.
     let sql = `
       SELECT 
         i.*,
         p.ad as proje_adi,
         p.musteri as proje_musteri,
-        COALESCE(
-          (SELECT JSON_AGG(
-            JSON_BUILD_OBJECT(
-              'id', ii.id,
-              'description', ii.description,
-              'category', ii.category,
-              'quantity', ii.quantity,
-              'unit', ii.unit,
-              'unit_price', ii.unit_price,
-              'vat_rate', ii.vat_rate,
-              'line_total', ii.line_total,
-              'line_total_with_vat', ii.line_total_with_vat
-            ) ORDER BY ii.line_order
-          ) FROM invoice_items ii WHERE ii.invoice_id = i.id), 
-          '[]'::json
-        ) as items
+        '[]'::json as items
       FROM invoices i
       LEFT JOIN projeler p ON i.proje_id = p.id
       WHERE 1=1
@@ -198,14 +185,9 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    const itemsResult = await query(`
-      SELECT * FROM invoice_items 
-      WHERE invoice_id = $1 
-      ORDER BY line_order
-    `, [id]);
-
+    // Kalem verisi tek kaynak: /api/fatura-kalemleri
     const invoice = invoiceResult.rows[0];
-    invoice.items = itemsResult.rows;
+    invoice.items = [];
 
     res.json({
       success: true,
@@ -280,36 +262,8 @@ router.post('/', authenticate, requirePermission('fatura', 'create'), auditLog('
 
       const invoice = invoiceResult.rows[0];
 
-      // Kalemleri kaydet
-      const savedItems = [];
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        const lineTotal = item.quantity * item.unit_price;
-        const vatAmount = lineTotal * (item.vat_rate / 100);
-        const lineTotalWithVat = lineTotal + vatAmount;
-
-        const itemResult = await client.query(`
-          INSERT INTO invoice_items (
-            invoice_id, description, product_code, category,
-            quantity, unit, unit_price,
-            vat_rate, vat_amount,
-            line_total, line_total_with_vat,
-            line_order
-          ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
-          ) RETURNING *
-        `, [
-          invoice.id, item.description, item.product_code, item.category,
-          item.quantity, item.unit, item.unit_price,
-          item.vat_rate, vatAmount,
-          lineTotal, lineTotalWithVat,
-          i + 1
-        ]);
-
-        savedItems.push(itemResult.rows[0]);
-      }
-
-      invoice.items = savedItems;
+      // Kalem verisi tek kaynak: fatura_kalemleri / /api/fatura-kalemleri. Manuel fatura kalemleri kaldırıldı.
+      invoice.items = [];
       return invoice;
     });
 
@@ -399,39 +353,8 @@ router.put('/:id', authenticate, requirePermission('fatura', 'edit'), auditLog('
 
       const invoice = invoiceResult.rows[0];
 
-      // Mevcut kalemleri sil
-      await client.query('DELETE FROM invoice_items WHERE invoice_id = $1', [id]);
-
-      // Yeni kalemleri ekle
-      const savedItems = [];
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        const lineTotal = item.quantity * item.unit_price;
-        const vatAmount = lineTotal * (item.vat_rate / 100);
-        const lineTotalWithVat = lineTotal + vatAmount;
-
-        const itemResult = await client.query(`
-          INSERT INTO invoice_items (
-            invoice_id, description, product_code, category,
-            quantity, unit, unit_price,
-            vat_rate, vat_amount,
-            line_total, line_total_with_vat,
-            line_order
-          ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
-          ) RETURNING *
-        `, [
-          invoice.id, item.description, item.product_code, item.category,
-          item.quantity, item.unit, item.unit_price,
-          item.vat_rate, vatAmount,
-          lineTotal, lineTotalWithVat,
-          i + 1
-        ]);
-
-        savedItems.push(itemResult.rows[0]);
-      }
-
-      invoice.items = savedItems;
+      // Kalem verisi tek kaynak: fatura_kalemleri / /api/fatura-kalemleri. Manuel fatura kalemleri kaldırıldı.
+      invoice.items = [];
       return invoice;
     });
 
@@ -570,51 +493,16 @@ router.get('/summary/monthly', async (req, res) => {
 
 /**
  * GET /api/invoices/summary/category
- * Kategori bazlı özet
+ * Kategori bazlı özet (tek kaynak: faturaKalemleriClient)
  */
 router.get('/summary/category', async (req, res) => {
   try {
-    const { startDate, endDate, type = 'purchase' } = req.query;
-
-    let sql = `
-      SELECT 
-        ii.category,
-        COUNT(DISTINCT i.id) as invoice_count,
-        SUM(ii.quantity) as total_quantity,
-        SUM(ii.line_total) as total_amount,
-        AVG(ii.unit_price) as avg_unit_price
-      FROM invoice_items ii
-      JOIN invoices i ON ii.invoice_id = i.id
-      WHERE i.invoice_type = $1 AND i.status != 'cancelled'
-    `;
-
-    const params = [type];
-
-    if (startDate) {
-      sql += ` AND i.invoice_date >= $${params.length + 1}`;
-      params.push(startDate);
-    }
-
-    if (endDate) {
-      sql += ` AND i.invoice_date <= $${params.length + 1}`;
-      params.push(endDate);
-    }
-
-    sql += ` GROUP BY ii.category ORDER BY total_amount DESC`;
-
-    const result = await query(sql, params);
-
-    res.json({
-      success: true,
-      data: result.rows
-    });
-
+    const { startDate, endDate } = req.query;
+    const data = await faturaKalemleriClient.getKategoriOzetSummary({ startDate, endDate });
+    res.json({ success: true, data });
   } catch (error) {
     console.error('Kategori özet hatası:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

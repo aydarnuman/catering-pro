@@ -112,47 +112,58 @@ const hashToken = (token) => {
  *       401:
  *         description: Geçersiz email veya şifre
  */
+/**
+ * LOGIN ENDPOINT
+ *
+ * AUTH SİSTEMİ YAPISI:
+ * 1. ÖNCE Supabase Auth kullanılır (modern, güvenli)
+ * 2. Supabase başarısız olursa FALLBACK olarak PostgreSQL password_hash kullanılır
+ *
+ * Bu "dual auth" yapısı geçiş sürecinde uyumluluk sağlar.
+ * Supabase credentials yoksa otomatik olarak PostgreSQL auth kullanılır.
+ */
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const ipAddress = req.ip || req.headers['x-forwarded-for'] || 'unknown';
     const userAgent = req.headers['user-agent'] || 'unknown';
-    
+
     if (!email || !password) {
       return res.status(400).json({ error: 'Email ve şifre gerekli' });
     }
-    
+
     // Önce kilit durumunu kontrol et
     const lockStatus = await loginAttemptService.checkLockStatusByEmail(email);
-    
+
     if (lockStatus.isLocked) {
       const minutesRemaining = Math.ceil((lockStatus.lockedUntil.getTime() - Date.now()) / 60000);
-      logger.warn('Login attempt blocked - account locked', { 
-        email, 
+      logger.warn('Login attempt blocked - account locked', {
+        email,
         lockedUntil: lockStatus.lockedUntil,
-        minutesRemaining 
+        minutesRemaining
       });
-      
-      return res.status(423).json({ 
+
+      return res.status(423).json({
         error: `Hesabınız kilitlendi. ${minutesRemaining} dakika sonra tekrar deneyin.`,
         code: 'ACCOUNT_LOCKED',
         lockedUntil: lockStatus.lockedUntil.toISOString(),
         minutesRemaining
       });
     }
-    
-    // Supabase Auth ile giriş yap
+
+    // === AUTH YÖNTEM 1: SUPABASE AUTH (MODERN) ===
     let authUser;
     let authSession;
     
     try {
+      // SUPABASE AUTH DENEMESI
       // Supabase client'ı al (anon key ile - kullanıcı girişi için)
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      
+
       if (!supabaseUrl || !supabaseAnonKey) {
-        logger.error('Supabase config eksik - fallback to PostgreSQL');
-        // Fallback: Eski PostgreSQL sistemi
+        logger.warn('⚠️ Supabase config eksik - PostgreSQL auth kullanılacak');
+        // === AUTH YÖNTEM 2: FALLBACK TO POSTGRESQL ===
         return await handlePostgresLogin(req, res, email, password, ipAddress, userAgent);
       }
       
@@ -324,16 +335,24 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Fallback: PostgreSQL login (Supabase Auth yoksa)
+/**
+ * FALLBACK AUTH: PostgreSQL Password Hash
+ *
+ * Bu fonksiyon sadece Supabase Auth kullanılamadığında çalışır.
+ * users.password_hash alanını bcrypt ile doğrular.
+ *
+ * NOT: Yeni kullanıcılar Supabase Auth ile oluşturulmalı.
+ * Bu fallback sadece eski kullanıcılar veya Supabase olmadan çalışma için.
+ */
 async function handlePostgresLogin(req, res, email, password, ipAddress, userAgent) {
   try {
     const result = await query(
       'SELECT * FROM users WHERE email = $1 AND is_active = true',
       [email]
     );
-    
+
     if (result.rows.length === 0) {
-      logger.warn('Login attempt failed - user not found', { email });
+      logger.warn('Login attempt failed - user not found (PostgreSQL fallback)', { email });
       return res.status(401).json({ error: 'Geçersiz email veya şifre' });
     }
     

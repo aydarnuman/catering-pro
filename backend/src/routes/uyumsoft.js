@@ -1,6 +1,6 @@
 import express from 'express';
+import { query } from '../database.js';
 import { faturaService, UyumsoftSession } from '../scraper/uyumsoft/index.js';
-import { query, transaction } from '../database.js';
 
 const router = express.Router();
 
@@ -49,7 +49,7 @@ router.post('/connect', async (req, res) => {
     console.error('❌ [Route] Bağlantı hatası:', error);
     return res.status(500).json({
       success: false,
-      error: 'Bağlantı sırasında hata oluştu: ' + error.message,
+      error: `Bağlantı sırasında hata oluştu: ${error.message}`,
     });
   }
 });
@@ -58,7 +58,7 @@ router.post('/connect', async (req, res) => {
  * POST /api/uyumsoft/connect-saved
  * Kayıtlı bilgilerle bağlan
  */
-router.post('/connect-saved', async (req, res) => {
+router.post('/connect-saved', async (_req, res) => {
   try {
     if (!faturaService.hasCredentials()) {
       return res.status(400).json({
@@ -148,10 +148,22 @@ router.get('/invoice/:ettn', async (req, res) => {
 });
 
 /**
+ * POST /api/uyumsoft/disconnect
+ * Bağlantıyı kes (client tarafında "bağlı değil" gösterilir; kayıtlı bilgiler silinmez)
+ */
+router.post('/disconnect', async (_req, res) => {
+  try {
+    return res.json({ success: true, message: 'Bağlantı kesildi' });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * GET /api/uyumsoft/status
  * Bağlantı durumunu kontrol et
  */
-router.get('/status', async (req, res) => {
+router.get('/status', async (_req, res) => {
   try {
     const hasCredentials = faturaService.hasCredentials();
     const lastSync = faturaService.getLastSync();
@@ -166,7 +178,7 @@ router.get('/status', async (req, res) => {
       connected,
       hasCredentials,
       lastSync: lastSync?.lastSync,
-      syncCount: lastSync?.totalFetched || 0,
+      syncCount: lastSync?.lastFaturaCount ?? lastSync?.totalFetched ?? 0,
     });
 
   } catch (error) {
@@ -181,7 +193,7 @@ router.get('/status', async (req, res) => {
  * DELETE /api/uyumsoft/credentials
  * Kayıtlı giriş bilgilerini sil
  */
-router.delete('/credentials', async (req, res) => {
+router.delete('/credentials', async (_req, res) => {
   try {
     const session = new UyumsoftSession();
     session.clearAll();
@@ -257,7 +269,14 @@ router.post('/sync/blocking', async (req, res) => {
           DO UPDATE SET
             invoice_no = EXCLUDED.invoice_no,
             invoice_date = EXCLUDED.invoice_date,
+            creation_date = EXCLUDED.creation_date,
+            sender_vkn = EXCLUDED.sender_vkn,
+            sender_name = EXCLUDED.sender_name,
+            sender_email = EXCLUDED.sender_email,
+            taxable_amount = EXCLUDED.taxable_amount,
+            tax_amount = EXCLUDED.tax_amount,
             payable_amount = EXCLUDED.payable_amount,
+            currency = EXCLUDED.currency,
             status = EXCLUDED.status,
             is_new = EXCLUDED.is_new,
             is_seen = EXCLUDED.is_seen,
@@ -286,37 +305,10 @@ router.post('/sync/blocking', async (req, res) => {
 
         savedInvoices.push(dbResult.rows[0]);
         savedCount++;
-        
-        // Cari otomatik oluştur/güncelle
-        try {
-          // Gönderen firmayı cari olarak ekle
-          const cariResult = await query(`
-            INSERT INTO cariler (
-              tip, unvan, vergi_no, email, 
-              borc, alacak, aktif, notlar
-            ) VALUES (
-              $1, $2, $3, $4, $5, $6, true, $7
-            )
-            ON CONFLICT (vergi_no) 
-            DO UPDATE SET
-              borc = cariler.borc + EXCLUDED.borc,
-              alacak = cariler.alacak + EXCLUDED.alacak,
-              updated_at = NOW()
-            RETURNING *
-          `, [
-            'tedarikci', // Gelen fatura = tedarikçi
-            invoice.targetTitle || 'Bilinmeyen Firma',
-            invoice.targetVkn || invoice.documentId, // VKN yoksa ETTN kullan
-            invoice.targetEmail || null,
-            invoice.payableAmount || 0, // Gelen fatura = borç
-            0, // alacak
-            'Uyumsoft otomatik eklendi'
-          ]);
-          
-          console.log(`✅ Cari oluşturuldu/güncellendi: ${invoice.targetTitle}`);
-        } catch (cariError) {
-          console.log(`⚠️ Cari oluşturulamadı: ${cariError.message}`);
-        }
+
+        // Cari işlemi trigger (create_cari_hareket_from_uyumsoft) ile yapılır.
+        // Sadece INSERT edilen faturalarda trigger tetiklenir; duplicate (UPDATE)
+        // durumunda borç tekrar eklenmez. Route'tan borç eklemek çift sayıma yol açar.
       } catch (dbError) {
         console.error(`❌ Veritabanı kayıt hatası (${invoice.documentId}):`, dbError.message);
         errorCount++;
@@ -577,10 +569,37 @@ router.get('/invoices', async (req, res) => {
 
     const result = await query(sql, params);
 
-    // Toplam sayıyı al
-    const countResult = await query(`
-      SELECT COUNT(*) as total FROM uyumsoft_invoices WHERE 1=1
-    `);
+    // Toplam sayıyı al (listeyle aynı filtreler)
+    let countSql = `
+      SELECT COUNT(*) as total FROM uyumsoft_invoices ui
+      WHERE 1=1
+    `;
+    const countParams = [];
+    let countParamIndex = 1;
+    if (startDate) {
+      countSql += ` AND ui.invoice_date >= $${countParamIndex}`;
+      countParams.push(startDate);
+      countParamIndex++;
+    }
+    if (endDate) {
+      countSql += ` AND ui.invoice_date <= $${countParamIndex}`;
+      countParams.push(endDate);
+      countParamIndex++;
+    }
+    if (sender) {
+      countSql += ` AND ui.sender_name ILIKE $${countParamIndex}`;
+      countParams.push(`%${sender}%`);
+      countParamIndex++;
+    }
+    if (search) {
+      countSql += ` AND (
+        ui.invoice_no ILIKE $${countParamIndex} OR 
+        ui.sender_name ILIKE $${countParamIndex} OR 
+        ui.ettn ILIKE $${countParamIndex}
+      )`;
+      countParams.push(`%${search}%`);
+    }
+    const countResult = await query(countSql, countParams);
 
     // Frontend formatına dönüştür
     const formattedData = result.rows.map(row => ({
@@ -608,9 +627,9 @@ router.get('/invoices', async (req, res) => {
     return res.json({
       success: true,
       data: formattedData,
-      total: parseInt(countResult.rows[0]?.total || 0),
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      total: parseInt(String(countResult.rows[0]?.total ?? 0), 10),
+      limit: parseInt(String(limit), 10),
+      offset: parseInt(String(offset), 10),
     });
 
   } catch (error) {
@@ -626,7 +645,7 @@ router.get('/invoices', async (req, res) => {
  * GET /api/uyumsoft/invoices/summary
  * Uyumsoft faturaları özet bilgisi
  */
-router.get('/invoices/summary', async (req, res) => {
+router.get('/invoices/summary', async (_req, res) => {
   try {
     const summary = await query(`
       SELECT 
@@ -683,7 +702,7 @@ router.get('/invoices/summary', async (req, res) => {
  * GET /api/uyumsoft/test
  * Test endpoint
  */
-router.get('/test', async (req, res) => {
+router.get('/test', async (_req, res) => {
   try {
     const hasCredentials = faturaService.hasCredentials();
     const lastSync = faturaService.getLastSync();
@@ -697,7 +716,7 @@ router.get('/test', async (req, res) => {
       timestamp: new Date().toISOString(),
       hasCredentials,
       lastSync,
-      dbInvoiceCount: parseInt(dbCount.rows[0]?.count || 0)
+      dbInvoiceCount: parseInt(String(dbCount.rows[0]?.count ?? 0), 10),
     });
 
   } catch (error) {

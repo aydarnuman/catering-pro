@@ -71,7 +71,7 @@ function tahminKategori(urunAdi) {
 // Tüm ürün kartlarını listele
 router.get('/', async (req, res) => {
   try {
-    const { kategori_id, arama, aktif = 'true' } = req.query;
+    const { kategori_id, arama, aktif = 'true', limit, offset = 0 } = req.query;
     
     let whereConditions = [];
     let queryParams = [];
@@ -94,8 +94,17 @@ router.get('/', async (req, res) => {
     
     const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
     
+    // Limit ve offset ekle (performans için)
+    let limitClause = '';
+    if (limit) {
+      const limitNum = parseInt(limit);
+      const offsetNum = parseInt(offset) || 0;
+      limitClause = `LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
+      queryParams.push(limitNum, offsetNum);
+    }
+    
     const result = await query(`
-      SELECT 
+      SELECT
         uk.id,
         uk.kod,
         uk.ad,
@@ -112,8 +121,22 @@ router.get('/', async (req, res) => {
         uk.kdv_orani,
         uk.toplam_stok,
         uk.ortalama_fiyat,
-        uk.son_alis_fiyati,
-        uk.son_alis_tarihi,
+        uk.birim_carpani,
+        uk.fatura_birimi,
+        -- son_alis_fiyati: STANDART BİRİM FİYATI (birim_carpani uygulanmış)
+        COALESCE(
+          uk.son_alis_fiyati,
+          (SELECT COALESCE(fk.birim_fiyat_standart, fk.birim_fiyat / NULLIF(uk.birim_carpani, 0), fk.birim_fiyat)
+           FROM fatura_kalemleri fk
+           WHERE fk.urun_id = uk.id AND fk.birim_fiyat IS NOT NULL
+           ORDER BY fk.fatura_tarihi DESC NULLS LAST LIMIT 1)
+        ) as son_alis_fiyati,
+        COALESCE(
+          uk.son_alis_tarihi,
+          (SELECT fk.fatura_tarihi FROM fatura_kalemleri fk
+           WHERE fk.urun_id = uk.id
+           ORDER BY fk.fatura_tarihi DESC NULLS LAST LIMIT 1)
+        ) as son_alis_tarihi,
         uk.raf_omru_gun,
         uk.aciklama,
         uk.resim_url,
@@ -121,7 +144,7 @@ router.get('/', async (req, res) => {
         uk.created_at,
         uk.ana_urun_id,
         uk.varyant_tipi,
-        CASE 
+        CASE
           WHEN uk.toplam_stok <= 0 THEN 'tukendi'
           WHEN uk.kritik_stok IS NOT NULL AND uk.toplam_stok <= uk.kritik_stok THEN 'kritik'
           WHEN uk.min_stok IS NOT NULL AND uk.toplam_stok <= uk.min_stok THEN 'dusuk'
@@ -133,11 +156,26 @@ router.get('/', async (req, res) => {
       LEFT JOIN birimler b ON b.id = uk.ana_birim_id
       ${whereClause}
       ORDER BY COALESCE(uk.ana_urun_id, uk.id), uk.ana_urun_id NULLS FIRST, uk.ad
+      ${limitClause}
     `, queryParams);
+    
+    // Toplam sayıyı da döndür (pagination için)
+    let totalCount = result.rows.length;
+    if (limit) {
+      const countResult = await query(`
+        SELECT COUNT(*) as total
+        FROM urun_kartlari uk
+        ${whereClause}
+      `, queryParams.slice(0, -2)); // Limit ve offset'i çıkar
+      totalCount = parseInt(countResult.rows[0].total);
+    }
     
     res.json({
       success: true,
-      data: result.rows
+      data: result.rows,
+      total: totalCount,
+      limit: limit ? parseInt(limit) : null,
+      offset: offset ? parseInt(offset) : 0
     });
   } catch (error) {
     logger.error('Ürün listesi hatası', { error: error.message, stack: error.stack });
@@ -186,22 +224,46 @@ router.get('/:id', async (req, res) => {
       ORDER BY d.kod
     `, [id]);
     
-    // Son fiyatlar (tedarikçi bazlı)
+    // Birim çarpanı al (standart fiyat hesabı için)
+    const birimCarpani = parseFloat(urun.birim_carpani) || 1;
+
+    // Son fiyatlar - HEM urun_fiyat_gecmisi HEM DE fatura_kalemleri'nden
+    // fatura_kalemleri TEK KAYNAK olduğu için öncelikli kullanılır
+    // STANDART BİRİM FİYATI gösterilir (birim_carpani uygulanmış)
     const fiyatResult = await query(`
-      SELECT 
-        ufg.id,
-        ufg.cari_id,
-        c.unvan as tedarikci,
-        ufg.fiyat,
-        ufg.kaynak,
-        ufg.tarih,
-        ufg.fatura_ettn
-      FROM urun_fiyat_gecmisi ufg
-      LEFT JOIN cariler c ON c.id = ufg.cari_id
-      WHERE ufg.urun_kart_id = $1
-      ORDER BY ufg.tarih DESC
+      WITH fatura_fiyatlar AS (
+        SELECT
+          fk.id,
+          NULL::integer as cari_id,
+          fk.tedarikci_ad as tedarikci,
+          COALESCE(fk.birim_fiyat_standart, fk.birim_fiyat / NULLIF($2, 0), fk.birim_fiyat) as fiyat,
+          fk.birim_fiyat as fatura_fiyat,
+          'fatura' as kaynak,
+          fk.fatura_tarihi as tarih,
+          fk.fatura_ettn
+        FROM fatura_kalemleri fk
+        WHERE fk.urun_id = $1 AND fk.birim_fiyat IS NOT NULL
+      ),
+      tablo_fiyatlar AS (
+        SELECT
+          ufg.id,
+          ufg.cari_id,
+          c.unvan as tedarikci,
+          ufg.fiyat,
+          ufg.fiyat as fatura_fiyat,
+          ufg.kaynak,
+          ufg.tarih,
+          ufg.fatura_ettn
+        FROM urun_fiyat_gecmisi ufg
+        LEFT JOIN cariler c ON c.id = ufg.cari_id
+        WHERE ufg.urun_kart_id = $1
+      )
+      SELECT * FROM fatura_fiyatlar
+      UNION ALL
+      SELECT * FROM tablo_fiyatlar
+      ORDER BY tarih DESC NULLS LAST
       LIMIT 10
-    `, [id]);
+    `, [id, birimCarpani]);
     
     // Tedarikçi eşleştirmeleri
     const eslestirmeResult = await query(`
@@ -327,15 +389,18 @@ router.put('/:id', async (req, res) => {
       ana_urun_id,
       varyant_tipi,
       varyant_aciklama,
-      tedarikci_urun_adi
+      tedarikci_urun_adi,
+      // Birim dönüşüm alanları
+      birim_carpani,
+      fatura_birimi
     } = req.body;
-    
+
     // Mevcut veriyi al
     const eskiVeri = await query('SELECT * FROM urun_kartlari WHERE id = $1', [id]);
     if (eskiVeri.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Ürün bulunamadı' });
     }
-    
+
     const result = await query(`
       UPDATE urun_kartlari SET
         kod = COALESCE($2, kod),
@@ -354,10 +419,12 @@ router.put('/:id', async (req, res) => {
         varyant_tipi = COALESCE($15, varyant_tipi),
         varyant_aciklama = COALESCE($16, varyant_aciklama),
         tedarikci_urun_adi = COALESCE($17, tedarikci_urun_adi),
+        birim_carpani = COALESCE($18, birim_carpani),
+        fatura_birimi = COALESCE($19, fatura_birimi),
         updated_at = NOW()
       WHERE id = $1
       RETURNING *
-    `, [id, kod, ad, kategori_id, ana_birim_id, barkod, min_stok, max_stok, kritik_stok, kdv_orani, raf_omru_gun, aciklama, aktif, ana_urun_id, varyant_tipi, varyant_aciklama, tedarikci_urun_adi]);
+    `, [id, kod, ad, kategori_id, ana_birim_id, barkod, min_stok, max_stok, kritik_stok, kdv_orani, raf_omru_gun, aciklama, aktif, ana_urun_id, varyant_tipi, varyant_aciklama, tedarikci_urun_adi, birim_carpani, fatura_birimi]);
     
     await auditLog(req, 'urun_kartlari', id, 'UPDATE', eskiVeri.rows[0], result.rows[0]);
     
@@ -889,22 +956,43 @@ router.get('/ana-urunler/liste', async (req, res) => {
 });
 
 /**
+ * Fatura ürün adından birim/miktar bilgilerini temizle
+ * Örn: "SANA MARGARİN PAKET 250 GR *48" -> "SANA MARGARİN PAKET"
+ */
+function temizleUrunAdi(faturaAdi) {
+  if (!faturaAdi) return '';
+
+  return faturaAdi
+    // "5 KG*2", "250 GR *48", "10 KG" formatlarını kaldır
+    .replace(/\s*\d+(?:[.,]\d+)?\s*(KG|GR|G|L|ML|LT|ADET|PKT|PAKET|KUTU|KOLİ)\s*\*?\s*\d*/gi, '')
+    // "*48" gibi kalan çarpımları kaldır
+    .replace(/\s*\*\s*\d+/gi, '')
+    // Fazla boşlukları temizle
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
  * POST /api/urunler/varyant-olustur
  * Fatura kaleminden yeni varyant oluştur
  */
 router.post('/varyant-olustur', async (req, res) => {
   try {
-    const { 
-      ana_urun_id, 
-      fatura_urun_adi, 
+    const {
+      ana_urun_id,
+      fatura_urun_adi,
       varyant_tipi = 'ambalaj',
       birim_fiyat,
-      kategori_id 
+      kategori_id,
+      temiz_ad // Kullanıcının düzenlediği temiz ad (opsiyonel)
     } = req.body;
-    
+
     if (!fatura_urun_adi) {
       return res.status(400).json({ success: false, error: 'Ürün adı zorunludur' });
     }
+
+    // Ürün adını temizle (kullanıcı vermediyse otomatik temizle)
+    const urunAdi = temiz_ad || temizleUrunAdi(fatura_urun_adi);
     
     // Ana ürün bilgilerini al (varsa veya otomatik bul)
     let anaUrun = null;
@@ -994,6 +1082,8 @@ router.post('/varyant-olustur', async (req, res) => {
     }
     
     // Yeni ürün/varyant oluştur
+    // ad: temizlenmiş ad (örn: "SANA MARGARİN PAKET")
+    // tedarikci_urun_adi: orijinal fatura adı (örn: "SANA MARGARİN PAKET 250 GR *48")
     const result = await query(`
       INSERT INTO urun_kartlari (
         kod, ad, ana_urun_id, varyant_tipi, tedarikci_urun_adi,
@@ -1002,12 +1092,12 @@ router.post('/varyant-olustur', async (req, res) => {
       RETURNING *
     `, [
       yeniKod,
-      fatura_urun_adi,
+      urunAdi,                        // Temizlenmiş ad
       bulunanAnaUrunId || null,
       bulunanAnaUrunId ? varyant_tipi : null,
-      fatura_urun_adi,
+      fatura_urun_adi,                // Orijinal fatura adı (eşleştirme için)
       birim_fiyat || null,
-      yeniKategoriId || 13  // Varsayılan: Diğer kategorisi
+      yeniKategoriId || 13            // Varsayılan: Diğer kategorisi
     ]);
     
     // Fiyat geçmişine kaydet
@@ -1018,14 +1108,14 @@ router.post('/varyant-olustur', async (req, res) => {
       `, [result.rows[0].id, birim_fiyat]);
     }
     
-    logger.info(`Yeni ürün/varyant: ${fatura_urun_adi} (${yeniKod})${bulunanAnaUrunId ? ` → ${anaUrun.ad} varyantı` : ''}`, { urunAdi: fatura_urun_adi, kod: yeniKod, anaUrunId: bulunanAnaUrunId });
-    
+    logger.info(`Yeni ürün/varyant: ${urunAdi} (${yeniKod})${bulunanAnaUrunId ? ` → ${anaUrun.ad} varyantı` : ''}`, { urunAdi, faturaAdi: fatura_urun_adi, kod: yeniKod, anaUrunId: bulunanAnaUrunId });
+
     res.json({
       success: true,
       data: result.rows[0],
-      message: bulunanAnaUrunId 
-        ? `"${anaUrun.ad}" altına "${fatura_urun_adi}" varyantı oluşturuldu`
-        : `"${fatura_urun_adi}" yeni ürün kartı oluşturuldu`
+      message: bulunanAnaUrunId
+        ? `"${anaUrun.ad}" altına "${urunAdi}" varyantı oluşturuldu`
+        : `"${urunAdi}" yeni ürün kartı oluşturuldu`
     });
   } catch (error) {
     logger.error('Varyant oluşturma hatası', { error: error.message, stack: error.stack });
@@ -1123,7 +1213,7 @@ router.post('/toplu-varyant-bagla', async (req, res) => {
     }
     
     console.log(`🔗 Toplu varyant bağlama: ${sonuclar.filter(s => s.basarili).length}/${baglamalar.length} başarılı`);
-    
+
     res.json({
       success: true,
       data: sonuclar,
@@ -1131,6 +1221,95 @@ router.post('/toplu-varyant-bagla', async (req, res) => {
     });
   } catch (error) {
     logger.error('Toplu varyant bağlama hatası', { error: error.message, stack: error.stack });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =============================================
+// DUPLICATE TESPİT VE TEMİZLİK
+// =============================================
+
+/**
+ * GET /api/urunler/duplikeler/liste
+ * Aynı tedarikci_urun_adi ile oluşturulmuş ürünleri listele
+ */
+router.get('/duplikeler/liste', async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT
+        uk.tedarikci_urun_adi,
+        ARRAY_AGG(
+          JSON_BUILD_OBJECT(
+            'id', uk.id,
+            'kod', uk.kod,
+            'ad', uk.ad,
+            'created_at', uk.created_at
+          ) ORDER BY uk.created_at
+        ) as urunler,
+        COUNT(*) as adet
+      FROM urun_kartlari uk
+      WHERE uk.aktif = TRUE
+        AND uk.tedarikci_urun_adi IS NOT NULL
+        AND uk.tedarikci_urun_adi != ''
+      GROUP BY uk.tedarikci_urun_adi
+      HAVING COUNT(*) > 1
+      ORDER BY COUNT(*) DESC
+    `);
+
+    res.json({
+      success: true,
+      data: result.rows,
+      toplam: result.rows.length
+    });
+  } catch (error) {
+    logger.error('Duplike liste hatası', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/urunler/duplikeler/birlestir
+ * Duplike ürünleri birleştir (ilk oluşturulanı tut, diğerlerini pasife al)
+ */
+router.post('/duplikeler/birlestir', async (req, res) => {
+  try {
+    const { tutulacak_id, silinecek_idler } = req.body;
+
+    if (!tutulacak_id || !silinecek_idler || !Array.isArray(silinecek_idler)) {
+      return res.status(400).json({
+        success: false,
+        error: 'tutulacak_id ve silinecek_idler (array) gerekli'
+      });
+    }
+
+    // 1. fatura_kalemleri'ndeki referansları tutulacak ürüne taşı
+    for (const silinecekId of silinecek_idler) {
+      await query(`
+        UPDATE fatura_kalemleri
+        SET urun_id = $1, updated_at = NOW()
+        WHERE urun_id = $2
+      `, [tutulacak_id, silinecekId]);
+    }
+
+    // 2. Silinecek ürünleri pasife al
+    await query(`
+      UPDATE urun_kartlari
+      SET aktif = false,
+          kod = kod || '_MERGED_' || id,
+          updated_at = NOW()
+      WHERE id = ANY($1)
+    `, [silinecek_idler]);
+
+    logger.info(`Duplike birleştirme: ${silinecek_idler.length} ürün → ${tutulacak_id} ID'ye taşındı`);
+
+    res.json({
+      success: true,
+      message: `${silinecek_idler.length} ürün birleştirildi`,
+      tutulacak_id,
+      birlestirilen: silinecek_idler.length
+    });
+  } catch (error) {
+    logger.error('Duplike birleştirme hatası', { error: error.message });
     res.status(500).json({ success: false, error: error.message });
   }
 });

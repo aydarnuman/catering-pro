@@ -3,27 +3,23 @@
  * Bu dosya en başta import edilmeli - diğer tüm import'lardan önce
  */
 
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { validateEnvironment } from './utils/env-validator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Backend .env dosyasını yükle
-const envPath = path.join(__dirname, '../.env');
-const result = dotenv.config({ path: envPath });
+// Önce proje kökü .env, sonra backend/.env (böylece tek .env yeterli olur)
+const rootEnv = path.join(__dirname, '../../.env');
+const backendEnv = path.join(__dirname, '../.env');
+dotenv.config({ path: rootEnv });
+const result = dotenv.config({ path: backendEnv });
 
-if (result.error) {
-  // Development'ta .env dosyası yoksa uyarı ver ama devam et
-  if (process.env.NODE_ENV !== 'production') {
-    console.warn('⚠️ .env dosyası yüklenemedi (development modunda devam ediliyor):', envPath);
-  } else {
-    console.error('❌ .env dosyası yüklenemedi:', envPath);
-    console.error(result.error);
-    process.exit(1);
-  }
+if (result.error && process.env.NODE_ENV === 'production') {
+  console.error('❌ .env dosyası yüklenemedi:', result.error);
+  process.exit(1);
 }
 
 // Environment variable'ları validate et

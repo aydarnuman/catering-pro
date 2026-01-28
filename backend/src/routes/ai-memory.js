@@ -10,7 +10,7 @@ const router = express.Router();
 // Tüm hafızaları getir
 router.get('/', async (req, res) => {
   try {
-    const { user_id = 'default', category, memory_type } = req.query;
+    const { user_id = 'default', category, memory_type, limit } = req.query;
     
     let sql = `SELECT * FROM ai_memory WHERE user_id = $1`;
     const params = [user_id];
@@ -25,15 +25,32 @@ router.get('/', async (req, res) => {
     if (memory_type) {
       sql += ` AND memory_type = $${paramIndex}`;
       params.push(memory_type);
+      paramIndex++;
     }
     
     sql += ` ORDER BY importance DESC, usage_count DESC`;
     
+    if (limit) {
+      sql += ` LIMIT $${paramIndex}`;
+      params.push(parseInt(limit) || 50);
+    }
+    
     const result = await query(sql, params);
-    res.json(result.rows);
+    
+    // Standart API response formatı
+    return res.json({
+      success: true,
+      data: {
+        memories: result.rows,
+        count: result.rows.length
+      }
+    });
   } catch (error) {
     console.error('Hafıza listesi hatası:', error);
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
 });
 

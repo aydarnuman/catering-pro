@@ -834,7 +834,7 @@ router.get('/receteler', async (req, res) => {
     }
     
     const result = await query(`
-      SELECT 
+      SELECT
         r.id,
         r.kod,
         r.ad,
@@ -846,8 +846,9 @@ router.get('/receteler', async (req, res) => {
         r.kalori,
         r.protein,
         r.porsiyon_miktar,
+        -- Piyasa maliyet hesaplama
         (SELECT COALESCE(SUM(
-          CASE 
+          CASE
             WHEN rm.birim IN ('g', 'gr', 'ml') THEN (rm.miktar / 1000.0) * COALESCE(
               (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi WHERE urun_kart_id = rm.urun_kart_id ORDER BY arastirma_tarihi DESC LIMIT 1),
               uk.son_alis_fiyati,
@@ -862,7 +863,20 @@ router.get('/receteler', async (req, res) => {
         ), 0)
         FROM recete_malzemeler rm
         LEFT JOIN urun_kartlari uk ON uk.id = rm.urun_kart_id
-        WHERE rm.recete_id = r.id) as piyasa_maliyet
+        WHERE rm.recete_id = r.id) as piyasa_maliyet,
+        -- Fatura güncellik kontrolü (30 gün)
+        (SELECT MIN(fiyat_guncel_mi(COALESCE(rm.fatura_fiyat_tarihi, uk.son_alis_tarihi), 30))::boolean
+         FROM recete_malzemeler rm
+         LEFT JOIN urun_kartlari uk ON uk.id = rm.urun_kart_id
+         WHERE rm.recete_id = r.id) as fatura_guncel,
+        -- Piyasa güncellik kontrolü (7 gün - piyasa daha sık güncellenmeli)
+        (SELECT MIN(fiyat_guncel_mi(
+           COALESCE(
+             rm.piyasa_fiyat_tarihi,
+             (SELECT arastirma_tarihi FROM piyasa_fiyat_gecmisi WHERE urun_kart_id = rm.urun_kart_id ORDER BY arastirma_tarihi DESC LIMIT 1)
+           ), 7))::boolean
+         FROM recete_malzemeler rm
+         WHERE rm.recete_id = r.id) as piyasa_guncel
       FROM receteler r
       LEFT JOIN recete_kategoriler rk ON rk.id = r.kategori_id
       WHERE ${whereConditions.join(' AND ')}
@@ -871,31 +885,32 @@ router.get('/receteler', async (req, res) => {
     
     // Alt kategori tanımları
     const ALT_KATEGORI_BILGI = {
-      corba: { ad: 'Çorbalar', ikon: '🥣' },
-      tavuk: { ad: 'Tavuk Yemekleri', ikon: '🍗' },
-      et: { ad: 'Et Yemekleri', ikon: '🥩' },
-      balik: { ad: 'Balık', ikon: '🐟' },
-      bakliyat: { ad: 'Bakliyat', ikon: '🫘' },
-      sebze: { ad: 'Sebze Yemekleri', ikon: '🥬' },
-      pilav: { ad: 'Pilav & Makarna', ikon: '🍚' },
-      salata: { ad: 'Salatalar', ikon: '🥗' },
-      tatli: { ad: 'Tatlılar', ikon: '🍮' },
-      icecek: { ad: 'İçecekler', ikon: '🥛' },
-      kahvalti: { ad: 'Kahvaltılık', ikon: '🍳' },
-      diger: { ad: 'Diğer', ikon: '🍽️' }
+      corba: { ad: 'Çorbalar', ikon: '🥣', renk: 'orange' },
+      tavuk: { ad: 'Tavuk Yemekleri', ikon: '🍗', renk: 'orange' },
+      et: { ad: 'Et Yemekleri', ikon: '🥩', renk: 'red' },
+      balik: { ad: 'Balık', ikon: '🐟', renk: 'blue' },
+      bakliyat: { ad: 'Bakliyat', ikon: '🫘', renk: 'yellow' },
+      sebze: { ad: 'Sebze Yemekleri', ikon: '🥬', renk: 'green' },
+      pilav: { ad: 'Pilav & Makarna', ikon: '🍚', renk: 'cyan' },
+      salata: { ad: 'Salatalar', ikon: '🥗', renk: 'lime' },
+      tatli: { ad: 'Tatlılar', ikon: '🍮', renk: 'pink' },
+      icecek: { ad: 'İçecekler', ikon: '🥛', renk: 'grape' },
+      kahvalti: { ad: 'Kahvaltılık', ikon: '🍳', renk: 'yellow' },
+      diger: { ad: 'Diğer', ikon: '🍽️', renk: 'gray' }
     };
-    
+
     // Alt kategori bazlı grupla
     const kategoriler = {};
     result.rows.forEach(row => {
       const altKat = row.alt_kategori || 'diger';
       const bilgi = ALT_KATEGORI_BILGI[altKat] || ALT_KATEGORI_BILGI.diger;
-      
+
       if (!kategoriler[altKat]) {
         kategoriler[altKat] = {
           kod: altKat,
           ad: bilgi.ad,
           ikon: bilgi.ikon,
+          renk: bilgi.renk,
           yemekler: []
         };
       }
@@ -905,13 +920,17 @@ router.get('/receteler', async (req, res) => {
         ad: row.ad,
         sistem_maliyet: parseFloat(row.sistem_maliyet) || 0,
         piyasa_maliyet: parseFloat(row.piyasa_maliyet) || parseFloat(row.sistem_maliyet) || 0,
+        fatura_maliyet: parseFloat(row.sistem_maliyet) || 0, // Fatura = sistem (son alış)
+        fatura_guncel: row.fatura_guncel !== false, // NULL ise true say
+        piyasa_guncel: row.piyasa_guncel !== false,
+        fiyat_uyari: !row.fatura_guncel || !row.piyasa_guncel ? 'Eski fiyat' : null,
         kalori: parseInt(row.kalori) || 0,
         protein: parseFloat(row.protein) || 0
       });
     });
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       data: Object.values(kategoriler),
       toplam: result.rows.length
     });

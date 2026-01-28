@@ -1,7 +1,7 @@
-import fs from 'fs';
-import path from 'path';
-import crypto from 'crypto';
-import { fileURLToPath } from 'url';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,7 +18,7 @@ function encrypt(text) {
   const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
   let encrypted = cipher.update(text);
   encrypted = Buffer.concat([encrypted, cipher.final()]);
-  return iv.toString('hex') + ':' + encrypted.toString('hex');
+  return `${iv.toString('hex')}:${encrypted.toString('hex')}`;
 }
 
 /**
@@ -33,7 +33,7 @@ function decrypt(text) {
     let decrypted = decipher.update(encryptedText);
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     return decrypted.toString();
-  } catch (error) {
+  } catch (_err) {
     return null;
   }
 }
@@ -82,22 +82,29 @@ class UyumsoftSession {
 
   /**
    * Credentials yükle
+   * Öncelik: env (UYUMSOFT_USERNAME, UYUMSOFT_PASSWORD) → storage dosyası
    */
   loadCredentials() {
+    const envUser = process.env.UYUMSOFT_USERNAME?.trim();
+    const envPass = process.env.UYUMSOFT_PASSWORD;
+    if (envUser && envPass) {
+      return {
+        username: envUser,
+        password: envPass,
+        savedAt: 'env',
+      };
+    }
     try {
       if (!fs.existsSync(this.sessionPath)) {
         return null;
       }
       const data = JSON.parse(fs.readFileSync(this.sessionPath, 'utf8'));
-      
       const username = decrypt(data.username);
       const password = decrypt(data.password);
-      
       if (!username || !password) {
         console.warn('⚠️ Credentials decrypt edilemedi');
         return null;
       }
-      
       return {
         username,
         password,
@@ -126,9 +133,12 @@ class UyumsoftSession {
   }
 
   /**
-   * Credentials var mı kontrol et
+   * Credentials var mı kontrol et (env veya storage)
    */
   hasCredentials() {
+    if (process.env.UYUMSOFT_USERNAME?.trim() && process.env.UYUMSOFT_PASSWORD) {
+      return true;
+    }
     return fs.existsSync(this.sessionPath);
   }
 
@@ -183,7 +193,7 @@ class UyumsoftSession {
       }
       const savedDate = new Date(data.savedAt);
       return Date.now() - savedDate.getTime();
-    } catch (error) {
+    } catch (_err) {
       return Infinity;
     }
   }
@@ -251,7 +261,7 @@ class UyumsoftSession {
         return null;
       }
       return JSON.parse(fs.readFileSync(this.syncPath, 'utf8'));
-    } catch (error) {
+    } catch (_err) {
       return null;
     }
   }

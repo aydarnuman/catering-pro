@@ -4,6 +4,7 @@
  */
 
 import { query } from '../database.js';
+import { faturaKalemleriClient } from './fatura-kalemleri-client.js';
 
 /**
  * Doğal dil sorgusunu SQL'e çevir
@@ -89,35 +90,16 @@ export async function executeInvoiceQuery(userQuery) {
   const results = {};
   
   try {
-    // Manuel faturalardan sorgula
+    // Tek kaynak: faturaKalemleriClient
     if (parsed.categoryFilter) {
-      // Kategori bazlı sorgu
-      let sql = `
-        SELECT 
-          ii.category,
-          COUNT(DISTINCT i.id) as invoice_count,
-          SUM(ii.quantity) as total_quantity,
-          SUM(ii.line_total) as total_amount,
-          AVG(ii.unit_price) as avg_unit_price,
-          STRING_AGG(DISTINCT i.customer_name, ', ') as suppliers
-        FROM invoice_items ii
-        JOIN invoices i ON ii.invoice_id = i.id
-        WHERE i.invoice_type = 'purchase'
-        AND i.status != 'cancelled'
-        AND LOWER(ii.category) LIKE $1
-      `;
-      
-      const params = [`%${parsed.categoryFilter}%`];
-      
-      if (parsed.dateFilter) {
-        sql += parsed.dateFilter.replace('$1', '$2').replace('$2', '$3');
-        params.push(...parsed.dateParams);
-      }
-      
-      sql += ' GROUP BY ii.category';
-      
-      const manualResult = await query(sql, params);
-      results.manual = manualResult.rows;
+      const startDate = parsed.dateParams?.[0] != null ? (typeof parsed.dateParams[0] === 'string' ? parsed.dateParams[0] : parsed.dateParams[0].toISOString?.().slice(0, 10)) : undefined;
+      const endDate = parsed.dateParams?.[1] != null ? (typeof parsed.dateParams[1] === 'string' ? parsed.dateParams[1] : parsed.dateParams[1].toISOString?.().slice(0, 10)) : undefined;
+      const kategoriRows = await faturaKalemleriClient.getKategoriFaturaOzeti({
+        categoryFilter: parsed.categoryFilter,
+        startDate,
+        endDate
+      });
+      results.manual = kategoriRows;
     } else {
       // Genel özet sorgu
       let sql = `
@@ -165,21 +147,9 @@ export async function executeInvoiceQuery(userQuery) {
     const uyumsoftResult = await query(uyumsoftSql, uyumsoftParams);
     results.uyumsoft = uyumsoftResult.rows;
     
-    // Eğer kategori sorgusu ise, Uyumsoft fatura kalemlerinden de sorgula
+    // Kategori sorgusu zaten fatura_kalemleri üzerinden (results.manual) yapıldı
     if (parsed.categoryFilter) {
-      const uyumsoftItemsSql = `
-        SELECT 
-          ai_category as category,
-          COUNT(*) as item_count,
-          SUM(total_amount) as total_amount,
-          AVG(unit_price) as avg_unit_price
-        FROM uyumsoft_invoice_items
-        WHERE LOWER(ai_category) LIKE $1
-        GROUP BY ai_category
-      `;
-      
-      const uyumsoftItemsResult = await query(uyumsoftItemsSql, [`%${parsed.categoryFilter}%`]);
-      results.uyumsoftItems = uyumsoftItemsResult.rows;
+      results.uyumsoftItems = results.manual || [];
     }
     
     // En çok alım yapılan tedarikçiler

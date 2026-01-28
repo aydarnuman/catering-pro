@@ -10,7 +10,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { query } from '../database.js';
-import { logError, logAPI } from '../utils/logger.js';
+import logger, { logError, logAPI } from '../utils/logger.js';
 import { analyzeFirmaBelgesi, getDesteklenenBelgeTipleri } from '../services/firma-belge-service.js';
 import { authenticate, requireAdmin } from '../middleware/auth.js';
 
@@ -88,6 +88,111 @@ router.get('/', async (req, res) => {
 
 /**
  * @swagger
+ * /api/firmalar/alan-sablonlari:
+ *   get:
+ *     summary: Kullanılabilir alan şablonlarını listele
+ *     tags: [Firmalar]
+ */
+router.get('/alan-sablonlari', async (req, res) => {
+  try {
+    // Önce doğrudan sorguyu dene
+    let result;
+    try {
+      result = await query(`
+        SELECT * FROM firma_alan_sablonlari 
+        WHERE aktif = true 
+        ORDER BY kategori, sira
+      `);
+    } catch (queryError) {
+      // Tablo yoksa oluştur
+      logger.warn('Alan şablonları sorgusu hatası', { 
+        code: queryError.code, 
+        message: queryError.message 
+      });
+      
+      if (queryError.code === '42P01' || queryError.message.includes('does not exist') || queryError.message.includes('bulunamadı')) {
+        logger.info('Alan şablonları tablosu bulunamadı, oluşturuluyor...');
+        
+        await query(`
+          CREATE TABLE IF NOT EXISTS firma_alan_sablonlari (
+            id SERIAL PRIMARY KEY,
+            alan_adi VARCHAR(100) NOT NULL UNIQUE,
+            gorunen_ad VARCHAR(100) NOT NULL,
+            alan_tipi VARCHAR(50) DEFAULT 'text',
+            kategori VARCHAR(50) DEFAULT 'diger',
+            varsayilan_deger TEXT,
+            zorunlu BOOLEAN DEFAULT false,
+            sira INTEGER DEFAULT 0,
+            aktif BOOLEAN DEFAULT true,
+            created_at TIMESTAMP DEFAULT now()
+          )
+        `);
+        
+        // Varsayılan şablonları ekle
+        await query(`
+          INSERT INTO firma_alan_sablonlari (alan_adi, gorunen_ad, alan_tipi, kategori, sira) VALUES
+          ('sgk_sicil_no', 'SGK Sicil No', 'text', 'resmi', 1),
+          ('kep_adresi', 'KEP Adresi', 'email', 'iletisim', 2),
+          ('nace_kodu', 'NACE Kodu', 'text', 'resmi', 3),
+          ('faaliyet_kodu', 'Faaliyet Kodu', 'text', 'resmi', 4),
+          ('gunluk_uretim_kapasitesi', 'Günlük Üretim Kapasitesi', 'number', 'kapasite', 5),
+          ('personel_kapasitesi', 'Personel Kapasitesi', 'number', 'kapasite', 6),
+          ('toplam_ciro', 'Toplam Ciro (TL)', 'number', 'mali', 7),
+          ('referans_sayisi', 'Referans Sayısı', 'number', 'referans', 8),
+          ('iso_sertifika_no', 'ISO Sertifika No', 'text', 'sertifika', 9),
+          ('haccp_sertifika_no', 'HACCP Sertifika No', 'text', 'sertifika', 10),
+          ('tse_belge_no', 'TSE Belge No', 'text', 'sertifika', 11),
+          ('halal_sertifika_no', 'Helal Sertifika No', 'text', 'sertifika', 12)
+          ON CONFLICT (alan_adi) DO NOTHING
+        `);
+        
+        // Tekrar sorgula
+        result = await query(`
+          SELECT * FROM firma_alan_sablonlari 
+          WHERE aktif = true 
+          ORDER BY kategori, sira
+        `);
+      } else {
+        // Başka bir hata varsa fırlat
+        throw queryError;
+      }
+    }
+    
+    // Kategorilere göre grupla
+    const gruplu = {};
+    result.rows.forEach(alan => {
+      if (!gruplu[alan.kategori]) gruplu[alan.kategori] = [];
+      gruplu[alan.kategori].push(alan);
+    });
+    
+    res.json({ success: true, data: result.rows, gruplu });
+  } catch (error) {
+    logError('Alan şablonları listele', error);
+    logger.error('Alan şablonları endpoint hatası', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+      detail: error.detail
+    });
+    // Daha detaylı hata bilgisi
+    const errorDetails = {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint,
+      table: error.table
+    };
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      code: error.code,
+      details: process.env.NODE_ENV === 'development' ? errorDetails : undefined
+    });
+  }
+});
+
+/**
+ * @swagger
  * /api/firmalar/{id}:
  *   get:
  *     summary: Tek firma getir
@@ -110,6 +215,42 @@ router.get('/:id', async (req, res) => {
     
   } catch (error) {
     logError('Firma Detay', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/firmalar/alan-sablonlari:
+ *   post:
+ *     summary: Yeni alan şablonu ekle
+ *     tags: [Firmalar]
+ */
+router.post('/alan-sablonlari', async (req, res) => {
+  try {
+    const { alan_adi, gorunen_ad, alan_tipi = 'text', kategori = 'diger' } = req.body;
+    
+    if (!alan_adi || !gorunen_ad) {
+      return res.status(400).json({ success: false, error: 'Alan adı ve görünen ad zorunlu' });
+    }
+    
+    // alan_adi'nı snake_case'e çevir
+    const cleanAlanAdi = alan_adi.toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/\s+/g, '_');
+    
+    const result = await query(`
+      INSERT INTO firma_alan_sablonlari (alan_adi, gorunen_ad, alan_tipi, kategori)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `, [cleanAlanAdi, gorunen_ad, alan_tipi, kategori]);
+    
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ success: false, error: 'Bu alan adı zaten mevcut' });
+    }
+    logError('Alan şablonu ekle', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -380,8 +521,35 @@ router.post('/:id/belge', upload.single('dosya'), async (req, res) => {
     
     if (belgeAlanlari[belge_tipi]) {
       const alan = belgeAlanlari[belge_tipi];
-      const sql = `UPDATE firmalar SET ${alan.url} = $1, ${alan.tarih} = $2 WHERE id = $3 RETURNING *`;
-      const result = await query(sql, [dosyaUrl, tarih || null, id]);
+
+      // SQL injection koruması: Sadece beyaz listedeki kolon isimlerini kullan
+      const allowedColumns = [
+        'vergi_levhasi_url', 'vergi_levhasi_tarih',
+        'sicil_gazetesi_url', 'sicil_gazetesi_tarih',
+        'imza_sirküleri_url', 'imza_sirküleri_tarih',
+        'faaliyet_belgesi_url', 'faaliyet_belgesi_tarih',
+        'iso_sertifika_url', 'iso_sertifika_tarih',
+        'haccp_sertifika_url', 'haccp_sertifika_tarih',
+        'tse_belgesi_url', 'tse_belgesi_tarih',
+        'halal_sertifika_url', 'halal_sertifika_tarih',
+        'logo_url', 'kase_imza_url'
+      ];
+
+      if (!allowedColumns.includes(alan.url)) {
+        return res.status(400).json({ success: false, error: 'Geçersiz kolon adı' });
+      }
+
+      // Tarih kolonunu sadece belge tipinde varsa güncelle
+      let sql, params;
+      if (alan.tarih && allowedColumns.includes(alan.tarih)) {
+        sql = `UPDATE firmalar SET ${alan.url} = $1, ${alan.tarih} = $2 WHERE id = $3 RETURNING *`;
+        params = [dosyaUrl, tarih || null, id];
+      } else {
+        sql = `UPDATE firmalar SET ${alan.url} = $1 WHERE id = $2 RETURNING *`;
+        params = [dosyaUrl, id];
+      }
+
+      const result = await query(sql, params);
       
       res.json({
         success: true,
@@ -597,6 +765,14 @@ router.post('/:id/analyze-and-save', upload.single('dosya'), async (req, res) =>
     // Belge URL'ini kaydet
     if (belgeAlanlari[belge_tipi]) {
       const alan = belgeAlanlari[belge_tipi];
+      // Whitelist validation for column names to prevent SQL injection
+      const allowedUrlFields = Object.values(belgeAlanlari).map(a => a.url);
+      const allowedTarihFields = Object.values(belgeAlanlari).map(a => a.tarih);
+
+      if (!allowedUrlFields.includes(alan.url) || (alan.tarih && !allowedTarihFields.includes(alan.tarih))) {
+        return res.status(400).json({ success: false, error: 'Geçersiz belge tipi' });
+      }
+
       const belgeResult = await query(
         `UPDATE firmalar SET ${alan.url} = $1, ${alan.tarih} = $2 WHERE id = $3 RETURNING *`,
         [dosyaUrl, new Date().toISOString().split('T')[0], id]
@@ -1081,9 +1257,9 @@ router.post('/:firmaId/dokumanlar/:dokumanId/yeniden-analiz', async (req, res) =
     
     // Yeniden AI analizi (belge tipi otomatik algılansın)
     const analizSonucu = await analyzeFirmaBelgesi(filePath, 'auto', doc.mime_type);
-    
-    // Algılanan belge tipini al
-    const detectedBelgeTipi = analizSonucu.belgeTipi || doc.belge_tipi;
+
+    // Algılanan belge tipini al (null check ekle)
+    const detectedBelgeTipi = analizSonucu?.belgeTipi || doc?.belge_tipi || 'bilinmiyor';
     
     // Dökümanı güncelle (algılanan belge tipi ile)
     await query(`
@@ -1441,69 +1617,6 @@ router.get('/belge-tipleri/listele', async (req, res) => {
 // =====================================================
 // EKSTRA ALANLAR YÖNETİMİ
 // =====================================================
-
-/**
- * @swagger
- * /api/firmalar/alan-sablonlari:
- *   get:
- *     summary: Kullanılabilir alan şablonlarını listele
- */
-router.get('/alan-sablonlari', async (req, res) => {
-  try {
-    const result = await query(`
-      SELECT * FROM firma_alan_sablonlari 
-      WHERE aktif = true 
-      ORDER BY kategori, sira
-    `);
-    
-    // Kategorilere göre grupla
-    const gruplu = {};
-    result.rows.forEach(alan => {
-      if (!gruplu[alan.kategori]) gruplu[alan.kategori] = [];
-      gruplu[alan.kategori].push(alan);
-    });
-    
-    res.json({ success: true, data: result.rows, gruplu });
-  } catch (error) {
-    logError('Alan şablonları listele', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-/**
- * @swagger
- * /api/firmalar/alan-sablonlari:
- *   post:
- *     summary: Yeni alan şablonu ekle
- */
-router.post('/alan-sablonlari', async (req, res) => {
-  try {
-    const { alan_adi, gorunen_ad, alan_tipi = 'text', kategori = 'diger' } = req.body;
-    
-    if (!alan_adi || !gorunen_ad) {
-      return res.status(400).json({ success: false, error: 'Alan adı ve görünen ad zorunlu' });
-    }
-    
-    // alan_adi'nı snake_case'e çevir
-    const cleanAlanAdi = alan_adi.toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '')
-      .replace(/\s+/g, '_');
-    
-    const result = await query(`
-      INSERT INTO firma_alan_sablonlari (alan_adi, gorunen_ad, alan_tipi, kategori)
-      VALUES ($1, $2, $3, $4)
-      RETURNING *
-    `, [cleanAlanAdi, gorunen_ad, alan_tipi, kategori]);
-    
-    res.json({ success: true, data: result.rows[0] });
-  } catch (error) {
-    if (error.code === '23505') {
-      return res.status(400).json({ success: false, error: 'Bu alan adı zaten mevcut' });
-    }
-    logError('Alan şablonu ekle', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
 
 /**
  * @swagger

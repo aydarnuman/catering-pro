@@ -4,6 +4,7 @@ import './env-loader.js';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -86,6 +87,20 @@ app.use(cors({
 // Cookie Parser
 app.use(cookieParser());
 
+// Response Compression - Network trafiğini 3-10x azaltır
+app.use(compression({
+  filter: (req, res) => {
+    // Compression'ı devre dışı bırakmak isteyen header'ı kontrol et
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    // Varsayılan filter'ı kullan (text, json, etc.)
+    return compression.filter(req, res);
+  },
+  level: 6, // Compression seviyesi (1-9, 6 optimal denge)
+  threshold: 1024, // 1KB altındaki yanıtları sıkıştırma
+}));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -107,9 +122,8 @@ app.use((req, res, next) => {
   ipAccessControl(req, res, next);
 });
 
-// Rate Limiting - Genel API limiti
-// Geçici olarak devre dışı - trust proxy hatası nedeniyle
-// app.use('/api', apiLimiter);
+// Rate Limiting - Genel API limiti (DDoS koruması)
+app.use('/api', apiLimiter);
 
 // Statik Dosya Sunucusu - Yüklenen belgeler için
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -238,6 +252,7 @@ import aiMemoryRouter from './routes/ai-memory.js';
 import duplicateCheckRouter from './routes/duplicate-check.js';
 import stokRouter from './routes/stok.js';
 import urunlerRouter from './routes/urunler.js';
+import faturaKalemlerRouter from './routes/fatura-kalemler.js';
 import personelRouter from './routes/personel.js';
 import bordroRouter from './routes/bordro.js';
 import izinRouter from './routes/izin.js';
@@ -275,10 +290,14 @@ import preferencesRouter from './routes/preferences.js';
 import scheduler from './services/sync-scheduler.js';
 import tenderScheduler from './services/tender-scheduler.js';
 import documentQueueProcessor from './services/document-queue-processor.js';
+// Migration'lar artık Supabase CLI ile yönetiliyor
+// import { runMigrations } from './utils/migration-runner.js';
+// Yeni migration oluşturma: supabase migration new <isim>
+// Migration uygulama: supabase db push
+import systemMonitor from './services/system-monitor.js';
 
-// Auth routes - Özel rate limiter ile
-// Geçici olarak devre dışı - trust proxy hatası nedeniyle
-app.use('/api/auth', /* authLimiter, */ authRouter);
+// Auth routes - Özel rate limiter ile (brute-force koruması)
+app.use('/api/auth', authLimiter, authRouter);
 
 app.use('/api/tenders', tendersRouter);
 app.use('/api/documents', documentsRouter);
@@ -287,6 +306,7 @@ app.use('/api/content', contentExtractorRouter);
 app.use('/api/uyumsoft', uyumsoftRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/invoices', invoicesRouter);
+app.use('/api/fatura-kalemleri', faturaKalemlerRouter);
 app.use('/api/sync', syncRouter);
 app.use('/api/database-stats', databaseStatsRouter);
 app.use('/api/cariler', carilerRouter);
@@ -430,23 +450,54 @@ app.use(notFoundHandler);
 // Global Error Handler (en sonda olmalı)
 app.use(globalErrorHandler);
 
-// Start server
-app.listen(PORT, () => {
-  logger.info(`🚀 API Server başlatıldı`, { port: PORT });
-  logger.info(`📚 API Docs: http://localhost:${PORT}/api-docs`);
-  logger.info(`📊 Health check: http://localhost:${PORT}/health`);
-  
-  // Winston zaten development'ta console'a yazıyor
-  
-  // Scheduler'ları başlat
-  logger.info('🔄 Otomatik senkronizasyon scheduler başlatılıyor...');
-  scheduler.start();
-  
-  logger.info('🔍 İhale scraper scheduler başlatılıyor...');
-  tenderScheduler.start();
-  
-  logger.info('📋 Document queue processor başlatılıyor...');
-  documentQueueProcessor.start();
-});
+// Startup
+const startServer = async () => {
+  try {
+    // Migration'lar artık Supabase CLI ile yönetiliyor
+    // Yeni workflow: supabase migration new <isim> && supabase db push
+    logger.info('📦 Migration sistemi: Supabase CLI (supabase db push)');
+    
+    // Server'ı başlat
+    app.listen(PORT, () => {
+      logger.info(`🚀 Server başlatıldı: http://localhost:${PORT}`);
+      logger.info(`📚 API Docs: http://localhost:${PORT}/api-docs`);
+      logger.info(`📊 Health check: http://localhost:${PORT}/health`);
+      
+      // Winston zaten development'ta console'a yazıyor
+      
+      // Scheduler'ları system monitor'a kaydet
+      systemMonitor.registerScheduler('syncScheduler', {
+        description: 'Uyumsoft fatura senkronizasyonu',
+        nextRun: null,
+      });
+      systemMonitor.registerScheduler('tenderScheduler', {
+        description: 'İhale scraper ve veri toplama',
+        nextRun: null,
+      });
+      systemMonitor.registerScheduler('documentQueue', {
+        description: 'Döküman işleme kuyruğu',
+        nextRun: null,
+      });
+
+      // Scheduler'ları başlat
+      logger.info('🔄 Otomatik senkronizasyon scheduler başlatılıyor...');
+      scheduler.start();
+
+      logger.info('🔍 İhale scraper scheduler başlatılıyor...');
+      tenderScheduler.start();
+
+      logger.info('📋 Document queue processor başlatılıyor...');
+      documentQueueProcessor.start();
+
+      logger.info('📡 System monitor hazır');
+    });
+    
+  } catch (error) {
+    logger.error('Server başlatma hatası', { error: error.message });
+    process.exit(1);
+  }
+};
+
+startServer();
 
 export default app;

@@ -85,7 +85,9 @@ class FaturaService {
   /**
    * Fatura listesini çek
    * @param {Object} options - Seçenekler
-   * @param {number} options.months - Kaç ay geriye git (default: 3)
+   * @param {number} options.months - Kaç ay geriye git (default: 3) (startDate/endDate yoksa kullanılır)
+   * @param {string|Date} options.startDate - Başlangıç tarihi (YYYY-MM-DD veya Date)
+   * @param {string|Date} options.endDate - Bitiş tarihi (YYYY-MM-DD veya Date)
    * @param {number} options.maxInvoices - Maksimum fatura sayısı (default: 1000)
    * @param {number} options.pageSize - Sayfa başı kayıt (default: 100)
    */
@@ -94,14 +96,19 @@ class FaturaService {
       months = 3,
       maxInvoices = 1000,
       pageSize = 100,
+      startDate: optStart,
+      endDate: optEnd,
     } = options;
 
     try {
       this.initClient();
 
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setMonth(startDate.getMonth() - months);
+      const endDate = optEnd
+        ? (typeof optEnd === 'string' ? new Date(optEnd) : optEnd)
+        : new Date();
+      const startDate = optStart
+        ? (typeof optStart === 'string' ? new Date(optStart) : optStart)
+        : (() => { const d = new Date(); d.setMonth(d.getMonth() - months); return d; })();
 
       console.log(`📥 Fatura senkronizasyonu başlıyor...`);
       console.log(`   Tarih aralığı: ${startDate.toLocaleDateString('tr-TR')} - ${endDate.toLocaleDateString('tr-TR')}`);

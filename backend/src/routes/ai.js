@@ -261,8 +261,10 @@ router.get('/templates', async (req, res) => {
     
     return res.json({
       success: true,
-      templates: result.rows,
-      count: result.rows.length
+      data: {
+        templates: result.rows,
+        count: result.rows.length
+      }
     });
 
   } catch (error) {
@@ -289,8 +291,10 @@ router.get('/templates', async (req, res) => {
 
       return res.json({
         success: true,
-        templates: formattedTemplates,
-        count: formattedTemplates.length,
+        data: {
+          templates: formattedTemplates,
+          count: formattedTemplates.length
+        },
         source: 'fallback'
       });
     } catch (fallbackError) {
@@ -687,9 +691,11 @@ router.get('/settings', async (req, res) => {
     
     return res.json({
       success: true,
-      settings,
-      grouped,
-      count: rows.length
+      data: {
+        settings,
+        grouped,
+        count: rows.length
+      }
     });
     
   } catch (error) {
@@ -993,8 +999,10 @@ router.get('/settings/history', authenticate, requireAdmin, async (req, res) => 
     
     return res.json({
       success: true,
-      history,
-      count: history.length
+      data: {
+        history,
+        count: history.length
+      }
     });
     
   } catch (error) {
@@ -1099,9 +1107,11 @@ router.get('/settings/models', async (req, res) => {
     
     return res.json({
       success: true,
-      models,
-      defaultModel,
-      count: models.length
+      data: {
+        models,
+        defaultModel,
+        count: models.length
+      }
     });
     
   } catch (error) {
@@ -1264,9 +1274,11 @@ router.get('/feedback/stats', async (req, res) => {
     
     return res.json({
       success: true,
-      stats: stats.rows[0],
-      byType: byType.rows,
-      period: 'Son 30 gün'
+      data: {
+        stats: stats.rows[0],
+        byType: byType.rows,
+        period: 'Son 30 gün'
+      }
     });
     
   } catch (error) {

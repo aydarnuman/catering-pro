@@ -8,6 +8,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import aiTools from './ai-tools/index.js';
 import { query } from '../database.js';
+import { faturaKalemleriClient } from './fatura-kalemleri-client.js';
 import logger from '../utils/logger.js';
 
 /**
@@ -23,43 +24,8 @@ async function getProductPrices(productNames = null) {
   };
 
   try {
-    // 1. ÖNCE FATURALARDAN BAK (Son 1 ay - en güncel)
-    const invoicePrices = await query(`
-      SELECT DISTINCT ON (LOWER(ii.description))
-        ii.description as urun_adi,
-        ii.unit_price as birim_fiyat,
-        ii.unit as birim,
-        ii.category as kategori,
-        i.invoice_date as fatura_tarihi,
-        i.customer_name as tedarikci,
-        'fatura' as kaynak
-      FROM invoice_items ii
-      JOIN invoices i ON ii.invoice_id = i.id
-      WHERE i.invoice_type = 'purchase'
-        AND i.invoice_date >= CURRENT_DATE - INTERVAL '30 days'
-        AND i.status != 'cancelled'
-        AND ii.unit_price > 0
-      ORDER BY LOWER(ii.description), i.invoice_date DESC
-    `);
-
-    // Uyumsoft e-faturalardan da bak
-    const uyumsoftPrices = await query(`
-      SELECT DISTINCT ON (LOWER(ui.product_name))
-        ui.product_name as urun_adi,
-        ui.unit_price as birim_fiyat,
-        ui.unit as birim,
-        ui.ai_category as kategori,
-        u.invoice_date as fatura_tarihi,
-        u.sender_name as tedarikci,
-        'e-fatura' as kaynak
-      FROM uyumsoft_invoice_items ui
-      JOIN uyumsoft_invoices u ON ui.uyumsoft_invoice_id = u.id
-      WHERE u.invoice_date >= CURRENT_DATE - INTERVAL '30 days'
-        AND ui.unit_price > 0
-      ORDER BY LOWER(ui.product_name), u.invoice_date DESC
-    `);
-
-    const allInvoicePrices = [...invoicePrices.rows, ...uyumsoftPrices.rows];
+    // 1. FATURA KALEMLERİNDEN BAK (tek kaynak: faturaKalemleriClient)
+    const allInvoicePrices = await faturaKalemleriClient.getSon30GunFaturaFiyatlari();
 
     if (allInvoicePrices.length > 0) {
       priceData.source = 'fatura';
@@ -112,26 +78,9 @@ async function getProductPrices(productNames = null) {
  */
 async function getCategoryPrices() {
   try {
-    const result = await query(`
-      SELECT 
-        COALESCE(ii.category, 'Diğer') as kategori,
-        COUNT(*) as urun_sayisi,
-        ROUND(AVG(ii.unit_price)::numeric, 2) as ortalama_fiyat,
-        ROUND(MIN(ii.unit_price)::numeric, 2) as min_fiyat,
-        ROUND(MAX(ii.unit_price)::numeric, 2) as max_fiyat,
-        MAX(i.invoice_date) as son_fatura_tarihi
-      FROM invoice_items ii
-      JOIN invoices i ON ii.invoice_id = i.id
-      WHERE i.invoice_type = 'purchase'
-        AND i.invoice_date >= CURRENT_DATE - INTERVAL '30 days'
-        AND i.status != 'cancelled'
-        AND ii.unit_price > 0
-      GROUP BY COALESCE(ii.category, 'Diğer')
-      ORDER BY urun_sayisi DESC
-    `);
-    return result.rows;
+    return await faturaKalemleriClient.getKategoriFiyatOzetiSon30Gun();
   } catch (error) {
-    logger.error('Kategori fiyat hatası', { error: error.message, stack: error.stack, kategoriId });
+    logger.error('Kategori fiyat hatası', { error: error.message, stack: error.stack });
     return [];
   }
 }

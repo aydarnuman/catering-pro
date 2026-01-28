@@ -64,7 +64,7 @@ router.get('/ozet/:projeId/:yil/:ay', async (req, res) => {
 
     const odemeGunu = ayarResult.rows[0]?.odeme_gunu || 15;
 
-    res.json({
+    const data = {
       personeller: personelResult.rows,
       ozet: {
         ...toplamlar,
@@ -73,10 +73,11 @@ router.get('/ozet/:projeId/:yil/:ay', async (req, res) => {
         banka_adi: ayarResult.rows[0]?.banka_adi,
         iban: ayarResult.rows[0]?.iban
       }
-    });
+    };
+    res.json({ success: true, data });
   } catch (error) {
     console.error('Maaş özeti hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -109,10 +110,10 @@ router.post('/olustur/:projeId/:yil/:ay', async (req, res) => {
       RETURNING *
     `, [projeId, yil, ay]);
 
-    res.json({ success: true, count: result.rows.length });
+    res.json({ success: true, data: { count: result.rows.length } });
   } catch (error) {
     console.error('Maaş oluşturma hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -135,10 +136,10 @@ router.patch('/:id/odendi', async (req, res) => {
       RETURNING *
     `, [odendi, id]);
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('Ödeme güncelleme hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -172,10 +173,10 @@ router.patch('/personel-odeme/:personelId', async (req, res) => {
       RETURNING *
     `, [proje_id, personelId, yil, ay, bordroMaas, elden_fark, avans, prim, netOdenecek]);
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('Personel ödeme güncelleme hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -197,10 +198,10 @@ router.patch('/toplu-odendi/:projeId/:yil/:ay', async (req, res) => {
       WHERE proje_id = $2 AND yil = $3 AND ay = $4
     `, [odendi, projeId, yil, ay]);
 
-    res.json({ success: true });
+    res.json({ success: true, data: null });
   } catch (error) {
     console.error('Toplu ödeme güncelleme hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -220,9 +221,9 @@ router.get('/avans/:personelId', async (req, res) => {
       WHERE personel_id = $1 
       ORDER BY tarih DESC
     `, [personelId]);
-    res.json(result.rows);
+    res.json({ success: true, data: result.rows });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -273,9 +274,9 @@ router.get('/prim/:personelId', async (req, res) => {
       WHERE personel_id = $1 
       ORDER BY tarih DESC
     `, [personelId]);
-    res.json(result.rows);
+    res.json({ success: true, data: result.rows });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -303,10 +304,10 @@ router.post('/prim', async (req, res) => {
       `, [tutar, personel_id, proje_id, odeme_yil, odeme_ay]);
     }
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('Prim ekleme hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -330,10 +331,10 @@ router.patch('/personel/:maasOdemeId', async (req, res) => {
       RETURNING *
     `, [avans, prim, fazla_mesai, notlar, maasOdemeId]);
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('Maaş güncelleme hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -347,9 +348,9 @@ router.get('/proje-ayarlari/:projeId', async (req, res) => {
     const result = await query(`
       SELECT * FROM proje_maas_ayarlari WHERE proje_id = $1
     `, [projeId]);
-    res.json(result.rows[0] || { odeme_gunu: 15 });
+    res.json({ success: true, data: result.rows[0] || { odeme_gunu: 15 } });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -372,9 +373,9 @@ router.post('/proje-ayarlari/:projeId', async (req, res) => {
       RETURNING *
     `, [projeId, odeme_gunu || 15, banka_adi, iban]);
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -402,10 +403,10 @@ router.get('/aylik-odeme/:projeId/:yil/:ay', async (req, res) => {
       WHERE proje_id = $1 AND yil = $2 AND ay = $3
     `, [projeId, yil, ay]);
 
-    res.json(result.rows[0] || {});
+    res.json({ success: true, data: result.rows[0] || {} });
   } catch (error) {
     console.error('Aylık ödeme getirme hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -426,7 +427,7 @@ router.patch('/aylik-odeme/:projeId/:yil/:ay', async (req, res) => {
     ];
 
     if (!allowedFields.includes(field)) {
-      return res.status(400).json({ error: 'Geçersiz alan' });
+      return res.status(400).json({ success: false, error: 'Geçersiz alan' });
     }
 
     const tarihField = field.replace('_odendi', '_tarih');
@@ -446,10 +447,10 @@ router.patch('/aylik-odeme/:projeId/:yil/:ay', async (req, res) => {
       RETURNING *
     `, [odendi, projeId, yil, ay]);
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('Ödeme güncelleme hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -513,10 +514,10 @@ router.post('/finalize/:projeId/:yil/:ay', async (req, res) => {
       if (vergiResult.rows[0]) hareketler.push(vergiResult.rows[0]);
     }
 
-    res.json({ success: true, hareketler, count: hareketler.length });
+    res.json({ success: true, data: { hareketler, count: hareketler.length } });
   } catch (error) {
     console.error('Finalize hatası:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

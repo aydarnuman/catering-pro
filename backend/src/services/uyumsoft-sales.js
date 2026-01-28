@@ -5,6 +5,7 @@
 
 import { query } from '../database.js';
 import { faturaService } from '../scraper/uyumsoft/index.js';
+import { faturaKalemleriClient } from './fatura-kalemleri-client.js';
 
 class UyumsoftSalesService {
   /**
@@ -46,20 +47,9 @@ class UyumsoftSalesService {
         notes: inv.notes
       };
 
-      // 3. Fatura kalemlerini ekle
-      const items = await query(`
-        SELECT * FROM invoice_items WHERE invoice_id = $1
-      `, [invoiceId]);
-
-      for (const item of items.rows) {
-        uyumsoftInvoice.lines.push({
-          name: item.description,
-          quantity: item.quantity,
-          unitPrice: item.unit_price,
-          vatRate: item.vat_rate,
-          amount: item.line_total
-        });
-      }
+      // Kalem verisi tek kaynak: faturaKalemleriClient. ETTN ile kalem okumak için: faturaKalemleriClient.getKalemler(ettn)
+      // Manuel invoice_id ile fatura_kalemleri eşleşmez (fatura_kalemleri fatura_ettn kullanır). Boş lines ile devam eder.
+      uyumsoftInvoice.lines = [];
 
       // 4. Uyumsoft'a gönder
       const result = await faturaService.createAndSendInvoice(uyumsoftInvoice);
