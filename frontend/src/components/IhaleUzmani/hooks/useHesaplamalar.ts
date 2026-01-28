@@ -1,13 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
 import { useDebouncedCallback } from '@mantine/hooks';
+import { useCallback, useEffect, useState } from 'react';
 import { tendersAPI } from '@/lib/api/services/tenders';
-import {
+import type {
+  AsiriDusukSonuc,
+  BedelSonuc,
+  MaliyetBilesenleri,
   SavedTender,
   TeklifItem,
-  MaliyetBilesenleri,
-  AsiriDusukSonuc,
   TeminatSonuc,
-  BedelSonuc,
 } from '../types';
 
 export interface UseHesaplamalarReturn {
@@ -51,7 +51,10 @@ export interface UseHesaplamalarReturn {
   resetHesaplamalar: () => void;
 }
 
-export function useHesaplamalar(tender: SavedTender | null, opened: boolean): UseHesaplamalarReturn {
+export function useHesaplamalar(
+  tender: SavedTender | null,
+  opened: boolean
+): UseHesaplamalarReturn {
   // Ana değerler
   const [yaklasikMaliyet, setYaklasikMaliyet] = useState<number>(0);
   const [sinirDeger, setSinirDeger] = useState<number | null>(null);
@@ -91,7 +94,10 @@ export function useHesaplamalar(tender: SavedTender | null, opened: boolean): Us
     setSinirDeger(null);
     setBizimTeklif(0);
     setHesaplananSinirDeger(null);
-    setTeklifListesi([{ firma: '', tutar: 0 }, { firma: '', tutar: 0 }]);
+    setTeklifListesi([
+      { firma: '', tutar: 0 },
+      { firma: '', tutar: 0 },
+    ]);
     setMaliyetBilesenleri({
       anaCigGirdi: 0,
       yardimciGirdi: 0,
@@ -115,7 +121,7 @@ export function useHesaplamalar(tender: SavedTender | null, opened: boolean): Us
     setSaveStatus('saving');
     try {
       const hesaplamaVerileri = {
-        teklif_listesi: teklifListesi.filter(t => t.tutar > 0),
+        teklif_listesi: teklifListesi.filter((t) => t.tutar > 0),
         maliyet_bilesenleri: maliyetBilesenleri,
         son_kayit: new Date().toISOString(),
       };
@@ -176,12 +182,17 @@ export function useHesaplamalar(tender: SavedTender | null, opened: boolean): Us
           }
 
           if (currentTracking.hesaplama_verileri) {
-            const hv = typeof currentTracking.hesaplama_verileri === 'string'
-              ? JSON.parse(currentTracking.hesaplama_verileri)
-              : currentTracking.hesaplama_verileri;
+            const hv =
+              typeof currentTracking.hesaplama_verileri === 'string'
+                ? JSON.parse(currentTracking.hesaplama_verileri)
+                : currentTracking.hesaplama_verileri;
 
             if (hv && typeof hv === 'object') {
-              if (hv.teklif_listesi && Array.isArray(hv.teklif_listesi) && hv.teklif_listesi.length >= 2) {
+              if (
+                hv.teklif_listesi &&
+                Array.isArray(hv.teklif_listesi) &&
+                hv.teklif_listesi.length >= 2
+              ) {
                 setTeklifListesi(hv.teklif_listesi);
               }
               if (hv.maliyet_bilesenleri && typeof hv.maliyet_bilesenleri === 'object') {
@@ -224,15 +235,15 @@ export function useHesaplamalar(tender: SavedTender | null, opened: boolean): Us
       resetHesaplamalar();
       loadSavedHesaplamaData();
     }
-  }, [opened, tender?.tender_id, resetHesaplamalar, loadSavedHesaplamaData]);
+  }, [opened, tender?.tender_id, resetHesaplamalar, loadSavedHesaplamaData, tender]);
 
   // ===== HESAPLAMA FONKSİYONLARI =====
 
   // Sınır değer hesapla
   const hesaplaSinirDeger = useCallback(() => {
     const validTeklifler = teklifListesi
-      .filter(t => t.tutar > 0)
-      .map(t => t.tutar)
+      .filter((t) => t.tutar > 0)
+      .map((t) => t.tutar)
       .sort((a, b) => a - b);
 
     if (validTeklifler.length < 2 || !yaklasikMaliyet) {
@@ -241,9 +252,7 @@ export function useHesaplamalar(tender: SavedTender | null, opened: boolean): Us
     }
 
     // Aşırı düşük teklifleri çıkar (%40'ın altındakileri)
-    const filteredTeklifler = validTeklifler.filter(
-      t => t >= yaklasikMaliyet * 0.4
-    );
+    const filteredTeklifler = validTeklifler.filter((t) => t >= yaklasikMaliyet * 0.4);
 
     if (filteredTeklifler.length < 2) {
       setHesaplananSinirDeger(null);
@@ -279,9 +288,10 @@ export function useHesaplamalar(tender: SavedTender | null, opened: boolean): Us
       asiriDusukMu: toplamMaliyet < sinirDeger,
       fark,
       farkOran,
-      aciklama: toplamMaliyet < sinirDeger
-        ? `Teklifiniz sınır değerin ${Math.abs(farkOran).toFixed(2)}% altında. Aşırı düşük teklif açıklaması yapmanız gerekiyor.`
-        : `Teklifiniz sınır değerin üzerinde. Açıklama gerekmez.`,
+      aciklama:
+        toplamMaliyet < sinirDeger
+          ? `Teklifiniz sınır değerin ${Math.abs(farkOran).toFixed(2)}% altında. Aşırı düşük teklif açıklaması yapmanız gerekiyor.`
+          : 'Teklifiniz sınır değerin üzerinde. Açıklama gerekmez.',
     });
   }, [maliyetBilesenleri, sinirDeger]);
 
@@ -313,7 +323,7 @@ export function useHesaplamalar(tender: SavedTender | null, opened: boolean): Us
     const bedel = Math.round(bedelData.yaklasikMaliyet * 1.15);
     setBedelSonuc({
       bedel,
-      aciklama: `Yaklaşık maliyet üzerine %15 kar marjı ile hesaplanmıştır.`,
+      aciklama: 'Yaklaşık maliyet üzerine %15 kar marjı ile hesaplanmıştır.',
     });
   }, [bedelData]);
 

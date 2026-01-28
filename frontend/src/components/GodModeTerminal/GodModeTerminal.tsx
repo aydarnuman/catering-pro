@@ -10,6 +10,7 @@ import {
   Loader,
   Modal,
   Paper,
+  rem,
   ScrollArea,
   Stack,
   Tabs,
@@ -17,7 +18,6 @@ import {
   TextInput,
   ThemeIcon,
   Tooltip,
-  rem,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -27,20 +27,15 @@ import {
   IconClearAll,
   IconClock,
   IconCommand,
-  IconDatabase,
-  IconDeviceFloppy,
   IconHistory,
-  IconNetwork,
   IconPlayerPlay,
   IconRefresh,
   IconServer,
   IconTerminal2,
-  IconTrash,
   IconX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getApiBaseUrlDynamic } from '@/lib/config';
-import { useAuth } from '@/context/AuthContext';
 
 interface CommandOutput {
   id: string;
@@ -80,9 +75,25 @@ const PRESET_CATEGORIES: {
     icon: IconServer,
     commands: [
       { id: 'disk_usage', command: 'df -h', description: 'Disk', safe: true },
-      { id: 'memory_usage', command: 'vm_stat | head -10 && sysctl hw.memsize', description: 'Bellek', safe: true },
-      { id: 'cpu_info', command: 'sysctl -n machdep.cpu.brand_string && ps -A -o %cpu | awk \'{s+=$1} END {print "CPU: " s "%"}\'', description: 'CPU', safe: true },
-      { id: 'network_ports', command: 'lsof -iTCP -sTCP:LISTEN -P -n | head -15', description: 'Portlar', safe: true },
+      {
+        id: 'memory_usage',
+        command: 'vm_stat | head -10 && sysctl hw.memsize',
+        description: 'Bellek',
+        safe: true,
+      },
+      {
+        id: 'cpu_info',
+        command:
+          'sysctl -n machdep.cpu.brand_string && ps -A -o %cpu | awk \'{s+=$1} END {print "CPU: " s "%"}\'',
+        description: 'CPU',
+        safe: true,
+      },
+      {
+        id: 'network_ports',
+        command: 'lsof -iTCP -sTCP:LISTEN -P -n | head -15',
+        description: 'Portlar',
+        safe: true,
+      },
       { id: 'system_uptime', command: 'uptime', description: 'Uptime', safe: true },
       { id: 'node_version', command: 'node -v && npm -v', description: 'Node', safe: true },
     ],
@@ -92,18 +103,48 @@ const PRESET_CATEGORIES: {
     icon: IconRefresh,
     commands: [
       { id: 'pm2_status', command: 'pm2 status', description: 'Durum', safe: true },
-      { id: 'pm2_logs', command: 'pm2 logs --lines 30 --nostream', description: 'Loglar', safe: true },
-      { id: 'backend_restart', command: 'pm2 restart catering-backend 2>/dev/null || echo "Bulunamadı"', description: 'Backend', safe: false },
-      { id: 'frontend_restart', command: 'pm2 restart catering-frontend 2>/dev/null || echo "Bulunamadı"', description: 'Frontend', safe: false },
+      {
+        id: 'pm2_logs',
+        command: 'pm2 logs --lines 30 --nostream',
+        description: 'Loglar',
+        safe: true,
+      },
+      {
+        id: 'backend_restart',
+        command: 'pm2 restart catering-backend 2>/dev/null || echo "Bulunamadı"',
+        description: 'Backend',
+        safe: false,
+      },
+      {
+        id: 'frontend_restart',
+        command: 'pm2 restart catering-frontend 2>/dev/null || echo "Bulunamadı"',
+        description: 'Frontend',
+        safe: false,
+      },
     ],
   },
   git: {
     label: '📂 Git',
     icon: IconHistory,
     commands: [
-      { id: 'git_status', command: 'cd /Users/numanaydar/Desktop/CATERİNG && git status --short', description: 'Status', safe: true },
-      { id: 'git_log', command: 'cd /Users/numanaydar/Desktop/CATERİNG && git log --oneline -10', description: 'Son 10', safe: true },
-      { id: 'git_branch', command: 'cd /Users/numanaydar/Desktop/CATERİNG && git branch -a', description: 'Branch', safe: true },
+      {
+        id: 'git_status',
+        command: 'cd /Users/numanaydar/Desktop/CATERİNG && git status --short',
+        description: 'Status',
+        safe: true,
+      },
+      {
+        id: 'git_log',
+        command: 'cd /Users/numanaydar/Desktop/CATERİNG && git log --oneline -10',
+        description: 'Son 10',
+        safe: true,
+      },
+      {
+        id: 'git_branch',
+        command: 'cd /Users/numanaydar/Desktop/CATERİNG && git branch -a',
+        description: 'Branch',
+        safe: true,
+      },
     ],
   },
   diger: {
@@ -112,8 +153,19 @@ const PRESET_CATEGORIES: {
     // db_connection komutu runtime'da dinamik URL ile oluşturulacak
     commands: [
       { id: 'db_connection', command: '', description: 'DB Test', safe: true, dynamic: true },
-      { id: 'clear_cache', command: 'rm -rf /tmp/catering-cache/* 2>/dev/null; echo "✅ Temizlendi"', description: 'Cache', safe: false },
-      { id: 'env_check', command: 'cd /Users/numanaydar/Desktop/CATERİNG/backend && cat .env | grep -E "^[A-Z]" | cut -d= -f1 | head -10', description: 'ENV', safe: true },
+      {
+        id: 'clear_cache',
+        command: 'rm -rf /tmp/catering-cache/* 2>/dev/null; echo "✅ Temizlendi"',
+        description: 'Cache',
+        safe: false,
+      },
+      {
+        id: 'env_check',
+        command:
+          'cd /Users/numanaydar/Desktop/CATERİNG/backend && cat .env | grep -E "^[A-Z]" | cut -d= -f1 | head -10',
+        description: 'ENV',
+        safe: true,
+      },
     ],
   },
 };
@@ -122,7 +174,7 @@ export function GodModeTerminal() {
   // Cookie-only authentication - token gerekmiyor
   const [command, setCommand] = useState('');
   const [outputs, setOutputs] = useState<CommandOutput[]>([]);
-  
+
   // Runtime'da dinamik komutları oluştur (hardcoded URL'leri önlemek için)
   const presets = useMemo(() => {
     const allPresets: PresetCommand[] = Object.values(PRESET_CATEGORIES).flatMap((cat) => {
@@ -162,137 +214,143 @@ export function GodModeTerminal() {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
     }
-  }, [outputs]);
+  }, []);
 
   // Manuel komut çalıştır
-  const executeCommand = useCallback(async (cmd: string, confirmed = false) => {
-    if (!cmd.trim()) return;
+  const executeCommand = useCallback(
+    async (cmd: string, confirmed = false) => {
+      if (!cmd.trim()) return;
 
-    setLoading(true);
-    try {
-      const res = await fetch(`${getApiBaseUrlDynamic()}/api/system/terminal/execute`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ command: cmd, confirmed }),
-      });
-      const data = await res.json();
+      setLoading(true);
+      try {
+        const res = await fetch(`${getApiBaseUrlDynamic()}/api/system/terminal/execute`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ command: cmd, confirmed }),
+        });
+        const data = await res.json();
 
-      // Uyarı durumu
-      if (data.warning) {
-        setPendingCommand(cmd);
-        openConfirm();
-        setLoading(false);
-        return;
-      }
+        // Uyarı durumu
+        if (data.warning) {
+          setPendingCommand(cmd);
+          openConfirm();
+          setLoading(false);
+          return;
+        }
 
-      // Blocked durumu
-      if (data.blocked) {
+        // Blocked durumu
+        if (data.blocked) {
+          setOutputs((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              command: cmd,
+              output: data.error,
+              success: false,
+              timestamp: new Date().toISOString(),
+            },
+          ]);
+          notifications.show({
+            title: '🚫 Engellendi',
+            message: 'Bu komut güvenlik nedeniyle engellenmiştir.',
+            color: 'red',
+          });
+          setLoading(false);
+          return;
+        }
+
+        // Normal sonuç
+        const output = data.success
+          ? data.output || '(Çıktı yok)'
+          : `Error: ${data.error}\n${data.output || ''}${data.stderr ? `\nStderr: ${data.stderr}` : ''}`;
+
         setOutputs((prev) => [
           ...prev,
           {
             id: Date.now().toString(),
             command: cmd,
-            output: data.error,
+            output,
+            success: data.success,
+            duration: data.duration,
+            timestamp: data.timestamp || new Date().toISOString(),
+          },
+        ]);
+
+        // Command history'ye ekle
+        setCommandHistory((prev) => {
+          const newHistory = [cmd, ...prev.filter((c) => c !== cmd)].slice(0, 50);
+          return newHistory;
+        });
+        setHistoryIndex(-1);
+        setCommand('');
+      } catch (error) {
+        setOutputs((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            command: cmd,
+            output: `Network Error: ${error instanceof Error ? error.message : 'Bağlantı hatası'}`,
             success: false,
             timestamp: new Date().toISOString(),
           },
         ]);
-        notifications.show({
-          title: '🚫 Engellendi',
-          message: 'Bu komut güvenlik nedeniyle engellenmiştir.',
-          color: 'red',
-        });
+      } finally {
         setLoading(false);
-        return;
+        inputRef.current?.focus();
       }
-
-      // Normal sonuç
-      const output = data.success
-        ? data.output || '(Çıktı yok)'
-        : `Error: ${data.error}\n${data.output || ''}${data.stderr ? `\nStderr: ${data.stderr}` : ''}`;
-
-      setOutputs((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          command: cmd,
-          output,
-          success: data.success,
-          duration: data.duration,
-          timestamp: data.timestamp || new Date().toISOString(),
-        },
-      ]);
-
-      // Command history'ye ekle
-      setCommandHistory((prev) => {
-        const newHistory = [cmd, ...prev.filter((c) => c !== cmd)].slice(0, 50);
-        return newHistory;
-      });
-      setHistoryIndex(-1);
-      setCommand('');
-    } catch (error) {
-      setOutputs((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          command: cmd,
-          output: `Network Error: ${error instanceof Error ? error.message : 'Bağlantı hatası'}`,
-          success: false,
-          timestamp: new Date().toISOString(),
-        },
-      ]);
-    } finally {
-      setLoading(false);
-      inputRef.current?.focus();
-    }
-  }, [openConfirm]);
+    },
+    [openConfirm]
+  );
 
   // Preset komut çalıştır (preset komutu direkt execute endpoint'ine gönder)
-  const executePreset = useCallback(async (presetId: string) => {
-    const preset = presets.find((p) => p.id === presetId);
-    if (!preset) return;
-    
-    setPresetLoading(presetId);
-    try {
-      const res = await fetch(`${getApiBaseUrlDynamic()}/api/system/terminal/execute`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ command: preset.command }),
-      });
-      const data = await res.json();
+  const executePreset = useCallback(
+    async (presetId: string) => {
+      const preset = presets.find((p) => p.id === presetId);
+      if (!preset) return;
 
-      const output = data.success
-        ? data.output || '(Çıktı yok)'
-        : `Error: ${data.error}\n${data.output || ''}`;
+      setPresetLoading(presetId);
+      try {
+        const res = await fetch(`${getApiBaseUrlDynamic()}/api/system/terminal/execute`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ command: preset.command }),
+        });
+        const data = await res.json();
 
-      setOutputs((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          command: preset.command,
-          output,
-          success: data.success,
-          duration: data.duration,
-          timestamp: data.timestamp || new Date().toISOString(),
-          isPreset: true,
-        },
-      ]);
-    } catch (error) {
-      notifications.show({
-        title: 'Hata',
-        message: 'Komut çalıştırılamadı',
-        color: 'red',
-      });
-    } finally {
-      setPresetLoading(null);
-    }
-  }, [presets]);
+        const output = data.success
+          ? data.output || '(Çıktı yok)'
+          : `Error: ${data.error}\n${data.output || ''}`;
+
+        setOutputs((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            command: preset.command,
+            output,
+            success: data.success,
+            duration: data.duration,
+            timestamp: data.timestamp || new Date().toISOString(),
+            isPreset: true,
+          },
+        ]);
+      } catch (_error) {
+        notifications.show({
+          title: 'Hata',
+          message: 'Komut çalıştırılamadı',
+          color: 'red',
+        });
+      } finally {
+        setPresetLoading(null);
+      }
+    },
+    [presets]
+  );
 
   // Onaylı komut çalıştır
   const confirmAndExecute = useCallback(() => {
@@ -343,15 +401,16 @@ export function GodModeTerminal() {
     <Stack gap="md">
       {/* Hazır Komutlar - Kategorize Tab'lar */}
       <Paper p="sm" radius="md" withBorder>
-        <Tabs value={activeCategory} onChange={(v) => setActiveCategory(v || 'sistem')} variant="pills" radius="md">
+        <Tabs
+          value={activeCategory}
+          onChange={(v) => setActiveCategory(v || 'sistem')}
+          variant="pills"
+          radius="md"
+        >
           <Group justify="space-between" align="center" mb="xs">
             <Tabs.List style={{ gap: rem(4) }}>
               {Object.entries(PRESET_CATEGORIES).map(([key, cat]) => (
-                <Tabs.Tab
-                  key={key}
-                  value={key}
-                  style={{ padding: '6px 12px', fontSize: '13px' }}
-                >
+                <Tabs.Tab key={key} value={key} style={{ padding: '6px 12px', fontSize: '13px' }}>
                   {cat.label}
                 </Tabs.Tab>
               ))}
@@ -416,12 +475,7 @@ export function GodModeTerminal() {
           </Group>
           <Group gap="xs">
             <Tooltip label="Temizle (Ctrl+L)">
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                size="sm"
-                onClick={() => setOutputs([])}
-              >
+              <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => setOutputs([])}>
                 <IconClearAll size={16} />
               </ActionIcon>
             </Tooltip>
@@ -445,13 +499,20 @@ export function GodModeTerminal() {
                 <IconTerminal2 size={30} />
               </ThemeIcon>
               <Text c="dimmed" ta="center">
-                Komut çalıştırmak için aşağıya yazın veya<br />
+                Komut çalıştırmak için aşağıya yazın veya
+                <br />
                 hazır komutlardan birini seçin
               </Text>
               <Group gap="xs">
-                <Badge color="gray" variant="light" size="sm">↑↓ Geçmiş</Badge>
-                <Badge color="gray" variant="light" size="sm">Ctrl+L Temizle</Badge>
-                <Badge color="gray" variant="light" size="sm">Enter Çalıştır</Badge>
+                <Badge color="gray" variant="light" size="sm">
+                  ↑↓ Geçmiş
+                </Badge>
+                <Badge color="gray" variant="light" size="sm">
+                  Ctrl+L Temizle
+                </Badge>
+                <Badge color="gray" variant="light" size="sm">
+                  Enter Çalıştır
+                </Badge>
               </Group>
             </Stack>
           ) : (
@@ -467,10 +528,17 @@ export function GodModeTerminal() {
                       {item.command}
                     </Text>
                     {item.isPreset && (
-                      <Badge size="xs" color="blue" variant="light">preset</Badge>
+                      <Badge size="xs" color="blue" variant="light">
+                        preset
+                      </Badge>
                     )}
                     {item.duration && (
-                      <Badge size="xs" color="gray" variant="light" leftSection={<IconClock size={10} />}>
+                      <Badge
+                        size="xs"
+                        color="gray"
+                        variant="light"
+                        leftSection={<IconClock size={10} />}
+                      >
                         {item.duration}ms
                       </Badge>
                     )}
@@ -579,7 +647,12 @@ export function GodModeTerminal() {
             {pendingCommand}
           </Code>
           <Group justify="flex-end" gap="sm">
-            <Button variant="light" color="gray" onClick={closeConfirm} leftSection={<IconX size={16} />}>
+            <Button
+              variant="light"
+              color="gray"
+              onClick={closeConfirm}
+              leftSection={<IconX size={16} />}
+            >
               İptal
             </Button>
             <Button color="red" onClick={confirmAndExecute} leftSection={<IconCheck size={16} />}>

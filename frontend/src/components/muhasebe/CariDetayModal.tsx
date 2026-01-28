@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  Accordion,
   Badge,
   Button,
   Card,
@@ -25,7 +24,6 @@ import {
   IconCalendar,
   IconCash,
   IconChartBar,
-  IconChevronDown,
   IconCoin,
   IconDownload,
   IconEdit,
@@ -38,49 +36,13 @@ import {
   IconTrendingUp,
   IconUser,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { StyledDateRangePicker } from '@/components/ui/StyledDatePicker';
-import { uyumsoftAPI } from '@/lib/invoice-api';
-import { muhasebeAPI } from '@/lib/api/services/muhasebe';
 import { useResponsive } from '@/hooks/useResponsive';
-import { formatMoney, formatDate } from '@/lib/formatters';
-
-interface Cari {
-  id: number;
-  tip: 'musteri' | 'tedarikci' | 'her_ikisi';
-  unvan: string;
-  yetkili?: string;
-  vergi_no?: string;
-  vergi_dairesi?: string;
-  telefon?: string;
-  email?: string;
-  adres?: string;
-  il?: string;
-  ilce?: string;
-  borc: number;
-  alacak: number;
-  bakiye: number;
-  kredi_limiti?: number;
-  banka_adi?: string;
-  iban?: string;
-  aktif?: boolean;
-  notlar?: string;
-  etiket?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-interface CariHareket {
-  id: number;
-  tarih: string;
-  belge_no: string;
-  aciklama: string;
-  borc: number;
-  alacak: number;
-  bakiye: number;
-  vade_tarihi?: string;
-  hareket_tipi: string;
-}
+import { muhasebeAPI } from '@/lib/api/services/muhasebe';
+import { formatDate, formatMoney } from '@/lib/formatters';
+import { uyumsoftAPI } from '@/lib/invoice-api';
+import type { Cari, CariHareket, CariHareketListRow } from '@/types/domain';
 
 interface CariDetayModalProps {
   opened: boolean;
@@ -101,7 +63,7 @@ export default function CariDetayModal({
 }: CariDetayModalProps) {
   const { isMobile, isMounted } = useResponsive();
   const [activeTab, setActiveTab] = useState<string | null>('ozet');
-  const [hareketler, setHareketler] = useState<CariHareket[]>([]);
+  const [hareketler, setHareketler] = useState<CariHareketListRow[]>([]);
   const [aylikOzet, setAylikOzet] = useState<any[]>([]);
   const [_loading, setLoading] = useState(false);
   const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([null, null]);
@@ -113,23 +75,8 @@ export default function CariDetayModal({
   const [faturaHtml, setFaturaHtml] = useState<string | null>(null);
   const [selectedBelgeNo, setSelectedBelgeNo] = useState<string>('');
 
-  useEffect(() => {
-    if (cari && opened) {
-      loadCariHareketler();
-      loadAylikOzet();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cari?.id, opened]);
-
-  // Filtreler değiştiğinde tekrar yükle
-  useEffect(() => {
-    if (cari && opened) {
-      loadCariHareketler();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cari?.id, opened, dateRange, filterType]);
-
-  const loadCariHareketler = async () => {
+  // Fonksiyonları useCallback ile tanımla (TDZ hatası için)
+  const loadCariHareketler = useCallback(async () => {
     if (!cari?.id) return;
     setLoading(true);
     try {
@@ -146,17 +93,21 @@ export default function CariDetayModal({
       }
 
       const result = await muhasebeAPI.getCariHareketler(cari.id, params);
-      if (result.success) {
-        setHareketler(result.data || []);
+      if (result.success && result.data) {
+        const rows: CariHareketListRow[] = result.data.map((h: CariHareket) => {
+          const { belge_tarihi, ...rest } = h;
+          return { ...rest, tarih: belge_tarihi ?? (h as { tarih?: string }).tarih ?? '' };
+        });
+        setHareketler(rows);
       }
     } catch (error) {
       console.error('Hareketler yüklenemedi:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [cari?.id, dateRange, filterType]);
 
-  const loadAylikOzet = async () => {
+  const loadAylikOzet = useCallback(async () => {
     if (!cari?.id) return;
     try {
       const result = await muhasebeAPI.getCariAylikOzet(cari.id);
@@ -166,8 +117,21 @@ export default function CariDetayModal({
     } catch (error) {
       console.error('Aylık özet yüklenemedi:', error);
     }
-  };
+  }, [cari?.id]);
 
+  useEffect(() => {
+    if (cari && opened) {
+      loadCariHareketler();
+      loadAylikOzet();
+    }
+  }, [cari, opened, loadAylikOzet, loadCariHareketler]);
+
+  // Filtreler değiştiğinde tekrar yükle
+  useEffect(() => {
+    if (cari && opened) {
+      loadCariHareketler();
+    }
+  }, [cari, opened, loadCariHareketler]);
 
   // Excel'e aktar
   const exportToExcel = () => {
@@ -729,7 +693,10 @@ export default function CariDetayModal({
                             variant="light"
                             size="sm"
                             style={{ cursor: 'pointer' }}
-                            onClick={() => showFaturaDetay(hareket.belge_no)}
+                            onClick={() => {
+                              const no = hareket.belge_no;
+                              if (no) showFaturaDetay(no);
+                            }}
                           >
                             {hareket.belge_no}
                           </Badge>

@@ -15,15 +15,10 @@ import {
   ThemeIcon,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  IconBuilding,
-  IconHistory,
-  IconLink,
-  IconPackage,
-} from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
-import { formatMoney } from '@/lib/formatters';
+import { IconBuilding, IconHistory, IconLink, IconPackage } from '@tabler/icons-react';
+import { useCallback, useEffect, useState } from 'react';
 import { urunlerAPI } from '@/lib/api/services/urunler';
+import { formatMoney } from '@/lib/formatters';
 
 interface Props {
   opened: boolean;
@@ -35,14 +30,7 @@ export default function UrunDetayModal({ opened, onClose, urunId }: Props) {
   const [loading, setLoading] = useState(false);
   const [urunDetay, setUrunDetay] = useState<any>(null);
 
-  // Ürün detayını yükle
-  useEffect(() => {
-    if (opened && urunId) {
-      loadUrunDetay(urunId);
-    }
-  }, [opened, urunId]);
-
-  const loadUrunDetay = async (id: number) => {
+  const loadUrunDetay = useCallback(async (id: number) => {
     setLoading(true);
     try {
       const result = await urunlerAPI.getUrun(id);
@@ -61,7 +49,14 @@ export default function UrunDetayModal({ opened, onClose, urunId }: Props) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Ürün detayını yükle
+  useEffect(() => {
+    if (opened && urunId) {
+      loadUrunDetay(urunId);
+    }
+  }, [opened, urunId, loadUrunDetay]);
 
   // Miktar formatı
   const formatMiktar = (value: number | string | null | undefined) => {
@@ -91,8 +86,12 @@ export default function UrunDetayModal({ opened, onClose, urunId }: Props) {
               <IconPackage size={20} />
             </ThemeIcon>
             <Box>
-              <Text fw={600} size="lg">{urunDetay.ad}</Text>
-              <Text size="xs" c="dimmed">{urunDetay.kod} • {urunDetay.kategori}</Text>
+              <Text fw={600} size="lg">
+                {urunDetay.ad}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {urunDetay.kod} • {urunDetay.kategori}
+              </Text>
             </Box>
           </Group>
         ) : (
@@ -102,32 +101,46 @@ export default function UrunDetayModal({ opened, onClose, urunId }: Props) {
       size="xl"
     >
       <LoadingOverlay visible={loading} />
-      
+
       {urunDetay && (
         <Stack gap="lg">
           {/* Genel Bilgiler */}
           <Paper p="md" withBorder radius="md">
             <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
               <Box>
-                <Text size="xs" c="dimmed" tt="uppercase">Mevcut Stok</Text>
+                <Text size="xs" c="dimmed" tt="uppercase">
+                  Mevcut Stok
+                </Text>
                 <Text size="xl" fw={700} c="blue">
                   {formatMiktar(urunDetay.toplam_stok)} {urunDetay.birim_kisa || 'Ad'}
                 </Text>
               </Box>
               <Box>
-                <Text size="xs" c="dimmed" tt="uppercase">Son Alış Fiyatı</Text>
+                <Text size="xs" c="dimmed" tt="uppercase">
+                  Son Alış Fiyatı
+                </Text>
                 <Text size="xl" fw={700} c="teal">
-                  {formatMoney(urunDetay.son_alis_fiyati, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  {formatMoney(urunDetay.son_alis_fiyati, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0,
+                  })}
                 </Text>
               </Box>
               <Box>
-                <Text size="xs" c="dimmed" tt="uppercase">Ort. Fiyat</Text>
+                <Text size="xs" c="dimmed" tt="uppercase">
+                  Ort. Fiyat
+                </Text>
                 <Text size="xl" fw={700}>
-                  {formatMoney(urunDetay.ortalama_fiyat, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  {formatMoney(urunDetay.ortalama_fiyat, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0,
+                  })}
                 </Text>
               </Box>
               <Box>
-                <Text size="xs" c="dimmed" tt="uppercase">Min / Kritik Stok</Text>
+                <Text size="xs" c="dimmed" tt="uppercase">
+                  Min / Kritik Stok
+                </Text>
                 <Text size="xl" fw={700}>
                   {formatMiktar(urunDetay.min_stok)} / {formatMiktar(urunDetay.kritik_stok)}
                 </Text>
@@ -146,7 +159,7 @@ export default function UrunDetayModal({ opened, onClose, urunId }: Props) {
                 {urunDetay.fiyat_gecmisi?.length || 0} kayıt
               </Badge>
             </Group>
-            
+
             {urunDetay.fiyat_gecmisi && urunDetay.fiyat_gecmisi.length > 0 ? (
               <Table striped highlightOnHover withTableBorder>
                 <Table.Thead>
@@ -170,12 +183,15 @@ export default function UrunDetayModal({ opened, onClose, urunId }: Props) {
                       </Table.Td>
                       <Table.Td>
                         <Text fw={500} c="blue">
-                          {formatMoney(fg.fiyat, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                          {formatMoney(fg.fiyat, {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
+                          })}
                         </Text>
                       </Table.Td>
                       <Table.Td>
-                        <Badge 
-                          size="xs" 
+                        <Badge
+                          size="xs"
                           variant="light"
                           color={fg.kaynak === 'fatura' ? 'violet' : 'gray'}
                         >
@@ -202,7 +218,7 @@ export default function UrunDetayModal({ opened, onClose, urunId }: Props) {
                 {urunDetay.tedarikci_eslestirmeleri?.length || 0} kayıt
               </Badge>
             </Group>
-            
+
             {urunDetay.tedarikci_eslestirmeleri && urunDetay.tedarikci_eslestirmeleri.length > 0 ? (
               <Table striped highlightOnHover withTableBorder>
                 <Table.Thead>
@@ -233,12 +249,15 @@ export default function UrunDetayModal({ opened, onClose, urunId }: Props) {
                         </Badge>
                       </Table.Td>
                       <Table.Td>
-                        <Badge 
-                          size="sm" 
+                        <Badge
+                          size="sm"
                           variant="light"
                           color={
-                            (te.guven_skoru || 0) >= 90 ? 'green' : 
-                            (te.guven_skoru || 0) >= 70 ? 'yellow' : 'red'
+                            (te.guven_skoru || 0) >= 90
+                              ? 'green'
+                              : (te.guven_skoru || 0) >= 70
+                                ? 'yellow'
+                                : 'red'
                           }
                         >
                           %{te.guven_skoru || '-'}
@@ -256,7 +275,9 @@ export default function UrunDetayModal({ opened, onClose, urunId }: Props) {
             ) : (
               <Paper p="md" withBorder ta="center" c="dimmed">
                 <Text size="sm">Henüz tedarikçi eşleştirmesi yok</Text>
-                <Text size="xs" mt="xs">Faturadan stok girişi yapıldığında otomatik oluşturulur</Text>
+                <Text size="xs" mt="xs">
+                  Faturadan stok girişi yapıldığında otomatik oluşturulur
+                </Text>
               </Paper>
             )}
           </Box>
@@ -270,14 +291,18 @@ export default function UrunDetayModal({ opened, onClose, urunId }: Props) {
                 {urunDetay.depo_durumlari?.length || 0} depo
               </Badge>
             </Group>
-            
+
             {urunDetay.depo_durumlari && urunDetay.depo_durumlari.length > 0 ? (
               <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="sm">
                 {urunDetay.depo_durumlari.map((dd: any) => (
                   <Paper key={dd.depo_id} p="sm" withBorder radius="md">
                     <Group justify="space-between" mb="xs">
-                      <Text size="sm" fw={600}>{dd.depo_ad}</Text>
-                      <Badge size="xs" variant="light">{dd.depo_kod}</Badge>
+                      <Text size="sm" fw={600}>
+                        {dd.depo_ad}
+                      </Text>
+                      <Badge size="xs" variant="light">
+                        {dd.depo_kod}
+                      </Badge>
                     </Group>
                     <Text size="xl" fw={700} c="blue">
                       {formatMiktar(dd.miktar)} {urunDetay.birim_kisa || 'Ad'}
@@ -288,7 +313,9 @@ export default function UrunDetayModal({ opened, onClose, urunId }: Props) {
                       </Text>
                     )}
                     {dd.raf_konum && (
-                      <Text size="xs" c="dimmed">📍 {dd.raf_konum}</Text>
+                      <Text size="xs" c="dimmed">
+                        📍 {dd.raf_konum}
+                      </Text>
                     )}
                   </Paper>
                 ))}

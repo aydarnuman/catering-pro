@@ -35,6 +35,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
+import { authFetch } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/config';
 
 interface HealthStatus {
@@ -57,7 +58,7 @@ export default function SistemPage() {
     setHealthLoading(true);
     setHealthError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/health`);
+      const res = await authFetch(`${API_BASE_URL}/health`);
       const data = await res.json();
       setHealth(data);
     } catch (_err) {
@@ -72,7 +73,7 @@ export default function SistemPage() {
     setLogsLoading(true);
     setLogsError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/logs/recent`);
+      const res = await authFetch(`${API_BASE_URL}/logs/recent`);
       const data = await res.json();
       setLogs(data.data || []);
     } catch (_err) {

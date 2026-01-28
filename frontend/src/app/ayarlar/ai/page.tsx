@@ -60,7 +60,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
-import { aiAPI, type AITemplate } from '@/lib/api/services/ai';
+import { type AITemplate, aiAPI } from '@/lib/api/services/ai';
 
 // Tip tanımları
 interface PromptTemplate {
@@ -156,6 +156,7 @@ const iconOptions = [
 ];
 
 export default function AIAyarlariPage() {
+  // Auth kontrolü api.ts tarafından otomatik yapılıyor
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -167,13 +168,13 @@ export default function AIAyarlariPage() {
   const [activeTab, setActiveTab] = useState<string | null>('templates');
 
   // AI Settings state
-  const [aiSettings, setAiSettings] = useState<AISettings | null>(null);
+  const [_aiSettings, setAiSettings] = useState<AISettings | null>(null);
   const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('');
   const [_settingsLoading, setSettingsLoading] = useState(false);
   const [modelSaving, setModelSaving] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
-  
+
   // Editable settings state
   const [editableSettings, setEditableSettings] = useState({
     auto_learn_enabled: true,
@@ -195,7 +196,8 @@ export default function AIAyarlariPage() {
   const [selectedSettingKey, setSelectedSettingKey] = useState<string>('');
 
   // Import/Export state
-  const [importModalOpened, { open: openImportModal, close: closeImportModal }] = useDisclosure(false);
+  const [importModalOpened, { open: openImportModal, close: closeImportModal }] =
+    useDisclosure(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importPreview, setImportPreview] = useState<any>(null);
   const [importing, setImporting] = useState(false);
@@ -224,13 +226,16 @@ export default function AIAyarlariPage() {
       const data = await aiAPI.getTemplates();
 
       if (data.success) {
-        setTemplates(data.data.templates as unknown as PromptTemplate[]);
+        // Backend'den gelen format: { success: true, data: { templates: [...] } }
+        const templates = data.data?.templates || [];
+        setTemplates(templates as unknown as PromptTemplate[]);
       } else {
         setError(data.error || 'Şablonlar yüklenemedi');
       }
     } catch (err) {
       console.error('Template fetch error:', err);
       setError('Sunucuya bağlanılamadı');
+      setTemplates([]); // Hata durumunda boş array set et
     } finally {
       setLoading(false);
     }
@@ -246,14 +251,19 @@ export default function AIAyarlariPage() {
       ]);
 
       if (settingsData.success) {
-        const settings = settingsData.data.settings as any;
+        // Backend'den gelen format: { success: true, data: { settings: {...} } }
+        const settings = (settingsData.data?.settings as any) || {};
+
         setAiSettings(settings as unknown as AISettings);
-        
+
         // Editable settings'i parse et (JSONB'den gelen değerler parse edilmiş olabilir)
         const parseValue = (value: any, defaultValue: any) => {
           if (value === null || value === undefined) return defaultValue;
           // Eğer string ise ve JSON gibi görünüyorsa parse et
-          if (typeof value === 'string' && (value.startsWith('"') || value.startsWith('[') || value.startsWith('{'))) {
+          if (
+            typeof value === 'string' &&
+            (value.startsWith('"') || value.startsWith('[') || value.startsWith('{'))
+          ) {
             try {
               return JSON.parse(value);
             } catch {
@@ -262,7 +272,7 @@ export default function AIAyarlariPage() {
           }
           return value;
         };
-        
+
         setEditableSettings({
           auto_learn_enabled: parseValue(settings.auto_learn_enabled, true),
           daily_snapshot_enabled: parseValue(settings.daily_snapshot_enabled, true),
@@ -274,8 +284,11 @@ export default function AIAyarlariPage() {
       }
 
       if (modelsData.success) {
-        setAvailableModels(modelsData.data.models as unknown as AIModel[]);
-        setSelectedModel(modelsData.data.defaultModel);
+        // Backend'den gelen format: { success: true, data: { models: [...], defaultModel: ... } }
+        const models = modelsData.data?.models || [];
+        const defaultModel = modelsData.data?.defaultModel || '';
+        setAvailableModels(models as unknown as AIModel[]);
+        setSelectedModel(defaultModel);
       }
     } catch (err) {
       console.error('Settings fetch error:', err);
@@ -283,7 +296,7 @@ export default function AIAyarlariPage() {
       setSettingsLoading(false);
     }
   }, []);
-  
+
   // AI ayarlarını export et
   const handleExportSettings = async () => {
     setExporting(true);
@@ -297,7 +310,7 @@ export default function AIAyarlariPage() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      
+
       notifications.show({
         title: 'Başarılı',
         message: 'AI ayarları export edildi',
@@ -330,7 +343,7 @@ export default function AIAyarlariPage() {
         const content = e.target?.result as string;
         const parsed = JSON.parse(content);
         setImportPreview(parsed);
-      } catch (error) {
+      } catch (_error) {
         notifications.show({
           title: 'Hata',
           message: 'Geçersiz JSON dosyası',
@@ -357,7 +370,7 @@ export default function AIAyarlariPage() {
     setImporting(true);
     try {
       const data = await aiAPI.importSettings(importPreview.settings, overwrite);
-      
+
       if (data.success) {
         notifications.show({
           title: 'Başarılı',
@@ -365,7 +378,7 @@ export default function AIAyarlariPage() {
           color: 'green',
           icon: <IconCheck size={16} />,
         });
-        
+
         // Ayarları yeniden yükle
         await fetchAISettings();
         closeImportModal();
@@ -394,7 +407,7 @@ export default function AIAyarlariPage() {
     setVersionHistoryLoading(true);
     try {
       const data = await aiAPI.getSettingsHistory(selectedSettingKey || undefined, 100);
-      if (data.success) {
+      if (data.success && data.data) {
         setVersionHistory(data.data.history || []);
       }
     } catch (error) {
@@ -423,7 +436,7 @@ export default function AIAyarlariPage() {
 
     try {
       const data = await aiAPI.restoreVersion(settingKey, version, 'Versiyon geri yüklendi');
-      
+
       if (data.success) {
         notifications.show({
           title: 'Başarılı',
@@ -441,7 +454,7 @@ export default function AIAyarlariPage() {
           color: 'red',
         });
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: 'Hata',
         message: 'Sunucu hatası',
@@ -463,9 +476,9 @@ export default function AIAyarlariPage() {
         auto_learn_threshold: editableSettings.auto_learn_threshold,
         snapshot_time: editableSettings.snapshot_time,
       };
-      
+
       const data = await aiAPI.updateSettings(settingsToSave);
-      
+
       if (data.success) {
         notifications.show({
           title: 'Başarılı',
@@ -501,7 +514,11 @@ export default function AIAyarlariPage() {
     try {
       const data = await aiAPI.getFeedbackStats();
       if (data.success) {
-        setFeedbackStats(data.data.stats as unknown as FeedbackStats);
+        // Backend'den gelen format: { success: true, data: { stats: {...} } }
+        const stats = data.data?.stats;
+        if (stats) {
+          setFeedbackStats(stats as unknown as FeedbackStats);
+        }
       }
     } catch (err) {
       console.error('Feedback stats error:', err);
@@ -514,10 +531,13 @@ export default function AIAyarlariPage() {
       setMemoriesLoading(true);
       const data = await aiAPI.getMemories({ limit: 20 });
       if (data.success) {
-        setMemories(data.data.memories as unknown as MemoryItem[]);
+        // Backend'den gelen format: { success: true, data: { memories: [...] } }
+        const memories = data.data?.memories || [];
+        setMemories(memories as unknown as MemoryItem[]);
       }
     } catch (err) {
       console.error('Memory fetch error:', err);
+      setMemories([]); // Hata durumunda boş array set et
     } finally {
       setMemoriesLoading(false);
     }
@@ -528,7 +548,7 @@ export default function AIAyarlariPage() {
     fetchAISettings();
     fetchFeedbackStats();
     fetchMemories();
-  }, [fetchTemplates, fetchAISettings, fetchFeedbackStats, fetchMemories]);
+  }, [fetchAISettings, fetchFeedbackStats, fetchMemories, fetchTemplates]);
 
   // Model değiştir
   const handleModelChange = async (modelId: string) => {
@@ -715,7 +735,9 @@ export default function AIAyarlariPage() {
 
   const toggleActive = async (template: PromptTemplate) => {
     try {
-      const data = await aiAPI.updateTemplate(template.id, { is_active: !template.is_active } as Partial<AITemplate>);
+      const data = await aiAPI.updateTemplate(template.id, {
+        is_active: !template.is_active,
+      } as Partial<AITemplate>);
 
       if (data.success) {
         setTemplates((prev) =>
@@ -890,101 +912,101 @@ export default function AIAyarlariPage() {
                             <Table.Tr key={template.id}>
                               <Table.Td>
                                 <Stack gap={4}>
-                                <Group gap="xs">
-                                  <Text size="lg">{template.icon}</Text>
-                                  <Text fw={500}>
-                                    {template.name.replace(
-                                      /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u,
-                                      ''
+                                  <Group gap="xs">
+                                    <Text size="lg">{template.icon}</Text>
+                                    <Text fw={500}>
+                                      {template.name.replace(
+                                        /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u,
+                                        ''
+                                      )}
+                                    </Text>
+                                    {template.is_system && (
+                                      <Badge size="xs" color="blue" variant="light">
+                                        Sistem
+                                      </Badge>
                                     )}
+                                    {template.is_default && (
+                                      <Badge size="xs" color="green" variant="light">
+                                        Varsayılan
+                                      </Badge>
+                                    )}
+                                  </Group>
+                                  <Text size="xs" c="dimmed" lineClamp={1}>
+                                    {template.description || 'Açıklama yok'}
                                   </Text>
-                                  {template.is_system && (
-                                    <Badge size="xs" color="blue" variant="light">
-                                      Sistem
-                                    </Badge>
-                                  )}
-                                  {template.is_default && (
-                                    <Badge size="xs" color="green" variant="light">
-                                      Varsayılan
-                                    </Badge>
-                                  )}
-                                </Group>
-                                <Text size="xs" c="dimmed" lineClamp={1}>
-                                  {template.description || 'Açıklama yok'}
+                                </Stack>
+                              </Table.Td>
+                              <Table.Td>
+                                <Badge
+                                  variant="light"
+                                  size="sm"
+                                  color={getCategoryColor(template.category)}
+                                >
+                                  {template.category}
+                                </Badge>
+                              </Table.Td>
+                              <Table.Td>
+                                <Text size="sm" c="dimmed">
+                                  {template.usage_count} kez
                                 </Text>
-                              </Stack>
-                            </Table.Td>
-                            <Table.Td>
-                              <Badge
-                                variant="light"
-                                size="sm"
-                                color={getCategoryColor(template.category)}
-                              >
-                                {template.category}
-                              </Badge>
-                            </Table.Td>
-                            <Table.Td>
-                              <Text size="sm" c="dimmed">
-                                {template.usage_count} kez
-                              </Text>
-                            </Table.Td>
-                            <Table.Td>
-                              <Switch
-                                checked={template.is_active}
-                                onChange={() => toggleActive(template)}
-                                size="sm"
-                              />
-                            </Table.Td>
-                            <Table.Td>
-                              <Group gap="xs">
-                                <Tooltip label="Önizle">
-                                  <ActionIcon
-                                    variant="subtle"
-                                    color="blue"
-                                    onClick={() => {
-                                      setSelectedTemplate(template);
-                                      openPreview();
-                                    }}
-                                  >
-                                    <IconEye size={16} />
-                                  </ActionIcon>
-                                </Tooltip>
-                                <Tooltip label="Düzenle">
-                                  <ActionIcon
-                                    variant="subtle"
-                                    color="yellow"
-                                    onClick={() => handleEdit(template)}
-                                  >
-                                    <IconEdit size={16} />
-                                  </ActionIcon>
-                                </Tooltip>
-                                <Tooltip label="Kopyala">
-                                  <ActionIcon
-                                    variant="subtle"
-                                    color="green"
-                                    onClick={() => copyPrompt(template.prompt)}
-                                  >
-                                    <IconCopy size={16} />
-                                  </ActionIcon>
-                                </Tooltip>
-                                {!template.is_system && (
-                                  <Tooltip label="Sil">
+                              </Table.Td>
+                              <Table.Td>
+                                <Switch
+                                  checked={template.is_active}
+                                  onChange={() => toggleActive(template)}
+                                  size="sm"
+                                />
+                              </Table.Td>
+                              <Table.Td>
+                                <Group gap="xs">
+                                  <Tooltip label="Önizle">
                                     <ActionIcon
                                       variant="subtle"
-                                      color="red"
-                                      onClick={() => handleDelete(template.id)}
+                                      color="blue"
+                                      onClick={() => {
+                                        setSelectedTemplate(template);
+                                        openPreview();
+                                      }}
                                     >
-                                      <IconTrash size={16} />
+                                      <IconEye size={16} />
                                     </ActionIcon>
                                   </Tooltip>
-                                )}
-                              </Group>
-                            </Table.Td>
-                          </Table.Tr>
-                        ))
-                      )}
-                    </Table.Tbody>
-                  </Table>
+                                  <Tooltip label="Düzenle">
+                                    <ActionIcon
+                                      variant="subtle"
+                                      color="yellow"
+                                      onClick={() => handleEdit(template)}
+                                    >
+                                      <IconEdit size={16} />
+                                    </ActionIcon>
+                                  </Tooltip>
+                                  <Tooltip label="Kopyala">
+                                    <ActionIcon
+                                      variant="subtle"
+                                      color="green"
+                                      onClick={() => copyPrompt(template.prompt)}
+                                    >
+                                      <IconCopy size={16} />
+                                    </ActionIcon>
+                                  </Tooltip>
+                                  {!template.is_system && (
+                                    <Tooltip label="Sil">
+                                      <ActionIcon
+                                        variant="subtle"
+                                        color="red"
+                                        onClick={() => handleDelete(template.id)}
+                                      >
+                                        <IconTrash size={16} />
+                                      </ActionIcon>
+                                    </Tooltip>
+                                  )}
+                                </Group>
+                              </Table.Td>
+                            </Table.Tr>
+                          ))
+                        )}
+                      </Table.Tbody>
+                    </Table>
                   </Table.ScrollContainer>
                 </Paper>
               )}
@@ -1392,7 +1414,12 @@ export default function AIAyarlariPage() {
                         clearable
                         style={{ width: 200 }}
                       />
-                      <ActionIcon variant="light" size="lg" onClick={fetchVersionHistory} loading={versionHistoryLoading}>
+                      <ActionIcon
+                        variant="light"
+                        size="lg"
+                        onClick={fetchVersionHistory}
+                        loading={versionHistoryLoading}
+                      >
                         <IconRefresh size={18} />
                       </ActionIcon>
                     </Group>
@@ -1424,18 +1451,20 @@ export default function AIAyarlariPage() {
                           {versionHistory.map((item) => {
                             let displayValue = '';
                             try {
-                              const parsed = typeof item.setting_value === 'string' 
-                                ? JSON.parse(item.setting_value) 
-                                : item.setting_value;
-                              
+                              const parsed =
+                                typeof item.setting_value === 'string'
+                                  ? JSON.parse(item.setting_value)
+                                  : item.setting_value;
+
                               if (typeof parsed === 'boolean') {
                                 displayValue = parsed ? 'Açık' : 'Kapalı';
                               } else if (typeof parsed === 'number') {
                                 displayValue = parsed.toString();
                               } else if (typeof parsed === 'string') {
-                                displayValue = parsed.length > 50 ? parsed.substring(0, 50) + '...' : parsed;
+                                displayValue =
+                                  parsed.length > 50 ? `${parsed.substring(0, 50)}...` : parsed;
                               } else {
-                                displayValue = JSON.stringify(parsed).substring(0, 50) + '...';
+                                displayValue = `${JSON.stringify(parsed).substring(0, 50)}...`;
                               }
                             } catch {
                               displayValue = String(item.setting_value).substring(0, 50);
@@ -1454,7 +1483,12 @@ export default function AIAyarlariPage() {
                                   </Badge>
                                 </Table.Td>
                                 <Table.Td>
-                                  <Text size="sm" c="dimmed" style={{ maxWidth: 200 }} lineClamp={1}>
+                                  <Text
+                                    size="sm"
+                                    c="dimmed"
+                                    style={{ maxWidth: 200 }}
+                                    lineClamp={1}
+                                  >
                                     {displayValue}
                                   </Text>
                                 </Table.Td>
@@ -1464,7 +1498,12 @@ export default function AIAyarlariPage() {
                                   </Text>
                                 </Table.Td>
                                 <Table.Td>
-                                  <Text size="sm" c="dimmed" style={{ maxWidth: 150 }} lineClamp={1}>
+                                  <Text
+                                    size="sm"
+                                    c="dimmed"
+                                    style={{ maxWidth: 150 }}
+                                    lineClamp={1}
+                                  >
                                     {item.change_note || '-'}
                                   </Text>
                                 </Table.Td>
@@ -1478,7 +1517,9 @@ export default function AIAyarlariPage() {
                                     <ActionIcon
                                       variant="subtle"
                                       color="green"
-                                      onClick={() => handleRestoreVersion(item.setting_key, item.version)}
+                                      onClick={() =>
+                                        handleRestoreVersion(item.setting_key, item.version)
+                                      }
                                     >
                                       <IconClock size={16} />
                                     </ActionIcon>
@@ -1681,7 +1722,8 @@ export default function AIAyarlariPage() {
           <Stack gap="md">
             <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
               <Text size="sm">
-                JSON formatında export edilmiş ayar dosyasını seçin. Mevcut ayarların üzerine yazılacak.
+                JSON formatında export edilmiş ayar dosyasını seçin. Mevcut ayarların üzerine
+                yazılacak.
               </Text>
             </Alert>
 
@@ -1714,15 +1756,14 @@ export default function AIAyarlariPage() {
                   Önizleme
                 </Text>
                 <Paper withBorder p="md" style={{ maxHeight: 300, overflow: 'auto' }}>
-                  <Code block>
-                    {JSON.stringify(importPreview, null, 2)}
-                  </Code>
+                  <Code block>{JSON.stringify(importPreview, null, 2)}</Code>
                 </Paper>
                 {importPreview.metadata && (
                   <Text size="xs" c="dimmed" mt="xs">
-                    Export Tarihi: {new Date(importPreview.metadata.exported_at).toLocaleString('tr-TR')} | 
-                    Versiyon: {importPreview.metadata.version} | 
-                    Ayar Sayısı: {importPreview.metadata.count}
+                    Export Tarihi:{' '}
+                    {new Date(importPreview.metadata.exported_at).toLocaleString('tr-TR')} |
+                    Versiyon: {importPreview.metadata.version} | Ayar Sayısı:{' '}
+                    {importPreview.metadata.count}
                   </Text>
                 )}
               </div>
@@ -1731,7 +1772,8 @@ export default function AIAyarlariPage() {
             {importPreview && (
               <Alert icon={<IconAlertCircle size={16} />} color="yellow" variant="light">
                 <Text size="sm">
-                  <strong>Uyarı:</strong> Bu işlem mevcut ayarların üzerine yazacak. Devam etmek istediğinize emin misiniz?
+                  <strong>Uyarı:</strong> Bu işlem mevcut ayarların üzerine yazacak. Devam etmek
+                  istediğinize emin misiniz?
                 </Text>
               </Alert>
             )}

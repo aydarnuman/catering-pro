@@ -71,7 +71,13 @@ export interface SavedTender {
   analysis_summary?: AnalysisData;
 }
 
-export type TenderStatus = 'bekliyor' | 'basvuruldu' | 'kazanildi' | 'kaybedildi' | 'iptal' | 'inceleniyor';
+export type TenderStatus =
+  | 'bekliyor'
+  | 'basvuruldu'
+  | 'kazanildi'
+  | 'kaybedildi'
+  | 'iptal'
+  | 'inceleniyor';
 
 export interface ChatMessage {
   id: string;
@@ -103,7 +109,10 @@ export interface ClipboardItem {
 }
 
 // Öncelik config
-export const priorityConfig: Record<ClipboardPriority, { color: string; label: string; icon: string }> = {
+export const priorityConfig: Record<
+  ClipboardPriority,
+  { color: string; label: string; icon: string }
+> = {
   high: { color: 'red', label: 'Yüksek', icon: '🔴' },
   medium: { color: 'yellow', label: 'Orta', icon: '🟡' },
   low: { color: 'green', label: 'Düşük', icon: '🟢' },
@@ -212,7 +221,10 @@ export const dilekceTypeLabels: Record<string, string> = {
 };
 
 // Clipboard kategorileri
-export const clipboardTypeLabels: Record<ClipboardItemType, { label: string; color: string; icon: string }> = {
+export const clipboardTypeLabels: Record<
+  ClipboardItemType,
+  { label: string; color: string; icon: string }
+> = {
   teknik: { label: 'Teknik Şart', color: 'violet', icon: '🔧' },
   fiyat: { label: 'Birim Fiyat', color: 'green', icon: '💰' },
   ai: { label: 'AI Notu', color: 'blue', icon: '🤖' },

@@ -27,8 +27,8 @@ import {
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { api } from '@/lib/api';
 import { PromptBuilderModal } from '@/components/PromptBuilder/PromptBuilderModal';
+import { api } from '@/lib/api';
 
 interface SavedPrompt {
   id: number;
@@ -108,7 +108,7 @@ export default function PromptBuilderPage() {
         >
           <IconSparkles size={40} />
         </ThemeIcon>
-        
+
         <Text size="xl" fw={600} mb={4}>
           AI Prompt Builder
         </Text>
@@ -138,7 +138,7 @@ export default function PromptBuilderPage() {
           <Text size="xs" c="dimmed" tt="uppercase" fw={600} mb="sm" ta="center">
             Kayıtlı Promptlar ({savedPrompts.length})
           </Text>
-          
+
           <Stack gap="xs">
             {savedPrompts.map((prompt, index) => (
               <Transition

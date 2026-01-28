@@ -49,52 +49,64 @@ import {
   IconUsers,
   IconWallet,
 } from '@tabler/icons-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { MobileSidebar } from './MobileSidebar';
 import { NotificationDropdown } from './NotificationDropdown';
-import { SearchModal } from './SearchModal';
+import { RealtimeIndicator } from './RealtimeIndicator';
 import { WhatsAppNavButton } from './WhatsAppNavButton';
+
+// SearchModal'ı lazy load et - sadece açıldığında yükle
+const SearchModal = dynamic(() => import('./SearchModal').then(mod => ({ default: mod.SearchModal })), {
+  ssr: false,
+  loading: () => null,
+});
 
 export function Navbar() {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const pathname = usePathname();
   const [mobileMenuOpened, setMobileMenuOpened] = useState(false);
-  const [_mobileSearchOpened, _setMobileSearchOpened] = useState(false);
   const [searchModalOpened, { open: openSearchModal, close: closeSearchModal }] =
     useDisclosure(false);
   const [mounted, setMounted] = useState(false);
   const { user, isAuthenticated, isAdmin: userIsAdmin, isLoading, signOut } = useAuth();
-  const { canView, isSuperAdmin, loading: permLoading } = usePermissions();
-  
-  // Auth yükleniyorsa veya authenticated değilse minimal navbar göster
-  if (isLoading) {
-    return (
-      <Box h={60} bg="dark.7" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100 }}>
-        <Box style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-          <Loader size="sm" />
-        </Box>
-      </Box>
-    );
-  }
-  
-  if (!isAuthenticated) {
-    return null; // Login sayfasında navbar yok
-  }
+  const { canView, isSuperAdmin, loading: permLoading, error: permError } = usePermissions();
 
-  // Responsive breakpoints
-  const isMobile = useMediaQuery('(max-width: 768px)');
-  const isTablet = useMediaQuery('(max-width: 1024px)');
+  // Fallback: Yetkiler yüklenemediğinde veya loading durumunda tüm sayfaları göster
+  // useMemo ile cache'le - her render'da yeniden oluşturulmasın
+  const safeCanView = useCallback((module: string) => {
+    // Loading durumunda veya hata varsa true döndür (fallback)
+    if (permLoading || permError) return true;
+    // canView undefined ise true döndür (fallback)
+    if (!canView) return true;
+    return canView(module);
+  }, [permLoading, permError, canView]);
 
-  // Keyboard shortcut for search
-  useHotkeys([['mod+k', () => openSearchModal()]]);
+  const safeIsSuperAdmin = useMemo(
+    () => (permLoading || permError ? false : isSuperAdmin),
+    [permLoading, permError, isSuperAdmin]
+  );
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // AppLayout zaten navbar'ın gösterilip gösterilmeyeceğini kontrol ediyor
+  // Bu yüzden burada ekstra kontrol yapmıyoruz - sadece mounted kontrolü SSR için
+  // Eğer AppLayout navbar'ı render ettiyse, burada render edilmeli
+
+  // Responsive breakpoints - SSR için mounted kontrolü
+  const isMobileQuery = useMediaQuery('(max-width: 768px)');
+  const isTabletQuery = useMediaQuery('(max-width: 1024px)');
+  const isMobile = mounted ? isMobileQuery : false; // SSR'da false, client'da gerçek değer
+  const isTablet = mounted ? isTabletQuery : false;
+
+  // Keyboard shortcut for search
+  useHotkeys([['mod+k', () => openSearchModal()]]);
 
   // Use mounted check to avoid hydration mismatch
   const isDark = mounted ? colorScheme === 'dark' : true; // Default to dark for SSR
@@ -103,55 +115,58 @@ export function Navbar() {
   const isActive = (path: string) => pathname === path;
   const isIhaleMerkezi =
     pathname === '/tenders' || pathname === '/upload' || pathname === '/tracking';
-  
+
   // Finans sayfaları
-  const isFinans = pathname === '/muhasebe' || 
-    pathname === '/muhasebe/finans' || 
-    pathname === '/muhasebe/faturalar' || 
+  const isFinans =
+    pathname === '/muhasebe' ||
+    pathname === '/muhasebe/finans' ||
+    pathname === '/muhasebe/faturalar' ||
     pathname === '/muhasebe/gelir-gider' ||
     pathname === '/muhasebe/cariler' ||
     pathname === '/muhasebe/kasa-banka' ||
     pathname === '/muhasebe/raporlar';
-  
+
   // Operasyon sayfaları
-  const isOperasyon = pathname === '/muhasebe/stok' || 
-    pathname === '/muhasebe/satin-alma' || 
+  const isOperasyon =
+    pathname === '/muhasebe/stok' ||
+    pathname === '/muhasebe/satin-alma' ||
     pathname === '/muhasebe/menu-planlama' ||
     pathname === '/muhasebe/personel' ||
     pathname === '/muhasebe/demirbas';
-  
+
   // Sosyal Medya sayfaları
   const isSosyalMedya = pathname.startsWith('/sosyal-medya');
-  
-  const _isAyarlar = pathname.startsWith('/ayarlar');
-  const _isAdminPage = pathname.startsWith('/admin');
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     signOut();
-  };
+  }, [signOut]);
 
-  const getInitials = (name: string) => {
-    return (name ?? '')
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2) || '?';
-  };
+  const getInitials = useCallback((name: string) => {
+    return (
+      (name ?? '')
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2) || '?'
+    );
+  }, []);
 
-  // Glassmorphism styles - More transparent
-  const glassStyle = {
+  // Glassmorphism styles - More transparent (useMemo ile cache'le)
+  const glassStyle = useMemo(() => ({
     backgroundColor: isDark ? 'rgba(26, 27, 30, 0.65)' : 'rgba(255, 255, 255, 0.6)',
     backdropFilter: 'blur(16px) saturate(180%)',
     WebkitBackdropFilter: 'blur(16px) saturate(180%)',
     borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}`,
     boxShadow: isDark ? '0 4px 30px rgba(0, 0, 0, 0.2)' : '0 4px 30px rgba(0, 0, 0, 0.04)',
-  };
+  }), [isDark]);
 
   return (
     <>
-      {/* Search Modal */}
-      <SearchModal opened={searchModalOpened} onClose={closeSearchModal} />
+      {/* Search Modal - Lazy loaded */}
+      <Suspense fallback={null}>
+        <SearchModal opened={searchModalOpened} onClose={closeSearchModal} />
+      </Suspense>
 
       {/* Main Header Container */}
       <Box
@@ -291,6 +306,9 @@ export function Navbar() {
               </Tooltip>
             )}
 
+            {/* Realtime Indicator */}
+            {mounted && !isMobile && <RealtimeIndicator />}
+
             {/* WhatsApp */}
             <WhatsAppNavButton />
 
@@ -315,9 +333,9 @@ export function Navbar() {
             </Tooltip>
 
             {/* User Menu */}
-            {!mounted || isLoading ? (
+            {!mounted ? (
               <Loader size="sm" />
-            ) : isAuthenticated && user ? (
+            ) : user ? (
               <Menu shadow="md" width={220} position="bottom-end">
                 <Menu.Target>
                   <UnstyledButton
@@ -447,7 +465,7 @@ export function Navbar() {
               display: 'flex',
               alignItems: 'center',
               borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'}`,
-              gap: "xs",
+              gap: 'xs',
             }}
           >
             {/* Ana Sayfa */}
@@ -464,7 +482,7 @@ export function Navbar() {
             </Button>
 
             {/* İhale Merkezi Dropdown - Yetki kontrolü */}
-            {(isSuperAdmin || canView('ihale')) && (
+            {(safeIsSuperAdmin || safeCanView('ihale')) && (
               <Menu
                 shadow="lg"
                 width={240}
@@ -521,11 +539,11 @@ export function Navbar() {
             )}
 
             {/* Finans Dropdown */}
-            {(isSuperAdmin ||
-              canView('fatura') ||
-              canView('cari') ||
-              canView('kasa_banka') ||
-              canView('rapor')) && (
+            {(safeIsSuperAdmin ||
+              safeCanView('fatura') ||
+              safeCanView('cari') ||
+              safeCanView('kasa_banka') ||
+              safeCanView('rapor')) && (
               <Menu
                 shadow="lg"
                 width={240}
@@ -559,10 +577,10 @@ export function Navbar() {
                       )}
                     </Group>
                   </Menu.Item>
-                  {(isSuperAdmin || canView('kasa_banka')) && (
+                  {(safeIsSuperAdmin || safeCanView('kasa_banka')) && (
                     <Menu.Item
                       component={Link}
-                      href="/muhasebe/finans"
+                      href="/muhasebe/kasa-banka"
                       leftSection={<IconWallet size={16} color="var(--mantine-color-blue-6)" />}
                     >
                       <Box>
@@ -576,7 +594,7 @@ export function Navbar() {
                     </Menu.Item>
                   )}
                   <Menu.Divider />
-                  {(isSuperAdmin || canView('fatura')) && (
+                  {(safeIsSuperAdmin || safeCanView('fatura')) && (
                     <Menu.Item
                       component={Link}
                       href="/muhasebe/faturalar"
@@ -585,16 +603,18 @@ export function Navbar() {
                       Faturalar
                     </Menu.Item>
                   )}
-                  {(isSuperAdmin || canView('kasa_banka')) && (
+                  {(safeIsSuperAdmin || safeCanView('kasa_banka')) && (
                     <Menu.Item
                       component={Link}
                       href="/muhasebe/gelir-gider"
-                      leftSection={<IconTrendingUp size={16} color="var(--mantine-color-green-6)" />}
+                      leftSection={
+                        <IconTrendingUp size={16} color="var(--mantine-color-green-6)" />
+                      }
                     >
                       Gelir-Gider
                     </Menu.Item>
                   )}
-                  {(isSuperAdmin || canView('cari')) && (
+                  {(safeIsSuperAdmin || safeCanView('cari')) && (
                     <Menu.Item
                       component={Link}
                       href="/muhasebe/cariler"
@@ -604,7 +624,7 @@ export function Navbar() {
                     </Menu.Item>
                   )}
                   <Menu.Divider />
-                  {(isSuperAdmin || canView('rapor')) && (
+                  {(safeIsSuperAdmin || safeCanView('rapor')) && (
                     <Menu.Item
                       component={Link}
                       href="/muhasebe/raporlar"
@@ -618,11 +638,11 @@ export function Navbar() {
             )}
 
             {/* Operasyon Dropdown */}
-            {(isSuperAdmin ||
-              canView('stok') ||
-              canView('personel') ||
-              canView('demirbas') ||
-              canView('planlama')) && (
+            {(safeIsSuperAdmin ||
+              safeCanView('stok') ||
+              safeCanView('personel') ||
+              safeCanView('demirbas') ||
+              safeCanView('planlama')) && (
               <Menu
                 shadow="lg"
                 width={240}
@@ -642,7 +662,7 @@ export function Navbar() {
                   </Button>
                 </Menu.Target>
                 <Menu.Dropdown>
-                  {(isSuperAdmin || canView('stok')) && (
+                  {(safeIsSuperAdmin || safeCanView('stok')) && (
                     <Menu.Item
                       component={Link}
                       href="/muhasebe/stok"
@@ -658,11 +678,13 @@ export function Navbar() {
                       </Box>
                     </Menu.Item>
                   )}
-                  {(isSuperAdmin || canView('stok')) && (
+                  {(safeIsSuperAdmin || safeCanView('stok')) && (
                     <Menu.Item
                       component={Link}
                       href="/muhasebe/satin-alma"
-                      leftSection={<IconShoppingCart size={16} color="var(--mantine-color-orange-6)" />}
+                      leftSection={
+                        <IconShoppingCart size={16} color="var(--mantine-color-orange-6)" />
+                      }
                     >
                       <Box>
                         <Text size="sm" fw={500}>
@@ -675,11 +697,13 @@ export function Navbar() {
                     </Menu.Item>
                   )}
                   <Menu.Divider />
-                  {(isSuperAdmin || canView('planlama')) && (
+                  {(safeIsSuperAdmin || safeCanView('planlama')) && (
                     <Menu.Item
                       component={Link}
                       href="/muhasebe/menu-planlama"
-                      leftSection={<IconToolsKitchen2 size={16} color="var(--mantine-color-teal-6)" />}
+                      leftSection={
+                        <IconToolsKitchen2 size={16} color="var(--mantine-color-teal-6)" />
+                      }
                     >
                       <Box>
                         <Text size="sm" fw={500}>
@@ -692,7 +716,7 @@ export function Navbar() {
                     </Menu.Item>
                   )}
                   <Menu.Divider />
-                  {(isSuperAdmin || canView('personel')) && (
+                  {(safeIsSuperAdmin || safeCanView('personel')) && (
                     <Menu.Item
                       component={Link}
                       href="/muhasebe/personel"
@@ -701,7 +725,7 @@ export function Navbar() {
                       Personel
                     </Menu.Item>
                   )}
-                  {(isSuperAdmin || canView('demirbas')) && (
+                  {(safeIsSuperAdmin || safeCanView('demirbas')) && (
                     <Menu.Item
                       component={Link}
                       href="/muhasebe/demirbas"
@@ -715,7 +739,7 @@ export function Navbar() {
             )}
 
             {/* Sosyal Medya Dropdown */}
-            {(isSuperAdmin || canView('sosyal_medya')) && (
+            {(safeIsSuperAdmin || safeCanView('sosyal_medya')) && (
               <Menu
                 shadow="lg"
                 width={240}

@@ -19,7 +19,7 @@ import {
   IconShoppingCart,
   IconUsers,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { muhasebeAPI } from '@/lib/api/services/muhasebe';
 
 interface GenelOzet {
@@ -82,12 +82,8 @@ export default function ProjeCard({ onYonetClick }: ProjeCardProps) {
   const [ozet, setOzet] = useState<GenelOzet | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const loadData = async () => {
+  // Fonksiyonu useCallback ile tanımla (TDZ hatası için)
+  const loadData = useCallback(async () => {
     try {
       const result = await muhasebeAPI.getProjeGenelOzet();
       if (result.success) {
@@ -101,7 +97,11 @@ export default function ProjeCard({ onYonetClick }: ProjeCardProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   if (loading) {
     return (

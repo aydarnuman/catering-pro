@@ -1,6 +1,6 @@
 'use client';
 
-import { Anchor, Breadcrumbs as MantineBreadcrumbs, Group, Text } from '@mantine/core';
+import { Anchor, Group, Breadcrumbs as MantineBreadcrumbs, Text } from '@mantine/core';
 import { IconChevronRight, IconHome } from '@tabler/icons-react';
 import Link from 'next/link';
 
@@ -20,20 +20,20 @@ interface BreadcrumbsProps {
 
 /**
  * Standart Breadcrumb Component
- * 
+ *
  * Kullanım örnekleri:
- * 
+ *
  * // Basit kullanım
- * <Breadcrumbs 
+ * <Breadcrumbs
  *   items={[
  *     { label: 'Muhasebe', href: '/muhasebe' },
  *     { label: 'Stok', href: '/muhasebe/stok' },
  *     { label: 'Ürün Detay' }
  *   ]}
  * />
- * 
+ *
  * // Home icon ile
- * <Breadcrumbs 
+ * <Breadcrumbs
  *   items={[
  *     { label: 'İhaleler', href: '/tenders' },
  *     { label: 'İhale Detay' }

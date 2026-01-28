@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { tendersAPI } from '@/lib/api/services/tenders';
-import { AnalysisData, SavedTender, FirmaBilgisi } from '../types';
+import type { AnalysisData, FirmaBilgisi, SavedTender } from '../types';
 
 export interface UseIhaleDataReturn {
   // Analysis
@@ -9,7 +9,7 @@ export interface UseIhaleDataReturn {
   analysisStats: { toplam_dokuman: number; analiz_edilen: number } | null;
   loadAnalysisData: () => Promise<void>;
   hideNote: (noteId: string, noteText: string) => Promise<void>;
-  
+
   // Firmalar
   firmalar: FirmaBilgisi[];
   selectedFirmaId: number | null;
@@ -32,9 +32,10 @@ export function useIhaleData(tender: SavedTender | null, opened: boolean): UseIh
   const [selectedFirmaId, setSelectedFirmaId] = useState<number | null>(null);
 
   // Derived firma
-  const selectedFirma = firmalar.find(f => f.id === selectedFirmaId) 
-    || firmalar.find(f => f.varsayilan) 
-    || firmalar[0];
+  const selectedFirma =
+    firmalar.find((f) => f.id === selectedFirmaId) ||
+    firmalar.find((f) => f.varsayilan) ||
+    firmalar[0];
 
   // Load analysis data
   const loadAnalysisData = useCallback(async () => {
@@ -54,18 +55,21 @@ export function useIhaleData(tender: SavedTender | null, opened: boolean): UseIh
   }, [tender]);
 
   // Hide (remove) an AI note
-  const hideNote = useCallback(async (noteId: string, noteText: string) => {
-    if (!tender) return;
+  const hideNote = useCallback(
+    async (noteId: string, noteText: string) => {
+      if (!tender) return;
 
-    const result = await tendersAPI.hideTrackingNote(tender.tender_id, noteId, noteText);
+      const result = await tendersAPI.hideTrackingNote(tender.tender_id, noteId, noteText);
 
-    if (!result.success) {
-      throw new Error('Not gizleme başarısız');
-    }
+      if (!result.success) {
+        throw new Error('Not gizleme başarısız');
+      }
 
-    // Analiz verilerini yeniden yükle (gizlenen not listeden çıkacak)
-    await loadAnalysisData();
-  }, [tender, loadAnalysisData]);
+      // Analiz verilerini yeniden yükle (gizlenen not listeden çıkacak)
+      await loadAnalysisData();
+    },
+    [tender, loadAnalysisData]
+  );
 
   // Load firmalar
   const loadFirmalar = useCallback(async () => {
@@ -108,7 +112,7 @@ export function useIhaleData(tender: SavedTender | null, opened: boolean): UseIh
       loadAnalysisData();
       loadFirmalar();
     }
-  }, [opened, tender?.tender_id, loadAnalysisData, loadFirmalar]);
+  }, [opened, tender?.tender_id, loadAnalysisData, loadFirmalar, tender]);
 
   // Reset on close
   useEffect(() => {

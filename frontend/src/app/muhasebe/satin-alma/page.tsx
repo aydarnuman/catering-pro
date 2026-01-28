@@ -53,8 +53,10 @@ import {
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
-import { formatMoney, formatDate } from '@/lib/formatters';
+import { useRealtimeRefetch } from '@/context/RealtimeContext';
+import { formatDate } from '@/lib/formatters';
 import 'dayjs/locale/tr';
+import { muhasebeAPI } from '@/lib/api/services/muhasebe';
 import {
   type Proje,
   projelerAPI,
@@ -63,7 +65,6 @@ import {
   type SiparisOzet,
   siparislerAPI,
 } from '@/lib/satin-alma-api';
-import { muhasebeAPI } from '@/lib/api/services/muhasebe';
 
 interface Tedarikci {
   id: number;
@@ -134,10 +135,12 @@ export default function SatinAlmaPage() {
         muhasebeAPI.getCariler({ tip: 'tedarikci' }),
       ]);
 
-      if (siparisResult.success) setSiparisler(siparisResult.data);
-      if (projeResult.success) setProjeler(projeResult.data);
+      if (siparisResult.success && Array.isArray(siparisResult.data))
+        setSiparisler(siparisResult.data);
+      if (projeResult.success && Array.isArray(projeResult.data)) setProjeler(projeResult.data);
       if (ozetResult.success) setOzet(ozetResult.data);
-      if (tedarikciResult.success) setTedarikciler(tedarikciResult.data as any);
+      if (tedarikciResult.success && Array.isArray(tedarikciResult.data))
+        setTedarikciler(tedarikciResult.data as any);
     } catch (error) {
       console.error('Veri yükleme hatası:', error);
       notifications.show({ title: 'Hata', message: 'Veriler yüklenemedi', color: 'red' });
@@ -150,6 +153,9 @@ export default function SatinAlmaPage() {
     loadData();
   }, [loadData]);
 
+  // 🔴 REALTIME - Satın alma tablosunu dinle
+  useRealtimeRefetch('satin_alma', loadData);
+
   // Para formatı
   const formatMoney = (value: number) => {
     return new Intl.NumberFormat('tr-TR', {
@@ -158,7 +164,6 @@ export default function SatinAlmaPage() {
       minimumFractionDigits: 0,
     }).format(value || 0);
   };
-
 
   // Filtreleme
   const filteredSiparisler = siparisler.filter((s) => {

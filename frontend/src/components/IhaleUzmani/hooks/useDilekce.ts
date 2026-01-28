@@ -1,7 +1,13 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
 import { notifications } from '@mantine/notifications';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { aiAPI } from '@/lib/api/services/ai';
-import { SavedTender, DilekceMessage, DilekceConversation, FirmaBilgisi, AnalysisData } from '../types';
+import type {
+  AnalysisData,
+  DilekceConversation,
+  DilekceMessage,
+  FirmaBilgisi,
+  SavedTender,
+} from '../types';
 
 export interface UseDilekceReturn {
   // State
@@ -43,7 +49,7 @@ export function useDilekce(
 ): UseDilekceReturn {
   // Panel state
   const [activePanel, setActivePanel] = useState<'ai' | 'dilekce'>('ai');
-  
+
   // Dilekçe state
   const [dilekceType, setDilekceType] = useState<string | null>(null);
   const [dilekceContent, setDilekceContent] = useState('');
@@ -56,7 +62,7 @@ export function useDilekce(
   const [isDilekceEditing, setIsDilekceEditing] = useState(false);
   const [showChatHistory, setShowChatHistory] = useState(false);
   const [dilekceSaving, setDilekceSaving] = useState(false);
-  
+
   const dilekceEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll
@@ -81,38 +87,44 @@ export function useDilekce(
   }, []);
 
   // Load conversations list for a type
-  const loadDilekceConversationsList = useCallback(async (type: string) => {
-    if (!tender) return;
+  const loadDilekceConversationsList = useCallback(
+    async (type: string) => {
+      if (!tender) return;
 
-    try {
-      const result = await aiAPI.listConversationsByPrefix(
-        `ihale_${tender.tender_id || tender.id}_dilekce_${type}`
-      );
+      try {
+        const result = await aiAPI.listConversationsByPrefix(
+          `ihale_${tender.tender_id || tender.id}_dilekce_${type}`
+        );
 
-      if (result.success && (result as any).conversations) {
-        setDilekceConversations((result as any).conversations);
-      } else {
+        if (result.success && (result as any).conversations) {
+          setDilekceConversations((result as any).conversations);
+        } else {
+          setDilekceConversations([]);
+        }
+      } catch (error) {
+        console.error('Konuşma listesi yüklenemedi:', error);
         setDilekceConversations([]);
       }
-    } catch (error) {
-      console.error('Konuşma listesi yüklenemedi:', error);
-      setDilekceConversations([]);
-    }
-  }, [tender]);
+    },
+    [tender]
+  );
 
   // Handle type change
-  const handleDilekceTypeChange = useCallback(async (type: string) => {
-    if (!tender) return;
+  const handleDilekceTypeChange = useCallback(
+    async (type: string) => {
+      if (!tender) return;
 
-    setActivePanel('dilekce');
-    setDilekceType(type);
-    setDilekceContent('');
-    setDilekceMessages([]);
-    setShowDilekceChat(false);
-    setDilekceSessionId(null);
+      setActivePanel('dilekce');
+      setDilekceType(type);
+      setDilekceContent('');
+      setDilekceMessages([]);
+      setShowDilekceChat(false);
+      setDilekceSessionId(null);
 
-    await loadDilekceConversationsList(type);
-  }, [tender, loadDilekceConversationsList]);
+      await loadDilekceConversationsList(type);
+    },
+    [tender, loadDilekceConversationsList]
+  );
 
   // Open existing conversation
   const openDilekceConversation = useCallback(async (sessionId: string) => {
@@ -132,7 +144,9 @@ export function useDilekce(
         setDilekceMessages(formattedMessages);
 
         // Set last AI message as dilekce content
-        const lastAiMessage = [...(data as any).messages].reverse().find((m: any) => m.role === 'assistant');
+        const lastAiMessage = [...(data as any).messages]
+          .reverse()
+          .find((m: any) => m.role === 'assistant');
         if (lastAiMessage) {
           setDilekceContent(lastAiMessage.content);
         }
@@ -159,44 +173,47 @@ export function useDilekce(
   }, []);
 
   // Delete conversation
-  const deleteDilekceConversation = useCallback(async (sessionId: string) => {
-    if (!window.confirm('Bu konuşmayı silmek istediğinize emin misiniz?')) {
-      return;
-    }
+  const deleteDilekceConversation = useCallback(
+    async (sessionId: string) => {
+      if (!window.confirm('Bu konuşmayı silmek istediğinize emin misiniz?')) {
+        return;
+      }
 
-    try {
-      const result = await aiAPI.deleteConversation(sessionId);
+      try {
+        const result = await aiAPI.deleteConversation(sessionId);
 
-      if (result.success) {
-        notifications.show({
-          title: 'Silindi',
-          message: 'Konuşma başarıyla silindi',
-          color: 'green',
-        });
-        if (dilekceType) {
-          loadDilekceConversationsList(dilekceType);
+        if (result.success) {
+          notifications.show({
+            title: 'Silindi',
+            message: 'Konuşma başarıyla silindi',
+            color: 'green',
+          });
+          if (dilekceType) {
+            loadDilekceConversationsList(dilekceType);
+          }
+        } else {
+          notifications.show({
+            title: 'Hata',
+            message: 'Konuşma silinemedi',
+            color: 'red',
+          });
         }
-      } else {
+      } catch (error) {
+        console.error('Konuşma silme hatası:', error);
         notifications.show({
           title: 'Hata',
-          message: 'Konuşma silinemedi',
+          message: 'Konuşma silinirken bir hata oluştu',
           color: 'red',
         });
       }
-    } catch (error) {
-      console.error('Konuşma silme hatası:', error);
-      notifications.show({
-        title: 'Hata',
-        message: 'Konuşma silinirken bir hata oluştu',
-        color: 'red',
-      });
-    }
 
-    setDilekceMessages([]);
-    if (dilekceType) {
-      loadDilekceConversationsList(dilekceType);
-    }
-  }, [dilekceType, loadDilekceConversationsList]);
+      setDilekceMessages([]);
+      if (dilekceType) {
+        loadDilekceConversationsList(dilekceType);
+      }
+    },
+    [dilekceType, loadDilekceConversationsList]
+  );
 
   // Send message
   const sendDilekceMessage = useCallback(async () => {
@@ -207,7 +224,7 @@ export function useDilekce(
     setDilekceLoading(true);
 
     // Add user message
-    setDilekceMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setDilekceMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
 
     try {
       // Build context
@@ -218,13 +235,15 @@ export function useDilekce(
           tarih: tender.tarih,
           bedel: tender.bedel,
         },
-        firma: selectedFirma ? {
-          unvan: selectedFirma.unvan,
-          vergi_no: selectedFirma.vergi_no,
-          vergi_dairesi: selectedFirma.vergi_dairesi,
-          adres: selectedFirma.adres,
-          yetkili: selectedFirma.yetkili_adi,
-        } : null,
+        firma: selectedFirma
+          ? {
+              unvan: selectedFirma.unvan,
+              vergi_no: selectedFirma.vergi_no,
+              vergi_dairesi: selectedFirma.vergi_dairesi,
+              adres: selectedFirma.adres,
+              yetkili: selectedFirma.yetkili_adi,
+            }
+          : null,
         teknik_sartlar: analysisData.teknik_sartlar?.slice(0, 10),
         birim_fiyatlar: analysisData.birim_fiyatlar?.slice(0, 10),
       };
@@ -237,7 +256,10 @@ export function useDilekce(
       });
 
       if (data.success && (data as any).response) {
-        setDilekceMessages(prev => [...prev, { role: 'assistant', content: (data as any).response }]);
+        setDilekceMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: (data as any).response },
+        ]);
         setDilekceContent((data as any).response);
       } else {
         throw new Error(data.error || 'AI yanıt vermedi');

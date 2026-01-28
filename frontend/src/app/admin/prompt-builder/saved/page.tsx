@@ -43,21 +43,18 @@ import {
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useState } from 'react';
+import type { PBSavedPrompt } from '@/components/PromptBuilder/types';
 import {
   useDeleteSavedPrompt,
   useSavedPrompts,
   useUpdateSavedPrompt,
   useUserStats,
 } from '@/hooks/usePromptBuilder';
-import type { PBSavedPrompt } from '@/components/PromptBuilder/types';
 
 export default function SavedPromptsPage() {
   const [filter, setFilter] = useState<'all' | 'favorites'>('all');
-  const [selectedPrompt, setSelectedPrompt] = useState<PBSavedPrompt | null>(
-    null
-  );
-  const [detailOpened, { open: openDetail, close: closeDetail }] =
-    useDisclosure(false);
+  const [selectedPrompt, setSelectedPrompt] = useState<PBSavedPrompt | null>(null);
+  const [detailOpened, { open: openDetail, close: closeDetail }] = useDisclosure(false);
 
   // Queries
   const { data: prompts, isLoading } = useSavedPrompts({
@@ -81,7 +78,7 @@ export default function SavedPromptsPage() {
         message: '',
         color: prompt.is_favorite ? 'gray' : 'pink',
       });
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: 'Hata',
         message: 'İşlem başarısız',
@@ -100,7 +97,7 @@ export default function SavedPromptsPage() {
         message: 'Prompt başarıyla silindi',
         color: 'green',
       });
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: 'Hata',
         message: 'Silme başarısız',
@@ -291,11 +288,7 @@ export default function SavedPromptsPage() {
                   <Group justify="space-between">
                     <Group gap="xs">
                       <Text size="lg">{prompt.category_icon || '📄'}</Text>
-                      <Badge
-                        size="sm"
-                        color={prompt.category_color || 'gray'}
-                        variant="light"
-                      >
+                      <Badge size="sm" color={prompt.category_color || 'gray'} variant="light">
                         {prompt.category_name || 'Genel'}
                       </Badge>
                     </Group>
@@ -444,11 +437,7 @@ export default function SavedPromptsPage() {
                           color={copied ? 'green' : 'gray'}
                           onClick={copy}
                         >
-                          {copied ? (
-                            <IconCheck size={14} />
-                          ) : (
-                            <IconCopy size={14} />
-                          )}
+                          {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
                         </ActionIcon>
                       </Tooltip>
                     )}
@@ -471,8 +460,7 @@ export default function SavedPromptsPage() {
 
             <Group justify="space-between">
               <Text size="xs" c="dimmed">
-                Oluşturulma:{' '}
-                {new Date(selectedPrompt.created_at).toLocaleString('tr-TR')}
+                Oluşturulma: {new Date(selectedPrompt.created_at).toLocaleString('tr-TR')}
               </Text>
               <Text size="xs" c="dimmed">
                 {selectedPrompt.generated_prompt.length} karakter

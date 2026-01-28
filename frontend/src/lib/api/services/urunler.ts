@@ -4,7 +4,7 @@
  */
 
 import { api } from '@/lib/api';
-import type { ApiResponse, ApiListResponse } from '../types';
+import type { ApiResponse } from '../types';
 
 // Ürün Karti
 export interface UrunKarti {
@@ -96,12 +96,14 @@ export const urunlerAPI = {
   },
 
   /**
-   * Ürün varyantı oluştur
+   * Fatura kaleminden ürün kartı/varyant oluştur
    */
   async createVaryant(data: {
-    urun_kart_id: number;
-    varyant_adi: string;
-    fiyat_farki?: number;
+    ana_urun_id?: number;
+    fatura_urun_adi: string;
+    birim_fiyat?: number;
+    kategori_id?: number;
+    varyant_tipi?: string;
   }): Promise<ApiResponse<any>> {
     const response = await api.post('/api/urunler/varyant-olustur', data);
     return response.data;
@@ -110,11 +112,14 @@ export const urunlerAPI = {
   /**
    * Ürün fiyatını güncelle
    */
-  async updateFiyat(urunKartId: number, data: {
-    birim_fiyat: number;
-    kaynak?: string;
-    aciklama?: string;
-  }): Promise<ApiResponse<any>> {
+  async updateFiyat(
+    urunKartId: number,
+    data: {
+      birim_fiyat: number;
+      kaynak?: string;
+      aciklama?: string;
+    }
+  ): Promise<ApiResponse<any>> {
     const response = await api.patch(`/api/urunler/${urunKartId}/fiyat`, data);
     return response.data;
   },

@@ -56,10 +56,10 @@ import {
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Breadcrumbs } from '@/components/common';
+import { useResponsive } from '@/hooks/useResponsive';
 import { api } from '@/lib/api';
 import { tendersAPI } from '@/lib/api/services/tenders';
-import { useResponsive } from '@/hooks/useResponsive';
-import { Breadcrumbs } from '@/components/common';
 
 // ============ INTERFACES ============
 interface Tender {
@@ -416,7 +416,8 @@ export default function TenderDetailPage() {
     // 24 saatten fazla güncellenmemişse otomatik güncelle
     if (hoursSinceUpdate > 24) {
       // Sessizce arka planda güncelle
-      api.post(`/api/scraper/fetch-documents/${tenderId}`)
+      api
+        .post(`/api/scraper/fetch-documents/${tenderId}`)
         .then((res) => res.data)
         .then((result) => {
           if (result.success && result.data.documentCount > 0) {
@@ -852,7 +853,11 @@ export default function TenderDetailPage() {
   };
 
   return (
-    <Container size="lg" py={isMobile && isMounted ? 'md' : 'xl'} px={isMobile && isMounted ? 'xs' : undefined}>
+    <Container
+      size="lg"
+      py={isMobile && isMounted ? 'md' : 'xl'}
+      px={isMobile && isMounted ? 'xs' : undefined}
+    >
       <Stack gap={isMobile && isMounted ? 'md' : 'lg'}>
         {/* Breadcrumb */}
         <Breadcrumbs
@@ -864,8 +869,8 @@ export default function TenderDetailPage() {
         {/* Header */}
         <Group justify="space-between" wrap="wrap">
           <Link href="/tenders" style={{ textDecoration: 'none' }}>
-            <Button 
-              variant="subtle" 
+            <Button
+              variant="subtle"
               leftSection={<IconArrowLeft size={16} />}
               size={isMobile && isMounted ? 'sm' : 'md'}
             >
@@ -887,7 +892,11 @@ export default function TenderDetailPage() {
         {/* İhale Başlığı */}
         <Stack gap="xs">
           <Group gap="xs" align="center" justify="space-between" wrap="wrap">
-            <Title order={isMobile && isMounted ? 4 : 2} lineClamp={isMobile && isMounted ? 2 : undefined} style={{ flex: 1 }}>
+            <Title
+              order={isMobile && isMounted ? 4 : 2}
+              lineClamp={isMobile && isMounted ? 2 : undefined}
+              style={{ flex: 1 }}
+            >
               {tender.external_id} - {tender.title}
             </Title>
             <Tooltip label={isTracked ? 'Takip listesinde' : 'Takip listesine ekle'}>
@@ -945,7 +954,10 @@ export default function TenderDetailPage() {
 
         {/* İhale Bilgileri */}
         <Card shadow="sm" padding={isMobile && isMounted ? 'sm' : 'lg'} radius="md" withBorder>
-          <SimpleGrid cols={{ base: 2, sm: 2, md: 4 }} spacing={isMobile && isMounted ? 'xs' : 'md'}>
+          <SimpleGrid
+            cols={{ base: 2, sm: 2, md: 4 }}
+            spacing={isMobile && isMounted ? 'xs' : 'md'}
+          >
             <Group gap="xs" wrap="nowrap">
               <ThemeIcon variant="light" size={isMobile && isMounted ? 'md' : 'lg'}>
                 <IconBuilding size={isMobile && isMounted ? 14 : 18} />
@@ -1383,7 +1395,11 @@ export default function TenderDetailPage() {
           )}
 
           {/* Aksiyon Bar */}
-          <Box p={isMobile && isMounted ? 'sm' : 'md'} bg="gray.0" style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
+          <Box
+            p={isMobile && isMounted ? 'sm' : 'md'}
+            bg="gray.0"
+            style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}
+          >
             {isMobile && isMounted ? (
               <Stack gap="xs">
                 <Checkbox
@@ -1509,7 +1525,11 @@ export default function TenderDetailPage() {
                             </Group>
                             <Group gap={4}>
                               {doc.source_type === 'content' && (
-                                <ActionIcon variant="subtle" size="md" onClick={() => showContent(doc)}>
+                                <ActionIcon
+                                  variant="subtle"
+                                  size="md"
+                                  onClick={() => showContent(doc)}
+                                >
                                   <IconEye size={14} />
                                 </ActionIcon>
                               )}
@@ -1629,7 +1649,12 @@ export default function TenderDetailPage() {
         fullScreen={isMobile && isMounted}
         title={
           <Group gap="sm" wrap="nowrap">
-            <ThemeIcon size={isMobile && isMounted ? 32 : 40} color="green" variant="light" radius="xl">
+            <ThemeIcon
+              size={isMobile && isMounted ? 32 : 40}
+              color="green"
+              variant="light"
+              radius="xl"
+            >
               <IconCheck size={isMobile && isMounted ? 18 : 24} />
             </ThemeIcon>
             <div>

@@ -54,9 +54,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { BordroImportModal } from '@/components/BordroImportModal';
 import { DataActions } from '@/components/DataActions';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
+import { useAuth } from '@/context/AuthContext';
+import { useRealtimeRefetch } from '@/context/RealtimeContext';
 import { usePermissions } from '@/hooks/usePermissions';
-import { formatMoney, formatDate } from '@/lib/formatters';
 import { personelAPI } from '@/lib/api/services/personel';
+import { formatDate, formatMoney } from '@/lib/formatters';
+import {
+  validateEmail,
+  validateRequired,
+  validateTcKimlik,
+  validateTelefon,
+} from '@/lib/validation/tr';
 import 'dayjs/locale/tr';
 
 // =====================================================
@@ -209,6 +217,7 @@ const aylar = [
 // =====================================================
 
 export default function PersonelPage() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -433,7 +442,7 @@ export default function PersonelPage() {
   const fetchAylikOdeme = useCallback(async () => {
     if (!selectedProje) return;
     try {
-      const result = await personelAPI.getAylikOdeme(selectedProje, bordroYil, bordroAy) as any;
+      const result = (await personelAPI.getAylikOdeme(selectedProje, bordroYil, bordroAy)) as any;
       if (result.success) {
         setAylikOdeme(result.data as any);
       }
@@ -478,40 +487,43 @@ export default function PersonelPage() {
     }
   };
 
-  const handleTumunuOde = useCallback(async (odendi: boolean) => {
-    if (!selectedProje) return;
-    const fields = [
-      'maas_banka_odendi',
-      'maas_elden_odendi',
-      'sgk_odendi',
-      'gelir_vergisi_odendi',
-      'damga_vergisi_odendi',
-      'issizlik_odendi',
-    ];
-    try {
-      for (const field of fields) {
-        await personelAPI.updateAylikOdeme(selectedProje, bordroYil, bordroAy, { field, odendi });
-      }
-
-      // Tüm ödemeler tamamlandıysa proje_hareketler'e kayıt ekle
-      // tahakkuk state'ini functional update ile kullan
-      setTahakkuk((currentTahakkuk) => {
-        if (odendi && currentTahakkuk) {
-          personelAPI.finalizeOdeme(selectedProje, bordroYil, bordroAy).catch(console.error);
+  const handleTumunuOde = useCallback(
+    async (odendi: boolean) => {
+      if (!selectedProje) return;
+      const fields = [
+        'maas_banka_odendi',
+        'maas_elden_odendi',
+        'sgk_odendi',
+        'gelir_vergisi_odendi',
+        'damga_vergisi_odendi',
+        'issizlik_odendi',
+      ];
+      try {
+        for (const field of fields) {
+          await personelAPI.updateAylikOdeme(selectedProje, bordroYil, bordroAy, { field, odendi });
         }
-        return currentTahakkuk;
-      });
 
-      notifications.show({
-        message: odendi ? '✅ Tüm ödemeler tamamlandı' : '○ Tüm ödemeler sıfırlandı',
-        color: odendi ? 'green' : 'gray',
-        autoClose: 2000,
-      });
-      fetchAylikOdeme();
-    } catch (_error) {
-      notifications.show({ message: '✗ İşlem başarısız', color: 'red', autoClose: 2500 });
-    }
-  }, [selectedProje, bordroYil, bordroAy, fetchAylikOdeme]);
+        // Tüm ödemeler tamamlandıysa proje_hareketler'e kayıt ekle
+        // tahakkuk state'ini functional update ile kullan
+        setTahakkuk((currentTahakkuk) => {
+          if (odendi && currentTahakkuk) {
+            personelAPI.finalizeOdeme(selectedProje, bordroYil, bordroAy).catch(console.error);
+          }
+          return currentTahakkuk;
+        });
+
+        notifications.show({
+          message: odendi ? '✅ Tüm ödemeler tamamlandı' : '○ Tüm ödemeler sıfırlandı',
+          color: odendi ? 'green' : 'gray',
+          autoClose: 2000,
+        });
+        fetchAylikOdeme();
+      } catch (_error) {
+        notifications.show({ message: '✗ İşlem başarısız', color: 'red', autoClose: 2500 });
+      }
+    },
+    [selectedProje, bordroYil, bordroAy, fetchAylikOdeme]
+  );
 
   // Personel ödeme düzenleme
   const handleEditOdeme = (personel: MaasOdemePersonel) => {
@@ -544,35 +556,67 @@ export default function PersonelPage() {
 
   // === EFFECTS ===
   useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) return;
     fetchProjeler();
-  }, [fetchProjeler]);
+  }, [fetchProjeler, authLoading, isAuthenticated]);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) return;
     if (selectedProje) {
       fetchPersoneller();
     }
-  }, [selectedProje, fetchPersoneller]);
+  }, [selectedProje, fetchPersoneller, authLoading, isAuthenticated]);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) return;
     if (selectedProje && activeTab === 'bordro') {
       fetchBordro();
       fetchMaasOdeme();
       fetchAylikOdeme();
     }
-  }, [selectedProje, activeTab, bordroYil, bordroAy, fetchBordro, fetchMaasOdeme, fetchAylikOdeme]);
+  }, [
+    selectedProje,
+    activeTab,
+    fetchBordro,
+    fetchMaasOdeme,
+    fetchAylikOdeme,
+    authLoading,
+    isAuthenticated,
+  ]);
+
+  // 🔴 REALTIME - Personel ve bordro tablolarını dinle
+  const refetchPersonelData = useCallback(() => {
+    if (selectedProje) {
+      fetchPersoneller();
+      if (activeTab === 'bordro') {
+        fetchBordro();
+        fetchMaasOdeme();
+        fetchAylikOdeme();
+      }
+    }
+  }, [selectedProje, activeTab, fetchPersoneller, fetchBordro, fetchMaasOdeme, fetchAylikOdeme]);
+
+  useRealtimeRefetch(['personel', 'bordro'], refetchPersonelData);
 
   // =====================================================
   // CRUD FONKSİYONLARI
   // =====================================================
 
   const handleSavePersonel = async () => {
-    if (!personelForm.ad || !personelForm.soyad || !personelForm.tc_kimlik) {
-      notifications.show({
-        title: 'Hata',
-        message: 'Ad, soyad ve TC kimlik zorunludur',
-        color: 'red',
-      });
-      return;
+    const adOk = validateRequired(personelForm.ad, 'Ad');
+    const soyadOk = validateRequired(personelForm.soyad, 'Soyad');
+    const tcOk = validateTcKimlik(personelForm.tc_kimlik);
+    const telOk = validateTelefon(personelForm.telefon);
+    const emailOk = validateEmail(personelForm.email);
+
+    for (const r of [adOk, soyadOk, tcOk, telOk, emailOk]) {
+      if (!r.valid) {
+        notifications.show({ title: 'Hata', message: r.message, color: 'red' });
+        return;
+      }
     }
 
     try {
@@ -665,7 +709,6 @@ export default function PersonelPage() {
   // YARDIMCI FONKSİYONLAR
   // =====================================================
 
-
   const getAvatarColor = (departman: string | null) => {
     const colors: Record<string, string> = {
       Mutfak: 'orange',
@@ -712,7 +755,9 @@ export default function PersonelPage() {
       <Center h="100vh">
         <Stack align="center" gap="md">
           <Loader size="xl" color="violet" />
-          <Text c="dimmed" size="sm">Projeler yükleniyor...</Text>
+          <Text c="dimmed" size="sm">
+            Projeler yükleniyor...
+          </Text>
         </Stack>
       </Center>
     );

@@ -3,7 +3,10 @@
  * Backend API ile iletişimi yöneten servis
  */
 
-import { API_BASE_URL } from '@/lib/config';
+import { authFetch } from '@/lib/api';
+import { API_BASE_URL, getApiBaseUrlDynamic } from '@/lib/config';
+
+// InvoiceItem lokalde tanımlı - domain.ts'den import etmiyoruz
 
 const API_URL = API_BASE_URL;
 
@@ -127,15 +130,20 @@ class ApiError extends Error {
   }
 }
 
+/** Fatura/lista istekleri için varsayılan timeout (ms) */
+const FETCH_API_TIMEOUT_MS = 30000;
+
 /**
- * HTTP isteği yapar - cookie-only authentication
+ * HTTP isteği yapar - cookie-only authentication, 30 sn timeout
  */
 async function fetchAPI(endpoint: string, options?: RequestInit) {
   const url = `${API_URL}${endpoint}`;
+  const signal = options?.signal ?? AbortSignal.timeout(FETCH_API_TIMEOUT_MS);
 
   try {
     const response = await fetch(url, {
       ...options,
+      signal,
       credentials: 'include', // Cookie'leri gönder
       headers: {
         'Content-Type': 'application/json',
@@ -185,6 +193,49 @@ async function fetchAPI(endpoint: string, options?: RequestInit) {
   } catch (error) {
     if (error instanceof ApiError) throw error;
     throw new Error(`Ağ hatası: ${(error as Error).message}`);
+  }
+}
+
+/**
+ * Uyumsoft istekleri için auth’lu fetch (Bearer token → CSRF atlanır, 403 önlenir)
+ * Base URL her istekte güncel alınır (SSR / farklı origin senaryolarında doğru adrese gider).
+ */
+async function fetchUyumsoftAPI(endpoint: string, options?: RequestInit) {
+  const base = typeof getApiBaseUrlDynamic === 'function' ? getApiBaseUrlDynamic() : API_URL || '';
+  const url = endpoint.startsWith('http') ? endpoint : `${base || API_URL}${endpoint}`;
+  const response = await authFetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options?.headers as Record<string, string>),
+    },
+  });
+
+  if (!response.ok) {
+    const status = response.status;
+    const statusText = response.statusText;
+    console.error(`❌ Uyumsoft API: ${status} ${statusText} - ${options?.method || 'GET'} ${endpoint}`);
+    let errorMessage = `HTTP ${status}`;
+    try {
+      const text = await response.text();
+      const errorData = text ? JSON.parse(text) : null;
+      errorMessage =
+        (errorData as { error?: string })?.error ??
+        (errorData as { message?: string })?.message ??
+        (status === 401 ? 'Oturum süresi dolmuş veya Uyumsoft bağlantısı yok.' : errorMessage);
+    } catch {
+      if (status === 401) errorMessage = 'Oturum süresi dolmuş veya Uyumsoft bağlantısı yok.';
+    }
+    if (status === 403) throw new ApiError(status, 'Bu işlem için yetkiniz bulunmuyor.');
+    if (status === 404) throw new ApiError(status, `Endpoint bulunamadı: ${endpoint}`);
+    if (status === 0) throw new ApiError(0, 'Backend erişilemiyor. CORS veya adres (API URL) kontrol edin.');
+    throw new ApiError(status, errorMessage);
+  }
+
+  try {
+    return await response.json();
+  } catch {
+    throw new ApiError(0, 'Backend yanıtı okunamadı.');
   }
 }
 
@@ -284,75 +335,53 @@ export const invoiceAPI = {
 
 /**
  * Uyumsoft API Servisi
+ * Tüm istekler authFetch ile gider → Bearer token sayesinde CSRF atlanır, 403 önlenir.
  */
 export const uyumsoftAPI = {
-  /**
-   * Bağlantı durumu
-   */
   async status() {
-    return fetchAPI('/api/uyumsoft/status');
+    return fetchUyumsoftAPI('/api/uyumsoft/status');
   },
 
-  /**
-   * Bağlan
-   */
   async connect(username: string, password: string, remember = true) {
-    return fetchAPI('/api/uyumsoft/connect', {
+    return fetchUyumsoftAPI('/api/uyumsoft/connect', {
       method: 'POST',
       body: JSON.stringify({ username, password, remember }),
     });
   },
 
-  /**
-   * Kayıtlı bilgilerle bağlan
-   */
   async connectSaved() {
-    return fetchAPI('/api/uyumsoft/connect-saved', {
+    return fetchUyumsoftAPI('/api/uyumsoft/connect-saved', {
       method: 'POST',
     });
   },
 
-  /**
-   * Bağlantıyı kes
-   */
   async disconnect() {
-    return fetchAPI('/api/uyumsoft/disconnect', {
+    return fetchUyumsoftAPI('/api/uyumsoft/disconnect', {
       method: 'POST',
     });
   },
 
-  /**
-   * Kimlik bilgilerini sil
-   */
   async deleteCredentials() {
-    return fetchAPI('/api/uyumsoft/credentials', {
+    return fetchUyumsoftAPI('/api/uyumsoft/credentials', {
       method: 'DELETE',
     });
   },
 
-  /**
-   * Faturaları senkronize et
-   */
   async sync(months = 3, maxInvoices = 1000) {
-    return fetchAPI('/api/uyumsoft/sync/blocking', {
+    return fetchUyumsoftAPI('/api/uyumsoft/sync/blocking', {
       method: 'POST',
       body: JSON.stringify({ months, maxInvoices }),
+      signal: AbortSignal.timeout(120000), // Sync uzun sürebilir, 2 dakika
     });
   },
 
-  /**
-   * Fatura detayı
-   */
   async getInvoiceDetail(ettn: string) {
-    return fetchAPI('/api/uyumsoft/sync/details', {
+    return fetchUyumsoftAPI('/api/uyumsoft/sync/details', {
       method: 'POST',
       body: JSON.stringify({ ettn }),
     });
   },
 
-  /**
-   * Veritabanındaki Uyumsoft faturaları
-   */
   async getInvoices(params?: {
     startDate?: string;
     endDate?: string;
@@ -369,16 +398,12 @@ export const uyumsoftAPI = {
         }
       });
     }
-
     const query = searchParams.toString();
-    return fetchAPI(`/api/uyumsoft/invoices${query ? `?${query}` : ''}`);
+    return fetchUyumsoftAPI(`/api/uyumsoft/invoices${query ? `?${query}` : ''}`);
   },
 
-  /**
-   * Uyumsoft faturaları özeti
-   */
   async getSummary() {
-    return fetchAPI('/api/uyumsoft/invoices/summary');
+    return fetchUyumsoftAPI('/api/uyumsoft/invoices/summary');
   },
 };
 
@@ -415,10 +440,57 @@ export function convertToFrontendFormat(invoice: Invoice) {
   };
 }
 
+// Frontend fatura kalemi formatı (türkçe)
+interface FrontendFaturaKalemi {
+  id?: string;
+  aciklama: string;
+  miktar: number;
+  birim: string;
+  birimFiyat: number;
+  kdvOrani: number;
+  tutar?: number;
+  category?: string;
+}
+
+// Frontend durum tipi (türkçe)
+type FrontendDurum = 'taslak' | 'gonderildi' | 'odendi' | 'gecikti' | 'iptal' | Invoice['status'];
+
+// Frontend fatura formatı (türkçe)
+interface FrontendFatura {
+  tip: 'satis' | 'alis';
+  seri: string;
+  no: string;
+  cariUnvan: string;
+  cariVkn?: string;
+  tarih: string;
+  vadeTarihi: string;
+  durum: FrontendDurum;
+  notlar?: string;
+  kalemler?: FrontendFaturaKalemi[];
+}
+
+// Türkçe durum -> API durum dönüşüm
+function convertDurum(durum: FrontendDurum): Invoice['status'] {
+  const durumMap: Record<string, Invoice['status']> = {
+    taslak: 'draft',
+    gonderildi: 'sent',
+    odendi: 'paid',
+    gecikti: 'overdue',
+    iptal: 'cancelled',
+    // İngilizce durumlar zaten doğru
+    draft: 'draft',
+    sent: 'sent',
+    paid: 'paid',
+    overdue: 'overdue',
+    cancelled: 'cancelled',
+  };
+  return durumMap[durum] || 'draft';
+}
+
 /**
  * Frontend verilerini API formatına dönüştür
  */
-export function convertToAPIFormat(fatura: any): Omit<Invoice, 'id'> {
+export function convertToAPIFormat(fatura: FrontendFatura): Omit<Invoice, 'id'> {
   return {
     invoice_type: fatura.tip === 'satis' ? 'sales' : 'purchase',
     series: fatura.seri,
@@ -427,9 +499,9 @@ export function convertToAPIFormat(fatura: any): Omit<Invoice, 'id'> {
     customer_vkn: fatura.cariVkn,
     invoice_date: fatura.tarih,
     due_date: fatura.vadeTarihi,
-    status: fatura.durum,
+    status: convertDurum(fatura.durum),
     notes: fatura.notlar,
-    items: fatura.kalemler?.map((kalem: any, index: number) => ({
+    items: fatura.kalemler?.map((kalem, index) => ({
       description: kalem.aciklama,
       category:
         kalem.category || kalem.aciklama.toLowerCase().includes('tavuk')

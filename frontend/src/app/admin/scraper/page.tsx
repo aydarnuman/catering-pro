@@ -49,9 +49,10 @@ import {
   IconTrash,
   IconX,
 } from '@tabler/icons-react';
+import type { ComponentType } from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
 import { scraperAPI } from '@/lib/api/services/scraper';
+import { API_BASE_URL } from '@/lib/config';
 
 // ============================================================================
 // TYPES
@@ -91,7 +92,7 @@ interface StatsData {
     created_at: string;
     completed_at: string;
     duration_ms: number;
-    result?: any;
+    result?: unknown;
   } | null;
 }
 
@@ -116,7 +117,7 @@ interface LogEntry {
   level: string;
   module: string;
   message: string;
-  context: any;
+  context: Record<string, unknown>;
   created_at: string;
 }
 
@@ -217,7 +218,7 @@ export default function ScraperDashboardPage() {
   // ACTIONS
   // ============================================================================
 
-  const handleAction = async (action: string, body?: any) => {
+  const handleAction = async (action: string, body?: Record<string, unknown>) => {
     setActionLoading(action);
     try {
       // action: 'start' | 'stop' | 'restart' | 'trigger'
@@ -255,10 +256,10 @@ export default function ScraperDashboardPage() {
           throw new Error(data.error || 'İşlem başarısız');
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       notifications.show({
         title: 'Hata',
-        message: err.message || 'Bir hata oluştu',
+        message: err instanceof Error ? err.message : 'Bir hata oluştu',
         color: 'red',
         icon: <IconX size={16} />,
       });
@@ -268,7 +269,7 @@ export default function ScraperDashboardPage() {
   };
 
   const handleTrigger = async () => {
-    const payload: any = { mode: triggerMode };
+    const payload: { mode: string; pages?: number; limit?: number } = { mode: triggerMode };
     if (triggerMode === 'list' || triggerMode === 'full') {
       payload.pages = triggerPages;
     }
@@ -320,10 +321,10 @@ export default function ScraperDashboardPage() {
           color: 'red',
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       notifications.show({
         title: 'Hata',
-        message: err.message || 'Bağlantı hatası',
+        message: err instanceof Error ? err.message : 'Bağlantı hatası',
         color: 'red',
       });
     } finally {
@@ -353,7 +354,7 @@ export default function ScraperDashboardPage() {
   };
 
   const getStatusIcon = (status: string) => {
-    const icons: Record<string, any> = {
+    const icons: Record<string, ComponentType<{ size?: number | string }>> = {
       healthy: IconCircleCheck,
       degraded: IconAlertTriangle,
       open: IconCircleX,

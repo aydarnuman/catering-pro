@@ -228,18 +228,23 @@ a {
 
 /* Main content padding - Navbar altı için */
 .main-content {
-  padding-top: 128px; /* Desktop: 72px primary + 48px nav + padding */
+  padding-top: 0; /* Default: navbar yokken padding yok */
   transition: padding-top 0.3s ease;
 }
 
+/* Navbar varsa padding ekle */
+.main-content.has-navbar {
+  padding-top: 128px; /* Desktop: 72px primary + 48px nav + padding */
+}
+
 @media (max-width: 1024px) {
-  .main-content {
+  .main-content.has-navbar {
     padding-top: 80px; /* Tablet: tek satır header */
   }
 }
 
 @media (max-width: 768px) {
-  .main-content {
+  .main-content.has-navbar {
     padding-top: 72px; /* Mobile: kompakt header */
   }
 }

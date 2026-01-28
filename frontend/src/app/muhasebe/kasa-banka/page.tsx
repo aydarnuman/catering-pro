@@ -53,8 +53,10 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
-import { formatMoney, formatDate } from '@/lib/formatters';
+import { useRealtimeRefetch } from '@/context/RealtimeContext';
 import { muhasebeAPI } from '@/lib/api/services/muhasebe';
+import { formatDate } from '@/lib/formatters';
+import type { Cari } from '@/types/domain';
 import 'dayjs/locale/tr';
 
 // Tip tanımları
@@ -121,12 +123,6 @@ interface CekSenet {
   cari?: { id: number; unvan: string; telefon: string };
   ciro_cari?: { id: number; unvan: string };
   hesap?: { id: number; hesap_adi: string };
-}
-
-interface Cari {
-  id: number;
-  unvan: string;
-  tip: string;
 }
 
 interface Ozet {
@@ -270,6 +266,9 @@ export default function KasaBankaPage() {
     loadData();
   }, [loadData]);
 
+  // 🔴 REALTIME - Kasa/Banka hareketler tablosunu dinle
+  useRealtimeRefetch('kasa_banka_hareketler', loadData);
+
   // Para formatı
   const formatMoney = (value: number) => {
     return new Intl.NumberFormat('tr-TR', {
@@ -278,7 +277,6 @@ export default function KasaBankaPage() {
       minimumFractionDigits: 0,
     }).format(value);
   };
-
 
   // Vade durumu hesapla
   const getVadeDurumu = (vade: string) => {
@@ -408,10 +406,14 @@ export default function KasaBankaPage() {
 
     try {
       const result = await muhasebeAPI.createCekSenet({
-        ...cekSenetForm,
+        tur: cekSenetForm.tip, // tip -> tur mapping
+        cek_senet_no: cekSenetForm.belge_no, // belge_no -> cek_senet_no mapping
+        tutar: cekSenetForm.tutar,
         kesim_tarihi: cekSenetForm.kesim_tarihi.toISOString().split('T')[0],
         vade_tarihi: cekSenetForm.vade_tarihi.toISOString().split('T')[0],
         cari_id: cekSenetForm.cari_id ? parseInt(cekSenetForm.cari_id, 10) : null,
+        durum: 'beklemede', // Default status
+        aciklama: cekSenetForm.notlar,
       });
 
       if (!result.success) throw new Error('İşlem başarısız');

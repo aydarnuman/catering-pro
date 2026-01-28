@@ -3,14 +3,14 @@
 import {
   ActionIcon,
   Box,
-  BoxProps,
+  type BoxProps,
   Drawer,
   Group,
-  GroupProps,
+  type GroupProps,
   Paper,
   ScrollArea,
   Stack,
-  StackProps,
+  type StackProps,
   Text,
   Title,
   Transition,
@@ -19,7 +19,7 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconChevronDown, IconX } from '@tabler/icons-react';
-import { ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useResponsive } from '@/hooks/useResponsive';
 
 // ============================================
@@ -104,8 +104,7 @@ export function MobileStack({
     );
   }
 
-  const shouldStack =
-    (isMobile && stackOnMobile) || (isTablet && stackOnTablet);
+  const shouldStack = (isMobile && stackOnMobile) || (isTablet && stackOnTablet);
 
   if (shouldStack) {
     return <Stack gap={stackGap}>{children}</Stack>;
@@ -150,9 +149,7 @@ export function MobileHide({
   }
 
   const shouldHide =
-    (isMobile && hideOnMobile) ||
-    (isTablet && hideOnTablet) ||
-    (isDesktop && hideOnDesktop);
+    (isMobile && hideOnMobile) || (isTablet && hideOnTablet) || (isDesktop && hideOnDesktop);
 
   if (shouldHide) {
     return null;
@@ -193,9 +190,7 @@ export function MobileShow({
   }
 
   const shouldShow =
-    (isMobile && showOnMobile) ||
-    (isTablet && showOnTablet) ||
-    (isDesktop && showOnDesktop);
+    (isMobile && showOnMobile) || (isTablet && showOnTablet) || (isDesktop && showOnDesktop);
 
   if (!shouldShow) {
     return null;
@@ -306,23 +301,12 @@ interface MobileActionSheetProps {
   actions: ActionItem[];
 }
 
-export function MobileActionSheet({
-  opened,
-  onClose,
-  title,
-  actions,
-}: MobileActionSheetProps) {
+export function MobileActionSheet({ opened, onClose, title, actions }: MobileActionSheetProps) {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
 
   return (
-    <MobileBottomSheet
-      opened={opened}
-      onClose={onClose}
-      title={title}
-      height="auto"
-      padding={0}
-    >
+    <MobileBottomSheet opened={opened} onClose={onClose} title={title} height="auto" padding={0}>
       <Stack gap={0}>
         {actions.map((action, index) => (
           <UnstyledButton
@@ -357,11 +341,7 @@ export function MobileActionSheet({
                 {action.icon}
               </Box>
             )}
-            <Text
-              fw={500}
-              c={action.destructive ? 'red' : action.color}
-              style={{ flex: 1 }}
-            >
+            <Text fw={500} c={action.destructive ? 'red' : action.color} style={{ flex: 1 }}>
               {action.label}
             </Text>
           </UnstyledButton>
@@ -518,7 +498,7 @@ export function MobileCard({
   ...props
 }: MobileCardProps) {
   const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === 'dark';
+  const _isDark = colorScheme === 'dark';
 
   return (
     <Paper
@@ -578,12 +558,7 @@ export function MobileExpandableCard({
       }}
     >
       {/* Main Content */}
-      <Group
-        justify="space-between"
-        p="sm"
-        onClick={toggle}
-        style={{ cursor: 'pointer' }}
-      >
+      <Group justify="space-between" p="sm" onClick={toggle} style={{ cursor: 'pointer' }}>
         <Box style={{ flex: 1 }}>{children}</Box>
         <ActionIcon variant="subtle" size="sm">
           <IconChevronDown

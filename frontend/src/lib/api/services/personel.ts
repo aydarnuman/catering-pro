@@ -31,7 +31,18 @@ export const personelAPI = {
     aktif?: boolean;
   }): Promise<ApiResponse<Personel[]>> {
     const response = await api.get('/api/personel', { params });
-    return response.data;
+    const data = response.data;
+
+    // Backend bazen direkt array döndürüyor, bazen { success, data } formatında
+    // Her iki durumu da handle et
+    if (Array.isArray(data)) {
+      return { success: true, data };
+    }
+    if (data && typeof data === 'object' && 'success' in data) {
+      return data;
+    }
+    // Fallback: data varsa success true, yoksa false
+    return { success: !!data, data: data || [] };
   },
 
   /**
@@ -134,7 +145,12 @@ export const personelAPI = {
   /**
    * Aylık ödeme güncelle
    */
-  async updateAylikOdeme(projeId: number, yil: number, ay: number, data: any): Promise<ApiResponse<any>> {
+  async updateAylikOdeme(
+    projeId: number,
+    yil: number,
+    ay: number,
+    data: any
+  ): Promise<ApiResponse<any>> {
     const response = await api.put(`/api/maas-odeme/aylik-odeme/${projeId}/${yil}/${ay}`, data);
     return response.data;
   },

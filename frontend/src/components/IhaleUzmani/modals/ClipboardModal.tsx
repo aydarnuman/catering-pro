@@ -7,7 +7,6 @@ import {
   Button,
   Chip,
   Collapse,
-  Divider,
   Group,
   Modal,
   Paper,
@@ -42,8 +41,14 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { useState } from 'react';
-import { ClipboardItem, ClipboardPriority, ClipboardTag, priorityConfig, tagConfig } from '../types';
-import { UseClipboardReturn } from '../hooks/useClipboard';
+import type { UseClipboardReturn } from '../hooks/useClipboard';
+import {
+  type ClipboardItem,
+  type ClipboardPriority,
+  type ClipboardTag,
+  priorityConfig,
+  tagConfig,
+} from '../types';
 
 interface ClipboardModalProps {
   clipboard: UseClipboardReturn;
@@ -76,7 +81,7 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
   const [notePriority, setNotePriority] = useState<ClipboardPriority | undefined>(undefined);
   const [noteTags, setNoteTags] = useState<ClipboardTag[]>([]);
   const [noteColor, setNoteColor] = useState<string>('');
-  
+
   // Düzenleme state'i
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
@@ -106,7 +111,14 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
   ];
 
   const handleAddNote = () => {
-    if (addNote(noteContent, notePriority, noteTags.length > 0 ? noteTags : undefined, noteColor || undefined)) {
+    if (
+      addNote(
+        noteContent,
+        notePriority,
+        noteTags.length > 0 ? noteTags : undefined,
+        noteColor || undefined
+      )
+    ) {
       setNoteContent('');
       setNotePriority(undefined);
       setNoteTags([]);
@@ -128,13 +140,13 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
   };
 
   const toggleCategory = (cat: string) => {
-    setCollapsedCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
+    setCollapsedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }));
   };
 
   const renderClipboardItem = (item: ClipboardItem) => {
     const filteredItems = getFiltered();
-    if (search && !filteredItems.find(i => i.id === item.id)) return null;
-    
+    if (search && !filteredItems.find((i) => i.id === item.id)) return null;
+
     const config = typeConfig[item.type];
     const isEditing = editingId === item.id;
     const itemColor = item.color || config.color;
@@ -147,9 +159,9 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
         radius="md"
         style={{
           borderLeft: `4px solid var(--mantine-color-${itemColor}-5)`,
-          background: item.isPinned 
+          background: item.isPinned
             ? 'linear-gradient(135deg, var(--mantine-color-yellow-0), var(--mantine-color-yellow-1))'
-            : item.color 
+            : item.color
               ? `linear-gradient(135deg, var(--mantine-color-${item.color}-0), white)`
               : 'white',
           transition: 'all 0.2s ease',
@@ -161,7 +173,12 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
             {/* Üst Bilgiler */}
             <Group gap="xs" mb={6} wrap="wrap">
               {item.isPinned && (
-                <Badge size="xs" variant="filled" color="yellow" leftSection={<IconPinned size={10} />}>
+                <Badge
+                  size="xs"
+                  variant="filled"
+                  color="yellow"
+                  leftSection={<IconPinned size={10} />}
+                >
                   Sabitlenmiş
                 </Badge>
               )}
@@ -173,8 +190,14 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
                   {priorityConfig[item.priority].icon} {priorityConfig[item.priority].label}
                 </Badge>
               )}
-              {item.tags?.map(tag => (
-                <Badge key={tag} size="xs" variant="outline" color={tagConfig[tag].color} leftSection={<IconTag size={8} />}>
+              {item.tags?.map((tag) => (
+                <Badge
+                  key={tag}
+                  size="xs"
+                  variant="outline"
+                  color={tagConfig[tag].color}
+                  leftSection={<IconTag size={8} />}
+                >
                   {tagConfig[tag].label}
                 </Badge>
               ))}
@@ -195,22 +218,36 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
                   <ActionIcon variant="filled" color="green" size="sm" onClick={handleSaveEdit}>
                     <IconPinned size={14} />
                   </ActionIcon>
-                  <ActionIcon variant="light" color="gray" size="sm" onClick={() => setEditingId(null)}>
+                  <ActionIcon
+                    variant="light"
+                    color="gray"
+                    size="sm"
+                    onClick={() => setEditingId(null)}
+                  >
                     <IconX size={14} />
                   </ActionIcon>
                 </Stack>
               </Group>
             ) : (
-              <Text size="sm" style={{ lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{item.content}</Text>
+              <Text size="sm" style={{ lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                {item.content}
+              </Text>
             )}
 
             {/* Alt Bilgi */}
             <Group gap="xs" mt={6}>
-              <Text size="xs" c="dimmed">{item.source}</Text>
-              <Text size="xs" c="dimmed">•</Text>
+              <Text size="xs" c="dimmed">
+                {item.source}
+              </Text>
+              <Text size="xs" c="dimmed">
+                •
+              </Text>
               <Text size="xs" c="dimmed">
                 {new Date(item.createdAt).toLocaleString('tr-TR', {
-                  day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                  day: '2-digit',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit',
                 })}
               </Text>
             </Group>
@@ -230,30 +267,18 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
               </Tooltip>
               {item.type === 'not' && (
                 <Tooltip label="Düzenle">
-                  <ActionIcon
-                    variant="subtle"
-                    color="orange"
-                    onClick={() => handleStartEdit(item)}
-                  >
+                  <ActionIcon variant="subtle" color="orange" onClick={() => handleStartEdit(item)}>
                     <IconPencil size={16} />
                   </ActionIcon>
                 </Tooltip>
               )}
               <Tooltip label="Kopyala">
-                <ActionIcon
-                  variant="subtle"
-                  color="blue"
-                  onClick={() => copyItem(item.content)}
-                >
+                <ActionIcon variant="subtle" color="blue" onClick={() => copyItem(item.content)}>
                   <IconCopy size={16} />
                 </ActionIcon>
               </Tooltip>
               <Tooltip label="Sil">
-                <ActionIcon
-                  variant="subtle"
-                  color="red"
-                  onClick={() => removeItem(item.id)}
-                >
+                <ActionIcon variant="subtle" color="red" onClick={() => removeItem(item.id)}>
                   <IconTrash size={16} />
                 </ActionIcon>
               </Tooltip>
@@ -264,28 +289,29 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
     );
   };
 
-  const renderCategory = (key: string, items: ClipboardItem[], icon: React.ReactNode, label: string, color: string) => {
+  const renderCategory = (
+    key: string,
+    items: ClipboardItem[],
+    icon: React.ReactNode,
+    label: string,
+    color: string
+  ) => {
     if (items.length === 0) return null;
     const isCollapsed = collapsedCategories[key];
 
     return (
       <Box key={key}>
-        <Group 
-          gap="xs" 
-          mb="xs" 
-          style={{ cursor: 'pointer' }}
-          onClick={() => toggleCategory(key)}
-        >
+        <Group gap="xs" mb="xs" style={{ cursor: 'pointer' }} onClick={() => toggleCategory(key)}>
           {icon}
-          <Text size="sm" fw={600} c={`${color}.7`}>{label} ({items.length})</Text>
+          <Text size="sm" fw={600} c={`${color}.7`}>
+            {label} ({items.length})
+          </Text>
           <ActionIcon variant="subtle" size="xs" color={color}>
             {isCollapsed ? <IconChevronDown size={14} /> : <IconChevronUp size={14} />}
           </ActionIcon>
         </Group>
         <Collapse in={!isCollapsed}>
-          <Stack gap="xs">
-            {items.map(renderClipboardItem)}
-          </Stack>
+          <Stack gap="xs">{items.map(renderClipboardItem)}</Stack>
         </Collapse>
       </Box>
     );
@@ -299,12 +325,21 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
       onClose={() => setModalOpened(false)}
       title={
         <Group gap="sm">
-          <ThemeIcon size={40} radius="xl" variant="gradient" gradient={{ from: 'pink', to: 'orange' }}>
+          <ThemeIcon
+            size={40}
+            radius="xl"
+            variant="gradient"
+            gradient={{ from: 'pink', to: 'orange' }}
+          >
             <IconClipboardCopy size={22} />
           </ThemeIcon>
           <div>
-            <Text fw={700} size="lg">Çalışma Panosu</Text>
-            <Text size="xs" c="dimmed">{items.length} öğe • İhale notları ve verileri</Text>
+            <Text fw={700} size="lg">
+              Çalışma Panosu
+            </Text>
+            <Text size="xs" c="dimmed">
+              {items.length} öğe • İhale notları ve verileri
+            </Text>
           </div>
         </Group>
       }
@@ -322,7 +357,13 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
     >
       <Box>
         {/* Üst Araç Çubuğu */}
-        <Box p="md" style={{ borderBottom: '1px solid var(--mantine-color-gray-2)', background: 'var(--mantine-color-gray-0)' }}>
+        <Box
+          p="md"
+          style={{
+            borderBottom: '1px solid var(--mantine-color-gray-2)',
+            background: 'var(--mantine-color-gray-0)',
+          }}
+        >
           <Group justify="space-between" wrap="wrap" gap="sm">
             <Group gap="sm" style={{ flex: 1, minWidth: 250 }}>
               <TextInput
@@ -380,15 +421,26 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
 
         {/* Not Ekleme Formu */}
         <Collapse in={showAddNote}>
-          <Box p="md" style={{ background: 'linear-gradient(135deg, var(--mantine-color-pink-0), var(--mantine-color-violet-0))', borderBottom: '1px solid var(--mantine-color-pink-2)' }}>
+          <Box
+            p="md"
+            style={{
+              background:
+                'linear-gradient(135deg, var(--mantine-color-pink-0), var(--mantine-color-violet-0))',
+              borderBottom: '1px solid var(--mantine-color-pink-2)',
+            }}
+          >
             <Stack gap="sm">
               <Group align="flex-start" gap="sm">
                 <ThemeIcon size={36} radius="xl" color="pink" variant="light">
                   <IconPencil size={18} />
                 </ThemeIcon>
                 <div style={{ flex: 1 }}>
-                  <Text size="sm" fw={600} mb={4}>Yeni Not Ekle</Text>
-                  <Text size="xs" c="dimmed">İhale ile ilgili kendi notlarınızı ekleyin</Text>
+                  <Text size="sm" fw={600} mb={4}>
+                    Yeni Not Ekle
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    İhale ile ilgili kendi notlarınızı ekleyin
+                  </Text>
                 </div>
                 <ActionIcon variant="subtle" color="gray" onClick={() => setShowAddNote(false)}>
                   <IconX size={18} />
@@ -402,18 +454,20 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
                 minRows={3}
                 autosize
                 styles={{
-                  input: { background: 'white' }
+                  input: { background: 'white' },
                 }}
               />
 
               <Group gap="md" wrap="wrap">
                 {/* Öncelik */}
                 <div>
-                  <Text size="xs" c="dimmed" mb={4}>Öncelik</Text>
+                  <Text size="xs" c="dimmed" mb={4}>
+                    Öncelik
+                  </Text>
                   <SegmentedControl
                     size="xs"
                     value={notePriority || ''}
-                    onChange={(v) => setNotePriority(v as ClipboardPriority || undefined)}
+                    onChange={(v) => setNotePriority((v as ClipboardPriority) || undefined)}
                     data={[
                       { value: '', label: 'Yok' },
                       { value: 'high', label: '🔴 Yüksek' },
@@ -425,7 +479,9 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
 
                 {/* Renk */}
                 <div>
-                  <Text size="xs" c="dimmed" mb={4}>Renk</Text>
+                  <Text size="xs" c="dimmed" mb={4}>
+                    Renk
+                  </Text>
                   <Select
                     size="xs"
                     value={noteColor}
@@ -439,11 +495,23 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
 
               {/* Etiketler */}
               <div>
-                <Text size="xs" c="dimmed" mb={4}>Etiketler</Text>
-                <Chip.Group multiple value={noteTags} onChange={(v) => setNoteTags(v as ClipboardTag[])}>
+                <Text size="xs" c="dimmed" mb={4}>
+                  Etiketler
+                </Text>
+                <Chip.Group
+                  multiple
+                  value={noteTags}
+                  onChange={(v) => setNoteTags(v as ClipboardTag[])}
+                >
                   <Group gap="xs">
-                    {(Object.keys(tagConfig) as ClipboardTag[]).map(tag => (
-                      <Chip key={tag} value={tag} size="xs" color={tagConfig[tag].color} variant="outline">
+                    {(Object.keys(tagConfig) as ClipboardTag[]).map((tag) => (
+                      <Chip
+                        key={tag}
+                        value={tag}
+                        size="xs"
+                        color={tagConfig[tag].color}
+                        variant="outline"
+                      >
                         {tagConfig[tag].icon} {tagConfig[tag].label}
                       </Chip>
                     ))}
@@ -472,9 +540,12 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
                 <IconClipboardCopy size={40} />
               </ThemeIcon>
               <div style={{ textAlign: 'center' }}>
-                <Text size="lg" c="dimmed" fw={500}>Çalışma Panosu Boş</Text>
+                <Text size="lg" c="dimmed" fw={500}>
+                  Çalışma Panosu Boş
+                </Text>
                 <Text size="sm" c="dimmed" mt={8} maw={400}>
-                  Kendi notlarınızı eklemek için yukarıdaki &quot;Not Ekle&quot; butonunu kullanın.<br/>
+                  Kendi notlarınızı eklemek için yukarıdaki &quot;Not Ekle&quot; butonunu kullanın.
+                  <br />
                   Ya da dökümanlardan öğelerin yanındaki 📋 butonuyla panoya ekleyin.
                 </Text>
                 <Button
@@ -557,14 +628,20 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
         </ScrollArea>
 
         {/* Alt Bilgi */}
-        <Box p="sm" style={{ borderTop: '1px solid var(--mantine-color-gray-2)', background: 'var(--mantine-color-gray-0)' }}>
+        <Box
+          p="sm"
+          style={{
+            borderTop: '1px solid var(--mantine-color-gray-2)',
+            background: 'var(--mantine-color-gray-0)',
+          }}
+        >
           <Group justify="space-between">
             <Text size="xs" c="dimmed">
               💡 İpucu: Notları sabitleyerek en üste taşıyabilirsiniz
             </Text>
             {items.length > 0 && (
               <Badge variant="light" color="pink">
-                {items.filter(i => i.type === 'not').length} manuel not
+                {items.filter((i) => i.type === 'not').length} manuel not
               </Badge>
             )}
           </Group>

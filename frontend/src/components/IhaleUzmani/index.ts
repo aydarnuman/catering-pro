@@ -1,8 +1,9 @@
 // IhaleUzmani Component Library
 // Bu modül kademeli olarak refactor ediliyor
 
-// Types
-export * from './types';
+// Ana bileşen - şimdilik eski dosyadan import
+// Kademeli refactoring tamamlandığında burası değişecek
+export { default as IhaleUzmaniModal } from '../IhaleUzmaniModal';
 
 // Hooks
 export * from './hooks';
@@ -12,7 +13,5 @@ export { ClipboardModal } from './modals/ClipboardModal';
 
 // Tabs
 export { OzetTab } from './tabs/OzetTab';
-
-// Ana bileşen - şimdilik eski dosyadan import
-// Kademeli refactoring tamamlandığında burası değişecek
-export { default as IhaleUzmaniModal } from '../IhaleUzmaniModal';
+// Types
+export * from './types';

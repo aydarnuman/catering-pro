@@ -1,5 +1,6 @@
 'use client';
 
+import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer';
 import {
   ActionIcon,
   Avatar,
@@ -10,14 +11,12 @@ import {
   Divider,
   Grid,
   Group,
-  Image,
   Indicator,
   Loader,
   Menu,
   Modal,
   Paper,
   Popover,
-  Progress,
   RingProgress,
   ScrollArea,
   SimpleGrid,
@@ -30,7 +29,7 @@ import {
   Tooltip,
   useMantineColorScheme,
 } from '@mantine/core';
-import { Dropzone, IMAGE_MIME_TYPE, PDF_MIME_TYPE, MS_WORD_MIME_TYPE, MS_EXCEL_MIME_TYPE } from '@mantine/dropzone';
+import { Dropzone, IMAGE_MIME_TYPE, PDF_MIME_TYPE } from '@mantine/dropzone';
 import { notifications } from '@mantine/notifications';
 import {
   IconArchive,
@@ -39,16 +38,18 @@ import {
   IconChevronDown,
   IconChevronUp,
   IconCloudUpload,
+  IconDeviceFloppy,
   IconDownload,
+  IconEye,
   IconFile,
-  IconFileTypePdf,
   IconFileTypeDoc,
+  IconFileTypePdf,
   IconFileTypeXls,
   IconFileTypeZip,
+  IconLogin,
   IconMessage,
   IconMessageCircle,
   IconMicrophone,
-  IconMicrophoneOff,
   IconMoodSmile,
   IconPaperclip,
   IconPhone,
@@ -68,14 +69,12 @@ import {
   IconUsers,
   IconVideo,
   IconX,
-  IconLogin,
-  IconEye,
-  IconDeviceFloppy,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useRef, useState, ChangeEvent } from 'react';
-import { API_BASE_URL } from '@/lib/config';
-import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer';
 import mammoth from 'mammoth';
+import { type ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { authFetch } from '@/lib/api';
+import { API_BASE_URL } from '@/lib/config';
 
 interface Chat {
   id: string;
@@ -106,13 +105,14 @@ interface Message {
 
 export default function WhatsAppPage() {
   const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === 'dark';
+  const _isDark = colorScheme === 'dark';
 
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [messageInput, setMessageInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -131,12 +131,16 @@ export default function WhatsAppPage() {
   const [docxHtml, setDocxHtml] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [sendingMedia, setSendingMedia] = useState(false);
-  
+
   // Caption modal state
   const [captionModalOpen, setCaptionModalOpen] = useState(false);
-  const [pendingFile, setPendingFile] = useState<{ file: File; type: 'image' | 'video' | 'document'; preview?: string } | null>(null);
+  const [pendingFile, setPendingFile] = useState<{
+    file: File;
+    type: 'image' | 'video' | 'document';
+    preview?: string;
+  } | null>(null);
   const [captionText, setCaptionText] = useState('');
-  
+
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -144,10 +148,10 @@ export default function WhatsAppPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  
+
   // Emoji picker state
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
-  
+
   // Drag & Drop state
   const [isDragging, setIsDragging] = useState(false);
 
@@ -155,18 +159,53 @@ export default function WhatsAppPage() {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Common emojis for quick access
   const commonEmojis = [
-    '😀', '😂', '🥰', '😍', '🤩', '😎', '🤔', '😅',
-    '👍', '👎', '👏', '🙏', '💪', '🤝', '✌️', '👋',
-    '❤️', '💕', '💯', '🔥', '⭐', '✨', '🎉', '🎊',
-    '✅', '❌', '⚠️', '📌', '📎', '📝', '📅', '⏰',
-    '🍽️', '🍴', '🥗', '🍲', '🍛', '🥘', '🍜', '🍝',
+    '😀',
+    '😂',
+    '🥰',
+    '😍',
+    '🤩',
+    '😎',
+    '🤔',
+    '😅',
+    '👍',
+    '👎',
+    '👏',
+    '🙏',
+    '💪',
+    '🤝',
+    '✌️',
+    '👋',
+    '❤️',
+    '💕',
+    '💯',
+    '🔥',
+    '⭐',
+    '✨',
+    '🎉',
+    '🎊',
+    '✅',
+    '❌',
+    '⚠️',
+    '📌',
+    '📎',
+    '📝',
+    '📅',
+    '⏰',
+    '🍽️',
+    '🍴',
+    '🥗',
+    '🍲',
+    '🍛',
+    '🥘',
+    '🍜',
+    '🍝',
   ];
 
   // Base64 data URL'i Blob URL'e çevir (DocViewer için gerekli)
-  const convertToBlob = useCallback(async (dataUrl: string, filename: string) => {
+  const convertToBlob = useCallback(async (dataUrl: string, _filename: string) => {
     try {
       // Base64 data URL'i parse et
       const matches = dataUrl.match(/^data:(.+);base64,(.+)$/);
@@ -174,10 +213,10 @@ export default function WhatsAppPage() {
         console.log('Not a base64 data URL, using directly');
         return dataUrl;
       }
-      
+
       const mimeType = matches[1];
       const base64Data = matches[2];
-      
+
       // Base64'ü binary'e çevir
       const byteCharacters = atob(base64Data);
       const byteNumbers = new Array(byteCharacters.length);
@@ -185,10 +224,10 @@ export default function WhatsAppPage() {
         byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
       const byteArray = new Uint8Array(byteNumbers);
-      
+
       // Blob oluştur
       const blob = new Blob([byteArray], { type: mimeType });
-      
+
       // Blob URL oluştur
       const blobUrl = URL.createObjectURL(blob);
       console.log('Created blob URL:', blobUrl);
@@ -203,15 +242,15 @@ export default function WhatsAppPage() {
   useEffect(() => {
     const processPreview = async () => {
       if (!previewUrl) return;
-      
+
       setPreviewLoading(true);
       setDocxHtml(null);
-      
+
       try {
         // DOCX dosyası için Mammoth.js ile HTML'e çevir
         if (previewFilename.match(/\.docx?$/i)) {
           console.log('Processing DOCX with Mammoth.js...');
-          
+
           // Base64'ü ArrayBuffer'a çevir
           const matches = previewUrl.match(/^data:(.+);base64,(.+)$/);
           if (matches) {
@@ -222,7 +261,7 @@ export default function WhatsAppPage() {
               bytes[i] = binaryString.charCodeAt(i);
             }
             const arrayBuffer = bytes.buffer;
-            
+
             // Mammoth.js ile HTML'e çevir
             const result = await mammoth.convertToHtml({ arrayBuffer });
             console.log('Mammoth conversion successful');
@@ -243,84 +282,35 @@ export default function WhatsAppPage() {
         setPreviewLoading(false);
       }
     };
-    
+
     processPreview();
-    
+
     // Cleanup - modal kapandığında blob URL'i temizle
     return () => {
-      if (previewBlobUrl && previewBlobUrl.startsWith('blob:')) {
+      if (previewBlobUrl?.startsWith('blob:')) {
         URL.revokeObjectURL(previewBlobUrl);
       }
     };
-  }, [previewUrl, previewFilename, convertToBlob]);
+  }, [previewUrl, previewFilename, convertToBlob, previewBlobUrl]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesViewportRef = useRef<HTMLDivElement>(null);
 
-  // Stats
-  const totalChats = chats.length;
-  const unreadChats = chats.filter(c => c.unreadCount > 0).length;
-  const groupChats = chats.filter(c => c.isGroup).length;
-
-  // Sayfa yüklendiğinde durumu kontrol et
-  useEffect(() => {
-    const checkStatus = async () => {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/social/whatsapp/status`);
-        const status = await res.json();
-        if (status.connected) {
-          setConnected(true);
-          fetchChats();
-        } else if (status.hasQR) {
-          // QR hazırsa göster
-          const qrRes = await fetch(`${API_BASE_URL}/api/social/whatsapp/qr`);
-          const qrData = await qrRes.json();
-          if (qrData.success && qrData.qr) {
-            setQrCode(qrData.qr);
-          }
-        }
-      } catch (e) {
-        console.error('WhatsApp status check failed:', e);
-        setConnectionError('Sunucuya bağlanılamıyor. Backend servisleri çalışmıyor olabilir.');
-      }
-      setLoading(false);
-    };
-    checkStatus();
-  }, []);
-
-  // QR gösterilirken bağlantı durumunu kontrol et
-  useEffect(() => {
-    if (!qrCode || connected) return;
-    
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/social/whatsapp/status`);
-        const status = await res.json();
-        if (status.connected) {
-          setConnected(true);
-          setQrCode(null);
-          fetchChats();
-          notifications.show({
-            title: '🎉 Bağlantı Başarılı!',
-            message: 'WhatsApp hesabınız bağlandı',
-            color: 'green',
-          });
-        }
-      } catch (e) {}
-    }, 2000);
-    
-    return () => clearInterval(interval);
-  }, [qrCode, connected]);
-
-  const fetchChats = async () => {
+  // fetchChats - useCallback ile tanımla (TDZ hatası için)
+  const fetchChats = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/social/whatsapp/chats`);
+      const res = await authFetch(`${API_BASE_URL}/api/social/whatsapp/chats`);
       const data = await res.json();
       if (data.success && data.chats) {
         const allChats: Chat[] = data.chats.map((chat: any) => ({
           id: chat.id,
           name: chat.name || chat.id.split('@')[0],
           lastMessage: chat.lastMessage || '',
-          timestamp: chat.timestamp ? new Date(chat.timestamp * 1000).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '',
+          timestamp: chat.timestamp
+            ? new Date(chat.timestamp * 1000).toLocaleTimeString('tr-TR', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : '',
           unreadCount: chat.unreadCount || 0,
           isGroup: chat.isGroup || false,
           isArchived: chat.archived || false,
@@ -334,7 +324,65 @@ export default function WhatsAppPage() {
     } catch (e) {
       console.error('Failed to fetch chats:', e);
     }
-  };
+  }, []);
+
+  // Stats
+  const totalChats = chats.length;
+  const unreadChats = chats.filter((c) => c.unreadCount > 0).length;
+  const groupChats = chats.filter((c) => c.isGroup).length;
+
+  // Sayfa yüklendiğinde durumu kontrol et
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) return;
+
+    const checkStatus = async () => {
+      try {
+        const res = await authFetch(`${API_BASE_URL}/api/social/whatsapp/status`);
+        const status = await res.json();
+        if (status.connected) {
+          setConnected(true);
+          fetchChats();
+        } else if (status.hasQR) {
+          // QR hazırsa göster
+          const qrRes = await authFetch(`${API_BASE_URL}/api/social/whatsapp/qr`);
+          const qrData = await qrRes.json();
+          if (qrData.success && qrData.qr) {
+            setQrCode(qrData.qr);
+          }
+        }
+      } catch (e) {
+        console.error('WhatsApp status check failed:', e);
+        setConnectionError('Sunucuya bağlanılamıyor. Backend servisleri çalışmıyor olabilir.');
+      }
+      setLoading(false);
+    };
+    checkStatus();
+  }, [authLoading, isAuthenticated, fetchChats]);
+
+  // QR gösterilirken bağlantı durumunu kontrol et
+  useEffect(() => {
+    if (!qrCode || connected) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await authFetch(`${API_BASE_URL}/api/social/whatsapp/status`);
+        const status = await res.json();
+        if (status.connected) {
+          setConnected(true);
+          setQrCode(null);
+          fetchChats();
+          notifications.show({
+            title: '🎉 Bağlantı Başarılı!',
+            message: 'WhatsApp hesabınız bağlandı',
+            color: 'green',
+          });
+        }
+      } catch (_e) {}
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [qrCode, connected, fetchChats]);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -347,7 +395,9 @@ export default function WhatsAppPage() {
   const fetchMessages = async (chatId: string) => {
     setLoadingMessages(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/social/whatsapp/chats/${encodeURIComponent(chatId)}/messages?limit=30`);
+      const res = await authFetch(
+        `${API_BASE_URL}/api/social/whatsapp/chats/${encodeURIComponent(chatId)}/messages?limit=30`
+      );
       const data = await res.json();
       if (data.success && data.messages) {
         const formattedMessages: Message[] = data.messages
@@ -355,7 +405,12 @@ export default function WhatsAppPage() {
           .map((msg: any) => ({
             id: msg.id,
             content: msg.body || msg.caption || '',
-            timestamp: msg.timestamp ? new Date(msg.timestamp * 1000).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '',
+            timestamp: msg.timestamp
+              ? new Date(msg.timestamp * 1000).toLocaleTimeString('tr-TR', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : '',
             fromMe: msg.fromMe,
             type: msg.type || 'text',
             hasMedia: msg.hasMedia || false,
@@ -376,13 +431,14 @@ export default function WhatsAppPage() {
 
   const markAsRead = useCallback(async (chatId: string) => {
     try {
-      await fetch(`${API_BASE_URL}/api/social/whatsapp/chats/${encodeURIComponent(chatId)}/seen`, {
-        method: 'POST',
-      });
+      await authFetch(
+        `${API_BASE_URL}/api/social/whatsapp/chats/${encodeURIComponent(chatId)}/seen`,
+        {
+          method: 'POST',
+        }
+      );
       // Chat listesini güncelle
-      setChats(prev => prev.map(c => 
-        c.id === chatId ? { ...c, unreadCount: 0 } : c
-      ));
+      setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, unreadCount: 0 } : c)));
     } catch (e) {
       console.error('Failed to mark as read:', e);
     }
@@ -401,34 +457,43 @@ export default function WhatsAppPage() {
   // Seçili sohbette yeni mesajları kontrol et (her 5 saniyede)
   useEffect(() => {
     if (!selectedChat || !connected) return;
-    
+
     const pollMessages = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/social/whatsapp/chats/${encodeURIComponent(selectedChat.id)}/messages?limit=30`);
+        const res = await authFetch(
+          `${API_BASE_URL}/api/social/whatsapp/chats/${encodeURIComponent(selectedChat.id)}/messages?limit=30`
+        );
         const data = await res.json();
         if (data.success && data.messages) {
-          const apiMessages: Message[] = data.messages.map((msg: any) => ({
-            id: msg.id,
-            content: msg.body || msg.caption || '',
-            timestamp: msg.timestamp ? new Date(msg.timestamp * 1000).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '',
-            fromMe: msg.fromMe,
-            type: msg.type || 'text',
-            status: 'sent' as const,
-            hasMedia: msg.hasMedia || false,
-            mediaUrl: msg.mediaUrl || null,
-            mimetype: msg.mimetype || null,
-            filename: msg.filename || null,
-            filesize: msg.filesize || null,
-            caption: msg.caption || null,
-          })).reverse();
-          
+          const apiMessages: Message[] = data.messages
+            .map((msg: any) => ({
+              id: msg.id,
+              content: msg.body || msg.caption || '',
+              timestamp: msg.timestamp
+                ? new Date(msg.timestamp * 1000).toLocaleTimeString('tr-TR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : '',
+              fromMe: msg.fromMe,
+              type: msg.type || 'text',
+              status: 'sent' as const,
+              hasMedia: msg.hasMedia || false,
+              mediaUrl: msg.mediaUrl || null,
+              mimetype: msg.mimetype || null,
+              filename: msg.filename || null,
+              filesize: msg.filesize || null,
+              caption: msg.caption || null,
+            }))
+            .reverse();
+
           // Local mesajları koru (sending/failed olanlar)
-          setMessages(prev => {
-            const localMsgs = prev.filter(m => m.id.startsWith('local-') && m.status !== 'sent');
+          setMessages((prev) => {
+            const localMsgs = prev.filter((m) => m.id.startsWith('local-') && m.status !== 'sent');
             // Eğer API'den gelen mesaj sayısı değişmişse güncelle
-            const apiIds = new Set(apiMessages.map(m => m.id));
-            const prevApiMsgs = prev.filter(m => !m.id.startsWith('local-'));
-            
+            const _apiIds = new Set(apiMessages.map((m) => m.id));
+            const prevApiMsgs = prev.filter((m) => !m.id.startsWith('local-'));
+
             // Sadece yeni mesaj varsa veya ilk yüklemeyse güncelle
             if (apiMessages.length !== prevApiMsgs.length || prevApiMsgs.length === 0) {
               return [...apiMessages, ...localMsgs];
@@ -436,29 +501,29 @@ export default function WhatsAppPage() {
             return prev;
           });
         }
-      } catch (e) {
+      } catch (_e) {
         // Sessizce hata yakala
       }
     };
-    
+
     const interval = setInterval(pollMessages, 5000);
     return () => clearInterval(interval);
-  }, [selectedChat?.id, connected]);
+  }, [selectedChat?.id, connected, selectedChat]);
 
   const handleConnect = async () => {
     setConnecting(true);
     try {
-      await fetch(`${API_BASE_URL}/api/social/whatsapp/connect`, { method: 'POST' });
-      
+      await authFetch(`${API_BASE_URL}/api/social/whatsapp/connect`, { method: 'POST' });
+
       let attempts = 0;
       const maxAttempts = 20;
-      
+
       const checkQR = async () => {
-        const statusRes = await fetch(`${API_BASE_URL}/api/social/whatsapp/status`);
+        const statusRes = await authFetch(`${API_BASE_URL}/api/social/whatsapp/status`);
         const status = await statusRes.json();
-        
+
         if (status.hasQR) {
-          const qrRes = await fetch(`${API_BASE_URL}/api/social/whatsapp/qr`);
+          const qrRes = await authFetch(`${API_BASE_URL}/api/social/whatsapp/qr`);
           const qrData = await qrRes.json();
           if (qrData.success && qrData.qr) {
             setQrCode(qrData.qr);
@@ -466,7 +531,7 @@ export default function WhatsAppPage() {
             return;
           }
         }
-        
+
         if (status.connected) {
           setConnected(true);
           setConnecting(false);
@@ -478,7 +543,7 @@ export default function WhatsAppPage() {
           });
           return;
         }
-        
+
         attempts++;
         if (attempts < maxAttempts) {
           setTimeout(checkQR, 1000);
@@ -491,9 +556,9 @@ export default function WhatsAppPage() {
           });
         }
       };
-      
+
       setTimeout(checkQR, 2000);
-    } catch (error) {
+    } catch (_error) {
       setConnecting(false);
       notifications.show({
         title: 'Hata',
@@ -506,21 +571,21 @@ export default function WhatsAppPage() {
   const handleRefreshQR = async () => {
     setConnecting(true);
     try {
-      const qrRes = await fetch(`${API_BASE_URL}/api/social/whatsapp/qr`);
+      const qrRes = await authFetch(`${API_BASE_URL}/api/social/whatsapp/qr`);
       const qrData = await qrRes.json();
       if (qrData.success && qrData.qr) {
         setQrCode(qrData.qr);
       } else {
-        await fetch(`${API_BASE_URL}/api/social/whatsapp/connect`, { method: 'POST' });
+        await authFetch(`${API_BASE_URL}/api/social/whatsapp/connect`, { method: 'POST' });
         setTimeout(async () => {
-          const retryRes = await fetch(`${API_BASE_URL}/api/social/whatsapp/qr`);
+          const retryRes = await authFetch(`${API_BASE_URL}/api/social/whatsapp/qr`);
           const retryData = await retryRes.json();
           if (retryData.success && retryData.qr) {
             setQrCode(retryData.qr);
           }
         }, 3000);
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ title: 'Hata', message: 'QR kod yenilenemedi', color: 'red' });
     }
     setConnecting(false);
@@ -528,8 +593,8 @@ export default function WhatsAppPage() {
 
   const handleDisconnect = async () => {
     try {
-      await fetch(`${API_BASE_URL}/api/social/whatsapp/disconnect`, { method: 'POST' });
-    } catch (e) {}
+      await authFetch(`${API_BASE_URL}/api/social/whatsapp/disconnect`, { method: 'POST' });
+    } catch (_e) {}
     setConnected(false);
     setQrCode(null);
     setChats([]);
@@ -543,17 +608,17 @@ export default function WhatsAppPage() {
 
   // Mesaj gönderme - basit ve çalışır
   const [sending, setSending] = useState(false);
-  
+
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !selectedChat || sending) return;
-    
+
     const msgContent = messageInput.trim();
     const chatId = selectedChat.id;
-    
+
     // Input'u hemen temizle
     setMessageInput('');
     setSending(true);
-    
+
     // Mesajı hemen ekle (görsel feedback)
     const newMsg: Message = {
       id: `local-${Date.now()}`,
@@ -563,42 +628,38 @@ export default function WhatsAppPage() {
       type: 'text',
       status: 'sending',
     };
-    setMessages(prev => [...prev, newMsg]);
+    setMessages((prev) => [...prev, newMsg]);
     scrollToBottom();
-    
+
     try {
-      const res = await fetch(`${API_BASE_URL}/api/social/whatsapp/send`, {
+      const res = await authFetch(`${API_BASE_URL}/api/social/whatsapp/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chatId, message: msgContent }),
       });
       const data = await res.json();
-      
+
       if (data.success) {
         // Gönderildi - status güncelle
-        setMessages(prev => prev.map(m => 
-          m.id === newMsg.id ? { ...m, status: 'sent' } : m
-        ));
+        setMessages((prev) => prev.map((m) => (m.id === newMsg.id ? { ...m, status: 'sent' } : m)));
       } else {
         // Hata - status güncelle
-        setMessages(prev => prev.map(m => 
-          m.id === newMsg.id ? { ...m, status: 'failed' } : m
-        ));
-        notifications.show({ 
-          title: 'Hata', 
-          message: data.error || 'Mesaj gönderilemedi', 
-          color: 'red' 
+        setMessages((prev) =>
+          prev.map((m) => (m.id === newMsg.id ? { ...m, status: 'failed' } : m))
+        );
+        notifications.show({
+          title: 'Hata',
+          message: data.error || 'Mesaj gönderilemedi',
+          color: 'red',
         });
       }
-    } catch (error: any) {
+    } catch (_error: any) {
       // Network hatası
-      setMessages(prev => prev.map(m => 
-        m.id === newMsg.id ? { ...m, status: 'failed' } : m
-      ));
-      notifications.show({ 
-        title: 'Bağlantı Hatası', 
-        message: 'Sunucuya ulaşılamadı', 
-        color: 'red' 
+      setMessages((prev) => prev.map((m) => (m.id === newMsg.id ? { ...m, status: 'failed' } : m)));
+      notifications.show({
+        title: 'Bağlantı Hatası',
+        message: 'Sunucuya ulaşılamadı',
+        color: 'red',
       });
     } finally {
       setSending(false);
@@ -611,12 +672,15 @@ export default function WhatsAppPage() {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => resolve(reader.result as string);
-      reader.onerror = error => reject(error);
+      reader.onerror = (error) => reject(error);
     });
   };
 
   // Handle photo/video/document selection - Opens caption modal for images/videos
-  const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>, type: 'image' | 'video' | 'document') => {
+  const handleFileSelect = async (
+    e: ChangeEvent<HTMLInputElement>,
+    type: 'image' | 'video' | 'document'
+  ) => {
     const file = e.target.files?.[0];
     if (!file || !selectedChat) return;
 
@@ -649,10 +713,10 @@ export default function WhatsAppPage() {
   // Handle drag & drop files
   const handleDropFiles = async (files: File[]) => {
     if (!selectedChat || files.length === 0) return;
-    
+
     const file = files[0];
     const maxSize = 16 * 1024 * 1024;
-    
+
     if (file.size > maxSize) {
       notifications.show({
         title: 'Dosya Çok Büyük',
@@ -661,12 +725,12 @@ export default function WhatsAppPage() {
       });
       return;
     }
-    
+
     // Determine file type
     let type: 'image' | 'video' | 'document' = 'document';
     if (file.type.startsWith('image/')) type = 'image';
     else if (file.type.startsWith('video/')) type = 'video';
-    
+
     // For images and videos, show caption modal
     if (type === 'image' || type === 'video') {
       const preview = URL.createObjectURL(file);
@@ -676,24 +740,34 @@ export default function WhatsAppPage() {
     } else {
       await sendMediaFile(file, type, '');
     }
-    
+
     setIsDragging(false);
   };
 
   // Send media file with caption
-  const sendMediaFile = async (file: File, type: 'image' | 'video' | 'document', caption: string) => {
+  const sendMediaFile = async (
+    file: File,
+    type: 'image' | 'video' | 'document',
+    caption: string
+  ) => {
     if (!selectedChat) return;
-    
+
     const chatId = selectedChat.id;
     setSendingMedia(true);
 
     const tempId = `local-media-${Date.now()}`;
-    const timestamp = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-    
-    const previewContent = type === 'image' ? '🖼️ Fotoğraf gönderiliyor...' 
-                         : type === 'video' ? '🎬 Video gönderiliyor...'
-                         : `📎 ${file.name}`;
-    
+    const timestamp = new Date().toLocaleTimeString('tr-TR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const previewContent =
+      type === 'image'
+        ? '🖼️ Fotoğraf gönderiliyor...'
+        : type === 'video'
+          ? '🎬 Video gönderiliyor...'
+          : `📎 ${file.name}`;
+
     const newMsg: Message = {
       id: tempId,
       content: previewContent,
@@ -706,14 +780,14 @@ export default function WhatsAppPage() {
       mimetype: file.type,
       caption: caption,
     };
-    
-    setMessages(prev => [...prev, newMsg]);
+
+    setMessages((prev) => [...prev, newMsg]);
     scrollToBottom();
 
     try {
       const base64Data = await fileToBase64(file);
-      
-      const res = await fetch(`${API_BASE_URL}/api/social/whatsapp/send-media`, {
+
+      const res = await authFetch(`${API_BASE_URL}/api/social/whatsapp/send-media`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -724,40 +798,38 @@ export default function WhatsAppPage() {
           caption: caption,
         }),
       });
-      
+
       const data = await res.json();
-      
+
       if (data.success) {
-        setMessages(prev => prev.map(m => 
-          m.id === tempId 
-            ? { 
-                ...m, 
-                status: 'sent',
-                content: caption || (type === 'image' ? '' : `📎 ${file.name}`),
-                mediaUrl: base64Data,
-              } 
-            : m
-        ));
-        
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === tempId
+              ? {
+                  ...m,
+                  status: 'sent',
+                  content: caption || (type === 'image' ? '' : `📎 ${file.name}`),
+                  mediaUrl: base64Data,
+                }
+              : m
+          )
+        );
+
         notifications.show({
           title: '✅ Gönderildi',
           message: `${type === 'image' ? 'Fotoğraf' : type === 'video' ? 'Video' : 'Döküman'} başarıyla gönderildi`,
           color: 'green',
         });
       } else {
-        setMessages(prev => prev.map(m => 
-          m.id === tempId ? { ...m, status: 'failed' } : m
-        ));
+        setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' } : m)));
         notifications.show({
           title: 'Gönderilemedi',
           message: data.error || 'Medya gönderilemedi',
           color: 'red',
         });
       }
-    } catch (error: any) {
-      setMessages(prev => prev.map(m => 
-        m.id === tempId ? { ...m, status: 'failed' } : m
-      ));
+    } catch (_error: any) {
+      setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' } : m)));
       notifications.show({
         title: 'Bağlantı Hatası',
         message: 'Sunucuya ulaşılamadı',
@@ -771,10 +843,10 @@ export default function WhatsAppPage() {
   // Handle caption modal submit
   const handleSendWithCaption = async () => {
     if (!pendingFile) return;
-    
+
     setCaptionModalOpen(false);
     await sendMediaFile(pendingFile.file, pendingFile.type, captionText);
-    
+
     // Clean up preview URL
     if (pendingFile.preview) {
       URL.revokeObjectURL(pendingFile.preview);
@@ -800,28 +872,27 @@ export default function WhatsAppPage() {
       const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
-      
+
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           audioChunksRef.current.push(e.data);
         }
       };
-      
+
       mediaRecorder.onstop = () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         setAudioBlob(audioBlob);
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
       };
-      
+
       mediaRecorder.start(100);
       setIsRecording(true);
       setRecordingTime(0);
-      
+
       // Start timer
       recordingIntervalRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
+        setRecordingTime((prev) => prev + 1);
       }, 1000);
-      
     } catch (error) {
       console.error('Mikrofon erişimi hatası:', error);
       notifications.show({
@@ -836,7 +907,7 @@ export default function WhatsAppPage() {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      
+
       if (recordingIntervalRef.current) {
         clearInterval(recordingIntervalRef.current);
         recordingIntervalRef.current = null;
@@ -847,12 +918,12 @@ export default function WhatsAppPage() {
   const cancelRecording = () => {
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
     }
     setIsRecording(false);
     setAudioBlob(null);
     setRecordingTime(0);
-    
+
     if (recordingIntervalRef.current) {
       clearInterval(recordingIntervalRef.current);
       recordingIntervalRef.current = null;
@@ -861,12 +932,15 @@ export default function WhatsAppPage() {
 
   const sendVoiceMessage = async () => {
     if (!audioBlob || !selectedChat) return;
-    
+
     setSendingMedia(true);
     const chatId = selectedChat.id;
     const tempId = `local-voice-${Date.now()}`;
-    const timestamp = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-    
+    const timestamp = new Date().toLocaleTimeString('tr-TR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
     const newMsg: Message = {
       id: tempId,
       content: `🎤 Sesli mesaj (${formatRecordingTime(recordingTime)})`,
@@ -875,10 +949,10 @@ export default function WhatsAppPage() {
       type: 'ptt',
       status: 'sending',
     };
-    
-    setMessages(prev => [...prev, newMsg]);
+
+    setMessages((prev) => [...prev, newMsg]);
     scrollToBottom();
-    
+
     try {
       // Convert blob to base64
       const reader = new FileReader();
@@ -887,8 +961,8 @@ export default function WhatsAppPage() {
         reader.readAsDataURL(audioBlob);
       });
       const base64Data = await base64Promise;
-      
-      const res = await fetch(`${API_BASE_URL}/api/social/whatsapp/send-media`, {
+
+      const res = await authFetch(`${API_BASE_URL}/api/social/whatsapp/send-media`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -899,27 +973,23 @@ export default function WhatsAppPage() {
           caption: '',
         }),
       });
-      
+
       const data = await res.json();
-      
+
       if (data.success) {
-        setMessages(prev => prev.map(m => 
-          m.id === tempId ? { ...m, status: 'sent', mediaUrl: base64Data } : m
-        ));
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...m, status: 'sent', mediaUrl: base64Data } : m))
+        );
         notifications.show({
           title: '✅ Gönderildi',
           message: 'Sesli mesaj gönderildi',
           color: 'green',
         });
       } else {
-        setMessages(prev => prev.map(m => 
-          m.id === tempId ? { ...m, status: 'failed' } : m
-        ));
+        setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' } : m)));
       }
-    } catch (error) {
-      setMessages(prev => prev.map(m => 
-        m.id === tempId ? { ...m, status: 'failed' } : m
-      ));
+    } catch (_error) {
+      setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' } : m)));
     } finally {
       setAudioBlob(null);
       setRecordingTime(0);
@@ -935,69 +1005,62 @@ export default function WhatsAppPage() {
 
   // Insert emoji into message input
   const insertEmoji = (emoji: string) => {
-    setMessageInput(prev => prev + emoji);
+    setMessageInput((prev) => prev + emoji);
     setEmojiPickerOpen(false);
   };
 
   // Başarısız mesajı tekrar gönder
   const handleRetryMessage = async (msg: Message) => {
     if (!selectedChat || msg.status !== 'failed') return;
-    
+
     const chatId = selectedChat.id;
     const msgId = msg.id;
-    
-    setMessages(prev => prev.map(m => 
-      m.id === msgId ? { ...m, status: 'sending' } : m
-    ));
-    
+
+    setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, status: 'sending' } : m)));
+
     try {
-      const res = await fetch(`${API_BASE_URL}/api/social/whatsapp/send`, {
+      const res = await authFetch(`${API_BASE_URL}/api/social/whatsapp/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chatId, message: msg.content }),
       });
       const data = await res.json();
-      
+
       if (data.success) {
-        setMessages(prev => prev.map(m => 
-          m.id === msgId ? { ...m, status: 'sent' } : m
-        ));
+        setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, status: 'sent' } : m)));
       } else {
-        setMessages(prev => prev.map(m => 
-          m.id === msgId ? { ...m, status: 'failed' } : m
-        ));
+        setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, status: 'failed' } : m)));
       }
     } catch {
-      setMessages(prev => prev.map(m => 
-        m.id === msgId ? { ...m, status: 'failed' } : m
-      ));
+      setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, status: 'failed' } : m)));
     }
   };
 
   // Medya indirme fonksiyonu
   const downloadMedia = async (messageId: string) => {
     if (downloadingMedia.has(messageId)) return;
-    
-    setDownloadingMedia(prev => new Set(prev).add(messageId));
-    
+
+    setDownloadingMedia((prev) => new Set(prev).add(messageId));
+
     try {
-      const res = await fetch(`${API_BASE_URL}/api/social/whatsapp/media/${encodeURIComponent(messageId)}`);
+      const res = await authFetch(
+        `${API_BASE_URL}/api/social/whatsapp/media/${encodeURIComponent(messageId)}`
+      );
       const data = await res.json();
-      
+
       if (data.success && data.data) {
         // Update message with media URL
-        setMessages(prev => prev.map(m => 
-          m.id === messageId 
-            ? { ...m, mediaUrl: data.data, hasMedia: true }
-            : m
-        ));
+        setMessages((prev) =>
+          prev.map((m) => (m.id === messageId ? { ...m, mediaUrl: data.data, hasMedia: true } : m))
+        );
         return true;
       } else {
         // Eski mesaj uyarısı (410 Gone)
         if (res.status === 410) {
           notifications.show({
             title: '⚠️ Eski Mesaj',
-            message: 'Bu mesajın medyası artık WhatsApp sunucularında mevcut değil. Yeni mesajlar için medyayı "Kaydet" ile saklayabilirsiniz.',
+            message:
+              'Bu mesajın medyası artık WhatsApp sunucularında mevcut değil. Yeni mesajlar için medyayı "Kaydet" ile saklayabilirsiniz.',
             color: 'yellow',
             autoClose: 6000,
           });
@@ -1019,7 +1082,7 @@ export default function WhatsAppPage() {
       });
       return false;
     } finally {
-      setDownloadingMedia(prev => {
+      setDownloadingMedia((prev) => {
         const newSet = new Set(prev);
         newSet.delete(messageId);
         return newSet;
@@ -1030,15 +1093,18 @@ export default function WhatsAppPage() {
   // Medyayı sunucuya kalıcı kaydetme fonksiyonu
   const saveMediaToServer = async (messageId: string) => {
     if (savingMedia.has(messageId)) return;
-    
-    setSavingMedia(prev => new Set(prev).add(messageId));
-    
+
+    setSavingMedia((prev) => new Set(prev).add(messageId));
+
     try {
-      const res = await fetch(`${API_BASE_URL}/api/social/whatsapp/media/${encodeURIComponent(messageId)}/save`, {
-        method: 'POST',
-      });
+      const res = await authFetch(
+        `${API_BASE_URL}/api/social/whatsapp/media/${encodeURIComponent(messageId)}/save`,
+        {
+          method: 'POST',
+        }
+      );
       const data = await res.json();
-      
+
       if (data.success) {
         notifications.show({
           title: '✅ Kaydedildi',
@@ -1060,7 +1126,7 @@ export default function WhatsAppPage() {
         color: 'red',
       });
     } finally {
-      setSavingMedia(prev => {
+      setSavingMedia((prev) => {
         const newSet = new Set(prev);
         newSet.delete(messageId);
         return newSet;
@@ -1069,14 +1135,14 @@ export default function WhatsAppPage() {
   };
 
   // Döküman önizleme fonksiyonu
-  const previewDocument = async (msg: Message) => {
+  const _previewDocument = async (msg: Message) => {
     // Önce medyayı indir
     if (!msg.mediaUrl) {
       await downloadMedia(msg.id);
       // State güncellenene kadar bekle
       return;
     }
-    
+
     // PDF için iframe, resim için img
     setPreviewUrl(msg.mediaUrl);
     setPreviewFilename(msg.filename || 'Döküman');
@@ -1094,24 +1160,29 @@ export default function WhatsAppPage() {
   };
 
   // Dosya ikonu döndür
-  const getFileIcon = (mimetype?: string, filename?: string) => {
+  const _getFileIcon = (mimetype?: string, filename?: string) => {
     if (!mimetype && !filename) return <IconFile size={32} />;
-    
+
     const ext = filename?.split('.').pop()?.toLowerCase();
-    
+
     if (mimetype?.includes('pdf') || ext === 'pdf') {
       return <IconFileTypePdf size={32} color="#ef4444" />;
     }
     if (mimetype?.includes('word') || ext === 'doc' || ext === 'docx') {
       return <IconFileTypeDoc size={32} color="#3b82f6" />;
     }
-    if (mimetype?.includes('excel') || mimetype?.includes('spreadsheet') || ext === 'xls' || ext === 'xlsx') {
+    if (
+      mimetype?.includes('excel') ||
+      mimetype?.includes('spreadsheet') ||
+      ext === 'xls' ||
+      ext === 'xlsx'
+    ) {
       return <IconFileTypeXls size={32} color="#22c55e" />;
     }
     if (mimetype?.includes('zip') || mimetype?.includes('rar') || mimetype?.includes('archive')) {
       return <IconFileTypeZip size={32} color="#f59e0b" />;
     }
-    
+
     return <IconFile size={32} />;
   };
 
@@ -1126,54 +1197,55 @@ export default function WhatsAppPage() {
   // Mesaj içeriğini render et
   const renderMessageContent = (msg: Message) => {
     const isDownloading = downloadingMedia.has(msg.id);
-    
+
     // Image mesajı
     if (msg.type === 'image' || (msg.hasMedia && msg.mimetype?.startsWith('image/'))) {
       // Tek tıkla indir ve aç
       const handleImageClick = async () => {
         if (isDownloading) return;
-        
+
         if (msg.mediaUrl) {
           openMediaViewer(msg);
           return;
         }
-        
+
         // Medya yoksa indir ve aç
         const success = await downloadMedia(msg.id);
         if (success) {
           setTimeout(() => {
-            const updatedMsg = messages.find(m => m.id === msg.id);
+            const updatedMsg = messages.find((m) => m.id === msg.id);
             if (updatedMsg?.mediaUrl) {
               openMediaViewer(updatedMsg);
             }
           }, 100);
         }
       };
-      
+
       return (
         <Box>
           {msg.mediaUrl ? (
-            <Box 
+            <Box
               style={{ cursor: 'pointer', borderRadius: 8, overflow: 'hidden' }}
               onClick={() => openMediaViewer(msg)}
             >
-              <img 
-                src={msg.mediaUrl} 
-                alt="Image" 
-                style={{ 
-                  maxWidth: 'min(280px, 85vw)', 
-                  maxHeight: 300, 
+              <img
+                src={msg.mediaUrl}
+                alt="Image"
+                style={{
+                  maxWidth: 'min(280px, 85vw)',
+                  maxHeight: 300,
                   borderRadius: 8,
                   display: 'block',
-                }} 
+                }}
               />
             </Box>
           ) : (
-            <Box 
-              p="xl" 
-              style={{ 
-                background: 'linear-gradient(135deg, rgba(37,211,102,0.15) 0%, rgba(0,0,0,0.2) 100%)',
-                borderRadius: 12, 
+            <Box
+              p="xl"
+              style={{
+                background:
+                  'linear-gradient(135deg, rgba(37,211,102,0.15) 0%, rgba(0,0,0,0.2) 100%)',
+                borderRadius: 12,
                 cursor: 'pointer',
                 minWidth: 200,
                 border: '1px solid rgba(37,211,102,0.2)',
@@ -1221,18 +1293,23 @@ export default function WhatsAppPage() {
         <Box>
           {msg.mediaUrl ? (
             <Box style={{ borderRadius: 8, overflow: 'hidden' }}>
-              <video 
+              <video
                 src={msg.mediaUrl}
                 controls
-                style={{ maxWidth: 'min(280px, 85vw)', maxHeight: 300, borderRadius: 8, display: 'block' }}
+                style={{
+                  maxWidth: 'min(280px, 85vw)',
+                  maxHeight: 300,
+                  borderRadius: 8,
+                  display: 'block',
+                }}
               />
             </Box>
           ) : (
-            <Box 
-              p="xl" 
-              style={{ 
-                background: 'rgba(0,0,0,0.2)', 
-                borderRadius: 8, 
+            <Box
+              p="xl"
+              style={{
+                background: 'rgba(0,0,0,0.2)',
+                borderRadius: 8,
                 cursor: 'pointer',
                 minWidth: 200,
               }}
@@ -1244,9 +1321,14 @@ export default function WhatsAppPage() {
                 ) : (
                   <Box style={{ position: 'relative' }}>
                     <IconVideo size={48} style={{ opacity: 0.5 }} />
-                    <IconPlayerPlay 
-                      size={20} 
-                      style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} 
+                    <IconPlayerPlay
+                      size={20}
+                      style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                      }}
                     />
                   </Box>
                 )}
@@ -1266,17 +1348,21 @@ export default function WhatsAppPage() {
     }
 
     // Ses mesajı (ptt = push to talk)
-    if (msg.type === 'audio' || msg.type === 'ptt' || (msg.hasMedia && msg.mimetype?.startsWith('audio/'))) {
+    if (
+      msg.type === 'audio' ||
+      msg.type === 'ptt' ||
+      (msg.hasMedia && msg.mimetype?.startsWith('audio/'))
+    ) {
       return (
         <Box>
           {msg.mediaUrl ? (
             <audio src={msg.mediaUrl} controls style={{ maxWidth: 'min(250px, 85vw)' }} />
           ) : (
-            <Box 
-              p="md" 
-              style={{ 
-                background: 'rgba(0,0,0,0.2)', 
-                borderRadius: 8, 
+            <Box
+              p="md"
+              style={{
+                background: 'rgba(0,0,0,0.2)',
+                borderRadius: 8,
                 cursor: 'pointer',
                 minWidth: 180,
               }}
@@ -1299,27 +1385,52 @@ export default function WhatsAppPage() {
     }
 
     // Döküman mesajı
-    if (msg.type === 'document' || (msg.hasMedia && !msg.mimetype?.startsWith('image/') && !msg.mimetype?.startsWith('video/') && !msg.mimetype?.startsWith('audio/'))) {
+    if (
+      msg.type === 'document' ||
+      (msg.hasMedia &&
+        !msg.mimetype?.startsWith('image/') &&
+        !msg.mimetype?.startsWith('video/') &&
+        !msg.mimetype?.startsWith('audio/'))
+    ) {
       const isSaving = savingMedia.has(msg.id);
       const isPdf = msg.mimetype?.includes('pdf') || msg.filename?.toLowerCase().endsWith('.pdf');
       const isImage = msg.mimetype?.startsWith('image/');
       const canPreview = isPdf || isImage;
       const isExcel = msg.filename?.match(/\.(xlsx?|csv)$/i);
       const isWord = msg.filename?.match(/\.(docx?|rtf)$/i);
-      
+
       // Dosya türüne göre renk ve ikon
       const getDocStyle = () => {
-        if (isPdf) return { color: '#e74c3c', bg: 'rgba(231, 76, 60, 0.1)', icon: <IconFileTypePdf size={32} color="#e74c3c" /> };
-        if (isExcel) return { color: '#27ae60', bg: 'rgba(39, 174, 96, 0.1)', icon: <IconFileTypeXls size={32} color="#27ae60" /> };
-        if (isWord) return { color: '#3498db', bg: 'rgba(52, 152, 219, 0.1)', icon: <IconFileTypeDoc size={32} color="#3498db" /> };
-        return { color: '#95a5a6', bg: 'rgba(149, 165, 166, 0.1)', icon: <IconFile size={32} color="#95a5a6" /> };
+        if (isPdf)
+          return {
+            color: '#e74c3c',
+            bg: 'rgba(231, 76, 60, 0.1)',
+            icon: <IconFileTypePdf size={32} color="#e74c3c" />,
+          };
+        if (isExcel)
+          return {
+            color: '#27ae60',
+            bg: 'rgba(39, 174, 96, 0.1)',
+            icon: <IconFileTypeXls size={32} color="#27ae60" />,
+          };
+        if (isWord)
+          return {
+            color: '#3498db',
+            bg: 'rgba(52, 152, 219, 0.1)',
+            icon: <IconFileTypeDoc size={32} color="#3498db" />,
+          };
+        return {
+          color: '#95a5a6',
+          bg: 'rgba(149, 165, 166, 0.1)',
+          icon: <IconFile size={32} color="#95a5a6" />,
+        };
       };
       const docStyle = getDocStyle();
-      
+
       // Tek tıkla aç fonksiyonu
       const handleDocumentClick = async () => {
         if (isDownloading) return;
-        
+
         // Medya zaten yüklüyse
         if (msg.mediaUrl) {
           if (canPreview) {
@@ -1333,12 +1444,12 @@ export default function WhatsAppPage() {
           }
           return;
         }
-        
+
         // Medya yoksa önce indir, sonra aç/göster
         const success = await downloadMedia(msg.id);
         if (success) {
           setTimeout(() => {
-            const updatedMsg = messages.find(m => m.id === msg.id);
+            const updatedMsg = messages.find((m) => m.id === msg.id);
             if (updatedMsg?.mediaUrl) {
               setPreviewUrl(updatedMsg.mediaUrl);
               setPreviewFilename(updatedMsg.filename || 'Döküman');
@@ -1346,12 +1457,12 @@ export default function WhatsAppPage() {
           }, 100);
         }
       };
-      
+
       return (
-        <Paper 
-          p="md" 
+        <Paper
+          p="md"
           radius="lg"
-          style={{ 
+          style={{
             background: `linear-gradient(135deg, ${docStyle.bg} 0%, rgba(0,0,0,0.2) 100%)`,
             border: `1px solid ${docStyle.color}30`,
             minWidth: 280,
@@ -1371,9 +1482,9 @@ export default function WhatsAppPage() {
         >
           {/* Üst kısım - İkon ve dosya bilgisi */}
           <Group gap="md" wrap="nowrap" mb="sm">
-            <ThemeIcon 
-              size={50} 
-              radius="md" 
+            <ThemeIcon
+              size={50}
+              radius="md"
               variant="light"
               style={{ background: docStyle.bg, border: `1px solid ${docStyle.color}40` }}
             >
@@ -1389,20 +1500,32 @@ export default function WhatsAppPage() {
                     {formatFileSize(msg.filesize)}
                   </Badge>
                 )}
-                {isPdf && <Badge size="xs" color="red" variant="light">PDF</Badge>}
-                {isExcel && <Badge size="xs" color="green" variant="light">Excel</Badge>}
-                {isWord && <Badge size="xs" color="blue" variant="light">Word</Badge>}
+                {isPdf && (
+                  <Badge size="xs" color="red" variant="light">
+                    PDF
+                  </Badge>
+                )}
+                {isExcel && (
+                  <Badge size="xs" color="green" variant="light">
+                    Excel
+                  </Badge>
+                )}
+                {isWord && (
+                  <Badge size="xs" color="blue" variant="light">
+                    Word
+                  </Badge>
+                )}
               </Group>
             </Box>
           </Group>
-          
+
           {/* Alt kısım - Aksiyon butonları */}
           <Group gap={6} justify="flex-end">
             {/* İndir butonu */}
             {msg.mediaUrl && (
               <Tooltip label="Bilgisayara İndir" position="top">
-                <ActionIcon 
-                  variant="light" 
+                <ActionIcon
+                  variant="light"
                   color="teal"
                   size="md"
                   radius="md"
@@ -1418,12 +1541,12 @@ export default function WhatsAppPage() {
                 </ActionIcon>
               </Tooltip>
             )}
-            
+
             {/* Önizle butonu - sadece PDF/resim için ve medya yüklüyse */}
             {canPreview && msg.mediaUrl && (
               <Tooltip label="Önizle" position="top">
-                <ActionIcon 
-                  variant="light" 
+                <ActionIcon
+                  variant="light"
                   color="violet"
                   size="md"
                   radius="md"
@@ -1437,11 +1560,11 @@ export default function WhatsAppPage() {
                 </ActionIcon>
               </Tooltip>
             )}
-            
+
             {/* Sunucuya Kaydet */}
             <Tooltip label="Sunucuya Kaydet" position="top">
-              <ActionIcon 
-                variant="light" 
+              <ActionIcon
+                variant="light"
                 color="orange"
                 size="md"
                 radius="md"
@@ -1455,7 +1578,7 @@ export default function WhatsAppPage() {
               </ActionIcon>
             </Tooltip>
           </Group>
-          
+
           {msg.caption && (
             <Text size="sm" mt="sm" style={{ wordBreak: 'break-word', opacity: 0.9 }}>
               {msg.caption}
@@ -1470,18 +1593,18 @@ export default function WhatsAppPage() {
       return (
         <Box>
           {msg.mediaUrl ? (
-            <img 
-              src={msg.mediaUrl} 
-              alt="Sticker" 
-              style={{ width: 128, height: 128, objectFit: 'contain' }} 
+            <img
+              src={msg.mediaUrl}
+              alt="Sticker"
+              style={{ width: 128, height: 128, objectFit: 'contain' }}
             />
           ) : (
-            <Box 
-              p="md" 
-              style={{ 
-                width: 128, 
-                height: 128, 
-                background: 'rgba(0,0,0,0.2)', 
+            <Box
+              p="md"
+              style={{
+                width: 128,
+                height: 128,
+                background: 'rgba(0,0,0,0.2)',
                 borderRadius: 8,
                 display: 'flex',
                 alignItems: 'center',
@@ -1490,11 +1613,7 @@ export default function WhatsAppPage() {
               }}
               onClick={() => downloadMedia(msg.id)}
             >
-              {isDownloading ? (
-                <Loader size="sm" color="white" />
-              ) : (
-                <Text size="xl">🎨</Text>
-              )}
+              {isDownloading ? <Loader size="sm" color="white" /> : <Text size="xl">🎨</Text>}
             </Box>
           )}
         </Box>
@@ -1503,11 +1622,11 @@ export default function WhatsAppPage() {
 
     // Text mesajı (default)
     return (
-      <span 
-        style={{ 
+      <span
+        style={{
           fontSize: 14,
           color: msg.fromMe ? 'white' : '#e0e0e0',
-          wordBreak: 'break-word', 
+          wordBreak: 'break-word',
           lineHeight: 1.4,
           whiteSpace: 'pre-wrap',
         }}
@@ -1517,13 +1636,13 @@ export default function WhatsAppPage() {
     );
   };
 
-  const filteredChats = chats.filter(chat => 
+  const filteredChats = chats.filter((chat) =>
     chat.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  
+
   // Grupları ve bireysel sohbetleri ayır
-  const individualChats = filteredChats.filter(chat => !chat.isGroup);
-  const groupChatsList = filteredChats.filter(chat => chat.isGroup);
+  const individualChats = filteredChats.filter((chat) => !chat.isGroup);
+  const groupChatsList = filteredChats.filter((chat) => chat.isGroup);
 
   // Loading
   if (loading) {
@@ -1545,13 +1664,20 @@ export default function WhatsAppPage() {
               thickness={4}
               sections={[{ value: 100, color: '#25D366' }]}
               label={
-                <ThemeIcon size={80} radius="xl" variant="gradient" gradient={{ from: '#25D366', to: '#128C7E' }}>
+                <ThemeIcon
+                  size={80}
+                  radius="xl"
+                  variant="gradient"
+                  gradient={{ from: '#25D366', to: '#128C7E' }}
+                >
                   <IconBrandWhatsapp size={45} />
                 </ThemeIcon>
               }
             />
           </Box>
-          <Text c="gray.5" size="lg">Bağlantı kontrol ediliyor...</Text>
+          <Text c="gray.5" size="lg">
+            Bağlantı kontrol ediliyor...
+          </Text>
         </Stack>
       </Box>
     );
@@ -1574,11 +1700,18 @@ export default function WhatsAppPage() {
             <Grid.Col span={{ base: 12, md: 5 }}>
               <Stack gap="xl" pt="xl">
                 <Group>
-                  <ThemeIcon size={64} radius="xl" variant="gradient" gradient={{ from: '#25D366', to: '#128C7E' }}>
+                  <ThemeIcon
+                    size={64}
+                    radius="xl"
+                    variant="gradient"
+                    gradient={{ from: '#25D366', to: '#128C7E' }}
+                  >
                     <IconBrandWhatsapp size={36} />
                   </ThemeIcon>
                   <Box>
-                    <Title order={2} c="white">WhatsApp Web</Title>
+                    <Title order={2} c="white">
+                      WhatsApp Web
+                    </Title>
                     <Text c="gray.5">İş iletişiminizi yönetin</Text>
                   </Box>
                 </Group>
@@ -1586,38 +1719,71 @@ export default function WhatsAppPage() {
                 <Divider color="dark.5" />
 
                 <Stack gap="md">
-                  <Paper p="md" radius="lg" style={{ background: 'rgba(37, 211, 102, 0.1)', border: '1px solid rgba(37, 211, 102, 0.2)' }}>
+                  <Paper
+                    p="md"
+                    radius="lg"
+                    style={{
+                      background: 'rgba(37, 211, 102, 0.1)',
+                      border: '1px solid rgba(37, 211, 102, 0.2)',
+                    }}
+                  >
                     <Group>
                       <ThemeIcon size={44} radius="md" color="green" variant="light">
                         <IconMessageCircle size={24} />
                       </ThemeIcon>
                       <Box>
-                        <Text fw={600} c="white">Mesajlaşma</Text>
-                        <Text size="sm" c="gray.5">Müşterilerinizle anlık iletişim</Text>
+                        <Text fw={600} c="white">
+                          Mesajlaşma
+                        </Text>
+                        <Text size="sm" c="gray.5">
+                          Müşterilerinizle anlık iletişim
+                        </Text>
                       </Box>
                     </Group>
                   </Paper>
 
-                  <Paper p="md" radius="lg" style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                  <Paper
+                    p="md"
+                    radius="lg"
+                    style={{
+                      background: 'rgba(59, 130, 246, 0.1)',
+                      border: '1px solid rgba(59, 130, 246, 0.2)',
+                    }}
+                  >
                     <Group>
                       <ThemeIcon size={44} radius="md" color="blue" variant="light">
                         <IconUsers size={24} />
                       </ThemeIcon>
                       <Box>
-                        <Text fw={600} c="white">Grup Yönetimi</Text>
-                        <Text size="sm" c="gray.5">Ekip ve müşteri grupları</Text>
+                        <Text fw={600} c="white">
+                          Grup Yönetimi
+                        </Text>
+                        <Text size="sm" c="gray.5">
+                          Ekip ve müşteri grupları
+                        </Text>
                       </Box>
                     </Group>
                   </Paper>
 
-                  <Paper p="md" radius="lg" style={{ background: 'rgba(168, 85, 247, 0.1)', border: '1px solid rgba(168, 85, 247, 0.2)' }}>
+                  <Paper
+                    p="md"
+                    radius="lg"
+                    style={{
+                      background: 'rgba(168, 85, 247, 0.1)',
+                      border: '1px solid rgba(168, 85, 247, 0.2)',
+                    }}
+                  >
                     <Group>
                       <ThemeIcon size={44} radius="md" color="violet" variant="light">
                         <IconPhoto size={24} />
                       </ThemeIcon>
                       <Box>
-                        <Text fw={600} c="white">Medya Paylaşımı</Text>
-                        <Text size="sm" c="gray.5">Dosya ve görsel gönderimi</Text>
+                        <Text fw={600} c="white">
+                          Medya Paylaşımı
+                        </Text>
+                        <Text size="sm" c="gray.5">
+                          Dosya ve görsel gönderimi
+                        </Text>
                       </Box>
                     </Group>
                   </Paper>
@@ -1631,14 +1797,17 @@ export default function WhatsAppPage() {
                 p="xl"
                 radius="xl"
                 style={{
-                  background: 'linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
+                  background:
+                    'linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
                   border: '1px solid rgba(255,255,255,0.08)',
                   backdropFilter: 'blur(20px)',
                 }}
               >
                 <Stack align="center" gap="xl">
                   <Box ta="center">
-                    <Title order={3} c="white" mb="xs">Bağlantı Kur</Title>
+                    <Title order={3} c="white" mb="xs">
+                      Bağlantı Kur
+                    </Title>
                     <Text c="gray.5">Telefonunuzdan QR kodu tarayın</Text>
                   </Box>
 
@@ -1651,7 +1820,11 @@ export default function WhatsAppPage() {
                         boxShadow: '0 20px 60px rgba(37, 211, 102, 0.3)',
                       }}
                     >
-                      <img src={qrCode} alt="QR" style={{ width: 260, height: 260, borderRadius: 12 }} />
+                      <img
+                        src={qrCode}
+                        alt="QR"
+                        style={{ width: 260, height: 260, borderRadius: 12 }}
+                      />
                     </Box>
                   ) : (
                     <Box
@@ -1659,7 +1832,8 @@ export default function WhatsAppPage() {
                       style={{
                         width: 300,
                         height: 300,
-                        background: 'linear-gradient(145deg, rgba(37,211,102,0.1) 0%, rgba(18,140,126,0.1) 100%)',
+                        background:
+                          'linear-gradient(145deg, rgba(37,211,102,0.1) 0%, rgba(18,140,126,0.1) 100%)',
                         borderRadius: 20,
                         border: '2px dashed rgba(37,211,102,0.3)',
                         display: 'flex',
@@ -1679,16 +1853,28 @@ export default function WhatsAppPage() {
                       <Paper p="md" radius="lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
                         <Stack gap="xs">
                           <Group gap="xs">
-                            <Text c="green" fw={600}>1.</Text>
-                            <Text c="gray.4" size="sm">WhatsApp&apos;ı açın</Text>
+                            <Text c="green" fw={600}>
+                              1.
+                            </Text>
+                            <Text c="gray.4" size="sm">
+                              WhatsApp&apos;ı açın
+                            </Text>
                           </Group>
                           <Group gap="xs">
-                            <Text c="green" fw={600}>2.</Text>
-                            <Text c="gray.4" size="sm">Ayarlar → Bağlı Cihazlar → Cihaz Bağla</Text>
+                            <Text c="green" fw={600}>
+                              2.
+                            </Text>
+                            <Text c="gray.4" size="sm">
+                              Ayarlar → Bağlı Cihazlar → Cihaz Bağla
+                            </Text>
                           </Group>
                           <Group gap="xs">
-                            <Text c="green" fw={600}>3.</Text>
-                            <Text c="gray.4" size="sm">QR kodu telefonunuzla tarayın</Text>
+                            <Text c="green" fw={600}>
+                              3.
+                            </Text>
+                            <Text c="gray.4" size="sm">
+                              QR kodu telefonunuzla tarayın
+                            </Text>
                           </Group>
                         </Stack>
                       </Paper>
@@ -1713,8 +1899,12 @@ export default function WhatsAppPage() {
                         <IconPlugOff size={40} />
                       </ThemeIcon>
                       <Stack gap="xs" ta="center">
-                        <Text c="red.4" fw={600} size="lg">Bağlantı Hatası</Text>
-                        <Text c="gray.4" size="sm">{connectionError}</Text>
+                        <Text c="red.4" fw={600} size="lg">
+                          Bağlantı Hatası
+                        </Text>
+                        <Text c="gray.4" size="sm">
+                          {connectionError}
+                        </Text>
                       </Stack>
                       <Button
                         size="lg"
@@ -1750,7 +1940,7 @@ export default function WhatsAppPage() {
                       >
                         Giriş Yap
                       </Button>
-                      
+
                       {/* Yeni QR kod oluştur */}
                       <Button
                         size="lg"
@@ -1764,7 +1954,7 @@ export default function WhatsAppPage() {
                       >
                         Yeni QR Kod Oluştur
                       </Button>
-                      
+
                       <Text size="xs" c="gray.6" ta="center">
                         Daha önce bağlandıysanız &quot;Giriş Yap&quot; ile otomatik bağlanın.
                         <br />
@@ -1798,14 +1988,19 @@ export default function WhatsAppPage() {
             p="md"
             radius="lg"
             style={{
-              background: 'linear-gradient(145deg, rgba(37,211,102,0.15) 0%, rgba(37,211,102,0.05) 100%)',
+              background:
+                'linear-gradient(145deg, rgba(37,211,102,0.15) 0%, rgba(37,211,102,0.05) 100%)',
               border: '1px solid rgba(37,211,102,0.2)',
             }}
           >
             <Group justify="space-between">
               <Box>
-                <Text size="2rem" fw={800} c="white">{totalChats}</Text>
-                <Text size="xs" c="gray.5">Toplam Sohbet</Text>
+                <Text size="2rem" fw={800} c="white">
+                  {totalChats}
+                </Text>
+                <Text size="xs" c="gray.5">
+                  Toplam Sohbet
+                </Text>
               </Box>
               <ThemeIcon size={44} radius="md" color="green" variant="light">
                 <IconMessageCircle size={24} />
@@ -1817,14 +2012,19 @@ export default function WhatsAppPage() {
             p="md"
             radius="lg"
             style={{
-              background: 'linear-gradient(145deg, rgba(239,68,68,0.15) 0%, rgba(239,68,68,0.05) 100%)',
+              background:
+                'linear-gradient(145deg, rgba(239,68,68,0.15) 0%, rgba(239,68,68,0.05) 100%)',
               border: '1px solid rgba(239,68,68,0.2)',
             }}
           >
             <Group justify="space-between">
               <Box>
-                <Text size="2rem" fw={800} c="white">{unreadChats}</Text>
-                <Text size="xs" c="gray.5">Okunmamış</Text>
+                <Text size="2rem" fw={800} c="white">
+                  {unreadChats}
+                </Text>
+                <Text size="xs" c="gray.5">
+                  Okunmamış
+                </Text>
               </Box>
               <ThemeIcon size={44} radius="md" color="red" variant="light">
                 <IconMessage size={24} />
@@ -1836,14 +2036,19 @@ export default function WhatsAppPage() {
             p="md"
             radius="lg"
             style={{
-              background: 'linear-gradient(145deg, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0.05) 100%)',
+              background:
+                'linear-gradient(145deg, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0.05) 100%)',
               border: '1px solid rgba(59,130,246,0.2)',
             }}
           >
             <Group justify="space-between">
               <Box>
-                <Text size="2rem" fw={800} c="white">{groupChats}</Text>
-                <Text size="xs" c="gray.5">Grup</Text>
+                <Text size="2rem" fw={800} c="white">
+                  {groupChats}
+                </Text>
+                <Text size="xs" c="gray.5">
+                  Grup
+                </Text>
               </Box>
               <ThemeIcon size={44} radius="md" color="blue" variant="light">
                 <IconUsers size={24} />
@@ -1855,16 +2060,27 @@ export default function WhatsAppPage() {
             p="md"
             radius="lg"
             style={{
-              background: 'linear-gradient(145deg, rgba(168,85,247,0.15) 0%, rgba(168,85,247,0.05) 100%)',
+              background:
+                'linear-gradient(145deg, rgba(168,85,247,0.15) 0%, rgba(168,85,247,0.05) 100%)',
               border: '1px solid rgba(168,85,247,0.2)',
             }}
           >
             <Group justify="space-between">
               <Box>
-                <Badge color="green" size="lg" leftSection={<IconPlugConnected size={12} />}>Bağlı</Badge>
-                <Text size="xs" c="gray.5" mt={4}>Durum</Text>
+                <Badge color="green" size="lg" leftSection={<IconPlugConnected size={12} />}>
+                  Bağlı
+                </Badge>
+                <Text size="xs" c="gray.5" mt={4}>
+                  Durum
+                </Text>
               </Box>
-              <ActionIcon size={44} radius="md" color="red" variant="light" onClick={handleDisconnect}>
+              <ActionIcon
+                size={44}
+                radius="md"
+                color="red"
+                variant="light"
+                onClick={handleDisconnect}
+              >
                 <IconPlugOff size={22} />
               </ActionIcon>
             </Group>
@@ -1875,7 +2091,8 @@ export default function WhatsAppPage() {
         <Paper
           radius="xl"
           style={{
-            background: 'linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
+            background:
+              'linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
             border: '1px solid rgba(255,255,255,0.08)',
             overflow: 'hidden',
             height: 'calc(100vh - 250px)',
@@ -1884,13 +2101,24 @@ export default function WhatsAppPage() {
         >
           <Grid gutter={0} h="100%" styles={{ inner: { height: '100%' } }}>
             {/* Chat List */}
-            <Grid.Col span={{ base: 12, md: 4 }} h="100%" style={{ borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <Grid.Col
+              span={{ base: 12, md: 4 }}
+              h="100%"
+              style={{
+                borderRight: '1px solid rgba(255,255,255,0.06)',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+              }}
+            >
               {/* Search Header */}
               <Box p="md" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 <Group justify="space-between" mb="sm">
                   <Group gap="xs">
                     <IconBrandWhatsapp size={24} color="#25D366" />
-                    <Text fw={700} c="white">Sohbetler</Text>
+                    <Text fw={700} c="white">
+                      Sohbetler
+                    </Text>
                   </Group>
                   <ActionIcon variant="subtle" color="gray" onClick={fetchChats}>
                     <IconRefresh size={18} />
@@ -1932,46 +2160,67 @@ export default function WhatsAppPage() {
                           <IconArchive size={18} />
                         </ThemeIcon>
                         <Box>
-                          <Text fw={500} c="gray.4">Arşivlenmiş</Text>
-                          <Text size="xs" c="gray.6">{archivedChats.length} sohbet</Text>
+                          <Text fw={500} c="gray.4">
+                            Arşivlenmiş
+                          </Text>
+                          <Text size="xs" c="gray.6">
+                            {archivedChats.length} sohbet
+                          </Text>
                         </Box>
                       </Group>
-                      {showArchived ? <IconChevronUp size={18} color="gray" /> : <IconChevronDown size={18} color="gray" />}
+                      {showArchived ? (
+                        <IconChevronUp size={18} color="gray" />
+                      ) : (
+                        <IconChevronDown size={18} color="gray" />
+                      )}
                     </Group>
                   </Box>
                 )}
 
                 {/* Arşivlenmiş Sohbetler */}
-                {showArchived && archivedChats.map((chat) => (
-                  <Box
-                    key={chat.id}
-                    p="md"
-                    onClick={() => handleSelectChat(chat)}
-                    style={{
-                      cursor: 'pointer',
-                      background: selectedChat?.id === chat.id 
-                        ? 'linear-gradient(90deg, rgba(107,114,128,0.15) 0%, transparent 100%)'
-                        : 'rgba(255,255,255,0.01)',
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      borderLeft: selectedChat?.id === chat.id ? '3px solid #6B7280' : '3px solid transparent',
-                    }}
-                  >
-                    <Group justify="space-between" wrap="nowrap">
-                      <Group wrap="nowrap" style={{ flex: 1, overflow: 'hidden' }}>
-                        <Avatar color="gray" radius="xl" size={44}>{chat.name[0]?.toUpperCase()}</Avatar>
-                        <Box style={{ flex: 1, overflow: 'hidden' }}>
-                          <Text fw={500} c="gray.4" truncate>{chat.name}</Text>
-                          <Text size="sm" c="gray.6" truncate>{chat.lastMessage || 'Arşivlenmiş'}</Text>
-                        </Box>
+                {showArchived &&
+                  archivedChats.map((chat) => (
+                    <Box
+                      key={chat.id}
+                      p="md"
+                      onClick={() => handleSelectChat(chat)}
+                      style={{
+                        cursor: 'pointer',
+                        background:
+                          selectedChat?.id === chat.id
+                            ? 'linear-gradient(90deg, rgba(107,114,128,0.15) 0%, transparent 100%)'
+                            : 'rgba(255,255,255,0.01)',
+                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                        borderLeft:
+                          selectedChat?.id === chat.id
+                            ? '3px solid #6B7280'
+                            : '3px solid transparent',
+                      }}
+                    >
+                      <Group justify="space-between" wrap="nowrap">
+                        <Group wrap="nowrap" style={{ flex: 1, overflow: 'hidden' }}>
+                          <Avatar color="gray" radius="xl" size={44}>
+                            {chat.name[0]?.toUpperCase()}
+                          </Avatar>
+                          <Box style={{ flex: 1, overflow: 'hidden' }}>
+                            <Text fw={500} c="gray.4" truncate>
+                              {chat.name}
+                            </Text>
+                            <Text size="sm" c="gray.6" truncate>
+                              {chat.lastMessage || 'Arşivlenmiş'}
+                            </Text>
+                          </Box>
+                        </Group>
                       </Group>
-                    </Group>
-                  </Box>
-                ))}
+                    </Box>
+                  ))}
 
                 {filteredChats.length === 0 ? (
                   <Box p="xl" ta="center">
                     <IconMessage size={48} color="gray" style={{ opacity: 0.3 }} />
-                    <Text c="gray.6" mt="md">Sohbet bulunamadı</Text>
+                    <Text c="gray.6" mt="md">
+                      Sohbet bulunamadı
+                    </Text>
                   </Box>
                 ) : (
                   <>
@@ -1981,7 +2230,9 @@ export default function WhatsAppPage() {
                         <Box px="sm" py="xs" style={{ background: 'rgba(37,211,102,0.1)' }}>
                           <Group gap="xs">
                             <IconUser size={14} color="#25D366" />
-                            <Text size="xs" fw={600} c="green">Sohbetler ({individualChats.length})</Text>
+                            <Text size="xs" fw={600} c="green">
+                              Sohbetler ({individualChats.length})
+                            </Text>
                           </Group>
                         </Box>
                         {individualChats.map((chat) => (
@@ -1992,32 +2243,50 @@ export default function WhatsAppPage() {
                             onClick={() => handleSelectChat(chat)}
                             style={{
                               cursor: 'pointer',
-                              background: selectedChat?.id === chat.id 
-                                ? 'linear-gradient(90deg, rgba(37,211,102,0.15) 0%, transparent 100%)'
-                                : 'transparent',
+                              background:
+                                selectedChat?.id === chat.id
+                                  ? 'linear-gradient(90deg, rgba(37,211,102,0.15) 0%, transparent 100%)'
+                                  : 'transparent',
                               borderBottom: '1px solid rgba(255,255,255,0.04)',
-                              borderLeft: selectedChat?.id === chat.id ? '3px solid #25D366' : '3px solid transparent',
+                              borderLeft:
+                                selectedChat?.id === chat.id
+                                  ? '3px solid #25D366'
+                                  : '3px solid transparent',
                               transition: 'all 0.2s ease',
                             }}
                           >
                             <Group justify="space-between" wrap="nowrap" gap="xs">
                               <Group wrap="nowrap" style={{ flex: 1, overflow: 'hidden' }} gap="sm">
-                                <Indicator color="green" size={8} offset={3} disabled={chat.unreadCount === 0}>
-                                  <Avatar 
-                                    color="green" 
+                                <Indicator
+                                  color="green"
+                                  size={8}
+                                  offset={3}
+                                  disabled={chat.unreadCount === 0}
+                                >
+                                  <Avatar
+                                    color="green"
                                     radius="xl"
                                     size={40}
-                                    style={{ background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)' }}
+                                    style={{
+                                      background:
+                                        'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                                    }}
                                   >
                                     {chat.name[0]?.toUpperCase()}
                                   </Avatar>
                                 </Indicator>
                                 <Box style={{ flex: 1, overflow: 'hidden' }}>
                                   <Group justify="space-between" wrap="nowrap">
-                                    <Text size="sm" fw={500} c="white" truncate>{chat.name}</Text>
-                                    <Text size="xs" c="gray.6">{chat.timestamp}</Text>
+                                    <Text size="sm" fw={500} c="white" truncate>
+                                      {chat.name}
+                                    </Text>
+                                    <Text size="xs" c="gray.6">
+                                      {chat.timestamp}
+                                    </Text>
                                   </Group>
-                                  <Text size="xs" c="gray.5" truncate>{chat.lastMessage || 'Mesaj yok'}</Text>
+                                  <Text size="xs" c="gray.5" truncate>
+                                    {chat.lastMessage || 'Mesaj yok'}
+                                  </Text>
                                 </Box>
                               </Group>
                               {chat.unreadCount > 0 && (
@@ -2030,14 +2299,23 @@ export default function WhatsAppPage() {
                         ))}
                       </>
                     )}
-                    
+
                     {/* Gruplar */}
                     {groupChatsList.length > 0 && (
                       <>
-                        <Box px="sm" py="xs" style={{ background: 'rgba(59,130,246,0.1)', marginTop: individualChats.length > 0 ? 8 : 0 }}>
+                        <Box
+                          px="sm"
+                          py="xs"
+                          style={{
+                            background: 'rgba(59,130,246,0.1)',
+                            marginTop: individualChats.length > 0 ? 8 : 0,
+                          }}
+                        >
                           <Group gap="xs">
                             <IconUsers size={14} color="#3B82F6" />
-                            <Text size="xs" fw={600} c="blue">Gruplar ({groupChatsList.length})</Text>
+                            <Text size="xs" fw={600} c="blue">
+                              Gruplar ({groupChatsList.length})
+                            </Text>
                           </Group>
                         </Box>
                         {groupChatsList.map((chat) => (
@@ -2048,32 +2326,50 @@ export default function WhatsAppPage() {
                             onClick={() => handleSelectChat(chat)}
                             style={{
                               cursor: 'pointer',
-                              background: selectedChat?.id === chat.id 
-                                ? 'linear-gradient(90deg, rgba(59,130,246,0.15) 0%, transparent 100%)'
-                                : 'transparent',
+                              background:
+                                selectedChat?.id === chat.id
+                                  ? 'linear-gradient(90deg, rgba(59,130,246,0.15) 0%, transparent 100%)'
+                                  : 'transparent',
                               borderBottom: '1px solid rgba(255,255,255,0.04)',
-                              borderLeft: selectedChat?.id === chat.id ? '3px solid #3B82F6' : '3px solid transparent',
+                              borderLeft:
+                                selectedChat?.id === chat.id
+                                  ? '3px solid #3B82F6'
+                                  : '3px solid transparent',
                               transition: 'all 0.2s ease',
                             }}
                           >
                             <Group justify="space-between" wrap="nowrap" gap="xs">
                               <Group wrap="nowrap" style={{ flex: 1, overflow: 'hidden' }} gap="sm">
-                                <Indicator color="blue" size={8} offset={3} disabled={chat.unreadCount === 0}>
-                                  <Avatar 
-                                    color="blue" 
+                                <Indicator
+                                  color="blue"
+                                  size={8}
+                                  offset={3}
+                                  disabled={chat.unreadCount === 0}
+                                >
+                                  <Avatar
+                                    color="blue"
                                     radius="xl"
                                     size={40}
-                                    style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #6366F1 100%)' }}
+                                    style={{
+                                      background:
+                                        'linear-gradient(135deg, #3B82F6 0%, #6366F1 100%)',
+                                    }}
                                   >
                                     <IconUsers size={18} />
                                   </Avatar>
                                 </Indicator>
                                 <Box style={{ flex: 1, overflow: 'hidden' }}>
                                   <Group justify="space-between" wrap="nowrap">
-                                    <Text size="sm" fw={500} c="white" truncate>{chat.name}</Text>
-                                    <Text size="xs" c="gray.6">{chat.timestamp}</Text>
+                                    <Text size="sm" fw={500} c="white" truncate>
+                                      {chat.name}
+                                    </Text>
+                                    <Text size="xs" c="gray.6">
+                                      {chat.timestamp}
+                                    </Text>
                                   </Group>
-                                  <Text size="xs" c="gray.5" truncate>{chat.lastMessage || 'Mesaj yok'}</Text>
+                                  <Text size="xs" c="gray.5" truncate>
+                                    {chat.lastMessage || 'Mesaj yok'}
+                                  </Text>
                                 </Box>
                               </Group>
                               {chat.unreadCount > 0 && (
@@ -2092,9 +2388,20 @@ export default function WhatsAppPage() {
             </Grid.Col>
 
             {/* Messages */}
-            <Grid.Col span={{ base: 12, md: 8 }} h="100%" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <Grid.Col
+              span={{ base: 12, md: 8 }}
+              h="100%"
+              style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+            >
               {selectedChat ? (
-                <Box style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+                <Box
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: '100%',
+                    overflow: 'hidden',
+                  }}
+                >
                   {/* Chat Header */}
                   <Box
                     p="md"
@@ -2106,29 +2413,40 @@ export default function WhatsAppPage() {
                   >
                     <Group justify="space-between">
                       <Group>
-                        <Avatar 
-                          color="green" 
+                        <Avatar
+                          color="green"
                           radius="xl"
                           size={44}
-                          style={{ 
+                          style={{
                             background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
                           }}
                         >
                           {selectedChat.name[0]?.toUpperCase()}
                         </Avatar>
                         <Box>
-                          <Text fw={600} c="white">{selectedChat.name}</Text>
+                          <Text fw={600} c="white">
+                            {selectedChat.name}
+                          </Text>
                           <Group gap={4}>
-                            <Box style={{ width: 8, height: 8, borderRadius: '50%', background: '#25D366' }} />
-                            <Text size="xs" c="green">Çevrimiçi</Text>
+                            <Box
+                              style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: '50%',
+                                background: '#25D366',
+                              }}
+                            />
+                            <Text size="xs" c="green">
+                              Çevrimiçi
+                            </Text>
                           </Group>
                         </Box>
                       </Group>
                       <Group gap="xs">
                         <Tooltip label="Mesajları Yenile">
-                          <ActionIcon 
-                            variant="subtle" 
-                            color="gray" 
+                          <ActionIcon
+                            variant="subtle"
+                            color="gray"
                             size="lg"
                             onClick={() => selectedChat && fetchMessages(selectedChat.id)}
                             loading={loadingMessages}
@@ -2173,18 +2491,10 @@ export default function WhatsAppPage() {
                   >
                     <Group justify="center" gap="xl" mih={220} style={{ pointerEvents: 'none' }}>
                       <Dropzone.Accept>
-                        <IconCloudUpload
-                          size={80}
-                          stroke={1.5}
-                          color="#25D366"
-                        />
+                        <IconCloudUpload size={80} stroke={1.5} color="#25D366" />
                       </Dropzone.Accept>
                       <Dropzone.Reject>
-                        <IconX
-                          size={80}
-                          stroke={1.5}
-                          color="#EF4444"
-                        />
+                        <IconX size={80} stroke={1.5} color="#EF4444" />
                       </Dropzone.Reject>
                       <Dropzone.Idle>
                         <IconUpload size={80} stroke={1.5} color="#6B7280" />
@@ -2200,8 +2510,12 @@ export default function WhatsAppPage() {
                       </Stack>
                     </Group>
                   </Dropzone.FullScreen>
-                  
-                  <ScrollArea style={{ flex: 1, minHeight: 0 }} viewportRef={messagesViewportRef} p="md">
+
+                  <ScrollArea
+                    style={{ flex: 1, minHeight: 0 }}
+                    viewportRef={messagesViewportRef}
+                    p="md"
+                  >
                     {loadingMessages ? (
                       <Stack align="center" justify="center" h="100%">
                         <Loader color="green" />
@@ -2227,11 +2541,14 @@ export default function WhatsAppPage() {
                                 display: 'inline-block',
                                 maxWidth: '75%',
                                 padding: msg.type === 'sticker' ? '4px' : '8px 12px',
-                                background: msg.type === 'sticker' 
-                                  ? 'transparent' 
-                                  : msg.status === 'failed' 
-                                    ? '#7f1d1d' 
-                                    : msg.fromMe ? '#005C4B' : 'rgba(255,255,255,0.08)',
+                                background:
+                                  msg.type === 'sticker'
+                                    ? 'transparent'
+                                    : msg.status === 'failed'
+                                      ? '#7f1d1d'
+                                      : msg.fromMe
+                                        ? '#005C4B'
+                                        : 'rgba(255,255,255,0.08)',
                                 borderRadius: 10,
                                 borderBottomRightRadius: msg.fromMe ? 3 : 10,
                                 borderBottomLeftRadius: msg.fromMe ? 10 : 3,
@@ -2240,22 +2557,39 @@ export default function WhatsAppPage() {
                               }}
                             >
                               {renderMessageContent(msg)}
-                              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 4, marginTop: 4, opacity: 0.6 }}>
-                                <span style={{ fontSize: 10, color: msg.fromMe ? 'white' : '#999' }}>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'flex-end',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  marginTop: 4,
+                                  opacity: 0.6,
+                                }}
+                              >
+                                <span
+                                  style={{ fontSize: 10, color: msg.fromMe ? 'white' : '#999' }}
+                                >
                                   {msg.timestamp}
                                 </span>
-                                {msg.fromMe && (
-                                  msg.status === 'sending' ? (
+                                {msg.fromMe &&
+                                  (msg.status === 'sending' ? (
                                     <Loader size={10} color="white" />
                                   ) : msg.status === 'failed' ? (
                                     <IconX size={12} color="#ef4444" />
                                   ) : (
                                     <IconChecks size={12} color="white" />
-                                  )
-                                )}
+                                  ))}
                               </div>
                               {msg.status === 'failed' && (
-                                <div style={{ textAlign: 'center', marginTop: 4, fontSize: 11, color: '#fca5a5' }}>
+                                <div
+                                  style={{
+                                    textAlign: 'center',
+                                    marginTop: 4,
+                                    fontSize: 11,
+                                    color: '#fca5a5',
+                                  }}
+                                >
                                   ⟳ Tekrar dene
                                 </div>
                               )}
@@ -2289,7 +2623,7 @@ export default function WhatsAppPage() {
                           >
                             <IconTrash size={22} />
                           </ActionIcon>
-                          
+
                           {isRecording ? (
                             <Group gap="xs">
                               <Box
@@ -2304,7 +2638,9 @@ export default function WhatsAppPage() {
                               <Text c="white" fw={500} size="lg">
                                 {formatRecordingTime(recordingTime)}
                               </Text>
-                              <Text c="gray.5" size="sm">Kayıt yapılıyor...</Text>
+                              <Text c="gray.5" size="sm">
+                                Kayıt yapılıyor...
+                              </Text>
                             </Group>
                           ) : (
                             <Group gap="xs">
@@ -2315,7 +2651,7 @@ export default function WhatsAppPage() {
                             </Group>
                           )}
                         </Group>
-                        
+
                         {isRecording ? (
                           <ActionIcon
                             size={44}
@@ -2342,30 +2678,32 @@ export default function WhatsAppPage() {
                     ) : (
                       <Group gap="sm">
                         {/* Emoji Picker */}
-                        <Popover 
-                          opened={emojiPickerOpen} 
+                        <Popover
+                          opened={emojiPickerOpen}
                           onChange={setEmojiPickerOpen}
                           position="top-start"
                           width={320}
                           shadow="xl"
                         >
                           <Popover.Target>
-                            <ActionIcon 
-                              variant="subtle" 
-                              color="gray" 
+                            <ActionIcon
+                              variant="subtle"
+                              color="gray"
                               size="lg"
-                              onClick={() => setEmojiPickerOpen(o => !o)}
+                              onClick={() => setEmojiPickerOpen((o) => !o)}
                             >
                               <IconMoodSmile size={22} />
                             </ActionIcon>
                           </Popover.Target>
-                          <Popover.Dropdown 
-                            style={{ 
+                          <Popover.Dropdown
+                            style={{
                               background: 'linear-gradient(145deg, #1a1f2e 0%, #0f1419 100%)',
                               border: '1px solid rgba(255,255,255,0.1)',
                             }}
                           >
-                            <Text size="xs" c="gray.5" mb="xs">Sık Kullanılan Emojiler</Text>
+                            <Text size="xs" c="gray.5" mb="xs">
+                              Sık Kullanılan Emojiler
+                            </Text>
                             <SimpleGrid cols={8} spacing={4}>
                               {commonEmojis.map((emoji, i) => (
                                 <ActionIcon
@@ -2382,7 +2720,7 @@ export default function WhatsAppPage() {
                             </SimpleGrid>
                           </Popover.Dropdown>
                         </Popover>
-                        
+
                         {/* Hidden file inputs */}
                         <input
                           type="file"
@@ -2405,13 +2743,13 @@ export default function WhatsAppPage() {
                           style={{ display: 'none' }}
                           onChange={(e) => handleFileSelect(e, 'document')}
                         />
-                        
+
                         {/* File Attachment Menu */}
                         <Menu shadow="md" width={200}>
                           <Menu.Target>
-                            <ActionIcon 
-                              variant="subtle" 
-                              color="gray" 
+                            <ActionIcon
+                              variant="subtle"
+                              color="gray"
                               size="lg"
                               loading={sendingMedia}
                               disabled={sendingMedia}
@@ -2421,21 +2759,21 @@ export default function WhatsAppPage() {
                           </Menu.Target>
                           <Menu.Dropdown>
                             <Menu.Label>Dosya Gönder</Menu.Label>
-                            <Menu.Item 
+                            <Menu.Item
                               leftSection={<IconPhoto size={16} color="#25D366" />}
                               onClick={() => photoInputRef.current?.click()}
                               disabled={sendingMedia}
                             >
                               Fotoğraf
                             </Menu.Item>
-                            <Menu.Item 
+                            <Menu.Item
                               leftSection={<IconVideo size={16} color="#3B82F6" />}
                               onClick={() => videoInputRef.current?.click()}
                               disabled={sendingMedia}
                             >
                               Video
                             </Menu.Item>
-                            <Menu.Item 
+                            <Menu.Item
                               leftSection={<IconFile size={16} color="#EF4444" />}
                               onClick={() => documentInputRef.current?.click()}
                               disabled={sendingMedia}
@@ -2444,7 +2782,7 @@ export default function WhatsAppPage() {
                             </Menu.Item>
                           </Menu.Dropdown>
                         </Menu>
-                        
+
                         {/* Message Input */}
                         <Textarea
                           placeholder="Mesajınızı yazın..."
@@ -2470,12 +2808,12 @@ export default function WhatsAppPage() {
                             }
                           }}
                         />
-                        
+
                         {/* Send or Record Button */}
                         {messageInput.trim() ? (
-                          <ActionIcon 
-                            size={44} 
-                            radius="xl" 
+                          <ActionIcon
+                            size={44}
+                            radius="xl"
                             variant="gradient"
                             gradient={{ from: '#25D366', to: '#128C7E' }}
                             onClick={handleSendMessage}
@@ -2486,9 +2824,9 @@ export default function WhatsAppPage() {
                           </ActionIcon>
                         ) : (
                           <Tooltip label="Sesli Mesaj Kaydet" position="top">
-                            <ActionIcon 
-                              size={44} 
-                              radius="xl" 
+                            <ActionIcon
+                              size={44}
+                              radius="xl"
                               variant="light"
                               color="green"
                               onClick={startRecording}
@@ -2502,11 +2840,11 @@ export default function WhatsAppPage() {
                   </Box>
                 </Box>
               ) : (
-                <Box 
-                  style={{ 
-                    height: '100%', 
-                    display: 'flex', 
-                    alignItems: 'center', 
+                <Box
+                  style={{
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
                     justifyContent: 'center',
                     minHeight: 300,
                   }}
@@ -2517,7 +2855,8 @@ export default function WhatsAppPage() {
                         width: 120,
                         height: 120,
                         borderRadius: '50%',
-                        background: 'linear-gradient(135deg, rgba(37,211,102,0.2) 0%, rgba(18,140,126,0.2) 100%)',
+                        background:
+                          'linear-gradient(135deg, rgba(37,211,102,0.2) 0%, rgba(18,140,126,0.2) 100%)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -2527,7 +2866,9 @@ export default function WhatsAppPage() {
                       <IconBrandWhatsapp size={56} color="#25D366" />
                     </Box>
                     <Stack align="center" gap="xs">
-                      <Text size="xl" fw={600} c="white">WhatsApp Web</Text>
+                      <Text size="xl" fw={600} c="white">
+                        WhatsApp Web
+                      </Text>
                       <Text size="sm" c="gray.5" ta="center" maw={300} lh={1.6}>
                         Sohbet listesinden bir kişi seçerek mesajlaşmaya başlayın
                       </Text>
@@ -2573,31 +2914,31 @@ export default function WhatsAppPage() {
           {viewingMedia?.mediaUrl && (
             <>
               {viewingMedia.type === 'image' || viewingMedia.mimetype?.startsWith('image/') ? (
-                <img 
-                  src={viewingMedia.mediaUrl} 
-                  alt="Full size" 
-                  style={{ 
-                    maxWidth: '100%', 
-                    maxHeight: '70vh', 
+                <img
+                  src={viewingMedia.mediaUrl}
+                  alt="Full size"
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '70vh',
                     objectFit: 'contain',
                     borderRadius: 8,
-                  }} 
+                  }}
                 />
               ) : viewingMedia.type === 'video' || viewingMedia.mimetype?.startsWith('video/') ? (
-                <video 
+                <video
                   src={viewingMedia.mediaUrl}
                   controls
                   autoPlay
                   style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 8 }}
                 />
               ) : null}
-              
+
               {viewingMedia.caption && (
                 <Text c="white" ta="center" style={{ maxWidth: 500 }}>
                   {viewingMedia.caption}
                 </Text>
               )}
-              
+
               <Button
                 variant="light"
                 color="green"
@@ -2628,7 +2969,9 @@ export default function WhatsAppPage() {
           <Group gap="sm">
             {pendingFile?.type === 'image' && <IconPhoto size={20} color="#25D366" />}
             {pendingFile?.type === 'video' && <IconVideo size={20} color="#3B82F6" />}
-            <Text fw={600}>{pendingFile?.type === 'image' ? 'Fotoğraf Gönder' : 'Video Gönder'}</Text>
+            <Text fw={600}>
+              {pendingFile?.type === 'image' ? 'Fotoğraf Gönder' : 'Video Gönder'}
+            </Text>
           </Group>
         }
         styles={{
@@ -2680,17 +3023,19 @@ export default function WhatsAppPage() {
               )}
             </Box>
           )}
-          
+
           {/* File info */}
           <Group gap="xs">
             <Badge size="sm" variant="light" color="gray">
               {pendingFile?.file.name}
             </Badge>
             <Badge size="sm" variant="light" color="blue">
-              {pendingFile?.file.size ? `${(pendingFile.file.size / 1024 / 1024).toFixed(2)} MB` : ''}
+              {pendingFile?.file.size
+                ? `${(pendingFile.file.size / 1024 / 1024).toFixed(2)} MB`
+                : ''}
             </Badge>
           </Group>
-          
+
           {/* Caption input */}
           <Textarea
             placeholder="Açıklama ekleyin (isteğe bağlı)..."
@@ -2707,14 +3052,10 @@ export default function WhatsAppPage() {
               },
             }}
           />
-          
+
           {/* Actions */}
           <Group justify="flex-end" gap="sm">
-            <Button
-              variant="subtle"
-              color="gray"
-              onClick={handleCancelCaption}
-            >
+            <Button variant="subtle" color="gray" onClick={handleCancelCaption}>
               İptal
             </Button>
             <Button
@@ -2735,7 +3076,7 @@ export default function WhatsAppPage() {
         opened={!!previewUrl}
         onClose={() => {
           // Blob URL'i temizle
-          if (previewBlobUrl && previewBlobUrl.startsWith('blob:')) {
+          if (previewBlobUrl?.startsWith('blob:')) {
             URL.revokeObjectURL(previewBlobUrl);
           }
           setPreviewUrl(null);
@@ -2749,11 +3090,17 @@ export default function WhatsAppPage() {
         withCloseButton
         title={
           <Group gap="sm">
-            {previewFilename.match(/\.pdf$/i) ? <IconFileTypePdf size={20} color="#e74c3c" /> :
-             previewFilename.match(/\.docx?$/i) ? <IconFileTypeDoc size={20} color="#3498db" /> :
-             previewFilename.match(/\.xlsx?$/i) ? <IconFileTypeXls size={20} color="#27ae60" /> :
-             previewFilename.match(/\.(jpe?g|png|gif|webp)$/i) ? <IconPhoto size={20} color="#9b59b6" /> :
-             <IconFile size={20} />}
+            {previewFilename.match(/\.pdf$/i) ? (
+              <IconFileTypePdf size={20} color="#e74c3c" />
+            ) : previewFilename.match(/\.docx?$/i) ? (
+              <IconFileTypeDoc size={20} color="#3498db" />
+            ) : previewFilename.match(/\.xlsx?$/i) ? (
+              <IconFileTypeXls size={20} color="#27ae60" />
+            ) : previewFilename.match(/\.(jpe?g|png|gif|webp)$/i) ? (
+              <IconPhoto size={20} color="#9b59b6" />
+            ) : (
+              <IconFile size={20} />
+            )}
             <Text>{previewFilename}</Text>
             <Badge size="sm" variant="light" color="gray">
               {previewFilename.split('.').pop()?.toUpperCase()}
@@ -2780,7 +3127,14 @@ export default function WhatsAppPage() {
         <Box style={{ height: '100%', width: '100%', position: 'relative' }}>
           {/* Yükleniyor */}
           {previewLoading && (
-            <Box style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+            <Box
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                height: '100%',
+              }}
+            >
               <Stack align="center" gap="md">
                 <Loader size="xl" color="green" />
                 <Text c="gray.4">Dosya işleniyor...</Text>
@@ -2812,7 +3166,7 @@ export default function WhatsAppPage() {
                   />
                 </Paper>
               </ScrollArea>
-              
+
               {/* İndirme butonu */}
               <Box style={{ position: 'absolute', bottom: 20, right: 20, zIndex: 1000 }}>
                 <Tooltip label="Dosyayı İndir">
@@ -2838,41 +3192,53 @@ export default function WhatsAppPage() {
           )}
 
           {/* Resim dosyaları */}
-          {!previewLoading && !docxHtml && previewBlobUrl && (previewFilename.match(/\.(jpe?g|png|gif|webp|bmp)$/i) || previewUrl?.startsWith('data:image/')) && (
-            <>
-              <Box style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', background: '#0d0d1a' }}>
-                <img
-                  src={previewBlobUrl}
-                  alt={previewFilename}
+          {!previewLoading &&
+            !docxHtml &&
+            previewBlobUrl &&
+            (previewFilename.match(/\.(jpe?g|png|gif|webp|bmp)$/i) ||
+              previewUrl?.startsWith('data:image/')) && (
+              <>
+                <Box
                   style={{
-                    maxWidth: '95%',
-                    maxHeight: '95%',
-                    objectFit: 'contain',
-                    borderRadius: 8,
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    height: '100%',
+                    background: '#0d0d1a',
                   }}
-                />
-              </Box>
-              <Box style={{ position: 'absolute', bottom: 20, right: 20, zIndex: 1000 }}>
-                <Tooltip label="Dosyayı İndir">
-                  <ActionIcon
-                    size="xl"
-                    radius="xl"
-                    variant="gradient"
-                    gradient={{ from: 'teal', to: 'green' }}
-                    onClick={() => {
-                      const link = document.createElement('a');
-                      link.href = previewBlobUrl;
-                      link.download = previewFilename || 'image';
-                      link.click();
+                >
+                  <img
+                    src={previewBlobUrl}
+                    alt={previewFilename}
+                    style={{
+                      maxWidth: '95%',
+                      maxHeight: '95%',
+                      objectFit: 'contain',
+                      borderRadius: 8,
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
                     }}
-                  >
-                    <IconDownload size={24} />
-                  </ActionIcon>
-                </Tooltip>
-              </Box>
-            </>
-          )}
+                  />
+                </Box>
+                <Box style={{ position: 'absolute', bottom: 20, right: 20, zIndex: 1000 }}>
+                  <Tooltip label="Dosyayı İndir">
+                    <ActionIcon
+                      size="xl"
+                      radius="xl"
+                      variant="gradient"
+                      gradient={{ from: 'teal', to: 'green' }}
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = previewBlobUrl;
+                        link.download = previewFilename || 'image';
+                        link.click();
+                      }}
+                    >
+                      <IconDownload size={24} />
+                    </ActionIcon>
+                  </Tooltip>
+                </Box>
+              </>
+            )}
 
           {/* PDF için native iframe (daha güvenilir) */}
           {!previewLoading && !docxHtml && previewBlobUrl && previewFilename.match(/\.pdf$/i) && (
@@ -2909,55 +3275,61 @@ export default function WhatsAppPage() {
           )}
 
           {/* Diğer dosyalar için DocViewer (Excel vb.) */}
-          {!previewLoading && !docxHtml && previewBlobUrl && !previewFilename.match(/\.(jpe?g|png|gif|webp|bmp|pdf)$/i) && !previewUrl?.startsWith('data:image/') && (
-            <>
-              <DocViewer
-                documents={[{
-                  uri: previewBlobUrl,
-                  fileName: previewFilename,
-                }]}
-                pluginRenderers={DocViewerRenderers}
-                config={{
-                  header: {
-                    disableHeader: true,
-                    disableFileName: true,
-                  },
-                }}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  background: '#1a1a2e',
-                }}
-                theme={{
-                  primary: '#25D366',
-                  secondary: '#1a1a2e',
-                  tertiary: '#2d2d44',
-                  textPrimary: '#ffffff',
-                  textSecondary: '#a0a0a0',
-                  textTertiary: '#666666',
-                  disableThemeScrollbar: false,
-                }}
-              />
-              <Box style={{ position: 'absolute', bottom: 20, right: 20, zIndex: 1000 }}>
-                <Tooltip label="Dosyayı İndir">
-                  <ActionIcon
-                    size="xl"
-                    radius="xl"
-                    variant="gradient"
-                    gradient={{ from: 'teal', to: 'green' }}
-                    onClick={() => {
-                      const link = document.createElement('a');
-                      link.href = previewBlobUrl;
-                      link.download = previewFilename || 'document';
-                      link.click();
-                    }}
-                  >
-                    <IconDownload size={24} />
-                  </ActionIcon>
-                </Tooltip>
-              </Box>
-            </>
-          )}
+          {!previewLoading &&
+            !docxHtml &&
+            previewBlobUrl &&
+            !previewFilename.match(/\.(jpe?g|png|gif|webp|bmp|pdf)$/i) &&
+            !previewUrl?.startsWith('data:image/') && (
+              <>
+                <DocViewer
+                  documents={[
+                    {
+                      uri: previewBlobUrl,
+                      fileName: previewFilename,
+                    },
+                  ]}
+                  pluginRenderers={DocViewerRenderers}
+                  config={{
+                    header: {
+                      disableHeader: true,
+                      disableFileName: true,
+                    },
+                  }}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    background: '#1a1a2e',
+                  }}
+                  theme={{
+                    primary: '#25D366',
+                    secondary: '#1a1a2e',
+                    tertiary: '#2d2d44',
+                    textPrimary: '#ffffff',
+                    textSecondary: '#a0a0a0',
+                    textTertiary: '#666666',
+                    disableThemeScrollbar: false,
+                  }}
+                />
+                <Box style={{ position: 'absolute', bottom: 20, right: 20, zIndex: 1000 }}>
+                  <Tooltip label="Dosyayı İndir">
+                    <ActionIcon
+                      size="xl"
+                      radius="xl"
+                      variant="gradient"
+                      gradient={{ from: 'teal', to: 'green' }}
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = previewBlobUrl;
+                        link.download = previewFilename || 'document';
+                        link.click();
+                      }}
+                    >
+                      <IconDownload size={24} />
+                    </ActionIcon>
+                  </Tooltip>
+                </Box>
+              </>
+            )}
         </Box>
       </Modal>
     </Box>

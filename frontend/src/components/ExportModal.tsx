@@ -8,8 +8,9 @@ import {
   IconFileSpreadsheet,
   IconFileTypePdf,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
+import { authFetch } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/config';
 import 'dayjs/locale/tr';
 
@@ -54,40 +55,8 @@ export function ExportModal({
   const [donem, setDonem] = useState<string>('');
   const [_loading, _setLoading] = useState(false);
 
-  // Rapor tiplerini yükle
-  useEffect(() => {
-    if (opened) {
-      fetchRaporTipleri();
-      // Varsayılan dönem (bu ay)
-      const now = new Date();
-      setDonem(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened]);
-
-  const fetchRaporTipleri = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/export/rapor-tipleri/${type}`);
-
-      if (!response.ok) {
-        setRaporTipleri(getDefaultRaporTipleri(type));
-        return;
-      }
-
-      const data = await response.json();
-
-      if (Array.isArray(data)) {
-        setRaporTipleri(data);
-      } else {
-        setRaporTipleri(getDefaultRaporTipleri(type));
-      }
-    } catch (_error) {
-      setRaporTipleri(getDefaultRaporTipleri(type));
-    }
-  };
-
   // Varsayılan rapor tipleri (backend'e erişilemezse)
-  const getDefaultRaporTipleri = (t: string): RaporTipi[] => {
+  const getDefaultRaporTipleri = useCallback((t: string): RaporTipi[] => {
     const defaults: Record<string, RaporTipi[]> = {
       personel: [
         { value: 'tum', label: 'Tüm Personel', endpoint: '/personel/excel' },
@@ -120,7 +89,37 @@ export function ExportModal({
       ],
     };
     return defaults[t] || [{ value: 'tum', label: 'Tüm Liste', endpoint: `/${t}/excel` }];
-  };
+  }, []);
+
+  // Rapor tiplerini yükle (opened veya type değişince)
+  useEffect(() => {
+    if (!opened) return;
+    const now = new Date();
+    setDonem(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await authFetch(`/api/export/rapor-tipleri/${type}`);
+        if (cancelled) return;
+        if (!response.ok) {
+          setRaporTipleri(getDefaultRaporTipleri(type));
+          return;
+        }
+        const data = await response.json();
+        if (cancelled) return;
+        if (Array.isArray(data)) {
+          setRaporTipleri(data);
+        } else {
+          setRaporTipleri(getDefaultRaporTipleri(type));
+        }
+      } catch (_error) {
+        if (!cancelled) setRaporTipleri(getDefaultRaporTipleri(type));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [opened, type, getDefaultRaporTipleri]);
 
   const currentRapor = Array.isArray(raporTipleri)
     ? raporTipleri.find((r) => r.value === selectedRapor)
@@ -183,7 +182,7 @@ export function ExportModal({
         autoClose: false,
       });
 
-      const response = await fetch(url);
+      const response = await authFetch(url);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'İndirme başarısız' }));
@@ -212,12 +211,13 @@ export function ExportModal({
       });
 
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Export error:', error);
+      const message = error instanceof Error ? error.message : 'Dosya indirilemedi';
       notifications.update({
         id: `export-${format}`,
         title: 'İndirme Hatası',
-        message: error.message || 'Dosya indirilemedi',
+        message,
         color: 'red',
         loading: false,
         autoClose: 5000,

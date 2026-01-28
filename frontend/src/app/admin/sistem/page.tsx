@@ -34,7 +34,7 @@ import {
   IconRefresh,
   IconX,
 } from '@tabler/icons-react';
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { API_BASE_URL } from '@/lib/config';
 
 interface HealthStatus {

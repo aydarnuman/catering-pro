@@ -58,6 +58,7 @@ import {
   IconFileInvoice,
   IconFileText,
   IconFolder,
+  IconHome,
   IconId,
   IconInfoCircle,
   IconKey,
@@ -87,9 +88,10 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import ProjeYonetimModal from '@/components/muhasebe/ProjeYonetimModal';
-import { API_BASE_URL } from '@/lib/config';
 import { useAuth } from '@/context/AuthContext';
+import { authFetch } from '@/lib/api';
 import { firmalarAPI } from '@/lib/api/services/firmalar';
+import { API_BASE_URL } from '@/lib/config';
 
 // Tip tanımları
 interface UserInfo {
@@ -394,20 +396,17 @@ function FirmaProjelerSection({
   const [_loadingEkstraAlanlar, setLoadingEkstraAlanlar] = useState(false);
   const [expandedDocCategories, setExpandedDocCategories] = useState<string[]>(['kurumsal']);
 
-  // Cookie-only authentication - token gerekmiyor
   const varsayilanFirma = firmalar.find((f) => f.varsayilan) || firmalar[0];
 
   // Projeleri yükle
   const fetchProjeler = async () => {
     try {
       setLoadingProjeler(true);
-      const res = await fetch(`${API_BASE_URL}/api/projeler`, {
-        credentials: 'include', // Cookie'leri gönder
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const res = await authFetch(`${API_BASE_URL}/api/projeler`);
       if (res.ok) {
         const data = await res.json();
-        setProjeler(data || []);
+        // API yanıtı { data: [...] } veya direkt array olabilir
+        setProjeler(Array.isArray(data) ? data : data.data || []);
       }
     } catch (err) {
       console.error('Projeler yüklenemedi:', err);
@@ -421,10 +420,7 @@ function FirmaProjelerSection({
     if (!varsayilanFirma?.id) return;
     try {
       setLoadingDokumanlar(true);
-      const res = await fetch(`${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar`, {
-        credentials: 'include', // Cookie'leri gönder
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const res = await authFetch(`${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar`);
       if (res.ok) {
         const data = await res.json();
         setDokumanlar(data.data || []);
@@ -444,19 +440,19 @@ function FirmaProjelerSection({
 
       // Paralel olarak hem şablonları hem firma ekstra alanlarını çek
       const [sablonRes, ekstraRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/firmalar/alan-sablonlari`, {
-          credentials: 'include', // Cookie'leri gönder
-          headers: { 'Content-Type': 'application/json' },
-        }),
-        fetch(`${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/ekstra-alanlar`, {
-          credentials: 'include', // Cookie'leri gönder
-          headers: { 'Content-Type': 'application/json' },
-        }),
+        authFetch(`${API_BASE_URL}/api/firmalar/alan-sablonlari`),
+        authFetch(`${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/ekstra-alanlar`),
       ]);
 
       if (sablonRes.ok) {
         const sablonData = await sablonRes.json();
         setAlanSablonlari(sablonData.data || []);
+      } else {
+        const errorData = await sablonRes.json().catch(() => ({ error: 'JSON parse hatası' }));
+        console.error('❌ Alan şablonları hatası:', {
+          status: sablonRes.status,
+          error: errorData,
+        });
       }
 
       if (ekstraRes.ok) {
@@ -475,14 +471,13 @@ function FirmaProjelerSection({
     if (!varsayilanFirma?.id || !alanAdi) return;
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/ekstra-alan`, {
-        method: 'PATCH',
-        credentials: 'include', // Cookie'leri gönder
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ alan_adi: alanAdi, deger }),
-      });
+      const res = await authFetch(
+        `${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/ekstra-alan`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ alan_adi: alanAdi, deger }),
+        }
+      );
 
       const data = await res.json();
       if (data.success) {
@@ -507,12 +502,10 @@ function FirmaProjelerSection({
     if (!varsayilanFirma?.id) return;
 
     try {
-      const res = await fetch(
+      const res = await authFetch(
         `${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/ekstra-alan/${alanAdi}`,
         {
           method: 'DELETE',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
         }
       );
 
@@ -543,9 +536,8 @@ function FirmaProjelerSection({
       formData.append('belge_kategori', selectedBelgeKategori);
       formData.append('auto_fill', 'false'); // İlk yüklemede otomatik doldurma yapma, kullanıcı seçsin
 
-      const res = await fetch(`${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar`, {
+      const res = await authFetch(`${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar`, {
         method: 'POST',
-        credentials: 'include', // Cookie'leri gönder
         body: formData,
       });
 
@@ -585,14 +577,10 @@ function FirmaProjelerSection({
     if (!varsayilanFirma?.id || !selectedDokumanForApply) return;
 
     try {
-      const res = await fetch(
+      const res = await authFetch(
         `${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar/${selectedDokumanForApply.id}/veriyi-uygula`,
         {
           method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
           body: JSON.stringify({ secilenAlanlar }),
         }
       );
@@ -624,12 +612,10 @@ function FirmaProjelerSection({
     if (!confirm('Bu dökümanı silmek istediğinize emin misiniz?')) return;
 
     try {
-      const res = await fetch(
+      const res = await authFetch(
         `${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar/${dokumanId}`,
         {
           method: 'DELETE',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
         }
       );
 
@@ -659,14 +645,10 @@ function FirmaProjelerSection({
         id: 'reanalyze',
       });
 
-      const res = await fetch(
+      const res = await authFetch(
         `${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar/${dokuman.id}/yeniden-analiz`,
         {
           method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
           body: JSON.stringify({ auto_fill: 'false' }),
         }
       );
@@ -721,14 +703,10 @@ function FirmaProjelerSection({
 
     for (const doc of dokumanlar) {
       try {
-        const res = await fetch(
+        const res = await authFetch(
           `${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar/${doc.id}/yeniden-analiz`,
           {
             method: 'POST',
-            credentials: 'include',
-            headers: {
-              'Content-Type': 'application/json',
-            },
             body: JSON.stringify({ auto_fill: 'false' }),
           }
         );
@@ -754,10 +732,7 @@ function FirmaProjelerSection({
     if (!varsayilanFirma?.id) return;
 
     // Cookie otomatik gönderilecek, token query param gerekmiyor
-    window.open(
-      `${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar-zip`,
-      '_blank'
-    );
+    window.open(`${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/dokumanlar-zip`, '_blank');
   };
 
   // Firma bilgilerini Excel'e aktar
@@ -765,10 +740,7 @@ function FirmaProjelerSection({
     if (!varsayilanFirma?.id) return;
 
     // Cookie otomatik gönderilecek, token query param gerekmiyor
-    window.open(
-      `${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/export?format=excel`,
-      '_blank'
-    );
+    window.open(`${API_BASE_URL}/api/firmalar/${varsayilanFirma.id}/export?format=excel`, '_blank');
   };
 
   useEffect(() => {
@@ -1767,9 +1739,15 @@ function AyarlarContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
-  
+
   // AuthContext'ten user'ı al
-  const { user: authUser, isLoading: authLoading, refreshUser, signOut } = useAuth();
+  const {
+    user: authUser,
+    isLoading: authLoading,
+    isAuthenticated,
+    refreshUser,
+    signOut,
+  } = useAuth();
 
   // Active section
   const [activeSection, setActiveSection] = useState(searchParams.get('section') || 'profil');
@@ -1812,18 +1790,11 @@ function AyarlarContent() {
       setUser(authUser as UserInfo);
       setProfileForm({ name: authUser.name || '', email: authUser.email || '' });
       setLoading(false);
-    } else if (!authLoading) {
-      // Auth yüklenmiş ama user yok - tekrar dene
+    } else {
+      // User yoksa API'den al
       const fetchUser = async () => {
         try {
-          const headers: HeadersInit = {
-            'Content-Type': 'application/json',
-          };
-          
-          const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
-            credentials: 'include', // Cookie'leri gönder
-            headers,
-          });
+          const res = await authFetch(`${API_BASE_URL}/api/auth/me`);
           if (res.ok) {
             const data = await res.json();
             if (data.user) {
@@ -1845,7 +1816,7 @@ function AyarlarContent() {
     if (savedPrefs) {
       setPreferences({ ...defaultPreferences, ...JSON.parse(savedPrefs) });
     }
-  }, [authUser, authLoading]);
+  }, [authUser]);
 
   // Firmaları API'den yükle
   const fetchFirmalar = useCallback(async () => {
@@ -1921,12 +1892,8 @@ function AyarlarContent() {
         ? `${API_BASE_URL}/api/firmalar/${editingFirma.id}`
         : `${API_BASE_URL}/api/firmalar`;
 
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method: editingFirma ? 'PUT' : 'POST',
-        credentials: 'include', // Cookie'leri gönder
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(firmaFormData),
       });
 
@@ -1959,10 +1926,8 @@ function AyarlarContent() {
     if (!confirm('Bu firmayı silmek istediğinize emin misiniz?')) return;
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/firmalar/${id}`, {
+      const res = await authFetch(`${API_BASE_URL}/api/firmalar/${id}`, {
         method: 'DELETE',
-        credentials: 'include', // Cookie'leri gönder
-        headers: { 'Content-Type': 'application/json' },
       });
 
       if (res.ok) {
@@ -1985,10 +1950,8 @@ function AyarlarContent() {
   // Varsayılan firmayı değiştir - API
   const handleSetVarsayilan = async (id: number) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/firmalar/${id}/varsayilan`, {
+      const res = await authFetch(`${API_BASE_URL}/api/firmalar/${id}/varsayilan`, {
         method: 'PATCH',
-        credentials: 'include', // Cookie'leri gönder
-        headers: { 'Content-Type': 'application/json' },
       });
 
       if (res.ok) {
@@ -2020,9 +1983,8 @@ function AyarlarContent() {
       formData.append('belge_tipi', selectedBelgeTipi);
       formData.append('tarih', new Date().toISOString().split('T')[0]);
 
-      const res = await fetch(`${API_BASE_URL}/api/firmalar/${editingFirma.id}/belge`, {
+      const res = await authFetch(`${API_BASE_URL}/api/firmalar/${editingFirma.id}/belge`, {
         method: 'POST',
-        credentials: 'include', // Cookie'leri gönder
         body: formData,
       });
 
@@ -2065,9 +2027,8 @@ function AyarlarContent() {
       formData.append('dosya', file);
       formData.append('belge_tipi', belgeTipi);
 
-      const res = await fetch(`${API_BASE_URL}/api/firmalar/analyze-belge`, {
+      const res = await authFetch(`${API_BASE_URL}/api/firmalar/analyze-belge`, {
         method: 'POST',
-        credentials: 'include', // Cookie'leri gönder
         body: formData,
       });
 
@@ -2134,12 +2095,8 @@ function AyarlarContent() {
   const handleProfileSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/profile`, {
+      const res = await authFetch(`${API_BASE_URL}/api/auth/profile`, {
         method: 'PUT',
-        credentials: 'include', // Cookie'leri gönder
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(profileForm),
       });
 
@@ -2191,12 +2148,8 @@ function AyarlarContent() {
 
     setSaving(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/password`, {
+      const res = await authFetch(`${API_BASE_URL}/api/auth/password`, {
         method: 'PUT',
-        credentials: 'include', // Cookie'leri gönder
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           currentPassword: passwordForm.current,
           newPassword: passwordForm.new,
@@ -3640,6 +3593,17 @@ function AyarlarContent() {
         {/* Header */}
         <Group justify="space-between">
           <div>
+            <Group gap="md" align="center" mb="xs">
+              <Button
+                component={Link}
+                href="/"
+                variant="light"
+                leftSection={<IconHome size={18} />}
+                size="sm"
+              >
+                Ana Sayfa
+              </Button>
+            </Group>
             <Title order={1} size="h2" mb={4}>
               ⚙️ Ayarlar
             </Title>

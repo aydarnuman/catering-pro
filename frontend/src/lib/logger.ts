@@ -9,7 +9,7 @@ type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 interface LogEntry {
   level: LogLevel;
   message: string;
-  data?: any;
+  data?: unknown;
   timestamp: string;
   url?: string;
   userAgent?: string;
@@ -26,7 +26,13 @@ class Logger {
   }
 
   private shouldLog(level: LogLevel): boolean {
-    // Development'ta her zaman logla
+    // debug: sadece NEXT_PUBLIC_DEBUG_LOGS=true iken (geliştirme/production fark etmez)
+    const debugEnabled = process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true';
+    if (level === 'debug') {
+      return debugEnabled;
+    }
+
+    // Development'ta info/warn/error logla
     if (this.isDevelopment) {
       return true;
     }
@@ -51,12 +57,12 @@ class Logger {
       }).catch(() => {
         // API'ye gönderilemezse sessizce devam et
       });
-    } catch (error) {
+    } catch (_error) {
       // Hata durumunda sessizce devam et
     }
   }
 
-  private log(level: LogLevel, message: string, data?: any): void {
+  private log(level: LogLevel, message: string, data?: unknown): void {
     if (!this.shouldLog(level)) {
       return;
     }
@@ -86,19 +92,19 @@ class Logger {
     }
   }
 
-  debug(message: string, data?: any): void {
+  debug(message: string, data?: unknown): void {
     this.log('debug', message, data);
   }
 
-  info(message: string, data?: any): void {
+  info(message: string, data?: unknown): void {
     this.log('info', message, data);
   }
 
-  warn(message: string, data?: any): void {
+  warn(message: string, data?: unknown): void {
     this.log('warn', message, data);
   }
 
-  error(message: string, data?: any): void {
+  error(message: string, data?: unknown): void {
     this.log('error', message, data);
   }
 }

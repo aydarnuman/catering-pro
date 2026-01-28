@@ -35,7 +35,7 @@ import {
   IconUsers,
   IconX,
 } from '@tabler/icons-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_BASE_URL } from '@/lib/config';
 
 interface Proje {
@@ -181,24 +181,8 @@ export function BordroImportModal({
 
   const resetRef = useRef<() => void>(null);
 
-  // Projeleri ve template'leri yükle
-  useEffect(() => {
-    if (opened) {
-      fetchProjeler();
-      fetchTemplates();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened]);
-
-  // Proje değişince template'leri filtrele
-  useEffect(() => {
-    if (projeId) {
-      fetchTemplates();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projeId]);
-
-  const fetchProjeler = async () => {
+  // Fonksiyonları useCallback ile tanımla (TDZ hatası için)
+  const fetchProjeler = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/bordro-import/projeler`);
       if (res.ok) {
@@ -208,9 +192,9 @@ export function BordroImportModal({
     } catch (error) {
       console.error('Proje yükleme hatası:', error);
     }
-  };
+  }, []);
 
-  const fetchTemplates = async () => {
+  const fetchTemplates = useCallback(async () => {
     try {
       const url =
         projeId && projeId !== '0'
@@ -224,7 +208,22 @@ export function BordroImportModal({
     } catch (error) {
       console.error('Template yükleme hatası:', error);
     }
-  };
+  }, [projeId]);
+
+  // Projeleri ve template'leri yükle
+  useEffect(() => {
+    if (opened) {
+      fetchProjeler();
+      fetchTemplates();
+    }
+  }, [opened, fetchProjeler, fetchTemplates]);
+
+  // Proje değişince template'leri filtrele
+  useEffect(() => {
+    if (projeId) {
+      fetchTemplates();
+    }
+  }, [projeId, fetchTemplates]);
 
   const handleClose = async () => {
     // Temp dosyayı temizle

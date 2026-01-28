@@ -3,8 +3,8 @@ import '@mantine/notifications/styles.css';
 import '@mantine/dropzone/styles.css';
 import './globals.css';
 import { ColorSchemeScript, MantineProvider } from '@mantine/core';
-import { Providers } from '@/components/Providers';
 import { AppLayout } from '@/components/AppLayout';
+import { Providers } from '@/components/Providers';
 
 export const metadata = {
   title: 'Catering Pro - İhale Yönetim Sistemi',

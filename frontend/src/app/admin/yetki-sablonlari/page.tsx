@@ -16,11 +16,9 @@ import {
   Paper,
   SimpleGrid,
   Stack,
-  Switch,
-  Table,
   Text,
-  TextInput,
   Textarea,
+  TextInput,
   Title,
   Tooltip,
 } from '@mantine/core';
@@ -33,12 +31,11 @@ import {
   IconLock,
   IconPlus,
   IconRefresh,
-  IconShieldLock,
   IconTrash,
-  IconX,
 } from '@tabler/icons-react';
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { authFetch } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/config';
 
 interface Module {
@@ -54,37 +51,43 @@ interface PermissionTemplate {
   name: string;
   display_name: string;
   description: string | null;
-  permissions: Record<string, {
-    view?: boolean;
-    create?: boolean;
-    edit?: boolean;
-    delete?: boolean;
-    export?: boolean;
-  }>;
+  permissions: Record<
+    string,
+    {
+      view?: boolean;
+      create?: boolean;
+      edit?: boolean;
+      delete?: boolean;
+      export?: boolean;
+    }
+  >;
   is_system: boolean;
   created_at: string;
 }
 
 export default function YetkiSablonlariPage() {
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, isAuthenticated, isLoading: authLoading } = useAuth();
   const [templates, setTemplates] = useState<PermissionTemplate[]>([]);
   const [modules, setModules] = useState<Module[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  
+
   const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
   const [editingTemplate, setEditingTemplate] = useState<PermissionTemplate | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     display_name: '',
     description: '',
-    permissions: {} as Record<string, {
-      view: boolean;
-      create: boolean;
-      edit: boolean;
-      delete: boolean;
-      export: boolean;
-    }>,
+    permissions: {} as Record<
+      string,
+      {
+        view: boolean;
+        create: boolean;
+        edit: boolean;
+        delete: boolean;
+        export: boolean;
+      }
+    >,
   });
 
   // Verileri yükle
@@ -92,12 +95,10 @@ export default function YetkiSablonlariPage() {
     setLoading(true);
     try {
       const [templatesRes, modulesRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/permissions/templates`, {
-          credentials: 'include',
+        authFetch(`${API_BASE_URL}/api/permissions/templates`, {
           headers: { 'Content-Type': 'application/json' },
         }),
-        fetch(`${API_BASE_URL}/api/permissions/modules`, {
-          credentials: 'include',
+        authFetch(`${API_BASE_URL}/api/permissions/modules`, {
           headers: { 'Content-Type': 'application/json' },
         }),
       ]);
@@ -110,7 +111,7 @@ export default function YetkiSablonlariPage() {
       }
       if (modulesData.success) {
         setModules(modulesData.data);
-        
+
         // Form permissions'ı modüllerle initialize et
         if (!editingTemplate) {
           const initialPermissions: Record<string, any> = {};
@@ -139,8 +140,10 @@ export default function YetkiSablonlariPage() {
   }, [editingTemplate]);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) return;
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, authLoading, isAuthenticated]);
 
   // Form sıfırla
   const resetForm = () => {
@@ -175,14 +178,17 @@ export default function YetkiSablonlariPage() {
   const handleEditTemplate = (template: PermissionTemplate) => {
     setEditingTemplate(template);
     // Permissions'ı normalize et (optional property'leri default değerlerle doldur)
-    const normalizedPermissions: Record<string, {
-      view: boolean;
-      create: boolean;
-      edit: boolean;
-      delete: boolean;
-      export: boolean;
-    }> = {};
-    
+    const normalizedPermissions: Record<
+      string,
+      {
+        view: boolean;
+        create: boolean;
+        edit: boolean;
+        delete: boolean;
+        export: boolean;
+      }
+    > = {};
+
     if (template.permissions) {
       Object.entries(template.permissions).forEach(([key, perms]) => {
         normalizedPermissions[key] = {
@@ -194,7 +200,7 @@ export default function YetkiSablonlariPage() {
         };
       });
     }
-    
+
     setFormData({
       name: template.name,
       display_name: template.display_name,
@@ -220,9 +226,9 @@ export default function YetkiSablonlariPage() {
       const url = editingTemplate
         ? `${API_BASE_URL}/api/permissions/templates/${editingTemplate.id}`
         : `${API_BASE_URL}/api/permissions/templates`;
-      
+
       const method = editingTemplate ? 'PUT' : 'POST';
-      
+
       const body = editingTemplate
         ? {
             display_name: formData.display_name,
@@ -236,9 +242,8 @@ export default function YetkiSablonlariPage() {
             permissions: formData.permissions,
           };
 
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method,
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -264,7 +269,7 @@ export default function YetkiSablonlariPage() {
           color: 'red',
         });
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: 'Hata',
         message: 'Sunucu hatası',
@@ -282,9 +287,8 @@ export default function YetkiSablonlariPage() {
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/permissions/templates/${id}`, {
+      const res = await authFetch(`${API_BASE_URL}/api/permissions/templates/${id}`, {
         method: 'DELETE',
-        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
       });
 
@@ -305,7 +309,7 @@ export default function YetkiSablonlariPage() {
           color: 'red',
         });
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: 'Hata',
         message: 'Sunucu hatası',
@@ -388,9 +392,7 @@ export default function YetkiSablonlariPage() {
         {/* Bilgilendirme */}
         {!isSuperAdmin && (
           <Alert icon={<IconAlertCircle size={16} />} color="blue" variant="light">
-            <Text size="sm">
-              Şablon oluşturma ve düzenleme için süper admin yetkisi gerekli.
-            </Text>
+            <Text size="sm">Şablon oluşturma ve düzenleme için süper admin yetkisi gerekli.</Text>
           </Alert>
         )}
 
@@ -431,20 +433,22 @@ export default function YetkiSablonlariPage() {
                       Modül İzinleri:
                     </Text>
                     <Stack gap="xs">
-                      {Object.entries(template.permissions || {}).slice(0, 3).map(([modName, perms]) => {
-                        const module = modules.find((m) => m.name === modName);
-                        if (!module) return null;
-                        
-                        const activeCount = Object.values(perms).filter(Boolean).length;
-                        return (
-                          <Group key={modName} justify="space-between">
-                            <Text size="sm">{module.display_name}</Text>
-                            <Badge variant="light" color={activeCount > 0 ? 'green' : 'gray'}>
-                              {activeCount} izin
-                            </Badge>
-                          </Group>
-                        );
-                      })}
+                      {Object.entries(template.permissions || {})
+                        .slice(0, 3)
+                        .map(([modName, perms]) => {
+                          const module = modules.find((m) => m.name === modName);
+                          if (!module) return null;
+
+                          const activeCount = Object.values(perms).filter(Boolean).length;
+                          return (
+                            <Group key={modName} justify="space-between">
+                              <Text size="sm">{module.display_name}</Text>
+                              <Badge variant="light" color={activeCount > 0 ? 'green' : 'gray'}>
+                                {activeCount} izin
+                              </Badge>
+                            </Group>
+                          );
+                        })}
                       {Object.keys(template.permissions || {}).length > 3 && (
                         <Text size="xs" c="dimmed">
                           +{Object.keys(template.permissions || {}).length - 3} modül daha
@@ -547,7 +551,7 @@ export default function YetkiSablonlariPage() {
                     delete: false,
                     export: false,
                   };
-                  
+
                   const allChecked = Object.values(perms).every(Boolean);
                   const someChecked = Object.values(perms).some(Boolean);
 
@@ -567,27 +571,37 @@ export default function YetkiSablonlariPage() {
                         <Checkbox
                           label="Görüntüle"
                           checked={perms.view}
-                          onChange={(e) => togglePermission(module.name, 'view', e.currentTarget.checked)}
+                          onChange={(e) =>
+                            togglePermission(module.name, 'view', e.currentTarget.checked)
+                          }
                         />
                         <Checkbox
                           label="Oluştur"
                           checked={perms.create}
-                          onChange={(e) => togglePermission(module.name, 'create', e.currentTarget.checked)}
+                          onChange={(e) =>
+                            togglePermission(module.name, 'create', e.currentTarget.checked)
+                          }
                         />
                         <Checkbox
                           label="Düzenle"
                           checked={perms.edit}
-                          onChange={(e) => togglePermission(module.name, 'edit', e.currentTarget.checked)}
+                          onChange={(e) =>
+                            togglePermission(module.name, 'edit', e.currentTarget.checked)
+                          }
                         />
                         <Checkbox
                           label="Sil"
                           checked={perms.delete}
-                          onChange={(e) => togglePermission(module.name, 'delete', e.currentTarget.checked)}
+                          onChange={(e) =>
+                            togglePermission(module.name, 'delete', e.currentTarget.checked)
+                          }
                         />
                         <Checkbox
                           label="Export"
                           checked={perms.export}
-                          onChange={(e) => togglePermission(module.name, 'export', e.currentTarget.checked)}
+                          onChange={(e) =>
+                            togglePermission(module.name, 'export', e.currentTarget.checked)
+                          }
                         />
                       </SimpleGrid>
                     </div>
@@ -597,7 +611,13 @@ export default function YetkiSablonlariPage() {
             </Paper>
 
             <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={() => { closeModal(); resetForm(); }}>
+              <Button
+                variant="default"
+                onClick={() => {
+                  closeModal();
+                  resetForm();
+                }}
+              >
                 İptal
               </Button>
               <Button onClick={handleSave} loading={saving} leftSection={<IconCheck size={16} />}>

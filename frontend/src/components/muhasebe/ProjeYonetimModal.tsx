@@ -30,7 +30,7 @@ import {
   IconTrash,
   IconUsers,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { muhasebeAPI } from '@/lib/api/services/muhasebe';
 import { formatDate } from '@/lib/formatters';
 
@@ -152,12 +152,25 @@ export default function ProjeYonetimModal({
   const [form, setForm] = useState<Partial<Proje>>(emptyForm);
   const [saving, setSaving] = useState(false);
 
+  const loadProjeler = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await muhasebeAPI.getProjeler();
+      if (result.success || Array.isArray(result)) {
+        setProjeler(Array.isArray(result) ? result : result.data || []);
+      }
+    } catch (err) {
+      console.error('Projeler yüklenemedi:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (opened) {
       loadProjeler();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened]);
+  }, [opened, loadProjeler]);
 
   // initialProjeId varsa o projeyi detayda aç
   useEffect(() => {
@@ -169,20 +182,6 @@ export default function ProjeYonetimModal({
       }
     }
   }, [opened, initialProjeId, projeler]);
-
-  const loadProjeler = async () => {
-    setLoading(true);
-    try {
-      const result = await muhasebeAPI.getProjeler();
-      if (result.success || Array.isArray(result)) {
-        setProjeler(Array.isArray(result) ? result : (result.data || []));
-      }
-    } catch (error) {
-      console.error('Projeler yüklenemedi:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleYeniProje = () => {
     setForm(emptyForm);
@@ -228,10 +227,10 @@ export default function ProjeYonetimModal({
       } else {
         throw new Error(result.error);
       }
-    } catch (error: any) {
+    } catch (err) {
       notifications.show({
         title: 'Hata',
-        message: error.message || 'İşlem başarısız',
+        message: err instanceof Error ? err.message : 'İşlem başarısız',
         color: 'red',
       });
     } finally {
@@ -647,7 +646,6 @@ export default function ProjeYonetimModal({
         maximumFractionDigits: 0,
       }).format(val);
     };
-
 
     return (
       <Stack gap="md">

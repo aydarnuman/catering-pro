@@ -6,20 +6,18 @@ import {
   Badge,
   Box,
   Button,
-  Card,
   Container,
   Divider,
   FileInput,
   Grid,
   Group,
   Image,
+  Indicator,
   Loader,
+  Menu,
   Modal,
   Paper,
-  Progress,
-  RingProgress,
   ScrollArea,
-  SegmentedControl,
   Select,
   SimpleGrid,
   Skeleton,
@@ -35,71 +33,53 @@ import {
   Tooltip,
   UnstyledButton,
   useMantineColorScheme,
-  Alert,
-  Indicator,
-  Menu,
-  rem,
-  NumberInput,
-  Popover,
-  Transition,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { DateTimePicker, TimeInput } from '@mantine/dates';
 import {
-  IconBrandInstagram,
+  IconActivity,
+  IconAt,
+  IconBookmark,
   IconCamera,
   IconCheck,
+  IconChefHat,
+  IconChevronRight,
+  IconCopy,
+  IconDots,
+  IconDownload,
+  IconExternalLink,
+  IconEye,
+  IconHash,
   IconHeart,
-  IconHeartFilled,
+  IconLoader,
   IconMessageCircle,
+  IconMessageDots,
+  IconMessages,
+  IconPalette,
   IconPhoto,
+  IconPlayerPlay,
   IconPlug,
   IconPlugOff,
+  IconPlus,
   IconRefresh,
+  IconReportAnalytics,
+  IconRobot,
   IconSend,
   IconSettings,
-  IconUpload,
-  IconX,
-  IconCalendar,
-  IconClock,
-  IconHash,
-  IconSparkles,
-  IconRobot,
-  IconChartBar,
-  IconTrendingUp,
-  IconEye,
-  IconBookmark,
   IconShare,
-  IconDots,
-  IconTrash,
-  IconCopy,
-  IconExternalLink,
-  IconChefHat,
-  IconTemplate,
-  IconPalette,
-  IconWand,
-  IconBolt,
-  IconPlayerPlay,
-  IconCirclePlus,
-  IconMessageDots,
-  IconAt,
-  IconBell,
-  IconHistory,
-  IconReportAnalytics,
-  IconMessages,
-  IconUserPlus,
-  IconDownload,
-  IconPlus,
-  IconChevronRight,
-  IconSearch,
+  IconSparkles,
   IconTarget,
-  IconActivity,
-  IconLoader,
-  IconArrowRight,
+  IconTemplate,
+  IconTrendingUp,
+  IconUpload,
+  IconUserPlus,
+  IconWand,
+  IconX,
 } from '@tabler/icons-react';
-import React, { useState, useEffect, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type React from 'react';
+import { useState } from 'react';
+import { authFetch } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/config';
 
 // ==================== TYPES ====================
@@ -167,13 +147,13 @@ interface AgentLog {
 // ==================== API FUNCTIONS ====================
 
 const checkInstagramStatus = async () => {
-  const res = await fetch(`${API_BASE_URL}/api/social/instagram/status`);
+  const res = await authFetch(`${API_BASE_URL}/api/social/instagram/status`);
   if (!res.ok) throw new Error('Instagram servisi yanıt vermiyor');
   return res.json();
 };
 
 const loginInstagram = async (username: string, password: string, verificationCode?: string) => {
-  const res = await fetch(`${API_BASE_URL}/api/social/instagram/login`, {
+  const res = await authFetch(`${API_BASE_URL}/api/social/instagram/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password, verification_code: verificationCode }),
@@ -183,31 +163,31 @@ const loginInstagram = async (username: string, password: string, verificationCo
 };
 
 const logoutInstagram = async () => {
-  const res = await fetch(`${API_BASE_URL}/api/social/instagram/logout`, { method: 'POST' });
+  const res = await authFetch(`${API_BASE_URL}/api/social/instagram/logout`, { method: 'POST' });
   if (!res.ok) throw new Error('Logout başarısız');
   return res.json();
 };
 
 const getProfile = async () => {
-  const res = await fetch(`${API_BASE_URL}/api/social/instagram/profile`);
+  const res = await authFetch(`${API_BASE_URL}/api/social/instagram/profile`);
   if (!res.ok) throw new Error('Profil alınamadı');
   return res.json();
 };
 
 const getPosts = async (limit = 20) => {
-  const res = await fetch(`${API_BASE_URL}/api/social/instagram/posts?limit=${limit}`);
+  const res = await authFetch(`${API_BASE_URL}/api/social/instagram/posts?limit=${limit}`);
   if (!res.ok) throw new Error('Gönderiler alınamadı');
   return res.json();
 };
 
 const getDMs = async () => {
-  const res = await fetch(`${API_BASE_URL}/api/social/instagram/dms`);
+  const res = await authFetch(`${API_BASE_URL}/api/social/instagram/dms`);
   if (!res.ok) throw new Error('Mesajlar alınamadı');
   return res.json();
 };
 
 const getDMMessages = async (threadId: string) => {
-  const res = await fetch(`${API_BASE_URL}/api/social/instagram/dms/${threadId}?limit=50`);
+  const res = await authFetch(`${API_BASE_URL}/api/social/instagram/dms/${threadId}?limit=50`);
   if (!res.ok) throw new Error('Mesajlar alınamadı');
   return res.json();
 };
@@ -216,7 +196,10 @@ const uploadPost = async (file: File, caption: string) => {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('caption', caption);
-  const res = await fetch(`${API_BASE_URL}/api/social/instagram/posts/upload`, { method: 'POST', body: formData });
+  const res = await authFetch(`${API_BASE_URL}/api/social/instagram/posts/upload`, {
+    method: 'POST',
+    body: formData,
+  });
   if (!res.ok) throw new Error('Gönderi paylaşılamadı');
   return res.json();
 };
@@ -230,13 +213,16 @@ const generateCaptionFromImage = async (file: File) => {
   formData.append('includeHashtags', 'true');
   formData.append('businessName', 'Degsan Yemek');
   formData.append('businessType', 'catering');
-  const res = await fetch(`${API_BASE_URL}/api/social/instagram/ai/caption`, { method: 'POST', body: formData });
+  const res = await authFetch(`${API_BASE_URL}/api/social/instagram/ai/caption`, {
+    method: 'POST',
+    body: formData,
+  });
   if (!res.ok) throw new Error('Caption üretilemedi');
   return res.json();
 };
 
 const generateHashtagsFromCaption = async (caption: string) => {
-  const res = await fetch(`${API_BASE_URL}/api/social/instagram/ai/hashtags`, {
+  const res = await authFetch(`${API_BASE_URL}/api/social/instagram/ai/hashtags`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ caption, count: 12, city: 'ankara', businessType: 'catering' }),
@@ -246,7 +232,7 @@ const generateHashtagsFromCaption = async (caption: string) => {
 };
 
 const generateImagePrompt = async (description: string) => {
-  const res = await fetch(`${API_BASE_URL}/api/social/instagram/ai/image-prompt`, {
+  const res = await authFetch(`${API_BASE_URL}/api/social/instagram/ai/image-prompt`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ description, style: 'professional', type: 'food' }),
@@ -256,7 +242,7 @@ const generateImagePrompt = async (description: string) => {
 };
 
 const generateAIImage = async (prompt: string, negativePrompt?: string) => {
-  const res = await fetch(`${API_BASE_URL}/api/social/instagram/ai/generate-image`, {
+  const res = await authFetch(`${API_BASE_URL}/api/social/instagram/ai/generate-image`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt, negativePrompt, aspectRatio: '1:1' }),
@@ -265,14 +251,22 @@ const generateAIImage = async (prompt: string, negativePrompt?: string) => {
   return res.json();
 };
 
-const generateMenuCard = async (menu: { name: string; emoji?: string }[], template: string = 'modern') => {
-  const res = await fetch(`${API_BASE_URL}/api/social/instagram/ai/menu-card`, {
+const generateMenuCard = async (
+  menu: { name: string; emoji?: string }[],
+  template: string = 'modern'
+) => {
+  const res = await authFetch(`${API_BASE_URL}/api/social/instagram/ai/menu-card`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ 
-      menu, template, 
+    body: JSON.stringify({
+      menu,
+      template,
       businessName: 'Degsan Yemek',
-      date: new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' }),
+      date: new Date().toLocaleDateString('tr-TR', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      }),
     }),
   });
   if (!res.ok) throw new Error('Menü kartı oluşturulamadı');
@@ -280,7 +274,7 @@ const generateMenuCard = async (menu: { name: string; emoji?: string }[], templa
 };
 
 const sendDMMessage = async (threadId: string, message: string) => {
-  const res = await fetch(`${API_BASE_URL}/api/social/instagram/dms/send`, {
+  const res = await authFetch(`${API_BASE_URL}/api/social/instagram/dms/send`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ threadId, message }),
@@ -311,7 +305,7 @@ export default function InstagramPage() {
     },
   ]);
   const [selectedAccountId, setSelectedAccountId] = useState<string>('1');
-  const selectedAccount = accounts.find(a => a.id === selectedAccountId);
+  const selectedAccount = accounts.find((a) => a.id === selectedAccountId);
 
   // Modal States
   const [addAccountModal, { open: openAddAccount, close: closeAddAccount }] = useDisclosure(false);
@@ -331,10 +325,13 @@ export default function InstagramPage() {
   const [suggestedHashtags, setSuggestedHashtags] = useState<string[]>([]);
   const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
   const [isGeneratingHashtags, setIsGeneratingHashtags] = useState(false);
-  
+
   // AI Image States
   const [imagePrompt, setImagePrompt] = useState('');
-  const [generatedPrompt, setGeneratedPrompt] = useState<{ prompt: string; negative_prompt: string } | null>(null);
+  const [generatedPrompt, setGeneratedPrompt] = useState<{
+    prompt: string;
+    negative_prompt: string;
+  } | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
@@ -359,29 +356,131 @@ export default function InstagramPage() {
 
   // Automation Tasks
   const [automationTasks, setAutomationTasks] = useState<AutomationTask[]>([
-    { id: 'daily-menu', name: 'Günlük Menü Paylaşımı', description: 'Her gün 11:00\'de menü paylaş', icon: <IconChefHat size={18} />, enabled: true, schedule: 'Her gün 11:00', stats: { totalRuns: 45, successRate: 98 } },
-    { id: 'dm-auto-reply', name: 'DM Otomatik Yanıt', description: 'Gelen DM\'lere AI yanıt', icon: <IconMessageDots size={18} />, enabled: true, schedule: 'Anlık', stats: { totalRuns: 156, successRate: 94 } },
-    { id: 'welcome-follower', name: 'Yeni Takipçi Hoş Geldin', description: 'Yeni takipçilere mesaj', icon: <IconUserPlus size={18} />, enabled: false, schedule: 'Anlık', stats: { totalRuns: 89, successRate: 100 } },
-    { id: 'comment-reply', name: 'Yorum Yanıtlama', description: 'Yorumları AI ile yanıtla', icon: <IconMessages size={18} />, enabled: false, schedule: 'Anlık', stats: { totalRuns: 234, successRate: 91 } },
-    { id: 'weekly-report', name: 'Haftalık Rapor', description: 'Performans raporu hazırla', icon: <IconReportAnalytics size={18} />, enabled: true, schedule: 'Pazartesi 09:00', stats: { totalRuns: 12, successRate: 100 } },
-    { id: 'hashtag-research', name: 'Hashtag Araştırması', description: 'Trend hashtag analizi', icon: <IconHash size={18} />, enabled: false, schedule: 'Her gün 08:00', stats: { totalRuns: 30, successRate: 100 } },
-    { id: 'competitor-watch', name: 'Rakip Takibi', description: 'Rakip paylaşımlarını izle', icon: <IconTarget size={18} />, enabled: false, schedule: 'Her 6 saat', stats: { totalRuns: 120, successRate: 95 } },
-    { id: 'engagement-boost', name: 'Etkileşim Artırıcı', description: 'En iyi saat analizii', icon: <IconTrendingUp size={18} />, enabled: true, schedule: 'Her gün', stats: { totalRuns: 60, successRate: 100 } },
+    {
+      id: 'daily-menu',
+      name: 'Günlük Menü Paylaşımı',
+      description: "Her gün 11:00'de menü paylaş",
+      icon: <IconChefHat size={18} />,
+      enabled: true,
+      schedule: 'Her gün 11:00',
+      stats: { totalRuns: 45, successRate: 98 },
+    },
+    {
+      id: 'dm-auto-reply',
+      name: 'DM Otomatik Yanıt',
+      description: "Gelen DM'lere AI yanıt",
+      icon: <IconMessageDots size={18} />,
+      enabled: true,
+      schedule: 'Anlık',
+      stats: { totalRuns: 156, successRate: 94 },
+    },
+    {
+      id: 'welcome-follower',
+      name: 'Yeni Takipçi Hoş Geldin',
+      description: 'Yeni takipçilere mesaj',
+      icon: <IconUserPlus size={18} />,
+      enabled: false,
+      schedule: 'Anlık',
+      stats: { totalRuns: 89, successRate: 100 },
+    },
+    {
+      id: 'comment-reply',
+      name: 'Yorum Yanıtlama',
+      description: 'Yorumları AI ile yanıtla',
+      icon: <IconMessages size={18} />,
+      enabled: false,
+      schedule: 'Anlık',
+      stats: { totalRuns: 234, successRate: 91 },
+    },
+    {
+      id: 'weekly-report',
+      name: 'Haftalık Rapor',
+      description: 'Performans raporu hazırla',
+      icon: <IconReportAnalytics size={18} />,
+      enabled: true,
+      schedule: 'Pazartesi 09:00',
+      stats: { totalRuns: 12, successRate: 100 },
+    },
+    {
+      id: 'hashtag-research',
+      name: 'Hashtag Araştırması',
+      description: 'Trend hashtag analizi',
+      icon: <IconHash size={18} />,
+      enabled: false,
+      schedule: 'Her gün 08:00',
+      stats: { totalRuns: 30, successRate: 100 },
+    },
+    {
+      id: 'competitor-watch',
+      name: 'Rakip Takibi',
+      description: 'Rakip paylaşımlarını izle',
+      icon: <IconTarget size={18} />,
+      enabled: false,
+      schedule: 'Her 6 saat',
+      stats: { totalRuns: 120, successRate: 95 },
+    },
+    {
+      id: 'engagement-boost',
+      name: 'Etkileşim Artırıcı',
+      description: 'En iyi saat analizii',
+      icon: <IconTrendingUp size={18} />,
+      enabled: true,
+      schedule: 'Her gün',
+      stats: { totalRuns: 60, successRate: 100 },
+    },
   ]);
 
   // Agent Logs
   const [agentLogs] = useState<AgentLog[]>([
-    { id: '1', taskId: 'daily-menu', taskName: 'Günlük Menü', action: 'Post paylaşıldı', status: 'success', message: 'Menü görseli oluşturuldu ve paylaşıldı', timestamp: new Date(Date.now() - 3600000) },
-    { id: '2', taskId: 'dm-auto-reply', taskName: 'DM Yanıt', action: 'Mesaj gönderildi', status: 'success', message: '@user123\'e fiyat bilgisi gönderildi', timestamp: new Date(Date.now() - 7200000) },
-    { id: '3', taskId: 'dm-auto-reply', taskName: 'DM Yanıt', action: 'Mesaj analizi', status: 'running', message: 'Gelen mesaj analiz ediliyor...', timestamp: new Date() },
-    { id: '4', taskId: 'weekly-report', taskName: 'Haftalık Rapor', action: 'Rapor oluşturuldu', status: 'success', message: 'PDF rapor hazırlandı ve mail gönderildi', timestamp: new Date(Date.now() - 604800000) },
+    {
+      id: '1',
+      taskId: 'daily-menu',
+      taskName: 'Günlük Menü',
+      action: 'Post paylaşıldı',
+      status: 'success',
+      message: 'Menü görseli oluşturuldu ve paylaşıldı',
+      timestamp: new Date(Date.now() - 3600000),
+    },
+    {
+      id: '2',
+      taskId: 'dm-auto-reply',
+      taskName: 'DM Yanıt',
+      action: 'Mesaj gönderildi',
+      status: 'success',
+      message: "@user123'e fiyat bilgisi gönderildi",
+      timestamp: new Date(Date.now() - 7200000),
+    },
+    {
+      id: '3',
+      taskId: 'dm-auto-reply',
+      taskName: 'DM Yanıt',
+      action: 'Mesaj analizi',
+      status: 'running',
+      message: 'Gelen mesaj analiz ediliyor...',
+      timestamp: new Date(),
+    },
+    {
+      id: '4',
+      taskId: 'weekly-report',
+      taskName: 'Haftalık Rapor',
+      action: 'Rapor oluşturuldu',
+      status: 'success',
+      message: 'PDF rapor hazırlandı ve mail gönderildi',
+      timestamp: new Date(Date.now() - 604800000),
+    },
   ]);
 
   // Quick Reply Templates
   const quickReplies = [
-    { label: 'Fiyat Bilgisi', text: 'Merhaba! Fiyat bilgisi için lütfen kişi sayısı ve tarih belirtir misiniz?' },
+    {
+      label: 'Fiyat Bilgisi',
+      text: 'Merhaba! Fiyat bilgisi için lütfen kişi sayısı ve tarih belirtir misiniz?',
+    },
     { label: 'Menü Gönder', text: 'Güncel menümüzü ve fiyat listemizi ekte bulabilirsiniz.' },
-    { label: 'Randevu', text: 'Tadım randevusu için uygun olduğunuz gün ve saati belirtir misiniz?' },
+    {
+      label: 'Randevu',
+      text: 'Tadım randevusu için uygun olduğunuz gün ve saati belirtir misiniz?',
+    },
     { label: 'Teşekkür', text: 'Teşekkür ederiz! Bizi tercih ettiğiniz için çok mutluyuz.' },
   ];
 
@@ -394,7 +493,12 @@ export default function InstagramPage() {
   const subtleText = { color: isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' };
 
   // ===== QUERIES =====
-  const { data: statusData, isLoading: statusLoading, error: statusError, refetch: refetchStatus } = useQuery({
+  const {
+    data: statusData,
+    isLoading: statusLoading,
+    error: statusError,
+    refetch: refetchStatus,
+  } = useQuery({
     queryKey: ['instagram-status', selectedAccountId],
     queryFn: checkInstagramStatus,
     refetchInterval: 30000,
@@ -410,13 +514,21 @@ export default function InstagramPage() {
     enabled: isConnected,
   });
 
-  const { data: postsData, isLoading: postsLoading, refetch: refetchPosts } = useQuery({
+  const {
+    data: postsData,
+    isLoading: postsLoading,
+    refetch: refetchPosts,
+  } = useQuery({
     queryKey: ['instagram-posts', selectedAccountId],
     queryFn: () => getPosts(12),
     enabled: isConnected,
   });
 
-  const { data: dmsData, isLoading: dmsLoading, refetch: refetchDMs } = useQuery({
+  const {
+    data: dmsData,
+    isLoading: dmsLoading,
+    refetch: refetchDMs,
+  } = useQuery({
     queryKey: ['instagram-dms', selectedAccountId],
     queryFn: getDMs,
     enabled: isConnected,
@@ -428,11 +540,22 @@ export default function InstagramPage() {
 
   // ===== MUTATIONS =====
   const loginMutation = useMutation({
-    mutationFn: ({ username, password, code }: { username: string; password: string; code?: string }) => 
-      loginInstagram(username, password, code),
+    mutationFn: ({
+      username,
+      password,
+      code,
+    }: {
+      username: string;
+      password: string;
+      code?: string;
+    }) => loginInstagram(username, password, code),
     onSuccess: (data) => {
       if (data.success) {
-        notifications.show({ title: 'Bağlantı Başarılı', message: `@${data.user?.username} hesabı bağlandı`, color: 'green' });
+        notifications.show({
+          title: 'Bağlantı Başarılı',
+          message: `@${data.user?.username} hesabı bağlandı`,
+          color: 'green',
+        });
         closeTwoFactor();
         closeAddAccount();
         // Add new account
@@ -448,7 +571,7 @@ export default function InstagramPage() {
             isConnected: true,
             platform: 'instagram',
           };
-          setAccounts(prev => [...prev, newAccount]);
+          setAccounts((prev) => [...prev, newAccount]);
           setSelectedAccountId(newAccount.id);
         }
         queryClient.invalidateQueries({ queryKey: ['instagram-status'] });
@@ -463,8 +586,14 @@ export default function InstagramPage() {
   const logoutMutation = useMutation({
     mutationFn: logoutInstagram,
     onSuccess: () => {
-      notifications.show({ title: 'Çıkış Yapıldı', message: 'Hesap bağlantısı kesildi', color: 'gray' });
-      setAccounts(prev => prev.map(a => a.id === selectedAccountId ? { ...a, isConnected: false } : a));
+      notifications.show({
+        title: 'Çıkış Yapıldı',
+        message: 'Hesap bağlantısı kesildi',
+        color: 'gray',
+      });
+      setAccounts((prev) =>
+        prev.map((a) => (a.id === selectedAccountId ? { ...a, isConnected: false } : a))
+      );
       queryClient.invalidateQueries({ queryKey: ['instagram-status'] });
     },
   });
@@ -473,7 +602,11 @@ export default function InstagramPage() {
     mutationFn: ({ file, caption }: { file: File; caption: string }) => uploadPost(file, caption),
     onSuccess: (data) => {
       if (data.success) {
-        notifications.show({ title: 'Paylaşıldı', message: 'Gönderiniz yayınlandı', color: 'green' });
+        notifications.show({
+          title: 'Paylaşıldı',
+          message: 'Gönderiniz yayınlandı',
+          color: 'green',
+        });
         closeNewPost();
         setCaption('');
         setSelectedFile(null);
@@ -484,8 +617,8 @@ export default function InstagramPage() {
 
   // ===== HELPER FUNCTIONS =====
   const formatNumber = (num: number): string => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toString();
   };
 
@@ -505,9 +638,12 @@ export default function InstagramPage() {
 
   const totalLikes = posts.reduce((sum, p) => sum + p.likes, 0);
   const totalComments = posts.reduce((sum, p) => sum + p.comments, 0);
-  const avgEngagement = posts.length > 0 ? ((totalLikes + totalComments) / posts.length / (profile?.followers || 1) * 100).toFixed(2) : '0';
-  const unreadDMs = dms.filter(dm => dm.unread).length;
-  const activeAutomations = automationTasks.filter(t => t.enabled).length;
+  const avgEngagement =
+    posts.length > 0
+      ? (((totalLikes + totalComments) / posts.length / (profile?.followers || 1)) * 100).toFixed(2)
+      : '0';
+  const unreadDMs = dms.filter((dm) => dm.unread).length;
+  const activeAutomations = automationTasks.filter((t) => t.enabled).length;
 
   // ===== HANDLERS =====
   const loadDMMessages = async (threadId: string) => {
@@ -535,7 +671,7 @@ export default function InstagramPage() {
         setNewMessage('');
         loadDMMessages(selectedDM.thread_id);
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ title: 'Hata', message: 'Mesaj gönderilemedi', color: 'red' });
     } finally {
       setIsSendingDM(false);
@@ -550,9 +686,13 @@ export default function InstagramPage() {
       if (result.success) {
         setCaption(result.caption);
         if (result.hashtagler) setSuggestedHashtags(result.hashtagler);
-        notifications.show({ title: 'AI Caption Hazır', message: 'Açıklama oluşturuldu', color: 'green' });
+        notifications.show({
+          title: 'AI Caption Hazır',
+          message: 'Açıklama oluşturuldu',
+          color: 'green',
+        });
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ title: 'Hata', message: 'Caption üretilemedi', color: 'red' });
     } finally {
       setIsGeneratingCaption(false);
@@ -566,9 +706,13 @@ export default function InstagramPage() {
       const result = await generateHashtagsFromCaption(caption);
       if (result.success && result.hashtagler) {
         setSuggestedHashtags(result.hashtagler);
-        notifications.show({ title: 'Hashtag Hazır', message: `${result.hashtagler.length} öneri`, color: 'green' });
+        notifications.show({
+          title: 'Hashtag Hazır',
+          message: `${result.hashtagler.length} öneri`,
+          color: 'green',
+        });
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ title: 'Hata', message: 'Hashtag üretilemedi', color: 'red' });
     } finally {
       setIsGeneratingHashtags(false);
@@ -577,7 +721,7 @@ export default function InstagramPage() {
 
   const addHashtagToCaption = (tag: string) => {
     if (!caption.includes(`#${tag}`)) {
-      setCaption(prev => prev + (prev ? ' ' : '') + `#${tag}`);
+      setCaption((prev) => `${prev + (prev ? ' ' : '')}#${tag}`);
     }
   };
 
@@ -588,9 +732,13 @@ export default function InstagramPage() {
       const result = await generateImagePrompt(imagePrompt);
       if (result.success) {
         setGeneratedPrompt({ prompt: result.prompt, negative_prompt: result.negative_prompt });
-        notifications.show({ title: 'Prompt Hazır', message: 'Şimdi görsel üretebilirsiniz', color: 'green' });
+        notifications.show({
+          title: 'Prompt Hazır',
+          message: 'Şimdi görsel üretebilirsiniz',
+          color: 'green',
+        });
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ title: 'Hata', message: 'Prompt oluşturulamadı', color: 'red' });
     } finally {
       setIsGeneratingPrompt(false);
@@ -604,9 +752,13 @@ export default function InstagramPage() {
       const result = await generateAIImage(generatedPrompt.prompt, generatedPrompt.negative_prompt);
       if (result.success) {
         setGeneratedImage(result.dataUrl);
-        notifications.show({ title: 'Görsel Hazır', message: 'AI görsel üretildi', color: 'green' });
+        notifications.show({
+          title: 'Görsel Hazır',
+          message: 'AI görsel üretildi',
+          color: 'green',
+        });
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ title: 'Hata', message: 'Görsel üretilemedi', color: 'red' });
     } finally {
       setIsGeneratingImage(false);
@@ -619,9 +771,13 @@ export default function InstagramPage() {
       const result = await generateMenuCard(menuCardItems, menuCardTemplate);
       if (result.success) {
         setMenuCardHtml(result.html);
-        notifications.show({ title: 'Menü Kartı Hazır', message: 'Şablon oluşturuldu', color: 'green' });
+        notifications.show({
+          title: 'Menü Kartı Hazır',
+          message: 'Şablon oluşturuldu',
+          color: 'green',
+        });
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({ title: 'Hata', message: 'Menü kartı oluşturulamadı', color: 'red' });
     } finally {
       setIsGeneratingMenuCard(false);
@@ -629,10 +785,10 @@ export default function InstagramPage() {
   };
 
   const toggleAutomation = (taskId: string) => {
-    setAutomationTasks(prev => prev.map(task => 
-      task.id === taskId ? { ...task, enabled: !task.enabled } : task
-    ));
-    const task = automationTasks.find(t => t.id === taskId);
+    setAutomationTasks((prev) =>
+      prev.map((task) => (task.id === taskId ? { ...task, enabled: !task.enabled } : task))
+    );
+    const task = automationTasks.find((t) => t.id === taskId);
     notifications.show({
       title: task?.enabled ? 'Durduruldu' : 'Başlatıldı',
       message: task?.name,
@@ -641,24 +797,45 @@ export default function InstagramPage() {
   };
 
   const runAutomationNow = (taskId: string) => {
-    const task = automationTasks.find(t => t.id === taskId);
+    const task = automationTasks.find((t) => t.id === taskId);
     if (!task) return;
-    notifications.show({ title: 'Çalıştırılıyor', message: task.name, color: 'blue', loading: true, autoClose: 2000 });
+    notifications.show({
+      title: 'Çalıştırılıyor',
+      message: task.name,
+      color: 'blue',
+      loading: true,
+      autoClose: 2000,
+    });
   };
 
   // ===== ERROR STATE =====
   if (statusError) {
     return (
-      <Box style={{ minHeight: '100vh', background: isDark ? '#0a0a0f' : '#fafbfc', paddingTop: 100, paddingBottom: 40 }}>
+      <Box
+        style={{
+          minHeight: '100vh',
+          background: isDark ? '#0a0a0f' : '#fafbfc',
+          paddingTop: 100,
+          paddingBottom: 40,
+        }}
+      >
         <Container size="sm">
           <Paper p="xl" radius="lg" style={cardStyle}>
             <Stack align="center" gap="lg">
-              <ThemeIcon size={60} radius="xl" color="red" variant="light"><IconPlugOff size={30} /></ThemeIcon>
+              <ThemeIcon size={60} radius="xl" color="red" variant="light">
+                <IconPlugOff size={30} />
+              </ThemeIcon>
               <Box ta="center">
                 <Title order={3}>Servis Bağlanamıyor</Title>
-                <Text size="sm" style={subtleText} mt="xs">Instagram servisi şu anda çalışmıyor</Text>
+                <Text size="sm" style={subtleText} mt="xs">
+                  Instagram servisi şu anda çalışmıyor
+                </Text>
               </Box>
-              <Button variant="light" leftSection={<IconRefresh size={16} />} onClick={() => refetchStatus()}>
+              <Button
+                variant="light"
+                leftSection={<IconRefresh size={16} />}
+                onClick={() => refetchStatus()}
+              >
                 Tekrar Dene
               </Button>
             </Stack>
@@ -671,7 +848,14 @@ export default function InstagramPage() {
   // ===== LOADING STATE =====
   if (statusLoading) {
     return (
-      <Box style={{ minHeight: '100vh', background: isDark ? '#0a0a0f' : '#fafbfc', paddingTop: 100, paddingBottom: 40 }}>
+      <Box
+        style={{
+          minHeight: '100vh',
+          background: isDark ? '#0a0a0f' : '#fafbfc',
+          paddingTop: 100,
+          paddingBottom: 40,
+        }}
+      >
         <Container size="sm">
           <Paper p="xl" radius="lg" style={cardStyle}>
             <Stack align="center" gap="lg">
@@ -686,14 +870,22 @@ export default function InstagramPage() {
 
   // ===== MAIN RENDER =====
   return (
-    <Box style={{ minHeight: '100vh', background: isDark ? '#0a0a0f' : '#fafbfc', paddingTop: 80, paddingBottom: 40 }}>
+    <Box
+      style={{
+        minHeight: '100vh',
+        background: isDark ? '#0a0a0f' : '#fafbfc',
+        paddingTop: 80,
+        paddingBottom: 40,
+      }}
+    >
       <Container size="xl">
-        
         {/* ===== HESAP SEÇİCİ ===== */}
         <Paper p="md" radius="lg" mb="md" style={cardStyle}>
           <Group justify="space-between" align="center">
             <Group gap="xs">
-              <Text size="sm" fw={500} style={subtleText}>Hesaplar</Text>
+              <Text size="sm" fw={500} style={subtleText}>
+                Hesaplar
+              </Text>
               <Divider orientation="vertical" />
               <ScrollArea w={400} type="never">
                 <Group gap="xs" wrap="nowrap">
@@ -704,24 +896,37 @@ export default function InstagramPage() {
                       style={{
                         padding: '8px 16px',
                         borderRadius: 8,
-                        background: selectedAccountId === account.id 
-                          ? (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)')
-                          : 'transparent',
-                        border: selectedAccountId === account.id 
-                          ? `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}` 
-                          : '1px solid transparent',
+                        background:
+                          selectedAccountId === account.id
+                            ? isDark
+                              ? 'rgba(255,255,255,0.08)'
+                              : 'rgba(0,0,0,0.04)'
+                            : 'transparent',
+                        border:
+                          selectedAccountId === account.id
+                            ? `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`
+                            : '1px solid transparent',
                         transition: 'all 0.15s ease',
                       }}
                     >
                       <Group gap="xs" wrap="nowrap">
-                        <Indicator color={account.isConnected ? 'green' : 'gray'} size={8} offset={2} position="bottom-end">
+                        <Indicator
+                          color={account.isConnected ? 'green' : 'gray'}
+                          size={8}
+                          offset={2}
+                          position="bottom-end"
+                        >
                           <Avatar src={account.profile_pic} size={28} radius="xl">
                             {account.username[0].toUpperCase()}
                           </Avatar>
                         </Indicator>
                         <Box>
-                          <Text size="xs" fw={500}>@{account.username}</Text>
-                          <Text size="xs" style={subtleText}>{formatNumber(account.followers)} takipçi</Text>
+                          <Text size="xs" fw={500}>
+                            @{account.username}
+                          </Text>
+                          <Text size="xs" style={subtleText}>
+                            {formatNumber(account.followers)} takipçi
+                          </Text>
                         </Box>
                       </Group>
                     </UnstyledButton>
@@ -729,9 +934,9 @@ export default function InstagramPage() {
                 </Group>
               </ScrollArea>
             </Group>
-            <Button 
-              variant="subtle" 
-              size="xs" 
+            <Button
+              variant="subtle"
+              size="xs"
               leftSection={<IconPlus size={14} />}
               onClick={openAddAccount}
             >
@@ -745,10 +950,16 @@ export default function InstagramPage() {
           <Paper p="lg" radius="lg" mb="md" style={cardStyle}>
             <Group justify="space-between" align="flex-start">
               <Group gap="md">
-                <Indicator color={selectedAccount.isConnected ? 'green' : 'gray'} size={12} offset={4} position="bottom-end" withBorder>
-                  <Avatar 
-                    src={profile?.profile_pic || selectedAccount.profile_pic} 
-                    size={56} 
+                <Indicator
+                  color={selectedAccount.isConnected ? 'green' : 'gray'}
+                  size={12}
+                  offset={4}
+                  position="bottom-end"
+                  withBorder
+                >
+                  <Avatar
+                    src={profile?.profile_pic || selectedAccount.profile_pic}
+                    size={56}
                     radius="xl"
                     imageProps={{ referrerPolicy: 'no-referrer' }}
                   >
@@ -757,40 +968,89 @@ export default function InstagramPage() {
                 </Indicator>
                 <Box>
                   <Group gap="xs" mb={2}>
-                    <Text size="lg" fw={600}>{profile?.full_name || selectedAccount.full_name}</Text>
+                    <Text size="lg" fw={600}>
+                      {profile?.full_name || selectedAccount.full_name}
+                    </Text>
                     {selectedAccount.isConnected && (
-                      <Badge size="xs" variant="light" color="green">Bağlı</Badge>
+                      <Badge size="xs" variant="light" color="green">
+                        Bağlı
+                      </Badge>
                     )}
                   </Group>
-                  <Text size="sm" style={subtleText}>@{selectedAccount.username}</Text>
+                  <Text size="sm" style={subtleText}>
+                    @{selectedAccount.username}
+                  </Text>
                   <Group gap="md" mt="xs">
-                    <Text size="sm"><Text span fw={600}>{formatNumber(profile?.posts || selectedAccount.posts)}</Text> <Text span style={subtleText}>gönderi</Text></Text>
-                    <Text size="sm"><Text span fw={600}>{formatNumber(profile?.followers || selectedAccount.followers)}</Text> <Text span style={subtleText}>takipçi</Text></Text>
-                    <Text size="sm"><Text span fw={600}>{avgEngagement}%</Text> <Text span style={subtleText}>etkileşim</Text></Text>
+                    <Text size="sm">
+                      <Text span fw={600}>
+                        {formatNumber(profile?.posts || selectedAccount.posts)}
+                      </Text>{' '}
+                      <Text span style={subtleText}>
+                        gönderi
+                      </Text>
+                    </Text>
+                    <Text size="sm">
+                      <Text span fw={600}>
+                        {formatNumber(profile?.followers || selectedAccount.followers)}
+                      </Text>{' '}
+                      <Text span style={subtleText}>
+                        takipçi
+                      </Text>
+                    </Text>
+                    <Text size="sm">
+                      <Text span fw={600}>
+                        {avgEngagement}%
+                      </Text>{' '}
+                      <Text span style={subtleText}>
+                        etkileşim
+                      </Text>
+                    </Text>
                   </Group>
                 </Box>
               </Group>
-              
+
               <Group gap="xs">
                 <Tooltip label="Yenile">
-                  <ActionIcon variant="subtle" onClick={() => { refetchPosts(); refetchDMs(); }}>
+                  <ActionIcon
+                    variant="subtle"
+                    onClick={() => {
+                      refetchPosts();
+                      refetchDMs();
+                    }}
+                  >
                     <IconRefresh size={18} />
                   </ActionIcon>
                 </Tooltip>
-                <Button variant="light" size="sm" leftSection={<IconPlus size={16} />} onClick={openNewPost}>
+                <Button
+                  variant="light"
+                  size="sm"
+                  leftSection={<IconPlus size={16} />}
+                  onClick={openNewPost}
+                >
                   Yeni Gönderi
                 </Button>
                 <Menu shadow="sm" width={180}>
                   <Menu.Target>
-                    <ActionIcon variant="subtle"><IconDots size={18} /></ActionIcon>
+                    <ActionIcon variant="subtle">
+                      <IconDots size={18} />
+                    </ActionIcon>
                   </Menu.Target>
                   <Menu.Dropdown>
-                    <Menu.Item leftSection={<IconExternalLink size={14} />} component="a" href={`https://instagram.com/${selectedAccount.username}`} target="_blank">
+                    <Menu.Item
+                      leftSection={<IconExternalLink size={14} />}
+                      component="a"
+                      href={`https://instagram.com/${selectedAccount.username}`}
+                      target="_blank"
+                    >
                       Instagram'da Aç
                     </Menu.Item>
                     <Menu.Item leftSection={<IconSettings size={14} />}>Ayarlar</Menu.Item>
                     <Menu.Divider />
-                    <Menu.Item color="red" leftSection={<IconPlugOff size={14} />} onClick={() => logoutMutation.mutate()}>
+                    <Menu.Item
+                      color="red"
+                      leftSection={<IconPlugOff size={14} />}
+                      onClick={() => logoutMutation.mutate()}
+                    >
                       Bağlantıyı Kes
                     </Menu.Item>
                   </Menu.Dropdown>
@@ -802,11 +1062,9 @@ export default function InstagramPage() {
 
         {/* ===== BENTO GRID ===== */}
         <Grid gutter="md">
-          
           {/* Sol Kolon - Gönderiler + İstatistik */}
           <Grid.Col span={{ base: 12, md: 8 }}>
             <Stack gap="md">
-              
               {/* Son Gönderiler */}
               <Paper p="lg" radius="lg" style={cardStyle}>
                 <Group justify="space-between" mb="md">
@@ -815,10 +1073,12 @@ export default function InstagramPage() {
                     Tümü
                   </Button>
                 </Group>
-                
+
                 {postsLoading ? (
                   <SimpleGrid cols={4}>
-                    {[...Array(8)].map((_, i) => <Skeleton key={i} height={100} radius="md" />)}
+                    {[...Array(8)].map((_, i) => (
+                      <Skeleton key={i} height={100} radius="md" />
+                    ))}
                   </SimpleGrid>
                 ) : posts.length === 0 ? (
                   <Box ta="center" py="xl">
@@ -827,28 +1087,38 @@ export default function InstagramPage() {
                 ) : (
                   <SimpleGrid cols={{ base: 3, sm: 4 }} spacing="xs">
                     {posts.slice(0, 8).map((post) => (
-                      <UnstyledButton 
-                        key={post.id} 
-                        onClick={() => { setSelectedPost(post); openPostDetail(); }}
-                        style={{ borderRadius: 8, overflow: 'hidden', aspectRatio: '1/1', position: 'relative' }}
+                      <UnstyledButton
+                        key={post.id}
+                        onClick={() => {
+                          setSelectedPost(post);
+                          openPostDetail();
+                        }}
+                        style={{
+                          borderRadius: 8,
+                          overflow: 'hidden',
+                          aspectRatio: '1/1',
+                          position: 'relative',
+                        }}
                       >
-                        <Image 
-                          src={post.thumbnail || 'https://placehold.co/200x200/1a1a1a/333?text=📷'} 
-                          alt="" 
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                        <Image
+                          src={post.thumbnail || 'https://placehold.co/200x200/1a1a1a/333?text=📷'}
+                          alt=""
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
-                        <Box 
-                          pos="absolute" 
-                          bottom={0} 
-                          left={0} 
-                          right={0} 
+                        <Box
+                          pos="absolute"
+                          bottom={0}
+                          left={0}
+                          right={0}
                           p={6}
                           style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.7))' }}
                         >
                           <Group gap={6}>
                             <Group gap={2}>
                               <IconHeart size={10} color="white" />
-                              <Text size="xs" c="white">{formatNumber(post.likes)}</Text>
+                              <Text size="xs" c="white">
+                                {formatNumber(post.likes)}
+                              </Text>
                             </Group>
                           </Group>
                         </Box>
@@ -866,8 +1136,12 @@ export default function InstagramPage() {
                       <IconHeart size={18} />
                     </ThemeIcon>
                     <Box>
-                      <Text size="lg" fw={600}>{formatNumber(totalLikes)}</Text>
-                      <Text size="xs" style={subtleText}>Beğeni</Text>
+                      <Text size="lg" fw={600}>
+                        {formatNumber(totalLikes)}
+                      </Text>
+                      <Text size="xs" style={subtleText}>
+                        Beğeni
+                      </Text>
                     </Box>
                   </Group>
                 </Paper>
@@ -877,8 +1151,12 @@ export default function InstagramPage() {
                       <IconMessageCircle size={18} />
                     </ThemeIcon>
                     <Box>
-                      <Text size="lg" fw={600}>{formatNumber(totalComments)}</Text>
-                      <Text size="xs" style={subtleText}>Yorum</Text>
+                      <Text size="lg" fw={600}>
+                        {formatNumber(totalComments)}
+                      </Text>
+                      <Text size="xs" style={subtleText}>
+                        Yorum
+                      </Text>
                     </Box>
                   </Group>
                 </Paper>
@@ -888,8 +1166,12 @@ export default function InstagramPage() {
                       <IconEye size={18} />
                     </ThemeIcon>
                     <Box>
-                      <Text size="lg" fw={600}>{formatNumber((profile?.followers || 0) * 12)}</Text>
-                      <Text size="xs" style={subtleText}>Görüntülenme</Text>
+                      <Text size="lg" fw={600}>
+                        {formatNumber((profile?.followers || 0) * 12)}
+                      </Text>
+                      <Text size="xs" style={subtleText}>
+                        Görüntülenme
+                      </Text>
                     </Box>
                   </Group>
                 </Paper>
@@ -899,8 +1181,12 @@ export default function InstagramPage() {
                       <IconTrendingUp size={18} />
                     </ThemeIcon>
                     <Box>
-                      <Text size="lg" fw={600}>{avgEngagement}%</Text>
-                      <Text size="xs" style={subtleText}>Etkileşim</Text>
+                      <Text size="lg" fw={600}>
+                        {avgEngagement}%
+                      </Text>
+                      <Text size="xs" style={subtleText}>
+                        Etkileşim
+                      </Text>
                     </Box>
                   </Group>
                 </Paper>
@@ -911,16 +1197,22 @@ export default function InstagramPage() {
                 <Group justify="space-between" mb="md">
                   <Group gap="xs">
                     <Text fw={500}>Mesajlar</Text>
-                    {unreadDMs > 0 && <Badge size="sm" variant="light">{unreadDMs} yeni</Badge>}
+                    {unreadDMs > 0 && (
+                      <Badge size="sm" variant="light">
+                        {unreadDMs} yeni
+                      </Badge>
+                    )}
                   </Group>
                   <Button variant="subtle" size="xs" rightSection={<IconChevronRight size={14} />}>
                     Tümü
                   </Button>
                 </Group>
-                
+
                 {dmsLoading ? (
                   <Stack gap="xs">
-                    {[...Array(3)].map((_, i) => <Skeleton key={i} height={50} radius="md" />)}
+                    {[...Array(3)].map((_, i) => (
+                      <Skeleton key={i} height={50} radius="md" />
+                    ))}
                   </Stack>
                 ) : dms.length === 0 ? (
                   <Box ta="center" py="lg">
@@ -929,26 +1221,38 @@ export default function InstagramPage() {
                 ) : (
                   <Stack gap="xs">
                     {dms.slice(0, 4).map((dm) => (
-                      <UnstyledButton 
-                        key={dm.thread_id} 
+                      <UnstyledButton
+                        key={dm.thread_id}
                         onClick={() => handleSelectDM(dm)}
-                        style={{ 
-                          display: 'block', 
+                        style={{
+                          display: 'block',
                           padding: '10px 12px',
                           borderRadius: 8,
-                          background: dm.unread ? (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)') : 'transparent',
+                          background: dm.unread
+                            ? isDark
+                              ? 'rgba(255,255,255,0.03)'
+                              : 'rgba(0,0,0,0.02)'
+                            : 'transparent',
                         }}
                       >
                         <Group>
                           <Indicator disabled={!dm.unread} color="blue" size={8}>
-                            <Avatar radius="xl" size={36}>{dm.users[0]?.[0]?.toUpperCase()}</Avatar>
+                            <Avatar radius="xl" size={36}>
+                              {dm.users[0]?.[0]?.toUpperCase()}
+                            </Avatar>
                           </Indicator>
                           <Box style={{ flex: 1, minWidth: 0 }}>
                             <Group justify="space-between">
-                              <Text size="sm" fw={dm.unread ? 600 : 400}>@{dm.users[0]}</Text>
-                              <Text size="xs" style={subtleText}>{formatTimestamp(dm.timestamp)}</Text>
+                              <Text size="sm" fw={dm.unread ? 600 : 400}>
+                                @{dm.users[0]}
+                              </Text>
+                              <Text size="xs" style={subtleText}>
+                                {formatTimestamp(dm.timestamp)}
+                              </Text>
                             </Group>
-                            <Text size="xs" style={subtleText} truncate>{dm.last_message || 'Mesaj yok'}</Text>
+                            <Text size="xs" style={subtleText} truncate>
+                              {dm.last_message || 'Mesaj yok'}
+                            </Text>
                           </Box>
                         </Group>
                       </UnstyledButton>
@@ -962,7 +1266,6 @@ export default function InstagramPage() {
           {/* Sağ Kolon - AI Araçları + Otomasyonlar */}
           <Grid.Col span={{ base: 12, md: 4 }}>
             <Stack gap="md">
-              
               {/* AI Araçları */}
               <Paper p="lg" radius="lg" style={cardStyle}>
                 <Group justify="space-between" mb="md">
@@ -972,13 +1275,15 @@ export default function InstagramPage() {
                     </ThemeIcon>
                     <Text fw={500}>AI Araçları</Text>
                   </Group>
-                  <Button variant="subtle" size="xs" onClick={openAITools}>Genişlet</Button>
+                  <Button variant="subtle" size="xs" onClick={openAITools}>
+                    Genişlet
+                  </Button>
                 </Group>
-                
+
                 <Stack gap="xs">
-                  <UnstyledButton 
+                  <UnstyledButton
                     onClick={openAITools}
-                    style={{ 
+                    style={{
                       padding: '12px',
                       borderRadius: 8,
                       background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
@@ -987,16 +1292,20 @@ export default function InstagramPage() {
                     <Group gap="sm">
                       <IconCamera size={18} style={{ opacity: 0.6 }} />
                       <Box style={{ flex: 1 }}>
-                        <Text size="sm" fw={500}>Görsel → Caption</Text>
-                        <Text size="xs" style={subtleText}>Fotoğraftan açıklama üret</Text>
+                        <Text size="sm" fw={500}>
+                          Görsel → Caption
+                        </Text>
+                        <Text size="xs" style={subtleText}>
+                          Fotoğraftan açıklama üret
+                        </Text>
                       </Box>
                       <IconChevronRight size={14} style={{ opacity: 0.4 }} />
                     </Group>
                   </UnstyledButton>
-                  
-                  <UnstyledButton 
+
+                  <UnstyledButton
                     onClick={openAITools}
-                    style={{ 
+                    style={{
                       padding: '12px',
                       borderRadius: 8,
                       background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
@@ -1005,16 +1314,20 @@ export default function InstagramPage() {
                     <Group gap="sm">
                       <IconHash size={18} style={{ opacity: 0.6 }} />
                       <Box style={{ flex: 1 }}>
-                        <Text size="sm" fw={500}>Akıllı Hashtag</Text>
-                        <Text size="xs" style={subtleText}>Trend hashtag önerileri</Text>
+                        <Text size="sm" fw={500}>
+                          Akıllı Hashtag
+                        </Text>
+                        <Text size="xs" style={subtleText}>
+                          Trend hashtag önerileri
+                        </Text>
                       </Box>
                       <IconChevronRight size={14} style={{ opacity: 0.4 }} />
                     </Group>
                   </UnstyledButton>
-                  
-                  <UnstyledButton 
+
+                  <UnstyledButton
                     onClick={openAITools}
-                    style={{ 
+                    style={{
                       padding: '12px',
                       borderRadius: 8,
                       background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
@@ -1023,16 +1336,20 @@ export default function InstagramPage() {
                     <Group gap="sm">
                       <IconPhoto size={18} style={{ opacity: 0.6 }} />
                       <Box style={{ flex: 1 }}>
-                        <Text size="sm" fw={500}>AI Görsel Üret</Text>
-                        <Text size="xs" style={subtleText}>Flux ile görsel oluştur</Text>
+                        <Text size="sm" fw={500}>
+                          AI Görsel Üret
+                        </Text>
+                        <Text size="xs" style={subtleText}>
+                          Flux ile görsel oluştur
+                        </Text>
                       </Box>
                       <IconChevronRight size={14} style={{ opacity: 0.4 }} />
                     </Group>
                   </UnstyledButton>
-                  
-                  <UnstyledButton 
+
+                  <UnstyledButton
                     onClick={openAITools}
-                    style={{ 
+                    style={{
                       padding: '12px',
                       borderRadius: 8,
                       background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
@@ -1041,8 +1358,12 @@ export default function InstagramPage() {
                     <Group gap="sm">
                       <IconTemplate size={18} style={{ opacity: 0.6 }} />
                       <Box style={{ flex: 1 }}>
-                        <Text size="sm" fw={500}>Menü Kartı</Text>
-                        <Text size="xs" style={subtleText}>Şablondan menü oluştur</Text>
+                        <Text size="sm" fw={500}>
+                          Menü Kartı
+                        </Text>
+                        <Text size="xs" style={subtleText}>
+                          Şablondan menü oluştur
+                        </Text>
                       </Box>
                       <IconChevronRight size={14} style={{ opacity: 0.4 }} />
                     </Group>
@@ -1058,24 +1379,47 @@ export default function InstagramPage() {
                       <IconRobot size={14} />
                     </ThemeIcon>
                     <Text fw={500}>Otomasyonlar</Text>
-                    <Badge size="xs" variant="light">{activeAutomations} aktif</Badge>
+                    <Badge size="xs" variant="light">
+                      {activeAutomations} aktif
+                    </Badge>
                   </Group>
-                  <Button variant="subtle" size="xs" onClick={openAutomation}>Yönet</Button>
+                  <Button variant="subtle" size="xs" onClick={openAutomation}>
+                    Yönet
+                  </Button>
                 </Group>
-                
+
                 <Stack gap="xs">
-                  {automationTasks.filter(t => t.enabled).slice(0, 4).map((task) => (
-                    <Group key={task.id} justify="space-between" p="xs" style={{ borderRadius: 6, background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
-                      <Group gap="xs">
-                        <Box style={{ opacity: 0.6 }}>{task.icon}</Box>
-                        <Box>
-                          <Text size="xs" fw={500}>{task.name}</Text>
-                          <Text size="xs" style={subtleText}>{task.schedule}</Text>
-                        </Box>
+                  {automationTasks
+                    .filter((t) => t.enabled)
+                    .slice(0, 4)
+                    .map((task) => (
+                      <Group
+                        key={task.id}
+                        justify="space-between"
+                        p="xs"
+                        style={{
+                          borderRadius: 6,
+                          background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                        }}
+                      >
+                        <Group gap="xs">
+                          <Box style={{ opacity: 0.6 }}>{task.icon}</Box>
+                          <Box>
+                            <Text size="xs" fw={500}>
+                              {task.name}
+                            </Text>
+                            <Text size="xs" style={subtleText}>
+                              {task.schedule}
+                            </Text>
+                          </Box>
+                        </Group>
+                        <Switch
+                          size="xs"
+                          checked={task.enabled}
+                          onChange={() => toggleAutomation(task.id)}
+                        />
                       </Group>
-                      <Switch size="xs" checked={task.enabled} onChange={() => toggleAutomation(task.id)} />
-                    </Group>
-                  ))}
+                    ))}
                 </Stack>
               </Paper>
 
@@ -1087,20 +1431,30 @@ export default function InstagramPage() {
                   </ThemeIcon>
                   <Text fw={500}>Son Aktiviteler</Text>
                 </Group>
-                
+
                 <Timeline active={-1} bulletSize={20} lineWidth={1}>
                   {agentLogs.slice(0, 4).map((log) => (
                     <Timeline.Item
                       key={log.id}
                       bullet={
-                        log.status === 'success' ? <IconCheck size={10} /> :
-                        log.status === 'error' ? <IconX size={10} /> :
-                        <IconLoader size={10} />
+                        log.status === 'success' ? (
+                          <IconCheck size={10} />
+                        ) : log.status === 'error' ? (
+                          <IconX size={10} />
+                        ) : (
+                          <IconLoader size={10} />
+                        )
                       }
-                      color={log.status === 'success' ? 'green' : log.status === 'error' ? 'red' : 'blue'}
+                      color={
+                        log.status === 'success' ? 'green' : log.status === 'error' ? 'red' : 'blue'
+                      }
                     >
-                      <Text size="xs" fw={500}>{log.taskName}</Text>
-                      <Text size="xs" style={subtleText} lineClamp={1}>{log.message}</Text>
+                      <Text size="xs" fw={500}>
+                        {log.taskName}
+                      </Text>
+                      <Text size="xs" style={subtleText} lineClamp={1}>
+                        {log.message}
+                      </Text>
                     </Timeline.Item>
                   ))}
                 </Timeline>
@@ -1113,31 +1467,33 @@ export default function InstagramPage() {
       {/* ===== MODALS ===== */}
 
       {/* Hesap Ekleme Modal */}
-      <Modal 
-        opened={addAccountModal} 
-        onClose={closeAddAccount} 
+      <Modal
+        opened={addAccountModal}
+        onClose={closeAddAccount}
         title={<Text fw={600}>Hesap Ekle</Text>}
         size="sm"
         centered
       >
         <Stack gap="md">
-          <TextInput 
-            label="Kullanıcı Adı" 
-            placeholder="instagram_kullanici_adi" 
-            value={username} 
-            onChange={(e) => setUsername(e.target.value)} 
+          <TextInput
+            label="Kullanıcı Adı"
+            placeholder="instagram_kullanici_adi"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             leftSection={<IconAt size={14} />}
           />
-          <TextInput 
-            label="Şifre" 
-            type="password" 
-            placeholder="••••••••" 
-            value={password} 
-            onChange={(e) => setPassword(e.target.value)} 
+          <TextInput
+            label="Şifre"
+            type="password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
           />
-          <Button 
-            fullWidth 
-            leftSection={loginMutation.isPending ? <Loader size={14} color="white" /> : <IconPlug size={16} />}
+          <Button
+            fullWidth
+            leftSection={
+              loginMutation.isPending ? <Loader size={14} color="white" /> : <IconPlug size={16} />
+            }
             onClick={() => loginMutation.mutate({ username, password })}
             disabled={loginMutation.isPending || !username || !password}
           >
@@ -1150,24 +1506,26 @@ export default function InstagramPage() {
       </Modal>
 
       {/* 2FA Modal */}
-      <Modal 
-        opened={twoFactorModal} 
-        onClose={closeTwoFactor} 
+      <Modal
+        opened={twoFactorModal}
+        onClose={closeTwoFactor}
         title={<Text fw={600}>İki Faktörlü Doğrulama</Text>}
         size="sm"
         centered
       >
         <Stack gap="md">
-          <Text size="sm" style={subtleText}>Telefonunuza gelen 6 haneli kodu girin.</Text>
-          <TextInput 
-            placeholder="123456" 
-            value={verificationCode} 
-            onChange={(e) => setVerificationCode(e.target.value)} 
+          <Text size="sm" style={subtleText}>
+            Telefonunuza gelen 6 haneli kodu girin.
+          </Text>
+          <TextInput
+            placeholder="123456"
+            value={verificationCode}
+            onChange={(e) => setVerificationCode(e.target.value)}
             maxLength={6}
             styles={{ input: { textAlign: 'center', letterSpacing: 8, fontSize: 20 } }}
           />
-          <Button 
-            fullWidth 
+          <Button
+            fullWidth
             onClick={() => loginMutation.mutate({ username, password, code: verificationCode })}
             loading={loginMutation.isPending}
           >
@@ -1177,66 +1535,96 @@ export default function InstagramPage() {
       </Modal>
 
       {/* Yeni Gönderi Modal */}
-      <Modal 
-        opened={newPostModal} 
-        onClose={closeNewPost} 
+      <Modal
+        opened={newPostModal}
+        onClose={closeNewPost}
         title={<Text fw={600}>Yeni Gönderi</Text>}
         size="lg"
         centered
       >
         <Stack gap="md">
-          <FileInput 
-            label="Görsel" 
-            placeholder="Bir görsel seçin" 
-            accept="image/*" 
-            value={selectedFile} 
-            onChange={setSelectedFile} 
+          <FileInput
+            label="Görsel"
+            placeholder="Bir görsel seçin"
+            accept="image/*"
+            value={selectedFile}
+            onChange={setSelectedFile}
             leftSection={<IconUpload size={14} />}
           />
-          
+
           {selectedFile && (
             <Box style={{ borderRadius: 12, overflow: 'hidden', maxHeight: 250 }}>
-              <img src={URL.createObjectURL(selectedFile)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img
+                src={URL.createObjectURL(selectedFile)}
+                alt=""
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
             </Box>
           )}
-          
-          <Textarea 
-            label="Açıklama" 
-            placeholder="Gönderiniz için bir açıklama yazın..." 
-            value={caption} 
-            onChange={(e) => setCaption(e.target.value)} 
+
+          <Textarea
+            label="Açıklama"
+            placeholder="Gönderiniz için bir açıklama yazın..."
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
             minRows={3}
             rightSection={
               <Tooltip label="AI ile oluştur">
-                <ActionIcon variant="subtle" onClick={handleGenerateCaption} loading={isGeneratingCaption} disabled={!selectedFile}>
+                <ActionIcon
+                  variant="subtle"
+                  onClick={handleGenerateCaption}
+                  loading={isGeneratingCaption}
+                  disabled={!selectedFile}
+                >
                   <IconSparkles size={14} />
                 </ActionIcon>
               </Tooltip>
             }
           />
-          
+
           <Group gap="xs">
-            <Button variant="light" size="xs" leftSection={<IconHash size={12} />} onClick={handleGenerateHashtags} loading={isGeneratingHashtags} disabled={!caption}>
+            <Button
+              variant="light"
+              size="xs"
+              leftSection={<IconHash size={12} />}
+              onClick={handleGenerateHashtags}
+              loading={isGeneratingHashtags}
+              disabled={!caption}
+            >
               Hashtag Öner
             </Button>
           </Group>
-          
+
           {suggestedHashtags.length > 0 && (
             <Group gap={4}>
               {suggestedHashtags.slice(0, 8).map((tag) => (
-                <Badge key={tag} size="sm" variant="light" style={{ cursor: 'pointer' }} onClick={() => addHashtagToCaption(tag)}>
+                <Badge
+                  key={tag}
+                  size="sm"
+                  variant="light"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => addHashtagToCaption(tag)}
+                >
                   #{tag}
                 </Badge>
               ))}
             </Group>
           )}
-          
+
           <Divider />
-          
+
           <Group justify="flex-end">
-            <Button variant="subtle" onClick={closeNewPost}>İptal</Button>
-            <Button 
-              leftSection={uploadMutation.isPending ? <Loader size={14} color="white" /> : <IconSend size={14} />}
+            <Button variant="subtle" onClick={closeNewPost}>
+              İptal
+            </Button>
+            <Button
+              leftSection={
+                uploadMutation.isPending ? (
+                  <Loader size={14} color="white" />
+                ) : (
+                  <IconSend size={14} />
+                )
+              }
               onClick={() => selectedFile && uploadMutation.mutate({ file: selectedFile, caption })}
               loading={uploadMutation.isPending}
               disabled={!selectedFile}
@@ -1248,9 +1636,9 @@ export default function InstagramPage() {
       </Modal>
 
       {/* Post Detay Modal */}
-      <Modal 
-        opened={postDetailModal} 
-        onClose={closePostDetail} 
+      <Modal
+        opened={postDetailModal}
+        onClose={closePostDetail}
         size="lg"
         padding={0}
         radius="lg"
@@ -1259,38 +1647,78 @@ export default function InstagramPage() {
         {selectedPost && (
           <Grid gutter={0}>
             <Grid.Col span={{ base: 12, md: 7 }}>
-              <Image 
-                src={selectedPost.thumbnail || 'https://placehold.co/600x600/1a1a1a/333?text=📷'} 
-                style={{ width: '100%', height: '100%', minHeight: 350, objectFit: 'cover' }} 
+              <Image
+                src={selectedPost.thumbnail || 'https://placehold.co/600x600/1a1a1a/333?text=📷'}
+                style={{ width: '100%', height: '100%', minHeight: 350, objectFit: 'cover' }}
               />
             </Grid.Col>
             <Grid.Col span={{ base: 12, md: 5 }}>
               <Stack gap={0} h="100%">
-                <Box p="md" style={{ borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}` }}>
+                <Box
+                  p="md"
+                  style={{
+                    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
+                  }}
+                >
                   <Group justify="space-between">
                     <Group gap="sm">
-                      <Avatar src={profile?.profile_pic} radius="xl" size="sm">{selectedAccount?.username?.[0]?.toUpperCase()}</Avatar>
-                      <Text size="sm" fw={500}>@{selectedAccount?.username}</Text>
+                      <Avatar src={profile?.profile_pic} radius="xl" size="sm">
+                        {selectedAccount?.username?.[0]?.toUpperCase()}
+                      </Avatar>
+                      <Text size="sm" fw={500}>
+                        @{selectedAccount?.username}
+                      </Text>
                     </Group>
-                    <ActionIcon variant="subtle" onClick={closePostDetail}><IconX size={16} /></ActionIcon>
+                    <ActionIcon variant="subtle" onClick={closePostDetail}>
+                      <IconX size={16} />
+                    </ActionIcon>
                   </Group>
                 </Box>
                 <ScrollArea style={{ flex: 1 }} p="md">
                   <Text size="sm">{selectedPost.caption || 'Açıklama yok'}</Text>
-                  <Text size="xs" style={subtleText} mt="md">{formatTimestamp(selectedPost.timestamp)}</Text>
+                  <Text size="xs" style={subtleText} mt="md">
+                    {formatTimestamp(selectedPost.timestamp)}
+                  </Text>
                 </ScrollArea>
-                <Box p="md" style={{ borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}` }}>
+                <Box
+                  p="md"
+                  style={{
+                    borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
+                  }}
+                >
                   <Group justify="space-between" mb="sm">
                     <Group gap="md">
-                      <Group gap={4}><IconHeart size={18} /><Text size="sm" fw={500}>{formatNumber(selectedPost.likes)}</Text></Group>
-                      <Group gap={4}><IconMessageCircle size={18} /><Text size="sm" fw={500}>{formatNumber(selectedPost.comments)}</Text></Group>
+                      <Group gap={4}>
+                        <IconHeart size={18} />
+                        <Text size="sm" fw={500}>
+                          {formatNumber(selectedPost.likes)}
+                        </Text>
+                      </Group>
+                      <Group gap={4}>
+                        <IconMessageCircle size={18} />
+                        <Text size="sm" fw={500}>
+                          {formatNumber(selectedPost.comments)}
+                        </Text>
+                      </Group>
                     </Group>
                     <Group gap="xs">
-                      <ActionIcon variant="subtle"><IconBookmark size={16} /></ActionIcon>
-                      <ActionIcon variant="subtle"><IconShare size={16} /></ActionIcon>
+                      <ActionIcon variant="subtle">
+                        <IconBookmark size={16} />
+                      </ActionIcon>
+                      <ActionIcon variant="subtle">
+                        <IconShare size={16} />
+                      </ActionIcon>
                     </Group>
                   </Group>
-                  <Button variant="light" fullWidth size="sm" leftSection={<IconExternalLink size={14} />} component="a" href={`https://instagram.com/p/${selectedPost.code}`} target="_blank">
+                  <Button
+                    variant="light"
+                    fullWidth
+                    size="sm"
+                    leftSection={<IconExternalLink size={14} />}
+                    component="a"
+                    href={`https://instagram.com/p/${selectedPost.code}`}
+                    target="_blank"
+                  >
                     Instagram'da Aç
                   </Button>
                 </Box>
@@ -1301,10 +1729,21 @@ export default function InstagramPage() {
       </Modal>
 
       {/* DM Modal */}
-      <Modal 
-        opened={dmModal} 
-        onClose={closeDM} 
-        title={selectedDM ? <Group gap="sm"><Avatar radius="xl" size="sm">{selectedDM.users[0]?.[0]?.toUpperCase()}</Avatar><Text fw={500}>@{selectedDM.users[0]}</Text></Group> : 'Mesaj'}
+      <Modal
+        opened={dmModal}
+        onClose={closeDM}
+        title={
+          selectedDM ? (
+            <Group gap="sm">
+              <Avatar radius="xl" size="sm">
+                {selectedDM.users[0]?.[0]?.toUpperCase()}
+              </Avatar>
+              <Text fw={500}>@{selectedDM.users[0]}</Text>
+            </Group>
+          ) : (
+            'Mesaj'
+          )
+        }
         size="md"
       >
         {selectedDM && (
@@ -1312,37 +1751,68 @@ export default function InstagramPage() {
             <ScrollArea h={300}>
               <Stack gap="sm">
                 {dmMessages.length === 0 ? (
-                  <Text ta="center" style={subtleText}>Mesajlar yükleniyor...</Text>
-                ) : dmMessages.map((msg) => (
-                  <Group key={msg.id} justify={msg.is_me ? 'flex-end' : 'flex-start'}>
-                    <Paper p="sm" radius="md" maw="80%" style={{ background: msg.is_me ? (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') : (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)') }}>
-                      <Text size="sm">{msg.text}</Text>
-                      <Text size="xs" style={subtleText} ta="right" mt={4}>{formatTimestamp(msg.timestamp)}</Text>
-                    </Paper>
-                  </Group>
-                ))}
+                  <Text ta="center" style={subtleText}>
+                    Mesajlar yükleniyor...
+                  </Text>
+                ) : (
+                  dmMessages.map((msg) => (
+                    <Group key={msg.id} justify={msg.is_me ? 'flex-end' : 'flex-start'}>
+                      <Paper
+                        p="sm"
+                        radius="md"
+                        maw="80%"
+                        style={{
+                          background: msg.is_me
+                            ? isDark
+                              ? 'rgba(255,255,255,0.1)'
+                              : 'rgba(0,0,0,0.05)'
+                            : isDark
+                              ? 'rgba(255,255,255,0.03)'
+                              : 'rgba(0,0,0,0.02)',
+                        }}
+                      >
+                        <Text size="sm">{msg.text}</Text>
+                        <Text size="xs" style={subtleText} ta="right" mt={4}>
+                          {formatTimestamp(msg.timestamp)}
+                        </Text>
+                      </Paper>
+                    </Group>
+                  ))
+                )}
               </Stack>
             </ScrollArea>
-            
+
             <ScrollArea type="never">
               <Group gap="xs" wrap="nowrap">
                 {quickReplies.map((qr, i) => (
-                  <Button key={i} size="xs" variant="light" onClick={() => setNewMessage(qr.text)} style={{ flexShrink: 0 }}>
+                  <Button
+                    key={i}
+                    size="xs"
+                    variant="light"
+                    onClick={() => setNewMessage(qr.text)}
+                    style={{ flexShrink: 0 }}
+                  >
                     {qr.label}
                   </Button>
                 ))}
               </Group>
             </ScrollArea>
-            
+
             <Group>
-              <TextInput 
-                placeholder="Mesaj yaz..." 
-                value={newMessage} 
+              <TextInput
+                placeholder="Mesaj yaz..."
+                value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSendDM()}
                 style={{ flex: 1 }}
               />
-              <ActionIcon size="lg" variant="filled" onClick={handleSendDM} loading={isSendingDM} disabled={!newMessage.trim()}>
+              <ActionIcon
+                size="lg"
+                variant="filled"
+                onClick={handleSendDM}
+                loading={isSendingDM}
+                disabled={!newMessage.trim()}
+              >
                 <IconSend size={16} />
               </ActionIcon>
             </Group>
@@ -1351,74 +1821,111 @@ export default function InstagramPage() {
       </Modal>
 
       {/* AI Araçları Modal */}
-      <Modal 
-        opened={aiToolsModal} 
-        onClose={closeAITools} 
-        title={<Group gap="xs"><IconSparkles size={18} /><Text fw={600}>AI Araçları</Text></Group>}
+      <Modal
+        opened={aiToolsModal}
+        onClose={closeAITools}
+        title={
+          <Group gap="xs">
+            <IconSparkles size={18} />
+            <Text fw={600}>AI Araçları</Text>
+          </Group>
+        }
         size="xl"
       >
         <Tabs defaultValue="caption">
           <Tabs.List mb="md">
-            <Tabs.Tab value="caption" leftSection={<IconCamera size={14} />}>Caption</Tabs.Tab>
-            <Tabs.Tab value="hashtag" leftSection={<IconHash size={14} />}>Hashtag</Tabs.Tab>
-            <Tabs.Tab value="image" leftSection={<IconPhoto size={14} />}>Görsel Üret</Tabs.Tab>
-            <Tabs.Tab value="menu" leftSection={<IconTemplate size={14} />}>Menü Kartı</Tabs.Tab>
+            <Tabs.Tab value="caption" leftSection={<IconCamera size={14} />}>
+              Caption
+            </Tabs.Tab>
+            <Tabs.Tab value="hashtag" leftSection={<IconHash size={14} />}>
+              Hashtag
+            </Tabs.Tab>
+            <Tabs.Tab value="image" leftSection={<IconPhoto size={14} />}>
+              Görsel Üret
+            </Tabs.Tab>
+            <Tabs.Tab value="menu" leftSection={<IconTemplate size={14} />}>
+              Menü Kartı
+            </Tabs.Tab>
           </Tabs.List>
 
           <Tabs.Panel value="caption">
             <Stack gap="md">
               {/* Açıklama */}
-              <Paper p="sm" radius="md" style={{ 
-                background: isDark 
-                  ? 'linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(244, 114, 182, 0.05) 100%)' 
-                  : 'linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(244, 114, 182, 0.04) 100%)',
-                border: `1px solid ${isDark ? 'rgba(236, 72, 153, 0.2)' : 'rgba(236, 72, 153, 0.15)'}`,
-              }}>
+              <Paper
+                p="sm"
+                radius="md"
+                style={{
+                  background: isDark
+                    ? 'linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(244, 114, 182, 0.05) 100%)'
+                    : 'linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(244, 114, 182, 0.04) 100%)',
+                  border: `1px solid ${isDark ? 'rgba(236, 72, 153, 0.2)' : 'rgba(236, 72, 153, 0.15)'}`,
+                }}
+              >
                 <Group gap="xs" align="flex-start">
                   <ThemeIcon size={28} radius="md" variant="light" color="pink">
                     <IconCamera size={14} />
                   </ThemeIcon>
                   <Box style={{ flex: 1 }}>
-                    <Text size="sm" fw={600}>Görsel → Caption</Text>
+                    <Text size="sm" fw={600}>
+                      Görsel → Caption
+                    </Text>
                     <Text size="xs" style={subtleText}>
-                      Görseli yükleyin, AI içeriğe uygun Türkçe açıklama oluştursun. Yemek fotoğraflarında harika çalışır!
+                      Görseli yükleyin, AI içeriğe uygun Türkçe açıklama oluştursun. Yemek
+                      fotoğraflarında harika çalışır!
                     </Text>
                   </Box>
                 </Group>
               </Paper>
 
-              <FileInput 
-                label="Görsel Seç" 
-                placeholder="Bir görsel seçin veya sürükleyip bırakın" 
-                accept="image/*" 
-                value={selectedFile} 
+              <FileInput
+                label="Görsel Seç"
+                placeholder="Bir görsel seçin veya sürükleyip bırakın"
+                accept="image/*"
+                value={selectedFile}
                 onChange={setSelectedFile}
                 leftSection={<IconPhoto size={14} />}
                 styles={{
                   input: {
                     background: isDark ? 'rgba(255,255,255,0.02)' : '#fff',
-                  }
+                  },
                 }}
               />
               {selectedFile && (
-                <Box style={{ borderRadius: 12, overflow: 'hidden', height: 180, position: 'relative' }}>
-                  <img src={URL.createObjectURL(selectedFile)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  <Box style={{ 
-                    position: 'absolute', 
-                    bottom: 0, 
-                    left: 0, 
-                    right: 0, 
-                    padding: '8px 12px',
-                    background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
-                  }}>
-                    <Text size="xs" c="white" truncate>{selectedFile.name}</Text>
+                <Box
+                  style={{
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                    height: 180,
+                    position: 'relative',
+                  }}
+                >
+                  <img
+                    src={URL.createObjectURL(selectedFile)}
+                    alt=""
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                  <Box
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      padding: '8px 12px',
+                      background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
+                    }}
+                  >
+                    <Text size="xs" c="white" truncate>
+                      {selectedFile.name}
+                    </Text>
                   </Box>
                 </Box>
               )}
-              <Button 
+              <Button
                 variant="gradient"
                 gradient={{ from: 'pink', to: 'grape', deg: 135 }}
-                leftSection={isGeneratingCaption ? <Loader size={14} color="white" /> : <IconWand size={16} />}
+                leftSection={
+                  isGeneratingCaption ? <Loader size={14} color="white" /> : <IconWand size={16} />
+                }
                 onClick={handleGenerateCaption}
                 loading={isGeneratingCaption}
                 disabled={!selectedFile}
@@ -1427,19 +1934,25 @@ export default function InstagramPage() {
                 Caption Üret
               </Button>
               {caption && (
-                <Paper p="md" radius="md" style={{ 
-                  background: isDark ? 'rgba(34, 197, 94, 0.05)' : 'rgba(34, 197, 94, 0.03)',
-                  border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.15)'}`,
-                }}>
+                <Paper
+                  p="md"
+                  radius="md"
+                  style={{
+                    background: isDark ? 'rgba(34, 197, 94, 0.05)' : 'rgba(34, 197, 94, 0.03)',
+                    border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.15)'}`,
+                  }}
+                >
                   <Group justify="space-between" mb="xs">
                     <Group gap="xs">
                       <IconCheck size={14} style={{ color: '#22c55e' }} />
-                      <Text size="sm" fw={600}>Oluşturulan Caption</Text>
+                      <Text size="sm" fw={600}>
+                        Oluşturulan Caption
+                      </Text>
                     </Group>
                     <Tooltip label="Kopyala">
-                      <ActionIcon 
-                        variant="subtle" 
-                        size="sm" 
+                      <ActionIcon
+                        variant="subtle"
+                        size="sm"
                         onClick={() => {
                           navigator.clipboard.writeText(caption);
                           notifications.show({ message: 'Caption kopyalandı', color: 'green' });
@@ -1449,7 +1962,9 @@ export default function InstagramPage() {
                       </ActionIcon>
                     </Tooltip>
                   </Group>
-                  <Text size="sm" style={{ lineHeight: 1.6 }}>{caption}</Text>
+                  <Text size="sm" style={{ lineHeight: 1.6 }}>
+                    {caption}
+                  </Text>
                 </Paper>
               )}
             </Stack>
@@ -1458,20 +1973,27 @@ export default function InstagramPage() {
           <Tabs.Panel value="hashtag">
             <Stack gap="md">
               {/* Açıklama */}
-              <Paper p="sm" radius="md" style={{ 
-                background: isDark 
-                  ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%)' 
-                  : 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.04) 100%)',
-                border: `1px solid ${isDark ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.15)'}`,
-              }}>
+              <Paper
+                p="sm"
+                radius="md"
+                style={{
+                  background: isDark
+                    ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%)'
+                    : 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.04) 100%)',
+                  border: `1px solid ${isDark ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.15)'}`,
+                }}
+              >
                 <Group gap="xs" align="flex-start">
                   <ThemeIcon size={28} radius="md" variant="light" color="indigo">
                     <IconHash size={14} />
                   </ThemeIcon>
                   <Box style={{ flex: 1 }}>
-                    <Text size="sm" fw={600}>Akıllı Hashtag Önerici</Text>
+                    <Text size="sm" fw={600}>
+                      Akıllı Hashtag Önerici
+                    </Text>
                     <Text size="xs" style={subtleText}>
-                      İçeriğinize uygun, trend ve lokasyon bazlı hashtagler önerir. Tıklayarak caption'a ekleyebilirsiniz.
+                      İçeriğinize uygun, trend ve lokasyon bazlı hashtagler önerir. Tıklayarak
+                      caption'a ekleyebilirsiniz.
                     </Text>
                   </Box>
                 </Group>
@@ -1479,16 +2001,23 @@ export default function InstagramPage() {
 
               {/* Hızlı Başlangıç Önerileri */}
               <Box>
-                <Text size="xs" fw={500} mb={6} style={subtleText}>💡 Hızlı başlangıç:</Text>
+                <Text size="xs" fw={500} mb={6} style={subtleText}>
+                  💡 Hızlı başlangıç:
+                </Text>
                 <ScrollArea type="never">
                   <Group gap={6} wrap="nowrap">
-                    {['Bugünkü öğle menümüz hazır! 🍽️', 'Taze malzeme, lezzetli yemek', 'Haftalık menü planı açıklandı', 'Kurumsal catering hizmeti'].map((s) => (
-                      <Badge 
-                        key={s} 
-                        size="sm" 
+                    {[
+                      'Bugünkü öğle menümüz hazır! 🍽️',
+                      'Taze malzeme, lezzetli yemek',
+                      'Haftalık menü planı açıklandı',
+                      'Kurumsal catering hizmeti',
+                    ].map((s) => (
+                      <Badge
+                        key={s}
+                        size="sm"
                         variant="outline"
                         color="gray"
-                        style={{ cursor: 'pointer', flexShrink: 0 }} 
+                        style={{ cursor: 'pointer', flexShrink: 0 }}
                         onClick={() => setCaption(s)}
                       >
                         {s}
@@ -1499,30 +2028,36 @@ export default function InstagramPage() {
               </Box>
 
               {/* Caption Input */}
-              <Textarea 
+              <Textarea
                 label={
                   <Group justify="space-between" w="100%">
-                    <Text size="sm" fw={500}>Caption</Text>
-                    <Text size="xs" style={subtleText}>{caption.length} karakter</Text>
+                    <Text size="sm" fw={500}>
+                      Caption
+                    </Text>
+                    <Text size="xs" style={subtleText}>
+                      {caption.length} karakter
+                    </Text>
                   </Group>
                 }
-                placeholder="Hashtag önerisi için caption veya konu yazın..." 
+                placeholder="Hashtag önerisi için caption veya konu yazın..."
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 minRows={3}
                 styles={{
                   input: {
                     background: isDark ? 'rgba(255,255,255,0.02)' : '#fff',
-                    '&:focus': { borderColor: 'var(--mantine-color-indigo-5)' }
-                  }
+                    '&:focus': { borderColor: 'var(--mantine-color-indigo-5)' },
+                  },
                 }}
               />
-              
+
               {/* Hashtag Üret Butonu */}
-              <Button 
+              <Button
                 variant="gradient"
                 gradient={{ from: 'indigo', to: 'violet', deg: 135 }}
-                leftSection={isGeneratingHashtags ? <Loader size={14} color="white" /> : <IconHash size={16} />}
+                leftSection={
+                  isGeneratingHashtags ? <Loader size={14} color="white" /> : <IconHash size={16} />
+                }
                 onClick={handleGenerateHashtags}
                 loading={isGeneratingHashtags}
                 disabled={!caption}
@@ -1533,21 +2068,29 @@ export default function InstagramPage() {
 
               {/* Önerilen Hashtagler */}
               {suggestedHashtags.length > 0 && (
-                <Paper p="md" radius="md" style={{ 
-                  background: isDark ? 'rgba(34, 197, 94, 0.05)' : 'rgba(34, 197, 94, 0.03)',
-                  border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.15)'}`,
-                }}>
+                <Paper
+                  p="md"
+                  radius="md"
+                  style={{
+                    background: isDark ? 'rgba(34, 197, 94, 0.05)' : 'rgba(34, 197, 94, 0.03)',
+                    border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.15)'}`,
+                  }}
+                >
                   <Group justify="space-between" mb="sm">
                     <Group gap="xs">
                       <IconCheck size={14} style={{ color: '#22c55e' }} />
-                      <Text size="sm" fw={600}>{suggestedHashtags.length} Hashtag Önerildi</Text>
+                      <Text size="sm" fw={600}>
+                        {suggestedHashtags.length} Hashtag Önerildi
+                      </Text>
                     </Group>
                     <Tooltip label="Tümünü kopyala">
-                      <ActionIcon 
-                        variant="subtle" 
-                        size="sm" 
+                      <ActionIcon
+                        variant="subtle"
+                        size="sm"
                         onClick={() => {
-                          navigator.clipboard.writeText(suggestedHashtags.map(t => `#${t}`).join(' '));
+                          navigator.clipboard.writeText(
+                            suggestedHashtags.map((t) => `#${t}`).join(' ')
+                          );
                           notifications.show({ message: 'Hashtagler kopyalandı', color: 'green' });
                         }}
                       >
@@ -1555,19 +2098,25 @@ export default function InstagramPage() {
                       </ActionIcon>
                     </Tooltip>
                   </Group>
-                  <Text size="xs" style={subtleText} mb="sm">🎯 Tıklayarak caption'a ekle</Text>
+                  <Text size="xs" style={subtleText} mb="sm">
+                    🎯 Tıklayarak caption'a ekle
+                  </Text>
                   <Group gap={6}>
                     {suggestedHashtags.map((tag) => (
-                      <Badge 
-                        key={tag} 
-                        size="sm" 
-                        variant="light" 
+                      <Badge
+                        key={tag}
+                        size="sm"
+                        variant="light"
                         color="teal"
                         style={{ cursor: 'pointer', transition: 'transform 0.15s ease' }}
                         styles={{ root: { '&:hover': { transform: 'scale(1.05)' } } }}
                         onClick={() => {
                           addHashtagToCaption(tag);
-                          notifications.show({ message: `#${tag} eklendi`, color: 'green', autoClose: 1500 });
+                          notifications.show({
+                            message: `#${tag} eklendi`,
+                            color: 'green',
+                            autoClose: 1500,
+                          });
                         }}
                       >
                         #{tag}
@@ -1587,20 +2136,27 @@ export default function InstagramPage() {
           <Tabs.Panel value="image">
             <Stack gap="md">
               {/* Açıklama */}
-              <Paper p="sm" radius="md" style={{ 
-                background: isDark 
-                  ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(34, 211, 238, 0.05) 100%)' 
-                  : 'linear-gradient(135deg, rgba(6, 182, 212, 0.08) 0%, rgba(34, 211, 238, 0.04) 100%)',
-                border: `1px solid ${isDark ? 'rgba(6, 182, 212, 0.2)' : 'rgba(6, 182, 212, 0.15)'}`,
-              }}>
+              <Paper
+                p="sm"
+                radius="md"
+                style={{
+                  background: isDark
+                    ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(34, 211, 238, 0.05) 100%)'
+                    : 'linear-gradient(135deg, rgba(6, 182, 212, 0.08) 0%, rgba(34, 211, 238, 0.04) 100%)',
+                  border: `1px solid ${isDark ? 'rgba(6, 182, 212, 0.2)' : 'rgba(6, 182, 212, 0.15)'}`,
+                }}
+              >
                 <Group gap="xs" align="flex-start">
                   <ThemeIcon size={28} radius="md" variant="light" color="cyan">
                     <IconPhoto size={14} />
                   </ThemeIcon>
                   <Box style={{ flex: 1 }}>
-                    <Text size="sm" fw={600}>AI Görsel Üretici</Text>
+                    <Text size="sm" fw={600}>
+                      AI Görsel Üretici
+                    </Text>
                     <Text size="xs" style={subtleText}>
-                      Türkçe yaz, AI İngilizce prompt'a çevirip profesyonel görsel üretsin. Flux Schnell ile ~3 saniyede hazır!
+                      Türkçe yaz, AI İngilizce prompt'a çevirip profesyonel görsel üretsin. Flux
+                      Schnell ile ~3 saniyede hazır!
                     </Text>
                   </Box>
                 </Group>
@@ -1608,16 +2164,24 @@ export default function InstagramPage() {
 
               {/* Hızlı Öneriler */}
               <Box>
-                <Text size="xs" fw={500} mb={6} style={subtleText}>🍽️ Popüler yemek görselleri:</Text>
+                <Text size="xs" fw={500} mb={6} style={subtleText}>
+                  🍽️ Popüler yemek görselleri:
+                </Text>
                 <ScrollArea type="never">
                   <Group gap={6} wrap="nowrap">
-                    {['Izgara tavuk, pilav', 'Taze salata, stüdyo', 'Mercimek çorbası', 'Et sote, sebze', 'Kahvaltı tabağı'].map((s) => (
-                      <Badge 
-                        key={s} 
-                        size="sm" 
+                    {[
+                      'Izgara tavuk, pilav',
+                      'Taze salata, stüdyo',
+                      'Mercimek çorbası',
+                      'Et sote, sebze',
+                      'Kahvaltı tabağı',
+                    ].map((s) => (
+                      <Badge
+                        key={s}
+                        size="sm"
                         variant="outline"
                         color="cyan"
-                        style={{ cursor: 'pointer', flexShrink: 0 }} 
+                        style={{ cursor: 'pointer', flexShrink: 0 }}
                         onClick={() => setImagePrompt(s)}
                       >
                         {s}
@@ -1627,56 +2191,76 @@ export default function InstagramPage() {
                 </ScrollArea>
               </Box>
 
-              <Textarea 
+              <Textarea
                 label="Görsel Açıklaması"
-                placeholder="Örn: Profesyonel fotoğraf, pilav üstü et sote, stüdyo ışığında, beyaz tabakta..." 
+                placeholder="Örn: Profesyonel fotoğraf, pilav üstü et sote, stüdyo ışığında, beyaz tabakta..."
                 value={imagePrompt}
                 onChange={(e) => setImagePrompt(e.target.value)}
                 minRows={2}
                 styles={{
                   input: {
                     background: isDark ? 'rgba(255,255,255,0.02)' : '#fff',
-                  }
+                  },
                 }}
               />
 
               {generatedPrompt && (
-                <Paper p="sm" radius="md" style={{ 
-                  background: isDark ? 'rgba(139, 92, 246, 0.05)' : 'rgba(139, 92, 246, 0.03)',
-                  border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.15)'}`,
-                }}>
+                <Paper
+                  p="sm"
+                  radius="md"
+                  style={{
+                    background: isDark ? 'rgba(139, 92, 246, 0.05)' : 'rgba(139, 92, 246, 0.03)',
+                    border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.15)'}`,
+                  }}
+                >
                   <Group justify="space-between" mb={4}>
                     <Group gap="xs">
                       <IconCheck size={12} style={{ color: '#8b5cf6' }} />
-                      <Text size="xs" fw={500}>İngilizce Prompt</Text>
+                      <Text size="xs" fw={500}>
+                        İngilizce Prompt
+                      </Text>
                     </Group>
                     <Tooltip label="Kopyala">
-                      <ActionIcon variant="subtle" size="xs" onClick={() => {
-                        navigator.clipboard.writeText(generatedPrompt.prompt);
-                        notifications.show({ message: 'Prompt kopyalandı', color: 'violet' });
-                      }}>
+                      <ActionIcon
+                        variant="subtle"
+                        size="xs"
+                        onClick={() => {
+                          navigator.clipboard.writeText(generatedPrompt.prompt);
+                          notifications.show({ message: 'Prompt kopyalandı', color: 'violet' });
+                        }}
+                      >
                         <IconCopy size={10} />
                       </ActionIcon>
                     </Tooltip>
                   </Group>
-                  <Text size="xs" style={subtleText} lineClamp={2}>{generatedPrompt.prompt}</Text>
+                  <Text size="xs" style={subtleText} lineClamp={2}>
+                    {generatedPrompt.prompt}
+                  </Text>
                 </Paper>
               )}
 
               {generatedImage && (
-                <Paper p="xs" radius="md" style={{ 
-                  background: isDark ? 'rgba(34, 197, 94, 0.05)' : 'rgba(34, 197, 94, 0.03)',
-                  border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.15)'}`,
-                }}>
+                <Paper
+                  p="xs"
+                  radius="md"
+                  style={{
+                    background: isDark ? 'rgba(34, 197, 94, 0.05)' : 'rgba(34, 197, 94, 0.03)',
+                    border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.15)'}`,
+                  }}
+                >
                   <Box style={{ borderRadius: 8, overflow: 'hidden', marginBottom: 8 }}>
-                    <img src={generatedImage} alt="AI Generated" style={{ width: '100%', height: 200, objectFit: 'cover' }} />
+                    <img
+                      src={generatedImage}
+                      alt="AI Generated"
+                      style={{ width: '100%', height: 200, objectFit: 'cover' }}
+                    />
                   </Box>
                   <Group justify="center">
-                    <Button 
-                      size="xs" 
-                      variant="light" 
+                    <Button
+                      size="xs"
+                      variant="light"
                       color="green"
-                      leftSection={<IconDownload size={12} />} 
+                      leftSection={<IconDownload size={12} />}
                       onClick={() => {
                         const link = document.createElement('a');
                         link.href = generatedImage;
@@ -1691,7 +2275,7 @@ export default function InstagramPage() {
               )}
 
               <Group gap="xs">
-                <Button 
+                <Button
                   variant="light"
                   color="violet"
                   leftSection={isGeneratingPrompt ? <Loader size={14} /> : <IconWand size={14} />}
@@ -1702,10 +2286,16 @@ export default function InstagramPage() {
                 >
                   1. Prompt Oluştur
                 </Button>
-                <Button 
+                <Button
                   variant="gradient"
                   gradient={{ from: 'cyan', to: 'teal', deg: 135 }}
-                  leftSection={isGeneratingImage ? <Loader size={14} color="white" /> : <IconSparkles size={14} />}
+                  leftSection={
+                    isGeneratingImage ? (
+                      <Loader size={14} color="white" />
+                    ) : (
+                      <IconSparkles size={14} />
+                    )
+                  }
                   onClick={handleGenerateImage}
                   loading={isGeneratingImage}
                   disabled={!generatedPrompt}
@@ -1724,26 +2314,33 @@ export default function InstagramPage() {
           <Tabs.Panel value="menu">
             <Stack gap="md">
               {/* Açıklama */}
-              <Paper p="sm" radius="md" style={{ 
-                background: isDark 
-                  ? 'linear-gradient(135deg, rgba(251, 146, 60, 0.1) 0%, rgba(249, 115, 22, 0.05) 100%)' 
-                  : 'linear-gradient(135deg, rgba(251, 146, 60, 0.08) 0%, rgba(249, 115, 22, 0.04) 100%)',
-                border: `1px solid ${isDark ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.15)'}`,
-              }}>
+              <Paper
+                p="sm"
+                radius="md"
+                style={{
+                  background: isDark
+                    ? 'linear-gradient(135deg, rgba(251, 146, 60, 0.1) 0%, rgba(249, 115, 22, 0.05) 100%)'
+                    : 'linear-gradient(135deg, rgba(251, 146, 60, 0.08) 0%, rgba(249, 115, 22, 0.04) 100%)',
+                  border: `1px solid ${isDark ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.15)'}`,
+                }}
+              >
                 <Group gap="xs" align="flex-start">
                   <ThemeIcon size={28} radius="md" variant="light" color="orange">
                     <IconTemplate size={14} />
                   </ThemeIcon>
                   <Box style={{ flex: 1 }}>
-                    <Text size="sm" fw={600}>Menü Kartı Oluşturucu</Text>
+                    <Text size="sm" fw={600}>
+                      Menü Kartı Oluşturucu
+                    </Text>
                     <Text size="xs" style={subtleText}>
-                      Hazır şablonlarla profesyonel menü görselleri oluşturun. Instagram post veya story için ideal!
+                      Hazır şablonlarla profesyonel menü görselleri oluşturun. Instagram post veya
+                      story için ideal!
                     </Text>
                   </Box>
                 </Group>
               </Paper>
 
-              <Select 
+              <Select
                 label="Şablon Seç"
                 description="Menü kartınız için görsel stil seçin"
                 value={menuCardTemplate}
@@ -1757,34 +2354,54 @@ export default function InstagramPage() {
                 styles={{
                   input: {
                     background: isDark ? 'rgba(255,255,255,0.02)' : '#fff',
-                  }
+                  },
                 }}
               />
 
-              <Paper p="sm" radius="md" style={{ 
-                background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
-                border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
-              }}>
-                <Text size="xs" fw={500} mb={4}>📋 Örnek Menü İçeriği:</Text>
-                <Text size="xs" style={subtleText}>{menuCardItems.map(i => i.name).join(' • ')}</Text>
+              <Paper
+                p="sm"
+                radius="md"
+                style={{
+                  background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
+                }}
+              >
+                <Text size="xs" fw={500} mb={4}>
+                  📋 Örnek Menü İçeriği:
+                </Text>
+                <Text size="xs" style={subtleText}>
+                  {menuCardItems.map((i) => i.name).join(' • ')}
+                </Text>
               </Paper>
 
               {menuCardHtml && (
-                <Paper p="md" radius="md" style={{ 
-                  background: isDark ? 'rgba(34, 197, 94, 0.05)' : 'rgba(34, 197, 94, 0.03)',
-                  border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.15)'}`,
-                }}>
+                <Paper
+                  p="md"
+                  radius="md"
+                  style={{
+                    background: isDark ? 'rgba(34, 197, 94, 0.05)' : 'rgba(34, 197, 94, 0.03)',
+                    border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.15)'}`,
+                  }}
+                >
                   <Group gap="xs">
                     <IconCheck size={16} style={{ color: '#22c55e' }} />
-                    <Text size="sm" fw={500} c="green">HTML şablonu hazır!</Text>
+                    <Text size="sm" fw={500} c="green">
+                      HTML şablonu hazır!
+                    </Text>
                   </Group>
                 </Paper>
               )}
 
-              <Button 
+              <Button
                 variant="gradient"
                 gradient={{ from: 'orange', to: 'red', deg: 135 }}
-                leftSection={isGeneratingMenuCard ? <Loader size={14} color="white" /> : <IconPalette size={16} />}
+                leftSection={
+                  isGeneratingMenuCard ? (
+                    <Loader size={14} color="white" />
+                  ) : (
+                    <IconPalette size={16} />
+                  )
+                }
                 onClick={handleGenerateMenuCard}
                 loading={isGeneratingMenuCard}
                 fullWidth
@@ -1801,31 +2418,60 @@ export default function InstagramPage() {
       </Modal>
 
       {/* Otomasyonlar Modal */}
-      <Modal 
-        opened={automationModal} 
-        onClose={closeAutomation} 
-        title={<Group gap="xs"><IconRobot size={18} /><Text fw={600}>Otomasyonlar</Text></Group>}
+      <Modal
+        opened={automationModal}
+        onClose={closeAutomation}
+        title={
+          <Group gap="xs">
+            <IconRobot size={18} />
+            <Text fw={600}>Otomasyonlar</Text>
+          </Group>
+        }
         size="lg"
       >
         <Text size="sm" style={subtleText} mb="md">
-          Seçili hesap için otomasyonları yönetin: <Text span fw={500}>@{selectedAccount?.username}</Text>
+          Seçili hesap için otomasyonları yönetin:{' '}
+          <Text span fw={500}>
+            @{selectedAccount?.username}
+          </Text>
         </Text>
-        
+
         <Stack gap="xs">
           {automationTasks.map((task) => (
-            <Paper key={task.id} p="md" radius="md" style={{ ...cardStyle, border: task.enabled ? `1px solid ${isDark ? 'rgba(34,197,94,0.3)' : 'rgba(34,197,94,0.2)'}` : undefined }}>
+            <Paper
+              key={task.id}
+              p="md"
+              radius="md"
+              style={{
+                ...cardStyle,
+                border: task.enabled
+                  ? `1px solid ${isDark ? 'rgba(34,197,94,0.3)' : 'rgba(34,197,94,0.2)'}`
+                  : undefined,
+              }}
+            >
               <Group justify="space-between">
                 <Group gap="md">
                   <Box style={{ opacity: task.enabled ? 1 : 0.4 }}>{task.icon}</Box>
                   <Box>
-                    <Text size="sm" fw={500}>{task.name}</Text>
-                    <Text size="xs" style={subtleText}>{task.description}</Text>
-                    <Text size="xs" style={subtleText}>{task.schedule}</Text>
+                    <Text size="sm" fw={500}>
+                      {task.name}
+                    </Text>
+                    <Text size="xs" style={subtleText}>
+                      {task.description}
+                    </Text>
+                    <Text size="xs" style={subtleText}>
+                      {task.schedule}
+                    </Text>
                   </Box>
                 </Group>
                 <Group gap="xs">
                   <Tooltip label="Şimdi Çalıştır">
-                    <ActionIcon variant="light" size="sm" onClick={() => runAutomationNow(task.id)} disabled={!task.enabled}>
+                    <ActionIcon
+                      variant="light"
+                      size="sm"
+                      onClick={() => runAutomationNow(task.id)}
+                      disabled={!task.enabled}
+                    >
                       <IconPlayerPlay size={12} />
                     </ActionIcon>
                   </Tooltip>
@@ -1834,8 +2480,12 @@ export default function InstagramPage() {
               </Group>
               {task.stats && (
                 <Group gap="md" mt="xs">
-                  <Text size="xs" style={subtleText}>{task.stats.totalRuns} çalışma</Text>
-                  <Text size="xs" style={subtleText}>%{task.stats.successRate} başarı</Text>
+                  <Text size="xs" style={subtleText}>
+                    {task.stats.totalRuns} çalışma
+                  </Text>
+                  <Text size="xs" style={subtleText}>
+                    %{task.stats.successRate} başarı
+                  </Text>
                 </Group>
               )}
             </Paper>

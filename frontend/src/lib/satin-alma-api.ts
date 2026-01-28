@@ -73,10 +73,17 @@ export interface SiparisOzet {
 
 export const projelerAPI = {
   list: async (): Promise<{ success: boolean; data: Proje[] }> => {
-    // Merkezi Proje API kullan
-    const res = await fetch(`${PROJELER_API_URL}?aktif=true`);
-    const data = await res.json();
-    return { success: res.ok, data };
+    try {
+      // Merkezi Proje API kullan
+      const res = await fetch(`${PROJELER_API_URL}?aktif=true`);
+      const json = await res.json();
+      // API doğrudan array veya {success, data} formatında dönebilir
+      const data = Array.isArray(json) ? json : json.data || [];
+      return { success: res.ok, data: Array.isArray(data) ? data : [] };
+    } catch (error) {
+      console.error('Projeler API hatası:', error);
+      return { success: false, data: [] };
+    }
   },
 
   create: async (data: Partial<Proje>): Promise<{ success: boolean; data: Proje }> => {

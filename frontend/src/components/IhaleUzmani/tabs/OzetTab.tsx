@@ -23,7 +23,7 @@ import {
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { NotesSection } from '@/components/NotesSection';
-import { SavedTender, statusConfig, TenderStatus } from '../types';
+import { type SavedTender, statusConfig, type TenderStatus } from '../types';
 
 interface OzetTabProps {
   tender: SavedTender;
@@ -110,7 +110,11 @@ export function OzetTab({
               İhale Başlığı
             </Text>
             <Text size="sm" fw={500} lineClamp={2}>
-              {tender.ihale_basligi || <Text span c="gray.5">Belirtilmemiş</Text>}
+              {tender.ihale_basligi || (
+                <Text span c="gray.5">
+                  Belirtilmemiş
+                </Text>
+              )}
             </Text>
           </Paper>
         </Tooltip>
@@ -121,7 +125,11 @@ export function OzetTab({
               Kurum
             </Text>
             <Text size="sm" fw={500} lineClamp={2}>
-              {tender.kurum || <Text span c="gray.5">Belirtilmemiş</Text>}
+              {tender.kurum || (
+                <Text span c="gray.5">
+                  Belirtilmemiş
+                </Text>
+              )}
             </Text>
           </Paper>
         </Tooltip>
@@ -131,7 +139,11 @@ export function OzetTab({
             Tarih
           </Text>
           <Text size="sm" fw={600}>
-            {tender.tarih || <Text span c="gray.5">Belirtilmemiş</Text>}
+            {tender.tarih || (
+              <Text span c="gray.5">
+                Belirtilmemiş
+              </Text>
+            )}
           </Text>
         </Paper>
 
@@ -156,35 +168,47 @@ export function OzetTab({
             Şehir
           </Text>
           <Text size="sm" fw={500}>
-            {tender.city || <Text span c="gray.5">Belirtilmemiş</Text>}
+            {tender.city || (
+              <Text span c="gray.5">
+                Belirtilmemiş
+              </Text>
+            )}
           </Text>
         </Paper>
       </SimpleGrid>
 
       {/* Hesaplama Özeti */}
-      {(yaklasikMaliyet > 0 || sinirDeger || bizimTeklif > 0) ? (
+      {yaklasikMaliyet > 0 || sinirDeger || bizimTeklif > 0 ? (
         <Paper
           p="md"
           withBorder
           radius="md"
           shadow="sm"
           style={{
-            background: sinirDeger && bizimTeklif > 0
-              ? bizimTeklif < sinirDeger
-                ? 'linear-gradient(135deg, rgba(255,244,230,0.5) 0%, rgba(255,255,255,1) 100%)'
-                : 'linear-gradient(135deg, rgba(235,251,238,0.5) 0%, rgba(255,255,255,1) 100%)'
-              : 'var(--mantine-color-gray-0)',
-            cursor: 'pointer'
+            background:
+              sinirDeger && bizimTeklif > 0
+                ? bizimTeklif < sinirDeger
+                  ? 'linear-gradient(135deg, rgba(255,244,230,0.5) 0%, rgba(255,255,255,1) 100%)'
+                  : 'linear-gradient(135deg, rgba(235,251,238,0.5) 0%, rgba(255,255,255,1) 100%)'
+                : 'var(--mantine-color-gray-0)',
+            cursor: 'pointer',
           }}
           onClick={onNavigateToHesaplamalar}
         >
           <Group justify="space-between">
             <Group gap="md">
-              <ThemeIcon size="lg" variant="gradient" gradient={{ from: 'violet', to: 'indigo' }} radius="xl">
+              <ThemeIcon
+                size="lg"
+                variant="gradient"
+                gradient={{ from: 'violet', to: 'indigo' }}
+                radius="xl"
+              >
                 <IconCalculator size={20} />
               </ThemeIcon>
               <div>
-                <Text fw={600} size="sm">Teklif Hesaplamaları</Text>
+                <Text fw={600} size="sm">
+                  Teklif Hesaplamaları
+                </Text>
                 <Group gap="lg" mt={4}>
                   {yaklasikMaliyet > 0 && (
                     <Text size="xs" c="dimmed">
@@ -210,9 +234,17 @@ export function OzetTab({
                   size="md"
                   variant="filled"
                   color={bizimTeklif < sinirDeger ? 'orange' : 'green'}
-                  leftSection={bizimTeklif < sinirDeger ? <IconAlertTriangle size={12} /> : <IconCheck size={12} />}
+                  leftSection={
+                    bizimTeklif < sinirDeger ? (
+                      <IconAlertTriangle size={12} />
+                    ) : (
+                      <IconCheck size={12} />
+                    )
+                  }
                 >
-                  {bizimTeklif < sinirDeger ? `%${Math.round((bizimTeklif / sinirDeger) * 100)} - Risk` : 'Uygun'}
+                  {bizimTeklif < sinirDeger
+                    ? `%${Math.round((bizimTeklif / sinirDeger) * 100)} - Risk`
+                    : 'Uygun'}
                 </Badge>
               )}
               <Badge variant="light" color="violet" rightSection={<IconEye size={12} />}>
@@ -236,8 +268,12 @@ export function OzetTab({
                 <IconCalculator size={20} />
               </ThemeIcon>
               <div>
-                <Text fw={600} size="sm">Teklif Hesaplamaları</Text>
-                <Text size="xs" c="dimmed">Sınır değer, aşırı düşük ve itiraz bedeli hesapla</Text>
+                <Text fw={600} size="sm">
+                  Teklif Hesaplamaları
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Sınır değer, aşırı düşük ve itiraz bedeli hesapla
+                </Text>
               </div>
             </Group>
             <Badge variant="light" color="violet" rightSection={<IconEye size={12} />}>
@@ -248,10 +284,7 @@ export function OzetTab({
       )}
 
       {/* Notlar */}
-      <NotesSection
-        trackingId={Number(tender.id)}
-        tenderId={tender.tender_id}
-      />
+      <NotesSection trackingId={Number(tender.id)} tenderId={tender.tender_id} />
     </Stack>
   );
 }

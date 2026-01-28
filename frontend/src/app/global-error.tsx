@@ -1,8 +1,15 @@
 'use client';
 
 import '@mantine/core/styles.css';
-import { Button, Container, MantineProvider, Stack, Text, Title } from '@mantine/core';
-import { ColorSchemeScript } from '@mantine/core';
+import {
+  Button,
+  ColorSchemeScript,
+  Container,
+  MantineProvider,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core';
 import { IconAlertCircle, IconHome, IconRefresh } from '@tabler/icons-react';
 import { useEffect } from 'react';
 
@@ -52,7 +59,11 @@ export default function GlobalError({
             },
           }}
         >
-          <Container size="sm" py="xl" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center' }}>
+          <Container
+            size="sm"
+            py="xl"
+            style={{ minHeight: '100vh', display: 'flex', alignItems: 'center' }}
+          >
             <Stack align="center" gap="lg" style={{ width: '100%' }}>
               <IconAlertCircle size={64} color="red" />
               <Title order={1} ta="center">
@@ -67,7 +78,13 @@ export default function GlobalError({
                 </Text>
               )}
               {process.env.NODE_ENV === 'development' && error.stack && (
-                <Text component="div" size="xs" c="dimmed" ta="left" style={{ maxWidth: '100%', overflow: 'auto' }}>
+                <Text
+                  component="div"
+                  size="xs"
+                  c="dimmed"
+                  ta="left"
+                  style={{ maxWidth: '100%', overflow: 'auto' }}
+                >
                   <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                     {error.stack}
                   </pre>

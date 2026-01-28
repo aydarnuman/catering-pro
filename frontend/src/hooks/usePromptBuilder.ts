@@ -3,18 +3,17 @@
  * State management ve API calls
  */
 
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { API_BASE_URL } from '@/lib/config';
-import { useAuth } from '@/context/AuthContext';
 import type {
+  PBAnswers,
   PBCategory,
   PBQuestion,
-  PBTemplate,
   PBSavedPrompt,
-  PBAnswers,
+  PBTemplate,
   PBUserStats,
 } from '@/components/PromptBuilder/types';
+import { API_BASE_URL } from '@/lib/config';
 
 const API_URL = `${API_BASE_URL}/api/prompt-builder`;
 
@@ -78,13 +77,7 @@ export function useCategoryDetail(slug: string | null) {
  */
 export function useGeneratePrompt() {
   return useMutation({
-    mutationFn: async ({
-      templateId,
-      answers,
-    }: {
-      templateId: number;
-      answers: PBAnswers;
-    }) => {
+    mutationFn: async ({ templateId, answers }: { templateId: number; answers: PBAnswers }) => {
       const data = await fetchJson<{
         success: boolean;
         data: {
@@ -123,17 +116,14 @@ export function useSavePrompt() {
       answers: PBAnswers;
       style?: string;
     }) => {
-      const result = await fetchJson<{ success: boolean; data: PBSavedPrompt }>(
-        `${API_URL}/save`,
-        {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data),
-        }
-      );
+      const result = await fetchJson<{ success: boolean; data: PBSavedPrompt }>(`${API_URL}/save`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
       return result.data;
     },
     onSuccess: () => {
@@ -145,10 +135,7 @@ export function useSavePrompt() {
 /**
  * Kayıtlı prompt'ları getir
  */
-export function useSavedPrompts(options?: {
-  categoryId?: number;
-  favoriteOnly?: boolean;
-}) {
+export function useSavedPrompts(options?: { categoryId?: number; favoriteOnly?: boolean }) {
   // Cookie-only authentication - token gerekmiyor
 
   return useQuery({
@@ -264,15 +251,12 @@ export function useUserStats() {
   return useQuery({
     queryKey: ['pb-user-stats'],
     queryFn: async () => {
-      const data = await fetchJson<{ success: boolean; data: PBUserStats }>(
-        `${API_URL}/my-stats`,
-        {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      const data = await fetchJson<{ success: boolean; data: PBUserStats }>(`${API_URL}/my-stats`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       return data.data;
     },
     enabled: true,
@@ -393,14 +377,7 @@ export function usePromptBuilderWizard() {
 
       return result;
     },
-    [
-      selectedCategory,
-      selectedTemplateId,
-      generatedPrompt,
-      answers,
-      selectedTemplate,
-      saveMutation,
-    ]
+    [selectedCategory, selectedTemplateId, generatedPrompt, answers, selectedTemplate, saveMutation]
   );
 
   const reset = useCallback(() => {

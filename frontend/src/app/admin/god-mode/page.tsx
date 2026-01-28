@@ -2,7 +2,6 @@
 
 import {
   Badge,
-  Box,
   Button,
   Card,
   Container,
@@ -15,7 +14,6 @@ import {
   Text,
   ThemeIcon,
   Title,
-  rem,
 } from '@mantine/core';
 import {
   IconArrowLeft,
@@ -26,7 +24,6 @@ import {
   IconFlame,
   IconKey,
   IconMessageCircle,
-  IconServer,
   IconShieldLock,
   IconTerminal2,
   IconWorld,
@@ -34,9 +31,9 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
 import { AIChat } from '@/components/AIChat';
 import { GodModeTerminal } from '@/components/GodModeTerminal';
+import { useAuth } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 
 interface GodModeTool {
@@ -49,7 +46,7 @@ export default function GodModePage() {
   const router = useRouter();
   const { isSuperAdmin, isLoading: authLoading } = useAuth();
   const [tools, setTools] = useState<GodModeTool[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
 
   // Erişim kontrolü
   useEffect(() => {
@@ -132,7 +129,13 @@ export default function GodModePage() {
       title: 'Secret & API',
       icon: IconKey,
       color: 'orange',
-      tools: ['god_list_secrets', 'god_get_secret', 'god_add_secret', 'god_delete_secret', 'god_read_env'],
+      tools: [
+        'god_list_secrets',
+        'god_get_secret',
+        'god_add_secret',
+        'god_delete_secret',
+        'god_read_env',
+      ],
     },
     {
       title: 'Harici Servisler',
@@ -156,7 +159,8 @@ export default function GodModePage() {
           p="xl"
           radius="md"
           style={{
-            background: 'linear-gradient(135deg, rgba(255, 71, 87, 0.15) 0%, rgba(238, 90, 36, 0.15) 100%)',
+            background:
+              'linear-gradient(135deg, rgba(255, 71, 87, 0.15) 0%, rgba(238, 90, 36, 0.15) 100%)',
             border: '2px solid rgba(255, 71, 87, 0.3)',
           }}
         >
@@ -222,7 +226,10 @@ export default function GodModePage() {
           p="md"
           radius="md"
           withBorder
-          style={{ borderColor: 'var(--mantine-color-yellow-5)', backgroundColor: 'rgba(255, 193, 7, 0.1)' }}
+          style={{
+            borderColor: 'var(--mantine-color-yellow-5)',
+            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+          }}
         >
           <Group gap="sm">
             <ThemeIcon color="yellow" variant="light">
@@ -233,8 +240,8 @@ export default function GodModePage() {
                 ⚠️ DİKKAT: God Mode Aktif
               </Text>
               <Text size="xs" c="dimmed">
-                Bu modda AI, veritabanı sorguları, dosya işlemleri ve shell komutları çalıştırabilir. Tüm
-                işlemler loglanır.
+                Bu modda AI, veritabanı sorguları, dosya işlemleri ve shell komutları
+                çalıştırabilir. Tüm işlemler loglanır.
               </Text>
             </div>
           </Group>
@@ -262,9 +269,9 @@ export default function GodModePage() {
             </Tabs.List>
 
             <Tabs.Panel value="ai-chat">
-              <AIChat 
-                defaultDepartment="GOD_MODE" 
-                pageContext={{ isGodMode: true, page: 'admin/god-mode' }} 
+              <AIChat
+                defaultDepartment="GOD_MODE"
+                pageContext={{ isGodMode: true, page: 'admin/god-mode' }}
                 defaultGodMode={true}
               />
             </Tabs.Panel>

@@ -39,7 +39,7 @@ import {
   IconUser,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { adminAPI } from '@/lib/api/services/admin';
 
@@ -57,7 +57,7 @@ export default function ProfilPage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [error, setError] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  
+
   // Session management
   const [sessions, setSessions] = useState<any[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
@@ -75,10 +75,10 @@ export default function ProfilPage() {
   useEffect(() => {
     // Loading bitene kadar bekle
     if (authLoading) return;
-    
+
     // Zaten redirect yaptıysak tekrar yapma
     if (hasRedirected.current) return;
-    
+
     // Eğer authenticated değilse ve user da yoksa login'e yönlendir
     if (!isAuthenticated && !user) {
       hasRedirected.current = true;
@@ -90,13 +90,13 @@ export default function ProfilPage() {
   useEffect(() => {
     const fetchSessions = async () => {
       if (!isAuthenticated || !user) return;
-      
+
       setSessionsLoading(true);
       try {
         const data = await adminAPI.getSessions();
         if (data.success) {
           setSessions((data as any).sessions || []);
-          
+
           // Mevcut session'ı belirle (refresh token'dan)
           // Not: Backend'den mevcut session bilgisi gelirse daha iyi olur
         }
@@ -142,7 +142,7 @@ export default function ProfilPage() {
           setSessions((sessionsData as any).sessions || []);
         }
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: 'Hata',
         message: 'Oturum sonlandırılamadı',
@@ -172,7 +172,7 @@ export default function ProfilPage() {
           setSessions((sessionsData as any).sessions || []);
         }
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: 'Hata',
         message: 'Oturumlar sonlandırılamadı',
@@ -346,12 +346,20 @@ export default function ProfilPage() {
                   size="lg"
                   variant="gradient"
                   gradient={{
-                    from: (user?.user_type === 'admin' || user?.user_type === 'super_admin') ? 'red' : 'blue',
-                    to: (user?.user_type === 'admin' || user?.user_type === 'super_admin') ? 'pink' : 'cyan',
+                    from:
+                      user?.user_type === 'admin' || user?.user_type === 'super_admin'
+                        ? 'red'
+                        : 'blue',
+                    to:
+                      user?.user_type === 'admin' || user?.user_type === 'super_admin'
+                        ? 'pink'
+                        : 'cyan',
                   }}
                   leftSection={<IconShieldCheck size={14} />}
                 >
-                  {(user?.user_type === 'admin' || user?.user_type === 'super_admin') ? 'Yönetici' : 'Kullanıcı'}
+                  {user?.user_type === 'admin' || user?.user_type === 'super_admin'
+                    ? 'Yönetici'
+                    : 'Kullanıcı'}
                 </Badge>
 
                 <Divider w="100%" my="xs" />
@@ -512,7 +520,7 @@ export default function ProfilPage() {
                       </Text>
                     </div>
                   </Group>
-                  {sessions.filter(s => s.isActive).length > 1 && (
+                  {sessions.filter((s) => s.isActive).length > 1 && (
                     <Button
                       variant="light"
                       color="red"
@@ -548,7 +556,7 @@ export default function ProfilPage() {
                       {sessions.map((session) => {
                         const DeviceIcon = getDeviceIcon(session.deviceInfo);
                         const isCurrent = session.isCurrent || false;
-                        
+
                         return (
                           <Table.Tr key={session.id}>
                             <Table.Td>
@@ -577,7 +585,7 @@ export default function ProfilPage() {
                                       month: '2-digit',
                                       year: 'numeric',
                                       hour: '2-digit',
-                                      minute: '2-digit'
+                                      minute: '2-digit',
                                     })
                                   : '-'}
                               </Text>

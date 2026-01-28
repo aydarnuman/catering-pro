@@ -2,7 +2,6 @@
 
 import {
   ActionIcon,
-  Badge,
   Box,
   Card,
   Collapse,
@@ -15,9 +14,9 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
-import { ReactNode } from 'react';
+import { type ReactNode, memo, useCallback, useMemo } from 'react';
+import { EmptyState, LoadingState } from '@/components/common';
 import { useResponsive } from '@/hooks/useResponsive';
-import { LoadingState, EmptyState } from '@/components/common';
 
 interface Column<T> {
   key: keyof T | string;
@@ -107,19 +106,12 @@ export function ResponsiveTable<T extends Record<string, unknown>>({
                 onClick={() => onRowClick?.(item)}
               >
                 {columns.map((col) => (
-                  <Table.Td
-                    key={String(col.key)}
-                    style={{ textAlign: col.align || 'left' }}
-                  >
-                    {col.render
-                      ? col.render(item)
-                      : (item[col.key as keyof T] as ReactNode)}
+                  <Table.Td key={String(col.key)} style={{ textAlign: col.align || 'left' }}>
+                    {col.render ? col.render(item) : (item[col.key as keyof T] as ReactNode)}
                   </Table.Td>
                 ))}
                 {actions && (
-                  <Table.Td onClick={(e) => e.stopPropagation()}>
-                    {actions(item)}
-                  </Table.Td>
+                  <Table.Td onClick={(e) => e.stopPropagation()}>{actions(item)}</Table.Td>
                 )}
               </Table.Tr>
             ))}
@@ -147,30 +139,46 @@ export function ResponsiveTable<T extends Record<string, unknown>>({
   );
 }
 
-// Mobil kart bileşeni
-function MobileCard<T extends Record<string, unknown>>({
-  item,
-  columns,
-  onRowClick,
-  actions,
-  isDark,
-  mobileCardColor,
-}: {
+// Mobil kart bileşeni - React.memo ile sarılmış
+interface MobileCardProps<T> {
   item: T;
   columns: Column<T>[];
   onRowClick?: (item: T) => void;
   actions?: (item: T) => ReactNode;
   isDark: boolean;
   mobileCardColor?: string;
-}) {
+}
+
+function MobileCardComponent<T extends Record<string, unknown>>({
+  item,
+  columns,
+  onRowClick,
+  actions,
+  isDark,
+  mobileCardColor,
+}: MobileCardProps<T>) {
   const [opened, { toggle }] = useDisclosure(false);
 
-  // Primary field (başlık)
-  const primaryColumn = columns.find((c) => c.isPrimaryField);
-  // Mobilde gösterilecek alanlar
-  const mobileVisibleColumns = columns.filter((c) => c.showOnMobile !== false);
-  // Sadece expanded'da gösterilecek alanlar
-  const expandedColumns = columns.filter((c) => c.showOnMobile === false);
+  // Primary field (başlık) - useMemo ile cache'le
+  const primaryColumn = useMemo(() => columns.find((c) => c.isPrimaryField), [columns]);
+  // Mobilde gösterilecek alanlar - useMemo ile cache'le
+  const mobileVisibleColumns = useMemo(() => columns.filter((c) => c.showOnMobile !== false), [columns]);
+  // Sadece expanded'da gösterilecek alanlar - useMemo ile cache'le
+  const expandedColumns = useMemo(() => columns.filter((c) => c.showOnMobile === false), [columns]);
+
+  // Click handler - useCallback ile cache'le
+  const handleCardClick = useCallback(() => {
+    onRowClick?.(item);
+  }, [onRowClick, item]);
+
+  const handleToggleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggle();
+  }, [toggle]);
+
+  const handleActionsClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
 
   return (
     <Card
@@ -182,7 +190,7 @@ function MobileCard<T extends Record<string, unknown>>({
         borderLeft: mobileCardColor ? `3px solid ${mobileCardColor}` : undefined,
         cursor: onRowClick ? 'pointer' : undefined,
       }}
-      onClick={() => onRowClick?.(item)}
+      onClick={handleCardClick}
     >
       {/* Kart Header */}
       <Group justify="space-between" mb="xs">
@@ -199,10 +207,7 @@ function MobileCard<T extends Record<string, unknown>>({
           <ActionIcon
             variant="subtle"
             size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggle();
-            }}
+            onClick={handleToggleClick}
           >
             {opened ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
           </ActionIcon>
@@ -220,9 +225,7 @@ function MobileCard<T extends Record<string, unknown>>({
                 {col.label}:
               </Text>
               <Text size="xs" lineClamp={1}>
-                {col.render
-                  ? col.render(item)
-                  : (item[col.key as keyof T] as ReactNode)}
+                {col.render ? col.render(item) : (item[col.key as keyof T] as ReactNode)}
               </Text>
             </Group>
           ))}
@@ -245,9 +248,7 @@ function MobileCard<T extends Record<string, unknown>>({
                   {col.label}:
                 </Text>
                 <Text size="xs">
-                  {col.render
-                    ? col.render(item)
-                    : (item[col.key as keyof T] as ReactNode)}
+                  {col.render ? col.render(item) : (item[col.key as keyof T] as ReactNode)}
                 </Text>
               </Group>
             ))}
@@ -258,9 +259,7 @@ function MobileCard<T extends Record<string, unknown>>({
                   {col.label}:
                 </Text>
                 <Text size="xs">
-                  {col.render
-                    ? col.render(item)
-                    : (item[col.key as keyof T] as ReactNode)}
+                  {col.render ? col.render(item) : (item[col.key as keyof T] as ReactNode)}
                 </Text>
               </Group>
             ))}
@@ -276,7 +275,7 @@ function MobileCard<T extends Record<string, unknown>>({
           style={{
             borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
           }}
-          onClick={(e) => e.stopPropagation()}
+          onClick={handleActionsClick}
         >
           {actions(item)}
         </Box>
@@ -284,5 +283,8 @@ function MobileCard<T extends Record<string, unknown>>({
     </Card>
   );
 }
+
+// MobileCard'ı React.memo ile sar - gereksiz re-render'ları önle
+const MobileCard = memo(MobileCardComponent) as typeof MobileCardComponent;
 
 export type { Column };

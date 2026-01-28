@@ -49,9 +49,11 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
-import { formatMoney } from '@/lib/formatters';
+import { useRealtimeRefetch } from '@/context/RealtimeContext';
 import { muhasebeAPI } from '@/lib/api/services/muhasebe';
 import { personelAPI } from '@/lib/api/services/personel';
+import { formatMoney } from '@/lib/formatters';
+import type { Cari } from '@/types/domain';
 
 // ==================== INTERFACES ====================
 
@@ -114,14 +116,7 @@ interface ProjeHareket {
   referans_tip?: string;
 }
 
-interface Cari {
-  id: number;
-  unvan: string;
-  tip: string;
-}
-
 // ==================== HELPERS ====================
-
 
 const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString('tr-TR', {
@@ -230,6 +225,9 @@ export default function FinansMerkeziPage() {
     loadData();
   }, [loadData]);
 
+  // 🔴 REALTIME - Finans sayfası için kasa/banka hareketler tablosunu dinle
+  useRealtimeRefetch('kasa_banka_hareketler', loadData);
+
   useEffect(() => {
     if (selectedProje) {
       loadProjeHareketler();
@@ -311,8 +309,11 @@ export default function FinansMerkeziPage() {
     try {
       const result = await muhasebeAPI.createProjeHareket({
         proje_id: selectedProje,
-        ...hareketForm,
+        islem_tipi: hareketForm.tip, // tip -> islem_tipi dönüşümü
+        tutar: hareketForm.tutar,
+        aciklama: hareketForm.aciklama,
         tarih: hareketForm.tarih.toISOString().split('T')[0],
+        kategori: hareketForm.kategori,
       });
       if (result.success) {
         notifications.show({ message: '✓ Hareket eklendi', color: 'green' });

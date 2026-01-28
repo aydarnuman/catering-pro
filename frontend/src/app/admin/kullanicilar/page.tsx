@@ -45,10 +45,12 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import Link from 'next/link';
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import { adminAPI, type User } from '@/lib/api/services/admin';
 
 export default function KullanicilarPage() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [opened, { open, close }] = useDisclosure(false);
@@ -62,7 +64,8 @@ export default function KullanicilarPage() {
     is_active: true,
   });
   const [submitting, setSubmitting] = useState(false);
-  const [loginHistoryModal, { open: openLoginHistory, close: closeLoginHistory }] = useDisclosure(false);
+  const [loginHistoryModal, { open: openLoginHistory, close: closeLoginHistory }] =
+    useDisclosure(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [loginHistory, setLoginHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -83,8 +86,10 @@ export default function KullanicilarPage() {
   }, []);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) return;
     fetchUsers();
-  }, [fetchUsers]);
+  }, [fetchUsers, authLoading, isAuthenticated]);
 
   // Yeni kullanıcı formunu aç
   const handleNewUser = () => {
@@ -601,7 +606,7 @@ export default function KullanicilarPage() {
             onChange={(value) => {
               const userType = (value || 'user') as 'super_admin' | 'admin' | 'user';
               // user_type'a göre role'ü otomatik ayarla
-              const role = (userType === 'super_admin' || userType === 'admin') ? 'admin' : 'user';
+              const role = userType === 'super_admin' || userType === 'admin' ? 'admin' : 'user';
               setFormData({ ...formData, user_type: userType, role });
             }}
           />
@@ -628,9 +633,7 @@ export default function KullanicilarPage() {
         title={
           <Group>
             <IconHistory size={20} />
-            <Text fw={600}>
-              {selectedUser?.name} - Giriş Geçmişi
-            </Text>
+            <Text fw={600}>{selectedUser?.name} - Giriş Geçmişi</Text>
           </Group>
         }
         size="xl"
@@ -661,7 +664,9 @@ export default function KullanicilarPage() {
                       <Group gap="xs">
                         <IconClock size={14} />
                         <Text size="sm">
-                          {new Date(attempt.attempted_at || attempt.created_at).toLocaleString('tr-TR')}
+                          {new Date(attempt.attempted_at || attempt.created_at).toLocaleString(
+                            'tr-TR'
+                          )}
                         </Text>
                       </Group>
                     </Table.Td>
@@ -669,7 +674,9 @@ export default function KullanicilarPage() {
                       <Badge
                         color={attempt.success ? 'green' : 'red'}
                         variant="light"
-                        leftSection={attempt.success ? <IconCheck size={12} /> : <IconX size={12} />}
+                        leftSection={
+                          attempt.success ? <IconCheck size={12} /> : <IconX size={12} />
+                        }
                       >
                         {attempt.success ? 'Başarılı' : 'Başarısız'}
                       </Badge>

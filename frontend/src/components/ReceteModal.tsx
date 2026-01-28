@@ -43,12 +43,12 @@ import {
   IconTrash,
   IconX,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
-import { useResponsive } from '@/hooks/useResponsive';
-import { formatMoney } from '@/lib/formatters';
+import { useCallback, useEffect, useState } from 'react';
 import { EmptyState, LoadingState } from '@/components/common';
+import { useResponsive } from '@/hooks/useResponsive';
 import { menuPlanlamaAPI } from '@/lib/api/services/menu-planlama';
 import { stokAPI } from '@/lib/api/services/stok';
+import { formatMoney } from '@/lib/formatters';
 import UrunKartlariModal from './UrunKartlariModal';
 
 // API_URL kaldırıldı - menuPlanlamaAPI kullanılıyor
@@ -252,30 +252,15 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
 
   // Kişi sayısı çarpanı
   const [kisiSayisi, setKisiSayisi] = useState<number>(1);
-  
+
   // Toplu AI İşleme
   const [topluAiLoading, setTopluAiLoading] = useState(false);
   const [topluAiProgress, setTopluAiProgress] = useState({ current: 0, total: 0, currentName: '' });
 
-  // Sayfa açılınca verileri yükle
-  useEffect(() => {
-    if (opened) {
-      fetchReceteler();
-      fetchKategoriler();
-      fetchPiyasaUrunleri();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened]);
-
-  // Reçeteleri getir (duplicate kontrolü ile)
-  const fetchReceteler = async () => {
+  // Fonksiyonları useCallback ile tanımla (TDZ hatası için)
+  const fetchReceteler = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (selectedKategori) params.append('kategori', selectedKategori);
-      if (aramaText) params.append('arama', aramaText);
-      params.append('limit', '200');
-
       const result = await menuPlanlamaAPI.getReceteler({
         kategori: selectedKategori || undefined,
         arama: aramaText || undefined,
@@ -314,10 +299,9 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedKategori, aramaText]);
 
-  // Kategorileri getir
-  const fetchKategoriler = async () => {
+  const fetchKategoriler = useCallback(async () => {
     try {
       const result = await menuPlanlamaAPI.getKategoriler();
       if (result.success) {
@@ -326,10 +310,9 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
     } catch (error) {
       console.error('Kategori listesi hatası:', error);
     }
-  };
+  }, []);
 
-  // Stok kartlarını getir (unique - aynı isimli ürünlerden sadece biri)
-  const fetchPiyasaUrunleri = async () => {
+  const fetchPiyasaUrunleri = useCallback(async () => {
     try {
       const result = await stokAPI.getKartlar({ limit: 500 });
       if (result.success) {
@@ -375,14 +358,23 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
     } catch (error) {
       console.error('Stok kartları hatası:', error);
     }
-  };
+  }, []);
+
+  // Sayfa açılınca verileri yükle
+  useEffect(() => {
+    if (opened) {
+      fetchReceteler();
+      fetchKategoriler();
+      fetchPiyasaUrunleri();
+    }
+  }, [opened, fetchKategoriler, fetchPiyasaUrunleri, fetchReceteler]);
 
   // Reçete detayını getir (maliyet hesaplamalı)
   const fetchReceteDetay = async (id: number) => {
     setDetayLoading(true);
     try {
       // Maliyet analizi endpoint'ini kullan - piyasa fiyatlarını içerir
-      const result = await menuPlanlamaAPI.getMaliyetAnalizi(id) as any;
+      const result = (await menuPlanlamaAPI.getMaliyetAnalizi(id)) as any;
 
       if (result.success) {
         // Malzeme maliyetlerini hesapla
@@ -424,7 +416,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
         setEditingRecete(result.data as any);
       } else {
         // Fallback: normal endpoint
-        const fallbackResult = await menuPlanlamaAPI.getRecete(id) as any;
+        const fallbackResult = (await menuPlanlamaAPI.getRecete(id)) as any;
         if (fallbackResult.success) {
           setSelectedRecete(fallbackResult.data as any);
           setEditingRecete(fallbackResult.data as any);
@@ -450,7 +442,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
       return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened, aramaText, selectedKategori]);
+  }, [opened, fetchReceteler]);
 
   // Reçete güncelle
   const handleReceteGuncelle = async () => {
@@ -688,8 +680,8 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
   // TOPLU AI REÇETELENDİRME (BATCH + PARALEL - 5x3 = 15 reçete aynı anda)
   const handleTopluAiRecetelendirme = async () => {
     // Malzemesi olmayan reçeteleri filtrele
-    const malzemesizReceteler = receteler.filter(r => Number(r.malzeme_sayisi) === 0);
-    
+    const malzemesizReceteler = receteler.filter((r) => Number(r.malzeme_sayisi) === 0);
+
     if (malzemesizReceteler.length === 0) {
       notifications.show({
         title: 'Bilgi',
@@ -698,52 +690,74 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
       });
       return;
     }
-    
-    if (!confirm(`${malzemesizReceteler.length} reçete için AI ile malzeme önerisi alınacak (hızlı mod). Devam?`)) {
+
+    if (
+      !confirm(
+        `${malzemesizReceteler.length} reçete için AI ile malzeme önerisi alınacak (hızlı mod). Devam?`
+      )
+    ) {
       return;
     }
-    
+
     setTopluAiLoading(true);
-    setTopluAiProgress({ current: 0, total: malzemesizReceteler.length, currentName: '🚀 Hızlı mod başlatılıyor...' });
-    
+    setTopluAiProgress({
+      current: 0,
+      total: malzemesizReceteler.length,
+      currentName: '🚀 Hızlı mod başlatılıyor...',
+    });
+
     let basarili = 0;
     let basarisiz = 0;
-    
+
     // Kategori map (ürün kartı oluşturmak için)
     const kategoriMap: Record<string, number> = {
-      'et & tavuk': 1, et: 1, tavuk: 1,
-      'balık & deniz ürünleri': 2, balık: 2,
-      'süt ürünleri': 3, süt: 3,
-      sebzeler: 4, sebze: 4,
-      meyveler: 5, meyve: 5,
+      'et & tavuk': 1,
+      et: 1,
+      tavuk: 1,
+      'balık & deniz ürünleri': 2,
+      balık: 2,
+      'süt ürünleri': 3,
+      süt: 3,
+      sebzeler: 4,
+      sebze: 4,
+      meyveler: 5,
+      meyve: 5,
       bakliyat: 6,
-      'tahıllar & makarna': 7, tahıl: 7, makarna: 7,
-      yağlar: 8, yağ: 8,
-      baharatlar: 9, baharat: 9,
-      'soslar & salçalar': 10, sos: 10, salça: 10,
-      'şekerler & tatlandırıcılar': 11, şeker: 11,
-      içecekler: 12, içecek: 12,
+      'tahıllar & makarna': 7,
+      tahıl: 7,
+      makarna: 7,
+      yağlar: 8,
+      yağ: 8,
+      baharatlar: 9,
+      baharat: 9,
+      'soslar & salçalar': 10,
+      sos: 10,
+      salça: 10,
+      'şekerler & tatlandırıcılar': 11,
+      şeker: 11,
+      içecekler: 12,
+      içecek: 12,
       diğer: 13,
     };
-    
+
     // 3'lü batch'lere böl (timeout önlemek için küçültüldü)
     const BATCH_SIZE = 3;
     const CONCURRENT_BATCHES = 2; // 2 batch paralel
     const batches: Recete[][] = [];
-    
+
     for (let i = 0; i < malzemesizReceteler.length; i += BATCH_SIZE) {
       batches.push(malzemesizReceteler.slice(i, i + BATCH_SIZE));
     }
-    
+
     // Tek bir batch'i işle
     const processBatch = async (batch: Recete[]): Promise<{ success: number; fail: number }> => {
       try {
-        const receteIds = batch.map(r => r.id);
-        
+        const receteIds = batch.map((r) => r.id);
+
         // AbortController ile 90 saniye timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 90000);
-        
+
         // BATCH AI çağrısı (5 reçete birden)
         // Timeout için Promise.race kullanıyoruz
         const timeoutPromise = new Promise<never>((_, reject) => {
@@ -759,103 +773,113 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
         ]);
 
         clearTimeout(timeoutId);
-        
+
         if (!result.success || !result.data?.sonuclar) {
           return { success: 0, fail: batch.length };
         }
-        
+
         let batchBasarili = 0;
         let batchBasarisiz = 0;
-        
+
         // Her reçetenin sonucunu işle (paralel)
-        await Promise.all(result.data.sonuclar.map(async (sonuc: any) => {
-          try {
-            if (!sonuc.malzemeler || sonuc.malzemeler.length === 0) {
-              batchBasarisiz++;
-              return;
-            }
-            
-            // Malzemeleri paralel ekle
-            await Promise.all(sonuc.malzemeler.map(async (mal: any) => {
-              try {
-                let urunKartId = mal.urun_kart_id;
-                
-                if (!urunKartId) {
-                  const kategoriId = mal.kategori ? kategoriMap[mal.kategori.toLowerCase()] || 13 : 13;
-
-                  const urunResult = await menuPlanlamaAPI.createUrunKarti({
-                    ad: mal.malzeme_adi,
-                    kategori_id: kategoriId,
-                    varsayilan_birim: mal.birim || 'gr',
-                    fiyat_birimi: 'kg',
-                  });
-                  if (urunResult.success) {
-                    urunKartId = urunResult.data.id;
-                  }
-                }
-
-                await menuPlanlamaAPI.saveMalzeme(sonuc.recete_id, {
-                  urun_kart_id: urunKartId,
-                  urun_adi: mal.malzeme_adi,
-                  miktar: mal.miktar,
-                  birim: mal.birim || 'gr',
-                });
-              } catch (e) {
-                // Tek malzeme hatası, devam
+        await Promise.all(
+          result.data.sonuclar.map(async (sonuc: any) => {
+            try {
+              if (!sonuc.malzemeler || sonuc.malzemeler.length === 0) {
+                batchBasarisiz++;
+                return;
               }
-            }));
-            
-            batchBasarili++;
-          } catch (e) {
-            batchBasarisiz++;
-          }
-        }));
-        
+
+              // Malzemeleri paralel ekle
+              await Promise.all(
+                sonuc.malzemeler.map(async (mal: any) => {
+                  try {
+                    let urunKartId = mal.urun_kart_id;
+
+                    if (!urunKartId) {
+                      const kategoriId = mal.kategori
+                        ? kategoriMap[mal.kategori.toLowerCase()] || 13
+                        : 13;
+
+                      const urunResult = await menuPlanlamaAPI.createUrunKarti({
+                        ad: mal.malzeme_adi,
+                        kategori_id: kategoriId,
+                        varsayilan_birim: mal.birim || 'gr',
+                        fiyat_birimi: 'kg',
+                      });
+                      if (urunResult.success) {
+                        urunKartId = urunResult.data.id;
+                      }
+                    }
+
+                    await menuPlanlamaAPI.saveMalzeme(sonuc.recete_id, {
+                      urun_kart_id: urunKartId,
+                      urun_adi: mal.malzeme_adi,
+                      miktar: mal.miktar,
+                      birim: mal.birim || 'gr',
+                    });
+                  } catch (_e) {
+                    // Tek malzeme hatası, devam
+                  }
+                })
+              );
+
+              batchBasarili++;
+            } catch (_e) {
+              batchBasarisiz++;
+            }
+          })
+        );
+
         return { success: batchBasarili, fail: batchBasarisiz };
-      } catch (e) {
+      } catch (_e) {
         return { success: 0, fail: batch.length };
       }
     };
-    
+
     // Batch'leri CONCURRENT_BATCHES kadar paralel işle
     let processedCount = 0;
-    
+
     try {
       for (let i = 0; i < batches.length; i += CONCURRENT_BATCHES) {
         const concurrentBatches = batches.slice(i, i + CONCURRENT_BATCHES);
-        
+
         // İşlenen reçete isimlerini göster
-        const isimleri = concurrentBatches.flat().map(r => r.ad).slice(0, 3).join(', ');
-        setTopluAiProgress({ 
-          current: processedCount, 
-          total: malzemesizReceteler.length, 
-          currentName: `⚡ ${isimleri}...` 
+        const isimleri = concurrentBatches
+          .flat()
+          .map((r) => r.ad)
+          .slice(0, 3)
+          .join(', ');
+        setTopluAiProgress({
+          current: processedCount,
+          total: malzemesizReceteler.length,
+          currentName: `⚡ ${isimleri}...`,
         });
-        
+
         // Paralel batch işleme
-        const results = await Promise.all(concurrentBatches.map(batch => processBatch(batch)));
-        
+        const results = await Promise.all(concurrentBatches.map((batch) => processBatch(batch)));
+
         // Sonuçları topla
-        results.forEach(r => {
+        results.forEach((r) => {
           basarili += r.success;
           basarisiz += r.fail;
         });
-        
+
         processedCount += concurrentBatches.flat().length;
-        setTopluAiProgress({ 
-          current: processedCount, 
-          total: malzemesizReceteler.length, 
-          currentName: `✅ ${processedCount}/${malzemesizReceteler.length}` 
+        setTopluAiProgress({
+          current: processedCount,
+          total: malzemesizReceteler.length,
+          currentName: `✅ ${processedCount}/${malzemesizReceteler.length}`,
         });
       }
-      
+
       notifications.show({
         title: '🚀 Hızlı Reçetelendirme Tamamlandı',
         message: `✅ ${basarili} başarılı, ❌ ${basarisiz} başarısız`,
         color: basarisiz === 0 ? 'green' : 'yellow',
         autoClose: 5000,
       });
-    } catch (error: any) {
+    } catch (_error: any) {
       // Timeout veya abort hatası
       notifications.show({
         title: '⚠️ İşlem Durdu',
@@ -864,14 +888,14 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
         autoClose: 5000,
       });
     }
-    
+
     setTopluAiLoading(false);
     setTopluAiProgress({ current: 0, total: 0, currentName: '' });
-    
+
     // Listeyi güncelle (hata olsa bile)
     try {
       await fetchReceteler();
-    } catch (e) {
+    } catch (_e) {
       // Fetch hatası ignore et
     }
   };
@@ -1096,7 +1120,9 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
           </ThemeIcon>
           <Box>
             <Text fw={600} size={isMobile && isMounted ? 'md' : 'lg'}>
-              {isMobile && isMounted && mobileView === 'detail' ? 'Reçete Detay' : 'Reçete Yönetimi'}
+              {isMobile && isMounted && mobileView === 'detail'
+                ? 'Reçete Detay'
+                : 'Reçete Yönetimi'}
             </Text>
             <Text size="xs" c="dimmed">
               Piyasa fiyatlarıyla entegre
@@ -1111,313 +1137,365 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
         content: { height: isMobile && isMounted ? '100vh' : '90vh' },
       }}
     >
-      <Box style={{ display: 'flex', height: isMobile && isMounted ? 'calc(100vh - 60px)' : 'calc(90vh - 70px)', flexDirection: isMobile && isMounted ? 'column' : 'row' }}>
+      <Box
+        style={{
+          display: 'flex',
+          height: isMobile && isMounted ? 'calc(100vh - 60px)' : 'calc(90vh - 70px)',
+          flexDirection: isMobile && isMounted ? 'column' : 'row',
+        }}
+      >
         {/* Sol Panel - Reçete Listesi (Desktop veya Mobile Liste Görünümü) */}
         {(!isMobile || !isMounted || mobileView === 'list') && (
-        <Box
-          style={{
-            width: isMobile && isMounted ? '100%' : 320,
-            borderRight: isMobile && isMounted ? 'none' : '1px solid var(--mantine-color-default-border)',
-            display: 'flex',
-            flexDirection: 'column',
-            flex: isMobile && isMounted ? 1 : 'none',
-          }}
-        >
-          {/* Arama ve Filtre */}
-          <Box p="sm" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
-            <Stack gap="xs">
-              <TextInput
-                placeholder="Reçete ara..."
-                leftSection={<IconSearch size={16} />}
-                value={aramaText}
-                onChange={(e) => setAramaText(e.target.value)}
-                size="sm"
-              />
-              <Select
-                placeholder="Kategori"
-                data={kategoriler.map((k) => ({ value: k.kod, label: `${k.ikon} ${k.ad}` }))}
-                value={selectedKategori}
-                onChange={setSelectedKategori}
-                clearable
-                size="xs"
-              />
-              <Button
-                variant="gradient"
-                gradient={{ from: 'orange', to: 'red' }}
-                leftSection={<IconPlus size={16} />}
-                onClick={() => setShowYeniRecete(true)}
-                size="xs"
-                fullWidth
-              >
-                Yeni Reçete
-              </Button>
-              <Button
-                variant="light"
-                color="violet"
-                leftSection={<IconPackages size={16} />}
-                onClick={() => setUrunKartlariModalOpened(true)}
-                size="xs"
-                fullWidth
-              >
-                Ürün Kartları
-              </Button>
-              
-              {/* Toplu AI Reçetelendirme */}
-              {receteler.filter(r => Number(r.malzeme_sayisi) === 0).length > 0 && (
-                <Tooltip label={`${receteler.filter(r => Number(r.malzeme_sayisi) === 0).length} malzemesiz reçeteyi AI ile doldur`}>
-                  <Button
-                    variant="gradient"
-                    gradient={{ from: 'violet', to: 'grape' }}
-                    leftSection={<IconSparkles size={16} />}
-                    onClick={handleTopluAiRecetelendirme}
-                    size="xs"
-                    fullWidth
-                    loading={topluAiLoading}
-                    disabled={topluAiLoading}
-                  >
-                    {topluAiLoading 
-                      ? `${topluAiProgress.current}/${topluAiProgress.total}` 
-                      : `AI Toplu (${receteler.filter(r => Number(r.malzeme_sayisi) === 0).length})`
-                    }
-                  </Button>
-                </Tooltip>
-              )}
-              
-              {/* Progress bar */}
-              {topluAiLoading && (
-                <Box>
-                  <Progress 
-                    value={(topluAiProgress.current / topluAiProgress.total) * 100} 
-                    size="sm" 
-                    color="violet"
-                    animated
-                  />
-                  <Text size="xs" c="dimmed" ta="center" mt={4} truncate>
-                    {topluAiProgress.currentName}
-                  </Text>
-                </Box>
-              )}
-            </Stack>
-          </Box>
-
-          {/* Reçete Listesi */}
-          <ScrollArea style={{ flex: 1 }}>
-            {loading ? (
-              <LoadingState loading={true} message="Reçeteler yükleniyor..." />
-            ) : receteler.length === 0 ? (
-              <EmptyState
-                title="Reçete bulunamadı"
-                compact
-                icon={<IconBook2 size={32} />}
-                iconColor="orange"
-              />
-            ) : (
-              <Stack gap={0}>
-                {receteler.map((recete) => {
-                  const isSelected = selectedRecete?.id === recete.id;
-                  return (
-                    <Box
-                      key={recete.id}
-                      p="xs"
-                      style={{
-                        borderBottom: '1px solid var(--mantine-color-default-border)',
-                        cursor: 'pointer',
-                        background: isSelected ? 'var(--mantine-color-orange-light)' : undefined,
-                        transition: 'background 0.15s',
-                      }}
-                      onClick={() => handleReceteSecMobile(recete.id)}
-                    >
-                      <Group justify="space-between" wrap="wrap">
-                        <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-                          <Text size="md">{recete.kategori_ikon || '📋'}</Text>
-                          <Box style={{ flex: 1, minWidth: 0 }}>
-                            <Text fw={500} size="sm" truncate>
-                              {recete.ad}
-                            </Text>
-                            <Group gap={4}>
-                              <Badge size="xs" variant="light" color="gray">
-                                {recete.malzeme_sayisi} malzeme
-                              </Badge>
-                              {recete.tahmini_maliyet > 0 && (
-                                <Badge size="xs" variant="filled" color="green">
-                                  {formatMoney(recete.tahmini_maliyet)}
-                                </Badge>
-                              )}
-                            </Group>
-                          </Box>
-                        </Group>
-                        <Menu shadow="md" width={130} position="bottom-end">
-                          <Menu.Target>
-                            <ActionIcon
-                              variant="subtle"
-                              color="gray"
-                              size="sm"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <IconDotsVertical size={14} />
-                            </ActionIcon>
-                          </Menu.Target>
-                          <Menu.Dropdown>
-                            <Menu.Item
-                              leftSection={<IconEdit size={14} />}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                fetchReceteDetay(recete.id);
-                                setEditMode(true);
-                              }}
-                            >
-                              Düzenle
-                            </Menu.Item>
-                            <Menu.Item
-                              leftSection={<IconTrash size={14} />}
-                              color="red"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleReceteSil(recete.id);
-                              }}
-                            >
-                              Sil
-                            </Menu.Item>
-                          </Menu.Dropdown>
-                        </Menu>
-                      </Group>
-                    </Box>
-                  );
-                })}
-              </Stack>
-            )}
-          </ScrollArea>
-
           <Box
-            p="xs"
             style={{
-              borderTop: '1px solid var(--mantine-color-default-border)',
-              background: 'var(--mantine-color-gray-light)',
+              width: isMobile && isMounted ? '100%' : 320,
+              borderRight:
+                isMobile && isMounted ? 'none' : '1px solid var(--mantine-color-default-border)',
+              display: 'flex',
+              flexDirection: 'column',
+              flex: isMobile && isMounted ? 1 : 'none',
             }}
           >
-            <Text size="xs" c="dimmed" ta="center">
-              {receteler.length} reçete · Piyasa fiyatlarıyla
-            </Text>
+            {/* Arama ve Filtre */}
+            <Box p="sm" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
+              <Stack gap="xs">
+                <TextInput
+                  placeholder="Reçete ara..."
+                  leftSection={<IconSearch size={16} />}
+                  value={aramaText}
+                  onChange={(e) => setAramaText(e.target.value)}
+                  size="sm"
+                />
+                <Select
+                  placeholder="Kategori"
+                  data={kategoriler.map((k) => ({ value: k.kod, label: `${k.ikon} ${k.ad}` }))}
+                  value={selectedKategori}
+                  onChange={setSelectedKategori}
+                  clearable
+                  size="xs"
+                />
+                <Button
+                  variant="gradient"
+                  gradient={{ from: 'orange', to: 'red' }}
+                  leftSection={<IconPlus size={16} />}
+                  onClick={() => setShowYeniRecete(true)}
+                  size="xs"
+                  fullWidth
+                >
+                  Yeni Reçete
+                </Button>
+                <Button
+                  variant="light"
+                  color="violet"
+                  leftSection={<IconPackages size={16} />}
+                  onClick={() => setUrunKartlariModalOpened(true)}
+                  size="xs"
+                  fullWidth
+                >
+                  Ürün Kartları
+                </Button>
+
+                {/* Toplu AI Reçetelendirme */}
+                {receteler.filter((r) => Number(r.malzeme_sayisi) === 0).length > 0 && (
+                  <Tooltip
+                    label={`${receteler.filter((r) => Number(r.malzeme_sayisi) === 0).length} malzemesiz reçeteyi AI ile doldur`}
+                  >
+                    <Button
+                      variant="gradient"
+                      gradient={{ from: 'violet', to: 'grape' }}
+                      leftSection={<IconSparkles size={16} />}
+                      onClick={handleTopluAiRecetelendirme}
+                      size="xs"
+                      fullWidth
+                      loading={topluAiLoading}
+                      disabled={topluAiLoading}
+                    >
+                      {topluAiLoading
+                        ? `${topluAiProgress.current}/${topluAiProgress.total}`
+                        : `AI Toplu (${receteler.filter((r) => Number(r.malzeme_sayisi) === 0).length})`}
+                    </Button>
+                  </Tooltip>
+                )}
+
+                {/* Progress bar */}
+                {topluAiLoading && (
+                  <Box>
+                    <Progress
+                      value={(topluAiProgress.current / topluAiProgress.total) * 100}
+                      size="sm"
+                      color="violet"
+                      animated
+                    />
+                    <Text size="xs" c="dimmed" ta="center" mt={4} truncate>
+                      {topluAiProgress.currentName}
+                    </Text>
+                  </Box>
+                )}
+              </Stack>
+            </Box>
+
+            {/* Reçete Listesi */}
+            <ScrollArea style={{ flex: 1 }}>
+              {loading ? (
+                <LoadingState loading={true} message="Reçeteler yükleniyor..." />
+              ) : receteler.length === 0 ? (
+                <EmptyState
+                  title="Reçete bulunamadı"
+                  compact
+                  icon={<IconBook2 size={32} />}
+                  iconColor="orange"
+                />
+              ) : (
+                <Stack gap={0}>
+                  {receteler.map((recete) => {
+                    const isSelected = selectedRecete?.id === recete.id;
+                    return (
+                      <Box
+                        key={recete.id}
+                        p="xs"
+                        style={{
+                          borderBottom: '1px solid var(--mantine-color-default-border)',
+                          cursor: 'pointer',
+                          background: isSelected ? 'var(--mantine-color-orange-light)' : undefined,
+                          transition: 'background 0.15s',
+                        }}
+                        onClick={() => handleReceteSecMobile(recete.id)}
+                      >
+                        <Group justify="space-between" wrap="wrap">
+                          <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                            <Text size="md">{recete.kategori_ikon || '📋'}</Text>
+                            <Box style={{ flex: 1, minWidth: 0 }}>
+                              <Text fw={500} size="sm" truncate>
+                                {recete.ad}
+                              </Text>
+                              <Group gap={4}>
+                                <Badge size="xs" variant="light" color="gray">
+                                  {recete.malzeme_sayisi} malzeme
+                                </Badge>
+                                {recete.tahmini_maliyet > 0 && (
+                                  <Badge size="xs" variant="filled" color="green">
+                                    {formatMoney(recete.tahmini_maliyet)}
+                                  </Badge>
+                                )}
+                              </Group>
+                            </Box>
+                          </Group>
+                          <Menu shadow="md" width={130} position="bottom-end">
+                            <Menu.Target>
+                              <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                size="sm"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <IconDotsVertical size={14} />
+                              </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                              <Menu.Item
+                                leftSection={<IconEdit size={14} />}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  fetchReceteDetay(recete.id);
+                                  setEditMode(true);
+                                }}
+                              >
+                                Düzenle
+                              </Menu.Item>
+                              <Menu.Item
+                                leftSection={<IconTrash size={14} />}
+                                color="red"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleReceteSil(recete.id);
+                                }}
+                              >
+                                Sil
+                              </Menu.Item>
+                            </Menu.Dropdown>
+                          </Menu>
+                        </Group>
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              )}
+            </ScrollArea>
+
+            <Box
+              p="xs"
+              style={{
+                borderTop: '1px solid var(--mantine-color-default-border)',
+                background: 'var(--mantine-color-gray-light)',
+              }}
+            >
+              <Text size="xs" c="dimmed" ta="center">
+                {receteler.length} reçete · Piyasa fiyatlarıyla
+              </Text>
+            </Box>
           </Box>
-        </Box>
         )}
 
         {/* Sağ Panel - Reçete Detay ve Maliyet (Desktop veya Mobile Detay Görünümü) */}
         {(!isMobile || !isMounted || mobileView === 'detail') && (
-        <Box style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          {detayLoading ? (
-            <LoadingState loading={true} fullHeight message="Reçete detayı yükleniyor..." />
-          ) : !selectedRecete ? (
-            <Center style={{ flex: 1 }}>
-              <Stack align="center" gap="md">
-                <ThemeIcon size={80} radius="xl" variant="light" color="gray">
-                  <IconChefHat size={40} />
-                </ThemeIcon>
-                <Text c="dimmed">Detay görmek için bir reçete seçin</Text>
-              </Stack>
-            </Center>
-          ) : (
-            <>
-              {/* Detay Header */}
-              <Box p="md" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
-                <Group justify="space-between">
-                  <Group gap="md">
-                    <Text size="xl">{selectedRecete.kategori_ikon || '📋'}</Text>
-                    <Box>
+          <Box style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {detayLoading ? (
+              <LoadingState loading={true} fullHeight message="Reçete detayı yükleniyor..." />
+            ) : !selectedRecete ? (
+              <Center style={{ flex: 1 }}>
+                <Stack align="center" gap="md">
+                  <ThemeIcon size={80} radius="xl" variant="light" color="gray">
+                    <IconChefHat size={40} />
+                  </ThemeIcon>
+                  <Text c="dimmed">Detay görmek için bir reçete seçin</Text>
+                </Stack>
+              </Center>
+            ) : (
+              <>
+                {/* Detay Header */}
+                <Box
+                  p="md"
+                  style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
+                >
+                  <Group justify="space-between">
+                    <Group gap="md">
+                      <Text size="xl">{selectedRecete.kategori_ikon || '📋'}</Text>
+                      <Box>
+                        {editMode ? (
+                          <TextInput
+                            value={editingRecete?.ad || ''}
+                            onChange={(e) =>
+                              setEditingRecete({ ...editingRecete, ad: e.target.value })
+                            }
+                            size="md"
+                            fw={600}
+                          />
+                        ) : (
+                          <Text fw={600} size="lg">
+                            {selectedRecete.ad}
+                          </Text>
+                        )}
+                        <Group gap="xs">
+                          <Badge variant="light" color="orange">
+                            {selectedRecete.kategori_adi}
+                          </Badge>
+                          <Badge variant="light" color="gray">
+                            Kod: {selectedRecete.kod}
+                          </Badge>
+                        </Group>
+                      </Box>
+                    </Group>
+                    <Group>
                       {editMode ? (
-                        <TextInput
-                          value={editingRecete?.ad || ''}
-                          onChange={(e) =>
-                            setEditingRecete({ ...editingRecete, ad: e.target.value })
-                          }
-                          size="md"
-                          fw={600}
-                        />
-                      ) : (
-                        <Text fw={600} size="lg">
-                          {selectedRecete.ad}
-                        </Text>
-                      )}
-                      <Group gap="xs">
-                        <Badge variant="light" color="orange">
-                          {selectedRecete.kategori_adi}
-                        </Badge>
-                        <Badge variant="light" color="gray">
-                          Kod: {selectedRecete.kod}
-                        </Badge>
-                      </Group>
-                    </Box>
-                  </Group>
-                  <Group>
-                    {editMode ? (
-                      <>
-                        <Button
-                          variant="light"
-                          color="gray"
-                          size="xs"
-                          onClick={() => {
-                            setEditMode(false);
-                            setEditingRecete(selectedRecete);
-                          }}
-                        >
-                          İptal
-                        </Button>
-                        <Button
-                          variant="gradient"
-                          gradient={{ from: 'teal', to: 'green' }}
-                          size="xs"
-                          leftSection={<IconCheck size={16} />}
-                          onClick={handleReceteGuncelle}
-                        >
-                          Kaydet
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button
-                          variant="light"
-                          size="xs"
-                          leftSection={<IconEdit size={16} />}
-                          onClick={() => setEditMode(true)}
-                        >
-                          Düzenle
-                        </Button>
-                        {onReceteSelect && (
+                        <>
                           <Button
-                            variant="gradient"
-                            gradient={{ from: 'teal', to: 'cyan' }}
+                            variant="light"
+                            color="gray"
                             size="xs"
-                            leftSection={<IconCheck size={16} />}
                             onClick={() => {
-                              onReceteSelect(selectedRecete);
-                              onClose();
+                              setEditMode(false);
+                              setEditingRecete(selectedRecete);
                             }}
                           >
-                            Seç
+                            İptal
                           </Button>
-                        )}
-                      </>
-                    )}
+                          <Button
+                            variant="gradient"
+                            gradient={{ from: 'teal', to: 'green' }}
+                            size="xs"
+                            leftSection={<IconCheck size={16} />}
+                            onClick={handleReceteGuncelle}
+                          >
+                            Kaydet
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            variant="light"
+                            size="xs"
+                            leftSection={<IconEdit size={16} />}
+                            onClick={() => setEditMode(true)}
+                          >
+                            Düzenle
+                          </Button>
+                          {onReceteSelect && (
+                            <Button
+                              variant="gradient"
+                              gradient={{ from: 'teal', to: 'cyan' }}
+                              size="xs"
+                              leftSection={<IconCheck size={16} />}
+                              onClick={() => {
+                                onReceteSelect(selectedRecete);
+                                onClose();
+                              }}
+                            >
+                              Seç
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </Group>
                   </Group>
-                </Group>
-              </Box>
+                </Box>
 
-              {/* Detay İçerik */}
-              <ScrollArea style={{ flex: 1 }} p="md">
-                <Stack gap="lg">
-                  {/* MALİYET ANALİZİ KARTI */}
-                  <Paper p="md" withBorder radius="lg" bg="var(--mantine-color-green-light)">
-                    <Group justify="space-between" mb="md">
+                {/* Detay İçerik */}
+                <ScrollArea style={{ flex: 1 }} p="md">
+                  <Stack gap="lg">
+                    {/* MALİYET ANALİZİ KARTI */}
+                    <Paper p="md" withBorder radius="lg" bg="var(--mantine-color-green-light)">
+                      <Group justify="space-between" mb="md">
+                        {(() => {
+                          // Toplam maliyeti frontend'de hesapla (son fiyat = ortalama)
+                          const hesaplananMaliyet =
+                            selectedRecete.malzemeler?.reduce((toplam, m) => {
+                              const faturaF = m.sistem_fiyat || 0;
+                              const piyasaF = m.piyasa_fiyat || 0;
+                              const fiyat =
+                                faturaF && piyasaF
+                                  ? (faturaF + piyasaF) / 2
+                                  : piyasaF || faturaF || 0;
+                              const miktar = Number(m.miktar) || 0;
+                              const birimLower = (m.birim || '').toLowerCase();
+
+                              let maliyet = 0;
+                              if (['g', 'gr', 'ml'].includes(birimLower)) {
+                                maliyet = (miktar / 1000) * Number(fiyat);
+                              } else if (['kg', 'lt', 'l'].includes(birimLower)) {
+                                maliyet = miktar * Number(fiyat);
+                              } else {
+                                maliyet = miktar * Number(fiyat);
+                              }
+                              return toplam + maliyet;
+                            }, 0) || 0;
+
+                          return (
+                            <>
+                              <Group gap="sm">
+                                <ThemeIcon size="lg" radius="xl" color="green" variant="filled">
+                                  <IconCurrencyLira size={20} />
+                                </ThemeIcon>
+                                <Box>
+                                  <Text fw={600}>1 Porsiyon Maliyet</Text>
+                                  <Text size="xs" c="dimmed">
+                                    Piyasa fiyatlarıyla hesaplandı
+                                  </Text>
+                                </Box>
+                              </Group>
+                              <Text fw={700} size="xl" c="green">
+                                {formatMoney(hesaplananMaliyet)}
+                              </Text>
+                            </>
+                          );
+                        })()}
+                      </Group>
+
+                      {/* Hızlı Hesap */}
                       {(() => {
-                        // Toplam maliyeti frontend'de hesapla (son fiyat = ortalama)
+                        // Toplam maliyeti frontend'de hesapla
                         const hesaplananMaliyet =
                           selectedRecete.malzemeler?.reduce((toplam, m) => {
-                            const faturaF = m.sistem_fiyat || 0;
-                            const piyasaF = m.piyasa_fiyat || 0;
-                            const fiyat =
-                              faturaF && piyasaF
-                                ? (faturaF + piyasaF) / 2
-                                : piyasaF || faturaF || 0;
+                            const fiyat = m.piyasa_fiyat || m.sistem_fiyat || 0;
                             const miktar = Number(m.miktar) || 0;
                             const birimLower = (m.birim || '').toLowerCase();
 
@@ -1433,481 +1511,448 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                           }, 0) || 0;
 
                         return (
-                          <>
-                            <Group gap="sm">
-                              <ThemeIcon size="lg" radius="xl" color="green" variant="filled">
-                                <IconCurrencyLira size={20} />
-                              </ThemeIcon>
-                              <Box>
-                                <Text fw={600}>1 Porsiyon Maliyet</Text>
-                                <Text size="xs" c="dimmed">
-                                  Piyasa fiyatlarıyla hesaplandı
-                                </Text>
-                              </Box>
-                            </Group>
-                            <Text fw={700} size="xl" c="green">
-                              {formatMoney(hesaplananMaliyet)}
-                            </Text>
-                          </>
+                          <SimpleGrid cols={4} mb="md">
+                            <Paper p="xs" radius="md" withBorder ta="center" bg="white">
+                              <Text size="xs" c="dimmed">
+                                100 Kişi
+                              </Text>
+                              <Text fw={600} size="sm" c="green">
+                                {formatMoney(hesaplananMaliyet * 100)}
+                              </Text>
+                            </Paper>
+                            <Paper p="xs" radius="md" withBorder ta="center" bg="white">
+                              <Text size="xs" c="dimmed">
+                                500 Kişi
+                              </Text>
+                              <Text fw={600} size="sm" c="green">
+                                {formatMoney(hesaplananMaliyet * 500)}
+                              </Text>
+                            </Paper>
+                            <Paper p="xs" radius="md" withBorder ta="center" bg="white">
+                              <Text size="xs" c="dimmed">
+                                1000 Kişi
+                              </Text>
+                              <Text fw={600} size="sm" c="green">
+                                {formatMoney(hesaplananMaliyet * 1000)}
+                              </Text>
+                            </Paper>
+                            <Paper p="xs" radius="md" withBorder ta="center" bg="white">
+                              <Group gap={4} justify="center">
+                                <NumberInput
+                                  value={kisiSayisi}
+                                  onChange={(v) => setKisiSayisi(Number(v) || 1)}
+                                  min={1}
+                                  max={100000}
+                                  size="xs"
+                                  w={70}
+                                  hideControls
+                                />
+                                <Text size="xs">kişi</Text>
+                              </Group>
+                              <Text fw={600} size="sm" c="teal">
+                                {formatMoney(hesaplananMaliyet * kisiSayisi)}
+                              </Text>
+                            </Paper>
+                          </SimpleGrid>
                         );
                       })()}
-                    </Group>
 
-                    {/* Hızlı Hesap */}
-                    {(() => {
-                      // Toplam maliyeti frontend'de hesapla
-                      const hesaplananMaliyet =
-                        selectedRecete.malzemeler?.reduce((toplam, m) => {
-                          const fiyat = m.piyasa_fiyat || m.sistem_fiyat || 0;
-                          const miktar = Number(m.miktar) || 0;
-                          const birimLower = (m.birim || '').toLowerCase();
+                      {/* Maliyet Breakdown */}
+                      {getMaliyetBreakdown().length > 0 && (
+                        <Box>
+                          <Text size="sm" fw={500} mb="xs">
+                            <IconChartPie
+                              size={14}
+                              style={{ marginRight: 4, verticalAlign: 'middle' }}
+                            />
+                            Maliyet Dağılımı
+                          </Text>
+                          <Stack gap={4}>
+                            {getMaliyetBreakdown()
+                              .slice(0, 5)
+                              .map((item, i) => (
+                                <Group key={i} gap="xs" wrap="nowrap">
+                                  <Box
+                                    w={10}
+                                    h={10}
+                                    style={{ borderRadius: 2, background: item.renk }}
+                                  />
+                                  <Text size="xs" style={{ flex: 1 }} truncate>
+                                    {item.ad}
+                                  </Text>
+                                  <Text size="xs" fw={500}>
+                                    {formatMoney(item.maliyet)}
+                                  </Text>
+                                  <Badge size="xs" variant="light" color="gray">
+                                    {item.yuzde.toFixed(0)}%
+                                  </Badge>
+                                </Group>
+                              ))}
+                            {getMaliyetBreakdown().length > 5 && (
+                              <Text size="xs" c="dimmed">
+                                +{getMaliyetBreakdown().length - 5} diğer malzeme
+                              </Text>
+                            )}
+                          </Stack>
+                        </Box>
+                      )}
+                    </Paper>
 
-                          let maliyet = 0;
-                          if (['g', 'gr', 'ml'].includes(birimLower)) {
-                            maliyet = (miktar / 1000) * Number(fiyat);
-                          } else if (['kg', 'lt', 'l'].includes(birimLower)) {
-                            maliyet = miktar * Number(fiyat);
-                          } else {
-                            maliyet = miktar * Number(fiyat);
-                          }
-                          return toplam + maliyet;
-                        }, 0) || 0;
-
-                      return (
-                        <SimpleGrid cols={4} mb="md">
-                          <Paper p="xs" radius="md" withBorder ta="center" bg="white">
-                            <Text size="xs" c="dimmed">
-                              100 Kişi
-                            </Text>
-                            <Text fw={600} size="sm" c="green">
-                              {formatMoney(hesaplananMaliyet * 100)}
-                            </Text>
-                          </Paper>
-                          <Paper p="xs" radius="md" withBorder ta="center" bg="white">
-                            <Text size="xs" c="dimmed">
-                              500 Kişi
-                            </Text>
-                            <Text fw={600} size="sm" c="green">
-                              {formatMoney(hesaplananMaliyet * 500)}
-                            </Text>
-                          </Paper>
-                          <Paper p="xs" radius="md" withBorder ta="center" bg="white">
-                            <Text size="xs" c="dimmed">
-                              1000 Kişi
-                            </Text>
-                            <Text fw={600} size="sm" c="green">
-                              {formatMoney(hesaplananMaliyet * 1000)}
-                            </Text>
-                          </Paper>
-                          <Paper p="xs" radius="md" withBorder ta="center" bg="white">
-                            <Group gap={4} justify="center">
-                              <NumberInput
-                                value={kisiSayisi}
-                                onChange={(v) => setKisiSayisi(Number(v) || 1)}
-                                min={1}
-                                max={100000}
-                                size="xs"
-                                w={70}
-                                hideControls
-                              />
-                              <Text size="xs">kişi</Text>
-                            </Group>
-                            <Text fw={600} size="sm" c="teal">
-                              {formatMoney(hesaplananMaliyet * kisiSayisi)}
-                            </Text>
-                          </Paper>
-                        </SimpleGrid>
-                      );
-                    })()}
-
-                    {/* Maliyet Breakdown */}
-                    {getMaliyetBreakdown().length > 0 && (
-                      <Box>
-                        <Text size="sm" fw={500} mb="xs">
-                          <IconChartPie
-                            size={14}
-                            style={{ marginRight: 4, verticalAlign: 'middle' }}
-                          />
-                          Maliyet Dağılımı
+                    {/* Eksik Fiyat Uyarısı */}
+                    {eksikFiyatlar.length > 0 && (
+                      <Alert
+                        color="yellow"
+                        icon={<IconAlertCircle size={16} />}
+                        title="Eksik Piyasa Fiyatı"
+                      >
+                        <Text size="sm">
+                          {eksikFiyatlar.length} malzemenin piyasa fiyatı yok:{' '}
+                          {eksikFiyatlar.map((m) => m.malzeme_adi).join(', ')}
                         </Text>
-                        <Stack gap={4}>
-                          {getMaliyetBreakdown()
-                            .slice(0, 5)
-                            .map((item, i) => (
-                              <Group key={i} gap="xs" wrap="nowrap">
-                                <Box
-                                  w={10}
-                                  h={10}
-                                  style={{ borderRadius: 2, background: item.renk }}
-                                />
-                                <Text size="xs" style={{ flex: 1 }} truncate>
-                                  {item.ad}
-                                </Text>
-                                <Text size="xs" fw={500}>
-                                  {formatMoney(item.maliyet)}
-                                </Text>
-                                <Badge size="xs" variant="light" color="gray">
-                                  {item.yuzde.toFixed(0)}%
-                                </Badge>
-                              </Group>
-                            ))}
-                          {getMaliyetBreakdown().length > 5 && (
-                            <Text size="xs" c="dimmed">
-                              +{getMaliyetBreakdown().length - 5} diğer malzeme
-                            </Text>
-                          )}
-                        </Stack>
-                      </Box>
+                      </Alert>
                     )}
-                  </Paper>
 
-                  {/* Eksik Fiyat Uyarısı */}
-                  {eksikFiyatlar.length > 0 && (
-                    <Alert
-                      color="yellow"
-                      icon={<IconAlertCircle size={16} />}
-                      title="Eksik Piyasa Fiyatı"
-                    >
-                      <Text size="sm">
-                        {eksikFiyatlar.length} malzemenin piyasa fiyatı yok:{' '}
-                        {eksikFiyatlar.map((m) => m.malzeme_adi).join(', ')}
-                      </Text>
-                    </Alert>
-                  )}
+                    <Divider />
 
-                  <Divider />
-
-                  {/* Malzemeler Tablosu */}
-                  <Box>
-                    <Group justify="space-between" mb="sm">
-                      <Text fw={600}>
-                        <IconScale size={18} style={{ marginRight: 8, verticalAlign: 'middle' }} />
-                        Malzemeler ({selectedRecete.malzemeler?.length || 0})
-                      </Text>
-                      <Group gap="xs">
-                        {eksikFiyatlar.length > 0 && (
-                          <Tooltip
-                            label={`${eksikFiyatlar.length} malzemenin fiyatı eksik - Stok kartlarından güncelleyin`}
+                    {/* Malzemeler Tablosu */}
+                    <Box>
+                      <Group justify="space-between" mb="sm">
+                        <Text fw={600}>
+                          <IconScale
+                            size={18}
+                            style={{ marginRight: 8, verticalAlign: 'middle' }}
+                          />
+                          Malzemeler ({selectedRecete.malzemeler?.length || 0})
+                        </Text>
+                        <Group gap="xs">
+                          {eksikFiyatlar.length > 0 && (
+                            <Tooltip
+                              label={`${eksikFiyatlar.length} malzemenin fiyatı eksik - Stok kartlarından güncelleyin`}
+                            >
+                              <Badge color="yellow" variant="light" size="sm">
+                                {eksikFiyatlar.length} fiyat eksik
+                              </Badge>
+                            </Tooltip>
+                          )}
+                          <Button
+                            variant="gradient"
+                            gradient={{ from: 'violet', to: 'blue' }}
+                            size="xs"
+                            leftSection={<IconSparkles size={14} />}
+                            onClick={handleAiMalzemeOneri}
+                            loading={aiMalzemeLoading}
+                            disabled={aiMalzemeLoading}
                           >
-                            <Badge color="yellow" variant="light" size="sm">
-                              {eksikFiyatlar.length} fiyat eksik
-                            </Badge>
-                          </Tooltip>
-                        )}
-                        <Button
-                          variant="gradient"
-                          gradient={{ from: 'violet', to: 'blue' }}
-                          size="xs"
-                          leftSection={<IconSparkles size={14} />}
-                          onClick={handleAiMalzemeOneri}
-                          loading={aiMalzemeLoading}
-                          disabled={aiMalzemeLoading}
-                        >
-                          AI ile Öner
-                        </Button>
-                        <Button
-                          variant="gradient"
-                          gradient={{ from: 'orange', to: 'red' }}
-                          size="xs"
-                          leftSection={<IconPlus size={14} />}
-                          onClick={() => setShowStokKartModal(true)}
-                        >
-                          Malzeme Ekle
-                        </Button>
+                            AI ile Öner
+                          </Button>
+                          <Button
+                            variant="gradient"
+                            gradient={{ from: 'orange', to: 'red' }}
+                            size="xs"
+                            leftSection={<IconPlus size={14} />}
+                            onClick={() => setShowStokKartModal(true)}
+                          >
+                            Malzeme Ekle
+                          </Button>
+                        </Group>
                       </Group>
-                    </Group>
 
-                    <Stack gap="xs">
-                      {selectedRecete.malzemeler && selectedRecete.malzemeler.length > 0 ? (
-                        selectedRecete.malzemeler.map((m) => {
-                          const isEditing = editingMalzemeId === m.id;
+                      <Stack gap="xs">
+                        {selectedRecete.malzemeler && selectedRecete.malzemeler.length > 0 ? (
+                          selectedRecete.malzemeler.map((m) => {
+                            const isEditing = editingMalzemeId === m.id;
 
-                          // Maliyet hesapla
-                          let fiyat = 0;
-                          if (m.stok_kart_id) {
-                            const stokKart = piyasaUrunleri.find(
-                              (s) => s.stok_kart_id === m.stok_kart_id
-                            );
-                            if (stokKart && stokKart.son_sistem_fiyat > 0)
-                              fiyat = stokKart.son_sistem_fiyat;
-                          }
-                          if (fiyat <= 0)
-                            fiyat = m.birim_fiyat || m.piyasa_fiyat || m.sistem_fiyat || 0;
+                            // Maliyet hesapla
+                            let fiyat = 0;
+                            if (m.stok_kart_id) {
+                              const stokKart = piyasaUrunleri.find(
+                                (s) => s.stok_kart_id === m.stok_kart_id
+                              );
+                              if (stokKart && stokKart.son_sistem_fiyat > 0)
+                                fiyat = stokKart.son_sistem_fiyat;
+                            }
+                            if (fiyat <= 0)
+                              fiyat = m.birim_fiyat || m.piyasa_fiyat || m.sistem_fiyat || 0;
 
-                          const miktar = Number(m.miktar) || 0;
-                          const birimLower = (m.birim || '').toLowerCase();
-                          let maliyet = 0;
-                          if (['g', 'gr', 'ml'].includes(birimLower)) {
-                            maliyet = (miktar / 1000) * Number(fiyat);
-                          } else {
-                            maliyet = miktar * Number(fiyat);
-                          }
+                            const miktar = Number(m.miktar) || 0;
+                            const birimLower = (m.birim || '').toLowerCase();
+                            let maliyet = 0;
+                            if (['g', 'gr', 'ml'].includes(birimLower)) {
+                              maliyet = (miktar / 1000) * Number(fiyat);
+                            } else {
+                              maliyet = miktar * Number(fiyat);
+                            }
 
-                          const fiyatBirimi = ['ml', 'lt', 'l'].includes(birimLower)
-                            ? 'lt'
-                            : birimLower === 'adet'
-                              ? 'adet'
-                              : 'kg';
+                            const fiyatBirimi = ['ml', 'lt', 'l'].includes(birimLower)
+                              ? 'lt'
+                              : birimLower === 'adet'
+                                ? 'adet'
+                                : 'kg';
 
-                          if (isEditing) {
-                            // DÜZENLEME MODU - Kompakt satır içi
+                            if (isEditing) {
+                              // DÜZENLEME MODU - Kompakt satır içi
+                              return (
+                                <Paper
+                                  key={m.id}
+                                  p="sm"
+                                  radius="md"
+                                  withBorder
+                                  style={{
+                                    borderColor: 'var(--mantine-color-blue-4)',
+                                    boxShadow: '0 0 0 1px var(--mantine-color-blue-2)',
+                                  }}
+                                >
+                                  <Group justify="space-between" wrap="wrap">
+                                    <Group gap="sm" wrap="nowrap" style={{ flex: 1 }}>
+                                      <Text size="lg">
+                                        {getMalzemeIcon(m.urun_adi || m.malzeme_adi)}
+                                      </Text>
+                                      <Text fw={600} size="sm">
+                                        {m.urun_adi || m.malzeme_adi}
+                                      </Text>
+                                    </Group>
+
+                                    <Group gap="sm" wrap="nowrap">
+                                      <NumberInput
+                                        value={editingMalzemeData?.miktar || 0}
+                                        onChange={(val) =>
+                                          setEditingMalzemeData((prev) => ({
+                                            ...prev!,
+                                            miktar: Number(val) || 0,
+                                          }))
+                                        }
+                                        size="sm"
+                                        min={0}
+                                        decimalScale={2}
+                                        w={90}
+                                        styles={{ input: { textAlign: 'center', fontWeight: 600 } }}
+                                      />
+                                      <Select
+                                        value={editingMalzemeData?.birim || 'gr'}
+                                        onChange={(val) =>
+                                          setEditingMalzemeData((prev) => ({
+                                            ...prev!,
+                                            birim: val || 'gr',
+                                          }))
+                                        }
+                                        data={BIRIMLER}
+                                        size="sm"
+                                        w={100}
+                                      />
+                                      <Group gap={6} wrap="nowrap">
+                                        <Text size="sm" c="dimmed">
+                                          ₺
+                                        </Text>
+                                        <NumberInput
+                                          value={editingMalzemeData?.birim_fiyat || ''}
+                                          onChange={(val) =>
+                                            setEditingMalzemeData((prev) => ({
+                                              ...prev!,
+                                              birim_fiyat: Number(val) || null,
+                                            }))
+                                          }
+                                          size="sm"
+                                          min={0}
+                                          decimalScale={2}
+                                          w={80}
+                                          placeholder="0.00"
+                                          styles={{
+                                            input: { textAlign: 'center', fontWeight: 600 },
+                                          }}
+                                        />
+                                        <Text size="sm" c="dimmed">
+                                          /{fiyatBirimi}
+                                        </Text>
+                                      </Group>
+
+                                      <ActionIcon
+                                        variant="filled"
+                                        color="green"
+                                        size="md"
+                                        radius="xl"
+                                        onClick={handleMalzemeDuzenleKaydet}
+                                      >
+                                        <IconCheck size={16} />
+                                      </ActionIcon>
+                                      <ActionIcon
+                                        variant="light"
+                                        color="gray"
+                                        size="md"
+                                        radius="xl"
+                                        onClick={handleMalzemeDuzenleIptal}
+                                      >
+                                        <IconX size={16} />
+                                      </ActionIcon>
+                                    </Group>
+                                  </Group>
+                                </Paper>
+                              );
+                            }
+
+                            // NORMAL GÖRÜNÜM - Temiz ve tıklanabilir
                             return (
                               <Paper
                                 key={m.id}
                                 p="sm"
                                 radius="md"
                                 withBorder
-                                style={{
-                                  borderColor: 'var(--mantine-color-blue-4)',
-                                  boxShadow: '0 0 0 1px var(--mantine-color-blue-2)',
-                                }}
+                                style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
+                                className="hover-card"
+                                onClick={() => handleMalzemeDuzenleBasla(m)}
                               >
                                 <Group justify="space-between" wrap="wrap">
                                   <Group gap="sm" wrap="nowrap" style={{ flex: 1 }}>
                                     <Text size="lg">
                                       {getMalzemeIcon(m.urun_adi || m.malzeme_adi)}
                                     </Text>
-                                    <Text fw={600} size="sm">
+                                    <Text fw={500} size="sm">
                                       {m.urun_adi || m.malzeme_adi}
                                     </Text>
                                   </Group>
 
-                                  <Group gap="sm" wrap="nowrap">
-                                    <NumberInput
-                                      value={editingMalzemeData?.miktar || 0}
-                                      onChange={(val) =>
-                                        setEditingMalzemeData((prev) => ({
-                                          ...prev!,
-                                          miktar: Number(val) || 0,
-                                        }))
-                                      }
-                                      size="sm"
-                                      min={0}
-                                      decimalScale={2}
-                                      w={90}
-                                      styles={{ input: { textAlign: 'center', fontWeight: 600 } }}
-                                    />
-                                    <Select
-                                      value={editingMalzemeData?.birim || 'gr'}
-                                      onChange={(val) =>
-                                        setEditingMalzemeData((prev) => ({
-                                          ...prev!,
-                                          birim: val || 'gr',
-                                        }))
-                                      }
-                                      data={BIRIMLER}
-                                      size="sm"
-                                      w={100}
-                                    />
-                                    <Group gap={6} wrap="nowrap">
-                                      <Text size="sm" c="dimmed">
-                                        ₺
-                                      </Text>
-                                      <NumberInput
-                                        value={editingMalzemeData?.birim_fiyat || ''}
-                                        onChange={(val) =>
-                                          setEditingMalzemeData((prev) => ({
-                                            ...prev!,
-                                            birim_fiyat: Number(val) || null,
-                                          }))
-                                        }
-                                        size="sm"
-                                        min={0}
-                                        decimalScale={2}
-                                        w={80}
-                                        placeholder="0.00"
-                                        styles={{ input: { textAlign: 'center', fontWeight: 600 } }}
-                                      />
-                                      <Text size="sm" c="dimmed">
-                                        /{fiyatBirimi}
-                                      </Text>
-                                    </Group>
-
+                                  <Group gap="md" wrap="nowrap">
+                                    <Text fw={600} size="sm" c="dark">
+                                      {m.miktar} {m.birim}
+                                    </Text>
+                                    <Text fw={700} size="sm" c={maliyet > 0 ? 'teal' : 'dimmed'}>
+                                      {maliyet > 0 ? formatMoney(maliyet) : '—'}
+                                    </Text>
                                     <ActionIcon
-                                      variant="filled"
-                                      color="green"
-                                      size="md"
-                                      radius="xl"
-                                      onClick={handleMalzemeDuzenleKaydet}
+                                      variant="subtle"
+                                      color="red"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleMalzemeSil(m.id);
+                                      }}
                                     >
-                                      <IconCheck size={16} />
-                                    </ActionIcon>
-                                    <ActionIcon
-                                      variant="light"
-                                      color="gray"
-                                      size="md"
-                                      radius="xl"
-                                      onClick={handleMalzemeDuzenleIptal}
-                                    >
-                                      <IconX size={16} />
+                                      <IconTrash size={14} />
                                     </ActionIcon>
                                   </Group>
                                 </Group>
                               </Paper>
                             );
-                          }
-
-                          // NORMAL GÖRÜNÜM - Temiz ve tıklanabilir
-                          return (
-                            <Paper
-                              key={m.id}
-                              p="sm"
-                              radius="md"
-                              withBorder
-                              style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
-                              className="hover-card"
-                              onClick={() => handleMalzemeDuzenleBasla(m)}
-                            >
-                              <Group justify="space-between" wrap="wrap">
-                                <Group gap="sm" wrap="nowrap" style={{ flex: 1 }}>
-                                  <Text size="lg">
-                                    {getMalzemeIcon(m.urun_adi || m.malzeme_adi)}
-                                  </Text>
-                                  <Text fw={500} size="sm">
-                                    {m.urun_adi || m.malzeme_adi}
-                                  </Text>
-                                </Group>
-
-                                <Group gap="md" wrap="nowrap">
-                                  <Text fw={600} size="sm" c="dark">
-                                    {m.miktar} {m.birim}
-                                  </Text>
-                                  <Text fw={700} size="sm" c={maliyet > 0 ? 'teal' : 'dimmed'}>
-                                    {maliyet > 0 ? formatMoney(maliyet) : '—'}
-                                  </Text>
-                                  <ActionIcon
-                                    variant="subtle"
-                                    color="red"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleMalzemeSil(m.id);
-                                    }}
-                                  >
-                                    <IconTrash size={14} />
-                                  </ActionIcon>
-                                </Group>
-                              </Group>
-                            </Paper>
-                          );
-                        })
-                      ) : (
-                        <EmptyState
-                          title="Henüz malzeme eklenmemiş"
-                          description="AI ile öner veya manuel ekle"
-                          compact
-                          icon={<IconScale size={32} />}
-                          iconColor="teal"
-                        />
-                      )}
-                    </Stack>
-                  </Box>
-
-                  {/* Özet Bilgiler */}
-                  <SimpleGrid cols={{ base: 2, sm: 4 }}>
-                    <Paper p="sm" withBorder radius="md" ta="center">
-                      <IconScale size={20} color="var(--mantine-color-blue-6)" />
-                      <Text size="xs" c="dimmed" mt={4}>
-                        Porsiyon
-                      </Text>
-                      {editMode ? (
-                        <NumberInput
-                          value={editingRecete?.porsiyon_miktar || 1}
-                          onChange={(val) =>
-                            setEditingRecete({
-                              ...editingRecete,
-                              porsiyon_miktar: Number(val) || 1,
-                            })
-                          }
-                          min={1}
-                          size="xs"
-                          suffix=" gr"
-                        />
-                      ) : (
-                        <Text fw={600}>{selectedRecete.porsiyon_miktar} gr</Text>
-                      )}
-                    </Paper>
-                    <Paper p="sm" withBorder radius="md" ta="center">
-                      <Text size="xs" c="dimmed">
-                        Hazırlık
-                      </Text>
-                      {editMode ? (
-                        <NumberInput
-                          value={editingRecete?.hazirlik_suresi || 0}
-                          onChange={(val) =>
-                            setEditingRecete({
-                              ...editingRecete,
-                              hazirlik_suresi: Number(val) || 0,
-                            })
-                          }
-                          min={0}
-                          size="xs"
-                          suffix=" dk"
-                        />
-                      ) : (
-                        <Text fw={600}>{selectedRecete.hazirlik_suresi || 0} dk</Text>
-                      )}
-                    </Paper>
-                    <Paper p="sm" withBorder radius="md" ta="center">
-                      <Text size="xs" c="dimmed">
-                        Pişirme
-                      </Text>
-                      {editMode ? (
-                        <NumberInput
-                          value={editingRecete?.pisirme_suresi || 0}
-                          onChange={(val) =>
-                            setEditingRecete({ ...editingRecete, pisirme_suresi: Number(val) || 0 })
-                          }
-                          min={0}
-                          size="xs"
-                          suffix=" dk"
-                        />
-                      ) : (
-                        <Text fw={600}>{selectedRecete.pisirme_suresi || 0} dk</Text>
-                      )}
-                    </Paper>
-                    <Paper p="sm" withBorder radius="md" ta="center">
-                      <Text size="xs" c="dimmed">
-                        Kalori
-                      </Text>
-                      <Text fw={600}>{selectedRecete.kalori || '—'} kcal</Text>
-                    </Paper>
-                  </SimpleGrid>
-
-                  {/* Tarif */}
-                  {editMode ? (
-                    <Box>
-                      <Text fw={600} mb="xs">
-                        Tarif
-                      </Text>
-                      <Textarea
-                        value={editingRecete?.tarif || ''}
-                        onChange={(e) =>
-                          setEditingRecete({ ...editingRecete, tarif: e.target.value })
-                        }
-                        minRows={4}
-                        placeholder="Tarif açıklaması..."
-                      />
+                          })
+                        ) : (
+                          <EmptyState
+                            title="Henüz malzeme eklenmemiş"
+                            description="AI ile öner veya manuel ekle"
+                            compact
+                            icon={<IconScale size={32} />}
+                            iconColor="teal"
+                          />
+                        )}
+                      </Stack>
                     </Box>
-                  ) : (
-                    selectedRecete.tarif && (
+
+                    {/* Özet Bilgiler */}
+                    <SimpleGrid cols={{ base: 2, sm: 4 }}>
+                      <Paper p="sm" withBorder radius="md" ta="center">
+                        <IconScale size={20} color="var(--mantine-color-blue-6)" />
+                        <Text size="xs" c="dimmed" mt={4}>
+                          Porsiyon
+                        </Text>
+                        {editMode ? (
+                          <NumberInput
+                            value={editingRecete?.porsiyon_miktar || 1}
+                            onChange={(val) =>
+                              setEditingRecete({
+                                ...editingRecete,
+                                porsiyon_miktar: Number(val) || 1,
+                              })
+                            }
+                            min={1}
+                            size="xs"
+                            suffix=" gr"
+                          />
+                        ) : (
+                          <Text fw={600}>{selectedRecete.porsiyon_miktar} gr</Text>
+                        )}
+                      </Paper>
+                      <Paper p="sm" withBorder radius="md" ta="center">
+                        <Text size="xs" c="dimmed">
+                          Hazırlık
+                        </Text>
+                        {editMode ? (
+                          <NumberInput
+                            value={editingRecete?.hazirlik_suresi || 0}
+                            onChange={(val) =>
+                              setEditingRecete({
+                                ...editingRecete,
+                                hazirlik_suresi: Number(val) || 0,
+                              })
+                            }
+                            min={0}
+                            size="xs"
+                            suffix=" dk"
+                          />
+                        ) : (
+                          <Text fw={600}>{selectedRecete.hazirlik_suresi || 0} dk</Text>
+                        )}
+                      </Paper>
+                      <Paper p="sm" withBorder radius="md" ta="center">
+                        <Text size="xs" c="dimmed">
+                          Pişirme
+                        </Text>
+                        {editMode ? (
+                          <NumberInput
+                            value={editingRecete?.pisirme_suresi || 0}
+                            onChange={(val) =>
+                              setEditingRecete({
+                                ...editingRecete,
+                                pisirme_suresi: Number(val) || 0,
+                              })
+                            }
+                            min={0}
+                            size="xs"
+                            suffix=" dk"
+                          />
+                        ) : (
+                          <Text fw={600}>{selectedRecete.pisirme_suresi || 0} dk</Text>
+                        )}
+                      </Paper>
+                      <Paper p="sm" withBorder radius="md" ta="center">
+                        <Text size="xs" c="dimmed">
+                          Kalori
+                        </Text>
+                        <Text fw={600}>{selectedRecete.kalori || '—'} kcal</Text>
+                      </Paper>
+                    </SimpleGrid>
+
+                    {/* Tarif */}
+                    {editMode ? (
                       <Box>
                         <Text fw={600} mb="xs">
                           Tarif
                         </Text>
-                        <Paper p="md" withBorder radius="md" bg="var(--mantine-color-gray-light)">
-                          <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
-                            {selectedRecete.tarif}
-                          </Text>
-                        </Paper>
+                        <Textarea
+                          value={editingRecete?.tarif || ''}
+                          onChange={(e) =>
+                            setEditingRecete({ ...editingRecete, tarif: e.target.value })
+                          }
+                          minRows={4}
+                          placeholder="Tarif açıklaması..."
+                        />
                       </Box>
-                    )
-                  )}
-                </Stack>
-              </ScrollArea>
-            </>
-          )}
-        </Box>
+                    ) : (
+                      selectedRecete.tarif && (
+                        <Box>
+                          <Text fw={600} mb="xs">
+                            Tarif
+                          </Text>
+                          <Paper p="md" withBorder radius="md" bg="var(--mantine-color-gray-light)">
+                            <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
+                              {selectedRecete.tarif}
+                            </Text>
+                          </Paper>
+                        </Box>
+                      )
+                    )}
+                  </Stack>
+                </ScrollArea>
+              </>
+            )}
+          </Box>
         )}
       </Box>
 

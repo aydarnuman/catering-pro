@@ -5,6 +5,7 @@
 
 import { api } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/config';
+import type { AuditLog } from '@/types/domain';
 import type { ApiResponse } from '../types';
 
 // User interface
@@ -68,14 +69,17 @@ export const adminAPI = {
   /**
    * Kullanıcı güncelle
    */
-  async updateUser(userId: number, data: {
-    name?: string;
-    email?: string;
-    password?: string;
-    role?: string;
-    user_type?: 'super_admin' | 'admin' | 'user';
-    is_active?: boolean;
-  }): Promise<ApiResponse<User>> {
+  async updateUser(
+    userId: number,
+    data: {
+      name?: string;
+      email?: string;
+      password?: string;
+      role?: string;
+      user_type?: 'super_admin' | 'admin' | 'user';
+      is_active?: boolean;
+    }
+  ): Promise<ApiResponse<User>> {
     const response = await api.put(`/api/auth/users/${userId}`, data);
     return response.data;
   },
@@ -107,10 +111,15 @@ export const adminAPI = {
   /**
    * Login attempt geçmişi
    */
-  async getUserLoginAttempts(userId: number, limit?: number): Promise<ApiResponse<{
-    history: any[];
-    userStatus: any;
-  }>> {
+  async getUserLoginAttempts(
+    userId: number,
+    limit?: number
+  ): Promise<
+    ApiResponse<{
+      history: any[];
+      userStatus: any;
+    }>
+  > {
     const response = await api.get(`/api/auth/users/${userId}/login-attempts`, {
       params: { limit: limit || 50 },
     });
@@ -131,7 +140,7 @@ export const adminAPI = {
     search?: string;
     start_date?: string;
     end_date?: string;
-  }): Promise<ApiResponse<{ logs: any[]; pagination: { totalPages: number } }>> {
+  }): Promise<ApiResponse<{ logs: AuditLog[]; pagination: { totalPages: number } }>> {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.append('page', params.page.toString());
     if (params?.limit) searchParams.append('limit', params.limit.toString());
@@ -183,7 +192,10 @@ export const adminAPI = {
   /**
    * Şifre değiştir
    */
-  async changePassword(data: { currentPassword: string; newPassword: string }): Promise<ApiResponse<any>> {
+  async changePassword(data: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<ApiResponse<any>> {
     const response = await api.put('/api/auth/password', data);
     return response.data;
   },
@@ -248,15 +260,15 @@ export const adminAPI = {
         params: { _t: Date.now() }, // Cache busting
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
+          Pragma: 'no-cache',
+        },
       });
-      
+
       // 200 OK - başarılı
       if (response.status === 200) {
         return response.data;
       }
-      
+
       // 304 Not Modified - cache'den geliyor, data olabilir veya olmayabilir
       if (response.status === 304) {
         // Eğer data varsa kullan, yoksa tekrar dene
@@ -268,17 +280,17 @@ export const adminAPI = {
           params: { _t: Date.now() },
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          }
+            Pragma: 'no-cache',
+          },
         });
         return freshResponse.data;
       }
-      
+
       // Diğer durumlar
       if (response.data) {
         return response.data;
       }
-      
+
       // Data yoksa hata fırlat
       throw new Error(`Unexpected status: ${response.status}`);
     } catch (error: any) {
@@ -287,6 +299,30 @@ export const adminAPI = {
         console.warn('401 hatası - token refresh deneniyor...');
         throw error;
       }
+
+      // 500 hatası - sunucu hatası
+      if (error.response?.status === 500) {
+        console.error('getMyPermissions: Sunucu hatası (500)', error);
+        // Kullanıcıya anlamlı bir hata mesajı ile birlikte fırlat
+        const serverError = new Error(
+          'Yetkiler yüklenirken sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.'
+        ) as Error & { response?: unknown; isAxiosError?: boolean };
+        serverError.response = error.response;
+        serverError.isAxiosError = true;
+        throw serverError;
+      }
+
+      // 503 hatası - servis kullanılamıyor
+      if (error.response?.status === 503) {
+        console.error('getMyPermissions: Servis kullanılamıyor (503)', error);
+        const serviceError = new Error(
+          'Yetkiler servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.'
+        ) as Error & { response?: unknown; isAxiosError?: boolean };
+        serviceError.response = error.response;
+        serviceError.isAxiosError = true;
+        throw serviceError;
+      }
+
       console.error('getMyPermissions error:', error);
       throw error;
     }
@@ -438,12 +474,15 @@ export const adminAPI = {
   /**
    * IP kuralını güncelle
    */
-  async updateIpRule(ruleId: number, data: {
-    ipAddress?: string;
-    type?: 'whitelist' | 'blacklist';
-    description?: string;
-    isActive?: boolean;
-  }): Promise<ApiResponse<any>> {
+  async updateIpRule(
+    ruleId: number,
+    data: {
+      ipAddress?: string;
+      type?: 'whitelist' | 'blacklist';
+      description?: string;
+      isActive?: boolean;
+    }
+  ): Promise<ApiResponse<any>> {
     const response = await api.put(`/api/auth/admin/ip-rules/${ruleId}`, data);
     return response.data;
   },

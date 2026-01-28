@@ -10,6 +10,7 @@ import {
   Group,
   Paper,
   Progress,
+  rem,
   SimpleGrid,
   Skeleton,
   Stack,
@@ -20,8 +21,6 @@ import {
   Title,
   Tooltip,
   UnstyledButton,
-  Box,
-  rem,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -29,7 +28,6 @@ import {
   IconBriefcase,
   IconBug,
   IconCheck,
-  IconChevronRight,
   IconClock,
   IconCloudDownload,
   IconDatabase,
@@ -39,17 +37,15 @@ import {
   IconLock,
   IconReceipt,
   IconRefresh,
-  IconRobot,
   IconServer,
-  IconSettings,
   IconShieldLock,
   IconUser,
   IconUsers,
   IconWand,
   IconX,
 } from '@tabler/icons-react';
-import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { adminAPI } from '@/lib/api/services/admin';
 
@@ -58,7 +54,7 @@ interface AdminStats {
   veritabani: { boyut: string; bytes: number };
   baglanti: { toplam: number; aktif: number; bekleyen: number };
   bugun: { fatura: number; ihale: number; cari: number; personel: number };
-  sonAktiviteler: any[];
+  sonAktiviteler: Array<Record<string, unknown>>;
   performans: { responseTime: number; timestamp: string };
 }
 
@@ -72,7 +68,7 @@ interface HealthData {
 export default function AdminPage() {
   // API_URL kaldırıldı - adminAPI kullanılıyor (özel endpoint'ler için API_BASE_URL kullanılıyor)
   const router = useRouter();
-  const { isSuperAdmin, user } = useAuth();
+  const { isSuperAdmin } = useAuth();
 
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [health, setHealth] = useState<HealthData | null>(null);
@@ -109,29 +105,101 @@ export default function AdminPage() {
       label: '🔐 Güvenlik',
       color: 'blue',
       items: [
-        { id: 'kullanicilar', title: 'Kullanıcılar', description: 'Kullanıcı ekleme, silme, düzenleme ve yetki atama işlemleri', icon: IconUsers, color: 'blue', path: '/admin/kullanicilar', stat: null },
-        { id: 'yetkiler', title: 'Yetkiler', description: 'Modül bazlı yetkilendirme, rol tanımlama ve erişim kontrolü', icon: IconShieldLock, color: 'violet', path: '/admin/yetkiler', stat: null },
-        { id: 'yetki-sablonlari', title: 'Yetki Şablonları', description: 'Önceden tanımlı yetki profilleri oluşturma ve yönetimi', icon: IconShieldLock, color: 'grape', path: '/admin/yetki-sablonlari', stat: null },
-        { id: 'ip-management', title: 'IP Erişim Yönetimi', description: 'IP whitelist ve blacklist kuralları - Erişim kontrolü', icon: IconLock, color: 'orange', path: '/admin/ip-management', stat: null },
-        { id: 'loglar', title: 'İşlem Logları', description: 'Tüm sistem aktivitelerinin detaylı kaydı - Kim, ne zaman, ne yaptı', icon: IconActivity, color: 'teal', path: '/admin/loglar', stat: null },
-      ]
+        {
+          id: 'kullanicilar',
+          title: 'Kullanıcılar',
+          description: 'Kullanıcı ekleme, silme, düzenleme ve yetki atama işlemleri',
+          icon: IconUsers,
+          color: 'blue',
+          path: '/admin/kullanicilar',
+          stat: null,
+        },
+        {
+          id: 'yetkiler',
+          title: 'Yetkiler',
+          description: 'Modül bazlı yetkilendirme, rol tanımlama ve erişim kontrolü',
+          icon: IconShieldLock,
+          color: 'violet',
+          path: '/admin/yetkiler',
+          stat: null,
+        },
+        {
+          id: 'yetki-sablonlari',
+          title: 'Yetki Şablonları',
+          description: 'Önceden tanımlı yetki profilleri oluşturma ve yönetimi',
+          icon: IconShieldLock,
+          color: 'grape',
+          path: '/admin/yetki-sablonlari',
+          stat: null,
+        },
+        {
+          id: 'ip-management',
+          title: 'IP Erişim Yönetimi',
+          description: 'IP whitelist ve blacklist kuralları - Erişim kontrolü',
+          icon: IconLock,
+          color: 'orange',
+          path: '/admin/ip-management',
+          stat: null,
+        },
+        {
+          id: 'loglar',
+          title: 'İşlem Logları',
+          description: 'Tüm sistem aktivitelerinin detaylı kaydı - Kim, ne zaman, ne yaptı',
+          icon: IconActivity,
+          color: 'teal',
+          path: '/admin/loglar',
+          stat: null,
+        },
+      ],
     },
     sistem: {
       label: '⚙️ Sistem',
       color: 'cyan',
       items: [
-        { id: 'veri', title: 'Veri Yönetimi', description: 'Uyumsoft senkronizasyonu, veritabanı yedekleme, import/export işlemleri', icon: IconCloudDownload, color: 'cyan', path: '/admin/sync', stat: null },
-        { id: 'sistem', title: 'Geliştirici Araçları', description: 'Swagger API Docs, sistem logları, performans metrikleri', icon: IconServer, color: 'gray', path: '/admin/sistem', stat: null },
-      ]
+        {
+          id: 'veri',
+          title: 'Veri Yönetimi',
+          description: 'Uyumsoft senkronizasyonu, veritabanı yedekleme, import/export işlemleri',
+          icon: IconCloudDownload,
+          color: 'cyan',
+          path: '/admin/sync',
+          stat: null,
+        },
+        {
+          id: 'sistem',
+          title: 'Geliştirici Araçları',
+          description: 'Swagger API Docs, sistem logları, performans metrikleri',
+          icon: IconServer,
+          color: 'gray',
+          path: '/admin/sistem',
+          stat: null,
+        },
+      ],
     },
     otomasyon: {
       label: '🤖 AI & Otomasyon',
       color: 'grape',
       items: [
-        { id: 'scraper', title: 'İhale Scraper', description: 'ihalebul.com otomatik tarama, döküman indirme ve analiz durumu', icon: IconBug, color: 'grape', path: '/admin/scraper', stat: null },
-        { id: 'prompt-builder', title: 'AI Prompt Builder', description: 'Adım adım interaktif AI prompt oluşturma ve şablon yönetimi', icon: IconWand, color: 'violet', path: '/admin/prompt-builder', stat: null },
-      ]
-    }
+        {
+          id: 'scraper',
+          title: 'İhale Scraper',
+          description: 'ihalebul.com otomatik tarama, döküman indirme ve analiz durumu',
+          icon: IconBug,
+          color: 'grape',
+          path: '/admin/scraper',
+          stat: null,
+        },
+        {
+          id: 'prompt-builder',
+          title: 'AI Prompt Builder',
+          description: 'Adım adım interaktif AI prompt oluşturma ve şablon yönetimi',
+          icon: IconWand,
+          color: 'violet',
+          path: '/admin/prompt-builder',
+          stat: null,
+        },
+      ],
+    },
   };
 
   // DB boyutu yüzdesi (500MB limit varsayımı)
@@ -167,7 +235,7 @@ export default function AdminPage() {
                 <IconRefresh size={18} />
               </ActionIcon>
             </Tooltip>
-            
+
             {/* 📊 Bugünkü Aktivite Button */}
             <Tooltip label={activityOpen ? 'Aktiviteyi Kapat' : 'Bugünkü Aktivite'}>
               <ActionIcon
@@ -183,7 +251,7 @@ export default function AdminPage() {
                 <IconActivity size={20} />
               </ActionIcon>
             </Tooltip>
-            
+
             {/* 🔥 God Mode Button - Super Admin Only */}
             {isSuperAdmin && (
               <Button
@@ -201,7 +269,7 @@ export default function AdminPage() {
                 GOD MODE
               </Button>
             )}
-            
+
             <Badge size="lg" variant="light" color="red">
               Admin Only
             </Badge>
@@ -213,7 +281,9 @@ export default function AdminPage() {
           <Paper p="md" radius="md" withBorder>
             <Group justify="space-between" mb="md">
               <Text fw={600}>📊 Bugünkü Aktivite</Text>
-              <Badge color="blue" variant="light">Canlı</Badge>
+              <Badge color="blue" variant="light">
+                Canlı
+              </Badge>
             </Group>
             <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
               <Group>
@@ -221,8 +291,12 @@ export default function AdminPage() {
                   <IconReceipt size={20} />
                 </ThemeIcon>
                 <div>
-                  <Text size="xl" fw={700}>{stats?.bugun.fatura || 0}</Text>
-                  <Text size="xs" c="dimmed">Yeni Fatura</Text>
+                  <Text size="xl" fw={700}>
+                    {stats?.bugun.fatura || 0}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Yeni Fatura
+                  </Text>
                 </div>
               </Group>
               <Group>
@@ -230,8 +304,12 @@ export default function AdminPage() {
                   <IconBriefcase size={20} />
                 </ThemeIcon>
                 <div>
-                  <Text size="xl" fw={700}>{stats?.bugun.ihale || 0}</Text>
-                  <Text size="xs" c="dimmed">Yeni İhale</Text>
+                  <Text size="xl" fw={700}>
+                    {stats?.bugun.ihale || 0}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Yeni İhale
+                  </Text>
                 </div>
               </Group>
               <Group>
@@ -239,8 +317,12 @@ export default function AdminPage() {
                   <IconUsers size={20} />
                 </ThemeIcon>
                 <div>
-                  <Text size="xl" fw={700}>{stats?.bugun.cari || 0}</Text>
-                  <Text size="xs" c="dimmed">Yeni Cari</Text>
+                  <Text size="xl" fw={700}>
+                    {stats?.bugun.cari || 0}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Yeni Cari
+                  </Text>
                 </div>
               </Group>
               <Group>
@@ -248,30 +330,31 @@ export default function AdminPage() {
                   <IconUser size={20} />
                 </ThemeIcon>
                 <div>
-                  <Text size="xl" fw={700}>{stats?.bugun.personel || 0}</Text>
-                  <Text size="xs" c="dimmed">Yeni Personel</Text>
+                  <Text size="xl" fw={700}>
+                    {stats?.bugun.personel || 0}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Yeni Personel
+                  </Text>
                 </div>
               </Group>
             </SimpleGrid>
           </Paper>
         </Collapse>
 
-
         {/* 🔧 Yönetim - Tab Bar + Kompakt Kartlar */}
         <Paper p="lg" radius="md" withBorder>
           <Title order={3} mb="md">
             🔧 Yönetim
           </Title>
-          
+
           <Tabs defaultValue="guvenlik" variant="pills" radius="md">
             <Tabs.List mb="md" style={{ gap: rem(8) }}>
               {Object.entries(adminCategories).map(([key, category]) => (
-                <Tabs.Tab 
-                  key={key} 
+                <Tabs.Tab
+                  key={key}
                   value={key}
-                  leftSection={
-                    <Text size="sm">{category.label.split(' ')[0]}</Text>
-                  }
+                  leftSection={<Text size="sm">{category.label.split(' ')[0]}</Text>}
                   style={{ fontWeight: 500 }}
                 >
                   {category.label.split(' ').slice(1).join(' ')}
@@ -283,7 +366,7 @@ export default function AdminPage() {
               <Tabs.Panel key={key} value={key}>
                 <SimpleGrid cols={{ base: 1, sm: 2, md: category.items.length }} spacing="md">
                   {category.items.map((item) => (
-                    <Tooltip 
+                    <Tooltip
                       key={item.id}
                       label={item.description}
                       position="bottom"
@@ -291,16 +374,12 @@ export default function AdminPage() {
                       multiline
                       w={220}
                     >
-                      <UnstyledButton
-                        component="a"
-                        href={item.path}
-                        style={{ width: '100%' }}
-                      >
-                        <Card 
-                          padding="lg" 
-                          radius="md" 
+                      <UnstyledButton component="a" href={item.path} style={{ width: '100%' }}>
+                        <Card
+                          padding="lg"
+                          radius="md"
                           withBorder
-                          style={{ 
+                          style={{
                             cursor: 'pointer',
                             transition: 'all 0.2s ease',
                           }}
@@ -311,7 +390,9 @@ export default function AdminPage() {
                               <item.icon size={26} />
                             </ThemeIcon>
                             <div style={{ textAlign: 'center' }}>
-                              <Text fw={600} size="sm">{item.title}</Text>
+                              <Text fw={600} size="sm">
+                                {item.title}
+                              </Text>
                               {item.stat && (
                                 <Badge size="sm" variant="light" color={item.color} mt={4}>
                                   {item.stat}
@@ -456,7 +537,6 @@ export default function AdminPage() {
           </Card>
         </SimpleGrid>
 
-
         {/* İki Kolon - Tablolar ve Yönetim */}
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
           {/* Tablo Kayıt Sayıları */}
@@ -473,8 +553,8 @@ export default function AdminPage() {
             ) : (
               <Table>
                 <Table.Tbody>
-                  {stats?.tablolar.slice(0, 8).map((tablo, i) => (
-                    <Table.Tr key={i}>
+                  {stats?.tablolar.slice(0, 8).map((tablo) => (
+                    <Table.Tr key={tablo.ad}>
                       <Table.Td>
                         <Text size="sm" fw={500}>
                           {tablo.ad}

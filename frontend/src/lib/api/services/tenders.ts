@@ -5,8 +5,9 @@
 
 import { api } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/config';
-import type { ApiResponse } from '../types';
 import type { Tender, TendersResponse } from '@/types/api';
+import type { TeklifResponse, TenderNote } from '@/types/domain';
+import type { ApiResponse } from '../types';
 
 // Tenders API
 export const tendersAPI = {
@@ -175,7 +176,7 @@ export const tendersAPI = {
   /**
    * İhale notlarını getir
    */
-  async getTenderNotes(trackingId: number): Promise<ApiResponse<any>> {
+  async getTenderNotes(trackingId: number): Promise<ApiResponse<TenderNote[]>> {
     const response = await api.get(`/api/tender-notes/${trackingId}`);
     return response.data;
   },
@@ -191,7 +192,10 @@ export const tendersAPI = {
   /**
    * Not oluştur
    */
-  async createTenderNote(trackingId: number, data: any): Promise<ApiResponse<any>> {
+  async createTenderNote(
+    trackingId: number,
+    data: Omit<TenderNote, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<ApiResponse<TenderNote>> {
     const response = await api.post(`/api/tender-notes/${trackingId}`, data);
     return response.data;
   },
@@ -199,7 +203,11 @@ export const tendersAPI = {
   /**
    * Not güncelle
    */
-  async updateTenderNote(trackingId: number, noteId: number, data: any): Promise<ApiResponse<any>> {
+  async updateTenderNote(
+    trackingId: number,
+    noteId: number,
+    data: Partial<TenderNote>
+  ): Promise<ApiResponse<TenderNote>> {
     const response = await api.put(`/api/tender-notes/${trackingId}/${noteId}`, data);
     return response.data;
   },
@@ -215,34 +223,60 @@ export const tendersAPI = {
   /**
    * Not sabitle/kaldır
    */
-  async pinTenderNote(trackingId: number, noteId: number, isPinned: boolean): Promise<ApiResponse<any>> {
-    const response = await api.put(`/api/tender-notes/${trackingId}/${noteId}/pin`, { is_pinned: isPinned });
+  async pinTenderNote(
+    trackingId: number,
+    noteId: number,
+    isPinned: boolean
+  ): Promise<ApiResponse<any>> {
+    const response = await api.put(`/api/tender-notes/${trackingId}/${noteId}/pin`, {
+      is_pinned: isPinned,
+    });
     return response.data;
   },
 
   /**
    * Not tamamlanma durumunu güncelle
    */
-  async completeTenderNote(trackingId: number, noteId: number, isCompleted: boolean): Promise<ApiResponse<any>> {
-    const response = await api.put(`/api/tender-notes/${trackingId}/${noteId}`, { is_completed: isCompleted });
+  async completeTenderNote(
+    trackingId: number,
+    noteId: number,
+    isCompleted: boolean
+  ): Promise<ApiResponse<any>> {
+    const response = await api.put(`/api/tender-notes/${trackingId}/${noteId}`, {
+      is_completed: isCompleted,
+    });
     return response.data;
   },
 
   /**
    * Nota dosya ekle
    */
-  async addTenderNoteAttachment(trackingId: number, noteId: number, formData: FormData): Promise<ApiResponse<any>> {
-    const response = await api.post(`/api/tender-notes/${trackingId}/${noteId}/attachments`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+  async addTenderNoteAttachment(
+    trackingId: number,
+    noteId: number,
+    formData: FormData
+  ): Promise<ApiResponse<any>> {
+    const response = await api.post(
+      `/api/tender-notes/${trackingId}/${noteId}/attachments`,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }
+    );
     return response.data;
   },
 
   /**
    * Not dosyasını sil
    */
-  async deleteTenderNoteAttachment(trackingId: number, noteId: number, attachmentId: number): Promise<ApiResponse<any>> {
-    const response = await api.delete(`/api/tender-notes/${trackingId}/${noteId}/attachments/${attachmentId}`);
+  async deleteTenderNoteAttachment(
+    trackingId: number,
+    noteId: number,
+    attachmentId: number
+  ): Promise<ApiResponse<any>> {
+    const response = await api.delete(
+      `/api/tender-notes/${trackingId}/${noteId}/attachments/${attachmentId}`
+    );
     return response.data;
   },
 
@@ -307,7 +341,9 @@ export const tendersAPI = {
    * Analizden takip listesine ekle
    */
   async addTrackingFromAnalysis(tenderId: number): Promise<ApiResponse<any>> {
-    const response = await api.post('/api/tender-tracking/add-from-analysis', { tender_id: tenderId });
+    const response = await api.post('/api/tender-tracking/add-from-analysis', {
+      tender_id: tenderId,
+    });
     return response.data;
   },
 
@@ -322,8 +358,15 @@ export const tendersAPI = {
   /**
    * AI notunu gizle
    */
-  async hideTrackingNote(tenderId: number, noteId: string, noteText: string): Promise<ApiResponse<any>> {
-    const response = await api.post(`/api/tender-tracking/${tenderId}/hide-note`, { noteId, noteText });
+  async hideTrackingNote(
+    tenderId: number,
+    noteId: string,
+    noteText: string
+  ): Promise<ApiResponse<any>> {
+    const response = await api.post(`/api/tender-tracking/${tenderId}/hide-note`, {
+      noteId,
+      noteText,
+    });
     return response.data;
   },
 
@@ -357,7 +400,9 @@ export const tendersAPI = {
   /**
    * Teklif oluştur
    */
-  async createTeklif(data: any): Promise<ApiResponse<any>> {
+  async createTeklif(
+    data: Omit<TeklifResponse, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<ApiResponse<TeklifResponse>> {
     const response = await api.post('/api/teklifler', data);
     return response.data;
   },
@@ -365,7 +410,10 @@ export const tendersAPI = {
   /**
    * Teklif güncelle
    */
-  async updateTeklif(teklifId: number, data: any): Promise<ApiResponse<any>> {
+  async updateTeklif(
+    teklifId: number,
+    data: Partial<TeklifResponse>
+  ): Promise<ApiResponse<TeklifResponse>> {
     const response = await api.put(`/api/teklifler/${teklifId}`, data);
     return response.data;
   },

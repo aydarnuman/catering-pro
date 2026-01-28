@@ -1,9 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { io, type Socket } from 'socket.io-client';
 import { API_BASE_URL } from '@/lib/config';
 import logger from '@/lib/logger';
+
+// WhatsApp servisinin aktif olup olmadığını kontrol et
+// Environment variable ile kontrol edilebilir
+const WHATSAPP_ENABLED = process.env.NEXT_PUBLIC_WHATSAPP_ENABLED === 'true';
 
 // Extract base URL without /api path
 const getSocketUrl = () => {
@@ -117,6 +121,14 @@ export function useWhatsAppSocket(options: UseWhatsAppSocketOptions = {}) {
 
   // Initialize socket connection - only depends on autoConnect
   useEffect(() => {
+    // WhatsApp servisi devre dışıysa bağlanma
+    if (!WHATSAPP_ENABLED) {
+      logger.debug(
+        '[WhatsApp Socket] WhatsApp servisi devre dışı (NEXT_PUBLIC_WHATSAPP_ENABLED=false)'
+      );
+      return;
+    }
+
     if (!autoConnect) return;
 
     // Prevent multiple connections
@@ -150,7 +162,13 @@ export function useWhatsAppSocket(options: UseWhatsAppSocketOptions = {}) {
     });
 
     socket.on('connect_error', (error) => {
-      logger.error('[WhatsApp Socket] Connection error', { error: error.message });
+      logger.error('[WhatsApp Socket] Connection error', {
+        message: error.message || 'Connection failed',
+        name: error.name,
+        description:
+          (error as Error & { description?: string }).description ||
+          `Unable to connect to WhatsApp service at ${socketUrl}. Is the service running?`,
+      });
       setIsSocketConnected(false);
     });
 
@@ -159,7 +177,7 @@ export function useWhatsAppSocket(options: UseWhatsAppSocketOptions = {}) {
       logger.debug('[WhatsApp Socket] WA Status', { status: status.status });
       setWaStatus(status);
       callbackRefs.current.onConnectionStatus?.(status);
-      
+
       // Clear QR when connected
       if (status.connected) {
         setQrCode(null);
@@ -183,7 +201,7 @@ export function useWhatsAppSocket(options: UseWhatsAppSocketOptions = {}) {
     socket.on('typing:update', (update: TypingUpdate) => {
       if (update.isTyping) {
         setTypingUsers((prev) => new Map(prev).set(update.chatId, update));
-        
+
         // Auto-clear typing after 10 seconds
         setTimeout(() => {
           setTypingUsers((prev) => {
@@ -235,9 +253,12 @@ export function useWhatsAppSocket(options: UseWhatsAppSocketOptions = {}) {
   }, []);
 
   // Get typing user for a specific chat
-  const getTypingUser = useCallback((chatId: string) => {
-    return typingUsers.get(chatId);
-  }, [typingUsers]);
+  const getTypingUser = useCallback(
+    (chatId: string) => {
+      return typingUsers.get(chatId);
+    },
+    [typingUsers]
+  );
 
   return {
     socket: socketRef.current,

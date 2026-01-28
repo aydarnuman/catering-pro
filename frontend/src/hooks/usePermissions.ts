@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { adminAPI } from '@/lib/api/services/admin';
+import { logger } from '@/lib/logger';
 
 interface Permission {
   module_name: string;
@@ -16,69 +17,120 @@ interface Permission {
   can_export: boolean;
 }
 
-interface PermissionsData {
-  userType: string;
-  isSuperAdmin: boolean;
-  permissions: Permission[];
-}
-
 export function usePermissions() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, session, isAuthenticated, isLoading: authLoading } = useAuth();
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [userType, setUserType] = useState<string>('user');
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Retry sayacı - sonsuz döngüyü önlemek için
+  const retryCount = useRef(0);
+  const maxRetries = 3;
+  const hasFetched = useRef(false);
+
   const fetchPermissions = useCallback(async () => {
+    // Auth hala yükleniyorsa bekle
+    if (authLoading) {
+      return;
+    }
+
     // Token yoksa veya authenticated değilse API çağrısı yapma
-    if (!isAuthenticated || !user) {
+    if (!isAuthenticated || !user || !session?.access_token) {
+      logger.debug('usePermissions: Auth hazır değil', {
+        isAuthenticated,
+        hasUser: !!user,
+        hasToken: !!session?.access_token,
+      });
       setLoading(false);
       return;
     }
-    
-    // Session'ın hazır olmasını bekle
+
+    // Zaten başarılı fetch yapıldıysa tekrar yapma
+    if (hasFetched.current && permissions.length > 0) {
+      return;
+    }
+
     try {
-      // Kısa bir gecikme ekle - session tam hazır olsun
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      logger.debug('usePermissions: Yetkiler yükleniyor');
       const data = await adminAPI.getMyPermissions();
+
       if (data.success) {
         setPermissions(data.data?.permissions || []);
         setUserType(data.data?.userType || 'user');
         setIsSuperAdmin(data.data?.isSuperAdmin || false);
+        hasFetched.current = true;
+        retryCount.current = 0;
+        logger.debug('usePermissions: Yetkiler yüklendi', {
+          permCount: data.data?.permissions?.length,
+          userType: data.data?.userType,
+          isSuperAdmin: data.data?.isSuperAdmin,
+        });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Permissions fetch error:', err);
-      // 401 hatası ise session henüz hazır değil, tekrar dene
-      if (err.response?.status === 401) {
-        console.warn('401 hatası - session henüz hazır değil, 2 saniye sonra tekrar denenecek');
+
+      // Type guard for axios error
+      const axiosError = err as { response?: { status?: number }; message?: string };
+
+      // 401 hatası ve retry hakkı varsa tekrar dene
+      if (axiosError.response?.status === 401 && retryCount.current < maxRetries) {
+        retryCount.current++;
+        console.warn(`401 hatası - tekrar deneniyor (${retryCount.current}/${maxRetries})`);
         setTimeout(() => {
-          if (isAuthenticated && user) {
-            fetchPermissions();
-          }
-        }, 2000);
+          fetchPermissions();
+        }, 1000 * retryCount.current); // Her seferinde daha uzun bekle
+        return; // loading'i false yapma, tekrar deneyeceğiz
+      }
+
+      // 500 hatası - sunucu hatası
+      if (axiosError.response?.status === 500) {
+        setError(
+          axiosError.message ||
+            'Yetkiler yüklenirken sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.'
+        );
+        return;
+      }
+
+      // 503 hatası - servis kullanılamıyor
+      if (axiosError.response?.status === 503) {
+        setError(
+          axiosError.message ||
+            'Yetkiler servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.'
+        );
+        return;
+      }
+
+      // Diğer hatalar
+      if (retryCount.current >= maxRetries) {
+        console.error('Max retry sayısına ulaşıldı, yetkiler yüklenemedi');
+        setError('Yetkiler yüklenemedi - lütfen sayfayı yenileyin');
       } else {
-        setError('Yetkiler yüklenemedi');
+        setError(axiosError.message || 'Yetkiler yüklenemedi');
       }
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, user]);
+  }, [authLoading, isAuthenticated, user, session?.access_token, permissions.length]);
 
   useEffect(() => {
-    // Sadece authenticated ise fetch yap
-    if (isAuthenticated && user) {
+    // Auth yükleniyorsa bekle
+    if (authLoading) {
+      return;
+    }
+
+    // Authenticated ise ve henüz fetch yapılmadıysa
+    if (isAuthenticated && user && session?.access_token && !hasFetched.current) {
       fetchPermissions();
-    } else {
+    } else if (!isAuthenticated && !authLoading) {
+      // Auth yüklendi ama authenticated değil
       setLoading(false);
     }
-  }, [fetchPermissions, isAuthenticated, user]);
+  }, [authLoading, isAuthenticated, user, session?.access_token, fetchPermissions]);
 
   /**
    * Belirli bir modül ve işlem için yetki kontrolü
-   * @param moduleName - Modül adı (ihale, fatura, cari, stok, personel, bordro, etc.)
-   * @param action - İşlem (view, create, edit, delete, export)
    */
   const can = useCallback(
     (
@@ -109,66 +161,19 @@ export function usePermissions() {
     [permissions, isSuperAdmin]
   );
 
-  /**
-   * Modülü görüntüleme yetkisi var mı?
-   */
-  const canView = useCallback(
-    (moduleName: string): boolean => {
-      return can(moduleName, 'view');
-    },
-    [can]
-  );
+  const canView = useCallback((moduleName: string): boolean => can(moduleName, 'view'), [can]);
+  const canCreate = useCallback((moduleName: string): boolean => can(moduleName, 'create'), [can]);
+  const canEdit = useCallback((moduleName: string): boolean => can(moduleName, 'edit'), [can]);
+  const canDelete = useCallback((moduleName: string): boolean => can(moduleName, 'delete'), [can]);
+  const canExport = useCallback((moduleName: string): boolean => can(moduleName, 'export'), [can]);
 
-  /**
-   * Modüle ekleme yetkisi var mı?
-   */
-  const canCreate = useCallback(
-    (moduleName: string): boolean => {
-      return can(moduleName, 'create');
-    },
-    [can]
-  );
-
-  /**
-   * Modülde düzenleme yetkisi var mı?
-   */
-  const canEdit = useCallback(
-    (moduleName: string): boolean => {
-      return can(moduleName, 'edit');
-    },
-    [can]
-  );
-
-  /**
-   * Modülden silme yetkisi var mı?
-   */
-  const canDelete = useCallback(
-    (moduleName: string): boolean => {
-      return can(moduleName, 'delete');
-    },
-    [can]
-  );
-
-  /**
-   * Modülden dışa aktarma yetkisi var mı?
-   */
-  const canExport = useCallback(
-    (moduleName: string): boolean => {
-      return can(moduleName, 'export');
-    },
-    [can]
-  );
-
-  /**
-   * Erişilebilir modül listesi
-   */
   const accessibleModules = permissions.filter((p) => p.can_view).map((p) => p.module_name);
 
   return {
     permissions,
     userType,
     isSuperAdmin,
-    loading,
+    loading: loading || authLoading,
     error,
     can,
     canView,
@@ -188,7 +193,7 @@ export const MODULE_ROUTES: Record<string, string[]> = {
   cari: ['/muhasebe/cariler'],
   stok: ['/muhasebe/stok'],
   personel: ['/muhasebe/personel'],
-  bordro: ['/muhasebe/personel'], // Bordro personel sayfasında
+  bordro: ['/muhasebe/personel'],
   kasa_banka: ['/muhasebe/finans'],
   planlama: ['/planlama', '/muhasebe/menu-planlama'],
   firma: ['/ayarlar'],
@@ -197,7 +202,6 @@ export const MODULE_ROUTES: Record<string, string[]> = {
   ayarlar: ['/ayarlar', '/admin'],
 };
 
-// Route -> Modül eşleştirmesi
 export function getModuleFromRoute(pathname: string): string | null {
   for (const [module, routes] of Object.entries(MODULE_ROUTES)) {
     if (routes.some((route) => pathname.startsWith(route))) {

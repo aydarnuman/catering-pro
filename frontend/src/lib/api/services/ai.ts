@@ -4,6 +4,7 @@
  */
 
 import { api } from '@/lib/api';
+import type { ConversationHistory } from '@/types/domain';
 import type { ApiResponse } from '../types';
 
 // AI Template
@@ -19,12 +20,11 @@ export interface AITemplate {
   updated_at?: string;
 }
 
-// AI Settings
+// AI Settings (local definition for backward compatibility)
 export interface AISettings {
   model?: string;
   temperature?: number;
   max_tokens?: number;
-  [key: string]: any;
 }
 
 // AI Model
@@ -73,7 +73,10 @@ export const aiAPI = {
   /**
    * AI şablonu güncelle
    */
-  async updateTemplate(id: number, template: Partial<AITemplate>): Promise<ApiResponse<AITemplate>> {
+  async updateTemplate(
+    id: number,
+    template: Partial<AITemplate>
+  ): Promise<ApiResponse<AITemplate>> {
     const response = await api.put(`/api/ai/templates/${id}`, template);
     return response.data;
   },
@@ -81,7 +84,7 @@ export const aiAPI = {
   /**
    * AI şablonu sil
    */
-  async deleteTemplate(id: number): Promise<ApiResponse<any>> {
+  async deleteTemplate(id: number): Promise<ApiResponse<{ message: string }>> {
     const response = await api.delete(`/api/ai/templates/${id}`);
     return response.data;
   },
@@ -97,7 +100,9 @@ export const aiAPI = {
   /**
    * AI ayarlarını güncelle
    */
-  async updateSettings(settings: Record<string, any>): Promise<ApiResponse<{ updatedKeys: string[] }>> {
+  async updateSettings(
+    settings: Record<string, any>
+  ): Promise<ApiResponse<{ updatedKeys: string[] }>> {
     const response = await api.put('/api/ai/settings', { settings });
     return response.data;
   },
@@ -115,13 +120,18 @@ export const aiAPI = {
   /**
    * AI ayarlarını import et
    */
-  async importSettings(settings: Record<string, any>, overwrite: boolean = false): Promise<ApiResponse<{
-    imported: number;
-    skipped: number;
-    importedKeys: string[];
-    skippedKeys: string[];
-    errors?: Array<{ key: string; error: string }>;
-  }>> {
+  async importSettings(
+    settings: Record<string, any>,
+    overwrite: boolean = false
+  ): Promise<
+    ApiResponse<{
+      imported: number;
+      skipped: number;
+      importedKeys: string[];
+      skippedKeys: string[];
+      errors?: Array<{ key: string; error: string }>;
+    }>
+  > {
     const response = await api.post('/api/ai/settings/import', { settings, overwrite });
     return response.data;
   },
@@ -129,14 +139,27 @@ export const aiAPI = {
   /**
    * AI ayarları versiyon geçmişini getir
    */
-  async getSettingsHistory(settingKey?: string, limit: number = 50): Promise<ApiResponse<{
-    history: any[];
-    count: number;
-  }>> {
+  async getSettingsHistory(
+    settingKey?: string,
+    limit: number = 50
+  ): Promise<
+    ApiResponse<{
+      history: Array<{
+        id: number;
+        settingKey: string;
+        value: unknown;
+        version: number;
+        changedBy?: string;
+        changeNote?: string;
+        createdAt: string;
+      }>;
+      count: number;
+    }>
+  > {
     const params = new URLSearchParams();
     if (settingKey) params.append('settingKey', settingKey);
     params.append('limit', limit.toString());
-    
+
     const response = await api.get(`/api/ai/settings/history?${params.toString()}`);
     return response.data;
   },
@@ -144,7 +167,17 @@ export const aiAPI = {
   /**
    * Belirli bir versiyonu getir
    */
-  async getSettingVersion(settingKey: string, version: number): Promise<ApiResponse<any>> {
+  async getSettingVersion(
+    settingKey: string,
+    version: number
+  ): Promise<
+    ApiResponse<{
+      settingKey: string;
+      value: unknown;
+      version: number;
+      createdAt: string;
+    }>
+  > {
     const response = await api.get(`/api/ai/settings/history/${settingKey}/${version}`);
     return response.data;
   },
@@ -152,8 +185,19 @@ export const aiAPI = {
   /**
    * Versiyona geri dön
    */
-  async restoreVersion(settingKey: string, version: number, changeNote?: string): Promise<ApiResponse<any>> {
-    const response = await api.post(`/api/ai/settings/restore/${settingKey}/${version}`, { changeNote });
+  async restoreVersion(
+    settingKey: string,
+    version: number,
+    changeNote?: string
+  ): Promise<
+    ApiResponse<{
+      message: string;
+      restored: boolean;
+    }>
+  > {
+    const response = await api.post(`/api/ai/settings/restore/${settingKey}/${version}`, {
+      changeNote,
+    });
     return response.data;
   },
 
@@ -168,7 +212,12 @@ export const aiAPI = {
   /**
    * AI modelini değiştir
    */
-  async updateModel(modelId: string): Promise<ApiResponse<any>> {
+  async updateModel(modelId: string): Promise<
+    ApiResponse<{
+      message: string;
+      model: string;
+    }>
+  > {
     const response = await api.put('/api/ai/settings/model', { model: modelId });
     return response.data;
   },
@@ -192,7 +241,7 @@ export const aiAPI = {
   /**
    * AI hafıza kaydını sil
    */
-  async deleteMemory(id: number): Promise<ApiResponse<any>> {
+  async deleteMemory(id: number): Promise<ApiResponse<{ message: string }>> {
     const response = await api.delete(`/api/ai/memory/${id}`);
     return response.data;
   },
@@ -206,7 +255,7 @@ export const aiAPI = {
     messageContent: string;
     aiResponse: string;
     templateSlug?: string;
-  }): Promise<ApiResponse<any>> {
+  }): Promise<ApiResponse<{ message: string; feedbackId: number }>> {
     const response = await api.post('/api/ai/feedback', data);
     return response.data;
   },
@@ -216,13 +265,18 @@ export const aiAPI = {
    */
   async sendAgentMessage(data: {
     message: string;
-    history?: Array<{ role: string; content: string }>;
+    history?: ConversationHistory[];
     sessionId?: string;
     department?: string;
     templateSlug?: string;
-    pageContext?: any;
+    pageContext?: unknown;
     systemContext?: string;
-  }): Promise<ApiResponse<any>> {
+  }): Promise<
+    ApiResponse<{
+      response: string;
+      sessionId: string;
+    }>
+  > {
     const response = await api.post('/api/ai/agent', data);
     return response.data;
   },
@@ -236,8 +290,13 @@ export const aiAPI = {
     sessionId?: string;
     department?: string;
     templateSlug?: string;
-    pageContext?: any;
-  }): Promise<ApiResponse<any>> {
+    pageContext?: unknown;
+  }): Promise<
+    ApiResponse<{
+      response: string;
+      sessionId: string;
+    }>
+  > {
     // Modern endpoint kullan (aiAgent.processQuery ile)
     const response = await api.post('/api/ai/god-mode/execute', {
       message: data.message,
@@ -250,7 +309,12 @@ export const aiAPI = {
   /**
    * Template kullanım sayısını artır
    */
-  async incrementTemplateUsage(slug: string): Promise<ApiResponse<any>> {
+  async incrementTemplateUsage(slug: string): Promise<
+    ApiResponse<{
+      message: string;
+      usageCount: number;
+    }>
+  > {
     const response = await api.post(`/api/ai/templates/${slug}/increment-usage`);
     return response.data;
   },
@@ -258,10 +322,17 @@ export const aiAPI = {
   /**
    * AI sohbet geçmişini getir
    */
-  async getChatHistory(params?: {
-    page?: number;
-    limit?: number;
-  }): Promise<ApiResponse<any>> {
+  async getChatHistory(params?: { page?: number; limit?: number }): Promise<
+    ApiResponse<{
+      chats: Array<{
+        id: string;
+        title: string;
+        lastMessage: string;
+        createdAt: string;
+      }>;
+      total: number;
+    }>
+  > {
     const response = await api.get('/api/ai/history', { params });
     return response.data;
   },
@@ -269,7 +340,12 @@ export const aiAPI = {
   /**
    * Sohbet detayını getir
    */
-  async getChatDetail(chatId: string): Promise<ApiResponse<any>> {
+  async getChatDetail(chatId: string): Promise<
+    ApiResponse<{
+      id: string;
+      messages: Array<{ role: string; content: string; timestamp: string }>;
+    }>
+  > {
     const response = await api.get(`/api/ai/history/${chatId}`);
     return response.data;
   },
@@ -277,7 +353,7 @@ export const aiAPI = {
   /**
    * Sohbet sil
    */
-  async deleteChat(chatId: string): Promise<ApiResponse<any>> {
+  async deleteChat(chatId: string): Promise<ApiResponse<{ message: string }>> {
     const response = await api.delete(`/api/ai/history/${chatId}`);
     return response.data;
   },
@@ -285,7 +361,16 @@ export const aiAPI = {
   /**
    * Sohbet oturumlarını listele
    */
-  async getConversations(params?: { limit?: number }): Promise<ApiResponse<any>> {
+  async getConversations(params?: { limit?: number }): Promise<
+    ApiResponse<{
+      conversations: Array<{
+        sessionId: string;
+        title: string;
+        lastMessage: string;
+        createdAt: string;
+      }>;
+    }>
+  > {
     const response = await api.get('/api/ai/conversations', { params });
     return response.data;
   },
@@ -293,7 +378,18 @@ export const aiAPI = {
   /**
    * Sohbet oturumlarında ara
    */
-  async searchConversations(query: string, limit?: number): Promise<ApiResponse<any>> {
+  async searchConversations(
+    query: string,
+    limit?: number
+  ): Promise<
+    ApiResponse<{
+      results: Array<{
+        sessionId: string;
+        title: string;
+        matchedContent: string;
+      }>;
+    }>
+  > {
     const response = await api.get('/api/ai/conversations/search', {
       params: { q: query, limit: limit || 50 },
     });
@@ -303,7 +399,12 @@ export const aiAPI = {
   /**
    * Sohbet oturumu detayını getir
    */
-  async getConversation(sessionId: string): Promise<ApiResponse<any>> {
+  async getConversation(sessionId: string): Promise<
+    ApiResponse<{
+      sessionId: string;
+      messages: Array<{ role: string; content: string; timestamp: string }>;
+    }>
+  > {
     const response = await api.get(`/api/ai/conversations/${sessionId}`);
     return response.data;
   },
@@ -311,7 +412,7 @@ export const aiAPI = {
   /**
    * Sohbet oturumunu sil
    */
-  async deleteConversation(sessionId: string): Promise<ApiResponse<any>> {
+  async deleteConversation(sessionId: string): Promise<ApiResponse<{ message: string }>> {
     const response = await api.delete(`/api/ai/conversations/${sessionId}`);
     return response.data;
   },
@@ -319,7 +420,11 @@ export const aiAPI = {
   /**
    * Prefix ile sohbet oturumlarını listele
    */
-  async listConversationsByPrefix(prefix: string): Promise<ApiResponse<any>> {
+  async listConversationsByPrefix(prefix: string): Promise<
+    ApiResponse<{
+      conversations: Array<{ sessionId: string; title: string }>;
+    }>
+  > {
     const response = await api.get('/api/ai/conversations/list', { params: { prefix } });
     return response.data;
   },
@@ -331,8 +436,13 @@ export const aiAPI = {
     message: string;
     sessionId: string;
     dilekceType: string;
-    context: any;
-  }): Promise<ApiResponse<any>> {
+    context: unknown;
+  }): Promise<
+    ApiResponse<{
+      response: string;
+      sessionId: string;
+    }>
+  > {
     const response = await api.post('/api/ai/dilekce-chat', data);
     return response.data;
   },
@@ -344,7 +454,12 @@ export const aiAPI = {
     tender_tracking_id: string | number;
     dilekce_type: string;
     content: string;
-  }): Promise<ApiResponse<any>> {
+  }): Promise<
+    ApiResponse<{
+      id: number;
+      message: string;
+    }>
+  > {
     const response = await api.post('/api/tender-dilekce', data);
     return response.data;
   },
@@ -352,7 +467,16 @@ export const aiAPI = {
   /**
    * Dilekçeleri getir (ihale için)
    */
-  async getDilekceByTender(tenderId: string | number): Promise<ApiResponse<any>> {
+  async getDilekceByTender(tenderId: string | number): Promise<
+    ApiResponse<{
+      dilekce: Array<{
+        id: number;
+        dilekce_type: string;
+        content: string;
+        created_at: string;
+      }>;
+    }>
+  > {
     const response = await api.get(`/api/tender-dilekce/${tenderId}`);
     return response.data;
   },
@@ -360,7 +484,7 @@ export const aiAPI = {
   /**
    * Dilekçe sil
    */
-  async deleteDilekce(dilekceId: number): Promise<ApiResponse<any>> {
+  async deleteDilekce(dilekceId: number): Promise<ApiResponse<{ message: string }>> {
     const response = await api.delete(`/api/tender-dilekce/${dilekceId}`);
     return response.data;
   },
@@ -371,8 +495,13 @@ export const aiAPI = {
   async saveConversationToMemory(data: {
     sessionId: string;
     summary?: string;
-    context?: any;
-  }): Promise<ApiResponse<any>> {
+    context?: unknown;
+  }): Promise<
+    ApiResponse<{
+      id: number;
+      message: string;
+    }>
+  > {
     const response = await api.post('/api/ai-memory/conversation', data);
     return response.data;
   },
@@ -380,7 +509,14 @@ export const aiAPI = {
   /**
    * Dilekçe export et
    */
-  async exportDilekce(format: string, data: any): Promise<Blob> {
+  async exportDilekce(
+    format: string,
+    data: {
+      content: string;
+      title?: string;
+      metadata?: Record<string, unknown>;
+    }
+  ): Promise<Blob> {
     const response = await api.post(`/api/export/dilekce/${format}`, data, {
       responseType: 'blob',
     });

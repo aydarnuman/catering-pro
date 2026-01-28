@@ -44,7 +44,7 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
-import { formatMoney, formatDate } from '@/lib/formatters';
+import { formatDate } from '@/lib/formatters';
 import 'dayjs/locale/tr';
 
 // Tip tanımları
@@ -226,7 +226,6 @@ export default function GelirGiderPage() {
       minimumFractionDigits: 0,
     }).format(value);
   };
-
 
   // Filtreleme
   const filteredIslemler = islemler

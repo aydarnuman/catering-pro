@@ -1,5 +1,7 @@
-import axios, { type InternalAxiosRequestConfig, type AxiosError } from 'axios';
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import type { Session } from '@supabase/supabase-js';
 import { getApiBaseUrlDynamic } from '@/lib/config';
+import { logger } from '@/lib/logger';
 import { createClient } from '@/lib/supabase/client';
 
 // Retry flag için tip genişletmesi
@@ -8,19 +10,17 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
 }
 
 // Create axios instance
-// baseURL dinamik olarak interceptor'da ayarlanacak
 export const api = axios.create({
-  baseURL: '', // Runtime'da dinamik olarak ayarlanacak
-  timeout: 60000, // 60 saniye (scraper gibi uzun işlemler için)
+  baseURL: '',
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
     'Cache-Control': 'no-cache, no-store, must-revalidate',
-    'Pragma': 'no-cache',
-    'Expires': '0'
+    Pragma: 'no-cache',
+    Expires: '0',
   },
   withCredentials: true,
-  // 304 response'ları da handle et
-  validateStatus: (status) => status < 500, // 200-499 arası status kodları başarılı say
+  validateStatus: (status) => status < 500,
 });
 
 // Token refresh durumu için flag
@@ -30,6 +30,32 @@ let refreshSubscribers: Array<(token: string) => void> = [];
 // Supabase client (singleton)
 let supabaseClient: ReturnType<typeof createClient> | null = null;
 
+// BASİTLEŞTİRİLMİŞ SESSION CACHE - Tek kaynak
+let currentSession: Session | null = null;
+let sessionTimestamp: number = 0;
+const SESSION_CACHE_TTL = 60_000; // 60 saniye – her istekte Supabase getSession çağrısını azaltır
+
+/**
+ * AuthContext'ten session'ı alıp cache'e kaydet
+ * Bu fonksiyon AuthContext tarafından çağrılır
+ */
+export function setGlobalSession(session: Session | null) {
+  currentSession = session;
+  sessionTimestamp = Date.now();
+
+  if (session) {
+    logger.debug('Session cache güncellendi');
+  }
+}
+
+/**
+ * Session cache'i temizle (logout için)
+ */
+export function clearGlobalSession() {
+  currentSession = null;
+  sessionTimestamp = 0;
+}
+
 function getSupabase() {
   if (!supabaseClient) {
     supabaseClient = createClient();
@@ -37,112 +63,95 @@ function getSupabase() {
   return supabaseClient;
 }
 
-// Request interceptor - BaseURL ve Supabase token ekle
+/**
+ * Session'ı al - cache'den veya Supabase'den
+ * BASİTLEŞTİRİLDİ: Karmaşık promise mekanizması kaldırıldı
+ */
+async function getCachedSession(): Promise<Session | null> {
+  // 1. Cache geçerliyse hemen dön
+  if (currentSession?.access_token && Date.now() - sessionTimestamp < SESSION_CACHE_TTL) {
+    return currentSession;
+  }
+
+  // 2. Cache süresi dolmuş veya yok - Supabase'den al
+  try {
+    const supabase = getSupabase();
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
+
+    if (error) {
+      console.warn('Session alınamadı:', error.message);
+      return null;
+    }
+
+    if (session) {
+      currentSession = session;
+      sessionTimestamp = Date.now();
+      return session;
+    }
+
+    return null;
+  } catch (e) {
+    console.error('Session fetch error:', e);
+    return null;
+  }
+}
+
+// Request interceptor
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   try {
-    // BaseURL'i dinamik olarak ayarla (her request'te güncel değer)
-    // Sadece relative URL'ler için (absolute URL'ler için baseURL kullanılmaz)
     if (config.url && !config.url.startsWith('http://') && !config.url.startsWith('https://')) {
       const baseUrl = getApiBaseUrlDynamic();
       if (baseUrl) {
         config.baseURL = baseUrl;
       }
     }
-    
-    const supabase = getSupabase();
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError) {
-      console.warn('Supabase session error:', sessionError);
-    }
-    
+
+    const session = await getCachedSession();
+
     if (session?.access_token) {
-      // Token'ın geçerli olduğunu kontrol et (JWT formatında olmalı)
-      const tokenParts = session.access_token.split('.');
-      if (tokenParts.length !== 3) {
-        console.warn('⚠️ Token formatı geçersiz (JWT 3 parça olmalı):', {
-          url: config.url,
-          tokenLength: session.access_token.length,
-          tokenParts: tokenParts.length
-        });
-      }
-      
       config.headers.Authorization = `Bearer ${session.access_token}`;
-      // Debug: Token gönderildiğini logla (sadece development'ta ve önemli endpoint'ler için)
-      if (process.env.NODE_ENV === 'development' && (
-        config.url?.includes('/permissions') || 
-        config.url?.includes('/urunler') || 
+
+      if (
+        config.url?.includes('/permissions') ||
+        config.url?.includes('/urunler') ||
         config.url?.includes('/stok')
-      )) {
-        console.log('🔑 Token gönderiliyor:', {
-          url: config.url,
-          method: config.method,
-          tokenPreview: session.access_token.substring(0, 30) + '...',
-          tokenLength: session.access_token.length,
-          tokenParts: tokenParts.length,
-          hasToken: !!session.access_token
-        });
-      }
-    } else {
-      // Debug: Token yoksa logla (tüm endpoint'ler için)
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('⚠️ Token bulunamadı:', {
-          url: config.url,
-          method: config.method,
-          hasSession: !!session,
-          hasAccessToken: !!session?.access_token,
-          sessionKeys: session ? Object.keys(session) : []
-        });
+      ) {
+        logger.debug('Token gönderiliyor', { url: config.url });
       }
     }
+    // Token yoksa normal - auth olmadan sayfalar açılabilir
   } catch (error) {
-    console.warn('Could not get Supabase session:', error);
+    console.warn('Session alma hatası:', error);
   }
-  
+
   return config;
 });
 
-// Response interceptor - 401'de token refresh dene
+// Response interceptor - 401'de token refresh
 api.interceptors.response.use(
-  (response) => {
-    // 304 Not Modified başarılı bir response, ama body olmayabilir
-    // Eğer 304 ise ve data yoksa, cache'den geliyor demektir - bu normal
-    if (response.status === 304 && !response.data) {
-      // 304 response'u olduğu gibi döndür (cache'den geliyor)
-      return response;
-    }
-    return response;
-  },
+  (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as CustomAxiosRequestConfig | undefined;
-    
+
     if (!originalRequest) {
       return Promise.reject(error);
     }
 
-    // 401 hatası - token refresh dene
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      // Bazı endpoint'ler için 401'i ignore et
+      if (error.response?.status === 401 && !originalRequest._retry) {
       const url = originalRequest.url || '';
       const ignoredEndpoints = [
         '/api/auth/login',
         '/api/auth/register',
+        '/api/uyumsoft', // Uyumsoft 401 = bağlantı/credential hatası, uygulama oturumundan çıkış değil
       ];
-      
-      if (ignoredEndpoints.some(endpoint => url.includes(endpoint))) {
+
+      if (ignoredEndpoints.some((endpoint) => url.includes(endpoint))) {
         return Promise.reject(error);
       }
 
-      // Debug: 401 hatası logla
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('⚠️ 401 Unauthorized - Token refresh deneniyor:', {
-          url: originalRequest.url,
-          method: originalRequest.method,
-          hasAuthHeader: !!originalRequest.headers?.Authorization
-        });
-      }
-
-      // Token refresh zaten yapılıyorsa bekle
       if (isRefreshing) {
         return new Promise((resolve) => {
           refreshSubscribers.push((token: string) => {
@@ -157,69 +166,47 @@ api.interceptors.response.use(
 
       try {
         const supabase = getSupabase();
-        const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
+        const {
+          data: { session },
+          error: refreshError,
+        } = await supabase.auth.refreshSession();
 
         if (refreshError || !session) {
-          // Refresh başarısız - login'e yönlendir
           isRefreshing = false;
           refreshSubscribers = [];
-          
           if (typeof window !== 'undefined' && !window.location.pathname.includes('/giris')) {
             window.location.href = '/giris';
           }
-          
           return Promise.reject(error);
         }
 
         const newToken = session.access_token;
-        
-        // Bekleyen istekleri bilgilendir
-        refreshSubscribers.forEach(cb => cb(newToken));
+        setGlobalSession(session); // Global session'ı güncelle
+
+        refreshSubscribers.forEach((cb) => {
+          cb(newToken);
+        });
         refreshSubscribers = [];
         isRefreshing = false;
 
-      // Orijinal isteği yeni token ile tekrar dene
-      if (newToken) {
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
-      } else {
-        // Token refresh başarısız - login'e yönlendir
-        if (typeof window !== 'undefined' && !window.location.pathname.includes('/giris')) {
-          window.location.href = '/giris';
-        }
-        return Promise.reject(error);
-      }
-      } catch (refreshError) {
+      } catch (_refreshError) {
         isRefreshing = false;
         refreshSubscribers = [];
-        
         if (typeof window !== 'undefined' && !window.location.pathname.includes('/giris')) {
           window.location.href = '/giris';
         }
-        
         return Promise.reject(error);
       }
     }
 
-    // Diğer hataları logla (development'ta)
-    if (process.env.NODE_ENV === 'development' && error.response) {
-      console.error('❌ API Hatası:', {
-        url: originalRequest?.url,
-        method: originalRequest?.method,
-        status: error.response.status,
-        statusText: error.response.statusText,
-        data: error.response.data,
-        headers: error.response.headers
-      });
-    }
-    
     return Promise.reject(error);
   }
 );
 
 // API functions
 export const apiClient = {
-  // Tenders
   async getTenders(params?: {
     page?: number;
     limit?: number;
@@ -236,19 +223,14 @@ export const apiClient = {
     return response.data;
   },
 
-  // Documents
   async uploadDocument(file: File, metadata?: Record<string, unknown>) {
     const formData = new FormData();
     formData.append('file', file);
-
     if (metadata) {
       formData.append('metadata', JSON.stringify(metadata));
     }
-
     const response = await api.post('/api/documents/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
   },
@@ -272,13 +254,11 @@ export const apiClient = {
     return response.data;
   },
 
-  // Health check
   async healthCheck() {
     const response = await api.get('/health');
     return response.data;
   },
 
-  // Stats
   async getStats() {
     const response = await api.get('/api/stats');
     return response.data;
@@ -286,3 +266,56 @@ export const apiClient = {
 };
 
 export default apiClient;
+
+/**
+ * Native fetch için auth wrapper
+ */
+export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const session = await getCachedSession();
+
+  const headers = new Headers(options.headers);
+
+  if (options.body && !(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  if (session?.access_token) {
+    headers.set('Authorization', `Bearer ${session.access_token}`);
+  }
+
+  const baseUrl = getApiBaseUrlDynamic();
+  const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
+  const timeoutMs = 30000; // Ağır listeler (fatura, cari, Uyumsoft) için 30 sn
+  const timeoutSignal = options.signal || AbortSignal.timeout(timeoutMs);
+
+  const response = await fetch(fullUrl, {
+    ...options,
+    headers,
+    credentials: 'include',
+    signal: timeoutSignal,
+  });
+
+  return response;
+}
+
+/**
+ * Basit fetch wrapper - Auth YOK, sadece timeout
+ */
+export function safeFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const baseUrl = getApiBaseUrlDynamic();
+  const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
+  const timeoutMs = 30000;
+  const timeoutSignal = options.signal || AbortSignal.timeout(timeoutMs);
+
+  const headers = new Headers(options.headers);
+  if (options.body && !(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  return fetch(fullUrl, {
+    ...options,
+    headers,
+    credentials: 'include',
+    signal: timeoutSignal,
+  });
+}

@@ -35,10 +35,10 @@ import {
   IconTrash,
   IconX,
 } from '@tabler/icons-react';
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useResponsive } from '@/hooks/useResponsive';
-import { formatMoney } from '@/lib/formatters';
 import { urunlerAPI } from '@/lib/api/services/urunler';
+import { formatMoney } from '@/lib/formatters';
 
 // Birimler
 const BIRIMLER = [
@@ -49,7 +49,7 @@ const BIRIMLER = [
   { value: 'adet', label: 'Adet' },
 ];
 
-const FIYAT_BIRIMLERI = [
+const _FIYAT_BIRIMLERI = [
   { value: 'kg', label: 'kg başına' },
   { value: 'lt', label: 'lt başına' },
   { value: 'adet', label: 'adet başına' },
@@ -97,13 +97,13 @@ interface Props {
 
 export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Props) {
   const { isMobile, isMounted } = useResponsive();
-  
+
   // States
   const [kategoriler, setKategoriler] = useState<Kategori[]>([]);
   const [urunler, setUrunler] = useState<UrunKarti[]>([]);
   const [loading, setLoading] = useState(false);
   const [detayLoading, setDetayLoading] = useState(false);
-  
+
   // Detay bilgileri (direkt panelde gösterilecek)
   const [urunDetay, setUrunDetay] = useState<any>(null);
 
@@ -113,7 +113,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
 
   // Seçili ürün
   const [selectedUrun, setSelectedUrun] = useState<UrunKarti | null>(null);
-  
+
   // Mobil görünüm - panel kontrolü
   const [mobileShowDetail, setMobileShowDetail] = useState(false);
 
@@ -126,41 +126,28 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
     varsayilan_birim: 'gr',
     manuel_fiyat: null as number | null,
     fiyat_birimi: 'kg',
+    birim_carpani: 1, // Fatura birim fiyatını standart birime çevirmek için çarpan
   });
 
-  // Data yükle
-  useEffect(() => {
-    if (opened) {
-      fetchKategoriler();
-      fetchUrunler();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened]);
-
-  // Kategorileri yükle
-  const fetchKategoriler = async () => {
+  // Fonksiyonları useCallback ile tanımla (TDZ hatası için)
+  const fetchKategoriler = useCallback(async () => {
     try {
-      const result = await urunlerAPI.getKategoriler() as any;
+      const result = (await urunlerAPI.getKategoriler()) as any;
       if (result.success) {
         setKategoriler(result.data as any);
       }
     } catch (error) {
       console.error('Kategori yükleme hatası:', error);
     }
-  };
+  }, []);
 
-  // Ürünleri yükle
-  const fetchUrunler = async () => {
+  const fetchUrunler = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (selectedKategori) params.append('kategori_id', selectedKategori);
-      if (aramaText) params.append('arama', aramaText);
-
-      const result = await urunlerAPI.getUrunler({
+      const result = (await urunlerAPI.getUrunler({
         kategori_id: selectedKategori || undefined,
         arama: aramaText || undefined,
-      }) as any;
+      })) as any;
       if (result.success) {
         setUrunler(result.data as any);
       }
@@ -169,7 +156,15 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedKategori, aramaText]);
+
+  // Data yükle
+  useEffect(() => {
+    if (opened) {
+      fetchKategoriler();
+      fetchUrunler();
+    }
+  }, [opened, fetchKategoriler, fetchUrunler]);
 
   // Filtre değişince yeniden yükle
   useEffect(() => {
@@ -179,27 +174,26 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
       }, 300);
       return () => clearTimeout(timeout);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened, aramaText, selectedKategori]);
+  }, [opened, fetchUrunler]);
 
   // Filtrelenmiş ürünler (client-side ek filtreleme için)
-  const filteredUrunler = useMemo(() => {
+  const _filteredUrunler = useMemo(() => {
     return urunler.filter((urun) => {
       // Arama metni kontrolü
       if (aramaText) {
         const searchLower = aramaText.toLowerCase();
-        const matchesSearch = 
+        const matchesSearch =
           urun.ad.toLowerCase().includes(searchLower) ||
           urun.kod.toLowerCase().includes(searchLower) ||
-          (urun.barkod && urun.barkod.toLowerCase().includes(searchLower));
+          urun.barkod?.toLowerCase().includes(searchLower);
         if (!matchesSearch) return false;
       }
-      
+
       // Kategori kontrolü (API'de zaten filtreleniyor ama client-side da kontrol edelim)
       if (selectedKategori && urun.kategori_id !== parseInt(selectedKategori, 10)) {
         return false;
       }
-      
+
       return true;
     });
   }, [urunler, aramaText, selectedKategori]);
@@ -228,10 +222,10 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
         fetchUrunler();
         fetchKategoriler();
       } else {
-        notifications.show({ 
-          title: 'Hata', 
-          message: result.error || 'Ürün oluşturulamadı', 
-          color: 'red' 
+        notifications.show({
+          title: 'Hata',
+          message: result.error || 'Ürün oluşturulamadı',
+          color: 'red',
         });
       }
     } catch (error) {
@@ -248,6 +242,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
       const result = await urunlerAPI.updateUrun(selectedUrun.id, {
         ad: formData.ad,
         kategori_id: formData.kategori_id ? parseInt(formData.kategori_id, 10) : undefined,
+        birim_carpani: formData.birim_carpani || 1,
       });
 
       if (result.success) {
@@ -262,10 +257,10 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
         // Seçili ürünü güncelle
         setSelectedUrun({ ...selectedUrun, ...result.data } as any);
       } else {
-        notifications.show({ 
-          title: 'Hata', 
-          message: result.error || 'Ürün güncellenemedi', 
-          color: 'red' 
+        notifications.show({
+          title: 'Hata',
+          message: result.error || 'Ürün güncellenemedi',
+          color: 'red',
         });
       }
     } catch (error) {
@@ -293,21 +288,22 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
         fetchUrunler();
         fetchKategoriler();
       } else {
-        notifications.show({ 
-          title: 'Hata', 
-          message: result.error || 'Ürün silinemedi', 
-          color: 'red' 
+        notifications.show({
+          title: 'Hata',
+          message: result.error || 'Ürün silinemedi',
+          color: 'red',
         });
       }
     } catch (error: any) {
       console.error('Ürün silme hatası:', error);
-      const errorMessage = error.message === 'Failed to fetch' 
-        ? 'Backend sunucusuna bağlanılamıyor. Lütfen backend\'in çalıştığından emin olun.'
-        : error.message || 'Ürün silinemedi';
-      notifications.show({ 
-        title: 'Hata', 
-        message: errorMessage, 
-        color: 'red' 
+      const errorMessage =
+        error.message === 'Failed to fetch'
+          ? "Backend sunucusuna bağlanılamıyor. Lütfen backend'in çalıştığından emin olun."
+          : error.message || 'Ürün silinemedi';
+      notifications.show({
+        title: 'Hata',
+        message: errorMessage,
+        color: 'red',
       });
     }
   };
@@ -320,6 +316,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
       varsayilan_birim: 'gr',
       manuel_fiyat: null,
       fiyat_birimi: 'kg',
+      birim_carpani: 1,
     });
   };
 
@@ -331,6 +328,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
       varsayilan_birim: urun.birim || 'gr',
       manuel_fiyat: urun.manuel_fiyat,
       fiyat_birimi: urun.fiyat_birimi || 'kg',
+      birim_carpani: (urun as any).birim_carpani || 1,
     });
     setEditMode(true);
   };
@@ -348,7 +346,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
       setMobileShowDetail(true);
     }
   };
-  
+
   // Ürün detayını yükle
   const loadUrunDetay = async (id: number) => {
     setDetayLoading(true);
@@ -379,17 +377,16 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
     });
   };
 
-
   // Filtrelenmiş ürünler - Ana ürünler ve varyantları grupla
-  const anaUrunler = urunler.filter(u => !u.ana_urun_id);
-  const varyantlar = urunler.filter(u => u.ana_urun_id);
-  
+  const anaUrunler = urunler.filter((u) => !u.ana_urun_id);
+  const varyantlar = urunler.filter((u) => u.ana_urun_id);
+
   // Ana ürünleri varyantlarıyla birlikte grupla
-  const gruplanmisUrunler = anaUrunler.map(ana => ({
+  const gruplanmisUrunler = anaUrunler.map((ana) => ({
     ana,
-    varyantlar: varyantlar.filter(v => v.ana_urun_id === ana.id)
+    varyantlar: varyantlar.filter((v) => v.ana_urun_id === ana.id),
   }));
-  
+
   // Toplam sayı (ana + varyant)
   const toplamUrunSayisi = urunler.length;
 
@@ -426,16 +423,19 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
         content: { height: isMobile && isMounted ? '100%' : '90vh' },
       }}
     >
-      <Box style={{ 
-        display: 'flex', 
-        flexDirection: isMobile && isMounted ? 'column' : 'row',
-        height: isMobile && isMounted ? 'calc(100vh - 60px)' : 'calc(90vh - 70px)' 
-      }}>
+      <Box
+        style={{
+          display: 'flex',
+          flexDirection: isMobile && isMounted ? 'column' : 'row',
+          height: isMobile && isMounted ? 'calc(100vh - 60px)' : 'calc(90vh - 70px)',
+        }}
+      >
         {/* Sol Panel - Ürün Listesi */}
         <Box
           style={{
             width: isMobile && isMounted ? '100%' : 350,
-            borderRight: isMobile && isMounted ? 'none' : '1px solid var(--mantine-color-default-border)',
+            borderRight:
+              isMobile && isMounted ? 'none' : '1px solid var(--mantine-color-default-border)',
             display: isMobile && isMounted && mobileShowDetail ? 'none' : 'flex',
             flexDirection: 'column',
             flex: isMobile && isMounted ? 1 : undefined,
@@ -497,7 +497,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
               <Stack gap={0}>
                 {gruplanmisUrunler.map(({ ana, varyantlar: anaVaryantlar }) => {
                   const isAnaSelected = selectedUrun?.id === ana.id;
-                  
+
                   return (
                     <Box key={ana.id}>
                       {/* Ana Ürün */}
@@ -506,7 +506,9 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                         style={{
                           borderBottom: '1px solid var(--mantine-color-default-border)',
                           cursor: 'pointer',
-                          background: isAnaSelected ? 'var(--mantine-color-violet-light)' : undefined,
+                          background: isAnaSelected
+                            ? 'var(--mantine-color-violet-light)'
+                            : undefined,
                           transition: 'background 0.15s',
                         }}
                         onClick={() => {
@@ -527,15 +529,31 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                                 </Badge>
                                 {ana.son_alis_fiyati && (
                                   <Badge size="xs" variant="filled" color="green">
-                                    {formatMoney(ana.son_alis_fiyati, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}/{ana.birim_kisa || 'kg'}
+                                    {formatMoney(ana.son_alis_fiyati, {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 3,
+                                    })}
+                                    /{ana.birim_kisa || 'KG'}
                                   </Badge>
                                 )}
-                                <Badge 
-                                  size="xs" 
-                                  variant="light" 
-                                  color={ana.durum === 'normal' ? 'green' : ana.durum === 'tukendi' ? 'red' : 'orange'}
+                                <Badge
+                                  size="xs"
+                                  variant="light"
+                                  color={
+                                    ana.durum === 'normal'
+                                      ? 'green'
+                                      : ana.durum === 'tukendi'
+                                        ? 'red'
+                                        : 'orange'
+                                  }
                                 >
-                                  {ana.durum === 'tukendi' ? 'Stok Yok' : ana.durum === 'kritik' ? 'Kritik' : ana.durum === 'dusuk' ? 'Düşük' : ''}
+                                  {ana.durum === 'tukendi'
+                                    ? 'Stok Yok'
+                                    : ana.durum === 'kritik'
+                                      ? 'Kritik'
+                                      : ana.durum === 'dusuk'
+                                        ? 'Düşük'
+                                        : ''}
                                 </Badge>
                                 {anaVaryantlar.length > 0 && (
                                   <Badge size="xs" variant="dot" color="violet">
@@ -582,10 +600,13 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                           </Menu>
                         </Group>
                       </Box>
-                      
+
                       {/* Varyantlar - Girintili */}
                       {anaVaryantlar.length > 0 && (
-                        <Box pl="md" style={{ borderLeft: '2px solid var(--mantine-color-violet-2)' }}>
+                        <Box
+                          pl="md"
+                          style={{ borderLeft: '2px solid var(--mantine-color-violet-2)' }}
+                        >
                           {anaVaryantlar.map((varyant) => {
                             const isVaryantSelected = selectedUrun?.id === varyant.id;
                             return (
@@ -595,7 +616,9 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                                 style={{
                                   borderBottom: '1px solid var(--mantine-color-default-border)',
                                   cursor: 'pointer',
-                                  background: isVaryantSelected ? 'var(--mantine-color-violet-light)' : 'var(--mantine-color-gray-0)',
+                                  background: isVaryantSelected
+                                    ? 'var(--mantine-color-violet-light)'
+                                    : 'var(--mantine-color-gray-0)',
                                   transition: 'background 0.15s',
                                 }}
                                 onClick={() => {
@@ -606,7 +629,9 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                               >
                                 <Group justify="space-between" wrap="wrap">
                                   <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-                                    <Text size="sm" c="dimmed">└─</Text>
+                                    <Text size="sm" c="dimmed">
+                                      └─
+                                    </Text>
                                     <Box style={{ flex: 1, minWidth: 0 }}>
                                       <Text fw={400} size="xs" truncate c="dimmed">
                                         {varyant.ad}
@@ -617,7 +642,11 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                                         </Badge>
                                         {varyant.son_alis_fiyati && (
                                           <Badge size="xs" variant="filled" color="green">
-                                            {formatMoney(varyant.son_alis_fiyati, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}/{varyant.birim_kisa || 'kg'}
+                                            {formatMoney(varyant.son_alis_fiyati, {
+                                              minimumFractionDigits: 2,
+                                              maximumFractionDigits: 3,
+                                            })}
+                                            /{varyant.birim_kisa || 'KG'}
                                           </Badge>
                                         )}
                                       </Group>
@@ -680,19 +709,24 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
         </Box>
 
         {/* Sağ Panel - Detay/Form */}
-        <Box style={{ 
-          flex: 1, 
-          display: isMobile && isMounted && !mobileShowDetail && !showYeniUrun && !editMode ? 'none' : 'flex', 
-          flexDirection: 'column', 
-          overflow: 'hidden',
-          position: isMobile && isMounted ? 'absolute' : 'relative',
-          top: isMobile && isMounted ? 0 : undefined,
-          left: isMobile && isMounted ? 0 : undefined,
-          right: isMobile && isMounted ? 0 : undefined,
-          bottom: isMobile && isMounted ? 0 : undefined,
-          background: 'var(--mantine-color-body)',
-          zIndex: isMobile && isMounted ? 10 : undefined,
-        }}>
+        <Box
+          style={{
+            flex: 1,
+            display:
+              isMobile && isMounted && !mobileShowDetail && !showYeniUrun && !editMode
+                ? 'none'
+                : 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            position: isMobile && isMounted ? 'absolute' : 'relative',
+            top: isMobile && isMounted ? 0 : undefined,
+            left: isMobile && isMounted ? 0 : undefined,
+            right: isMobile && isMounted ? 0 : undefined,
+            bottom: isMobile && isMounted ? 0 : undefined,
+            background: 'var(--mantine-color-body)',
+            zIndex: isMobile && isMounted ? 10 : undefined,
+          }}
+        >
           {/* Mobilde geri butonu */}
           {isMobile && isMounted && (mobileShowDetail || showYeniUrun || editMode) && (
             <Box p="xs" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
@@ -714,7 +748,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
               </Button>
             </Box>
           )}
-          
+
           <ScrollArea style={{ flex: 1 }} p="md">
             {showYeniUrun || editMode ? (
               // Yeni Ürün / Düzenleme Formu
@@ -761,13 +795,26 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                   />
                 </SimpleGrid>
 
-                <Select
-                  label="Varsayılan Birim"
-                  data={BIRIMLER}
-                  value={formData.varsayilan_birim}
-                  onChange={(val) => setFormData({ ...formData, varsayilan_birim: val || 'gr' })}
-                  w="50%"
-                />
+                <SimpleGrid cols={2}>
+                  <Select
+                    label="Varsayılan Birim"
+                    data={BIRIMLER}
+                    value={formData.varsayilan_birim}
+                    onChange={(val) => setFormData({ ...formData, varsayilan_birim: val || 'gr' })}
+                  />
+                  <TextInput
+                    label="Birim Çarpanı"
+                    description="Fatura koli/paket fiyatını KG/LT'ye çevirmek için. Örn: 48×250gr = 12"
+                    type="number"
+                    min={0.001}
+                    step={0.1}
+                    value={formData.birim_carpani}
+                    onChange={(e) =>
+                      setFormData({ ...formData, birim_carpani: parseFloat(e.target.value) || 1 })
+                    }
+                    rightSection={<Text size="xs" c="dimmed">KG</Text>}
+                  />
+                </SimpleGrid>
 
                 <Group justify="flex-end" mt="md">
                   <Button
@@ -807,11 +854,23 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                         <Badge variant="light" color="gray">
                           {selectedUrun.kategori}
                         </Badge>
-                        <Badge 
-                          variant="filled" 
-                          color={selectedUrun.durum === 'normal' ? 'green' : selectedUrun.durum === 'tukendi' ? 'red' : 'orange'}
+                        <Badge
+                          variant="filled"
+                          color={
+                            selectedUrun.durum === 'normal'
+                              ? 'green'
+                              : selectedUrun.durum === 'tukendi'
+                                ? 'red'
+                                : 'orange'
+                          }
                         >
-                          {selectedUrun.durum === 'tukendi' ? 'Stok Yok' : selectedUrun.durum === 'kritik' ? 'Kritik' : selectedUrun.durum === 'dusuk' ? 'Düşük' : 'Normal'}
+                          {selectedUrun.durum === 'tukendi'
+                            ? 'Stok Yok'
+                            : selectedUrun.durum === 'kritik'
+                              ? 'Kritik'
+                              : selectedUrun.durum === 'dusuk'
+                                ? 'Düşük'
+                                : 'Normal'}
                         </Badge>
                       </Group>
                     </Box>
@@ -830,20 +889,44 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                 {/* Genel Bilgiler */}
                 <SimpleGrid cols={4}>
                   <Paper p="sm" withBorder radius="md" ta="center">
-                    <Text size="xs" c="dimmed">Birim</Text>
-                    <Text fw={600}>{selectedUrun.birim || selectedUrun.birim_kisa || '—'}</Text>
+                    <Text size="xs" c="dimmed">
+                      Birim
+                    </Text>
+                    <Text fw={600}>{selectedUrun.birim || selectedUrun.birim_kisa || 'KG'}</Text>
                   </Paper>
                   <Paper p="sm" withBorder radius="md" ta="center">
-                    <Text size="xs" c="dimmed">Mevcut Stok</Text>
-                    <Text fw={600} c="blue">{formatMiktar(selectedUrun.toplam_stok)} {selectedUrun.birim_kisa || 'Ad'}</Text>
+                    <Text size="xs" c="dimmed">
+                      Mevcut Stok
+                    </Text>
+                    <Text fw={600} c="blue">
+                      {formatMiktar(selectedUrun.toplam_stok)} {selectedUrun.birim_kisa || 'Ad'}
+                    </Text>
                   </Paper>
-                  <Paper p="sm" withBorder radius="md" ta="center" bg={selectedUrun.son_alis_fiyati ? 'green.0' : undefined}>
-                    <Text size="xs" c="dimmed">Son Alış</Text>
-                    <Text fw={600} c={selectedUrun.son_alis_fiyati ? 'green' : 'dimmed'}>{formatMoney(selectedUrun.son_alis_fiyati, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</Text>
+                  <Paper
+                    p="sm"
+                    withBorder
+                    radius="md"
+                    ta="center"
+                    bg={selectedUrun.son_alis_fiyati ? 'green.0' : undefined}
+                  >
+                    <Text size="xs" c="dimmed">
+                      Son Alış (Birim Fiyat)
+                    </Text>
+                    <Text fw={600} c={selectedUrun.son_alis_fiyati ? 'green' : 'dimmed'}>
+                      {formatMoney(selectedUrun.son_alis_fiyati, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 3,
+                      })}/{selectedUrun.birim_kisa || 'KG'}
+                    </Text>
                   </Paper>
                   <Paper p="sm" withBorder radius="md" ta="center">
-                    <Text size="xs" c="dimmed">Min / Kritik</Text>
-                    <Text fw={600}>{formatMiktar(selectedUrun.min_stok)} / {formatMiktar(selectedUrun.kritik_stok)}</Text>
+                    <Text size="xs" c="dimmed">
+                      Min / Kritik
+                    </Text>
+                    <Text fw={600}>
+                      {formatMiktar(selectedUrun.min_stok)} /{' '}
+                      {formatMiktar(selectedUrun.kritik_stok)}
+                    </Text>
                   </Paper>
                 </SimpleGrid>
 
@@ -851,124 +934,156 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                   <Center py="xl">
                     <Loader size="sm" color="violet" />
                   </Center>
-                ) : urunDetay && (
-                  <>
-                    {/* Depo Durumları */}
-                    <Box>
-                      <Group gap="xs" mb="xs">
-                        <IconBuilding size={16} />
-                        <Text size="sm" fw={600}>Depo Durumları</Text>
-                        <Badge size="xs" variant="light" color="cyan">
-                          {urunDetay.depo_durumlari?.length || 0} depo
-                        </Badge>
-                      </Group>
-                      
-                      {urunDetay.depo_durumlari && urunDetay.depo_durumlari.length > 0 ? (
-                        <SimpleGrid cols={3} spacing="xs">
-                          {urunDetay.depo_durumlari.map((dd: any) => (
-                            <Paper key={dd.depo_id} p="xs" withBorder radius="md">
-                              <Group justify="space-between" mb={4}>
-                                <Text size="xs" fw={600}>{dd.depo_ad}</Text>
-                                <Badge size="xs" variant="light">{dd.depo_kod}</Badge>
-                              </Group>
-                              <Text size="lg" fw={700} c="blue">
-                                {formatMiktar(dd.miktar)} {selectedUrun.birim_kisa || 'Ad'}
-                              </Text>
-                            </Paper>
-                          ))}
-                        </SimpleGrid>
-                      ) : (
-                        <Paper p="sm" withBorder ta="center" c="dimmed">
-                          <Text size="xs">Bu ürün hiçbir depoda stokta yok</Text>
-                        </Paper>
-                      )}
-                    </Box>
+                ) : (
+                  urunDetay && (
+                    <>
+                      {/* Depo Durumları */}
+                      <Box>
+                        <Group gap="xs" mb="xs">
+                          <IconBuilding size={16} />
+                          <Text size="sm" fw={600}>
+                            Depo Durumları
+                          </Text>
+                          <Badge size="xs" variant="light" color="cyan">
+                            {urunDetay.depo_durumlari?.length || 0} depo
+                          </Badge>
+                        </Group>
 
-                    {/* Fiyat Geçmişi */}
-                    <Box>
-                      <Group gap="xs" mb="xs">
-                        <IconHistory size={16} />
-                        <Text size="sm" fw={600}>Fiyat Geçmişi</Text>
-                        <Badge size="xs" variant="light">
-                          {urunDetay.fiyat_gecmisi?.length || 0} kayıt
-                        </Badge>
-                      </Group>
-                      
-                      {urunDetay.fiyat_gecmisi && urunDetay.fiyat_gecmisi.length > 0 ? (
-                        <Table striped highlightOnHover withTableBorder>
-                          <Table.Thead>
-                            <Table.Tr>
-                              <Table.Th>Tarih</Table.Th>
-                              <Table.Th>Tedarikçi</Table.Th>
-                              <Table.Th>Fiyat</Table.Th>
-                            </Table.Tr>
-                          </Table.Thead>
-                          <Table.Tbody>
-                            {urunDetay.fiyat_gecmisi.slice(0, 5).map((fg: any) => (
-                              <Table.Tr key={fg.id}>
-                                <Table.Td>
-                                  <Text size="xs">{fg.tarih ? new Date(fg.tarih).toLocaleDateString('tr-TR') : '-'}</Text>
-                                </Table.Td>
-                                <Table.Td>
-                                  <Text size="xs" lineClamp={1}>{fg.tedarikci || '-'}</Text>
-                                </Table.Td>
-                                <Table.Td>
-                                  <Text size="xs" fw={500} c="blue">{formatMoney(fg.fiyat, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</Text>
-                                </Table.Td>
-                              </Table.Tr>
+                        {urunDetay.depo_durumlari && urunDetay.depo_durumlari.length > 0 ? (
+                          <SimpleGrid cols={3} spacing="xs">
+                            {urunDetay.depo_durumlari.map((dd: any) => (
+                              <Paper key={dd.depo_id} p="xs" withBorder radius="md">
+                                <Group justify="space-between" mb={4}>
+                                  <Text size="xs" fw={600}>
+                                    {dd.depo_ad}
+                                  </Text>
+                                  <Badge size="xs" variant="light">
+                                    {dd.depo_kod}
+                                  </Badge>
+                                </Group>
+                                <Text size="lg" fw={700} c="blue">
+                                  {formatMiktar(dd.miktar)} {selectedUrun.birim_kisa || 'Ad'}
+                                </Text>
+                              </Paper>
                             ))}
-                          </Table.Tbody>
-                        </Table>
-                      ) : (
-                        <Paper p="sm" withBorder ta="center" c="dimmed">
-                          <Text size="xs">Henüz fiyat kaydı yok</Text>
-                        </Paper>
-                      )}
-                    </Box>
+                          </SimpleGrid>
+                        ) : (
+                          <Paper p="sm" withBorder ta="center" c="dimmed">
+                            <Text size="xs">Bu ürün hiçbir depoda stokta yok</Text>
+                          </Paper>
+                        )}
+                      </Box>
 
-                    {/* Tedarikçi Eşleştirmeleri */}
-                    <Box>
-                      <Group gap="xs" mb="xs">
-                        <IconLink size={16} />
-                        <Text size="sm" fw={600}>Tedarikçi Eşleştirmeleri</Text>
-                        <Badge size="xs" variant="light" color="grape">
-                          {urunDetay.tedarikci_eslestirmeleri?.length || 0} kayıt
-                        </Badge>
-                      </Group>
-                      
-                      {urunDetay.tedarikci_eslestirmeleri && urunDetay.tedarikci_eslestirmeleri.length > 0 ? (
-                        <Table striped highlightOnHover withTableBorder>
-                          <Table.Thead>
-                            <Table.Tr>
-                              <Table.Th>Tedarikçi Ürün Adı</Table.Th>
-                              <Table.Th>Kod</Table.Th>
-                              <Table.Th>Kullanım</Table.Th>
-                            </Table.Tr>
-                          </Table.Thead>
-                          <Table.Tbody>
-                            {urunDetay.tedarikci_eslestirmeleri.slice(0, 5).map((te: any) => (
-                              <Table.Tr key={te.id}>
-                                <Table.Td>
-                                  <Text size="xs" fw={500}>{te.tedarikci_urun_adi}</Text>
-                                </Table.Td>
-                                <Table.Td>
-                                  <Badge size="xs" variant="light">{te.tedarikci_urun_kodu || '-'}</Badge>
-                                </Table.Td>
-                                <Table.Td>
-                                  <Text size="xs" c="dimmed">{te.eslestirme_sayisi || 0}x</Text>
-                                </Table.Td>
+                      {/* Fiyat Geçmişi (Birim Fiyatlar) */}
+                      <Box>
+                        <Group gap="xs" mb="xs">
+                          <IconHistory size={16} />
+                          <Text size="sm" fw={600}>
+                            Fiyat Geçmişi (Birim Fiyat)
+                          </Text>
+                          <Badge size="xs" variant="light">
+                            {urunDetay.fiyat_gecmisi?.length || 0} kayıt
+                          </Badge>
+                        </Group>
+
+                        {urunDetay.fiyat_gecmisi && urunDetay.fiyat_gecmisi.length > 0 ? (
+                          <Table striped highlightOnHover withTableBorder>
+                            <Table.Thead>
+                              <Table.Tr>
+                                <Table.Th>Tarih</Table.Th>
+                                <Table.Th>Tedarikçi</Table.Th>
+                                <Table.Th ta="right">Birim Fiyat</Table.Th>
                               </Table.Tr>
-                            ))}
-                          </Table.Tbody>
-                        </Table>
-                      ) : (
-                        <Paper p="sm" withBorder ta="center" c="dimmed">
-                          <Text size="xs">Henüz tedarikçi eşleştirmesi yok</Text>
-                          <Text size="xs" c="dimmed">Faturadan stok girişi yapıldığında otomatik oluşturulur</Text>
-                        </Paper>
-                      )}
-                    </Box>
-                  </>
+                            </Table.Thead>
+                            <Table.Tbody>
+                              {urunDetay.fiyat_gecmisi.slice(0, 5).map((fg: any, idx: number) => (
+                                <Table.Tr key={fg.id || `fg-${idx}`}>
+                                  <Table.Td>
+                                    <Text size="xs">
+                                      {fg.tarih
+                                        ? new Date(fg.tarih).toLocaleDateString('tr-TR')
+                                        : '-'}
+                                    </Text>
+                                  </Table.Td>
+                                  <Table.Td>
+                                    <Text size="xs" lineClamp={1}>
+                                      {fg.tedarikci || '-'}
+                                    </Text>
+                                  </Table.Td>
+                                  <Table.Td ta="right">
+                                    <Text size="xs" fw={500} c="green">
+                                      {formatMoney(fg.fiyat, {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 3,
+                                      })}/{selectedUrun?.birim_kisa || 'KG'}
+                                    </Text>
+                                  </Table.Td>
+                                </Table.Tr>
+                              ))}
+                            </Table.Tbody>
+                          </Table>
+                        ) : (
+                          <Paper p="sm" withBorder ta="center" c="dimmed">
+                            <Text size="xs">Henüz fiyat kaydı yok</Text>
+                          </Paper>
+                        )}
+                      </Box>
+
+                      {/* Tedarikçi Eşleştirmeleri */}
+                      <Box>
+                        <Group gap="xs" mb="xs">
+                          <IconLink size={16} />
+                          <Text size="sm" fw={600}>
+                            Tedarikçi Eşleştirmeleri
+                          </Text>
+                          <Badge size="xs" variant="light" color="grape">
+                            {urunDetay.tedarikci_eslestirmeleri?.length || 0} kayıt
+                          </Badge>
+                        </Group>
+
+                        {urunDetay.tedarikci_eslestirmeleri &&
+                        urunDetay.tedarikci_eslestirmeleri.length > 0 ? (
+                          <Table striped highlightOnHover withTableBorder>
+                            <Table.Thead>
+                              <Table.Tr>
+                                <Table.Th>Tedarikçi Ürün Adı</Table.Th>
+                                <Table.Th>Kod</Table.Th>
+                                <Table.Th>Kullanım</Table.Th>
+                              </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody>
+                              {urunDetay.tedarikci_eslestirmeleri.slice(0, 5).map((te: any) => (
+                                <Table.Tr key={te.id}>
+                                  <Table.Td>
+                                    <Text size="xs" fw={500}>
+                                      {te.tedarikci_urun_adi}
+                                    </Text>
+                                  </Table.Td>
+                                  <Table.Td>
+                                    <Badge size="xs" variant="light">
+                                      {te.tedarikci_urun_kodu || '-'}
+                                    </Badge>
+                                  </Table.Td>
+                                  <Table.Td>
+                                    <Text size="xs" c="dimmed">
+                                      {te.eslestirme_sayisi || 0}x
+                                    </Text>
+                                  </Table.Td>
+                                </Table.Tr>
+                              ))}
+                            </Table.Tbody>
+                          </Table>
+                        ) : (
+                          <Paper p="sm" withBorder ta="center" c="dimmed">
+                            <Text size="xs">Henüz tedarikçi eşleştirmesi yok</Text>
+                            <Text size="xs" c="dimmed">
+                              Faturadan stok girişi yapıldığında otomatik oluşturulur
+                            </Text>
+                          </Paper>
+                        )}
+                      </Box>
+                    </>
+                  )
                 )}
               </Stack>
             ) : (

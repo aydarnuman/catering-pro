@@ -62,10 +62,7 @@ export const scraperAPI = {
   /**
    * Scraper işlerini listele
    */
-  async getJobs(params?: {
-    status?: string;
-    limit?: number;
-  }): Promise<ApiResponse<ScraperJob[]>> {
+  async getJobs(params?: { status?: string; limit?: number }): Promise<ApiResponse<ScraperJob[]>> {
     const response = await api.get('/api/scraper/jobs', { params });
     return response.data;
   },
@@ -73,10 +70,7 @@ export const scraperAPI = {
   /**
    * Scraper loglarını getir
    */
-  async getLogs(params?: {
-    level?: string;
-    limit?: number;
-  }): Promise<ApiResponse<ScraperLog[]>> {
+  async getLogs(params?: { level?: string; limit?: number }): Promise<ApiResponse<ScraperLog[]>> {
     const response = await api.get('/api/scraper/logs', { params });
     return response.data;
   },

@@ -1,24 +1,16 @@
 'use client';
 
 import {
-  ActionIcon,
   Badge,
   Box,
   Button,
-  Card,
   Container,
-  Grid,
   Group,
   Paper,
-  Progress,
-  RingProgress,
   SimpleGrid,
-  Skeleton,
-  Stack,
   Text,
   ThemeIcon,
   Title,
-  Tooltip,
   useMantineColorScheme,
 } from '@mantine/core';
 import {
@@ -26,15 +18,12 @@ import {
   IconBrandWhatsapp,
   IconChartBar,
   IconCheck,
-  IconHeart,
   IconMessage,
   IconPhoto,
   IconPlug,
   IconPlugOff,
-  IconRefresh,
   IconSend,
   IconTrendingUp,
-  IconUsers,
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -54,7 +43,7 @@ export default function SosyalMedyaDashboard() {
   const isDark = colorScheme === 'dark';
 
   // Mock service status - gerçek API'den gelecek
-  const [instagramStatus, setInstagramStatus] = useState<ServiceStatus>({
+  const [instagramStatus, _setInstagramStatus] = useState<ServiceStatus>({
     connected: false,
     loading: false,
     stats: {
@@ -64,7 +53,7 @@ export default function SosyalMedyaDashboard() {
     },
   });
 
-  const [whatsappStatus, setWhatsappStatus] = useState<ServiceStatus>({
+  const [whatsappStatus, _setWhatsappStatus] = useState<ServiceStatus>({
     connected: false,
     loading: false,
     stats: {
@@ -108,11 +97,7 @@ export default function SosyalMedyaDashboard() {
                 Instagram ve WhatsApp hesaplarınızı tek panelden yönetin
               </Text>
             </Box>
-            <Badge
-              size="lg"
-              variant="gradient"
-              gradient={{ from: 'pink', to: 'grape' }}
-            >
+            <Badge size="lg" variant="gradient" gradient={{ from: 'pink', to: 'grape' }}>
               BETA
             </Badge>
           </Group>
@@ -155,14 +140,20 @@ export default function SosyalMedyaDashboard() {
                   <IconBrandInstagram size={32} />
                 </ThemeIcon>
                 <Box>
-                  <Text fw={700} size="xl">Instagram</Text>
-                  <Text size="sm" c="dimmed">Post, Story, Reels, DM</Text>
+                  <Text fw={700} size="xl">
+                    Instagram
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    Post, Story, Reels, DM
+                  </Text>
                 </Box>
               </Group>
               <Badge
                 size="lg"
                 color={instagramStatus.connected ? 'green' : 'gray'}
-                leftSection={instagramStatus.connected ? <IconCheck size={12} /> : <IconPlugOff size={12} />}
+                leftSection={
+                  instagramStatus.connected ? <IconCheck size={12} /> : <IconPlugOff size={12} />
+                }
               >
                 {instagramStatus.connected ? 'Bağlı' : 'Bağlı Değil'}
               </Badge>
@@ -174,19 +165,25 @@ export default function SosyalMedyaDashboard() {
                   <Text size="2rem" fw={800} c="#E4405F">
                     {instagramStatus.stats?.followers?.toLocaleString()}
                   </Text>
-                  <Text size="xs" c="dimmed">Takipçi</Text>
+                  <Text size="xs" c="dimmed">
+                    Takipçi
+                  </Text>
                 </Box>
                 <Box ta="center">
                   <Text size="2rem" fw={800} c="blue">
                     {instagramStatus.stats?.messages}
                   </Text>
-                  <Text size="xs" c="dimmed">Okunmamış DM</Text>
+                  <Text size="xs" c="dimmed">
+                    Okunmamış DM
+                  </Text>
                 </Box>
                 <Box ta="center">
                   <Text size="2rem" fw={800} c="green">
                     %{instagramStatus.stats?.engagement}
                   </Text>
-                  <Text size="xs" c="dimmed">Etkileşim</Text>
+                  <Text size="xs" c="dimmed">
+                    Etkileşim
+                  </Text>
                 </Box>
               </SimpleGrid>
             ) : (
@@ -255,14 +252,20 @@ export default function SosyalMedyaDashboard() {
                   <IconBrandWhatsapp size={32} />
                 </ThemeIcon>
                 <Box>
-                  <Text fw={700} size="xl">WhatsApp</Text>
-                  <Text size="sm" c="dimmed">Mesaj, Grup, Medya</Text>
+                  <Text fw={700} size="xl">
+                    WhatsApp
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    Mesaj, Grup, Medya
+                  </Text>
                 </Box>
               </Group>
               <Badge
                 size="lg"
                 color={whatsappStatus.connected ? 'green' : 'gray'}
-                leftSection={whatsappStatus.connected ? <IconCheck size={12} /> : <IconPlugOff size={12} />}
+                leftSection={
+                  whatsappStatus.connected ? <IconCheck size={12} /> : <IconPlugOff size={12} />
+                }
               >
                 {whatsappStatus.connected ? 'Bağlı' : 'Bağlı Değil'}
               </Badge>
@@ -274,19 +277,25 @@ export default function SosyalMedyaDashboard() {
                   <Text size="2rem" fw={800} c="#25D366">
                     {whatsappStatus.stats?.messages}
                   </Text>
-                  <Text size="xs" c="dimmed">Aktif Sohbet</Text>
+                  <Text size="xs" c="dimmed">
+                    Aktif Sohbet
+                  </Text>
                 </Box>
                 <Box ta="center">
                   <Text size="2rem" fw={800} c="blue">
                     12
                   </Text>
-                  <Text size="xs" c="dimmed">Okunmamış</Text>
+                  <Text size="xs" c="dimmed">
+                    Okunmamış
+                  </Text>
                 </Box>
                 <Box ta="center">
                   <Text size="2rem" fw={800} c="orange">
                     156
                   </Text>
-                  <Text size="xs" c="dimmed">Bugün Gönderilen</Text>
+                  <Text size="xs" c="dimmed">
+                    Bugün Gönderilen
+                  </Text>
                 </Box>
               </SimpleGrid>
             ) : (
@@ -323,7 +332,9 @@ export default function SosyalMedyaDashboard() {
 
         {/* Quick Actions */}
         <Paper p="xl" radius="lg" style={cardStyle} mb="xl">
-          <Text fw={600} size="lg" mb="md">⚡ Hızlı İşlemler</Text>
+          <Text fw={600} size="lg" mb="md">
+            ⚡ Hızlı İşlemler
+          </Text>
           <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
             <Button
               variant="light"
@@ -352,12 +363,7 @@ export default function SosyalMedyaDashboard() {
             >
               Mesaj Gönder
             </Button>
-            <Button
-              variant="light"
-              color="blue"
-              size="lg"
-              leftSection={<IconChartBar size={20} />}
-            >
+            <Button variant="light" color="blue" size="lg" leftSection={<IconChartBar size={20} />}>
               Analitik
             </Button>
           </SimpleGrid>
@@ -369,7 +375,7 @@ export default function SosyalMedyaDashboard() {
           radius="lg"
           style={{
             ...cardStyle,
-            background: isDark 
+            background: isDark
               ? 'linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)'
               : 'linear-gradient(135deg, rgba(236, 72, 153, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)',
           }}
@@ -379,10 +385,12 @@ export default function SosyalMedyaDashboard() {
               <IconTrendingUp size={24} />
             </ThemeIcon>
             <Box style={{ flex: 1 }}>
-              <Text fw={600} size="lg">Sosyal Medya Modülü Beta Sürümünde</Text>
+              <Text fw={600} size="lg">
+                Sosyal Medya Modülü Beta Sürümünde
+              </Text>
               <Text size="sm" c="dimmed">
-                Bu modül aktif geliştirme aşamasındadır. Instagram ve WhatsApp entegrasyonları 
-                ayrı servisler üzerinden çalışır. Geri bildirimleriniz bizim için değerli!
+                Bu modül aktif geliştirme aşamasındadır. Instagram ve WhatsApp entegrasyonları ayrı
+                servisler üzerinden çalışır. Geri bildirimleriniz bizim için değerli!
               </Text>
             </Box>
           </Group>

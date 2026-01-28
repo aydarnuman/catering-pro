@@ -44,7 +44,7 @@ import {
   IconUser,
 } from '@tabler/icons-react';
 import Link from 'next/link';
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { adminAPI } from '@/lib/api/services/admin';
 import { formatDate } from '@/lib/formatters';
@@ -123,7 +123,15 @@ export default function LoglarPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, filterUserId, filterAction, filterEntityType, filterSearch, filterStartDate, filterEndDate]);
+  }, [
+    page,
+    filterUserId,
+    filterAction,
+    filterEntityType,
+    filterSearch,
+    filterStartDate,
+    filterEndDate,
+  ]);
 
   const fetchSummary = useCallback(async () => {
     try {

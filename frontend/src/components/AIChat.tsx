@@ -39,7 +39,6 @@ import {
   IconRobot,
   IconSend,
   IconSettings,
-  IconShieldCheck,
   IconSparkles,
   IconThumbDown,
   IconThumbUp,
@@ -129,7 +128,7 @@ export function AIChat({
 }: AIChatProps) {
   // Auth context - God Mode için
   const { isSuperAdmin, user } = useAuth();
-  
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -203,10 +202,13 @@ export function AIChat({
       { label: '📋 Proje harcamaları', value: 'Proje bazlı harcama raporu göster' },
       { label: '🏢 Tedarikçi analizi', value: 'En çok alım yaptığımız tedarikçileri listele' },
     ],
-    'GOD_MODE': [
+    GOD_MODE: [
       { label: '🔥 SQL Çalıştır', value: 'SELECT COUNT(*) FROM users sorgusunu çalıştır' },
       { label: '📁 Dosya Listele', value: 'Backend src klasöründeki tüm dosyaları listele' },
-      { label: '🔑 Secretları Göster', value: 'Sistemdeki tüm API keylerini ve secretları listele' },
+      {
+        label: '🔑 Secretları Göster',
+        value: 'Sistemdeki tüm API keylerini ve secretları listele',
+      },
       { label: '⚡ Shell Komutu', value: 'df -h komutu ile disk kullanımını göster' },
     ],
   };
@@ -258,18 +260,18 @@ export function AIChat({
   };
 
   // Seçili şablona göre önerileri al - God Mode aktifse özel sorular
-  const suggestedQuestions = godModeEnabled 
-    ? templateQuestions['god-mode'] 
-    : (templateQuestions[selectedTemplate] || templateQuestions.default);
-  const quickCommands = godModeEnabled 
-    ? departmentCommands['GOD_MODE'] 
-    : (departmentCommands[defaultDepartment] || departmentCommands['TÜM SİSTEM']);
+  const suggestedQuestions = godModeEnabled
+    ? templateQuestions['god-mode']
+    : templateQuestions[selectedTemplate] || templateQuestions.default;
+  const quickCommands = godModeEnabled
+    ? departmentCommands.GOD_MODE
+    : departmentCommands[defaultDepartment] || departmentCommands['TÜM SİSTEM'];
 
   // Prompt şablonlarını yükle
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
-        const data = await aiAPI.getTemplates() as any;
+        const data = (await aiAPI.getTemplates()) as any;
 
         if (data.success && (data.templates || data.data?.templates)) {
           const templates = data.templates || data.data?.templates;
@@ -343,7 +345,7 @@ export function AIChat({
     try {
       // Mesaj geçmişini hazırla (son 10 mesaj)
       const history = messages.slice(-10).map((m) => ({
-        role: m.type === 'user' ? 'user' : 'assistant',
+        role: (m.type === 'user' ? 'user' : 'assistant') as 'user' | 'assistant' | 'system',
         content: m.content,
       }));
 
@@ -359,21 +361,22 @@ export function AIChat({
       // God Mode veya normal Agent endpoint'i kullan
       let data;
       try {
-        data = godModeEnabled && isSuperAdmin
-          ? await aiAPI.sendGodModeMessage(messageData)
-          : await aiAPI.sendAgentMessage(messageData);
+        data =
+          godModeEnabled && isSuperAdmin
+            ? await aiAPI.sendGodModeMessage(messageData)
+            : await aiAPI.sendAgentMessage(messageData);
       } catch (error: any) {
         console.error('[AIChat] API çağrısı hatası:', error);
         const errorMessage = error?.response?.data?.error || error?.message || 'API hatası';
         const statusCode = error?.response?.status;
         throw new Error(
-          statusCode === 404 
+          statusCode === 404
             ? `Endpoint bulunamadı (404). Backend çalışıyor mu? Endpoint: ${godModeEnabled ? '/api/ai/god-mode/execute' : '/api/ai/agent'}`
             : statusCode === 401
-            ? 'Yetkilendirme hatası (401). Lütfen tekrar giriş yapın.'
-            : statusCode === 403
-            ? 'Yetki hatası (403). Bu işlem için Super Admin yetkisi gerekli.'
-            : errorMessage
+              ? 'Yetkilendirme hatası (401). Lütfen tekrar giriş yapın.'
+              : statusCode === 403
+                ? 'Yetki hatası (403). Bu işlem için Super Admin yetkisi gerekli.'
+                : errorMessage
         );
       }
 
@@ -386,12 +389,10 @@ export function AIChat({
           endpoint: godModeEnabled ? '/api/ai/god-mode/execute' : '/api/ai/agent',
           godMode: godModeEnabled,
         });
-        
+
         const errorMessage = data.error || data.message || 'API hatası';
         throw new Error(
-          errorMessage.includes('Endpoint') 
-            ? errorMessage
-            : `API hatası: ${errorMessage}`
+          errorMessage.includes('Endpoint') ? errorMessage : `API hatası: ${errorMessage}`
         );
       }
 
@@ -521,8 +522,20 @@ export function AIChat({
                   }}
                 >
                   <Text size="md">{currentTemplate?.icon || '🤖'}</Text>
-                  <Text size="xs" fw={500} style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {currentTemplate?.name?.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, '') || 'Şablon'}
+                  <Text
+                    size="xs"
+                    fw={500}
+                    style={{
+                      maxWidth: 80,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {currentTemplate?.name?.replace(
+                      /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u,
+                      ''
+                    ) || 'Şablon'}
                   </Text>
                   <IconChevronDown size={12} style={{ opacity: 0.5 }} />
                 </UnstyledButton>
@@ -564,7 +577,10 @@ export function AIChat({
                             <Text size="lg">{t.icon}</Text>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <Text size="xs" fw={500}>
-                                {t.name.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, '')}
+                                {t.name.replace(
+                                  /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u,
+                                  ''
+                                )}
                               </Text>
                             </div>
                             {selectedTemplate === t.slug && (
@@ -726,22 +742,24 @@ export function AIChat({
   }
 
   return (
-    <Paper 
-      p="md" 
-      radius="md" 
-      withBorder 
-      style={{ 
-        height: 'calc(100vh - 280px)', 
-        minHeight: 450, 
-        maxWidth: 900, 
+    <Paper
+      p="md"
+      radius="md"
+      withBorder
+      style={{
+        height: 'calc(100vh - 280px)',
+        minHeight: 450,
+        maxWidth: 900,
         margin: '0 auto',
         // God Mode aktifken dramatik stil değişikliği
-        background: godModeEnabled 
-          ? 'linear-gradient(135deg, rgba(255, 71, 87, 0.08) 0%, rgba(238, 90, 36, 0.08) 100%)' 
+        background: godModeEnabled
+          ? 'linear-gradient(135deg, rgba(255, 71, 87, 0.08) 0%, rgba(238, 90, 36, 0.08) 100%)'
           : undefined,
         borderColor: godModeEnabled ? 'rgba(255, 71, 87, 0.5)' : undefined,
         borderWidth: godModeEnabled ? 2 : 1,
-        boxShadow: godModeEnabled ? '0 0 30px rgba(255, 71, 87, 0.2), inset 0 0 60px rgba(255, 71, 87, 0.05)' : undefined,
+        boxShadow: godModeEnabled
+          ? '0 0 30px rgba(255, 71, 87, 0.2), inset 0 0 60px rgba(255, 71, 87, 0.05)'
+          : undefined,
         transition: 'all 0.4s ease',
       }}
     >
@@ -753,7 +771,9 @@ export function AIChat({
               size="lg"
               color={godModeEnabled ? 'red' : 'violet'}
               variant="gradient"
-              gradient={godModeEnabled ? { from: 'red', to: 'orange' } : { from: 'violet', to: 'purple' }}
+              gradient={
+                godModeEnabled ? { from: 'red', to: 'orange' } : { from: 'violet', to: 'purple' }
+              }
               style={{
                 boxShadow: godModeEnabled ? '0 0 20px rgba(255, 71, 87, 0.5)' : undefined,
                 transition: 'all 0.3s ease',
@@ -762,11 +782,21 @@ export function AIChat({
               <IconBrain size={20} />
             </ThemeIcon>
             <div>
-              <Text size="lg" fw={600} style={{ color: godModeEnabled ? '#ff4757' : undefined, transition: 'color 0.3s' }}>
+              <Text
+                size="lg"
+                fw={600}
+                style={{ color: godModeEnabled ? '#ff4757' : undefined, transition: 'color 0.3s' }}
+              >
                 {godModeEnabled ? '🔥 GOD MODE AI' : '🤖 AI Agent'}
               </Text>
-              <Text size="xs" c={godModeEnabled ? 'orange' : 'dimmed'} style={{ transition: 'color 0.3s' }}>
-                {godModeEnabled ? 'Sınırsız yetki aktif - Dikkatli kullan!' : 'Tüm sisteme erişebilen akıllı asistan'}
+              <Text
+                size="xs"
+                c={godModeEnabled ? 'orange' : 'dimmed'}
+                style={{ transition: 'color 0.3s' }}
+              >
+                {godModeEnabled
+                  ? 'Sınırsız yetki aktif - Dikkatli kullan!'
+                  : 'Tüm sisteme erişebilen akıllı asistan'}
               </Text>
             </div>
           </Group>
@@ -775,7 +805,11 @@ export function AIChat({
             {/* 🔥 God Mode Toggle - Sadece Super Admin */}
             {isSuperAdmin && (
               <Tooltip
-                label={godModeEnabled ? 'God Mode Aktif - Sınırsız yetki!' : 'God Mode - Tüm sisteme tam erişim'}
+                label={
+                  godModeEnabled
+                    ? 'God Mode Aktif - Sınırsız yetki!'
+                    : 'God Mode - Tüm sisteme tam erişim'
+                }
                 position="bottom"
               >
                 <UnstyledButton
@@ -786,21 +820,21 @@ export function AIChat({
                     gap: 8,
                     padding: '6px 12px',
                     borderRadius: 8,
-                    background: godModeEnabled 
-                      ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)' 
+                    background: godModeEnabled
+                      ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)'
                       : 'var(--mantine-color-gray-0)',
-                    border: godModeEnabled 
-                      ? '2px solid #ff4757' 
+                    border: godModeEnabled
+                      ? '2px solid #ff4757'
                       : '1px solid var(--mantine-color-gray-3)',
                     transition: 'all 0.3s',
                     boxShadow: godModeEnabled ? '0 0 20px rgba(255, 71, 87, 0.4)' : 'none',
                   }}
                 >
-                  <IconFlame 
-                    size={20} 
+                  <IconFlame
+                    size={20}
                     color={godModeEnabled ? 'white' : '#666'}
-                    style={{ 
-                      animation: godModeEnabled ? 'pulse 1s infinite' : 'none'
+                    style={{
+                      animation: godModeEnabled ? 'pulse 1s infinite' : 'none',
                     }}
                   />
                   <Text size="sm" fw={600} c={godModeEnabled ? 'white' : 'dark'}>
@@ -841,7 +875,10 @@ export function AIChat({
                   <Text size="xl">{currentTemplate?.icon || '🤖'}</Text>
                   <div>
                     <Text size="sm" fw={500}>
-                      {currentTemplate?.name?.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, '') || 'Şablon Seç'}
+                      {currentTemplate?.name?.replace(
+                        /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u,
+                        ''
+                      ) || 'Şablon Seç'}
                     </Text>
                     <Text size="xs" c="dimmed">
                       {currentTemplate?.category || 'Genel'}
@@ -893,7 +930,10 @@ export function AIChat({
                             <Text size="xl">{t.icon}</Text>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <Text size="sm" fw={500}>
-                                {t.name.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, '')}
+                                {t.name.replace(
+                                  /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u,
+                                  ''
+                                )}
                               </Text>
                               <Text size="xs" c="dimmed" lineClamp={1}>
                                 {t.description}
@@ -982,7 +1022,8 @@ export function AIChat({
                     Merhaba! Ben AI Agent 🤖
                   </Text>
                   <Text c="dimmed" size="xs" maw={400}>
-                    Siparişler, cariler, faturalar, ihaleler ve raporlar. Veri sorgulayabilir ve analiz yapabilirim.
+                    Siparişler, cariler, faturalar, ihaleler ve raporlar. Veri sorgulayabilir ve
+                    analiz yapabilirim.
                   </Text>
                 </div>
 
@@ -998,7 +1039,7 @@ export function AIChat({
                         p="sm"
                         radius="md"
                         withBorder
-                        style={{ 
+                        style={{
                           cursor: 'pointer',
                           borderColor: godModeEnabled ? 'rgba(255, 71, 87, 0.3)' : undefined,
                           background: godModeEnabled ? 'rgba(255, 71, 87, 0.05)' : undefined,
@@ -1006,7 +1047,9 @@ export function AIChat({
                         }}
                         onClick={() => handleSuggestedQuestion(question)}
                       >
-                        <Text size="sm" c={godModeEnabled ? 'red.7' : undefined}>{question}</Text>
+                        <Text size="sm" c={godModeEnabled ? 'red.7' : undefined}>
+                          {question}
+                        </Text>
                       </Card>
                     ))}
                   </SimpleGrid>
@@ -1025,9 +1068,11 @@ export function AIChat({
                         variant={godModeEnabled ? 'gradient' : 'light'}
                         gradient={godModeEnabled ? { from: 'red', to: 'orange' } : undefined}
                         color={godModeEnabled ? undefined : 'violet'}
-                        style={{ 
+                        style={{
                           cursor: 'pointer',
-                          boxShadow: godModeEnabled ? '0 2px 10px rgba(255, 71, 87, 0.3)' : undefined,
+                          boxShadow: godModeEnabled
+                            ? '0 2px 10px rgba(255, 71, 87, 0.3)'
+                            : undefined,
                         }}
                         onClick={() => handleSuggestedQuestion(cmd.value)}
                       >
@@ -1207,7 +1252,11 @@ export function AIChat({
         <Group gap="xs">
           <TextInput
             flex={1}
-            placeholder={godModeEnabled ? "🔥 God Mode: SQL, dosya, shell, kod çalıştır..." : "Soru sorun, komut verin veya işlem yaptırın..."}
+            placeholder={
+              godModeEnabled
+                ? '🔥 God Mode: SQL, dosya, shell, kod çalıştır...'
+                : 'Soru sorun, komut verin veya işlem yaptırın...'
+            }
             value={inputValue}
             onChange={(e) => setInputValue(e.currentTarget.value)}
             onKeyDown={(e) => {
@@ -1219,13 +1268,15 @@ export function AIChat({
             disabled={isLoading}
             size="md"
             styles={{
-              input: godModeEnabled ? {
-                borderColor: 'rgba(255, 71, 87, 0.4)',
-                backgroundColor: 'rgba(255, 71, 87, 0.05)',
-                '&:focus': {
-                  borderColor: '#ff4757',
-                }
-              } : undefined
+              input: godModeEnabled
+                ? {
+                    borderColor: 'rgba(255, 71, 87, 0.4)',
+                    backgroundColor: 'rgba(255, 71, 87, 0.05)',
+                    '&:focus': {
+                      borderColor: '#ff4757',
+                    },
+                  }
+                : undefined,
             }}
           />
           <Button

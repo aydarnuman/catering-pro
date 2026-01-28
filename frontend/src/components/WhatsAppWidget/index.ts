@@ -1,2 +1,1 @@
-export { WhatsAppWidget } from './WhatsAppWidget';
-export { default } from './WhatsAppWidget';
+export { default, WhatsAppWidget } from './WhatsAppWidget';

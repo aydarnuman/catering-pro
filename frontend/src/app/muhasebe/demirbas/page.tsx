@@ -56,9 +56,11 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
-import { formatMoney, formatDate } from '@/lib/formatters';
+import { useAuth } from '@/context/AuthContext';
+import { useRealtimeRefetch } from '@/context/RealtimeContext';
 import { demirbasAPI } from '@/lib/api/services/demirbas';
 import { personelAPI } from '@/lib/api/services/personel';
+import { formatDate } from '@/lib/formatters';
 import 'dayjs/locale/tr';
 
 // Tip tanımları
@@ -133,6 +135,7 @@ interface Istatistik {
 }
 
 export default function DemirbasPage() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -254,7 +257,6 @@ export default function DemirbasPage() {
     }).format(value || 0);
   };
 
-
   // Verileri yükle
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -272,47 +274,76 @@ export default function DemirbasPage() {
 
       // Her bir sonucu kontrol et
       if (demirbasRes.status === 'fulfilled' && demirbasRes.value.success) {
-        setDemirbaslar(demirbasRes.value.data as any || []);
+        setDemirbaslar((demirbasRes.value.data as any) || []);
       } else {
-        console.error('Demirbaş yükleme hatası:', demirbasRes.status === 'rejected' ? demirbasRes.reason : 'API başarısız');
+        console.error(
+          'Demirbaş yükleme hatası:',
+          demirbasRes.status === 'rejected' ? demirbasRes.reason : 'API başarısız'
+        );
         setDemirbaslar([]);
       }
 
       if (kategoriRes.status === 'fulfilled' && kategoriRes.value.success) {
-        setKategoriler(kategoriRes.value.data as any || []);
+        setKategoriler((kategoriRes.value.data as any) || []);
       } else {
-        console.error('Kategori yükleme hatası:', kategoriRes.status === 'rejected' ? kategoriRes.reason : 'API başarısız');
+        console.error(
+          'Kategori yükleme hatası:',
+          kategoriRes.status === 'rejected' ? kategoriRes.reason : 'API başarısız'
+        );
         setKategoriler([]);
       }
 
       if (lokasyonRes.status === 'fulfilled' && lokasyonRes.value.success) {
-        setLokasyonlar(lokasyonRes.value.data as any || []);
+        setLokasyonlar((lokasyonRes.value.data as any) || []);
       } else {
-        console.error('Lokasyon yükleme hatası:', lokasyonRes.status === 'rejected' ? lokasyonRes.reason : 'API başarısız');
+        console.error(
+          'Lokasyon yükleme hatası:',
+          lokasyonRes.status === 'rejected' ? lokasyonRes.reason : 'API başarısız'
+        );
         setLokasyonlar([]);
       }
 
       if (projelerRes.status === 'fulfilled' && projelerRes.value.success) {
         setProjeler(projelerRes.value.data || []);
       } else {
-        console.error('Proje yükleme hatası:', projelerRes.status === 'rejected' ? projelerRes.reason : 'API başarısız');
+        console.error(
+          'Proje yükleme hatası:',
+          projelerRes.status === 'rejected' ? projelerRes.reason : 'API başarısız'
+        );
         setProjeler([]);
       }
 
       if (personelRes.status === 'fulfilled' && personelRes.value.success) {
-        setPersoneller(personelRes.value.data as any || []);
+        setPersoneller((personelRes.value.data as any) || []);
       } else {
-        console.error('Personel yükleme hatası:', personelRes.status === 'rejected' ? personelRes.reason : 'API başarısız');
+        // Daha detaylı hata mesajı
+        const errorMessage =
+          personelRes.status === 'rejected'
+            ? personelRes.reason?.message || personelRes.reason || 'Bilinmeyen hata'
+            : personelRes.value?.error || personelRes.value?.message || 'API başarısız';
+        console.error('Personel yükleme hatası:', {
+          status: personelRes.status,
+          error: errorMessage,
+          response: personelRes.status === 'fulfilled' ? personelRes.value : null,
+        });
         setPersoneller([]);
+        // Sessiz hata - kullanıcıya bildirim gösterme (diğer veriler yüklenebilir)
       }
 
-      if (istatistikRes.status === 'fulfilled' && istatistikRes.value.success && istatistikRes.value.data) {
+      if (
+        istatistikRes.status === 'fulfilled' &&
+        istatistikRes.value.success &&
+        istatistikRes.value.data
+      ) {
         setIstatistik(istatistikRes.value.data.ozet);
         setKategoriDagilimi(istatistikRes.value.data.kategoriDagilimi || []);
         setGarantiYaklasan(istatistikRes.value.data.garantiYaklasan || []);
         setBakimdakiler(istatistikRes.value.data.bakimdakiler || []);
       } else {
-        console.error('İstatistik yükleme hatası:', istatistikRes.status === 'rejected' ? istatistikRes.reason : 'API başarısız');
+        console.error(
+          'İstatistik yükleme hatası:',
+          istatistikRes.status === 'rejected' ? istatistikRes.reason : 'API başarısız'
+        );
         setIstatistik(null);
         setKategoriDagilimi([]);
         setGarantiYaklasan([]);
@@ -320,11 +351,12 @@ export default function DemirbasPage() {
       }
     } catch (err: any) {
       console.error('Veri yükleme hatası:', err);
-      const errorMessage = err?.response?.status === 401 
-        ? 'Oturum süresi doldu. Lütfen tekrar giriş yapın.'
-        : err?.message || 'Veriler yüklenirken hata oluştu';
+      const errorMessage =
+        err?.response?.status === 401
+          ? 'Oturum süresi doldu. Lütfen tekrar giriş yapın.'
+          : err?.message || 'Veriler yüklenirken hata oluştu';
       setError(errorMessage);
-      
+
       // Hata durumunda state'leri boş array olarak set et
       setDemirbaslar([]);
       setKategoriler([]);
@@ -335,7 +367,7 @@ export default function DemirbasPage() {
       setKategoriDagilimi([]);
       setGarantiYaklasan([]);
       setBakimdakiler([]);
-      
+
       // 401 hatası ise login sayfasına yönlendir
       if (err?.response?.status === 401) {
         setTimeout(() => {
@@ -348,8 +380,13 @@ export default function DemirbasPage() {
   }, []); // Boş dependency array - sadece mount'ta çalışsın
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) return;
     loadData();
-  }, [loadData]);
+  }, [loadData, authLoading, isAuthenticated]);
+
+  // 🔴 REALTIME - Demirbaş tablosunu dinle
+  useRealtimeRefetch('demirbas', loadData);
 
   // Ana kategorileri filtrele (ust_kategori_id null olanlar)
   const anaKategoriler = kategoriler.filter((k) => !k.ust_kategori_id);
@@ -708,7 +745,11 @@ export default function DemirbasPage() {
     try {
       const result = await demirbasAPI.deleteToplu(selectedItems);
       if (result.success) {
-        notifications.show({ title: 'Başarılı', message: result.message || 'Silindi', color: 'green' });
+        notifications.show({
+          title: 'Başarılı',
+          message: result.message || 'Silindi',
+          color: 'green',
+        });
         setSelectedItems([]);
         loadData();
       } else {

@@ -39,8 +39,9 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import Link from 'next/link';
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { authFetch } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/config';
 
 interface Module {
@@ -81,7 +82,7 @@ interface Template {
 }
 
 export default function YetkilerPage() {
-  const { user } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [users, setUsers] = useState<UserPermission[]>([]);
   const [_modules, setModules] = useState<Module[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -99,21 +100,18 @@ export default function YetkilerPage() {
     setLoading(true);
     try {
       const [usersRes, modulesRes, templatesRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/permissions/users`, { 
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' }
+        authFetch(`${API_BASE_URL}/api/permissions/users`, {
+          headers: { 'Content-Type': 'application/json' },
         })
           .then((r) => r.json())
           .catch(() => ({ success: false })),
-        fetch(`${API_BASE_URL}/api/permissions/modules`, { 
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' }
+        authFetch(`${API_BASE_URL}/api/permissions/modules`, {
+          headers: { 'Content-Type': 'application/json' },
         })
           .then((r) => r.json())
           .catch(() => ({ success: false })),
-        fetch(`${API_BASE_URL}/api/permissions/templates`, { 
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' }
+        authFetch(`${API_BASE_URL}/api/permissions/templates`, {
+          headers: { 'Content-Type': 'application/json' },
         })
           .then((r) => r.json())
           .catch(() => ({ success: false })),
@@ -131,13 +129,14 @@ export default function YetkilerPage() {
   }, []);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) return;
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, authLoading, isAuthenticated]);
 
   const handleEditUser = async (userId: number) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/permissions/user/${userId}`, {
-        credentials: 'include',
+      const res = await authFetch(`${API_BASE_URL}/api/permissions/user/${userId}`, {
         headers: { 'Content-Type': 'application/json' },
       });
       const data = await res.json();
@@ -159,9 +158,8 @@ export default function YetkilerPage() {
     setSaving(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/permissions/user/${selectedUser.user_id}`, {
+      const res = await authFetch(`${API_BASE_URL}/api/permissions/user/${selectedUser.user_id}`, {
         method: 'PUT',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -199,11 +197,10 @@ export default function YetkilerPage() {
     setSaving(true);
 
     try {
-      const res = await fetch(
+      const res = await authFetch(
         `${API_BASE_URL}/api/permissions/user/${selectedUser.user_id}/apply-template`,
         {
           method: 'POST',
-          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
           },

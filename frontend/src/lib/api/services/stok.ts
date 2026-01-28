@@ -1,10 +1,12 @@
 /**
  * Stok API Servisleri
  * Stok yönetimi, depolar, hareketler için merkezi API servisleri
+ * Fatura kalem işlemleri TEK KAYNAK: faturaKalemleriAPI
  */
 
 import { api } from '@/lib/api';
 import type { ApiResponse } from '../types';
+import { faturaKalemleriAPI } from './fatura-kalemleri';
 
 // Depo
 export interface Depo {
@@ -47,6 +49,74 @@ export interface StokFatura {
   tarih: string;
   toplam_tutar: number;
   [key: string]: any;
+}
+
+// Akıllı Eşleştirme Sonucu
+export interface EslesmeSonucu {
+  stok_kart_id: number;
+  stok_kodu: string;
+  stok_adi: string;
+  guven_skoru: number;
+  eslestirme_yontemi: string;
+  otomatik_onay: boolean;
+}
+
+// Fiyat Anomalisi
+export interface FiyatAnomali {
+  var: boolean;
+  onceki_fiyat: number;
+  degisim_yuzde: number;
+  aciklama: string;
+}
+
+// Akıllı Fatura Kalemi
+export interface AkilliKalem {
+  sira: number;
+  urun_adi: string;
+  urun_kodu?: string;
+  // Orijinal değerler
+  orijinal_miktar: number;
+  orijinal_birim: string;
+  orijinal_birim_fiyat: number;
+  // Dönüştürülmüş değerler
+  miktar: number;
+  birim: string;
+  birim_kod: string;
+  birim_donusturuldu: boolean;
+  birim_fiyat: number;
+  tutar: number;
+  kdv_orani: number;
+  kdv_tutar: number;
+  // Akıllı eşleştirme
+  eslesme: EslesmeSonucu | null;
+  alternatif_eslesmeler: EslesmeSonucu[];
+  anomali: FiyatAnomali | null;
+}
+
+// Akıllı Kalemler Response
+export interface AkilliKalemlerResponse {
+  fatura: {
+    fatura_no: string;
+    tarih: string;
+    toplam_tutar: number;
+    gonderen: string;
+    gonderen_vkn: string;
+  };
+  kalemler: AkilliKalem[];
+  ozet: {
+    toplam_kalem: number;
+    otomatik_onay: number;
+    manuel_gereken: number;
+    anomali_sayisi: number;
+    tum_otomatik: boolean;
+  };
+}
+
+// Akıllı Eşleştirme Tekil Response
+export interface AkilliEslestirmeResponse {
+  data: EslesmeSonucu[];
+  en_iyi_eslesme: EslesmeSonucu | null;
+  otomatik_onay: boolean;
 }
 
 // Stok API
@@ -181,20 +251,38 @@ export const stokAPI = {
   },
 
   /**
-   * Fatura kalemlerini getir
+   * Fatura kalemlerini getir (TEK KAYNAK: faturaKalemleriAPI)
    */
   async getFaturaKalemler(ettn: string): Promise<ApiResponse<any[]>> {
-    const response = await api.get(`/api/stok/faturalar/${ettn}/kalemler`);
+    const data = await faturaKalemleriAPI.getKalemler(ettn);
+    return { success: true, data: data.kalemler };
+  },
+
+  /**
+   * Fatura kalemlerini akıllı eşleştirme ile getir
+   * Her kalem için: eşleşme önerileri, güven skoru, fiyat anomali kontrolü
+   */
+  async getAkilliKalemler(ettn: string): Promise<ApiResponse<AkilliKalemlerResponse>> {
+    const response = await api.get(`/api/stok/faturalar/${ettn}/akilli-kalemler`);
+    return response.data;
+  },
+
+  /**
+   * Tek ürün için akıllı eşleştirme
+   */
+  async akilliEslestir(data: {
+    urun_adi: string;
+    urun_kodu?: string;
+    tedarikci_vkn?: string;
+  }): Promise<ApiResponse<AkilliEslestirmeResponse>> {
+    const response = await api.post('/api/stok/akilli-eslestir', data);
     return response.data;
   },
 
   /**
    * Toplu fatura işle
    */
-  async topluFaturaIsle(data: {
-    faturalar: string[];
-    depo_id: number;
-  }): Promise<ApiResponse<any>> {
+  async topluFaturaIsle(data: { faturalar: string[]; depo_id: number }): Promise<ApiResponse<any>> {
     const response = await api.post('/api/stok/toplu-fatura-isle', data);
     return response.data;
   },

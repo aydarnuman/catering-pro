@@ -6,13 +6,13 @@ import {
   Drawer,
   Group,
   Modal,
-  ModalProps,
+  type ModalProps,
   ScrollArea,
   Text,
   Title,
   useMantineColorScheme,
 } from '@mantine/core';
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useResponsive } from '@/hooks/useResponsive';
 
 interface ResponsiveModalProps extends Omit<ModalProps, 'size'> {
@@ -89,10 +89,7 @@ export function ResponsiveModal({
             <Group justify="space-between" align="center">
               <Group gap="sm">
                 {icon}
-                <Title
-                  order={4}
-                  c={headerGradient ? 'white' : undefined}
-                >
+                <Title order={4} c={headerGradient ? 'white' : undefined}>
                   {title}
                 </Title>
               </Group>

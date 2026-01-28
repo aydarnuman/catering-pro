@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Center, Loader, LoadingOverlay, Skeleton, Stack, Text } from '@mantine/core';
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 export type LoadingStateVariant = 'spinner' | 'skeleton' | 'overlay' | 'inline';
 
@@ -28,20 +28,20 @@ interface LoadingStateProps {
 
 /**
  * Standart Loading State Component
- * 
+ *
  * Kullanım örnekleri:
- * 
+ *
  * // Spinner (default)
  * <LoadingState loading={isLoading} message="Yükleniyor..." />
- * 
+ *
  * // Skeleton
  * <LoadingState loading={isLoading} variant="skeleton" skeletonLines={3} />
- * 
+ *
  * // Overlay (içerik üzerinde)
  * <LoadingState loading={isLoading} variant="overlay">
  *   <YourContent />
  * </LoadingState>
- * 
+ *
  * // Inline (küçük spinner)
  * <LoadingState loading={isLoading} variant="inline" size="sm" />
  */

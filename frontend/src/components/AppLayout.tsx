@@ -3,26 +3,24 @@
 import { Box } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { ClientLayout } from '@/components/ClientLayout';
 import { Navbar } from '@/components/Navbar';
-import { useAuth } from '@/context/AuthContext';
 
-const NO_NAVBAR_PAGES = [
-  '/giris',
-  '/kayit',
-  '/sifremi-unuttum',
-  '/sifre-sifirla',
-];
+const NO_NAVBAR_PAGES = ['/giris', '/kayit', '/sifremi-unuttum', '/sifre-sifirla'];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { isAuthenticated, isLoading } = useAuth();
+  const [mounted, setMounted] = useState(false);
 
-  const isAuthPage = NO_NAVBAR_PAGES.some((page) =>
-    pathname?.startsWith(page)
-  );
-  const showNavbar =
-    !isAuthPage && isAuthenticated && !isLoading;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isAuthPage = NO_NAVBAR_PAGES.some((page) => pathname?.startsWith(page));
+
+  // Navbar sadece auth sayfalarında gizli, diğer her yerde görünür
+  const showNavbar = mounted && !isAuthPage;
 
   return (
     <>
@@ -35,7 +33,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         }}
       >
         {showNavbar && <Navbar />}
-        <Box component="main" className="main-content" style={{ flex: 1 }}>
+        <Box
+          component="main"
+          className={`main-content ${showNavbar ? 'has-navbar' : 'no-navbar'}`}
+          style={{ flex: 1 }}
+        >
           <ClientLayout>{children}</ClientLayout>
         </Box>
       </Box>

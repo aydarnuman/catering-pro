@@ -111,7 +111,10 @@ export const demirbasAPI = {
   /**
    * Lokasyon guncelle
    */
-  async updateLokasyon(id: number, data: Partial<DemirbasLokasyon>): Promise<ApiResponse<DemirbasLokasyon>> {
+  async updateLokasyon(
+    id: number,
+    data: Partial<DemirbasLokasyon>
+  ): Promise<ApiResponse<DemirbasLokasyon>> {
     const response = await api.put(`/api/demirbas/lokasyonlar/${id}`, data);
     return response.data;
   },
@@ -135,12 +138,15 @@ export const demirbasAPI = {
   /**
    * Zimmet ata
    */
-  async zimmetAta(demirbasId: number, data: {
-    personel_id: number;
-    proje_id?: number;
-    tarih?: string;
-    aciklama?: string;
-  }): Promise<ApiResponse<any>> {
+  async zimmetAta(
+    demirbasId: number,
+    data: {
+      personel_id: number;
+      proje_id?: number;
+      tarih?: string;
+      aciklama?: string;
+    }
+  ): Promise<ApiResponse<any>> {
     const response = await api.post(`/api/demirbas/${demirbasId}/zimmet`, data);
     return response.data;
   },
@@ -148,10 +154,13 @@ export const demirbasAPI = {
   /**
    * Zimmet iade
    */
-  async zimmetIade(demirbasId: number, data?: {
-    tarih?: string;
-    aciklama?: string;
-  }): Promise<ApiResponse<any>> {
+  async zimmetIade(
+    demirbasId: number,
+    data?: {
+      tarih?: string;
+      aciklama?: string;
+    }
+  ): Promise<ApiResponse<any>> {
     const response = await api.post(`/api/demirbas/${demirbasId}/zimmet-iade`, data || {});
     return response.data;
   },
@@ -159,12 +168,15 @@ export const demirbasAPI = {
   /**
    * Bakim kaydi ekle
    */
-  async bakimEkle(demirbasId: number, data: {
-    tarih: string;
-    aciklama: string;
-    maliyet?: number;
-    sonraki_bakim?: string;
-  }): Promise<ApiResponse<any>> {
+  async bakimEkle(
+    demirbasId: number,
+    data: {
+      tarih: string;
+      aciklama: string;
+      maliyet?: number;
+      sonraki_bakim?: string;
+    }
+  ): Promise<ApiResponse<any>> {
     const response = await api.post(`/api/demirbas/${demirbasId}/bakim`, data);
     return response.data;
   },
@@ -172,11 +184,14 @@ export const demirbasAPI = {
   /**
    * Transfer yap
    */
-  async transfer(demirbasId: number, data: {
-    hedef_lokasyon_id: number;
-    tarih?: string;
-    aciklama?: string;
-  }): Promise<ApiResponse<any>> {
+  async transfer(
+    demirbasId: number,
+    data: {
+      hedef_lokasyon_id: number;
+      tarih?: string;
+      aciklama?: string;
+    }
+  ): Promise<ApiResponse<any>> {
     const response = await api.post(`/api/demirbas/${demirbasId}/transfer`, data);
     return response.data;
   },

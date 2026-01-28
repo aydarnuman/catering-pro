@@ -25,7 +25,7 @@ export interface ErrorOptions {
  */
 export function showError(error: unknown, options: ErrorOptions = {}) {
   let message = 'Bir hata oluştu';
-  let title = options.title || 'Hata';
+  const title = options.title || 'Hata';
 
   // Error objesi ise mesajı çıkar
   if (error instanceof Error) {
@@ -54,7 +54,11 @@ export function showError(error: unknown, options: ErrorOptions = {}) {
 /**
  * Başarı mesajı göster
  */
-export function showSuccess(message: string, title: string = 'Başarılı', options?: { autoClose?: number | false }) {
+export function showSuccess(
+  message: string,
+  title: string = 'Başarılı',
+  options?: { autoClose?: number | false }
+) {
   notifications.show({
     title,
     message,
@@ -66,7 +70,11 @@ export function showSuccess(message: string, title: string = 'Başarılı', opti
 /**
  * Uyarı mesajı göster
  */
-export function showWarning(message: string, title: string = 'Uyarı', options?: { autoClose?: number | false }) {
+export function showWarning(
+  message: string,
+  title: string = 'Uyarı',
+  options?: { autoClose?: number | false }
+) {
   notifications.show({
     title,
     message,
@@ -78,7 +86,11 @@ export function showWarning(message: string, title: string = 'Uyarı', options?:
 /**
  * Bilgi mesajı göster
  */
-export function showInfo(message: string, title: string = 'Bilgi', options?: { autoClose?: number | false }) {
+export function showInfo(
+  message: string,
+  title: string = 'Bilgi',
+  options?: { autoClose?: number | false }
+) {
   notifications.show({
     title,
     message,
@@ -113,7 +125,10 @@ export function isApiError(error: unknown): boolean {
 /**
  * Hata mesajını formatla
  */
-export function formatErrorMessage(error: unknown, defaultMessage: string = 'Bir hata oluştu'): string {
+export function formatErrorMessage(
+  error: unknown,
+  defaultMessage: string = 'Bir hata oluştu'
+): string {
   if (error instanceof Error) {
     return error.message;
   }

@@ -53,7 +53,7 @@ const typeConfig = {
   error: { icon: IconX, color: 'red' },
 };
 
-const categoryIcons: Record<string, any> = {
+const categoryIcons: Record<string, typeof IconInfoCircle> = {
   tender: IconFileText,
   invoice: IconReceipt,
   stock: IconPackage,
@@ -69,90 +69,38 @@ export function NotificationDropdown() {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
 
-  // Fetch unread count (hem normal hem admin bildirimleri)
+  // Sadece normal bildirim sayısı (auth/admin bildirimleri kaldırıldı)
   const fetchUnreadCount = useCallback(async () => {
     try {
-      // Normal bildirimler
-      const normalData = await adminAPI.getUnreadNotificationCount();
-      let count = normalData.success ? ((normalData as any).count || 0) : 0;
-
-      // Admin bildirimleri (sadece admin kullanıcılar için)
-      try {
-        const adminData = await adminAPI.getAdminUnreadCount();
-        if (adminData.success) {
-          count += (adminData as any).count || 0;
-        }
-      } catch (adminError) {
-        // Admin değilse veya hata varsa sessizce devam et
-      }
-
+      const data = await adminAPI.getUnreadNotificationCount();
+      const count = data.success && data.data ? data.data.count : 0;
       setUnreadCount(count);
-    } catch (error: any) {
-      console.warn('Bildirim sayısı alınamadı:', error.message);
+    } catch {
       setUnreadCount(0);
     }
   }, []);
 
-  // Fetch notifications when dropdown opens (hem normal hem admin)
+  // Sadece normal bildirimler (auth/admin bildirimleri kaldırıldı)
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
-      const allNotifications: Notification[] = [];
-
-      // Normal bildirimler
-      try {
-        const normalData = await adminAPI.getNotifications(10);
-        if (normalData.success) {
-          const normalNotifs = (normalData as any).data || [];
-          allNotifications.push(...normalNotifs.map((n: any) => ({
-            ...n,
-            source: 'normal'
-          })));
-        }
-      } catch (error) {
-        console.warn('Normal bildirimler alınamadı:', error);
+      const data = await adminAPI.getNotifications(10);
+      if (data.success && data.data) {
+        const list = (data.data as Notification[]).map((n) => ({ ...n, source: 'normal' as const }));
+        setNotifications(list.slice(0, 10));
+      } else {
+        setNotifications([]);
       }
-
-      // Admin bildirimleri (sadece admin kullanıcılar için)
-      try {
-        const adminData = await adminAPI.getAdminNotifications({ limit: 10 });
-        if (adminData.success) {
-          const adminNotifs = (adminData as any).notifications || [];
-          allNotifications.push(...adminNotifs.map((n: any) => ({
-            id: n.id,
-            title: n.title,
-            message: n.message,
-            type: n.severity === 'critical' ? 'error' : n.severity === 'warning' ? 'warning' : 'info',
-            category: n.type,
-            link: n.userId ? `/admin/kullanicilar` : null,
-            is_read: n.read,
-            created_at: n.createdAt,
-            source: 'admin',
-            severity: n.severity
-          })));
-        }
-      } catch (error) {
-        // Admin değilse veya hata varsa sessizce devam et
-      }
-
-      // Tarihe göre sırala (en yeni önce)
-      allNotifications.sort((a, b) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-
-      setNotifications(allNotifications.slice(0, 10));
-    } catch (error) {
-      console.error('Bildirimler alınamadı:', error);
+    } catch {
+      setNotifications([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Initial fetch
+  // İlk yükleme ve 60 sn'de bir poll
   useEffect(() => {
     fetchUnreadCount();
-
-    // Poll every 60 seconds
     const interval = setInterval(fetchUnreadCount, 60000);
     return () => clearInterval(interval);
   }, [fetchUnreadCount]);
@@ -164,49 +112,32 @@ export function NotificationDropdown() {
     }
   }, [opened, fetchNotifications]);
 
-  // Mark as read
-  const markAsRead = async (id: number, source?: string) => {
+  // Mark as read (sadece normal bildirimler)
+  const markAsRead = async (id: number) => {
     try {
-      if (source === 'admin') {
-        await adminAPI.markAdminNotificationRead(id);
-      } else {
-        await adminAPI.markNotificationRead(id);
-      }
+      await adminAPI.markNotificationRead(id);
       setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
       setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch (error) {
-      console.error('Bildirim güncellenemedi:', error);
+    } catch {
+      // Sessizce devam
     }
   };
 
   // Mark all as read
   const markAllAsRead = async () => {
     try {
-      // Normal bildirimler
-      try {
-        await adminAPI.markAllNotificationsRead();
-      } catch (error) {
-        // Hata olursa devam et
-      }
-
-      // Admin bildirimler
-      try {
-        await adminAPI.markAllAdminNotificationsRead();
-      } catch (error) {
-        // Admin değilse veya hata varsa sessizce devam et
-      }
-
+      await adminAPI.markAllNotificationsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
       setUnreadCount(0);
-    } catch (error) {
-      console.error('Bildirimler güncellenemedi:', error);
+    } catch {
+      // Sessizce devam
     }
   };
 
   // Handle notification click
   const handleClick = (notification: Notification & { source?: string }) => {
     if (!notification.is_read) {
-      markAsRead(notification.id, notification.source);
+      markAsRead(notification.id);
     }
 
     if (notification.link) {
@@ -318,12 +249,13 @@ export function NotificationDropdown() {
             <Stack gap={0}>
               {notifications.map((notification) => {
                 // Admin bildirimleri için severity'ye göre type belirle
-                const notificationType = notification.severity === 'critical' 
-                  ? 'error' 
-                  : notification.severity === 'warning' 
-                    ? 'warning' 
-                    : notification.type;
-                
+                const notificationType =
+                  notification.severity === 'critical'
+                    ? 'error'
+                    : notification.severity === 'warning'
+                      ? 'warning'
+                      : notification.type;
+
                 const config = typeConfig[notificationType] || typeConfig.info;
                 const Icon = config.icon;
                 const _CategoryIcon = categoryIcons[notification.category] || IconInfoCircle;
@@ -414,7 +346,7 @@ export function NotificationDropdown() {
           >
             <UnstyledButton
               onClick={() => {
-                router.push('/bildirimler');
+                router.push('/ayarlar');
                 setOpened(false);
               }}
               style={{ width: '100%' }}

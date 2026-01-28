@@ -2,7 +2,7 @@
 
 import { Box, Button, Paper, Stack, Text, ThemeIcon, useMantineColorScheme } from '@mantine/core';
 import { IconInbox, IconPlus } from '@tabler/icons-react';
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 export interface EmptyStateProps {
   /** Başlık */
@@ -29,15 +29,15 @@ export interface EmptyStateProps {
 
 /**
  * Standart Empty State Component
- * 
+ *
  * Kullanım örnekleri:
- * 
+ *
  * // Basit kullanım
- * <EmptyState 
+ * <EmptyState
  *   title="Henüz veri yok"
  *   description="İlk kaydınızı oluşturun"
  * />
- * 
+ *
  * // Aksiyon butonu ile
  * <EmptyState
  *   title="Henüz ürün yok"
@@ -48,7 +48,7 @@ export interface EmptyStateProps {
  *     icon: <IconPlus />
  *   }}
  * />
- * 
+ *
  * // Custom icon
  * <EmptyState
  *   title="Henüz fatura yok"
@@ -144,7 +144,13 @@ export function EmptyState({
  */
 
 /** Genel "veri yok" mesajı */
-export function EmptyData({ message, action }: { message?: string; action?: EmptyStateProps['action'] }) {
+export function EmptyData({
+  message,
+  action,
+}: {
+  message?: string;
+  action?: EmptyStateProps['action'];
+}) {
   return (
     <EmptyState
       title={message || 'Veri bulunamadı'}
@@ -155,12 +161,12 @@ export function EmptyData({ message, action }: { message?: string; action?: Empt
 }
 
 /** Liste boş */
-export function EmptyList({ 
-  itemName, 
-  action 
-}: { 
-  itemName?: string; 
-  action?: EmptyStateProps['action'] 
+export function EmptyList({
+  itemName,
+  action,
+}: {
+  itemName?: string;
+  action?: EmptyStateProps['action'];
 }) {
   return (
     <EmptyState
@@ -173,7 +179,13 @@ export function EmptyList({
 }
 
 /** Arama sonucu bulunamadı */
-export function EmptySearch({ query, action }: { query?: string; action?: EmptyStateProps['action'] }) {
+export function EmptySearch({
+  query,
+  action,
+}: {
+  query?: string;
+  action?: EmptyStateProps['action'];
+}) {
   return (
     <EmptyState
       title={query ? `"${query}" için sonuç bulunamadı` : 'Arama sonucu bulunamadı'}

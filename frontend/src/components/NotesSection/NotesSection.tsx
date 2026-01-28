@@ -1,6 +1,23 @@
 'use client';
 
 import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
   ActionIcon,
   Badge,
   Box,
@@ -11,39 +28,31 @@ import {
   Menu,
   Modal,
   Paper,
-  Popover,
   ScrollArea,
-  SimpleGrid,
   Stack,
   TagsInput,
   Text,
   Textarea,
-  TextInput,
   ThemeIcon,
   Tooltip,
-  Transition,
   useMantineColorScheme,
 } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
-import { Dropzone } from '@mantine/dropzone';
 import { notifications } from '@mantine/notifications';
 import {
   IconAlarm,
-  IconAlarmOff,
   IconBold,
   IconCalendar,
   IconCheck,
   IconClock,
   IconCode,
   IconDots,
-  IconDownload,
   IconEdit,
   IconFile,
   IconGripVertical,
   IconItalic,
   IconLink,
   IconList,
-  IconListNumbers,
   IconNote,
   IconPaperclip,
   IconPhoto,
@@ -53,30 +62,14 @@ import {
   IconStrikethrough,
   IconTag,
   IconTrash,
-  IconUpload,
   IconX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { tendersAPI } from '@/lib/api/services/tenders';
 
 // Types
+type NoteColor = 'yellow' | 'blue' | 'green' | 'pink' | 'orange' | 'purple';
+
 export interface NoteAttachment {
   id: number;
   note_id: string;
@@ -99,8 +92,6 @@ export interface Note {
   attachments?: NoteAttachment[];
 }
 
-type NoteColor = 'yellow' | 'blue' | 'green' | 'pink' | 'orange' | 'purple';
-
 interface NotesSectionProps {
   trackingId: number;
   tenderId: number;
@@ -109,20 +100,51 @@ interface NotesSectionProps {
 }
 
 // Color definitions
-const NOTE_COLORS: Record<NoteColor, { bg: string; border: string; accent: string; name: string }> = {
-  yellow: { bg: 'linear-gradient(145deg, #fff9c4 0%, #fff59d 100%)', border: '#fbc02d', accent: '#f57f17', name: 'Sarı' },
-  blue: { bg: 'linear-gradient(145deg, #e3f2fd 0%, #bbdefb 100%)', border: '#42a5f5', accent: '#1565c0', name: 'Mavi' },
-  green: { bg: 'linear-gradient(145deg, #e8f5e9 0%, #c8e6c9 100%)', border: '#66bb6a', accent: '#2e7d32', name: 'Yeşil' },
-  pink: { bg: 'linear-gradient(145deg, #fce4ec 0%, #f8bbd0 100%)', border: '#ec407a', accent: '#c2185b', name: 'Pembe' },
-  orange: { bg: 'linear-gradient(145deg, #fff3e0 0%, #ffe0b2 100%)', border: '#ffa726', accent: '#e65100', name: 'Turuncu' },
-  purple: { bg: 'linear-gradient(145deg, #f3e5f5 0%, #e1bee7 100%)', border: '#ab47bc', accent: '#7b1fa2', name: 'Mor' },
-};
+const NOTE_COLORS: Record<NoteColor, { bg: string; border: string; accent: string; name: string }> =
+  {
+    yellow: {
+      bg: 'linear-gradient(145deg, #fff9c4 0%, #fff59d 100%)',
+      border: '#fbc02d',
+      accent: '#f57f17',
+      name: 'Sarı',
+    },
+    blue: {
+      bg: 'linear-gradient(145deg, #e3f2fd 0%, #bbdefb 100%)',
+      border: '#42a5f5',
+      accent: '#1565c0',
+      name: 'Mavi',
+    },
+    green: {
+      bg: 'linear-gradient(145deg, #e8f5e9 0%, #c8e6c9 100%)',
+      border: '#66bb6a',
+      accent: '#2e7d32',
+      name: 'Yeşil',
+    },
+    pink: {
+      bg: 'linear-gradient(145deg, #fce4ec 0%, #f8bbd0 100%)',
+      border: '#ec407a',
+      accent: '#c2185b',
+      name: 'Pembe',
+    },
+    orange: {
+      bg: 'linear-gradient(145deg, #fff3e0 0%, #ffe0b2 100%)',
+      border: '#ffa726',
+      accent: '#e65100',
+      name: 'Turuncu',
+    },
+    purple: {
+      bg: 'linear-gradient(145deg, #f3e5f5 0%, #e1bee7 100%)',
+      border: '#ab47bc',
+      accent: '#7b1fa2',
+      name: 'Mor',
+    },
+  };
 
 // Markdown formatting helpers
 const formatMarkdown = (text: string): React.ReactNode => {
   // Simple markdown parser
   let formatted = text;
-  
+
   // Bold
   formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
   // Italic
@@ -130,10 +152,16 @@ const formatMarkdown = (text: string): React.ReactNode => {
   // Strikethrough
   formatted = formatted.replace(/~~(.*?)~~/g, '<del>$1</del>');
   // Code
-  formatted = formatted.replace(/`(.*?)`/g, '<code style="background:#f1f3f4;padding:2px 4px;border-radius:3px;font-size:0.85em">$1</code>');
+  formatted = formatted.replace(
+    /`(.*?)`/g,
+    '<code style="background:#f1f3f4;padding:2px 4px;border-radius:3px;font-size:0.85em">$1</code>'
+  );
   // Links
-  formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" style="color:#1976d2">$1</a>');
-  
+  formatted = formatted.replace(
+    /\[([^\]]+)\]\(([^)]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener" style="color:#1976d2">$1</a>'
+  );
+
   return <span dangerouslySetInnerHTML={{ __html: formatted }} />;
 };
 
@@ -157,14 +185,10 @@ function SortableNoteCard({
   onDeleteAttachment: (noteId: string, attachmentId: number) => void;
   isEditing: boolean;
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: note.id, disabled: isEditing });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: note.id,
+    disabled: isEditing,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -185,9 +209,7 @@ function SortableNoteCard({
         background: colorConfig.bg,
         border: `2px solid ${note.pinned ? colorConfig.accent : 'transparent'}`,
         borderLeft: `4px solid ${colorConfig.border}`,
-        boxShadow: isDragging
-          ? '0 8px 24px rgba(0,0,0,0.2)'
-          : '0 2px 8px rgba(0,0,0,0.08)',
+        boxShadow: isDragging ? '0 8px 24px rgba(0,0,0,0.2)' : '0 2px 8px rgba(0,0,0,0.08)',
         transition: 'all 0.2s ease',
         position: 'relative',
         cursor: 'default',
@@ -239,7 +261,13 @@ function SortableNoteCard({
       >
         {/* Reminder indicator */}
         {(hasReminder || isPastReminder) && (
-          <Tooltip label={isPastReminder ? 'Hatırlatma geçti' : `Hatırlatma: ${new Date(note.reminder_date!).toLocaleString('tr-TR')}`}>
+          <Tooltip
+            label={
+              isPastReminder
+                ? 'Hatırlatma geçti'
+                : `Hatırlatma: ${new Date(note.reminder_date!).toLocaleString('tr-TR')}`
+            }
+          >
             <ThemeIcon size="xs" color={isPastReminder ? 'red' : 'blue'} variant="light">
               <IconAlarm size={10} />
             </ThemeIcon>
@@ -262,9 +290,9 @@ function SortableNoteCard({
             >
               {note.pinned ? 'Sabitlemeyi Kaldır' : 'Sabitle'}
             </Menu.Item>
-            
+
             <Menu.Divider />
-            
+
             <Menu.Label>Renk Seç</Menu.Label>
             <Group p="xs" gap={4}>
               {Object.entries(NOTE_COLORS).map(([color, config]) => (
@@ -272,15 +300,18 @@ function SortableNoteCard({
                   <ColorSwatch
                     color={config.border}
                     size={20}
-                    style={{ cursor: 'pointer', border: note.color === color ? '2px solid #333' : 'none' }}
+                    style={{
+                      cursor: 'pointer',
+                      border: note.color === color ? '2px solid #333' : 'none',
+                    }}
                     onClick={() => onColorChange(note.id, color as NoteColor)}
                   />
                 </Tooltip>
               ))}
             </Group>
-            
+
             <Menu.Divider />
-            
+
             <Menu.Item
               leftSection={<IconTrash size={14} />}
               color="red"
@@ -372,7 +403,7 @@ function SortableNoteCard({
               minute: '2-digit',
             })}
           </Text>
-          
+
           <FileButton
             onChange={(file) => file && onAddAttachment(note.id, file)}
             accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt"
@@ -402,7 +433,7 @@ export default function NotesSection({
   const isDark = colorScheme === 'dark';
 
   const [notes, setNotes] = useState<Note[]>(initialNotes);
-  const [isLoading, setIsLoading] = useState(false);
+  const [_isLoading, setIsLoading] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
@@ -437,9 +468,22 @@ export default function NotesSection({
     setIsLoading(true);
     try {
       const data = await tendersAPI.getTenderNotes(trackingId);
-      if (data.success) {
-        setNotes(data.data || []);
-        onNotesChange?.(data.data || []);
+      if (data.success && data.data) {
+        // API'den gelen veriyi Note tipine dönüştür
+        const notes = data.data.map((note) => ({
+          id: String(note.id || ''),
+          text: note.text || note.not || '',
+          color: (note.color || 'yellow') as NoteColor,
+          pinned: note.pinned || false,
+          tags: note.tags || [],
+          order: note.order || 0,
+          reminder_date: note.reminder_date || null,
+          created_at: note.created_at || new Date().toISOString(),
+          updated_at: note.updated_at || new Date().toISOString(),
+          attachments: note.attachments as NoteAttachment[] | undefined,
+        })) as Note[];
+        setNotes(notes);
+        onNotesChange?.(notes);
       }
     } catch (error) {
       console.error('Not yükleme hatası:', error);
@@ -485,6 +529,21 @@ export default function NotesSection({
     return combined;
   };
 
+  // Helper: API'den dönen notu Note tipine dönüştür
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const convertToNote = (apiNote: any): Note => ({
+    id: String(apiNote?.id || ''),
+    text: apiNote?.text || apiNote?.not || '',
+    color: (apiNote?.color || 'yellow') as NoteColor,
+    pinned: apiNote?.pinned || false,
+    tags: apiNote?.tags || [],
+    order: apiNote?.order || 0,
+    reminder_date: apiNote?.reminder_date || null,
+    created_at: apiNote?.created_at || new Date().toISOString(),
+    updated_at: apiNote?.updated_at || new Date().toISOString(),
+    attachments: apiNote?.attachments as NoteAttachment[] | undefined,
+  });
+
   // Add note
   const handleAddNote = async () => {
     if (!newNoteText.trim()) return;
@@ -492,7 +551,7 @@ export default function NotesSection({
     const reminderDate = getCombinedReminderDate();
 
     try {
-      const data = await tendersAPI.createTenderNote(trackingId, {
+      const response = await tendersAPI.createTenderNote(trackingId, {
         text: newNoteText,
         color: newNoteColor,
         pinned: newNotePinned,
@@ -500,11 +559,12 @@ export default function NotesSection({
         reminder_date: reminderDate?.toISOString() || null,
       });
 
-      if (data.success) {
+      if (response.success && response.data) {
+        const newNote = convertToNote(response.data);
         setNotes((prev) => {
           const newNotes = newNotePinned
-            ? [data.data, ...prev]
-            : [...prev.filter((n) => n.pinned), data.data, ...prev.filter((n) => !n.pinned)];
+            ? [newNote, ...prev]
+            : [...prev.filter((n) => n.pinned), newNote, ...prev.filter((n) => !n.pinned)];
           onNotesChange?.(newNotes);
           return newNotes;
         });
@@ -516,7 +576,7 @@ export default function NotesSection({
           color: 'green',
         });
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: 'Hata',
         message: 'Not eklenemedi',
@@ -532,7 +592,7 @@ export default function NotesSection({
     const reminderDate = getCombinedReminderDate();
 
     try {
-      const data = await tendersAPI.updateTenderNote(trackingId, Number(editingNote.id), {
+      const response = await tendersAPI.updateTenderNote(trackingId, Number(editingNote.id), {
         text: newNoteText,
         color: newNoteColor,
         pinned: newNotePinned,
@@ -540,9 +600,10 @@ export default function NotesSection({
         reminder_date: reminderDate?.toISOString() || null,
       });
 
-      if (data.success) {
+      if (response.success && response.data) {
+        const updatedNote = convertToNote(response.data);
         setNotes((prev) => {
-          const newNotes = prev.map((n) => (n.id === editingNote.id ? data.data : n));
+          const newNotes = prev.map((n) => (n.id === editingNote.id ? updatedNote : n));
           onNotesChange?.(newNotes);
           return newNotes;
         });
@@ -554,7 +615,7 @@ export default function NotesSection({
           color: 'green',
         });
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: 'Hata',
         message: 'Not güncellenemedi',
@@ -580,7 +641,7 @@ export default function NotesSection({
           color: 'orange',
         });
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: 'Hata',
         message: 'Not silinemedi',
@@ -593,11 +654,12 @@ export default function NotesSection({
   const handlePinToggle = async (noteId: string) => {
     try {
       const note = notes.find((n) => n.id === noteId);
-      const data = await tendersAPI.pinTenderNote(trackingId, Number(noteId), !note?.pinned);
+      const response = await tendersAPI.pinTenderNote(trackingId, Number(noteId), !note?.pinned);
 
-      if (data.success) {
+      if (response.success && response.data) {
+        const updatedNote = convertToNote(response.data);
         setNotes((prev) => {
-          const newNotes = prev.map((n) => (n.id === noteId ? data.data : n));
+          const newNotes = prev.map((n) => (n.id === noteId ? updatedNote : n));
           // Re-sort: pinned first
           newNotes.sort((a, b) => {
             if (a.pinned && !b.pinned) return -1;
@@ -608,7 +670,7 @@ export default function NotesSection({
           return newNotes;
         });
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: 'Hata',
         message: 'Pin durumu değiştirilemedi',
@@ -620,11 +682,12 @@ export default function NotesSection({
   // Change color
   const handleColorChange = async (noteId: string, color: NoteColor) => {
     try {
-      const data = await tendersAPI.updateTenderNote(trackingId, Number(noteId), { color });
+      const response = await tendersAPI.updateTenderNote(trackingId, Number(noteId), { color });
 
-      if (data.success) {
+      if (response.success && response.data) {
+        const updatedNote = convertToNote(response.data);
         setNotes((prev) => {
-          const newNotes = prev.map((n) => (n.id === noteId ? data.data : n));
+          const newNotes = prev.map((n) => (n.id === noteId ? updatedNote : n));
           onNotesChange?.(newNotes);
           return newNotes;
         });
@@ -651,7 +714,7 @@ export default function NotesSection({
           color: 'green',
         });
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: 'Hata',
         message: 'Dosya yüklenemedi',
@@ -663,7 +726,11 @@ export default function NotesSection({
   // Delete attachment
   const handleDeleteAttachment = async (noteId: string, attachmentId: number) => {
     try {
-      const data = await tendersAPI.deleteTenderNoteAttachment(trackingId, Number(noteId), attachmentId);
+      const data = await tendersAPI.deleteTenderNoteAttachment(
+        trackingId,
+        Number(noteId),
+        attachmentId
+      );
 
       if (data.success) {
         setNotes((prev) => {
@@ -676,7 +743,7 @@ export default function NotesSection({
           return newNotes;
         });
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: 'Hata',
         message: 'Dosya silinemedi',
@@ -700,7 +767,10 @@ export default function NotesSection({
 
     // Save new order to backend
     try {
-      await tendersAPI.reorderTenderNotes(trackingId, newNotes.map((n) => Number(n.id)));
+      await tendersAPI.reorderTenderNotes(
+        trackingId,
+        newNotes.map((n) => Number(n.id))
+      );
     } catch (error) {
       console.error('Sıralama kaydetme hatası:', error);
     }
@@ -712,7 +782,7 @@ export default function NotesSection({
     setNewNoteText(note.text);
     setNewNoteColor(note.color);
     setNewNoteTags(note.tags || []);
-    
+
     if (note.reminder_date) {
       const reminderDate = new Date(note.reminder_date);
       setNewNoteReminder(reminderDate);
@@ -723,7 +793,7 @@ export default function NotesSection({
       setNewNoteReminder(null);
       setNewNoteReminderTime('09:00');
     }
-    
+
     setNewNotePinned(note.pinned);
     setIsAddModalOpen(true);
   };
@@ -737,21 +807,14 @@ export default function NotesSection({
     const end = textarea.selectionEnd;
     const selectedText = newNoteText.substring(start, end);
     const newText =
-      newNoteText.substring(0, start) +
-      before +
-      selectedText +
-      after +
-      newNoteText.substring(end);
+      newNoteText.substring(0, start) + before + selectedText + after + newNoteText.substring(end);
 
     setNewNoteText(newText);
 
     // Reset cursor position
     setTimeout(() => {
       textarea.focus();
-      textarea.setSelectionRange(
-        start + before.length,
-        end + before.length
-      );
+      textarea.setSelectionRange(start + before.length, end + before.length);
     }, 0);
   };
 
@@ -914,38 +977,22 @@ export default function NotesSection({
           <Paper p="xs" withBorder radius="sm" bg="gray.0">
             <Group gap={4}>
               <Tooltip label="Kalın">
-                <ActionIcon
-                  variant="subtle"
-                  size="sm"
-                  onClick={() => insertFormatting('**', '**')}
-                >
+                <ActionIcon variant="subtle" size="sm" onClick={() => insertFormatting('**', '**')}>
                   <IconBold size={14} />
                 </ActionIcon>
               </Tooltip>
               <Tooltip label="İtalik">
-                <ActionIcon
-                  variant="subtle"
-                  size="sm"
-                  onClick={() => insertFormatting('*', '*')}
-                >
+                <ActionIcon variant="subtle" size="sm" onClick={() => insertFormatting('*', '*')}>
                   <IconItalic size={14} />
                 </ActionIcon>
               </Tooltip>
               <Tooltip label="Üstü Çizili">
-                <ActionIcon
-                  variant="subtle"
-                  size="sm"
-                  onClick={() => insertFormatting('~~', '~~')}
-                >
+                <ActionIcon variant="subtle" size="sm" onClick={() => insertFormatting('~~', '~~')}>
                   <IconStrikethrough size={14} />
                 </ActionIcon>
               </Tooltip>
               <Tooltip label="Kod">
-                <ActionIcon
-                  variant="subtle"
-                  size="sm"
-                  onClick={() => insertFormatting('`', '`')}
-                >
+                <ActionIcon variant="subtle" size="sm" onClick={() => insertFormatting('`', '`')}>
                   <IconCode size={14} />
                 </ActionIcon>
               </Tooltip>
@@ -959,11 +1006,7 @@ export default function NotesSection({
                 </ActionIcon>
               </Tooltip>
               <Tooltip label="Liste">
-                <ActionIcon
-                  variant="subtle"
-                  size="sm"
-                  onClick={() => insertFormatting('- ', '')}
-                >
+                <ActionIcon variant="subtle" size="sm" onClick={() => insertFormatting('- ', '')}>
                   <IconList size={14} />
                 </ActionIcon>
               </Tooltip>
@@ -1026,7 +1069,7 @@ export default function NotesSection({
               withBorder
               radius="md"
               style={{
-                background: newNoteReminder 
+                background: newNoteReminder
                   ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(147, 51, 234, 0.08) 100%)'
                   : undefined,
                 borderColor: newNoteReminder ? 'var(--mantine-color-blue-4)' : undefined,
@@ -1037,7 +1080,9 @@ export default function NotesSection({
                   placeholder="Tarih seç"
                   value={newNoteReminder}
                   onChange={setNewNoteReminder}
-                  leftSection={<IconCalendar size={16} style={{ color: 'var(--mantine-color-blue-6)' }} />}
+                  leftSection={
+                    <IconCalendar size={16} style={{ color: 'var(--mantine-color-blue-6)' }} />
+                  }
                   clearable
                   minDate={new Date()}
                   size="sm"
@@ -1065,12 +1110,14 @@ export default function NotesSection({
                     },
                   }}
                 />
-                
+
                 <TimeInput
                   ref={timeInputRef}
                   value={newNoteReminderTime}
                   onChange={(e) => setNewNoteReminderTime(e.currentTarget.value)}
-                  leftSection={<IconClock size={16} style={{ color: 'var(--mantine-color-violet-6)' }} />}
+                  leftSection={
+                    <IconClock size={16} style={{ color: 'var(--mantine-color-violet-6)' }} />
+                  }
                   size="sm"
                   radius="md"
                   disabled={!newNoteReminder}
@@ -1082,7 +1129,7 @@ export default function NotesSection({
                     },
                   }}
                 />
-                
+
                 {newNoteReminder && (
                   <ActionIcon
                     variant="subtle"
@@ -1097,7 +1144,7 @@ export default function NotesSection({
                   </ActionIcon>
                 )}
               </Group>
-              
+
               {newNoteReminder && (
                 <Text size="xs" c="blue" mt="xs">
                   <IconAlarm size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />

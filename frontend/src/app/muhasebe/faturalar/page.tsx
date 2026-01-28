@@ -57,112 +57,32 @@ import {
   IconReload,
   IconSearch,
   IconSend,
+  IconTag,
   IconTrash,
   IconX,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback } from 'react';
+import type { ComponentType } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
-import { formatMoney, formatDate } from '@/lib/formatters';
+import { useAuth } from '@/context/AuthContext';
+import { useRealtimeRefetch } from '@/context/RealtimeContext';
+import { formatDate, formatMoney } from '@/lib/formatters';
 import 'dayjs/locale/tr';
 import { DataActions } from '@/components/DataActions';
 import { usePermissions } from '@/hooks/usePermissions';
-import {
-  convertToAPIFormat,
-  convertToFrontendFormat,
-  invoiceAPI,
-  uyumsoftAPI,
-  uyumsoftDocUrls,
-} from '@/lib/invoice-api';
-import { muhasebeAPI } from '@/lib/api/services/muhasebe';
+import { convertToAPIFormat, invoiceAPI, uyumsoftAPI, uyumsoftDocUrls } from '@/lib/invoice-api';
+import { type FaturaTab, useFaturalar } from './hooks/useFaturalar';
+import { useUyumsoftConnection } from './hooks/useUyumsoftConnection';
+import { useUyumsoftFaturalar } from './hooks/useUyumsoftFaturalar';
+import type { Fatura, FaturaKalem, FaturaTip, UyumsoftFatura } from './types';
+import { BIRIMLER, KDV_ORANLARI } from './types';
 
-// Tip tanımları
-interface FaturaKalem {
-  id: string;
-  aciklama: string;
-  miktar: number;
-  birim: string;
-  birimFiyat: number;
-  kdvOrani: number;
-  tutar: number;
-}
-
-interface Fatura {
-  id: string;
-  tip: 'satis' | 'alis';
-  seri: string;
-  no: string;
-  cariId: string;
-  cariUnvan: string;
-  tarih: string;
-  vadeTarihi: string;
-  kalemler: FaturaKalem[];
-  araToplam: number;
-  kdvToplam: number;
-  genelToplam: number;
-  durum: 'taslak' | 'gonderildi' | 'odendi' | 'gecikti' | 'iptal';
-  notlar: string;
-  createdAt: string;
-  // Uyumsoft faturaları için ek alanlar
-  ettn?: string;
-  gonderenVkn?: string;
-  gonderenEmail?: string;
-  kaynak?: 'manuel' | 'uyumsoft';
-}
-
-interface UyumsoftFatura {
-  faturaNo: string;
-  ettn: string;
-  faturaTarihi: string;
-  olusturmaTarihi: string;
-  gonderenVkn: string;
-  gonderenUnvan: string;
-  gonderenEmail?: string;
-  odenecekTutar: number;
-  vergilerHaricTutar: number;
-  kdvTutari: number;
-  paraBirimi: string;
-  durum: string;
-  faturaTipi: string;
-  isNew?: boolean;
-  isSeen?: boolean;
-  stokIslendi?: boolean;
-  stokIslemTarihi?: string;
-}
-
-interface UyumsoftStatus {
-  connected: boolean;
-  hasCredentials: boolean;
-  lastSync: string | null;
-  syncCount: number;
-}
-
-const _STORAGE_KEY = 'muhasebe_faturalar';
-const _UYUMSOFT_FATURALAR_KEY = 'uyumsoft_faturalar';
-
-// Cari tipi
-interface Cari {
-  id: number;
-  unvan: string;
-  tip: 'musteri' | 'tedarikci' | 'her_ikisi';
-}
-
-const birimler = [
-  'Adet',
-  'Kg',
-  'Lt',
-  'Metre',
-  'Paket',
-  'Koli',
-  'Porsiyon',
-  'Gün',
-  'Ay',
-  'Saat',
-  'Parti',
-];
-const kdvOranlari = [0, 1, 10, 20];
+const birimler = [...BIRIMLER];
+const kdvOranlari = [...KDV_ORANLARI];
 
 export default function FaturalarPage() {
+  const { isLoading: authLoading } = useAuth();
   const router = useRouter();
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
@@ -180,37 +100,73 @@ export default function FaturalarPage() {
     useDisclosure(false);
   const [selectedUyumsoftFatura, setSelectedUyumsoftFatura] = useState<UyumsoftFatura | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
-  const [faturaDetail, setFaturaDetail] = useState<any>(null);
+  const [faturaDetail, setFaturaDetail] = useState<{ html: string; isVerified?: boolean } | null>(
+    null
+  );
   const [activeTab, setActiveTab] = useState<string | null>('tumu');
   const [searchTerm, setSearchTerm] = useState('');
-  const [faturalar, setFaturalar] = useState<Fatura[]>([]);
-  const [uyumsoftFaturalar, setUyumsoftFaturalar] = useState<UyumsoftFatura[]>([]);
   const [selectedFatura, setSelectedFatura] = useState<Fatura | null>(null);
   const [editingItem, setEditingItem] = useState<Fatura | null>(null);
 
-  // Uyumsoft states
-  const [uyumsoftStatus, setUyumsoftStatus] = useState<UyumsoftStatus>({
-    connected: false,
-    hasCredentials: false,
-    lastSync: null,
-    syncCount: 0,
-  });
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
+  // Fatura / Uyumsoft / Connection hook'ları
+  const tab = (activeTab as FaturaTab) ?? 'tumu';
+  const faturalarData = useFaturalar(tab, searchTerm, { limit: 250 });
+  const uyumsoftData = useUyumsoftFaturalar(tab, searchTerm, { limit: 250 });
+  const connection = useUyumsoftConnection();
 
-  const [syncProgress, setSyncProgress] = useState(0);
-  const [syncMessage, setSyncMessage] = useState('');
-  const [credentials, setCredentials] = useState({ username: '', password: '', remember: true });
-  const [_lastSyncTime, _setLastSyncTime] = useState<string | null>(null);
+  // Destructure for convenience
+  const {
+    faturalar,
+    filteredFaturalar,
+    cariler,
+    loadInvoices,
+    loadCariler,
+    isLoading: isLoadingInvoices,
+    loadError,
+    toplamSatis,
+    toplamAlis,
+    bekleyenToplam,
+    updateDurum,
+    deleteFatura: handleDelete,
+  } = faturalarData;
+  const {
+    uyumsoftFaturalar,
+    filteredUyumsoftFaturalar,
+    loadUyumsoftInvoices,
+    isLoading: isLoadingUyumsoft,
+    loadError: uyumsoftError,
+    uyumsoftToplam,
+    sync,
+    isSyncing,
+  } = uyumsoftData;
+  const {
+    status: uyumsoftStatus,
+    credentials,
+    setCredentials,
+    checkStatus: checkUyumsoftStatus,
+    connect: connectionConnect,
+    connectSaved: handleConnectSaved,
+    disconnect: handleDisconnect,
+    isConnecting,
+  } = connection;
 
-  // Loading ve Error state'leri
-  const [isLoadingInvoices, setIsLoadingInvoices] = useState(true);
-  const [isLoadingUyumsoft, setIsLoadingUyumsoft] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [uyumsoftError, setUyumsoftError] = useState<string | null>(null);
+  const handleConnect = async () => {
+    const ok = await connectionConnect(
+      credentials.username,
+      credentials.password,
+      credentials.remember
+    );
+    if (ok) closeConnect();
+  };
+  const handleSync = useCallback(() => {
+    sync(async () => {
+      await loadInvoices();
+      await checkUyumsoftStatus();
+    });
+  }, [sync, loadInvoices, checkUyumsoftStatus]);
 
-  // Cariler state'i - API'den gelecek
-  const [cariler, setCariler] = useState<Cari[]>([]);
+  const [_syncProgress, _setSyncProgress] = useState(0);
+  const [_syncMessage, _setSyncMessage] = useState('');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -229,219 +185,22 @@ export default function FaturalarPage() {
     { id: '1', aciklama: '', miktar: 1, birim: 'Adet', birimFiyat: 0, kdvOrani: 10, tutar: 0 },
   ]);
 
-  // API'den faturaları yükle
+  // API'den faturaları yükle - paralel istekler, auth olmadan da çalışır
   useEffect(() => {
-    loadInvoices();
-    loadUyumsoftInvoices();
-    loadCariler();
-    checkUyumsoftStatus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (authLoading) return;
+    const init = async () => {
+      await Promise.all([
+        loadInvoices(),
+        loadUyumsoftInvoices(),
+        loadCariler(),
+        checkUyumsoftStatus(),
+      ]);
+    };
+    void init();
+  }, [authLoading, loadInvoices, loadUyumsoftInvoices, loadCariler, checkUyumsoftStatus]);
 
-  // Carileri yükle
-  const loadCariler = useCallback(async () => {
-    try {
-      const result = await muhasebeAPI.getCariler() as any;
-      if (result.success) {
-        setCariler((result.data || []) as any);
-      }
-    } catch (error) {
-      console.error('Cariler yükleme hatası:', error);
-    }
-  }, []);
-
-  // Manuel faturaları yükle
-  const loadInvoices = useCallback(async () => {
-    setIsLoadingInvoices(true);
-    setLoadError(null);
-    try {
-      const result = await invoiceAPI.list({ limit: 250 });
-      if (result.success && result.data) {
-        const formattedInvoices = result.data.map((inv: any) => convertToFrontendFormat(inv));
-        setFaturalar(formattedInvoices);
-      } else {
-        setFaturalar([]);
-      }
-    } catch (error: any) {
-      console.error('Faturalar yüklenemedi:', error);
-      const errorMessage = error.message || 'Faturalar yüklenirken bir hata oluştu';
-      setLoadError(errorMessage);
-      setFaturalar([]);
-      notifications.show({
-        title: 'Hata',
-        message: errorMessage,
-        color: 'red',
-      });
-    } finally {
-      setIsLoadingInvoices(false);
-    }
-  }, []);
-
-  // Uyumsoft faturalarını yükle
-  const loadUyumsoftInvoices = useCallback(async () => {
-    setIsLoadingUyumsoft(true);
-    setUyumsoftError(null);
-    try {
-      // Limit 250 olarak ayarlı
-      const result = await uyumsoftAPI.getInvoices({ limit: 250 });
-      if (result.success && result.data) {
-        setUyumsoftFaturalar(result.data);
-      }
-    } catch (error: any) {
-      console.error('Uyumsoft faturaları yüklenemedi:', error);
-      setUyumsoftError(error.message || 'Uyumsoft faturaları yüklenemedi');
-    } finally {
-      setIsLoadingUyumsoft(false);
-    }
-  }, []);
-
-  // Uyumsoft durumunu kontrol et
-  const checkUyumsoftStatus = async () => {
-    try {
-      const data = await uyumsoftAPI.status();
-      setUyumsoftStatus(data);
-    } catch (error) {
-      console.error('Uyumsoft status check failed:', error);
-    }
-  };
-
-  // Uyumsoft'a bağlan
-  const handleConnect = async () => {
-    if (!credentials.username || !credentials.password) {
-      notifications.show({
-        title: 'Hata!',
-        message: 'Kullanıcı adı ve şifre gerekli',
-        color: 'red',
-      });
-      return;
-    }
-
-    setIsConnecting(true);
-    try {
-      const data = await uyumsoftAPI.connect(
-        credentials.username,
-        credentials.password,
-        credentials.remember
-      );
-
-      if (data.success) {
-        notifications.show({
-          title: 'Başarılı!',
-          message: "Uyumsoft'a bağlandı",
-          color: 'green',
-          icon: <IconCheck size={16} />,
-        });
-        setUyumsoftStatus((prev) => ({
-          ...prev,
-          connected: true,
-          hasCredentials: credentials.remember,
-        }));
-        closeConnect();
-      } else {
-        notifications.show({
-          title: 'Bağlantı Hatası',
-          message: data.error || 'Bağlantı başarısız',
-          color: 'red',
-        });
-      }
-    } catch (error: any) {
-      notifications.show({ title: 'Hata!', message: error.message, color: 'red' });
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  // Kayıtlı bilgilerle bağlan
-  const handleConnectSaved = async () => {
-    setIsConnecting(true);
-    try {
-      const data = await uyumsoftAPI.connectSaved();
-      if (data.success) {
-        notifications.show({
-          title: 'Başarılı!',
-          message: "Uyumsoft'a bağlandı",
-          color: 'green',
-          icon: <IconCheck size={16} />,
-        });
-        setUyumsoftStatus((prev) => ({ ...prev, connected: true }));
-      } else {
-        notifications.show({
-          title: 'Bağlantı Hatası',
-          message: data.error || 'Bağlantı başarısız',
-          color: 'red',
-        });
-        openConnect();
-      }
-    } catch (error: any) {
-      notifications.show({ title: 'Hata!', message: error.message, color: 'red' });
-      openConnect();
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  // Bağlantıyı kes
-  const handleDisconnect = async () => {
-    try {
-      await uyumsoftAPI.disconnect();
-      setUyumsoftStatus((prev) => ({ ...prev, connected: false }));
-      notifications.show({ title: 'Bilgi', message: 'Bağlantı kesildi', color: 'blue' });
-    } catch (error) {
-      console.error('Disconnect error:', error);
-    }
-  };
-
-  // Faturaları senkronize et
-  const handleSync = async () => {
-    setIsSyncing(true);
-    setSyncProgress(0);
-    setSyncMessage('Faturalar çekiliyor ve veritabanına kaydediliyor...');
-
-    try {
-      const data = await uyumsoftAPI.sync(3, 1000);
-
-      if (data.success && data.data) {
-        // Frontend için formatlanmış veriyi kullan
-        setUyumsoftFaturalar(data.data);
-
-        // Başarı mesajını göster - veritabanına kayıt bilgisini de ekle
-        const dbMessage = data.savedToDb
-          ? ` (${data.savedToDb} tanesi veritabanına kaydedildi)`
-          : '';
-
-        notifications.show({
-          title: 'Senkronizasyon Tamamlandı!',
-          message: `${data.total} fatura başarıyla çekildi${dbMessage}`,
-          color: 'green',
-          icon: <IconCheck size={16} />,
-        });
-
-        // Veritabanından güncel listeyi yükle
-        await loadUyumsoftInvoices();
-
-        // Status'u güncelle
-        checkUyumsoftStatus();
-      } else {
-        notifications.show({
-          title: 'Senkronizasyon Hatası',
-          message: data.error || 'Faturalar çekilemedi',
-          color: 'red',
-        });
-      }
-    } catch (error: any) {
-      notifications.show({ title: 'Hata!', message: error.message, color: 'red' });
-    } finally {
-      setIsSyncing(false);
-      setSyncProgress(100);
-      setSyncMessage('');
-    }
-  };
-
-  // API'ye kaydet (artık kullanılmıyor, direkt API çağrıları yapılıyor)
-  const _saveToStorage = (data: Fatura[]) => {
-    // Artık localStorage kullanmıyoruz
-    setFaturalar(data);
-  };
+  // 🔴 REALTIME - Faturalar tablosunu dinle
+  useRealtimeRefetch('invoices', loadInvoices);
 
   // Para formatı
   // Uyumsoft özel tarih formatı için helper
@@ -456,48 +215,6 @@ export default function FaturalarPage() {
     }
     return formatDate(dateStr, 'short');
   };
-
-  // Filtreleme - Manuel faturalar
-  const filteredFaturalar = faturalar
-    .filter((f) => {
-      const matchesTab =
-        activeTab === 'tumu' ||
-        activeTab === 'manuel' ||
-        (activeTab === 'satis' && f.tip === 'satis') ||
-        (activeTab === 'alis' && f.tip === 'alis') ||
-        (activeTab === 'bekleyen' && (f.durum === 'gonderildi' || f.durum === 'gecikti'));
-      const matchesSearch =
-        f.cariUnvan.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        `${f.seri}${f.no}`.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesTab && matchesSearch;
-    })
-    .sort((a, b) => new Date(b.tarih).getTime() - new Date(a.tarih).getTime());
-
-  // Filtreleme - Uyumsoft faturalar
-  const filteredUyumsoftFaturalar = uyumsoftFaturalar.filter((f) => {
-    // Tab filtreleme
-    const matchesTab =
-      activeTab === 'tumu' ||
-      activeTab === 'uyumsoft' ||
-      (activeTab === 'alis' && f.faturaTipi === 'gelen'); // Uyumsoft faturaları genelde alış (gelen) faturasıdır
-
-    const matchesSearch =
-      f.gonderenUnvan.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      f.faturaNo.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesTab && matchesSearch;
-  });
-
-  // Toplamlar
-  const toplamSatis = faturalar
-    .filter((f) => f.tip === 'satis')
-    .reduce((acc, f) => acc + f.genelToplam, 0);
-  const toplamAlis = faturalar
-    .filter((f) => f.tip === 'alis')
-    .reduce((acc, f) => acc + f.genelToplam, 0);
-  const uyumsoftToplam = uyumsoftFaturalar.reduce((acc, f) => acc + f.odenecekTutar, 0);
-  const bekleyenToplam = faturalar
-    .filter((f) => f.durum === 'gonderildi' || f.durum === 'gecikti')
-    .reduce((acc, f) => acc + f.genelToplam, 0);
 
   // Kalem hesaplama
   const hesaplaKalem = (kalem: FaturaKalem): FaturaKalem => {
@@ -529,9 +246,9 @@ export default function FaturalarPage() {
   };
 
   // Kalem güncelle
-  const updateKalem = (id: string, field: string, value: any) => {
+  const updateKalem = (id: string, field: string, value: string | number) => {
     // Validasyon kontrolleri
-    if (field === 'miktar' && value < 0) {
+    if (field === 'miktar' && typeof value === 'number' && value < 0) {
       notifications.show({
         title: 'Uyarı',
         message: 'Miktar negatif olamaz',
@@ -540,7 +257,7 @@ export default function FaturalarPage() {
       return;
     }
 
-    if (field === 'birimFiyat' && value < 0) {
+    if (field === 'birimFiyat' && typeof value === 'number' && value < 0) {
       notifications.show({
         title: 'Uyarı',
         message: 'Birim fiyat negatif olamaz',
@@ -549,7 +266,7 @@ export default function FaturalarPage() {
       return;
     }
 
-    if (field === 'kdvOrani' && (value < 0 || value > 100)) {
+    if (field === 'kdvOrani' && typeof value === 'number' && (value < 0 || value > 100)) {
       notifications.show({
         title: 'Uyarı',
         message: 'KDV oranı 0-100 arasında olmalıdır',
@@ -701,7 +418,7 @@ export default function FaturalarPage() {
       // API formatına dönüştür
       const apiInvoice = convertToAPIFormat(newFatura);
 
-      let result;
+      let result: { success?: boolean };
       if (editingItem) {
         // Güncelleme
         result = await invoiceAPI.update(parseInt(editingItem.id, 10), apiInvoice);
@@ -710,7 +427,7 @@ export default function FaturalarPage() {
         result = await invoiceAPI.create(apiInvoice);
       }
 
-      if (result.success) {
+      if (result?.success) {
         notifications.show({
           title: 'Başarılı!',
           message: 'Fatura veritabanına kaydedildi.',
@@ -723,56 +440,12 @@ export default function FaturalarPage() {
         resetForm();
         close();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       notifications.show({
         title: 'Hata!',
-        message: error.message || 'Fatura kaydedilemedi',
+        message: error instanceof Error ? error.message : 'Fatura kaydedilemedi',
         color: 'red',
       });
-    }
-  };
-
-  // Durum güncelle
-  const updateDurum = async (id: string, durum: Fatura['durum']) => {
-    try {
-      // Türkçe durumu İngilizce'ye çevir
-      const statusMap: Record<string, 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'> = {
-        taslak: 'draft',
-        gonderildi: 'sent',
-        odendi: 'paid',
-        gecikti: 'overdue',
-        iptal: 'cancelled',
-      };
-
-      const apiStatus = statusMap[durum];
-      const result = await invoiceAPI.updateStatus(parseInt(id, 10), apiStatus);
-      if (result.success) {
-        notifications.show({
-          title: 'Güncellendi',
-          message: 'Fatura durumu değiştirildi.',
-          color: 'blue',
-        });
-        await loadInvoices(); // Listeyi yenile
-      }
-    } catch (error: any) {
-      notifications.show({ title: 'Hata!', message: error.message, color: 'red' });
-    }
-  };
-
-  // Silme
-  const handleDelete = async (id: string) => {
-    if (!confirm('Bu faturayı silmek istediğinize emin misiniz?')) {
-      return;
-    }
-
-    try {
-      const result = await invoiceAPI.delete(parseInt(id, 10));
-      if (result.success) {
-        notifications.show({ title: 'Silindi', message: 'Fatura silindi.', color: 'orange' });
-        await loadInvoices();
-      }
-    } catch (error: any) {
-      notifications.show({ title: 'Hata!', message: error.message, color: 'red' });
     }
   };
 
@@ -808,10 +481,10 @@ export default function FaturalarPage() {
           icon: <IconInfoCircle size={16} />,
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       notifications.show({
         title: 'Hata',
-        message: error.message || 'Detay çekilemedi',
+        message: error instanceof Error ? error.message : 'Detay çekilemedi',
         color: 'red',
       });
     } finally {
@@ -840,7 +513,10 @@ export default function FaturalarPage() {
 
   // Durum badge
   const getDurumBadge = (durum: string) => {
-    const config: Record<string, { color: string; icon: any; label: string }> = {
+    const config: Record<
+      string,
+      { color: string; icon: ComponentType<{ size?: number | string }>; label: string }
+    > = {
       taslak: { color: 'gray', icon: IconClock, label: 'Taslak' },
       gonderildi: { color: 'blue', icon: IconSend, label: 'Gönderildi' },
       odendi: { color: 'green', icon: IconCheck, label: 'Ödendi' },
@@ -927,7 +603,7 @@ export default function FaturalarPage() {
                         variant="light"
                         color="violet"
                         leftSection={<IconPlugConnected size={14} />}
-                        onClick={handleConnectSaved}
+                        onClick={() => void handleConnectSaved()}
                         loading={isConnecting}
                         fullWidth
                       >
@@ -995,9 +671,9 @@ export default function FaturalarPage() {
           {isSyncing && (
             <Alert icon={<Loader size={20} />} color="blue" variant="light">
               <Group justify="space-between">
-                <Text size="sm">{syncMessage || 'Faturalar senkronize ediliyor...'}</Text>
+                <Text size="sm">{_syncMessage || 'Faturalar senkronize ediliyor...'}</Text>
               </Group>
-              <Progress value={syncProgress} size="sm" mt="xs" animated />
+              <Progress value={isSyncing ? 50 : _syncProgress} size="sm" mt="xs" animated />
             </Alert>
           )}
 
@@ -1114,6 +790,17 @@ export default function FaturalarPage() {
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
+                    {(isLoadingInvoices || isLoadingUyumsoft) ? (
+                      <Table.Tr>
+                        <Table.Td colSpan={8}>
+                          <Stack align="center" py="xl" gap="md">
+                            <Loader size="lg" color="violet" />
+                            <Text c="dimmed">Faturalar yükleniyor...</Text>
+                          </Stack>
+                        </Table.Td>
+                      </Table.Tr>
+                    ) : (
+                      <>
                     {/* Manuel Faturalar */}
                     {filteredFaturalar.map((fatura) => {
                       const kalanGun = getKalanGun(fatura.vadeTarihi);
@@ -1333,6 +1020,17 @@ export default function FaturalarPage() {
                                 Yazdır
                               </Menu.Item>
                               <Menu.Divider />
+                              <Menu.Item
+                                leftSection={
+                                  <IconTag style={{ width: rem(14), height: rem(14) }} />
+                                }
+                                color="blue"
+                                onClick={() =>
+                                  router.push(`/muhasebe/faturalar/${fatura.ettn}/kalemler`)
+                                }
+                              >
+                                Kalemler & Eşleştir
+                              </Menu.Item>
                               {fatura.stokIslendi ? (
                                 <Menu.Item
                                   leftSection={
@@ -1389,9 +1087,10 @@ export default function FaturalarPage() {
                                   variant="light"
                                   color="violet"
                                   leftSection={<IconPlugConnected size={16} />}
-                                  onClick={
-                                    uyumsoftStatus.hasCredentials ? handleConnectSaved : openConnect
-                                  }
+                                  onClick={() => {
+                                    if (uyumsoftStatus.hasCredentials) void handleConnectSaved();
+                                    else openConnect();
+                                  }}
                                 >
                                   Uyumsoft Bağla
                                 </Button>
@@ -1400,6 +1099,8 @@ export default function FaturalarPage() {
                           </Stack>
                         </Table.Td>
                       </Table.Tr>
+                    )}
+                      </>
                     )}
                   </Table.Tbody>
                 </Table>
@@ -1433,7 +1134,10 @@ export default function FaturalarPage() {
                         </Text>
                         <Text size="lg" fw={700} c="green">
                           {formatMoney(
-                            uyumsoftFaturalar.reduce((sum, f) => sum + (f.odenecekTutar || 0), 0)
+                            uyumsoftFaturalar.reduce(
+                              (sum: number, f: UyumsoftFatura) => sum + (f.odenecekTutar || 0),
+                              0
+                            )
                           )}
                         </Text>
                       </Stack>
@@ -1450,7 +1154,7 @@ export default function FaturalarPage() {
                           Yeni Fatura
                         </Text>
                         <Text size="xl" fw={700} c="blue">
-                          {uyumsoftFaturalar.filter((f) => f.isNew).length}
+                          {uyumsoftFaturalar.filter((f: UyumsoftFatura) => f.isNew).length}
                         </Text>
                       </Stack>
                       <Badge color="blue" size="lg" variant="light">
@@ -1554,9 +1258,10 @@ export default function FaturalarPage() {
                                   variant="light"
                                   color="violet"
                                   leftSection={<IconPlugConnected size={16} />}
-                                  onClick={
-                                    uyumsoftStatus.hasCredentials ? handleConnectSaved : openConnect
-                                  }
+                                  onClick={() => {
+                                    if (uyumsoftStatus.hasCredentials) void handleConnectSaved();
+                                    else openConnect();
+                                  }}
                                 >
                                   {uyumsoftStatus.hasCredentials ? 'Bağlan' : 'Giriş Yap'}
                                 </Button>
@@ -1989,7 +1694,11 @@ export default function FaturalarPage() {
                 ]}
                 value={formData.tip}
                 onChange={(v) =>
-                  setFormData({ ...formData, tip: v as any, seri: v === 'satis' ? 'A' : 'B' })
+                  setFormData({
+                    ...formData,
+                    tip: (v as FaturaTip) ?? 'satis',
+                    seri: v === 'satis' ? 'A' : 'B',
+                  })
                 }
               />
               <Select
@@ -2066,7 +1775,7 @@ export default function FaturalarPage() {
                         size="xs"
                         data={birimler}
                         value={kalem.birim}
-                        onChange={(v) => updateKalem(kalem.id, 'birim', v)}
+                        onChange={(v) => updateKalem(kalem.id, 'birim', v ?? '')}
                         style={{ width: 90 }}
                       />
                     </Table.Td>

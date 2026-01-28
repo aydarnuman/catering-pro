@@ -21,6 +21,7 @@ import {
   Table,
   Tabs,
   Text,
+  TextInput,
   ThemeIcon,
   Title,
   Tooltip,
@@ -47,104 +48,131 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { StyledDateRangePicker } from '@/components/ui/StyledDatePicker';
+import { useAuth } from '@/context/AuthContext';
+import { authFetch } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/config';
 
+type SchedulerStatus = {
+  success?: boolean;
+  isRunning?: boolean;
+  lastSyncTime?: string;
+  lastScrapeTime?: string;
+  stats?: { totalRuns?: number; successfulRuns?: number; lastNewTenders?: number };
+};
+type SyncLogRow = {
+  id?: number;
+  sync_type?: string;
+  status?: string;
+  started_at?: string;
+  finished_at?: string;
+  invoices_synced?: number;
+  new_invoices?: number;
+  error_message?: string;
+};
+type DatabaseStats = {
+  invoices?: { total?: number; manual?: number; uyumsoft?: number };
+  tenders?: { total?: number; active?: number; closed?: number };
+  documents?: { total?: number; pdf?: number; excel?: number };
+  database?: { size?: number; sizePretty?: string };
+  tables?: { name: string; count: number; lastUpdate?: string }[];
+  tableSizes?: { size: string }[];
+};
+
 export default function SyncControlPage() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { colorScheme } = useMantineColorScheme();
   const _isDark = colorScheme === 'dark';
 
   // Fatura State
-  const [schedulerStatus, setSchedulerStatus] = useState<any>(null);
+  const [schedulerStatus, setSchedulerStatus] = useState<SchedulerStatus | null>(null);
   const [syncType, setSyncType] = useState('standard');
   const [syncMonths, setSyncMonths] = useState(3);
   const [maxInvoices, setMaxInvoices] = useState(500);
-  const [dateRange, _setDateRange] = useState<[Date | null, Date | null]>([null, null]);
-  const [selectedCategory, _setSelectedCategory] = useState<string | null>(null);
-  const [selectedVendor, _setSelectedVendor] = useState<string | null>(null);
-  const [syncLogs, setSyncLogs] = useState<any[]>([]);
-  const [_settings, setSettings] = useState<any>({});
+  const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([null, null]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedVendor, setSelectedVendor] = useState<string | null>(null);
+  const [syncLogs, setSyncLogs] = useState<SyncLogRow[]>([]);
+  const [_settings, setSettings] = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [_settingsModal, _setSettingsModal] = useState(false);
 
   // İhale State
-  const [tenderSchedulerStatus, setTenderSchedulerStatus] = useState<any>(null);
+  const [tenderSchedulerStatus, setTenderSchedulerStatus] = useState<SchedulerStatus | null>(null);
   const [scrapingTenders, setScrapingTenders] = useState(false);
 
   // Database Stats
-  const [databaseStats, setDatabaseStats] = useState<any>(null);
+  const [databaseStats, setDatabaseStats] = useState<DatabaseStats | null>(null);
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<string | null>('invoices');
 
-  // Scheduler durumunu yükle (Fatura)
-  const loadSchedulerStatus = async () => {
+  const loadSchedulerStatus = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/sync/status`);
+      const res = await authFetch(`${API_BASE_URL}/api/sync/status`);
       const data = await res.json();
       if (data.success) {
-        setSchedulerStatus(data);
+        setSchedulerStatus(data as SchedulerStatus);
       }
     } catch (error) {
       console.error('Scheduler durumu yüklenemedi:', error);
     }
-  };
+  }, []);
 
-  // İhale scheduler durumunu yükle
-  const loadTenderSchedulerStatus = async () => {
+  const loadTenderSchedulerStatus = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/tenders/scheduler/status`);
+      const res = await authFetch(`${API_BASE_URL}/api/tenders/scheduler/status`);
       const data = await res.json();
       if (data.success) {
-        setTenderSchedulerStatus(data);
+        setTenderSchedulerStatus(data as SchedulerStatus);
       }
     } catch (error) {
       console.error('İhale scheduler durumu yüklenemedi:', error);
     }
-  };
+  }, []);
 
-  // Sync loglarını yükle
-  const loadSyncLogs = async () => {
+  const loadSyncLogs = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/sync/logs`);
+      const res = await authFetch(`${API_BASE_URL}/api/sync/logs`);
       const data = await res.json();
       if (data.success) {
-        setSyncLogs(data.logs);
+        setSyncLogs((data.logs ?? []) as SyncLogRow[]);
       }
     } catch (error) {
       console.error('Log yüklenemedi:', error);
     }
-  };
+  }, []);
 
-  // Ayarları yükle
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/sync/settings`);
+      const res = await authFetch(`${API_BASE_URL}/api/sync/settings`);
       const data = await res.json();
       if (data.success) {
-        setSettings(data.settings);
+        setSettings((data.settings ?? {}) as Record<string, unknown>);
       }
     } catch (error) {
       console.error('Ayarlar yüklenemedi:', error);
     }
-  };
+  }, []);
 
-  // Veritabanı istatistiklerini yükle
-  const loadDatabaseStats = async () => {
+  const loadDatabaseStats = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/database-stats/summary`);
+      const res = await authFetch(`${API_BASE_URL}/api/database-stats/summary`);
       const data = await res.json();
       if (data.success) {
-        setDatabaseStats(data.data);
+        setDatabaseStats((data.data ?? null) as DatabaseStats | null);
       }
     } catch (error) {
       console.error('Veritabanı istatistikleri yüklenemedi:', error);
     }
-  };
+  }, []);
 
-  // İlk yükleme
   useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) return;
+
     const loadData = async () => {
       setLoading(true);
       await Promise.all([
@@ -159,7 +187,6 @@ export default function SyncControlPage() {
 
     loadData();
 
-    // Her 10 saniyede bir güncelle
     const interval = setInterval(() => {
       loadSchedulerStatus();
       loadTenderSchedulerStatus();
@@ -170,15 +197,23 @@ export default function SyncControlPage() {
     }, 10000);
 
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [
+    authLoading,
+    isAuthenticated,
+    activeTab,
+    loadDatabaseStats,
+    loadSchedulerStatus,
+    loadSettings,
+    loadSyncLogs,
+    loadTenderSchedulerStatus,
+  ]);
 
   // Manuel sync
   const handleManualSync = async () => {
     setSyncing(true);
 
     let endpoint = '/sync/manual';
-    let body: any = {};
+    let body: Record<string, unknown> = {};
 
     if (syncType === 'dateRange' && dateRange[0] && dateRange[1]) {
       endpoint = '/sync/date-range';
@@ -192,13 +227,13 @@ export default function SyncControlPage() {
       body = { category: selectedCategory, months: syncMonths, maxInvoices };
     } else if (syncType === 'vendor' && selectedVendor) {
       endpoint = '/sync/vendor';
-      body = { vendor: selectedVendor, months: syncMonths, maxInvoices };
+      body = { vendorName: selectedVendor, months: syncMonths };
     } else {
       body = { months: syncMonths, maxInvoices };
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api${endpoint}`, {
+      const res = await authFetch(`${API_BASE_URL}/api${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -207,9 +242,12 @@ export default function SyncControlPage() {
       const data = await res.json();
 
       if (data.success) {
+        const total = data.stats?.total ?? 0;
+        const newCount = data.stats?.new ?? 0;
+        const updated = data.stats?.updated ?? 0;
         notifications.show({
           title: 'Senkronizasyon Başarılı',
-          message: `${data.invoicesSynced || 0} fatura senkronize edildi. ${data.newInvoices || 0} yeni fatura eklendi.`,
+          message: `${total} fatura işlendi. Yeni: ${newCount}, güncellenen: ${updated}`,
           color: 'green',
           icon: <IconCheck size={16} />,
         });
@@ -222,10 +260,10 @@ export default function SyncControlPage() {
           color: 'red',
         });
       }
-    } catch (error: any) {
+    } catch (err) {
       notifications.show({
         title: 'Hata',
-        message: error.message,
+        message: err instanceof Error ? err.message : 'Senkronizasyon isteği başarısız',
         color: 'red',
       });
     } finally {
@@ -238,7 +276,10 @@ export default function SyncControlPage() {
     const endpoint = schedulerStatus?.isRunning ? '/sync/stop' : '/sync/start';
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api${endpoint}`, { method: 'POST' });
+      const res = await authFetch(`${API_BASE_URL}/api${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
       const data = await res.json();
 
       if (data.success) {
@@ -250,10 +291,10 @@ export default function SyncControlPage() {
         });
         await loadSchedulerStatus();
       }
-    } catch (error: any) {
+    } catch (err) {
       notifications.show({
         title: 'Hata',
-        message: error.message,
+        message: err instanceof Error ? err.message : 'Scheduler işlemi başarısız',
         color: 'red',
       });
     }
@@ -266,7 +307,10 @@ export default function SyncControlPage() {
       : '/tenders/scheduler/start';
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api${endpoint}`, { method: 'POST' });
+      const res = await authFetch(`${API_BASE_URL}/api${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
       const data = await res.json();
 
       if (data.success) {
@@ -280,10 +324,10 @@ export default function SyncControlPage() {
         });
         await loadTenderSchedulerStatus();
       }
-    } catch (error: any) {
+    } catch (err) {
       notifications.show({
         title: 'Hata',
-        message: error.message,
+        message: err instanceof Error ? err.message : 'İhale scheduler işlemi başarısız',
         color: 'red',
       });
     }
@@ -294,7 +338,7 @@ export default function SyncControlPage() {
     setScrapingTenders(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/tenders/scrape`, {
+      const res = await authFetch(`${API_BASE_URL}/api/tenders/scrape`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ maxPages }),
@@ -317,10 +361,10 @@ export default function SyncControlPage() {
           color: 'red',
         });
       }
-    } catch (error: any) {
+    } catch (err) {
       notifications.show({
         title: 'Hata',
-        message: error.message,
+        message: err instanceof Error ? err.message : 'İhale scrape başarısız',
         color: 'red',
       });
     } finally {
@@ -331,21 +375,24 @@ export default function SyncControlPage() {
   // Duplicate temizle
   const cleanupDuplicates = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/sync/cleanup-duplicates`, { method: 'POST' });
+      const res = await authFetch(`${API_BASE_URL}/api/sync/cleanup-duplicates`, {
+        method: 'POST',
+      });
       const data = await res.json();
 
       if (data.success) {
+        const deleted = data.stats?.deletedRecords ?? 0;
         notifications.show({
           title: 'Başarılı',
-          message: `${data.removed || 0} duplicate fatura temizlendi`,
+          message: `${deleted} duplicate fatura temizlendi`,
           color: 'green',
           icon: <IconCheck size={16} />,
         });
       }
-    } catch (error: any) {
+    } catch (err) {
       notifications.show({
         title: 'Hata',
-        message: error.message,
+        message: err instanceof Error ? err.message : 'Duplicate temizleme başarısız',
         color: 'red',
       });
     }
@@ -354,7 +401,7 @@ export default function SyncControlPage() {
   // Haftalık rapor oluştur
   const generateReport = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/sync/generate-report`, { method: 'POST' });
+      const res = await authFetch(`${API_BASE_URL}/api/sync/generate-report`, { method: 'POST' });
       const data = await res.json();
 
       if (data.success) {
@@ -365,10 +412,10 @@ export default function SyncControlPage() {
           icon: <IconCheck size={16} />,
         });
       }
-    } catch (error: any) {
+    } catch (err) {
       notifications.show({
         title: 'Hata',
-        message: error.message,
+        message: err instanceof Error ? err.message : 'Rapor oluşturulamadı',
         color: 'red',
       });
     }
@@ -521,9 +568,9 @@ export default function SyncControlPage() {
                     </ThemeIcon>
                   </Group>
                   <Text fw={700} size="lg">
-                    {schedulerStatus?.stats?.totalRuns > 0
+                    {(schedulerStatus?.stats?.totalRuns ?? 0) > 0
                       ? Math.round(
-                          (schedulerStatus.stats.successfulRuns / schedulerStatus.stats.totalRuns) *
+                          ((schedulerStatus?.stats?.successfulRuns ?? 0) / (schedulerStatus?.stats?.totalRuns ?? 1)) *
                             100
                         )
                       : 0}
@@ -579,6 +626,33 @@ export default function SyncControlPage() {
                     />
                   )}
 
+                  {syncType === 'dateRange' && (
+                    <StyledDateRangePicker
+                      label="Tarih Aralığı"
+                      value={dateRange}
+                      onChange={setDateRange}
+                      placeholder="Başlangıç — Bitiş"
+                    />
+                  )}
+
+                  {syncType === 'category' && (
+                    <TextInput
+                      label="Kategori"
+                      placeholder="Örn. Gıda, Temizlik"
+                      value={selectedCategory ?? ''}
+                      onChange={(e) => setSelectedCategory(e.currentTarget.value || null)}
+                    />
+                  )}
+
+                  {syncType === 'vendor' && (
+                    <TextInput
+                      label="Satıcı / Tedarikçi Adı veya VKN"
+                      placeholder="Örn. ABC Gıda veya 1234567890"
+                      value={selectedVendor ?? ''}
+                      onChange={(e) => setSelectedVendor(e.currentTarget.value || null)}
+                    />
+                  )}
+
                   {(syncType === 'standard' || syncType === 'dateRange') && (
                     <NumberInput
                       label="Maksimum Fatura"
@@ -588,6 +662,28 @@ export default function SyncControlPage() {
                       max={5000}
                       step={100}
                     />
+                  )}
+
+                  {(syncType === 'category' || syncType === 'vendor') && (
+                    <Group gap="md">
+                      <NumberInput
+                        label="Geriye Dönük Ay"
+                        value={syncMonths}
+                        onChange={(value) => setSyncMonths(Number(value) || 3)}
+                        min={1}
+                        max={12}
+                        w={120}
+                      />
+                      <NumberInput
+                        label="Maksimum Fatura"
+                        value={maxInvoices}
+                        onChange={(value) => setMaxInvoices(Number(value) || 500)}
+                        min={10}
+                        max={5000}
+                        step={100}
+                        w={140}
+                      />
+                    </Group>
                   )}
 
                   <Group>
@@ -1116,7 +1212,7 @@ export default function SyncControlPage() {
                       </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>
-                      {databaseStats?.tables?.map((table: any, index: number) => (
+                      {databaseStats?.tables?.map((table, index) => (
                         <Table.Tr key={table.name}>
                           <Table.Td>
                             <Group gap="xs">
@@ -1280,7 +1376,7 @@ export default function SyncControlPage() {
                       </Table.Td>
                       <Table.Td>{dayjs(log.started_at).format('DD.MM HH:mm')}</Table.Td>
                       <Table.Td>
-                        {log.finished_at
+                        {log.finished_at && log.started_at
                           ? `${Math.round((new Date(log.finished_at).getTime() - new Date(log.started_at).getTime()) / 1000)}s`
                           : '-'}
                       </Table.Td>

@@ -1,32 +1,25 @@
 'use client';
 
 import {
-  Accordion,
   ActionIcon,
   Alert,
   Badge,
   Box,
   Button,
-  Card,
   Center,
   Chip,
   Collapse,
   Group,
   Loader,
   Modal,
-  NumberInput,
   Paper,
-  Progress,
-  RingProgress,
   ScrollArea,
   Select,
   SimpleGrid,
   Stack,
-  Table,
   Tabs,
   Text,
   Textarea,
-  TextInput,
   ThemeIcon,
   Tooltip,
 } from '@mantine/core';
@@ -34,96 +27,93 @@ import { useDebouncedCallback } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
   IconAlertTriangle,
+  IconArrowLeft,
   IconBrain,
+  IconBuilding,
   IconBulb,
   IconCalculator,
-  IconCalendar,
   IconCheck,
+  IconChevronRight,
+  IconClipboardCopy,
   IconClipboardList,
-  IconCloudCheck,
-  IconCoin,
+  IconDeviceFloppy,
   IconDownload,
   IconEye,
   IconFileAnalytics,
   IconFileText,
   IconGavel,
   IconInfoCircle,
-  IconMathFunction,
   IconMessageCircle,
   IconNote,
   IconPencil,
-  IconReportMoney,
-  IconScale,
-  IconSearch,
-  IconSend,
-  IconSettings,
-  IconSparkles,
-  IconTrash,
-  IconX,
   IconPlus,
-  IconDeviceFloppy,
-  IconHistory,
-  IconArrowLeft,
-  IconChevronRight,
-  IconBuilding,
-  IconClipboardCopy,
-  IconCopy,
-  IconPinned,
-  IconPinnedOff,
+  IconScale,
+  IconSend,
+  IconTrash,
 } from '@tabler/icons-react';
-import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { tendersAPI } from '@/lib/api/services/tenders';
 import { aiAPI } from '@/lib/api/services/ai';
+import { tendersAPI } from '@/lib/api/services/tenders';
+
 // NotesSection kaldırıldı - Çalışma Panosu kullanılacak
 
-// Modüler yapıdan import
 import {
-  AnalysisData,
-  SavedTender,
-  ChatMessage,
-  ClipboardItem,
-  IhaleUzmaniModalProps,
-  FirmaBilgisi,
-  statusConfig,
-  dilekceTypeLabels,
-} from './IhaleUzmani/types';
+  IconBuildingBank,
+  IconPackage,
+  IconReceipt,
+  IconTool,
+  IconTruck,
+  IconUsers,
+} from '@tabler/icons-react';
+import { useResponsive } from '@/hooks/useResponsive';
+import dynamic from 'next/dynamic';
 import { useClipboard, useIhaleData } from './IhaleUzmani/hooks';
 import { ClipboardModal } from './IhaleUzmani/modals/ClipboardModal';
 import { DokumanlarTab } from './IhaleUzmani/tabs/DokumanlarTab';
 import { HesaplamalarTab } from './IhaleUzmani/tabs/HesaplamalarTab';
-import TeklifModal from './teklif/TeklifModal';
-import { IconUsers, IconTruck, IconPackage, IconTool, IconReceipt, IconBuildingBank } from '@tabler/icons-react';
-import { useResponsive } from '@/hooks/useResponsive';
+// Modüler yapıdan import
+import {
+  type ChatMessage,
+  dilekceTypeLabels,
+  type IhaleUzmaniModalProps,
+  type SavedTender,
+  statusConfig,
+} from './IhaleUzmani/types';
+
+// TeklifModal lazy load (78KB tasarruf)
+const TeklifModal = dynamic(() => import('./teklif/TeklifModal'), {
+  ssr: false,
+  loading: () => null,
+});
 
 export default function IhaleUzmaniModal({
   opened,
   onClose,
   tender,
   onUpdateStatus,
-  onDelete,
+  onDelete: _onDelete,
   // Deprecated props - NotesSection handles notes internally
   onAddNote: _onAddNote,
   onDeleteNote: _onDeleteNote,
 }: IhaleUzmaniModalProps) {
   // Responsive hook
   const { isMobile, isMounted } = useResponsive();
-  
+
   // Tab state
   const [activeTab, setActiveTab] = useState<string | null>('ozet');
-  
+
   // Soru havuzu kategori seçimi
   const [selectedQuestionCategory, setSelectedQuestionCategory] = useState<string>('teknik');
-  
+
   // Döküman Analizi - Filtreleme States
-  const [teknikSartArama, setTeknikSartArama] = useState('');
-  const [sadeceZorunluGoster, setSadeceZorunluGoster] = useState(false);
-  const [birimFiyatArama, setBirimFiyatArama] = useState('');
-  const [aiNotArama, setAiNotArama] = useState('');
-  
+  const [_teknikSartArama, _setTeknikSartArama] = useState('');
+  const [_sadeceZorunluGoster, _setSadeceZorunluGoster] = useState(false);
+  const [_birimFiyatArama, _setBirimFiyatArama] = useState('');
+  const [_aiNotArama, _setAiNotArama] = useState('');
+
   // Çalışma Panosu - useClipboard hook
   const clipboard = useClipboard(tender?.id);
-  
+
   // İhale Data - useIhaleData hook
   const ihaleData = useIhaleData(tender, opened);
 
@@ -181,12 +171,13 @@ export default function IhaleUzmaniModal({
   const [activePanel, setActivePanel] = useState<'ai' | 'dilekce'>('ai'); // AI veya Dilekçe paneli
   const [dilekceType, setDilekceType] = useState<string | null>(null);
   const [dilekceContent, setDilekceContent] = useState('');
-  const [dilekceMessages, setDilekceMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  type DilekceMessage = { id: string; role: 'user' | 'assistant'; content: string };
+  const [dilekceMessages, setDilekceMessages] = useState<DilekceMessage[]>([]);
   const [dilekceInput, setDilekceInput] = useState('');
   const [dilekceLoading, setDilekceLoading] = useState(false);
   const [dilekceSessionId, setDilekceSessionId] = useState<string | null>(null);
   const [savedDilekces, setSavedDilekces] = useState<any[]>([]);
-  const [dilekceListLoading, setDilekceListLoading] = useState(false);
+  const [_dilekceListLoading, setDilekceListLoading] = useState(false);
   const [dilekceSaving, setDilekceSaving] = useState(false);
   const [dilekceConversations, setDilekceConversations] = useState<any[]>([]); // Kayıtlı konuşmalar
   const [showDilekceChat, setShowDilekceChat] = useState(false); // true: sohbet, false: kart listesi
@@ -196,7 +187,7 @@ export default function IhaleUzmaniModal({
 
   // Teklif Cetveli States
   const [teklifModalOpened, setTeklifModalOpened] = useState(false);
-  const [teklifOzet, setTeklifOzet] = useState<{
+  const [teklifOzet, _setTeklifOzet] = useState<{
     personelSayisi: number;
     personelMaliyet: number;
     aracSayisi: number;
@@ -214,16 +205,16 @@ export default function IhaleUzmaniModal({
   } | null>(null);
 
   // Firma ve Analysis - useIhaleData hook'tan alias'lar
-  const { 
-    analysisData, 
-    analysisLoading, 
-    analysisStats, 
-    firmalar, 
-    selectedFirmaId, 
-    setSelectedFirmaId, 
+  const {
+    analysisData,
+    analysisLoading,
+    analysisStats,
+    firmalar,
+    selectedFirmaId,
+    setSelectedFirmaId,
     selectedFirma,
     loadAnalysisData,
-    hideNote
+    hideNote,
   } = ihaleData;
 
   // Helper: Mesajdan context kısmını kaldır (eski kayıtlar için)
@@ -279,16 +270,20 @@ export default function IhaleUzmaniModal({
   }, [yaklasikMaliyet, sinirDeger, bizimTeklif, dataLoaded, saveHesaplamaData]);
 
   // Load saved data and analysis when tender changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: loadConversations, loadSavedDilekces, loadSavedHesaplamaData bu effect'ten sonra tanımlı; dep'te olursa "Cannot access before initialization" olur
   useEffect(() => {
     if (opened && tender) {
       setDataLoaded(false);
-      
+
       // ÖNCE hesaplama verilerini sıfırla (yeni ihale için temiz başla)
       // Sonra loadSavedHesaplamaData() ile doğru verileri yükle
       setYaklasikMaliyet(0);
       setSinirDeger(null);
       setBizimTeklif(0);
-      setTeklifListesi([{ firma: '', tutar: 0 }, { firma: '', tutar: 0 }]);
+      setTeklifListesi([
+        { firma: '', tutar: 0 },
+        { firma: '', tutar: 0 },
+      ]);
       setMaliyetBilesenleri({
         anaCigGirdi: 0,
         yardimciGirdi: 0,
@@ -306,26 +301,26 @@ export default function IhaleUzmaniModal({
       setDilekceType(null);
       setDilekceMessages([]); // Dilekçe mesajlarını temizle
       setActiveTab('ozet'); // Her zaman Özet sekmesinden başla
-      
+
       // Sonra verileri yükle (async)
       loadAnalysisData();
       loadSavedHesaplamaData().catch((error) => {
         console.error('Hesaplama verisi yükleme hatası:', error);
       });
-      
+
       // AI Danışman sessionId'sini oluştur
       const tenderSessionId = `ihale_${tender.tender_id || tender.id}`;
       setChatSessionId(tenderSessionId);
-      
+
       // AI Danışman conversation'ını yükle
       loadConversations(tenderSessionId);
-      
+
       // Dilekçe session'ı türe göre belirlenir - kullanıcı tür seçince yüklenecek
       setDilekceSessionId(null);
-      
+
       // Kayıtlı dilekçeleri yükle
       loadSavedDilekces();
-      
+
       // Firmalar artık useIhaleData hook'ta otomatik yükleniyor
     } else if (!opened) {
       // Modal kapandığında conversation state'lerini temizle
@@ -336,8 +331,15 @@ export default function IhaleUzmaniModal({
       setChatSessionId(null);
       setDilekceSessionId(null);
     }
+    // loadConversations, loadSavedDilekces, loadSavedHesaplamaData bu effect'ten sonra tanımlı;
+    // dep listesine koymak "Cannot access before initialization" hatası verir.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened, tender?.tender_id]);
+  }, [
+    opened,
+    tender?.tender_id,
+    tender,
+    loadAnalysisData,
+  ]);
 
   // Update AI context when modal opens or hesaplama data changes
   useEffect(() => {
@@ -379,7 +381,16 @@ export default function IhaleUzmaniModal({
       window.dispatchEvent(contextEvent);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened, tender, yaklasikMaliyet, sinirDeger, bizimTeklif, teklifListesi]);
+  }, [
+    opened,
+    tender,
+    yaklasikMaliyet,
+    sinirDeger,
+    bizimTeklif,
+    teklifListesi,
+    analysisData.birim_fiyatlar?.length,
+    analysisData.teknik_sartlar?.length,
+  ]);
 
   // Load saved hesaplama data from tender - API'den güncel veriyi çek
   const loadSavedHesaplamaData = async () => {
@@ -426,7 +437,11 @@ export default function IhaleUzmaniModal({
                 : currentTracking.hesaplama_verileri;
 
             if (hv && typeof hv === 'object') {
-              if (hv.teklif_listesi && Array.isArray(hv.teklif_listesi) && hv.teklif_listesi.length >= 2) {
+              if (
+                hv.teklif_listesi &&
+                Array.isArray(hv.teklif_listesi) &&
+                hv.teklif_listesi.length >= 2
+              ) {
                 setTeklifListesi(hv.teklif_listesi);
               }
               if (hv.maliyet_bilesenleri && typeof hv.maliyet_bilesenleri === 'object') {
@@ -514,17 +529,17 @@ export default function IhaleUzmaniModal({
   // Dilekçe türü değiştiğinde o türe ait konuşmaları yükle (kart listesi olarak)
   const handleDilekceTypeChange = async (type: string) => {
     if (!tender) return;
-    
+
     // Panel'i dilekçe moduna geçir
     setActivePanel('dilekce');
-    
+
     // Dilekçe türünü set et
     setDilekceType(type);
     setDilekceContent('');
     setDilekceMessages([]); // Önceki mesajları temizle
     setShowDilekceChat(false); // Kart listesini göster
     setDilekceSessionId(null);
-    
+
     // O türe ait kayıtlı konuşmaları yükle
     await loadDilekceConversationsList(type);
   };
@@ -560,15 +575,17 @@ export default function IhaleUzmaniModal({
       const data = await aiAPI.getConversation(sessionId);
 
       if (data.success && (data as any).messages) {
-        const formattedMessages = (data as any).messages.map((msg: any) => ({
+        const formattedMessages = (data as any).messages.map((msg: any, i: number) => ({
+          id: (msg as { id?: string }).id ?? `d-load-${i}-${msg.role}`,
           role: msg.role,
           content: stripContextFromMessage(msg.content), // Eski context'leri temizle
-          timestamp: new Date(msg.created_at),
         }));
         setDilekceMessages(formattedMessages);
 
         // AI'ın son mesajını dilekçe içeriği olarak ayarla (düzenleme için)
-        const lastAiMessage = [...(data as any).messages].reverse().find((m: any) => m.role === 'assistant');
+        const lastAiMessage = [...(data as any).messages]
+          .reverse()
+          .find((m: any) => m.role === 'assistant');
         if (lastAiMessage) {
           setDilekceContent(lastAiMessage.content);
         }
@@ -581,7 +598,7 @@ export default function IhaleUzmaniModal({
   // Yeni konuşma başlat
   const startNewDilekceConversation = () => {
     if (!tender || !dilekceType) return;
-    
+
     // Yeni unique sessionId oluştur (timestamp ile)
     const newSessionId = `ihale_${tender.tender_id || tender.id}_dilekce_${dilekceType}_${Date.now()}`;
     setDilekceSessionId(newSessionId);
@@ -642,12 +659,14 @@ export default function IhaleUzmaniModal({
 
       if (result.success && (result as any).messages && (result as any).messages.length > 0) {
         // Backend'den gelen mesajları ChatMessage formatına çevir
-        const loadedMessages: ChatMessage[] = (result as any).messages.map((msg: any, index: number) => ({
-          id: `${msg.id || index}`,
-          role: msg.role,
-          content: stripContextFromMessage(msg.content), // Eski context'leri temizle
-          timestamp: new Date(msg.created_at),
-        }));
+        const loadedMessages: ChatMessage[] = (result as any).messages.map(
+          (msg: any, index: number) => ({
+            id: `${msg.id || index}`,
+            role: msg.role,
+            content: stripContextFromMessage(msg.content), // Eski context'leri temizle
+            timestamp: new Date(msg.created_at),
+          })
+        );
 
         setMessages(loadedMessages);
       }
@@ -658,13 +677,14 @@ export default function IhaleUzmaniModal({
   };
 
   // Dilekçe conversation'larını yükle
-  const loadDilekceConversations = async (sessionId: string) => {
+  const _loadDilekceConversations = async (sessionId: string) => {
     try {
       const result = await aiAPI.getConversation(sessionId);
 
       if (result.success && (result as any).messages && (result as any).messages.length > 0) {
         // Backend'den gelen mesajları dilekçe formatına çevir
-        const loadedMessages = (result as any).messages.map((msg: any) => ({
+        const loadedMessages = (result as any).messages.map((msg: any, i: number) => ({
+          id: (msg as { id?: string }).id ?? `d-loaded-${i}-${msg.role}`,
           role: msg.role as 'user' | 'assistant',
           content: stripContextFromMessage(msg.content), // Eski context'leri temizle
         }));
@@ -742,8 +762,10 @@ export default function IhaleUzmaniModal({
       return;
     }
 
-    const { anaCigGirdi, yardimciGirdi, iscilik, nakliye, sozlesmeGideri, genelGider, kar } = maliyetBilesenleri;
-    const toplamMaliyet = anaCigGirdi + yardimciGirdi + iscilik + nakliye + sozlesmeGideri + genelGider + kar;
+    const { anaCigGirdi, yardimciGirdi, iscilik, nakliye, sozlesmeGideri, genelGider, kar } =
+      maliyetBilesenleri;
+    const toplamMaliyet =
+      anaCigGirdi + yardimciGirdi + iscilik + nakliye + sozlesmeGideri + genelGider + kar;
     const asiriDusukMu = bizimTeklif < sinirDeger;
     const fark = sinirDeger - bizimTeklif;
     const farkOran = ((sinirDeger - bizimTeklif) / sinirDeger) * 100;
@@ -840,7 +862,7 @@ export default function IhaleUzmaniModal({
     try {
       // Analiz verilerini al
       const analysis = analysisData;
-      
+
       // Context oluştur - İhale temel bilgileri
       let context = `📋 SEÇİLİ İHALE:\n- Başlık: ${tender.ihale_basligi}\n- Kurum: ${tender.kurum}\n`;
       if (tender.bedel) context += `- Tahmini Bedel: ${tender.bedel}\n`;
@@ -849,15 +871,16 @@ export default function IhaleUzmaniModal({
         context += `- Yaklaşık Maliyet: ${yaklasikMaliyet.toLocaleString('tr-TR')} TL\n`;
       if (sinirDeger) context += `- Sınır Değer: ${sinirDeger.toLocaleString('tr-TR')} TL\n`;
       if (bizimTeklif > 0) context += `- Bizim Teklif: ${bizimTeklif.toLocaleString('tr-TR')} TL\n`;
-      
+
       // Firma bilgilerini ekle
       if (selectedFirma) {
-        context += `\n🏢 FİRMA BİLGİLERİ:\n`;
+        context += '\n🏢 FİRMA BİLGİLERİ:\n';
         context += `- Firma: ${selectedFirma.unvan}\n`;
         if (selectedFirma.vergi_no) context += `- Vergi No: ${selectedFirma.vergi_no}\n`;
-        if (selectedFirma.yetkili_adi) context += `- Yetkili: ${selectedFirma.yetkili_adi} (${selectedFirma.yetkili_unvani || 'Şirket Yetkilisi'})\n`;
+        if (selectedFirma.yetkili_adi)
+          context += `- Yetkili: ${selectedFirma.yetkili_adi} (${selectedFirma.yetkili_unvani || 'Şirket Yetkilisi'})\n`;
       }
-      
+
       // ========== DÖKÜMAN ANALİZ VERİLERİ ==========
       // Teknik Şartlar - TÜM şartlar ekleniyor (limit yok)
       if (analysis.teknik_sartlar && analysis.teknik_sartlar.length > 0) {
@@ -868,7 +891,7 @@ export default function IhaleUzmaniModal({
           context += `${i + 1}. ${sartText}${sartSource}\n`;
         });
       }
-      
+
       // Birim Fiyatlar - TÜM kalemler ekleniyor (limit yok)
       if (analysis.birim_fiyatlar && analysis.birim_fiyatlar.length > 0) {
         context += `\n💰 BİRİM FİYATLAR / MAL HİZMET LİSTESİ (${analysis.birim_fiyatlar.length} kalem):\n`;
@@ -881,7 +904,7 @@ export default function IhaleUzmaniModal({
           }
         });
       }
-      
+
       // AI Notları - TÜM notlar ekleniyor (limit yok)
       if (analysis.notlar && analysis.notlar.length > 0) {
         context += `\n⚠️ AI NOTLARI (${analysis.notlar.length} adet):\n`;
@@ -891,21 +914,21 @@ export default function IhaleUzmaniModal({
           context += `• ${notText}${notSource}\n`;
         });
       }
-      
+
       // ========== HESAPLAMA VERİLERİ ==========
       // Rakip Teklifleri
       const gecerliTeklifler = teklifListesi.filter((t) => t.tutar > 0);
       if (gecerliTeklifler.length > 0) {
         context += `\n📊 RAKİP TEKLİFLERİ (${gecerliTeklifler.length} teklif):\n`;
         gecerliTeklifler.forEach((t, i) => {
-          context += `${i + 1}. ${t.firma || 'Firma ' + (i+1)}: ${t.tutar.toLocaleString('tr-TR')} TL\n`;
+          context += `${i + 1}. ${t.firma || `Firma ${i + 1}`}: ${t.tutar.toLocaleString('tr-TR')} TL\n`;
         });
       }
-      
+
       // Maliyet Bileşenleri (eğer girilmişse)
       const toplamMaliyet = Object.values(maliyetBilesenleri).reduce((a, b) => a + b, 0);
       if (toplamMaliyet > 0) {
-        context += `\n🧮 MALİYET BİLEŞENLERİ:\n`;
+        context += '\n🧮 MALİYET BİLEŞENLERİ:\n';
         context += `- Ana Çiğ Girdi: ${maliyetBilesenleri.anaCigGirdi.toLocaleString('tr-TR')} TL\n`;
         context += `- Yardımcı Girdi: ${maliyetBilesenleri.yardimciGirdi.toLocaleString('tr-TR')} TL\n`;
         context += `- İşçilik: ${maliyetBilesenleri.iscilik.toLocaleString('tr-TR')} TL\n`;
@@ -915,7 +938,7 @@ export default function IhaleUzmaniModal({
         context += `- Kar: ${maliyetBilesenleri.kar.toLocaleString('tr-TR')} TL\n`;
         context += `- TOPLAM MALİYET: ${toplamMaliyet.toLocaleString('tr-TR')} TL\n`;
       }
-      
+
       // ========== PANO NOTLARI ==========
       if (clipboardItems.length > 0) {
         context += `\n📋 KULLANICI PANO NOTLARI (${clipboardItems.length} adet):\n`;
@@ -923,22 +946,23 @@ export default function IhaleUzmaniModal({
           context += `${i + 1}. [${item.type}] ${item.content}\n`;
         });
       }
-      
+
       // ========== TAM METİN ==========
       if (analysis.tam_metin && analysis.tam_metin.length > 0) {
         // Tam metin - 20000 karaktere kadar (daha fazla bilgi)
         const tamMetinOzet = analysis.tam_metin.substring(0, 20000);
         context += `\n📄 DÖKÜMAN TAM METİN:\n${tamMetinOzet}${analysis.tam_metin.length > 20000 ? '\n... (devamı var)' : ''}\n`;
       }
-      
+
       // İhale ID'sini ekle (AI tool kullanabilsin)
       context += `\n🔑 İHALE ID: ${tender.tender_id || tender.id}\n`;
-      context += '\n---\nYukarıdaki ihale bilgileri, döküman analizleri, hesaplamalar ve kullanıcı notlarını baz alarak cevap ver. Tüm verilere erişimin var.\n\n';
+      context +=
+        '\n---\nYukarıdaki ihale bilgileri, döküman analizleri, hesaplamalar ve kullanıcı notlarını baz alarak cevap ver. Tüm verilere erişimin var.\n\n';
 
       // Önceki mesajları history olarak hazırla (AI bağlamı hatırlasın)
-      const conversationHistory = messages.map(msg => ({
+      const conversationHistory = messages.map((msg) => ({
         role: msg.role,
-        content: msg.content
+        content: msg.content,
       }));
 
       const data = await aiAPI.sendAgentMessage({
@@ -947,11 +971,13 @@ export default function IhaleUzmaniModal({
         history: conversationHistory,
         sessionId: chatSessionId || undefined,
         templateSlug: 'ihale-uzman',
-        pageContext: tender ? {
-          type: 'tender',
-          id: tender.tender_id || tender.id,
-          title: tender.ihale_basligi,
-        } : undefined,
+        pageContext: tender
+          ? {
+              type: 'tender',
+              id: tender.tender_id || tender.id,
+              title: tender.ihale_basligi,
+            }
+          : undefined,
       });
 
       if (!data.success && !(data as any).response) throw new Error('AI yanıt vermedi');
@@ -982,12 +1008,15 @@ export default function IhaleUzmaniModal({
     if (!tender || !dilekceType) return;
 
     const userInput = customMessage || dilekceInput;
-    
+
     // Kullanıcı mesajı varsa ekle ve kaydet
     if (userInput.trim() && dilekceSessionId) {
-      setDilekceMessages((prev) => [...prev, { role: 'user', content: userInput }]);
+      setDilekceMessages((prev) => [
+        ...prev,
+        { id: `d-${Date.now()}-user`, role: 'user', content: userInput },
+      ]);
       setDilekceInput('');
-      
+
       // Kullanıcı mesajını backend'e kaydet
       try {
         await aiAPI.saveConversationToMemory({
@@ -1010,8 +1039,8 @@ export default function IhaleUzmaniModal({
     setDilekceLoading(true);
 
     try {
-      const analysis = analysisData;
-      
+      const _analysis = analysisData;
+
       // Dilekçe türüne göre prompt oluştur
       let prompt = '';
       const ihaleBilgi = `
@@ -1020,9 +1049,9 @@ export default function IhaleUzmaniModal({
 - Kurum: ${tender.kurum}
 - İhale No: ${tender.external_id || 'Bilinmiyor'}
 - Tarih: ${tender.tarih || 'Bilinmiyor'}
-- Yaklaşık Maliyet: ${yaklasikMaliyet > 0 ? yaklasikMaliyet.toLocaleString('tr-TR') + ' TL' : tender.bedel || 'Bilinmiyor'}
-- Sınır Değer: ${sinirDeger ? sinirDeger.toLocaleString('tr-TR') + ' TL' : 'Hesaplanmadı'}
-- Bizim Teklif: ${bizimTeklif > 0 ? bizimTeklif.toLocaleString('tr-TR') + ' TL' : 'Girilmedi'}
+- Yaklaşık Maliyet: ${yaklasikMaliyet > 0 ? `${yaklasikMaliyet.toLocaleString('tr-TR')} TL` : tender.bedel || 'Bilinmiyor'}
+- Sınır Değer: ${sinirDeger ? `${sinirDeger.toLocaleString('tr-TR')} TL` : 'Hesaplanmadı'}
+- Bizim Teklif: ${bizimTeklif > 0 ? `${bizimTeklif.toLocaleString('tr-TR')} TL` : 'Girilmedi'}
 `;
 
       const maliyetBilgi = `
@@ -1033,11 +1062,14 @@ MALİYET BİLEŞENLERİ:
 - Nakliye: ${maliyetBilesenleri.nakliye.toLocaleString('tr-TR')} TL
 - Sözleşme Gideri: ${maliyetBilesenleri.sozlesmeGideri.toLocaleString('tr-TR')} TL
 - Genel Gider + Kar: ${(maliyetBilesenleri.genelGider + maliyetBilesenleri.kar).toLocaleString('tr-TR')} TL
-- TOPLAM: ${Object.values(maliyetBilesenleri).reduce((a, b) => a + b, 0).toLocaleString('tr-TR')} TL
+- TOPLAM: ${Object.values(maliyetBilesenleri)
+        .reduce((a, b) => a + b, 0)
+        .toLocaleString('tr-TR')} TL
 `;
 
       // Firma bilgileri
-      const firmaBilgi = selectedFirma ? `
+      const firmaBilgi = selectedFirma
+        ? `
 FİRMA BİLGİLERİ (Dilekçede kullan):
 - Firma Ünvanı: ${selectedFirma.unvan}
 - Vergi No: ${selectedFirma.vergi_no || 'Belirtilmemiş'}
@@ -1047,7 +1079,8 @@ FİRMA BİLGİLERİ (Dilekçede kullan):
 - E-posta: ${selectedFirma.email || 'Belirtilmemiş'}
 - Yetkili Adı: ${selectedFirma.yetkili_adi || 'Belirtilmemiş'}
 - Yetkili Ünvanı: ${selectedFirma.yetkili_unvani || 'Şirket Yetkilisi'}
-` : '';
+`
+        : '';
 
       switch (dilekceType) {
         case 'asiri_dusuk':
@@ -1130,11 +1163,13 @@ KURALLAR:
         message: prompt,
         sessionId: dilekceSessionId || undefined,
         templateSlug: 'resmi-yazi', // Resmi Yazı Uzmanı şablonu (Opus model)
-        pageContext: tender ? {
-          type: 'tender',
-          id: tender.tender_id || tender.id,
-          title: tender.ihale_basligi,
-        } : undefined,
+        pageContext: tender
+          ? {
+              type: 'tender',
+              id: tender.tender_id || tender.id,
+              title: tender.ihale_basligi,
+            }
+          : undefined,
       });
 
       if (!data.success && !(data as any).response) throw new Error('AI yanıt vermedi');
@@ -1148,8 +1183,11 @@ KURALLAR:
 
       // AI cevabını mesajlara ekle
       const assistantMessageContent = 'Dilekçeniz hazırlandı. Sağ panelde görüntüleyebilirsiniz.';
-      setDilekceMessages((prev) => [...prev, { role: 'assistant', content: assistantMessageContent }]);
-      
+      setDilekceMessages((prev) => [
+        ...prev,
+        { id: `d-${Date.now()}-asst`, role: 'assistant', content: assistantMessageContent },
+      ]);
+
       // AI cevabını backend'e kaydet (eğer sessionId varsa)
       if (finalSessionId) {
         try {
@@ -1164,7 +1202,7 @@ KURALLAR:
               metadata: {
                 type: 'dilekce_chat',
                 dilekce_type: dilekceType,
-                dilekce_content_preview: aiResponse.substring(0, 500) // İlk 500 karakter önizleme
+                dilekce_content_preview: aiResponse.substring(0, 500), // İlk 500 karakter önizleme
               },
             },
           });
@@ -1173,10 +1211,9 @@ KURALLAR:
           // Hata olsa bile devam et
         }
       }
-      
+
       // Dilekçe içeriğini set et
       setDilekceContent(aiResponse);
-
     } catch (error) {
       console.error('Dilekçe oluşturma hatası:', error);
       notifications.show({
@@ -1184,7 +1221,14 @@ KURALLAR:
         message: 'Dilekçe oluşturulurken bir hata oluştu',
         color: 'red',
       });
-      setDilekceMessages((prev) => [...prev, { role: 'assistant', content: 'Üzgünüm, dilekçe oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.' }]);
+      setDilekceMessages((prev) => [
+        ...prev,
+        {
+          id: `d-${Date.now()}-err`,
+          role: 'assistant',
+          content: 'Üzgünüm, dilekçe oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.',
+        },
+      ]);
     } finally {
       setDilekceLoading(false);
     }
@@ -1197,12 +1241,14 @@ KURALLAR:
     try {
       const blob = await aiAPI.exportDilekce(format, {
         title: dilekceTypeLabels[dilekceType || 'dilekce'],
-        type: dilekceType,
         content: dilekceContent,
-        ihale: {
-          baslik: tender.ihale_basligi,
-          kurum: tender.kurum,
-          ihale_no: tender.external_id,
+        metadata: {
+          type: dilekceType,
+          ihale: {
+            baslik: tender.ihale_basligi,
+            kurum: tender.kurum,
+            ihale_no: tender.external_id,
+          },
         },
       });
       const filename = `dilekce_${dilekceType || 'genel'}_${Date.now()}.${format === 'pdf' ? 'pdf' : 'docx'}`;
@@ -1290,7 +1336,8 @@ KURALLAR:
     try {
       const data = await aiAPI.getDilekceByTender(tender.tender_id || tender.id);
       if (data.success) {
-        setSavedDilekces(data.data || []);
+        // API returns { dilekce: [] } format
+        setSavedDilekces((data.data as any)?.dilekce || data.data || []);
       }
     } catch (error) {
       console.error('Dilekçe listesi yüklenemedi:', error);
@@ -1332,11 +1379,11 @@ KURALLAR:
   // ========== ÇALIŞMA PANOSU - useClipboard hook'tan alias'lar ==========
   const addToClipboard = clipboard.addItem;
   const clipboardItems = clipboard.items;
-  const clipboardModalOpened = clipboard.modalOpened;
+  const _clipboardModalOpened = clipboard.modalOpened;
   const setClipboardModalOpened = clipboard.setModalOpened;
 
   // JSON export
-  const downloadJSON = () => {
+  const _downloadJSON = () => {
     if (!tender) return;
     const exportData = {
       ihale_bilgileri: {
@@ -1373,9 +1420,16 @@ KURALLAR:
       title={
         <Box
           className="modal-header-glass"
-          style={{ margin: 0, padding: isMobile && isMounted ? '12px 12px' : '16px 20px', borderRadius: 16 }}
+          style={{
+            margin: 0,
+            padding: isMobile && isMounted ? '12px 12px' : '16px 20px',
+            borderRadius: 16,
+          }}
         >
-          <Group gap={isMobile && isMounted ? 'xs' : 'md'} wrap={isMobile && isMounted ? 'wrap' : 'nowrap'}>
+          <Group
+            gap={isMobile && isMounted ? 'xs' : 'md'}
+            wrap={isMobile && isMounted ? 'wrap' : 'nowrap'}
+          >
             <ThemeIcon
               size={isMobile && isMounted ? 36 : 48}
               radius="xl"
@@ -1398,7 +1452,7 @@ KURALLAR:
                 {tender.ihale_basligi}
               </Text>
             </div>
-            
+
             {/* Mobilde Firma ve Pano butonları alt satırda */}
             {isMobile && isMounted ? (
               <Group gap="xs" w="100%" justify="space-between">
@@ -1407,14 +1461,17 @@ KURALLAR:
                   <Select
                     size="xs"
                     placeholder="Firma"
-                    data={firmalar.map(f => ({ 
-                      value: f.id.toString(), 
-                      label: (f.kisa_ad && f.kisa_ad !== 'Kısa Ad' && f.kisa_ad.length > 2) 
-                        ? f.kisa_ad 
-                        : (f.unvan?.length > 15 ? f.unvan.substring(0, 15) + '...' : f.unvan)
+                    data={firmalar.map((f) => ({
+                      value: f.id.toString(),
+                      label:
+                        f.kisa_ad && f.kisa_ad !== 'Kısa Ad' && f.kisa_ad.length > 2
+                          ? f.kisa_ad
+                          : f.unvan?.length > 15
+                            ? `${f.unvan.substring(0, 15)}...`
+                            : f.unvan,
                     }))}
                     value={selectedFirmaId?.toString() || null}
-                    onChange={(val) => setSelectedFirmaId(val ? parseInt(val) : null)}
+                    onChange={(val) => setSelectedFirmaId(val ? parseInt(val, 10) : null)}
                     leftSection={<IconBuilding size={12} />}
                     styles={{
                       root: { flex: 1, maxWidth: 140 },
@@ -1423,7 +1480,7 @@ KURALLAR:
                     comboboxProps={{ withinPortal: true }}
                   />
                 )}
-                
+
                 {/* Çalışma Panosu Butonu - Mobil */}
                 <Button
                   variant="light"
@@ -1448,14 +1505,17 @@ KURALLAR:
                   <Select
                     size="xs"
                     placeholder="Firma seçin"
-                    data={firmalar.map(f => ({ 
-                      value: f.id.toString(), 
-                      label: (f.kisa_ad && f.kisa_ad !== 'Kısa Ad' && f.kisa_ad.length > 2) 
-                        ? f.kisa_ad 
-                        : (f.unvan?.length > 30 ? f.unvan.substring(0, 30) + '...' : f.unvan)
+                    data={firmalar.map((f) => ({
+                      value: f.id.toString(),
+                      label:
+                        f.kisa_ad && f.kisa_ad !== 'Kısa Ad' && f.kisa_ad.length > 2
+                          ? f.kisa_ad
+                          : f.unvan?.length > 30
+                            ? `${f.unvan.substring(0, 30)}...`
+                            : f.unvan,
                     }))}
                     value={selectedFirmaId?.toString() || null}
-                    onChange={(val) => setSelectedFirmaId(val ? parseInt(val) : null)}
+                    onChange={(val) => setSelectedFirmaId(val ? parseInt(val, 10) : null)}
                     leftSection={<IconBuilding size={14} />}
                     styles={{
                       root: { width: 220 },
@@ -1464,7 +1524,7 @@ KURALLAR:
                     comboboxProps={{ withinPortal: true }}
                   />
                 )}
-                
+
                 {/* Çalışma Panosu Butonu - Desktop */}
                 <Tooltip label="Çalışma Panosu" position="bottom">
                   <Button
@@ -1477,10 +1537,10 @@ KURALLAR:
                   >
                     Pano
                     {clipboardItems.length > 0 && (
-                      <Badge 
-                        size="xs" 
-                        variant="filled" 
-                        color="orange" 
+                      <Badge
+                        size="xs"
+                        variant="filled"
+                        color="orange"
                         ml={6}
                         style={{ minWidth: 18 }}
                       >
@@ -1507,9 +1567,9 @@ KURALLAR:
         },
       }}
     >
-      <Tabs 
-        value={activeTab} 
-        onChange={setActiveTab} 
+      <Tabs
+        value={activeTab}
+        onChange={setActiveTab}
         variant="unstyled"
         classNames={{
           root: 'ihale-tabs-root',
@@ -1518,7 +1578,11 @@ KURALLAR:
         }}
       >
         <ScrollArea type={isMobile && isMounted ? 'scroll' : 'never'} scrollbarSize={4}>
-          <Tabs.List grow={!(isMobile && isMounted)} mb={isMobile && isMounted ? 'sm' : 'lg'} style={{ flexWrap: 'nowrap' }}>
+          <Tabs.List
+            grow={!(isMobile && isMounted)}
+            mb={isMobile && isMounted ? 'sm' : 'lg'}
+            style={{ flexWrap: 'nowrap' }}
+          >
             <Tabs.Tab
               value="ozet"
               leftSection={<IconInfoCircle size={isMobile && isMounted ? 16 : 18} stroke={1.5} />}
@@ -1528,7 +1592,9 @@ KURALLAR:
             </Tabs.Tab>
             <Tabs.Tab
               value="dokumanlar"
-              leftSection={<IconClipboardList size={isMobile && isMounted ? 16 : 18} stroke={1.5} />}
+              leftSection={
+                <IconClipboardList size={isMobile && isMounted ? 16 : 18} stroke={1.5} />
+              }
               style={{ whiteSpace: 'nowrap', fontSize: isMobile && isMounted ? 13 : undefined }}
             >
               <Group gap={4}>
@@ -1539,11 +1605,11 @@ KURALLAR:
                     variant="light"
                     color="gray"
                     styles={{
-                      root: { 
-                        backgroundColor: '#f3f4f6', 
+                      root: {
+                        backgroundColor: '#f3f4f6',
                         color: '#374151',
                         fontWeight: 600,
-                      }
+                      },
                     }}
                   >
                     {analysisStats.analiz_edilen}/{analysisStats.toplam_dokuman}
@@ -1653,29 +1719,37 @@ KURALLAR:
             </SimpleGrid>
 
             {/* Hesaplama Özeti - Hesaplamalar sekmesine yönlendirme */}
-            {(yaklasikMaliyet > 0 || sinirDeger || bizimTeklif > 0) ? (
-              <Paper 
-                p="md" 
-                withBorder 
-                radius="md" 
+            {yaklasikMaliyet > 0 || sinirDeger || bizimTeklif > 0 ? (
+              <Paper
+                p="md"
+                withBorder
+                radius="md"
                 shadow="sm"
                 style={{
-                  background: sinirDeger && bizimTeklif > 0
-                    ? bizimTeklif < sinirDeger 
-                      ? 'linear-gradient(135deg, rgba(255,244,230,0.5) 0%, rgba(255,255,255,1) 100%)'
-                      : 'linear-gradient(135deg, rgba(235,251,238,0.5) 0%, rgba(255,255,255,1) 100%)'
-                    : 'var(--mantine-color-gray-0)',
-                  cursor: 'pointer'
+                  background:
+                    sinirDeger && bizimTeklif > 0
+                      ? bizimTeklif < sinirDeger
+                        ? 'linear-gradient(135deg, rgba(255,244,230,0.5) 0%, rgba(255,255,255,1) 100%)'
+                        : 'linear-gradient(135deg, rgba(235,251,238,0.5) 0%, rgba(255,255,255,1) 100%)'
+                      : 'var(--mantine-color-gray-0)',
+                  cursor: 'pointer',
                 }}
                 onClick={() => setActiveTab('hesaplamalar')}
               >
                 <Group justify="space-between">
                   <Group gap="md">
-                    <ThemeIcon size="lg" variant="gradient" gradient={{ from: 'violet', to: 'indigo' }} radius="xl">
+                    <ThemeIcon
+                      size="lg"
+                      variant="gradient"
+                      gradient={{ from: 'violet', to: 'indigo' }}
+                      radius="xl"
+                    >
                       <IconCalculator size={20} />
                     </ThemeIcon>
                     <div>
-                      <Text fw={600} size="sm">Teklif Hesaplamaları</Text>
+                      <Text fw={600} size="sm">
+                        Teklif Hesaplamaları
+                      </Text>
                       <Group gap="lg" mt={4}>
                         {yaklasikMaliyet > 0 && (
                           <Text size="xs" c="dimmed">
@@ -1697,13 +1771,21 @@ KURALLAR:
                   </Group>
                   <Group gap="sm">
                     {sinirDeger && bizimTeklif > 0 && (
-                      <Badge 
-                        size="md" 
+                      <Badge
+                        size="md"
                         variant="filled"
                         color={bizimTeklif < sinirDeger ? 'orange' : 'green'}
-                        leftSection={bizimTeklif < sinirDeger ? <IconAlertTriangle size={12} /> : <IconCheck size={12} />}
+                        leftSection={
+                          bizimTeklif < sinirDeger ? (
+                            <IconAlertTriangle size={12} />
+                          ) : (
+                            <IconCheck size={12} />
+                          )
+                        }
                       >
-                        {bizimTeklif < sinirDeger ? `%${Math.round((bizimTeklif / sinirDeger) * 100)} - Risk` : 'Uygun'}
+                        {bizimTeklif < sinirDeger
+                          ? `%${Math.round((bizimTeklif / sinirDeger) * 100)} - Risk`
+                          : 'Uygun'}
                       </Badge>
                     )}
                     <Badge variant="light" color="violet" rightSection={<IconEye size={12} />}>
@@ -1713,10 +1795,10 @@ KURALLAR:
                 </Group>
               </Paper>
             ) : (
-              <Paper 
-                p="md" 
-                withBorder 
-                radius="md" 
+              <Paper
+                p="md"
+                withBorder
+                radius="md"
                 bg="gray.0"
                 style={{ cursor: 'pointer' }}
                 onClick={() => setActiveTab('hesaplamalar')}
@@ -1727,8 +1809,12 @@ KURALLAR:
                       <IconCalculator size={20} />
                     </ThemeIcon>
                     <div>
-                      <Text fw={600} size="sm">Teklif Hesaplamaları</Text>
-                      <Text size="xs" c="dimmed">Sınır değer, aşırı düşük ve itiraz bedeli hesapla</Text>
+                      <Text fw={600} size="sm">
+                        Teklif Hesaplamaları
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        Sınır değer, aşırı düşük ve itiraz bedeli hesapla
+                      </Text>
                     </div>
                   </Group>
                   <Badge variant="light" color="violet" rightSection={<IconEye size={12} />}>
@@ -1739,23 +1825,23 @@ KURALLAR:
             )}
 
             {/* TEKLİF CETVELİ KARTI */}
-            <Paper 
-              p="lg" 
-              withBorder 
-              radius="md" 
+            <Paper
+              p="lg"
+              withBorder
+              radius="md"
               shadow="sm"
               style={{
-                background: teklifOzet 
+                background: teklifOzet
                   ? 'linear-gradient(135deg, rgba(236,253,245,0.5) 0%, rgba(255,255,255,1) 100%)'
                   : 'var(--mantine-color-gray-0)',
-                border: teklifOzet ? '1px solid var(--mantine-color-teal-3)' : undefined
+                border: teklifOzet ? '1px solid var(--mantine-color-teal-3)' : undefined,
               }}
             >
               <Group justify="space-between" mb="md">
                 <Group gap="sm">
-                  <ThemeIcon 
-                    size="lg" 
-                    variant={teklifOzet ? 'gradient' : 'light'} 
+                  <ThemeIcon
+                    size="lg"
+                    variant={teklifOzet ? 'gradient' : 'light'}
                     gradient={{ from: 'teal', to: 'cyan' }}
                     color="teal"
                     radius="xl"
@@ -1764,14 +1850,17 @@ KURALLAR:
                   </ThemeIcon>
                   <div>
                     <Group gap={6}>
-                      <Text fw={600} size="sm">Teklif Cetveli</Text>
-                      <Text size="xs" c="dimmed" fs="italic">(ön teklif hesaplama)</Text>
+                      <Text fw={600} size="sm">
+                        Teklif Cetveli
+                      </Text>
+                      <Text size="xs" c="dimmed" fs="italic">
+                        (ön teklif hesaplama)
+                      </Text>
                     </Group>
                     <Text size="xs" c="dimmed">
-                      {teklifOzet 
+                      {teklifOzet
                         ? `Son güncelleme: ${teklifOzet.sonGuncelleme || 'Bilinmiyor'}`
-                        : 'Detaylı maliyet analizi ve teklif hazırlama'
-                      }
+                        : 'Detaylı maliyet analizi ve teklif hazırlama'}
                     </Text>
                   </div>
                 </Group>
@@ -1786,82 +1875,171 @@ KURALLAR:
                 <>
                   {/* Maliyet Kartları */}
                   <SimpleGrid cols={{ base: 2, sm: 3, md: 6 }} spacing="xs" mb="md">
-                    <Paper p="xs" radius="sm" bg="blue.0" style={{ border: '1px solid var(--mantine-color-blue-2)' }}>
+                    <Paper
+                      p="xs"
+                      radius="sm"
+                      bg="blue.0"
+                      style={{ border: '1px solid var(--mantine-color-blue-2)' }}
+                    >
                       <Group gap={4} mb={2}>
                         <IconUsers size={14} color="var(--mantine-color-blue-6)" />
-                        <Text size="xs" c="blue.7" fw={600}>Personel</Text>
+                        <Text size="xs" c="blue.7" fw={600}>
+                          Personel
+                        </Text>
                       </Group>
-                      <Text size="xs" c="dimmed">{teklifOzet.personelSayisi} kişi</Text>
-                      <Text size="sm" fw={700} c="blue.7">{teklifOzet.personelMaliyet.toLocaleString('tr-TR')} ₺</Text>
+                      <Text size="xs" c="dimmed">
+                        {teklifOzet.personelSayisi} kişi
+                      </Text>
+                      <Text size="sm" fw={700} c="blue.7">
+                        {teklifOzet.personelMaliyet.toLocaleString('tr-TR')} ₺
+                      </Text>
                     </Paper>
-                    
-                    <Paper p="xs" radius="sm" bg="orange.0" style={{ border: '1px solid var(--mantine-color-orange-2)' }}>
+
+                    <Paper
+                      p="xs"
+                      radius="sm"
+                      bg="orange.0"
+                      style={{ border: '1px solid var(--mantine-color-orange-2)' }}
+                    >
                       <Group gap={4} mb={2}>
                         <IconTruck size={14} color="var(--mantine-color-orange-6)" />
-                        <Text size="xs" c="orange.7" fw={600}>Nakliye</Text>
+                        <Text size="xs" c="orange.7" fw={600}>
+                          Nakliye
+                        </Text>
                       </Group>
-                      <Text size="xs" c="dimmed">{teklifOzet.aracSayisi} araç</Text>
-                      <Text size="sm" fw={700} c="orange.7">{teklifOzet.nakliyeMaliyet.toLocaleString('tr-TR')} ₺</Text>
+                      <Text size="xs" c="dimmed">
+                        {teklifOzet.aracSayisi} araç
+                      </Text>
+                      <Text size="sm" fw={700} c="orange.7">
+                        {teklifOzet.nakliyeMaliyet.toLocaleString('tr-TR')} ₺
+                      </Text>
                     </Paper>
-                    
-                    <Paper p="xs" radius="sm" bg="green.0" style={{ border: '1px solid var(--mantine-color-green-2)' }}>
+
+                    <Paper
+                      p="xs"
+                      radius="sm"
+                      bg="green.0"
+                      style={{ border: '1px solid var(--mantine-color-green-2)' }}
+                    >
                       <Group gap={4} mb={2}>
                         <IconPackage size={14} color="var(--mantine-color-green-6)" />
-                        <Text size="xs" c="green.7" fw={600}>Sarf</Text>
+                        <Text size="xs" c="green.7" fw={600}>
+                          Sarf
+                        </Text>
                       </Group>
-                      <Text size="xs" c="dimmed">{teklifOzet.sarfKalemSayisi} kalem</Text>
-                      <Text size="sm" fw={700} c="green.7">{teklifOzet.sarfMaliyet.toLocaleString('tr-TR')} ₺</Text>
+                      <Text size="xs" c="dimmed">
+                        {teklifOzet.sarfKalemSayisi} kalem
+                      </Text>
+                      <Text size="sm" fw={700} c="green.7">
+                        {teklifOzet.sarfMaliyet.toLocaleString('tr-TR')} ₺
+                      </Text>
                     </Paper>
-                    
-                    <Paper p="xs" radius="sm" bg="grape.0" style={{ border: '1px solid var(--mantine-color-grape-2)' }}>
+
+                    <Paper
+                      p="xs"
+                      radius="sm"
+                      bg="grape.0"
+                      style={{ border: '1px solid var(--mantine-color-grape-2)' }}
+                    >
                       <Group gap={4} mb={2}>
                         <IconTool size={14} color="var(--mantine-color-grape-6)" />
-                        <Text size="xs" c="grape.7" fw={600}>Ekipman</Text>
+                        <Text size="xs" c="grape.7" fw={600}>
+                          Ekipman
+                        </Text>
                       </Group>
-                      <Text size="xs" c="dimmed">{teklifOzet.ekipmanSayisi} kalem</Text>
-                      <Text size="sm" fw={700} c="grape.7">{teklifOzet.ekipmanMaliyet.toLocaleString('tr-TR')} ₺</Text>
+                      <Text size="xs" c="dimmed">
+                        {teklifOzet.ekipmanSayisi} kalem
+                      </Text>
+                      <Text size="sm" fw={700} c="grape.7">
+                        {teklifOzet.ekipmanMaliyet.toLocaleString('tr-TR')} ₺
+                      </Text>
                     </Paper>
-                    
-                    <Paper p="xs" radius="sm" bg="red.0" style={{ border: '1px solid var(--mantine-color-red-2)' }}>
+
+                    <Paper
+                      p="xs"
+                      radius="sm"
+                      bg="red.0"
+                      style={{ border: '1px solid var(--mantine-color-red-2)' }}
+                    >
                       <Group gap={4} mb={2}>
                         <IconBuildingBank size={14} color="var(--mantine-color-red-6)" />
-                        <Text size="xs" c="red.7" fw={600}>Yasal</Text>
+                        <Text size="xs" c="red.7" fw={600}>
+                          Yasal
+                        </Text>
                       </Group>
-                      <Text size="xs" c="dimmed">SGK, Vergi</Text>
-                      <Text size="sm" fw={700} c="red.7">{teklifOzet.yasalMaliyet.toLocaleString('tr-TR')} ₺</Text>
+                      <Text size="xs" c="dimmed">
+                        SGK, Vergi
+                      </Text>
+                      <Text size="sm" fw={700} c="red.7">
+                        {teklifOzet.yasalMaliyet.toLocaleString('tr-TR')} ₺
+                      </Text>
                     </Paper>
-                    
-                    <Paper p="xs" radius="sm" bg="gray.1" style={{ border: '1px solid var(--mantine-color-gray-3)' }}>
+
+                    <Paper
+                      p="xs"
+                      radius="sm"
+                      bg="gray.1"
+                      style={{ border: '1px solid var(--mantine-color-gray-3)' }}
+                    >
                       <Group gap={4} mb={2}>
                         <IconReceipt size={14} color="var(--mantine-color-gray-6)" />
-                        <Text size="xs" c="gray.7" fw={600}>Genel</Text>
+                        <Text size="xs" c="gray.7" fw={600}>
+                          Genel
+                        </Text>
                       </Group>
-                      <Text size="xs" c="dimmed">Giderler</Text>
-                      <Text size="sm" fw={700} c="gray.7">{teklifOzet.genelGiderMaliyet.toLocaleString('tr-TR')} ₺</Text>
+                      <Text size="xs" c="dimmed">
+                        Giderler
+                      </Text>
+                      <Text size="sm" fw={700} c="gray.7">
+                        {teklifOzet.genelGiderMaliyet.toLocaleString('tr-TR')} ₺
+                      </Text>
                     </Paper>
                   </SimpleGrid>
 
                   {/* Özet Satır */}
-                  <Paper p="sm" radius="md" bg="teal.0" style={{ border: '1px solid var(--mantine-color-teal-3)' }}>
+                  <Paper
+                    p="sm"
+                    radius="md"
+                    bg="teal.0"
+                    style={{ border: '1px solid var(--mantine-color-teal-3)' }}
+                  >
                     <Group justify="space-between">
                       <div>
-                        <Text size="xs" c="dimmed">Toplam Maliyet</Text>
-                        <Text size="md" fw={700}>{teklifOzet.toplamMaliyet.toLocaleString('tr-TR')} ₺</Text>
+                        <Text size="xs" c="dimmed">
+                          Toplam Maliyet
+                        </Text>
+                        <Text size="md" fw={700}>
+                          {teklifOzet.toplamMaliyet.toLocaleString('tr-TR')} ₺
+                        </Text>
                       </div>
                       <div style={{ textAlign: 'center' }}>
-                        <Text size="xs" c="dimmed">Kar Oranı</Text>
-                        <Badge size="lg" variant="light" color="teal">%{teklifOzet.karOrani}</Badge>
+                        <Text size="xs" c="dimmed">
+                          Kar Oranı
+                        </Text>
+                        <Badge size="lg" variant="light" color="teal">
+                          %{teklifOzet.karOrani}
+                        </Badge>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <Text size="xs" c="dimmed">Teklif Tutarı</Text>
-                        <Text size="lg" fw={700} c="teal.7">{teklifOzet.teklifTutari.toLocaleString('tr-TR')} ₺</Text>
+                        <Text size="xs" c="dimmed">
+                          Teklif Tutarı
+                        </Text>
+                        <Text size="lg" fw={700} c="teal.7">
+                          {teklifOzet.teklifTutari.toLocaleString('tr-TR')} ₺
+                        </Text>
                       </div>
                       {sinirDeger && (
-                        <Badge 
-                          size="lg" 
+                        <Badge
+                          size="lg"
                           variant="filled"
                           color={teklifOzet.teklifTutari < sinirDeger ? 'orange' : 'green'}
-                          leftSection={teklifOzet.teklifTutari < sinirDeger ? <IconAlertTriangle size={14} /> : <IconCheck size={14} />}
+                          leftSection={
+                            teklifOzet.teklifTutari < sinirDeger ? (
+                              <IconAlertTriangle size={14} />
+                            ) : (
+                              <IconCheck size={14} />
+                            )
+                          }
                         >
                           {teklifOzet.teklifTutari < sinirDeger ? 'Risk' : 'Uygun'}
                         </Badge>
@@ -1898,10 +2076,12 @@ KURALLAR:
                       <IconReceipt size={30} />
                     </ThemeIcon>
                     <div style={{ textAlign: 'center' }}>
-                      <Text fw={600} size="md" mb={4}>Henüz teklif cetveli hazırlanmadı</Text>
+                      <Text fw={600} size="md" mb={4}>
+                        Henüz teklif cetveli hazırlanmadı
+                      </Text>
                       <Text size="sm" c="dimmed" maw={400}>
-                        Döküman analizinden elde edilen birim fiyatları kullanarak
-                        detaylı maliyet analizi ve teklif cetveli hazırlayın
+                        Döküman analizinden elde edilen birim fiyatları kullanarak detaylı maliyet
+                        analizi ve teklif cetveli hazırlayın
                       </Text>
                     </div>
                     <Button
@@ -1917,17 +2097,16 @@ KURALLAR:
                 </Center>
               )}
             </Paper>
-
           </Stack>
         </Tabs.Panel>
 
         {/* DÖKÜMANLAR TAB */}
         <Tabs.Panel value="dokumanlar">
-          <DokumanlarTab 
-            analysisData={analysisData} 
+          <DokumanlarTab
+            analysisData={analysisData}
             tenderId={tender?.tender_id}
             onHideNote={hideNote}
-            addToClipboard={addToClipboard} 
+            addToClipboard={addToClipboard}
           />
         </Tabs.Panel>
 
@@ -1971,7 +2150,8 @@ KURALLAR:
                 flexShrink: 0,
                 display: 'flex',
                 flexDirection: 'column',
-                background: 'linear-gradient(180deg, rgba(139, 92, 246, 0.03) 0%, rgba(255,255,255,1) 100%)',
+                background:
+                  'linear-gradient(180deg, rgba(139, 92, 246, 0.03) 0%, rgba(255,255,255,1) 100%)',
               }}
             >
               {/* AI Danışman Kartı */}
@@ -1985,39 +2165,51 @@ KURALLAR:
                 style={{
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
-                  border: activePanel === 'ai' && !dilekceType
-                    ? '2px solid var(--mantine-color-violet-5)' 
-                    : '1px solid var(--mantine-color-gray-2)',
-                  backgroundColor: activePanel === 'ai' && !dilekceType
-                    ? 'var(--mantine-color-violet-0)' 
-                    : 'white',
+                  border:
+                    activePanel === 'ai' && !dilekceType
+                      ? '2px solid var(--mantine-color-violet-5)'
+                      : '1px solid var(--mantine-color-gray-2)',
+                  backgroundColor:
+                    activePanel === 'ai' && !dilekceType
+                      ? 'var(--mantine-color-violet-0)'
+                      : 'white',
                   marginBottom: 12,
                 }}
               >
                 <Group gap="xs" wrap="nowrap">
-                  <ThemeIcon 
-                    size={36} 
-                    radius="md" 
-                    variant={activePanel === 'ai' && !dilekceType ? 'gradient' : 'light'} 
+                  <ThemeIcon
+                    size={36}
+                    radius="md"
+                    variant={activePanel === 'ai' && !dilekceType ? 'gradient' : 'light'}
                     gradient={{ from: 'violet', to: 'pink' }}
                     color="violet"
                   >
                     <IconBrain size={18} />
                   </ThemeIcon>
                   <div>
-                    <Text size="xs" fw={600}>AI Danışman</Text>
-                    <Text size="xs" c="dimmed">İhale danışmanlığı</Text>
+                    <Text size="xs" fw={600}>
+                      AI Danışman
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      İhale danışmanlığı
+                    </Text>
                   </div>
                 </Group>
               </Paper>
 
               {/* Ayırıcı */}
-              <Box mb="sm" pb="sm" style={{ borderBottom: '1px solid var(--mantine-color-gray-2)' }}>
+              <Box
+                mb="sm"
+                pb="sm"
+                style={{ borderBottom: '1px solid var(--mantine-color-gray-2)' }}
+              >
                 <Group gap="xs">
                   <ThemeIcon size="sm" variant="light" color="gray" radius="xl">
                     <IconFileText size={12} />
                   </ThemeIcon>
-                  <Text size="xs" fw={600} c="dimmed" tt="uppercase">Dilekçe Türü</Text>
+                  <Text size="xs" fw={600} c="dimmed" tt="uppercase">
+                    Dilekçe Türü
+                  </Text>
                 </Group>
               </Box>
 
@@ -2030,26 +2222,30 @@ KURALLAR:
                   style={{
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
-                    border: dilekceType === 'asiri_dusuk' 
-                      ? '2px solid var(--mantine-color-orange-5)' 
-                      : '1px solid var(--mantine-color-gray-2)',
-                    backgroundColor: dilekceType === 'asiri_dusuk' 
-                      ? 'var(--mantine-color-orange-0)' 
-                      : 'white',
+                    border:
+                      dilekceType === 'asiri_dusuk'
+                        ? '2px solid var(--mantine-color-orange-5)'
+                        : '1px solid var(--mantine-color-gray-2)',
+                    backgroundColor:
+                      dilekceType === 'asiri_dusuk' ? 'var(--mantine-color-orange-0)' : 'white',
                   }}
                 >
                   <Group gap="xs" wrap="nowrap">
-                    <ThemeIcon 
-                      size={32} 
-                      radius="md" 
-                      variant={dilekceType === 'asiri_dusuk' ? 'filled' : 'light'} 
+                    <ThemeIcon
+                      size={32}
+                      radius="md"
+                      variant={dilekceType === 'asiri_dusuk' ? 'filled' : 'light'}
                       color="orange"
                     >
                       <IconFileAnalytics size={16} />
                     </ThemeIcon>
                     <div>
-                      <Text size="xs" fw={600}>Aşırı Düşük</Text>
-                      <Text size="xs" c="dimmed">EK-H.4</Text>
+                      <Text size="xs" fw={600}>
+                        Aşırı Düşük
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        EK-H.4
+                      </Text>
                     </div>
                   </Group>
                 </Paper>
@@ -2062,26 +2258,30 @@ KURALLAR:
                   style={{
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
-                    border: dilekceType === 'idare_sikayet' 
-                      ? '2px solid var(--mantine-color-red-5)' 
-                      : '1px solid var(--mantine-color-gray-2)',
-                    backgroundColor: dilekceType === 'idare_sikayet' 
-                      ? 'var(--mantine-color-red-0)' 
-                      : 'white',
+                    border:
+                      dilekceType === 'idare_sikayet'
+                        ? '2px solid var(--mantine-color-red-5)'
+                        : '1px solid var(--mantine-color-gray-2)',
+                    backgroundColor:
+                      dilekceType === 'idare_sikayet' ? 'var(--mantine-color-red-0)' : 'white',
                   }}
                 >
                   <Group gap="xs" wrap="nowrap">
-                    <ThemeIcon 
-                      size={32} 
-                      radius="md" 
-                      variant={dilekceType === 'idare_sikayet' ? 'filled' : 'light'} 
+                    <ThemeIcon
+                      size={32}
+                      radius="md"
+                      variant={dilekceType === 'idare_sikayet' ? 'filled' : 'light'}
                       color="red"
                     >
                       <IconGavel size={16} />
                     </ThemeIcon>
                     <div>
-                      <Text size="xs" fw={600}>İdareye Şikayet</Text>
-                      <Text size="xs" c="dimmed">10 gün</Text>
+                      <Text size="xs" fw={600}>
+                        İdareye Şikayet
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        10 gün
+                      </Text>
                     </div>
                   </Group>
                 </Paper>
@@ -2094,26 +2294,30 @@ KURALLAR:
                   style={{
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
-                    border: dilekceType === 'kik_itiraz' 
-                      ? '2px solid var(--mantine-color-violet-5)' 
-                      : '1px solid var(--mantine-color-gray-2)',
-                    backgroundColor: dilekceType === 'kik_itiraz' 
-                      ? 'var(--mantine-color-violet-0)' 
-                      : 'white',
+                    border:
+                      dilekceType === 'kik_itiraz'
+                        ? '2px solid var(--mantine-color-violet-5)'
+                        : '1px solid var(--mantine-color-gray-2)',
+                    backgroundColor:
+                      dilekceType === 'kik_itiraz' ? 'var(--mantine-color-violet-0)' : 'white',
                   }}
                 >
                   <Group gap="xs" wrap="nowrap">
-                    <ThemeIcon 
-                      size={32} 
-                      radius="md" 
-                      variant={dilekceType === 'kik_itiraz' ? 'filled' : 'light'} 
+                    <ThemeIcon
+                      size={32}
+                      radius="md"
+                      variant={dilekceType === 'kik_itiraz' ? 'filled' : 'light'}
                       color="violet"
                     >
                       <IconScale size={16} />
                     </ThemeIcon>
                     <div>
-                      <Text size="xs" fw={600}>KİK İtiraz</Text>
-                      <Text size="xs" c="dimmed">İtirazen</Text>
+                      <Text size="xs" fw={600}>
+                        KİK İtiraz
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        İtirazen
+                      </Text>
                     </div>
                   </Group>
                 </Paper>
@@ -2126,26 +2330,30 @@ KURALLAR:
                   style={{
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
-                    border: dilekceType === 'aciklama_cevabi' 
-                      ? '2px solid var(--mantine-color-teal-5)' 
-                      : '1px solid var(--mantine-color-gray-2)',
-                    backgroundColor: dilekceType === 'aciklama_cevabi' 
-                      ? 'var(--mantine-color-teal-0)' 
-                      : 'white',
+                    border:
+                      dilekceType === 'aciklama_cevabi'
+                        ? '2px solid var(--mantine-color-teal-5)'
+                        : '1px solid var(--mantine-color-gray-2)',
+                    backgroundColor:
+                      dilekceType === 'aciklama_cevabi' ? 'var(--mantine-color-teal-0)' : 'white',
                   }}
                 >
                   <Group gap="xs" wrap="nowrap">
-                    <ThemeIcon 
-                      size={32} 
-                      radius="md" 
-                      variant={dilekceType === 'aciklama_cevabi' ? 'filled' : 'light'} 
+                    <ThemeIcon
+                      size={32}
+                      radius="md"
+                      variant={dilekceType === 'aciklama_cevabi' ? 'filled' : 'light'}
                       color="teal"
                     >
                       <IconNote size={16} />
                     </ThemeIcon>
                     <div>
-                      <Text size="xs" fw={600}>Açıklama</Text>
-                      <Text size="xs" c="dimmed">Cevap</Text>
+                      <Text size="xs" fw={600}>
+                        Açıklama
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        Cevap
+                      </Text>
                     </div>
                   </Group>
                 </Paper>
@@ -2154,12 +2362,22 @@ KURALLAR:
               {/* Seçili Tür Bilgisi */}
               {dilekceType && (
                 <Paper p="sm" radius="md" bg="gray.0" mt="auto">
-                  <Text size="xs" c="dimmed" mb={4}>📋 Seçili:</Text>
-                  <Text size="xs" fw={600} c={
-                    dilekceType === 'asiri_dusuk' ? 'orange' :
-                    dilekceType === 'idare_sikayet' ? 'red' :
-                    dilekceType === 'kik_itiraz' ? 'violet' : 'teal'
-                  }>
+                  <Text size="xs" c="dimmed" mb={4}>
+                    📋 Seçili:
+                  </Text>
+                  <Text
+                    size="xs"
+                    fw={600}
+                    c={
+                      dilekceType === 'asiri_dusuk'
+                        ? 'orange'
+                        : dilekceType === 'idare_sikayet'
+                          ? 'red'
+                          : dilekceType === 'kik_itiraz'
+                            ? 'violet'
+                            : 'teal'
+                    }
+                  >
                     {dilekceTypeLabels[dilekceType]}
                   </Text>
                 </Paper>
@@ -2171,9 +2389,9 @@ KURALLAR:
               p="lg"
               withBorder
               radius="lg"
-              style={{ 
-                flex: 1, 
-                display: 'flex', 
+              style={{
+                flex: 1,
+                display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
               }}
@@ -2188,13 +2406,23 @@ KURALLAR:
                     radius="md"
                     style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
                   >
-                    <ScrollArea style={{ flex: 1 }} offsetScrollbars>
+                    <ScrollArea
+                      type="scroll"
+                      style={{ flex: 1, height: '100%' }}
+                      offsetScrollbars
+                      styles={{
+                        viewport: {
+                          paddingBottom: 16,
+                        },
+                      }}
+                    >
                       {messages.length === 0 ? (
                         <Box
                           py="xl"
                           px="md"
                           style={{
-                            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.03) 0%, rgba(236, 72, 153, 0.03) 100%)',
+                            background:
+                              'linear-gradient(135deg, rgba(139, 92, 246, 0.03) 0%, rgba(236, 72, 153, 0.03) 100%)',
                             borderRadius: 16,
                             minHeight: '100%',
                           }}
@@ -2206,7 +2434,8 @@ KURALLAR:
                                 style={{
                                   position: 'absolute',
                                   inset: 0,
-                                  background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(236, 72, 153, 0.15) 100%)',
+                                  background:
+                                    'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(236, 72, 153, 0.15) 100%)',
                                   borderRadius: '50%',
                                   filter: 'blur(20px)',
                                 }}
@@ -2221,7 +2450,7 @@ KURALLAR:
                                 <IconBrain size={36} />
                               </ThemeIcon>
                             </Box>
-                            
+
                             <div>
                               <Text fw={700} ta="center" size="xl" style={{ letterSpacing: -0.5 }}>
                                 İhale Danışmanınız Hazır
@@ -2233,59 +2462,144 @@ KURALLAR:
 
                             {/* Kategori Seçici */}
                             <Box w="100%" maw={750}>
-                              <Chip.Group multiple={false} value={selectedQuestionCategory} onChange={(val) => setSelectedQuestionCategory(val as string)}>
+                              <Chip.Group
+                                multiple={false}
+                                value={selectedQuestionCategory}
+                                onChange={(val) => setSelectedQuestionCategory(val as string)}
+                              >
                                 <Group gap={8} justify="center" mb="lg" wrap="wrap">
-                                  <Chip value="teknik" variant="light" color="blue" size="sm" styles={{ label: { fontWeight: 500 } }}>🔧 Teknik</Chip>
-                                  <Chip value="mali" variant="light" color="green" size="sm" styles={{ label: { fontWeight: 500 } }}>💰 Mali</Chip>
-                                  <Chip value="risk" variant="light" color="orange" size="sm" styles={{ label: { fontWeight: 500 } }}>⚠️ Risk</Chip>
-                                  <Chip value="yeterlilik" variant="light" color="violet" size="sm" styles={{ label: { fontWeight: 500 } }}>📋 Yeterlilik</Chip>
-                                  <Chip value="lojistik" variant="light" color="cyan" size="sm" styles={{ label: { fontWeight: 500 } }}>🚚 Lojistik</Chip>
-                                  <Chip value="strateji" variant="light" color="grape" size="sm" styles={{ label: { fontWeight: 500 } }}>🎯 Strateji</Chip>
-                                  <Chip value="hukuki" variant="light" color="red" size="sm" styles={{ label: { fontWeight: 500 } }}>⚖️ Hukuki</Chip>
+                                  <Chip
+                                    value="teknik"
+                                    variant="light"
+                                    color="blue"
+                                    size="sm"
+                                    styles={{ label: { fontWeight: 500 } }}
+                                  >
+                                    🔧 Teknik
+                                  </Chip>
+                                  <Chip
+                                    value="mali"
+                                    variant="light"
+                                    color="green"
+                                    size="sm"
+                                    styles={{ label: { fontWeight: 500 } }}
+                                  >
+                                    💰 Mali
+                                  </Chip>
+                                  <Chip
+                                    value="risk"
+                                    variant="light"
+                                    color="orange"
+                                    size="sm"
+                                    styles={{ label: { fontWeight: 500 } }}
+                                  >
+                                    ⚠️ Risk
+                                  </Chip>
+                                  <Chip
+                                    value="yeterlilik"
+                                    variant="light"
+                                    color="violet"
+                                    size="sm"
+                                    styles={{ label: { fontWeight: 500 } }}
+                                  >
+                                    📋 Yeterlilik
+                                  </Chip>
+                                  <Chip
+                                    value="lojistik"
+                                    variant="light"
+                                    color="cyan"
+                                    size="sm"
+                                    styles={{ label: { fontWeight: 500 } }}
+                                  >
+                                    🚚 Lojistik
+                                  </Chip>
+                                  <Chip
+                                    value="strateji"
+                                    variant="light"
+                                    color="grape"
+                                    size="sm"
+                                    styles={{ label: { fontWeight: 500 } }}
+                                  >
+                                    🎯 Strateji
+                                  </Chip>
+                                  <Chip
+                                    value="hukuki"
+                                    variant="light"
+                                    color="red"
+                                    size="sm"
+                                    styles={{ label: { fontWeight: 500 } }}
+                                  >
+                                    ⚖️ Hukuki
+                                  </Chip>
                                 </Group>
                               </Chip.Group>
 
                               {/* Seçili Kategorinin Soruları - Kısa Liste */}
-                              <Paper withBorder p="md" radius="lg" bg="white" style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.04)' }}>
+                              <Paper
+                                withBorder
+                                p="md"
+                                radius="lg"
+                                bg="white"
+                                style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.04)' }}
+                              >
                                 <ScrollArea h={180} offsetScrollbars>
                                   <Stack gap={4}>
-                                    {(selectedQuestionCategory === 'teknik' ? [
-                                      'Günlük menü çeşitliliği ve yemek sayısı ne olmalı?',
-                                      'Gramaj ve porsiyon miktarları neler?',
-                                      'Gıda güvenliği sertifikaları gerekli mi?',
-                                      'Personel sayısı ve nitelikleri ne olmalı?',
-                                    ] : selectedQuestionCategory === 'mali' ? [
-                                      'Bu ihalenin tahmini karını hesapla.',
-                                      'Yaklaşık maliyet ve sınır değer nedir?',
-                                      'Maliyet kalemleri neler?',
-                                      'Teminat oranları nedir?',
-                                    ] : selectedQuestionCategory === 'risk' ? [
-                                      'Bu ihale için risk değerlendirmesi yap.',
-                                      'Cezai şartlar ve kesinti oranları neler?',
-                                      'Sözleşme fesih koşulları nelerdir?',
-                                    ] : selectedQuestionCategory === 'yeterlilik' ? [
-                                      'İş deneyim belgesi tutarı ne kadar olmalı?',
-                                      'Benzer iş tanımı nedir?',
-                                      'Kalite belgeleri hangileri isteniyor?',
-                                    ] : selectedQuestionCategory === 'lojistik' ? [
-                                      'Teslimat noktaları ve dağıtım planı ne olmalı?',
-                                      'Araç ve ekipman gereksinimleri neler?',
-                                    ] : selectedQuestionCategory === 'strateji' ? [
-                                      'Optimal teklif fiyatı ne olmalı?',
-                                      'Rakip analizi yap.',
-                                    ] : [
-                                      'İhale hukuki açıdan uygun mu?',
-                                      'Şartname maddelerini değerlendir.',
-                                    ]).map((soru, i) => (
+                                    {(selectedQuestionCategory === 'teknik'
+                                      ? [
+                                          'Günlük menü çeşitliliği ve yemek sayısı ne olmalı?',
+                                          'Gramaj ve porsiyon miktarları neler?',
+                                          'Gıda güvenliği sertifikaları gerekli mi?',
+                                          'Personel sayısı ve nitelikleri ne olmalı?',
+                                        ]
+                                      : selectedQuestionCategory === 'mali'
+                                        ? [
+                                            'Bu ihalenin tahmini karını hesapla.',
+                                            'Yaklaşık maliyet ve sınır değer nedir?',
+                                            'Maliyet kalemleri neler?',
+                                            'Teminat oranları nedir?',
+                                          ]
+                                        : selectedQuestionCategory === 'risk'
+                                          ? [
+                                              'Bu ihale için risk değerlendirmesi yap.',
+                                              'Cezai şartlar ve kesinti oranları neler?',
+                                              'Sözleşme fesih koşulları nelerdir?',
+                                            ]
+                                          : selectedQuestionCategory === 'yeterlilik'
+                                            ? [
+                                                'İş deneyim belgesi tutarı ne kadar olmalı?',
+                                                'Benzer iş tanımı nedir?',
+                                                'Kalite belgeleri hangileri isteniyor?',
+                                              ]
+                                            : selectedQuestionCategory === 'lojistik'
+                                              ? [
+                                                  'Teslimat noktaları ve dağıtım planı ne olmalı?',
+                                                  'Araç ve ekipman gereksinimleri neler?',
+                                                ]
+                                              : selectedQuestionCategory === 'strateji'
+                                                ? [
+                                                    'Optimal teklif fiyatı ne olmalı?',
+                                                    'Rakip analizi yap.',
+                                                  ]
+                                                : [
+                                                    'İhale hukuki açıdan uygun mu?',
+                                                    'Şartname maddelerini değerlendir.',
+                                                  ]
+                                    ).map((soru) => (
                                       <Paper
-                                        key={i}
+                                        key={soru}
                                         p="sm"
                                         radius="md"
-                                        style={{ cursor: 'pointer', transition: 'all 0.2s ease', border: '1px solid transparent' }}
+                                        style={{
+                                          cursor: 'pointer',
+                                          transition: 'all 0.2s ease',
+                                          border: '1px solid transparent',
+                                        }}
                                         onClick={() => setInputMessage(soru)}
                                         onMouseEnter={(e) => {
-                                          e.currentTarget.style.backgroundColor = 'var(--mantine-color-violet-0)';
-                                          e.currentTarget.style.borderColor = 'var(--mantine-color-violet-2)';
+                                          e.currentTarget.style.backgroundColor =
+                                            'var(--mantine-color-violet-0)';
+                                          e.currentTarget.style.borderColor =
+                                            'var(--mantine-color-violet-2)';
                                         }}
                                         onMouseLeave={(e) => {
                                           e.currentTarget.style.backgroundColor = 'transparent';
@@ -2293,7 +2607,9 @@ KURALLAR:
                                         }}
                                       >
                                         <Group gap="xs" wrap="nowrap">
-                                          <Text size="sm" c="violet.5">→</Text>
+                                          <Text size="sm" c="violet.5">
+                                            →
+                                          </Text>
                                           <Text size="sm">{soru}</Text>
                                         </Group>
                                       </Paper>
@@ -2305,10 +2621,10 @@ KURALLAR:
                           </Stack>
                         </Box>
                       ) : (
-                        <Stack gap="md" p="md">
-                          {messages.map((msg: ChatMessage, index: number) => (
+                        <Stack gap="md" p="md" pb="xl">
+                          {messages.map((msg: ChatMessage) => (
                             <Box
-                              key={index}
+                              key={msg.id}
                               style={{
                                 display: 'flex',
                                 justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
@@ -2332,7 +2648,10 @@ KURALLAR:
                                 radius="lg"
                                 style={{
                                   maxWidth: '80%',
-                                  backgroundColor: msg.role === 'user' ? 'var(--mantine-color-violet-6)' : 'var(--mantine-color-gray-0)',
+                                  backgroundColor:
+                                    msg.role === 'user'
+                                      ? 'var(--mantine-color-violet-6)'
+                                      : 'var(--mantine-color-gray-0)',
                                   borderTopRightRadius: msg.role === 'user' ? 4 : 16,
                                   borderTopLeftRadius: msg.role === 'user' ? 16 : 4,
                                 }}
@@ -2345,21 +2664,41 @@ KURALLAR:
                                   {stripContextFromMessage(msg.content)}
                                 </Text>
                                 {msg.timestamp && (
-                                  <Text size="xs" c={msg.role === 'user' ? 'violet.1' : 'dimmed'} mt={4}>
-                                    {msg.timestamp.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                                  <Text
+                                    size="xs"
+                                    c={msg.role === 'user' ? 'violet.1' : 'dimmed'}
+                                    mt={4}
+                                  >
+                                    {msg.timestamp.toLocaleTimeString('tr-TR', {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
                                   </Text>
                                 )}
                               </Paper>
                               {msg.role === 'user' && (
-                                <ThemeIcon size={32} radius="xl" variant="light" color="violet" style={{ flexShrink: 0 }}>
-                                  <Text size="xs" fw={600}>S</Text>
+                                <ThemeIcon
+                                  size={32}
+                                  radius="xl"
+                                  variant="light"
+                                  color="violet"
+                                  style={{ flexShrink: 0 }}
+                                >
+                                  <Text size="xs" fw={600}>
+                                    S
+                                  </Text>
                                 </ThemeIcon>
                               )}
                             </Box>
                           ))}
                           {isAILoading && (
                             <Group gap="xs">
-                              <ThemeIcon size={32} radius="xl" variant="gradient" gradient={{ from: 'violet', to: 'pink' }}>
+                              <ThemeIcon
+                                size={32}
+                                radius="xl"
+                                variant="gradient"
+                                gradient={{ from: 'violet', to: 'pink' }}
+                              >
                                 <IconBrain size={18} />
                               </ThemeIcon>
                               <Paper p="md" radius="lg" bg="gray.0">
@@ -2418,14 +2757,18 @@ KURALLAR:
                   {/* Header */}
                   <Group justify="space-between">
                     <Group gap="sm">
-                      <ThemeIcon 
-                        size="md" 
-                        variant="light" 
+                      <ThemeIcon
+                        size="md"
+                        variant="light"
                         radius="lg"
                         color={
-                          dilekceType === 'asiri_dusuk' ? 'orange' :
-                          dilekceType === 'idare_sikayet' ? 'red' :
-                          dilekceType === 'kik_itiraz' ? 'violet' : 'teal'
+                          dilekceType === 'asiri_dusuk'
+                            ? 'orange'
+                            : dilekceType === 'idare_sikayet'
+                              ? 'red'
+                              : dilekceType === 'kik_itiraz'
+                                ? 'violet'
+                                : 'teal'
                         }
                       >
                         {dilekceType === 'asiri_dusuk' && <IconFileAnalytics size={18} />}
@@ -2434,9 +2777,13 @@ KURALLAR:
                         {dilekceType === 'aciklama_cevabi' && <IconNote size={18} />}
                       </ThemeIcon>
                       <div>
-                        <Text fw={600} size="sm">{dilekceType && dilekceTypeLabels[dilekceType]}</Text>
+                        <Text fw={600} size="sm">
+                          {dilekceType && dilekceTypeLabels[dilekceType]}
+                        </Text>
                         <Text size="xs" c="dimmed">
-                          {dilekceConversations.length + savedDilekces.filter(d => d.dilekce_type === dilekceType).length} kayıt
+                          {dilekceConversations.length +
+                            savedDilekces.filter((d) => d.dilekce_type === dilekceType).length}{' '}
+                          kayıt
                         </Text>
                       </div>
                     </Group>
@@ -2451,92 +2798,118 @@ KURALLAR:
                   </Group>
 
                   {/* Bilgi Kutusu */}
-                  <Alert 
-                    variant="light" 
+                  <Alert
+                    variant="light"
                     color={
-                      dilekceType === 'asiri_dusuk' ? 'orange' :
-                      dilekceType === 'idare_sikayet' ? 'red' :
-                      dilekceType === 'kik_itiraz' ? 'violet' : 'teal'
+                      dilekceType === 'asiri_dusuk'
+                        ? 'orange'
+                        : dilekceType === 'idare_sikayet'
+                          ? 'red'
+                          : dilekceType === 'kik_itiraz'
+                            ? 'violet'
+                            : 'teal'
                     }
                     radius="md"
                     icon={<IconInfoCircle size={18} />}
                   >
                     <Text size="xs">
-                      {dilekceType === 'asiri_dusuk' && 'EK-H.4 formatında maliyet tablosu ve 4734 sayılı Kanun\'a uygun aşırı düşük teklif açıklaması hazırlanır.'}
-                      {dilekceType === 'idare_sikayet' && 'Kesinleşen ihale kararının tebliğinden itibaren 10 gün içinde idareye şikayet başvurusu yapılabilir.'}
-                      {dilekceType === 'kik_itiraz' && 'İdare şikayet sonucundan memnun kalınmazsa KİK\'e itirazen şikayet başvurusu yapılabilir.'}
-                      {dilekceType === 'aciklama_cevabi' && 'İdarenin açıklama talebine profesyonel ve detaylı cevap hazırlanır.'}
+                      {dilekceType === 'asiri_dusuk' &&
+                        "EK-H.4 formatında maliyet tablosu ve 4734 sayılı Kanun'a uygun aşırı düşük teklif açıklaması hazırlanır."}
+                      {dilekceType === 'idare_sikayet' &&
+                        'Kesinleşen ihale kararının tebliğinden itibaren 10 gün içinde idareye şikayet başvurusu yapılabilir.'}
+                      {dilekceType === 'kik_itiraz' &&
+                        "İdare şikayet sonucundan memnun kalınmazsa KİK'e itirazen şikayet başvurusu yapılabilir."}
+                      {dilekceType === 'aciklama_cevabi' &&
+                        'İdarenin açıklama talebine profesyonel ve detaylı cevap hazırlanır.'}
                     </Text>
                   </Alert>
 
                   {/* Liste */}
-                  <ScrollArea style={{ flex: 1 }} offsetScrollbars>
-                    <Stack gap="sm">
+                  <ScrollArea type="scroll" style={{ flex: 1, height: '100%' }} offsetScrollbars>
+                    <Stack gap="sm" pb="md">
                       {/* Kayıtlı Dilekçeler (Bu türe ait) */}
-                      {savedDilekces.filter(d => d.dilekce_type === dilekceType).length > 0 && (
+                      {savedDilekces.filter((d) => d.dilekce_type === dilekceType).length > 0 && (
                         <>
-                          <Text size="xs" fw={600} c="dimmed" tt="uppercase">📄 Kayıtlı Dilekçeler</Text>
-                          {savedDilekces.filter(d => d.dilekce_type === dilekceType).map((d: any) => (
-                            <Paper
-                              key={d.id}
-                              p="md"
-                              withBorder
-                              radius="lg"
-                              style={{ cursor: 'pointer', transition: 'all 0.15s' }}
-                              onClick={() => loadDilekce(d)}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.borderColor = 'var(--mantine-color-green-4)';
-                                e.currentTarget.style.backgroundColor = 'var(--mantine-color-green-0)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.borderColor = 'var(--mantine-color-gray-3)';
-                                e.currentTarget.style.backgroundColor = 'white';
-                              }}
-                            >
-                              <Group justify="space-between" wrap="nowrap">
-                                <Group gap="sm" wrap="nowrap">
-                                  <ThemeIcon size="lg" variant="light" color="green" radius="lg">
-                                    <IconDeviceFloppy size={18} />
-                                  </ThemeIcon>
-                                  <div>
-                                    <Text size="sm" fw={500}>v{d.version} - {d.title}</Text>
-                                    <Text size="xs" c="dimmed">
-                                      {new Date(d.created_at).toLocaleDateString('tr-TR', {
-                                        day: 'numeric', month: 'short', year: 'numeric'
-                                      })}
-                                    </Text>
-                                  </div>
-                                </Group>
-                                <Group gap="xs">
-                                  <Tooltip label="PDF İndir">
-                                    <ActionIcon 
-                                      variant="light" 
-                                      color="red" 
+                          <Text size="xs" fw={600} c="dimmed" tt="uppercase">
+                            📄 Kayıtlı Dilekçeler
+                          </Text>
+                          {savedDilekces
+                            .filter((d) => d.dilekce_type === dilekceType)
+                            .map((d: any) => (
+                              <Paper
+                                key={d.id}
+                                p="md"
+                                withBorder
+                                radius="lg"
+                                style={{ cursor: 'pointer', transition: 'all 0.15s' }}
+                                onClick={() => loadDilekce(d)}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.borderColor =
+                                    'var(--mantine-color-green-4)';
+                                  e.currentTarget.style.backgroundColor =
+                                    'var(--mantine-color-green-0)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.borderColor = 'var(--mantine-color-gray-3)';
+                                  e.currentTarget.style.backgroundColor = 'white';
+                                }}
+                              >
+                                <Group justify="space-between" wrap="nowrap">
+                                  <Group gap="sm" wrap="nowrap">
+                                    <ThemeIcon size="lg" variant="light" color="green" radius="lg">
+                                      <IconDeviceFloppy size={18} />
+                                    </ThemeIcon>
+                                    <div>
+                                      <Text size="sm" fw={500}>
+                                        v{d.version} - {d.title}
+                                      </Text>
+                                      <Text size="xs" c="dimmed">
+                                        {new Date(d.created_at).toLocaleDateString('tr-TR', {
+                                          day: 'numeric',
+                                          month: 'short',
+                                          year: 'numeric',
+                                        })}
+                                      </Text>
+                                    </div>
+                                  </Group>
+                                  <Group gap="xs">
+                                    <Tooltip label="PDF İndir">
+                                      <ActionIcon
+                                        variant="light"
+                                        color="red"
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          downloadDilekce('pdf');
+                                        }}
+                                      >
+                                        <IconDownload size={14} />
+                                      </ActionIcon>
+                                    </Tooltip>
+                                    <ActionIcon
+                                      variant="subtle"
+                                      color="red"
                                       size="sm"
-                                      onClick={(e) => { e.stopPropagation(); downloadDilekce('pdf'); }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        deleteDilekce(d.id);
+                                      }}
                                     >
-                                      <IconDownload size={14} />
+                                      <IconTrash size={14} />
                                     </ActionIcon>
-                                  </Tooltip>
-                                  <ActionIcon 
-                                    variant="subtle" 
-                                    color="red" 
-                                    size="sm"
-                                    onClick={(e) => { e.stopPropagation(); deleteDilekce(d.id); }}
-                                  >
-                                    <IconTrash size={14} />
-                                  </ActionIcon>
+                                  </Group>
                                 </Group>
-                              </Group>
-                            </Paper>
-                          ))}
+                              </Paper>
+                            ))}
                         </>
                       )}
 
                       {/* Konuşma Geçmişi */}
                       {dilekceConversations.length > 0 && (
                         <>
-                          <Text size="xs" fw={600} c="dimmed" tt="uppercase" mt="sm">💬 Konuşma Geçmişi</Text>
+                          <Text size="xs" fw={600} c="dimmed" tt="uppercase" mt="sm">
+                            💬 Konuşma Geçmişi
+                          </Text>
                           {dilekceConversations.map((conv: any) => (
                             <Paper
                               key={conv.session_id}
@@ -2547,7 +2920,8 @@ KURALLAR:
                               onClick={() => openDilekceConversation(conv.session_id)}
                               onMouseEnter={(e) => {
                                 e.currentTarget.style.borderColor = 'var(--mantine-color-violet-4)';
-                                e.currentTarget.style.backgroundColor = 'var(--mantine-color-violet-0)';
+                                e.currentTarget.style.backgroundColor =
+                                  'var(--mantine-color-violet-0)';
                               }}
                               onMouseLeave={(e) => {
                                 e.currentTarget.style.borderColor = 'var(--mantine-color-gray-3)';
@@ -2564,20 +2938,28 @@ KURALLAR:
                                       {conv.preview || 'AI Konuşması'}
                                     </Text>
                                     <Group gap="xs" mt={4}>
-                                      <Badge size="xs" variant="light" color="gray">{conv.message_count} mesaj</Badge>
+                                      <Badge size="xs" variant="light" color="gray">
+                                        {conv.message_count} mesaj
+                                      </Badge>
                                       <Text size="xs" c="dimmed">
-                                        {new Date(conv.last_message_at).toLocaleDateString('tr-TR', {
-                                          day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-                                        })}
+                                        {new Date(conv.last_message_at).toLocaleDateString(
+                                          'tr-TR',
+                                          {
+                                            day: 'numeric',
+                                            month: 'short',
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                          }
+                                        )}
                                       </Text>
                                     </Group>
                                   </div>
                                 </Group>
                                 <Group gap={4}>
                                   <Tooltip label="Sil">
-                                    <ActionIcon 
-                                      variant="subtle" 
-                                      color="red" 
+                                    <ActionIcon
+                                      variant="subtle"
+                                      color="red"
                                       size="sm"
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -2598,37 +2980,43 @@ KURALLAR:
                       )}
 
                       {/* Boş durum */}
-                      {dilekceConversations.length === 0 && savedDilekces.filter(d => d.dilekce_type === dilekceType).length === 0 && (
-                        <Paper p="xl" radius="lg" bg="gray.0">
-                          <Stack align="center" gap="md">
-                            <ThemeIcon 
-                              size={60} 
-                              variant="light" 
-                              color={
-                                dilekceType === 'asiri_dusuk' ? 'orange' :
-                                dilekceType === 'idare_sikayet' ? 'red' :
-                                dilekceType === 'kik_itiraz' ? 'violet' : 'teal'
-                              }
-                              radius="xl"
-                            >
-                              <IconBrain size={30} />
-                            </ThemeIcon>
-                            <Text fw={600}>Henüz dilekçe yok</Text>
-                            <Text size="sm" c="dimmed" ta="center" maw={300}>
-                              Bu türde henüz dilekçe oluşturmadınız. 
-                              AI asistan ile yeni bir dilekçe oluşturmak için başlayın.
-                            </Text>
-                            <Button
-                              variant="light"
-                              color="violet"
-                              leftSection={<IconPlus size={16} />}
-                              onClick={startNewDilekceConversation}
-                            >
-                              İlk Dilekçeyi Oluştur
-                            </Button>
-                          </Stack>
-                        </Paper>
-                      )}
+                      {dilekceConversations.length === 0 &&
+                        savedDilekces.filter((d) => d.dilekce_type === dilekceType).length ===
+                          0 && (
+                          <Paper p="xl" radius="lg" bg="gray.0">
+                            <Stack align="center" gap="md">
+                              <ThemeIcon
+                                size={60}
+                                variant="light"
+                                color={
+                                  dilekceType === 'asiri_dusuk'
+                                    ? 'orange'
+                                    : dilekceType === 'idare_sikayet'
+                                      ? 'red'
+                                      : dilekceType === 'kik_itiraz'
+                                        ? 'violet'
+                                        : 'teal'
+                                }
+                                radius="xl"
+                              >
+                                <IconBrain size={30} />
+                              </ThemeIcon>
+                              <Text fw={600}>Henüz dilekçe yok</Text>
+                              <Text size="sm" c="dimmed" ta="center" maw={300}>
+                                Bu türde henüz dilekçe oluşturmadınız. AI asistan ile yeni bir
+                                dilekçe oluşturmak için başlayın.
+                              </Text>
+                              <Button
+                                variant="light"
+                                color="violet"
+                                leftSection={<IconPlus size={16} />}
+                                onClick={startNewDilekceConversation}
+                              >
+                                İlk Dilekçeyi Oluştur
+                              </Button>
+                            </Stack>
+                          </Paper>
+                        )}
                     </Stack>
                   </ScrollArea>
                 </Stack>
@@ -2641,14 +3029,18 @@ KURALLAR:
                       <ActionIcon variant="subtle" color="gray" onClick={backToDilekceList}>
                         <IconArrowLeft size={18} />
                       </ActionIcon>
-                      <ThemeIcon 
-                        size="md" 
-                        variant="light" 
+                      <ThemeIcon
+                        size="md"
+                        variant="light"
                         radius="lg"
                         color={
-                          dilekceType === 'asiri_dusuk' ? 'orange' :
-                          dilekceType === 'idare_sikayet' ? 'red' :
-                          dilekceType === 'kik_itiraz' ? 'violet' : 'teal'
+                          dilekceType === 'asiri_dusuk'
+                            ? 'orange'
+                            : dilekceType === 'idare_sikayet'
+                              ? 'red'
+                              : dilekceType === 'kik_itiraz'
+                                ? 'violet'
+                                : 'teal'
                         }
                       >
                         {dilekceType === 'asiri_dusuk' && <IconFileAnalytics size={18} />}
@@ -2657,8 +3049,12 @@ KURALLAR:
                         {dilekceType === 'aciklama_cevabi' && <IconNote size={18} />}
                       </ThemeIcon>
                       <div>
-                        <Text fw={600} size="sm">{dilekceTypeLabels[dilekceType || '']}</Text>
-                        <Text size="xs" c="dimmed">{dilekceMessages.length} mesaj</Text>
+                        <Text fw={600} size="sm">
+                          {dilekceTypeLabels[dilekceType || '']}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {dilekceMessages.length} mesaj
+                        </Text>
                       </div>
                     </Group>
                     <Group gap="xs">
@@ -2674,9 +3070,9 @@ KURALLAR:
                       {dilekceContent && (
                         <>
                           <Tooltip label={isDilekceEditing ? 'Düzenlemeyi Bitir' : 'Düzenle'}>
-                            <ActionIcon 
-                              variant={isDilekceEditing ? 'filled' : 'light'} 
-                              color="orange" 
+                            <ActionIcon
+                              variant={isDilekceEditing ? 'filled' : 'light'}
+                              color="orange"
                               size="md"
                               onClick={() => setIsDilekceEditing(!isDilekceEditing)}
                             >
@@ -2684,30 +3080,50 @@ KURALLAR:
                             </ActionIcon>
                           </Tooltip>
                           <Tooltip label="Kaydet">
-                            <ActionIcon variant="light" color="green" size="md" onClick={saveDilekce} loading={dilekceSaving}>
+                            <ActionIcon
+                              variant="light"
+                              color="green"
+                              size="md"
+                              onClick={saveDilekce}
+                              loading={dilekceSaving}
+                            >
                               <IconDeviceFloppy size={16} />
                             </ActionIcon>
                           </Tooltip>
                           <Tooltip label="Kopyala">
-                            <ActionIcon 
-                              variant="light" 
-                              color="gray" 
+                            <ActionIcon
+                              variant="light"
+                              color="gray"
                               size="md"
                               onClick={() => {
                                 navigator.clipboard.writeText(dilekceContent);
-                                notifications.show({ title: 'Kopyalandı', message: 'Dilekçe panoya kopyalandı', color: 'green' });
+                                notifications.show({
+                                  title: 'Kopyalandı',
+                                  message: 'Dilekçe panoya kopyalandı',
+                                  color: 'green',
+                                });
                               }}
                             >
                               <IconClipboardList size={16} />
                             </ActionIcon>
                           </Tooltip>
                           <Tooltip label="Word">
-                            <ActionIcon variant="light" color="blue" size="md" onClick={() => downloadDilekce('docx')}>
+                            <ActionIcon
+                              variant="light"
+                              color="blue"
+                              size="md"
+                              onClick={() => downloadDilekce('docx')}
+                            >
                               <IconDownload size={16} />
                             </ActionIcon>
                           </Tooltip>
                           <Tooltip label="PDF">
-                            <ActionIcon variant="light" color="red" size="md" onClick={() => downloadDilekce('pdf')}>
+                            <ActionIcon
+                              variant="light"
+                              color="red"
+                              size="md"
+                              onClick={() => downloadDilekce('pdf')}
+                            >
                               <IconDownload size={16} />
                             </ActionIcon>
                           </Tooltip>
@@ -2722,23 +3138,37 @@ KURALLAR:
                       <ScrollArea h={200} offsetScrollbars>
                         <Stack gap="sm">
                           {dilekceMessages.length === 0 ? (
-                            <Text size="sm" c="dimmed" ta="center">Henüz mesaj yok</Text>
+                            <Text size="sm" c="dimmed" ta="center">
+                              Henüz mesaj yok
+                            </Text>
                           ) : (
-                            dilekceMessages.map((msg, idx) => (
+                            dilekceMessages.map((msg) => (
                               <Group
-                                key={idx}
+                                key={msg.id}
                                 align="flex-start"
                                 gap="xs"
-                                style={{ flexDirection: msg.role === 'user' ? 'row-reverse' : 'row' }}
+                                style={{
+                                  flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
+                                }}
                               >
                                 <ThemeIcon
                                   size={24}
                                   radius="xl"
                                   variant={msg.role === 'user' ? 'filled' : 'gradient'}
                                   color={msg.role === 'user' ? 'blue' : undefined}
-                                  gradient={msg.role === 'assistant' ? { from: 'violet', to: 'grape' } : undefined}
+                                  gradient={
+                                    msg.role === 'assistant'
+                                      ? { from: 'violet', to: 'grape' }
+                                      : undefined
+                                  }
                                 >
-                                  {msg.role === 'user' ? <Text size="xs" fw={600}>S</Text> : <IconBrain size={12} />}
+                                  {msg.role === 'user' ? (
+                                    <Text size="xs" fw={600}>
+                                      S
+                                    </Text>
+                                  ) : (
+                                    <IconBrain size={12} />
+                                  )}
                                 </ThemeIcon>
                                 <Paper
                                   p="xs"
@@ -2746,7 +3176,11 @@ KURALLAR:
                                   maw="80%"
                                   bg={msg.role === 'user' ? 'blue.6' : 'white'}
                                 >
-                                  <Text size="xs" c={msg.role === 'user' ? 'white' : undefined} lineClamp={3}>
+                                  <Text
+                                    size="xs"
+                                    c={msg.role === 'user' ? 'white' : undefined}
+                                    lineClamp={3}
+                                  >
                                     {stripContextFromMessage(msg.content)}
                                   </Text>
                                 </Paper>
@@ -2756,7 +3190,12 @@ KURALLAR:
                         </Stack>
                       </ScrollArea>
                       {/* Sohbet Input */}
-                      <Group gap="xs" mt="sm" pt="sm" style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}>
+                      <Group
+                        gap="xs"
+                        mt="sm"
+                        pt="sm"
+                        style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}
+                      >
                         <Textarea
                           placeholder="Değişiklik isteği yazın..."
                           value={dilekceInput}
@@ -2792,11 +3231,12 @@ KURALLAR:
                       p="md"
                       withBorder
                       radius="md"
-                      style={{ 
+                      style={{
                         flex: 1,
-                        display: 'flex', 
+                        display: 'flex',
                         flexDirection: 'column',
-                        background: 'linear-gradient(180deg, rgba(34, 197, 94, 0.02) 0%, white 100%)',
+                        background:
+                          'linear-gradient(180deg, rgba(34, 197, 94, 0.02) 0%, white 100%)',
                         overflow: 'hidden',
                       }}
                     >
@@ -2821,23 +3261,52 @@ KURALLAR:
                           }}
                         />
                       ) : (
-                        <ScrollArea style={{ flex: 1 }} offsetScrollbars>
-                          <Text size="sm" style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', lineHeight: 1.7 }}>
+                        <ScrollArea
+                          type="scroll"
+                          style={{ flex: 1, height: '100%' }}
+                          offsetScrollbars
+                        >
+                          <Text
+                            size="sm"
+                            style={{
+                              whiteSpace: 'pre-wrap',
+                              fontFamily: 'inherit',
+                              lineHeight: 1.7,
+                              paddingBottom: 16,
+                            }}
+                          >
                             {dilekceContent}
                           </Text>
                         </ScrollArea>
                       )}
 
                       {/* Referanslar */}
-                      <Box mt="md" pt="sm" style={{ borderTop: '1px solid var(--mantine-color-gray-2)' }}>
+                      <Box
+                        mt="md"
+                        pt="sm"
+                        style={{ borderTop: '1px solid var(--mantine-color-gray-2)' }}
+                      >
                         <Group justify="space-between">
                           <Group gap="xs">
-                            <Badge size="xs" variant="light" color="blue">4734 Kanun</Badge>
-                            <Badge size="xs" variant="light" color="violet">KİK</Badge>
-                            {dilekceType === 'asiri_dusuk' && <Badge size="xs" variant="light" color="orange">EK-H.4</Badge>}
+                            <Badge size="xs" variant="light" color="blue">
+                              4734 Kanun
+                            </Badge>
+                            <Badge size="xs" variant="light" color="violet">
+                              KİK
+                            </Badge>
+                            {dilekceType === 'asiri_dusuk' && (
+                              <Badge size="xs" variant="light" color="orange">
+                                EK-H.4
+                              </Badge>
+                            )}
                           </Group>
                           {dilekceLoading && (
-                            <Badge size="xs" variant="light" color="blue" leftSection={<Loader size={10} />}>
+                            <Badge
+                              size="xs"
+                              variant="light"
+                              color="blue"
+                              leftSection={<Loader size={10} />}
+                            >
                               Güncelleniyor...
                             </Badge>
                           )}
@@ -2848,20 +3317,26 @@ KURALLAR:
                     /* Henüz dilekçe oluşturulmadı */
                     <Paper p="xl" withBorder radius="md" style={{ flex: 1 }}>
                       <Stack align="center" justify="center" h="100%" gap="lg">
-                        <ThemeIcon 
-                          size={80} 
-                          variant="light" 
+                        <ThemeIcon
+                          size={80}
+                          variant="light"
                           color={
-                            dilekceType === 'asiri_dusuk' ? 'orange' :
-                            dilekceType === 'idare_sikayet' ? 'red' :
-                            dilekceType === 'kik_itiraz' ? 'violet' : 'teal'
+                            dilekceType === 'asiri_dusuk'
+                              ? 'orange'
+                              : dilekceType === 'idare_sikayet'
+                                ? 'red'
+                                : dilekceType === 'kik_itiraz'
+                                  ? 'violet'
+                                  : 'teal'
                           }
                           radius="xl"
                         >
                           <IconBulb size={40} />
                         </ThemeIcon>
                         <div style={{ textAlign: 'center' }}>
-                          <Text fw={600} size="lg">{dilekceTypeLabels[dilekceType || '']}</Text>
+                          <Text fw={600} size="lg">
+                            {dilekceTypeLabels[dilekceType || '']}
+                          </Text>
                           <Text size="sm" c="dimmed" mt="xs">
                             AI ile dilekçe oluşturmak için aşağıdaki butona tıklayın
                           </Text>
@@ -2885,7 +3360,7 @@ KURALLAR:
           </Box>
         </Tabs.Panel>
       </Tabs>
-      
+
       {/* ========== ÇALIŞMA PANOSU MODAL ========== */}
       <ClipboardModal clipboard={clipboard} />
 
@@ -2894,12 +3369,16 @@ KURALLAR:
         opened={teklifModalOpened}
         onClose={() => setTeklifModalOpened(false)}
         ihaleBasligi={tender?.ihale_basligi || 'İsimsiz İhale'}
-        ihaleBedeli={tender?.bedel ? parseFloat(tender.bedel.replace(/[^\d,]/g, '').replace(',', '.')) : undefined}
+        ihaleBedeli={
+          tender?.bedel
+            ? parseFloat(tender.bedel.replace(/[^\d,]/g, '').replace(',', '.'))
+            : undefined
+        }
         ihaleId={tender?.tender_id}
-        birimFiyatlar={analysisData?.birim_fiyatlar?.map(bf => ({
+        birimFiyatlar={analysisData?.birim_fiyatlar?.map((bf) => ({
           kalem: bf.kalem || '',
           birim: bf.birim || 'adet',
-          miktar: Number(bf.miktar) || 0
+          miktar: Number(bf.miktar) || 0,
         }))}
       />
     </Modal>

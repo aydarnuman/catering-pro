@@ -17,8 +17,8 @@ import {
   Table,
   Tabs,
   Text,
-  TextInput,
   Textarea,
+  TextInput,
   Title,
   Tooltip,
 } from '@mantine/core';
@@ -34,9 +34,8 @@ import {
   IconRefresh,
   IconShield,
   IconTrash,
-  IconX,
 } from '@tabler/icons-react';
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { adminAPI } from '@/lib/api/services/admin';
 
 interface IpRule {
@@ -69,7 +68,7 @@ export default function IPManagementPage() {
       setLoading(true);
       const data = await adminAPI.getIpRules();
       if (data.success) {
-        setRules((data as any).rules || []);
+        setRules(((data as { rules?: IpRule[] }).rules ?? []) as IpRule[]);
       }
     } catch (error) {
       console.error('IP kuralları yüklenemedi:', error);
@@ -165,10 +164,11 @@ export default function IPManagementPage() {
           color: 'red',
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
       notifications.show({
         title: 'Hata',
-        message: error.response?.data?.error || 'Sunucu hatası',
+        message: err?.response?.data?.error ?? 'Sunucu hatası',
         color: 'red',
       });
     } finally {
@@ -193,7 +193,7 @@ export default function IPManagementPage() {
         });
         fetchRules();
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: 'Hata',
         message: 'Silme başarısız',
@@ -211,7 +211,7 @@ export default function IPManagementPage() {
           prev.map((r) => (r.id === rule.id ? { ...r, isActive: !r.isActive } : r))
         );
       }
-    } catch (error) {
+    } catch (_error) {
       notifications.show({
         title: 'Hata',
         message: 'Güncelleme başarısız',
@@ -469,7 +469,13 @@ export default function IPManagementPage() {
             )}
 
             <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={() => { close(); resetForm(); }}>
+              <Button
+                variant="default"
+                onClick={() => {
+                  close();
+                  resetForm();
+                }}
+              >
                 İptal
               </Button>
               <Button onClick={handleSave} loading={saving} leftSection={<IconCheck size={16} />}>

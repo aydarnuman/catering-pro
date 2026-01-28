@@ -11,6 +11,7 @@ import {
   Group,
   LoadingOverlay,
   Modal,
+  Pagination,
   Paper,
   Select,
   SimpleGrid,
@@ -23,7 +24,8 @@ import {
   Title,
   useMantineColorScheme,
 } from '@mantine/core';
-import { useDisclosure, useMediaQuery } from '@mantine/hooks';
+import { isEmail, useForm } from '@mantine/form';
+import { useDebouncedValue, useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
   IconAlertCircle,
@@ -39,40 +41,53 @@ import {
   IconUserCheck,
   IconUsers,
 } from '@tabler/icons-react';
-import { useEffect, useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Breadcrumbs, EmptyState } from '@/components/common';
 import { DataActions } from '@/components/DataActions';
-import CariDetayModal from '@/components/muhasebe/CariDetayModal';
-import MutabakatModal from '@/components/muhasebe/MutabakatModal';
-import { usePermissions } from '@/hooks/usePermissions';
-import { formatMoney } from '@/lib/formatters';
-import { EmptyState, Breadcrumbs } from '@/components/common';
-import { muhasebeAPI } from '@/lib/api/services/muhasebe';
+import { useAuth } from '@/context/AuthContext';
 
-// Tip tanımları
-interface Cari {
-  id: number;
-  tip: 'musteri' | 'tedarikci' | 'her_ikisi';
-  unvan: string;
-  yetkili?: string;
-  vergi_no?: string;
-  vergi_dairesi?: string;
-  telefon?: string;
-  email?: string;
-  adres?: string;
-  il?: string;
-  ilce?: string;
-  borc: number;
-  alacak: number;
-  bakiye: number;
-  kredi_limiti?: number;
-  banka_adi?: string;
-  iban?: string;
-  aktif?: boolean;
-  notlar?: string;
-  etiket?: string;
-  created_at?: string;
-  updated_at?: string;
-}
+const CariDetayModal = dynamic(
+  () => import('@/components/muhasebe/CariDetayModal').then((m) => m.default),
+  { ssr: false }
+);
+const MutabakatModal = dynamic(
+  () => import('@/components/muhasebe/MutabakatModal').then((m) => m.default),
+  { ssr: false }
+);
+import { useRealtimeRefetch } from '@/context/RealtimeContext';
+import { usePermissions } from '@/hooks/usePermissions';
+import { muhasebeAPI } from '@/lib/api/services/muhasebe';
+import { formatMoney } from '@/lib/formatters';
+import type { Cari, CariTip, PaginationInfo } from '@/types/domain';
+
+// Form validasyon kuralları
+const validateVergiNo = (value: string | undefined) => {
+  if (!value) return null;
+  const cleaned = value.replace(/\s/g, '');
+  if (!/^\d{10,11}$/.test(cleaned)) {
+    return 'Vergi no 10 veya 11 haneli olmalı';
+  }
+  return null;
+};
+
+const validateTelefon = (value: string | undefined) => {
+  if (!value) return null;
+  const cleaned = value.replace(/[\s\-()]/g, '');
+  if (!/^(\+90|0)?[1-9]\d{9}$/.test(cleaned)) {
+    return 'Geçerli bir telefon numarası girin';
+  }
+  return null;
+};
+
+const validateIBAN = (value: string | undefined) => {
+  if (!value) return null;
+  const cleaned = value.replace(/\s/g, '').toUpperCase();
+  if (!/^TR\d{24}$/.test(cleaned)) {
+    return 'Geçerli bir IBAN girin (TR + 24 hane)';
+  }
+  return null;
+};
 
 // Yaygın etiketler
 const etiketler = [
@@ -113,6 +128,7 @@ const iller = [
 ];
 
 export default function CarilerPage() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { colorScheme } = useMantineColorScheme();
   const _isDark = colorScheme === 'dark';
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -127,42 +143,88 @@ export default function CarilerPage() {
   const [mutabakatOpened, { open: openMutabakat, close: closeMutabakat }] = useDisclosure(false);
   const [activeTab, setActiveTab] = useState<string | null>('tumu');
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch] = useDebouncedValue(searchTerm, 300);
   const [cariler, setCariler] = useState<Cari[]>([]);
   const [editingItem, setEditingItem] = useState<Cari | null>(null);
   const [selectedCari, setSelectedCari] = useState<Cari | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Form state
-  const [formData, setFormData] = useState({
-    tip: 'musteri' as 'musteri' | 'tedarikci' | 'her_ikisi',
-    unvan: '',
-    yetkili: '',
-    vergi_no: '',
-    vergi_dairesi: '',
-    telefon: '',
-    email: '',
-    adres: '',
-    il: '',
-    ilce: '',
-    borc: 0,
-    alacak: 0,
-    kredi_limiti: 0,
-    banka_adi: '',
-    iban: '',
-    notlar: '',
-    etiket: '',
+  // Pagination state
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1,
   });
 
-  // API'den carileri yükle
-  const loadCariler = useCallback(async () => {
+  // Mantine Form ile validasyon
+  const form = useForm({
+    initialValues: {
+      tip: 'musteri' as CariTip,
+      unvan: '',
+      yetkili: '',
+      vergi_no: '',
+      vergi_dairesi: '',
+      telefon: '',
+      email: '',
+      adres: '',
+      il: '',
+      ilce: '',
+      kredi_limiti: 0,
+      banka_adi: '',
+      iban: '',
+      notlar: '',
+      etiket: '',
+    },
+    validate: {
+      unvan: (value) => (value.length < 2 ? 'Ünvan en az 2 karakter olmalı' : null),
+      tip: (value) => (!value ? 'Tip seçimi zorunlu' : null),
+      email: (value) => (value && !isEmail(value) ? 'Geçerli bir email adresi girin' : null),
+      vergi_no: validateVergiNo,
+      telefon: validateTelefon,
+      iban: validateIBAN,
+    },
+  });
+
+  // API'den carileri yükle (pagination ve arama destekli)
+  const loadCariler = useCallback(async (page = 1, search?: string, tip?: string) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await muhasebeAPI.getCariler();
-      setCariler((result.data || []) as unknown as Cari[]);
-    } catch (error) {
-      console.error('Cariler yükleme hatası:', error);
+      const params: { page: number; limit: number; search?: string; tip?: CariTip } = {
+        page,
+        limit: 20,
+      };
+
+      // Arama parametresi
+      if (search) {
+        params.search = search;
+      }
+
+      // Tip filtresi (tümü hariç)
+      if (tip && tip !== 'tumu') {
+        params.tip = tip as CariTip;
+      }
+
+      const result = await muhasebeAPI.getCariler(params);
+
+      // PaginatedResponse veya eski format kontrolü
+      if ('pagination' in result) {
+        setCariler(result.data);
+        setPagination(result.pagination);
+      } else {
+        // Eski format için geriye uyumluluk
+        setCariler(result.data || []);
+        setPagination({
+          page: 1,
+          limit: 20,
+          total: result.data?.length || 0,
+          totalPages: 1,
+        });
+      }
+    } catch (err) {
+      console.error('Cariler yükleme hatası:', err);
       setError('Veriler yüklenirken hata oluştu');
       notifications.show({
         title: 'Hata',
@@ -173,29 +235,31 @@ export default function CarilerPage() {
     } finally {
       setLoading(false);
     }
-  }, []); // Boş dependency array - sadece mount'ta çalışsın
+  }, []);
 
   // Component mount olduğunda verileri yükle
   useEffect(() => {
-    loadCariler();
-  }, [loadCariler]);
+    if (authLoading) return;
+    loadCariler(1, debouncedSearch || undefined, activeTab || undefined);
+  }, [loadCariler, authLoading, debouncedSearch, activeTab]);
 
-  // Cari kaydet (oluştur veya güncelle)
-  const handleSubmit = async () => {
-    if (!formData.unvan || !formData.tip) {
-      notifications.show({
-        title: 'Hata',
-        message: 'Ünvan ve tip zorunludur',
-        color: 'red',
-      });
-      return;
-    }
+  // 🔴 REALTIME - Cariler ve cari hareketler tablolarını dinle
+  useRealtimeRefetch(['cariler', 'cari_hareketler'], () => {
+    loadCariler(pagination.page, debouncedSearch || undefined, activeTab || undefined);
+  });
 
+  // Sayfa değişikliği
+  const handlePageChange = (page: number) => {
+    loadCariler(page, debouncedSearch || undefined, activeTab || undefined);
+  };
+
+  // Cari kaydet (oluştur veya güncelle) - form validasyonlu
+  const handleSubmit = form.onSubmit(async (values) => {
     setLoading(true);
     try {
       const result = editingItem
-        ? await muhasebeAPI.updateCari(editingItem.id, formData)
-        : await muhasebeAPI.createCari(formData);
+        ? await muhasebeAPI.updateCari(editingItem.id, values)
+        : await muhasebeAPI.createCari(values);
 
       if (!result.success) throw new Error(result.error || 'İşlem başarısız');
 
@@ -207,22 +271,22 @@ export default function CarilerPage() {
       });
 
       // Listeyi yenile
-      await loadCariler();
+      await loadCariler(pagination.page, debouncedSearch || undefined, activeTab || undefined);
 
       // Formu temizle ve kapat
       resetForm();
       close();
-    } catch (error) {
-      console.error('Kayıt hatası:', error);
+    } catch (err) {
+      console.error('Kayıt hatası:', err);
       notifications.show({
         title: 'Hata',
-        message: 'İşlem başarısız oldu',
+        message: err instanceof Error ? err.message : 'İşlem başarısız oldu',
         color: 'red',
       });
     } finally {
       setLoading(false);
     }
-  };
+  });
 
   // Cari sil
   const handleDelete = async (id: number) => {
@@ -240,9 +304,9 @@ export default function CarilerPage() {
         color: 'green',
       });
 
-      await loadCariler();
-    } catch (error) {
-      console.error('Silme hatası:', error);
+      await loadCariler(pagination.page, debouncedSearch || undefined, activeTab || undefined);
+    } catch (err) {
+      console.error('Silme hatası:', err);
       notifications.show({
         title: 'Hata',
         message: 'Silme işlemi başarısız',
@@ -255,31 +319,13 @@ export default function CarilerPage() {
 
   // Form sıfırlama
   const resetForm = () => {
-    setFormData({
-      tip: 'musteri',
-      unvan: '',
-      yetkili: '',
-      vergi_no: '',
-      vergi_dairesi: '',
-      telefon: '',
-      email: '',
-      adres: '',
-      il: '',
-      ilce: '',
-      borc: 0,
-      alacak: 0,
-      kredi_limiti: 0,
-      banka_adi: '',
-      iban: '',
-      notlar: '',
-      etiket: '',
-    });
+    form.reset();
     setEditingItem(null);
   };
 
   // Düzenleme için formu doldur
   const handleEdit = (cari: Cari) => {
-    setFormData({
+    form.setValues({
       tip: cari.tip,
       unvan: cari.unvan,
       yetkili: cari.yetkili || '',
@@ -290,8 +336,6 @@ export default function CarilerPage() {
       adres: cari.adres || '',
       il: cari.il || '',
       ilce: cari.ilce || '',
-      borc: Number(cari.borc) || 0,
-      alacak: Number(cari.alacak) || 0,
       kredi_limiti: Number(cari.kredi_limiti) || 0,
       banka_adi: cari.banka_adi || '',
       iban: cari.iban || '',
@@ -302,37 +346,21 @@ export default function CarilerPage() {
     open();
   };
 
-  // Filtreleme
-  const filteredCariler = cariler.filter((cari) => {
-    // Tab filtresi
-    if (activeTab === 'musteri' && cari.tip !== 'musteri' && cari.tip !== 'her_ikisi') return false;
-    if (activeTab === 'tedarikci' && cari.tip !== 'tedarikci' && cari.tip !== 'her_ikisi')
-      return false;
-
-    // Arama filtresi
-    if (searchTerm && !cari.unvan.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-
-    return true;
-  });
-
-  // Özet hesaplamaları
-  const ozet = {
-    toplamCari: cariler.length,
-    musteriSayisi: cariler.filter((c) => c.tip === 'musteri' || c.tip === 'her_ikisi').length,
-    tedarikciSayisi: cariler.filter((c) => c.tip === 'tedarikci' || c.tip === 'her_ikisi').length,
-    toplamBorc: cariler.reduce((sum, c) => sum + Number(c.borc), 0),
-    toplamAlacak: cariler.reduce((sum, c) => sum + Number(c.alacak), 0),
-  };
-
+  // Özet hesaplamaları (memoized)
+  const ozet = useMemo(
+    () => ({
+      toplamCari: pagination.total,
+      musteriSayisi: cariler.filter((c) => c.tip === 'musteri' || c.tip === 'her_ikisi').length,
+      tedarikciSayisi: cariler.filter((c) => c.tip === 'tedarikci' || c.tip === 'her_ikisi').length,
+      toplamBorc: cariler.reduce((sum, c) => sum + Number(c.borc), 0),
+      toplamAlacak: cariler.reduce((sum, c) => sum + Number(c.alacak), 0),
+    }),
+    [cariler, pagination.total]
+  );
 
   return (
     <Container size="xl" py="md">
-      <Breadcrumbs
-        items={[
-          { label: 'Muhasebe', href: '/muhasebe' },
-          { label: 'Cari Hesaplar' },
-        ]}
-      />
+      <Breadcrumbs items={[{ label: 'Muhasebe', href: '/muhasebe' }, { label: 'Cari Hesaplar' }]} />
       <LoadingOverlay visible={loading} />
 
       <Stack gap="md">
@@ -428,7 +456,10 @@ export default function CarilerPage() {
                   size="xl"
                   c={ozet.toplamAlacak - ozet.toplamBorc >= 0 ? 'green' : 'red'}
                 >
-                  {formatMoney(ozet.toplamAlacak - ozet.toplamBorc, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  {formatMoney(ozet.toplamAlacak - ozet.toplamBorc, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0,
+                  })}
                 </Text>
               </div>
             </Group>
@@ -440,14 +471,14 @@ export default function CarilerPage() {
           <Stack gap="md">
             <Tabs value={activeTab} onChange={setActiveTab}>
               <Tabs.List>
-                <Tabs.Tab value="tumu">Tümü ({cariler.length})</Tabs.Tab>
+                <Tabs.Tab value="tumu">Tümü ({pagination.total})</Tabs.Tab>
                 <Tabs.Tab value="musteri">Müşteriler ({ozet.musteriSayisi})</Tabs.Tab>
                 <Tabs.Tab value="tedarikci">Tedarikçiler ({ozet.tedarikciSayisi})</Tabs.Tab>
               </Tabs.List>
             </Tabs>
 
             <TextInput
-              placeholder="Cari ara..."
+              placeholder="Ünvan, vergi no, telefon veya email ile ara..."
               leftSection={<IconSearch size={16} />}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.currentTarget.value)}
@@ -456,7 +487,7 @@ export default function CarilerPage() {
         </Card>
 
         {/* Cari Listesi - Kart Görünümü */}
-        {filteredCariler.length === 0 ? (
+        {cariler.length === 0 ? (
           <EmptyState
             title="Kayıt bulunamadı"
             description="İlk carinizi ekleyerek başlayın"
@@ -474,7 +505,7 @@ export default function CarilerPage() {
         ) : (
           <>
             <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="md">
-              {filteredCariler.map((cari) => {
+              {cariler.map((cari) => {
                 const bakiye = Number(cari.bakiye);
                 const tipRenk =
                   cari.tip === 'musteri' ? 'green' : cari.tip === 'tedarikci' ? 'orange' : 'blue';
@@ -587,7 +618,10 @@ export default function CarilerPage() {
                             size="lg"
                             c={bakiye > 0 ? 'green' : bakiye < 0 ? 'red' : 'dimmed'}
                           >
-                            {formatMoney(Math.abs(bakiye), { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                            {formatMoney(Math.abs(bakiye), {
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 0,
+                            })}
                           </Text>
                         </Group>
                       </div>
@@ -607,37 +641,53 @@ export default function CarilerPage() {
               })}
             </SimpleGrid>
 
-            {/* Alt Bilgi */}
+            {/* Alt Bilgi ve Pagination */}
             <Paper withBorder p="md" radius="md" mt="md">
-              <Group justify="space-between" wrap="wrap">
-                <Text size="sm" c="dimmed">
-                  Toplam <strong>{filteredCariler.length}</strong> cari gösteriliyor
-                </Text>
-                <Group gap="xl">
-                  <Group gap={6}>
-                    <Text size="sm" c="dimmed">
-                      Toplam Alacak:
-                    </Text>
-                    <Text size="sm" fw={600} c="green">
-                      {formatMoney(
-                        filteredCariler.reduce((sum, c) => sum + Math.max(0, Number(c.bakiye)), 0)
-                      )}
-                    </Text>
-                  </Group>
-                  <Group gap={6}>
-                    <Text size="sm" c="dimmed">
-                      Toplam Borç:
-                    </Text>
-                    <Text size="sm" fw={600} c="red">
-                      {formatMoney(
-                        Math.abs(
-                          filteredCariler.reduce((sum, c) => sum + Math.min(0, Number(c.bakiye)), 0)
-                        )
-                      )}
-                    </Text>
+              <Stack gap="md">
+                <Group justify="space-between" wrap="wrap">
+                  <Text size="sm" c="dimmed">
+                    Toplam <strong>{pagination.total}</strong> cari, sayfa {pagination.page}/
+                    {pagination.totalPages}
+                  </Text>
+                  <Group gap="xl">
+                    <Group gap={6}>
+                      <Text size="sm" c="dimmed">
+                        Toplam Alacak:
+                      </Text>
+                      <Text size="sm" fw={600} c="green">
+                        {formatMoney(
+                          cariler.reduce((sum, c) => sum + Math.max(0, Number(c.bakiye)), 0)
+                        )}
+                      </Text>
+                    </Group>
+                    <Group gap={6}>
+                      <Text size="sm" c="dimmed">
+                        Toplam Borç:
+                      </Text>
+                      <Text size="sm" fw={600} c="red">
+                        {formatMoney(
+                          Math.abs(
+                            cariler.reduce((sum, c) => sum + Math.min(0, Number(c.bakiye)), 0)
+                          )
+                        )}
+                      </Text>
+                    </Group>
                   </Group>
                 </Group>
-              </Group>
+
+                {/* Pagination */}
+                {pagination.totalPages > 1 && (
+                  <Group justify="center">
+                    <Pagination
+                      value={pagination.page}
+                      onChange={handlePageChange}
+                      total={pagination.totalPages}
+                      size="sm"
+                      withEdges
+                    />
+                  </Group>
+                )}
+              </Stack>
             </Paper>
           </>
         )}
@@ -670,7 +720,7 @@ export default function CarilerPage() {
         {/* Mutabakat Modal */}
         <MutabakatModal opened={mutabakatOpened} onClose={closeMutabakat} cari={selectedCari} />
 
-        {/* Form Modal */}
+        {/* Form Modal - @mantine/form ile validasyon */}
         <Modal
           opened={opened}
           onClose={() => {
@@ -681,112 +731,69 @@ export default function CarilerPage() {
           size="lg"
           fullScreen={isMobile}
         >
-          <Stack>
-            <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <Select
-                label="Tip"
-                required
-                data={[
-                  { value: 'musteri', label: 'Müşteri' },
-                  { value: 'tedarikci', label: 'Tedarikçi' },
-                  { value: 'her_ikisi', label: 'Her İkisi' },
-                ]}
-                value={formData.tip}
-                onChange={(value) => setFormData({ ...formData, tip: value as any })}
-              />
-              <Select
-                label="Etiket/Kategori"
-                placeholder="Seçin"
-                data={etiketler}
-                value={formData.etiket || null}
-                onChange={(value) => setFormData({ ...formData, etiket: value || '' })}
-                searchable
-                clearable
-              />
-            </SimpleGrid>
+          <form onSubmit={handleSubmit}>
+            <Stack>
+              <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                <Select
+                  label="Tip"
+                  required
+                  data={[
+                    { value: 'musteri', label: 'Müşteri' },
+                    { value: 'tedarikci', label: 'Tedarikçi' },
+                    { value: 'her_ikisi', label: 'Her İkisi' },
+                  ]}
+                  {...form.getInputProps('tip')}
+                />
+                <Select
+                  label="Etiket/Kategori"
+                  placeholder="Seçin"
+                  data={etiketler}
+                  {...form.getInputProps('etiket')}
+                  searchable
+                  clearable
+                />
+              </SimpleGrid>
 
-            <TextInput
-              label="Ünvan"
-              required
-              value={formData.unvan}
-              onChange={(e) => setFormData({ ...formData, unvan: e.target.value })}
-            />
+              <TextInput label="Ünvan" required {...form.getInputProps('unvan')} />
 
-            <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <TextInput
-                label="Yetkili"
-                value={formData.yetkili}
-                onChange={(e) => setFormData({ ...formData, yetkili: e.target.value })}
-              />
-              <TextInput
-                label="Telefon"
-                value={formData.telefon}
-                onChange={(e) => setFormData({ ...formData, telefon: e.target.value })}
-              />
-            </SimpleGrid>
+              <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                <TextInput label="Yetkili" {...form.getInputProps('yetkili')} />
+                <TextInput label="Telefon" {...form.getInputProps('telefon')} />
+              </SimpleGrid>
 
-            <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <TextInput
-                label="Vergi No"
-                value={formData.vergi_no}
-                onChange={(e) => setFormData({ ...formData, vergi_no: e.target.value })}
-              />
-              <TextInput
-                label="Vergi Dairesi"
-                value={formData.vergi_dairesi}
-                onChange={(e) => setFormData({ ...formData, vergi_dairesi: e.target.value })}
-              />
-            </SimpleGrid>
+              <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                <TextInput label="Vergi No" {...form.getInputProps('vergi_no')} />
+                <TextInput label="Vergi Dairesi" {...form.getInputProps('vergi_dairesi')} />
+              </SimpleGrid>
 
-            <TextInput
-              label="Email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            />
+              <TextInput label="Email" type="email" {...form.getInputProps('email')} />
 
-            <Textarea
-              label="Adres"
-              value={formData.adres}
-              onChange={(e) => setFormData({ ...formData, adres: e.target.value })}
-            />
+              <Textarea label="Adres" {...form.getInputProps('adres')} />
 
-            <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <Select
-                label="İl"
-                data={iller}
-                value={formData.il}
-                onChange={(value) => setFormData({ ...formData, il: value || '' })}
-                searchable
-              />
-              <TextInput
-                label="İlçe"
-                value={formData.ilce}
-                onChange={(e) => setFormData({ ...formData, ilce: e.target.value })}
-              />
-            </SimpleGrid>
+              <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                <Select label="İl" data={iller} {...form.getInputProps('il')} searchable />
+                <TextInput label="İlçe" {...form.getInputProps('ilce')} />
+              </SimpleGrid>
 
-            <Textarea
-              label="Notlar"
-              value={formData.notlar}
-              onChange={(e) => setFormData({ ...formData, notlar: e.target.value })}
-            />
+              <Textarea label="Notlar" {...form.getInputProps('notlar')} />
 
-            <Group justify="flex-end">
-              <Button
-                variant="light"
-                onClick={() => {
-                  close();
-                  resetForm();
-                }}
-              >
-                İptal
-              </Button>
-              <Button onClick={handleSubmit} loading={loading}>
-                {editingItem ? 'Güncelle' : 'Kaydet'}
-              </Button>
-            </Group>
-          </Stack>
+              <Group justify="flex-end">
+                <Button
+                  type="button"
+                  variant="light"
+                  onClick={() => {
+                    close();
+                    resetForm();
+                  }}
+                >
+                  İptal
+                </Button>
+                <Button type="submit" loading={loading}>
+                  {editingItem ? 'Güncelle' : 'Kaydet'}
+                </Button>
+              </Group>
+            </Stack>
+          </form>
         </Modal>
       </Stack>
     </Container>

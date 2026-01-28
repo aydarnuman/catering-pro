@@ -14,7 +14,6 @@ import {
   Paper,
   ScrollArea,
   SimpleGrid,
-  Skeleton,
   Stack,
   Text,
   TextInput,
@@ -45,14 +44,15 @@ import {
   IconWallet,
 } from '@tabler/icons-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import useSWR from 'swr';
-import { useAuth } from '@/context/AuthContext';
-import { apiClient } from '@/lib/api';
-import { API_BASE_URL } from '@/lib/config';
-import { muhasebeAPI } from '@/lib/api/services/muhasebe';
-import { formatDate } from '@/lib/formatters';
 import { EmptyState, LoadingState, showError } from '@/components/common';
+import { useAuth } from '@/context/AuthContext';
+import { useRealtimeRefetch } from '@/context/RealtimeContext';
+import { apiClient, authFetch } from '@/lib/api';
+import { muhasebeAPI } from '@/lib/api/services/muhasebe';
+import { API_BASE_URL } from '@/lib/config';
+import { formatDate } from '@/lib/formatters';
 import type { StatsResponse } from '@/types/api';
 
 // Types
@@ -75,7 +75,6 @@ const getGreeting = () => {
   if (hour < 22) return { text: 'İyi akşamlar', icon: IconMoon, color: 'violet' };
   return { text: 'İyi geceler', icon: IconMoon, color: 'indigo' };
 };
-
 
 // KPI Card Component
 interface KPICardProps {
@@ -224,7 +223,7 @@ function QuickAction({ href, icon: Icon, label, color, gradient }: QuickActionPr
 }
 
 export default function HomePage() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -269,28 +268,53 @@ export default function HomePage() {
     return () => clearInterval(tipTimer);
   }, []);
 
-  // Stats fetch
-  const { data: stats, error, isLoading } = useSWR<StatsResponse>('stats', apiClient.getStats);
+  // Stats fetch - Auth olmadan da çalışır
+  const SWR_OPTS = { dedupingInterval: 5000 }; // Aynı key ile 5 sn içinde tekrar istek atma
+  const {
+    data: stats,
+    error,
+    isLoading,
+    mutate: mutateStats,
+  } = useSWR<StatsResponse>('stats', apiClient.getStats, SWR_OPTS);
 
-  // Notlar fetch - özel endpoint, şimdilik fetch kullan
-  const { data: notlarData, mutate: mutateNotlar } = useSWR('notlar', async () => {
-    const res = await fetch(`${API_BASE_URL}/api/notlar?limit=10`);
-    return res.json();
-  });
+  // Notlar fetch - Auth olmadan da çalışır (token varsa kullanır)
+  const { data: notlarData, mutate: mutateNotlar } = useSWR(
+    'notlar',
+    async () => {
+      const res = await authFetch(`${API_BASE_URL}/api/notlar?limit=10`);
+      return res.json();
+    },
+    SWR_OPTS
+  );
   const notlar: Not[] = notlarData?.notlar || [];
 
-  // Finans özeti fetch
-  const { data: finansOzet } = useSWR(isAuthenticated ? 'finans-ozet' : null, async () => {
-    const data = await muhasebeAPI.getKasaBankaOzet();
-    return data;
-  });
+  // Finans özeti fetch - Auth olmadan da çalışır
+  const { data: finansOzet, mutate: mutateFinans } = useSWR(
+    'finans-ozet',
+    () => muhasebeAPI.getKasaBankaOzet(),
+    SWR_OPTS
+  );
 
-  // Yaklaşan ihaleler
-  const { data: yaklasanIhaleler } = useSWR('yaklasan-ihaleler', async () => {
-    const { tendersAPI } = await import('@/lib/api/services/tenders');
-    const data = await tendersAPI.getTenders({ limit: 5, status: 'active' });
-    return data.tenders?.slice(0, 5) || [];
-  });
+  // Yaklaşan ihaleler - Auth olmadan da çalışır
+  const { data: yaklasanIhaleler, mutate: mutateYaklasanIhaleler } = useSWR(
+    'yaklasan-ihaleler',
+    async () => {
+      const { tendersAPI } = await import('@/lib/api/services/tenders');
+      const data = await tendersAPI.getTenders({ limit: 5, status: 'active' });
+      return data.tenders?.slice(0, 5) || [];
+    },
+    SWR_OPTS
+  );
+
+  // 🔴 REALTIME - Ana sayfa için tüm tabloları dinle
+  const refetchDashboard = useCallback(() => {
+    mutateStats();
+    mutateNotlar();
+    mutateFinans();
+    mutateYaklasanIhaleler();
+  }, [mutateStats, mutateNotlar, mutateFinans, mutateYaklasanIhaleler]);
+
+  useRealtimeRefetch(['invoices', 'tenders', 'stok', 'notifications'], refetchDashboard);
 
   const totalTenders = stats?.totalTenders || 0;
   const activeTenders = stats?.activeTenders || 0;
@@ -301,7 +325,7 @@ export default function HomePage() {
     if (!newNote.trim()) return;
 
     try {
-      await fetch(`${API_BASE_URL}/api/notlar`, {
+      await authFetch(`${API_BASE_URL}/api/notlar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: newNote.trim() }),
@@ -316,7 +340,7 @@ export default function HomePage() {
   // Not toggle
   const handleToggleNote = async (id: number) => {
     try {
-      await fetch(`${API_BASE_URL}/api/notlar/${id}/toggle`, { method: 'PUT' });
+      await authFetch(`${API_BASE_URL}/api/notlar/${id}/toggle`, { method: 'PUT' });
       mutateNotlar();
     } catch (error) {
       showError(error, { title: 'Not Güncelleme Hatası' });
@@ -326,7 +350,7 @@ export default function HomePage() {
   // Not sil
   const handleDeleteNote = async (id: number) => {
     try {
-      await fetch(`${API_BASE_URL}/api/notlar/${id}`, { method: 'DELETE' });
+      await authFetch(`${API_BASE_URL}/api/notlar/${id}`, { method: 'DELETE' });
       mutateNotlar();
     } catch (error) {
       showError(error, { title: 'Not Silme Hatası' });
@@ -724,7 +748,6 @@ export default function HomePage() {
                 </Button>
               </Paper>
             </Grid.Col>
-
           </Grid>
         </Stack>
       </Container>
@@ -735,12 +758,21 @@ export default function HomePage() {
         onClose={closeNotesModal}
         title={
           <Group gap="sm">
-            <ThemeIcon size={32} radius="lg" variant="gradient" gradient={{ from: 'violet', to: 'purple' }}>
+            <ThemeIcon
+              size={32}
+              radius="lg"
+              variant="gradient"
+              gradient={{ from: 'violet', to: 'purple' }}
+            >
               <IconNote size={18} />
             </ThemeIcon>
             <Box>
-              <Text fw={700} size="lg">Notlarım</Text>
-              <Text size="xs" c="dimmed">Yapışkan notlar ve hatırlatıcılar</Text>
+              <Text fw={700} size="lg">
+                Notlarım
+              </Text>
+              <Text size="xs" c="dimmed">
+                Yapışkan notlar ve hatırlatıcılar
+              </Text>
             </Box>
           </Group>
         }
@@ -807,12 +839,20 @@ export default function HomePage() {
           <Group justify="space-between">
             <Group gap="xl">
               <Box>
-                <Text size="xl" fw={800} c="violet">{notlar.filter((n) => !n.is_completed).length}</Text>
-                <Text size="xs" c="dimmed">Bekleyen</Text>
+                <Text size="xl" fw={800} c="violet">
+                  {notlar.filter((n) => !n.is_completed).length}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Bekleyen
+                </Text>
               </Box>
               <Box>
-                <Text size="xl" fw={800} c="teal">{notlar.filter((n) => n.is_completed).length}</Text>
-                <Text size="xs" c="dimmed">Tamamlanan</Text>
+                <Text size="xl" fw={800} c="teal">
+                  {notlar.filter((n) => n.is_completed).length}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Tamamlanan
+                </Text>
               </Box>
             </Group>
             <Badge size="lg" variant="light" color="violet" radius="md">

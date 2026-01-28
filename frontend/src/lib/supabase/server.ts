@@ -20,24 +20,18 @@ export async function createClient() {
     console.warn('[Supabase Server] Environment variables not set. Auth will not work.');
   }
 
-  return createServerClient(
-    url,
-    key,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Server Component'te çağrılırsa hata verebilir, ignore et
-          }
-        },
+  return createServerClient(url, key, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
       },
-    }
-  );
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+        } catch {
+          // Server Component'te çağrılırsa hata verebilir, ignore et
+        }
+      },
+    },
+  });
 }

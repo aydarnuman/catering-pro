@@ -18,6 +18,23 @@ export interface Recete {
   toplam_piyasa_maliyet?: number;
   created_at?: string;
   updated_at?: string;
+  // Backend'den gelen ek alanlar
+  kategori_id?: number;
+  kategori_adi?: string;
+  kategori_ikon?: string;
+  porsiyon_miktar?: number;
+  tahmini_maliyet?: number;
+  malzeme_sayisi?: number;
+  kod?: string;
+  hazirlik_suresi?: number;
+  pisirme_suresi?: number;
+  kalori?: number;
+  protein?: number;
+  karbonhidrat?: number;
+  yag?: number;
+  ai_olusturuldu?: boolean;
+  proje_id?: number;
+  proje_adi?: string;
 }
 
 // Malzeme
@@ -99,10 +116,7 @@ export const menuPlanlamaAPI = {
    * Malzeme ekle/güncelle
    */
   async saveMalzeme(receteId: number, malzeme: Partial<Malzeme>): Promise<ApiResponse<Malzeme>> {
-    const response = await api.post(
-      `/api/menu-planlama/receteler/${receteId}/malzemeler`,
-      malzeme
-    );
+    const response = await api.post(`/api/menu-planlama/receteler/${receteId}/malzemeler`, malzeme);
     return response.data;
   },
 
@@ -124,17 +138,23 @@ export const menuPlanlamaAPI = {
 
   /**
    * Reçete maliyet analizi getir
+   * Backend BackendMaliyetAnaliziResponse döndürüyor
    */
-  async getMaliyetAnalizi(receteId: number): Promise<ApiResponse<Recete>> {
-    const response = await api.get(`/api/maliyet-analizi/recete/${receteId}`);
+  async getMaliyetAnalizi(receteId: number): Promise<ApiResponse<any>> {
+    const response = await api.get(`/api/maliyet-analizi/receteler/${receteId}/maliyet`);
     return response.data;
   },
 
   /**
    * Reçetelerin maliyet analizini getir
+   * Backend'de kategori bazında gruplanmış reçeteler döndürür
    */
   async getRecetelerMaliyet(): Promise<ApiResponse<Recete[]>> {
-    const response = await api.get('/api/maliyet-analizi/receteler');
+    // /api/menu-planlama/receteler endpoint'i kullanılıyor
+    // Backend'de kategori bazında gruplama yapılıyor
+    const response = await api.get('/api/menu-planlama/receteler', {
+      params: { limit: 1000 }, // Tüm reçeteleri al
+    });
     return response.data;
   },
 

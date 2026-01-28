@@ -37,16 +37,10 @@ import {
   IconPrinter,
   IconX,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { muhasebeAPI } from '@/lib/api/services/muhasebe';
-import { formatMoney, formatDate } from '@/lib/formatters';
-
-interface Cari {
-  id: number;
-  unvan: string;
-  tip: string;
-  bakiye: number;
-}
+import { formatDate, formatMoney } from '@/lib/formatters';
+import type { Cari } from '@/types/domain';
 
 interface MutabakatModalProps {
   opened: boolean;
@@ -55,7 +49,6 @@ interface MutabakatModalProps {
 }
 
 // Para formatı - @/lib/formatters'dan import ediliyor
-
 
 // Aylar listesi
 const aylar = [
@@ -98,15 +91,8 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
   // Açık/kapalı fatura detayları
   const [expandedFatura, setExpandedFatura] = useState<number | null>(null);
 
-  // Verileri yükle
-  useEffect(() => {
-    if (opened && cari) {
-      loadData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened, cari?.id]);
-
-  const loadData = async () => {
+  // Fonksiyonu useCallback ile tanımla (TDZ hatası için)
+  const loadData = useCallback(async () => {
     if (!cari) return;
     setLoading(true);
 
@@ -149,7 +135,14 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
     } finally {
       setLoading(false);
     }
-  };
+  }, [cari, selectedYil, selectedAy, activeTab, faturaFiltre]);
+
+  // Verileri yükle
+  useEffect(() => {
+    if (opened && cari) {
+      loadData();
+    }
+  }, [opened, cari, loadData]);
 
   // Fatura filtresi veya tarih değiştiğinde yeniden yükle
   useEffect(() => {

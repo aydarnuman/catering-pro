@@ -1,9 +1,26 @@
 'use client';
 
-import { Component, type ReactNode } from 'react';
-import { Alert, Button, Container, Stack, Text, Title, ThemeIcon, Code, Collapse, Box } from '@mantine/core';
-import { IconAlertTriangle, IconRefresh, IconHome, IconChevronDown, IconChevronUp } from '@tabler/icons-react';
+import {
+  Alert,
+  Box,
+  Button,
+  Code,
+  Collapse,
+  Container,
+  Stack,
+  Text,
+  ThemeIcon,
+  Title,
+} from '@mantine/core';
+import {
+  IconAlertTriangle,
+  IconChevronDown,
+  IconChevronUp,
+  IconHome,
+  IconRefresh,
+} from '@tabler/icons-react';
 import Link from 'next/link';
+import { Component, type ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
@@ -39,16 +56,16 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     this.setState({ errorInfo });
-    
+
     // Hata callback'i varsa çağır
     this.props.onError?.(error, errorInfo);
-    
+
     // Console'a logla (development'ta)
     if (process.env.NODE_ENV === 'development') {
       console.error('🔴 ErrorBoundary caught an error:', error);
       console.error('Component stack:', errorInfo.componentStack);
     }
-    
+
     // Production'da error tracking servisine gönder (örn: Sentry)
     // if (process.env.NODE_ENV === 'production') {
     //   Sentry.captureException(error, { extra: { componentStack: errorInfo.componentStack } });
@@ -82,35 +99,25 @@ export class ErrorBoundary extends Component<Props, State> {
             <ThemeIcon size={80} radius="xl" color="red" variant="light">
               <IconAlertTriangle size={40} />
             </ThemeIcon>
-            
+
             <Title order={2} ta="center">
               Bir Şeyler Yanlış Gitti
             </Title>
-            
+
             <Text c="dimmed" ta="center" maw={500}>
-              Beklenmeyen bir hata oluştu. Sayfayı yenileyerek tekrar deneyebilir veya 
-              ana sayfaya dönebilirsiniz.
+              Beklenmeyen bir hata oluştu. Sayfayı yenileyerek tekrar deneyebilir veya ana sayfaya
+              dönebilirsiniz.
             </Text>
 
-            <Alert 
-              color="red" 
-              variant="light" 
-              title="Hata Mesajı"
-              w="100%"
-              maw={500}
-            >
+            <Alert color="red" variant="light" title="Hata Mesajı" w="100%" maw={500}>
               {this.state.error?.message || 'Bilinmeyen hata'}
             </Alert>
 
             <Stack gap="sm" w="100%" maw={400}>
-              <Button
-                leftSection={<IconRefresh size={16} />}
-                onClick={this.handleReset}
-                fullWidth
-              >
+              <Button leftSection={<IconRefresh size={16} />} onClick={this.handleReset} fullWidth>
                 Tekrar Dene
               </Button>
-              
+
               <Button
                 variant="light"
                 leftSection={<IconHome size={16} />}
@@ -130,22 +137,32 @@ export class ErrorBoundary extends Component<Props, State> {
                   color="gray"
                   size="xs"
                   onClick={this.toggleDetails}
-                  rightSection={this.state.showDetails ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
+                  rightSection={
+                    this.state.showDetails ? (
+                      <IconChevronUp size={14} />
+                    ) : (
+                      <IconChevronDown size={14} />
+                    )
+                  }
                   fullWidth
                 >
                   {this.state.showDetails ? 'Detayları Gizle' : 'Geliştirici Detayları'}
                 </Button>
-                
+
                 <Collapse in={this.state.showDetails}>
                   <Stack gap="xs" mt="sm">
-                    <Text size="xs" fw={600}>Error Stack:</Text>
+                    <Text size="xs" fw={600}>
+                      Error Stack:
+                    </Text>
                     <Code block style={{ fontSize: '10px', maxHeight: 200, overflow: 'auto' }}>
                       {this.state.error?.stack}
                     </Code>
-                    
+
                     {this.state.errorInfo?.componentStack && (
                       <>
-                        <Text size="xs" fw={600}>Component Stack:</Text>
+                        <Text size="xs" fw={600}>
+                          Component Stack:
+                        </Text>
                         <Code block style={{ fontSize: '10px', maxHeight: 200, overflow: 'auto' }}>
                           {this.state.errorInfo.componentStack}
                         </Code>
@@ -175,11 +192,11 @@ interface ApiErrorFallbackProps {
   showRetry?: boolean;
 }
 
-export function ApiErrorFallback({ 
-  error, 
-  message = 'Veri yüklenirken bir hata oluştu', 
+export function ApiErrorFallback({
+  error,
+  message = 'Veri yüklenirken bir hata oluştu',
   onRetry,
-  showRetry = true 
+  showRetry = true,
 }: ApiErrorFallbackProps) {
   // 401 hatası için özel mesaj
   const is401 = error?.message?.includes('401') || error?.message?.includes('Unauthorized');
@@ -219,13 +236,7 @@ export function ApiErrorFallback({
           </Button>
         )}
         {is401 && (
-          <Button
-            size="xs"
-            variant="light"
-            color="blue"
-            component={Link}
-            href="/giris"
-          >
+          <Button size="xs" variant="light" color="blue" component={Link} href="/giris">
             Giriş Yap
           </Button>
         )}

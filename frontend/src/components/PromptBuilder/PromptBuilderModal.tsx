@@ -43,7 +43,6 @@ import {
   IconQuestionMark,
   IconRefresh,
   IconRobot,
-  IconSend,
   IconSparkles,
   IconTable,
   IconUser,
@@ -100,11 +99,38 @@ const FORMAT_ACTIONS = [
 // AI Modül hedefleri
 const AI_MODULES = [
   { key: 'chat', label: 'Asistan', icon: IconMessageCircle, color: 'violet', keywords: [] },
-  { key: 'fatura', label: 'Muhasebe', icon: IconFileInvoice, color: 'green', keywords: ['fatura', 'muhasebe', 'ödeme', 'tahsilat', 'cari', 'borç', 'alacak', 'gelir', 'gider'] },
-  { key: 'personel', label: 'İK / Personel', icon: IconUsers, color: 'blue', keywords: ['personel', 'çalışan', 'maaş', 'bordro', 'izin', 'işe giriş', 'işten çıkış'] },
+  {
+    key: 'fatura',
+    label: 'Muhasebe',
+    icon: IconFileInvoice,
+    color: 'green',
+    keywords: [
+      'fatura',
+      'muhasebe',
+      'ödeme',
+      'tahsilat',
+      'cari',
+      'borç',
+      'alacak',
+      'gelir',
+      'gider',
+    ],
+  },
+  {
+    key: 'personel',
+    label: 'İK / Personel',
+    icon: IconUsers,
+    color: 'blue',
+    keywords: ['personel', 'çalışan', 'maaş', 'bordro', 'izin', 'işe giriş', 'işten çıkış'],
+  },
 ];
 
-export function PromptBuilderModal({ opened, onClose, onSaved, onUseInChat }: PromptBuilderModalProps) {
+export function PromptBuilderModal({
+  opened,
+  onClose,
+  onSaved,
+  onUseInChat,
+}: PromptBuilderModalProps) {
   const theme = useMantineTheme();
   const [userInput, setUserInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -125,7 +151,7 @@ export function PromptBuilderModal({ opened, onClose, onSaved, onUseInChat }: Pr
     if (scrollRef.current) {
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
     }
-  }, [messages]);
+  }, []);
 
   // Token count
   useEffect(() => {
@@ -136,7 +162,7 @@ export function PromptBuilderModal({ opened, onClose, onSaved, onUseInChat }: Pr
   const suggestedModule = useMemo(() => {
     const lowerPrompt = generatedPrompt.toLowerCase();
     for (const mod of AI_MODULES) {
-      if (mod.keywords.some(kw => lowerPrompt.includes(kw))) {
+      if (mod.keywords.some((kw) => lowerPrompt.includes(kw))) {
         return mod;
       }
     }
@@ -216,7 +242,10 @@ export function PromptBuilderModal({ opened, onClose, onSaved, onUseInChat }: Pr
       const questionMsg = messages.find((m) => m.id === messageId);
       if (!questionMsg) return;
 
-      const newHistory = [...conversationHistory, { question: questionMsg.content, answer: option }];
+      const newHistory = [
+        ...conversationHistory,
+        { question: questionMsg.content, answer: option },
+      ];
       setConversationHistory(newHistory);
       setIsLoading(true);
 
@@ -690,7 +719,9 @@ export function PromptBuilderModal({ opened, onClose, onSaved, onUseInChat }: Pr
                       size={44}
                       thickness={4}
                       roundCaps
-                      sections={[{ value: Math.min((tokenCount / 500) * 100, 100), color: tokenColor }]}
+                      sections={[
+                        { value: Math.min((tokenCount / 500) * 100, 100), color: tokenColor },
+                      ]}
                       label={
                         <Text size="xs" ta="center" fw={600}>
                           {tokenCount}
@@ -795,7 +826,8 @@ export function PromptBuilderModal({ opened, onClose, onSaved, onUseInChat }: Pr
                     style={{
                       whiteSpace: 'pre-wrap',
                       lineHeight: 1.8,
-                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                      fontFamily:
+                        'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
                     }}
                   >
                     {generatedPrompt}
@@ -948,7 +980,9 @@ export function PromptBuilderModal({ opened, onClose, onSaved, onUseInChat }: Pr
                             {AI_MODULES.map((mod) => (
                               <Menu.Item
                                 key={mod.key}
-                                leftSection={<mod.icon size={16} color={theme.colors[mod.color][6]} />}
+                                leftSection={
+                                  <mod.icon size={16} color={theme.colors[mod.color][6]} />
+                                }
                                 onClick={() => handleSendToAI(mod.key)}
                                 rightSection={
                                   mod.key === suggestedModule.key ? (

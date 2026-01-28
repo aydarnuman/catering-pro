@@ -1,6 +1,5 @@
 'use client';
 
-import { Suspense } from 'react';
 import {
   ActionIcon,
   Alert,
@@ -33,7 +32,6 @@ import {
   IconChevronRight,
   IconClock,
   IconCoin,
-  IconCurrencyLira,
   IconDotsVertical,
   IconExternalLink,
   IconEye,
@@ -46,12 +44,22 @@ import {
   IconTrash,
   IconX,
 } from '@tabler/icons-react';
-import { useEffect, useState, useCallback } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import IhaleUzmaniModal from '@/components/IhaleUzmaniModal';
-import TeklifModal from '@/components/teklif/TeklifModal';
-import { tendersAPI } from '@/lib/api/services/tenders';
+import dynamic from 'next/dynamic';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import { useRealtimeRefetch } from '@/context/RealtimeContext';
+
+// Heavy modals - lazy load (132KB + 78KB = 210KB tasarruf)
+const IhaleUzmaniModal = dynamic(() => import('@/components/IhaleUzmaniModal'), {
+  ssr: false,
+  loading: () => null,
+});
+const TeklifModal = dynamic(() => import('@/components/teklif/TeklifModal'), {
+  ssr: false,
+  loading: () => null,
+});
 import { useResponsive } from '@/hooks/useResponsive';
+import { tendersAPI } from '@/lib/api/services/tenders';
 
 interface AnalysisData {
   ihale_basligi?: string;
@@ -114,7 +122,7 @@ function TrackingPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { isMobile, isMounted } = useResponsive();
-  
+
   const [tenders, setTenders] = useState<SavedTender[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTender, setSelectedTender] = useState<SavedTender | null>(null);
@@ -135,8 +143,8 @@ function TrackingPageContent() {
   const [_expandedNoteId, _setExpandedNoteId] = useState<string | null>(null);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
 
-  // Veritabanından verileri yükle
-  const fetchTenders = async () => {
+  // Veritabanından verileri yükle (useCallback ile sabit referans; yoksa useEffect her render'da tetiklenir, loading sürekli true kalır)
+  const fetchTenders = useCallback(async () => {
     try {
       setLoading(true);
       const result = await tendersAPI.getTrackingList();
@@ -183,23 +191,25 @@ function TrackingPageContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchTenders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchTenders]);
+
+  // 🔴 REALTIME - İhale takibi için tenders tablosunu dinle
+  useRealtimeRefetch('tenders', fetchTenders);
 
   // URL'den tender id oku ve modal aç
   // Modal kapanma işlemi devam ediyorsa tekrar açmayı engelle
   const [isClosing, setIsClosing] = useState(false);
-  
+
   useEffect(() => {
     if (!initialLoadDone || loading || tenders.length === 0 || isClosing) return;
-    
+
     const tenderId = searchParams.get('tender');
     if (tenderId) {
-      const tender = tenders.find(t => t.id === tenderId || t.tender_id?.toString() === tenderId);
+      const tender = tenders.find((t) => t.id === tenderId || t.tender_id?.toString() === tenderId);
       if (tender && !detailOpened) {
         setSelectedTender(tender);
         openDetail();
@@ -215,17 +225,20 @@ function TrackingPageContent() {
   }, [loading, tenders]);
 
   // Modal açıldığında URL'i güncelle
-  const openTenderDetail = useCallback((tender: SavedTender) => {
-    setSelectedTender(tender);
-    openDetail();
-    // URL'i güncelle
-    const url = new URL(window.location.href);
-    url.searchParams.set('tender', tender.id);
-    router.replace(url.pathname + url.search, { scroll: false });
-  }, [openDetail, router]);
+  const _openTenderDetail = useCallback(
+    (tender: SavedTender) => {
+      setSelectedTender(tender);
+      openDetail();
+      // URL'i güncelle
+      const url = new URL(window.location.href);
+      url.searchParams.set('tender', tender.id);
+      router.replace(url.pathname + url.search, { scroll: false });
+    },
+    [openDetail, router]
+  );
 
   // Modal kapandığında URL'den tender param'ı kaldır
-  const closeTenderDetail = useCallback(() => {
+  const _closeTenderDetail = useCallback(() => {
     closeDetail();
     // URL'den tender param'ı kaldır
     const url = new URL(window.location.href);
@@ -418,7 +431,7 @@ function TrackingPageContent() {
     setAnalysisStats(null);
     setNotesExpanded(false); // Notlar kapalı başlasın
     openDetail();
-    
+
     // URL'i güncelle (sayfa yenilendiğinde aynı modal açık kalsın)
     const url = new URL(window.location.href);
     url.searchParams.set('tender', tender.id);
@@ -833,8 +846,8 @@ function TrackingPageContent() {
                     {/* Alt Bilgiler */}
                     <Group justify="space-between" wrap="wrap" gap="xs">
                       <Group gap="xs" wrap="wrap">
-                        {tender.teknik_sart_sayisi > 0 && (
-                          isMobile && isMounted ? (
+                        {tender.teknik_sart_sayisi > 0 &&
+                          (isMobile && isMounted ? (
                             <Badge size="xs" variant="dot" color="blue">
                               {tender.teknik_sart_sayisi} şart
                             </Badge>
@@ -844,10 +857,9 @@ function TrackingPageContent() {
                                 {tender.teknik_sart_sayisi} şart
                               </Badge>
                             </Tooltip>
-                          )
-                        )}
-                        {tender.birim_fiyat_sayisi > 0 && (
-                          isMobile && isMounted ? (
+                          ))}
+                        {tender.birim_fiyat_sayisi > 0 &&
+                          (isMobile && isMounted ? (
                             <Badge size="xs" variant="dot" color="green">
                               {tender.birim_fiyat_sayisi} kalem
                             </Badge>
@@ -857,11 +869,11 @@ function TrackingPageContent() {
                                 {tender.birim_fiyat_sayisi} kalem
                               </Badge>
                             </Tooltip>
-                          )
-                        )}
+                          ))}
                         {/* Not sayısı badge - Tıklanabilir */}
-                        {tender.user_notes && tender.user_notes.length > 0 && (
-                          isMobile && isMounted ? (
+                        {tender.user_notes &&
+                          tender.user_notes.length > 0 &&
+                          (isMobile && isMounted ? (
                             <Badge
                               size="xs"
                               variant="light"
@@ -893,11 +905,10 @@ function TrackingPageContent() {
                                 {tender.user_notes.length}
                               </Badge>
                             </Tooltip>
-                          )
-                        )}
+                          ))}
                         {/* Not ekle ikonu - Not yoksa */}
-                        {(!tender.user_notes || tender.user_notes.length === 0) && (
-                          isMobile && isMounted ? (
+                        {(!tender.user_notes || tender.user_notes.length === 0) &&
+                          (isMobile && isMounted ? (
                             <ActionIcon
                               size="sm"
                               variant="subtle"
@@ -925,12 +936,11 @@ function TrackingPageContent() {
                                 <IconNote size={14} />
                               </ActionIcon>
                             </Tooltip>
-                          )
-                        )}
+                          ))}
                       </Group>
                       <Group gap="xs" wrap="nowrap">
-                        {tender.url && (
-                          isMobile && isMounted ? (
+                        {tender.url &&
+                          (isMobile && isMounted ? (
                             <ActionIcon
                               variant="subtle"
                               color="gray"
@@ -958,8 +968,7 @@ function TrackingPageContent() {
                                 <IconExternalLink size={16} />
                               </ActionIcon>
                             </Tooltip>
-                          )
-                        )}
+                          ))}
                         <Button
                           variant="light"
                           size="xs"
@@ -1042,7 +1051,13 @@ function TrackingPageContent() {
 // useSearchParams için Suspense wrapper
 export default function TrackingPage() {
   return (
-    <Suspense fallback={<Box p="xl"><Text>Yükleniyor...</Text></Box>}>
+    <Suspense
+      fallback={
+        <Box p="xl">
+          <Text>Yükleniyor...</Text>
+        </Box>
+      }
+    >
       <TrackingPageContent />
     </Suspense>
   );

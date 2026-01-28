@@ -15,10 +15,10 @@ import {
 import { IconBolt, IconMaximize, IconMinus, IconX } from '@tabler/icons-react';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { tendersAPI } from '@/lib/api/services/tenders';
-import { muhasebeAPI } from '@/lib/api/services/muhasebe';
-import { AIChat } from './AIChat';
 import { useResponsive } from '@/hooks/useResponsive';
+import { muhasebeAPI } from '@/lib/api/services/muhasebe';
+import { tendersAPI } from '@/lib/api/services/tenders';
+import { AIChat } from './AIChat';
 
 // Path'e göre department mapping
 const pathToDepartment: Record<string, string> = {
@@ -193,7 +193,7 @@ export function FloatingAIChat() {
     setShowPulse(true);
     const timer = setTimeout(() => setShowPulse(false), 3000);
     return () => clearTimeout(timer);
-  }, [pathname]);
+  }, []);
 
   // Uyarı sayısını al
   useEffect(() => {
@@ -443,9 +443,10 @@ export function FloatingAIChat() {
               maxHeight: isMobile && isMounted ? '100%' : 'calc(100vh - 150px)',
               overflow: 'hidden',
               borderRadius: isMobile && isMounted ? 0 : 20,
-              boxShadow: isMobile && isMounted
-                ? 'none'
-                : '0 25px 50px -12px rgba(102, 126, 234, 0.25), 0 0 0 1px rgba(102, 126, 234, 0.1)',
+              boxShadow:
+                isMobile && isMounted
+                  ? 'none'
+                  : '0 25px 50px -12px rgba(102, 126, 234, 0.25), 0 0 0 1px rgba(102, 126, 234, 0.1)',
               border: 'none',
               display: 'flex',
               flexDirection: 'column',
@@ -458,7 +459,12 @@ export function FloatingAIChat() {
               style={{
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
                 padding: isMinimized ? '10px 16px' : '14px 16px',
-                paddingTop: isMobile && isMounted ? 'calc(env(safe-area-inset-top, 0px) + 14px)' : (isMinimized ? '10px' : '14px'),
+                paddingTop:
+                  isMobile && isMounted
+                    ? 'calc(env(safe-area-inset-top, 0px) + 14px)'
+                    : isMinimized
+                      ? '10px'
+                      : '14px',
                 cursor: 'pointer',
                 position: 'relative',
                 overflow: 'hidden',

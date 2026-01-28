@@ -20,7 +20,6 @@ interface ChatHistoryItemProps {
 }
 
 export function ChatHistoryItem({ message, showTime = true }: ChatHistoryItemProps) {
-
   const isUser = message.role === 'user';
 
   return (

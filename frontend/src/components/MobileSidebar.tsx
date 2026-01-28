@@ -99,11 +99,11 @@ const allMenuGroups: MenuGroup[] = [
         permission: 'kasa_banka',
       },
       { label: 'Faturalar', href: '/muhasebe/faturalar', icon: IconReceipt, permission: 'fatura' },
-      { 
-        label: 'Gelir-Gider', 
-        href: '/muhasebe/gelir-gider', 
-        icon: IconTrendingUp, 
-        permission: 'kasa_banka' 
+      {
+        label: 'Gelir-Gider',
+        href: '/muhasebe/gelir-gider',
+        icon: IconTrendingUp,
+        permission: 'kasa_banka',
       },
       { label: 'Cari Hesaplar', href: '/muhasebe/cariler', icon: IconUsers, permission: 'cari' },
       { label: 'Raporlar', href: '/muhasebe/raporlar', icon: IconChartBar, permission: 'rapor' },
@@ -115,17 +115,17 @@ const allMenuGroups: MenuGroup[] = [
     gradient: 'linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%)',
     items: [
       { label: 'Stok Takibi', href: '/muhasebe/stok', icon: IconPackage, permission: 'stok' },
-      { 
-        label: 'Satın Alma', 
-        href: '/muhasebe/satin-alma', 
-        icon: IconShoppingCart, 
-        permission: 'stok' 
+      {
+        label: 'Satın Alma',
+        href: '/muhasebe/satin-alma',
+        icon: IconShoppingCart,
+        permission: 'stok',
       },
-      { 
-        label: 'Menü Planlama', 
-        href: '/muhasebe/menu-planlama', 
-        icon: IconToolsKitchen2, 
-        permission: 'planlama' 
+      {
+        label: 'Menü Planlama',
+        href: '/muhasebe/menu-planlama',
+        icon: IconToolsKitchen2,
+        permission: 'planlama',
       },
       {
         label: 'Personel',
@@ -133,7 +133,12 @@ const allMenuGroups: MenuGroup[] = [
         icon: IconUserCircle,
         permission: 'personel',
       },
-      { label: 'Demirbaş', href: '/muhasebe/demirbas', icon: IconBuildingStore, permission: 'demirbas' },
+      {
+        label: 'Demirbaş',
+        href: '/muhasebe/demirbas',
+        icon: IconBuildingStore,
+        permission: 'demirbas',
+      },
     ],
   },
   {
@@ -162,7 +167,7 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const { canView, isSuperAdmin } = usePermissions();
+  const { canView, isSuperAdmin, loading: permLoading, error: permError } = usePermissions();
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
@@ -171,17 +176,26 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
 
   // Yetkilere göre filtrelenmiş menü grupları
   const menuGroups = useMemo(() => {
+    // Fallback: Yetkiler yüklenemediğinde veya loading durumunda tüm sayfaları göster
+    const safeCanView = (module: string) => {
+      if (permLoading || permError) return true;
+      if (!canView) return true;
+      return canView(module);
+    };
+
+    const safeIsSuperAdmin = permLoading || permError ? false : isSuperAdmin;
+
     return allMenuGroups
       .map((group) => {
         // Grup genelinde yetki kontrolü
-        if (group.permission && !isSuperAdmin && !canView(group.permission)) {
+        if (group.permission && !safeIsSuperAdmin && !safeCanView(group.permission)) {
           return null;
         }
 
         // Her item için yetki kontrolü
         const filteredItems = group.items.filter((item) => {
           if (!item.permission) return true; // Yetki tanımlanmamışsa göster
-          return isSuperAdmin || canView(item.permission);
+          return safeIsSuperAdmin || safeCanView(item.permission);
         });
 
         // Hiç item kalmadıysa grubu gösterme
@@ -190,15 +204,17 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
         return { ...group, items: filteredItems };
       })
       .filter(Boolean) as MenuGroup[];
-  }, [canView, isSuperAdmin]);
+  }, [canView, isSuperAdmin, permLoading, permError]);
 
   const getInitials = (name: string) => {
-    return (name ?? '')
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2) || '?';
+    return (
+      (name ?? '')
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2) || '?'
+    );
   };
 
   const handleNavigation = (href: string) => {

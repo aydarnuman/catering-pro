@@ -23,15 +23,11 @@ export function formatMoney(
 
   const numValue = typeof value === 'string' ? parseFloat(value) : value;
 
-  if (isNaN(numValue)) {
+  if (Number.isNaN(numValue)) {
     return '₺0,00';
   }
 
-  const {
-    minimumFractionDigits = 2,
-    maximumFractionDigits = 2,
-    showSymbol = true,
-  } = options || {};
+  const { minimumFractionDigits = 2, maximumFractionDigits = 2, showSymbol = true } = options || {};
 
   const formatted = new Intl.NumberFormat('tr-TR', {
     style: 'currency',
@@ -69,7 +65,7 @@ export function formatDate(
     return '-';
   }
 
-  if (isNaN(dateObj.getTime())) {
+  if (Number.isNaN(dateObj.getTime())) {
     return '-';
   }
 
@@ -125,7 +121,7 @@ export function formatNumber(
 
   const numValue = typeof value === 'string' ? parseFloat(value) : value;
 
-  if (isNaN(numValue)) {
+  if (Number.isNaN(numValue)) {
     return '0';
   }
 
@@ -151,7 +147,7 @@ export function formatPercentage(
 
   const numValue = typeof value === 'string' ? parseFloat(value) : value;
 
-  if (isNaN(numValue)) {
+  if (Number.isNaN(numValue)) {
     return '%0,00';
   }
 
@@ -174,7 +170,7 @@ export function formatFileSize(bytes: number | null | undefined): string {
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-  return `${formatNumber(bytes / Math.pow(k, i), 2)} ${sizes[i]}`;
+  return `${formatNumber(bytes / k ** i, 2)} ${sizes[i]}`;
 }
 
 /**

@@ -12,14 +12,14 @@ export function createClient() {
   // Runtime'da gerçek değerler kullanılacak
   const url = supabaseUrl || PLACEHOLDER_URL;
   const key = supabaseAnonKey || PLACEHOLDER_KEY;
-  
+
   // Build sırasında uyarı ver ama hata verme
   if (!supabaseUrl || !supabaseAnonKey) {
     if (typeof window !== 'undefined') {
       console.warn('[Supabase] Environment variables not set. Auth will not work.');
     }
   }
-  
+
   return createBrowserClient(url, key);
 }
 

@@ -2,9 +2,9 @@ import { useMediaQuery } from '@mantine/hooks';
 import { useEffect, useMemo, useState } from 'react';
 
 export interface ResponsiveBreakpoints {
-  isMobile: boolean;      // < 768px
-  isTablet: boolean;      // 768px - 1024px
-  isDesktop: boolean;     // > 1024px
+  isMobile: boolean; // < 768px
+  isTablet: boolean; // 768px - 1024px
+  isDesktop: boolean; // > 1024px
   isSmallMobile: boolean; // < 480px
   isTouchDevice: boolean;
   /** Client tarafında mı? (SSR için) */
@@ -18,7 +18,7 @@ export interface ResponsiveBreakpoints {
  */
 export function useResponsive(): ResponsiveBreakpoints {
   const [isMounted, setIsMounted] = useState(false);
-  
+
   const isSmallMobile = useMediaQuery('(max-width: 480px)') ?? false;
   const isMobile = useMediaQuery('(max-width: 768px)') ?? false;
   const isTablet = useMediaQuery('(min-width: 769px) and (max-width: 1024px)') ?? false;
@@ -30,28 +30,27 @@ export function useResponsive(): ResponsiveBreakpoints {
     setIsMounted(true);
   }, []);
 
-  return useMemo(() => ({
-    // SSR sırasında desktop varsay (hydration mismatch önleme)
-    isSmallMobile: isMounted ? isSmallMobile : false,
-    isMobile: isMounted ? isMobile : false,
-    isTablet: isMounted ? isTablet : false,
-    isDesktop: isMounted ? isDesktop : true,
-    isTouchDevice: isMounted ? isTouchDevice : false,
-    isMounted,
-  }), [isSmallMobile, isMobile, isTablet, isDesktop, isTouchDevice, isMounted]);
+  return useMemo(
+    () => ({
+      // SSR sırasında desktop varsay (hydration mismatch önleme)
+      isSmallMobile: isMounted ? isSmallMobile : false,
+      isMobile: isMounted ? isMobile : false,
+      isTablet: isMounted ? isTablet : false,
+      isDesktop: isMounted ? isDesktop : true,
+      isTouchDevice: isMounted ? isTouchDevice : false,
+      isMounted,
+    }),
+    [isSmallMobile, isMobile, isTablet, isDesktop, isTouchDevice, isMounted]
+  );
 }
 
 /**
  * Responsive değer seçici
  * Breakpoint'e göre farklı değerler döndürür
  */
-export function useResponsiveValue<T>(values: {
-  mobile?: T;
-  tablet?: T;
-  desktop: T;
-}): T {
+export function useResponsiveValue<T>(values: { mobile?: T; tablet?: T; desktop: T }): T {
   const { isMobile, isTablet } = useResponsive();
-  
+
   if (isMobile && values.mobile !== undefined) return values.mobile;
   if (isTablet && values.tablet !== undefined) return values.tablet;
   return values.desktop;
@@ -67,7 +66,7 @@ export function useResponsiveColumns(config?: {
 }): number {
   const defaults = { mobile: 1, tablet: 2, desktop: 4 };
   const merged = { ...defaults, ...config };
-  
+
   return useResponsiveValue({
     mobile: merged.mobile,
     tablet: merged.tablet,
@@ -85,7 +84,7 @@ export function useResponsiveSpacing(): {
   sectionGap: string;
 } {
   const { isMobile, isTablet } = useResponsive();
-  
+
   if (isMobile) {
     return {
       containerPadding: '12px',
@@ -94,7 +93,7 @@ export function useResponsiveSpacing(): {
       sectionGap: '16px',
     };
   }
-  
+
   if (isTablet) {
     return {
       containerPadding: '16px',
@@ -103,7 +102,7 @@ export function useResponsiveSpacing(): {
       sectionGap: '20px',
     };
   }
-  
+
   return {
     containerPadding: '24px',
     cardPadding: '20px',
