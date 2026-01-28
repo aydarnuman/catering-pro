@@ -1,137 +1,208 @@
-# 🍽️ Catering Pro - Kurumsal İş Yönetim Sistemi
+# Catering Pro - Kurumsal Is Yonetim Sistemi
 
-Hazır yemek sektörü için kapsamlı ERP-benzeri kurumsal iş yönetim sistemi. İhale takibi, muhasebe, İK/bordro, stok ve menü planlama modüllerini içerir.
+Hazir yemek sektoru icin kapsamli ERP-benzeri kurumsal is yonetim sistemi. Ihale takibi, muhasebe, IK/bordro, stok, menu planlama ve AI asistan modullerini icerir.
 
-**Son Güncelleme:** Ocak 2026
-
----
-
-## 🚀 Özellikler
-
-### 📋 İhale Yönetimi
-- ✅ **İhale Scraping** - ihalebul.com otomasyonu (Puppeteer)
-- ✅ **Döküman İşleme** - PDF/Word/Excel/CSV + AI analiz
-- ✅ **AI Döküman Analizi** - Claude AI ile detaylı analiz
-- ✅ **İhale Takip Listesi** - Durum, notlar, hatırlatıcılar
-- ✅ **Teklif Hazırlama** - Teklif oluşturma ve takip
-
-### 💰 Muhasebe Modülü
-- ✅ **Cari Hesaplar** - Müşteri/tedarikçi yönetimi, bakiye takibi
-- ✅ **Fatura Yönetimi** - Alış/satış faturaları, ödeme takibi
-- ✅ **Kasa-Banka** - Nakit hesapları, hareketler, transferler
-- ✅ **Gelir-Gider** - Finansal takip ve raporlama
-- ✅ **Çek/Senet** - Çek ve senet takibi
-
-### 👨‍💼 İnsan Kaynakları
-- ✅ **Personel Yönetimi** - Çalışan kayıtları, proje atamaları
-- ✅ **Bordro Sistemi** - Net→Brüt hesaplama, SGK, Gelir Vergisi, AGİ
-- ✅ **İzin Yönetimi** - İzin talep ve onay süreçleri
-- ✅ **Tazminat Hesaplama** - Kıdem/ihbar tazminatı
-- ✅ **Maaş Ödeme** - Ödeme takibi
-
-### 📦 Stok Yönetimi
-- ✅ **Depo Yönetimi** - Çoklu depo, lokasyon bazlı
-- ✅ **Stok Kartları** - Ürün/malzeme kartları
-- ✅ **Stok Hareketleri** - Giriş/çıkış/transfer/fire
-- ✅ **Kritik Stok** - Minimum stok uyarıları
-- ✅ **Demirbaş Takibi** - Amortisman hesaplama
-
-### 🍽️ Üretim Planlama
-- ✅ **Reçete Yönetimi** - Yemek reçeteleri, maliyetlendirme
-- ✅ **Menü Planlama** - Günlük/haftalık menüler
-- ✅ **Gramaj Şartnameleri** - Şartname uyumu kontrolü
-- ✅ **Malzeme İhtiyaç** - Otomatik malzeme hesaplama
-
-### 🤖 AI Asistan
-- ✅ **Claude AI Chat** - Streaming sohbet
-- ✅ **Tool Calling** - Sistem entegrasyonu
-- ✅ **Döküman Analizi** - Gemini Vision + Claude
-- ✅ **Konuşma Hafızası** - Bağlamsal cevaplar
-
-### 🔔 Sistem
-- ✅ **Bildirim Sistemi** - Real-time bildirimler
-- ✅ **Global Arama** - Tüm modüllerde arama
-- ✅ **Export/Import** - Excel/PDF dışa aktarma
-- ✅ **Uyumsoft Entegrasyonu** - Muhasebe sync
+**Son Guncelleme:** Ocak 2026
 
 ---
 
-## 📁 Proje Yapısı
+## Ozellikler
+
+### Ihale Yonetimi
+- **Ihale Scraping** - ihalebul.com otomasyonu (Puppeteer)
+- **Dokuman Isleme** - PDF/Word/Excel/CSV + AI analiz
+- **AI Dokuman Analizi** - Claude AI + Gemini Vision
+- **Ihale Takip Listesi** - Durum, notlar, hatirlaticilar
+- **Teklif Hazirlama** - Teklif olusturma ve maliyet hesaplama
+- **Ihale Sonuclari** - Kazanilan/kaybedilen takibi
+- **Dilekce Yonetimi** - Ihale dilekcesi sablonlari
+
+### Muhasebe Modulu
+- **Cari Hesaplar** - Musteri/tedarikci yonetimi, bakiye takibi
+- **Fatura Yonetimi** - Alis/satis faturalari, odeme takibi
+- **Fatura Kalemleri** - Detayli kalem eslestirme ve analiz
+- **Kasa-Banka** - Nakit hesaplari, hareketler, transferler
+- **Gelir-Gider** - Finansal takip ve raporlama
+- **Cek/Senet** - Cek ve senet takibi
+- **Mutabakat** - Cari mutabakat raporlari
+- **Uyumsoft Entegrasyonu** - Otomatik fatura sync
+
+### Insan Kaynaklari
+- **Personel Yonetimi** - Calisan kayitlari, proje atamalari
+- **Bordro Sistemi** - Net->Brut hesaplama, SGK, Gelir Vergisi, AGI
+- **Izin Yonetimi** - Izin talep ve onay surecleri
+- **Tazminat Hesaplama** - Kidem/ihbar tazminati
+- **Maas Odeme** - Odeme takibi ve raporlama
+
+### Stok Yonetimi
+- **Depo Yonetimi** - Coklu depo, lokasyon bazli
+- **Stok Kartlari** - Urun/malzeme kartlari
+- **Urun Varyantlari** - Varyant ve birim yonetimi
+- **Birim Donusum** - Otomatik birim cevirme matrisi
+- **Stok Hareketleri** - Giris/cikis/transfer/fire
+- **Kritik Stok** - Minimum stok uyarilari
+- **Demirbas Takibi** - Amortisman hesaplama
+
+### Uretim Planlama
+- **Recete Yonetimi** - Yemek receteleri, maliyetlendirme
+- **Menu Planlama** - Gunluk/haftalik menuler
+- **Gramaj Sartnameleri** - Sartname uyumu kontrolu
+- **Malzeme Ihtiyac** - Otomatik malzeme hesaplama
+- **Maliyet Analizi** - Detayli maliyet raporlama
+
+### Firma Yonetimi
+- **Firma Kartlari** - Musteri/tedarikci firma bilgileri
+- **Tedarikci-Urun Mapping** - Tedarikci bazli fiyatlama
+- **Belge Yonetimi** - Firma dokumanlari
+
+### AI Asistan
+- **Claude AI Chat** - Streaming sohbet
+- **Tool Calling** - Sistem entegrasyonu
+- **Dokuman Analizi** - Gemini Vision + Claude
+- **Konusma Hafizasi** - Baglamsal cevaplar
+- **Prompt Builder** - Ozel AI sablon olusturucu
+- **Fatura AI** - Otomatik fatura analizi
+
+### Sosyal Medya
+- **WhatsApp Entegrasyonu** - WebSocket destekli mesajlasma
+- **Instagram AI** - Sosyal medya veri analizi
+
+### Sistem
+- **Bildirim Sistemi** - Real-time bildirimler (Supabase)
+- **Global Arama** - Tum modullerde arama
+- **Export/Import** - Excel/PDF disa aktarma
+- **Audit Logs** - Detayli islem gunlukleri
+- **Yetki Yonetimi** - Rol bazli erisim kontrolu
+- **IP Erisim Kontrolu** - Admin IP kisitlamalari
+
+---
+
+## Proje Yapisi
 
 ```
-CATERİNG/
-├── backend/                  # Node.js + Express API (ES Modules)
+CATERING/
+├── backend/                     # Node.js + Express API (ES Modules)
 │   └── src/
-│       ├── routes/           # API endpoints (46 dosya)
-│       ├── services/         # Business logic (~36 dosya)
-│       │   └── ai-tools/     # AI araç modülleri (10 dosya)
-│       ├── migrations/       # SQL migrations (72 dosya)
-│       ├── scraper/          # ihalebul.com scraper
-│       ├── database.js       # PostgreSQL connection
-│       └── server.js         # Express entry point
+│       ├── routes/              # API endpoints (52 dosya)
+│       ├── services/            # Business logic (34 dosya)
+│       │   └── ai-tools/        # AI arac modulleri (10 dosya)
+│       ├── middleware/          # Auth, rate-limit, CSRF
+│       ├── scraper/             # ihalebul.com scraper
+│       │   └── uyumsoft/        # Uyumsoft API client
+│       ├── migrations/          # Legacy SQL migrations (102 dosya)
+│       ├── database.js          # PostgreSQL connection (Supabase)
+│       ├── supabase.js          # Supabase client
+│       └── server.js            # Express entry point
 │
-├── frontend/                 # Next.js 15 + React
+├── frontend/                    # Next.js 15 + React 18 + TypeScript
 │   └── src/
-│       ├── app/              # App Router pages
-│       │   ├── tenders/      # İhale modülü
-│       │   ├── tracking/     # İhale takip
-│       │   ├── muhasebe/     # Muhasebe modülü
-│       │   ├── planlama/     # Üretim planlama
-│       │   └── ai-chat/      # AI asistan
-│       ├── components/       # UI components
-│       ├── context/          # AuthContext
-│       ├── hooks/            # Custom hooks
-│       └── lib/              # Utilities + API config
+│       ├── app/                 # App Router pages
+│       │   ├── tenders/         # Ihale modulu
+│       │   ├── tracking/        # Ihale takip
+│       │   ├── ai-chat/         # AI sohbet sayfasi + history
+│       │   ├── planlama/        # Uretim planlama
+│       │   ├── muhasebe/        # Muhasebe modulu
+│       │   │   ├── cariler/     # Cari hesaplar
+│       │   │   ├── faturalar/   # Fatura yonetimi
+│       │   │   ├── stok/        # Stok kartlari
+│       │   │   ├── personel/    # Personel/HR
+│       │   │   ├── menu-planlama/ # Menu planlama
+│       │   │   └── raporlar/    # Finansal raporlar
+│       │   ├── admin/           # Admin paneli
+│       │   ├── ayarlar/         # Sistem ayarlari
+│       │   ├── sosyal-medya/    # WhatsApp + Instagram
+│       │   └── profil/          # Kullanici profili
+│       ├── components/          # UI components (~80+ dosya)
+│       ├── context/             # AuthContext, RealtimeContext
+│       ├── hooks/               # Custom hooks
+│       └── lib/                 # Utilities + API services
+│           ├── api/services/    # Moduler API katmani
+│           └── supabase/        # Supabase client config
 │
-├── docs/                     # Dokümantasyon
-│   ├── ARCHITECTURE.md
-│   ├── DEPLOYMENT.md
-│   └── DIGITALOCEAN.md
+├── supabase/                    # Supabase migrations
+│   └── migrations/              # SQL migrations (102 dosya)
 │
-├── uploads/                  # Yüklenen dosyalar
-└── scripts/                  # Deploy & utility scripts
+├── services/                    # Harici servisler
+│   ├── whatsapp/                # WhatsApp entegrasyonu (Node.js)
+│   └── instagram/               # Instagram entegrasyonu (Python)
+│
+├── docs/                        # Dokumantasyon
+│   ├── 00_INDEX.md              # Dokuman indeksi
+│   ├── 01_DATABASE_SCHEMA.md    # Veritabani semasi
+│   ├── 02_API_ENDPOINTS.md      # API detaylari
+│   ├── 03_FRONTEND_MODULES.md   # Frontend modulleri
+│   ├── 04_COMPONENT_REGISTRY.md # Component listesi
+│   ├── ARCHITECTURE.md          # Sistem mimarisi
+│   ├── DEPLOYMENT.md            # Production deploy
+│   └── DIGITALOCEAN.md          # Server konfigurasyonu
+│
+├── uploads/                     # Yuklenen dosyalar
+├── scripts/                     # Deploy & utility scripts
+├── ecosystem.config.js          # PM2 production config
+├── docker-compose.yml           # Container orchestration
+├── service.sh                   # Servis yonetim scripti
+└── start-all.sh                 # Toplu baslatma scripti
 ```
 
 ---
 
-## 🛠️ Teknoloji Yığını
+## Teknoloji Yigini
 
 ### Backend
-| Teknoloji | Açıklama |
-|-----------|----------|
-| Node.js | Runtime |
-| Express.js | Web framework |
-| PostgreSQL | Veritabanı (Supabase hosted) |
-| JWT + bcrypt | Authentication |
-| Winston | Logging |
-| node-cron | Scheduled tasks |
+
+| Teknoloji | Versiyon | Aciklama |
+|-----------|----------|----------|
+| Node.js | ES Modules | Runtime |
+| Express.js | ^4.18.2 | Web framework |
+| PostgreSQL | 16 | Veritabani (Supabase hosted) |
+| Supabase | ^2.89.0 | Database + Auth + Realtime |
+| JWT + bcrypt | ^9.0.2 | Authentication |
+| Puppeteer | ^22.15.0 | Web scraping |
+| Winston | ^3.11.0 | Logging |
+| Helmet | ^8.1.0 | Security headers |
+| Sharp | ^0.34.5 | Image processing |
+| Multer | ^1.4.5 | File upload |
+| node-cron | ^4.2.1 | Scheduled tasks |
+| Biome | ^2.3.10 | Linter & Formatter |
 
 ### Frontend
-| Teknoloji | Açıklama |
-|-----------|----------|
-| Next.js 15 | React framework (App Router) |
-| Mantine UI 7.17 | Component library |
-| React Query | Data fetching (@tanstack/react-query) |
-| Recharts | Grafikler |
-| Custom AuthContext | JWT Authentication |
 
-### AI
-| Teknoloji | Açıklama |
-|-----------|----------|
-| Claude AI | Chat, analiz & döküman işleme (@anthropic-ai/sdk) |
+| Teknoloji | Versiyon | Aciklama |
+|-----------|----------|----------|
+| Next.js | ^15.5.7 | React framework (App Router) |
+| React | ^18.3.1 | UI Library |
+| TypeScript | ^5 | Type safety |
+| Mantine UI | ^7.17.0 | Component library |
+| TanStack Query | ^5.17.0 | Server state management |
+| SWR | ^2.3.7 | Data fetching |
+| Socket.io | ^4.8.3 | Real-time communication |
+| Recharts | ^2.15.4 | Grafikler |
+| Leaflet | ^1.9.4 | Harita entegrasyonu |
+| DnD-Kit | ^6.3.1 | Drag & Drop |
+| Axios | ^1.13.2 | HTTP client |
+| Biome | ^2.3.10 | Linter & Formatter |
+
+### AI Servisleri
+
+| Teknoloji | Versiyon | Aciklama |
+|-----------|----------|----------|
+| Claude AI | ^0.71.2 | Chat, analiz & tool calling |
+| Gemini AI | ^0.21.0 | Vision API & OCR |
 
 ### Deployment
-| Teknoloji | Açıklama |
+
+| Teknoloji | Aciklama |
 |-----------|----------|
 | DigitalOcean | Droplet (Ubuntu 22.04) |
 | Cloudflare | DNS, CDN, SSL |
 | PM2 | Process manager |
 | Nginx | Reverse proxy |
-| Supabase | Database hosting |
+| Supabase | Database & Auth hosting |
+| Docker | Container orchestration |
 
 ---
 
-## 🚀 Kurulum
+## Kurulum
 
 ### 1. Repository'yi Klonla
 
@@ -140,37 +211,72 @@ git clone https://github.com/your-repo/catering.git
 cd catering
 ```
 
-### 2. Environment Dosyaları
+### 2. Environment Dosyalari
 
-**Backend (.env):**
+**Backend (`backend/.env`):**
+
 ```env
-# Database (Supabase)
-DATABASE_URL=postgresql://user:pass@host:5432/db
+# =============================================================================
+# DATABASE (Zorunlu)
+# =============================================================================
+# Supabase Connection String
+# Format: postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:5432/postgres
+DATABASE_URL=postgresql://postgres:PASSWORD@localhost:5432/catering_db
 
-# AI Keys
-GEMINI_API_KEY=your-gemini-key
-ANTHROPIC_API_KEY=your-claude-key
+# Supabase Credentials
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your-supabase-service-key
 
-# Scraper
-IHALEBUL_USERNAME=username
-IHALEBUL_PASSWORD=password
+# =============================================================================
+# AUTHENTICATION (Zorunlu)
+# =============================================================================
+JWT_SECRET=your-jwt-secret-minimum-32-characters
+JWT_EXPIRES_IN=7d
 
-# Auth
-JWT_SECRET=your-jwt-secret
+# =============================================================================
+# AI SERVISLERI (Opsiyonel - AI ozellikleri icin)
+# =============================================================================
+# Claude AI (AI Asistan)
+CLAUDE_API_KEY=sk-ant-...
 
-# Server
-PORT=3001
+# Google Gemini (Dokuman analizi)
+GEMINI_API_KEY=AIza...
+GEMINI_MODEL=gemini-2.0-flash-exp
+
+# =============================================================================
+# SCRAPER (Opsiyonel - Ihale scraping icin)
+# =============================================================================
+IHALEBUL_USERNAME=your_username
+IHALEBUL_PASSWORD=your_password
+
+# =============================================================================
+# UYUMSOFT ENTEGRASYONU (Opsiyonel - Fatura sync)
+# =============================================================================
+UYUMSOFT_API_URL=https://efatura.uyumsoft.com.tr/api
+UYUMSOFT_USERNAME=your_username
+UYUMSOFT_PASSWORD=your_password
+
+# =============================================================================
+# SERVER AYARLARI
+# =============================================================================
 NODE_ENV=development
+PORT=3001
 ```
 
-**Frontend (.env.local):**
+**Frontend (`frontend/.env.local`):**
+
 ```env
+# Supabase (Public keys - guvenli)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+
+# API URL (Opsiyonel - varsayilan localhost:3001)
 NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
 
-> **Not:** Auth sistemi Custom AuthContext + JWT kullanmaktadır. NextAuth kullanılmamaktadır.
+> **Not:** Auth sistemi Custom AuthContext + JWT kullanmaktadir.
 
-### 3. Bağımlılıkları Yükle
+### 3. Bagimliliklari Yukle
 
 ```bash
 # Backend
@@ -178,62 +284,124 @@ cd backend && npm install
 
 # Frontend
 cd ../frontend && npm install
+
+# (Opsiyonel) WhatsApp servisi
+cd ../services/whatsapp && npm install
 ```
 
 ### 4. Database Migration
 
 ```bash
-cd backend
-npm run migrate
+# Supabase CLI ile (onerilen)
+cd ..
+supabase db push
+
+# veya migration status kontrolu
+supabase migration list
 ```
 
-### 5. Uygulamayı Başlat
+### 5. Uygulamayi Baslat
 
 ```bash
-# Development (ayrı terminallerde)
+# Tek komutla tum servisleri baslat
+./service.sh start
+
+# Veya manuel (ayri terminallerde)
 cd backend && npm run dev    # :3001
 cd frontend && npm run dev   # :3000
-
-# Veya tek komutla
-./start-dev.sh
 ```
 
 ---
 
-## 📡 API Endpoints
+## Servis Yonetimi
 
-### Ana Modüller
+Tum servis islemleri icin `service.sh` script'ini kullanin:
 
-| Modül | Endpoint | Açıklama |
+```bash
+./service.sh start      # Tum servisleri baslat
+./service.sh stop       # Tum servisleri durdur
+./service.sh restart    # Yeniden baslat
+./service.sh status     # Durum kontrolu
+./service.sh logs       # Canli log takibi
+./service.sh clean      # Cache ve eski loglari temizle
+./service.sh backend    # Sadece backend yeniden baslat
+./service.sh frontend   # Sadece frontend yeniden baslat
+```
+
+### Docker ile Calistirma (Opsiyonel)
+
+```bash
+# Tum servisleri baslat
+docker-compose up -d
+
+# Loglari izle
+docker-compose logs -f
+
+# Servisleri durdur
+docker-compose down
+```
+
+### Servis URL'leri
+
+| Servis | URL | Aciklama |
+|--------|-----|----------|
+| Frontend | http://localhost:3000 | Next.js UI |
+| Backend API | http://localhost:3001 | Express API |
+| API Docs | http://localhost:3001/api-docs | Swagger UI |
+| WhatsApp | http://localhost:3002 | WhatsApp servisi |
+| Instagram | http://localhost:3003 | Instagram servisi |
+
+---
+
+## API Endpoints
+
+### Ana Moduller
+
+| Modul | Endpoint | Aciklama |
 |-------|----------|----------|
 | Auth | `/api/auth/*` | Login, register, profil |
-| Tenders | `/api/tenders/*` | İhale CRUD |
+| Tenders | `/api/tenders/*` | Ihale CRUD |
 | Tracking | `/api/tender-tracking/*` | Takip listesi |
-| Documents | `/api/documents/*` | Döküman upload/analiz |
+| Documents | `/api/documents/*` | Dokuman upload/analiz |
 | Scraper | `/api/scraper/*` | ihalebul.com scraper |
-| Tender Docs | `/api/tender-docs/*` | Döküman indirme |
+
+### Muhasebe
+
+| Modul | Endpoint | Aciklama |
+|-------|----------|----------|
 | Cariler | `/api/cariler/*` | Cari hesaplar |
 | Invoices | `/api/invoices/*` | Faturalar |
-| Stok | `/api/stok/*` | Stok yönetimi |
+| Fatura Kalemleri | `/api/fatura-kalemler/*` | Fatura kalem yonetimi |
+| Stok | `/api/stok/*` | Stok yonetimi |
+| Urunler | `/api/urunler/*` | Urun kartlari |
+| Mutabakat | `/api/mutabakat/*` | Cari mutabakat |
+| Uyumsoft | `/api/uyumsoft/*` | Fatura sync |
+
+### IK/Bordro
+
+| Modul | Endpoint | Aciklama |
+|-------|----------|----------|
 | Personel | `/api/personel/*` | Personel/HR |
 | Bordro | `/api/bordro/*` | Bordro hesaplama |
-| Planlama | `/api/planlama/*` | Menü planlama |
+| Maas Odeme | `/api/maas-odeme/*` | Maas odemeleri |
+| Izin | `/api/izin/*` | Izin yonetimi |
+
+### Diger
+
+| Modul | Endpoint | Aciklama |
+|-------|----------|----------|
 | AI | `/api/ai/*` | AI asistan |
+| AI Memory | `/api/ai-memory/*` | Konusma hafizasi |
+| Firmalar | `/api/firmalar/*` | Firma kartlari |
+| Menu Planlama | `/api/menu-planlama/*` | Menu yonetimi |
+| Maliyet | `/api/maliyet-analizi/*` | Maliyet raporlari |
+| Notifications | `/api/notifications/*` | Bildirimler |
+| Export | `/api/export/*` | Veri disa aktarma |
+| Search | `/api/search/*` | Global arama |
+| System | `/api/system/*` | Sistem yonetimi |
+| Audit Logs | `/api/audit-logs/*` | Islem gunlukleri |
 
-### Scraper & Döküman API
-
-| Endpoint | Method | Açıklama |
-|----------|--------|----------|
-| `/api/scraper/health` | GET | Scraper sistem durumu |
-| `/api/scraper/trigger` | POST | Manuel scraping başlat |
-| `/api/scraper/check-documents/:id` | GET | İhale döküman durumu kontrol |
-| `/api/scraper/fetch-documents/:id` | POST | İhale dökümanlarını çek (on-demand) |
-| `/api/scraper/cleanup-documents` | POST | Tüm başarısız dökümanları temizle |
-| `/api/scraper/cleanup-tender/:id` | POST | Tek ihale için temizlik |
-| `/api/tender-docs/:id/download-status` | GET | İndirme durumu (failed dahil) |
-| `/api/tender-docs/:id/download-documents` | POST | Döküman indir + ZIP aç (otomatik cleanup) |
-
-### Swagger Dokümantasyonu
+### Swagger Dokumantasyonu
 
 ```
 http://localhost:3001/api-docs
@@ -241,74 +409,193 @@ http://localhost:3001/api-docs
 
 ---
 
-## 🤖 AI Özellikleri
+## AI Ozellikleri
 
 ### Claude AI Asistan
+
 - Streaming chat responses
 - Tool-based agent system
 - Sistem verileriyle entegrasyon
+- Konusma hafizasi (memory)
 
 ```typescript
 // AI'dan ihale analizi iste
-"Son eklenen 5 ihaleyi analiz et ve hangisine başvurmalıyız?"
+"Son eklenen 5 ihaleyi analiz et ve hangisine basvurmaliyiz?"
 
 // Cari bakiye sorgu
-"Ankara'daki müşterilerin toplam bakiyesi nedir?"
+"Ankara'daki musterilerin toplam bakiyesi nedir?"
 
 // Bordro hesaplama
-"5000 TL net maaş için brüt ne olur?"
+"5000 TL net maas icin brut ne olur?"
 ```
 
-### Gemini AI Döküman Analizi
+### Gemini AI Dokuman Analizi
+
 - PDF/Word/Excel OCR
-- Yapılandırılmış veri çıkarma
+- Yapilandirilmis veri cikarma
 - Gramaj tablosu analizi
+- Sartname parsing
+
+### Prompt Builder
+
+- Ozel AI sablon olusturma
+- Kategori bazli promptlar
+- Kayitli sablonlar
 
 ---
 
-## 🚨 Troubleshooting
+## Troubleshooting
 
-### Database Bağlantı Hatası
+### Database Baglanti Hatasi
+
 ```bash
 # Supabase connection test
 psql $DATABASE_URL -c "SELECT 1"
+
+# Pool durumu kontrolu
+curl http://localhost:3001/api/database-stats
 ```
 
-### Scraper Hatası
+### Scraper Hatasi
+
 ```bash
 # Session temizle
 rm backend/storage/session.json
 
-# Başarısız dökümanları temizle (API)
+# Basarisiz dokumanlari temizle (API)
 curl -X POST http://localhost:3001/api/scraper/cleanup-documents
 
-# Tek ihale için temizlik
+# Tek ihale icin temizlik
 curl -X POST http://localhost:3001/api/scraper/cleanup-tender/97
 ```
 
-### API Bağlantı Hatası
+### API Baglanti Hatasi
+
 ```bash
 # Health check
 curl http://localhost:3001/health
+
+# Detayli sistem durumu
+curl http://localhost:3001/api/system/status
+```
+
+### Frontend Build Hatasi
+
+```bash
+# Type check
+cd frontend && npm run type-check
+
+# Lint kontrolu
+npm run lint
+
+# Cache temizle
+rm -rf .next && npm run build
 ```
 
 ---
 
-## 📚 Detaylı Dokümantasyon
+## Scripts
 
-- [Architecture](docs/ARCHITECTURE.md) - Sistem mimarisi
-- [Deployment](docs/DEPLOYMENT.md) - Production deploy
-- [DigitalOcean](docs/DIGITALOCEAN.md) - Server konfigürasyonu
-- [Backend Routes](backend/src/routes/README.md) - API detayları
-- [Backend Services](backend/src/services/README.md) - Servis detayları
-- [Frontend](frontend/README.md) - UI dokümantasyonu
+### Backend
+
+```bash
+npm run dev          # Development mode (--watch)
+npm run start        # Production mode
+npm run lint         # Biome lint check
+npm run lint:fix     # Biome auto-fix
+npm run test         # Jest tests
+npm run scraper      # Manuel scraper calistir
+```
+
+### Frontend
+
+```bash
+npm run dev          # Development server
+npm run build        # Production build
+npm run start        # Production server
+npm run lint         # Biome lint check
+npm run type-check   # TypeScript check
+```
+
+### Database
+
+```bash
+# Supabase CLI komutlari (proje kokunden)
+supabase migration list     # Migration durumu
+supabase migration new      # Yeni migration olustur
+supabase db push           # Migrationlari uygula
+supabase db reset          # Database sifirla
+supabase db diff           # Schema farklari
+```
 
 ---
 
-## 📝 License
+## Production Deployment
+
+### PM2 ile
+
+```bash
+# Baslat
+pm2 start ecosystem.config.js
+
+# Durum
+pm2 status
+
+# Loglar
+pm2 logs
+
+# Restart
+pm2 restart all
+
+# Stop
+pm2 stop all
+```
+
+### Nginx Reverse Proxy
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    location /api {
+        proxy_pass http://localhost:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+---
+
+## Detayli Dokumantasyon
+
+- [Dokuman Indeksi](docs/00_INDEX.md) - Tum dokumanlar
+- [Database Schema](docs/01_DATABASE_SCHEMA.md) - Veritabani yapisi
+- [API Endpoints](docs/02_API_ENDPOINTS.md) - API detaylari
+- [Frontend Modules](docs/03_FRONTEND_MODULES.md) - UI modulleri
+- [Component Registry](docs/04_COMPONENT_REGISTRY.md) - Component listesi
+- [Architecture](docs/ARCHITECTURE.md) - Sistem mimarisi
+- [Deployment](docs/DEPLOYMENT.md) - Production deploy
+- [DigitalOcean](docs/DIGITALOCEAN.md) - Server konfigurasyonu
+- [WhatsApp](docs/WHATSAPP-INTEGRATION.md) - WhatsApp entegrasyonu
+
+---
+
+## License
 
 MIT
 
-## 👨‍💻 Geliştirici
+## Gelistirici
 
 Catering Pro Team - 2026
