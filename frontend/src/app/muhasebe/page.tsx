@@ -5,10 +5,8 @@ import {
   Badge,
   Box,
   Card,
-  Center,
   Container,
   Group,
-  Loader,
   Paper,
   Progress,
   SimpleGrid,
@@ -34,34 +32,24 @@ import {
   IconTrendingUp,
   IconUsers,
 } from '@tabler/icons-react';
-import dynamic from 'next/dynamic';
 import { useCallback, useState } from 'react';
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import ProjeCard from '@/components/muhasebe/ProjeCard';
 import ProjeYonetimModal from '@/components/muhasebe/ProjeYonetimModal';
 import { useRealtimeRefetch } from '@/context/RealtimeContext';
 import { formatMoney } from '@/lib/formatters';
-
-// Recharts lazy loading (~50KB tasarruf)
-const RechartsComponents = dynamic(
-  () => import('recharts').then((mod) => ({
-    default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-    ...mod,
-  })),
-  { ssr: false, loading: () => <Center h={200}><Loader size="sm" /></Center> }
-);
-
-// Recharts componentleri lazy import
-const AreaChart = dynamic(() => import('recharts').then((mod) => mod.AreaChart), { ssr: false });
-const Area = dynamic(() => import('recharts').then((mod) => mod.Area), { ssr: false });
-const XAxis = dynamic(() => import('recharts').then((mod) => mod.XAxis), { ssr: false });
-const YAxis = dynamic(() => import('recharts').then((mod) => mod.YAxis), { ssr: false });
-const CartesianGrid = dynamic(() => import('recharts').then((mod) => mod.CartesianGrid), { ssr: false });
-const RechartsTooltip = dynamic(() => import('recharts').then((mod) => mod.Tooltip), { ssr: false });
-const Legend = dynamic(() => import('recharts').then((mod) => mod.Legend), { ssr: false });
-const ResponsiveContainer = dynamic(() => import('recharts').then((mod) => mod.ResponsiveContainer), { ssr: false });
-const PieChart = dynamic(() => import('recharts').then((mod) => mod.PieChart), { ssr: false });
-const Pie = dynamic(() => import('recharts').then((mod) => mod.Pie), { ssr: false });
-const Cell = dynamic(() => import('recharts').then((mod) => mod.Cell), { ssr: false });
 
 // Demo veriler
 const monthlyData = [
