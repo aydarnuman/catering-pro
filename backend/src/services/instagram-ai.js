@@ -1,6 +1,5 @@
+import fs from 'node:fs';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import fs from 'fs';
-import path from 'path';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -138,7 +137,6 @@ Bu yemek/catering görselini analiz et ve Instagram için mükemmel bir paylaş�
       rawResponse: text,
     };
   } catch (error) {
-    console.error('Instagram AI Caption hatası:', error);
     return {
       success: false,
       error: error.message,
@@ -156,11 +154,7 @@ export async function generateHashtags(caption, options = {}) {
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
-    const {
-      count = 12,
-      city = 'ankara',
-      businessType = 'catering',
-    } = options;
+    const { count = 12, city = 'ankara', businessType = 'catering' } = options;
 
     const prompt = `Sen bir Instagram hashtag uzmanısın. Aşağıdaki catering/yemek paylaşımı için en etkili hashtagleri öner.
 
@@ -214,7 +208,6 @@ JSON FORMATI:
       error: 'JSON parse hatası',
     };
   } catch (error) {
-    console.error('Hashtag üretme hatası:', error);
     return {
       success: false,
       error: error.message,
@@ -300,7 +293,6 @@ JSON FORMATI:
       error: 'JSON parse hatası',
     };
   } catch (error) {
-    console.error('DM analiz hatası:', error);
     return {
       success: false,
       error: error.message,
@@ -324,8 +316,8 @@ export async function generateMenuPost(menu, options = {}) {
       includePrice = false,
     } = options;
 
-    const menuText = Array.isArray(menu) 
-      ? menu.map(item => `- ${item.name}${item.price ? ` (${item.price}₺)` : ''}`).join('\n')
+    const menuText = Array.isArray(menu)
+      ? menu.map((item) => `- ${item.name}${item.price ? ` (${item.price}₺)` : ''}`).join('\n')
       : JSON.stringify(menu, null, 2);
 
     const prompt = `${businessName} firması için günlük menü Instagram paylaşımı hazırla.
@@ -375,7 +367,6 @@ JSON FORMATI:
       error: 'JSON parse hatası',
     };
   } catch (error) {
-    console.error('Menü post hatası:', error);
     return {
       success: false,
       error: error.message,
@@ -452,7 +443,6 @@ JSON FORMATI:
       error: 'JSON parse hatası',
     };
   } catch (error) {
-    console.error('Image prompt üretme hatası:', error);
     return {
       success: false,
       error: error.message,
@@ -472,7 +462,8 @@ export async function generateImageWithReplicate(prompt, options = {}) {
     if (!apiKey) {
       return {
         success: false,
-        error: 'REPLICATE_API_TOKEN tanımlı değil. .env dosyasına ekleyin. https://replicate.com/account/api-tokens adresinden alın.',
+        error:
+          'REPLICATE_API_TOKEN tanımlı değil. .env dosyasına ekleyin. https://replicate.com/account/api-tokens adresinden alın.',
       };
     }
 
@@ -494,9 +485,9 @@ export async function generateImageWithReplicate(prompt, options = {}) {
     const createResponse = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'Prefer': 'wait', // Sonucu bekle (webhook yerine)
+        Prefer: 'wait', // Sonucu bekle (webhook yerine)
       },
       body: JSON.stringify({
         input: {
@@ -529,17 +520,16 @@ export async function generateImageWithReplicate(prompt, options = {}) {
     const maxAttempts = 120; // 120 saniye timeout
 
     while (result.status !== 'succeeded' && result.status !== 'failed' && attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 1000)); // 1 saniye bekle
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // 1 saniye bekle
+
       const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
-        headers: { 'Authorization': `Bearer ${apiKey}` },
+        headers: { Authorization: `Bearer ${apiKey}` },
       });
       result = await statusResponse.json();
       attempts++;
-      
+
       // İlerleme logla
       if (attempts % 5 === 0) {
-        console.log(`Flux görsel üretimi devam ediyor... (${attempts}s, status: ${result.status})`);
       }
     }
 
@@ -575,7 +565,6 @@ export async function generateImageWithReplicate(prompt, options = {}) {
       metrics: result.metrics, // Süre bilgisi
     };
   } catch (error) {
-    console.error('Replicate görsel üretme hatası:', error);
     return {
       success: false,
       error: error.message,
@@ -612,13 +601,17 @@ export async function generateMenuCardTemplate(menu, options = {}) {
           <h1 style="font-size: 48px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 3px;">📅 Günün Menüsü</h1>
           <h2 style="font-size: 28px; font-weight: 300; margin-bottom: 40px; opacity: 0.9;">${businessName}</h2>
           <div style="background: rgba(255,255,255,0.15); border-radius: 20px; padding: 40px; backdrop-filter: blur(10px);">
-            ${menuItems.map((item, i) => `
+            ${menuItems
+              .map(
+                (item, i) => `
               <div style="display: flex; align-items: center; margin-bottom: 25px; ${i < menuItems.length - 1 ? 'border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 20px;' : ''}">
                 <span style="font-size: 36px; margin-right: 20px;">${item.emoji || '🍽️'}</span>
                 <span style="font-size: 28px; flex: 1;">${item.name || item}</span>
                 ${item.price ? `<span style="font-size: 24px; opacity: 0.8;">${item.price}₺</span>` : ''}
               </div>
-            `).join('')}
+            `
+              )
+              .join('')}
           </div>
           <div style="position: absolute; bottom: 40px; left: 60px; right: 60px; display: flex; justify-content: space-between; align-items: center; opacity: 0.8;">
             <span>☎️ İletişim için DM</span>
@@ -634,12 +627,16 @@ export async function generateMenuCardTemplate(menu, options = {}) {
             <hr style="border: none; border-top: 2px solid #D4A574; width: 200px; margin: 20px auto;">
           </div>
           <h2 style="text-align: center; font-size: 32px; margin-bottom: 30px;">Günün Menüsü</h2>
-          ${menuItems.map((item, i) => `
+          ${menuItems
+            .map(
+              (item, _i) => `
             <div style="text-align: center; margin-bottom: 20px;">
               <span style="font-size: 24px;">${item.emoji || '◆'} ${item.name || item}</span>
               ${item.price ? `<span style="display: block; font-size: 18px; color: #8B4513;">${item.price}₺</span>` : ''}
             </div>
-          `).join('')}
+          `
+            )
+            .join('')}
           <div style="position: absolute; bottom: 40px; left: 0; right: 0; text-align: center; font-size: 16px; color: #8B4513;">
             Afiyet olsun! 🙏
           </div>
@@ -651,12 +648,16 @@ export async function generateMenuCardTemplate(menu, options = {}) {
             <h1 style="font-size: 36px; font-weight: 300; margin: 0;">Günün Menüsü</h1>
             <p style="font-size: 16px; color: #999; margin-top: 10px;">${date}</p>
           </div>
-          ${menuItems.map(item => `
+          ${menuItems
+            .map(
+              (item) => `
             <div style="margin-bottom: 30px;">
               <span style="font-size: 28px; font-weight: 300;">${item.name || item}</span>
               ${item.price ? `<span style="float: right; font-size: 24px; color: ${primaryColor};">${item.price}₺</span>` : ''}
             </div>
-          `).join('')}
+          `
+            )
+            .join('')}
           <div style="position: absolute; bottom: 60px; left: 80px;">
             <span style="font-size: 20px; font-weight: 600; color: ${primaryColor};">${businessName}</span>
           </div>
@@ -670,12 +671,16 @@ export async function generateMenuCardTemplate(menu, options = {}) {
             <p style="font-size: 20px; opacity: 0.8; margin-top: 10px;">${date}</p>
           </div>
           <div style="margin-top: 100px;">
-            ${menuItems.map((item, i) => `
+            ${menuItems
+              .map(
+                (item, i) => `
               <div style="text-align: center; margin-bottom: 50px; animation: fadeIn ${0.5 + i * 0.2}s;">
                 <span style="font-size: 42px;">${item.emoji || '🍴'}</span>
                 <p style="font-size: 32px; margin-top: 15px;">${item.name || item}</p>
               </div>
-            `).join('')}
+            `
+              )
+              .join('')}
           </div>
           <div style="position: absolute; bottom: 150px; left: 0; right: 0; text-align: center;">
             <p style="font-size: 24px; opacity: 0.9;">⬆️ Yukarı kaydır</p>
@@ -695,7 +700,6 @@ export async function generateMenuCardTemplate(menu, options = {}) {
       dimensions: template === 'story' ? { width: 1080, height: 1920 } : { width: 1080, height: 1080 },
     };
   } catch (error) {
-    console.error('Menü kartı template hatası:', error);
     return {
       success: false,
       error: error.message,

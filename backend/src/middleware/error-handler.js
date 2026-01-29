@@ -9,7 +9,7 @@ import logger from '../utils/logger.js';
  * Global error handler middleware
  * Production'da stack trace gizler, development'ta gösterir
  */
-export const globalErrorHandler = (err, req, res, next) => {
+export const globalErrorHandler = (err, req, res, _next) => {
   // Hata logla
   logger.error('Unhandled Error', {
     error: err.message,

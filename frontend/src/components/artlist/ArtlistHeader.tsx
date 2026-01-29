@@ -12,12 +12,7 @@ import {
   useMantineColorScheme,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import {
-  IconSearch,
-  IconSparkles,
-  IconUser,
-} from '@tabler/icons-react';
-import Link from 'next/link';
+import { IconSearch, IconSparkles, IconUser } from '@tabler/icons-react';
 
 export function ArtlistHeader() {
   const { colorScheme } = useMantineColorScheme();
@@ -49,7 +44,8 @@ export function ArtlistHeader() {
         <Group gap={8} justify="center">
           <IconSparkles size={16} color={isDark ? '#a78bfa' : '#7c3aed'} />
           <Text size="sm" c="dimmed">
-            Yeni! İhtiyaç duyduğunuz tüm yapay zeka araçları tek bir araç setinde bir araya getirildi.
+            Yeni! İhtiyaç duyduğunuz tüm yapay zeka araçları tek bir araç setinde bir araya
+            getirildi.
           </Text>
           <Text
             size="sm"
@@ -63,11 +59,7 @@ export function ArtlistHeader() {
       </Box>
 
       {/* Ana Navigasyon */}
-      <Group
-        h={64}
-        px={{ base: 'md', md: 'xl' }}
-        justify="space-between"
-      >
+      <Group h={64} px={{ base: 'md', md: 'xl' }} justify="space-between">
         {/* Logo + Arama */}
         <Group gap="xl">
           <Text

@@ -213,7 +213,7 @@ export const tendersAPI = {
   },
 
   async updateTenderNote(
-    trackingId: number,
+    _trackingId: number,
     noteId: number,
     updates: {
       text?: string;
@@ -237,18 +237,22 @@ export const tendersAPI = {
     return response.data;
   },
 
-  async deleteTenderNote(trackingId: number, noteId: number): Promise<ApiResponse<void>> {
+  async deleteTenderNote(_trackingId: number, noteId: number): Promise<ApiResponse<void>> {
     const response = await api.delete(`/api/notes/${noteId}`);
     return response.data;
   },
 
-  async pinTenderNote(trackingId: number, noteId: number, pinned: boolean): Promise<ApiResponse<TenderNote>> {
+  async pinTenderNote(
+    _trackingId: number,
+    noteId: number,
+    _pinned: boolean
+  ): Promise<ApiResponse<TenderNote>> {
     const response = await api.put(`/api/notes/${noteId}/pin`);
     return response.data;
   },
 
   async addTenderNoteAttachment(
-    trackingId: number,
+    _trackingId: number,
     noteId: number,
     formData: FormData
   ): Promise<ApiResponse<any>> {
@@ -259,7 +263,7 @@ export const tendersAPI = {
   },
 
   async deleteTenderNoteAttachment(
-    trackingId: number,
+    _trackingId: number,
     noteId: number,
     attachmentId: number
   ): Promise<ApiResponse<void>> {

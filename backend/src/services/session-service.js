@@ -25,18 +25,12 @@ class SessionService {
   async createSession(userId, refreshTokenHash, ipAddress, userAgent, deviceInfo = {}) {
     try {
       // Aktif session sayısını kontrol et
-      const activeCountResult = await query(
-        'SELECT get_active_session_count($1) as count',
-        [userId]
-      );
-      const activeCount = parseInt(activeCountResult.rows[0]?.count || 0);
+      const activeCountResult = await query('SELECT get_active_session_count($1) as count', [userId]);
+      const activeCount = parseInt(activeCountResult.rows[0]?.count || 0, 10);
 
       // Limit aşıldıysa en eski session'ı sonlandır
       if (activeCount >= this.MAX_CONCURRENT_SESSIONS) {
-        const oldestSessionResult = await query(
-          'SELECT get_oldest_active_session($1) as session_id',
-          [userId]
-        );
+        const oldestSessionResult = await query('SELECT get_oldest_active_session($1) as session_id', [userId]);
         const oldestSessionId = oldestSessionResult.rows[0]?.session_id;
 
         if (oldestSessionId) {
@@ -44,7 +38,7 @@ class SessionService {
           logger.info('Oldest session terminated due to limit', {
             userId,
             sessionId: oldestSessionId,
-            maxSessions: this.MAX_CONCURRENT_SESSIONS
+            maxSessions: this.MAX_CONCURRENT_SESSIONS,
           });
         }
       }
@@ -57,22 +51,15 @@ class SessionService {
         `INSERT INTO user_sessions (user_id, refresh_token_hash, device_info, ip_address, user_agent, expires_at)
          VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING id`,
-        [
-          userId,
-          refreshTokenHash,
-          JSON.stringify(deviceInfo),
-          ipAddress || null,
-          userAgent || null,
-          expiresAt
-        ]
+        [userId, refreshTokenHash, JSON.stringify(deviceInfo), ipAddress || null, userAgent || null, expiresAt]
       );
 
       const sessionId = result.rows[0]?.id;
-      
+
       logger.debug('Session created', {
         sessionId,
         userId,
-        activeCount: activeCount + 1
+        activeCount: activeCount + 1,
       });
 
       return sessionId;
@@ -80,7 +67,7 @@ class SessionService {
       logger.error('Session creation error', {
         error: error.message,
         userId,
-        refreshTokenHash: refreshTokenHash.substring(0, 10) + '...'
+        refreshTokenHash: refreshTokenHash.substring(0, 10) + '...',
       });
       return null;
     }
@@ -106,7 +93,7 @@ class SessionService {
     } catch (error) {
       logger.error('Session activity update error', {
         error: error.message,
-        refreshTokenHash: refreshTokenHash.substring(0, 10) + '...'
+        refreshTokenHash: refreshTokenHash.substring(0, 10) + '...',
       });
       return false;
     }
@@ -128,7 +115,7 @@ class SessionService {
         [userId]
       );
 
-      return result.rows.map(row => ({
+      return result.rows.map((row) => ({
         id: row.id,
         refreshTokenHash: row.refresh_token_hash,
         deviceInfo: row.device_info || {},
@@ -137,12 +124,12 @@ class SessionService {
         lastActivity: row.last_activity,
         createdAt: row.created_at,
         expiresAt: row.expires_at,
-        isActive: row.is_active
+        isActive: row.is_active,
       }));
     } catch (error) {
       logger.error('Get user sessions error', {
         error: error.message,
-        userId
+        userId,
       });
       return [];
     }
@@ -155,10 +142,7 @@ class SessionService {
    */
   async terminateSession(sessionId) {
     try {
-      const result = await query(
-        'SELECT terminate_session($1) as success',
-        [sessionId]
-      );
+      const result = await query('SELECT terminate_session($1) as success', [sessionId]);
 
       const success = result.rows[0]?.success || false;
 
@@ -170,7 +154,7 @@ class SessionService {
     } catch (error) {
       logger.error('Terminate session error', {
         error: error.message,
-        sessionId
+        sessionId,
       });
       return false;
     }
@@ -184,24 +168,21 @@ class SessionService {
    */
   async terminateOtherSessions(userId, currentTokenHash) {
     try {
-      const result = await query(
-        'SELECT terminate_other_sessions($1, $2) as count',
-        [userId, currentTokenHash]
-      );
+      const result = await query('SELECT terminate_other_sessions($1, $2) as count', [userId, currentTokenHash]);
 
-      const count = parseInt(result.rows[0]?.count || 0);
+      const count = parseInt(result.rows[0]?.count || 0, 10);
 
       logger.info('Other sessions terminated', {
         userId,
         count,
-        currentTokenHash: currentTokenHash.substring(0, 10) + '...'
+        currentTokenHash: currentTokenHash.substring(0, 10) + '...',
       });
 
       return count;
     } catch (error) {
       logger.error('Terminate other sessions error', {
         error: error.message,
-        userId
+        userId,
       });
       return 0;
     }
@@ -237,12 +218,12 @@ class SessionService {
         lastActivity: row.last_activity,
         createdAt: row.created_at,
         expiresAt: row.expires_at,
-        isActive: row.is_active
+        isActive: row.is_active,
       };
     } catch (error) {
       logger.error('Get session by token error', {
         error: error.message,
-        refreshTokenHash: refreshTokenHash.substring(0, 10) + '...'
+        refreshTokenHash: refreshTokenHash.substring(0, 10) + '...',
       });
       return null;
     }
@@ -258,7 +239,7 @@ class SessionService {
       return {
         device: 'Unknown',
         os: 'Unknown',
-        browser: 'Unknown'
+        browser: 'Unknown',
       };
     }
 
@@ -266,7 +247,7 @@ class SessionService {
     const info = {
       device: 'Desktop',
       os: 'Unknown',
-      browser: 'Unknown'
+      browser: 'Unknown',
     };
 
     // OS detection

@@ -18,14 +18,12 @@ dotenv.config({ path: rootEnv });
 const result = dotenv.config({ path: backendEnv });
 
 if (result.error && process.env.NODE_ENV === 'production') {
-  console.error('❌ .env dosyası yüklenemedi:', result.error);
   process.exit(1);
 }
 
 // Environment variable'ları validate et
 try {
   validateEnvironment();
-} catch (error) {
-  console.error('❌ Environment validation hatası:', error.message);
+} catch (_error) {
   process.exit(1);
 }

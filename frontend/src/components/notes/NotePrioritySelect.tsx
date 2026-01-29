@@ -1,8 +1,8 @@
 'use client';
 
-import { Select, Badge, Group, Text } from '@mantine/core';
+import { Badge, Group, Select, Text } from '@mantine/core';
 import { IconFlag, IconFlagFilled } from '@tabler/icons-react';
-import { PRIORITY_COLORS, PRIORITY_LABELS, type NotePriority } from '@/types/notes';
+import { type NotePriority, PRIORITY_COLORS, PRIORITY_LABELS } from '@/types/notes';
 
 interface NotePrioritySelectProps {
   value: NotePriority;
@@ -39,13 +39,7 @@ export function NotePrioritySelect({
                 opacity: disabled ? 0.5 : 1,
               }}
               onClick={() => !disabled && onChange(priority)}
-              leftSection={
-                isSelected ? (
-                  <IconFlagFilled size={12} />
-                ) : (
-                  <IconFlag size={12} />
-                )
-              }
+              leftSection={isSelected ? <IconFlagFilled size={12} /> : <IconFlag size={12} />}
             >
               {PRIORITY_LABELS[priority]}
             </Badge>

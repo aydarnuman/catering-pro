@@ -1,5 +1,5 @@
 import express from 'express';
-import { pool, query } from '../database.js';
+import { query } from '../database.js';
 
 const router = express.Router();
 
@@ -8,14 +8,13 @@ const router = express.Router();
 // =====================================================
 
 // Tüm izin türlerini listele
-router.get('/turler', async (req, res) => {
+router.get('/turler', async (_req, res) => {
   try {
     const result = await query(`
       SELECT * FROM izin_turleri WHERE aktif = TRUE ORDER BY ad
     `);
     res.json(result.rows);
   } catch (error) {
-    console.error('İzin türleri hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -28,7 +27,7 @@ router.get('/turler', async (req, res) => {
 router.get('/talepler', async (req, res) => {
   try {
     const { durum, personel_id, yil, ay } = req.query;
-    
+
     let sql = `
       SELECT 
         it.*,
@@ -76,7 +75,6 @@ router.get('/talepler', async (req, res) => {
     const result = await query(sql, params);
     res.json(result.rows);
   } catch (error) {
-    console.error('İzin talepleri hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -84,9 +82,15 @@ router.get('/talepler', async (req, res) => {
 // Yeni izin talebi oluştur
 router.post('/talepler', async (req, res) => {
   try {
-    const { 
-      personel_id, izin_turu_id, baslangic_tarihi, bitis_tarihi,
-      yarim_gun, yarim_gun_tipi, aciklama, belge_url 
+    const {
+      personel_id,
+      izin_turu_id,
+      baslangic_tarihi,
+      bitis_tarihi,
+      yarim_gun,
+      yarim_gun_tipi,
+      aciklama,
+      belge_url,
     } = req.body;
 
     if (!personel_id || !izin_turu_id || !baslangic_tarihi || !bitis_tarihi) {
@@ -94,7 +98,8 @@ router.post('/talepler', async (req, res) => {
     }
 
     // Çakışma kontrolü
-    const cakismaKontrol = await query(`
+    const cakismaKontrol = await query(
+      `
       SELECT id FROM izin_talepleri 
       WHERE personel_id = $1 
       AND durum IN ('beklemede', 'onaylandi')
@@ -103,26 +108,36 @@ router.post('/talepler', async (req, res) => {
         (baslangic_tarihi <= $3 AND bitis_tarihi >= $3) OR
         (baslangic_tarihi >= $2 AND bitis_tarihi <= $3)
       )
-    `, [personel_id, baslangic_tarihi, bitis_tarihi]);
+    `,
+      [personel_id, baslangic_tarihi, bitis_tarihi]
+    );
 
     if (cakismaKontrol.rows.length > 0) {
       return res.status(400).json({ error: 'Bu tarih aralığında zaten bir izin talebi mevcut' });
     }
 
-    const result = await query(`
+    const result = await query(
+      `
       INSERT INTO izin_talepleri (
         personel_id, izin_turu_id, baslangic_tarihi, bitis_tarihi,
         yarim_gun, yarim_gun_tipi, aciklama, belge_url, gun_sayisi
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $4::date - $3::date + 1)
       RETURNING *
-    `, [
-      personel_id, izin_turu_id, baslangic_tarihi, bitis_tarihi,
-      yarim_gun || false, yarim_gun_tipi, aciklama, belge_url
-    ]);
+    `,
+      [
+        personel_id,
+        izin_turu_id,
+        baslangic_tarihi,
+        bitis_tarihi,
+        yarim_gun || false,
+        yarim_gun_tipi,
+        aciklama,
+        belge_url,
+      ]
+    );
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('İzin talebi oluşturma hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -137,7 +152,8 @@ router.patch('/talepler/:id/durum', async (req, res) => {
       return res.status(400).json({ error: 'Geçersiz durum' });
     }
 
-    const result = await query(`
+    const result = await query(
+      `
       UPDATE izin_talepleri SET
         durum = $2,
         onaylayan_id = $3,
@@ -146,7 +162,9 @@ router.patch('/talepler/:id/durum', async (req, res) => {
         updated_at = NOW()
       WHERE id = $1
       RETURNING *
-    `, [id, durum, onaylayan_id, red_nedeni]);
+    `,
+      [id, durum, onaylayan_id, red_nedeni]
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'İzin talebi bulunamadı' });
@@ -154,7 +172,6 @@ router.patch('/talepler/:id/durum', async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('İzin durum güncelleme hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -164,9 +181,12 @@ router.delete('/talepler/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const result = await query(`
+    const result = await query(
+      `
       DELETE FROM izin_talepleri WHERE id = $1 AND durum = 'beklemede' RETURNING *
-    `, [id]);
+    `,
+      [id]
+    );
 
     if (result.rows.length === 0) {
       return res.status(400).json({ error: 'Sadece bekleyen talepler silinebilir' });
@@ -174,7 +194,6 @@ router.delete('/talepler/:id', async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error('İzin silme hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -189,33 +208,40 @@ router.get('/personel/:id/ozet', async (req, res) => {
     const yil = new Date().getFullYear();
 
     // Personel bilgisi ve kıdem
-    const personelResult = await query(`
+    const personelResult = await query(
+      `
       SELECT 
         id, ad, soyad, ise_giris_tarihi, maas,
         EXTRACT(YEAR FROM AGE(CURRENT_DATE, ise_giris_tarihi)) as kidem_yil,
         EXTRACT(MONTH FROM AGE(CURRENT_DATE, ise_giris_tarihi)) as kidem_ay,
         AGE(CURRENT_DATE, ise_giris_tarihi) as calisma_suresi
       FROM personeller WHERE id = $1
-    `, [id]);
+    `,
+      [id]
+    );
 
     if (personelResult.rows.length === 0) {
       return res.status(404).json({ error: 'Personel bulunamadı' });
     }
 
     const personel = personelResult.rows[0];
-    const kidemYil = parseInt(personel.kidem_yil) || 0;
+    const kidemYil = parseInt(personel.kidem_yil, 10) || 0;
 
     // Yıllık izin hakkı
-    const hakResult = await query(`
+    const hakResult = await query(
+      `
       SELECT izin_gunu FROM yillik_izin_haklari
       WHERE $1 >= min_kidem_yil AND ($1 < max_kidem_yil OR max_kidem_yil IS NULL)
       LIMIT 1
-    `, [kidemYil]);
+    `,
+      [kidemYil]
+    );
 
     const yillikIzinHakki = hakResult.rows[0]?.izin_gunu || 14;
 
     // Bu yıl kullanılan izinler (türe göre)
-    const kullanilanResult = await query(`
+    const kullanilanResult = await query(
+      `
       SELECT 
         itur.kod,
         itur.ad,
@@ -226,16 +252,21 @@ router.get('/personel/:id/ozet', async (req, res) => {
       AND it.durum = 'onaylandi'
       AND EXTRACT(YEAR FROM it.baslangic_tarihi) = $2
       GROUP BY itur.kod, itur.ad
-    `, [id, yil]);
+    `,
+      [id, yil]
+    );
 
     // Bekleyen talepler
-    const bekleyenResult = await query(`
+    const bekleyenResult = await query(
+      `
       SELECT COUNT(*) as sayi FROM izin_talepleri
       WHERE personel_id = $1 AND durum = 'beklemede'
-    `, [id]);
+    `,
+      [id]
+    );
 
     // Toplam kullanılan yıllık izin
-    const yillikKullanilan = kullanilanResult.rows.find(r => r.kod === 'yillik')?.kullanilan || 0;
+    const yillikKullanilan = kullanilanResult.rows.find((r) => r.kod === 'yillik')?.kullanilan || 0;
 
     res.json({
       personel: {
@@ -243,23 +274,22 @@ router.get('/personel/:id/ozet', async (req, res) => {
         ad: personel.ad,
         soyad: personel.soyad,
         ise_giris_tarihi: personel.ise_giris_tarihi,
-        maas: personel.maas
+        maas: personel.maas,
       },
       kidem: {
         yil: kidemYil,
-        ay: parseInt(personel.kidem_ay) || 0,
-        toplam_gun: Math.floor((new Date() - new Date(personel.ise_giris_tarihi)) / (1000 * 60 * 60 * 24))
+        ay: parseInt(personel.kidem_ay, 10) || 0,
+        toplam_gun: Math.floor((Date.now() - new Date(personel.ise_giris_tarihi)) / (1000 * 60 * 60 * 24)),
       },
       izin: {
         yillik_hak: yillikIzinHakki,
-        yillik_kullanilan: parseInt(yillikKullanilan) || 0,
-        yillik_kalan: yillikIzinHakki - (parseInt(yillikKullanilan) || 0),
+        yillik_kullanilan: parseInt(yillikKullanilan, 10) || 0,
+        yillik_kalan: yillikIzinHakki - (parseInt(yillikKullanilan, 10) || 0),
         kullanim_detay: kullanilanResult.rows,
-        bekleyen_talep: parseInt(bekleyenResult.rows[0].sayi) || 0
-      }
+        bekleyen_talep: parseInt(bekleyenResult.rows[0].sayi, 10) || 0,
+      },
     });
   } catch (error) {
-    console.error('Personel izin özeti hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -279,9 +309,12 @@ router.post('/kidem-hesapla', async (req, res) => {
     const cikisTarihi = cikis_tarihi ? new Date(cikis_tarihi) : new Date();
 
     // Personel bilgisi
-    const personelResult = await query(`
+    const personelResult = await query(
+      `
       SELECT * FROM personeller WHERE id = $1
-    `, [personel_id]);
+    `,
+      [personel_id]
+    );
 
     if (personelResult.rows.length === 0) {
       return res.status(404).json({ error: 'Personel bulunamadı' });
@@ -289,21 +322,24 @@ router.post('/kidem-hesapla', async (req, res) => {
 
     const personel = personelResult.rows[0];
     const iseGiris = new Date(personel.ise_giris_tarihi);
-    
+
     // Toplam çalışma günü ve yılı
     const toplamGun = Math.floor((cikisTarihi - iseGiris) / (1000 * 60 * 60 * 24));
     const toplamYil = toplamGun / 365;
 
     // Brüt maaş (Net'ten hesapla)
-    let brutMaas = personel.maas * 1.4; // Yaklaşık
+    const brutMaas = personel.maas * 1.4; // Yaklaşık
 
     // Kıdem tazminatı tavanı
     const ay = cikisTarihi.getMonth() + 1;
     const donem = ay <= 6 ? 1 : 2;
-    const tavanResult = await query(`
+    const tavanResult = await query(
+      `
       SELECT tavan_tutar FROM kidem_tazminati_tavan
       WHERE yil = $1 AND donem = $2
-    `, [cikisTarihi.getFullYear(), donem]);
+    `,
+      [cikisTarihi.getFullYear(), donem]
+    );
 
     const kidemTavani = tavanResult.rows[0]?.tavan_tutar || 45000;
 
@@ -313,10 +349,13 @@ router.post('/kidem-hesapla', async (req, res) => {
 
     // İhbar süresi (gün cinsinden)
     let ihbarGun = 0;
-    if (toplamGun < 180) ihbarGun = 14;        // 0-6 ay: 2 hafta
-    else if (toplamGun < 540) ihbarGun = 28;   // 6-18 ay: 4 hafta
-    else if (toplamGun < 1080) ihbarGun = 42;  // 18-36 ay: 6 hafta
-    else ihbarGun = 56;                         // 36+ ay: 8 hafta
+    if (toplamGun < 180)
+      ihbarGun = 14; // 0-6 ay: 2 hafta
+    else if (toplamGun < 540)
+      ihbarGun = 28; // 6-18 ay: 4 hafta
+    else if (toplamGun < 1080)
+      ihbarGun = 42; // 18-36 ay: 6 hafta
+    else ihbarGun = 56; // 36+ ay: 8 hafta
 
     // İhbar tazminatı
     const gunlukBrut = brutMaas / 30;
@@ -324,7 +363,8 @@ router.post('/kidem-hesapla', async (req, res) => {
 
     // Kullanılmamış izin
     const yil = cikisTarihi.getFullYear();
-    const izinResult = await query(`
+    const izinResult = await query(
+      `
       SELECT 
         COALESCE(
           (SELECT izin_gunu FROM yillik_izin_haklari
@@ -337,10 +377,12 @@ router.post('/kidem-hesapla', async (req, res) => {
            WHERE it.personel_id = $2 AND itur.kod = 'yillik' AND it.durum = 'onaylandi'
            AND EXTRACT(YEAR FROM it.baslangic_tarihi) = $3), 0
         ) as kullanilan
-    `, [Math.floor(toplamYil), personel_id, yil]);
+    `,
+      [Math.floor(toplamYil), personel_id, yil]
+    );
 
-    const izinHak = parseInt(izinResult.rows[0].hak) || 14;
-    const izinKullanilan = parseInt(izinResult.rows[0].kullanilan) || 0;
+    const izinHak = parseInt(izinResult.rows[0].hak, 10) || 14;
+    const izinKullanilan = parseInt(izinResult.rows[0].kullanilan, 10) || 0;
     const kalanIzin = Math.max(0, izinHak - izinKullanilan);
     const izinUcreti = Math.round(gunlukBrut * kalanIzin * 100) / 100;
 
@@ -348,10 +390,7 @@ router.post('/kidem-hesapla', async (req, res) => {
     const kidemHakki = toplamYil >= 1 && cikis_nedeni !== 'istifa';
     const ihbarHakki = cikis_nedeni !== 'istifa';
 
-    const toplamTazminat = 
-      (kidemHakki ? kidemTazminati : 0) + 
-      (ihbarHakki ? ihbarTazminati : 0) + 
-      izinUcreti;
+    const toplamTazminat = (kidemHakki ? kidemTazminati : 0) + (ihbarHakki ? ihbarTazminati : 0) + izinUcreti;
 
     res.json({
       personel: {
@@ -360,36 +399,35 @@ router.post('/kidem-hesapla', async (req, res) => {
         soyad: personel.soyad,
         ise_giris: personel.ise_giris_tarihi,
         net_maas: personel.maas,
-        brut_maas: Math.round(brutMaas * 100) / 100
+        brut_maas: Math.round(brutMaas * 100) / 100,
       },
       calisma: {
         baslangic: personel.ise_giris_tarihi,
         bitis: cikis_tarihi || new Date().toISOString().split('T')[0],
         toplam_gun: toplamGun,
-        toplam_yil: Math.round(toplamYil * 100) / 100
+        toplam_yil: Math.round(toplamYil * 100) / 100,
       },
       kidem: {
         hakki_var: kidemHakki,
         tavan: kidemTavani,
         matrah: kidemMatrahi,
-        tazminat: kidemHakki ? kidemTazminati : 0
+        tazminat: kidemHakki ? kidemTazminati : 0,
       },
       ihbar: {
         hakki_var: ihbarHakki,
         sure_gun: ihbarGun,
         sure_hafta: ihbarGun / 7,
-        tazminat: ihbarHakki ? ihbarTazminati : 0
+        tazminat: ihbarHakki ? ihbarTazminati : 0,
       },
       izin: {
         yillik_hak: izinHak,
         kullanilan: izinKullanilan,
         kalan: kalanIzin,
-        ucret: izinUcreti
+        ucret: izinUcreti,
       },
-      toplam_tazminat: Math.round(toplamTazminat * 100) / 100
+      toplam_tazminat: Math.round(toplamTazminat * 100) / 100,
     });
   } catch (error) {
-    console.error('Kıdem hesaplama hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -398,7 +436,7 @@ router.post('/kidem-hesapla', async (req, res) => {
 // İSTATİSTİKLER
 // =====================================================
 
-router.get('/stats', async (req, res) => {
+router.get('/stats', async (_req, res) => {
   try {
     const result = await query(`
       SELECT 
@@ -413,13 +451,12 @@ router.get('/stats', async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('İzin stats hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // Bugün izinli olanlar
-router.get('/bugun-izinli', async (req, res) => {
+router.get('/bugun-izinli', async (_req, res) => {
   try {
     const result = await query(`
       SELECT 
@@ -436,10 +473,8 @@ router.get('/bugun-izinli', async (req, res) => {
 
     res.json(result.rows);
   } catch (error) {
-    console.error('Bugün izinli hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 export default router;
-

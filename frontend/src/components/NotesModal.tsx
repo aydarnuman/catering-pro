@@ -84,7 +84,8 @@ function getDaysInMonth(year: number, month: number): { key: string; day: Date |
   const startPad = (first.getDay() + 6) % 7;
   const out: { key: string; day: Date | null }[] = [];
   for (let i = 0; i < startPad; i++) out.push({ key: `pad-${year}-${month}-${i}`, day: null });
-  for (let d = 1; d <= last.getDate(); d++) out.push({ key: toDateKey(new Date(year, month, d)), day: new Date(year, month, d) });
+  for (let d = 1; d <= last.getDate(); d++)
+    out.push({ key: toDateKey(new Date(year, month, d)), day: new Date(year, month, d) });
   return out;
 }
 
@@ -374,7 +375,9 @@ export function NotesModal({
                         root: {
                           background: surfaceElevated,
                           border: `1px solid ${borderSubtl}`,
-                          color: isDark ? 'rgba(196,181,253,0.95)' : 'var(--mantine-color-violet-7)',
+                          color: isDark
+                            ? 'rgba(196,181,253,0.95)'
+                            : 'var(--mantine-color-violet-7)',
                           fontWeight: 500,
                           fontSize: 12,
                         },
@@ -403,11 +406,17 @@ export function NotesModal({
             )}
             <Text size="xs" style={{ color: textSecondary, fontWeight: 500 }}>
               {notlar.filter((n) => !n.is_completed).length} bekleyen
-              <Text component="span" mx={6} style={{ opacity: 0.5 }}>·</Text>
+              <Text component="span" mx={6} style={{ opacity: 0.5 }}>
+                ·
+              </Text>
               {notlar.filter((n) => n.is_completed).length} tamamlanan
-              <Text component="span" mx={6} style={{ opacity: 0.5 }}>·</Text>
+              <Text component="span" mx={6} style={{ opacity: 0.5 }}>
+                ·
+              </Text>
               {sabitlenen.length} sabit
-              <Text component="span" mx={6} style={{ opacity: 0.5 }}>·</Text>
+              <Text component="span" mx={6} style={{ opacity: 0.5 }}>
+                ·
+              </Text>
               Bugün {bugun.length} · Bu hafta {buHafta.length}
             </Text>
           </Stack>
@@ -446,111 +455,156 @@ export function NotesModal({
             </Tabs.Tab>
           </Tabs.List>
 
-        <Tabs.Panel value="tumu" pt="lg" pb="xl" px="xl">
-          <NoteList
-            notlar={notlar}
-            isDark={isDark}
-            onToggleNote={onToggleNote}
-            onDeleteNote={handleRequestDelete}
-            onTogglePin={onTogglePin}
-            onUpdateNote={onUpdateNote}
-            emptyTitle="Henüz not yok"
-            emptyDescription="Yukarıdaki alana yazarak ilk notunuzu ekleyin"
-          />
-        </Tabs.Panel>
-        <Tabs.Panel value="sabitlenen" pt="lg" pb="xl" px="xl">
-          <NoteList
-            notlar={sabitlenen}
-            isDark={isDark}
-            onToggleNote={onToggleNote}
-            onDeleteNote={handleRequestDelete}
-            onTogglePin={onTogglePin}
-            onUpdateNote={onUpdateNote}
-            emptyTitle="Sabitlenen not yok"
-            emptyDescription="Not kartındaki raptiye ikonuna tıklayarak sabitleyebilirsiniz"
-          />
-        </Tabs.Panel>
-        <Tabs.Panel value="ajanda" pt="lg" pb="xl" px="xl">
-          <Stack gap="lg">
-            {/* Mini takvim */}
-            <Paper p="md" radius="lg" withBorder={false} style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
-              <Group justify="space-between" mb="sm">
-                <Text size="sm" fw={600}>
-                  {calendarMonth.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}
-                </Text>
-                <Group gap={4}>
-                  <UnstyledButton onClick={() => setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1))}>
-                    <IconChevronLeft size={18} />
-                  </UnstyledButton>
-                  <UnstyledButton onClick={() => setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1))}>
-                    <IconChevronRight size={18} />
-                  </UnstyledButton>
-                </Group>
-              </Group>
-              <SimpleGrid cols={7} spacing={4} style={{ textAlign: 'center' }}>
-                {WEEKDAYS_TR.map((w) => (
-                  <Text key={w} size="xs" c="dimmed" fw={600}>
-                    {w}
+          <Tabs.Panel value="tumu" pt="lg" pb="xl" px="xl">
+            <NoteList
+              notlar={notlar}
+              isDark={isDark}
+              onToggleNote={onToggleNote}
+              onDeleteNote={handleRequestDelete}
+              onTogglePin={onTogglePin}
+              onUpdateNote={onUpdateNote}
+              emptyTitle="Henüz not yok"
+              emptyDescription="Yukarıdaki alana yazarak ilk notunuzu ekleyin"
+            />
+          </Tabs.Panel>
+          <Tabs.Panel value="sabitlenen" pt="lg" pb="xl" px="xl">
+            <NoteList
+              notlar={sabitlenen}
+              isDark={isDark}
+              onToggleNote={onToggleNote}
+              onDeleteNote={handleRequestDelete}
+              onTogglePin={onTogglePin}
+              onUpdateNote={onUpdateNote}
+              emptyTitle="Sabitlenen not yok"
+              emptyDescription="Not kartındaki raptiye ikonuna tıklayarak sabitleyebilirsiniz"
+            />
+          </Tabs.Panel>
+          <Tabs.Panel value="ajanda" pt="lg" pb="xl" px="xl">
+            <Stack gap="lg">
+              {/* Mini takvim */}
+              <Paper
+                p="md"
+                radius="lg"
+                withBorder={false}
+                style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}
+              >
+                <Group justify="space-between" mb="sm">
+                  <Text size="sm" fw={600}>
+                    {calendarMonth.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}
                   </Text>
-                ))}
-                {getDaysInMonth(calendarMonth.getFullYear(), calendarMonth.getMonth()).map(({ key: cellKey, day: dayOrNull }) => {
-                  if (!dayOrNull) return <Box key={cellKey} />;
-                  const count = notlar.filter((n) => n.due_date && toDateKey(new Date(n.due_date)) === cellKey && !n.is_completed).length;
-                  const isSelected = selectedDate && toDateKey(selectedDate) === cellKey;
-                  const isToday = toDateKey(new Date()) === cellKey;
-                  return (
+                  <Group gap={4}>
                     <UnstyledButton
-                      key={cellKey}
-                      onClick={() => setSelectedDate(dayOrNull)}
-                      style={{
-                        aspectRatio: '1',
-                        borderRadius: 8,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        background: isSelected ? (isDark ? 'rgba(139,92,246,0.25)' : 'rgba(139,92,246,0.15)') : isToday ? (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)') : undefined,
-                        fontWeight: isToday ? 700 : 500,
-                        fontSize: 13,
-                      }}
+                      onClick={() =>
+                        setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1))
+                      }
                     >
-                      {dayOrNull.getDate()}
-                      {count > 0 && (
-                        <Box style={{ width: 5, height: 5, borderRadius: 3, background: '#8b5cf6', marginTop: 2 }} />
-                      )}
+                      <IconChevronLeft size={18} />
                     </UnstyledButton>
-                  );
-                })}
-              </SimpleGrid>
-            </Paper>
-            {/* Seçili güne göre liste */}
-            <Box>
-              {selectedDate && (
-                <Text size="xs" c="dimmed" mb="xs">
-                  {selectedDate.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })} — notlar
-                </Text>
-              )}
-              <NoteList
-                notlar={
-                  selectedDate
-                    ? ajandaNotlar.filter((n) => n.due_date && toDateKey(new Date(n.due_date)) === toDateKey(selectedDate))
-                    : ajandaNotlar
-                }
-                isDark={isDark}
-                onToggleNote={onToggleNote}
-                onDeleteNote={handleRequestDelete}
-                onTogglePin={onTogglePin}
-                onUpdateNote={onUpdateNote}
-                emptyTitle={selectedDate ? 'Bu tarihte not yok' : 'Ajandada not yok'}
-                emptyDescription={
-                  selectedDate
-                    ? 'Bu gün için not eklemek üzere yukarıdaki alandan vade seçerek ekleyin.'
-                    : 'Not eklerken vade tarihi seçerek ajandada görünmesini sağlayın'
-                }
-              />
-            </Box>
-          </Stack>
-        </Tabs.Panel>
+                    <UnstyledButton
+                      onClick={() =>
+                        setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1))
+                      }
+                    >
+                      <IconChevronRight size={18} />
+                    </UnstyledButton>
+                  </Group>
+                </Group>
+                <SimpleGrid cols={7} spacing={4} style={{ textAlign: 'center' }}>
+                  {WEEKDAYS_TR.map((w) => (
+                    <Text key={w} size="xs" c="dimmed" fw={600}>
+                      {w}
+                    </Text>
+                  ))}
+                  {getDaysInMonth(calendarMonth.getFullYear(), calendarMonth.getMonth()).map(
+                    ({ key: cellKey, day: dayOrNull }) => {
+                      if (!dayOrNull) return <Box key={cellKey} />;
+                      const count = notlar.filter(
+                        (n) =>
+                          n.due_date &&
+                          toDateKey(new Date(n.due_date)) === cellKey &&
+                          !n.is_completed
+                      ).length;
+                      const isSelected = selectedDate && toDateKey(selectedDate) === cellKey;
+                      const isToday = toDateKey(new Date()) === cellKey;
+                      return (
+                        <UnstyledButton
+                          key={cellKey}
+                          onClick={() => setSelectedDate(dayOrNull)}
+                          style={{
+                            aspectRatio: '1',
+                            borderRadius: 8,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: isSelected
+                              ? isDark
+                                ? 'rgba(139,92,246,0.25)'
+                                : 'rgba(139,92,246,0.15)'
+                              : isToday
+                                ? isDark
+                                  ? 'rgba(255,255,255,0.08)'
+                                  : 'rgba(0,0,0,0.06)'
+                                : undefined,
+                            fontWeight: isToday ? 700 : 500,
+                            fontSize: 13,
+                          }}
+                        >
+                          {dayOrNull.getDate()}
+                          {count > 0 && (
+                            <Box
+                              style={{
+                                width: 5,
+                                height: 5,
+                                borderRadius: 3,
+                                background: '#8b5cf6',
+                                marginTop: 2,
+                              }}
+                            />
+                          )}
+                        </UnstyledButton>
+                      );
+                    }
+                  )}
+                </SimpleGrid>
+              </Paper>
+              {/* Seçili güne göre liste */}
+              <Box>
+                {selectedDate && (
+                  <Text size="xs" c="dimmed" mb="xs">
+                    {selectedDate.toLocaleDateString('tr-TR', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                    })}{' '}
+                    — notlar
+                  </Text>
+                )}
+                <NoteList
+                  notlar={
+                    selectedDate
+                      ? ajandaNotlar.filter(
+                          (n) =>
+                            n.due_date &&
+                            toDateKey(new Date(n.due_date)) === toDateKey(selectedDate)
+                        )
+                      : ajandaNotlar
+                  }
+                  isDark={isDark}
+                  onToggleNote={onToggleNote}
+                  onDeleteNote={handleRequestDelete}
+                  onTogglePin={onTogglePin}
+                  onUpdateNote={onUpdateNote}
+                  emptyTitle={selectedDate ? 'Bu tarihte not yok' : 'Ajandada not yok'}
+                  emptyDescription={
+                    selectedDate
+                      ? 'Bu gün için not eklemek üzere yukarıdaki alandan vade seçerek ekleyin.'
+                      : 'Not eklerken vade tarihi seçerek ajandada görünmesini sağlayın'
+                  }
+                />
+              </Box>
+            </Stack>
+          </Tabs.Panel>
         </Tabs>
       </Modal>
 
@@ -691,15 +745,29 @@ function NoteList({
                 <Group gap={4} wrap="nowrap">
                   {onUpdateNote && (
                     <>
-                      <Tooltip label={not.priority === 'high' ? 'Öncelik: Yüksek (tıkla kaldır)' : 'Bayrak ekle (öncelik yüksek)'}>
+                      <Tooltip
+                        label={
+                          not.priority === 'high'
+                            ? 'Öncelik: Yüksek (tıkla kaldır)'
+                            : 'Bayrak ekle (öncelik yüksek)'
+                        }
+                      >
                         <ActionIcon
                           variant="subtle"
                           color={not.priority === 'high' ? 'red' : 'gray'}
                           size="md"
                           radius="lg"
-                          onClick={() => onUpdateNote(not.id, { priority: not.priority === 'high' ? 'normal' : 'high' })}
+                          onClick={() =>
+                            onUpdateNote(not.id, {
+                              priority: not.priority === 'high' ? 'normal' : 'high',
+                            })
+                          }
                         >
-                          {not.priority === 'high' ? <IconFlagFilled size={18} /> : <IconFlag size={18} />}
+                          {not.priority === 'high' ? (
+                            <IconFlagFilled size={18} />
+                          ) : (
+                            <IconFlag size={18} />
+                          )}
                         </ActionIcon>
                       </Tooltip>
                       <Menu position="bottom-end" withArrow>
@@ -713,7 +781,16 @@ function NoteList({
                           {COLOR_OPTIONS.map((c) => (
                             <Menu.Item
                               key={c.value}
-                              leftSection={<Box w={12} h={12} style={{ borderRadius: 4, background: NOTE_COLORS[c.value] ?? NOTE_COLORS.blue }} />}
+                              leftSection={
+                                <Box
+                                  w={12}
+                                  h={12}
+                                  style={{
+                                    borderRadius: 4,
+                                    background: NOTE_COLORS[c.value] ?? NOTE_COLORS.blue,
+                                  }}
+                                />
+                              }
                               onClick={() => onUpdateNote(not.id, { color: c.value })}
                             >
                               {c.label}

@@ -11,12 +11,12 @@ import { faturaKalemleriClient } from './fatura-kalemleri-client.js';
  */
 export function parseInvoiceQuery(userQuery) {
   const lowerQuery = userQuery.toLowerCase();
-  
+
   // Tarih aralığı tespit et
   const currentDate = new Date();
   let dateFilter = '';
   let dateParams = [];
-  
+
   if (lowerQuery.includes('bu ay') || lowerQuery.includes('bu ayki')) {
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
@@ -33,32 +33,32 @@ export function parseInvoiceQuery(userQuery) {
     dateFilter = ' AND invoice_date >= $1 AND invoice_date <= $2';
     dateParams = [startOfYear, endOfYear];
   }
-  
+
   // Kategori tespit et
   let categoryFilter = '';
   const categories = {
-    'tavuk': ['tavuk', 'piliç', 'but', 'göğüs', 'kanat', 'ciğer'],
-    'et': ['et', 'kıyma', 'kuşbaşı', 'biftek', 'antrikot', 'dana', 'koyun', 'kuzu'],
-    'sebze': ['sebze', 'domates', 'biber', 'patlıcan', 'salatalık', 'marul', 'soğan', 'patates'],
-    'meyve': ['meyve', 'elma', 'portakal', 'muz', 'çilek', 'karpuz', 'kavun'],
-    'bakliyat': ['bakliyat', 'nohut', 'fasulye', 'mercimek', 'bulgur', 'pirinç'],
-    'süt': ['süt', 'yoğurt', 'peynir', 'ayran', 'tereyağı', 'kaşar'],
-    'yağ': ['yağ', 'zeytinyağı', 'ayçiçek', 'tereyağı', 'margarin'],
-    'baharat': ['baharat', 'tuz', 'karabiber', 'kimyon', 'kekik', 'pul biber']
+    tavuk: ['tavuk', 'piliç', 'but', 'göğüs', 'kanat', 'ciğer'],
+    et: ['et', 'kıyma', 'kuşbaşı', 'biftek', 'antrikot', 'dana', 'koyun', 'kuzu'],
+    sebze: ['sebze', 'domates', 'biber', 'patlıcan', 'salatalık', 'marul', 'soğan', 'patates'],
+    meyve: ['meyve', 'elma', 'portakal', 'muz', 'çilek', 'karpuz', 'kavun'],
+    bakliyat: ['bakliyat', 'nohut', 'fasulye', 'mercimek', 'bulgur', 'pirinç'],
+    süt: ['süt', 'yoğurt', 'peynir', 'ayran', 'tereyağı', 'kaşar'],
+    yağ: ['yağ', 'zeytinyağı', 'ayçiçek', 'tereyağı', 'margarin'],
+    baharat: ['baharat', 'tuz', 'karabiber', 'kimyon', 'kekik', 'pul biber'],
   };
-  
+
   for (const [category, keywords] of Object.entries(categories)) {
-    if (keywords.some(keyword => lowerQuery.includes(keyword))) {
+    if (keywords.some((keyword) => lowerQuery.includes(keyword))) {
       categoryFilter = category;
       break;
     }
   }
-  
+
   return {
     dateFilter,
     dateParams,
     categoryFilter,
-    queryType: detectQueryType(lowerQuery)
+    queryType: detectQueryType(lowerQuery),
   };
 }
 
@@ -88,16 +88,26 @@ function detectQueryType(query) {
 export async function executeInvoiceQuery(userQuery) {
   const parsed = parseInvoiceQuery(userQuery);
   const results = {};
-  
+
   try {
     // Tek kaynak: faturaKalemleriClient
     if (parsed.categoryFilter) {
-      const startDate = parsed.dateParams?.[0] != null ? (typeof parsed.dateParams[0] === 'string' ? parsed.dateParams[0] : parsed.dateParams[0].toISOString?.().slice(0, 10)) : undefined;
-      const endDate = parsed.dateParams?.[1] != null ? (typeof parsed.dateParams[1] === 'string' ? parsed.dateParams[1] : parsed.dateParams[1].toISOString?.().slice(0, 10)) : undefined;
+      const startDate =
+        parsed.dateParams?.[0] != null
+          ? typeof parsed.dateParams[0] === 'string'
+            ? parsed.dateParams[0]
+            : parsed.dateParams[0].toISOString?.().slice(0, 10)
+          : undefined;
+      const endDate =
+        parsed.dateParams?.[1] != null
+          ? typeof parsed.dateParams[1] === 'string'
+            ? parsed.dateParams[1]
+            : parsed.dateParams[1].toISOString?.().slice(0, 10)
+          : undefined;
       const kategoriRows = await faturaKalemleriClient.getKategoriFaturaOzeti({
         categoryFilter: parsed.categoryFilter,
         startDate,
-        endDate
+        endDate,
       });
       results.manual = kategoriRows;
     } else {
@@ -112,20 +122,20 @@ export async function executeInvoiceQuery(userQuery) {
         FROM invoices
         WHERE status != 'cancelled'
       `;
-      
+
       const params = [];
-      
+
       if (parsed.dateFilter) {
         sql += parsed.dateFilter;
         params.push(...parsed.dateParams);
       }
-      
+
       sql += ' GROUP BY invoice_type';
-      
+
       const manualResult = await query(sql, params);
       results.manual = manualResult.rows;
     }
-    
+
     // Uyumsoft faturalarından sorgula
     let uyumsoftSql = `
       SELECT 
@@ -136,22 +146,22 @@ export async function executeInvoiceQuery(userQuery) {
       FROM uyumsoft_invoices
       WHERE 1=1
     `;
-    
+
     const uyumsoftParams = [];
-    
+
     if (parsed.dateFilter) {
       uyumsoftSql += parsed.dateFilter;
       uyumsoftParams.push(...parsed.dateParams);
     }
-    
+
     const uyumsoftResult = await query(uyumsoftSql, uyumsoftParams);
     results.uyumsoft = uyumsoftResult.rows;
-    
+
     // Kategori sorgusu zaten fatura_kalemleri üzerinden (results.manual) yapıldı
     if (parsed.categoryFilter) {
       results.uyumsoftItems = results.manual || [];
     }
-    
+
     // En çok alım yapılan tedarikçiler
     if (parsed.queryType === 'max' || userQuery.toLowerCase().includes('tedarikçi')) {
       const topSuppliersSQL = `
@@ -167,10 +177,10 @@ export async function executeInvoiceQuery(userQuery) {
         ORDER BY total_amount DESC
         LIMIT 10
       `;
-      
+
       const topSuppliersResult = await query(topSuppliersSQL, parsed.dateParams);
       results.topSuppliers = topSuppliersResult.rows;
-      
+
       // Uyumsoft'tan da tedarikçileri al
       const uyumsoftSuppliersSQL = `
         SELECT 
@@ -184,23 +194,21 @@ export async function executeInvoiceQuery(userQuery) {
         ORDER BY total_amount DESC
         LIMIT 10
       `;
-      
+
       const uyumsoftSuppliersResult = await query(uyumsoftSuppliersSQL, parsed.dateParams);
       results.uyumsoftSuppliers = uyumsoftSuppliersResult.rows;
     }
-    
+
     return {
       success: true,
       query: userQuery,
       parsed,
-      results
+      results,
     };
-    
   } catch (error) {
-    console.error('Fatura sorgu hatası:', error);
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 }
@@ -212,16 +220,16 @@ export function formatInvoiceResponse(queryResult) {
   if (!queryResult.success) {
     return `Üzgünüm, sorgunuzu işlerken bir hata oluştu: ${queryResult.error}`;
   }
-  
+
   const { results, parsed } = queryResult;
   let response = '';
-  
+
   // Manuel faturalar özeti
   if (results.manual && results.manual.length > 0) {
     response += '📊 **Manuel Kayıtlı Faturalar:**\n';
-    
+
     if (parsed.categoryFilter) {
-      results.manual.forEach(row => {
+      results.manual.forEach((row) => {
         response += `• ${row.category || parsed.categoryFilter}: `;
         response += `${row.invoice_count} fatura, `;
         response += `Toplam: ${formatMoney(row.total_amount)}, `;
@@ -232,18 +240,18 @@ export function formatInvoiceResponse(queryResult) {
         }
       });
     } else {
-      results.manual.forEach(row => {
+      results.manual.forEach((row) => {
         const type = row.invoice_type === 'sales' ? '💰 Satış' : '🛒 Alış';
         response += `• ${type}: ${row.count} fatura, Toplam: ${formatMoney(row.total_amount)}\n`;
       });
     }
     response += '\n';
   }
-  
+
   // Uyumsoft faturaları özeti
   if (results.uyumsoft && results.uyumsoft.length > 0) {
     response += '📧 **E-Fatura (Uyumsoft):**\n';
-    results.uyumsoft.forEach(row => {
+    results.uyumsoft.forEach((row) => {
       response += `• ${row.count} fatura, Toplam: ${formatMoney(row.total_amount)}\n`;
       if (row.suppliers) {
         response += `  Tedarikçiler: ${row.suppliers.split(', ').slice(0, 5).join(', ')}`;
@@ -255,11 +263,11 @@ export function formatInvoiceResponse(queryResult) {
     });
     response += '\n';
   }
-  
+
   // Uyumsoft kalem detayları
   if (results.uyumsoftItems && results.uyumsoftItems.length > 0) {
     response += '📦 **E-Fatura Kalem Detayları:**\n';
-    results.uyumsoftItems.forEach(row => {
+    results.uyumsoftItems.forEach((row) => {
       response += `• ${row.category}: `;
       response += `${row.item_count} kalem, `;
       response += `Toplam: ${formatMoney(row.total_amount)}, `;
@@ -267,7 +275,7 @@ export function formatInvoiceResponse(queryResult) {
     });
     response += '\n';
   }
-  
+
   // En çok alım yapılan tedarikçiler
   if (results.topSuppliers && results.topSuppliers.length > 0) {
     response += '🏢 **En Çok Alım Yapılan Firmalar (Manuel):**\n';
@@ -276,14 +284,14 @@ export function formatInvoiceResponse(queryResult) {
     });
     response += '\n';
   }
-  
+
   if (results.uyumsoftSuppliers && results.uyumsoftSuppliers.length > 0) {
     response += '🏢 **En Çok Alım Yapılan Firmalar (E-Fatura):**\n';
     results.uyumsoftSuppliers.slice(0, 5).forEach((row, index) => {
       response += `${index + 1}. ${row.supplier}: ${formatMoney(row.total_amount)} (${row.invoice_count} fatura)\n`;
     });
   }
-  
+
   // Boş sonuç
   if (!response) {
     response = 'Belirtilen kriterlere uygun fatura bulunamadı. ';
@@ -294,7 +302,7 @@ export function formatInvoiceResponse(queryResult) {
       response += `"${parsed.categoryFilter}" kategorisinde kayıt olmayabilir.`;
     }
   }
-  
+
   return response;
 }
 
@@ -313,5 +321,5 @@ function formatMoney(value) {
 export default {
   parseInvoiceQuery,
   executeInvoiceQuery,
-  formatInvoiceResponse
+  formatInvoiceResponse,
 };

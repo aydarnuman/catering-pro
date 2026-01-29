@@ -28,9 +28,12 @@ export async function getCategories() {
  * Kategori detayını getir
  */
 export async function getCategoryBySlug(slug) {
-  const result = await query(`
+  const result = await query(
+    `
     SELECT * FROM pb_categories WHERE slug = $1 AND is_active = TRUE
-  `, [slug]);
+  `,
+    [slug]
+  );
   return result.rows[0];
 }
 
@@ -38,11 +41,14 @@ export async function getCategoryBySlug(slug) {
  * Kategorinin sorularını getir
  */
 export async function getQuestionsByCategory(categoryId) {
-  const result = await query(`
+  const result = await query(
+    `
     SELECT * FROM pb_questions 
     WHERE category_id = $1 AND is_active = TRUE
     ORDER BY sort_order ASC
-  `, [categoryId]);
+  `,
+    [categoryId]
+  );
   return result.rows;
 }
 
@@ -50,12 +56,15 @@ export async function getQuestionsByCategory(categoryId) {
  * Kategorinin sorularını slug ile getir
  */
 export async function getQuestionsByCategorySlug(slug) {
-  const result = await query(`
+  const result = await query(
+    `
     SELECT q.* FROM pb_questions q
     JOIN pb_categories c ON c.id = q.category_id
     WHERE c.slug = $1 AND c.is_active = TRUE AND q.is_active = TRUE
     ORDER BY q.sort_order ASC
-  `, [slug]);
+  `,
+    [slug]
+  );
   return result.rows;
 }
 
@@ -63,11 +72,14 @@ export async function getQuestionsByCategorySlug(slug) {
  * Kategorinin şablonlarını getir
  */
 export async function getTemplatesByCategory(categoryId) {
-  const result = await query(`
+  const result = await query(
+    `
     SELECT * FROM pb_templates 
     WHERE category_id = $1 AND is_active = TRUE
     ORDER BY is_default DESC, usage_count DESC
-  `, [categoryId]);
+  `,
+    [categoryId]
+  );
   return result.rows;
 }
 
@@ -75,12 +87,15 @@ export async function getTemplatesByCategory(categoryId) {
  * Kategorinin şablonlarını slug ile getir
  */
 export async function getTemplatesByCategorySlug(slug) {
-  const result = await query(`
+  const result = await query(
+    `
     SELECT t.* FROM pb_templates t
     JOIN pb_categories c ON c.id = t.category_id
     WHERE c.slug = $1 AND c.is_active = TRUE AND t.is_active = TRUE
     ORDER BY t.is_default DESC, t.usage_count DESC
-  `, [slug]);
+  `,
+    [slug]
+  );
   return result.rows;
 }
 
@@ -88,12 +103,15 @@ export async function getTemplatesByCategorySlug(slug) {
  * Tek bir şablonu getir
  */
 export async function getTemplateById(id) {
-  const result = await query(`
+  const result = await query(
+    `
     SELECT t.*, c.slug as category_slug, c.name as category_name
     FROM pb_templates t
     LEFT JOIN pb_categories c ON c.id = t.category_id
     WHERE t.id = $1
-  `, [id]);
+  `,
+    [id]
+  );
   return result.rows[0];
 }
 
@@ -109,7 +127,7 @@ export function generatePrompt(templateText, answers) {
     // GÜVENLİK: Değerlerdeki {{ ve }} karakterlerini escape et
     // Bu, kullanıcının {{başka_değişken}} yazarak injection yapmasını engeller
     const safeValue = String(value || '')
-      .replace(/\{\{/g, '{ {')  // {{ -> { { (kırılır)
+      .replace(/\{\{/g, '{ {') // {{ -> { { (kırılır)
       .replace(/\}\}/g, '} }'); // }} -> } } (kırılır)
 
     const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
@@ -126,11 +144,14 @@ export function generatePrompt(templateText, answers) {
  * Şablon kullanım sayacını artır
  */
 export async function incrementTemplateUsage(templateId) {
-  await query(`
+  await query(
+    `
     UPDATE pb_templates 
     SET usage_count = usage_count + 1 
     WHERE id = $1
-  `, [templateId]);
+  `,
+    [templateId]
+  );
 }
 
 /**
@@ -138,14 +159,17 @@ export async function incrementTemplateUsage(templateId) {
  */
 export async function savePrompt(userId, data) {
   const { categoryId, templateId, name, description, generatedPrompt, answers, style } = data;
-  
-  const result = await query(`
+
+  const result = await query(
+    `
     INSERT INTO pb_saved_prompts 
       (user_id, category_id, template_id, name, description, generated_prompt, answers, style)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     RETURNING *
-  `, [userId, categoryId, templateId, name, description, generatedPrompt, JSON.stringify(answers), style]);
-  
+  `,
+    [userId, categoryId, templateId, name, description, generatedPrompt, JSON.stringify(answers), style]
+  );
+
   return result.rows[0];
 }
 
@@ -154,22 +178,23 @@ export async function savePrompt(userId, data) {
  */
 export async function getSavedPrompts(userId, options = {}) {
   const { limit = 50, offset = 0, categoryId, favoriteOnly } = options;
-  
+
   let whereClause = 'WHERE sp.user_id = $1';
   const params = [userId];
   let paramIndex = 2;
-  
+
   if (categoryId) {
     whereClause += ` AND sp.category_id = $${paramIndex}`;
     params.push(categoryId);
     paramIndex++;
   }
-  
+
   if (favoriteOnly) {
     whereClause += ' AND sp.is_favorite = TRUE';
   }
-  
-  const result = await query(`
+
+  const result = await query(
+    `
     SELECT 
       sp.*,
       c.name as category_name,
@@ -183,8 +208,10 @@ export async function getSavedPrompts(userId, options = {}) {
     ${whereClause}
     ORDER BY sp.is_favorite DESC, sp.updated_at DESC
     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-  `, [...params, limit, offset]);
-  
+  `,
+    [...params, limit, offset]
+  );
+
   return result.rows;
 }
 
@@ -192,7 +219,8 @@ export async function getSavedPrompts(userId, options = {}) {
  * Tek bir kayıtlı prompt'u getir
  */
 export async function getSavedPromptById(id, userId) {
-  const result = await query(`
+  const result = await query(
+    `
     SELECT 
       sp.*,
       c.name as category_name,
@@ -204,8 +232,10 @@ export async function getSavedPromptById(id, userId) {
     LEFT JOIN pb_categories c ON c.id = sp.category_id
     LEFT JOIN pb_templates t ON t.id = sp.template_id
     WHERE sp.id = $1 AND (sp.user_id = $2 OR sp.is_public = TRUE)
-  `, [id, userId]);
-  
+  `,
+    [id, userId]
+  );
+
   return result.rows[0];
 }
 
@@ -214,8 +244,9 @@ export async function getSavedPromptById(id, userId) {
  */
 export async function updateSavedPrompt(id, userId, data) {
   const { name, description, isFavorite, isPublic } = data;
-  
-  const result = await query(`
+
+  const result = await query(
+    `
     UPDATE pb_saved_prompts
     SET 
       name = COALESCE($3, name),
@@ -225,8 +256,10 @@ export async function updateSavedPrompt(id, userId, data) {
       updated_at = CURRENT_TIMESTAMP
     WHERE id = $1 AND user_id = $2
     RETURNING *
-  `, [id, userId, name, description, isFavorite, isPublic]);
-  
+  `,
+    [id, userId, name, description, isFavorite, isPublic]
+  );
+
   return result.rows[0];
 }
 
@@ -234,12 +267,15 @@ export async function updateSavedPrompt(id, userId, data) {
  * Kayıtlı prompt sil
  */
 export async function deleteSavedPrompt(id, userId) {
-  const result = await query(`
+  const result = await query(
+    `
     DELETE FROM pb_saved_prompts
     WHERE id = $1 AND user_id = $2
     RETURNING id
-  `, [id, userId]);
-  
+  `,
+    [id, userId]
+  );
+
   return result.rowCount > 0;
 }
 
@@ -248,20 +284,26 @@ export async function deleteSavedPrompt(id, userId) {
  */
 export async function logUsage(userId, data) {
   const { savedPromptId, categoryId, templateId, action, metadata } = data;
-  
-  await query(`
+
+  await query(
+    `
     INSERT INTO pb_usage_stats 
       (user_id, saved_prompt_id, category_id, template_id, action, metadata)
     VALUES ($1, $2, $3, $4, $5, $6)
-  `, [userId, savedPromptId, categoryId, templateId, action, JSON.stringify(metadata || {})]);
-  
+  `,
+    [userId, savedPromptId, categoryId, templateId, action, JSON.stringify(metadata || {})]
+  );
+
   // Kayıtlı prompt'un kullanım sayısını güncelle
   if (savedPromptId) {
-    await query(`
+    await query(
+      `
       UPDATE pb_saved_prompts 
       SET usage_count = usage_count + 1, last_used_at = CURRENT_TIMESTAMP
       WHERE id = $1
-    `, [savedPromptId]);
+    `,
+      [savedPromptId]
+    );
   }
 }
 
@@ -270,20 +312,21 @@ export async function logUsage(userId, data) {
  */
 export async function getPublicPrompts(options = {}) {
   const { limit = 50, offset = 0, categoryId, sortBy = 'usage_count' } = options;
-  
+
   let whereClause = 'WHERE sp.is_public = TRUE';
   const params = [];
   let paramIndex = 1;
-  
+
   if (categoryId) {
     whereClause += ` AND sp.category_id = $${paramIndex}`;
     params.push(categoryId);
     paramIndex++;
   }
-  
+
   const orderBy = sortBy === 'recent' ? 'sp.created_at DESC' : 'sp.usage_count DESC';
-  
-  const result = await query(`
+
+  const result = await query(
+    `
     SELECT 
       sp.*,
       c.name as category_name,
@@ -297,8 +340,10 @@ export async function getPublicPrompts(options = {}) {
     ${whereClause}
     ORDER BY ${orderBy}
     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-  `, [...params, limit, offset]);
-  
+  `,
+    [...params, limit, offset]
+  );
+
   return result.rows;
 }
 
@@ -306,7 +351,8 @@ export async function getPublicPrompts(options = {}) {
  * Kullanıcı istatistiklerini getir
  */
 export async function getUserStats(userId) {
-  const result = await query(`
+  const result = await query(
+    `
     SELECT 
       COUNT(*) as total_prompts,
       COUNT(*) FILTER (WHERE is_favorite = TRUE) as favorite_count,
@@ -314,8 +360,10 @@ export async function getUserStats(userId) {
       COALESCE(SUM(usage_count), 0) as total_usage
     FROM pb_saved_prompts
     WHERE user_id = $1
-  `, [userId]);
-  
+  `,
+    [userId]
+  );
+
   return result.rows[0];
 }
 
@@ -323,7 +371,8 @@ export async function getUserStats(userId) {
  * En popüler kategorileri getir
  */
 export async function getPopularCategories(limit = 5) {
-  const result = await query(`
+  const result = await query(
+    `
     SELECT 
       c.*,
       COUNT(sp.id) as prompt_count,
@@ -334,8 +383,10 @@ export async function getPopularCategories(limit = 5) {
     GROUP BY c.id
     ORDER BY total_usage DESC NULLS LAST
     LIMIT $1
-  `, [limit]);
-  
+  `,
+    [limit]
+  );
+
   return result.rows;
 }
 
@@ -357,5 +408,5 @@ export default {
   logUsage,
   getPublicPrompts,
   getUserStats,
-  getPopularCategories
+  getPopularCategories,
 };

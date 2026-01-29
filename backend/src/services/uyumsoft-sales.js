@@ -5,16 +5,15 @@
 
 import { query } from '../database.js';
 import { faturaService } from '../scraper/uyumsoft/index.js';
-import { faturaKalemleriClient } from './fatura-kalemleri-client.js';
 
 class UyumsoftSalesService {
   /**
    * Manuel faturayı Uyumsoft'a gönder
    */
   async sendInvoiceToUyumsoft(invoiceId) {
-    try {
-      // 1. Manuel faturayı veritabanından al
-      const invoice = await query(`
+    // 1. Manuel faturayı veritabanından al
+    const invoice = await query(
+      `
         SELECT 
           i.*,
           c.vergi_no as customer_vkn,
@@ -23,55 +22,55 @@ class UyumsoftSalesService {
         FROM invoices i
         LEFT JOIN cariler c ON i.customer_id = c.id
         WHERE i.id = $1
-      `, [invoiceId]);
+      `,
+      [invoiceId]
+    );
 
-      if (!invoice.rows.length) {
-        throw new Error('Fatura bulunamadı');
-      }
+    if (!invoice.rows.length) {
+      throw new Error('Fatura bulunamadı');
+    }
 
-      const inv = invoice.rows[0];
+    const inv = invoice.rows[0];
 
-      // 2. Uyumsoft formatına dönüştür
-      const uyumsoftInvoice = {
-        invoiceType: inv.invoice_type === 'sales' ? 'SATIŞ' : 'ALIŞ',
-        invoiceProfile: 'TEMEL', // veya TİCARİ
-        issueDate: inv.invoice_date,
-        dueDate: inv.due_date,
-        customer: {
-          vkn: inv.customer_vkn,
-          title: inv.customer_name,
-          email: inv.customer_email,
-          address: inv.customer_address,
-        },
-        lines: [],
-        notes: inv.notes
-      };
+    // 2. Uyumsoft formatına dönüştür
+    const uyumsoftInvoice = {
+      invoiceType: inv.invoice_type === 'sales' ? 'SATIŞ' : 'ALIŞ',
+      invoiceProfile: 'TEMEL', // veya TİCARİ
+      issueDate: inv.invoice_date,
+      dueDate: inv.due_date,
+      customer: {
+        vkn: inv.customer_vkn,
+        title: inv.customer_name,
+        email: inv.customer_email,
+        address: inv.customer_address,
+      },
+      lines: [],
+      notes: inv.notes,
+    };
 
-      // Kalem verisi tek kaynak: faturaKalemleriClient. ETTN ile kalem okumak için: faturaKalemleriClient.getKalemler(ettn)
-      // Manuel invoice_id ile fatura_kalemleri eşleşmez (fatura_kalemleri fatura_ettn kullanır). Boş lines ile devam eder.
-      uyumsoftInvoice.lines = [];
+    // Kalem verisi tek kaynak: faturaKalemleriClient. ETTN ile kalem okumak için: faturaKalemleriClient.getKalemler(ettn)
+    // Manuel invoice_id ile fatura_kalemleri eşleşmez (fatura_kalemleri fatura_ettn kullanır). Boş lines ile devam eder.
+    uyumsoftInvoice.lines = [];
 
-      // 4. Uyumsoft'a gönder
-      const result = await faturaService.createAndSendInvoice(uyumsoftInvoice);
+    // 4. Uyumsoft'a gönder
+    const result = await faturaService.createAndSendInvoice(uyumsoftInvoice);
 
-      // 5. ETTN'yi kaydet
-      if (result.success && result.ettn) {
-        await query(`
+    // 5. ETTN'yi kaydet
+    if (result.success && result.ettn) {
+      await query(
+        `
           UPDATE invoices 
           SET 
             ettn = $1,
             uyumsoft_status = 'sent',
             uyumsoft_sent_at = NOW()
           WHERE id = $2
-        `, [result.ettn, invoiceId]);
-      }
-
-      return result;
-
-    } catch (error) {
-      console.error('Uyumsoft satış faturası hatası:', error);
-      throw error;
+        `,
+        [result.ettn, invoiceId]
+      );
     }
+
+    return result;
   }
 
   /**
@@ -79,18 +78,17 @@ class UyumsoftSalesService {
    */
   async getOutgoingInvoices(params = {}) {
     const { startDate, endDate, limit = 100 } = params;
+    // Uyumsoft'tan giden faturaları çek
+    const result = await faturaService.getOutgoingInvoices({
+      startDate,
+      endDate,
+      limit,
+    });
 
-    try {
-      // Uyumsoft'tan giden faturaları çek
-      const result = await faturaService.getOutgoingInvoices({
-        startDate,
-        endDate,
-        limit
-      });
-
-      // Veritabanına kaydet
-      for (const invoice of result.data) {
-        await query(`
+    // Veritabanına kaydet
+    for (const invoice of result.data) {
+      await query(
+        `
           INSERT INTO uyumsoft_invoices (
             ettn, invoice_no, invoice_type,
             invoice_date, receiver_vkn, receiver_name,
@@ -101,7 +99,8 @@ class UyumsoftSalesService {
           ) ON CONFLICT (ettn) DO UPDATE SET
             status = EXCLUDED.status,
             updated_at = NOW()
-        `, [
+        `,
+        [
           invoice.ettn,
           invoice.invoiceNo,
           invoice.invoiceDate,
@@ -110,16 +109,12 @@ class UyumsoftSalesService {
           invoice.taxExclusiveAmount,
           invoice.taxAmount,
           invoice.payableAmount,
-          invoice.currency
-        ]);
-      }
-
-      return result;
-
-    } catch (error) {
-      console.error('Giden fatura listesi hatası:', error);
-      throw error;
+          invoice.currency,
+        ]
+      );
     }
+
+    return result;
   }
 
   /**
@@ -130,7 +125,7 @@ class UyumsoftSalesService {
     const invoice = {
       ...data,
       scenario: 'EARSIV',
-      sendType: 'ELEKTRONIK' // veya KAGIT
+      sendType: 'ELEKTRONIK', // veya KAGIT
     };
 
     return await faturaService.createEArchiveInvoice(invoice);

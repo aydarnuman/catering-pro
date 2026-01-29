@@ -1886,7 +1886,7 @@ export default function InstagramPage() {
                 leftSection={<IconPhoto size={14} />}
                 styles={{
                   input: {
-                      background: isDark ? 'var(--surface-elevated)' : '#fff',
+                    background: isDark ? 'var(--surface-elevated)' : '#fff',
                   },
                 }}
               />
@@ -2045,7 +2045,7 @@ export default function InstagramPage() {
                 minRows={3}
                 styles={{
                   input: {
-                      background: isDark ? 'var(--surface-elevated)' : '#fff',
+                    background: isDark ? 'var(--surface-elevated)' : '#fff',
                     '&:focus': { borderColor: 'var(--mantine-color-indigo-5)' },
                   },
                 }}
@@ -2199,7 +2199,7 @@ export default function InstagramPage() {
                 minRows={2}
                 styles={{
                   input: {
-                      background: isDark ? 'var(--surface-elevated)' : '#fff',
+                    background: isDark ? 'var(--surface-elevated)' : '#fff',
                   },
                 }}
               />
@@ -2353,7 +2353,7 @@ export default function InstagramPage() {
                 ]}
                 styles={{
                   input: {
-                      background: isDark ? 'var(--surface-elevated)' : '#fff',
+                    background: isDark ? 'var(--surface-elevated)' : '#fff',
                   },
                 }}
               />

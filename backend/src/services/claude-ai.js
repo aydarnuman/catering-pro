@@ -12,7 +12,7 @@ class ClaudeAIService {
     this.client = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
-    this.model = "claude-3-haiku-20240307";
+    this.model = 'claude-3-haiku-20240307';
   }
 
   /**
@@ -20,13 +20,13 @@ class ClaudeAIService {
    */
   getPromptTemplates() {
     return {
-      'default': {
+      default: {
         name: '🤖 Varsayılan',
         prompt: `Sen yardımcı bir AI asistanısın. Türkçe cevap ver.
 - Açık ve anlaşılır ol
 - Sayıları formatla (1.000.000 TL)
 - Kaynak belirt
-- Kısa ve öz cevaplar ver`
+- Kısa ve öz cevaplar ver`,
       },
       'cfo-analiz': {
         name: '📈 CFO Analizi',
@@ -37,7 +37,7 @@ class ClaudeAIService {
 - Stratejik öneriler sun
 - Kaynak belirt
 - Grafik önerileri yap
-- Trend analizleri yap`
+- Trend analizleri yap`,
       },
       'risk-uzman': {
         name: '⚠️ Risk Uzmanı',
@@ -47,7 +47,7 @@ class ClaudeAIService {
 - Acil durumları vurgula
 - Olasılık hesapları yap
 - Risk seviyelerini belirt (Düşük/Orta/Yüksek)
-- Öncelik sıralaması yap`
+- Öncelik sıralaması yap`,
       },
       'ihale-uzman': {
         name: '📋 İhale Uzmanı',
@@ -58,7 +58,7 @@ class ClaudeAIService {
 - Süreç önerileri ver
 - Başarı oranları hesapla
 - Teklif stratejileri öner
-- Yasal uyarılar yap`
+- Yasal uyarılar yap`,
       },
       'hizli-yanit': {
         name: '⚡ Hızlı Yanıt',
@@ -66,8 +66,8 @@ class ClaudeAIService {
 - Maksimum 3 cümle
 - Ana noktaları belirt
 - Sayıları formatla
-- Gereksiz detaya girme`
-      }
+- Gereksiz detaya girme`,
+      },
     };
   }
 
@@ -98,20 +98,20 @@ class ClaudeAIService {
           `);
 
           data.ihale = {
-            totalTenders: parseInt(tenderStats.rows[0].total_tenders),
-            activeTenders: parseInt(tenderStats.rows[0].active_tenders),
-            expiredTenders: parseInt(tenderStats.rows[0].expired_tenders),
-            recentTenders: recentTenders.rows.map(t => ({
+            totalTenders: parseInt(tenderStats.rows[0].total_tenders, 10),
+            activeTenders: parseInt(tenderStats.rows[0].active_tenders, 10),
+            expiredTenders: parseInt(tenderStats.rows[0].expired_tenders, 10),
+            recentTenders: recentTenders.rows.map((t) => ({
               title: t.title,
               date: t.tender_date,
-              organization: t.organization
-            }))
+              organization: t.organization,
+            })),
           };
         } catch (dbError) {
           logger.warn('İhale verileri çekilemedi', { error: dbError.message });
           data.ihale = {
             error: 'Veritabanı bağlantısı yok',
-            description: 'İhale verileri şu anda erişilebilir değil'
+            description: 'İhale verileri şu anda erişilebilir değil',
           };
         }
       }
@@ -120,23 +120,23 @@ class ClaudeAIService {
         try {
           // Uyumsoft servisinden gerçek fatura verilerini al
           const { faturaService } = await import('../scraper/uyumsoft/index.js');
-          
+
           let uyumsoftData = null;
           let faturaListesi = [];
-          
-          if (faturaService && faturaService.hasCredentials()) {
+
+          if (faturaService?.hasCredentials()) {
             try {
               // Son sync verilerini al
               const lastSync = faturaService.getLastSync();
-              
+
               // Gerçek fatura listesini çek (son 10 fatura)
-              const faturaResult = await faturaService.getFaturaList('gelen', { 
-                months: 1, 
-                maxInvoices: 10 
+              const faturaResult = await faturaService.getFaturaList('gelen', {
+                months: 1,
+                maxInvoices: 10,
               });
-              
+
               if (faturaResult.success) {
-                faturaListesi = faturaResult.data.map(f => ({
+                faturaListesi = faturaResult.data.map((f) => ({
                   faturaNo: f.invoiceId,
                   ettn: f.documentId,
                   gonderenUnvan: f.targetTitle,
@@ -147,17 +147,17 @@ class ClaudeAIService {
                   tarih: f.executionDate,
                   olusturmaTarihi: f.createDate,
                   durum: f.status,
-                  paraBirimi: f.currency
+                  paraBirimi: f.currency,
                 }));
               }
-              
+
               uyumsoftData = {
                 isConnected: true,
                 lastSyncDate: lastSync?.lastSync,
                 totalInvoices: lastSync?.lastFaturaCount || 0,
                 syncCount: lastSync?.syncCount || 0,
                 recentInvoices: faturaListesi.slice(0, 5), // Son 5 fatura
-                totalAmount: faturaListesi.reduce((sum, f) => sum + (f.tutar || 0), 0)
+                totalAmount: faturaListesi.reduce((sum, f) => sum + (f.tutar || 0), 0),
               };
             } catch (uyumError) {
               logger.warn('Uyumsoft veri hatası', { error: uyumError.message });
@@ -168,28 +168,28 @@ class ClaudeAIService {
             description: 'Muhasebe Modülü - Gerçek Durum',
             features: [
               'Fatura Yönetimi - Manuel ve otomatik fatura oluşturma',
-              'Uyumsoft e-Fatura Entegrasyonu - SOAP API ile otomatik fatura çekme', 
+              'Uyumsoft e-Fatura Entegrasyonu - SOAP API ile otomatik fatura çekme',
               'Cari Hesap Takibi - Müşteri ve tedarikçi yönetimi',
               'Gelir/Gider Analizi - Mali durum raporlama',
               'Stok Yönetimi - Ürün ve malzeme takibi',
               'Personel Takibi - Çalışan bilgileri',
               'Kasa/Banka İşlemleri - Nakit akış yönetimi',
-              'Raporlama Sistemi - Detaylı mali raporlar'
+              'Raporlama Sistemi - Detaylı mali raporlar',
             ],
             uyumsoft: uyumsoftData || {
               isConnected: false,
-              status: 'Bağlantı kurulmamış'
+              status: 'Bağlantı kurulmamış',
             },
             integrations: ['Uyumsoft e-Fatura SOAP API'],
             status: 'Aktif ve çalışır durumda',
-            lastUpdate: new Date().toISOString()
+            lastUpdate: new Date().toISOString(),
           };
         } catch (muhasebeError) {
           logger.warn('Muhasebe veri hatası', { error: muhasebeError.message });
           data.muhasebe = {
             description: 'Muhasebe modülü aktif ancak veri erişimi sınırlı',
             status: 'Kısmi erişim',
-            error: muhasebeError.message
+            error: muhasebeError.message,
           };
         }
       }
@@ -202,41 +202,40 @@ class ClaudeAIService {
             '🏢 İhale Merkezi - İhale listesi, AI analiz, döküman yönetimi, EKAP entegrasyonu',
             '💰 Muhasebe - Fatura yönetimi, e-fatura entegrasyonu, mali raporlar',
             '🤖 AI Asistan - Claude AI ile akıllı analiz ve soru-cevap sistemi',
-            '⚙️ Ayarlar - Sistem konfigürasyonu ve AI prompt yönetimi'
+            '⚙️ Ayarlar - Sistem konfigürasyonu ve AI prompt yönetimi',
           ],
           technologies: [
             'Frontend: Next.js 14, React 18, Mantine UI 7',
             'Backend: Node.js, Express.js, PostgreSQL',
             'AI: Claude 3 Haiku (Anthropic API)',
             'Scraping: Puppeteer (EKAP), Uyumsoft SOAP API',
-            'Styling: Mantine UI, CSS Modules'
+            'Styling: Mantine UI, CSS Modules',
           ],
           features: [
             'AI destekli ihale analizi',
             'Otomatik e-fatura entegrasyonu',
             'Akıllı soru-cevap sistemi',
             'Departman bazlı AI prompt sistemi',
-            'Gerçek zamanlı veri senkronizasyonu'
+            'Gerçek zamanlı veri senkronizasyonu',
           ],
           currentVersion: '1.0.0',
           developmentStatus: 'Aktif geliştirme aşamasında',
-          lastUpdate: new Date().toISOString()
+          lastUpdate: new Date().toISOString(),
         };
       }
 
       return data;
-
     } catch (error) {
       logger.error('Veri hazırlama hatası', { error: error.message, stack: error.stack });
-      
+
       // Fallback: Minimal sistem bilgileri
       return {
         sistem: {
           name: 'Catering Pro',
           description: 'AI Destekli İhale ve Muhasebe Yönetim Sistemi',
           status: 'Çalışır durumda',
-          error: 'Detaylı veriler şu anda erişilebilir değil'
-        }
+          error: 'Detaylı veriler şu anda erişilebilir değil',
+        },
       };
     }
   }
@@ -269,10 +268,10 @@ Yukarıdaki veriler ışığında kullanıcının sorusunu yanıtla.`;
         system: systemPrompt,
         messages: [
           {
-            role: "user",
-            content: question
-          }
-        ]
+            role: 'user',
+            content: question,
+          },
+        ],
       });
 
       return {
@@ -280,17 +279,16 @@ Yukarıdaki veriler ışığında kullanıcının sorusunu yanıtla.`;
         response: message.content[0].text,
         usage: {
           inputTokens: message.usage.input_tokens,
-          outputTokens: message.usage.output_tokens
-        }
+          outputTokens: message.usage.output_tokens,
+        },
       };
-
     } catch (error) {
       logger.error('Claude API Error', { error: error.message, stack: error.stack });
-      
+
       return {
         success: false,
         error: error.message,
-        response: 'Üzgünüm, şu anda bir teknik sorun yaşıyorum. Lütfen daha sonra tekrar deneyin.'
+        response: 'Üzgünüm, şu anda bir teknik sorun yaşıyorum. Lütfen daha sonra tekrar deneyin.',
       };
     }
   }
@@ -323,34 +321,33 @@ JSON formatında döndür:
         temperature: 0.3,
         messages: [
           {
-            role: "user",
-            content: prompt
-          }
-        ]
+            role: 'user',
+            content: prompt,
+          },
+        ],
       });
 
       const responseText = message.content[0].text;
-      
+
       // JSON parse et
       try {
         const parsed = JSON.parse(responseText);
         return {
           success: true,
-          data: parsed
+          data: parsed,
         };
-      } catch (parseError) {
+      } catch (_parseError) {
         return {
           success: false,
           error: 'JSON parse hatası',
-          rawResponse: responseText
+          rawResponse: responseText,
         };
       }
-
     } catch (error) {
       logger.error('Product Analysis Error', { error: error.message, stack: error.stack });
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -361,7 +358,7 @@ JSON formatında döndür:
   async analyzeBatchProducts(items) {
     try {
       const prompt = `Bu fatura kalemlerini toplu analiz et:
-${items.map((item, i) => `${i+1}. ${item}`).join('\n')}
+${items.map((item, i) => `${i + 1}. ${item}`).join('\n')}
 
 Her biri için JSON array döndür:
 [
@@ -375,33 +372,32 @@ Her biri için JSON array döndür:
         temperature: 0.3,
         messages: [
           {
-            role: "user",
-            content: prompt
-          }
-        ]
+            role: 'user',
+            content: prompt,
+          },
+        ],
       });
 
       const responseText = message.content[0].text;
-      
+
       try {
         const parsed = JSON.parse(responseText);
         return {
           success: true,
-          data: parsed
+          data: parsed,
         };
-      } catch (parseError) {
+      } catch (_parseError) {
         return {
           success: false,
           error: 'JSON parse hatası',
-          rawResponse: responseText
+          rawResponse: responseText,
         };
       }
-
     } catch (error) {
       logger.error('Batch Analysis Error', { error: error.message, stack: error.stack });
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
     }
   }

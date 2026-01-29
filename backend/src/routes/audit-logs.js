@@ -5,9 +5,9 @@
  */
 
 import express from 'express';
-import AuditService from '../services/audit-service.js';
-import { authenticate, requireAdmin, requireSuperAdmin } from '../middleware/auth.js';
 import { pool } from '../database.js';
+import { authenticate, requireAdmin, requireSuperAdmin } from '../middleware/auth.js';
+import AuditService from '../services/audit-service.js';
 
 const router = express.Router();
 
@@ -17,42 +17,32 @@ const router = express.Router();
  */
 router.get('/', authenticate, requireAdmin, async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 50,
-      user_id,
-      action,
-      entity_type,
-      start_date,
-      end_date,
-      search
-    } = req.query;
+    const { page = 1, limit = 50, user_id, action, entity_type, start_date, end_date, search } = req.query;
 
     // Normal admin sadece kendi loglarını görebilir
-    let userId = user_id ? parseInt(user_id) : null;
+    let userId = user_id ? parseInt(user_id, 10) : null;
     if (!req.user.isSuperAdmin && userId && userId !== req.user.id) {
       return res.status(403).json({ success: false, error: 'Sadece kendi işlem geçmişinizi görebilirsiniz' });
     }
-    
+
     // Normal admin ise sadece kendi loglarını göster
     if (!req.user.isSuperAdmin) {
       userId = req.user.id;
     }
 
     const result = await AuditService.getLogs({
-      page: parseInt(page),
-      limit: parseInt(limit),
+      page: parseInt(page, 10),
+      limit: parseInt(limit, 10),
       userId,
       action,
       entityType: entity_type,
       startDate: start_date,
       endDate: end_date,
-      search
+      search,
     });
 
     res.json({ success: true, ...result });
-  } catch (error) {
-    console.error('Get audit logs error:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, error: 'İşlem geçmişi alınamadı' });
   }
 });
@@ -64,10 +54,9 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 router.get('/stats', authenticate, requireSuperAdmin, async (req, res) => {
   try {
     const { days = 7 } = req.query;
-    const stats = await AuditService.getStats(parseInt(days));
+    const stats = await AuditService.getStats(parseInt(days, 10));
     res.json({ success: true, data: stats });
-  } catch (error) {
-    console.error('Get audit stats error:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, error: 'İstatistikler alınamadı' });
   }
 });
@@ -76,7 +65,7 @@ router.get('/stats', authenticate, requireSuperAdmin, async (req, res) => {
  * GET /api/audit-logs/summary
  * Özet bilgiler (dashboard için)
  */
-router.get('/summary', authenticate, requireSuperAdmin, async (req, res) => {
+router.get('/summary', authenticate, requireSuperAdmin, async (_req, res) => {
   try {
     // Bugünkü işlemler
     const todayResult = await pool.query(`
@@ -122,15 +111,14 @@ router.get('/summary', authenticate, requireSuperAdmin, async (req, res) => {
     res.json({
       success: true,
       data: {
-        todayCount: parseInt(todayResult.rows[0].count),
-        weekCount: parseInt(weekResult.rows[0].count),
+        todayCount: parseInt(todayResult.rows[0].count, 10),
+        weekCount: parseInt(weekResult.rows[0].count, 10),
         activeUsers: activeUsersResult.rows,
         actionDistribution: actionDistResult.rows,
-        moduleDistribution: moduleDistResult.rows
-      }
+        moduleDistribution: moduleDistResult.rows,
+      },
     });
-  } catch (error) {
-    console.error('Get audit summary error:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, error: 'Özet bilgiler alınamadı' });
   }
 });
@@ -142,7 +130,7 @@ router.get('/summary', authenticate, requireSuperAdmin, async (req, res) => {
 router.get('/:id', authenticate, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const log = await AuditService.getLogById(parseInt(id));
+    const log = await AuditService.getLogById(parseInt(id, 10));
 
     if (!log) {
       return res.status(404).json({ success: false, error: 'Log bulunamadı' });
@@ -154,8 +142,7 @@ router.get('/:id', authenticate, requireAdmin, async (req, res) => {
     }
 
     res.json({ success: true, data: log });
-  } catch (error) {
-    console.error('Get audit log error:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, error: 'Log detayı alınamadı' });
   }
 });
@@ -170,14 +157,13 @@ router.get('/user/:userId/activity', authenticate, requireAdmin, async (req, res
     const { limit = 10 } = req.query;
 
     // Normal admin sadece kendi aktivitesini görebilir
-    if (!req.user.isSuperAdmin && parseInt(userId) !== req.user.id) {
+    if (!req.user.isSuperAdmin && parseInt(userId, 10) !== req.user.id) {
       return res.status(403).json({ success: false, error: 'Bu kullanıcının aktivitelerini görme yetkiniz yok' });
     }
 
-    const activity = await AuditService.getUserActivity(parseInt(userId), parseInt(limit));
+    const activity = await AuditService.getUserActivity(parseInt(userId, 10), parseInt(limit, 10));
     res.json({ success: true, data: activity });
-  } catch (error) {
-    console.error('Get user activity error:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, error: 'Aktiviteler alınamadı' });
   }
 });
@@ -197,12 +183,11 @@ router.get('/entity/:entityType/:entityId', authenticate, requireAdmin, async (r
        WHERE entity_type = $1 AND entity_id = $2
        ORDER BY created_at DESC
        LIMIT $3`,
-      [entityType, parseInt(entityId), parseInt(limit)]
+      [entityType, parseInt(entityId, 10), parseInt(limit, 10)]
     );
 
     res.json({ success: true, data: result.rows });
-  } catch (error) {
-    console.error('Get entity history error:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, error: 'Kayıt geçmişi alınamadı' });
   }
 });
@@ -223,25 +208,20 @@ router.get('/meta/filters', authenticate, requireAdmin, async (req, res) => {
     }
 
     // İşlem tipleri
-    const actionsResult = await pool.query(
-      'SELECT DISTINCT action FROM audit_logs ORDER BY action'
-    );
+    const actionsResult = await pool.query('SELECT DISTINCT action FROM audit_logs ORDER BY action');
 
     // Entity tipleri
-    const entityTypesResult = await pool.query(
-      'SELECT DISTINCT entity_type FROM audit_logs ORDER BY entity_type'
-    );
+    const entityTypesResult = await pool.query('SELECT DISTINCT entity_type FROM audit_logs ORDER BY entity_type');
 
     res.json({
       success: true,
       data: {
         users,
-        actions: actionsResult.rows.map(r => r.action),
-        entityTypes: entityTypesResult.rows.map(r => r.entity_type)
-      }
+        actions: actionsResult.rows.map((r) => r.action),
+        entityTypes: entityTypesResult.rows.map((r) => r.entity_type),
+      },
     });
-  } catch (error) {
-    console.error('Get filters error:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, error: 'Filtre seçenekleri alınamadı' });
   }
 });

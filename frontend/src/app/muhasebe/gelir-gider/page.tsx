@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { Center, Loader, Stack, Text } from '@mantine/core';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 /**
  * Gelir-Gider sayfası artık Finans Merkezi'ne entegre edildi.

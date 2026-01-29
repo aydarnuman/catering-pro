@@ -35,8 +35,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { adminAPI } from '@/lib/api/services/admin';
 import { useAuth } from '@/context/AuthContext';
+import { adminAPI } from '@/lib/api/services/admin';
 
 interface Notification {
   id: number;

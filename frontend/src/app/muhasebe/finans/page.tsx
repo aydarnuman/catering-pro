@@ -61,7 +61,9 @@ import type { Cari } from '@/types/domain';
 
 // Dynamic imports for better code splitting
 const CariListTab = dynamic(() => import('@/components/finans/CariListTab'), { ssr: false });
-const CariDetailDrawer = dynamic(() => import('@/components/finans/CariDetailDrawer'), { ssr: false });
+const CariDetailDrawer = dynamic(() => import('@/components/finans/CariDetailDrawer'), {
+  ssr: false,
+});
 const MutabakatModal = dynamic(
   () => import('@/components/muhasebe/MutabakatModal').then((m) => m.default),
   { ssr: false }
@@ -150,7 +152,10 @@ export default function FinansMerkeziPage() {
 
   // URL parametresi değiştiğinde tab'ı güncelle
   useEffect(() => {
-    if (tabFromUrl && ['ozet', 'cariler', 'hesaplar', 'cek-senet', 'proje-karlilik'].includes(tabFromUrl)) {
+    if (
+      tabFromUrl &&
+      ['ozet', 'cariler', 'hesaplar', 'cek-senet', 'proje-karlilik'].includes(tabFromUrl)
+    ) {
       setActiveTab(tabFromUrl);
     }
   }, [tabFromUrl]);
@@ -390,19 +395,39 @@ export default function FinansMerkeziPage() {
       {/* Tabs */}
       <Tabs value={activeTab} onChange={setActiveTab}>
         <Tabs.List mb="lg">
-          <Tabs.Tab value="ozet" leftSection={<IconChartPie size={18} />} style={{ fontWeight: 500 }}>
+          <Tabs.Tab
+            value="ozet"
+            leftSection={<IconChartPie size={18} />}
+            style={{ fontWeight: 500 }}
+          >
             Özet
           </Tabs.Tab>
-          <Tabs.Tab value="cariler" leftSection={<IconUsers size={18} />} style={{ fontWeight: 500 }}>
+          <Tabs.Tab
+            value="cariler"
+            leftSection={<IconUsers size={18} />}
+            style={{ fontWeight: 500 }}
+          >
             Cariler
           </Tabs.Tab>
-          <Tabs.Tab value="hesaplar" leftSection={<IconWallet size={18} />} style={{ fontWeight: 500 }}>
+          <Tabs.Tab
+            value="hesaplar"
+            leftSection={<IconWallet size={18} />}
+            style={{ fontWeight: 500 }}
+          >
             Hesaplar
           </Tabs.Tab>
-          <Tabs.Tab value="cek-senet" leftSection={<IconReceipt size={18} />} style={{ fontWeight: 500 }}>
+          <Tabs.Tab
+            value="cek-senet"
+            leftSection={<IconReceipt size={18} />}
+            style={{ fontWeight: 500 }}
+          >
             Çek/Senet
           </Tabs.Tab>
-          <Tabs.Tab value="proje-karlilik" leftSection={<IconChartBar size={18} />} style={{ fontWeight: 500 }}>
+          <Tabs.Tab
+            value="proje-karlilik"
+            leftSection={<IconChartBar size={18} />}
+            style={{ fontWeight: 500 }}
+          >
             Proje Analiz
           </Tabs.Tab>
         </Tabs.List>
@@ -682,7 +707,13 @@ export default function FinansMerkeziPage() {
               {projeler.length > 0 ? (
                 <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
                   {projeler.slice(0, 6).map((proje) => (
-                    <Paper key={proje.id} p="md" radius="lg" className="glassy-card-nested" style={{ cursor: 'pointer' }}>
+                    <Paper
+                      key={proje.id}
+                      p="md"
+                      radius="lg"
+                      className="glassy-card-nested"
+                      style={{ cursor: 'pointer' }}
+                    >
                       <Group justify="space-between" mb="xs">
                         <Text size="sm" fw={500} lineClamp={1}>
                           {proje.ad}
@@ -707,11 +738,11 @@ export default function FinansMerkeziPage() {
         {/* ==================== CARİLER TAB ==================== */}
         <Tabs.Panel value="cariler">
           <CariListTab
-            onCariSelect={(cari) => {
+            onCariSelect={(cari: Cari) => {
               setSelectedCari(cari);
               openDrawer();
             }}
-            onMutabakat={(cari) => {
+            onMutabakat={(cari: Cari) => {
               setSelectedCari(cari);
               openMutabakat();
             }}
@@ -2152,12 +2183,12 @@ export default function FinansMerkeziPage() {
           closeDrawer();
           setSelectedCari(null);
         }}
-        onMutabakat={(cari) => {
+        onMutabakat={(cari: Cari) => {
           closeDrawer();
           setSelectedCari(cari);
           openMutabakat();
         }}
-        onOdemeYap={(cari) => {
+        onOdemeYap={(cari: Cari) => {
           // Ödeme modalını aç - hesaplar tabında hareket ekle
           closeDrawer();
           setHareketForm({
@@ -2167,7 +2198,7 @@ export default function FinansMerkeziPage() {
           });
           setHareketModalOpen(true);
         }}
-        onTahsilatYap={(cari) => {
+        onTahsilatYap={(cari: Cari) => {
           // Tahsilat modalını aç - hesaplar tabında hareket ekle
           closeDrawer();
           setHareketForm({

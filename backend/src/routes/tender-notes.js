@@ -1,9 +1,9 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
-import { query } from '../database.js';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs/promises';
-import { fileURLToPath } from 'url';
+import { query } from '../database.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,7 +12,7 @@ const router = express.Router();
 
 // File upload configuration
 const storage = multer.diskStorage({
-  destination: async (req, file, cb) => {
+  destination: async (_req, _file, cb) => {
     const uploadDir = path.join(__dirname, '../../uploads/notes');
     try {
       await fs.mkdir(uploadDir, { recursive: true });
@@ -21,32 +21,35 @@ const storage = multer.diskStorage({
       cb(err);
     }
   },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const ext = path.extname(file.originalname);
     cb(null, `note-${uniqueSuffix}${ext}`);
-  }
+  },
 });
 
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     const allowedTypes = [
-      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
       'application/pdf',
       'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'text/plain'
+      'text/plain',
     ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
       cb(new Error('Desteklenmeyen dosya türü'));
     }
-  }
+  },
 });
 
 // Note colors
@@ -59,42 +62,44 @@ const VALID_COLORS = ['yellow', 'blue', 'green', 'pink', 'orange', 'purple'];
 router.get('/:trackingId', async (req, res) => {
   try {
     const { trackingId } = req.params;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       SELECT 
         id,
         user_notes,
         (SELECT json_agg(na.*) FROM note_attachments na WHERE na.tracking_id = tt.id) as attachments
       FROM tender_tracking tt
       WHERE id = $1
-    `, [trackingId]);
-    
+    `,
+      [trackingId]
+    );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Kayıt bulunamadı' });
     }
-    
+
     const notes = result.rows[0].user_notes || [];
     const attachments = result.rows[0].attachments || [];
-    
+
     // Sort: pinned first, then by order
     const sortedNotes = notes.sort((a, b) => {
       if (a.pinned && !b.pinned) return -1;
       if (!a.pinned && b.pinned) return 1;
       return (a.order || 0) - (b.order || 0);
     });
-    
+
     // Attach files to notes
-    const notesWithAttachments = sortedNotes.map(note => ({
+    const notesWithAttachments = sortedNotes.map((note) => ({
       ...note,
-      attachments: attachments.filter(a => a.note_id === note.id) || []
+      attachments: attachments.filter((a) => a.note_id === note.id) || [],
     }));
-    
+
     res.json({
       success: true,
-      data: notesWithAttachments
+      data: notesWithAttachments,
     });
   } catch (error) {
-    console.error('Not getirme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -107,22 +112,25 @@ router.post('/:trackingId', async (req, res) => {
   try {
     const { trackingId } = req.params;
     const { text, color, pinned, tags, reminder_date } = req.body;
-    
+
     if (!text || !text.trim()) {
       return res.status(400).json({ success: false, error: 'Not metni gerekli' });
     }
-    
+
     // Get current max order
-    const orderResult = await query(`
+    const orderResult = await query(
+      `
       SELECT COALESCE(MAX((elem->>'order')::int), -1) + 1 as next_order
       FROM tender_tracking tt,
            jsonb_array_elements(COALESCE(user_notes, '[]'::jsonb)) elem
       WHERE tt.id = $1
-    `, [trackingId]);
-    
+    `,
+      [trackingId]
+    );
+
     const nextOrder = orderResult.rows[0]?.next_order || 0;
     const now = new Date().toISOString();
-    
+
     const newNote = {
       id: `note_${Date.now()}`,
       text: text.trim(),
@@ -132,36 +140,41 @@ router.post('/:trackingId', async (req, res) => {
       order: nextOrder,
       reminder_date: reminder_date || null,
       created_at: now,
-      updated_at: now
+      updated_at: now,
     };
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       UPDATE tender_tracking 
       SET user_notes = COALESCE(user_notes, '[]'::jsonb) || $1::jsonb,
           updated_at = NOW()
       WHERE id = $2
       RETURNING id
-    `, [JSON.stringify(newNote), trackingId]);
-    
+    `,
+      [JSON.stringify(newNote), trackingId]
+    );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Kayıt bulunamadı' });
     }
-    
+
     // Create reminder if specified
     if (reminder_date) {
-      await query(`
+      await query(
+        `
         INSERT INTO note_reminders (note_id, tracking_id, user_id, reminder_date)
         SELECT $1, $2, user_id, $3
         FROM tender_tracking WHERE id = $2
-      `, [newNote.id, trackingId, reminder_date]);
+      `,
+        [newNote.id, trackingId, reminder_date]
+      );
     }
-    
+
     res.json({
       success: true,
-      data: newNote
+      data: newNote,
     });
   } catch (error) {
-    console.error('Not ekleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -174,9 +187,9 @@ router.put('/:trackingId/:noteId', async (req, res) => {
   try {
     const { trackingId, noteId } = req.params;
     const { text, color, pinned, tags, reminder_date } = req.body;
-    
+
     const now = new Date().toISOString();
-    
+
     // Build update object
     const updates = {};
     if (text !== undefined) updates.text = text.trim();
@@ -185,9 +198,10 @@ router.put('/:trackingId/:noteId', async (req, res) => {
     if (tags !== undefined) updates.tags = Array.isArray(tags) ? tags : [];
     if (reminder_date !== undefined) updates.reminder_date = reminder_date;
     updates.updated_at = now;
-    
+
     // Update note in JSONB array
-    const result = await query(`
+    const result = await query(
+      `
       UPDATE tender_tracking 
       SET user_notes = (
         SELECT jsonb_agg(
@@ -202,37 +216,41 @@ router.put('/:trackingId/:noteId', async (req, res) => {
       updated_at = NOW()
       WHERE id = $3
       RETURNING user_notes
-    `, [noteId, JSON.stringify(updates), trackingId]);
-    
+    `,
+      [noteId, JSON.stringify(updates), trackingId]
+    );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Kayıt bulunamadı' });
     }
-    
+
     // Update reminder
     if (reminder_date !== undefined) {
       // Delete old reminder
       await query(`DELETE FROM note_reminders WHERE note_id = $1`, [noteId]);
-      
+
       // Create new reminder if date provided
       if (reminder_date) {
-        await query(`
+        await query(
+          `
           INSERT INTO note_reminders (note_id, tracking_id, user_id, reminder_date)
           SELECT $1, $2, user_id, $3
           FROM tender_tracking WHERE id = $2
-        `, [noteId, trackingId, reminder_date]);
+        `,
+          [noteId, trackingId, reminder_date]
+        );
       }
     }
-    
+
     // Find updated note
     const notes = result.rows[0].user_notes || [];
-    const updatedNote = notes.find(n => n.id === noteId);
-    
+    const updatedNote = notes.find((n) => n.id === noteId);
+
     res.json({
       success: true,
-      data: updatedNote
+      data: updatedNote,
     });
   } catch (error) {
-    console.error('Not güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -244,9 +262,10 @@ router.put('/:trackingId/:noteId', async (req, res) => {
 router.delete('/:trackingId/:noteId', async (req, res) => {
   try {
     const { trackingId, noteId } = req.params;
-    
+
     // Delete note from JSONB
-    const result = await query(`
+    const result = await query(
+      `
       UPDATE tender_tracking 
       SET user_notes = (
         SELECT COALESCE(jsonb_agg(elem), '[]'::jsonb)
@@ -256,36 +275,32 @@ router.delete('/:trackingId/:noteId', async (req, res) => {
       updated_at = NOW()
       WHERE id = $2
       RETURNING id
-    `, [noteId, trackingId]);
-    
+    `,
+      [noteId, trackingId]
+    );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Kayıt bulunamadı' });
     }
-    
+
     // Delete attachments from filesystem
-    const attachments = await query(
-      `SELECT file_path FROM note_attachments WHERE note_id = $1`,
-      [noteId]
-    );
-    
+    const attachments = await query(`SELECT file_path FROM note_attachments WHERE note_id = $1`, [noteId]);
+
     for (const att of attachments.rows) {
       try {
         await fs.unlink(att.file_path);
-      } catch (e) {
-        console.warn('Dosya silinemedi:', att.file_path);
-      }
+      } catch (_e) {}
     }
-    
+
     // Delete from DB
     await query(`DELETE FROM note_attachments WHERE note_id = $1`, [noteId]);
     await query(`DELETE FROM note_reminders WHERE note_id = $1`, [noteId]);
-    
+
     res.json({
       success: true,
-      message: 'Not silindi'
+      message: 'Not silindi',
     });
   } catch (error) {
-    console.error('Not silme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -298,13 +313,14 @@ router.put('/:trackingId/reorder', async (req, res) => {
   try {
     const { trackingId } = req.params;
     const { noteIds } = req.body; // Array of note IDs in new order
-    
+
     if (!Array.isArray(noteIds)) {
       return res.status(400).json({ success: false, error: 'noteIds array gerekli' });
     }
-    
+
     // Update order for each note
-    const result = await query(`
+    const result = await query(
+      `
       UPDATE tender_tracking 
       SET user_notes = (
         SELECT jsonb_agg(
@@ -326,18 +342,19 @@ router.put('/:trackingId/reorder', async (req, res) => {
       updated_at = NOW()
       WHERE id = $2
       RETURNING user_notes
-    `, [noteIds, trackingId]);
-    
+    `,
+      [noteIds, trackingId]
+    );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Kayıt bulunamadı' });
     }
-    
+
     res.json({
       success: true,
-      data: result.rows[0].user_notes
+      data: result.rows[0].user_notes,
     });
   } catch (error) {
-    console.error('Sıralama hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -349,9 +366,10 @@ router.put('/:trackingId/reorder', async (req, res) => {
 router.post('/:trackingId/:noteId/pin', async (req, res) => {
   try {
     const { trackingId, noteId } = req.params;
-    
+
     // Toggle pinned status
-    const result = await query(`
+    const result = await query(
+      `
       UPDATE tender_tracking 
       SET user_notes = (
         SELECT jsonb_agg(
@@ -369,21 +387,22 @@ router.post('/:trackingId/:noteId/pin', async (req, res) => {
       updated_at = NOW()
       WHERE id = $2
       RETURNING user_notes
-    `, [noteId, trackingId]);
-    
+    `,
+      [noteId, trackingId]
+    );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Kayıt bulunamadı' });
     }
-    
+
     const notes = result.rows[0].user_notes || [];
-    const updatedNote = notes.find(n => n.id === noteId);
-    
+    const updatedNote = notes.find((n) => n.id === noteId);
+
     res.json({
       success: true,
-      data: updatedNote
+      data: updatedNote,
     });
   } catch (error) {
-    console.error('Pin hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -395,31 +414,25 @@ router.post('/:trackingId/:noteId/pin', async (req, res) => {
 router.post('/:trackingId/:noteId/attachments', upload.single('file'), async (req, res) => {
   try {
     const { trackingId, noteId } = req.params;
-    
+
     if (!req.file) {
       return res.status(400).json({ success: false, error: 'Dosya gerekli' });
     }
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       INSERT INTO note_attachments (note_id, tracking_id, filename, original_filename, file_path, file_size, file_type)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
-    `, [
-      noteId,
-      trackingId,
-      req.file.filename,
-      req.file.originalname,
-      req.file.path,
-      req.file.size,
-      req.file.mimetype
-    ]);
-    
+    `,
+      [noteId, trackingId, req.file.filename, req.file.originalname, req.file.path, req.file.size, req.file.mimetype]
+    );
+
     res.json({
       success: true,
-      data: result.rows[0]
+      data: result.rows[0],
     });
   } catch (error) {
-    console.error('Dosya yükleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -431,32 +444,26 @@ router.post('/:trackingId/:noteId/attachments', upload.single('file'), async (re
 router.delete('/:trackingId/:noteId/attachments/:attachmentId', async (req, res) => {
   try {
     const { attachmentId } = req.params;
-    
-    const attachment = await query(
-      `SELECT file_path FROM note_attachments WHERE id = $1`,
-      [attachmentId]
-    );
-    
+
+    const attachment = await query(`SELECT file_path FROM note_attachments WHERE id = $1`, [attachmentId]);
+
     if (attachment.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Dosya bulunamadı' });
     }
-    
+
     // Delete file
     try {
       await fs.unlink(attachment.rows[0].file_path);
-    } catch (e) {
-      console.warn('Dosya silinemedi:', attachment.rows[0].file_path);
-    }
-    
+    } catch (_e) {}
+
     // Delete from DB
     await query(`DELETE FROM note_attachments WHERE id = $1`, [attachmentId]);
-    
+
     res.json({
       success: true,
-      message: 'Dosya silindi'
+      message: 'Dosya silindi',
     });
   } catch (error) {
-    console.error('Dosya silme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -468,23 +475,21 @@ router.delete('/:trackingId/:noteId/attachments/:attachmentId', async (req, res)
 router.get('/attachments/:attachmentId/download', async (req, res) => {
   try {
     const { attachmentId } = req.params;
-    
-    const result = await query(
-      `SELECT file_path, original_filename, file_type FROM note_attachments WHERE id = $1`,
-      [attachmentId]
-    );
-    
+
+    const result = await query(`SELECT file_path, original_filename, file_type FROM note_attachments WHERE id = $1`, [
+      attachmentId,
+    ]);
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Dosya bulunamadı' });
     }
-    
+
     const { file_path, original_filename, file_type } = result.rows[0];
-    
+
     res.setHeader('Content-Disposition', `attachment; filename="${original_filename}"`);
     res.setHeader('Content-Type', file_type);
     res.sendFile(file_path);
   } catch (error) {
-    console.error('Dosya indirme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -493,7 +498,7 @@ router.get('/attachments/:attachmentId/download', async (req, res) => {
  * Get tag suggestions
  * GET /api/tender-notes/tags/suggestions
  */
-router.get('/tags/suggestions', async (req, res) => {
+router.get('/tags/suggestions', async (_req, res) => {
   try {
     const result = await query(`
       SELECT tag, COUNT(*) as count
@@ -507,13 +512,12 @@ router.get('/tags/suggestions', async (req, res) => {
       ORDER BY count DESC
       LIMIT 20
     `);
-    
+
     res.json({
       success: true,
-      data: result.rows.map(r => r.tag)
+      data: result.rows.map((r) => r.tag),
     });
   } catch (error) {
-    console.error('Tag suggestions hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -525,8 +529,9 @@ router.get('/tags/suggestions', async (req, res) => {
 router.get('/reminders/upcoming', async (req, res) => {
   try {
     const { user_id } = req.query;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       SELECT 
         nr.*,
         tt.tender_id,
@@ -544,14 +549,15 @@ router.get('/reminders/upcoming', async (req, res) => {
         AND ($1::int IS NULL OR nr.user_id = $1)
       ORDER BY nr.reminder_date ASC
       LIMIT 50
-    `, [user_id || null]);
-    
+    `,
+      [user_id || null]
+    );
+
     res.json({
       success: true,
-      data: result.rows
+      data: result.rows,
     });
   } catch (error) {
-    console.error('Reminder hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -563,15 +569,11 @@ router.get('/reminders/upcoming', async (req, res) => {
 router.post('/reminders/:reminderId/sent', async (req, res) => {
   try {
     const { reminderId } = req.params;
-    
-    await query(
-      `UPDATE note_reminders SET reminder_sent = TRUE WHERE id = $1`,
-      [reminderId]
-    );
-    
+
+    await query(`UPDATE note_reminders SET reminder_sent = TRUE WHERE id = $1`, [reminderId]);
+
     res.json({ success: true });
   } catch (error) {
-    console.error('Reminder güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

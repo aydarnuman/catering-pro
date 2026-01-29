@@ -26,14 +26,7 @@ const router = express.Router();
  */
 router.get('/faturalar', async (req, res) => {
   try {
-    const {
-      baslangic,
-      bitis,
-      tedarikci_vkn,
-      sadece_eslesmemis,
-      limit = 100,
-      offset = 0
-    } = req.query;
+    const { baslangic, bitis, tedarikci_vkn, sadece_eslesmemis, limit = 100, offset = 0 } = req.query;
 
     let sql = `
       SELECT 
@@ -84,10 +77,9 @@ router.get('/faturalar', async (req, res) => {
 
     res.json({
       success: true,
-      data: result.rows
+      data: result.rows,
     });
   } catch (error) {
-    console.error('Faturalar getirme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -100,7 +92,6 @@ router.get('/faturalar/:ettn/kalemler', async (req, res) => {
   try {
     const ettnRaw = req.params.ettn ?? '';
     const ettn = String(ettnRaw).trim();
-    console.log('[fatura-kalemler] GET kalemler, ettn:', ettn?.substring?.(0, 24) + (ettn?.length > 24 ? '...' : ''));
 
     // 1. Cache'de var mı?
     const cacheResult = await query(
@@ -148,9 +139,9 @@ router.get('/faturalar/:ettn/kalemler', async (req, res) => {
         success: true,
         data: {
           fatura: faturaResult.rows[0] || null,
-          kalemler: cacheResult.rows
+          kalemler: cacheResult.rows,
         },
-        kaynak: 'cache'
+        kaynak: 'cache',
       });
     }
 
@@ -159,38 +150,36 @@ router.get('/faturalar/:ettn/kalemler', async (req, res) => {
     try {
       xmlResult = await faturaService.getFaturaXml(ettn);
     } catch (xmlErr) {
-      console.error('[fatura-kalemler] Uyumsoft XML çekme hatası:', xmlErr);
       return res.status(502).json({
         success: false,
-        error: xmlErr?.message || 'Uyumsoft fatura XML alınamadı. Uyumsoft girişi (Scraper) ve bağlantıyı kontrol edip tekrar deneyin.'
+        error:
+          xmlErr?.message ||
+          'Uyumsoft fatura XML alınamadı. Uyumsoft girişi (Scraper) ve bağlantıyı kontrol edip tekrar deneyin.',
       });
     }
 
     if (!xmlResult?.success || !xmlResult?.xml) {
       return res.status(502).json({
         success: false,
-        error: 'Fatura XML alınamadı veya boş. Uyumsoft hesabınızı kontrol edin.'
+        error: 'Fatura XML alınamadı veya boş. Uyumsoft hesabınızı kontrol edin.',
       });
     }
-    console.log('[fatura-kalemler] UBL XML alındı, uzunluk:', xmlResult.xml.length);
 
     let parsed;
     try {
       parsed = await parseStringPromise(xmlResult.xml, {
         explicitArray: false,
         ignoreAttrs: false,
-        tagNameProcessors: [(name) => name.replace(/^.*:/, '')]
+        tagNameProcessors: [(name) => name.replace(/^.*:/, '')],
       });
-    } catch (parseErr) {
-      console.error('[fatura-kalemler] UBL parse hatası:', parseErr);
+    } catch (_parseErr) {
       return res.status(400).json({
         success: false,
-        error: 'Fatura XML parse edilemedi.'
+        error: 'Fatura XML parse edilemedi.',
       });
     }
 
     const topKeys = Object.keys(parsed || {});
-    console.log('[fatura-kalemler] UBL parse ok, root keys:', topKeys.join(', '));
 
     let invoice = parsed?.Invoice;
     if (!invoice && typeof parsed === 'object') {
@@ -198,16 +187,14 @@ router.get('/faturalar/:ettn/kalemler', async (req, res) => {
         const v = parsed[k];
         if (v && typeof v === 'object' && (v.Invoice || v.InvoiceLine)) {
           invoice = v.Invoice || v;
-          console.log('[fatura-kalemler] Invoice wrapper içinde bulundu, key:', k);
           break;
         }
       }
     }
     if (!invoice) {
-      console.warn('[fatura-kalemler] Invoice yok, root keys:', topKeys);
       return res.status(400).json({
         success: false,
-        error: 'Fatura XML\'de Invoice bulunamadı. Root: ' + topKeys.join(', ')
+        error: "Fatura XML'de Invoice bulunamadı. Root: " + topKeys.join(', '),
       });
     }
 
@@ -219,9 +206,7 @@ router.get('/faturalar/:ettn/kalemler', async (req, res) => {
     const faturaTarih = invoice.IssueDate ? String(invoice.IssueDate).slice(0, 10) : null;
     const faturaNo = _val(invoice.ID) ?? invoice.ID ?? '';
     const toplamTutar = parseFloat(
-      _val(invoice.LegalMonetaryTotal?.PayableAmount) ??
-        invoice.LegalMonetaryTotal?.PayableAmount ??
-        0
+      _val(invoice.LegalMonetaryTotal?.PayableAmount) ?? invoice.LegalMonetaryTotal?.PayableAmount ?? 0
     );
 
     let invoiceLines = invoice.InvoiceLine;
@@ -233,12 +218,13 @@ router.get('/faturalar/:ettn/kalemler', async (req, res) => {
       invoiceLines = Array.isArray(pl) ? pl : pl ? [pl] : [];
     }
     const invKeys = Object.keys(invoice || {});
-    console.log('[fatura-kalemler] Invoice keys:', invKeys.join(', '), '| InvoiceLine sayısı:', invoiceLines.length);
 
     if (invoiceLines.length === 0) {
       return res.status(404).json({
         success: false,
-        error: 'Bu faturada kalem (InvoiceLine) bulunamadı. UBL yapısı farklı olabilir. Invoice alanları: ' + invKeys.slice(0, 15).join(', ')
+        error:
+          'Bu faturada kalem (InvoiceLine) bulunamadı. UBL yapısı farklı olabilir. Invoice alanları: ' +
+          invKeys.slice(0, 15).join(', '),
       });
     }
 
@@ -287,7 +273,7 @@ router.get('/faturalar/:ettn/kalemler', async (req, res) => {
           kdvTutari,
           tedarikciVkn,
           tedarikciAd,
-          faturaTarih
+          faturaTarih,
         ]
       );
       if (ins.rows[0]) {
@@ -297,12 +283,10 @@ router.get('/faturalar/:ettn/kalemler', async (req, res) => {
           urun_kod: null,
           urun_ad: null,
           kategori_id: null,
-          kategori_ad: null
+          kategori_ad: null,
         });
       }
     }
-
-    console.log('[fatura-kalemler] Uyumsoft yanıtı, INSERT RETURNING kalem sayısı:', insertedRows.length);
     res.json({
       success: true,
       data: {
@@ -312,14 +296,13 @@ router.get('/faturalar/:ettn/kalemler', async (req, res) => {
           sender_vkn: tedarikciVkn,
           sender_name: tedarikciAd,
           invoice_date: faturaTarih,
-          total_amount: toplamTutar
+          total_amount: toplamTutar,
         },
-        kalemler: insertedRows
+        kalemler: insertedRows,
       },
-      kaynak: 'uyumsoft'
+      kaynak: 'uyumsoft',
     });
   } catch (error) {
-    console.error('[fatura-kalemler] Kalemler getirme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -337,7 +320,7 @@ router.get('/faturalar/:ettn/kalemler', async (req, res) => {
  * @param {string} tedarikciAd - Tedarikçi adı
  * @returns {Object} Güncellenmiş ürün bilgisi ve eski fiyat
  */
-async function urunFiyatGuncelle(urunId, birimFiyat, faturaTarihi, faturaEttn, tedarikciVkn, tedarikciAd) {
+async function urunFiyatGuncelle(urunId, birimFiyat, faturaTarihi, faturaEttn, _tedarikciVkn, tedarikciAd) {
   // Fiyat 0 veya null ise güncelleme yapma
   if (!birimFiyat || birimFiyat <= 0) {
     return { guncellendi: false, sebep: 'Geçersiz fiyat' };
@@ -380,11 +363,9 @@ async function urunFiyatGuncelle(urunId, birimFiyat, faturaTarihi, faturaEttn, t
       standartBirimFiyat,
       faturaEttn,
       `Fatura eşleştirmesinden: ${tedarikciAd || 'Bilinmeyen tedarikçi'} (Çarpan: ${birimCarpani})`,
-      faturaTarihi
+      faturaTarihi,
     ]
   );
-
-  console.log(`[fatura-kalemler] Fiyat güncellendi: ${urun.ad} | ${eskiFiyat || 0}₺ → ${standartBirimFiyat.toFixed(2)}₺/birim (fatura: ${birimFiyat}₺, çarpan: ${birimCarpani})`);
 
   return {
     guncellendi: true,
@@ -392,7 +373,7 @@ async function urunFiyatGuncelle(urunId, birimFiyat, faturaTarihi, faturaEttn, t
     eski_fiyat: eskiFiyat,
     yeni_fiyat: standartBirimFiyat,
     fatura_fiyat: birimFiyat,
-    birim_carpani: birimCarpani
+    birim_carpani: birimCarpani,
   };
 }
 
@@ -422,7 +403,6 @@ router.post('/faturalar/:ettn/kalemler/:sira/eslesdir', async (req, res) => {
          WHERE id = $3`,
         [carpanVal, birimVal, urun_id]
       );
-      console.log(`[fatura-kalemler] Ürün kartı güncellendi: urun_id=${urun_id}, birim_carpani=${carpanVal}, varsayilan_birim=${birimVal}`);
     }
 
     // 1. Kalemi bul (önce mevcut değerleri alalım)
@@ -435,7 +415,7 @@ router.post('/faturalar/:ettn/kalemler/:sira/eslesdir', async (req, res) => {
     if (mevcutResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        error: 'Kalem bulunamadı'
+        error: 'Kalem bulunamadı',
       });
     }
 
@@ -460,7 +440,7 @@ router.post('/faturalar/:ettn/kalemler/:sira/eslesdir', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        error: 'Kalem güncellenemedi'
+        error: 'Kalem güncellenemedi',
       });
     }
 
@@ -481,8 +461,6 @@ router.post('/faturalar/:ettn/kalemler/:sira/eslesdir', async (req, res) => {
       [ettnTrim, siraInt]
     );
     const kalem = kalemResult.rows[0];
-
-    console.log(`[fatura-kalemler] Kalem eşleştirildi: ettn=${ettnTrim.substring(0,16)}..., sira=${siraInt}, urun_id=${urun_id}, birim_fiyat=${birimFiyat}, carpan=${efektifCarpan}, birim_fiyat_standart=${kalem?.birim_fiyat_standart}`);
 
     let fiyatBilgisi = null;
 
@@ -514,18 +492,17 @@ router.post('/faturalar/:ettn/kalemler/:sira/eslesdir', async (req, res) => {
       }
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: {
         ...kalem,
         urun_kod: urunBilgisi?.urun_kod || null,
         urun_ad: urunBilgisi?.urun_ad || null,
-        kategori_ad: urunBilgisi?.kategori_ad || null
+        kategori_ad: urunBilgisi?.kategori_ad || null,
       },
-      fiyat_guncelleme: fiyatBilgisi
+      fiyat_guncelleme: fiyatBilgisi,
     });
   } catch (error) {
-    console.error('Eşleştirme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -567,11 +544,10 @@ router.post('/faturalar/:ettn/toplu-eslesdir', async (req, res) => {
       data: {
         eslesen: sonuclar.length,
         toplam: eslesmeler.length,
-        sonuclar
-      }
+        sonuclar,
+      },
     });
   } catch (error) {
-    console.error('Toplu eşleştirme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -601,7 +577,8 @@ router.post('/faturalar/:ettn/otomatik-eslesdir', async (req, res) => {
 
     for (const kalem of kalemlerResult.rows) {
       const pattern = patternGen(kalem.orijinal_urun_adi);
-      const tedarikciVkn = kalem.tedarikci_vkn && String(kalem.tedarikci_vkn).trim() ? String(kalem.tedarikci_vkn).trim() : null;
+      const tedarikciVkn =
+        kalem.tedarikci_vkn && String(kalem.tedarikci_vkn).trim() ? String(kalem.tedarikci_vkn).trim() : null;
 
       // Öneri: geçmiş eşleşmelerden en çok eşleşen ürün
       const oneriResult = await query(
@@ -646,10 +623,9 @@ router.post('/faturalar/:ettn/otomatik-eslesdir', async (req, res) => {
 
     res.json({
       success: true,
-      data: { basarili }
+      data: { basarili },
     });
   } catch (error) {
-    console.error('Otomatik eşleştirme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -678,7 +654,6 @@ router.delete('/faturalar/:ettn/kalemler/:sira/eslesme', async (req, res) => {
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Eşleştirme kaldırma hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -734,7 +709,6 @@ router.get('/urunler/ara', async (req, res) => {
       return res.json({ success: true, data: result.rows });
     }
   } catch (error) {
-    console.error('Ürün arama hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -804,7 +778,6 @@ router.get('/urunler/oneriler', async (req, res) => {
 
     return res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Öneri hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -835,7 +808,6 @@ router.post('/urunler/hizli-olustur', async (req, res) => {
     if (error.code === '23505') {
       return res.status(400).json({ success: false, error: 'Bu kod zaten kullanılıyor' });
     }
-    console.error('Hızlı ürün oluşturma hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -867,7 +839,6 @@ router.get('/fiyatlar/guncel', async (req, res) => {
     const result = await query(sql, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Güncel fiyat hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -893,7 +864,6 @@ router.get('/fiyatlar/:urunId/gecmis', async (req, res) => {
 
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Fiyat geçmişi hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -930,7 +900,6 @@ router.get('/fiyatlar/tedarikci-karsilastirma', async (req, res) => {
 
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Tedarikçi karşılaştırma hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -966,12 +935,14 @@ router.get('/debug/kalem/:ettn/:sira', async (req, res) => {
     res.json({
       success: true,
       debug: result.rows[0] || null,
-      hesaplama: result.rows[0] ? {
-        birim_fiyat: result.rows[0].birim_fiyat,
-        urun_birim_carpani: result.rows[0].urun_birim_carpani,
-        beklenen_standart_fiyat: result.rows[0].birim_fiyat / (result.rows[0].urun_birim_carpani || 1),
-        kayitli_standart_fiyat: result.rows[0].birim_fiyat_standart
-      } : null
+      hesaplama: result.rows[0]
+        ? {
+            birim_fiyat: result.rows[0].birim_fiyat,
+            urun_birim_carpani: result.rows[0].urun_birim_carpani,
+            beklenen_standart_fiyat: result.rows[0].birim_fiyat / (result.rows[0].urun_birim_carpani || 1),
+            kayitli_standart_fiyat: result.rows[0].birim_fiyat_standart,
+          }
+        : null,
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1000,11 +971,10 @@ router.get('/raporlar/eslesme-durumu', async (_req, res) => {
       success: true,
       data: {
         ozet: { toplam, tamEslesen, kismiEslesen, hicEslesmemis },
-        faturalar: result.rows
-      }
+        faturalar: result.rows,
+      },
     });
   } catch (error) {
-    console.error('Eşleşme durumu hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1047,7 +1017,6 @@ router.get('/raporlar/kategori-harcama', async (req, res) => {
     const result = await query(sql, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Kategori harcama hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1090,7 +1059,6 @@ router.get('/raporlar/tedarikci-ozet', async (req, res) => {
     const result = await query(sql, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Tedarikçi özet hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

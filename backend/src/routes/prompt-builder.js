@@ -30,7 +30,7 @@ const aiRateLimiter = rateLimit({
   message: {
     success: false,
     error: 'Çok fazla istek gönderdiniz. Lütfen 1 dakika bekleyin.',
-    code: 'RATE_LIMIT_EXCEEDED'
+    code: 'RATE_LIMIT_EXCEEDED',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -39,7 +39,7 @@ const aiRateLimiter = rateLimit({
     if (req.user?.id) return `user_${req.user.id}`;
     const ip = req.ip || req.socket?.remoteAddress;
     return ip ? ipKeyGenerator(ip) : 'unknown';
-  }
+  },
 });
 
 // ============================================
@@ -51,10 +51,7 @@ const aiRateLimiter = rateLimit({
  */
 function sanitizeInput(input) {
   if (typeof input !== 'string') return input;
-  return input
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .trim();
+  return input.replace(/</g, '&lt;').replace(/>/g, '&gt;').trim();
 }
 
 /**
@@ -118,13 +115,13 @@ router.get('/categories', async (_req, res) => {
 
     res.json({
       success: true,
-      data: categories
+      data: categories,
     });
   } catch (error) {
     logger.error('[Prompt Builder] Kategoriler getirilemedi', { error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
-      error: 'Kategoriler yüklenemedi'
+      error: 'Kategoriler yüklenemedi',
     });
   }
 });
@@ -136,33 +133,33 @@ router.get('/categories', async (_req, res) => {
 router.get('/categories/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
-    
+
     const category = await pbService.getCategoryBySlug(slug);
     if (!category) {
       return res.status(404).json({
         success: false,
-        error: 'Kategori bulunamadı'
+        error: 'Kategori bulunamadı',
       });
     }
-    
+
     const [questions, templates] = await Promise.all([
       pbService.getQuestionsByCategorySlug(slug),
-      pbService.getTemplatesByCategorySlug(slug)
+      pbService.getTemplatesByCategorySlug(slug),
     ]);
-    
+
     res.json({
       success: true,
       data: {
         category,
         questions,
-        templates
-      }
+        templates,
+      },
     });
   } catch (error) {
     logger.error('[Prompt Builder] Kategori detayı getirilemedi', { error: error.message, stack: error.stack, slug });
     res.status(500).json({
       success: false,
-      error: 'Kategori detayı yüklenemedi'
+      error: 'Kategori detayı yüklenemedi',
     });
   }
 });
@@ -175,16 +172,16 @@ router.get('/questions/:categorySlug', async (req, res) => {
   try {
     const { categorySlug } = req.params;
     const questions = await pbService.getQuestionsByCategorySlug(categorySlug);
-    
+
     res.json({
       success: true,
-      data: questions
+      data: questions,
     });
   } catch (error) {
     logger.error('[Prompt Builder] Sorular getirilemedi', { error: error.message, stack: error.stack, categorySlug });
     res.status(500).json({
       success: false,
-      error: 'Sorular yüklenemedi'
+      error: 'Sorular yüklenemedi',
     });
   }
 });
@@ -197,16 +194,16 @@ router.get('/templates/:categorySlug', async (req, res) => {
   try {
     const { categorySlug } = req.params;
     const templates = await pbService.getTemplatesByCategorySlug(categorySlug);
-    
+
     res.json({
       success: true,
-      data: templates
+      data: templates,
     });
   } catch (error) {
     logger.error('[Prompt Builder] Şablonlar getirilemedi', { error: error.message, stack: error.stack, categorySlug });
     res.status(500).json({
       success: false,
-      error: 'Şablonlar yüklenemedi'
+      error: 'Şablonlar yüklenemedi',
     });
   }
 });
@@ -219,23 +216,23 @@ router.get('/template/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const template = await pbService.getTemplateById(id);
-    
+
     if (!template) {
       return res.status(404).json({
         success: false,
-        error: 'Şablon bulunamadı'
+        error: 'Şablon bulunamadı',
       });
     }
-    
+
     res.json({
       success: true,
-      data: template
+      data: template,
     });
   } catch (error) {
     logger.error('[Prompt Builder] Şablon getirilemedi', { error: error.message, stack: error.stack, id });
     res.status(500).json({
       success: false,
-      error: 'Şablon yüklenemedi'
+      error: 'Şablon yüklenemedi',
     });
   }
 });
@@ -247,37 +244,37 @@ router.get('/template/:id', async (req, res) => {
 router.post('/generate', optionalAuth, async (req, res) => {
   try {
     const { templateId, answers } = req.body;
-    
+
     if (!templateId || !answers) {
       return res.status(400).json({
         success: false,
-        error: 'Template ID ve cevaplar gerekli'
+        error: 'Template ID ve cevaplar gerekli',
       });
     }
-    
+
     const template = await pbService.getTemplateById(templateId);
     if (!template) {
       return res.status(404).json({
         success: false,
-        error: 'Şablon bulunamadı'
+        error: 'Şablon bulunamadı',
       });
     }
-    
+
     const generatedPrompt = pbService.generatePrompt(template.template_text, answers);
-    
+
     // Kullanım sayacını artır
     await pbService.incrementTemplateUsage(templateId);
-    
+
     // Kullanım istatistiği kaydet
     if (req.user) {
       await pbService.logUsage(req.user.id, {
         templateId,
         categoryId: template.category_id,
         action: 'generate',
-        metadata: { answersCount: Object.keys(answers).length }
+        metadata: { answersCount: Object.keys(answers).length },
       });
     }
-    
+
     res.json({
       success: true,
       data: {
@@ -287,15 +284,15 @@ router.post('/generate', optionalAuth, async (req, res) => {
           name: template.name,
           style: template.style,
           categorySlug: template.category_slug,
-          categoryName: template.category_name
-        }
-      }
+          categoryName: template.category_name,
+        },
+      },
     });
   } catch (error) {
     logger.error('[Prompt Builder] Prompt oluşturulamadı', { error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
-      error: 'Prompt oluşturulamadı'
+      error: 'Prompt oluşturulamadı',
     });
   }
 });
@@ -308,7 +305,16 @@ router.post('/generate', optionalAuth, async (req, res) => {
 router.post('/save', authenticate, async (req, res) => {
   try {
     // Sadece izin verilen alanları al (field injection önleme)
-    const allowedFields = ['name', 'generatedPrompt', 'originalInput', 'style', 'categoryId', 'templateId', 'description', 'answers'];
+    const allowedFields = [
+      'name',
+      'generatedPrompt',
+      'originalInput',
+      'style',
+      'categoryId',
+      'templateId',
+      'description',
+      'answers',
+    ];
     const safeBody = pickAllowedFields(req.body, allowedFields);
 
     const { name, generatedPrompt, originalInput, style, categoryId, templateId, description, answers } = safeBody;
@@ -317,14 +323,14 @@ router.post('/save', authenticate, async (req, res) => {
     if (!name || typeof name !== 'string' || name.trim().length < 3) {
       return res.status(400).json({
         success: false,
-        error: 'İsim en az 3 karakter olmalı'
+        error: 'İsim en az 3 karakter olmalı',
       });
     }
 
     if (!generatedPrompt || typeof generatedPrompt !== 'string' || generatedPrompt.trim().length < 10) {
       return res.status(400).json({
         success: false,
-        error: 'Prompt en az 10 karakter olmalı'
+        error: 'Prompt en az 10 karakter olmalı',
       });
     }
 
@@ -332,14 +338,14 @@ router.post('/save', authenticate, async (req, res) => {
     if (name.length > 255) {
       return res.status(400).json({
         success: false,
-        error: 'İsim en fazla 255 karakter olabilir'
+        error: 'İsim en fazla 255 karakter olabilir',
       });
     }
 
     if (generatedPrompt.length > 50000) {
       return res.status(400).json({
         success: false,
-        error: 'Prompt en fazla 50000 karakter olabilir'
+        error: 'Prompt en fazla 50000 karakter olabilir',
       });
     }
 
@@ -350,25 +356,25 @@ router.post('/save', authenticate, async (req, res) => {
       description: description ? sanitizeInput(description.trim()) : null,
       generatedPrompt: generatedPrompt.trim(),
       answers: answers || { originalInput: originalInput || '' },
-      style: style || 'professional'
+      style: style || 'professional',
     });
-    
+
     // Kullanım istatistiği kaydet
     await pbService.logUsage(req.user.id, {
       savedPromptId: saved.id,
-      action: 'save'
+      action: 'save',
     });
-    
+
     res.json({
       success: true,
       data: saved,
-      message: 'Prompt başarıyla kaydedildi'
+      message: 'Prompt başarıyla kaydedildi',
     });
   } catch (error) {
     logger.error('[Prompt Builder] Prompt kaydedilemedi', { error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
-      error: `Prompt kaydedilemedi: ${error.message}`
+      error: `Prompt kaydedilemedi: ${error.message}`,
     });
   }
 });
@@ -381,23 +387,22 @@ router.post('/save', authenticate, async (req, res) => {
 router.get('/saved', authenticate, async (req, res) => {
   try {
     const { limit = 50, offset = 0, categoryId, favoriteOnly } = req.query;
-    
+
     const prompts = await pbService.getSavedPrompts(req.user.id, {
       limit: parseInt(limit, 10),
       offset: parseInt(offset, 10),
       categoryId: categoryId ? parseInt(categoryId, 10) : null,
-      favoriteOnly: favoriteOnly === 'true'
+      favoriteOnly: favoriteOnly === 'true',
     });
-    
+
     res.json({
       success: true,
-      data: prompts
+      data: prompts,
     });
-  } catch (error) {
-    console.error('❌ [Prompt Builder] Kayıtlı promptlar getirilemedi:', error);
+  } catch (_error) {
     res.status(500).json({
       success: false,
-      error: 'Kayıtlı promptlar yüklenemedi'
+      error: 'Kayıtlı promptlar yüklenemedi',
     });
   }
 });
@@ -411,25 +416,25 @@ router.get('/saved/:id', optionalAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id || 0;
-    
+
     const prompt = await pbService.getSavedPromptById(id, userId);
-    
+
     if (!prompt) {
       return res.status(404).json({
         success: false,
-        error: 'Prompt bulunamadı'
+        error: 'Prompt bulunamadı',
       });
     }
-    
+
     res.json({
       success: true,
-      data: prompt
+      data: prompt,
     });
   } catch (error) {
     logger.error('[Prompt Builder] Kayıtlı prompt getirilemedi', { error: error.message, stack: error.stack, id });
     res.status(500).json({
       success: false,
-      error: 'Kayıtlı prompt yüklenemedi'
+      error: 'Kayıtlı prompt yüklenemedi',
     });
   }
 });
@@ -454,13 +459,13 @@ router.patch('/saved/:id', authenticate, async (req, res) => {
       if (typeof name !== 'string' || name.trim().length < 3) {
         return res.status(400).json({
           success: false,
-          error: 'İsim en az 3 karakter olmalı'
+          error: 'İsim en az 3 karakter olmalı',
         });
       }
       if (name.length > 255) {
         return res.status(400).json({
           success: false,
-          error: 'İsim en fazla 255 karakter olabilir'
+          error: 'İsim en fazla 255 karakter olabilir',
         });
       }
     }
@@ -469,7 +474,7 @@ router.patch('/saved/:id', authenticate, async (req, res) => {
       if (typeof description !== 'string' || description.length > 1000) {
         return res.status(400).json({
           success: false,
-          error: 'Açıklama en fazla 1000 karakter olabilir'
+          error: 'Açıklama en fazla 1000 karakter olabilir',
         });
       }
     }
@@ -478,14 +483,14 @@ router.patch('/saved/:id', authenticate, async (req, res) => {
     if (isFavorite !== undefined && typeof isFavorite !== 'boolean') {
       return res.status(400).json({
         success: false,
-        error: 'isFavorite boolean olmalı'
+        error: 'isFavorite boolean olmalı',
       });
     }
 
     if (isPublic !== undefined && typeof isPublic !== 'boolean') {
       return res.status(400).json({
         success: false,
-        error: 'isPublic boolean olmalı'
+        error: 'isPublic boolean olmalı',
       });
     }
 
@@ -493,26 +498,26 @@ router.patch('/saved/:id', authenticate, async (req, res) => {
       name: name ? sanitizeInput(name.trim()) : undefined,
       description: description ? sanitizeInput(description.trim()) : description,
       isFavorite,
-      isPublic
+      isPublic,
     });
 
     if (!updated) {
       return res.status(404).json({
         success: false,
-        error: 'Prompt bulunamadı veya yetkiniz yok'
+        error: 'Prompt bulunamadı veya yetkiniz yok',
       });
     }
-    
+
     res.json({
       success: true,
       data: updated,
-      message: 'Prompt güncellendi'
+      message: 'Prompt güncellendi',
     });
   } catch (error) {
     logger.error('[Prompt Builder] Prompt güncellenemedi', { error: error.message, stack: error.stack, id });
     res.status(500).json({
       success: false,
-      error: 'Prompt güncellenemedi'
+      error: 'Prompt güncellenemedi',
     });
   }
 });
@@ -525,25 +530,25 @@ router.patch('/saved/:id', authenticate, async (req, res) => {
 router.delete('/saved/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const deleted = await pbService.deleteSavedPrompt(id, req.user.id);
-    
+
     if (!deleted) {
       return res.status(404).json({
         success: false,
-        error: 'Prompt bulunamadı veya yetkiniz yok'
+        error: 'Prompt bulunamadı veya yetkiniz yok',
       });
     }
-    
+
     res.json({
       success: true,
-      message: 'Prompt silindi'
+      message: 'Prompt silindi',
     });
   } catch (error) {
     logger.error('[Prompt Builder] Prompt silinemedi', { error: error.message, stack: error.stack, id });
     res.status(500).json({
       success: false,
-      error: 'Prompt silinemedi'
+      error: 'Prompt silinemedi',
     });
   }
 });
@@ -556,28 +561,28 @@ router.delete('/saved/:id', authenticate, async (req, res) => {
 router.post('/stats', optionalAuth, async (req, res) => {
   try {
     const { savedPromptId, categoryId, templateId, action, metadata } = req.body;
-    
+
     if (!action) {
       return res.status(400).json({
         success: false,
-        error: 'Action gerekli'
+        error: 'Action gerekli',
       });
     }
-    
+
     await pbService.logUsage(req.user?.id, {
       savedPromptId,
       categoryId,
       templateId,
       action,
-      metadata
+      metadata,
     });
-    
+
     res.json({ success: true });
   } catch (error) {
     logger.error('[Prompt Builder] İstatistik kaydedilemedi', { error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
-      error: 'İstatistik kaydedilemedi'
+      error: 'İstatistik kaydedilemedi',
     });
   }
 });
@@ -589,23 +594,23 @@ router.post('/stats', optionalAuth, async (req, res) => {
 router.get('/gallery', async (req, res) => {
   try {
     const { limit = 50, offset = 0, categoryId, sortBy = 'usage_count' } = req.query;
-    
+
     const prompts = await pbService.getPublicPrompts({
       limit: parseInt(limit, 10),
       offset: parseInt(offset, 10),
       categoryId: categoryId ? parseInt(categoryId, 10) : null,
-      sortBy
+      sortBy,
     });
-    
+
     res.json({
       success: true,
-      data: prompts
+      data: prompts,
     });
   } catch (error) {
     logger.error('[Prompt Builder] Galeri getirilemedi', { error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
-      error: 'Galeri yüklenemedi'
+      error: 'Galeri yüklenemedi',
     });
   }
 });
@@ -618,16 +623,16 @@ router.get('/gallery', async (req, res) => {
 router.get('/my-stats', authenticate, async (req, res) => {
   try {
     const stats = await pbService.getUserStats(req.user.id);
-    
+
     res.json({
       success: true,
-      data: stats
+      data: stats,
     });
   } catch (error) {
     logger.error('[Prompt Builder] İstatistikler getirilemedi', { error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
-      error: 'İstatistikler yüklenemedi'
+      error: 'İstatistikler yüklenemedi',
     });
   }
 });
@@ -640,18 +645,16 @@ router.get('/my-stats', authenticate, async (req, res) => {
 router.post('/ask', aiRateLimiter, optionalAuth, async (req, res) => {
   try {
     const { userInput, conversationHistory = [] } = req.body;
-    
+
     if (!userInput || userInput.trim().length < 3) {
       return res.status(400).json({
         success: false,
-        error: 'Lütfen en az 3 karakter girin'
+        error: 'Lütfen en az 3 karakter girin',
       });
     }
 
     // Konuşma geçmişini formatla
-    const historyText = conversationHistory.map(h => 
-      `Soru: ${h.question}\nCevap: ${h.answer}`
-    ).join('\n\n');
+    const historyText = conversationHistory.map((h) => `Soru: ${h.question}\nCevap: ${h.answer}`).join('\n\n');
 
     // AI'a gönderilecek prompt
     const systemPrompt = `Sen Catering Pro sisteminde bir asistansın. Kullanıcının isteğini anlamak için netleştirici sorular soruyorsun.
@@ -699,15 +702,13 @@ KULLANICININ İLK İSTEĞİ: "${userInput}"
     // Claude API
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
     const anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY
+      apiKey: process.env.ANTHROPIC_API_KEY,
     });
 
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1000,
-      messages: [
-        { role: 'user', content: systemPrompt }
-      ]
+      messages: [{ role: 'user', content: systemPrompt }],
     });
 
     const responseText = response.content[0]?.text?.trim() || '';
@@ -719,13 +720,13 @@ KULLANICININ İLK İSTEĞİ: "${userInput}"
     if (!result) {
       logger.warn('[Prompt Builder] JSON parse başarısız, fallback kullanılıyor', {
         responseLength: responseText.length,
-        responsePreview: responseText.substring(0, 200)
+        responsePreview: responseText.substring(0, 200),
       });
       result = {
         question: 'Bu konuda hangi işlemi yapmak istiyorsunuz?',
         options: ['Bilgi sorgulama', 'Analiz yapma', 'Rapor oluşturma', 'Öneri alma'],
         isComplete: false,
-        _fallback: true
+        _fallback: true,
       };
     }
 
@@ -735,17 +736,17 @@ KULLANICININ İLK İSTEĞİ: "${userInput}"
         question: result.question || 'Nasıl yardımcı olabilirim?',
         options: Array.isArray(result.options) ? result.options : ['Devam et', 'Yeniden başla'],
         isComplete: false,
-        _validated: true
+        _validated: true,
       };
     }
 
     res.json({
       success: true,
-      data: result
+      data: result,
     });
   } catch (error) {
     logger.error('[Prompt Builder] Ask hatası', { error: error.message, stack: error.stack });
-    
+
     // Fallback
     res.json({
       success: true,
@@ -753,8 +754,8 @@ KULLANICININ İLK İSTEĞİ: "${userInput}"
         question: 'Ne tür bir yardım istiyorsunuz?',
         options: ['Bilgi sorgulama', 'Analiz', 'Rapor', 'Öneri'],
         isComplete: false,
-        fallback: true
-      }
+        fallback: true,
+      },
     });
   }
 });
@@ -767,7 +768,7 @@ KULLANICININ İLK İSTEĞİ: "${userInput}"
 router.post('/transform', aiRateLimiter, optionalAuth, async (req, res) => {
   try {
     const { prompt, action } = req.body;
-    
+
     if (!prompt) {
       return res.status(400).json({ success: false, error: 'Prompt gerekli' });
     }
@@ -780,11 +781,11 @@ router.post('/transform', aiRateLimiter, optionalAuth, async (req, res) => {
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
       messages: [
-        { 
-          role: 'user', 
-          content: `${prompt}\n\nÖNEMLİ: Sadece dönüştürülmüş metni döndür, açıklama yapma.`
-        }
-      ]
+        {
+          role: 'user',
+          content: `${prompt}\n\nÖNEMLİ: Sadece dönüştürülmüş metni döndür, açıklama yapma.`,
+        },
+      ],
     });
 
     const result = response.content[0]?.text?.trim() || prompt;
@@ -793,7 +794,7 @@ router.post('/transform', aiRateLimiter, optionalAuth, async (req, res) => {
     if (req.user) {
       await pbService.logUsage(req.user.id, {
         action: `transform_${action}`,
-        metadata: { inputLength: prompt.length, outputLength: result.length }
+        metadata: { inputLength: prompt.length, outputLength: result.length },
       });
     }
 
@@ -812,11 +813,11 @@ router.post('/transform', aiRateLimiter, optionalAuth, async (req, res) => {
 router.post('/optimize', aiRateLimiter, optionalAuth, async (req, res) => {
   try {
     const { userInput, style = 'professional' } = req.body;
-    
+
     if (!userInput || userInput.trim().length < 5) {
       return res.status(400).json({
         success: false,
-        error: 'Lütfen en az 5 karakter girin'
+        error: 'Lütfen en az 5 karakter girin',
       });
     }
 
@@ -825,7 +826,7 @@ router.post('/optimize', aiRateLimiter, optionalAuth, async (req, res) => {
       professional: 'Profesyonel ve resmi bir dil kullan. Açık, net ve iş odaklı ol.',
       detailed: 'Çok detaylı ve kapsamlı ol. Tüm alt başlıkları ve adımları belirt.',
       creative: 'Yaratıcı ve ilgi çekici bir yaklaşım kullan. Özgün fikirler ve perspektifler sun.',
-      simple: 'Kısa ve öz ol. Gereksiz detaylardan kaçın, ana noktaya odaklan.'
+      simple: 'Kısa ve öz ol. Gereksiz detaylardan kaçın, ana noktaya odaklan.',
     };
 
     // AI'a gönderilecek prompt
@@ -846,15 +847,13 @@ Optimize edilmiş prompt:`;
     // Claude API ile optimize et
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
     const anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY
+      apiKey: process.env.ANTHROPIC_API_KEY,
     });
 
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
-      messages: [
-        { role: 'user', content: systemPrompt }
-      ]
+      messages: [{ role: 'user', content: systemPrompt }],
     });
 
     const optimizedPrompt = response.content[0]?.text?.trim() || userInput;
@@ -863,11 +862,11 @@ Optimize edilmiş prompt:`;
     if (req.user) {
       await pbService.logUsage(req.user.id, {
         action: 'optimize',
-        metadata: { 
-          style, 
-          inputLength: userInput.length, 
-          outputLength: optimizedPrompt.length 
-        }
+        metadata: {
+          style,
+          inputLength: userInput.length,
+          outputLength: optimizedPrompt.length,
+        },
       });
     }
 
@@ -876,24 +875,24 @@ Optimize edilmiş prompt:`;
       data: {
         optimizedPrompt,
         originalInput: userInput,
-        style
-      }
+        style,
+      },
     });
   } catch (error) {
     logger.error('[Prompt Builder] Optimize hatası', { error: error.message, stack: error.stack });
-    
+
     // Fallback: Basit şablon ile optimize et
     const { userInput, style = 'professional' } = req.body;
     const fallbackPrompt = generateFallbackPrompt(userInput, style);
-    
+
     res.json({
       success: true,
       data: {
         optimizedPrompt: fallbackPrompt,
         originalInput: userInput,
         style,
-        fallback: true
-      }
+        fallback: true,
+      },
     });
   }
 });
@@ -904,9 +903,9 @@ function generateFallbackPrompt(input, style) {
     professional: 'Profesyonel ve detaylı bir şekilde',
     detailed: 'Kapsamlı ve tüm yönleriyle',
     creative: 'Yaratıcı ve özgün bir bakış açısıyla',
-    simple: 'Kısa ve öz olarak'
+    simple: 'Kısa ve öz olarak',
   };
-  
+
   return `${stylePrefix[style] || stylePrefix.professional} aşağıdaki konuyu ele al:
 
 ${input}
@@ -926,16 +925,16 @@ router.get('/popular-categories', async (req, res) => {
   try {
     const { limit = 5 } = req.query;
     const categories = await pbService.getPopularCategories(parseInt(limit, 10));
-    
+
     res.json({
       success: true,
-      data: categories
+      data: categories,
     });
   } catch (error) {
     logger.error('[Prompt Builder] Popüler kategoriler getirilemedi', { error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
-      error: 'Popüler kategoriler yüklenemedi'
+      error: 'Popüler kategoriler yüklenemedi',
     });
   }
 });
@@ -948,7 +947,7 @@ router.get('/popular-categories', async (req, res) => {
 router.post('/seed', authenticate, requireSuperAdmin, async (_req, res) => {
   try {
     const { query } = await import('../database.js');
-    
+
     // 1. Tabloları oluştur
     await query(`
       CREATE TABLE IF NOT EXISTS pb_categories (
@@ -1036,74 +1035,137 @@ router.post('/seed', authenticate, requireSuperAdmin, async (_req, res) => {
 
     // 2. Kategorileri ekle
     const categories = [
-      { slug: 'serbest', name: '✨ Serbest Prompt', description: 'Kategorisiz, tamamen özelleştirilebilir prompt', icon: '✨', color: 'grape', sort_order: 0 },
-      { slug: 'ihale', name: '📋 İhale Analizi', description: 'İhale değerlendirme, risk analizi ve strateji', icon: '📋', color: 'violet', sort_order: 1 },
-      { slug: 'muhasebe', name: '💰 Muhasebe & Finans', description: 'Mali analiz, raporlama ve planlama', icon: '💰', color: 'green', sort_order: 2 },
-      { slug: 'personel', name: '👥 İK & Personel', description: 'Çalışan yönetimi ve bordro', icon: '👥', color: 'blue', sort_order: 3 },
-      { slug: 'operasyon', name: '📦 Operasyon & Stok', description: 'Depo ve üretim yönetimi', icon: '📦', color: 'orange', sort_order: 4 },
-      { slug: 'yazisma', name: '📝 Resmi Yazışma', description: 'Dilekçe ve resmi belgeler', icon: '📝', color: 'gray', sort_order: 5 },
+      {
+        slug: 'serbest',
+        name: '✨ Serbest Prompt',
+        description: 'Kategorisiz, tamamen özelleştirilebilir prompt',
+        icon: '✨',
+        color: 'grape',
+        sort_order: 0,
+      },
+      {
+        slug: 'ihale',
+        name: '📋 İhale Analizi',
+        description: 'İhale değerlendirme, risk analizi ve strateji',
+        icon: '📋',
+        color: 'violet',
+        sort_order: 1,
+      },
+      {
+        slug: 'muhasebe',
+        name: '💰 Muhasebe & Finans',
+        description: 'Mali analiz, raporlama ve planlama',
+        icon: '💰',
+        color: 'green',
+        sort_order: 2,
+      },
+      {
+        slug: 'personel',
+        name: '👥 İK & Personel',
+        description: 'Çalışan yönetimi ve bordro',
+        icon: '👥',
+        color: 'blue',
+        sort_order: 3,
+      },
+      {
+        slug: 'operasyon',
+        name: '📦 Operasyon & Stok',
+        description: 'Depo ve üretim yönetimi',
+        icon: '📦',
+        color: 'orange',
+        sort_order: 4,
+      },
+      {
+        slug: 'yazisma',
+        name: '📝 Resmi Yazışma',
+        description: 'Dilekçe ve resmi belgeler',
+        icon: '📝',
+        color: 'gray',
+        sort_order: 5,
+      },
     ];
 
     for (const cat of categories) {
-      await query(`
+      await query(
+        `
         INSERT INTO pb_categories (slug, name, description, icon, color, sort_order)
         VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (slug) DO UPDATE SET
           name = EXCLUDED.name, description = EXCLUDED.description,
           icon = EXCLUDED.icon, color = EXCLUDED.color, sort_order = EXCLUDED.sort_order
-      `, [cat.slug, cat.name, cat.description, cat.icon, cat.color, cat.sort_order]);
+      `,
+        [cat.slug, cat.name, cat.description, cat.icon, cat.color, cat.sort_order]
+      );
     }
 
     // 3. Serbest kategori için soru ve şablon
     const serbestRes = await query(`SELECT id FROM pb_categories WHERE slug = 'serbest'`);
     const serbestId = serbestRes.rows[0]?.id;
-    
+
     if (serbestId) {
-      await query(`
+      await query(
+        `
         INSERT INTO pb_questions (category_id, question_text, question_type, variable_name, sort_order, help_text, placeholder)
         VALUES ($1, 'Prompt''unuzu yazın', 'textarea', 'serbest_prompt', 1, 'AI''a vermek istediğiniz komutu veya soruyu yazın', 'Örn: Bir catering firması için müşteri memnuniyetini artıracak stratejiler öner...')
         ON CONFLICT DO NOTHING
-      `, [serbestId]);
+      `,
+        [serbestId]
+      );
 
-      await query(`
+      await query(
+        `
         INSERT INTO pb_templates (category_id, name, template_text, style, is_default)
         VALUES ($1, 'Serbest Prompt', '{{serbest_prompt}}', 'professional', TRUE)
         ON CONFLICT DO NOTHING
-      `, [serbestId]);
+      `,
+        [serbestId]
+      );
     }
 
     // 4. İhale kategorisi
     const ihaleRes = await query(`SELECT id FROM pb_categories WHERE slug = 'ihale'`);
     const ihaleId = ihaleRes.rows[0]?.id;
-    
+
     if (ihaleId) {
       const ihaleQuestions = [
-        { text: 'Hangi sektördeki ihaleyi analiz ediyorsunuz?', type: 'select', var: 'sektor', order: 1, 
+        {
+          text: 'Hangi sektördeki ihaleyi analiz ediyorsunuz?',
+          type: 'select',
+          var: 'sektor',
+          order: 1,
           options: JSON.stringify([
             { label: 'Catering / Yemek', value: 'catering' },
             { label: 'İnşaat', value: 'insaat' },
             { label: 'Teknoloji', value: 'teknoloji' },
             { label: 'Sağlık', value: 'saglik' },
-            { label: 'Diğer', value: 'diger' }
-          ]) },
+            { label: 'Diğer', value: 'diger' },
+          ]),
+        },
         { text: 'İhale konusunu kısaca açıklayın', type: 'textarea', var: 'konu', order: 2, options: null },
         { text: 'Tahmini bütçe (TL)', type: 'text', var: 'butce', order: 3, options: null },
         { text: 'Dikkat edilmesi gereken konular', type: 'textarea', var: 'dikkat', order: 4, options: null },
       ];
 
       for (const q of ihaleQuestions) {
-        await query(`
+        await query(
+          `
           INSERT INTO pb_questions (category_id, question_text, question_type, variable_name, sort_order, options)
           VALUES ($1, $2, $3, $4, $5, $6)
           ON CONFLICT DO NOTHING
-        `, [ihaleId, q.text, q.type, q.var, q.order, q.options]);
+        `,
+          [ihaleId, q.text, q.type, q.var, q.order, q.options]
+        );
       }
 
-      await query(`
+      await query(
+        `
         INSERT INTO pb_templates (category_id, name, template_text, style, is_default)
         VALUES ($1, 'İhale Analiz Raporu', $2, 'professional', TRUE)
         ON CONFLICT DO NOTHING
-      `, [ihaleId, `Sen deneyimli bir ihale uzmanısın. {{sektor}} sektöründe bir ihale analiz edeceksin.
+      `,
+        [
+          ihaleId,
+          `Sen deneyimli bir ihale uzmanısın. {{sektor}} sektöründe bir ihale analiz edeceksin.
 
 İhale Konusu: {{konu}}
 Tahmini Bütçe: {{butce}}
@@ -1113,19 +1175,21 @@ Lütfen şu başlıklar altında analiz yap:
 1. 🎯 Risk Değerlendirmesi
 2. 📊 Rekabet Analizi  
 3. 💰 Fiyatlandırma Stratejisi
-4. ✅ Önerilen Aksiyon Planı`]);
+4. ✅ Önerilen Aksiyon Planı`,
+        ]
+      );
     }
 
     res.json({
       success: true,
       message: 'Seed işlemi tamamlandı!',
-      data: { categories: categories.length }
+      data: { categories: categories.length },
     });
   } catch (error) {
     logger.error('[Prompt Builder] Seed hatası', { error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });

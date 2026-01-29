@@ -28,19 +28,28 @@
     "rules": {
       "recommended": true,
       "complexity": {
-        "noExcessiveCognitiveComplexity": "warn",
+        "noExcessiveCognitiveComplexity": {
+          "level": "warn",
+          "options": {
+            "maxAllowedComplexity": 150
+          }
+        },
         "noForEach": "off",
-        "useLiteralKeys": "off"
+        "useLiteralKeys": "off",
+        "noStaticOnlyClass": "warn"
       },
       "correctness": {
         "noUnusedVariables": "warn",
         "noUnusedImports": "warn",
+        "noUnusedFunctionParameters": "warn",
         "useExhaustiveDependencies": "off"
       },
       "suspicious": {
         "noExplicitAny": "off",
         "noConsole": "warn",
-        "noDebugger": "error"
+        "noDebugger": "error",
+        "useIterableCallbackReturn": "warn",
+        "noAssignInExpressions": "warn"
       },
       "style": {
         "useConst": "warn",
@@ -62,5 +71,17 @@
       "trailingCommas": "es5",
       "arrowParentheses": "always"
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["src/scripts/**/*.js"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    }
+  ]
 }

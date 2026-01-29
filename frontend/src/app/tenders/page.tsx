@@ -945,9 +945,7 @@ export default function TendersPage() {
                   className="glassy-card"
                   style={{
                     cursor: 'pointer',
-                    borderColor: trackingIds.has(tender.id)
-                      ? 'rgba(250, 204, 21, 0.5)'
-                      : undefined,
+                    borderColor: trackingIds.has(tender.id) ? 'rgba(250, 204, 21, 0.5)' : undefined,
                     borderWidth: trackingIds.has(tender.id) ? 2 : undefined,
                   }}
                 >

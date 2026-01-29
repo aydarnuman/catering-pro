@@ -2,15 +2,15 @@
  * Firma Belgesi Analiz Servisi
  * Vergi levhası, sicil gazetesi, imza sirküleri vb. belgelerden
  * firma bilgilerini AI ile çıkarır
- * 
+ *
  * PDF, Word, Excel ve görsel dosyaları destekler
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import fs from 'fs';
-import path from 'path';
-import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
+import pdfParse from 'pdf-parse';
 import xlsx from 'xlsx';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -31,7 +31,7 @@ const BELGE_TIPLERI = {
 6. FAALİYET KODU / NACE KODU - 6 haneli rakam (örn: 562990, 561000)
 7. VERGİ LEVHASI TARİHİ
 
-DİKKAT: Vergi Kimlik Numarası (VKN) 10 haneli bir sayıdır ve mutlaka belgede bulunur!`
+DİKKAT: Vergi Kimlik Numarası (VKN) 10 haneli bir sayıdır ve mutlaka belgede bulunur!`,
   },
   sicil_gazetesi: {
     ad: 'Ticaret Sicil Gazetesi',
@@ -44,7 +44,7 @@ DİKKAT: Vergi Kimlik Numarası (VKN) 10 haneli bir sayıdır ve mutlaka belgede
 - Ortaklar ve Hisse Oranları
 - Şirketi Temsile Yetkili Kişi(ler)
 - Yetkili TC Kimlik No
-- Gazete Tarihi ve Sayısı`
+- Gazete Tarihi ve Sayısı`,
   },
   imza_sirküleri: {
     ad: 'İmza Sirküleri',
@@ -54,7 +54,7 @@ DİKKAT: Vergi Kimlik Numarası (VKN) 10 haneli bir sayıdır ve mutlaka belgede
 - TC Kimlik Numarası
 - Unvanı (Şirket Müdürü, Genel Müdür vs.)
 - İmza Yetkisi Kapsamı (münferit, müşterek vs.)
-- Noter Bilgileri ve Tarih`
+- Noter Bilgileri ve Tarih`,
   },
   faaliyet_belgesi: {
     ad: 'Faaliyet Belgesi / Oda Kayıt Belgesi',
@@ -64,7 +64,7 @@ DİKKAT: Vergi Kimlik Numarası (VKN) 10 haneli bir sayıdır ve mutlaka belgede
 - Oda Sicil Numarası
 - Faaliyet Alanları
 - Kayıt Tarihi
-- Oda Adı (Ticaret Odası, Sanayi Odası vs.)`
+- Oda Adı (Ticaret Odası, Sanayi Odası vs.)`,
   },
   iso_sertifika: {
     ad: 'ISO Sertifikası',
@@ -74,7 +74,7 @@ DİKKAT: Vergi Kimlik Numarası (VKN) 10 haneli bir sayıdır ve mutlaka belgede
 - Sertifika Numarası
 - Sertifika Türü (ISO 9001, ISO 22000, HACCP vs.)
 - Geçerlilik Başlangıç ve Bitiş Tarihi
-- Akreditasyon Kuruluşu`
+- Akreditasyon Kuruluşu`,
   },
   vekaletname: {
     ad: 'Vekaletname',
@@ -83,7 +83,7 @@ DİKKAT: Vergi Kimlik Numarası (VKN) 10 haneli bir sayıdır ve mutlaka belgede
 - Vekil Adı Soyadı
 - Vekil TC Kimlik No
 - Yetki Kapsamı
-- Noter Bilgileri ve Tarih`
+- Noter Bilgileri ve Tarih`,
   },
   diger: {
     ad: 'Genel Belge',
@@ -94,8 +94,8 @@ DİKKAT: Vergi Kimlik Numarası (VKN) 10 haneli bir sayıdır ve mutlaka belgede
 - Vergi Dairesi
 - Adres, İl, İlçe
 - Yetkili Kişi Bilgileri
-- Diğer önemli bilgiler`
-  }
+- Diğer önemli bilgiler`,
+  },
 };
 
 // Desteklenen dosya tipleri
@@ -103,7 +103,7 @@ const DESTEKLENEN_TIPLER = {
   pdf: ['.pdf'],
   word: ['.doc', '.docx'],
   excel: ['.xls', '.xlsx'],
-  image: ['.jpg', '.jpeg', '.png', '.webp', '.gif']
+  image: ['.jpg', '.jpeg', '.png', '.webp', '.gif'],
 };
 
 /**
@@ -111,12 +111,12 @@ const DESTEKLENEN_TIPLER = {
  */
 function getFileCategory(filePath) {
   const ext = path.extname(filePath).toLowerCase();
-  
+
   if (DESTEKLENEN_TIPLER.pdf.includes(ext)) return 'pdf';
   if (DESTEKLENEN_TIPLER.word.includes(ext)) return 'word';
   if (DESTEKLENEN_TIPLER.excel.includes(ext)) return 'excel';
   if (DESTEKLENEN_TIPLER.image.includes(ext)) return 'image';
-  
+
   return 'unknown';
 }
 
@@ -128,8 +128,7 @@ async function extractTextFromPDF(filePath) {
     const dataBuffer = await fs.promises.readFile(filePath);
     const data = await pdfParse(dataBuffer);
     return data.text?.trim() || '';
-  } catch (error) {
-    console.error('PDF metin çıkarma hatası:', error.message);
+  } catch (_error) {
     return '';
   }
 }
@@ -141,8 +140,7 @@ async function extractTextFromWord(filePath) {
   try {
     const result = await mammoth.extractRawText({ path: filePath });
     return result.value?.trim() || '';
-  } catch (error) {
-    console.error('Word metin çıkarma hatası:', error.message);
+  } catch (_error) {
     return '';
   }
 }
@@ -154,16 +152,15 @@ async function extractTextFromExcel(filePath) {
   try {
     const workbook = xlsx.readFile(filePath);
     let text = '';
-    
-    workbook.SheetNames.forEach(sheetName => {
+
+    workbook.SheetNames.forEach((sheetName) => {
       const sheet = workbook.Sheets[sheetName];
       const csv = xlsx.utils.sheet_to_csv(sheet);
       text += `${sheetName}:\n${csv}\n\n`;
     });
-    
+
     return text.trim();
-  } catch (error) {
-    console.error('Excel metin çıkarma hatası:', error.message);
+  } catch (_error) {
     return '';
   }
 }
@@ -179,9 +176,9 @@ async function fileToBase64(filePath) {
 /**
  * Metin tabanlı AI analizi (Word, Excel veya PDF metin)
  */
-async function analyzeWithText(text, belgeTipi, belgeConfig) {
-  const model = genAI.getGenerativeModel({ 
-    model: process.env.GEMINI_MODEL || 'gemini-2.0-flash-exp'
+async function analyzeWithText(text, _belgeTipi, belgeConfig) {
+  const model = genAI.getGenerativeModel({
+    model: process.env.GEMINI_MODEL || 'gemini-2.0-flash-exp',
   });
 
   const prompt = `
@@ -224,14 +221,14 @@ ${text.slice(0, 15000)}
 /**
  * Vision tabanlı AI analizi (PDF görsel veya resim)
  */
-async function analyzeWithVision(filePath, belgeTipi, belgeConfig, mimeType) {
-  const model = genAI.getGenerativeModel({ 
-    model: 'gemini-2.0-flash-exp'
+async function analyzeWithVision(filePath, _belgeTipi, belgeConfig, mimeType) {
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.0-flash-exp',
   });
 
   const ext = path.extname(filePath).toLowerCase();
   const base64Data = await fileToBase64(filePath);
-  
+
   // MIME type belirle
   let imageMimeType = mimeType;
   if (!imageMimeType) {
@@ -241,7 +238,7 @@ async function analyzeWithVision(filePath, belgeTipi, belgeConfig, mimeType) {
       '.jpg': 'image/jpeg',
       '.jpeg': 'image/jpeg',
       '.webp': 'image/webp',
-      '.gif': 'image/gif'
+      '.gif': 'image/gif',
     };
     imageMimeType = mimeMap[ext] || 'application/octet-stream';
   }
@@ -276,16 +273,14 @@ Lütfen JSON formatında yanıt ver. Bulamadığın alanları null olarak bırak
 \`\`\`
   `.trim();
 
-  console.log(`📸 Vision analizi: ${imageMimeType}, ${(base64Data.length / 1024).toFixed(1)}KB`);
-
   const result = await model.generateContent([
     visionPrompt,
     {
       inlineData: {
         mimeType: imageMimeType,
-        data: base64Data
-      }
-    }
+        data: base64Data,
+      },
+    },
   ]);
 
   return result.response.text();
@@ -297,9 +292,9 @@ Lütfen JSON formatında yanıt ver. Bulamadığın alanları null olarak bırak
 async function detectBelgeTipi(filePath, mimeType) {
   const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
   const fileCategory = getFileCategory(filePath);
-  
+
   let content;
-  
+
   if (fileCategory === 'image' || fileCategory === 'pdf') {
     // Vision ile analiz
     const base64Data = await fileToBase64(filePath);
@@ -309,10 +304,10 @@ async function detectBelgeTipi(filePath, mimeType) {
       '.png': 'image/png',
       '.jpg': 'image/jpeg',
       '.jpeg': 'image/jpeg',
-      '.webp': 'image/webp'
+      '.webp': 'image/webp',
     };
     const imageMimeType = mimeType || mimeMap[ext] || 'application/pdf';
-    
+
     content = [
       `Bu belgeye bak ve türünü belirle. Sadece şu tiplerden birini seç:
 - vergi_levhasi (Vergi Levhası, VKN belgesi)
@@ -328,9 +323,9 @@ SADECE belge tipinin key değerini yaz, başka bir şey yazma.
       {
         inlineData: {
           mimeType: imageMimeType,
-          data: base64Data
-        }
-      }
+          data: base64Data,
+        },
+      },
     ];
   } else {
     // Metin tabanlı analiz
@@ -342,7 +337,7 @@ SADECE belge tipinin key değerini yaz, başka bir şey yazma.
     } else if (fileCategory === 'pdf') {
       text = await extractTextFromPDF(filePath);
     }
-    
+
     content = `Bu belge metnine bak ve türünü belirle. Sadece şu tiplerden birini seç:
 - vergi_levhasi (Vergi Levhası, VKN belgesi)
 - sicil_gazetesi (Ticaret Sicil Gazetesi)
@@ -357,12 +352,24 @@ SADECE belge tipinin key değerini yaz, başka bir şey yazma.
 BELGE METNİ:
 ${text.slice(0, 3000)}`;
   }
-  
+
   const result = await model.generateContent(content);
-  const detected = result.response.text().trim().toLowerCase().replace(/[^a-z_]/g, '');
-  
+  const detected = result.response
+    .text()
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z_]/g, '');
+
   // Geçerli tip mi kontrol et
-  const validTypes = ['vergi_levhasi', 'sicil_gazetesi', 'imza_sirküleri', 'faaliyet_belgesi', 'iso_sertifika', 'vekaletname', 'diger'];
+  const validTypes = [
+    'vergi_levhasi',
+    'sicil_gazetesi',
+    'imza_sirküleri',
+    'faaliyet_belgesi',
+    'iso_sertifika',
+    'vekaletname',
+    'diger',
+  ];
   return validTypes.includes(detected) ? detected : 'diger';
 }
 
@@ -370,80 +377,63 @@ ${text.slice(0, 3000)}`;
  * Ana analiz fonksiyonu - Akıllı yönlendirme
  */
 export async function analyzeFirmaBelgesi(filePath, belgeTipi, mimeType) {
-  try {
-    // Belge tipi verilmediyse otomatik algıla
-    if (!belgeTipi || belgeTipi === 'auto' || belgeTipi === 'otomatik') {
-      console.log('🔎 Belge tipi algılanıyor...');
-      belgeTipi = await detectBelgeTipi(filePath, mimeType);
-      console.log(`✅ Algılanan belge tipi: ${belgeTipi}`);
-    }
-    
-    const belgeConfig = BELGE_TIPLERI[belgeTipi] || BELGE_TIPLERI['diger'] || {
+  // Belge tipi verilmediyse otomatik algıla
+  if (!belgeTipi || belgeTipi === 'auto' || belgeTipi === 'otomatik') {
+    belgeTipi = await detectBelgeTipi(filePath, mimeType);
+  }
+
+  const belgeConfig = BELGE_TIPLERI[belgeTipi] ||
+    BELGE_TIPLERI['diger'] || {
       ad: 'Genel Belge',
       alanlar: ['unvan', 'vergi_no', 'adres'],
-      prompt: 'Bu belgeden firma bilgilerini çıkar.'
+      prompt: 'Bu belgeden firma bilgilerini çıkar.',
     };
 
-    const fileCategory = getFileCategory(filePath);
-    console.log(`🔍 Firma belgesi analizi: ${belgeConfig.ad} (${fileCategory})`);
+  const fileCategory = getFileCategory(filePath);
 
-    let responseText;
+  let responseText;
 
-    switch (fileCategory) {
-      case 'word':
-        // Word dosyası - metin tabanlı analiz
-        console.log('📝 Word dosyası - metin çıkarılıyor...');
-        const wordText = await extractTextFromWord(filePath);
-        if (wordText.length > 50) {
-          responseText = await analyzeWithText(wordText, belgeTipi, belgeConfig);
-        } else {
-          throw new Error('Word dosyasından metin çıkarılamadı');
-        }
-        break;
-
-      case 'excel':
-        // Excel dosyası - metin tabanlı analiz
-        console.log('📊 Excel dosyası - metin çıkarılıyor...');
-        const excelText = await extractTextFromExcel(filePath);
-        if (excelText.length > 50) {
-          responseText = await analyzeWithText(excelText, belgeTipi, belgeConfig);
-        } else {
-          throw new Error('Excel dosyasından metin çıkarılamadı');
-        }
-        break;
-
-      case 'pdf':
-        // PDF - Önce metin çıkar, başarısızsa Vision kullan
-        console.log('📄 PDF dosyası - hybrid analiz...');
-        const pdfText = await extractTextFromPDF(filePath);
-        
-        if (pdfText.length > 100) {
-          // Metin bazlı analiz
-          console.log(`   ✓ Metin çıkarıldı: ${pdfText.length} karakter`);
-          responseText = await analyzeWithText(pdfText, belgeTipi, belgeConfig);
-        } else {
-          // Vision tabanlı analiz (taranmış PDF)
-          console.log('   ⚠ Metin az, Vision kullanılıyor...');
-          responseText = await analyzeWithVision(filePath, belgeTipi, belgeConfig, mimeType);
-        }
-        break;
-
-      case 'image':
-        // Görsel - direkt Vision
-        console.log('🖼️ Görsel dosya - Vision analizi...');
-        responseText = await analyzeWithVision(filePath, belgeTipi, belgeConfig, mimeType);
-        break;
-
-      default:
-        throw new Error(`Desteklenmeyen dosya formatı: ${path.extname(filePath)}`);
+  switch (fileCategory) {
+    case 'word': {
+      const wordText = await extractTextFromWord(filePath);
+      if (wordText.length > 50) {
+        responseText = await analyzeWithText(wordText, belgeTipi, belgeConfig);
+      } else {
+        throw new Error('Word dosyasından metin çıkarılamadı');
+      }
+      break;
     }
 
-    return parseGeminiResponse(responseText, belgeTipi, fileCategory);
+    case 'excel': {
+      const excelText = await extractTextFromExcel(filePath);
+      if (excelText.length > 50) {
+        responseText = await analyzeWithText(excelText, belgeTipi, belgeConfig);
+      } else {
+        throw new Error('Excel dosyasından metin çıkarılamadı');
+      }
+      break;
+    }
 
-  } catch (error) {
-    console.error('❌ Firma belgesi analiz hatası:', error);
-    throw error;
+    case 'pdf': {
+      const pdfText = await extractTextFromPDF(filePath);
+
+      if (pdfText.length > 100) {
+        responseText = await analyzeWithText(pdfText, belgeTipi, belgeConfig);
+      } else {
+        responseText = await analyzeWithVision(filePath, belgeTipi, belgeConfig, mimeType);
+      }
+      break;
+    }
+
+    case 'image':
+      responseText = await analyzeWithVision(filePath, belgeTipi, belgeConfig, mimeType);
+      break;
+
+    default:
+      throw new Error(`Desteklenmeyen dosya formatı: ${path.extname(filePath)}`);
   }
+
+  return parseGeminiResponse(responseText, belgeTipi, fileCategory);
 }
 
 /**
@@ -454,7 +444,7 @@ function parseGeminiResponse(text, belgeTipi, fileCategory) {
     // JSON bloğunu bul
     const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
     let parsed;
-    
+
     if (jsonMatch) {
       parsed = JSON.parse(jsonMatch[1]);
     } else {
@@ -468,16 +458,14 @@ function parseGeminiResponse(text, belgeTipi, fileCategory) {
       belgeTipiAd: BELGE_TIPLERI[belgeTipi]?.ad || belgeTipi,
       analizMetodu: fileCategory === 'image' || (fileCategory === 'pdf' && !jsonMatch) ? 'vision' : 'text',
       data: cleanAnalysisData(parsed),
-      rawResponse: text
+      rawResponse: text,
     };
-
-  } catch (error) {
-    console.error('JSON parse hatası:', error.message);
+  } catch (_error) {
     return {
       success: false,
       belgeTipi,
       error: 'Belge analiz edilemedi - AI yanıtı parse edilemedi',
-      rawResponse: text
+      rawResponse: text,
     };
   }
 }
@@ -487,7 +475,7 @@ function parseGeminiResponse(text, belgeTipi, fileCategory) {
  */
 function cleanAnalysisData(data) {
   const cleaned = {};
-  
+
   for (const [key, value] of Object.entries(data)) {
     if (value && value !== 'null' && value !== '...' && value !== 'N/A' && value !== '-') {
       // Vergi no temizle (sadece rakam)
@@ -504,14 +492,13 @@ function cleanAnalysisData(data) {
       }
       // Telefon formatla
       else if (key === 'telefon' && typeof value === 'string') {
-        cleaned[key] = value.replace(/[^\d\s\-\+\(\)]/g, '').trim();
-      }
-      else {
+        cleaned[key] = value.replace(/[^\d\s\-+()]/g, '').trim();
+      } else {
         cleaned[key] = value;
       }
     }
   }
-  
+
   return cleaned;
 }
 
@@ -522,7 +509,7 @@ export function getDesteklenenBelgeTipleri() {
   return Object.entries(BELGE_TIPLERI).map(([key, value]) => ({
     value: key,
     label: value.ad,
-    alanlar: value.alanlar
+    alanlar: value.alanlar,
   }));
 }
 
@@ -539,13 +526,13 @@ export function getDesteklenenDosyaFormatlari() {
       ...DESTEKLENEN_TIPLER.pdf,
       ...DESTEKLENEN_TIPLER.word,
       ...DESTEKLENEN_TIPLER.excel,
-      ...DESTEKLENEN_TIPLER.image
-    ]
+      ...DESTEKLENEN_TIPLER.image,
+    ],
   };
 }
 
 export default {
   analyzeFirmaBelgesi,
   getDesteklenenBelgeTipleri,
-  getDesteklenenDosyaFormatlari
+  getDesteklenenDosyaFormatlari,
 };

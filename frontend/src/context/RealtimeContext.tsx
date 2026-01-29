@@ -152,7 +152,6 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Supabase Realtime bağlantısı + kopunca otomatik yeniden deneme
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reconnectTrigger kasıtlı – tetiklenince yeniden bağlan
   useEffect(() => {
     if (!REALTIME_ENABLED) {
       console.log('[Realtime] Realtime devre dışı (NEXT_PUBLIC_ENABLE_REALTIME != true)');
@@ -173,7 +172,9 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       }
       reconnectAttemptRef.current += 1;
       const delay = RECONNECT_DELAY_MS;
-      console.log(`[Realtime] ${delay / 1000} sn sonra yeniden bağlanıyor (deneme ${reconnectAttemptRef.current}/${MAX_RECONNECT_ATTEMPTS})`);
+      console.log(
+        `[Realtime] ${delay / 1000} sn sonra yeniden bağlanıyor (deneme ${reconnectAttemptRef.current}/${MAX_RECONNECT_ATTEMPTS})`
+      );
       reconnectTimeoutRef.current = setTimeout(() => {
         reconnectTimeoutRef.current = null;
         setReconnectTrigger((t) => t + 1);
@@ -207,7 +208,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         if (!hasShownConnectionErrorRef.current) {
           hasShownConnectionErrorRef.current = true;
           console.warn(
-            '[Realtime] Bağlantı kurulamadı. Supabase Realtime açık değilse veya tablolar publication\'da değilse REALTIME_SETUP.md adımlarını uygulayın. Devre dışı bırakmak için NEXT_PUBLIC_ENABLE_REALTIME=false yapın.'
+            "[Realtime] Bağlantı kurulamadı. Supabase Realtime açık değilse veya tablolar publication'da değilse REALTIME_SETUP.md adımlarını uygulayın. Devre dışı bırakmak için NEXT_PUBLIC_ENABLE_REALTIME=false yapın."
           );
           notifications.show({
             id: 'realtime-error',
@@ -278,7 +279,6 @@ export function useRealtimeRefetch(table: string | string[], refetchFn: () => vo
   const tableKey = Array.isArray(table) ? [...table].sort().join(',') : String(table);
 
   // tableKey ile tablo seti sabit; tables/tables.map yerine tableKey kullanarak gereksiz re-subscribe onlenir
-  // biome-ignore lint/correctness/useExhaustiveDependencies: tablo seti icerigi (tableKey) bilincli dependency
   useEffect(() => {
     if (!isConnected) return;
     const unsubscribes = tables.map((t) => subscribe(t, () => refetchRef.current?.()));

@@ -55,9 +55,9 @@ import {
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useConfirmDialog } from '@/components/ConfirmDialog';
 import { useAuth } from '@/context/AuthContext';
 import { adminAPI, type User } from '@/lib/api/services/admin';
-import { useConfirmDialog } from '@/components/ConfirmDialog';
 
 export default function KullanicilarPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -547,10 +547,7 @@ export default function KullanicilarPage() {
                 </Badge>
                 <Menu shadow="md" width={200}>
                   <Menu.Target>
-                    <Button
-                      variant="light"
-                      rightSection={<IconChevronDown size={16} />}
-                    >
+                    <Button variant="light" rightSection={<IconChevronDown size={16} />}>
                       Toplu İşlem
                     </Button>
                   </Menu.Target>

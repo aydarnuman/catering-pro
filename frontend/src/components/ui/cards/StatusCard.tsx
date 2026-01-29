@@ -20,13 +20,7 @@ export interface StatusCardProps {
  * Dribbble Dark UI tarzı durum kartı (Upload "Complete uploading" benzeri).
  * Büyük ikon + durum metni + alt etiket + opsiyonel aksiyon.
  */
-export function StatusCard({
-  icon,
-  label,
-  sublabel,
-  action,
-  color = 'violet',
-}: StatusCardProps) {
+export function StatusCard({ icon, label, sublabel, action, color = 'violet' }: StatusCardProps) {
   return (
     <Paper
       p="lg"

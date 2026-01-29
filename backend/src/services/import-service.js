@@ -3,14 +3,14 @@
  * Her türlü dökümanı okur ve veritabanı şemasına map eder
  */
 
-import fs from 'fs';
-import path from 'path';
-import pdfParse from 'pdf-parse';
-import mammoth from 'mammoth';
-import xlsx from 'xlsx';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import mammoth from 'mammoth';
+import pdfParse from 'pdf-parse';
+import xlsx from 'xlsx';
 import { query } from '../database.js';
-import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,7 +37,7 @@ const SUPPORTED_FORMATS = {
   '.txt': 'Text',
   '.jpg': 'Image',
   '.jpeg': 'Image',
-  '.png': 'Image'
+  '.png': 'Image',
 };
 
 /**
@@ -59,8 +59,8 @@ const TABLE_SCHEMAS = {
       adres: { type: 'string', description: 'Adres' },
       medeni_durum: { type: 'string', description: 'Medeni Durum (Evli/Bekar)' },
       cocuk_sayisi: { type: 'number', description: 'Çocuk Sayısı' },
-      sgk_no: { type: 'string', description: 'SGK/Sigorta Numarası' }
-    }
+      sgk_no: { type: 'string', description: 'SGK/Sigorta Numarası' },
+    },
   },
   bordro: {
     table: 'bordro_kayitlari',
@@ -91,8 +91,8 @@ const TABLE_SCHEMAS = {
       net_maas: { type: 'number', required: true, description: 'Net Maaş/Ücret Ödenecek (TL)' },
       sgk_isveren: { type: 'number', description: 'SGK İşveren Payı (TL)' },
       issizlik_isveren: { type: 'number', description: 'İşsizlik Sigortası İşveren Payı (TL)' },
-      toplam_maliyet: { type: 'number', description: 'Toplam İşveren Maliyeti (TL)' }
-    }
+      toplam_maliyet: { type: 'number', description: 'Toplam İşveren Maliyeti (TL)' },
+    },
   },
   stok: {
     table: 'stok_kartlari',
@@ -103,8 +103,8 @@ const TABLE_SCHEMAS = {
       birim: { type: 'string', description: 'Birim (kg, adet, litre)' },
       miktar: { type: 'number', description: 'Mevcut Miktar' },
       birim_fiyat: { type: 'number', description: 'Birim Fiyat (TL)' },
-      kritik_stok: { type: 'number', description: 'Kritik Stok Seviyesi' }
-    }
+      kritik_stok: { type: 'number', description: 'Kritik Stok Seviyesi' },
+    },
   },
   cari: {
     table: 'cariler',
@@ -116,8 +116,8 @@ const TABLE_SCHEMAS = {
       telefon: { type: 'string', description: 'Telefon' },
       email: { type: 'string', description: 'E-posta' },
       adres: { type: 'string', description: 'Adres' },
-      yetkili_kisi: { type: 'string', description: 'Yetkili Kişi' }
-    }
+      yetkili_kisi: { type: 'string', description: 'Yetkili Kişi' },
+    },
   },
   fatura: {
     table: 'invoices',
@@ -129,17 +129,21 @@ const TABLE_SCHEMAS = {
       total_amount: { type: 'number', description: 'Toplam Tutar (TL)' },
       vat_amount: { type: 'number', description: 'KDV Tutarı (TL)' },
       type: { type: 'string', description: 'Tip (SATIS/ALIS)' },
-      status: { type: 'string', description: 'Durum (Bekliyor/Onaylandı)' }
-    }
+      status: { type: 'string', description: 'Durum (Bekliyor/Onaylandı)' },
+    },
   },
-  
+
   // MENÜ / REÇETE ANALİZİ
   menu: {
     table: 'receteler',
     description: 'Menü listesi, yemek programı veya reçete dökümanından yemek çıkarma',
     fields: {
       ad: { type: 'string', required: true, description: 'Yemek adı' },
-      kategori: { type: 'string', required: true, description: 'Kategori (corba, ana_yemek, pilav_makarna, salata_meze, tatli, icecek, kahvaltilik)' },
+      kategori: {
+        type: 'string',
+        required: true,
+        description: 'Kategori (corba, ana_yemek, pilav_makarna, salata_meze, tatli, icecek, kahvaltilik)',
+      },
       kalori: { type: 'number', description: 'Kalori (kcal/porsiyon)' },
       protein: { type: 'number', description: 'Protein (g/porsiyon)' },
       karbonhidrat: { type: 'number', description: 'Karbonhidrat (g/porsiyon)' },
@@ -147,10 +151,10 @@ const TABLE_SCHEMAS = {
       porsiyon_gramaj: { type: 'number', description: 'Porsiyon gramajı (g)' },
       tarih: { type: 'date', description: 'Menü tarihi (varsa)' },
       ogun: { type: 'string', description: 'Öğün tipi (kahvalti, ogle, aksam)' },
-      malzemeler: { type: 'array', description: 'Malzeme listesi (varsa)' }
-    }
+      malzemeler: { type: 'array', description: 'Malzeme listesi (varsa)' },
+    },
   },
-  
+
   // ŞARTNAME GRAMAJ ANALİZİ
   gramaj: {
     table: 'sartname_porsiyon_gramajlari',
@@ -162,17 +166,15 @@ const TABLE_SCHEMAS = {
       birim: { type: 'string', description: 'Birim (g, ml, adet)' },
       min_gramaj: { type: 'number', description: 'Minimum gramaj (varsa)' },
       max_gramaj: { type: 'number', description: 'Maksimum gramaj (varsa)' },
-      aciklama: { type: 'string', description: 'Açıklama/not' }
-    }
-  }
+      aciklama: { type: 'string', description: 'Açıklama/not' },
+    },
+  },
 };
 
 /**
  * Dosyadan metin çıkar
  */
 async function extractText(filePath, ext) {
-  console.log(`📄 Metin çıkarılıyor: ${ext}`);
-  
   switch (ext.toLowerCase()) {
     case '.pdf':
       return await extractPDF(filePath);
@@ -220,61 +222,67 @@ async function extractWord(filePath) {
 async function extractExcel(filePath) {
   const workbook = xlsx.readFile(filePath);
   const results = [];
-  
-  workbook.SheetNames.forEach(sheetName => {
+
+  workbook.SheetNames.forEach((sheetName) => {
     const sheet = workbook.Sheets[sheetName];
     const json = xlsx.utils.sheet_to_json(sheet, { header: 1 });
-    
+
     if (json.length > 0) {
       // Karmaşık Excel kontrolü: birleştirilmiş hücreler, çok satırlı header'lar
       const firstRow = json[0] || [];
-      const nullCount = firstRow.filter(h => h === null || h === undefined).length;
-      const isComplex = nullCount > 3 || json.length < 5 || 
-        (json[1] && json[1].some(cell => typeof cell === 'string' && cell.length > 0));
-      
+      const nullCount = firstRow.filter((h) => h === null || h === undefined).length;
+      const isComplex =
+        nullCount > 3 || json.length < 5 || json[1]?.some((cell) => typeof cell === 'string' && cell.length > 0);
+
       if (isComplex) {
         // Karmaşık format: HAM VERİYİ AI'a gönder
         // TÜM satırları al (max 200 satır - büyük dosyalar için)
         const maxRows = Math.min(json.length, 200);
-        const rawRows = json.slice(0, maxRows).map((row, rowIdx) => {
-          return row.map((cell, colIdx) => ({
-            row: rowIdx,
-            col: colIdx,
-            value: cell
-          })).filter(c => c.value !== null && c.value !== undefined);
-        }).filter(row => row.length > 0);
-        
+        const rawRows = json
+          .slice(0, maxRows)
+          .map((row, rowIdx) => {
+            return row
+              .map((cell, colIdx) => ({
+                row: rowIdx,
+                col: colIdx,
+                value: cell,
+              }))
+              .filter((c) => c.value !== null && c.value !== undefined);
+          })
+          .filter((row) => row.length > 0);
+
         results.push({
           sheetName,
           isComplex: true,
           rawData: rawRows,
           totalRows: json.length,
           // Ayrıca text formatında da gönder (AI için daha kolay)
-          textFormat: json.slice(0, maxRows).map((row, i) => 
-            `Satır ${i}: ${row.filter(c => c !== null && c !== undefined).join(' | ')}`
-          ).join('\n')
+          textFormat: json
+            .slice(0, maxRows)
+            .map((row, i) => `Satır ${i}: ${row.filter((c) => c !== null && c !== undefined).join(' | ')}`)
+            .join('\n'),
         });
       } else {
         // Basit format: Normal işlem
-      const headers = json[0];
-      const rows = json.slice(1);
-      
-      results.push({
-        sheetName,
+        const headers = json[0];
+        const rows = json.slice(1);
+
+        results.push({
+          sheetName,
           isComplex: false,
-        headers,
-        rows: rows.map(row => {
-          const obj = {};
-          headers.forEach((header, idx) => {
-            if (header) obj[header] = row[idx];
-          });
-          return obj;
-        })
-      });
+          headers,
+          rows: rows.map((row) => {
+            const obj = {};
+            headers.forEach((header, idx) => {
+              if (header) obj[header] = row[idx];
+            });
+            return obj;
+          }),
+        });
       }
     }
   });
-  
+
   return { type: 'structured', data: results };
 }
 
@@ -283,24 +291,24 @@ async function extractExcel(filePath) {
  */
 async function extractCSV(filePath) {
   const content = await fs.promises.readFile(filePath, 'utf8');
-  const lines = content.split('\n').filter(l => l.trim());
-  
+  const lines = content.split('\n').filter((l) => l.trim());
+
   if (lines.length === 0) return { type: 'structured', data: [] };
-  
+
   // Delimiter tespit et
   const firstLine = lines[0];
   const delimiter = firstLine.includes(';') ? ';' : ',';
-  
-  const headers = firstLine.split(delimiter).map(h => h.trim().replace(/^"|"$/g, ''));
-  const rows = lines.slice(1).map(line => {
-    const values = line.split(delimiter).map(v => v.trim().replace(/^"|"$/g, ''));
+
+  const headers = firstLine.split(delimiter).map((h) => h.trim().replace(/^"|"$/g, ''));
+  const rows = lines.slice(1).map((line) => {
+    const values = line.split(delimiter).map((v) => v.trim().replace(/^"|"$/g, ''));
     const obj = {};
     headers.forEach((header, idx) => {
       if (header) obj[header] = values[idx];
     });
     return obj;
   });
-  
+
   return { type: 'structured', data: [{ sheetName: 'CSV', headers, rows }] };
 }
 
@@ -309,21 +317,21 @@ async function extractCSV(filePath) {
  */
 async function extractFromImage(filePath) {
   const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-  
+
   const imageData = await fs.promises.readFile(filePath);
   const base64Image = imageData.toString('base64');
   const mimeType = filePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
-  
+
   const result = await model.generateContent([
     'Bu görseldeki tüm metni oku ve aynen yaz. Tablolar varsa düzgün formatta yaz.',
     {
       inlineData: {
         mimeType,
-        data: base64Image
-      }
-    }
+        data: base64Image,
+      },
+    },
   ]);
-  
+
   const response = await result.response;
   return response.text();
 }
@@ -336,21 +344,21 @@ async function analyzeAndMap(extractedData, targetType) {
   if (!schema) {
     throw new Error(`Geçersiz hedef tip: ${targetType}`);
   }
-  
+
   const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-  
+
   // Yapılandırılmış veri mi?
   const isStructured = typeof extractedData === 'object' && extractedData.type === 'structured';
-  
+
   const schemaDescription = Object.entries(schema.fields)
     .map(([key, field]) => `- ${key}: ${field.description} (${field.type}${field.required ? ', zorunlu' : ''})`)
     .join('\n');
-  
+
   let prompt;
-  
+
   if (isStructured) {
     const firstSheet = extractedData.data[0];
-    
+
     // Karmaşık Excel formatı mı?
     if (firstSheet.isComplex) {
       // KARMAŞIK FORMAT: Bordro, birleştirilmiş hücreler, çok satırlı header'lar
@@ -410,12 +418,11 @@ JSON formatında yanıt ver:
 }
 \`\`\`
 `.trim();
-
     } else {
       // BASİT FORMAT: Normal tablo
-    const sampleRows = firstSheet.rows.slice(0, 5);
-    
-    prompt = `
+      const sampleRows = firstSheet.rows.slice(0, 5);
+
+      prompt = `
 Sen bir veri dönüştürme uzmanısın. Aşağıdaki tablo verisini belirtilen şemaya dönüştür.
 
 KAYNAK VERİ:
@@ -449,13 +456,13 @@ JSON formatında yanıt ver:
 \`\`\`
 `.trim();
     }
-
   } else {
     // PDF/Word/Text - serbest metin
-    const textPreview = typeof extractedData === 'string' 
-      ? extractedData.substring(0, 3000) 
-      : JSON.stringify(extractedData).substring(0, 3000);
-    
+    const textPreview =
+      typeof extractedData === 'string'
+        ? extractedData.substring(0, 3000)
+        : JSON.stringify(extractedData).substring(0, 3000);
+
     prompt = `
 Sen bir veri çıkarma uzmanısın. Aşağıdaki metinden ${targetType} kayıtlarını çıkar.
 
@@ -484,18 +491,16 @@ JSON formatında yanıt ver:
 \`\`\`
 `.trim();
   }
-  
-  console.log('🤖 AI analiz yapılıyor...');
   const result = await model.generateContent(prompt);
   const response = await result.response;
   const text = response.text();
-  
+
   // JSON çıkar
   const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
   if (jsonMatch) {
     return JSON.parse(jsonMatch[1]);
   }
-  
+
   // JSON tag'i yoksa direkt parse
   try {
     return JSON.parse(text);
@@ -508,28 +513,24 @@ JSON formatında yanıt ver:
  * Ana içe aktarım fonksiyonu
  */
 export async function processImport(filePath, originalFilename, targetType) {
-  console.log(`📥 İçe aktarım başlıyor: ${originalFilename} -> ${targetType}`);
-  
   const ext = path.extname(originalFilename).toLowerCase();
-  
+
   // Format kontrolü
   if (!SUPPORTED_FORMATS[ext]) {
     throw new Error(`Desteklenmeyen dosya formatı: ${ext}. Desteklenen: ${Object.keys(SUPPORTED_FORMATS).join(', ')}`);
   }
-  
+
   // Şema kontrolü
   if (!TABLE_SCHEMAS[targetType]) {
     throw new Error(`Geçersiz hedef tip: ${targetType}. Geçerli: ${Object.keys(TABLE_SCHEMAS).join(', ')}`);
   }
-  
+
   // 1. Metin/veri çıkar
   const extractedData = await extractText(filePath, ext);
-  console.log(`✅ Veri çıkarıldı`);
-  
+
   // 2. AI ile analiz ve mapping
   const analysisResult = await analyzeAndMap(extractedData, targetType);
-  console.log(`✅ AI analizi tamamlandı: ${analysisResult.total} kayıt bulundu`);
-  
+
   return {
     success: true,
     filename: originalFilename,
@@ -543,8 +544,10 @@ export async function processImport(filePath, originalFilename, targetType) {
     stats: {
       total: analysisResult.total || analysisResult.records.length,
       valid: analysisResult.valid || analysisResult.records.length,
-      invalid: (analysisResult.total || analysisResult.records.length) - (analysisResult.valid || analysisResult.records.length)
-    }
+      invalid:
+        (analysisResult.total || analysisResult.records.length) -
+        (analysisResult.valid || analysisResult.records.length),
+    },
   };
 }
 
@@ -556,44 +559,41 @@ export async function confirmImport(targetType, records) {
   if (!schema) {
     throw new Error(`Geçersiz hedef tip: ${targetType}`);
   }
-  
+
   const results = {
     inserted: 0,
     failed: 0,
-    errors: []
+    errors: [],
   };
-  
+
   for (const record of records) {
     try {
       // Alanları filtrele (sadece şemada olanlar)
       const validFields = {};
-      Object.keys(schema.fields).forEach(field => {
+      Object.keys(schema.fields).forEach((field) => {
         if (record[field] !== undefined && record[field] !== null && record[field] !== '') {
           validFields[field] = record[field];
         }
       });
-      
+
       // SQL oluştur
       const columns = Object.keys(validFields);
       const values = Object.values(validFields);
       const placeholders = columns.map((_, i) => `$${i + 1}`).join(', ');
-      
+
       const sql = `INSERT INTO ${schema.table} (${columns.join(', ')}) VALUES (${placeholders})`;
-      
+
       await query(sql, values);
       results.inserted++;
-      
     } catch (error) {
       results.failed++;
       results.errors.push({
         record: record[Object.keys(schema.fields)[0]], // İlk alan (genellikle isim)
-        error: error.message
+        error: error.message,
       });
     }
   }
-  
-  console.log(`📥 İçe aktarım tamamlandı: ${results.inserted} başarılı, ${results.failed} hatalı`);
-  
+
   return results;
 }
 
@@ -622,29 +622,27 @@ export function getSupportedFormats() {
  * MENÜ DOKÜMAN ANALİZİ
  * PDF, Excel veya görsel menü listesinden yemekleri çıkarır
  */
-export async function analyzeMenuDocument(filePath, originalFilename, options = {}) {
-  console.log(`🍽️ Menü analizi başlıyor: ${originalFilename}`);
-  
+export async function analyzeMenuDocument(filePath, originalFilename, _options = {}) {
   const ext = path.extname(originalFilename).toLowerCase();
-  
+
   // Format kontrolü
   if (!SUPPORTED_FORMATS[ext]) {
     throw new Error(`Desteklenmeyen dosya formatı: ${ext}`);
   }
-  
+
   // 1. Metin/veri çıkar
   const extractedData = await extractText(filePath, ext);
-  console.log(`✅ Veri çıkarıldı`);
-  
+
   // 2. AI ile menü analizi
   const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-  
-  const textContent = typeof extractedData === 'string' 
-    ? extractedData 
-    : (extractedData.type === 'structured' 
-        ? extractedData.data.map(s => s.textFormat || JSON.stringify(s.rows)).join('\n')
-        : JSON.stringify(extractedData));
-  
+
+  const textContent =
+    typeof extractedData === 'string'
+      ? extractedData
+      : extractedData.type === 'structured'
+        ? extractedData.data.map((s) => s.textFormat || JSON.stringify(s.rows)).join('\n')
+        : JSON.stringify(extractedData);
+
   const prompt = `
 Sen bir yemek menüsü ve reçete analiz uzmanısın. 
 Aşağıdaki dökümanı analiz et ve içindeki TÜM yemekleri çıkar.
@@ -696,12 +694,10 @@ JSON formatında yanıt ver:
 - Besin değerleri yoksa tahmini değer ver
 - Türkçe karakterleri koru
 `.trim();
-
-  console.log('🤖 AI menü analizi yapılıyor...');
   const result = await model.generateContent(prompt);
   const response = await result.response;
   const text = response.text();
-  
+
   // JSON çıkar
   let analysisResult;
   const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
@@ -714,9 +710,7 @@ JSON formatında yanıt ver:
       analysisResult = { yemekler: [], notlar: 'AI yanıtı parse edilemedi', raw: text };
     }
   }
-  
-  console.log(`✅ Menü analizi tamamlandı: ${analysisResult.yemekler?.length || 0} yemek bulundu`);
-  
+
   return {
     success: true,
     filename: originalFilename,
@@ -726,9 +720,9 @@ JSON formatında yanıt ver:
     yemekler: analysisResult.yemekler || [],
     stats: {
       toplam: analysisResult.yemekler?.length || 0,
-      kategoriler: groupByCategory(analysisResult.yemekler || [])
+      kategoriler: groupByCategory(analysisResult.yemekler || []),
     },
-    notlar: analysisResult.notlar
+    notlar: analysisResult.notlar,
   };
 }
 
@@ -737,7 +731,7 @@ JSON formatında yanıt ver:
  */
 function groupByCategory(yemekler) {
   const groups = {};
-  yemekler.forEach(y => {
+  yemekler.forEach((y) => {
     const kat = y.kategori || 'diger';
     if (!groups[kat]) groups[kat] = 0;
     groups[kat]++;
@@ -748,32 +742,47 @@ function groupByCategory(yemekler) {
 /**
  * Analiz edilen menüyü reçetelere kaydet
  */
-export async function saveMenuAsRecipes(yemekler, options = {}) {
+export async function saveMenuAsRecipes(yemekler, _options = {}) {
   const results = { inserted: 0, skipped: 0, errors: [] };
-  
+
   // Kategori ID'lerini al
   const kategoriMap = {
-    corba: 1, ana_yemek: 2, pilav_makarna: 3, salata_meze: 4,
-    tatli: 5, icecek: 6, kahvaltilik: 7, kahvalti_paketi: 8
+    corba: 1,
+    ana_yemek: 2,
+    pilav_makarna: 3,
+    salata_meze: 4,
+    tatli: 5,
+    icecek: 6,
+    kahvaltilik: 7,
+    kahvalti_paketi: 8,
   };
-  
+
   for (const yemek of yemekler) {
     try {
       const kategoriId = kategoriMap[yemek.kategori] || 2; // default: ana_yemek
-      const kod = yemek.ad.substring(0,3).toUpperCase().replace(/[^A-ZĞÜŞİÖÇ]/gi,'X') + '-' + Date.now().toString().slice(-6);
-      
-      await query(`
+      const kod =
+        yemek.ad
+          .substring(0, 3)
+          .toUpperCase()
+          .replace(/[^A-ZĞÜŞİÖÇ]/gi, 'X') +
+        '-' +
+        Date.now().toString().slice(-6);
+
+      await query(
+        `
         INSERT INTO receteler (kod, ad, kategori_id, porsiyon_miktar, kalori, protein, karbonhidrat, yag, ai_olusturuldu)
         VALUES ($1, $2, $3, 1, $4, $5, $6, $7, true)
         ON CONFLICT (kod) DO NOTHING
-      `, [kod, yemek.ad, kategoriId, yemek.kalori, yemek.protein, yemek.karbonhidrat, yemek.yag]);
-      
+      `,
+        [kod, yemek.ad, kategoriId, yemek.kalori, yemek.protein, yemek.karbonhidrat, yemek.yag]
+      );
+
       results.inserted++;
     } catch (error) {
       results.errors.push({ yemek: yemek.ad, error: error.message });
     }
   }
-  
+
   return results;
 }
 
@@ -784,6 +793,5 @@ export default {
   getAllSchemas,
   getSupportedFormats,
   analyzeMenuDocument,
-  saveMenuAsRecipes
+  saveMenuAsRecipes,
 };
-

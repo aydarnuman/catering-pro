@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
+import { AuthModalProvider } from '@/components/auth';
 import { AuthProvider } from '@/context/AuthContext';
 import { RealtimeProvider } from '@/context/RealtimeContext';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -25,7 +26,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <RealtimeProvider>{children}</RealtimeProvider>
+          <AuthModalProvider>
+            <RealtimeProvider>{children}</RealtimeProvider>
+          </AuthModalProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>

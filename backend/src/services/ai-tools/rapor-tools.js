@@ -6,7 +6,6 @@
 import { query } from '../../database.js';
 
 const raporTools = {
-  
   /**
    * Genel sistem özeti
    */
@@ -14,7 +13,7 @@ const raporTools = {
     description: 'Tüm sistemin genel durumu hakkında özet bilgi getirir. Dashboard için ideal.',
     parameters: {
       type: 'object',
-      properties: {}
+      properties: {},
     },
     handler: async () => {
       // Satın alma özeti
@@ -71,11 +70,11 @@ const raporTools = {
           faturalar: faturaResult.rows[0],
           ihaleler: ihaleResult.rows[0],
           projeler: projeResult.rows[0],
-          tarih: new Date().toISOString()
+          tarih: new Date().toISOString(),
         },
-        message: 'Sistem özeti hazırlandı'
+        message: 'Sistem özeti hazırlandı',
       };
-    }
+    },
   },
 
   /**
@@ -88,22 +87,22 @@ const raporTools = {
       properties: {
         proje_kodu: {
           type: 'string',
-          description: 'Belirli bir projenin kodu (örn: KYK)'
+          description: 'Belirli bir projenin kodu (örn: KYK)',
         },
         donem: {
           type: 'string',
           enum: ['bu_ay', 'gecen_ay', 'bu_yil', 'son_3_ay', 'son_6_ay'],
-          description: 'Dönem filtresi'
-        }
-      }
+          description: 'Dönem filtresi',
+        },
+      },
     },
     handler: async (params) => {
       let dateFilter = '';
-      
+
       if (params.donem) {
         const now = new Date();
         let startDate;
-        
+
         switch (params.donem) {
           case 'bu_ay':
             startDate = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -121,7 +120,7 @@ const raporTools = {
             startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1);
             break;
         }
-        
+
         if (startDate) {
           dateFilter = `AND s.siparis_tarihi >= '${startDate.toISOString().split('T')[0]}'`;
         }
@@ -169,10 +168,10 @@ const raporTools = {
         data: {
           projeler: result.rows,
           aylik_trend: trendResult.rows,
-          donem: params.donem || 'tum_zamanlar'
-        }
+          donem: params.donem || 'tum_zamanlar',
+        },
       };
-    }
+    },
   },
 
   /**
@@ -185,26 +184,26 @@ const raporTools = {
       properties: {
         tedarikci_id: {
           type: 'number',
-          description: 'Belirli bir tedarikçi ID'
+          description: 'Belirli bir tedarikçi ID',
         },
         donem: {
           type: 'string',
           enum: ['bu_ay', 'gecen_ay', 'bu_yil', 'son_3_ay', 'son_6_ay'],
-          description: 'Dönem filtresi'
+          description: 'Dönem filtresi',
         },
         limit: {
           type: 'number',
-          description: 'Maksimum tedarikçi sayısı'
-        }
-      }
+          description: 'Maksimum tedarikçi sayısı',
+        },
+      },
     },
     handler: async (params) => {
       let dateFilter = '';
-      
+
       if (params.donem) {
         const now = new Date();
         let startDate;
-        
+
         switch (params.donem) {
           case 'bu_ay':
             startDate = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -222,7 +221,7 @@ const raporTools = {
             startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1);
             break;
         }
-        
+
         if (startDate) {
           dateFilter = `AND s.siparis_tarihi >= '${startDate.toISOString().split('T')[0]}'`;
         }
@@ -234,7 +233,8 @@ const raporTools = {
       }
 
       // Sipariş bazlı performans
-      const siparisResult = await query(`
+      const siparisResult = await query(
+        `
         SELECT 
           c.id,
           c.unvan,
@@ -247,10 +247,13 @@ const raporTools = {
         GROUP BY c.id
         ORDER BY siparis_tutari DESC
         LIMIT $1
-      `, [params.limit || 20]);
+      `,
+        [params.limit || 20]
+      );
 
       // Fatura bazlı (Uyumsoft)
-      const faturaResult = await query(`
+      const faturaResult = await query(
+        `
         SELECT 
           sender_name as unvan,
           sender_vkn as vkn,
@@ -261,17 +264,19 @@ const raporTools = {
         GROUP BY sender_vkn, sender_name
         ORDER BY fatura_tutari DESC
         LIMIT $1
-      `, [params.limit || 20]);
+      `,
+        [params.limit || 20]
+      );
 
       return {
         success: true,
         data: {
           siparis_bazli: siparisResult.rows,
           fatura_bazli: faturaResult.rows,
-          donem: params.donem || 'tum_zamanlar'
-        }
+          donem: params.donem || 'tum_zamanlar',
+        },
       };
-    }
+    },
   },
 
   /**
@@ -285,21 +290,21 @@ const raporTools = {
         donem1: {
           type: 'string',
           enum: ['bu_ay', 'gecen_ay', 'bu_yil', 'gecen_yil'],
-          description: 'İlk dönem'
+          description: 'İlk dönem',
         },
         donem2: {
           type: 'string',
           enum: ['bu_ay', 'gecen_ay', 'bu_yil', 'gecen_yil'],
-          description: 'İkinci dönem (karşılaştırma)'
-        }
+          description: 'İkinci dönem (karşılaştırma)',
+        },
       },
-      required: ['donem1', 'donem2']
+      required: ['donem1', 'donem2'],
     },
     handler: async (params) => {
       const getDateRange = (donem) => {
         const now = new Date();
         let start, end;
-        
+
         switch (donem) {
           case 'bu_ay':
             start = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -318,7 +323,7 @@ const raporTools = {
             end = new Date(now.getFullYear() - 1, 11, 31);
             break;
         }
-        
+
         return { start, end };
       };
 
@@ -326,44 +331,66 @@ const raporTools = {
       const range2 = getDateRange(params.donem2);
 
       // Dönem 1 verileri
-      const donem1Result = await query(`
+      const donem1Result = await query(
+        `
         SELECT 
           COUNT(*) as siparis_sayisi,
           COALESCE(SUM(toplam_tutar), 0) as siparis_tutari
         FROM siparisler
         WHERE siparis_tarihi >= $1 AND siparis_tarihi <= $2
-      `, [range1.start, range1.end]);
+      `,
+        [range1.start, range1.end]
+      );
 
       // Dönem 2 verileri
-      const donem2Result = await query(`
+      const donem2Result = await query(
+        `
         SELECT 
           COUNT(*) as siparis_sayisi,
           COALESCE(SUM(toplam_tutar), 0) as siparis_tutari
         FROM siparisler
         WHERE siparis_tarihi >= $1 AND siparis_tarihi <= $2
-      `, [range2.start, range2.end]);
+      `,
+        [range2.start, range2.end]
+      );
 
       // Fatura karşılaştırma
-      const fatura1Result = await query(`
+      const fatura1Result = await query(
+        `
         SELECT COUNT(*) as fatura_sayisi, COALESCE(SUM(payable_amount), 0) as fatura_tutari
         FROM uyumsoft_invoices
         WHERE invoice_date >= $1 AND invoice_date <= $2
-      `, [range1.start, range1.end]);
+      `,
+        [range1.start, range1.end]
+      );
 
-      const fatura2Result = await query(`
+      const fatura2Result = await query(
+        `
         SELECT COUNT(*) as fatura_sayisi, COALESCE(SUM(payable_amount), 0) as fatura_tutari
         FROM uyumsoft_invoices
         WHERE invoice_date >= $1 AND invoice_date <= $2
-      `, [range2.start, range2.end]);
+      `,
+        [range2.start, range2.end]
+      );
 
       // Değişim hesapla
-      const siparisDegisim = donem2Result.rows[0].siparis_sayisi > 0
-        ? ((donem1Result.rows[0].siparis_sayisi - donem2Result.rows[0].siparis_sayisi) / donem2Result.rows[0].siparis_sayisi * 100).toFixed(1)
-        : 0;
+      const siparisDegisim =
+        donem2Result.rows[0].siparis_sayisi > 0
+          ? (
+              ((donem1Result.rows[0].siparis_sayisi - donem2Result.rows[0].siparis_sayisi) /
+                donem2Result.rows[0].siparis_sayisi) *
+              100
+            ).toFixed(1)
+          : 0;
 
-      const tutarDegisim = parseFloat(donem2Result.rows[0].siparis_tutari) > 0
-        ? ((parseFloat(donem1Result.rows[0].siparis_tutari) - parseFloat(donem2Result.rows[0].siparis_tutari)) / parseFloat(donem2Result.rows[0].siparis_tutari) * 100).toFixed(1)
-        : 0;
+      const tutarDegisim =
+        parseFloat(donem2Result.rows[0].siparis_tutari) > 0
+          ? (
+              ((parseFloat(donem1Result.rows[0].siparis_tutari) - parseFloat(donem2Result.rows[0].siparis_tutari)) /
+                parseFloat(donem2Result.rows[0].siparis_tutari)) *
+              100
+            ).toFixed(1)
+          : 0;
 
       return {
         success: true,
@@ -371,20 +398,20 @@ const raporTools = {
           donem1: {
             ad: params.donem1,
             siparis: donem1Result.rows[0],
-            fatura: fatura1Result.rows[0]
+            fatura: fatura1Result.rows[0],
           },
           donem2: {
             ad: params.donem2,
             siparis: donem2Result.rows[0],
-            fatura: fatura2Result.rows[0]
+            fatura: fatura2Result.rows[0],
           },
           degisim: {
             siparis_sayisi_yuzde: siparisDegisim,
-            siparis_tutari_yuzde: tutarDegisim
-          }
-        }
+            siparis_tutari_yuzde: tutarDegisim,
+          },
+        },
       };
-    }
+    },
   },
 
   /**
@@ -394,7 +421,7 @@ const raporTools = {
     description: 'Dikkat edilmesi gereken kritik durumları listeler.',
     parameters: {
       type: 'object',
-      properties: {}
+      properties: {},
     },
     handler: async () => {
       const uyarilar = [];
@@ -404,12 +431,12 @@ const raporTools = {
         SELECT COUNT(*) as sayi FROM siparisler 
         WHERE oncelik = 'acil' AND durum = 'bekliyor'
       `);
-      if (parseInt(acilResult.rows[0].sayi) > 0) {
+      if (parseInt(acilResult.rows[0].sayi, 10) > 0) {
         uyarilar.push({
           tip: 'acil_siparis',
           seviye: 'yuksek',
           mesaj: `${acilResult.rows[0].sayi} adet acil sipariş bekliyor`,
-          sayi: parseInt(acilResult.rows[0].sayi)
+          sayi: parseInt(acilResult.rows[0].sayi, 10),
         });
       }
 
@@ -418,12 +445,12 @@ const raporTools = {
         SELECT COUNT(*) as sayi FROM siparisler 
         WHERE teslim_tarihi < CURRENT_DATE AND durum != 'teslim_alindi' AND durum != 'iptal'
       `);
-      if (parseInt(gecikenResult.rows[0].sayi) > 0) {
+      if (parseInt(gecikenResult.rows[0].sayi, 10) > 0) {
         uyarilar.push({
           tip: 'geciken_siparis',
           seviye: 'yuksek',
           mesaj: `${gecikenResult.rows[0].sayi} adet sipariş teslim tarihini geçti`,
-          sayi: parseInt(gecikenResult.rows[0].sayi)
+          sayi: parseInt(gecikenResult.rows[0].sayi, 10),
         });
       }
 
@@ -432,12 +459,12 @@ const raporTools = {
         SELECT COUNT(*) as sayi FROM tenders 
         WHERE tender_date > NOW() AND tender_date < NOW() + INTERVAL '3 days'
       `);
-      if (parseInt(yaklasanIhale.rows[0].sayi) > 0) {
+      if (parseInt(yaklasanIhale.rows[0].sayi, 10) > 0) {
         uyarilar.push({
           tip: 'yaklasan_ihale',
           seviye: 'orta',
           mesaj: `${yaklasanIhale.rows[0].sayi} adet ihale 3 gün içinde`,
-          sayi: parseInt(yaklasanIhale.rows[0].sayi)
+          sayi: parseInt(yaklasanIhale.rows[0].sayi, 10),
         });
       }
 
@@ -446,12 +473,12 @@ const raporTools = {
         SELECT COUNT(*) as sayi FROM cariler 
         WHERE ABS(bakiye) > 100000
       `);
-      if (parseInt(yuksekBakiye.rows[0].sayi) > 0) {
+      if (parseInt(yuksekBakiye.rows[0].sayi, 10) > 0) {
         uyarilar.push({
           tip: 'yuksek_bakiye',
           seviye: 'orta',
           mesaj: `${yuksekBakiye.rows[0].sayi} cari hesapta 100.000₺ üzeri bakiye var`,
-          sayi: parseInt(yuksekBakiye.rows[0].sayi)
+          sayi: parseInt(yuksekBakiye.rows[0].sayi, 10),
         });
       }
 
@@ -460,12 +487,11 @@ const raporTools = {
         data: {
           uyarilar,
           toplam_uyari: uyarilar.length,
-          yuksek_seviye: uyarilar.filter(u => u.seviye === 'yuksek').length
-        }
+          yuksek_seviye: uyarilar.filter((u) => u.seviye === 'yuksek').length,
+        },
       };
-    }
-  }
+    },
+  },
 };
 
 export default raporTools;
-

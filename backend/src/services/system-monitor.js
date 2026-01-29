@@ -3,7 +3,7 @@
  * Sistem izleme ve scheduler durum takibi
  */
 
-import os from 'os';
+import os from 'node:os';
 import { createClient } from '@supabase/supabase-js';
 
 /**
@@ -29,7 +29,10 @@ class SystemMonitor {
   initSupabase() {
     const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     // Realtime için anon key kullanılmalı (service role key realtime'da çalışmayabilir)
-    const key = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const key =
+      process.env.SUPABASE_ANON_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (url && key) {
       try {
@@ -41,14 +44,9 @@ class SystemMonitor {
           },
         });
         // Async başlat, hata olursa logla
-        this.checkRealtimeConnection().catch(err => {
-          console.warn('[SystemMonitor] Initial realtime check failed:', err.message);
-        });
-      } catch (error) {
-        console.error('[SystemMonitor] Supabase init error:', error.message);
-      }
+        this.checkRealtimeConnection().catch((_err) => {});
+      } catch (_error) {}
     } else {
-      console.warn('[SystemMonitor] Supabase URL veya Key tanımlı değil');
     }
   }
 
@@ -71,7 +69,7 @@ class SystemMonitor {
             this.supabase.removeChannel(testChannel);
           } catch {}
           this.realtimeConnected = false;
-          resolve({ connected: false, error: 'Timeout - Supabase Realtime\'a bağlanılamadı' });
+          resolve({ connected: false, error: "Timeout - Supabase Realtime'a bağlanılamadı" });
         }, 8000); // 8 saniye timeout
 
         testChannel
@@ -163,7 +161,7 @@ class SystemMonitor {
       const totalRuns = scheduler.stats.successfulRuns + scheduler.stats.failedRuns;
       scheduler.stats.averageRuntime = Math.round(scheduler.stats.totalRuntime / totalRuns);
 
-      delete scheduler._startTime;
+      scheduler._startTime = undefined;
     }
   }
 
@@ -181,7 +179,7 @@ class SystemMonitor {
     const result = {};
     for (const [name, stats] of this.schedulerStats) {
       result[name] = { ...stats };
-      delete result[name]._startTime;
+      result[name]._startTime = undefined;
     }
     return result;
   }
@@ -239,7 +237,7 @@ class SystemMonitor {
       totalIdle += cpu.times.idle;
     }
 
-    return Math.round(100 - (100 * totalIdle / totalTick));
+    return Math.round(100 - (100 * totalIdle) / totalTick);
   }
 
   /**
@@ -283,9 +281,7 @@ class SystemMonitor {
   async getDetailedHealth() {
     this.lastHealthCheck = new Date().toISOString();
 
-    const [realtimeCheck] = await Promise.all([
-      this.checkRealtimeConnection(),
-    ]);
+    const [realtimeCheck] = await Promise.all([this.checkRealtimeConnection()]);
 
     return {
       timestamp: this.lastHealthCheck,

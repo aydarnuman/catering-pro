@@ -14,7 +14,7 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
-import { type ReactNode, memo, useCallback, useMemo } from 'react';
+import { memo, type ReactNode, useCallback, useMemo } from 'react';
 import { EmptyState, LoadingState } from '@/components/common';
 import { useResponsive } from '@/hooks/useResponsive';
 
@@ -162,7 +162,10 @@ function MobileCardComponent<T extends Record<string, unknown>>({
   // Primary field (başlık) - useMemo ile cache'le
   const primaryColumn = useMemo(() => columns.find((c) => c.isPrimaryField), [columns]);
   // Mobilde gösterilecek alanlar - useMemo ile cache'le
-  const mobileVisibleColumns = useMemo(() => columns.filter((c) => c.showOnMobile !== false), [columns]);
+  const mobileVisibleColumns = useMemo(
+    () => columns.filter((c) => c.showOnMobile !== false),
+    [columns]
+  );
   // Sadece expanded'da gösterilecek alanlar - useMemo ile cache'le
   const expandedColumns = useMemo(() => columns.filter((c) => c.showOnMobile === false), [columns]);
 
@@ -171,10 +174,13 @@ function MobileCardComponent<T extends Record<string, unknown>>({
     onRowClick?.(item);
   }, [onRowClick, item]);
 
-  const handleToggleClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    toggle();
-  }, [toggle]);
+  const handleToggleClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      toggle();
+    },
+    [toggle]
+  );
 
   const handleActionsClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -204,11 +210,7 @@ function MobileCardComponent<T extends Record<string, unknown>>({
           )}
         </Box>
         {expandedColumns.length > 0 && (
-          <ActionIcon
-            variant="subtle"
-            size="sm"
-            onClick={handleToggleClick}
-          >
+          <ActionIcon variant="subtle" size="sm" onClick={handleToggleClick}>
             {opened ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
           </ActionIcon>
         )}

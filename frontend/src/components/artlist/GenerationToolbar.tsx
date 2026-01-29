@@ -125,9 +125,7 @@ export function GenerationToolbar({
   const rightIcons = isCatering ? CATERING_RIGHT : ARTLIST_RIGHT;
   const toolbarBadges = isCatering ? CATERING_BADGES : ARTLIST_BADGES;
 
-  const placeholder = isCatering
-    ? 'Mesajınızı yazın…'
-    : 'Yapay zeka ile ne oluşturmak istersiniz?';
+  const placeholder = isCatering ? 'Mesajınızı yazın…' : 'Yapay zeka ile ne oluşturmak istersiniz?';
 
   const ctaLabel = isCatering
     ? prompt.trim()
@@ -207,18 +205,14 @@ export function GenerationToolbar({
                   width: fabIconSize,
                   height: fabIconSize,
                   borderRadius: isMobile ? 8 : 10,
-                  background: isDark
-                    ? 'rgba(167, 139, 250, 0.18)'
-                    : 'rgba(124, 58, 237, 0.12)',
+                  background: isDark ? 'rgba(167, 139, 250, 0.18)' : 'rgba(124, 58, 237, 0.12)',
                   color: isDark ? '#a78bfa' : '#7c3aed',
                 }}
               >
                 <IconSparkles size={fabIconInner} stroke={2.25} />
               </Box>
             }
-            rightSection={
-              <IconChevronUp size={isMobile ? 14 : 16} style={{ opacity: 0.85 }} />
-            }
+            rightSection={<IconChevronUp size={isMobile ? 14 : 16} style={{ opacity: 0.85 }} />}
             styles={{
               root: {
                 borderRadius: 9999,
@@ -277,7 +271,13 @@ export function GenerationToolbar({
       >
         {/* Üst satır: solda bugünün tarihi, sağda LIVE + kapat butonu - Catering */}
         {isCatering && onToggle && (
-          <Group justify="space-between" p="xs" style={{ borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.03)'}` }}>
+          <Group
+            justify="space-between"
+            p="xs"
+            style={{
+              borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.03)'}`,
+            }}
+          >
             <Text size="xs" c="dimmed" style={{ fontWeight: 500 }}>
               {new Date().toLocaleDateString('tr-TR', {
                 weekday: 'long',
@@ -598,7 +598,9 @@ export function GenerationToolbar({
                   backgroundColor: isDark ? 'rgba(230, 197, 48, 0.2)' : 'rgba(230, 197, 48, 0.9)',
                   color: isDark ? '#e6c530' : '#0a0a0a',
                   flexShrink: 0,
-                  border: isDark ? '1px solid rgba(230, 197, 48, 0.35)' : '1px solid rgba(230, 197, 48, 0.5)',
+                  border: isDark
+                    ? '1px solid rgba(230, 197, 48, 0.35)'
+                    : '1px solid rgba(230, 197, 48, 0.5)',
                   boxShadow: 'none',
                   borderRadius: 9999,
                   '&:hover': {

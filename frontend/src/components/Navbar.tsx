@@ -41,10 +41,8 @@ import {
   IconShoppingCart,
   IconSparkles,
   IconToolsKitchen2,
-  IconTrendingUp,
   IconUser,
   IconUserCircle,
-  IconUsers,
   IconWallet,
   IconX,
 } from '@tabler/icons-react';

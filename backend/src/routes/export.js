@@ -6,18 +6,18 @@
 import express from 'express';
 import { query } from '../database.js';
 import {
-  createExcel,
-  createPDF,
-  sendMail,
-  createPersonelExcel,
-  createPersonelPDF,
-  createFaturaExcel,
-  createFaturaPDF,
   createCariExcel,
   createCariPDF,
+  createDilekcePDF,
+  createExcel,
+  createFaturaExcel,
+  createFaturaPDF,
+  createPDF,
+  createPersonelExcel,
+  createPersonelPDF,
   createStokExcel,
   createStokPDF,
-  createDilekcePDF
+  sendMail,
 } from '../services/export-service.js';
 
 const router = express.Router();
@@ -33,10 +33,10 @@ const router = express.Router();
 router.get('/personel/excel', async (req, res) => {
   try {
     const { departman, durum } = req.query;
-    
+
     let sql = 'SELECT * FROM personeller WHERE 1=1';
     const params = [];
-    
+
     if (departman) {
       params.push(departman);
       sql += ` AND departman = $${params.length}`;
@@ -45,20 +45,17 @@ router.get('/personel/excel', async (req, res) => {
       params.push(durum);
       sql += ` AND durum = $${params.length}`;
     }
-    
+
     sql += ' ORDER BY tam_ad';
-    
+
     const result = await query(sql, params);
     const buffer = createPersonelExcel(result.rows);
-    
+
     const filename = `personel-listesi-${new Date().toISOString().split('T')[0]}.xlsx`;
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
-    
-    console.log(`📥 Personel Excel indirildi: ${result.rows.length} kayıt`);
   } catch (error) {
-    console.error('❌ Personel Excel hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -70,10 +67,10 @@ router.get('/personel/excel', async (req, res) => {
 router.get('/personel/pdf', async (req, res) => {
   try {
     const { departman, durum } = req.query;
-    
+
     let sql = 'SELECT * FROM personeller WHERE 1=1';
     const params = [];
-    
+
     if (departman) {
       params.push(departman);
       sql += ` AND departman = $${params.length}`;
@@ -82,20 +79,17 @@ router.get('/personel/pdf', async (req, res) => {
       params.push(durum);
       sql += ` AND durum = $${params.length}`;
     }
-    
+
     sql += ' ORDER BY tam_ad';
-    
+
     const result = await query(sql, params);
     const buffer = await createPersonelPDF(result.rows);
-    
+
     const filename = `personel-listesi-${new Date().toISOString().split('T')[0]}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
-    
-    console.log(`📥 Personel PDF indirildi: ${result.rows.length} kayıt`);
   } catch (error) {
-    console.error('❌ Personel PDF hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -107,14 +101,14 @@ router.get('/personel/pdf', async (req, res) => {
 router.post('/personel/mail', async (req, res) => {
   try {
     const { email, format = 'excel', departman, durum } = req.body;
-    
+
     if (!email) {
       return res.status(400).json({ error: 'E-posta adresi gerekli' });
     }
-    
+
     let sql = 'SELECT * FROM personeller WHERE 1=1';
     const params = [];
-    
+
     if (departman) {
       params.push(departman);
       sql += ` AND departman = $${params.length}`;
@@ -123,11 +117,11 @@ router.post('/personel/mail', async (req, res) => {
       params.push(durum);
       sql += ` AND durum = $${params.length}`;
     }
-    
+
     sql += ' ORDER BY tam_ad';
-    
+
     const result = await query(sql, params);
-    
+
     let buffer, attachmentName, attachmentType;
     if (format === 'pdf') {
       buffer = await createPersonelPDF(result.rows);
@@ -138,12 +132,13 @@ router.post('/personel/mail', async (req, res) => {
       attachmentName = `personel-listesi-${new Date().toISOString().split('T')[0]}.xlsx`;
       attachmentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     }
-    
-    await sendMail({
-      to: email,
-      subject: `Personel Listesi - ${new Date().toLocaleDateString('tr-TR')}`,
-      text: `Personel listesi ekte gönderilmiştir.\n\nToplam: ${result.rows.length} personel\nOluşturulma: ${new Date().toLocaleString('tr-TR')}\n\nCatering Pro`,
-      html: `
+
+    await sendMail(
+      {
+        to: email,
+        subject: `Personel Listesi - ${new Date().toLocaleDateString('tr-TR')}`,
+        text: `Personel listesi ekte gönderilmiştir.\n\nToplam: ${result.rows.length} personel\nOluşturulma: ${new Date().toLocaleString('tr-TR')}\n\nCatering Pro`,
+        html: `
         <h2>Personel Listesi</h2>
         <p>Personel listesi ekte gönderilmiştir.</p>
         <ul>
@@ -153,14 +148,14 @@ router.post('/personel/mail', async (req, res) => {
         <hr>
         <p style="color: gray; font-size: 12px;">Catering Pro - Personel Yönetimi</p>
       `,
-      attachmentName,
-      attachmentType
-    }, buffer);
-    
+        attachmentName,
+        attachmentType,
+      },
+      buffer
+    );
+
     res.json({ success: true, message: `Mail ${email} adresine gönderildi` });
-    console.log(`📧 Personel listesi mail gönderildi: ${email}`);
   } catch (error) {
-    console.error('❌ Personel mail hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -175,10 +170,10 @@ router.post('/personel/mail', async (req, res) => {
 router.get('/fatura/excel', async (req, res) => {
   try {
     const { type, status, startDate, endDate } = req.query;
-    
+
     let sql = 'SELECT * FROM invoices WHERE 1=1';
     const params = [];
-    
+
     if (type) {
       params.push(type);
       sql += ` AND type = $${params.length}`;
@@ -195,20 +190,17 @@ router.get('/fatura/excel', async (req, res) => {
       params.push(endDate);
       sql += ` AND invoice_date <= $${params.length}`;
     }
-    
+
     sql += ' ORDER BY invoice_date DESC';
-    
+
     const result = await query(sql, params);
     const buffer = createFaturaExcel(result.rows);
-    
+
     const filename = `fatura-listesi-${new Date().toISOString().split('T')[0]}.xlsx`;
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
-    
-    console.log(`📥 Fatura Excel indirildi: ${result.rows.length} kayıt`);
   } catch (error) {
-    console.error('❌ Fatura Excel hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -219,10 +211,10 @@ router.get('/fatura/excel', async (req, res) => {
 router.get('/fatura/pdf', async (req, res) => {
   try {
     const { type, status, startDate, endDate } = req.query;
-    
+
     let sql = 'SELECT * FROM invoices WHERE 1=1';
     const params = [];
-    
+
     if (type) {
       params.push(type);
       sql += ` AND type = $${params.length}`;
@@ -239,20 +231,17 @@ router.get('/fatura/pdf', async (req, res) => {
       params.push(endDate);
       sql += ` AND invoice_date <= $${params.length}`;
     }
-    
+
     sql += ' ORDER BY invoice_date DESC';
-    
+
     const result = await query(sql, params);
     const buffer = await createFaturaPDF(result.rows);
-    
+
     const filename = `fatura-listesi-${new Date().toISOString().split('T')[0]}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
-    
-    console.log(`📥 Fatura PDF indirildi: ${result.rows.length} kayıt`);
   } catch (error) {
-    console.error('❌ Fatura PDF hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -263,14 +252,14 @@ router.get('/fatura/pdf', async (req, res) => {
 router.post('/fatura/mail', async (req, res) => {
   try {
     const { email, format = 'excel', type, status, startDate, endDate } = req.body;
-    
+
     if (!email) {
       return res.status(400).json({ error: 'E-posta adresi gerekli' });
     }
-    
+
     let sql = 'SELECT * FROM invoices WHERE 1=1';
     const params = [];
-    
+
     if (type) {
       params.push(type);
       sql += ` AND type = $${params.length}`;
@@ -287,11 +276,11 @@ router.post('/fatura/mail', async (req, res) => {
       params.push(endDate);
       sql += ` AND invoice_date <= $${params.length}`;
     }
-    
+
     sql += ' ORDER BY invoice_date DESC';
-    
+
     const result = await query(sql, params);
-    
+
     let buffer, attachmentName, attachmentType;
     if (format === 'pdf') {
       buffer = await createFaturaPDF(result.rows);
@@ -302,12 +291,13 @@ router.post('/fatura/mail', async (req, res) => {
       attachmentName = `fatura-listesi-${new Date().toISOString().split('T')[0]}.xlsx`;
       attachmentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     }
-    
-    await sendMail({
-      to: email,
-      subject: `Fatura Listesi - ${new Date().toLocaleDateString('tr-TR')}`,
-      text: `Fatura listesi ekte gönderilmiştir.\n\nToplam: ${result.rows.length} fatura`,
-      html: `
+
+    await sendMail(
+      {
+        to: email,
+        subject: `Fatura Listesi - ${new Date().toLocaleDateString('tr-TR')}`,
+        text: `Fatura listesi ekte gönderilmiştir.\n\nToplam: ${result.rows.length} fatura`,
+        html: `
         <h2>Fatura Listesi</h2>
         <p>Fatura listesi ekte gönderilmiştir.</p>
         <ul>
@@ -317,13 +307,14 @@ router.post('/fatura/mail', async (req, res) => {
         <hr>
         <p style="color: gray; font-size: 12px;">Catering Pro - Fatura Yönetimi</p>
       `,
-      attachmentName,
-      attachmentType
-    }, buffer);
-    
+        attachmentName,
+        attachmentType,
+      },
+      buffer
+    );
+
     res.json({ success: true, message: `Mail ${email} adresine gönderildi` });
   } catch (error) {
-    console.error('❌ Fatura mail hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -338,10 +329,10 @@ router.post('/fatura/mail', async (req, res) => {
 router.get('/cari/excel', async (req, res) => {
   try {
     const { tip, aktif } = req.query;
-    
+
     let sql = 'SELECT * FROM cariler WHERE 1=1';
     const params = [];
-    
+
     if (tip) {
       params.push(tip);
       sql += ` AND tip = $${params.length}`;
@@ -350,20 +341,17 @@ router.get('/cari/excel', async (req, res) => {
       params.push(aktif === 'true');
       sql += ` AND aktif = $${params.length}`;
     }
-    
+
     sql += ' ORDER BY unvan';
-    
+
     const result = await query(sql, params);
     const buffer = createCariExcel(result.rows);
-    
+
     const filename = `cari-listesi-${new Date().toISOString().split('T')[0]}.xlsx`;
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
-    
-    console.log(`📥 Cari Excel indirildi: ${result.rows.length} kayıt`);
   } catch (error) {
-    console.error('❌ Cari Excel hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -374,10 +362,10 @@ router.get('/cari/excel', async (req, res) => {
 router.get('/cari/pdf', async (req, res) => {
   try {
     const { tip, aktif } = req.query;
-    
+
     let sql = 'SELECT * FROM cariler WHERE 1=1';
     const params = [];
-    
+
     if (tip) {
       params.push(tip);
       sql += ` AND tip = $${params.length}`;
@@ -386,20 +374,17 @@ router.get('/cari/pdf', async (req, res) => {
       params.push(aktif === 'true');
       sql += ` AND aktif = $${params.length}`;
     }
-    
+
     sql += ' ORDER BY unvan';
-    
+
     const result = await query(sql, params);
     const buffer = await createCariPDF(result.rows);
-    
+
     const filename = `cari-listesi-${new Date().toISOString().split('T')[0]}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
-    
-    console.log(`📥 Cari PDF indirildi: ${result.rows.length} kayıt`);
   } catch (error) {
-    console.error('❌ Cari PDF hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -411,14 +396,14 @@ router.get('/cari/pdf', async (req, res) => {
 router.post('/cari/mail', async (req, res) => {
   try {
     const { email, format = 'excel', tip, aktif } = req.body;
-    
+
     if (!email) {
       return res.status(400).json({ error: 'E-posta adresi gerekli' });
     }
-    
+
     let sql = 'SELECT * FROM cariler WHERE 1=1';
     const params = [];
-    
+
     if (tip) {
       params.push(tip);
       sql += ` AND tip = $${params.length}`;
@@ -427,11 +412,11 @@ router.post('/cari/mail', async (req, res) => {
       params.push(aktif === 'true');
       sql += ` AND aktif = $${params.length}`;
     }
-    
+
     sql += ' ORDER BY unvan';
-    
+
     const result = await query(sql, params);
-    
+
     let buffer, attachmentName, attachmentType;
     if (format === 'pdf') {
       buffer = await createCariPDF(result.rows);
@@ -442,12 +427,13 @@ router.post('/cari/mail', async (req, res) => {
       attachmentName = `cari-listesi-${new Date().toISOString().split('T')[0]}.xlsx`;
       attachmentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     }
-    
-    await sendMail({
-      to: email,
-      subject: `Cari Listesi - ${new Date().toLocaleDateString('tr-TR')}`,
-      text: `Cari listesi ekte gönderilmiştir.\n\nToplam: ${result.rows.length} cari`,
-      html: `
+
+    await sendMail(
+      {
+        to: email,
+        subject: `Cari Listesi - ${new Date().toLocaleDateString('tr-TR')}`,
+        text: `Cari listesi ekte gönderilmiştir.\n\nToplam: ${result.rows.length} cari`,
+        html: `
         <h2>Cari Listesi</h2>
         <p>Cari listesi ekte gönderilmiştir.</p>
         <ul>
@@ -457,14 +443,14 @@ router.post('/cari/mail', async (req, res) => {
         <hr>
         <p style="color: gray; font-size: 12px;">Catering Pro - Cari Yönetimi</p>
       `,
-      attachmentName,
-      attachmentType
-    }, buffer);
-    
+        attachmentName,
+        attachmentType,
+      },
+      buffer
+    );
+
     res.json({ success: true, message: `Mail ${email} adresine gönderildi` });
-    console.log(`📧 Cari listesi mail gönderildi: ${email}`);
   } catch (error) {
-    console.error('❌ Cari mail hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -479,10 +465,10 @@ router.post('/cari/mail', async (req, res) => {
 router.get('/stok/excel', async (req, res) => {
   try {
     const { kategori, kritik } = req.query;
-    
+
     let sql = 'SELECT *, son_alis_fiyati as son_alis_fiyat FROM urun_kartlari WHERE aktif = true';
     const params = [];
-    
+
     if (kategori) {
       params.push(kategori);
       sql += ` AND kategori = $${params.length}`;
@@ -490,20 +476,17 @@ router.get('/stok/excel', async (req, res) => {
     if (kritik === 'true') {
       sql += ' AND miktar <= kritik_stok';
     }
-    
+
     sql += ' ORDER BY ad';
-    
+
     const result = await query(sql, params);
     const buffer = createStokExcel(result.rows);
-    
+
     const filename = `stok-listesi-${new Date().toISOString().split('T')[0]}.xlsx`;
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
-    
-    console.log(`📥 Stok Excel indirildi: ${result.rows.length} kayıt`);
   } catch (error) {
-    console.error('❌ Stok Excel hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -514,10 +497,10 @@ router.get('/stok/excel', async (req, res) => {
 router.get('/stok/pdf', async (req, res) => {
   try {
     const { kategori, kritik } = req.query;
-    
+
     let sql = 'SELECT *, son_alis_fiyati as son_alis_fiyat FROM urun_kartlari WHERE aktif = true';
     const params = [];
-    
+
     if (kategori) {
       params.push(kategori);
       sql += ` AND kategori = $${params.length}`;
@@ -525,20 +508,17 @@ router.get('/stok/pdf', async (req, res) => {
     if (kritik === 'true') {
       sql += ' AND miktar <= kritik_stok';
     }
-    
+
     sql += ' ORDER BY ad';
-    
+
     const result = await query(sql, params);
     const buffer = await createStokPDF(result.rows);
-    
+
     const filename = `stok-listesi-${new Date().toISOString().split('T')[0]}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
-    
-    console.log(`📥 Stok PDF indirildi: ${result.rows.length} kayıt`);
   } catch (error) {
-    console.error('❌ Stok PDF hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -550,14 +530,14 @@ router.get('/stok/pdf', async (req, res) => {
 router.post('/stok/mail', async (req, res) => {
   try {
     const { email, format = 'excel', kategori, kritik } = req.body;
-    
+
     if (!email) {
       return res.status(400).json({ error: 'E-posta adresi gerekli' });
     }
-    
+
     let sql = 'SELECT *, son_alis_fiyati as son_alis_fiyat FROM urun_kartlari WHERE aktif = true';
     const params = [];
-    
+
     if (kategori) {
       params.push(kategori);
       sql += ` AND kategori = $${params.length}`;
@@ -565,11 +545,11 @@ router.post('/stok/mail', async (req, res) => {
     if (kritik === 'true' || kritik === true) {
       sql += ' AND miktar <= kritik_stok';
     }
-    
+
     sql += ' ORDER BY ad';
-    
+
     const result = await query(sql, params);
-    
+
     let buffer, attachmentName, attachmentType;
     if (format === 'pdf') {
       buffer = await createStokPDF(result.rows);
@@ -580,12 +560,13 @@ router.post('/stok/mail', async (req, res) => {
       attachmentName = `stok-listesi-${new Date().toISOString().split('T')[0]}.xlsx`;
       attachmentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     }
-    
-    await sendMail({
-      to: email,
-      subject: `Stok Listesi - ${new Date().toLocaleDateString('tr-TR')}`,
-      text: `Stok listesi ekte gönderilmiştir.\n\nToplam: ${result.rows.length} ürün`,
-      html: `
+
+    await sendMail(
+      {
+        to: email,
+        subject: `Stok Listesi - ${new Date().toLocaleDateString('tr-TR')}`,
+        text: `Stok listesi ekte gönderilmiştir.\n\nToplam: ${result.rows.length} ürün`,
+        html: `
         <h2>Stok Listesi</h2>
         <p>Stok listesi ekte gönderilmiştir.</p>
         <ul>
@@ -595,14 +576,14 @@ router.post('/stok/mail', async (req, res) => {
         <hr>
         <p style="color: gray; font-size: 12px;">Catering Pro - Stok Yönetimi</p>
       `,
-      attachmentName,
-      attachmentType
-    }, buffer);
-    
+        attachmentName,
+        attachmentType,
+      },
+      buffer
+    );
+
     res.json({ success: true, message: `Mail ${email} adresine gönderildi` });
-    console.log(`📧 Stok listesi mail gönderildi: ${email}`);
   } catch (error) {
-    console.error('❌ Stok mail hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -619,7 +600,7 @@ router.get('/personel/proje/:projeId', async (req, res) => {
   try {
     const { projeId } = req.params;
     const { format = 'excel' } = req.query;
-    
+
     const sql = `
       SELECT p.*, pr.ad as proje_adi, pp.gorev as proje_gorevi
       FROM personeller p
@@ -628,26 +609,26 @@ router.get('/personel/proje/:projeId', async (req, res) => {
       WHERE pp.proje_id = $1 AND pp.aktif = true
       ORDER BY p.tam_ad
     `;
-    
+
     const result = await query(sql, [projeId]);
     const projeResult = await query('SELECT ad FROM projeler WHERE id = $1', [projeId]);
     const projeAdi = projeResult.rows[0]?.ad || 'Proje';
-    
+
     if (format === 'pdf') {
       const buffer = await createPDF({
         title: `${projeAdi} - Personel Listesi`,
         subtitle: `Toplam ${result.rows.length} personel`,
         headers: ['Ad Soyad', 'Görev', 'Departman', 'Telefon', 'Maaş'],
-        data: result.rows.map(p => ({
+        data: result.rows.map((p) => ({
           'Ad Soyad': p.tam_ad,
-          'Görev': p.proje_gorevi || p.pozisyon || '-',
-          'Departman': p.departman || '-',
-          'Telefon': p.telefon || '-',
-          'Maaş': p.maas ? `${Number(p.maas).toLocaleString('tr-TR')} TL` : '-'
+          Görev: p.proje_gorevi || p.pozisyon || '-',
+          Departman: p.departman || '-',
+          Telefon: p.telefon || '-',
+          Maaş: p.maas ? `${Number(p.maas).toLocaleString('tr-TR')} TL` : '-',
         })),
-        footer: 'Catering Pro - Proje Bazlı Personel Raporu'
+        footer: 'Catering Pro - Proje Bazlı Personel Raporu',
       });
-      
+
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${projeAdi}-personel.pdf"`);
       res.send(buffer);
@@ -661,18 +642,15 @@ router.get('/personel/proje/:projeId', async (req, res) => {
           pozisyon: 'Pozisyon',
           telefon: 'Telefon',
           email: 'E-posta',
-          maas: 'Maaş'
-        }
+          maas: 'Maaş',
+        },
       });
-      
+
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${projeAdi}-personel.xlsx"`);
       res.send(buffer);
     }
-    
-    console.log(`📥 Proje personel raporu: ${projeAdi} - ${result.rows.length} kayıt`);
   } catch (error) {
-    console.error('❌ Proje personel raporu hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -685,7 +663,7 @@ router.get('/bordro/:donem', async (req, res) => {
   try {
     const { donem } = req.params;
     const { format = 'excel' } = req.query;
-    
+
     // Bordro tablosu var mı kontrol et
     const tableCheck = await query(`
       SELECT EXISTS (
@@ -693,9 +671,9 @@ router.get('/bordro/:donem', async (req, res) => {
         WHERE table_name = 'bordrolar'
       ) as exists
     `);
-    
+
     let result = { rows: [] };
-    
+
     if (tableCheck.rows[0]?.exists) {
       const sql = `
         SELECT b.*, p.tam_ad, p.departman, p.pozisyon
@@ -706,23 +684,26 @@ router.get('/bordro/:donem', async (req, res) => {
       `;
       result = await query(sql, [donem]);
     }
-    
+
     if (format === 'pdf') {
       const buffer = await createPDF({
         title: `BORDRO RAPORU - ${donem}`,
-        subtitle: result.rows.length > 0 ? `Toplam ${result.rows.length} personel` : 'Bu dönem için bordro kaydı bulunmamaktadır.',
+        subtitle:
+          result.rows.length > 0
+            ? `Toplam ${result.rows.length} personel`
+            : 'Bu dönem için bordro kaydı bulunmamaktadır.',
         headers: ['Ad Soyad', 'Brüt', 'SGK', 'Vergi', 'Net', 'Maliyet'],
-        data: result.rows.map(b => ({
+        data: result.rows.map((b) => ({
           'Ad Soyad': b.tam_ad,
-          'Brüt': `${Number(b.brut_maas || 0).toLocaleString('tr-TR')} TL`,
-          'SGK': `${Number(b.sgk_iscipayi || 0).toLocaleString('tr-TR')} TL`,
-          'Vergi': `${Number(b.gelir_vergisi || 0).toLocaleString('tr-TR')} TL`,
-          'Net': `${Number(b.net_maas || 0).toLocaleString('tr-TR')} TL`,
-          'Maliyet': `${Number(b.toplam_maliyet || 0).toLocaleString('tr-TR')} TL`
+          Brüt: `${Number(b.brut_maas || 0).toLocaleString('tr-TR')} TL`,
+          SGK: `${Number(b.sgk_iscipayi || 0).toLocaleString('tr-TR')} TL`,
+          Vergi: `${Number(b.gelir_vergisi || 0).toLocaleString('tr-TR')} TL`,
+          Net: `${Number(b.net_maas || 0).toLocaleString('tr-TR')} TL`,
+          Maliyet: `${Number(b.toplam_maliyet || 0).toLocaleString('tr-TR')} TL`,
         })),
-        footer: 'Catering Pro - Bordro Raporu'
+        footer: 'Catering Pro - Bordro Raporu',
       });
-      
+
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="bordro-${donem}.pdf"`);
       res.send(buffer);
@@ -740,18 +721,15 @@ router.get('/bordro/:donem', async (req, res) => {
           net_maas: 'Net Maaş',
           isveren_sgk: 'SGK İşveren',
           isveren_issizlik: 'İşsizlik İşveren',
-          toplam_maliyet: 'Toplam Maliyet'
-        }
+          toplam_maliyet: 'Toplam Maliyet',
+        },
       });
-      
+
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="bordro-${donem}.xlsx"`);
       res.send(buffer);
     }
-    
-    console.log(`📥 Bordro raporu: ${donem} - ${result.rows.length} kayıt`);
   } catch (error) {
-    console.error('❌ Bordro raporu hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -763,7 +741,7 @@ router.get('/bordro/:donem', async (req, res) => {
 router.get('/izin-raporu', async (req, res) => {
   try {
     const { startDate, endDate, format = 'excel' } = req.query;
-    
+
     // İzin tabloları var mı kontrol et
     const tableCheck = await query(`
       SELECT EXISTS (
@@ -771,21 +749,21 @@ router.get('/izin-raporu', async (req, res) => {
         WHERE table_name = 'izin_talepleri'
       ) as exists
     `);
-    
+
     let result = { rows: [] };
-    
+
     if (tableCheck.rows[0]?.exists) {
       // Önce tablo yapısını kontrol et
       const columnCheck = await query(`
         SELECT column_name FROM information_schema.columns 
         WHERE table_name = 'izin_talepleri'
       `);
-      const columns = columnCheck.rows.map(r => r.column_name);
-      
+      const columns = columnCheck.rows.map((r) => r.column_name);
+
       let sql = `
         SELECT it.*, p.tam_ad, p.departman
       `;
-      
+
       // izin_turleri tablosu varsa join et
       const izinTurleriCheck = await query(`
         SELECT EXISTS (
@@ -793,23 +771,23 @@ router.get('/izin-raporu', async (req, res) => {
           WHERE table_name = 'izin_turleri'
         ) as exists
       `);
-      
+
       if (izinTurleriCheck.rows[0]?.exists && columns.includes('izin_turu_id')) {
         sql += `, COALESCE(iz.ad, '-') as izin_turu_adi`;
       }
-      
+
       sql += ` FROM izin_talepleri it
         JOIN personeller p ON it.personel_id = p.id
       `;
-      
+
       if (izinTurleriCheck.rows[0]?.exists && columns.includes('izin_turu_id')) {
         sql += ` LEFT JOIN izin_turleri iz ON it.izin_turu_id = iz.id`;
       }
-      
+
       sql += ` WHERE 1=1`;
-      
+
       const params = [];
-      
+
       if (startDate) {
         params.push(startDate);
         sql += ` AND it.baslangic_tarihi >= $${params.length}`;
@@ -818,30 +796,33 @@ router.get('/izin-raporu', async (req, res) => {
         params.push(endDate);
         sql += ` AND it.bitis_tarihi <= $${params.length}`;
       }
-      
+
       sql += ' ORDER BY it.baslangic_tarihi DESC';
-      
+
       result = await query(sql, params);
     }
-    
+
     if (format === 'pdf') {
       const buffer = await createPDF({
         title: 'İZİN RAPORU',
-        subtitle: result.rows.length > 0 
-          ? (startDate && endDate ? `${startDate} - ${endDate}` : `Toplam ${result.rows.length} izin kaydı`)
-          : 'İzin kaydı bulunmamaktadır.',
+        subtitle:
+          result.rows.length > 0
+            ? startDate && endDate
+              ? `${startDate} - ${endDate}`
+              : `Toplam ${result.rows.length} izin kaydı`
+            : 'İzin kaydı bulunmamaktadır.',
         headers: ['Ad Soyad', 'İzin Türü', 'Başlangıç', 'Bitiş', 'Gün', 'Durum'],
-        data: result.rows.map(i => ({
+        data: result.rows.map((i) => ({
           'Ad Soyad': i.tam_ad,
           'İzin Türü': i.izin_turu_adi || '-',
-          'Başlangıç': i.baslangic_tarihi ? new Date(i.baslangic_tarihi).toLocaleDateString('tr-TR') : '-',
-          'Bitiş': i.bitis_tarihi ? new Date(i.bitis_tarihi).toLocaleDateString('tr-TR') : '-',
-          'Gün': i.gun_sayisi || '-',
-          'Durum': i.durum || '-'
+          Başlangıç: i.baslangic_tarihi ? new Date(i.baslangic_tarihi).toLocaleDateString('tr-TR') : '-',
+          Bitiş: i.bitis_tarihi ? new Date(i.bitis_tarihi).toLocaleDateString('tr-TR') : '-',
+          Gün: i.gun_sayisi || '-',
+          Durum: i.durum || '-',
         })),
-        footer: 'Catering Pro - İzin Raporu'
+        footer: 'Catering Pro - İzin Raporu',
       });
-      
+
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'attachment; filename="izin-raporu.pdf"');
       res.send(buffer);
@@ -856,18 +837,15 @@ router.get('/izin-raporu', async (req, res) => {
           bitis_tarihi: 'Bitiş',
           gun_sayisi: 'Gün Sayısı',
           durum: 'Durum',
-          aciklama: 'Açıklama'
-        }
+          aciklama: 'Açıklama',
+        },
       });
-      
+
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', 'attachment; filename="izin-raporu.xlsx"');
       res.send(buffer);
     }
-    
-    console.log(`📥 İzin raporu: ${result.rows.length} kayıt`);
   } catch (error) {
-    console.error('❌ İzin raporu hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -879,35 +857,35 @@ router.get('/izin-raporu', async (req, res) => {
 router.get('/fatura/vadesi-gecen', async (req, res) => {
   try {
     const { format = 'excel' } = req.query;
-    
+
     const sql = `
       SELECT * FROM invoices 
       WHERE due_date < CURRENT_DATE AND status != 'paid'
       ORDER BY due_date ASC
     `;
-    
+
     const result = await query(sql);
-    
+
     if (format === 'pdf') {
       const buffer = await createPDF({
         title: 'VADESİ GEÇEN FATURALAR',
         subtitle: `Toplam ${result.rows.length} fatura`,
         headers: ['Fatura No', 'Müşteri', 'Vade', 'Tutar', 'Gecikme'],
-        data: result.rows.map(f => {
+        data: result.rows.map((f) => {
           const dueDate = new Date(f.due_date);
           const today = new Date();
           const diffDays = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
           return {
             'Fatura No': f.invoice_number || '-',
-            'Müşteri': f.customer_name || '-',
-            'Vade': dueDate.toLocaleDateString('tr-TR'),
-            'Tutar': `${Number(f.total_amount).toLocaleString('tr-TR')} TL`,
-            'Gecikme': `${diffDays} gün`
+            Müşteri: f.customer_name || '-',
+            Vade: dueDate.toLocaleDateString('tr-TR'),
+            Tutar: `${Number(f.total_amount).toLocaleString('tr-TR')} TL`,
+            Gecikme: `${diffDays} gün`,
           };
         }),
-        footer: 'Catering Pro - Vadesi Geçen Faturalar'
+        footer: 'Catering Pro - Vadesi Geçen Faturalar',
       });
-      
+
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'attachment; filename="vadesi-gecen-faturalar.pdf"');
       res.send(buffer);
@@ -917,10 +895,7 @@ router.get('/fatura/vadesi-gecen', async (req, res) => {
       res.setHeader('Content-Disposition', 'attachment; filename="vadesi-gecen-faturalar.xlsx"');
       res.send(buffer);
     }
-    
-    console.log(`📥 Vadesi geçen faturalar: ${result.rows.length} kayıt`);
   } catch (error) {
-    console.error('❌ Vadesi geçen faturalar hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -932,7 +907,7 @@ router.get('/fatura/vadesi-gecen', async (req, res) => {
 router.get('/stok/kritik', async (req, res) => {
   try {
     const { format = 'excel' } = req.query;
-    
+
     // Stok miktarları ayrı tabloda tutulduğu için join yapıyoruz
     const sql = `
       SELECT
@@ -949,24 +924,24 @@ router.get('/stok/kritik', async (req, res) => {
         AND uk.toplam_stok <= uk.kritik_stok
       ORDER BY (uk.kritik_stok - uk.toplam_stok) DESC
     `;
-    
+
     const result = await query(sql);
-    
+
     if (format === 'pdf') {
       const buffer = await createPDF({
         title: 'KRİTİK STOK RAPORU',
         subtitle: `${result.rows.length} ürün kritik seviyede`,
         headers: ['Ürün', 'Kod', 'Mevcut', 'Kritik', 'Eksik'],
-        data: result.rows.map(s => ({
-          'Ürün': s.ad,
-          'Kod': s.kod || '-',
-          'Mevcut': `${s.toplam_miktar} ${s.birim_adi || ''}`,
-          'Kritik': `${s.kritik_stok} ${s.birim_adi || ''}`,
-          'Eksik': `${s.kritik_stok - s.toplam_miktar} ${s.birim_adi || ''}`
+        data: result.rows.map((s) => ({
+          Ürün: s.ad,
+          Kod: s.kod || '-',
+          Mevcut: `${s.toplam_miktar} ${s.birim_adi || ''}`,
+          Kritik: `${s.kritik_stok} ${s.birim_adi || ''}`,
+          Eksik: `${s.kritik_stok - s.toplam_miktar} ${s.birim_adi || ''}`,
         })),
-        footer: 'Catering Pro - Kritik Stok Raporu'
+        footer: 'Catering Pro - Kritik Stok Raporu',
       });
-      
+
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'attachment; filename="kritik-stok.pdf"');
       res.send(buffer);
@@ -976,10 +951,7 @@ router.get('/stok/kritik', async (req, res) => {
       res.setHeader('Content-Disposition', 'attachment; filename="kritik-stok.xlsx"');
       res.send(buffer);
     }
-    
-    console.log(`📥 Kritik stok raporu: ${result.rows.length} kayıt`);
   } catch (error) {
-    console.error('❌ Kritik stok raporu hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -991,34 +963,34 @@ router.get('/stok/kritik', async (req, res) => {
 router.get('/cari/bakiye', async (req, res) => {
   try {
     const { tip, format = 'excel' } = req.query;
-    
+
     let sql = 'SELECT * FROM cariler WHERE bakiye != 0';
     const params = [];
-    
+
     if (tip) {
       params.push(tip);
       sql += ` AND tip = $${params.length}`;
     }
-    
+
     sql += ' ORDER BY ABS(bakiye) DESC';
-    
+
     const result = await query(sql, params);
-    
+
     if (format === 'pdf') {
       const buffer = await createPDF({
         title: 'CARİ BAKİYE RAPORU',
         subtitle: `Toplam ${result.rows.length} cari`,
         headers: ['Ünvan', 'Tip', 'Borç', 'Alacak', 'Bakiye'],
-        data: result.rows.map(c => ({
-          'Ünvan': c.unvan,
-          'Tip': c.tip === 'musteri' ? 'Müşteri' : 'Tedarikçi',
-          'Borç': `${Number(c.borc || 0).toLocaleString('tr-TR')} TL`,
-          'Alacak': `${Number(c.alacak || 0).toLocaleString('tr-TR')} TL`,
-          'Bakiye': `${Number(c.bakiye).toLocaleString('tr-TR')} TL`
+        data: result.rows.map((c) => ({
+          Ünvan: c.unvan,
+          Tip: c.tip === 'musteri' ? 'Müşteri' : 'Tedarikçi',
+          Borç: `${Number(c.borc || 0).toLocaleString('tr-TR')} TL`,
+          Alacak: `${Number(c.alacak || 0).toLocaleString('tr-TR')} TL`,
+          Bakiye: `${Number(c.bakiye).toLocaleString('tr-TR')} TL`,
         })),
-        footer: 'Catering Pro - Cari Bakiye Raporu'
+        footer: 'Catering Pro - Cari Bakiye Raporu',
       });
-      
+
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'attachment; filename="cari-bakiye.pdf"');
       res.send(buffer);
@@ -1028,10 +1000,7 @@ router.get('/cari/bakiye', async (req, res) => {
       res.setHeader('Content-Disposition', 'attachment; filename="cari-bakiye.xlsx"');
       res.send(buffer);
     }
-    
-    console.log(`📥 Cari bakiye raporu: ${result.rows.length} kayıt`);
   } catch (error) {
-    console.error('❌ Cari bakiye raporu hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1057,25 +1026,22 @@ router.post('/dilekce/pdf', async (req, res) => {
       type: type || 'genel',
       content,
       ihale: ihale || {},
-      footer: 'Catering Pro - İhale Yönetimi'
+      footer: 'Catering Pro - İhale Yönetimi',
     });
 
     const typeLabels = {
       asiri_dusuk: 'Asiri-Dusuk-Aciklama',
       idare_sikayet: 'Idareye-Sikayet',
       kik_itiraz: 'KIK-Itiraz',
-      aciklama_cevabi: 'Aciklama-Cevabi'
+      aciklama_cevabi: 'Aciklama-Cevabi',
     };
 
-    const filename = `${typeLabels[type] || 'Dilekce'}_${ihale?.ihale_no || new Date().getTime()}.pdf`;
+    const filename = `${typeLabels[type] || 'Dilekce'}_${ihale?.ihale_no || Date.now()}.pdf`;
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
-
-    console.log(`📥 Dilekçe PDF indirildi: ${type} - ${ihale?.baslik || 'Genel'}`);
   } catch (error) {
-    console.error('❌ Dilekçe PDF hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1094,16 +1060,16 @@ router.post('/dilekce/docx', async (req, res) => {
 
     // Basit metin olarak oluştur (Word açabilir)
     let fullContent = '';
-    
+
     if (title) {
       fullContent += `${title.toUpperCase()}\n${'='.repeat(50)}\n\n`;
     }
-    
+
     if (ihale?.kurum) fullContent += `Kurum: ${ihale.kurum}\n`;
     if (ihale?.baslik) fullContent += `İhale: ${ihale.baslik}\n`;
     if (ihale?.ihale_no) fullContent += `İhale No: ${ihale.ihale_no}\n`;
     if (ihale?.kurum || ihale?.baslik) fullContent += '\n';
-    
+
     fullContent += content;
     fullContent += `\n\n${'─'.repeat(50)}\nOluşturulma: ${new Date().toLocaleDateString('tr-TR')} ${new Date().toLocaleTimeString('tr-TR')}\nCatering Pro - İhale Yönetimi`;
 
@@ -1111,18 +1077,15 @@ router.post('/dilekce/docx', async (req, res) => {
       asiri_dusuk: 'Asiri-Dusuk-Aciklama',
       idare_sikayet: 'Idareye-Sikayet',
       kik_itiraz: 'KIK-Itiraz',
-      aciklama_cevabi: 'Aciklama-Cevabi'
+      aciklama_cevabi: 'Aciklama-Cevabi',
     };
 
-    const filename = `${typeLabels[type] || 'Dilekce'}_${ihale?.ihale_no || new Date().getTime()}.txt`;
+    const filename = `${typeLabels[type] || 'Dilekce'}_${ihale?.ihale_no || Date.now()}.txt`;
 
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(fullContent);
-
-    console.log(`📥 Dilekçe TXT indirildi: ${type} - ${ihale?.baslik || 'Genel'}`);
   } catch (error) {
-    console.error('❌ Dilekçe TXT hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1133,37 +1096,36 @@ router.post('/dilekce/docx', async (req, res) => {
  */
 router.get('/rapor-tipleri/:modul', (req, res) => {
   const { modul } = req.params;
-  
+
   const raporlar = {
     personel: [
       { value: 'tum', label: 'Tüm Personel', endpoint: '/personel/excel' },
       { value: 'proje', label: 'Proje Bazlı', endpoint: '/personel/proje/:id', needsParam: 'proje' },
       { value: 'departman', label: 'Departman Bazlı', endpoint: '/personel/excel?departman=', needsParam: 'departman' },
       { value: 'bordro', label: 'Bordro Raporu', endpoint: '/bordro/:donem', needsParam: 'donem' },
-      { value: 'izin', label: 'İzin Raporu', endpoint: '/izin-raporu' }
+      { value: 'izin', label: 'İzin Raporu', endpoint: '/izin-raporu' },
     ],
     fatura: [
       { value: 'tum', label: 'Tüm Faturalar', endpoint: '/fatura/excel' },
       { value: 'satis', label: 'Satış Faturaları', endpoint: '/fatura/excel?type=SATIS' },
       { value: 'alis', label: 'Alış Faturaları', endpoint: '/fatura/excel?type=ALIS' },
       { value: 'vadesi-gecen', label: 'Vadesi Geçenler', endpoint: '/fatura/vadesi-gecen' },
-      { value: 'tarih', label: 'Tarih Aralığı', endpoint: '/fatura/excel', needsParam: 'tarih' }
+      { value: 'tarih', label: 'Tarih Aralığı', endpoint: '/fatura/excel', needsParam: 'tarih' },
     ],
     cari: [
       { value: 'tum', label: 'Tüm Cariler', endpoint: '/cari/excel' },
       { value: 'musteri', label: 'Müşteriler', endpoint: '/cari/excel?tip=musteri' },
       { value: 'tedarikci', label: 'Tedarikçiler', endpoint: '/cari/excel?tip=tedarikci' },
-      { value: 'bakiye', label: 'Bakiye Raporu', endpoint: '/cari/bakiye' }
+      { value: 'bakiye', label: 'Bakiye Raporu', endpoint: '/cari/bakiye' },
     ],
     stok: [
       { value: 'tum', label: 'Tüm Stok', endpoint: '/stok/excel' },
       { value: 'kritik', label: 'Kritik Stok', endpoint: '/stok/kritik' },
-      { value: 'kategori', label: 'Kategori Bazlı', endpoint: '/stok/excel?kategori=', needsParam: 'kategori' }
-    ]
+      { value: 'kategori', label: 'Kategori Bazlı', endpoint: '/stok/excel?kategori=', needsParam: 'kategori' },
+    ],
   };
-  
+
   res.json(raporlar[modul] || []);
 });
 
 export default router;
-

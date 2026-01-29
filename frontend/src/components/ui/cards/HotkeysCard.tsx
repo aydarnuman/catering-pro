@@ -40,7 +40,11 @@ export function HotkeysCard({ showStatus = true }: HotkeysCardProps) {
         </Group>
         <Stack gap="xs">
           {HOTKEY_LIST.map((item) => (
-            <Group key={`${formatHotkey(item)}-${item.description}`} justify="space-between" wrap="nowrap">
+            <Group
+              key={`${formatHotkey(item)}-${item.description}`}
+              justify="space-between"
+              wrap="nowrap"
+            >
               <Text size="xs" c="dimmed" style={{ flex: 1 }}>
                 {item.description}
               </Text>

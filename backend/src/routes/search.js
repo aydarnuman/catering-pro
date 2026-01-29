@@ -37,21 +37,22 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const { q, limit = 5 } = req.query;
-    
+
     if (!q || q.length < 2) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Arama terimi en az 2 karakter olmalı' 
+      return res.status(400).json({
+        success: false,
+        error: 'Arama terimi en az 2 karakter olmalı',
       });
     }
-    
+
     const searchTerm = `%${q}%`;
-    const limitNum = Math.min(parseInt(limit) || 5, 10);
-    
+    const limitNum = Math.min(parseInt(limit, 10) || 5, 10);
+
     // Paralel arama sorguları
     const [tenders, cariler, invoices, stok, personel] = await Promise.all([
       // İhaleler
-      query(`
+      query(
+        `
         SELECT 
           id,
           title,
@@ -64,10 +65,13 @@ router.get('/', async (req, res) => {
           AND status = 'active'
         ORDER BY tender_date DESC NULLS LAST
         LIMIT $2
-      `, [searchTerm, limitNum]),
-      
+      `,
+        [searchTerm, limitNum]
+      ),
+
       // Cariler
-      query(`
+      query(
+        `
         SELECT 
           id,
           unvan as title,
@@ -80,10 +84,13 @@ router.get('/', async (req, res) => {
           AND aktif = true
         ORDER BY unvan ASC
         LIMIT $2
-      `, [searchTerm, limitNum]),
-      
+      `,
+        [searchTerm, limitNum]
+      ),
+
       // Faturalar - cariler join ile
-      query(`
+      query(
+        `
         SELECT 
           i.id,
           COALESCE(c.unvan, 'Fatura #' || i.id) as title,
@@ -96,10 +103,13 @@ router.get('/', async (req, res) => {
         WHERE c.unvan ILIKE $1
         ORDER BY i.invoice_date DESC
         LIMIT $2
-      `, [searchTerm, limitNum]),
-      
+      `,
+        [searchTerm, limitNum]
+      ),
+
       // Ürün Kartları - YENİ SİSTEM: urun_kartlari
-      query(`
+      query(
+        `
         SELECT
           uk.id,
           uk.ad as title,
@@ -112,10 +122,13 @@ router.get('/', async (req, res) => {
           AND uk.aktif = true
         ORDER BY uk.ad ASC
         LIMIT $2
-      `, [searchTerm, limitNum]),
-      
+      `,
+        [searchTerm, limitNum]
+      ),
+
       // Personel
-      query(`
+      query(
+        `
         SELECT 
           id,
           COALESCE(tam_ad, ad || ' ' || COALESCE(soyad, '')) as title,
@@ -128,34 +141,29 @@ router.get('/', async (req, res) => {
           AND aktif = true
         ORDER BY ad ASC
         LIMIT $2
-      `, [searchTerm, limitNum])
+      `,
+        [searchTerm, limitNum]
+      ),
     ]);
-    
+
     const results = {
       tenders: tenders.rows,
       cariler: cariler.rows,
       invoices: invoices.rows,
       stok: stok.rows,
       personel: personel.rows,
-      totalCount: 
-        tenders.rowCount + 
-        cariler.rowCount + 
-        invoices.rowCount + 
-        stok.rowCount + 
-        personel.rowCount
+      totalCount: tenders.rowCount + cariler.rowCount + invoices.rowCount + stok.rowCount + personel.rowCount,
     };
-    
+
     res.json({
       success: true,
       query: q,
-      results
+      results,
     });
-    
   } catch (error) {
-    console.error('Global search hatası:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      error: error.message,
     });
   }
 });

@@ -6,12 +6,8 @@
  * Bu servis artık unified-notification-service'e proxy olarak çalışır.
  */
 
-import unifiedNotificationService, {
-  NotificationSource,
-  NotificationSeverity,
-  NotificationCategory
-} from './unified-notification-service.js';
 import logger from '../utils/logger.js';
+import unifiedNotificationService, { NotificationSource } from './unified-notification-service.js';
 
 class AdminNotificationService {
   /**
@@ -29,7 +25,7 @@ class AdminNotificationService {
       category: type, // account_locked, suspicious_activity, etc.
       severity,
       source: NotificationSource.ADMIN,
-      metadata
+      metadata,
     });
   }
 
@@ -76,11 +72,11 @@ class AdminNotificationService {
       category: type,
       severity,
       unreadOnly: read === false,
-      limit
+      limit,
     });
 
     // Eski format için dönüştür
-    return notifications.map(n => ({
+    return notifications.map((n) => ({
       id: n.id,
       type: n.category,
       title: n.title,
@@ -90,7 +86,7 @@ class AdminNotificationService {
       userId: n.userId,
       metadata: n.metadata,
       createdAt: n.created_at,
-      readAt: n.read_at
+      readAt: n.read_at,
     }));
   }
 
@@ -149,7 +145,7 @@ class AdminNotificationService {
       userId: notification.userId,
       metadata: notification.metadata,
       createdAt: notification.created_at,
-      readAt: notification.read_at
+      readAt: notification.read_at,
     };
   }
 }

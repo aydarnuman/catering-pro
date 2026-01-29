@@ -117,9 +117,11 @@ export default function FaturaKalemlerPage() {
   const [birimCarpaniModalAcik, { open: birimCarpaniModalAc, close: birimCarpaniModalKapat }] =
     useDisclosure(false);
   const [yeniUrunAdi, setYeniUrunAdi] = useState('');
-  
+
   // Birim çarpanı state'leri
-  const [seciliUrun, setSeciliUrun] = useState<{ id: number; ad: string; kod: string } | null>(null);
+  const [seciliUrun, setSeciliUrun] = useState<{ id: number; ad: string; kod: string } | null>(
+    null
+  );
   const [birimCarpani, setBirimCarpani] = useState<number>(1);
   const [standartBirim, setStandartBirim] = useState<string>('KG');
   // Mini hesaplayıcı (ör: 48 × 250 gr → 12 KG)
@@ -133,7 +135,12 @@ export default function FaturaKalemlerPage() {
       setLoading(true);
       const data = await faturaKalemleriAPI.getKalemler(ettn);
       if (process.env.NODE_ENV === 'development') {
-        console.log('[FaturaKalemler] getKalemler yanıtı:', { ettn, kaynak: data.kaynak, kalemSayisi: data.kalemler?.length, fatura: !!data.fatura });
+        console.log('[FaturaKalemler] getKalemler yanıtı:', {
+          ettn,
+          kaynak: data.kaynak,
+          kalemSayisi: data.kalemler?.length,
+          fatura: !!data.fatura,
+        });
       }
       setKalemler(
         (data.kalemler ?? []).map((k) => {
@@ -157,7 +164,8 @@ export default function FaturaKalemlerPage() {
             eslestirme_tarihi: k.eslestirme_tarihi,
             birim_carpani: raw.birim_carpani != null ? Number(raw.birim_carpani) : undefined,
             standart_birim: raw.standart_birim != null ? String(raw.standart_birim) : undefined,
-            standart_birim_fiyat: raw.standart_birim_fiyat != null ? Number(raw.standart_birim_fiyat) : undefined,
+            standart_birim_fiyat:
+              raw.standart_birim_fiyat != null ? Number(raw.standart_birim_fiyat) : undefined,
             mapping_id: raw.mapping_id != null ? Number(raw.mapping_id) : undefined,
           };
         })
@@ -176,9 +184,16 @@ export default function FaturaKalemlerPage() {
       }
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string }; status?: number } };
-      const msg = err?.response?.data?.error ?? (error instanceof Error ? error.message : 'Kalemler yüklenemedi');
+      const msg =
+        err?.response?.data?.error ??
+        (error instanceof Error ? error.message : 'Kalemler yüklenemedi');
       if (process.env.NODE_ENV === 'development') {
-        console.error('[FaturaKalemler] getKalemler hatası:', { ettn, status: err?.response?.status, message: msg, error });
+        console.error('[FaturaKalemler] getKalemler hatası:', {
+          ettn,
+          status: err?.response?.status,
+          message: msg,
+          error,
+        });
       }
       notifications.show({
         title: 'Hata',
@@ -252,7 +267,8 @@ export default function FaturaKalemlerPage() {
         : await faturaKalemleriAPI.eslesmeKaldir(ettn, kalemSira);
 
       // Fiyat güncelleme bilgisi (eşleştirme yapıldıysa)
-      const fiyatGuncelleme = (updated as { fiyat_guncelleme?: FiyatGuncelleme | null }).fiyat_guncelleme;
+      const fiyatGuncelleme = (updated as { fiyat_guncelleme?: FiyatGuncelleme | null })
+        .fiyat_guncelleme;
 
       // Notification mesajını oluştur
       let mesaj = urunId ? 'Kalem eşleştirildi' : 'Eşleştirme kaldırıldı';
@@ -345,7 +361,11 @@ export default function FaturaKalemlerPage() {
           icon: <IconCheck size={18} />,
         });
         // Yeni ürün için birim çarpanı modalini aç
-        setSeciliUrun({ id: created.id, ad: created.ad || yeniUrunAdi.trim(), kod: created.kod || '' });
+        setSeciliUrun({
+          id: created.id,
+          ad: created.ad || yeniUrunAdi.trim(),
+          kod: created.kod || '',
+        });
         setBirimCarpani(1);
         setStandartBirim('KG');
         yeniUrunModalKapat();
@@ -369,15 +389,23 @@ export default function FaturaKalemlerPage() {
     if (!seciliKalem || !seciliUrun) return;
     try {
       setSaving(true);
-      
+
       // Birim çarpanı ve st. birim ürün kartına + fatura kalemine yazılsın (yenileyince 204,12/KG kalsın)
-      const updated = await faturaKalemleriAPI.eslesdir(ettn, seciliKalem.kalem_sira, seciliUrun.id, {
-        birim_carpani: typeof birimCarpani === 'number' ? birimCarpani : (Number(birimCarpani) || 1),
-        standart_birim: standartBirim && String(standartBirim).trim() ? String(standartBirim).trim() : 'KG',
-      });
+      const updated = await faturaKalemleriAPI.eslesdir(
+        ettn,
+        seciliKalem.kalem_sira,
+        seciliUrun.id,
+        {
+          birim_carpani:
+            typeof birimCarpani === 'number' ? birimCarpani : Number(birimCarpani) || 1,
+          standart_birim:
+            standartBirim && String(standartBirim).trim() ? String(standartBirim).trim() : 'KG',
+        }
+      );
 
       // Fiyat güncelleme bilgisi
-      const fiyatGuncelleme = (updated as { fiyat_guncelleme?: FiyatGuncelleme | null }).fiyat_guncelleme;
+      const fiyatGuncelleme = (updated as { fiyat_guncelleme?: FiyatGuncelleme | null })
+        .fiyat_guncelleme;
 
       // Hesaplanan standart fiyat
       const hesaplananStdFiyat = seciliKalem.birim_fiyat / (birimCarpani || 1);
@@ -408,7 +436,7 @@ export default function FaturaKalemlerPage() {
             : k
         )
       );
-      
+
       birimCarpaniModalKapat();
       modalKapat();
       setSeciliUrun(null);
@@ -577,9 +605,19 @@ export default function FaturaKalemlerPage() {
                   <Table.Th style={{ width: 50 }}>#</Table.Th>
                   <Table.Th>Fatura Ürün Adı</Table.Th>
                   <Table.Th style={{ width: 100, textAlign: 'right' }}>Miktar</Table.Th>
-                  <Table.Th style={{ width: 100, textAlign: 'right' }} title="Fatura birim fiyatı (koli/kutu vb.)">B. Fiyat</Table.Th>
+                  <Table.Th
+                    style={{ width: 100, textAlign: 'right' }}
+                    title="Fatura birim fiyatı (koli/kutu vb.)"
+                  >
+                    B. Fiyat
+                  </Table.Th>
                   <Table.Th style={{ width: 120, textAlign: 'right' }}>Tutar</Table.Th>
-                  <Table.Th style={{ width: 120, textAlign: 'right' }} title="Stok birimine (KG, LT vb.) dönüştürülmüş birim fiyatı">₺/St.Birim</Table.Th>
+                  <Table.Th
+                    style={{ width: 120, textAlign: 'right' }}
+                    title="Stok birimine (KG, LT vb.) dönüştürülmüş birim fiyatı"
+                  >
+                    ₺/St.Birim
+                  </Table.Th>
                   <Table.Th style={{ width: 250 }}>Ürün Kartı</Table.Th>
                   <Table.Th style={{ width: 100 }}>İşlem</Table.Th>
                 </Table.Tr>
@@ -620,12 +658,16 @@ export default function FaturaKalemlerPage() {
                         <Tooltip
                           label={
                             <Stack gap={4}>
-                              <Text size="xs" fw={500}>Hesaplama Detayı</Text>
+                              <Text size="xs" fw={500}>
+                                Hesaplama Detayı
+                              </Text>
                               <Text size="xs">Fatura Fiyatı: {formatMoney(kalem.birim_fiyat)}</Text>
                               <Text size="xs">Birim Çarpanı: {kalem.birim_carpani || 1}</Text>
                               <Divider my={4} />
                               <Text size="xs" fw={500}>
-                                {formatMoney(kalem.birim_fiyat)} / {kalem.birim_carpani || 1} = {formatMoney(kalem.standart_birim_fiyat)}/{kalem.standart_birim || 'KG'}
+                                {formatMoney(kalem.birim_fiyat)} / {kalem.birim_carpani || 1} ={' '}
+                                {formatMoney(kalem.standart_birim_fiyat)}/
+                                {kalem.standart_birim || 'KG'}
                               </Text>
                             </Stack>
                           }
@@ -748,7 +790,13 @@ export default function FaturaKalemlerPage() {
                       p="sm"
                       withBorder
                       style={{ cursor: 'pointer' }}
-                      onClick={() => urunSecVeCarpanSor({ id: oneri.urun_id, ad: oneri.urun_ad, kod: oneri.urun_kod })}
+                      onClick={() =>
+                        urunSecVeCarpanSor({
+                          id: oneri.urun_id,
+                          ad: oneri.urun_ad,
+                          kod: oneri.urun_kod,
+                        })
+                      }
                     >
                       <Group justify="space-between">
                         <Box>
@@ -801,7 +849,9 @@ export default function FaturaKalemlerPage() {
                         cursor: 'pointer',
                         borderBottom: '1px solid var(--mantine-color-gray-2)',
                       }}
-                      onClick={() => urunSecVeCarpanSor({ id: urun.id, ad: urun.ad, kod: urun.kod })}
+                      onClick={() =>
+                        urunSecVeCarpanSor({ id: urun.id, ad: urun.ad, kod: urun.kod })
+                      }
                     >
                       <Group justify="space-between">
                         <Box>
@@ -928,20 +978,34 @@ export default function FaturaKalemlerPage() {
                   <IconCheck size={14} />
                 </ThemeIcon>
                 <Box>
-                  <Text size="sm" fw={600}>{seciliUrun.ad}</Text>
-                  {seciliUrun.kod && <Badge size="xs" variant="dot">{seciliUrun.kod}</Badge>}
+                  <Text size="sm" fw={600}>
+                    {seciliUrun.ad}
+                  </Text>
+                  {seciliUrun.kod && (
+                    <Badge size="xs" variant="dot">
+                      {seciliUrun.kod}
+                    </Badge>
+                  )}
                 </Box>
               </Group>
             </Paper>
 
             {/* Fatura kalem bilgisi */}
             <Paper p="sm" className="nested-card">
-              <Text size="xs" c="dimmed" mb={4}>Fatura Kalemi:</Text>
-              <Text size="sm" fw={500}>{seciliKalem.fatura_urun_adi}</Text>
-              <Text size="xs" c="dimmed" mt={4}>Birim Fiyat: {formatMoney(seciliKalem.birim_fiyat)}</Text>
+              <Text size="xs" c="dimmed" mb={4}>
+                Fatura Kalemi:
+              </Text>
+              <Text size="sm" fw={500}>
+                {seciliKalem.fatura_urun_adi}
+              </Text>
+              <Text size="xs" c="dimmed" mt={4}>
+                Birim Fiyat: {formatMoney(seciliKalem.birim_fiyat)}
+              </Text>
               {/* Mini hesaplayıcı: Kolide X adet × Y gr/ml → Z KG/LT */}
               <Box mt="sm" p="xs" bg="gray.1" style={{ borderRadius: 6 }}>
-                <Text size="xs" fw={500} mb={6} c="dimmed">Çarpan hesapla</Text>
+                <Text size="xs" fw={500} mb={6} c="dimmed">
+                  Çarpan hesapla
+                </Text>
                 <Group grow wrap="nowrap" gap="xs" align="flex-end">
                   <NumberInput
                     size="xs"
@@ -952,7 +1016,9 @@ export default function FaturaKalemlerPage() {
                     max={9999}
                     hideControls
                   />
-                  <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>×</Text>
+                  <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                    ×
+                  </Text>
                   <NumberInput
                     size="xs"
                     placeholder="gr/ml"
@@ -963,10 +1029,15 @@ export default function FaturaKalemlerPage() {
                     decimalScale={1}
                     hideControls
                   />
-                  <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>→</Text>
+                  <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                    →
+                  </Text>
                   <Select
                     size="xs"
-                    data={[{ value: 'KG', label: 'KG' }, { value: 'LT', label: 'LT' }]}
+                    data={[
+                      { value: 'KG', label: 'KG' },
+                      { value: 'LT', label: 'LT' },
+                    ]}
                     value={calcHedefBirim}
                     onChange={(v) => setCalcHedefBirim((v as 'KG' | 'LT') || 'KG')}
                     style={{ flex: '0 0 64px' }}
@@ -985,11 +1056,14 @@ export default function FaturaKalemlerPage() {
                   >
                     Uygula
                   </Button>
-                  {typeof calcAdet === 'number' && typeof calcBirimDeger === 'number' && calcAdet > 0 && calcBirimDeger > 0 && (
-                    <Text size="xs" c="dimmed">
-                      = {(calcAdet * (calcBirimDeger / 1000)).toFixed(2)} {calcHedefBirim}
-                    </Text>
-                  )}
+                  {typeof calcAdet === 'number' &&
+                    typeof calcBirimDeger === 'number' &&
+                    calcAdet > 0 &&
+                    calcBirimDeger > 0 && (
+                      <Text size="xs" c="dimmed">
+                        = {(calcAdet * (calcBirimDeger / 1000)).toFixed(2)} {calcHedefBirim}
+                      </Text>
+                    )}
                 </Group>
               </Box>
             </Paper>
@@ -1027,20 +1101,36 @@ export default function FaturaKalemlerPage() {
 
             {/* Hesaplama önizleme */}
             <Paper p="md" bg="green.0" withBorder>
-              <Text size="sm" fw={500} mb="xs">Hesaplama Önizleme:</Text>
+              <Text size="sm" fw={500} mb="xs">
+                Hesaplama Önizleme:
+              </Text>
               <Group justify="space-between">
                 <Stack gap={4}>
-                  <Text size="xs" c="dimmed">Fatura Birim Fiyatı:</Text>
-                  <Text size="sm" fw={500}>{formatMoney(seciliKalem.birim_fiyat)}</Text>
+                  <Text size="xs" c="dimmed">
+                    Fatura Birim Fiyatı:
+                  </Text>
+                  <Text size="sm" fw={500}>
+                    {formatMoney(seciliKalem.birim_fiyat)}
+                  </Text>
                 </Stack>
-                <Text size="lg" c="dimmed">÷</Text>
+                <Text size="lg" c="dimmed">
+                  ÷
+                </Text>
                 <Stack gap={4}>
-                  <Text size="xs" c="dimmed">Çarpan:</Text>
-                  <Text size="sm" fw={500}>{birimCarpani}</Text>
+                  <Text size="xs" c="dimmed">
+                    Çarpan:
+                  </Text>
+                  <Text size="sm" fw={500}>
+                    {birimCarpani}
+                  </Text>
                 </Stack>
-                <Text size="lg" c="dimmed">=</Text>
+                <Text size="lg" c="dimmed">
+                  =
+                </Text>
                 <Stack gap={4}>
-                  <Text size="xs" c="dimmed">Standart Fiyat:</Text>
+                  <Text size="xs" c="dimmed">
+                    Standart Fiyat:
+                  </Text>
                   <Text size="lg" fw={700} c="green">
                     {formatMoney(seciliKalem.birim_fiyat / (birimCarpani || 1))}/{standartBirim}
                   </Text>
@@ -1051,8 +1141,8 @@ export default function FaturaKalemlerPage() {
             {/* Örnek açıklama */}
             <Alert color="blue" icon={<IconAlertCircle size={18} />}>
               <Text size="xs">
-                <strong>Örnek:</strong> 48×250gr margarin kolisi için çarpan = 12 (48×250gr = 12 KG).
-                Böylece koli fiyatını 12&apos;ye bölünce KG fiyatı bulunur.
+                <strong>Örnek:</strong> 48×250gr margarin kolisi için çarpan = 12 (48×250gr = 12
+                KG). Böylece koli fiyatını 12&apos;ye bölünce KG fiyatı bulunur.
               </Text>
             </Alert>
 

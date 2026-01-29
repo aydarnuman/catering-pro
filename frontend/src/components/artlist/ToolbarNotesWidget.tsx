@@ -40,10 +40,28 @@ function toLocalDateKey(d: Date): number {
 }
 
 const GUN_KISA = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
-const AYLAR_KISA = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+const AYLAR_KISA = [
+  'Oca',
+  'Şub',
+  'Mar',
+  'Nis',
+  'May',
+  'Haz',
+  'Tem',
+  'Ağu',
+  'Eyl',
+  'Eki',
+  'Kas',
+  'Ara',
+];
 
 /** Vade etiketi: due_date varsa her zaman göster – bugün 16.00, yarın, Cum 14.00, 5 Şub vb. */
-function formatVadeEtiket(d: Date, todayKey: number, tomorrowKey: number, weekEndKey: number): string {
+function formatVadeEtiket(
+  d: Date,
+  todayKey: number,
+  tomorrowKey: number,
+  weekEndKey: number
+): string {
   const key = toLocalDateKey(d);
   const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0;
   const timeStr = hasTime
@@ -118,7 +136,11 @@ export function ToolbarNotesWidget() {
   const noteMetaColor = isDark ? 'rgba(255,255,255,0.42)' : 'rgba(0,0,0,0.42)';
   const hoverBg = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.035)';
 
-  const noteFont = { fontFamily: 'var(--font-geist-sans), system-ui, sans-serif', lineHeight: 1.45, letterSpacing: '0.015em' };
+  const noteFont = {
+    fontFamily: 'var(--font-geist-sans), system-ui, sans-serif',
+    lineHeight: 1.45,
+    letterSpacing: '0.015em',
+  };
 
   return (
     <Box px={6} py={4} style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>

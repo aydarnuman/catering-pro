@@ -29,23 +29,26 @@ router.use(authenticate);
  */
 router.get('/', async (req, res) => {
   try {
-    const result = await query(`
+    const result = await query(
+      `
       SELECT preference_key, preference_value, updated_at
       FROM user_preferences
       WHERE user_id = $1
       ORDER BY preference_key
-    `, [req.user.id]);
+    `,
+      [req.user.id]
+    );
 
     // Key-value formatına dönüştür
     const preferences = {};
-    result.rows.forEach(row => {
+    result.rows.forEach((row) => {
       preferences[row.preference_key] = row.preference_value;
     });
 
     res.json({
       success: true,
       preferences,
-      raw: result.rows // Detaylı bilgi için
+      raw: result.rows, // Detaylı bilgi için
     });
   } catch (error) {
     logger.error('Tercihler getirme hatası', { error: error.message, userId: req.user.id });
@@ -89,12 +92,15 @@ router.put('/', async (req, res) => {
       }
 
       updates.push(
-        query(`
+        query(
+          `
           INSERT INTO user_preferences (user_id, preference_key, preference_value)
           VALUES ($1, $2, $3)
           ON CONFLICT (user_id, preference_key)
           DO UPDATE SET preference_value = $3, updated_at = NOW()
-        `, [req.user.id, key, JSON.stringify(value)])
+        `,
+          [req.user.id, key, JSON.stringify(value)]
+        )
       );
     }
 
@@ -103,7 +109,7 @@ router.put('/', async (req, res) => {
     res.json({
       success: true,
       message: 'Tercihler güncellendi',
-      count: updates.length
+      count: updates.length,
     });
   } catch (error) {
     logger.error('Tercihler güncelleme hatası', { error: error.message, userId: req.user.id });
@@ -135,11 +141,14 @@ router.get('/:key', async (req, res) => {
   try {
     const { key } = req.params;
 
-    const result = await query(`
+    const result = await query(
+      `
       SELECT preference_value, updated_at
       FROM user_preferences
       WHERE user_id = $1 AND preference_key = $2
-    `, [req.user.id, key]);
+    `,
+      [req.user.id, key]
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Tercih bulunamadı' });
@@ -149,7 +158,7 @@ router.get('/:key', async (req, res) => {
       success: true,
       key,
       value: result.rows[0].preference_value,
-      updated_at: result.rows[0].updated_at
+      updated_at: result.rows[0].updated_at,
     });
   } catch (error) {
     logger.error('Tercih getirme hatası', { error: error.message, userId: req.user.id, key: req.params.key });
@@ -193,18 +202,21 @@ router.put('/:key', async (req, res) => {
       return res.status(400).json({ error: 'value alanı gerekli' });
     }
 
-    await query(`
+    await query(
+      `
       INSERT INTO user_preferences (user_id, preference_key, preference_value)
       VALUES ($1, $2, $3)
       ON CONFLICT (user_id, preference_key)
       DO UPDATE SET preference_value = $3, updated_at = NOW()
-    `, [req.user.id, key, JSON.stringify(value)]);
+    `,
+      [req.user.id, key, JSON.stringify(value)]
+    );
 
     res.json({
       success: true,
       message: 'Tercih güncellendi',
       key,
-      value
+      value,
     });
   } catch (error) {
     logger.error('Tercih güncelleme hatası', { error: error.message, userId: req.user.id, key: req.params.key });
@@ -234,11 +246,14 @@ router.delete('/:key', async (req, res) => {
   try {
     const { key } = req.params;
 
-    const result = await query(`
+    const result = await query(
+      `
       DELETE FROM user_preferences
       WHERE user_id = $1 AND preference_key = $2
       RETURNING preference_key
-    `, [req.user.id, key]);
+    `,
+      [req.user.id, key]
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Tercih bulunamadı' });
@@ -247,7 +262,7 @@ router.delete('/:key', async (req, res) => {
     res.json({
       success: true,
       message: 'Tercih silindi',
-      key
+      key,
     });
   } catch (error) {
     logger.error('Tercih silme hatası', { error: error.message, userId: req.user.id, key: req.params.key });
@@ -273,19 +288,22 @@ router.delete('/:key', async (req, res) => {
  */
 router.get('/export/all', async (req, res) => {
   try {
-    const result = await query(`
+    const result = await query(
+      `
       SELECT preference_key, preference_value
       FROM user_preferences
       WHERE user_id = $1
-    `, [req.user.id]);
+    `,
+      [req.user.id]
+    );
 
     const exportData = {
       version: '1.0',
       exported_at: new Date().toISOString(),
-      preferences: {}
+      preferences: {},
     };
 
-    result.rows.forEach(row => {
+    result.rows.forEach((row) => {
       exportData.preferences[row.preference_key] = row.preference_value;
     });
 
@@ -332,9 +350,12 @@ router.post('/import/all', async (req, res) => {
 
     // Eğer merge değilse önce mevcut tercihleri sil
     if (!merge) {
-      await query(`
+      await query(
+        `
         DELETE FROM user_preferences WHERE user_id = $1
-      `, [req.user.id]);
+      `,
+        [req.user.id]
+      );
     }
 
     // Yeni tercihleri ekle/güncelle
@@ -345,12 +366,15 @@ router.post('/import/all', async (req, res) => {
       }
 
       updates.push(
-        query(`
+        query(
+          `
           INSERT INTO user_preferences (user_id, preference_key, preference_value)
           VALUES ($1, $2, $3)
           ON CONFLICT (user_id, preference_key)
           DO UPDATE SET preference_value = $3, updated_at = NOW()
-        `, [req.user.id, key, JSON.stringify(value)])
+        `,
+          [req.user.id, key, JSON.stringify(value)]
+        )
       );
     }
 
@@ -360,7 +384,7 @@ router.post('/import/all', async (req, res) => {
       success: true,
       message: 'Tercihler import edildi',
       count: updates.length,
-      merge
+      merge,
     });
   } catch (error) {
     logger.error('Tercih import hatası', { error: error.message, userId: req.user.id });

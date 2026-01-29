@@ -18,7 +18,6 @@ import {
   Text,
   TextInput,
   ThemeIcon,
-  Tooltip,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -74,49 +73,46 @@ export default function CariListTab({
   });
 
   // API'den carileri yükle
-  const loadCariler = useCallback(
-    async (page = 1, search?: string, tip?: string) => {
-      setLoading(true);
-      try {
-        const params: { page: number; limit: number; search?: string; tip?: CariTip } = {
-          page,
-          limit: 15,
-        };
+  const loadCariler = useCallback(async (page = 1, search?: string, tip?: string) => {
+    setLoading(true);
+    try {
+      const params: { page: number; limit: number; search?: string; tip?: CariTip } = {
+        page,
+        limit: 15,
+      };
 
-        if (search) {
-          params.search = search;
-        }
-
-        if (tip && tip !== 'tumu') {
-          params.tip = tip as CariTip;
-        }
-
-        const result = await muhasebeAPI.getCariler(params);
-
-        if ('pagination' in result) {
-          setCariler(result.data);
-          setPagination(result.pagination);
-        } else {
-          setCariler(result.data || []);
-          setPagination({
-            page: 1,
-            limit: 15,
-            total: result.data?.length || 0,
-            totalPages: 1,
-          });
-        }
-      } catch (err) {
-        console.error('Cariler yükleme hatası:', err);
-        notifications.show({
-          message: 'Cariler yüklenemedi',
-          color: 'red',
-        });
-      } finally {
-        setLoading(false);
+      if (search) {
+        params.search = search;
       }
-    },
-    []
-  );
+
+      if (tip && tip !== 'tumu') {
+        params.tip = tip as CariTip;
+      }
+
+      const result = await muhasebeAPI.getCariler(params);
+
+      if ('pagination' in result) {
+        setCariler(result.data);
+        setPagination(result.pagination);
+      } else {
+        setCariler(result.data || []);
+        setPagination({
+          page: 1,
+          limit: 15,
+          total: result.data?.length || 0,
+          totalPages: 1,
+        });
+      }
+    } catch (err) {
+      console.error('Cariler yükleme hatası:', err);
+      notifications.show({
+        message: 'Cariler yüklenemedi',
+        color: 'red',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadCariler(1, debouncedSearch || undefined, activeFilter);

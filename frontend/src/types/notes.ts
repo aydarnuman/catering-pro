@@ -169,15 +169,17 @@ export interface TagSuggestionsResponse {
  */
 export interface RemindersResponse {
   success: boolean;
-  reminders: Array<NoteReminder & {
-    note_id: string;
-    content: string;
-    content_format: NoteContentFormat;
-    priority: NotePriority;
-    color: NoteColor;
-    context_type: NoteContextType;
-    context_id: number | null;
-  }>;
+  reminders: Array<
+    NoteReminder & {
+      note_id: string;
+      content: string;
+      content_format: NoteContentFormat;
+      priority: NotePriority;
+      color: NoteColor;
+      context_type: NoteContextType;
+      context_id: number | null;
+    }
+  >;
 }
 
 /**

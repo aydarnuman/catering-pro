@@ -21,7 +21,8 @@ router.get('/ozet/:projeId', async (req, res) => {
     }
 
     // Genel özet
-    const ozetResult = await query(`
+    const ozetResult = await query(
+      `
       SELECT 
         COALESCE(SUM(CASE WHEN tip = 'gelir' THEN tutar ELSE 0 END), 0) as toplam_gelir,
         COALESCE(SUM(CASE WHEN tip = 'gider' THEN tutar ELSE 0 END), 0) as toplam_gider,
@@ -30,10 +31,13 @@ router.get('/ozet/:projeId', async (req, res) => {
         COALESCE(SUM(CASE WHEN tip = 'gider' AND NOT odendi THEN tutar ELSE 0 END), 0) as bekleyen_gider
       FROM proje_hareketler
       WHERE proje_id = $1 ${dateFilter}
-    `, params);
+    `,
+      params
+    );
 
     // Kategori bazlı özet
-    const kategoriResult = await query(`
+    const kategoriResult = await query(
+      `
       SELECT 
         tip,
         kategori,
@@ -44,19 +48,20 @@ router.get('/ozet/:projeId', async (req, res) => {
       WHERE proje_id = $1 ${dateFilter}
       GROUP BY tip, kategori
       ORDER BY tip, toplam DESC
-    `, params);
+    `,
+      params
+    );
 
     // Gelir ve gider kategorilerini ayır
-    const gelirler = kategoriResult.rows.filter(k => k.tip === 'gelir');
-    const giderler = kategoriResult.rows.filter(k => k.tip === 'gider');
+    const gelirler = kategoriResult.rows.filter((k) => k.tip === 'gelir');
+    const giderler = kategoriResult.rows.filter((k) => k.tip === 'gider');
 
     res.json({
       ozet: ozetResult.rows[0],
       gelirler,
-      giderler
+      giderler,
     });
   } catch (error) {
-    console.error('Proje özet hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -95,7 +100,8 @@ router.get('/:projeId', async (req, res) => {
       paramIndex++;
     }
 
-    const result = await query(`
+    const result = await query(
+      `
       SELECT 
         h.*,
         p.ad as proje_adi
@@ -104,11 +110,12 @@ router.get('/:projeId', async (req, res) => {
       ${whereClause}
       ORDER BY h.tarih DESC, h.id DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-    `, [...params, limit, offset]);
+    `,
+      [...params, limit, offset]
+    );
 
     res.json(result.rows);
   } catch (error) {
-    console.error('Hareketler listesi hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -121,16 +128,18 @@ router.post('/', async (req, res) => {
   try {
     const { proje_id, tip, kategori, tutar, tarih, aciklama, odendi } = req.body;
 
-    const result = await query(`
+    const result = await query(
+      `
       INSERT INTO proje_hareketler 
         (proje_id, tip, kategori, tutar, tarih, aciklama, referans_tip, odendi, odeme_tarihi)
       VALUES ($1, $2, $3, $4, $5, $6, 'manuel', $7, ${odendi ? 'NOW()' : 'NULL'})
       RETURNING *
-    `, [proje_id, tip, kategori, tutar, tarih, aciklama, odendi || false]);
+    `,
+      [proje_id, tip, kategori, tutar, tarih, aciklama, odendi || false]
+    );
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Hareket ekleme hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -148,43 +157,51 @@ router.post('/personel-gideri', async (req, res) => {
 
     // Maaş hareketi
     if (maas > 0) {
-      const maasResult = await query(`
+      const maasResult = await query(
+        `
         INSERT INTO proje_hareketler 
           (proje_id, tip, kategori, tutar, tarih, aciklama, referans_tip, referans_id, odendi, odeme_tarihi)
         VALUES ($1, 'gider', 'personel_maas', $2, $3, $4, 'bordro', $5, true, NOW())
         ON CONFLICT DO NOTHING
         RETURNING *
-      `, [proje_id, maas, tarih, `${ay}/${yil} Personel Maaşları`, referans_id]);
+      `,
+        [proje_id, maas, tarih, `${ay}/${yil} Personel Maaşları`, referans_id]
+      );
       if (maasResult.rows[0]) hareketler.push(maasResult.rows[0]);
     }
 
     // SGK hareketi
     if (sgk > 0) {
-      const sgkResult = await query(`
+      const sgkResult = await query(
+        `
         INSERT INTO proje_hareketler 
           (proje_id, tip, kategori, tutar, tarih, aciklama, referans_tip, referans_id, odendi, odeme_tarihi)
         VALUES ($1, 'gider', 'personel_sgk', $2, $3, $4, 'bordro', $5, true, NOW())
         ON CONFLICT DO NOTHING
         RETURNING *
-      `, [proje_id, sgk, tarih, `${ay}/${yil} SGK Primleri`, referans_id]);
+      `,
+        [proje_id, sgk, tarih, `${ay}/${yil} SGK Primleri`, referans_id]
+      );
       if (sgkResult.rows[0]) hareketler.push(sgkResult.rows[0]);
     }
 
     // Vergi hareketi
     if (vergi > 0) {
-      const vergiResult = await query(`
+      const vergiResult = await query(
+        `
         INSERT INTO proje_hareketler 
           (proje_id, tip, kategori, tutar, tarih, aciklama, referans_tip, referans_id, odendi, odeme_tarihi)
         VALUES ($1, 'gider', 'personel_vergi', $2, $3, $4, 'bordro', $5, true, NOW())
         ON CONFLICT DO NOTHING
         RETURNING *
-      `, [proje_id, vergi, tarih, `${ay}/${yil} Vergiler`, referans_id]);
+      `,
+        [proje_id, vergi, tarih, `${ay}/${yil} Vergiler`, referans_id]
+      );
       if (vergiResult.rows[0]) hareketler.push(vergiResult.rows[0]);
     }
 
     res.json({ success: true, hareketler });
   } catch (error) {
-    console.error('Personel gideri ekleme hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -198,7 +215,8 @@ router.patch('/:id', async (req, res) => {
     const { id } = req.params;
     const { tutar, aciklama, odendi, proje_id } = req.body;
 
-    const result = await query(`
+    const result = await query(
+      `
       UPDATE proje_hareketler 
       SET 
         tutar = COALESCE($1, tutar),
@@ -208,11 +226,12 @@ router.patch('/:id', async (req, res) => {
         proje_id = COALESCE($5, proje_id)
       WHERE id = $4
       RETURNING *
-    `, [tutar, aciklama, odendi, id, proje_id]);
+    `,
+      [tutar, aciklama, odendi, id, proje_id]
+    );
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Hareket güncelleme hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -225,11 +244,14 @@ router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const result = await query(`
+    const result = await query(
+      `
       DELETE FROM proje_hareketler 
       WHERE id = $1 AND referans_tip = 'manuel'
       RETURNING *
-    `, [id]);
+    `,
+      [id]
+    );
 
     if (result.rows.length === 0) {
       return res.status(400).json({ error: 'Sadece manuel eklenen hareketler silinebilir' });
@@ -237,7 +259,6 @@ router.delete('/:id', async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Hareket silme hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -265,17 +286,19 @@ router.get('/atanmamis', async (req, res) => {
       paramIndex++;
     }
 
-    const result = await query(`
+    const result = await query(
+      `
       SELECT *
       FROM proje_hareketler
       ${whereClause}
       ORDER BY tarih DESC, id DESC
       LIMIT 50
-    `, params);
+    `,
+      params
+    );
 
     res.json(result.rows);
   } catch (error) {
-    console.error('Atanmamış giderler hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -296,7 +319,8 @@ router.get('/tum-projeler/ozet', async (req, res) => {
       params.push(yil, ay);
     }
 
-    const result = await query(`
+    const result = await query(
+      `
       SELECT 
         p.id as proje_id,
         p.ad as proje_adi,
@@ -310,26 +334,29 @@ router.get('/tum-projeler/ozet', async (req, res) => {
       WHERE p.durum = 'aktif'
       GROUP BY p.id, p.ad
       ORDER BY toplam_gider DESC
-    `, params);
+    `,
+      params
+    );
 
     // Genel toplam
-    const genelToplam = result.rows.reduce((acc, p) => ({
-      toplam_gelir: acc.toplam_gelir + parseFloat(p.toplam_gelir),
-      toplam_gider: acc.toplam_gider + parseFloat(p.toplam_gider),
-      net_kar: acc.net_kar + parseFloat(p.net_kar),
-      odenen_gider: acc.odenen_gider + parseFloat(p.odenen_gider),
-      bekleyen_gider: acc.bekleyen_gider + parseFloat(p.bekleyen_gider)
-    }), { toplam_gelir: 0, toplam_gider: 0, net_kar: 0, odenen_gider: 0, bekleyen_gider: 0 });
+    const genelToplam = result.rows.reduce(
+      (acc, p) => ({
+        toplam_gelir: acc.toplam_gelir + parseFloat(p.toplam_gelir),
+        toplam_gider: acc.toplam_gider + parseFloat(p.toplam_gider),
+        net_kar: acc.net_kar + parseFloat(p.net_kar),
+        odenen_gider: acc.odenen_gider + parseFloat(p.odenen_gider),
+        bekleyen_gider: acc.bekleyen_gider + parseFloat(p.bekleyen_gider),
+      }),
+      { toplam_gelir: 0, toplam_gider: 0, net_kar: 0, odenen_gider: 0, bekleyen_gider: 0 }
+    );
 
     res.json({
       projeler: result.rows,
-      genel: genelToplam
+      genel: genelToplam,
     });
   } catch (error) {
-    console.error('Tüm projeler özet hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 export default router;
-

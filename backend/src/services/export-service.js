@@ -3,12 +3,12 @@
  * Excel, PDF ve Mail gönderimi için merkezi servis
  */
 
-import xlsx from 'xlsx';
-import PDFDocument from 'pdfkit';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import nodemailer from 'nodemailer';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
+import PDFDocument from 'pdfkit';
+import xlsx from 'xlsx';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,13 +33,13 @@ export function createExcel(data, options = {}) {
   const {
     sheetName = 'Veri',
     columns = null, // { key: 'header', ... }
-    title = null
+    title = null,
   } = options;
 
   // Eğer columns tanımlıysa, veriyi düzenle
   let processedData = data;
   if (columns) {
-    processedData = data.map(row => {
+    processedData = data.map((row) => {
       const newRow = {};
       Object.entries(columns).forEach(([key, header]) => {
         newRow[header] = row[key] ?? '';
@@ -54,11 +54,8 @@ export function createExcel(data, options = {}) {
   // Kolon genişlikleri
   const colWidths = [];
   if (processedData.length > 0) {
-    Object.keys(processedData[0]).forEach((key, idx) => {
-      const maxLen = Math.max(
-        key.length,
-        ...processedData.map(row => String(row[key] || '').length)
-      );
+    Object.keys(processedData[0]).forEach((key, _idx) => {
+      const maxLen = Math.max(key.length, ...processedData.map((row) => String(row[key] || '').length));
       colWidths.push({ wch: Math.min(maxLen + 2, 50) });
     });
     ws['!cols'] = colWidths;
@@ -78,7 +75,7 @@ export function createExcel(data, options = {}) {
  * @param {Object} options - Ayarlar
  * @returns {Promise<Buffer>} - PDF buffer'ı
  */
-export function createPDF(content, options = {}) {
+export function createPDF(content, _options = {}) {
   return new Promise((resolve, reject) => {
     const {
       title = 'Rapor',
@@ -86,18 +83,18 @@ export function createPDF(content, options = {}) {
       headers = [],
       data = [],
       footer = null,
-      orientation = 'landscape' // Default landscape for tables
+      orientation = 'landscape', // Default landscape for tables
     } = content;
 
-    const doc = new PDFDocument({ 
+    const doc = new PDFDocument({
       margin: 40,
       size: 'A4',
       layout: orientation,
-      bufferPages: true
+      bufferPages: true,
     });
 
     const chunks = [];
-    doc.on('data', chunk => chunks.push(chunk));
+    doc.on('data', (chunk) => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
@@ -110,8 +107,6 @@ export function createPDF(content, options = {}) {
         doc.font('Roboto');
         fontLoaded = true;
       } else {
-        // Fallback - Helvetica (Türkçe karakter sorunu olabilir)
-        console.warn('⚠️ Roboto font bulunamadı, Helvetica kullanılıyor');
       }
 
       const pageWidth = doc.page.width - 80;
@@ -120,21 +115,22 @@ export function createPDF(content, options = {}) {
       // Başlık
       if (fontLoaded) doc.font('Roboto-Bold');
       doc.fontSize(18).text(title, { align: 'center' });
-      
+
       if (subtitle) {
         if (fontLoaded) doc.font('Roboto');
         doc.fontSize(11).fillColor('#666').text(subtitle, { align: 'center' });
       }
-      
+
       doc.moveDown(1);
       doc.fillColor('black');
 
       // Tarih
       if (fontLoaded) doc.font('Roboto');
-      doc.fontSize(9).text(
-        `Oluşturulma: ${new Date().toLocaleDateString('tr-TR')} ${new Date().toLocaleTimeString('tr-TR')}`,
-        { align: 'right' }
-      );
+      doc
+        .fontSize(9)
+        .text(`Oluşturulma: ${new Date().toLocaleDateString('tr-TR')} ${new Date().toLocaleTimeString('tr-TR')}`, {
+          align: 'right',
+        });
       doc.moveDown(1.5);
 
       // Tablo
@@ -151,23 +147,25 @@ export function createPDF(content, options = {}) {
         // Header text
         if (fontLoaded) doc.font('Roboto-Bold');
         doc.fontSize(9);
-        
+
         headers.forEach((header, i) => {
-          const cellX = startX + (i * colWidth) + 3;
-          doc.text(
-            truncateText(header, colWidth - 6),
-            cellX,
-            currentY,
-            { width: colWidth - 6, height: rowHeight, lineBreak: false }
-          );
+          const cellX = startX + i * colWidth + 3;
+          doc.text(truncateText(header, colWidth - 6), cellX, currentY, {
+            width: colWidth - 6,
+            height: rowHeight,
+            lineBreak: false,
+          });
         });
 
         currentY += rowHeight;
 
         // Header line
         doc.strokeColor('#333').lineWidth(1);
-        doc.moveTo(startX, currentY).lineTo(startX + pageWidth, currentY).stroke();
-        
+        doc
+          .moveTo(startX, currentY)
+          .lineTo(startX + pageWidth, currentY)
+          .stroke();
+
         currentY += 3;
 
         // Data rows
@@ -179,19 +177,26 @@ export function createPDF(content, options = {}) {
           if (currentY > doc.page.height - 60) {
             doc.addPage();
             currentY = 40;
-            
+
             // Yeni sayfada header tekrar
             doc.rect(startX, currentY - 5, pageWidth, rowHeight).fill('#f0f0f0');
             doc.fillColor('black');
             if (fontLoaded) doc.font('Roboto-Bold');
             doc.fontSize(9);
             headers.forEach((header, i) => {
-              const cellX = startX + (i * colWidth) + 3;
-              doc.text(truncateText(header, colWidth - 6), cellX, currentY, { width: colWidth - 6, height: rowHeight, lineBreak: false });
+              const cellX = startX + i * colWidth + 3;
+              doc.text(truncateText(header, colWidth - 6), cellX, currentY, {
+                width: colWidth - 6,
+                height: rowHeight,
+                lineBreak: false,
+              });
             });
             currentY += rowHeight;
             doc.strokeColor('#333').lineWidth(1);
-            doc.moveTo(startX, currentY).lineTo(startX + pageWidth, currentY).stroke();
+            doc
+              .moveTo(startX, currentY)
+              .lineTo(startX + pageWidth, currentY)
+              .stroke();
             currentY += 3;
             if (fontLoaded) doc.font('Roboto');
             doc.fontSize(8);
@@ -206,29 +211,31 @@ export function createPDF(content, options = {}) {
           // Row data
           headers.forEach((header, i) => {
             const value = row[header] ?? row[Object.keys(row)[i]] ?? '';
-            const cellX = startX + (i * colWidth) + 3;
-            doc.text(
-              truncateText(String(value), colWidth - 6),
-              cellX,
-              currentY,
-              { width: colWidth - 6, height: rowHeight - 4, lineBreak: false }
-            );
+            const cellX = startX + i * colWidth + 3;
+            doc.text(truncateText(String(value), colWidth - 6), cellX, currentY, {
+              width: colWidth - 6,
+              height: rowHeight - 4,
+              lineBreak: false,
+            });
           });
 
           currentY += rowHeight - 4;
 
           // Row separator line
           doc.strokeColor('#ddd').lineWidth(0.5);
-          doc.moveTo(startX, currentY).lineTo(startX + pageWidth, currentY).stroke();
+          doc
+            .moveTo(startX, currentY)
+            .lineTo(startX + pageWidth, currentY)
+            .stroke();
           currentY += 2;
         });
       } else if (content.text) {
         // Serbest metin
         if (fontLoaded) doc.font('Roboto');
-        doc.fontSize(11).text(content.text, { 
-          width: pageWidth, 
+        doc.fontSize(11).text(content.text, {
+          width: pageWidth,
           align: 'left',
-          lineGap: 4
+          lineGap: 4,
         });
       }
 
@@ -272,18 +279,18 @@ export async function sendMail(mailOptions, attachment = null) {
     text,
     html,
     attachmentName = 'rapor.xlsx',
-    attachmentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    attachmentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   } = mailOptions;
 
   // SMTP ayarları (.env'den alınacak)
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '587'),
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
     secure: process.env.SMTP_SECURE === 'true',
     auth: {
       user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
-    }
+      pass: process.env.SMTP_PASS,
+    },
   });
 
   const mailData = {
@@ -291,26 +298,21 @@ export async function sendMail(mailOptions, attachment = null) {
     to,
     subject,
     text,
-    html
+    html,
   };
 
   // Ek dosya varsa ekle
   if (attachment) {
-    mailData.attachments = [{
-      filename: attachmentName,
-      content: attachment,
-      contentType: attachmentType
-    }];
+    mailData.attachments = [
+      {
+        filename: attachmentName,
+        content: attachment,
+        contentType: attachmentType,
+      },
+    ];
   }
-
-  try {
-    const info = await transporter.sendMail(mailData);
-    console.log(`✅ Mail gönderildi: ${to} | Message ID: ${info.messageId}`);
-    return { success: true, messageId: info.messageId };
-  } catch (error) {
-    console.error('❌ Mail gönderimi hatası:', error);
-    throw error;
-  }
+  const info = await transporter.sendMail(mailData);
+  return { success: true, messageId: info.messageId };
 }
 
 /**
@@ -328,8 +330,8 @@ export function createPersonelExcel(personeller) {
       pozisyon: 'Pozisyon',
       maas: 'Maaş (TL)',
       ise_giris_tarihi: 'İşe Giriş',
-      durum: 'Durum'
-    }
+      durum: 'Durum',
+    },
   });
 }
 
@@ -341,14 +343,14 @@ export function createPersonelPDF(personeller) {
     title: 'PERSONEL LİSTESİ',
     subtitle: `Toplam ${personeller.length} personel`,
     headers: ['Ad Soyad', 'Departman', 'Pozisyon', 'Maaş', 'Durum'],
-    data: personeller.map(p => ({
+    data: personeller.map((p) => ({
       'Ad Soyad': p.tam_ad,
-      'Departman': p.departman || '-',
-      'Pozisyon': p.pozisyon || '-',
-      'Maaş': p.maas ? `${Number(p.maas).toLocaleString('tr-TR')} TL` : '-',
-      'Durum': p.durum || 'Aktif'
+      Departman: p.departman || '-',
+      Pozisyon: p.pozisyon || '-',
+      Maaş: p.maas ? `${Number(p.maas).toLocaleString('tr-TR')} TL` : '-',
+      Durum: p.durum || 'Aktif',
     })),
-    footer: 'Catering Pro - Personel Yönetimi'
+    footer: 'Catering Pro - Personel Yönetimi',
   });
 }
 
@@ -366,8 +368,8 @@ export function createFaturaExcel(faturalar) {
       total_amount: 'Tutar (TL)',
       vat_amount: 'KDV (TL)',
       status: 'Durum',
-      type: 'Tip'
-    }
+      type: 'Tip',
+    },
   });
 }
 
@@ -379,14 +381,14 @@ export function createFaturaPDF(faturalar) {
     title: 'FATURA LİSTESİ',
     subtitle: `Toplam ${faturalar.length} fatura`,
     headers: ['Fatura No', 'Müşteri', 'Tarih', 'Tutar', 'Durum'],
-    data: faturalar.map(f => ({
+    data: faturalar.map((f) => ({
       'Fatura No': f.invoice_number || '-',
-      'Müşteri': f.customer_name || '-',
-      'Tarih': f.invoice_date ? new Date(f.invoice_date).toLocaleDateString('tr-TR') : '-',
-      'Tutar': f.total_amount ? `${Number(f.total_amount).toLocaleString('tr-TR')} TL` : '-',
-      'Durum': f.status || '-'
+      Müşteri: f.customer_name || '-',
+      Tarih: f.invoice_date ? new Date(f.invoice_date).toLocaleDateString('tr-TR') : '-',
+      Tutar: f.total_amount ? `${Number(f.total_amount).toLocaleString('tr-TR')} TL` : '-',
+      Durum: f.status || '-',
     })),
-    footer: 'Catering Pro - Fatura Yönetimi'
+    footer: 'Catering Pro - Fatura Yönetimi',
   });
 }
 
@@ -404,8 +406,8 @@ export function createCariExcel(cariler) {
       email: 'E-posta',
       adres: 'Adres',
       bakiye: 'Bakiye (TL)',
-      aktif: 'Durum'
-    }
+      aktif: 'Durum',
+    },
   });
 }
 
@@ -417,14 +419,14 @@ export function createCariPDF(cariler) {
     title: 'CARİ LİSTESİ',
     subtitle: `Toplam ${cariler.length} cari`,
     headers: ['Ünvan', 'Tip', 'Vergi No', 'Telefon', 'Bakiye'],
-    data: cariler.map(c => ({
-      'Ünvan': c.unvan || '-',
-      'Tip': c.tip || '-',
+    data: cariler.map((c) => ({
+      Ünvan: c.unvan || '-',
+      Tip: c.tip || '-',
       'Vergi No': c.vergi_no || '-',
-      'Telefon': c.telefon || '-',
-      'Bakiye': c.bakiye ? `${Number(c.bakiye).toLocaleString('tr-TR')} TL` : '0 TL'
+      Telefon: c.telefon || '-',
+      Bakiye: c.bakiye ? `${Number(c.bakiye).toLocaleString('tr-TR')} TL` : '0 TL',
     })),
-    footer: 'Catering Pro - Cari Yönetimi'
+    footer: 'Catering Pro - Cari Yönetimi',
   });
 }
 
@@ -441,8 +443,8 @@ export function createStokExcel(stoklar) {
       birim: 'Birim',
       miktar: 'Miktar',
       birim_fiyat: 'Birim Fiyat (TL)',
-      kritik_stok: 'Kritik Seviye'
-    }
+      kritik_stok: 'Kritik Seviye',
+    },
   });
 }
 
@@ -454,14 +456,14 @@ export function createStokPDF(stoklar) {
     title: 'STOK LİSTESİ',
     subtitle: `Toplam ${stoklar.length} ürün`,
     headers: ['Ürün Adı', 'Kod', 'Kategori', 'Miktar', 'Birim Fiyat'],
-    data: stoklar.map(s => ({
+    data: stoklar.map((s) => ({
       'Ürün Adı': s.ad || '-',
-      'Kod': s.kod || '-',
-      'Kategori': s.kategori || '-',
-      'Miktar': `${s.miktar || 0} ${s.birim || ''}`,
-      'Birim Fiyat': s.birim_fiyat ? `${Number(s.birim_fiyat).toLocaleString('tr-TR')} TL` : '-'
+      Kod: s.kod || '-',
+      Kategori: s.kategori || '-',
+      Miktar: `${s.miktar || 0} ${s.birim || ''}`,
+      'Birim Fiyat': s.birim_fiyat ? `${Number(s.birim_fiyat).toLocaleString('tr-TR')} TL` : '-',
     })),
-    footer: 'Catering Pro - Stok Yönetimi'
+    footer: 'Catering Pro - Stok Yönetimi',
   });
 }
 
@@ -472,23 +474,17 @@ export function createStokPDF(stoklar) {
  */
 export function createDilekcePDF(dilekce) {
   return new Promise((resolve, reject) => {
-    const {
-      title = 'DİLEKÇE',
-      type = 'genel',
-      content = '',
-      ihale = {},
-      footer = null
-    } = dilekce;
+    const { title = 'DİLEKÇE', type = 'genel', content = '', ihale = {}, footer = null } = dilekce;
 
     const doc = new PDFDocument({
       margin: 60,
       size: 'A4',
       layout: 'portrait',
-      bufferPages: true
+      bufferPages: true,
     });
 
     const chunks = [];
-    doc.on('data', chunk => chunks.push(chunk));
+    doc.on('data', (chunk) => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
@@ -503,7 +499,7 @@ export function createDilekcePDF(dilekce) {
       }
 
       const pageWidth = doc.page.width - 120;
-      const startX = 60;
+      const _startX = 60;
 
       // Başlık
       if (fontLoaded) doc.font('Roboto-Bold');
@@ -529,17 +525,19 @@ export function createDilekcePDF(dilekce) {
         width: pageWidth,
         align: 'justify',
         lineGap: 5,
-        paragraphGap: 10
+        paragraphGap: 10,
       });
 
       // Footer
       doc.moveDown(2);
       if (fontLoaded) doc.font('Roboto');
-      doc.fontSize(8).fillColor('#888').text(
-        `Oluşturulma: ${new Date().toLocaleDateString('tr-TR')} ${new Date().toLocaleTimeString('tr-TR')}`,
-        { align: 'right' }
-      );
-      
+      doc
+        .fontSize(8)
+        .fillColor('#888')
+        .text(`Oluşturulma: ${new Date().toLocaleDateString('tr-TR')} ${new Date().toLocaleTimeString('tr-TR')}`, {
+          align: 'right',
+        });
+
       if (footer) {
         doc.text(footer, { align: 'center' });
       }
@@ -563,6 +561,5 @@ export default {
   createCariPDF,
   createStokExcel,
   createStokPDF,
-  createDilekcePDF
+  createDilekcePDF,
 };
-

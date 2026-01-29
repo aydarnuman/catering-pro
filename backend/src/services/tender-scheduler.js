@@ -2,40 +2,40 @@
  * ============================================================================
  * İHALE SCRAPER SCHEDULER
  * ============================================================================
- * 
+ *
  * Otomatik ihale güncelleme servisi.
  * runner.js'i kullanarak liste ve döküman scraping işlemlerini yönetir.
- * 
+ *
  * SCHEDULE:
  * ---------
  * ☀️ 08:00 → Liste tarama (5 sayfa)
- * 🌤️ 14:00 → Liste tarama (3 sayfa)  
+ * 🌤️ 14:00 → Liste tarama (3 sayfa)
  * 🌙 19:00 → Liste tarama (2 sayfa)
  * 📄 09:00 → Döküman işleme (eksik dökümanlar)
  * 📄 15:00 → Döküman işleme (eksik dökümanlar)
  * 🧹 03:00 → Temizlik (eski job'lar ve loglar)
- * 
+ *
  * KULLANIM:
  * ---------
  * import tenderScheduler from './tender-scheduler.js';
- * 
+ *
  * // Başlat
  * tenderScheduler.start();
- * 
+ *
  * // Manuel tetikle
  * await tenderScheduler.runListScrape({ pages: 3 });
  * await tenderScheduler.runDocsScrape({ limit: 50 });
- * 
+ *
  * // Durumu al
  * const status = tenderScheduler.getStatus();
- * 
+ *
  */
 
+import { spawn } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import cron from 'node-cron';
 import { query } from '../database.js';
-import { spawn } from 'child_process';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -55,7 +55,7 @@ class TenderScheduler {
       successfulRuns: 0,
       failedRuns: 0,
       lastError: null,
-      lastNewTenders: 0
+      lastNewTenders: 0,
     };
   }
 
@@ -75,13 +75,12 @@ class TenderScheduler {
       priority = 5,
       days = 7,
       type = 'auto',
-      timeout = 10 * 60 * 1000 // 10 dakika
+      timeout = 10 * 60 * 1000, // 10 dakika
     } = options;
 
     // Concurrent kontrolü
     if (mode === 'list' || mode === 'full') {
       if (this.isListRunning) {
-        console.log('⏳ Liste scraper zaten çalışıyor, atlanıyor...');
         return { success: false, reason: 'already_running' };
       }
       this.isListRunning = true;
@@ -89,18 +88,16 @@ class TenderScheduler {
 
     if (mode === 'docs') {
       if (this.isDocsRunning) {
-        console.log('⏳ Döküman scraper zaten çalışıyor, atlanıyor...');
         return { success: false, reason: 'already_running' };
       }
       this.isDocsRunning = true;
     }
 
     const startTime = new Date();
-    console.log(`🚀 [${startTime.toISOString()}] Runner başlatılıyor: --mode=${mode}`);
 
     // CLI argümanları oluştur
     const args = [`--mode=${mode}`];
-    
+
     if (mode === 'list' || mode === 'full') {
       args.push(`--pages=${pages}`);
     }
@@ -115,29 +112,30 @@ class TenderScheduler {
     return new Promise((resolve) => {
       const child = spawn('node', [RUNNER_PATH, ...args], {
         cwd: path.dirname(RUNNER_PATH),
-        env: { ...process.env }
+        env: { ...process.env },
       });
 
-      let output = '';
+      let _output = '';
       let errorOutput = '';
-      let stats = {
+      const stats = {
         tendersFound: 0,
         tendersNew: 0,
         tendersUpdated: 0,
         docsProcessed: 0,
-        docsErrors: 0
+        docsErrors: 0,
       };
 
       // Stdout parse
       child.stdout.on('data', (data) => {
         const text = data.toString();
-        output += text;
-        
+        _output += text;
+
         // Log to console with prefix
-        text.split('\n').filter(l => l.trim()).forEach(line => {
-          console.log(`   ${line}`);
-        });
-        
+        text
+          .split('\n')
+          .filter((l) => l.trim())
+          .forEach((_line) => {});
+
         // İstatistikleri parse et
         this.parseOutput(text, stats);
       });
@@ -145,12 +143,11 @@ class TenderScheduler {
       child.stderr.on('data', (data) => {
         const text = data.toString();
         errorOutput += text;
-        console.error(`   ⚠️ ${text.trim()}`);
       });
 
       child.on('close', async (code) => {
-        const duration = (new Date() - startTime) / 1000;
-        
+        const duration = (Date.now() - startTime) / 1000;
+
         // Running flag'leri temizle
         if (mode === 'list' || mode === 'full') {
           this.isListRunning = false;
@@ -169,21 +166,19 @@ class TenderScheduler {
             startedAt: startTime,
             finishedAt: new Date(),
             duration,
-            ...stats
+            ...stats,
           });
 
           this.stats.totalRuns++;
           this.stats.successfulRuns++;
           this.stats.lastNewTenders = stats.tendersNew;
 
-          console.log(`✅ Runner tamamlandı: ${mode} (${duration.toFixed(1)}s)`);
-          
           // Yeni ihale bildirimi
           if (stats.tendersNew > 0) {
             this.sendNotification({
               type: 'new_tenders',
               count: stats.tendersNew,
-              total: stats.tendersFound
+              total: stats.tendersFound,
             });
           }
 
@@ -191,41 +186,34 @@ class TenderScheduler {
             success: true,
             code,
             duration,
-            stats
+            stats,
           });
-
         } else if (code === 2) {
-          // Circuit breaker aktif
-          console.log(`⏸️ Runner bekleme modunda (circuit breaker)`);
-          
           resolve({
             success: false,
             code,
-            reason: 'circuit_breaker_open'
+            reason: 'circuit_breaker_open',
           });
-
         } else {
           // Hata
           const error = errorOutput || `Process exited with code ${code}`;
-          
+
           await this.logScrape('error', {
             mode,
             type,
             startedAt: startTime,
             finishedAt: new Date(),
             duration,
-            error
+            error,
           });
 
           this.stats.failedRuns++;
           this.stats.lastError = error;
 
-          console.error(`❌ Runner hatası: ${error}`);
-          
           resolve({
             success: false,
             code,
-            error
+            error,
           });
         }
       });
@@ -233,16 +221,14 @@ class TenderScheduler {
       // Timeout
       const timeoutId = setTimeout(() => {
         if (child.killed) return;
-        
-        console.error('⏱️ Runner timeout, sonlandırılıyor...');
         child.kill('SIGTERM');
-        
+
         if (mode === 'list' || mode === 'full') this.isListRunning = false;
         if (mode === 'docs') this.isDocsRunning = false;
-        
+
         resolve({
           success: false,
-          error: `Timeout after ${timeout / 1000} seconds`
+          error: `Timeout after ${timeout / 1000} seconds`,
         });
       }, timeout);
 
@@ -256,20 +242,20 @@ class TenderScheduler {
   parseOutput(text, stats) {
     // Liste istatistikleri
     const foundMatch = text.match(/Toplam:?\s*(\d+)/i);
-    if (foundMatch) stats.tendersFound = parseInt(foundMatch[1]);
+    if (foundMatch) stats.tendersFound = parseInt(foundMatch[1], 10);
 
     const newMatch = text.match(/Yeni:?\s*(\d+)/i);
-    if (newMatch) stats.tendersNew = parseInt(newMatch[1]);
+    if (newMatch) stats.tendersNew = parseInt(newMatch[1], 10);
 
     const updatedMatch = text.match(/Güncelle[nm]en:?\s*(\d+)/i);
-    if (updatedMatch) stats.tendersUpdated = parseInt(updatedMatch[1]);
+    if (updatedMatch) stats.tendersUpdated = parseInt(updatedMatch[1], 10);
 
     // Döküman istatistikleri
     const processedMatch = text.match(/İşlenen:?\s*(\d+)/i);
-    if (processedMatch) stats.docsProcessed = parseInt(processedMatch[1]);
+    if (processedMatch) stats.docsProcessed = parseInt(processedMatch[1], 10);
 
     const errorMatch = text.match(/Hata:?\s*(\d+)/i);
-    if (errorMatch) stats.docsErrors = parseInt(errorMatch[1]);
+    if (errorMatch) stats.docsErrors = parseInt(errorMatch[1], 10);
   }
 
   // ==========================================================================
@@ -282,7 +268,7 @@ class TenderScheduler {
   async runListScrape(options = {}) {
     return this.runRunner('list', {
       ...options,
-      type: options.type || 'manual_list'
+      type: options.type || 'manual_list',
     });
   }
 
@@ -292,7 +278,7 @@ class TenderScheduler {
   async runDocsScrape(options = {}) {
     return this.runRunner('docs', {
       ...options,
-      type: options.type || 'manual_docs'
+      type: options.type || 'manual_docs',
     });
   }
 
@@ -302,7 +288,7 @@ class TenderScheduler {
   async runFullScrape(options = {}) {
     return this.runRunner('full', {
       ...options,
-      type: options.type || 'manual_full'
+      type: options.type || 'manual_full',
     });
   }
 
@@ -312,7 +298,7 @@ class TenderScheduler {
   async runRetry(options = {}) {
     return this.runRunner('retry', {
       ...options,
-      type: options.type || 'manual_retry'
+      type: options.type || 'manual_retry',
     });
   }
 
@@ -324,27 +310,22 @@ class TenderScheduler {
    * Tüm cron job'ları başlat
    */
   start() {
-    console.log('🚀 İhale scraper scheduler başlatılıyor...\n');
-
     // ========== LİSTE TARAMA ==========
 
     // Sabah 08:00 - Ana güncelleme (5 sayfa)
     const listMorning = cron.schedule('0 8 * * *', async () => {
-      console.log('\n☀️ [CRON] Sabah liste güncellemesi');
       await this.runRunner('list', { pages: 5, type: 'scheduled_morning' });
     });
     this.jobs.set('list_morning', listMorning);
 
     // Öğlen 14:00 - Ara güncelleme (3 sayfa)
     const listAfternoon = cron.schedule('0 14 * * *', async () => {
-      console.log('\n🌤️ [CRON] Öğlen liste güncellemesi');
       await this.runRunner('list', { pages: 3, type: 'scheduled_afternoon' });
     });
     this.jobs.set('list_afternoon', listAfternoon);
 
     // Akşam 19:00 - Son güncelleme (2 sayfa)
     const listEvening = cron.schedule('0 19 * * *', async () => {
-      console.log('\n🌙 [CRON] Akşam liste güncellemesi');
       await this.runRunner('list', { pages: 2, type: 'scheduled_evening' });
     });
     this.jobs.set('list_evening', listEvening);
@@ -353,14 +334,12 @@ class TenderScheduler {
 
     // Sabah 09:00 - Döküman işleme (liste taramasından 1 saat sonra)
     const docsMorning = cron.schedule('0 9 * * *', async () => {
-      console.log('\n📄 [CRON] Sabah döküman işleme');
       await this.runRunner('docs', { limit: 100, type: 'scheduled_docs_morning' });
     });
     this.jobs.set('docs_morning', docsMorning);
 
     // Öğleden sonra 15:00 - Döküman işleme
     const docsAfternoon = cron.schedule('0 15 * * *', async () => {
-      console.log('\n📄 [CRON] Öğleden sonra döküman işleme');
       await this.runRunner('docs', { limit: 50, type: 'scheduled_docs_afternoon' });
     });
     this.jobs.set('docs_afternoon', docsAfternoon);
@@ -369,7 +348,6 @@ class TenderScheduler {
 
     // Gece 03:00 - Temizlik işlemleri
     const cleanup = cron.schedule('0 3 * * *', async () => {
-      console.log('\n🧹 [CRON] Gece temizlik işlemleri');
       await this.runRunner('cleanup', { days: 7, type: 'scheduled_cleanup' });
     });
     this.jobs.set('cleanup', cleanup);
@@ -380,19 +358,9 @@ class TenderScheduler {
     setTimeout(async () => {
       const shouldRun = await this.shouldRunStartupScrape();
       if (shouldRun) {
-        console.log('\n🔍 [STARTUP] İlk liste kontrolü yapılıyor...');
         await this.runRunner('list', { pages: 2, type: 'startup' });
       }
     }, 30000);
-
-    console.log('✅ İhale scheduler başlatıldı.\n');
-    console.log('📋 SCHEDULE:');
-    console.log('   ☀️ 08:00 → Liste tarama (5 sayfa)');
-    console.log('   📄 09:00 → Döküman işleme');
-    console.log('   🌤️ 14:00 → Liste tarama (3 sayfa)');
-    console.log('   📄 15:00 → Döküman işleme');
-    console.log('   🌙 19:00 → Liste tarama (2 sayfa)');
-    console.log('   🧹 03:00 → Temizlik işlemleri\n');
   }
 
   /**
@@ -404,16 +372,12 @@ class TenderScheduler {
       if (!lastScrape) return true;
 
       const hoursSince = (Date.now() - new Date(lastScrape.started_at).getTime()) / (1000 * 60 * 60);
-      
+
       if (hoursSince < 4) {
-        console.log(`⏭️ Son scrape ${hoursSince.toFixed(1)} saat önce, startup atlanıyor`);
         return false;
       }
-      
-      console.log(`📊 Son scrape ${hoursSince.toFixed(1)} saat önce, startup gerekli`);
       return true;
-    } catch (error) {
-      console.error('❌ Startup kontrol hatası:', error);
+    } catch (_error) {
       return true; // Hata durumunda çalıştır
     }
   }
@@ -422,10 +386,8 @@ class TenderScheduler {
    * Tüm cron job'ları durdur
    */
   stop() {
-    console.log('🛑 İhale scheduler durduruluyor...');
-    this.jobs.forEach((job, name) => {
+    this.jobs.forEach((job, _name) => {
       job.stop();
-      console.log(`   ⏹️ ${name} durduruldu`);
     });
     this.jobs.clear();
   }
@@ -441,7 +403,7 @@ class TenderScheduler {
   async logScrape(status, details) {
     try {
       // Önce yeni şemayı dene (level, module, message, context)
-      const level = status === 'error' ? 'ERROR' : (status === 'success' ? 'INFO' : 'WARN');
+      const level = status === 'error' ? 'ERROR' : status === 'success' ? 'INFO' : 'WARN';
       const module = details.mode ? `scheduler:${details.mode}` : 'scheduler';
       const message = details.error || `${details.mode || 'scrape'} ${status === 'success' ? 'completed' : 'failed'}`;
       const context = {
@@ -455,28 +417,27 @@ class TenderScheduler {
         tendersNew: details.tendersNew || 0,
         tendersUpdated: details.tendersUpdated || 0,
         pages: details.pages || 0,
-        error: details.error
+        error: details.error,
       };
 
       try {
         // Yeni şema
-        await query(`
+        await query(
+          `
           INSERT INTO scraper_logs (
             level, 
             module, 
             message, 
             context
           ) VALUES ($1, $2, $3, $4)
-        `, [
-          level,
-          module,
-          message,
-          JSON.stringify(context)
-        ]);
+        `,
+          [level, module, message, JSON.stringify(context)]
+        );
       } catch (newSchemaError) {
         // Yeni şema başarısız olduysa, eski şemayı dene
         if (newSchemaError.message.includes('column') || newSchemaError.code === '42703') {
-          await query(`
+          await query(
+            `
             INSERT INTO scraper_logs (
               action, 
               status, 
@@ -489,25 +450,25 @@ class TenderScheduler {
               tenders_updated,
               pages_scraped
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-          `, [
-            `${details.mode}_scrape`,
-            status,
-            details.error || `${details.mode} completed`,
-            JSON.stringify(context),
-            details.startedAt || new Date(),
-            details.finishedAt || new Date(),
-            details.tendersFound || 0,
-            details.tendersNew || 0,
-            details.tendersUpdated || 0,
-            details.pages || 0
-          ]);
+          `,
+            [
+              `${details.mode}_scrape`,
+              status,
+              details.error || `${details.mode} completed`,
+              JSON.stringify(context),
+              details.startedAt || new Date(),
+              details.finishedAt || new Date(),
+              details.tendersFound || 0,
+              details.tendersNew || 0,
+              details.tendersUpdated || 0,
+              details.pages || 0,
+            ]
+          );
         } else {
           throw newSchemaError;
         }
       }
-    } catch (error) {
-      console.error('❌ Log kayıt hatası:', error.message);
-    }
+    } catch (_error) {}
   }
 
   /**
@@ -532,7 +493,7 @@ class TenderScheduler {
         if (result.rows.length > 0) {
           return result.rows[0];
         }
-      } catch (e) {
+      } catch (_e) {
         // Yeni şema yok, eski şemayı dene
       }
 
@@ -545,8 +506,7 @@ class TenderScheduler {
         LIMIT 1
       `);
       return result.rows[0] || null;
-    } catch (error) {
-      console.error('❌ Son scrape kontrolü hatası:', error);
+    } catch (_error) {
       return null;
     }
   }
@@ -554,8 +514,7 @@ class TenderScheduler {
   /**
    * Bildirim gönder
    */
-  sendNotification(data) {
-    console.log(`📬 İhale Bildirimi:`, data);
+  sendNotification(_data) {
     // TODO: Email, webhook veya push notification eklenebilir
   }
 
@@ -569,15 +528,15 @@ class TenderScheduler {
       lastListScrape: this.lastListScrape,
       lastDocsScrape: this.lastDocsScrape,
       stats: this.stats,
-      jobs: Array.from(this.jobs.keys()).map(name => ({
+      jobs: Array.from(this.jobs.keys()).map((name) => ({
         name,
-        isRunning: this.jobs.get(name)?.running || false
+        isRunning: this.jobs.get(name)?.running || false,
       })),
       schedule: {
         list: ['08:00', '14:00', '19:00'],
         docs: ['09:00', '15:00'],
-        cleanup: ['03:00']
-      }
+        cleanup: ['03:00'],
+      },
     };
   }
 
@@ -586,14 +545,16 @@ class TenderScheduler {
    */
   async getScrapeLogs(limit = 50) {
     try {
-      const result = await query(`
+      const result = await query(
+        `
         SELECT * FROM scraper_logs 
         ORDER BY created_at DESC 
         LIMIT $1
-      `, [limit]);
+      `,
+        [limit]
+      );
       return result.rows;
-    } catch (error) {
-      console.error('❌ Log okuma hatası:', error);
+    } catch (_error) {
       return [];
     }
   }
@@ -627,10 +588,9 @@ class TenderScheduler {
 
       return {
         ...stats.rows[0],
-        topCities: topCities.rows
+        topCities: topCities.rows,
       };
-    } catch (error) {
-      console.error('❌ İstatistik hatası:', error);
+    } catch (_error) {
       return null;
     }
   }

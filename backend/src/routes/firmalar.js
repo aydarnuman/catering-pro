@@ -5,14 +5,14 @@
  *   description: Kendi şirket bilgileri yönetimi (ihale işlemleri için)
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import express from 'express';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 import { query } from '../database.js';
-import logger, { logError, logAPI } from '../utils/logger.js';
+import { authenticate } from '../middleware/auth.js';
 import { analyzeFirmaBelgesi, getDesteklenenBelgeTipleri } from '../services/firma-belge-service.js';
-import { authenticate, requireAdmin } from '../middleware/auth.js';
+import logger, { logAPI, logError } from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -21,24 +21,24 @@ router.use(authenticate);
 
 // Dosya upload ayarları
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: (_req, _file, cb) => {
     const uploadDir = path.join(process.cwd(), 'uploads', 'firmalar');
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
     cb(null, uploadDir);
   },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const ext = path.extname(file.originalname);
     cb(null, `firma-${uniqueSuffix}${ext}`);
-  }
+  },
 });
 
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     const allowedTypes = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowedTypes.includes(ext)) {
@@ -46,7 +46,7 @@ const upload = multer({
     } else {
       cb(new Error('Sadece PDF ve resim dosyaları yüklenebilir'));
     }
-  }
+  },
 });
 
 /**
@@ -59,27 +59,26 @@ const upload = multer({
 router.get('/', async (req, res) => {
   try {
     const { aktif = true } = req.query;
-    
+
     let sql = 'SELECT * FROM firmalar WHERE 1=1';
     const params = [];
     let paramIndex = 1;
-    
+
     if (aktif !== undefined && aktif !== 'all') {
       sql += ` AND aktif = $${paramIndex}`;
       params.push(aktif === 'true' || aktif === true);
       paramIndex++;
     }
-    
+
     sql += ' ORDER BY varsayilan DESC, unvan ASC';
-    
+
     const result = await query(sql, params);
-    
+
     res.json({
       success: true,
       data: result.rows,
-      count: result.rowCount
+      count: result.rowCount,
     });
-    
   } catch (error) {
     logError('Firmalar Liste', error);
     res.status(500).json({ success: false, error: error.message });
@@ -93,7 +92,7 @@ router.get('/', async (req, res) => {
  *     summary: Kullanılabilir alan şablonlarını listele
  *     tags: [Firmalar]
  */
-router.get('/alan-sablonlari', async (req, res) => {
+router.get('/alan-sablonlari', async (_req, res) => {
   try {
     // Önce doğrudan sorguyu dene
     let result;
@@ -105,14 +104,18 @@ router.get('/alan-sablonlari', async (req, res) => {
       `);
     } catch (queryError) {
       // Tablo yoksa oluştur
-      logger.warn('Alan şablonları sorgusu hatası', { 
-        code: queryError.code, 
-        message: queryError.message 
+      logger.warn('Alan şablonları sorgusu hatası', {
+        code: queryError.code,
+        message: queryError.message,
       });
-      
-      if (queryError.code === '42P01' || queryError.message.includes('does not exist') || queryError.message.includes('bulunamadı')) {
+
+      if (
+        queryError.code === '42P01' ||
+        queryError.message.includes('does not exist') ||
+        queryError.message.includes('bulunamadı')
+      ) {
         logger.info('Alan şablonları tablosu bulunamadı, oluşturuluyor...');
-        
+
         await query(`
           CREATE TABLE IF NOT EXISTS firma_alan_sablonlari (
             id SERIAL PRIMARY KEY,
@@ -127,7 +130,7 @@ router.get('/alan-sablonlari', async (req, res) => {
             created_at TIMESTAMP DEFAULT now()
           )
         `);
-        
+
         // Varsayılan şablonları ekle
         await query(`
           INSERT INTO firma_alan_sablonlari (alan_adi, gorunen_ad, alan_tipi, kategori, sira) VALUES
@@ -145,7 +148,7 @@ router.get('/alan-sablonlari', async (req, res) => {
           ('halal_sertifika_no', 'Helal Sertifika No', 'text', 'sertifika', 12)
           ON CONFLICT (alan_adi) DO NOTHING
         `);
-        
+
         // Tekrar sorgula
         result = await query(`
           SELECT * FROM firma_alan_sablonlari 
@@ -157,14 +160,14 @@ router.get('/alan-sablonlari', async (req, res) => {
         throw queryError;
       }
     }
-    
+
     // Kategorilere göre grupla
     const gruplu = {};
-    result.rows.forEach(alan => {
+    result.rows.forEach((alan) => {
       if (!gruplu[alan.kategori]) gruplu[alan.kategori] = [];
       gruplu[alan.kategori].push(alan);
     });
-    
+
     res.json({ success: true, data: result.rows, gruplu });
   } catch (error) {
     logError('Alan şablonları listele', error);
@@ -172,7 +175,7 @@ router.get('/alan-sablonlari', async (req, res) => {
       message: error.message,
       code: error.code,
       stack: error.stack,
-      detail: error.detail
+      detail: error.detail,
     });
     // Daha detaylı hata bilgisi
     const errorDetails = {
@@ -180,13 +183,13 @@ router.get('/alan-sablonlari', async (req, res) => {
       code: error.code,
       detail: error.detail,
       hint: error.hint,
-      table: error.table
+      table: error.table,
     };
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: error.message,
       code: error.code,
-      details: process.env.NODE_ENV === 'development' ? errorDetails : undefined
+      details: process.env.NODE_ENV === 'development' ? errorDetails : undefined,
     });
   }
 });
@@ -201,18 +204,17 @@ router.get('/alan-sablonlari', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const result = await query('SELECT * FROM firmalar WHERE id = $1', [id]);
-    
+
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, error: 'Firma bulunamadı' });
     }
-    
+
     res.json({
       success: true,
-      data: result.rows[0]
+      data: result.rows[0],
     });
-    
   } catch (error) {
     logError('Firma Detay', error);
     res.status(500).json({ success: false, error: error.message });
@@ -229,22 +231,26 @@ router.get('/:id', async (req, res) => {
 router.post('/alan-sablonlari', async (req, res) => {
   try {
     const { alan_adi, gorunen_ad, alan_tipi = 'text', kategori = 'diger' } = req.body;
-    
+
     if (!alan_adi || !gorunen_ad) {
       return res.status(400).json({ success: false, error: 'Alan adı ve görünen ad zorunlu' });
     }
-    
+
     // alan_adi'nı snake_case'e çevir
-    const cleanAlanAdi = alan_adi.toLowerCase()
+    const cleanAlanAdi = alan_adi
+      .toLowerCase()
       .replace(/[^a-z0-9\s]/g, '')
       .replace(/\s+/g, '_');
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       INSERT INTO firma_alan_sablonlari (alan_adi, gorunen_ad, alan_tipi, kategori)
       VALUES ($1, $2, $3, $4)
       RETURNING *
-    `, [cleanAlanAdi, gorunen_ad, alan_tipi, kategori]);
-    
+    `,
+      [cleanAlanAdi, gorunen_ad, alan_tipi, kategori]
+    );
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     if (error.code === '23505') {
@@ -262,15 +268,14 @@ router.post('/alan-sablonlari', async (req, res) => {
  *     summary: Varsayılan firmayı getir
  *     tags: [Firmalar]
  */
-router.get('/varsayilan/get', async (req, res) => {
+router.get('/varsayilan/get', async (_req, res) => {
   try {
     const result = await query('SELECT * FROM firmalar WHERE varsayilan = true AND aktif = true LIMIT 1');
-    
+
     res.json({
       success: true,
-      data: result.rows[0] || null
+      data: result.rows[0] || null,
     });
-    
   } catch (error) {
     logError('Varsayılan Firma', error);
     res.status(500).json({ success: false, error: error.message });
@@ -288,29 +293,61 @@ router.post('/', async (req, res) => {
   try {
     const {
       // Temel bilgiler
-      unvan, kisa_ad, vergi_dairesi, vergi_no, ticaret_sicil_no, mersis_no,
+      unvan,
+      kisa_ad,
+      vergi_dairesi,
+      vergi_no,
+      ticaret_sicil_no,
+      mersis_no,
       // İletişim
-      adres, il, ilce, posta_kodu, telefon, fax, email, web_sitesi,
+      adres,
+      il,
+      ilce,
+      posta_kodu,
+      telefon,
+      fax,
+      email,
+      web_sitesi,
       // Yetkili 1
-      yetkili_adi, yetkili_unvani, yetkili_tc, yetkili_telefon, yetkili_email, imza_yetkisi,
+      yetkili_adi,
+      yetkili_unvani,
+      yetkili_tc,
+      yetkili_telefon,
+      yetkili_email,
+      imza_yetkisi,
       // Yetkili 2 (yeni)
-      yetkili2_adi, yetkili2_unvani, yetkili2_tc, yetkili2_telefon,
+      yetkili2_adi,
+      yetkili2_unvani,
+      yetkili2_tc,
+      yetkili2_telefon,
       // Banka 1
-      banka_adi, banka_sube, iban, hesap_no,
+      banka_adi,
+      banka_sube,
+      iban,
+      hesap_no,
       // Banka 2 (yeni)
-      banka2_adi, banka2_sube, banka2_iban,
+      banka2_adi,
+      banka2_sube,
+      banka2_iban,
       // SGK ve Resmi (yeni)
-      sgk_sicil_no, kep_adresi, nace_kodu,
+      sgk_sicil_no,
+      kep_adresi,
+      nace_kodu,
       // Kapasite (yeni)
-      gunluk_uretim_kapasitesi, personel_kapasitesi,
+      gunluk_uretim_kapasitesi,
+      personel_kapasitesi,
       // Görsel (yeni)
-      logo_url, kase_imza_url,
+      logo_url,
+      kase_imza_url,
       // Referanslar (yeni)
-      referanslar, is_deneyim_belgeleri,
+      referanslar,
+      is_deneyim_belgeleri,
       // Durum
-      varsayilan, aktif, notlar
+      varsayilan,
+      aktif,
+      notlar,
     } = req.body;
-    
+
     const sql = `
       INSERT INTO firmalar (
         unvan, kisa_ad, vergi_dairesi, vergi_no, ticaret_sicil_no, mersis_no,
@@ -338,30 +375,60 @@ router.post('/', async (req, res) => {
         $41, $42, $43
       ) RETURNING *
     `;
-    
+
     const result = await query(sql, [
-      unvan, kisa_ad, vergi_dairesi, vergi_no, ticaret_sicil_no, mersis_no,
-      adres, il, ilce, posta_kodu, telefon, fax, email, web_sitesi,
-      yetkili_adi, yetkili_unvani, yetkili_tc, yetkili_telefon, yetkili_email, imza_yetkisi,
-      yetkili2_adi, yetkili2_unvani, yetkili2_tc, yetkili2_telefon,
-      banka_adi, banka_sube, iban, hesap_no,
-      banka2_adi, banka2_sube, banka2_iban,
-      sgk_sicil_no, kep_adresi, nace_kodu,
-      gunluk_uretim_kapasitesi, personel_kapasitesi,
-      logo_url, kase_imza_url,
+      unvan,
+      kisa_ad,
+      vergi_dairesi,
+      vergi_no,
+      ticaret_sicil_no,
+      mersis_no,
+      adres,
+      il,
+      ilce,
+      posta_kodu,
+      telefon,
+      fax,
+      email,
+      web_sitesi,
+      yetkili_adi,
+      yetkili_unvani,
+      yetkili_tc,
+      yetkili_telefon,
+      yetkili_email,
+      imza_yetkisi,
+      yetkili2_adi,
+      yetkili2_unvani,
+      yetkili2_tc,
+      yetkili2_telefon,
+      banka_adi,
+      banka_sube,
+      iban,
+      hesap_no,
+      banka2_adi,
+      banka2_sube,
+      banka2_iban,
+      sgk_sicil_no,
+      kep_adresi,
+      nace_kodu,
+      gunluk_uretim_kapasitesi,
+      personel_kapasitesi,
+      logo_url,
+      kase_imza_url,
       referanslar ? JSON.stringify(referanslar) : '[]',
       is_deneyim_belgeleri ? JSON.stringify(is_deneyim_belgeleri) : '[]',
-      varsayilan || false, aktif !== false, notlar
+      varsayilan || false,
+      aktif !== false,
+      notlar,
     ]);
-    
+
     logAPI('Firma Eklendi', { unvan });
-    
+
     res.status(201).json({
       success: true,
       data: result.rows[0],
-      message: 'Firma başarıyla eklendi'
+      message: 'Firma başarıyla eklendi',
     });
-    
   } catch (error) {
     logError('Firma Ekle', error);
     res.status(500).json({ success: false, error: error.message });
@@ -380,29 +447,61 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const {
       // Temel bilgiler
-      unvan, kisa_ad, vergi_dairesi, vergi_no, ticaret_sicil_no, mersis_no,
+      unvan,
+      kisa_ad,
+      vergi_dairesi,
+      vergi_no,
+      ticaret_sicil_no,
+      mersis_no,
       // İletişim
-      adres, il, ilce, posta_kodu, telefon, fax, email, web_sitesi,
+      adres,
+      il,
+      ilce,
+      posta_kodu,
+      telefon,
+      fax,
+      email,
+      web_sitesi,
       // Yetkili 1
-      yetkili_adi, yetkili_unvani, yetkili_tc, yetkili_telefon, yetkili_email, imza_yetkisi,
+      yetkili_adi,
+      yetkili_unvani,
+      yetkili_tc,
+      yetkili_telefon,
+      yetkili_email,
+      imza_yetkisi,
       // Yetkili 2 (yeni)
-      yetkili2_adi, yetkili2_unvani, yetkili2_tc, yetkili2_telefon,
+      yetkili2_adi,
+      yetkili2_unvani,
+      yetkili2_tc,
+      yetkili2_telefon,
       // Banka 1
-      banka_adi, banka_sube, iban, hesap_no,
+      banka_adi,
+      banka_sube,
+      iban,
+      hesap_no,
       // Banka 2 (yeni)
-      banka2_adi, banka2_sube, banka2_iban,
+      banka2_adi,
+      banka2_sube,
+      banka2_iban,
       // SGK ve Resmi (yeni)
-      sgk_sicil_no, kep_adresi, nace_kodu,
+      sgk_sicil_no,
+      kep_adresi,
+      nace_kodu,
       // Kapasite (yeni)
-      gunluk_uretim_kapasitesi, personel_kapasitesi,
+      gunluk_uretim_kapasitesi,
+      personel_kapasitesi,
       // Görsel (yeni)
-      logo_url, kase_imza_url,
+      logo_url,
+      kase_imza_url,
       // Referanslar (yeni)
-      referanslar, is_deneyim_belgeleri,
+      referanslar,
+      is_deneyim_belgeleri,
       // Durum
-      varsayilan, aktif, notlar
+      varsayilan,
+      aktif,
+      notlar,
     } = req.body;
-    
+
     const sql = `
       UPDATE firmalar SET
         unvan = COALESCE($1, unvan),
@@ -452,35 +551,65 @@ router.put('/:id', async (req, res) => {
       WHERE id = $44
       RETURNING *
     `;
-    
+
     const result = await query(sql, [
-      unvan, kisa_ad, vergi_dairesi, vergi_no, ticaret_sicil_no, mersis_no,
-      adres, il, ilce, posta_kodu, telefon, fax, email, web_sitesi,
-      yetkili_adi, yetkili_unvani, yetkili_tc, yetkili_telefon, yetkili_email, imza_yetkisi,
-      yetkili2_adi, yetkili2_unvani, yetkili2_tc, yetkili2_telefon,
-      banka_adi, banka_sube, iban, hesap_no,
-      banka2_adi, banka2_sube, banka2_iban,
-      sgk_sicil_no, kep_adresi, nace_kodu,
-      gunluk_uretim_kapasitesi, personel_kapasitesi,
-      logo_url, kase_imza_url,
+      unvan,
+      kisa_ad,
+      vergi_dairesi,
+      vergi_no,
+      ticaret_sicil_no,
+      mersis_no,
+      adres,
+      il,
+      ilce,
+      posta_kodu,
+      telefon,
+      fax,
+      email,
+      web_sitesi,
+      yetkili_adi,
+      yetkili_unvani,
+      yetkili_tc,
+      yetkili_telefon,
+      yetkili_email,
+      imza_yetkisi,
+      yetkili2_adi,
+      yetkili2_unvani,
+      yetkili2_tc,
+      yetkili2_telefon,
+      banka_adi,
+      banka_sube,
+      iban,
+      hesap_no,
+      banka2_adi,
+      banka2_sube,
+      banka2_iban,
+      sgk_sicil_no,
+      kep_adresi,
+      nace_kodu,
+      gunluk_uretim_kapasitesi,
+      personel_kapasitesi,
+      logo_url,
+      kase_imza_url,
       referanslar ? JSON.stringify(referanslar) : null,
       is_deneyim_belgeleri ? JSON.stringify(is_deneyim_belgeleri) : null,
-      varsayilan, aktif, notlar,
-      id
+      varsayilan,
+      aktif,
+      notlar,
+      id,
     ]);
-    
+
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, error: 'Firma bulunamadı' });
     }
-    
+
     logAPI('Firma Güncellendi', { id, unvan });
-    
+
     res.json({
       success: true,
       data: result.rows[0],
-      message: 'Firma başarıyla güncellendi'
+      message: 'Firma başarıyla güncellendi',
     });
-    
   } catch (error) {
     logError('Firma Güncelle', error);
     res.status(500).json({ success: false, error: error.message });
@@ -498,13 +627,13 @@ router.post('/:id/belge', upload.single('dosya'), async (req, res) => {
   try {
     const { id } = req.params;
     const { belge_tipi, tarih } = req.body;
-    
+
     if (!req.file) {
       return res.status(400).json({ success: false, error: 'Dosya yüklenmedi' });
     }
-    
+
     const dosyaUrl = `/uploads/firmalar/${req.file.filename}`;
-    
+
     // Belge tipine göre güncelle
     const belgeAlanlari = {
       vergi_levhasi: { url: 'vergi_levhasi_url', tarih: 'vergi_levhasi_tarih' },
@@ -516,23 +645,32 @@ router.post('/:id/belge', upload.single('dosya'), async (req, res) => {
       tse_belgesi: { url: 'tse_belgesi_url', tarih: 'tse_belgesi_tarih' },
       halal_sertifika: { url: 'halal_sertifika_url', tarih: 'halal_sertifika_tarih' },
       logo: { url: 'logo_url', tarih: null },
-      kase_imza: { url: 'kase_imza_url', tarih: null }
+      kase_imza: { url: 'kase_imza_url', tarih: null },
     };
-    
+
     if (belgeAlanlari[belge_tipi]) {
       const alan = belgeAlanlari[belge_tipi];
 
       // SQL injection koruması: Sadece beyaz listedeki kolon isimlerini kullan
       const allowedColumns = [
-        'vergi_levhasi_url', 'vergi_levhasi_tarih',
-        'sicil_gazetesi_url', 'sicil_gazetesi_tarih',
-        'imza_sirküleri_url', 'imza_sirküleri_tarih',
-        'faaliyet_belgesi_url', 'faaliyet_belgesi_tarih',
-        'iso_sertifika_url', 'iso_sertifika_tarih',
-        'haccp_sertifika_url', 'haccp_sertifika_tarih',
-        'tse_belgesi_url', 'tse_belgesi_tarih',
-        'halal_sertifika_url', 'halal_sertifika_tarih',
-        'logo_url', 'kase_imza_url'
+        'vergi_levhasi_url',
+        'vergi_levhasi_tarih',
+        'sicil_gazetesi_url',
+        'sicil_gazetesi_tarih',
+        'imza_sirküleri_url',
+        'imza_sirküleri_tarih',
+        'faaliyet_belgesi_url',
+        'faaliyet_belgesi_tarih',
+        'iso_sertifika_url',
+        'iso_sertifika_tarih',
+        'haccp_sertifika_url',
+        'haccp_sertifika_tarih',
+        'tse_belgesi_url',
+        'tse_belgesi_tarih',
+        'halal_sertifika_url',
+        'halal_sertifika_tarih',
+        'logo_url',
+        'kase_imza_url',
       ];
 
       if (!allowedColumns.includes(alan.url)) {
@@ -550,11 +688,11 @@ router.post('/:id/belge', upload.single('dosya'), async (req, res) => {
       }
 
       const result = await query(sql, params);
-      
+
       res.json({
         success: true,
         data: result.rows[0],
-        message: 'Belge başarıyla yüklendi'
+        message: 'Belge başarıyla yüklendi',
       });
     } else {
       // Ek belge olarak ekle
@@ -566,14 +704,13 @@ router.post('/:id/belge', upload.single('dosya'), async (req, res) => {
       `;
       const ekBelge = JSON.stringify([{ ad: belge_tipi, url: dosyaUrl, tarih: tarih || null }]);
       const result = await query(sql, [ekBelge, id]);
-      
+
       res.json({
         success: true,
         data: result.rows[0],
-        message: 'Ek belge başarıyla eklendi'
+        message: 'Ek belge başarıyla eklendi',
       });
     }
-    
   } catch (error) {
     logError('Belge Yükle', error);
     res.status(500).json({ success: false, error: error.message });
@@ -590,23 +727,19 @@ router.post('/:id/belge', upload.single('dosya'), async (req, res) => {
 router.patch('/:id/varsayilan', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Trigger otomatik olarak diğerlerini false yapacak
-    const result = await query(
-      'UPDATE firmalar SET varsayilan = true WHERE id = $1 RETURNING *',
-      [id]
-    );
-    
+    const result = await query('UPDATE firmalar SET varsayilan = true WHERE id = $1 RETURNING *', [id]);
+
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, error: 'Firma bulunamadı' });
     }
-    
+
     res.json({
       success: true,
       data: result.rows[0],
-      message: 'Varsayılan firma güncellendi'
+      message: 'Varsayılan firma güncellendi',
     });
-    
   } catch (error) {
     logError('Varsayılan Firma Güncelle', error);
     res.status(500).json({ success: false, error: error.message });
@@ -623,20 +756,19 @@ router.patch('/:id/varsayilan', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const result = await query('DELETE FROM firmalar WHERE id = $1 RETURNING *', [id]);
-    
+
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, error: 'Firma bulunamadı' });
     }
-    
+
     logAPI('Firma Silindi', { id, unvan: result.rows[0].unvan });
-    
+
     res.json({
       success: true,
-      message: 'Firma başarıyla silindi'
+      message: 'Firma başarıyla silindi',
     });
-    
   } catch (error) {
     logError('Firma Sil', error);
     res.status(500).json({ success: false, error: error.message });
@@ -650,7 +782,7 @@ router.delete('/:id', async (req, res) => {
  *     summary: Desteklenen belge tiplerini listele
  *     tags: [Firmalar]
  */
-router.get('/belge-tipleri', async (req, res) => {
+router.get('/belge-tipleri', async (_req, res) => {
   try {
     const tipler = getDesteklenenBelgeTipleri();
     res.json({ success: true, data: tipler });
@@ -690,14 +822,8 @@ router.post('/analyze-belge', upload.single('dosya'), async (req, res) => {
       return res.status(400).json({ success: false, error: 'Belge tipi belirtilmedi' });
     }
 
-    console.log(`🔍 Belge analizi başlıyor: ${belge_tipi} - ${req.file.originalname}`);
-
     // AI ile analiz et
-    const analizSonucu = await analyzeFirmaBelgesi(
-      req.file.path,
-      belge_tipi,
-      req.file.mimetype
-    );
+    const analizSonucu = await analyzeFirmaBelgesi(req.file.path, belge_tipi, req.file.mimetype);
 
     // Dosya URL'ini ekle
     const dosyaUrl = `/uploads/firmalar/${req.file.filename}`;
@@ -709,11 +835,10 @@ router.post('/analyze-belge', upload.single('dosya'), async (req, res) => {
         url: dosyaUrl,
         originalName: req.file.originalname,
         size: req.file.size,
-        mimeType: req.file.mimetype
+        mimeType: req.file.mimetype,
       },
-      message: 'Belge başarıyla analiz edildi'
+      message: 'Belge başarıyla analiz edildi',
     });
-
   } catch (error) {
     logError('Belge Analiz', error);
     res.status(500).json({ success: false, error: error.message });
@@ -743,11 +868,7 @@ router.post('/:id/analyze-and-save', upload.single('dosya'), async (req, res) =>
     }
 
     // AI ile analiz et
-    const analizSonucu = await analyzeFirmaBelgesi(
-      req.file.path,
-      belge_tipi,
-      req.file.mimetype
-    );
+    const analizSonucu = await analyzeFirmaBelgesi(req.file.path, belge_tipi, req.file.mimetype);
 
     const dosyaUrl = `/uploads/firmalar/${req.file.filename}`;
 
@@ -757,7 +878,7 @@ router.post('/:id/analyze-and-save', upload.single('dosya'), async (req, res) =>
       sicil_gazetesi: { url: 'sicil_gazetesi_url', tarih: 'sicil_gazetesi_tarih' },
       imza_sirküleri: { url: 'imza_sirküleri_url', tarih: 'imza_sirküleri_tarih' },
       faaliyet_belgesi: { url: 'faaliyet_belgesi_url', tarih: 'faaliyet_belgesi_tarih' },
-      iso_sertifika: { url: 'iso_sertifika_url', tarih: 'iso_sertifika_tarih' }
+      iso_sertifika: { url: 'iso_sertifika_url', tarih: 'iso_sertifika_tarih' },
     };
 
     let updatedFirma = firmaCheck.rows[0];
@@ -766,8 +887,8 @@ router.post('/:id/analyze-and-save', upload.single('dosya'), async (req, res) =>
     if (belgeAlanlari[belge_tipi]) {
       const alan = belgeAlanlari[belge_tipi];
       // Whitelist validation for column names to prevent SQL injection
-      const allowedUrlFields = Object.values(belgeAlanlari).map(a => a.url);
-      const allowedTarihFields = Object.values(belgeAlanlari).map(a => a.tarih);
+      const allowedUrlFields = Object.values(belgeAlanlari).map((a) => a.url);
+      const allowedTarihFields = Object.values(belgeAlanlari).map((a) => a.tarih);
 
       if (!allowedUrlFields.includes(alan.url) || (alan.tarih && !allowedTarihFields.includes(alan.tarih))) {
         return res.status(400).json({ success: false, error: 'Geçersiz belge tipi' });
@@ -789,19 +910,19 @@ router.post('/:id/analyze-and-save', upload.single('dosya'), async (req, res) =>
 
       // Sadece dolu ve mevcut firmada boş olan alanları güncelle
       const alanMap = {
-        'unvan': 'unvan',
-        'vergi_dairesi': 'vergi_dairesi',
-        'vergi_no': 'vergi_no',
-        'ticaret_sicil_no': 'ticaret_sicil_no',
-        'mersis_no': 'mersis_no',
-        'adres': 'adres',
-        'il': 'il',
-        'ilce': 'ilce',
-        'telefon': 'telefon',
-        'yetkili_adi': 'yetkili_adi',
-        'yetkili_tc': 'yetkili_tc',
-        'yetkili_unvani': 'yetkili_unvani',
-        'imza_yetkisi': 'imza_yetkisi'
+        unvan: 'unvan',
+        vergi_dairesi: 'vergi_dairesi',
+        vergi_no: 'vergi_no',
+        ticaret_sicil_no: 'ticaret_sicil_no',
+        mersis_no: 'mersis_no',
+        adres: 'adres',
+        il: 'il',
+        ilce: 'ilce',
+        telefon: 'telefon',
+        yetkili_adi: 'yetkili_adi',
+        yetkili_tc: 'yetkili_tc',
+        yetkili_unvani: 'yetkili_unvani',
+        imza_yetkisi: 'imza_yetkisi',
       };
 
       for (const [aiKey, dbKey] of Object.entries(alanMap)) {
@@ -828,11 +949,10 @@ router.post('/:id/analyze-and-save', upload.single('dosya'), async (req, res) =>
       analiz: analizSonucu,
       dosya: {
         url: dosyaUrl,
-        originalName: req.file.originalname
+        originalName: req.file.originalname,
       },
-      message: 'Belge analiz edildi ve kaydedildi'
+      message: 'Belge analiz edildi ve kaydedildi',
     });
-
   } catch (error) {
     logError('Belge Analiz ve Kaydet', error);
     res.status(500).json({ success: false, error: error.message });
@@ -853,13 +973,16 @@ router.post('/:id/analyze-and-save', upload.single('dosya'), async (req, res) =>
 router.get('/:id/ortaklar', async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       SELECT * FROM firma_ortaklari 
       WHERE firma_id = $1 AND aktif = TRUE
       ORDER BY hisse_orani DESC NULLS LAST, ad_soyad
-    `, [id]);
-    
+    `,
+      [id]
+    );
+
     res.json({ success: true, data: result.rows });
   } catch (error) {
     logError('Firma ortakları listele', error);
@@ -877,29 +1000,49 @@ router.get('/:id/ortaklar', async (req, res) => {
 router.post('/:id/ortaklar', async (req, res) => {
   try {
     const { id } = req.params;
-    const { 
-      ad_soyad, tc_kimlik, hisse_orani, gorevi, imza_yetkisi,
-      temsil_yetkisi_baslangic, temsil_yetkisi_bitis,
-      telefon, email, adres, notlar 
+    const {
+      ad_soyad,
+      tc_kimlik,
+      hisse_orani,
+      gorevi,
+      imza_yetkisi,
+      temsil_yetkisi_baslangic,
+      temsil_yetkisi_bitis,
+      telefon,
+      email,
+      adres,
+      notlar,
     } = req.body;
-    
+
     if (!ad_soyad) {
       return res.status(400).json({ success: false, error: 'Ad soyad zorunludur' });
     }
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       INSERT INTO firma_ortaklari (
         firma_id, ad_soyad, tc_kimlik, hisse_orani, gorevi, imza_yetkisi,
         temsil_yetkisi_baslangic, temsil_yetkisi_bitis,
         telefon, email, adres, notlar
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *
-    `, [
-      id, ad_soyad, tc_kimlik, hisse_orani, gorevi, imza_yetkisi || false,
-      temsil_yetkisi_baslangic, temsil_yetkisi_bitis,
-      telefon, email, adres, notlar
-    ]);
-    
+    `,
+      [
+        id,
+        ad_soyad,
+        tc_kimlik,
+        hisse_orani,
+        gorevi,
+        imza_yetkisi || false,
+        temsil_yetkisi_baslangic,
+        temsil_yetkisi_bitis,
+        telefon,
+        email,
+        adres,
+        notlar,
+      ]
+    );
+
     logAPI('Firma ortağı eklendi', { firma_id: id, ortak_id: result.rows[0].id });
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
@@ -918,13 +1061,23 @@ router.post('/:id/ortaklar', async (req, res) => {
 router.put('/:firmaId/ortaklar/:ortakId', async (req, res) => {
   try {
     const { firmaId, ortakId } = req.params;
-    const { 
-      ad_soyad, tc_kimlik, hisse_orani, gorevi, imza_yetkisi,
-      temsil_yetkisi_baslangic, temsil_yetkisi_bitis,
-      telefon, email, adres, notlar, aktif 
+    const {
+      ad_soyad,
+      tc_kimlik,
+      hisse_orani,
+      gorevi,
+      imza_yetkisi,
+      temsil_yetkisi_baslangic,
+      temsil_yetkisi_bitis,
+      telefon,
+      email,
+      adres,
+      notlar,
+      aktif,
     } = req.body;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       UPDATE firma_ortaklari SET
         ad_soyad = COALESCE($1, ad_soyad),
         tc_kimlik = $2,
@@ -941,16 +1094,29 @@ router.put('/:firmaId/ortaklar/:ortakId', async (req, res) => {
         updated_at = NOW()
       WHERE id = $13 AND firma_id = $14
       RETURNING *
-    `, [
-      ad_soyad, tc_kimlik, hisse_orani, gorevi, imza_yetkisi,
-      temsil_yetkisi_baslangic, temsil_yetkisi_bitis,
-      telefon, email, adres, notlar, aktif, ortakId, firmaId
-    ]);
-    
+    `,
+      [
+        ad_soyad,
+        tc_kimlik,
+        hisse_orani,
+        gorevi,
+        imza_yetkisi,
+        temsil_yetkisi_baslangic,
+        temsil_yetkisi_bitis,
+        telefon,
+        email,
+        adres,
+        notlar,
+        aktif,
+        ortakId,
+        firmaId,
+      ]
+    );
+
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, error: 'Ortak bulunamadı' });
     }
-    
+
     logAPI('Firma ortağı güncellendi', { firma_id: firmaId, ortak_id: ortakId });
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
@@ -969,16 +1135,16 @@ router.put('/:firmaId/ortaklar/:ortakId', async (req, res) => {
 router.delete('/:firmaId/ortaklar/:ortakId', async (req, res) => {
   try {
     const { firmaId, ortakId } = req.params;
-    
-    const result = await query(
-      'DELETE FROM firma_ortaklari WHERE id = $1 AND firma_id = $2 RETURNING *',
-      [ortakId, firmaId]
-    );
-    
+
+    const result = await query('DELETE FROM firma_ortaklari WHERE id = $1 AND firma_id = $2 RETURNING *', [
+      ortakId,
+      firmaId,
+    ]);
+
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, error: 'Ortak bulunamadı' });
     }
-    
+
     logAPI('Firma ortağı silindi', { firma_id: firmaId, ortak_id: ortakId });
     res.json({ success: true, message: 'Ortak silindi' });
   } catch (error) {
@@ -1002,43 +1168,43 @@ router.get('/:id/dokumanlar', async (req, res) => {
   try {
     const { id } = req.params;
     const { kategori, onaylanmis } = req.query;
-    
+
     let sql = `
       SELECT * FROM firma_dokumanlari 
       WHERE firma_id = $1 AND aktif = TRUE
     `;
     const params = [id];
     let paramIndex = 2;
-    
+
     if (kategori) {
       sql += ` AND belge_kategori = $${paramIndex}`;
       params.push(kategori);
       paramIndex++;
     }
-    
+
     if (onaylanmis !== undefined) {
       sql += ` AND onaylanmis = $${paramIndex}`;
       params.push(onaylanmis === 'true');
     }
-    
+
     sql += ' ORDER BY belge_kategori, belge_tipi, created_at DESC';
-    
+
     const result = await query(sql, params);
-    
+
     // Kategorilere göre grupla
     const kategoriler = {};
-    result.rows.forEach(doc => {
+    result.rows.forEach((doc) => {
       if (!kategoriler[doc.belge_kategori]) {
         kategoriler[doc.belge_kategori] = [];
       }
       kategoriler[doc.belge_kategori].push(doc);
     });
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       data: result.rows,
       kategoriler,
-      toplam: result.rowCount
+      toplam: result.rowCount,
     });
   } catch (error) {
     logError('Firma dökümanları listele', error);
@@ -1056,41 +1222,37 @@ router.get('/:id/dokumanlar', async (req, res) => {
 router.post('/:id/dokumanlar', upload.single('dosya'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { 
-      belge_tipi, 
+    const {
+      belge_tipi,
       belge_kategori = 'kurumsal',
-      belge_no, 
-      verilis_tarihi, 
+      belge_no,
+      verilis_tarihi,
       gecerlilik_tarihi,
       veren_kurum,
       aciklama,
-      auto_fill = 'false' 
+      auto_fill = 'false',
     } = req.body;
-    
+
     if (!req.file) {
       return res.status(400).json({ success: false, error: 'Dosya yüklenemedi' });
     }
-    
+
     if (!belge_tipi) {
       return res.status(400).json({ success: false, error: 'Belge tipi zorunludur' });
     }
-    
+
     // Dosya URL oluştur
     const dosyaUrl = `/uploads/firmalar/${req.file.filename}`;
-    
+
     // AI analizi yap (otomatik tip algılama dahil)
     let analizSonucu = null;
     let ai_cikartilan_veriler = {};
     let ai_guven_skoru = null;
     let detectedBelgeTipi = belge_tipi;
-    
+
     try {
-      analizSonucu = await analyzeFirmaBelgesi(
-        req.file.path, 
-        belge_tipi, 
-        req.file.mimetype
-      );
-      
+      analizSonucu = await analyzeFirmaBelgesi(req.file.path, belge_tipi, req.file.mimetype);
+
       if (analizSonucu.success) {
         ai_cikartilan_veriler = analizSonucu.data;
         ai_guven_skoru = analizSonucu.data.guven_skoru || 0.8;
@@ -1099,17 +1261,16 @@ router.post('/:id/dokumanlar', upload.single('dosya'), async (req, res) => {
           detectedBelgeTipi = analizSonucu.belgeTipi;
         }
       }
-    } catch (aiError) {
-      console.warn('AI analizi başarısız:', aiError.message);
-    }
-    
+    } catch (_aiError) {}
+
     // "auto" seçilmişse ve AI algılamamışsa, "diger" olarak kaydet
     if (detectedBelgeTipi === 'auto') {
       detectedBelgeTipi = 'diger';
     }
-    
+
     // Dökümanı veritabanına kaydet (algılanan belge tipi ile)
-    const result = await query(`
+    const result = await query(
+      `
       INSERT INTO firma_dokumanlari (
         firma_id, belge_tipi, belge_kategori, dosya_adi, dosya_url,
         dosya_boyutu, mime_type, belge_no, verilis_tarihi, gecerlilik_tarihi,
@@ -1117,33 +1278,45 @@ router.post('/:id/dokumanlar', upload.single('dosya'), async (req, res) => {
         ai_analiz_yapildi, ai_analiz_tarihi, ai_cikartilan_veriler, ai_guven_skoru
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), $14, $15)
       RETURNING *
-    `, [
-      id, detectedBelgeTipi, belge_kategori, req.file.originalname, dosyaUrl,
-      req.file.size, req.file.mimetype, belge_no, verilis_tarihi || null, 
-      gecerlilik_tarihi || null, veren_kurum, aciklama,
-      analizSonucu?.success || false, ai_cikartilan_veriler, ai_guven_skoru
-    ]);
-    
+    `,
+      [
+        id,
+        detectedBelgeTipi,
+        belge_kategori,
+        req.file.originalname,
+        dosyaUrl,
+        req.file.size,
+        req.file.mimetype,
+        belge_no,
+        verilis_tarihi || null,
+        gecerlilik_tarihi || null,
+        veren_kurum,
+        aciklama,
+        analizSonucu?.success || false,
+        ai_cikartilan_veriler,
+        ai_guven_skoru,
+      ]
+    );
+
     const savedDoc = result.rows[0];
-    
+
     // Auto-fill aktifse firma bilgilerini güncelle
     let updatedFirma = null;
     if (auto_fill === 'true' && analizSonucu?.success && ai_cikartilan_veriler) {
       updatedFirma = await applyAIDataToFirma(id, ai_cikartilan_veriler);
     }
-    
+
     logAPI('Firma dökümanı eklendi', { firma_id: id, dokuman_id: savedDoc.id, belge_tipi });
-    
-    res.status(201).json({ 
-      success: true, 
+
+    res.status(201).json({
+      success: true,
       data: savedDoc,
       analiz: analizSonucu,
       firma: updatedFirma,
-      message: analizSonucu?.success 
+      message: analizSonucu?.success
         ? 'Döküman yüklendi ve AI ile analiz edildi'
-        : 'Döküman yüklendi (AI analizi yapılamadı)'
+        : 'Döküman yüklendi (AI analizi yapılamadı)',
     });
-    
   } catch (error) {
     logError('Firma dökümanı ekle', error);
     res.status(500).json({ success: false, error: error.message });
@@ -1160,12 +1333,11 @@ router.post('/:id/dokumanlar', upload.single('dosya'), async (req, res) => {
 router.put('/:firmaId/dokumanlar/:dokumanId', async (req, res) => {
   try {
     const { firmaId, dokumanId } = req.params;
-    const { 
-      belge_no, verilis_tarihi, gecerlilik_tarihi,
-      veren_kurum, aciklama, onaylanmis, onaylayan_kullanici
-    } = req.body;
-    
-    const result = await query(`
+    const { belge_no, verilis_tarihi, gecerlilik_tarihi, veren_kurum, aciklama, onaylanmis, onaylayan_kullanici } =
+      req.body;
+
+    const result = await query(
+      `
       UPDATE firma_dokumanlari SET
         belge_no = COALESCE($1, belge_no),
         verilis_tarihi = $2,
@@ -1178,16 +1350,24 @@ router.put('/:firmaId/dokumanlar/:dokumanId', async (req, res) => {
         updated_at = NOW()
       WHERE id = $8 AND firma_id = $9
       RETURNING *
-    `, [
-      belge_no, verilis_tarihi || null, gecerlilik_tarihi || null,
-      veren_kurum, aciklama, onaylanmis, onaylayan_kullanici,
-      dokumanId, firmaId
-    ]);
-    
+    `,
+      [
+        belge_no,
+        verilis_tarihi || null,
+        gecerlilik_tarihi || null,
+        veren_kurum,
+        aciklama,
+        onaylanmis,
+        onaylayan_kullanici,
+        dokumanId,
+        firmaId,
+      ]
+    );
+
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, error: 'Döküman bulunamadı' });
     }
-    
+
     logAPI('Firma dökümanı güncellendi', { firma_id: firmaId, dokuman_id: dokumanId });
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
@@ -1206,18 +1386,21 @@ router.put('/:firmaId/dokumanlar/:dokumanId', async (req, res) => {
 router.delete('/:firmaId/dokumanlar/:dokumanId', async (req, res) => {
   try {
     const { firmaId, dokumanId } = req.params;
-    
+
     // Soft delete
-    const result = await query(`
+    const result = await query(
+      `
       UPDATE firma_dokumanlari SET aktif = FALSE, updated_at = NOW()
       WHERE id = $1 AND firma_id = $2
       RETURNING *
-    `, [dokumanId, firmaId]);
-    
+    `,
+      [dokumanId, firmaId]
+    );
+
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, error: 'Döküman bulunamadı' });
     }
-    
+
     logAPI('Firma dökümanı silindi', { firma_id: firmaId, dokuman_id: dokumanId });
     res.json({ success: true, message: 'Döküman silindi' });
   } catch (error) {
@@ -1237,32 +1420,33 @@ router.post('/:firmaId/dokumanlar/:dokumanId/yeniden-analiz', async (req, res) =
   try {
     const { firmaId, dokumanId } = req.params;
     const { auto_fill = 'false' } = req.body;
-    
+
     // Dökümanı getir
-    const docResult = await query(
-      'SELECT * FROM firma_dokumanlari WHERE id = $1 AND firma_id = $2',
-      [dokumanId, firmaId]
-    );
-    
+    const docResult = await query('SELECT * FROM firma_dokumanlari WHERE id = $1 AND firma_id = $2', [
+      dokumanId,
+      firmaId,
+    ]);
+
     if (docResult.rowCount === 0) {
       return res.status(404).json({ success: false, error: 'Döküman bulunamadı' });
     }
-    
+
     const doc = docResult.rows[0];
     const filePath = path.join(process.cwd(), doc.dosya_url);
-    
+
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ success: false, error: 'Dosya bulunamadı' });
     }
-    
+
     // Yeniden AI analizi (belge tipi otomatik algılansın)
     const analizSonucu = await analyzeFirmaBelgesi(filePath, 'auto', doc.mime_type);
 
     // Algılanan belge tipini al (null check ekle)
     const detectedBelgeTipi = analizSonucu?.belgeTipi || doc?.belge_tipi || 'bilinmiyor';
-    
+
     // Dökümanı güncelle (algılanan belge tipi ile)
-    await query(`
+    await query(
+      `
       UPDATE firma_dokumanlari SET
         belge_tipi = $1,
         ai_analiz_yapildi = $2,
@@ -1272,32 +1456,31 @@ router.post('/:firmaId/dokumanlar/:dokumanId/yeniden-analiz', async (req, res) =
         ai_hata_mesaji = $5,
         updated_at = NOW()
       WHERE id = $6
-    `, [
-      detectedBelgeTipi,
-      analizSonucu.success,
-      analizSonucu.success ? analizSonucu.data : {},
-      analizSonucu.data?.guven_skoru || null,
-      analizSonucu.success ? null : analizSonucu.error,
-      dokumanId
-    ]);
-    
+    `,
+      [
+        detectedBelgeTipi,
+        analizSonucu.success,
+        analizSonucu.success ? analizSonucu.data : {},
+        analizSonucu.data?.guven_skoru || null,
+        analizSonucu.success ? null : analizSonucu.error,
+        dokumanId,
+      ]
+    );
+
     // Auto-fill aktifse firma bilgilerini güncelle
     let updatedFirma = null;
     if (auto_fill === 'true' && analizSonucu.success) {
       updatedFirma = await applyAIDataToFirma(firmaId, analizSonucu.data);
     }
-    
+
     logAPI('Döküman yeniden analiz edildi', { firma_id: firmaId, dokuman_id: dokumanId });
-    
+
     res.json({
       success: true,
       analiz: analizSonucu,
       firma: updatedFirma,
-      message: analizSonucu.success 
-        ? 'Döküman başarıyla analiz edildi'
-        : 'Analiz başarısız: ' + analizSonucu.error
+      message: analizSonucu.success ? 'Döküman başarıyla analiz edildi' : 'Analiz başarısız: ' + analizSonucu.error,
     });
-    
   } catch (error) {
     logError('Döküman yeniden analiz', error);
     res.status(500).json({ success: false, error: error.message });
@@ -1315,50 +1498,50 @@ router.post('/:firmaId/dokumanlar/:dokumanId/veriyi-uygula', async (req, res) =>
   try {
     const { firmaId, dokumanId } = req.params;
     const { secilenAlanlar } = req.body; // Kullanıcının seçtiği alanlar
-    
+
     // Dökümanı getir
     const docResult = await query(
       'SELECT ai_cikartilan_veriler FROM firma_dokumanlari WHERE id = $1 AND firma_id = $2',
       [dokumanId, firmaId]
     );
-    
+
     if (docResult.rowCount === 0) {
       return res.status(404).json({ success: false, error: 'Döküman bulunamadı' });
     }
-    
+
     const aiData = docResult.rows[0].ai_cikartilan_veriler;
-    
+
     if (!aiData || Object.keys(aiData).length === 0) {
       return res.status(400).json({ success: false, error: 'AI verisi bulunamadı' });
     }
-    
+
     // Sadece seçilen alanları filtrele
-    const dataToApply = secilenAlanlar 
-      ? Object.fromEntries(
-          Object.entries(aiData).filter(([key]) => secilenAlanlar.includes(key))
-        )
+    const dataToApply = secilenAlanlar
+      ? Object.fromEntries(Object.entries(aiData).filter(([key]) => secilenAlanlar.includes(key)))
       : aiData;
-    
+
     // Firmaya uygula
     const updatedFirma = await applyAIDataToFirma(firmaId, dataToApply, true);
-    
+
     // Uygulanan alanları döküman kaydına işle
-    await query(`
+    await query(
+      `
       UPDATE firma_dokumanlari SET
         ai_uygulanacak_alanlar = $1,
         updated_at = NOW()
       WHERE id = $2
-    `, [JSON.stringify(secilenAlanlar || Object.keys(aiData)), dokumanId]);
-    
+    `,
+      [JSON.stringify(secilenAlanlar || Object.keys(aiData)), dokumanId]
+    );
+
     logAPI('AI verisi firmaya uygulandı', { firma_id: firmaId, dokuman_id: dokumanId });
-    
+
     res.json({
       success: true,
       firma: updatedFirma,
       uygulaananAlanlar: Object.keys(dataToApply),
-      message: 'Veriler başarıyla firmaya uygulandı'
+      message: 'Veriler başarıyla firmaya uygulandı',
     });
-    
   } catch (error) {
     logError('AI verisi uygula', error);
     res.status(500).json({ success: false, error: error.message });
@@ -1372,35 +1555,35 @@ async function applyAIDataToFirma(firmaId, aiData, forceUpdate = false) {
   // Mevcut firma verilerini al
   const firmaResult = await query('SELECT * FROM firmalar WHERE id = $1', [firmaId]);
   if (firmaResult.rowCount === 0) return null;
-  
+
   const firma = firmaResult.rows[0];
-  
+
   // Alan eşleştirmeleri
   const alanMap = {
-    'unvan': 'unvan',
-    'vergi_dairesi': 'vergi_dairesi',
-    'vergi_no': 'vergi_no',
-    'ticaret_sicil_no': 'ticaret_sicil_no',
-    'mersis_no': 'mersis_no',
-    'adres': 'adres',
-    'il': 'il',
-    'ilce': 'ilce',
-    'telefon': 'telefon',
-    'yetkili_adi': 'yetkili_adi',
-    'yetkili_tc': 'yetkili_tc',
-    'yetkili_unvani': 'yetkili_unvani',
-    'imza_yetkisi': 'imza_yetkisi',
-    'faaliyet_kodu': 'faaliyet_kodu',
-    'kep_adresi': 'kep_adresi',
-    'web_sitesi': 'web_sitesi',
-    'email': 'email',
-    'sgk_sicil_no': 'sgk_sicil_no'
+    unvan: 'unvan',
+    vergi_dairesi: 'vergi_dairesi',
+    vergi_no: 'vergi_no',
+    ticaret_sicil_no: 'ticaret_sicil_no',
+    mersis_no: 'mersis_no',
+    adres: 'adres',
+    il: 'il',
+    ilce: 'ilce',
+    telefon: 'telefon',
+    yetkili_adi: 'yetkili_adi',
+    yetkili_tc: 'yetkili_tc',
+    yetkili_unvani: 'yetkili_unvani',
+    imza_yetkisi: 'imza_yetkisi',
+    faaliyet_kodu: 'faaliyet_kodu',
+    kep_adresi: 'kep_adresi',
+    web_sitesi: 'web_sitesi',
+    email: 'email',
+    sgk_sicil_no: 'sgk_sicil_no',
   };
-  
+
   const updateFields = [];
   const updateValues = [];
   let paramIndex = 1;
-  
+
   for (const [aiKey, dbKey] of Object.entries(alanMap)) {
     // AI verisinde varsa ve (firma alanı boşsa veya forceUpdate aktifse)
     if (aiData[aiKey] && (forceUpdate || !firma[dbKey])) {
@@ -1409,15 +1592,15 @@ async function applyAIDataToFirma(firmaId, aiData, forceUpdate = false) {
       paramIndex++;
     }
   }
-  
+
   if (updateFields.length === 0) {
     return firma;
   }
-  
+
   updateValues.push(firmaId);
   const updateSql = `UPDATE firmalar SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex} RETURNING *`;
   const updateResult = await query(updateSql, updateValues);
-  
+
   return updateResult.rows[0];
 }
 
@@ -1436,70 +1619,77 @@ router.get('/:id/export', async (req, res) => {
   try {
     const { id } = req.params;
     const { format = 'json' } = req.query;
-    
+
     // Firma bilgilerini al
     const firmaResult = await query('SELECT * FROM firmalar WHERE id = $1', [id]);
     if (firmaResult.rowCount === 0) {
       return res.status(404).json({ success: false, error: 'Firma bulunamadı' });
     }
-    
+
     const firma = firmaResult.rows[0];
-    
+
     // İlişkili verileri al
     const [ortaklarResult, dokumanlarResult, projelerResult] = await Promise.all([
       query('SELECT * FROM firma_ortaklari WHERE firma_id = $1 AND aktif = TRUE', [id]),
-      query('SELECT id, belge_tipi, belge_kategori, dosya_adi, dosya_url, belge_no, verilis_tarihi, gecerlilik_tarihi, veren_kurum FROM firma_dokumanlari WHERE firma_id = $1 AND aktif = TRUE', [id]),
-      query('SELECT id, ad, musteri, durum, sozlesme_baslangic_tarihi, sozlesme_bitis_tarihi, sozlesme_bedeli FROM projeler WHERE firma_id = $1', [id])
+      query(
+        'SELECT id, belge_tipi, belge_kategori, dosya_adi, dosya_url, belge_no, verilis_tarihi, gecerlilik_tarihi, veren_kurum FROM firma_dokumanlari WHERE firma_id = $1 AND aktif = TRUE',
+        [id]
+      ),
+      query(
+        'SELECT id, ad, musteri, durum, sozlesme_baslangic_tarihi, sozlesme_bitis_tarihi, sozlesme_bedeli FROM projeler WHERE firma_id = $1',
+        [id]
+      ),
     ]);
-    
+
     const exportData = {
       firma,
       ortaklar: ortaklarResult.rows,
       dokumanlar: dokumanlarResult.rows,
       projeler: projelerResult.rows,
       exportTarihi: new Date().toISOString(),
-      exportFormat: format
+      exportFormat: format,
     };
-    
+
     if (format === 'json') {
       res.json({ success: true, data: exportData });
     } else if (format === 'excel') {
       // Excel export
       const xlsx = await import('xlsx');
       const workbook = xlsx.utils.book_new();
-      
+
       // Firma sayfası
       const firmaSheet = xlsx.utils.json_to_sheet([firma]);
       xlsx.utils.book_append_sheet(workbook, firmaSheet, 'Firma');
-      
+
       // Ortaklar sayfası
       if (ortaklarResult.rows.length > 0) {
         const ortaklarSheet = xlsx.utils.json_to_sheet(ortaklarResult.rows);
         xlsx.utils.book_append_sheet(workbook, ortaklarSheet, 'Ortaklar');
       }
-      
+
       // Dökümanlar sayfası
       if (dokumanlarResult.rows.length > 0) {
         const dokumanlarSheet = xlsx.utils.json_to_sheet(dokumanlarResult.rows);
         xlsx.utils.book_append_sheet(workbook, dokumanlarSheet, 'Dökümanlar');
       }
-      
+
       // Projeler sayfası
       if (projelerResult.rows.length > 0) {
         const projelerSheet = xlsx.utils.json_to_sheet(projelerResult.rows);
         xlsx.utils.book_append_sheet(workbook, projelerSheet, 'Projeler');
       }
-      
+
       const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-      
+
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename="firma_${firma.kisa_ad || firma.id}_${Date.now()}.xlsx"`);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="firma_${firma.kisa_ad || firma.id}_${Date.now()}.xlsx"`
+      );
       res.send(buffer);
-      
     } else {
       res.status(400).json({ success: false, error: 'Geçersiz format. Desteklenen: json, excel' });
     }
-    
   } catch (error) {
     logError('Firma export', error);
     res.status(500).json({ success: false, error: error.message });
@@ -1517,31 +1707,31 @@ router.get('/:id/dokumanlar-zip', async (req, res) => {
   try {
     const { id } = req.params;
     const { kategori } = req.query;
-    
+
     // Dökümanları al
     let sql = 'SELECT * FROM firma_dokumanlari WHERE firma_id = $1 AND aktif = TRUE';
     const params = [id];
-    
+
     if (kategori) {
       sql += ' AND belge_kategori = $2';
       params.push(kategori);
     }
-    
+
     const result = await query(sql, params);
-    
+
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, error: 'Döküman bulunamadı' });
     }
-    
+
     // ZIP oluştur
     const archiver = (await import('archiver')).default;
     const archive = archiver('zip', { zlib: { level: 9 } });
-    
+
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="firma_dokumanlar_${id}_${Date.now()}.zip"`);
-    
+
     archive.pipe(res);
-    
+
     // Her dökümanı ZIP'e ekle
     for (const doc of result.rows) {
       const filePath = path.join(process.cwd(), doc.dosya_url);
@@ -1550,11 +1740,10 @@ router.get('/:id/dokumanlar-zip', async (req, res) => {
         archive.file(filePath, { name: `${folderName}/${doc.dosya_adi}` });
       }
     }
-    
+
     await archive.finalize();
-    
+
     logAPI('Firma dökümanları ZIP', { firma_id: id, dokuman_sayisi: result.rowCount });
-    
   } catch (error) {
     logError('Firma dökümanları ZIP', error);
     res.status(500).json({ success: false, error: error.message });
@@ -1564,10 +1753,10 @@ router.get('/:id/dokumanlar-zip', async (req, res) => {
 /**
  * Desteklenen belge tiplerini döndür
  */
-router.get('/belge-tipleri/listele', async (req, res) => {
+router.get('/belge-tipleri/listele', async (_req, res) => {
   try {
     const belgeTipleri = getDesteklenenBelgeTipleri();
-    
+
     const kategoriler = {
       kurumsal: [
         { value: 'vergi_levhasi', label: 'Vergi Levhası' },
@@ -1575,18 +1764,18 @@ router.get('/belge-tipleri/listele', async (req, res) => {
         { value: 'imza_sirküleri', label: 'İmza Sirküleri' },
         { value: 'faaliyet_belgesi', label: 'Faaliyet/Oda Kayıt Belgesi' },
         { value: 'kapasite_raporu', label: 'Kapasite Raporu' },
-        { value: 'isletme_kayit', label: 'İşletme Kayıt Belgesi' }
+        { value: 'isletme_kayit', label: 'İşletme Kayıt Belgesi' },
       ],
       yetki: [
         { value: 'vekaletname', label: 'Vekaletname' },
         { value: 'yetki_belgesi', label: 'Yetki Belgesi' },
-        { value: 'temsil_ilmuhaberi', label: 'Temsil İlmühaberi' }
+        { value: 'temsil_ilmuhaberi', label: 'Temsil İlmühaberi' },
       ],
       mali: [
         { value: 'sgk_borcu_yoktur', label: 'SGK Borcu Yoktur' },
         { value: 'vergi_borcu_yoktur', label: 'Vergi Borcu Yoktur' },
         { value: 'bilanco', label: 'Bilanço' },
-        { value: 'gelir_tablosu', label: 'Gelir Tablosu' }
+        { value: 'gelir_tablosu', label: 'Gelir Tablosu' },
       ],
       sertifika: [
         { value: 'iso_sertifika', label: 'ISO Sertifikası' },
@@ -1594,19 +1783,19 @@ router.get('/belge-tipleri/listele', async (req, res) => {
         { value: 'tse_sertifika', label: 'TSE Belgesi' },
         { value: 'gida_uretim_izni', label: 'Gıda Üretim İzin Belgesi' },
         { value: 'cevre_izin', label: 'Çevre İzin/Lisans' },
-        { value: 'yangin_guvenlik', label: 'Yangın Güvenlik Raporu' }
+        { value: 'yangin_guvenlik', label: 'Yangın Güvenlik Raporu' },
       ],
       referans: [
         { value: 'is_deneyim_belgesi', label: 'İş Deneyim Belgesi' },
         { value: 'referans_mektubu', label: 'Referans Mektubu' },
-        { value: 'sozlesme_ornegi', label: 'Sözleşme Örneği' }
-      ]
+        { value: 'sozlesme_ornegi', label: 'Sözleşme Örneği' },
+      ],
     };
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       data: belgeTipleri,
-      kategoriler 
+      kategoriler,
     });
   } catch (error) {
     logError('Belge tipleri listele', error);
@@ -1627,15 +1816,18 @@ router.get('/belge-tipleri/listele', async (req, res) => {
 router.get('/:id/ekstra-alanlar', async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       SELECT ekstra_alanlar FROM firmalar WHERE id = $1
-    `, [id]);
-    
+    `,
+      [id]
+    );
+
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, error: 'Firma bulunamadı' });
     }
-    
+
     res.json({ success: true, data: result.rows[0].ekstra_alanlar || {} });
   } catch (error) {
     logError('Ekstra alanlar getir', error);
@@ -1653,18 +1845,21 @@ router.put('/:id/ekstra-alanlar', async (req, res) => {
   try {
     const { id } = req.params;
     const { ekstra_alanlar } = req.body;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       UPDATE firmalar 
       SET ekstra_alanlar = $1, updated_at = NOW()
       WHERE id = $2
       RETURNING id, ekstra_alanlar
-    `, [JSON.stringify(ekstra_alanlar), id]);
-    
+    `,
+      [JSON.stringify(ekstra_alanlar), id]
+    );
+
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, error: 'Firma bulunamadı' });
     }
-    
+
     logAPI('Firma ekstra alanlar güncellendi', { firma_id: id });
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
@@ -1683,24 +1878,27 @@ router.patch('/:id/ekstra-alan', async (req, res) => {
   try {
     const { id } = req.params;
     const { alan_adi, deger } = req.body;
-    
+
     if (!alan_adi) {
       return res.status(400).json({ success: false, error: 'Alan adı zorunlu' });
     }
-    
+
     // JSONB alanını güncelle
-    const result = await query(`
+    const result = await query(
+      `
       UPDATE firmalar 
       SET ekstra_alanlar = COALESCE(ekstra_alanlar, '{}'::jsonb) || $1::jsonb,
           updated_at = NOW()
       WHERE id = $2
       RETURNING id, ekstra_alanlar
-    `, [JSON.stringify({ [alan_adi]: deger }), id]);
-    
+    `,
+      [JSON.stringify({ [alan_adi]: deger }), id]
+    );
+
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, error: 'Firma bulunamadı' });
     }
-    
+
     logAPI('Firma ekstra alan güncellendi', { firma_id: id, alan: alan_adi });
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
@@ -1718,19 +1916,22 @@ router.patch('/:id/ekstra-alan', async (req, res) => {
 router.delete('/:id/ekstra-alan/:alan', async (req, res) => {
   try {
     const { id, alan } = req.params;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       UPDATE firmalar 
       SET ekstra_alanlar = ekstra_alanlar - $1,
           updated_at = NOW()
       WHERE id = $2
       RETURNING id, ekstra_alanlar
-    `, [alan, id]);
-    
+    `,
+      [alan, id]
+    );
+
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, error: 'Firma bulunamadı' });
     }
-    
+
     logAPI('Firma ekstra alan silindi', { firma_id: id, alan });
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {

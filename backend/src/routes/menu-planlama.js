@@ -1,10 +1,9 @@
+import fs from 'node:fs';
 import express from 'express';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 import { query } from '../database.js';
-import { parseExcelMenu, parsePdfMenu, parseImageMenu } from '../services/menu-import.js';
 import aiAgent from '../services/ai-agent.js';
+import { parseExcelMenu, parseImageMenu, parsePdfMenu } from '../services/menu-import.js';
 
 const router = express.Router();
 
@@ -12,21 +11,21 @@ const router = express.Router();
 const menuUpload = multer({
   dest: 'uploads/menu-import/',
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     const allowedTypes = [
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'application/vnd.ms-excel',
       'application/pdf',
       'image/png',
       'image/jpeg',
-      'image/jpg'
+      'image/jpg',
     ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
       cb(new Error('Desteklenmeyen dosya formatı'));
     }
-  }
+  },
 });
 
 // =============================================
@@ -34,7 +33,7 @@ const menuUpload = multer({
 // =============================================
 
 // Tüm kategorileri listele
-router.get('/kategoriler', async (req, res) => {
+router.get('/kategoriler', async (_req, res) => {
   try {
     const result = await query(`
       SELECT * FROM recete_kategoriler 
@@ -43,7 +42,6 @@ router.get('/kategoriler', async (req, res) => {
     `);
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Kategori listesi hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -52,16 +50,18 @@ router.get('/kategoriler', async (req, res) => {
 router.post('/kategoriler', async (req, res) => {
   try {
     const { kod, ad, ikon } = req.body;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       INSERT INTO recete_kategoriler (kod, ad, ikon, sira)
       VALUES ($1, $2, $3, (SELECT COALESCE(MAX(sira), 0) + 1 FROM recete_kategoriler))
       RETURNING *
-    `, [kod, ad, ikon || '📋']);
-    
+    `,
+      [kod, ad, ikon || '📋']
+    );
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Kategori ekleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -74,33 +74,34 @@ router.post('/kategoriler', async (req, res) => {
 router.get('/receteler', async (req, res) => {
   try {
     const { kategori, arama, proje_id, limit = 100, offset = 0 } = req.query;
-    
-    let whereConditions = ['r.aktif = true'];
-    let params = [];
+
+    const whereConditions = ['r.aktif = true'];
+    const params = [];
     let paramIndex = 1;
-    
+
     // Proje bazlı filtreleme: proje_id varsa o projenin + genel (NULL) reçeteler
     if (proje_id) {
       whereConditions.push(`(r.proje_id = $${paramIndex} OR r.proje_id IS NULL)`);
       params.push(proje_id);
       paramIndex++;
     }
-    
+
     if (kategori) {
       whereConditions.push(`rk.kod = $${paramIndex}`);
       params.push(kategori);
       paramIndex++;
     }
-    
+
     if (arama) {
       whereConditions.push(`(r.ad ILIKE $${paramIndex} OR r.kod ILIKE $${paramIndex})`);
       params.push(`%${arama}%`);
       paramIndex++;
     }
-    
+
     params.push(limit, offset);
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       SELECT 
         r.id,
         r.kod,
@@ -129,26 +130,30 @@ router.get('/receteler', async (req, res) => {
       GROUP BY r.id, rk.ad, rk.ikon, p.ad
       ORDER BY r.ad
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-    `, params);
-    
+    `,
+      params
+    );
+
     // Toplam sayı
-    const countResult = await query(`
+    const countResult = await query(
+      `
       SELECT COUNT(*) as total
       FROM receteler r
       LEFT JOIN projeler p ON p.id = r.proje_id
       LEFT JOIN recete_kategoriler rk ON rk.id = r.kategori_id
       WHERE ${whereConditions.join(' AND ')}
-    `, params.slice(0, -2));
-    
+    `,
+      params.slice(0, -2)
+    );
+
     res.json({
       success: true,
       data: result.rows,
-      total: parseInt(countResult.rows[0].total),
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      total: parseInt(countResult.rows[0].total, 10),
+      limit: parseInt(limit, 10),
+      offset: parseInt(offset, 10),
     });
   } catch (error) {
-    console.error('Reçete listesi hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -157,9 +162,10 @@ router.get('/receteler', async (req, res) => {
 router.get('/receteler/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Reçete bilgisi
-    const receteResult = await query(`
+    const receteResult = await query(
+      `
       SELECT 
         r.*,
         rk.ad as kategori_adi,
@@ -167,14 +173,17 @@ router.get('/receteler/:id', async (req, res) => {
       FROM receteler r
       LEFT JOIN recete_kategoriler rk ON rk.id = r.kategori_id
       WHERE r.id = $1
-    `, [id]);
-    
+    `,
+      [id]
+    );
+
     if (receteResult.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Reçete bulunamadı' });
     }
-    
+
     // Malzemeler - ürün kartı öncelikli, hem fatura hem piyasa fiyatı
-    const malzemeResult = await query(`
+    const malzemeResult = await query(
+      `
       SELECT 
         rm.*,
         
@@ -227,17 +236,18 @@ router.get('/receteler/:id', async (req, res) => {
       LEFT JOIN birimler b ON b.id = uk.ana_birim_id
       WHERE rm.recete_id = $1
       ORDER BY rm.sira, rm.id
-    `, [id]);
-    
+    `,
+      [id]
+    );
+
     res.json({
       success: true,
       data: {
         ...receteResult.rows[0],
-        malzemeler: malzemeResult.rows
-      }
+        malzemeler: malzemeResult.rows,
+      },
     });
   } catch (error) {
-    console.error('Reçete detay hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -251,26 +261,28 @@ router.post('/recete/:receteId/malzeme', async (req, res) => {
   try {
     const { receteId } = req.params;
     const { malzeme_adi, miktar, birim, stok_kart_id, zorunlu = true } = req.body;
-    
+
     // Sıra numarası al
     const siraResult = await query(
       'SELECT COALESCE(MAX(sira), 0) + 1 as sira FROM recete_malzemeler WHERE recete_id = $1',
       [receteId]
     );
     const sira = siraResult.rows[0].sira;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       INSERT INTO recete_malzemeler (recete_id, stok_kart_id, malzeme_adi, miktar, birim, zorunlu, sira)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
-    `, [receteId, stok_kart_id, malzeme_adi, miktar, birim, zorunlu, sira]);
-    
+    `,
+      [receteId, stok_kart_id, malzeme_adi, miktar, birim, zorunlu, sira]
+    );
+
     // Maliyeti yeniden hesapla
     await hesaplaReceteMaliyet(receteId);
-    
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Malzeme ekleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -280,24 +292,26 @@ router.put('/recete/malzeme/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { malzeme_adi, miktar, birim, stok_kart_id } = req.body;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       UPDATE recete_malzemeler 
       SET malzeme_adi = $1, miktar = $2, birim = $3, stok_kart_id = $4
       WHERE id = $5
       RETURNING *
-    `, [malzeme_adi, miktar, birim, stok_kart_id, id]);
-    
+    `,
+      [malzeme_adi, miktar, birim, stok_kart_id, id]
+    );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Malzeme bulunamadı' });
     }
-    
+
     // Maliyeti yeniden hesapla
     await hesaplaReceteMaliyet(result.rows[0].recete_id);
-    
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Malzeme güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -306,22 +320,21 @@ router.put('/recete/malzeme/:id', async (req, res) => {
 router.delete('/recete/malzeme/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Önce recete_id'yi al
     const malzemeResult = await query('SELECT recete_id FROM recete_malzemeler WHERE id = $1', [id]);
     if (malzemeResult.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Malzeme bulunamadı' });
     }
     const receteId = malzemeResult.rows[0].recete_id;
-    
+
     await query('DELETE FROM recete_malzemeler WHERE id = $1', [id]);
-    
+
     // Maliyeti yeniden hesapla
     await hesaplaReceteMaliyet(receteId);
-    
+
     res.json({ success: true, message: 'Malzeme silindi' });
   } catch (error) {
-    console.error('Malzeme silme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -330,16 +343,27 @@ router.delete('/recete/malzeme/:id', async (req, res) => {
 router.post('/receteler', async (req, res) => {
   try {
     const {
-      kod, ad, kategori_id, porsiyon_miktar,
-      hazirlik_suresi, pisirme_suresi,
-      kalori, protein, karbonhidrat, yag, lif,
-      tarif, aciklama, ai_olusturuldu,
+      kod,
+      ad,
+      kategori_id,
+      porsiyon_miktar,
+      hazirlik_suresi,
+      pisirme_suresi,
+      kalori,
+      protein,
+      karbonhidrat,
+      yag,
+      lif,
+      tarif,
+      aciklama,
+      ai_olusturuldu,
       proje_id, // Proje bazlı reçete için
-      malzemeler // [{stok_kart_id, malzeme_adi, miktar, birim, zorunlu}]
+      malzemeler, // [{stok_kart_id, malzeme_adi, miktar, birim, zorunlu}]
     } = req.body;
-    
+
     // Reçete oluştur
-    const receteResult = await query(`
+    const receteResult = await query(
+      `
       INSERT INTO receteler (
         kod, ad, kategori_id, porsiyon_miktar,
         hazirlik_suresi, pisirme_suresi,
@@ -347,37 +371,52 @@ router.post('/receteler', async (req, res) => {
         tarif, aciklama, ai_olusturuldu, proje_id
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *
-    `, [
-      kod, ad, kategori_id, porsiyon_miktar || 1,
-      hazirlik_suresi, pisirme_suresi,
-      kalori, protein, karbonhidrat, yag, lif,
-      tarif, aciklama, ai_olusturuldu || false, proje_id || null
-    ]);
-    
+    `,
+      [
+        kod,
+        ad,
+        kategori_id,
+        porsiyon_miktar || 1,
+        hazirlik_suresi,
+        pisirme_suresi,
+        kalori,
+        protein,
+        karbonhidrat,
+        yag,
+        lif,
+        tarif,
+        aciklama,
+        ai_olusturuldu || false,
+        proje_id || null,
+      ]
+    );
+
     const receteId = receteResult.rows[0].id;
-    
+
     // Malzemeleri ekle
     if (malzemeler && malzemeler.length > 0) {
       for (let i = 0; i < malzemeler.length; i++) {
         const m = malzemeler[i];
-        await query(`
+        await query(
+          `
           INSERT INTO recete_malzemeler (
             recete_id, stok_kart_id, malzeme_adi, miktar, birim, zorunlu, sira
           ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        `, [receteId, m.stok_kart_id, m.malzeme_adi, m.miktar, m.birim, m.zorunlu ?? true, i + 1]);
+        `,
+          [receteId, m.stok_kart_id, m.malzeme_adi, m.miktar, m.birim, m.zorunlu ?? true, i + 1]
+        );
       }
     }
-    
+
     // Maliyeti hesapla
     await hesaplaReceteMaliyet(receteId);
-    
+
     res.json({
       success: true,
       data: receteResult.rows[0],
-      message: 'Reçete başarıyla oluşturuldu'
+      message: 'Reçete başarıyla oluşturuldu',
     });
   } catch (error) {
-    console.error('Reçete oluşturma hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -387,13 +426,22 @@ router.put('/receteler/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const {
-      ad, kategori_id, porsiyon_miktar,
-      hazirlik_suresi, pisirme_suresi,
-      kalori, protein, karbonhidrat, yag, lif,
-      tarif, aciklama
+      ad,
+      kategori_id,
+      porsiyon_miktar,
+      hazirlik_suresi,
+      pisirme_suresi,
+      kalori,
+      protein,
+      karbonhidrat,
+      yag,
+      lif,
+      tarif,
+      aciklama,
     } = req.body;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       UPDATE receteler SET
         ad = COALESCE($1, ad),
         kategori_id = COALESCE($2, kategori_id),
@@ -410,16 +458,30 @@ router.put('/receteler/:id', async (req, res) => {
         updated_at = NOW()
       WHERE id = $13
       RETURNING *
-    `, [ad, kategori_id, porsiyon_miktar, hazirlik_suresi, pisirme_suresi,
-        kalori, protein, karbonhidrat, yag, lif, tarif, aciklama, id]);
-    
+    `,
+      [
+        ad,
+        kategori_id,
+        porsiyon_miktar,
+        hazirlik_suresi,
+        pisirme_suresi,
+        kalori,
+        protein,
+        karbonhidrat,
+        yag,
+        lif,
+        tarif,
+        aciklama,
+        id,
+      ]
+    );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Reçete bulunamadı' });
     }
-    
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Reçete güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -428,20 +490,22 @@ router.put('/receteler/:id', async (req, res) => {
 router.delete('/receteler/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       UPDATE receteler SET aktif = false, updated_at = NOW()
       WHERE id = $1
       RETURNING *
-    `, [id]);
-    
+    `,
+      [id]
+    );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Reçete bulunamadı' });
     }
-    
+
     res.json({ success: true, message: 'Reçete silindi' });
   } catch (error) {
-    console.error('Reçete silme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -455,14 +519,17 @@ router.post('/receteler/:id/malzemeler', async (req, res) => {
   try {
     const { id } = req.params;
     const { stok_kart_id, urun_kart_id, malzeme_adi, miktar, birim, zorunlu, birim_fiyat } = req.body;
-    
+
     // Sıra numarasını bul
-    const siraResult = await query(`
+    const siraResult = await query(
+      `
       SELECT COALESCE(MAX(sira), 0) + 1 as next_sira 
       FROM recete_malzemeler 
       WHERE recete_id = $1
-    `, [id]);
-    
+    `,
+      [id]
+    );
+
     // Fiyat belirleme:
     // 1. Manuel fiyat verilmişse kullan
     // 2. Ürün kartı seçilmişse oradan çek (stok kartı bağlantısı varsa)
@@ -470,18 +537,21 @@ router.post('/receteler/:id/malzemeler', async (req, res) => {
     let finalFiyat = birim_fiyat || null;
     let fiyatKaynagi = 'manuel';
     let finalStokKartId = stok_kart_id;
-    
+
     // Ürün kartından fiyat ve stok kartı ID'si al
     if (urun_kart_id && !birim_fiyat) {
-      const urunResult = await query(`
+      const urunResult = await query(
+        `
         SELECT 
           uk.stok_kart_id,
           COALESCE(uk.manuel_fiyat, sk.son_alis_fiyat) as fiyat
         FROM urun_kartlari uk
         -- stok_kartlari artık kullanılmıyor, uk zaten urun_kartlari
         WHERE uk.id = $1
-      `, [urun_kart_id]);
-      
+      `,
+        [urun_kart_id]
+      );
+
       if (urunResult.rows.length > 0) {
         if (urunResult.rows[0].fiyat) {
           finalFiyat = urunResult.rows[0].fiyat;
@@ -492,33 +562,49 @@ router.post('/receteler/:id/malzemeler', async (req, res) => {
         }
       }
     }
-    
+
     // Fallback: Ürün kartından fiyat çek - YENİ SİSTEM: urun_kartlari
     if (finalStokKartId && !finalFiyat) {
-      const urunResult = await query(`
+      const urunResult = await query(
+        `
         SELECT son_alis_fiyati, ad FROM urun_kartlari WHERE id = $1
-      `, [finalStokKartId]);
+      `,
+        [finalStokKartId]
+      );
 
       if (urunResult.rows.length > 0 && urunResult.rows[0].son_alis_fiyati) {
         finalFiyat = urunResult.rows[0].son_alis_fiyati;
         fiyatKaynagi = 'urun_kart';
       }
     }
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       INSERT INTO recete_malzemeler (
         recete_id, stok_kart_id, urun_kart_id, malzeme_adi, miktar, birim, zorunlu, sira,
         birim_fiyat, fiyat_kaynagi, piyasa_fiyat
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $9)
       RETURNING *
-    `, [id, finalStokKartId, urun_kart_id, malzeme_adi, miktar, birim, zorunlu ?? true, siraResult.rows[0].next_sira, finalFiyat, fiyatKaynagi]);
-    
+    `,
+      [
+        id,
+        finalStokKartId,
+        urun_kart_id,
+        malzeme_adi,
+        miktar,
+        birim,
+        zorunlu ?? true,
+        siraResult.rows[0].next_sira,
+        finalFiyat,
+        fiyatKaynagi,
+      ]
+    );
+
     // Maliyeti yeniden hesapla
     await hesaplaReceteMaliyet(id);
-    
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Malzeme ekleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -528,24 +614,28 @@ router.put('/malzemeler/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { stok_kart_id, malzeme_adi, miktar, birim, zorunlu, birim_fiyat } = req.body;
-    
+
     // Fiyat belirleme
     let finalFiyat = birim_fiyat;
     let fiyatKaynagi = birim_fiyat ? 'manuel' : null;
-    
+
     // Eğer stok kartı seçilmişse ve fiyat verilmemişse, ürün kartından çek - YENİ SİSTEM
     if (stok_kart_id && !birim_fiyat) {
-      const urunResult = await query(`
+      const urunResult = await query(
+        `
         SELECT son_alis_fiyati FROM urun_kartlari WHERE id = $1
-      `, [stok_kart_id]);
+      `,
+        [stok_kart_id]
+      );
 
       if (urunResult.rows.length > 0 && urunResult.rows[0].son_alis_fiyati) {
         finalFiyat = urunResult.rows[0].son_alis_fiyati;
         fiyatKaynagi = 'urun_kart';
       }
     }
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       UPDATE recete_malzemeler SET
         stok_kart_id = COALESCE($1, stok_kart_id),
         malzeme_adi = COALESCE($2, malzeme_adi),
@@ -558,18 +648,19 @@ router.put('/malzemeler/:id', async (req, res) => {
         updated_at = NOW()
       WHERE id = $6
       RETURNING *
-    `, [stok_kart_id, malzeme_adi, miktar, birim, zorunlu, id, finalFiyat, fiyatKaynagi]);
-    
+    `,
+      [stok_kart_id, malzeme_adi, miktar, birim, zorunlu, id, finalFiyat, fiyatKaynagi]
+    );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Malzeme bulunamadı' });
     }
-    
+
     // Maliyeti yeniden hesapla
     await hesaplaReceteMaliyet(result.rows[0].recete_id);
-    
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Malzeme güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -578,24 +669,23 @@ router.put('/malzemeler/:id', async (req, res) => {
 router.delete('/malzemeler/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Önce recete_id'yi al
     const malzeme = await query('SELECT recete_id FROM recete_malzemeler WHERE id = $1', [id]);
-    
+
     if (malzeme.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Malzeme bulunamadı' });
     }
-    
+
     const receteId = malzeme.rows[0].recete_id;
-    
+
     await query('DELETE FROM recete_malzemeler WHERE id = $1', [id]);
-    
+
     // Maliyeti yeniden hesapla
     await hesaplaReceteMaliyet(receteId);
-    
+
     res.json({ success: true, message: 'Malzeme silindi' });
   } catch (error) {
-    console.error('Malzeme silme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -608,7 +698,8 @@ router.delete('/malzemeler/:id', async (req, res) => {
 async function hesaplaReceteMaliyet(receteId) {
   try {
     // Malzemeleri al (stok_kart_id veya malzeme adına göre fiyat ara)
-    const malzemeler = await query(`
+    const malzemeler = await query(
+      `
       SELECT 
         rm.*,
         sk.son_alis_fiyat as sistem_fiyat,
@@ -633,18 +724,20 @@ async function hesaplaReceteMaliyet(receteId) {
       FROM recete_malzemeler rm
       LEFT JOIN urun_kartlari urk ON urk.id = rm.urun_kart_id
       WHERE rm.recete_id = $1
-    `, [receteId]);
-    
+    `,
+      [receteId]
+    );
+
     let toplamMaliyet = 0;
-    
+
     for (const m of malzemeler.rows) {
       // Fiyat önceliği: piyasa > sistem > 0
       const birimFiyat = m.piyasa_fiyat || m.sistem_fiyat || 0;
-      
+
       // Birim dönüşümü (g → kg, ml → L)
       let maliyet = 0;
       const birim = (m.birim || '').toLowerCase();
-      
+
       if (birim === 'g' || birim === 'gr') {
         maliyet = (m.miktar / 1000) * birimFiyat; // kg fiyatı
       } else if (birim === 'ml') {
@@ -652,30 +745,35 @@ async function hesaplaReceteMaliyet(receteId) {
       } else {
         maliyet = m.miktar * birimFiyat;
       }
-      
+
       // Malzeme fiyatını güncelle
-      await query(`
+      await query(
+        `
         UPDATE recete_malzemeler SET
           birim_fiyat = $1,
           toplam_fiyat = $2,
           fiyat_kaynagi = $3
         WHERE id = $4
-      `, [birimFiyat, maliyet, m.piyasa_fiyat ? 'piyasa' : (m.sistem_fiyat ? 'sistem' : 'manuel'), m.id]);
-      
+      `,
+        [birimFiyat, maliyet, m.piyasa_fiyat ? 'piyasa' : m.sistem_fiyat ? 'sistem' : 'manuel', m.id]
+      );
+
       toplamMaliyet += maliyet;
     }
-    
+
     // Reçete maliyetini güncelle
-    await query(`
+    await query(
+      `
       UPDATE receteler SET
         tahmini_maliyet = $1,
         son_hesaplama_tarihi = NOW()
       WHERE id = $2
-    `, [Math.round(toplamMaliyet * 100) / 100, receteId]);
-    
+    `,
+      [Math.round(toplamMaliyet * 100) / 100, receteId]
+    );
+
     return toplamMaliyet;
-  } catch (error) {
-    console.error('Maliyet hesaplama hatası:', error);
+  } catch (_error) {
     return 0;
   }
 }
@@ -685,14 +783,13 @@ router.post('/receteler/:id/maliyet-hesapla', async (req, res) => {
   try {
     const { id } = req.params;
     const maliyet = await hesaplaReceteMaliyet(id);
-    
+
     res.json({
       success: true,
       maliyet: Math.round(maliyet * 100) / 100,
-      message: 'Maliyet hesaplandı'
+      message: 'Maliyet hesaplandı',
     });
   } catch (error) {
-    console.error('Maliyet hesaplama hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -702,7 +799,7 @@ router.post('/receteler/:id/maliyet-hesapla', async (req, res) => {
 // =============================================
 
 // Öğün tiplerini listele
-router.get('/ogun-tipleri', async (req, res) => {
+router.get('/ogun-tipleri', async (_req, res) => {
   try {
     const result = await query(`
       SELECT * FROM ogun_tipleri 
@@ -719,8 +816,9 @@ router.get('/ogun-tipleri', async (req, res) => {
 router.get('/projeler/:projeId/ogun-sablonlari', async (req, res) => {
   try {
     const { projeId } = req.params;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       SELECT 
         pos.*,
         ot.ad as ogun_tip_adi,
@@ -729,8 +827,10 @@ router.get('/projeler/:projeId/ogun-sablonlari', async (req, res) => {
       JOIN ogun_tipleri ot ON ot.id = pos.ogun_tipi_id
       WHERE pos.proje_id = $1 AND pos.aktif = true
       ORDER BY pos.sira, ot.varsayilan_sira
-    `, [projeId]);
-    
+    `,
+      [projeId]
+    );
+
     res.json({ success: true, data: result.rows });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -742,8 +842,9 @@ router.post('/projeler/:projeId/ogun-sablonlari', async (req, res) => {
   try {
     const { projeId } = req.params;
     const { ogun_tipi_id, cesit_sayisi, kisi_sayisi, tip, ogun_adi } = req.body;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       INSERT INTO proje_ogun_sablonlari (
         proje_id, ogun_tipi_id, cesit_sayisi, kisi_sayisi, tip, ogun_adi, sira
       ) VALUES ($1, $2, $3, $4, $5, $6, 
@@ -757,8 +858,10 @@ router.post('/projeler/:projeId/ogun-sablonlari', async (req, res) => {
         ogun_adi = EXCLUDED.ogun_adi,
         updated_at = NOW()
       RETURNING *
-    `, [projeId, ogun_tipi_id, cesit_sayisi || 4, kisi_sayisi || 1000, tip || 'tabldot', ogun_adi]);
-    
+    `,
+      [projeId, ogun_tipi_id, cesit_sayisi || 4, kisi_sayisi || 1000, tip || 'tabldot', ogun_adi]
+    );
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -773,13 +876,16 @@ router.post('/projeler/:projeId/ogun-sablonlari', async (req, res) => {
 router.get('/projeler/:projeId/menu-planlari', async (req, res) => {
   try {
     const { projeId } = req.params;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       SELECT * FROM v_menu_plan_ozet
       WHERE proje_id = $1
       ORDER BY baslangic_tarihi DESC
-    `, [projeId]);
-    
+    `,
+      [projeId]
+    );
+
     res.json({ success: true, data: result.rows });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -790,21 +896,25 @@ router.get('/projeler/:projeId/menu-planlari', async (req, res) => {
 router.get('/menu-planlari/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Plan bilgisi
-    const planResult = await query(`
+    const planResult = await query(
+      `
       SELECT mp.*, p.ad as proje_adi
       FROM menu_planlari mp
       JOIN projeler p ON p.id = mp.proje_id
       WHERE mp.id = $1
-    `, [id]);
-    
+    `,
+      [id]
+    );
+
     if (planResult.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Plan bulunamadı' });
     }
-    
+
     // Öğünler ve yemekler
-    const ogunlerResult = await query(`
+    const ogunlerResult = await query(
+      `
       SELECT 
         mpo.*,
         ot.ad as ogun_tip_adi,
@@ -829,17 +939,18 @@ router.get('/menu-planlari/:id', async (req, res) => {
       WHERE mpo.menu_plan_id = $1
       GROUP BY mpo.id, ot.ad, ot.ikon
       ORDER BY mpo.tarih, mpo.ogun_tipi_id
-    `, [id]);
-    
+    `,
+      [id]
+    );
+
     res.json({
       success: true,
       data: {
         ...planResult.rows[0],
-        ogunler: ogunlerResult.rows
-      }
+        ogunler: ogunlerResult.rows,
+      },
     });
   } catch (error) {
-    console.error('Menü planı detay hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -847,23 +958,21 @@ router.get('/menu-planlari/:id', async (req, res) => {
 // Yeni menü planı oluştur
 router.post('/menu-planlari', async (req, res) => {
   try {
-    const {
-      proje_id, ad, tip, baslangic_tarihi, bitis_tarihi,
-      varsayilan_kisi_sayisi, notlar
-    } = req.body;
-    
-    const result = await query(`
+    const { proje_id, ad, tip, baslangic_tarihi, bitis_tarihi, varsayilan_kisi_sayisi, notlar } = req.body;
+
+    const result = await query(
+      `
       INSERT INTO menu_planlari (
         proje_id, ad, tip, baslangic_tarihi, bitis_tarihi,
         varsayilan_kisi_sayisi, notlar, durum
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'taslak')
       RETURNING *
-    `, [proje_id, ad, tip || 'haftalik', baslangic_tarihi, bitis_tarihi,
-        varsayilan_kisi_sayisi || 1000, notlar]);
-    
+    `,
+      [proje_id, ad, tip || 'haftalik', baslangic_tarihi, bitis_tarihi, varsayilan_kisi_sayisi || 1000, notlar]
+    );
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Menü planı oluşturma hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -873,8 +982,9 @@ router.post('/menu-planlari/:planId/ogunler', async (req, res) => {
   try {
     const { planId } = req.params;
     const { tarih, ogun_tipi_id, kisi_sayisi } = req.body;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       INSERT INTO menu_plan_ogunleri (
         menu_plan_id, tarih, ogun_tipi_id, kisi_sayisi
       ) VALUES ($1, $2, $3, $4)
@@ -882,8 +992,10 @@ router.post('/menu-planlari/:planId/ogunler', async (req, res) => {
         kisi_sayisi = EXCLUDED.kisi_sayisi,
         updated_at = NOW()
       RETURNING *
-    `, [planId, tarih, ogun_tipi_id, kisi_sayisi]);
-    
+    `,
+      [planId, tarih, ogun_tipi_id, kisi_sayisi]
+    );
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -895,30 +1007,30 @@ router.post('/ogunler/:ogunId/yemekler', async (req, res) => {
   try {
     const { ogunId } = req.params;
     const { recete_id, sira } = req.body;
-    
+
     // Reçete maliyetini al
-    const receteResult = await query(
-      'SELECT tahmini_maliyet FROM receteler WHERE id = $1',
-      [recete_id]
-    );
-    
+    const receteResult = await query('SELECT tahmini_maliyet FROM receteler WHERE id = $1', [recete_id]);
+
     const porsiyonMaliyet = receteResult.rows[0]?.tahmini_maliyet || 0;
-    
+
     // Öğün kişi sayısını al
-    const ogunResult = await query(`
+    const ogunResult = await query(
+      `
       SELECT mpo.kisi_sayisi, mp.varsayilan_kisi_sayisi
       FROM menu_plan_ogunleri mpo
       JOIN menu_planlari mp ON mp.id = mpo.menu_plan_id
       WHERE mpo.id = $1
-    `, [ogunId]);
-    
-    const kisiSayisi = ogunResult.rows[0]?.kisi_sayisi || 
-                       ogunResult.rows[0]?.varsayilan_kisi_sayisi || 1000;
-    
+    `,
+      [ogunId]
+    );
+
+    const kisiSayisi = ogunResult.rows[0]?.kisi_sayisi || ogunResult.rows[0]?.varsayilan_kisi_sayisi || 1000;
+
     const toplamMaliyet = porsiyonMaliyet * kisiSayisi;
-    
+
     // Yemek ekle
-    const result = await query(`
+    const result = await query(
+      `
       INSERT INTO menu_ogun_yemekleri (
         menu_ogun_id, recete_id, sira, porsiyon_maliyet, toplam_maliyet
       ) VALUES ($1, $2, $3, $4, $5)
@@ -927,14 +1039,15 @@ router.post('/ogunler/:ogunId/yemekler', async (req, res) => {
         porsiyon_maliyet = EXCLUDED.porsiyon_maliyet,
         toplam_maliyet = EXCLUDED.toplam_maliyet
       RETURNING *
-    `, [ogunId, recete_id, sira || 1, porsiyonMaliyet, toplamMaliyet]);
-    
+    `,
+      [ogunId, recete_id, sira || 1, porsiyonMaliyet, toplamMaliyet]
+    );
+
     // Öğün toplamını güncelle
     await guncelleOgunMaliyet(ogunId);
-    
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Yemek ekleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -944,21 +1057,23 @@ router.put('/menu-ogun/:ogunId', async (req, res) => {
   try {
     const { ogunId } = req.params;
     const { kisi_sayisi } = req.body;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       UPDATE menu_plan_ogunleri 
       SET kisi_sayisi = $1, updated_at = NOW()
       WHERE id = $2
       RETURNING *
-    `, [kisi_sayisi, ogunId]);
-    
+    `,
+      [kisi_sayisi, ogunId]
+    );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Öğün bulunamadı' });
     }
-    
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Öğün güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -967,21 +1082,21 @@ router.put('/menu-ogun/:ogunId', async (req, res) => {
 router.delete('/yemekler/:yemekId', async (req, res) => {
   try {
     const { yemekId } = req.params;
-    
+
     // Önce öğün ID'yi al
     const yemek = await query('SELECT menu_ogun_id FROM menu_ogun_yemekleri WHERE id = $1', [yemekId]);
-    
+
     if (yemek.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Yemek bulunamadı' });
     }
-    
+
     const ogunId = yemek.rows[0].menu_ogun_id;
-    
+
     await query('DELETE FROM menu_ogun_yemekleri WHERE id = $1', [yemekId]);
-    
+
     // Öğün toplamını güncelle
     await guncelleOgunMaliyet(ogunId);
-    
+
     res.json({ success: true, message: 'Yemek silindi' });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -992,81 +1107,95 @@ router.delete('/yemekler/:yemekId', async (req, res) => {
 async function guncelleOgunMaliyet(ogunId) {
   try {
     // Yemeklerin toplam maliyeti
-    const result = await query(`
+    const result = await query(
+      `
       SELECT 
         COALESCE(SUM(toplam_maliyet), 0) as toplam,
         COALESCE(SUM(porsiyon_maliyet), 0) as porsiyon_toplam
       FROM menu_ogun_yemekleri
       WHERE menu_ogun_id = $1
-    `, [ogunId]);
-    
+    `,
+      [ogunId]
+    );
+
     const toplam = result.rows[0].toplam;
-    
+
     // Öğün kişi sayısı
-    const ogunResult = await query(`
+    const ogunResult = await query(
+      `
       SELECT kisi_sayisi, 
              (SELECT varsayilan_kisi_sayisi FROM menu_planlari WHERE id = menu_plan_id) as varsayilan
       FROM menu_plan_ogunleri WHERE id = $1
-    `, [ogunId]);
-    
+    `,
+      [ogunId]
+    );
+
     const kisiSayisi = ogunResult.rows[0]?.kisi_sayisi || ogunResult.rows[0]?.varsayilan || 1;
     const porsiyonMaliyet = kisiSayisi > 0 ? toplam / kisiSayisi : 0;
-    
-    await query(`
+
+    await query(
+      `
       UPDATE menu_plan_ogunleri SET
         toplam_maliyet = $1,
         porsiyon_maliyet = $2,
         updated_at = NOW()
       WHERE id = $3
-    `, [toplam, porsiyonMaliyet, ogunId]);
-    
+    `,
+      [toplam, porsiyonMaliyet, ogunId]
+    );
+
     // Plan toplamını da güncelle
     const planId = await query('SELECT menu_plan_id FROM menu_plan_ogunleri WHERE id = $1', [ogunId]);
     if (planId.rows.length > 0) {
       await guncellePlanMaliyet(planId.rows[0].menu_plan_id);
     }
-  } catch (error) {
-    console.error('Öğün maliyet güncelleme hatası:', error);
-  }
+  } catch (_error) {}
 }
 
 // Plan maliyetini güncelle
 async function guncellePlanMaliyet(planId) {
   try {
-    const result = await query(`
+    const result = await query(
+      `
       SELECT 
         COALESCE(SUM(toplam_maliyet), 0) as toplam,
         COUNT(DISTINCT tarih) as gun_sayisi
       FROM menu_plan_ogunleri
       WHERE menu_plan_id = $1
-    `, [planId]);
-    
+    `,
+      [planId]
+    );
+
     const toplam = result.rows[0].toplam;
     const gunSayisi = result.rows[0].gun_sayisi || 1;
     const gunlukOrtalama = toplam / gunSayisi;
-    
+
     // Toplam porsiyon sayısı
-    const porsiyonResult = await query(`
+    const porsiyonResult = await query(
+      `
       SELECT COALESCE(SUM(COALESCE(kisi_sayisi, mp.varsayilan_kisi_sayisi)), 0) as toplam_porsiyon
       FROM menu_plan_ogunleri mpo
       JOIN menu_planlari mp ON mp.id = mpo.menu_plan_id
       WHERE mpo.menu_plan_id = $1
-    `, [planId]);
-    
+    `,
+      [planId]
+    );
+
     const toplamPorsiyon = porsiyonResult.rows[0].toplam_porsiyon || 1;
     const porsiyonOrtalama = toplam / toplamPorsiyon;
-    
-    await query(`
+
+    await query(
+      `
       UPDATE menu_planlari SET
         toplam_maliyet = $1,
         gunluk_ortalama_maliyet = $2,
         porsiyon_ortalama_maliyet = $3,
         updated_at = NOW()
       WHERE id = $4
-    `, [toplam, gunlukOrtalama, porsiyonOrtalama, planId]);
-  } catch (error) {
-    console.error('Plan maliyet güncelleme hatası:', error);
-  }
+    `,
+      [toplam, gunlukOrtalama, porsiyonOrtalama, planId]
+    );
+  } catch (_error) {}
 }
 
 // =============================================
@@ -1077,39 +1206,46 @@ async function guncellePlanMaliyet(planId) {
 router.get('/menu-plan', async (req, res) => {
   try {
     const { proje_id, baslangic, bitis } = req.query;
-    
+
     if (!proje_id || !baslangic || !bitis) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'proje_id, baslangic ve bitis parametreleri gerekli' 
+      return res.status(400).json({
+        success: false,
+        error: 'proje_id, baslangic ve bitis parametreleri gerekli',
       });
     }
-    
+
     // Önce menü planını bul veya oluştur
-    let planResult = await query(`
+    const planResult = await query(
+      `
       SELECT id FROM menu_planlari 
       WHERE proje_id = $1 
         AND baslangic_tarihi <= $2 
         AND bitis_tarihi >= $3
       LIMIT 1
-    `, [proje_id, bitis, baslangic]);
-    
+    `,
+      [proje_id, bitis, baslangic]
+    );
+
     let planId = planResult.rows[0]?.id;
-    
+
     // Plan yoksa oluştur
     if (!planId) {
-      const createResult = await query(`
+      const createResult = await query(
+        `
         INSERT INTO menu_planlari (
           proje_id, ad, tip, baslangic_tarihi, bitis_tarihi,
           varsayilan_kisi_sayisi, durum
         ) VALUES ($1, $2, 'aylik', $3, $4, 1000, 'taslak')
         RETURNING id
-      `, [proje_id, `Menü Planı - ${baslangic}`, baslangic, bitis]);
+      `,
+        [proje_id, `Menü Planı - ${baslangic}`, baslangic, bitis]
+      );
       planId = createResult.rows[0].id;
     }
-    
+
     // Öğünleri getir
-    const ogunlerResult = await query(`
+    const ogunlerResult = await query(
+      `
       SELECT 
         mpo.id,
         mpo.tarih,
@@ -1141,17 +1277,18 @@ router.get('/menu-plan', async (req, res) => {
         AND mpo.tarih >= $2 AND mpo.tarih <= $3
       GROUP BY mpo.id, ot.kod, ot.ad, ot.ikon
       ORDER BY mpo.tarih, mpo.ogun_tipi_id
-    `, [planId, baslangic, bitis]);
-    
+    `,
+      [planId, baslangic, bitis]
+    );
+
     res.json({
       success: true,
       data: {
         plan_id: planId,
-        ogunler: ogunlerResult.rows
-      }
+        ogunler: ogunlerResult.rows,
+      },
     });
   } catch (error) {
-    console.error('Menü planı getirme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1160,90 +1297,100 @@ router.get('/menu-plan', async (req, res) => {
 router.post('/menu-plan/yemek-ekle', async (req, res) => {
   try {
     const { proje_id, tarih, ogun_tipi, recete_id, kisi_sayisi = 1000 } = req.body;
-    
+
     if (!proje_id || !tarih || !ogun_tipi || !recete_id) {
       return res.status(400).json({
         success: false,
-        error: 'proje_id, tarih, ogun_tipi ve recete_id gerekli'
+        error: 'proje_id, tarih, ogun_tipi ve recete_id gerekli',
       });
     }
-    
+
     // Öğün tipi kodunu ID'ye çevir
-    const ogunTipResult = await query(
-      'SELECT id FROM ogun_tipleri WHERE kod = $1',
-      [ogun_tipi]
-    );
-    
+    const ogunTipResult = await query('SELECT id FROM ogun_tipleri WHERE kod = $1', [ogun_tipi]);
+
     if (ogunTipResult.rows.length === 0) {
       return res.status(400).json({ success: false, error: 'Geçersiz öğün tipi' });
     }
-    
+
     const ogunTipiId = ogunTipResult.rows[0].id;
-    
+
     // Menü planını bul veya oluştur
     const ayBaslangic = tarih.substring(0, 7) + '-01';
-    const ay = parseInt(tarih.substring(5, 7));
-    const yil = parseInt(tarih.substring(0, 4));
+    const ay = parseInt(tarih.substring(5, 7), 10);
+    const yil = parseInt(tarih.substring(0, 4), 10);
     const sonGun = new Date(yil, ay, 0).getDate();
     const ayBitis = tarih.substring(0, 7) + '-' + sonGun;
-    
-    let planResult = await query(`
+
+    const planResult = await query(
+      `
       SELECT id FROM menu_planlari 
       WHERE proje_id = $1 
         AND baslangic_tarihi <= $2 
         AND bitis_tarihi >= $2
       LIMIT 1
-    `, [proje_id, tarih]);
-    
+    `,
+      [proje_id, tarih]
+    );
+
     let planId = planResult.rows[0]?.id;
-    
+
     if (!planId) {
-      const createResult = await query(`
+      const createResult = await query(
+        `
         INSERT INTO menu_planlari (
           proje_id, ad, tip, baslangic_tarihi, bitis_tarihi,
           varsayilan_kisi_sayisi, durum
         ) VALUES ($1, $2, 'aylik', $3, $4, $5, 'taslak')
         RETURNING id
-      `, [proje_id, `Menü Planı - ${ayBaslangic}`, ayBaslangic, ayBitis, kisi_sayisi]);
+      `,
+        [proje_id, `Menü Planı - ${ayBaslangic}`, ayBaslangic, ayBitis, kisi_sayisi]
+      );
       planId = createResult.rows[0].id;
     }
-    
+
     // Öğünü bul veya oluştur
-    let ogunResult = await query(`
+    const ogunResult = await query(
+      `
       SELECT id FROM menu_plan_ogunleri 
       WHERE menu_plan_id = $1 AND tarih = $2 AND ogun_tipi_id = $3
-    `, [planId, tarih, ogunTipiId]);
-    
+    `,
+      [planId, tarih, ogunTipiId]
+    );
+
     let ogunId = ogunResult.rows[0]?.id;
-    
+
     if (!ogunId) {
-      const createOgunResult = await query(`
+      const createOgunResult = await query(
+        `
         INSERT INTO menu_plan_ogunleri (
           menu_plan_id, tarih, ogun_tipi_id, kisi_sayisi
         ) VALUES ($1, $2, $3, $4)
         RETURNING id
-      `, [planId, tarih, ogunTipiId, kisi_sayisi]);
+      `,
+        [planId, tarih, ogunTipiId, kisi_sayisi]
+      );
       ogunId = createOgunResult.rows[0].id;
     }
-    
+
     // Reçete maliyetini al
-    const receteResult = await query(
-      'SELECT tahmini_maliyet FROM receteler WHERE id = $1',
-      [recete_id]
-    );
-    
+    const receteResult = await query('SELECT tahmini_maliyet FROM receteler WHERE id = $1', [recete_id]);
+
     const porsiyonMaliyet = parseFloat(receteResult.rows[0]?.tahmini_maliyet) || 0;
     const toplamMaliyet = porsiyonMaliyet * kisi_sayisi;
-    
+
     // Sıra numarasını bul
-    const siraResult = await query(`
+    const siraResult = await query(
+      `
       SELECT COALESCE(MAX(sira), 0) + 1 as next_sira 
       FROM menu_ogun_yemekleri 
       WHERE menu_ogun_id = $1
-    `, [ogunId]);
-    
+    `,
+      [ogunId]
+    );
+
     // Yemek ekle
-    const yemekResult = await query(`
+    const yemekResult = await query(
+      `
       INSERT INTO menu_ogun_yemekleri (
         menu_ogun_id, recete_id, sira, porsiyon_maliyet, toplam_maliyet
       ) VALUES ($1, $2, $3, $4, $5)
@@ -1251,18 +1398,19 @@ router.post('/menu-plan/yemek-ekle', async (req, res) => {
         porsiyon_maliyet = EXCLUDED.porsiyon_maliyet,
         toplam_maliyet = EXCLUDED.toplam_maliyet
       RETURNING *
-    `, [ogunId, recete_id, siraResult.rows[0].next_sira, porsiyonMaliyet, toplamMaliyet]);
-    
+    `,
+      [ogunId, recete_id, siraResult.rows[0].next_sira, porsiyonMaliyet, toplamMaliyet]
+    );
+
     // Öğün ve plan maliyetlerini güncelle
     await guncelleOgunMaliyet(ogunId);
-    
+
     res.json({
       success: true,
       data: yemekResult.rows[0],
-      message: 'Yemek menüye eklendi'
+      message: 'Yemek menüye eklendi',
     });
   } catch (error) {
-    console.error('Yemek ekleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1275,8 +1423,9 @@ router.post('/menu-plan/yemek-ekle', async (req, res) => {
 router.get('/menu-planlari/:planId/gunluk-ozet', async (req, res) => {
   try {
     const { planId } = req.params;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       SELECT 
         mpo.tarih,
         COUNT(DISTINCT mpo.id) as ogun_sayisi,
@@ -1288,8 +1437,10 @@ router.get('/menu-planlari/:planId/gunluk-ozet', async (req, res) => {
       WHERE mpo.menu_plan_id = $1
       GROUP BY mpo.tarih
       ORDER BY mpo.tarih
-    `, [planId]);
-    
+    `,
+      [planId]
+    );
+
     res.json({ success: true, data: result.rows });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1300,17 +1451,21 @@ router.get('/menu-planlari/:planId/gunluk-ozet', async (req, res) => {
 router.post('/projeler/:kaynakId/sablon-kopyala/:hedefId', async (req, res) => {
   try {
     const { kaynakId, hedefId } = req.params;
-    
+
     // Kaynak şablonları al
-    const sablonlar = await query(`
+    const sablonlar = await query(
+      `
       SELECT ogun_tipi_id, cesit_sayisi, kisi_sayisi, tip, ogun_adi, sira
       FROM proje_ogun_sablonlari
       WHERE proje_id = $1 AND aktif = true
-    `, [kaynakId]);
-    
+    `,
+      [kaynakId]
+    );
+
     // Hedef projeye kopyala
     for (const s of sablonlar.rows) {
-      await query(`
+      await query(
+        `
         INSERT INTO proje_ogun_sablonlari (
           proje_id, ogun_tipi_id, cesit_sayisi, kisi_sayisi, tip, ogun_adi, sira
         ) VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -1320,12 +1475,14 @@ router.post('/projeler/:kaynakId/sablon-kopyala/:hedefId', async (req, res) => {
           tip = EXCLUDED.tip,
           ogun_adi = EXCLUDED.ogun_adi,
           sira = EXCLUDED.sira
-      `, [hedefId, s.ogun_tipi_id, s.cesit_sayisi, s.kisi_sayisi, s.tip, s.ogun_adi, s.sira]);
+      `,
+        [hedefId, s.ogun_tipi_id, s.cesit_sayisi, s.kisi_sayisi, s.tip, s.ogun_adi, s.sira]
+      );
     }
-    
-    res.json({ 
-      success: true, 
-      message: `${sablonlar.rows.length} öğün şablonu kopyalandı` 
+
+    res.json({
+      success: true,
+      message: `${sablonlar.rows.length} öğün şablonu kopyalandı`,
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1337,7 +1494,7 @@ router.post('/projeler/:kaynakId/sablon-kopyala/:hedefId', async (req, res) => {
 // =============================================
 
 // Kurumları listele
-router.get('/sartname/kurumlar', async (req, res) => {
+router.get('/sartname/kurumlar', async (_req, res) => {
   try {
     const result = await query(`
       SELECT * FROM sartname_kurumlari 
@@ -1353,29 +1510,28 @@ router.get('/sartname/kurumlar', async (req, res) => {
 // Şartnameleri listele
 router.get('/sartname/liste', async (req, res) => {
   try {
-    const { kurum_id, proje_id, aktif = true } = req.query;
-    
-    let whereConditions = [];
-    let params = [];
+    const { kurum_id: _kurum_id, proje_id: _proje_id, aktif = true } = req.query;
+
+    const whereConditions = [];
+    const params = [];
     let paramIndex = 1;
-    
+
     if (aktif !== 'all') {
       whereConditions.push(`ps.aktif = $${paramIndex}`);
       params.push(aktif === 'true');
       paramIndex++;
     }
-    
+
     if (kurum_id) {
       whereConditions.push(`ps.kurum_id = $${paramIndex}`);
       params.push(kurum_id);
       paramIndex++;
     }
-    
-    const whereClause = whereConditions.length > 0 
-      ? 'WHERE ' + whereConditions.join(' AND ')
-      : '';
-    
-    const result = await query(`
+
+    const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
+
+    const result = await query(
+      `
       SELECT 
         ps.*,
         sk.ad as kurum_adi,
@@ -1386,8 +1542,10 @@ router.get('/sartname/liste', async (req, res) => {
       LEFT JOIN sartname_kurumlari sk ON sk.id = ps.kurum_id
       ${whereClause}
       ORDER BY ps.yil DESC, ps.ad
-    `, params);
-    
+    `,
+      params
+    );
+
     res.json({ success: true, data: result.rows });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1398,20 +1556,22 @@ router.get('/sartname/liste', async (req, res) => {
 router.post('/sartname', async (req, res) => {
   try {
     const { kod, ad, kurum_id, yil, versiyon, kaynak_url, kaynak_aciklama, notlar } = req.body;
-    
+
     if (!kod || !ad) {
       return res.status(400).json({ success: false, error: 'Kod ve ad zorunlu' });
     }
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       INSERT INTO proje_sartnameleri (kod, ad, kurum_id, yil, versiyon, kaynak_url, kaynak_aciklama, notlar)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
-    `, [kod, ad, kurum_id, yil || new Date().getFullYear(), versiyon || '1.0', kaynak_url, kaynak_aciklama, notlar]);
-    
+    `,
+      [kod, ad, kurum_id, yil || new Date().getFullYear(), versiyon || '1.0', kaynak_url, kaynak_aciklama, notlar]
+    );
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Şartname ekleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1420,20 +1580,24 @@ router.post('/sartname', async (req, res) => {
 router.get('/sartname/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const sartname = await query(`
+
+    const sartname = await query(
+      `
       SELECT ps.*, sk.ad as kurum_adi, sk.ikon as kurum_ikon
       FROM proje_sartnameleri ps
       LEFT JOIN sartname_kurumlari sk ON sk.id = ps.kurum_id
       WHERE ps.id = $1
-    `, [id]);
-    
+    `,
+      [id]
+    );
+
     if (sartname.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Şartname bulunamadı' });
     }
-    
+
     // Porsiyon gramajlarını al
-    const gramajlar = await query(`
+    const gramajlar = await query(
+      `
       SELECT 
         spg.*,
         rk.ad as kategori_adi,
@@ -1442,33 +1606,41 @@ router.get('/sartname/:id', async (req, res) => {
       LEFT JOIN recete_kategoriler rk ON rk.id = spg.kategori_id
       WHERE spg.sartname_id = $1 AND spg.aktif = true
       ORDER BY spg.sira, spg.yemek_turu
-    `, [id]);
-    
+    `,
+      [id]
+    );
+
     // Öğün yapılarını al (aktif/pasif hepsini getir)
-    const ogunYapilari = await query(`
+    const ogunYapilari = await query(
+      `
       SELECT * FROM sartname_ogun_yapisi
       WHERE sartname_id = $1
       ORDER BY CASE ogun_tipi WHEN 'kahvalti' THEN 1 WHEN 'ogle' THEN 2 WHEN 'aksam' THEN 3 END
-    `, [id]);
-    
+    `,
+      [id]
+    );
+
     // Atanan projeleri al
-    const projeler = await query(`
+    const projeler = await query(
+      `
       SELECT 
         p.id, p.ad, p.kod,
         psa.varsayilan, psa.baslangic_tarihi, psa.bitis_tarihi
       FROM proje_sartname_atamalari psa
       JOIN projeler p ON p.id = psa.proje_id
       WHERE psa.sartname_id = $1
-    `, [id]);
-    
-    res.json({ 
-      success: true, 
+    `,
+      [id]
+    );
+
+    res.json({
+      success: true,
       data: {
         ...sartname.rows[0],
         gramajlar: gramajlar.rows,
         ogun_yapilari: ogunYapilari.rows,
-        projeler: projeler.rows
-      }
+        projeler: projeler.rows,
+      },
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1480,8 +1652,9 @@ router.put('/sartname/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { ad, kurum_id, yil, versiyon, kaynak_url, kaynak_aciklama, notlar, aktif } = req.body;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       UPDATE proje_sartnameleri
       SET ad = COALESCE($1, ad),
           kurum_id = COALESCE($2, kurum_id),
@@ -1494,8 +1667,10 @@ router.put('/sartname/:id', async (req, res) => {
           updated_at = NOW()
       WHERE id = $9
       RETURNING *
-    `, [ad, kurum_id, yil, versiyon, kaynak_url, kaynak_aciklama, notlar, aktif, id]);
-    
+    `,
+      [ad, kurum_id, yil, versiyon, kaynak_url, kaynak_aciklama, notlar, aktif, id]
+    );
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1507,24 +1682,30 @@ router.post('/sartname/:sartnameId/proje-ata', async (req, res) => {
   try {
     const { sartnameId } = req.params;
     const { proje_id, varsayilan } = req.body;
-    
+
     // Varsayilan atama yapılıyorsa, diğerlerini varsayilan olmaktan çıkar
     if (varsayilan) {
-      await query(`
+      await query(
+        `
         UPDATE proje_sartname_atamalari
         SET varsayilan = false
         WHERE proje_id = $1 AND sartname_id != $2
-      `, [proje_id, sartnameId]);
+      `,
+        [proje_id, sartnameId]
+      );
     }
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       INSERT INTO proje_sartname_atamalari (proje_id, sartname_id, varsayilan)
       VALUES ($1, $2, $3)
       ON CONFLICT (proje_id, sartname_id) DO UPDATE SET
         varsayilan = EXCLUDED.varsayilan
       RETURNING *
-    `, [proje_id, sartnameId, varsayilan || false]);
-    
+    `,
+      [proje_id, sartnameId, varsayilan || false]
+    );
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1535,8 +1716,9 @@ router.post('/sartname/:sartnameId/proje-ata', async (req, res) => {
 router.get('/proje/:projeId/sartnameler', async (req, res) => {
   try {
     const { projeId } = req.params;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       SELECT 
         ps.*,
         sk.ad as kurum_adi,
@@ -1548,8 +1730,10 @@ router.get('/proje/:projeId/sartnameler', async (req, res) => {
       LEFT JOIN sartname_kurumlari sk ON sk.id = ps.kurum_id
       WHERE psa.proje_id = $1 AND ps.aktif = true
       ORDER BY psa.varsayilan DESC, ps.ad
-    `, [projeId]);
-    
+    `,
+      [projeId]
+    );
+
     res.json({ success: true, data: result.rows });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1566,18 +1750,21 @@ router.post('/sartname/:sartnameId/gramaj', async (req, res) => {
   try {
     const { sartnameId } = req.params;
     const { kategori_id, yemek_turu, porsiyon_gramaj, birim, aciklama, sira } = req.body;
-    
+
     if (!yemek_turu || !porsiyon_gramaj) {
       return res.status(400).json({ success: false, error: 'Yemek türü ve porsiyon gramajı zorunlu' });
     }
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       INSERT INTO sartname_porsiyon_gramajlari (
         sartname_id, kategori_id, yemek_turu, porsiyon_gramaj, birim, aciklama, sira
       ) VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
-    `, [sartnameId, kategori_id, yemek_turu, porsiyon_gramaj, birim || 'g', aciklama, sira || 0]);
-    
+    `,
+      [sartnameId, kategori_id, yemek_turu, porsiyon_gramaj, birim || 'g', aciklama, sira || 0]
+    );
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1589,8 +1776,9 @@ router.put('/sartname/gramaj/:gramajId', async (req, res) => {
   try {
     const { gramajId } = req.params;
     const { kategori_id, yemek_turu, porsiyon_gramaj, birim, aciklama, sira, aktif } = req.body;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       UPDATE sartname_porsiyon_gramajlari
       SET 
         kategori_id = COALESCE($1, kategori_id),
@@ -1602,8 +1790,10 @@ router.put('/sartname/gramaj/:gramajId', async (req, res) => {
         aktif = COALESCE($7, aktif)
       WHERE id = $8
       RETURNING *
-    `, [kategori_id, yemek_turu, porsiyon_gramaj, birim, aciklama, sira, aktif, gramajId]);
-    
+    `,
+      [kategori_id, yemek_turu, porsiyon_gramaj, birim, aciklama, sira, aktif, gramajId]
+    );
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1614,11 +1804,14 @@ router.put('/sartname/gramaj/:gramajId', async (req, res) => {
 router.delete('/sartname/gramaj/:gramajId', async (req, res) => {
   try {
     const { gramajId } = req.params;
-    
-    await query(`
+
+    await query(
+      `
       UPDATE sartname_porsiyon_gramajlari SET aktif = false WHERE id = $1
-    `, [gramajId]);
-    
+    `,
+      [gramajId]
+    );
+
     res.json({ success: true, message: 'Gramaj silindi' });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1630,14 +1823,17 @@ router.post('/sartname/:sartnameId/ogun-yapisi', async (req, res) => {
   try {
     const { sartnameId } = req.params;
     const { ogun_tipi, min_cesit, max_cesit, zorunlu_kategoriler, aciklama } = req.body;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       INSERT INTO sartname_ogun_yapisi (
         sartname_id, ogun_tipi, min_cesit, max_cesit, zorunlu_kategoriler, aciklama
       ) VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
-    `, [sartnameId, ogun_tipi, min_cesit, max_cesit, zorunlu_kategoriler, aciklama]);
-    
+    `,
+      [sartnameId, ogun_tipi, min_cesit, max_cesit, zorunlu_kategoriler, aciklama]
+    );
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1649,11 +1845,11 @@ router.put('/ogun-yapisi/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { aktif, min_cesit, max_cesit, zorunlu_kategoriler, aciklama } = req.body;
-    
+
     const updates = [];
     const values = [];
     let paramCount = 1;
-    
+
     if (aktif !== undefined) {
       updates.push(`aktif = $${paramCount++}`);
       values.push(aktif);
@@ -1674,26 +1870,28 @@ router.put('/ogun-yapisi/:id', async (req, res) => {
       updates.push(`aciklama = $${paramCount++}`);
       values.push(aciklama);
     }
-    
+
     if (updates.length === 0) {
       return res.status(400).json({ success: false, error: 'Güncellenecek alan yok' });
     }
-    
+
     values.push(id);
-    const result = await query(`
+    const result = await query(
+      `
       UPDATE sartname_ogun_yapisi 
       SET ${updates.join(', ')}
       WHERE id = $${paramCount}
       RETURNING *
-    `, values);
-    
+    `,
+      values
+    );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Öğün yapısı bulunamadı' });
     }
-    
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Öğün yapısı güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1707,82 +1905,95 @@ router.get('/recete/:receteId/gramaj-kontrol', async (req, res) => {
   try {
     const { receteId } = req.params;
     const { sartname_id, proje_id } = req.query;
-    
+
     // Reçete ve malzemelerini al
-    const recete = await query(`
+    const recete = await query(
+      `
       SELECT r.*, rk.ad as kategori_adi
       FROM receteler r
       LEFT JOIN recete_kategoriler rk ON rk.id = r.kategori_id
       WHERE r.id = $1
-    `, [receteId]);
-    
+    `,
+      [receteId]
+    );
+
     if (recete.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Reçete bulunamadı' });
     }
-    
-    const malzemeler = await query(`
+
+    const malzemeler = await query(
+      `
       SELECT rm.*, sk.ad as stok_adi
       FROM recete_malzemeler rm
       LEFT JOIN urun_kartlari urk ON urk.id = rm.urun_kart_id
       WHERE rm.recete_id = $1
-    `, [receteId]);
-    
+    `,
+      [receteId]
+    );
+
     // Şartname ID bul
     let sartnameIdToUse = sartname_id;
-    
+
     if (!sartnameIdToUse && proje_id) {
-      const sartname = await query(`
+      const sartname = await query(
+        `
         SELECT sartname_id FROM proje_sartname_atamalari
         WHERE proje_id = $1 AND varsayilan = true
         LIMIT 1
-      `, [proje_id]);
+      `,
+        [proje_id]
+      );
       sartnameIdToUse = sartname.rows[0]?.sartname_id;
     }
-    
+
     if (!sartnameIdToUse) {
-      return res.json({ 
-        success: true, 
-        data: { 
+      return res.json({
+        success: true,
+        data: {
           recete: recete.rows[0],
           malzemeler: malzemeler.rows,
           gramaj_kontrol: null,
-          mesaj: 'Şartname belirtilmedi'
-        }
+          mesaj: 'Şartname belirtilmedi',
+        },
       });
     }
-    
+
     // Şartname gramajlarını al
-    const gramajlar = await query(`
+    const gramajlar = await query(
+      `
       SELECT * FROM sartname_gramajlari
       WHERE sartname_id = $1 AND aktif = true
         AND (yemek_turu ILIKE $2 OR yemek_adi ILIKE $2 OR kategori_id = $3)
-    `, [sartnameIdToUse, `%${recete.rows[0].ad}%`, recete.rows[0].kategori_id]);
-    
+    `,
+      [sartnameIdToUse, `%${recete.rows[0].ad}%`, recete.rows[0].kategori_id]
+    );
+
     // Kontrol sonuçları
     const kontrolSonuclari = [];
     let toplamUygun = 0;
     let toplamUyumsuz = 0;
-    
+
     for (const malzeme of malzemeler.rows) {
       // Bu malzeme için şartname gramajı var mı?
-      const eslesenGramaj = gramajlar.rows.find(g => 
-        g.malzeme_adi.toLowerCase().includes(malzeme.malzeme_adi?.toLowerCase()) ||
-        malzeme.malzeme_adi?.toLowerCase().includes(g.malzeme_adi.toLowerCase()) ||
-        (malzeme.stok_kart_id && g.stok_kart_id === malzeme.stok_kart_id)
+      const eslesenGramaj = gramajlar.rows.find(
+        (g) =>
+          g.malzeme_adi.toLowerCase().includes(malzeme.malzeme_adi?.toLowerCase()) ||
+          malzeme.malzeme_adi?.toLowerCase().includes(g.malzeme_adi.toLowerCase()) ||
+          (malzeme.stok_kart_id && g.stok_kart_id === malzeme.stok_kart_id)
       );
-      
+
       if (eslesenGramaj) {
         const gercekGramaj = parseFloat(malzeme.miktar) || 0;
         const minGramaj = parseFloat(eslesenGramaj.min_gramaj);
         const maxGramaj = parseFloat(eslesenGramaj.max_gramaj) || minGramaj * 1.5;
-        
+
         let durum = 'uygun';
         if (gercekGramaj < minGramaj) durum = 'dusuk';
         else if (gercekGramaj > maxGramaj) durum = 'yuksek';
-        
+
         if (durum === 'uygun') toplamUygun++;
         else toplamUyumsuz++;
-        
+
         kontrolSonuclari.push({
           malzeme_adi: malzeme.malzeme_adi,
           recete_gramaj: gercekGramaj,
@@ -1790,11 +2001,11 @@ router.get('/recete/:receteId/gramaj-kontrol', async (req, res) => {
           max_gramaj: maxGramaj,
           birim: eslesenGramaj.birim,
           durum,
-          zorunlu: eslesenGramaj.zorunlu
+          zorunlu: eslesenGramaj.zorunlu,
         });
       }
     }
-    
+
     res.json({
       success: true,
       data: {
@@ -1805,9 +2016,9 @@ router.get('/recete/:receteId/gramaj-kontrol', async (req, res) => {
           sonuclar: kontrolSonuclari,
           uygun_sayisi: toplamUygun,
           uyumsuz_sayisi: toplamUyumsuz,
-          toplam_kontrol: kontrolSonuclari.length
-        }
-      }
+          toplam_kontrol: kontrolSonuclari.length,
+        },
+      },
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1824,13 +2035,11 @@ router.post('/import/analyze', menuUpload.single('file'), async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ success: false, error: 'Dosya yüklenmedi' });
     }
-    
+
     const filePath = req.file.path;
     const mimeType = req.file.mimetype;
     let menuData = [];
-    
-    console.log('Menü dosyası analiz ediliyor:', req.file.originalname, mimeType);
-    
+
     // Dosya tipine göre parse et
     if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) {
       menuData = await parseExcelMenu(filePath);
@@ -1839,32 +2048,37 @@ router.post('/import/analyze', menuUpload.single('file'), async (req, res) => {
     } else if (mimeType.startsWith('image/')) {
       menuData = await parseImageMenu(filePath);
     }
-    
+
     // Geçici dosyayı sil
     fs.unlinkSync(filePath);
-    
+
     // Sonuçları grupla ve özetle
     const ozet = {
       toplam_gun: menuData.length,
       toplam_yemek: menuData.reduce((sum, d) => sum + d.yemekler.length, 0),
       ogunler: {
-        kahvalti: menuData.filter(d => d.ogun === 'kahvalti').length,
-        ogle: menuData.filter(d => d.ogun === 'ogle').length,
-        aksam: menuData.filter(d => d.ogun === 'aksam').length
+        kahvalti: menuData.filter((d) => d.ogun === 'kahvalti').length,
+        ogle: menuData.filter((d) => d.ogun === 'ogle').length,
+        aksam: menuData.filter((d) => d.ogun === 'aksam').length,
       },
-      tarih_araligi: menuData.length > 0 ? {
-        baslangic: menuData.map(d => d.tarih).sort()[0],
-        bitis: menuData.map(d => d.tarih).sort().pop()
-      } : null
+      tarih_araligi:
+        menuData.length > 0
+          ? {
+              baslangic: menuData.map((d) => d.tarih).sort()[0],
+              bitis: menuData
+                .map((d) => d.tarih)
+                .sort()
+                .pop(),
+            }
+          : null,
     };
-    
+
     res.json({
       success: true,
       data: menuData,
-      ozet
+      ozet,
     });
   } catch (error) {
-    console.error('Menü analiz hatası:', error);
     // Dosya varsa sil
     if (req.file?.path && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
@@ -1877,24 +2091,21 @@ router.post('/import/analyze', menuUpload.single('file'), async (req, res) => {
 router.post('/import/save', async (req, res) => {
   try {
     const { proje_id, menuData, varsayilan_ogun } = req.body;
-    
+
     if (!proje_id || !menuData || !Array.isArray(menuData)) {
       return res.status(400).json({ success: false, error: 'Geçersiz veri' });
     }
-    
+
     // Plan al veya oluştur
-    let planResult = await query(
-      `SELECT id FROM menu_planlari WHERE proje_id = $1 ORDER BY id LIMIT 1`,
-      [proje_id]
-    );
-    
+    const planResult = await query(`SELECT id FROM menu_planlari WHERE proje_id = $1 ORDER BY id LIMIT 1`, [proje_id]);
+
     let planId;
     if (planResult.rows.length === 0) {
       // Yeni plan oluştur
-      const tarihler = menuData.map(d => d.tarih).sort();
+      const tarihler = menuData.map((d) => d.tarih).sort();
       const baslangic = tarihler[0];
       const bitis = tarihler[tarihler.length - 1];
-      
+
       const newPlan = await query(
         `INSERT INTO menu_planlari (proje_id, ad, baslangic_tarihi, bitis_tarihi, durum) 
          VALUES ($1, $2, $3, $4, 'taslak') RETURNING id`,
@@ -1904,31 +2115,33 @@ router.post('/import/save', async (req, res) => {
     } else {
       planId = planResult.rows[0].id;
     }
-    
+
     // Öğün tiplerini al
     const ogunTipleri = await query(`SELECT id, kod FROM ogun_tipleri`);
     const ogunMap = {};
-    ogunTipleri.rows.forEach(o => { ogunMap[o.kod] = o.id; });
-    
+    ogunTipleri.rows.forEach((o) => {
+      ogunMap[o.kod] = o.id;
+    });
+
     // Kategori ID al (varsayılan)
     const defaultKategori = await query(`SELECT id FROM recete_kategoriler WHERE kod = 'ana_yemek' LIMIT 1`);
     const kahvaltiKategori = await query(`SELECT id FROM recete_kategoriler WHERE kod = 'kahvaltilik' LIMIT 1`);
-    
+
     let eklenenGun = 0;
     let eklenenYemek = 0;
     let olusturulanRecete = 0;
-    
+
     for (const gun of menuData) {
       const tarih = gun.tarih;
       const ogun = gun.ogun || varsayilan_ogun || 'aksam';
       const ogunTipiId = ogunMap[ogun] || ogunMap['aksam'];
-      
+
       // Öğün al veya oluştur
-      let ogunResult = await query(
+      const ogunResult = await query(
         `SELECT id FROM menu_plan_ogunleri WHERE menu_plan_id = $1 AND tarih = $2 AND ogun_tipi_id = $3`,
         [planId, tarih, ogunTipiId]
       );
-      
+
       let ogunId;
       if (ogunResult.rows.length === 0) {
         const newOgun = await query(
@@ -1941,35 +2154,36 @@ router.post('/import/save', async (req, res) => {
       } else {
         ogunId = ogunResult.rows[0].id;
       }
-      
+
       // Her yemek için
       for (let sira = 0; sira < gun.yemekler.length; sira++) {
         const yemekAdi = gun.yemekler[sira];
-        
+
         // Reçete bul veya oluştur
         let receteResult = await query(
           `SELECT id FROM receteler WHERE LOWER(TRIM(ad)) = LOWER(TRIM($1)) AND proje_id = $2 LIMIT 1`,
           [yemekAdi, proje_id]
         );
-        
+
         let receteId;
         if (receteResult.rows.length === 0) {
           // Kısmi eşleşme dene
           const temizAd = yemekAdi.split('/')[0].split('+')[0].trim();
-          receteResult = await query(
-            `SELECT id FROM receteler WHERE ad ILIKE $1 AND proje_id = $2 LIMIT 1`,
-            [`%${temizAd}%`, proje_id]
-          );
+          receteResult = await query(`SELECT id FROM receteler WHERE ad ILIKE $1 AND proje_id = $2 LIMIT 1`, [
+            `%${temizAd}%`,
+            proje_id,
+          ]);
         }
-        
+
         if (receteResult.rows.length > 0) {
           receteId = receteResult.rows[0].id;
         } else {
           // Yeni reçete oluştur
-          const kategoriId = ogun === 'kahvalti' 
-            ? (kahvaltiKategori.rows[0]?.id || defaultKategori.rows[0]?.id || 1)
-            : (defaultKategori.rows[0]?.id || 1);
-          
+          const kategoriId =
+            ogun === 'kahvalti'
+              ? kahvaltiKategori.rows[0]?.id || defaultKategori.rows[0]?.id || 1
+              : defaultKategori.rows[0]?.id || 1;
+
           const kod = 'IMP-' + Date.now().toString().slice(-8) + '-' + sira;
           const newRecete = await query(
             `INSERT INTO receteler (kod, ad, kategori_id, proje_id, porsiyon_miktar) 
@@ -1979,23 +2193,24 @@ router.post('/import/save', async (req, res) => {
           receteId = newRecete.rows[0].id;
           olusturulanRecete++;
         }
-        
+
         // Yemeği öğüne ekle (duplicate kontrolü)
-        const existing = await query(
-          `SELECT id FROM menu_ogun_yemekleri WHERE menu_ogun_id = $1 AND recete_id = $2`,
-          [ogunId, receteId]
-        );
-        
+        const existing = await query(`SELECT id FROM menu_ogun_yemekleri WHERE menu_ogun_id = $1 AND recete_id = $2`, [
+          ogunId,
+          receteId,
+        ]);
+
         if (existing.rows.length === 0) {
-          await query(
-            `INSERT INTO menu_ogun_yemekleri (menu_ogun_id, recete_id, sira) VALUES ($1, $2, $3)`,
-            [ogunId, receteId, sira + 1]
-          );
+          await query(`INSERT INTO menu_ogun_yemekleri (menu_ogun_id, recete_id, sira) VALUES ($1, $2, $3)`, [
+            ogunId,
+            receteId,
+            sira + 1,
+          ]);
           eklenenYemek++;
         }
       }
     }
-    
+
     res.json({
       success: true,
       message: 'Menü başarıyla aktarıldı',
@@ -2003,11 +2218,10 @@ router.post('/import/save', async (req, res) => {
         plan_id: planId,
         eklenen_gun: eklenenGun,
         eklenen_yemek: eklenenYemek,
-        olusturulan_recete: olusturulanRecete
-      }
+        olusturulan_recete: olusturulanRecete,
+      },
     });
   } catch (error) {
-    console.error('Menü kaydetme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -2016,21 +2230,24 @@ router.post('/import/save', async (req, res) => {
 router.post('/receteler/:id/ai-malzeme-oneri', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Reçete bilgilerini getir
-    const receteResult = await query(`
+    const receteResult = await query(
+      `
       SELECT r.*, k.ad as kategori_adi
       FROM receteler r
       LEFT JOIN recete_kategoriler k ON k.id = r.kategori_id
       WHERE r.id = $1
-    `, [id]);
-    
+    `,
+      [id]
+    );
+
     if (receteResult.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Reçete bulunamadı' });
     }
-    
+
     const recete = receteResult.rows[0];
-    
+
     // Ürün kartlarını getir (AI eşleştirme için - temiz isimler!)
     const urunKartlariResult = await query(`
       SELECT 
@@ -2046,27 +2263,27 @@ router.post('/receteler/:id/ai-malzeme-oneri', async (req, res) => {
       WHERE uk.aktif = true
       ORDER BY kat.sira, uk.ad
     `);
-    
-    const urunKartlari = urunKartlariResult.rows.map(uk => ({
+
+    const urunKartlari = urunKartlariResult.rows.map((uk) => ({
       id: uk.id,
       ad: uk.ad,
       birim: uk.birim || 'gr',
       kategori: uk.kategori,
-      fiyat: parseFloat(uk.fiyat) || 0
+      fiyat: parseFloat(uk.fiyat) || 0,
     }));
-    
+
     // Kategorilere göre grupla (AI için daha anlaşılır)
     const kategoriliUrunler = {};
-    urunKartlari.forEach(uk => {
+    urunKartlari.forEach((uk) => {
       const kat = uk.kategori || 'Diğer';
       if (!kategoriliUrunler[kat]) kategoriliUrunler[kat] = [];
       kategoriliUrunler[kat].push(uk.ad);
     });
-    
+
     const urunListesi = Object.entries(kategoriliUrunler)
       .map(([kat, urunler]) => `${kat}: ${urunler.join(', ')}`)
       .join('\n');
-    
+
     // AI'dan malzeme önerisi iste
     const prompt = `
 Sen bir yemek reçetesi uzmanısın. Aşağıdaki yemek için standart Türk mutfağı tarifine göre malzeme listesi ve gramajları öner.
@@ -2100,14 +2317,12 @@ Kurallar:
 - LİSTEDE YOKSA yeni ürün öner ve kategori belirt (Et & Tavuk, Sebzeler, Baharatlar, vb.)
 - Kategori seçenekleri: Et & Tavuk, Balık & Deniz Ürünleri, Süt Ürünleri, Sebzeler, Meyveler, Bakliyat, Tahıllar & Makarna, Yağlar, Baharatlar, Soslar & Salçalar, Şekerler & Tatlandırıcılar, İçecekler, Diğer
     `.trim();
-    
-    console.log(`🤖 AI reçete malzeme önerisi isteniyor (ürün kartlarından): ${recete.ad}`);
-    
+
     const aiResult = await aiAgent.processQuery(prompt, [], {
       maxTokens: 2000,
-      temperature: 0.3
+      temperature: 0.3,
     });
-    
+
     // AI'dan gelen JSON'u parse et
     let malzemeler = [];
     try {
@@ -2121,53 +2336,51 @@ Kurallar:
           malzemeler = JSON.parse(arrayMatch[0]);
         }
       }
-    } catch (parseError) {
-      console.error('AI response parse hatası:', parseError);
-      return res.status(500).json({ 
-        success: false, 
+    } catch (_parseError) {
+      return res.status(500).json({
+        success: false,
         error: 'AI yanıtı parse edilemedi',
-        raw_response: aiResult.response 
+        raw_response: aiResult.response,
       });
     }
-    
+
     // Ürün kartı eşleştirmesi yap
-    const malzemelerWithUrun = malzemeler.map(mal => {
+    const malzemelerWithUrun = malzemeler.map((mal) => {
       const malLower = mal.malzeme_adi.toLowerCase().trim();
-      
+
       // Önce birebir eşleşme ara
-      let match = urunKartlari.find(uk => 
-        uk.ad.toLowerCase().trim() === malLower
-      );
-      
+      let match = urunKartlari.find((uk) => uk.ad.toLowerCase().trim() === malLower);
+
       // Bulamazsa fuzzy match dene
       if (!match) {
-        match = urunKartlari.find(uk => {
+        match = urunKartlari.find((uk) => {
           const ukLower = uk.ad.toLowerCase().trim();
-          return ukLower.includes(malLower) || malLower.includes(ukLower) ||
-                 ukLower.replace(/\s+/g, '') === malLower.replace(/\s+/g, '');
+          return (
+            ukLower.includes(malLower) ||
+            malLower.includes(ukLower) ||
+            ukLower.replace(/\s+/g, '') === malLower.replace(/\s+/g, '')
+          );
         });
       }
-      
+
       return {
         ...mal,
         urun_kart_id: match ? match.id : null,
         onerilen_urun_adi: match ? match.ad : null,
-        birim: mal.birim || (match ? match.birim : 'gr')
+        birim: mal.birim || (match ? match.birim : 'gr'),
       };
     });
-    
+
     res.json({
       success: true,
       data: {
-        recete_id: parseInt(id),
+        recete_id: parseInt(id, 10),
         recete_adi: recete.ad,
         malzemeler: malzemelerWithUrun,
-        ai_response: aiResult.response
-      }
+        ai_response: aiResult.response,
+      },
     });
-    
   } catch (error) {
-    console.error('AI malzeme önerisi hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -2179,28 +2392,31 @@ Kurallar:
 router.post('/receteler/batch-ai-malzeme-oneri', async (req, res) => {
   try {
     const { recete_ids } = req.body;
-    
+
     if (!recete_ids || !Array.isArray(recete_ids) || recete_ids.length === 0) {
       return res.status(400).json({ success: false, error: 'recete_ids gerekli (array)' });
     }
-    
+
     // Max 3 reçete bir seferde (timeout önlemek için)
     const idsToProcess = recete_ids.slice(0, 3);
-    
+
     // Reçete bilgilerini getir
-    const receteResult = await query(`
+    const receteResult = await query(
+      `
       SELECT r.id, r.ad, k.ad as kategori_adi
       FROM receteler r
       LEFT JOIN recete_kategoriler k ON k.id = r.kategori_id
       WHERE r.id = ANY($1::int[])
-    `, [idsToProcess]);
-    
+    `,
+      [idsToProcess]
+    );
+
     if (receteResult.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Reçeteler bulunamadı' });
     }
-    
+
     const receteler = receteResult.rows;
-    
+
     // Ürün kartlarını getir
     const urunKartlariResult = await query(`
       SELECT 
@@ -2213,24 +2429,24 @@ router.post('/receteler/batch-ai-malzeme-oneri', async (req, res) => {
       WHERE uk.aktif = true
       ORDER BY kat.sira, uk.ad
     `);
-    
+
     const urunKartlari = urunKartlariResult.rows;
-    
+
     // Kategorilere göre grupla
     const kategoriliUrunler = {};
-    urunKartlari.forEach(uk => {
+    urunKartlari.forEach((uk) => {
       const kat = uk.kategori || 'Diğer';
       if (!kategoriliUrunler[kat]) kategoriliUrunler[kat] = [];
       kategoriliUrunler[kat].push(uk.ad);
     });
-    
+
     const urunListesi = Object.entries(kategoriliUrunler)
       .map(([kat, urunler]) => `${kat}: ${urunler.join(', ')}`)
       .join('\n');
-    
+
     // Yemek listesi oluştur
-    const yemekListesi = receteler.map(r => `- ${r.ad} (${r.kategori_adi || 'Genel'})`).join('\n');
-    
+    const yemekListesi = receteler.map((r) => `- ${r.ad} (${r.kategori_adi || 'Genel'})`).join('\n');
+
     // TEK AI ÇAĞRISI ile TÜM REÇETELER
     const prompt = `
 Sen bir yemek reçetesi uzmanısın. Aşağıdaki ${receteler.length} yemek için standart Türk mutfağı tariflerine göre malzeme listesi ve gramajları öner.
@@ -2265,14 +2481,12 @@ KURALLAR:
 - Listede yoksa yeni ürün öner ve kategori belirt
 - Kategoriler: Et & Tavuk, Balık & Deniz Ürünleri, Süt Ürünleri, Sebzeler, Meyveler, Bakliyat, Tahıllar & Makarna, Yağlar, Baharatlar, Soslar & Salçalar, Şekerler & Tatlandırıcılar, İçecekler, Diğer
     `.trim();
-    
-    console.log(`🤖 BATCH AI reçete önerisi: ${receteler.length} yemek birden işleniyor`);
-    
+
     const aiResult = await aiAgent.processQuery(prompt, [], {
       maxTokens: 8000,
-      temperature: 0.3
+      temperature: 0.3,
     });
-    
+
     // Parse AI response
     let sonuclar = [];
     try {
@@ -2281,54 +2495,49 @@ KURALLAR:
         const parsed = JSON.parse(jsonMatch[1]);
         sonuclar = parsed.sonuclar || [];
       }
-    } catch (parseError) {
-      console.error('Batch AI response parse hatası:', parseError);
-      return res.status(500).json({ 
-        success: false, 
+    } catch (_parseError) {
+      return res.status(500).json({
+        success: false,
         error: 'AI yanıtı parse edilemedi',
-        raw_response: aiResult.response 
+        raw_response: aiResult.response,
       });
     }
-    
+
     // Ürün kartı eşleştirmesi yap
-    const enrichedSonuclar = sonuclar.map(s => {
-      const malzemelerWithUrun = (s.malzemeler || []).map(mal => {
+    const enrichedSonuclar = sonuclar.map((s) => {
+      const malzemelerWithUrun = (s.malzemeler || []).map((mal) => {
         const malLower = mal.malzeme_adi.toLowerCase().trim();
-        
-        let match = urunKartlari.find(uk => uk.ad.toLowerCase().trim() === malLower);
-        
+
+        let match = urunKartlari.find((uk) => uk.ad.toLowerCase().trim() === malLower);
+
         if (!match) {
-          match = urunKartlari.find(uk => {
+          match = urunKartlari.find((uk) => {
             const ukLower = uk.ad.toLowerCase().trim();
             return ukLower.includes(malLower) || malLower.includes(ukLower);
           });
         }
-        
+
         return {
           ...mal,
           urun_kart_id: match ? match.id : null,
-          birim: mal.birim || (match ? match.birim : 'gr')
+          birim: mal.birim || (match ? match.birim : 'gr'),
         };
       });
-      
+
       return {
         ...s,
-        malzemeler: malzemelerWithUrun
+        malzemeler: malzemelerWithUrun,
       };
     });
-    
-    console.log(`✅ BATCH AI tamamlandı: ${enrichedSonuclar.length} reçete işlendi`);
-    
+
     res.json({
       success: true,
       data: {
         sonuclar: enrichedSonuclar,
-        toplam: enrichedSonuclar.length
-      }
+        toplam: enrichedSonuclar.length,
+      },
     });
-    
   } catch (error) {
-    console.error('Batch AI malzeme önerisi hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -2338,7 +2547,7 @@ KURALLAR:
 // =====================================================
 
 // Ürün kategorilerini listele
-router.get('/urun-kategorileri', async (req, res) => {
+router.get('/urun-kategorileri', async (_req, res) => {
   try {
     const result = await query(`
       SELECT 
@@ -2350,10 +2559,9 @@ router.get('/urun-kategorileri', async (req, res) => {
       GROUP BY uk.id
       ORDER BY uk.sira, uk.ad
     `);
-    
+
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Ürün kategorileri hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -2362,7 +2570,7 @@ router.get('/urun-kategorileri', async (req, res) => {
 router.get('/urun-kartlari', async (req, res) => {
   try {
     const { kategori_id, arama, aktif = 'true' } = req.query;
-    
+
     let sql = `
       SELECT 
         uk.*,
@@ -2378,30 +2586,29 @@ router.get('/urun-kartlari', async (req, res) => {
       LEFT JOIN birimler b ON b.id = sk.ana_birim_id
       WHERE 1=1
     `;
-    
+
     const params = [];
-    
+
     if (aktif === 'true') {
       sql += ' AND uk.aktif = true';
     }
-    
+
     if (kategori_id) {
       params.push(kategori_id);
       sql += ` AND uk.kategori_id = $${params.length}`;
     }
-    
+
     if (arama) {
       params.push(`%${arama}%`);
       sql += ` AND (uk.ad ILIKE $${params.length} OR uk.kod ILIKE $${params.length})`;
     }
-    
+
     sql += ' ORDER BY kat.sira, uk.ad';
-    
+
     const result = await query(sql, params);
-    
+
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Ürün kartları hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -2410,8 +2617,9 @@ router.get('/urun-kartlari', async (req, res) => {
 router.get('/urun-kartlari/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       SELECT 
         uk.*,
         kat.ad as kategori_adi,
@@ -2425,15 +2633,16 @@ router.get('/urun-kartlari/:id', async (req, res) => {
       -- stok_kartlari artık kullanılmıyor, uk zaten urun_kartlari
       LEFT JOIN birimler b ON b.id = sk.ana_birim_id
       WHERE uk.id = $1
-    `, [id]);
-    
+    `,
+      [id]
+    );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Ürün kartı bulunamadı' });
     }
-    
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Ürün kartı detay hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -2441,39 +2650,38 @@ router.get('/urun-kartlari/:id', async (req, res) => {
 // Yeni ürün kartı oluştur
 router.post('/urun-kartlari', async (req, res) => {
   try {
-    const { 
-      ad, 
-      kategori_id, 
+    const {
+      ad,
+      kategori_id,
       varsayilan_birim = 'gr',
       stok_kart_id,
       manuel_fiyat,
       fiyat_birimi = 'kg',
-      ikon
+      ikon,
     } = req.body;
-    
+
     if (!ad) {
       return res.status(400).json({ success: false, error: 'Ürün adı zorunludur' });
     }
-    
+
     // Aynı isimde aktif ürün var mı kontrol et
-    const existing = await query(
-      'SELECT id FROM urun_kartlari WHERE LOWER(ad) = LOWER($1) AND aktif = true',
-      [ad]
-    );
-    
+    const existing = await query('SELECT id FROM urun_kartlari WHERE LOWER(ad) = LOWER($1) AND aktif = true', [ad]);
+
     if (existing.rows.length > 0) {
       return res.status(400).json({ success: false, error: 'Bu isimde bir ürün kartı zaten mevcut' });
     }
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       INSERT INTO urun_kartlari (ad, kategori_id, varsayilan_birim, stok_kart_id, manuel_fiyat, fiyat_birimi, ikon)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
-    `, [ad, kategori_id, varsayilan_birim, stok_kart_id, manuel_fiyat, fiyat_birimi, ikon]);
-    
+    `,
+      [ad, kategori_id, varsayilan_birim, stok_kart_id, manuel_fiyat, fiyat_birimi, ikon]
+    );
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Ürün kartı oluşturma hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -2482,26 +2690,18 @@ router.post('/urun-kartlari', async (req, res) => {
 router.put('/urun-kartlari/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { 
-      ad, 
-      kategori_id, 
-      varsayilan_birim,
-      stok_kart_id,
-      manuel_fiyat,
-      fiyat_birimi,
-      ikon,
-      aktif
-    } = req.body;
-    
+    const { ad, kategori_id, varsayilan_birim, stok_kart_id, manuel_fiyat, fiyat_birimi, ikon, aktif } = req.body;
+
     // Mevcut ürünü kontrol et
     const existing = await query('SELECT * FROM urun_kartlari WHERE id = $1', [id]);
     if (existing.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Ürün kartı bulunamadı' });
     }
-    
+
     const current = existing.rows[0];
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       UPDATE urun_kartlari SET
         ad = $1,
         kategori_id = $2,
@@ -2514,21 +2714,22 @@ router.put('/urun-kartlari/:id', async (req, res) => {
         son_guncelleme = CURRENT_TIMESTAMP
       WHERE id = $9
       RETURNING *
-    `, [
-      ad ?? current.ad,
-      kategori_id ?? current.kategori_id,
-      varsayilan_birim ?? current.varsayilan_birim,
-      stok_kart_id !== undefined ? stok_kart_id : current.stok_kart_id,
-      manuel_fiyat !== undefined ? manuel_fiyat : current.manuel_fiyat,
-      fiyat_birimi ?? current.fiyat_birimi,
-      ikon ?? current.ikon,
-      aktif !== undefined ? aktif : current.aktif,
-      id
-    ]);
-    
+    `,
+      [
+        ad ?? current.ad,
+        kategori_id ?? current.kategori_id,
+        varsayilan_birim ?? current.varsayilan_birim,
+        stok_kart_id !== undefined ? stok_kart_id : current.stok_kart_id,
+        manuel_fiyat !== undefined ? manuel_fiyat : current.manuel_fiyat,
+        fiyat_birimi ?? current.fiyat_birimi,
+        ikon ?? current.ikon,
+        aktif !== undefined ? aktif : current.aktif,
+        id,
+      ]
+    );
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Ürün kartı güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -2537,29 +2738,25 @@ router.put('/urun-kartlari/:id', async (req, res) => {
 router.delete('/urun-kartlari/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Reçetelerde kullanılıyor mu kontrol et
-    const usageCheck = await query(
-      'SELECT COUNT(*) as count FROM recete_malzemeler WHERE urun_kart_id = $1',
-      [id]
-    );
-    
-    if (parseInt(usageCheck.rows[0].count) > 0) {
+    const usageCheck = await query('SELECT COUNT(*) as count FROM recete_malzemeler WHERE urun_kart_id = $1', [id]);
+
+    if (parseInt(usageCheck.rows[0].count, 10) > 0) {
       // Soft delete - pasife çek
       await query('UPDATE urun_kartlari SET aktif = false WHERE id = $1', [id]);
-      return res.json({ 
-        success: true, 
+      return res.json({
+        success: true,
         message: 'Ürün kartı reçetelerde kullanıldığı için pasife alındı',
-        soft_deleted: true
+        soft_deleted: true,
       });
     }
-    
+
     // Hiçbir yerde kullanılmıyorsa tamamen sil
     await query('DELETE FROM urun_kartlari WHERE id = $1', [id]);
-    
+
     res.json({ success: true, message: 'Ürün kartı silindi' });
   } catch (error) {
-    console.error('Ürün kartı silme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -2569,27 +2766,26 @@ router.post('/urun-kartlari/eslestir', async (req, res) => {
   try {
     const { eslesme_listesi } = req.body;
     // eslesme_listesi: [{ urun_kart_id: 1, stok_kart_id: 10 }, ...]
-    
+
     if (!Array.isArray(eslesme_listesi)) {
       return res.status(400).json({ success: false, error: 'Eşleşme listesi array olmalı' });
     }
-    
+
     let guncellenen = 0;
-    
+
     for (const item of eslesme_listesi) {
-      await query(
-        'UPDATE urun_kartlari SET stok_kart_id = $1, son_guncelleme = CURRENT_TIMESTAMP WHERE id = $2',
-        [item.stok_kart_id, item.urun_kart_id]
-      );
+      await query('UPDATE urun_kartlari SET stok_kart_id = $1, son_guncelleme = CURRENT_TIMESTAMP WHERE id = $2', [
+        item.stok_kart_id,
+        item.urun_kart_id,
+      ]);
       guncellenen++;
     }
-    
-    res.json({ 
-      success: true, 
-      message: `${guncellenen} ürün kartı stok kartıyla eşleştirildi`
+
+    res.json({
+      success: true,
+      message: `${guncellenen} ürün kartı stok kartıyla eşleştirildi`,
     });
   } catch (error) {
-    console.error('Toplu eşleştirme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -2598,7 +2794,7 @@ router.post('/urun-kartlari/eslestir', async (req, res) => {
 router.get('/stok-kartlari-listesi', async (req, res) => {
   try {
     const { arama } = req.query;
-    
+
     // YENİ SİSTEM: urun_kartlari
     let sql = `
       SELECT
@@ -2620,16 +2816,14 @@ router.get('/stok-kartlari-listesi', async (req, res) => {
     }
 
     sql += ' ORDER BY uk.ad LIMIT 100';
-    
+
     const result = await query(sql, params);
-    
+
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Stok kartları listesi hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 export default router;
 export { hesaplaReceteMaliyet, guncelleOgunMaliyet, guncellePlanMaliyet };
-

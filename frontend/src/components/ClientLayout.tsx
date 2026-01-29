@@ -6,14 +6,17 @@ import { Suspense, useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
 // FloatingAIChat'i lazy load et - bundle size'ı küçültür
-const FloatingAIChat = dynamic(() => import('./FloatingAIChat').then(mod => ({ default: mod.FloatingAIChat })), {
-  ssr: false,
-  loading: () => null, // Yüklenirken hiçbir şey gösterme
-});
+const FloatingAIChat = dynamic(
+  () => import('./FloatingAIChat').then((mod) => ({ default: mod.FloatingAIChat })),
+  {
+    ssr: false,
+    loading: () => null, // Yüklenirken hiçbir şey gösterme
+  }
+);
 
 // Altta sabit AI input toolbar (Artlist tarzı)
 const GenerationToolbar = dynamic(
-  () => import('./artlist/GenerationToolbar').then(mod => ({ default: mod.GenerationToolbar })),
+  () => import('./artlist/GenerationToolbar').then((mod) => ({ default: mod.GenerationToolbar })),
   { ssr: false, loading: () => null }
 );
 

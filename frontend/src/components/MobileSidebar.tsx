@@ -31,10 +31,8 @@ import {
   IconShoppingCart,
   IconSparkles,
   IconToolsKitchen2,
-  IconTrendingUp,
   IconUser,
   IconUserCircle,
-  IconUsers,
   IconWallet,
   IconX,
 } from '@tabler/icons-react';
@@ -314,11 +312,16 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                   left: 0,
                   right: 0,
                   height: 3,
-                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+                  background:
+                    'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
                 }}
               />
 
-              <Group justify="space-between" align="center" style={{ position: 'relative', zIndex: 1 }}>
+              <Group
+                justify="space-between"
+                align="center"
+                style={{ position: 'relative', zIndex: 1 }}
+              >
                 <Box
                   style={{
                     display: 'flex',

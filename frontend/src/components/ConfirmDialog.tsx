@@ -1,11 +1,7 @@
 'use client';
 
 import { Button, Group, Modal, Stack, Text, ThemeIcon } from '@mantine/core';
-import {
-  IconAlertTriangle,
-  IconInfoCircle,
-  IconTrash,
-} from '@tabler/icons-react';
+import { IconAlertTriangle, IconInfoCircle, IconTrash } from '@tabler/icons-react';
 
 export interface ConfirmDialogProps {
   opened: boolean;
@@ -86,11 +82,7 @@ export function ConfirmDialog({
           <Button variant="default" onClick={onClose} disabled={loading}>
             {cancelText}
           </Button>
-          <Button
-            color={config.confirmColor}
-            onClick={handleConfirm}
-            loading={loading}
-          >
+          <Button color={config.confirmColor} onClick={handleConfirm} loading={loading}>
             {confirmText}
           </Button>
         </Group>

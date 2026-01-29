@@ -12,14 +12,14 @@ export const NotificationType = {
   INFO: 'info',
   SUCCESS: 'success',
   WARNING: 'warning',
-  ERROR: 'error'
+  ERROR: 'error',
 };
 
 // Bildirim kaynakları
 export const NotificationSource = {
-  USER: 'user',      // Normal kullanıcı bildirimleri
-  ADMIN: 'admin',    // Admin bildirimleri (güvenlik, sistem)
-  SYSTEM: 'system'   // Otomatik sistem bildirimleri
+  USER: 'user', // Normal kullanıcı bildirimleri
+  ADMIN: 'admin', // Admin bildirimleri (güvenlik, sistem)
+  SYSTEM: 'system', // Otomatik sistem bildirimleri
 };
 
 // Önem seviyeleri
@@ -27,7 +27,7 @@ export const NotificationSeverity = {
   INFO: 'info',
   WARNING: 'warning',
   ERROR: 'error',
-  CRITICAL: 'critical'
+  CRITICAL: 'critical',
 };
 
 // Bildirim kategorileri
@@ -38,15 +38,15 @@ export const NotificationCategory = {
   STOCK: 'stock',
   PAYMENT: 'payment',
   // Scheduler categories (otomatik bildirimler)
-  REMINDER: 'reminder',       // Not/Ajanda hatırlatıcıları
-  CEK_SENET: 'cek_senet',     // Çek/Senet vade bildirimleri
+  REMINDER: 'reminder', // Not/Ajanda hatırlatıcıları
+  CEK_SENET: 'cek_senet', // Çek/Senet vade bildirimleri
   // Admin categories
   ACCOUNT_LOCKED: 'account_locked',
   SUSPICIOUS_ACTIVITY: 'suspicious_activity',
   SYSTEM_ERROR: 'system_error',
   HIGH_PRIORITY: 'high_priority',
   // System categories
-  GENERAL: 'system'
+  GENERAL: 'system',
 };
 
 class UnifiedNotificationService {
@@ -64,7 +64,7 @@ class UnifiedNotificationService {
     link = null,
     severity = NotificationSeverity.INFO,
     source = NotificationSource.USER,
-    metadata = {}
+    metadata = {},
   }) {
     try {
       const result = await query(
@@ -83,7 +83,7 @@ class UnifiedNotificationService {
         type,
         severity,
         userId,
-        category
+        category,
       });
 
       return notificationId;
@@ -91,7 +91,7 @@ class UnifiedNotificationService {
       logger.error('Notification creation error', {
         error: error.message,
         type,
-        severity
+        severity,
       });
       return null;
     }
@@ -110,7 +110,7 @@ class UnifiedNotificationService {
       type: NotificationType.INFO,
       category: NotificationCategory.TENDER,
       link,
-      source: NotificationSource.USER
+      source: NotificationSource.USER,
     });
   }
 
@@ -125,7 +125,7 @@ class UnifiedNotificationService {
       type: NotificationType.WARNING,
       category: NotificationCategory.INVOICE,
       link,
-      source: NotificationSource.USER
+      source: NotificationSource.USER,
     });
   }
 
@@ -140,7 +140,7 @@ class UnifiedNotificationService {
       type: NotificationType.WARNING,
       category: NotificationCategory.STOCK,
       link,
-      source: NotificationSource.USER
+      source: NotificationSource.USER,
     });
   }
 
@@ -159,14 +159,20 @@ class UnifiedNotificationService {
       link,
       severity: NotificationSeverity.INFO,
       source: NotificationSource.SYSTEM,
-      metadata
+      metadata,
     });
   }
 
   /**
    * Çek/Senet vade bildirimi
    */
-  async notifyCekSenet(title, message, link = '/muhasebe/kasa-banka?tab=cek-senet', severity = NotificationSeverity.WARNING, metadata = {}) {
+  async notifyCekSenet(
+    title,
+    message,
+    link = '/muhasebe/kasa-banka?tab=cek-senet',
+    severity = NotificationSeverity.WARNING,
+    metadata = {}
+  ) {
     return this.createNotification({
       userId: null, // Sistem geneli - admin'ler görsün
       title,
@@ -176,7 +182,7 @@ class UnifiedNotificationService {
       link,
       severity,
       source: NotificationSource.SYSTEM,
-      metadata
+      metadata,
     });
   }
 
@@ -200,8 +206,8 @@ class UnifiedNotificationService {
         email,
         ipAddress,
         lockedUntil: lockedUntil.toISOString(),
-        minutesRemaining
-      }
+        minutesRemaining,
+      },
     });
   }
 
@@ -219,8 +225,8 @@ class UnifiedNotificationService {
       source: NotificationSource.ADMIN,
       metadata: {
         ipAddress,
-        ...details
-      }
+        ...details,
+      },
     });
   }
 
@@ -236,7 +242,7 @@ class UnifiedNotificationService {
       category: NotificationCategory.SYSTEM_ERROR,
       severity: NotificationSeverity.CRITICAL,
       source: NotificationSource.ADMIN,
-      metadata: details
+      metadata: details,
     });
   }
 
@@ -252,7 +258,7 @@ class UnifiedNotificationService {
       category: NotificationCategory.HIGH_PRIORITY,
       severity: NotificationSeverity.ERROR,
       source: NotificationSource.ADMIN,
-      metadata
+      metadata,
     });
   }
 
@@ -271,7 +277,7 @@ class UnifiedNotificationService {
     severity = null,
     unreadOnly = false,
     limit = 20,
-    offset = 0
+    offset = 0,
   } = {}) {
     try {
       let queryText = 'SELECT * FROM notifications WHERE 1=1';
@@ -311,7 +317,7 @@ class UnifiedNotificationService {
 
       const result = await query(queryText, params);
 
-      return result.rows.map(row => ({
+      return result.rows.map((row) => ({
         id: row.id,
         userId: row.user_id,
         title: row.title,
@@ -324,7 +330,7 @@ class UnifiedNotificationService {
         source: row.source,
         metadata: row.metadata || {},
         created_at: row.created_at,
-        read_at: row.read_at
+        read_at: row.read_at,
       }));
     } catch (error) {
       logger.error('Get notifications error', { error: error.message });
@@ -343,13 +349,13 @@ class UnifiedNotificationService {
       if (isAdmin) {
         // Admin tüm okunmamış bildirimleri sayar
       } else if (userId) {
-        queryText += ' AND (user_id = $1 OR (user_id IS NULL AND source = \'system\'))';
-        queryText += ' AND source != \'admin\'';
+        queryText += " AND (user_id = $1 OR (user_id IS NULL AND source = 'system'))";
+        queryText += " AND source != 'admin'";
         params.push(userId);
       }
 
       const result = await query(queryText, params);
-      return parseInt(result.rows[0]?.count || 0);
+      return parseInt(result.rows[0]?.count || 0, 10);
     } catch (error) {
       logger.error('Get unread count error', { error: error.message });
       return 0;
@@ -465,8 +471,8 @@ class UnifiedNotificationService {
       const params = [notificationId];
 
       if (!isAdmin && userId) {
-        queryText += ' AND (user_id = $2 OR (user_id IS NULL AND source = \'system\'))';
-        queryText += ' AND source != \'admin\'';
+        queryText += " AND (user_id = $2 OR (user_id IS NULL AND source = 'system'))";
+        queryText += " AND source != 'admin'";
         params.push(userId);
       }
 
@@ -490,7 +496,7 @@ class UnifiedNotificationService {
         source: row.source,
         metadata: row.metadata || {},
         created_at: row.created_at,
-        read_at: row.read_at
+        read_at: row.read_at,
       };
     } catch (error) {
       logger.error('Get notification error', { error: error.message, notificationId });

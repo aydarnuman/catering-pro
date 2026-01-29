@@ -36,15 +36,7 @@ export function useGlobalHotkeys(options: GlobalHotkeysOptions = {}) {
   const router = useRouter();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  const {
-    onSearch,
-    onSave,
-    onNew,
-    onRefresh,
-    onEscape,
-    onToggleTheme,
-    enabled = true,
-  } = options;
+  const { onSearch, onSave, onNew, onRefresh, onEscape, onToggleTheme, enabled = true } = options;
 
   // Arama modal kontrolü - global event
   const openSearch = useCallback(() => {

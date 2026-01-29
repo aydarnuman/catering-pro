@@ -5,7 +5,7 @@
 
 import express from 'express';
 import { query, transaction } from '../database.js';
-import { authenticate, requirePermission, auditLog } from '../middleware/auth.js';
+import { auditLog, authenticate, requirePermission } from '../middleware/auth.js';
 import { faturaKalemleriClient } from '../services/fatura-kalemleri-client.js';
 
 const router = express.Router();
@@ -16,7 +16,7 @@ const router = express.Router();
  * GET /api/invoices/stats
  * Dashboard widget için fatura istatistikleri
  */
-router.get('/stats', async (req, res) => {
+router.get('/stats', async (_req, res) => {
   try {
     const result = await query(`
       SELECT 
@@ -33,19 +33,18 @@ router.get('/stats', async (req, res) => {
     `);
 
     const stats = result.rows[0];
-    
+
     res.json({
-      toplam_fatura: parseInt(stats.toplam_fatura) || 0,
-      bekleyen_fatura: parseInt(stats.bekleyen_fatura) || 0,
-      onaylanan_fatura: parseInt(stats.onaylanan_fatura) || 0,
-      reddedilen_fatura: parseInt(stats.reddedilen_fatura) || 0,
-      bugun_vade: parseInt(stats.bugun_vade) || 0,
-      geciken_fatura: parseInt(stats.geciken_fatura) || 0,
+      toplam_fatura: parseInt(stats.toplam_fatura, 10) || 0,
+      bekleyen_fatura: parseInt(stats.bekleyen_fatura, 10) || 0,
+      onaylanan_fatura: parseInt(stats.onaylanan_fatura, 10) || 0,
+      reddedilen_fatura: parseInt(stats.reddedilen_fatura, 10) || 0,
+      bugun_vade: parseInt(stats.bugun_vade, 10) || 0,
+      geciken_fatura: parseInt(stats.geciken_fatura, 10) || 0,
       toplam_tutar: Math.round(parseFloat(stats.toplam_tutar)) || 0,
-      bekleyen_tutar: Math.round(parseFloat(stats.bekleyen_tutar)) || 0
+      bekleyen_tutar: Math.round(parseFloat(stats.bekleyen_tutar)) || 0,
     });
   } catch (error) {
-    console.error('Fatura stats hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -65,7 +64,7 @@ router.get('/', async (req, res) => {
       limit = 250,
       offset = 0,
       search,
-      proje_id // Proje bazlı filtreleme
+      proje_id, // Proje bazlı filtreleme
     } = req.query;
 
     // Kalem verisi tek kaynak: /api/fatura-kalemleri (fatura_kalemleri tablosu). Manuel fatura kalemleri kaldırıldı.
@@ -79,7 +78,7 @@ router.get('/', async (req, res) => {
       LEFT JOIN projeler p ON i.proje_id = p.id
       WHERE 1=1
     `;
-    
+
     const params = [];
     let paramIndex = 1;
 
@@ -141,7 +140,7 @@ router.get('/', async (req, res) => {
       FROM invoices i
       WHERE 1=1
     `;
-    
+
     const countParams = params.slice(0, -2); // limit ve offset hariç
     if (type) countSql += ` AND i.invoice_type = $1`;
     if (status) countSql += ` AND i.status = $2`;
@@ -152,16 +151,14 @@ router.get('/', async (req, res) => {
     res.json({
       success: true,
       data: result.rows,
-      total: parseInt(countResult.rows[0]?.total || 0),
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      total: parseInt(countResult.rows[0]?.total || 0, 10),
+      limit: parseInt(limit, 10),
+      offset: parseInt(offset, 10),
     });
-
   } catch (error) {
-    console.error('Fatura listesi hatası:', error);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -174,14 +171,17 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const invoiceResult = await query(`
+    const invoiceResult = await query(
+      `
       SELECT * FROM invoices WHERE id = $1
-    `, [id]);
+    `,
+      [id]
+    );
 
     if (!invoiceResult.rows[0]) {
       return res.status(404).json({
         success: false,
-        error: 'Fatura bulunamadı'
+        error: 'Fatura bulunamadı',
       });
     }
 
@@ -191,14 +191,12 @@ router.get('/:id', async (req, res) => {
 
     res.json({
       success: true,
-      data: invoice
+      data: invoice,
     });
-
   } catch (error) {
-    console.error('Fatura detay hatası:', error);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -223,7 +221,7 @@ router.post('/', authenticate, requirePermission('fatura', 'create'), auditLog('
       status = 'draft',
       notes,
       items = [],
-      created_by
+      created_by,
     } = req.body;
 
     // Transaction başlat
@@ -231,8 +229,8 @@ router.post('/', authenticate, requirePermission('fatura', 'create'), auditLog('
       // Toplamları hesapla
       let subtotal = 0;
       let vat_total = 0;
-      
-      items.forEach(item => {
+
+      items.forEach((item) => {
         const lineTotal = item.quantity * item.unit_price;
         const vatAmount = lineTotal * (item.vat_rate / 100);
         subtotal += lineTotal;
@@ -242,7 +240,8 @@ router.post('/', authenticate, requirePermission('fatura', 'create'), auditLog('
       const total_amount = subtotal + vat_total;
 
       // Faturayı kaydet
-      const invoiceResult = await client.query(`
+      const invoiceResult = await client.query(
+        `
         INSERT INTO invoices (
           invoice_type, series, invoice_no, 
           customer_name, customer_vkn, customer_address, customer_phone, customer_email,
@@ -252,13 +251,27 @@ router.post('/', authenticate, requirePermission('fatura', 'create'), auditLog('
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
         ) RETURNING *
-      `, [
-        invoice_type, series, invoice_no,
-        customer_name, customer_vkn, customer_address, customer_phone, customer_email,
-        invoice_date, due_date,
-        subtotal, vat_total, total_amount,
-        status, notes, 'manual', created_by
-      ]);
+      `,
+        [
+          invoice_type,
+          series,
+          invoice_no,
+          customer_name,
+          customer_vkn,
+          customer_address,
+          customer_phone,
+          customer_email,
+          invoice_date,
+          due_date,
+          subtotal,
+          vat_total,
+          total_amount,
+          status,
+          notes,
+          'manual',
+          created_by,
+        ]
+      );
 
       const invoice = invoiceResult.rows[0];
 
@@ -269,14 +282,12 @@ router.post('/', authenticate, requirePermission('fatura', 'create'), auditLog('
 
     res.json({
       success: true,
-      data: result
+      data: result,
     });
-
   } catch (error) {
-    console.error('Fatura oluşturma hatası:', error);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -302,15 +313,12 @@ router.put('/:id', authenticate, requirePermission('fatura', 'edit'), auditLog('
       status,
       notes,
       items = [],
-      updated_by
+      updated_by,
     } = req.body;
 
     const result = await transaction(async (client) => {
       // Mevcut faturayı kontrol et
-      const checkResult = await client.query(
-        'SELECT id FROM invoices WHERE id = $1',
-        [id]
-      );
+      const checkResult = await client.query('SELECT id FROM invoices WHERE id = $1', [id]);
 
       if (!checkResult.rows[0]) {
         throw new Error('Fatura bulunamadı');
@@ -319,8 +327,8 @@ router.put('/:id', authenticate, requirePermission('fatura', 'edit'), auditLog('
       // Toplamları hesapla
       let subtotal = 0;
       let vat_total = 0;
-      
-      items.forEach(item => {
+
+      items.forEach((item) => {
         const lineTotal = item.quantity * item.unit_price;
         const vatAmount = lineTotal * (item.vat_rate / 100);
         subtotal += lineTotal;
@@ -330,7 +338,8 @@ router.put('/:id', authenticate, requirePermission('fatura', 'edit'), auditLog('
       const total_amount = subtotal + vat_total;
 
       // Faturayı güncelle
-      const invoiceResult = await client.query(`
+      const invoiceResult = await client.query(
+        `
         UPDATE invoices SET
           invoice_type = $1, series = $2, invoice_no = $3,
           customer_name = $4, customer_vkn = $5, customer_address = $6,
@@ -341,15 +350,27 @@ router.put('/:id', authenticate, requirePermission('fatura', 'edit'), auditLog('
           updated_at = NOW()
         WHERE id = $17
         RETURNING *
-      `, [
-        invoice_type, series, invoice_no,
-        customer_name, customer_vkn, customer_address,
-        customer_phone, customer_email,
-        invoice_date, due_date,
-        subtotal, vat_total, total_amount,
-        status, notes, updated_by,
-        id
-      ]);
+      `,
+        [
+          invoice_type,
+          series,
+          invoice_no,
+          customer_name,
+          customer_vkn,
+          customer_address,
+          customer_phone,
+          customer_email,
+          invoice_date,
+          due_date,
+          subtotal,
+          vat_total,
+          total_amount,
+          status,
+          notes,
+          updated_by,
+          id,
+        ]
+      );
 
       const invoice = invoiceResult.rows[0];
 
@@ -360,14 +381,12 @@ router.put('/:id', authenticate, requirePermission('fatura', 'edit'), auditLog('
 
     res.json({
       success: true,
-      data: result
+      data: result,
     });
-
   } catch (error) {
-    console.error('Fatura güncelleme hatası:', error);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -381,30 +400,31 @@ router.patch('/:id/status', async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    const result = await query(`
+    const result = await query(
+      `
       UPDATE invoices 
       SET status = $1, updated_at = NOW()
       WHERE id = $2
       RETURNING *
-    `, [status, id]);
+    `,
+      [status, id]
+    );
 
     if (!result.rows[0]) {
       return res.status(404).json({
         success: false,
-        error: 'Fatura bulunamadı'
+        error: 'Fatura bulunamadı',
       });
     }
 
     res.json({
       success: true,
-      data: result.rows[0]
+      data: result.rows[0],
     });
-
   } catch (error) {
-    console.error('Durum güncelleme hatası:', error);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -417,27 +437,28 @@ router.delete('/:id', authenticate, requirePermission('fatura', 'delete'), audit
   try {
     const { id } = req.params;
 
-    const result = await query(`
+    const result = await query(
+      `
       DELETE FROM invoices WHERE id = $1 RETURNING id
-    `, [id]);
+    `,
+      [id]
+    );
 
     if (!result.rows[0]) {
       return res.status(404).json({
         success: false,
-        error: 'Fatura bulunamadı'
+        error: 'Fatura bulunamadı',
       });
     }
 
     res.json({
       success: true,
-      message: 'Fatura başarıyla silindi'
+      message: 'Fatura başarıyla silindi',
     });
-
   } catch (error) {
-    console.error('Fatura silme hatası:', error);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -479,14 +500,12 @@ router.get('/summary/monthly', async (req, res) => {
 
     res.json({
       success: true,
-      data: result.rows
+      data: result.rows,
     });
-
   } catch (error) {
-    console.error('Özet hatası:', error);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -501,7 +520,6 @@ router.get('/summary/category', async (req, res) => {
     const data = await faturaKalemleriClient.getKategoriOzetSummary({ startDate, endDate });
     res.json({ success: true, data });
   } catch (error) {
-    console.error('Kategori özet hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

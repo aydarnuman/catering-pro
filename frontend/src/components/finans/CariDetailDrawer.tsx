@@ -1,11 +1,9 @@
 'use client';
 
 import {
-  ActionIcon,
   Badge,
   Button,
   Center,
-  Divider,
   Drawer,
   Group,
   Loader,
@@ -13,21 +11,16 @@ import {
   ScrollArea,
   SimpleGrid,
   Stack,
-  Table,
   Tabs,
   Text,
   ThemeIcon,
   Timeline,
   Title,
-  Tooltip,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import {
   IconArrowDownRight,
   IconArrowUpRight,
-  IconBuilding,
   IconCash,
-  IconCreditCard,
   IconEdit,
   IconFileInvoice,
   IconHistory,
@@ -36,8 +29,6 @@ import {
   IconPhone,
   IconReceipt,
   IconUser,
-  IconWallet,
-  IconX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { muhasebeAPI } from '@/lib/api/services/muhasebe';
@@ -280,7 +271,11 @@ export default function CariDetailDrawer({
         </SimpleGrid>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onChange={setActiveTab} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <Tabs
+          value={activeTab}
+          onChange={setActiveTab}
+          style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+        >
           <Tabs.List>
             <Tabs.Tab value="ozet" leftSection={<IconUser size={14} />}>
               Bilgiler

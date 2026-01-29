@@ -281,7 +281,8 @@ export function AIChat({
     const fetchTemplates = async () => {
       try {
         const res = await aiAPI.getTemplates();
-        const rawTemplates = res.data?.templates ?? (res as { templates?: PromptTemplate[] }).templates;
+        const rawTemplates =
+          res.data?.templates ?? (res as { templates?: PromptTemplate[] }).templates;
         if (rawTemplates?.length) {
           // API'den gelen template'leri PromptTemplate formatına dönüştür
           const templates: PromptTemplate[] = rawTemplates.map((t) => {
@@ -399,7 +400,10 @@ export function AIChat({
             : await aiAPI.sendAgentMessage(messageData);
       } catch (error: unknown) {
         console.error('[AIChat] API çağrısı hatası:', error);
-        const err = error as { response?: { data?: { error?: string }; status?: number }; message?: string };
+        const err = error as {
+          response?: { data?: { error?: string }; status?: number };
+          message?: string;
+        };
         const errorMessage = err?.response?.data?.error || err?.message || 'API hatası';
         const statusCode = err?.response?.status;
         throw new Error(
@@ -461,7 +465,6 @@ export function AIChat({
 
   // Toolbar'dan gelen ilk mesajı otomatik gönder (tek seferlik)
   const initialMessageConsumedRef = useRef(false);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: sadece initialMessage ile tetiklenmeli
   useEffect(() => {
     if (!initialMessage) {
       initialMessageConsumedRef.current = false;
@@ -537,7 +540,9 @@ export function AIChat({
         <Box
           p="xs"
           style={{
-            borderBottom: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid var(--mantine-color-gray-3)',
+            borderBottom: isDark
+              ? '1px solid rgba(255,255,255,0.08)'
+              : '1px solid var(--mantine-color-gray-3)',
             flexShrink: 0,
             background: isDark ? 'rgba(0,0,0,0.2)' : undefined,
           }}
@@ -568,7 +573,9 @@ export function AIChat({
                     padding: '4px 8px',
                     borderRadius: 6,
                     background: isDark ? 'rgba(255,255,255,0.08)' : 'var(--mantine-color-gray-0)',
-                    border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid var(--mantine-color-gray-3)',
+                    border: isDark
+                      ? '1px solid rgba(255,255,255,0.12)'
+                      : '1px solid var(--mantine-color-gray-3)',
                     fontSize: 12,
                   }}
                 >
@@ -688,7 +695,9 @@ export function AIChat({
                         }}
                         onClick={() => handleSuggestedQuestion(question)}
                       >
-                        <Text size="xs" c={isDark ? 'gray.3' : undefined}>{question}</Text>
+                        <Text size="xs" c={isDark ? 'gray.3' : undefined}>
+                          {question}
+                        </Text>
                       </Paper>
                     ))}
                   </Stack>
@@ -711,12 +720,19 @@ export function AIChat({
                         flex: 1,
                         maxWidth: 'calc(100% - 40px)',
                         ...(isDark && {
-                          background: message.type === 'user' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.06)',
+                          background:
+                            message.type === 'user'
+                              ? 'rgba(59, 130, 246, 0.2)'
+                              : 'rgba(255,255,255,0.06)',
                           border: '1px solid rgba(255,255,255,0.08)',
                         }),
                       }}
                     >
-                      <Text size="xs" c={isDark ? 'gray.3' : undefined} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                      <Text
+                        size="xs"
+                        c={isDark ? 'gray.3' : undefined}
+                        style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                      >
                         {message.content}
                       </Text>
                       {message.toolsUsed && message.toolsUsed.length > 0 && (
@@ -742,11 +758,7 @@ export function AIChat({
                   <Avatar size="sm" color="violet" radius="xl">
                     <IconRobot size={14} />
                   </Avatar>
-                  <Paper
-                    p="xs"
-                    radius="md"
-                    className="nested-card"
-                  >
+                  <Paper p="xs" radius="md" className="nested-card">
                     <Group gap="xs">
                       <Loader size="xs" color="violet" />
                       <Text size="xs" c={isDark ? 'gray.4' : 'dimmed'}>
@@ -765,7 +777,9 @@ export function AIChat({
         <Box
           p="sm"
           style={{
-            borderTop: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid var(--mantine-color-gray-3)',
+            borderTop: isDark
+              ? '1px solid rgba(255,255,255,0.08)'
+              : '1px solid var(--mantine-color-gray-3)',
             paddingBottom: 'env(safe-area-inset-bottom, 8px)',
             flexShrink: 0,
             background: isDark ? 'rgba(0,0,0,0.2)' : undefined,

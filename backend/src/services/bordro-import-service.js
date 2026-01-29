@@ -1,6 +1,6 @@
 /**
  * Bordro Import Service - Proje Bazlı Akıllı Bordro İçe Aktarım
- * 
+ *
  * Özellikler:
  * - Template sistemi ile hızlı parse (AI'sız)
  * - Karmaşık Excel formatlarını AI ile analiz
@@ -9,25 +9,25 @@
  * - UPSERT: Aynı dönem varsa güncelle
  */
 
-import fs from 'fs';
-import path from 'path';
-import xlsx from 'xlsx';
-import pdfParse from 'pdf-parse';
+import fs from 'node:fs';
+import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
+import pdfParse from 'pdf-parse';
+import xlsx from 'xlsx';
 import { query } from '../database.js';
 import {
   createFormatSignature,
-  parseWithTemplate,
-  findTemplateBySignature,
-  saveTemplate,
-  incrementTemplateUsage,
   createMappingFromAIResult,
-  listTemplates
+  findTemplateBySignature,
+  incrementTemplateUsage,
+  listTemplates,
+  parseWithTemplate,
+  saveTemplate,
 } from './bordro-template-service.js';
 
 // Claude AI
 const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY
+  apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
 /**
@@ -46,7 +46,7 @@ export async function getProjePersonelleri(projeId) {
     WHERE pp.proje_id = $1 AND pp.aktif = TRUE
     ORDER BY p.ad, p.soyad
   `;
-  
+
   const result = await query(sql, [projeId]);
   return result.rows;
 }
@@ -66,7 +66,7 @@ export async function getAllPersoneller() {
     WHERE durum = 'aktif' OR durum IS NULL
     ORDER BY ad, soyad
   `;
-  
+
   const result = await query(sql);
   return result.rows;
 }
@@ -82,7 +82,7 @@ export async function checkExistingBordro(projeId, yil, ay) {
     FROM bordro_kayitlari
     WHERE proje_id = $1 AND yil = $2 AND ay = $3
   `;
-  
+
   const result = await query(sql, [projeId, yil, ay]);
   return result.rows[0];
 }
@@ -93,15 +93,15 @@ export async function checkExistingBordro(projeId, yil, ay) {
 async function extractPdfData(filePath) {
   const dataBuffer = fs.readFileSync(filePath);
   const pdfData = await pdfParse(dataBuffer);
-  
+
   // PDF text'ini satırlara ayır
-  const lines = pdfData.text.split('\n').filter(line => line.trim());
-  
+  const lines = pdfData.text.split('\n').filter((line) => line.trim());
+
   return {
     textFormat: pdfData.text,
     lines,
     totalRows: lines.length,
-    isPdf: true
+    isPdf: true,
   };
 }
 
@@ -113,41 +113,47 @@ function extractExcelData(filePath) {
   const workbook = xlsx.readFile(filePath);
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
-  
+
   // Birleşik hücre bilgisi
   const merges = sheet['!merges'] || [];
   const hasMerges = merges.length > 50; // Çok fazla birleşik hücre varsa
-  
+
   // Ham satır verisi (array of arrays)
   const rawData = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-  
+
   // Header ve JSON formatı (kolon isimleriyle)
   const headers = rawData[0] || [];
   const json = xlsx.utils.sheet_to_json(sheet, { defval: null });
-  
+
   // Text formatında da hazırla (AI için)
   // Birleşik hücreli dosyalarda daha detaylı format
   let textFormat;
   const maxRows = Math.min(rawData.length, 200);
-  
+
   if (hasMerges) {
     // Birleşik hücreli dosya - her satırı daha detaylı göster
-    textFormat = rawData.slice(0, maxRows).map((row, i) => {
-      const values = row.map((cell, c) => {
-        if (cell === null || cell === undefined || cell === '') return null;
-        return `[${c}]${cell}`;
-      }).filter(x => x !== null);
-      return `Satır ${i}: ${values.join(' | ')}`;
-    }).join('\n');
-    
+    textFormat = rawData
+      .slice(0, maxRows)
+      .map((row, i) => {
+        const values = row
+          .map((cell, c) => {
+            if (cell === null || cell === undefined || cell === '') return null;
+            return `[${c}]${cell}`;
+          })
+          .filter((x) => x !== null);
+        return `Satır ${i}: ${values.join(' | ')}`;
+      })
+      .join('\n');
+
     // Merge bilgisini de ekle
     textFormat = `[BİRLEŞİK HÜCRELER: ${merges.length} adet]\n\n` + textFormat;
   } else {
-    textFormat = rawData.slice(0, maxRows).map((row, i) => 
-      `Satır ${i}: ${row.filter(c => c !== null && c !== undefined && c !== '').join(' | ')}`
-    ).join('\n');
+    textFormat = rawData
+      .slice(0, maxRows)
+      .map((row, i) => `Satır ${i}: ${row.filter((c) => c !== null && c !== undefined && c !== '').join(' | ')}`)
+      .join('\n');
   }
-  
+
   return {
     rawData,
     json,
@@ -156,7 +162,7 @@ function extractExcelData(filePath) {
     totalRows: rawData.length,
     hasMerges,
     mergeCount: merges.length,
-    isPdf: false
+    isPdf: false,
   };
 }
 
@@ -165,12 +171,10 @@ function extractExcelData(filePath) {
  */
 async function extractFileData(filePath) {
   const ext = path.extname(filePath).toLowerCase();
-  
+
   if (ext === '.pdf') {
-    console.log('📄 PDF dosyası algılandı');
     return await extractPdfData(filePath);
   } else {
-    console.log('📊 Excel dosyası algılandı');
     return extractExcelData(filePath);
   }
 }
@@ -182,7 +186,7 @@ async function extractFileData(filePath) {
 async function analyzeBordroWithAI(fileData, yil, ay) {
   const isPdf = fileData.isPdf;
   const fileType = isPdf ? 'PDF' : 'Excel';
-  
+
   const prompt = `Sen bir BORDRO ANALİZ UZMANISIN. Aşağıdaki ${fileType} verisinden:
 1. HER PERSONELİN BORDRO KAYITLARINI çıkar
 2. TAHAKKUK BİLGİLERİ (özet tablo) varsa onu da çıkar
@@ -285,8 +289,6 @@ SADECE JSON formatında yanıt ver:
   "total": 37
 }`;
 
-  console.log('🤖 Claude ile bordro analizi yapılıyor...');
-  
   try {
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
@@ -294,30 +296,25 @@ SADECE JSON formatında yanıt ver:
       messages: [
         {
           role: 'user',
-          content: prompt
-        }
-      ]
+          content: prompt,
+        },
+      ],
     });
-    
+
     const text = response.content[0].text;
-    console.log('📝 Claude yanıtı alındı, parse ediliyor...');
-    
+
     // JSON çıkar - code block içinde olabilir
     let jsonText = text;
     const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
     if (jsonMatch) {
       jsonText = jsonMatch[1];
     }
-    
+
     // Temizle ve parse et
     jsonText = jsonText.trim();
     const result = JSON.parse(jsonText);
-    
-    console.log(`✅ ${result.records?.length || 0} kayıt parse edildi`);
     return result;
-    
   } catch (error) {
-    console.error('❌ Claude API hatası:', error.message);
     return { records: [], warnings: [`Claude API hatası: ${error.message}`], total: 0 };
   }
 }
@@ -329,49 +326,44 @@ export function matchPersonnel(bordroRecords, personelList) {
   const results = {
     matched: [],
     unmatched: [],
-    total: bordroRecords.length
+    total: bordroRecords.length,
   };
-  
+
   for (const record of bordroRecords) {
     // TC Kimlik ile eşleştir
-    let matched = personelList.find(p => 
-      p.tc_kimlik && record.tc_kimlik && 
-      p.tc_kimlik.toString().trim() === record.tc_kimlik.toString().trim()
+    let matched = personelList.find(
+      (p) => p.tc_kimlik && record.tc_kimlik && p.tc_kimlik.toString().trim() === record.tc_kimlik.toString().trim()
     );
-    
+
     // SGK No ile eşleştir
     if (!matched && record.sgk_no) {
-      matched = personelList.find(p => 
-        p.sgk_no && p.sgk_no.toString().trim() === record.sgk_no.toString().trim()
-      );
+      matched = personelList.find((p) => p.sgk_no && p.sgk_no.toString().trim() === record.sgk_no.toString().trim());
     }
-    
+
     // İsim benzerliği ile eşleştir (son çare)
     if (!matched && record.personel_adi) {
       const normalizedName = record.personel_adi.toUpperCase().trim();
-      matched = personelList.find(p => {
+      matched = personelList.find((p) => {
         const pName = (p.tam_ad || '').toUpperCase().trim();
-        return pName === normalizedName || 
-               pName.includes(normalizedName) || 
-               normalizedName.includes(pName);
+        return pName === normalizedName || pName.includes(normalizedName) || normalizedName.includes(pName);
       });
     }
-    
+
     if (matched) {
       results.matched.push({
         ...record,
         personel_id: matched.personel_id,
         sistem_adi: matched.tam_ad,
-        eslestirme_tipi: 'tc_kimlik'
+        eslestirme_tipi: 'tc_kimlik',
       });
     } else {
       results.unmatched.push({
         ...record,
-        eslestirme_tipi: 'bulunamadi'
+        eslestirme_tipi: 'bulunamadi',
       });
     }
   }
-  
+
   return results;
 }
 
@@ -381,24 +373,20 @@ export function matchPersonnel(bordroRecords, personelList) {
  */
 export async function analyzeBordroFile(filePath, projeId, yil, ay, options = {}) {
   const { forceAI = false, templateId = null } = options;
-  
-  console.log(`📥 Bordro analizi başlıyor: Proje ${projeId}, ${yil}/${ay}`);
-  
+
   // 1. Dosyayı oku (Excel veya PDF)
   const fileData = await extractFileData(filePath);
-  const fileType = fileData.isPdf ? 'PDF' : 'Excel';
-  console.log(`✅ ${fileType} okundu: ${fileData.totalRows} satır${fileData.hasMerges ? ` (${fileData.mergeCount} birleşik hücre)` : ''}`);
-  
+  const _fileType = fileData.isPdf ? 'PDF' : 'Excel';
+
   // 2. Format imzası oluştur (sadece Excel için)
   const formatSignature = fileData.isPdf ? null : createFormatSignature(fileData);
   if (formatSignature) {
-    console.log(`🔑 Format imzası: ${formatSignature}`);
   }
-  
+
   let parseResult = null;
   let usedTemplate = null;
   let aiUsed = false;
-  
+
   // 3. Template kontrolü (forceAI değilse, sadece Excel için)
   if (!forceAI && !fileData.isPdf) {
     // Belirtilen template'i kullan
@@ -410,46 +398,38 @@ export async function analyzeBordroFile(filePath, projeId, yil, ay, options = {}
     else if (formatSignature) {
       usedTemplate = await findTemplateBySignature(formatSignature, projeId);
     }
-    
+
     // Template bulunduysa kullan
     if (usedTemplate) {
-      console.log(`📋 Template bulundu: "${usedTemplate.ad}" (${usedTemplate.kullanim_sayisi} kullanım)`);
       parseResult = parseWithTemplate(fileData, usedTemplate);
-      
+
       if (parseResult.success && parseResult.records.length > 0) {
-        console.log(`⚡ Template ile hızlı parse: ${parseResult.records.length} kayıt (AI kullanılmadı)`);
         await incrementTemplateUsage(usedTemplate.id);
       } else {
-        console.log('⚠️ Template parse başarısız, AI\'a geçiliyor...');
         usedTemplate = null;
       }
     } else {
-      console.log('📋 Eşleşen template bulunamadı');
     }
   }
-  
+
   // 4. AI ile analiz (template yoksa veya başarısızsa)
   let tahakkuk = null;
   if (!parseResult || !parseResult.success || parseResult.records.length === 0) {
-    console.log('🤖 AI ile analiz yapılıyor...');
     const aiResult = await analyzeBordroWithAI(fileData, yil, ay);
     aiUsed = true;
-    
+
     parseResult = {
       success: true,
       records: aiResult.records || [],
       warnings: aiResult.warnings || [],
-      total: aiResult.total || aiResult.records?.length || 0
+      total: aiResult.total || aiResult.records?.length || 0,
     };
-    
+
     // TAHAKKUK BİLGİLERİ'ni sakla
     if (aiResult.tahakkuk) {
       tahakkuk = aiResult.tahakkuk;
-      console.log(`📊 TAHAKKUK BİLGİLERİ alındı: Brüt ${tahakkuk.aylik_ucret_toplami}, Net ${tahakkuk.odenecek_net_ucret}`);
     }
-    
-    console.log(`✅ AI analizi tamamlandı: ${parseResult.total} kayıt`);
-    
+
     // AI sonucundan mapping oluştur (template kaydetmek için - sadece Excel)
     if (!fileData.isPdf) {
       const suggestedMapping = createMappingFromAIResult(aiResult, fileData);
@@ -459,24 +439,21 @@ export async function analyzeBordroFile(filePath, projeId, yil, ay, options = {}
       }
     }
   }
-  
+
   // 5. Proje personellerini getir
   let personelList;
   if (projeId) {
     personelList = await getProjePersonelleri(projeId);
-    console.log(`✅ Proje personelleri: ${personelList.length} kişi`);
   } else {
     personelList = await getAllPersoneller();
-    console.log(`✅ Tüm personeller: ${personelList.length} kişi`);
   }
-  
+
   // 6. Eşleştirme yap
   const matchResult = matchPersonnel(parseResult.records || [], personelList);
-  console.log(`✅ Eşleştirme: ${matchResult.matched.length} eşleşti, ${matchResult.unmatched.length} bulunamadı`);
-  
+
   // 7. Mevcut bordro kontrolü
   const existing = await checkExistingBordro(projeId, yil, ay);
-  
+
   // 8. ÇİFT KATMANLI DOĞRULAMA - Personel toplamları vs Tahakkuk
   let verification = null;
   if (tahakkuk) {
@@ -488,9 +465,9 @@ export async function analyzeBordroFile(filePath, projeId, yil, ay, options = {}
       sgk_isci: records.reduce((sum, r) => sum + (parseFloat(r.sgk_isci) || 0), 0),
       sgk_isveren: records.reduce((sum, r) => sum + (parseFloat(r.sgk_isveren) || 0), 0),
       gelir_vergisi: records.reduce((sum, r) => sum + (parseFloat(r.gelir_vergisi) || 0), 0),
-      damga_vergisi: records.reduce((sum, r) => sum + (parseFloat(r.damga_vergisi) || 0), 0)
+      damga_vergisi: records.reduce((sum, r) => sum + (parseFloat(r.damga_vergisi) || 0), 0),
     };
-    
+
     // Karşılaştırma
     const tolerance = 1; // 1 TL tolerans
     verification = {
@@ -500,39 +477,34 @@ export async function analyzeBordroFile(filePath, projeId, yil, ay, options = {}
         brut: {
           personel: personelTotals.brut_toplam,
           tahakkuk: tahakkuk.aylik_ucret_toplami || 0,
-          match: Math.abs(personelTotals.brut_toplam - (tahakkuk.aylik_ucret_toplami || 0)) < tolerance
+          match: Math.abs(personelTotals.brut_toplam - (tahakkuk.aylik_ucret_toplami || 0)) < tolerance,
         },
         net: {
           personel: personelTotals.net_toplam,
           tahakkuk: tahakkuk.odenecek_net_ucret || 0,
-          match: Math.abs(personelTotals.net_toplam - (tahakkuk.odenecek_net_ucret || 0)) < tolerance
+          match: Math.abs(personelTotals.net_toplam - (tahakkuk.odenecek_net_ucret || 0)) < tolerance,
         },
         sgk_isveren: {
           personel: personelTotals.sgk_isveren,
           tahakkuk: tahakkuk.isveren_sgk_hissesi || 0,
-          match: Math.abs(personelTotals.sgk_isveren - (tahakkuk.isveren_sgk_hissesi || 0)) < tolerance
+          match: Math.abs(personelTotals.sgk_isveren - (tahakkuk.isveren_sgk_hissesi || 0)) < tolerance,
         },
         gelir_vergisi: {
           personel: personelTotals.gelir_vergisi,
           tahakkuk: tahakkuk.odenecek_gelir_vergisi || 0,
-          match: Math.abs(personelTotals.gelir_vergisi - (tahakkuk.odenecek_gelir_vergisi || 0)) < tolerance
-        }
+          match: Math.abs(personelTotals.gelir_vergisi - (tahakkuk.odenecek_gelir_vergisi || 0)) < tolerance,
+        },
       },
-      allMatch: false
+      allMatch: false,
     };
-    
-    verification.allMatch = verification.comparison.brut.match && 
-                            verification.comparison.net.match;
-    
+
+    verification.allMatch = verification.comparison.brut.match && verification.comparison.net.match;
+
     if (!verification.allMatch) {
-      console.log('⚠️ UYARI: Personel toplamları ile TAHAKKUK uyuşmuyor!');
-      console.log(`   Brüt: Personel ${personelTotals.brut_toplam.toFixed(2)} vs Tahakkuk ${tahakkuk.aylik_ucret_toplami}`);
-      console.log(`   Net: Personel ${personelTotals.net_toplam.toFixed(2)} vs Tahakkuk ${tahakkuk.odenecek_net_ucret}`);
     } else {
-      console.log('✅ Doğrulama başarılı: Toplamlar uyuşuyor');
     }
   }
-  
+
   return {
     success: true,
     yil,
@@ -543,11 +515,11 @@ export async function analyzeBordroFile(filePath, projeId, yil, ay, options = {}
     stats: {
       total: matchResult.total,
       matched: matchResult.matched.length,
-      unmatched: matchResult.unmatched.length
+      unmatched: matchResult.unmatched.length,
     },
     existing: {
-      kayit_sayisi: parseInt(existing.kayit_sayisi) || 0,
-      toplam_net: parseFloat(existing.toplam_net) || 0
+      kayit_sayisi: parseInt(existing.kayit_sayisi, 10) || 0,
+      toplam_net: parseFloat(existing.toplam_net) || 0,
     },
     warnings: parseResult.warnings || [],
     // Template bilgisi
@@ -556,11 +528,11 @@ export async function analyzeBordroFile(filePath, projeId, yil, ay, options = {}
       usedTemplate: usedTemplate ? { id: usedTemplate.id, ad: usedTemplate.ad } : null,
       suggestedMapping: parseResult.suggestedMapping || null,
       formatSignature: formatSignature,
-      canSaveTemplate: aiUsed && parseResult.suggestedMapping !== null
+      canSaveTemplate: aiUsed && parseResult.suggestedMapping !== null,
     },
     // ÇİFT KATMANLI DOĞRULAMA
     tahakkuk,
-    verification
+    verification,
   };
 }
 
@@ -572,9 +544,9 @@ export async function saveBordroRecords(records, projeId, yil, ay, kaynakDosya) 
     inserted: 0,
     updated: 0,
     failed: 0,
-    errors: []
+    errors: [],
   };
-  
+
   for (const record of records) {
     try {
       // UPSERT: Varsa güncelle, yoksa ekle
@@ -623,42 +595,43 @@ export async function saveBordroRecords(records, projeId, yil, ay, kaynakDosya) 
           updated_at = NOW()
         RETURNING id, (xmax = 0) as inserted
       `;
-      
+
       // PDF'DEN GELEN DEĞERLERİ KULLAN - HESAPLAMA YAPMA!
       // Eksik değerler null kalacak, sonradan doğrulama yapılacak
       const brutMaas = parseFloat(record.brut_maas) || 0;
       const brutToplam = parseFloat(record.brut_toplam) || brutMaas;
-      
+
       // SGK İşçi - PDF'den gelen değer, yoksa null DEĞİL sıfır
-      const sgkIsci = record.sgk_isci !== null && record.sgk_isci !== undefined 
-        ? parseFloat(record.sgk_isci) : 0;
-      const issizlikIsci = record.issizlik_isci !== null && record.issizlik_isci !== undefined 
-        ? parseFloat(record.issizlik_isci) : 0;
+      const sgkIsci = record.sgk_isci !== null && record.sgk_isci !== undefined ? parseFloat(record.sgk_isci) : 0;
+      const issizlikIsci =
+        record.issizlik_isci !== null && record.issizlik_isci !== undefined ? parseFloat(record.issizlik_isci) : 0;
       const toplamIsciSgk = sgkIsci + issizlikIsci;
-      
+
       const sgkMatrahi = brutToplam;
       const vergiMatrahi = brutToplam - toplamIsciSgk;
-      
+
       // Vergiler - PDF'den gelen değer, yoksa 0 (hesaplama YOK)
-      const gelirVergisi = record.gelir_vergisi !== null && record.gelir_vergisi !== undefined 
-        ? parseFloat(record.gelir_vergisi) : 0;
-      const damgaVergisi = record.damga_vergisi !== null && record.damga_vergisi !== undefined 
-        ? parseFloat(record.damga_vergisi) : 0;
-      const agiTutari = record.agi_tutari !== null && record.agi_tutari !== undefined 
-        ? parseFloat(record.agi_tutari) : 0;
-      
+      const gelirVergisi =
+        record.gelir_vergisi !== null && record.gelir_vergisi !== undefined ? parseFloat(record.gelir_vergisi) : 0;
+      const damgaVergisi =
+        record.damga_vergisi !== null && record.damga_vergisi !== undefined ? parseFloat(record.damga_vergisi) : 0;
+      const agiTutari =
+        record.agi_tutari !== null && record.agi_tutari !== undefined ? parseFloat(record.agi_tutari) : 0;
+
       const netMaas = parseFloat(record.net_maas) || 0;
-      
+
       // SGK İşveren - PDF'den gelen değer, yoksa 0 (hesaplama YOK)
-      const sgkIsveren = record.sgk_isveren !== null && record.sgk_isveren !== undefined 
-        ? parseFloat(record.sgk_isveren) : 0;
-      const issizlikIsveren = record.issizlik_isveren !== null && record.issizlik_isveren !== undefined 
-        ? parseFloat(record.issizlik_isveren) : 0;
+      const sgkIsveren =
+        record.sgk_isveren !== null && record.sgk_isveren !== undefined ? parseFloat(record.sgk_isveren) : 0;
+      const issizlikIsveren =
+        record.issizlik_isveren !== null && record.issizlik_isveren !== undefined
+          ? parseFloat(record.issizlik_isveren)
+          : 0;
       const toplamIsverenSgk = sgkIsveren + issizlikIsveren;
       const toplamMaliyet = brutToplam + toplamIsverenSgk;
-      
-      const calismaGunu = parseInt(record.calisma_gunu) || 30;
-      
+
+      const calismaGunu = parseInt(record.calisma_gunu, 10) || 30;
+
       const values = [
         record.personel_id,
         projeId,
@@ -681,29 +654,25 @@ export async function saveBordroRecords(records, projeId, yil, ay, kaynakDosya) 
         issizlikIsveren,
         toplamIsverenSgk,
         toplamMaliyet,
-        kaynakDosya
+        kaynakDosya,
       ];
-      
+
       const result = await query(sql, values);
-      
+
       if (result.rows[0]?.inserted) {
         results.inserted++;
       } else {
         results.updated++;
       }
-      
     } catch (error) {
       results.failed++;
       results.errors.push({
         personel: record.personel_adi || record.personel_id,
-        error: error.message
+        error: error.message,
       });
-      console.error(`❌ Kayıt hatası: ${record.personel_adi}`, error.message);
     }
   }
-  
-  console.log(`📥 Bordro kayıt tamamlandı: ${results.inserted} eklendi, ${results.updated} güncellendi, ${results.failed} hatalı`);
-  
+
   return results;
 }
 
@@ -716,7 +685,7 @@ export async function createPersonelFromBordro(record, projeId) {
     const nameParts = (record.personel_adi || 'Bilinmeyen Kişi').split(' ');
     const ad = nameParts.slice(0, -1).join(' ') || nameParts[0];
     const soyad = nameParts.slice(-1)[0] || '';
-    
+
     // 2. İşe giriş tarihi - bordrodan gelen veya bugün
     let iseGirisTarihi = null;
     if (record.ise_giris_tarihi) {
@@ -730,7 +699,7 @@ export async function createPersonelFromBordro(record, projeId) {
         iseGirisTarihi = `${parts[2]}-${parts[1]}-${parts[0]}`;
       }
     }
-    
+
     const insertSql = `
       INSERT INTO personeller (
         ad, soyad, tc_kimlik, sgk_no, maas, durum, 
@@ -739,7 +708,7 @@ export async function createPersonelFromBordro(record, projeId) {
       VALUES ($1, $2, $3, $4, $5, 'aktif', $6, $7, $8)
       RETURNING id
     `;
-    
+
     const result = await query(insertSql, [
       ad,
       soyad,
@@ -748,24 +717,25 @@ export async function createPersonelFromBordro(record, projeId) {
       record.brut_maas || 0,
       iseGirisTarihi || new Date().toISOString().split('T')[0],
       record.departman || null,
-      record.pozisyon || null
+      record.pozisyon || null,
     ]);
-    
+
     const personelId = result.rows[0].id;
-    
+
     // 2. Projeye ekle
     if (projeId) {
-      await query(`
+      await query(
+        `
         INSERT INTO proje_personelleri (proje_id, personel_id, baslangic_tarihi, aktif)
         VALUES ($1, $2, CURRENT_DATE, TRUE)
         ON CONFLICT DO NOTHING
-      `, [projeId, personelId]);
+      `,
+        [projeId, personelId]
+      );
     }
-    
+
     return { success: true, personel_id: personelId };
-    
   } catch (error) {
-    console.error('Personel oluşturma hatası:', error);
     return { success: false, error: error.message };
   }
 }
@@ -775,7 +745,7 @@ export async function createPersonelFromBordro(record, projeId) {
  */
 export async function saveTahakkuk(tahakkuk, projeId, yil, ay, kaynakDosya) {
   if (!tahakkuk) return null;
-  
+
   const sql = `
     INSERT INTO bordro_tahakkuk (
       proje_id, yil, ay,
@@ -815,7 +785,7 @@ export async function saveTahakkuk(tahakkuk, projeId, yil, ay, kaynakDosya) {
       updated_at = NOW()
     RETURNING id
   `;
-  
+
   try {
     const result = await query(sql, [
       projeId,
@@ -837,13 +807,10 @@ export async function saveTahakkuk(tahakkuk, projeId, yil, ay, kaynakDosya) {
       tahakkuk.toplam_sgk_primi || null,
       tahakkuk.net_odenecek_sgk || null,
       tahakkuk.personel_sayisi || null,
-      kaynakDosya
+      kaynakDosya,
     ]);
-    
-    console.log('✅ TAHAKKUK BİLGİLERİ kaydedildi:', result.rows[0]?.id);
     return result.rows[0];
-  } catch (error) {
-    console.error('❌ TAHAKKUK kayıt hatası:', error.message);
+  } catch (_error) {
     return null;
   }
 }
@@ -857,18 +824,13 @@ export async function getTahakkuk(projeId, yil, ay) {
     WHERE (proje_id = $1 OR ($1 IS NULL AND proje_id IS NULL))
       AND yil = $2 AND ay = $3
   `;
-  
+
   const result = await query(sql, [projeId, yil, ay]);
   return result.rows[0] || null;
 }
 
 // Re-export template fonksiyonları
-export { 
-  listTemplates, 
-  saveTemplate, 
-  findTemplateBySignature,
-  parseWithTemplate
-};
+export { listTemplates, saveTemplate, findTemplateBySignature, parseWithTemplate };
 
 export default {
   analyzeBordroFile,
@@ -882,6 +844,5 @@ export default {
   listTemplates,
   saveTemplate,
   findTemplateBySignature,
-  parseWithTemplate
+  parseWithTemplate,
 };
-

@@ -65,8 +65,8 @@ import {
   IconTruck,
   IconUsers,
 } from '@tabler/icons-react';
-import { useResponsive } from '@/hooks/useResponsive';
 import dynamic from 'next/dynamic';
+import { useResponsive } from '@/hooks/useResponsive';
 import { useClipboard, useIhaleData } from './IhaleUzmani/hooks';
 import { ClipboardModal } from './IhaleUzmani/modals/ClipboardModal';
 import { DokumanlarTab } from './IhaleUzmani/tabs/DokumanlarTab';
@@ -270,7 +270,6 @@ export default function IhaleUzmaniModal({
   }, [yaklasikMaliyet, sinirDeger, bizimTeklif, dataLoaded, saveHesaplamaData]);
 
   // Load saved data and analysis when tender changes
-  // biome-ignore lint/correctness/useExhaustiveDependencies: loadConversations, loadSavedDilekces, loadSavedHesaplamaData bu effect'ten sonra tanımlı; dep'te olursa "Cannot access before initialization" olur
   useEffect(() => {
     if (opened && tender) {
       setDataLoaded(false);
@@ -334,12 +333,7 @@ export default function IhaleUzmaniModal({
     // loadConversations, loadSavedDilekces, loadSavedHesaplamaData bu effect'ten sonra tanımlı;
     // dep listesine koymak "Cannot access before initialization" hatası verir.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    opened,
-    tender?.tender_id,
-    tender,
-    loadAnalysisData,
-  ]);
+  }, [opened, tender?.tender_id, tender, loadAnalysisData]);
 
   // Update AI context when modal opens or hesaplama data changes
   useEffect(() => {
@@ -1667,7 +1661,13 @@ KURALLAR:
                       {tender.ihale_basligi && tender.ihale_basligi.length > 60 ? '...' : ''}
                     </Text>
                     <Badge className="glassy-badge info" size="sm">
-                      {tender.status === 'bekliyor' ? 'Bekliyor' : tender.status === 'kazanildi' ? 'Kazanıldı' : tender.status === 'basvuruldu' ? 'Başvuruldu' : 'Kaybedildi'}
+                      {tender.status === 'bekliyor'
+                        ? 'Bekliyor'
+                        : tender.status === 'kazanildi'
+                          ? 'Kazanıldı'
+                          : tender.status === 'basvuruldu'
+                            ? 'Başvuruldu'
+                            : 'Kaybedildi'}
                     </Badge>
                   </Group>
                   <Text size="sm" c="dimmed">
@@ -1768,13 +1768,8 @@ KURALLAR:
               </Group>
             </Paper>
 
-
             {/* TEKLİF CETVELİ KARTI - Glassy Style */}
-            <Paper
-              className="glassy-content-card"
-              p="lg"
-              radius="lg"
-            >
+            <Paper className="glassy-content-card" p="lg" radius="lg">
               <Group justify="space-between" mb="md">
                 <Group gap="sm">
                   <ThemeIcon

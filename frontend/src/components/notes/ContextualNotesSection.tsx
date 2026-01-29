@@ -1,60 +1,52 @@
 'use client';
 
-import { useState, useCallback, useMemo, useRef } from 'react';
 import {
-  Stack,
-  Group,
-  Text,
-  Button,
-  Paper,
-  ActionIcon,
-  Tooltip,
-  Badge,
-  FileButton,
-  Loader,
-  Center,
-  Collapse,
-  Box,
-  useMantineColorScheme,
-} from '@mantine/core';
-import { notifications } from '@mantine/notifications';
-import {
-  IconPlus,
-  IconGripVertical,
-  IconUpload,
-  IconPaperclip,
-  IconDownload,
-  IconTrash,
-  IconX,
-} from '@tabler/icons-react';
-import {
-  DndContext,
   closestCenter,
+  DndContext,
+  type DragEndEvent,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
-  type DragEndEvent,
 } from '@dnd-kit/core';
 import {
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
   useSortable,
+  verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import {
+  ActionIcon,
+  Badge,
+  Button,
+  Center,
+  Collapse,
+  FileButton,
+  Group,
+  Loader,
+  Paper,
+  Stack,
+  Text,
+  Tooltip,
+  useMantineColorScheme,
+} from '@mantine/core';
+import { notifications } from '@mantine/notifications';
+import {
+  IconDownload,
+  IconPaperclip,
+  IconPlus,
+  IconTrash,
+  IconUpload,
+  IconX,
+} from '@tabler/icons-react';
+import { useCallback, useState } from 'react';
 
 import { useNotes } from '@/hooks/useNotes';
 import { notesAPI } from '@/lib/api/services/notes';
+import type { CreateNoteDTO, NoteColor, NoteContextType, UnifiedNote } from '@/types/notes';
 import { NoteCard } from './NoteCard';
 import { NoteEditor } from './NoteEditor';
-import type {
-  UnifiedNote,
-  CreateNoteDTO,
-  NoteColor,
-  NoteAttachment,
-  NoteContextType,
-} from '@/types/notes';
 
 interface ContextualNotesSectionProps {
   /** Context type (tender, customer, event, project) */
@@ -93,14 +85,9 @@ function SortableContextNote({
 }) {
   const [uploading, setUploading] = useState(false);
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: note.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: note.id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -181,7 +168,10 @@ function SortableContextNote({
         {/* Upload button */}
         {onUploadAttachment && (
           <Group ml="xl">
-            <FileButton onChange={handleFileUpload} accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt">
+            <FileButton
+              onChange={handleFileUpload}
+              accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt"
+            >
               {(props) => (
                 <Button
                   {...props}
@@ -211,26 +201,18 @@ export function ContextualNotesSection({
   onNotesChange,
 }: ContextualNotesSectionProps) {
   const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === 'dark';
+  const _isDark = colorScheme === 'dark';
 
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<UnifiedNote | null>(null);
 
   // Fetch context notes
-  const {
-    notes,
-    isLoading,
-    createNote,
-    updateNote,
-    deleteNote,
-    togglePin,
-    reorderNotes,
-    refresh,
-  } = useNotes({
-    contextType,
-    contextId,
-    enabled: true,
-  });
+  const { notes, isLoading, createNote, updateNote, deleteNote, togglePin, reorderNotes, refresh } =
+    useNotes({
+      contextType,
+      contextId,
+      enabled: true,
+    });
 
   // DnD sensors
   const sensors = useSensors(
@@ -345,7 +327,7 @@ export function ContextualNotesSection({
             color: 'green',
           });
         }
-      } catch (error) {
+      } catch (_error) {
         notifications.show({
           title: 'Hata',
           message: 'Dosya yuklenemedi',
@@ -357,7 +339,7 @@ export function ContextualNotesSection({
   );
 
   const handleDeleteAttachment = useCallback(
-    async (noteId: string, attachmentId: string) => {
+    async (_noteId: string, attachmentId: string) => {
       try {
         const result = await notesAPI.deleteAttachment(attachmentId);
         if (result.success) {
@@ -369,7 +351,7 @@ export function ContextualNotesSection({
             color: 'green',
           });
         }
-      } catch (error) {
+      } catch (_error) {
         notifications.show({
           title: 'Hata',
           message: 'Dosya silinemedi',
@@ -475,15 +457,8 @@ export function ContextualNotesSection({
           </Center>
         </Paper>
       ) : (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={notes.map((n) => n.id)}
-            strategy={verticalListSortingStrategy}
-          >
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={notes.map((n) => n.id)} strategy={verticalListSortingStrategy}>
             <Stack gap="xs">
               {notes.map((note) => (
                 <SortableContextNote
@@ -517,7 +492,9 @@ export function ContextualNotesSection({
             initialContent={editingNote.content}
             initialColor={editingNote.color}
             initialTags={editingNote.tags?.map((t) => t.name) ?? []}
-            initialReminderDate={editingNote.reminder_date ? new Date(editingNote.reminder_date) : null}
+            initialReminderDate={
+              editingNote.reminder_date ? new Date(editingNote.reminder_date) : null
+            }
             initialContentFormat={editingNote.content_format}
             onSave={handleUpdateNote}
             onCancel={() => setEditingNote(null)}

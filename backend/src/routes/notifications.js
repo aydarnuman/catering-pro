@@ -55,14 +55,7 @@ const isUserAdmin = (req) => {
  */
 router.get('/', async (req, res) => {
   try {
-    const {
-      limit = 20,
-      offset = 0,
-      unread_only = false,
-      source,
-      category,
-      severity
-    } = req.query;
+    const { limit = 20, offset = 0, unread_only = false, source, category, severity } = req.query;
 
     const userId = req.user?.id;
     const isAdmin = isUserAdmin(req);
@@ -74,17 +67,16 @@ router.get('/', async (req, res) => {
       category: category || null,
       severity: severity || null,
       unreadOnly: unread_only === 'true' || unread_only === true,
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      limit: parseInt(limit, 10),
+      offset: parseInt(offset, 10),
     });
 
     res.json({
       success: true,
       data: notifications,
-      count: notifications.length
+      count: notifications.length,
     });
   } catch (error) {
-    console.error('Bildirimler hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -105,10 +97,9 @@ router.get('/unread-count', async (req, res) => {
 
     res.json({
       success: true,
-      data: { count }
+      data: { count },
     });
   } catch (error) {
-    console.error('Bildirim sayısı hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -134,10 +125,9 @@ router.get('/:id', async (req, res) => {
 
     res.json({
       success: true,
-      data: notification
+      data: notification,
     });
   } catch (error) {
-    console.error('Bildirim detay hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -163,10 +153,9 @@ router.patch('/:id/read', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Bildirim okundu olarak işaretlendi'
+      message: 'Bildirim okundu olarak işaretlendi',
     });
   } catch (error) {
-    console.error('Bildirim güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -196,10 +185,9 @@ router.patch('/read-all', async (req, res) => {
     res.json({
       success: true,
       message: `${result.count} bildirim okundu olarak işaretlendi`,
-      count: result.count
+      count: result.count,
     });
   } catch (error) {
-    console.error('Toplu bildirim güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -222,13 +210,13 @@ router.post('/', async (req, res) => {
       link,
       severity = 'info',
       source = 'user',
-      metadata = {}
+      metadata = {},
     } = req.body;
 
     if (!title) {
       return res.status(400).json({
         success: false,
-        error: 'title zorunludur'
+        error: 'title zorunludur',
       });
     }
 
@@ -236,7 +224,7 @@ router.post('/', async (req, res) => {
     if (source === 'admin' && !isUserAdmin(req)) {
       return res.status(403).json({
         success: false,
-        error: 'Admin bildirimi oluşturmak için yetki gerekli'
+        error: 'Admin bildirimi oluşturmak için yetki gerekli',
       });
     }
 
@@ -249,22 +237,21 @@ router.post('/', async (req, res) => {
       link,
       severity,
       source,
-      metadata
+      metadata,
     });
 
     if (!notificationId) {
       return res.status(500).json({
         success: false,
-        error: 'Bildirim oluşturulamadı'
+        error: 'Bildirim oluşturulamadı',
       });
     }
 
     res.status(201).json({
       success: true,
-      data: { id: notificationId }
+      data: { id: notificationId },
     });
   } catch (error) {
-    console.error('Bildirim oluşturma hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -290,10 +277,9 @@ router.delete('/:id', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Bildirim silindi'
+      message: 'Bildirim silindi',
     });
   } catch (error) {
-    console.error('Bildirim silme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -310,7 +296,7 @@ router.post('/cleanup', async (req, res) => {
     if (!isUserAdmin(req)) {
       return res.status(403).json({
         success: false,
-        error: 'Bu işlem için admin yetkisi gerekli'
+        error: 'Bu işlem için admin yetkisi gerekli',
       });
     }
 
@@ -319,10 +305,9 @@ router.post('/cleanup', async (req, res) => {
     res.json({
       success: true,
       message: `${count} eski bildirim temizlendi`,
-      count
+      count,
     });
   } catch (error) {
-    console.error('Bildirim temizleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -339,7 +324,7 @@ router.get('/scheduler-status', async (req, res) => {
     if (!isUserAdmin(req)) {
       return res.status(403).json({
         success: false,
-        error: 'Bu işlem için admin yetkisi gerekli'
+        error: 'Bu işlem için admin yetkisi gerekli',
       });
     }
 
@@ -347,10 +332,9 @@ router.get('/scheduler-status', async (req, res) => {
 
     res.json({
       success: true,
-      data: reminderScheduler.getStatus()
+      data: reminderScheduler.getStatus(),
     });
   } catch (error) {
-    console.error('Scheduler status hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -367,7 +351,7 @@ router.post('/trigger-reminders', async (req, res) => {
     if (!isUserAdmin(req)) {
       return res.status(403).json({
         success: false,
-        error: 'Bu işlem için admin yetkisi gerekli'
+        error: 'Bu işlem için admin yetkisi gerekli',
       });
     }
 
@@ -376,10 +360,9 @@ router.post('/trigger-reminders', async (req, res) => {
 
     res.json({
       success: true,
-      data: result
+      data: result,
     });
   } catch (error) {
-    console.error('Trigger reminders hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

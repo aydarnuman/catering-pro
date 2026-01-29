@@ -375,11 +375,7 @@ export default function AdminPage() {
                       w={220}
                     >
                       <UnstyledButton component="a" href={item.path} style={{ width: '100%' }}>
-                        <Card
-                          padding="lg"
-                          radius="md"
-                          className="standard-card-hover"
-                        >
+                        <Card padding="lg" radius="md" className="standard-card-hover">
                           <Stack gap="sm" align="center">
                             <ThemeIcon size={50} radius="xl" variant="light" color={item.color}>
                               <item.icon size={26} />

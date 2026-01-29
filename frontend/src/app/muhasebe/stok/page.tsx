@@ -396,7 +396,6 @@ function StokPageContent() {
         (birimData.success && 'data' in birimData && birimData.data ? birimData.data : []) || []
       );
     } catch (err: any) {
-
       // Daha açıklayıcı hata mesajı
       let errorMessage = 'Veriler yüklenirken hata oluştu';
       if (err?.response?.status === 401) {

@@ -7,7 +7,6 @@ import { query } from '../../database.js';
 import { faturaKalemleriClient } from '../fatura-kalemleri-client.js';
 
 const faturaTools = {
-  
   /**
    * Faturaları listele (Uyumsoft e-fatura)
    */
@@ -18,38 +17,38 @@ const faturaTools = {
       properties: {
         tedarikci_vkn: {
           type: 'string',
-          description: 'Tedarikçi vergi numarası'
+          description: 'Tedarikçi vergi numarası',
         },
         tedarikci_unvan: {
           type: 'string',
-          description: 'Tedarikçi ünvanı (arama)'
+          description: 'Tedarikçi ünvanı (arama)',
         },
         tarih_baslangic: {
           type: 'string',
-          description: 'Başlangıç tarihi (YYYY-MM-DD)'
+          description: 'Başlangıç tarihi (YYYY-MM-DD)',
         },
         tarih_bitis: {
           type: 'string',
-          description: 'Bitiş tarihi (YYYY-MM-DD)'
+          description: 'Bitiş tarihi (YYYY-MM-DD)',
         },
         tutar_min: {
           type: 'number',
-          description: 'Minimum tutar'
+          description: 'Minimum tutar',
         },
         tutar_max: {
           type: 'number',
-          description: 'Maksimum tutar'
+          description: 'Maksimum tutar',
         },
         donem: {
           type: 'string',
           enum: ['bu_ay', 'gecen_ay', 'bu_yil', 'son_3_ay', 'son_6_ay'],
-          description: 'Dönem filtresi'
+          description: 'Dönem filtresi',
         },
         limit: {
           type: 'number',
-          description: 'Maksimum kayıt sayısı'
-        }
-      }
+          description: 'Maksimum kayıt sayısı',
+        },
+      },
     },
     handler: async (params) => {
       let sql = `
@@ -76,7 +75,7 @@ const faturaTools = {
       if (params.donem) {
         const now = new Date();
         let startDate, endDate;
-        
+
         switch (params.donem) {
           case 'bu_ay':
             startDate = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -99,7 +98,7 @@ const faturaTools = {
             endDate = now;
             break;
         }
-        
+
         if (startDate && endDate) {
           sql += ` AND invoice_date >= $${paramIndex++} AND invoice_date <= $${paramIndex++}`;
           queryParams.push(startDate.toISOString().split('T')[0]);
@@ -135,7 +134,7 @@ const faturaTools = {
       // Toplam tutarı hesapla
       const toplamTutar = result.rows.reduce((sum, f) => sum + parseFloat(f.payable_amount || 0), 0);
       const toplamKdv = result.rows.reduce((sum, f) => sum + parseFloat(f.tax_amount || 0), 0);
-      
+
       return {
         success: true,
         data: result.rows,
@@ -143,11 +142,11 @@ const faturaTools = {
         ozet: {
           fatura_sayisi: result.rows.length,
           toplam_tutar: toplamTutar,
-          toplam_kdv: toplamKdv
+          toplam_kdv: toplamKdv,
         },
-        message: `${result.rows.length} e-fatura bulundu, Toplam: ₺${toplamTutar.toLocaleString('tr-TR')}`
+        message: `${result.rows.length} e-fatura bulundu, Toplam: ₺${toplamTutar.toLocaleString('tr-TR')}`,
       };
-    }
+    },
   },
 
   /**
@@ -160,17 +159,17 @@ const faturaTools = {
       properties: {
         fatura_id: {
           type: 'number',
-          description: 'Fatura ID'
+          description: 'Fatura ID',
         },
         ettn: {
           type: 'string',
-          description: 'ETTN (Elektronik fatura numarası)'
+          description: 'ETTN (Elektronik fatura numarası)',
         },
         invoice_id: {
           type: 'string',
-          description: 'Fatura numarası (UYM-...)'
-        }
-      }
+          description: 'Fatura numarası (UYM-...)',
+        },
+      },
     },
     handler: async (params) => {
       let sql = 'SELECT * FROM uyumsoft_invoices WHERE ';
@@ -190,7 +189,7 @@ const faturaTools = {
       }
 
       const result = await query(sql, [queryParam]);
-      
+
       if (result.rows.length === 0) {
         return { success: false, error: 'Fatura bulunamadı' };
       }
@@ -204,10 +203,10 @@ const faturaTools = {
         success: true,
         data: {
           ...fatura,
-          kalemler
-        }
+          kalemler,
+        },
       };
-    }
+    },
   },
 
   /**
@@ -221,17 +220,17 @@ const faturaTools = {
         donem: {
           type: 'string',
           enum: ['bu_ay', 'gecen_ay', 'bu_yil', 'son_3_ay', 'son_6_ay'],
-          description: 'Dönem filtresi'
-        }
-      }
+          description: 'Dönem filtresi',
+        },
+      },
     },
     handler: async (params) => {
       let dateFilter = '';
-      
+
       if (params.donem) {
         const now = new Date();
         let startDate;
-        
+
         switch (params.donem) {
           case 'bu_ay':
             startDate = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -249,7 +248,7 @@ const faturaTools = {
             startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1);
             break;
         }
-        
+
         if (startDate) {
           dateFilter = `AND invoice_date >= '${startDate.toISOString().split('T')[0]}'`;
         }
@@ -298,10 +297,10 @@ const faturaTools = {
           genel: ozetResult.rows[0],
           tedarikci_bazli: tedarikciResult.rows,
           aylik_trend: trendResult.rows,
-          donem: params.donem || 'tum_zamanlar'
-        }
+          donem: params.donem || 'tum_zamanlar',
+        },
       };
-    }
+    },
   },
 
   /**
@@ -314,13 +313,13 @@ const faturaTools = {
       properties: {
         tedarikci_vkn: {
           type: 'string',
-          description: 'Tedarikçi vergi numarası'
+          description: 'Tedarikçi vergi numarası',
         },
         tedarikci_unvan: {
           type: 'string',
-          description: 'Tedarikçi ünvanı (arama)'
-        }
-      }
+          description: 'Tedarikçi ünvanı (arama)',
+        },
+      },
     },
     handler: async (params) => {
       let whereClause = '';
@@ -337,7 +336,8 @@ const faturaTools = {
       }
 
       // Genel özet
-      const ozetResult = await query(`
+      const ozetResult = await query(
+        `
         SELECT 
           sender_name,
           sender_vkn,
@@ -349,14 +349,17 @@ const faturaTools = {
         FROM uyumsoft_invoices
         WHERE ${whereClause}
         GROUP BY sender_vkn, sender_name
-      `, [queryParam]);
+      `,
+        [queryParam]
+      );
 
       if (ozetResult.rows.length === 0) {
         return { success: false, error: 'Bu tedarikçiye ait fatura bulunamadı' };
       }
 
       // Aylık trend
-      const trendResult = await query(`
+      const trendResult = await query(
+        `
         SELECT 
           TO_CHAR(invoice_date, 'YYYY-MM') as ay,
           COUNT(*) as fatura_sayisi,
@@ -366,13 +369,15 @@ const faturaTools = {
         GROUP BY TO_CHAR(invoice_date, 'YYYY-MM')
         ORDER BY ay DESC
         LIMIT 12
-      `, [queryParam]);
+      `,
+        [queryParam]
+      );
 
       // En çok alınan ürünler (tek kaynak: faturaKalemleriClient)
       const enCokAlinan = await faturaKalemleriClient.getEnCokAlinanUrunler({
         tedarikciVkn: params.tedarikci_vkn || undefined,
         tedarikciUnvanIlike: params.tedarikci_unvan ? `%${params.tedarikci_unvan}%` : undefined,
-        limit: 10
+        limit: 10,
       });
 
       return {
@@ -380,10 +385,10 @@ const faturaTools = {
         data: {
           tedarikci: ozetResult.rows[0],
           aylik_trend: trendResult.rows,
-          en_cok_alinan_urunler: enCokAlinan
-        }
+          en_cok_alinan_urunler: enCokAlinan,
+        },
       };
-    }
+    },
   },
 
   /**
@@ -397,14 +402,14 @@ const faturaTools = {
         donem: {
           type: 'string',
           enum: ['bu_ay', 'gecen_ay', 'bu_yil', 'son_3_ay', 'son_6_ay'],
-          description: 'Dönem filtresi'
+          description: 'Dönem filtresi',
         },
         kategori: {
           type: 'string',
           enum: ['ET', 'SEBZE', 'MEYVE', 'SÜT', 'TAHIL', 'İÇECEK', 'TEMİZLİK', 'DİĞER'],
-          description: 'Belirli bir kategori'
-        }
-      }
+          description: 'Belirli bir kategori',
+        },
+      },
     },
     handler: async (params) => {
       let baslangic;
@@ -443,19 +448,18 @@ const faturaTools = {
       const kategoriler = await faturaKalemleriClient.getKategoriHarcamaAnaliz({
         baslangic: baslangicStr,
         bitis: bitisStr,
-        kategoriKod: params.kategori || undefined
+        kategoriKod: params.kategori || undefined,
       });
 
       return {
         success: true,
         data: {
           kategoriler,
-          donem: params.donem || 'tum_zamanlar'
-        }
+          donem: params.donem || 'tum_zamanlar',
+        },
       };
-    }
-  }
+    },
+  },
 };
 
 export default faturaTools;
-

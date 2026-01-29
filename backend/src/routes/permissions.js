@@ -4,9 +4,9 @@
  */
 
 import express from 'express';
-import PermissionService from '../services/permission-service.js';
-import AuditService from '../services/audit-service.js';
 import { authenticate, requireAdmin, requireSuperAdmin } from '../middleware/auth.js';
+import AuditService from '../services/audit-service.js';
+import PermissionService from '../services/permission-service.js';
 
 const router = express.Router();
 
@@ -14,12 +14,11 @@ const router = express.Router();
  * GET /api/permissions/modules
  * Tüm modülleri listele
  */
-router.get('/modules', authenticate, async (req, res) => {
+router.get('/modules', authenticate, async (_req, res) => {
   try {
     const modules = await PermissionService.getModules();
     res.json({ success: true, data: modules });
-  } catch (error) {
-    console.error('Get modules error:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, error: 'Modüller alınamadı' });
   }
 });
@@ -28,12 +27,11 @@ router.get('/modules', authenticate, async (req, res) => {
  * GET /api/permissions/templates
  * Yetki şablonlarını listele
  */
-router.get('/templates', authenticate, requireAdmin, async (req, res) => {
+router.get('/templates', authenticate, requireAdmin, async (_req, res) => {
   try {
     const templates = await PermissionService.getTemplates();
     res.json({ success: true, data: templates });
-  } catch (error) {
-    console.error('Get templates error:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, error: 'Şablonlar alınamadı' });
   }
 });
@@ -45,15 +43,14 @@ router.get('/templates', authenticate, requireAdmin, async (req, res) => {
 router.get('/templates/:id', authenticate, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const template = await PermissionService.getTemplate(parseInt(id));
-    
+    const template = await PermissionService.getTemplate(parseInt(id, 10));
+
     if (!template) {
       return res.status(404).json({ success: false, error: 'Şablon bulunamadı' });
     }
-    
+
     res.json({ success: true, data: template });
-  } catch (error) {
-    console.error('Get template error:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, error: 'Şablon alınamadı' });
   }
 });
@@ -65,18 +62,18 @@ router.get('/templates/:id', authenticate, requireAdmin, async (req, res) => {
 router.post('/templates', authenticate, requireSuperAdmin, async (req, res) => {
   try {
     const { name, display_name, description, permissions } = req.body;
-    
+
     if (!name || !display_name || !permissions) {
       return res.status(400).json({ success: false, error: 'name, display_name ve permissions gerekli' });
     }
-    
+
     const template = await PermissionService.createTemplate({
       name,
       display_name,
       description: description || null,
-      permissions
+      permissions,
     });
-    
+
     // Audit log
     await AuditService.log({
       userId: req.user.id,
@@ -88,12 +85,11 @@ router.post('/templates', authenticate, requireSuperAdmin, async (req, res) => {
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
       requestPath: req.originalUrl,
-      description: `Yeni yetki şablonu oluşturuldu: ${display_name}`
+      description: `Yeni yetki şablonu oluşturuldu: ${display_name}`,
     });
-    
+
     res.json({ success: true, data: template, message: 'Şablon oluşturuldu' });
   } catch (error) {
-    console.error('Create template error:', error);
     if (error.message.includes('unique')) {
       return res.status(400).json({ success: false, error: 'Bu isimde bir şablon zaten var' });
     }
@@ -109,44 +105,43 @@ router.put('/templates/:id', authenticate, requireSuperAdmin, async (req, res) =
   try {
     const { id } = req.params;
     const { display_name, description, permissions } = req.body;
-    
+
     // Sistem şablonlarını güncellemeyi engelle
-    const existing = await PermissionService.getTemplate(parseInt(id));
+    const existing = await PermissionService.getTemplate(parseInt(id, 10));
     if (!existing) {
       return res.status(404).json({ success: false, error: 'Şablon bulunamadı' });
     }
-    
+
     if (existing.is_system) {
       return res.status(400).json({ success: false, error: 'Sistem şablonları düzenlenemez' });
     }
-    
+
     // Eski verileri al (audit log için)
     const oldData = { ...existing };
-    
-    const template = await PermissionService.updateTemplate(parseInt(id), {
+
+    const template = await PermissionService.updateTemplate(parseInt(id, 10), {
       display_name,
       description,
-      permissions
+      permissions,
     });
-    
+
     // Audit log
     await AuditService.log({
       userId: req.user.id,
       action: 'update',
       entityType: 'permission_template',
-      entityId: parseInt(id),
+      entityId: parseInt(id, 10),
       entityName: existing.display_name,
       oldData,
       newData: { display_name, description, permissions },
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
       requestPath: req.originalUrl,
-      description: `Yetki şablonu güncellendi: ${display_name}`
+      description: `Yetki şablonu güncellendi: ${display_name}`,
     });
-    
+
     res.json({ success: true, data: template, message: 'Şablon güncellendi' });
-  } catch (error) {
-    console.error('Update template error:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, error: 'Şablon güncellenemedi' });
   }
 });
@@ -158,36 +153,35 @@ router.put('/templates/:id', authenticate, requireSuperAdmin, async (req, res) =
 router.delete('/templates/:id', authenticate, requireSuperAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Sistem şablonlarını silmeyi engelle
-    const existing = await PermissionService.getTemplate(parseInt(id));
+    const existing = await PermissionService.getTemplate(parseInt(id, 10));
     if (!existing) {
       return res.status(404).json({ success: false, error: 'Şablon bulunamadı' });
     }
-    
+
     if (existing.is_system) {
       return res.status(400).json({ success: false, error: 'Sistem şablonları silinemez' });
     }
-    
-    await PermissionService.deleteTemplate(parseInt(id));
-    
+
+    await PermissionService.deleteTemplate(parseInt(id, 10));
+
     // Audit log
     await AuditService.log({
       userId: req.user.id,
       action: 'delete',
       entityType: 'permission_template',
-      entityId: parseInt(id),
+      entityId: parseInt(id, 10),
       entityName: existing.display_name,
       oldData: existing,
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
       requestPath: req.originalUrl,
-      description: `Yetki şablonu silindi: ${existing.display_name}`
+      description: `Yetki şablonu silindi: ${existing.display_name}`,
     });
-    
+
     res.json({ success: true, message: 'Şablon silindi' });
-  } catch (error) {
-    console.error('Delete template error:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, error: 'Şablon silinemedi' });
   }
 });
@@ -200,17 +194,16 @@ router.get('/my', authenticate, async (req, res) => {
   try {
     const permissions = await PermissionService.getUserPermissions(req.user.id);
     const userType = await PermissionService.getUserType(req.user.id);
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       data: {
         userType,
         isSuperAdmin: userType === 'super_admin',
-        permissions
-      }
+        permissions,
+      },
     });
-  } catch (error) {
-    console.error('Get my permissions error:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, error: 'Yetkiler alınamadı' });
   }
 });
@@ -223,8 +216,7 @@ router.get('/accessible-modules', authenticate, async (req, res) => {
   try {
     const modules = await PermissionService.getAccessibleModules(req.user.id);
     res.json({ success: true, data: modules });
-  } catch (error) {
-    console.error('Get accessible modules error:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, error: 'Modüller alınamadı' });
   }
 });
@@ -233,12 +225,11 @@ router.get('/accessible-modules', authenticate, async (req, res) => {
  * GET /api/permissions/users
  * Tüm kullanıcıların yetkilerini listele (sadece super admin)
  */
-router.get('/users', authenticate, requireSuperAdmin, async (req, res) => {
+router.get('/users', authenticate, requireSuperAdmin, async (_req, res) => {
   try {
     const users = await PermissionService.getAllUsersPermissions();
     res.json({ success: true, data: users });
-  } catch (error) {
-    console.error('Get users permissions error:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, error: 'Kullanıcı yetkileri alınamadı' });
   }
 });
@@ -250,25 +241,24 @@ router.get('/users', authenticate, requireSuperAdmin, async (req, res) => {
 router.get('/user/:userId', authenticate, requireAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     // Normal admin sadece kendi yetkilerini görebilir, süper admin herkesi görebilir
-    if (!req.user.isSuperAdmin && parseInt(userId) !== req.user.id) {
+    if (!req.user.isSuperAdmin && parseInt(userId, 10) !== req.user.id) {
       return res.status(403).json({ success: false, error: 'Bu kullanıcının yetkilerini görme izniniz yok' });
     }
 
-    const permissions = await PermissionService.getUserPermissions(parseInt(userId));
-    const userType = await PermissionService.getUserType(parseInt(userId));
-    
-    res.json({ 
-      success: true, 
+    const permissions = await PermissionService.getUserPermissions(parseInt(userId, 10));
+    const userType = await PermissionService.getUserType(parseInt(userId, 10));
+
+    res.json({
+      success: true,
       data: {
-        userId: parseInt(userId),
+        userId: parseInt(userId, 10),
         userType,
-        permissions
-      }
+        permissions,
+      },
     });
-  } catch (error) {
-    console.error('Get user permissions error:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, error: 'Kullanıcı yetkileri alınamadı' });
   }
 });
@@ -283,13 +273,13 @@ router.put('/user/:userId', authenticate, requireSuperAdmin, async (req, res) =>
     const { permissions, userType } = req.body;
 
     // Süper admin'in kendi yetkilerini değiştirmesini engelle
-    if (parseInt(userId) === req.user.id) {
+    if (parseInt(userId, 10) === req.user.id) {
       return res.status(400).json({ success: false, error: 'Kendi yetkinizi değiştiremezsiniz' });
     }
 
     // Eski yetkileri al (audit log için)
-    const oldPermissions = await PermissionService.getUserPermissions(parseInt(userId));
-    const oldUserType = await PermissionService.getUserType(parseInt(userId));
+    const oldPermissions = await PermissionService.getUserPermissions(parseInt(userId, 10));
+    const oldUserType = await PermissionService.getUserType(parseInt(userId, 10));
 
     // Kullanıcı tipini güncelle
     if (userType && userType !== oldUserType) {
@@ -297,12 +287,12 @@ router.put('/user/:userId', authenticate, requireSuperAdmin, async (req, res) =>
       if (userType === 'super_admin') {
         return res.status(400).json({ success: false, error: 'Süper Admin ataması yapılamaz' });
       }
-      await PermissionService.updateUserType(parseInt(userId), userType);
+      await PermissionService.updateUserType(parseInt(userId, 10), userType);
     }
 
     // Yetkileri güncelle
     if (permissions && Array.isArray(permissions)) {
-      await PermissionService.updateUserPermissions(parseInt(userId), permissions);
+      await PermissionService.updateUserPermissions(parseInt(userId, 10), permissions);
     }
 
     // Audit log
@@ -310,18 +300,17 @@ router.put('/user/:userId', authenticate, requireSuperAdmin, async (req, res) =>
       userId: req.user.id,
       action: 'update',
       entityType: 'permission',
-      entityId: parseInt(userId),
+      entityId: parseInt(userId, 10),
       entityName: `Kullanıcı #${userId} yetkileri`,
       oldData: { userType: oldUserType, permissions: oldPermissions },
       newData: { userType: userType || oldUserType, permissions },
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
-      requestPath: req.originalUrl
+      requestPath: req.originalUrl,
     });
 
     res.json({ success: true, message: 'Yetkiler güncellendi' });
-  } catch (error) {
-    console.error('Update permissions error:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, error: 'Yetkiler güncellenemedi' });
   }
 });
@@ -340,33 +329,32 @@ router.post('/user/:userId/apply-template', authenticate, requireSuperAdmin, asy
     }
 
     // Süper admin'e şablon uygulanamaz
-    if (parseInt(userId) === req.user.id) {
+    if (parseInt(userId, 10) === req.user.id) {
       return res.status(400).json({ success: false, error: 'Kendi yetkinize şablon uygulayamazsınız' });
     }
 
-    const count = await PermissionService.applyTemplate(parseInt(userId), templateName);
+    const count = await PermissionService.applyTemplate(parseInt(userId, 10), templateName);
 
     // Audit log
     await AuditService.log({
       userId: req.user.id,
       action: 'update',
       entityType: 'permission',
-      entityId: parseInt(userId),
+      entityId: parseInt(userId, 10),
       entityName: `Kullanıcı #${userId} - Şablon: ${templateName}`,
       newData: { templateName, appliedModules: count },
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
       requestPath: req.originalUrl,
-      description: `${templateName} şablonu uygulandı (${count} modül)`
+      description: `${templateName} şablonu uygulandı (${count} modül)`,
     });
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: `${templateName} şablonu uygulandı`,
-      appliedModules: count
+      appliedModules: count,
     });
-  } catch (error) {
-    console.error('Apply template error:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, error: 'Şablon uygulanamadı' });
   }
 });
@@ -378,7 +366,7 @@ router.post('/user/:userId/apply-template', authenticate, requireSuperAdmin, asy
 router.get('/check', authenticate, async (req, res) => {
   try {
     const { module: moduleName, action } = req.query;
-    
+
     if (!moduleName || !action) {
       return res.status(400).json({ success: false, error: 'module ve action parametreleri gerekli' });
     }
@@ -390,8 +378,7 @@ router.get('/check', authenticate, async (req, res) => {
 
     const hasPermission = await PermissionService.check(req.user.id, moduleName, action);
     res.json({ success: true, hasPermission });
-  } catch (error) {
-    console.error('Check permission error:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, error: 'Yetki kontrolü yapılamadı' });
   }
 });

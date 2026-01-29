@@ -2,8 +2,8 @@
 
 import { Center, Container, Loader, Paper, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconShieldOff } from '@tabler/icons-react';
-import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { useAuthModal } from '@/components/auth';
 import { useAuth } from '@/context/AuthContext';
 
 interface AdminGuardProps {
@@ -11,14 +11,15 @@ interface AdminGuardProps {
 }
 
 export function AdminGuard({ children }: AdminGuardProps) {
-  const router = useRouter();
   const { user, isAuthenticated, isAdmin, isLoading } = useAuth();
+  const { openModal } = useAuthModal();
 
+  // Giriş yapmamış kullanıcılar için modal aç
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push('/giris');
+      openModal('login');
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, openModal]);
 
   // Loading state
   if (isLoading) {
@@ -32,13 +33,13 @@ export function AdminGuard({ children }: AdminGuardProps) {
     );
   }
 
-  // Not authenticated - will redirect
+  // Not authenticated - show modal
   if (!isAuthenticated) {
     return (
       <Center h="100vh">
         <Stack align="center" gap="md">
           <Loader size="lg" />
-          <Text c="dimmed">Giriş sayfasına yönlendiriliyor...</Text>
+          <Text c="dimmed">Giriş yapmanız gerekmektedir...</Text>
         </Stack>
       </Center>
     );

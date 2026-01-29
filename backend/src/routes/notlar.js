@@ -27,8 +27,10 @@ const router = express.Router();
 // pinned sütunu yoksa (migration henüz çalışmamışsa) kullanılacak sütun listesi ve sıralama
 const COLS_WITH_PINNED = 'id, content, is_completed, priority, color, due_date, pinned, created_at, updated_at';
 const COLS_WITHOUT_PINNED = 'id, content, is_completed, priority, color, due_date, created_at, updated_at';
-const ORDER_WITH_PINNED = ' ORDER BY pinned DESC NULLS LAST, is_completed ASC, due_date ASC NULLS LAST, CASE priority WHEN \'high\' THEN 1 WHEN \'normal\' THEN 2 WHEN \'low\' THEN 3 END, created_at DESC';
-const ORDER_WITHOUT_PINNED = ' ORDER BY is_completed ASC, due_date ASC NULLS LAST, CASE priority WHEN \'high\' THEN 1 WHEN \'normal\' THEN 2 WHEN \'low\' THEN 3 END, created_at DESC';
+const ORDER_WITH_PINNED =
+  " ORDER BY pinned DESC NULLS LAST, is_completed ASC, due_date ASC NULLS LAST, CASE priority WHEN 'high' THEN 1 WHEN 'normal' THEN 2 WHEN 'low' THEN 3 END, created_at DESC";
+const ORDER_WITHOUT_PINNED =
+  " ORDER BY is_completed ASC, due_date ASC NULLS LAST, CASE priority WHEN 'high' THEN 1 WHEN 'normal' THEN 2 WHEN 'low' THEN 3 END, created_at DESC";
 
 router.get('/', async (req, res) => {
   try {
@@ -62,10 +64,9 @@ router.get('/', async (req, res) => {
     res.json({
       success: true,
       notlar: result.rows,
-      total: result.rows.length
+      total: result.rows.length,
     });
   } catch (error) {
-    console.error('Notlar listeleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -102,25 +103,31 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { content, priority = 'normal', color = 'blue', due_date, pinned = false } = req.body;
-    
+
     if (!content || content.trim() === '') {
       return res.status(400).json({ success: false, error: 'Not içeriği boş olamaz' });
     }
-    
+
     let result;
     try {
-      result = await pool.query(`
+      result = await pool.query(
+        `
         INSERT INTO notlar (content, priority, color, due_date, pinned)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING *
-      `, [content.trim(), priority, color, due_date || null, !!pinned]);
+      `,
+        [content.trim(), priority, color, due_date || null, !!pinned]
+      );
     } catch (insertErr) {
       if (insertErr.message?.includes('pinned')) {
-        result = await pool.query(`
+        result = await pool.query(
+          `
           INSERT INTO notlar (content, priority, color, due_date)
           VALUES ($1, $2, $3, $4)
           RETURNING *
-        `, [content.trim(), priority, color, due_date || null]);
+        `,
+          [content.trim(), priority, color, due_date || null]
+        );
         if (result.rows[0]) result.rows[0].pinned = false;
       } else {
         throw insertErr;
@@ -130,10 +137,9 @@ router.post('/', async (req, res) => {
     res.json({
       success: true,
       not: result.rows[0],
-      message: 'Not başarıyla eklendi'
+      message: 'Not başarıyla eklendi',
     });
   } catch (error) {
-    console.error('Not ekleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -149,17 +155,18 @@ router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { content, is_completed, priority, color, due_date, pinned } = req.body;
-    
+
     const existing = await pool.query('SELECT * FROM notlar WHERE id = $1', [id]);
     if (existing.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Not bulunamadı' });
     }
-    
+
     const current = existing.rows[0];
-    
+
     let result;
     try {
-      result = await pool.query(`
+      result = await pool.query(
+        `
         UPDATE notlar SET
           content = $1,
           is_completed = $2,
@@ -169,18 +176,21 @@ router.put('/:id', async (req, res) => {
           pinned = $6
         WHERE id = $7
         RETURNING *
-      `, [
-        content !== undefined ? content : current.content,
-        is_completed !== undefined ? is_completed : current.is_completed,
-        priority !== undefined ? priority : current.priority,
-        color !== undefined ? color : current.color,
-        due_date !== undefined ? due_date : current.due_date,
-        pinned !== undefined ? !!pinned : (current.pinned ?? false),
-        id
-      ]);
+      `,
+        [
+          content !== undefined ? content : current.content,
+          is_completed !== undefined ? is_completed : current.is_completed,
+          priority !== undefined ? priority : current.priority,
+          color !== undefined ? color : current.color,
+          due_date !== undefined ? due_date : current.due_date,
+          pinned !== undefined ? !!pinned : (current.pinned ?? false),
+          id,
+        ]
+      );
     } catch (updateErr) {
       if (updateErr.message?.includes('pinned')) {
-        result = await pool.query(`
+        result = await pool.query(
+          `
           UPDATE notlar SET
             content = $1,
             is_completed = $2,
@@ -189,14 +199,16 @@ router.put('/:id', async (req, res) => {
             due_date = $5
           WHERE id = $6
           RETURNING *
-        `, [
-          content !== undefined ? content : current.content,
-          is_completed !== undefined ? is_completed : current.is_completed,
-          priority !== undefined ? priority : current.priority,
-          color !== undefined ? color : current.color,
-          due_date !== undefined ? due_date : current.due_date,
-          id
-        ]);
+        `,
+          [
+            content !== undefined ? content : current.content,
+            is_completed !== undefined ? is_completed : current.is_completed,
+            priority !== undefined ? priority : current.priority,
+            color !== undefined ? color : current.color,
+            due_date !== undefined ? due_date : current.due_date,
+            id,
+          ]
+        );
         if (result.rows[0]) result.rows[0].pinned = false;
       } else {
         throw updateErr;
@@ -206,10 +218,9 @@ router.put('/:id', async (req, res) => {
     res.json({
       success: true,
       not: result.rows[0],
-      message: 'Not güncellendi'
+      message: 'Not güncellendi',
     });
   } catch (error) {
-    console.error('Not güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -224,24 +235,26 @@ router.put('/:id', async (req, res) => {
 router.put('/:id/toggle', async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const result = await pool.query(`
+
+    const result = await pool.query(
+      `
       UPDATE notlar SET is_completed = NOT is_completed
       WHERE id = $1
       RETURNING *
-    `, [id]);
-    
+    `,
+      [id]
+    );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Not bulunamadı' });
     }
-    
+
     res.json({
       success: true,
       not: result.rows[0],
-      message: result.rows[0].is_completed ? 'Not tamamlandı' : 'Not aktif'
+      message: result.rows[0].is_completed ? 'Not tamamlandı' : 'Not aktif',
     });
   } catch (error) {
-    console.error('Not toggle hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -256,19 +269,18 @@ router.put('/:id/toggle', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const result = await pool.query('DELETE FROM notlar WHERE id = $1 RETURNING id', [id]);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Not bulunamadı' });
     }
-    
+
     res.json({
       success: true,
-      message: 'Not silindi'
+      message: 'Not silindi',
     });
   } catch (error) {
-    console.error('Not silme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -283,14 +295,13 @@ router.delete('/:id', async (req, res) => {
 router.delete('/completed/all', async (_req, res) => {
   try {
     const result = await pool.query('DELETE FROM notlar WHERE is_completed = true RETURNING id');
-    
+
     res.json({
       success: true,
       deleted: result.rows.length,
-      message: `${result.rows.length} tamamlanan not silindi`
+      message: `${result.rows.length} tamamlanan not silindi`,
     });
   } catch (error) {
-    console.error('Tamamlanan notları silme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

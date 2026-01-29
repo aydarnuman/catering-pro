@@ -134,7 +134,6 @@ interface ApiMessage {
 function DocxHtmlBody({ html }: { html: string }) {
   return (
     <div
-      // biome-ignore lint/security/noDangerouslySetInnerHtml: docx HTML from mammoth, sandboxed in modal
       dangerouslySetInnerHTML={{ __html: html }}
       style={{
         color: '#333',

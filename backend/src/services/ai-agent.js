@@ -6,21 +6,21 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import aiTools from './ai-tools/index.js';
 import { query } from '../database.js';
-import { faturaKalemleriClient } from './fatura-kalemleri-client.js';
 import logger from '../utils/logger.js';
+import aiTools from './ai-tools/index.js';
+import { faturaKalemleriClient } from './fatura-kalemleri-client.js';
 
 /**
  * Fiyat Lookup Servisi
  * Öncelik: 1) Faturalar (son 1 ay) 2) Stok Kartları 3) AI Tahmini
  */
-async function getProductPrices(productNames = null) {
+async function getProductPrices(_productNames = null) {
   const priceData = {
     source: null,
     prices: [],
     lastUpdate: null,
-    warning: null
+    warning: null,
   };
 
   try {
@@ -31,7 +31,9 @@ async function getProductPrices(productNames = null) {
       priceData.source = 'fatura';
       priceData.prices = allInvoicePrices;
       priceData.lastUpdate = allInvoicePrices[0]?.fatura_tarihi;
-      logger.debug(`[Fiyat] Faturalardan ${allInvoicePrices.length} ürün fiyatı bulundu`, { count: allInvoicePrices.length });
+      logger.debug(`[Fiyat] Faturalardan ${allInvoicePrices.length} ürün fiyatı bulundu`, {
+        count: allInvoicePrices.length,
+      });
       return priceData;
     }
 
@@ -55,7 +57,9 @@ async function getProductPrices(productNames = null) {
       priceData.prices = stockPrices.rows;
       priceData.lastUpdate = stockPrices.rows[0]?.guncelleme_tarihi;
       priceData.warning = '⚠️ Fiyatlar stok kartlarından alındı, fatura verisi bulunamadı. Güncelliğini kontrol edin.';
-      logger.debug(`[Fiyat] Stok kartlarından ${stockPrices.rows.length} ürün fiyatı bulundu`, { count: stockPrices.rows.length });
+      logger.debug(`[Fiyat] Stok kartlarından ${stockPrices.rows.length} ürün fiyatı bulundu`, {
+        count: stockPrices.rows.length,
+      });
       return priceData;
     }
 
@@ -63,7 +67,6 @@ async function getProductPrices(productNames = null) {
     priceData.source = 'yok';
     priceData.warning = '⚠️ Sistemde fiyat verisi bulunamadı. AI tahmini kullanılacak - DOĞRULUĞU GARANTİ DEĞİL!';
     logger.warn('[Fiyat] Sistemde fiyat verisi bulunamadı', { urunAdi });
-
   } catch (error) {
     logger.error('Fiyat lookup hatası', { error: error.message, stack: error.stack, urunAdi });
     priceData.source = 'hata';
@@ -90,7 +93,7 @@ class AIAgentService {
     this.client = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
-    this.defaultModel = "claude-sonnet-4-20250514"; // Fallback model
+    this.defaultModel = 'claude-sonnet-4-20250514'; // Fallback model
     this.maxIterations = 10; // Sonsuz döngüyü önle
   }
 
@@ -102,13 +105,11 @@ class AIAgentService {
       const result = await query(`
         SELECT setting_value FROM ai_settings WHERE setting_key = 'default_model'
       `);
-      
+
       if (result.rows.length > 0 && result.rows[0].setting_value) {
         const model = result.rows[0].setting_value;
         // JSON string ise parse et, değilse direkt kullan
-        return typeof model === 'string' && model.startsWith('"') 
-          ? JSON.parse(model) 
-          : model;
+        return typeof model === 'string' && model.startsWith('"') ? JSON.parse(model) : model;
       }
       return this.defaultModel;
     } catch (error) {
@@ -122,14 +123,17 @@ class AIAgentService {
    */
   async loadMemoryContext(userId = 'default') {
     try {
-      const result = await query(`
+      const result = await query(
+        `
         SELECT memory_type, category, key, value, importance
         FROM ai_memory 
         WHERE user_id = $1 
         ORDER BY importance DESC, usage_count DESC
         LIMIT 30
-      `, [userId]);
-      
+      `,
+        [userId]
+      );
+
       return result.rows;
     } catch (error) {
       logger.error('Hafıza yükleme hatası', { error: error.message, stack: error.stack });
@@ -142,12 +146,15 @@ class AIAgentService {
    */
   async saveConversation(sessionId, role, content, toolsUsed = [], userId = 'default') {
     try {
-      const result = await query(`
+      const result = await query(
+        `
         INSERT INTO ai_conversations (session_id, user_id, role, content, tools_used)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING id
-      `, [sessionId, userId, role, content, toolsUsed]);
-      
+      `,
+        [sessionId, userId, role, content, toolsUsed]
+      );
+
       return { id: result.rows[0]?.id || null };
     } catch (error) {
       logger.error('Konuşma kaydetme hatası', { error: error.message, stack: error.stack });
@@ -160,17 +167,20 @@ class AIAgentService {
    */
   async loadPreviousConversations(sessionId, limit = 10) {
     try {
-      const result = await query(`
+      const result = await query(
+        `
         SELECT role, content, tools_used, created_at
         FROM ai_conversations 
         WHERE session_id = $1 
         ORDER BY created_at DESC 
         LIMIT $2
-      `, [sessionId, limit]);
-      
-      return result.rows.reverse().map(row => ({
+      `,
+        [sessionId, limit]
+      );
+
+      return result.rows.reverse().map((row) => ({
         role: row.role,
-        content: this.stripContextFromMessage(row.content) // Context'i kaldır
+        content: this.stripContextFromMessage(row.content), // Context'i kaldır
       }));
     } catch (error) {
       logger.error('Konuşma yükleme hatası', { error: error.message, stack: error.stack });
@@ -183,7 +193,7 @@ class AIAgentService {
    */
   stripContextFromMessage(content) {
     if (!content) return content;
-    
+
     // Eğer mesaj "📋 SEÇİLİ İHALE:" ile başlıyorsa, "---" sonrasını al
     if (content.includes('📋 SEÇİLİ İHALE:') && content.includes('---\n')) {
       const lastSeparator = content.lastIndexOf('---\n');
@@ -195,7 +205,7 @@ class AIAgentService {
         }
       }
     }
-    
+
     // Context yoksa veya parse edilemezse orijinali döndür
     return content;
   }
@@ -206,7 +216,8 @@ class AIAgentService {
   async learn(learnings, userId = 'default') {
     try {
       for (const learning of learnings) {
-        await query(`
+        await query(
+          `
           INSERT INTO ai_memory (user_id, memory_type, category, key, value, importance)
           VALUES ($1, $2, $3, $4, $5, $6)
           ON CONFLICT (user_id, memory_type, key) 
@@ -216,7 +227,9 @@ class AIAgentService {
             usage_count = ai_memory.usage_count + 1,
             last_used_at = CURRENT_TIMESTAMP,
             updated_at = CURRENT_TIMESTAMP
-        `, [userId, learning.memory_type, learning.category, learning.key, learning.value, learning.importance || 5]);
+        `,
+          [userId, learning.memory_type, learning.category, learning.key, learning.value, learning.importance || 5]
+        );
       }
       return true;
     } catch (error) {
@@ -232,19 +245,22 @@ class AIAgentService {
     if (!templateSlug || templateSlug === 'default') {
       return null;
     }
-    
+
     try {
-      const result = await query(`
+      const result = await query(
+        `
         SELECT slug, name, prompt, category, description, preferred_model 
         FROM ai_prompt_templates 
         WHERE (slug = $1 OR id::text = $1) AND is_active = TRUE
-      `, [templateSlug]);
-      
+      `,
+        [templateSlug]
+      );
+
       // Kullanım sayacını artır
       if (result.rows[0]) {
         await query(`UPDATE ai_prompt_templates SET usage_count = usage_count + 1 WHERE slug = $1`, [templateSlug]);
       }
-      
+
       return result.rows[0] || null;
     } catch (error) {
       logger.error('Şablon yükleme hatası', { error: error.message, stack: error.stack });
@@ -258,11 +274,11 @@ class AIAgentService {
    */
   async getModelForTemplate(template) {
     // Şablonun özel modeli varsa onu kullan
-    if (template && template.preferred_model) {
+    if (template?.preferred_model) {
       logger.debug(`[AI Agent] Şablon modeli: ${template.preferred_model}`, { model: template.preferred_model });
       return template.preferred_model;
     }
-    
+
     // Yoksa global ayarı kullan
     return await this.getActiveModel();
   }
@@ -271,24 +287,24 @@ class AIAgentService {
    * Sistem prompt'u oluştur (hafıza + şablon ile zenginleştirilmiş)
    */
   async getSystemPrompt(memories = [], templatePrompt = null) {
-    const context = aiTools.getSystemContext();
-    
+    const _context = aiTools.getSystemContext();
+
     // Hafızaları organize et
     let memorySection = '';
     if (memories.length > 0) {
-      const facts = memories.filter(m => m.memory_type === 'fact');
-      const preferences = memories.filter(m => m.memory_type === 'preference');
-      const patterns = memories.filter(m => m.memory_type === 'pattern');
-      
+      const facts = memories.filter((m) => m.memory_type === 'fact');
+      const preferences = memories.filter((m) => m.memory_type === 'preference');
+      const patterns = memories.filter((m) => m.memory_type === 'pattern');
+
       memorySection = `
 ## HAFIZAM (Bildiğim Şeyler)
-${facts.map(f => `- ${f.key}: ${f.value}`).join('\n')}
+${facts.map((f) => `- ${f.key}: ${f.value}`).join('\n')}
 
 ## KULLANICI TERCİHLERİ
-${preferences.map(p => `- ${p.key}: ${p.value}`).join('\n')}
+${preferences.map((p) => `- ${p.key}: ${p.value}`).join('\n')}
 
 ## ÖĞRENDİĞİM KALIPLAR
-${patterns.map(p => `- ${p.key}: ${p.value}`).join('\n')}
+${patterns.map((p) => `- ${p.key}: ${p.value}`).join('\n')}
 `;
     }
 
@@ -302,7 +318,7 @@ ${templatePrompt}
 Bu şablona göre yanıtlarını şekillendir. Yukarıdaki yönergeleri takip et.
 `;
     }
-    
+
     return `Sen bir **Catering Pro AI Asistanı**sın. Türkçe konuşuyorsun.
 ${templateSection}
 ${memorySection}
@@ -441,28 +457,35 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
    */
   async processQuery(userMessage, conversationHistory = [], options = {}) {
     const { sessionId, userId = 'default', templateSlug, pageContext, systemContext } = options;
-    
+
     try {
-      logger.debug(`[AI Agent] Sorgu: "${userMessage.substring(0, 100)}..."`, { messageLength: userMessage.length, templateSlug, pageContext, systemContextLength: systemContext?.length });
-      
+      logger.debug(`[AI Agent] Sorgu: "${userMessage.substring(0, 100)}..."`, {
+        messageLength: userMessage.length,
+        templateSlug,
+        pageContext,
+        systemContextLength: systemContext?.length,
+      });
+
       // Sayfa context'i varsa mesajı zenginleştir (OTOMATİK URL-BASED)
       // NOT: systemContext varsa bunu kullan (frontend'den gelen ihale verileri)
-      let enrichedMessage = systemContext ? (systemContext + '\n' + userMessage) : userMessage;
+      let enrichedMessage = systemContext ? systemContext + '\n' + userMessage : userMessage;
       let contextInfo = '';
-      
+
       // Context type ve department bilgisini al
       const contextType = pageContext?.type || 'general';
       const department = pageContext?.department || 'TÜM SİSTEM';
       const pathname = pageContext?.pathname || '';
-      
+
       // Context bilgisini oluştur
-      let contextParts = [];
-      
+      const contextParts = [];
+
       if (contextType === 'tender') {
         contextParts.push('🏷️ İHALE/İHALE TAKİP SAYFASINDAYIM');
         contextParts.push('Tüm sorular İHALE bağlamında yorumlanmalı!');
-        contextParts.push('Terminoloji: iş bitirim=İş Deneyim Belgesi, teminat=Geçici/Kesin Teminat, sözleşme=İhale Sözleşmesi');
-        
+        contextParts.push(
+          'Terminoloji: iş bitirim=İş Deneyim Belgesi, teminat=Geçici/Kesin Teminat, sözleşme=İhale Sözleşmesi'
+        );
+
         if (pageContext?.id) {
           contextParts.push(`İhale ID: ${pageContext.id}`);
         }
@@ -482,7 +505,7 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
           if (d.teknik_sart_sayisi > 0) contextParts.push(`Teknik Şart: ${d.teknik_sart_sayisi} adet`);
           if (d.birim_fiyat_sayisi > 0) contextParts.push(`Birim Fiyat: ${d.birim_fiyat_sayisi} adet`);
         }
-        
+
         // Ürün MALİYET sorusu varsa sistemdeki fiyat verilerini çek (son 1 ay)
         // NOT: "ihale fiyatı", "teklif bedeli" gibi ihale terimleri HARİÇ
         // Türkçe eklere uyumlu regex pattern'ler
@@ -504,7 +527,7 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
           /fiyat\s*analiz/i,
           /firmamız.*fiyat/i,
           /sistemdeki.*fiyat/i,
-          /faturadan.*fiyat/i
+          /faturadan.*fiyat/i,
         ];
         const excludePatterns = [
           /ihale\s*fiyat/i,
@@ -512,51 +535,60 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
           /yaklaşık\s*maliyet/i,
           /tahmini\s*bedel/i,
           /ihale\s*bedel/i,
-          /birim\s*fiyat\s*cetvel/i
+          /birim\s*fiyat\s*cetvel/i,
         ];
-        
-        const hasCostKeyword = costPatterns.some(p => p.test(userMessage));
-        const hasExcludeKeyword = excludePatterns.some(p => p.test(userMessage));
+
+        const hasCostKeyword = costPatterns.some((p) => p.test(userMessage));
+        const hasExcludeKeyword = excludePatterns.some((p) => p.test(userMessage));
         const isPriceQuestion = hasCostKeyword && !hasExcludeKeyword;
-        
-        logger.debug(`[Fiyat Kontrol] Soru: "${userMessage.substring(0, 50)}..." | Maliyet: ${hasCostKeyword} | Hariç: ${hasExcludeKeyword} | Çek: ${isPriceQuestion}`, { hasCostKeyword, hasExcludeKeyword, isPriceQuestion });
-        
+
+        logger.debug(
+          `[Fiyat Kontrol] Soru: "${userMessage.substring(0, 50)}..." | Maliyet: ${hasCostKeyword} | Hariç: ${hasExcludeKeyword} | Çek: ${isPriceQuestion}`,
+          { hasCostKeyword, hasExcludeKeyword, isPriceQuestion }
+        );
+
         if (isPriceQuestion) {
           const priceData = await getProductPrices();
           const categoryPrices = await getCategoryPrices();
-          
+
           if (priceData.source === 'fatura' || priceData.source === 'e-fatura') {
             contextParts.push('\n💰 FİRMAMIZIN ALIŞ FİYATLARI (Son 1 ay faturalardan - MALİYET HESABI İÇİN):');
             contextParts.push('⚠️ ÖNEMLİ: Bu fiyatlar firmamızın TEDARİKÇİLERDEN aldığı GERÇEK fiyatlardır.');
             contextParts.push('⚠️ DİKKAT: Bu fiyatlar İHALE BİRİM FİYAT CETVELİ ile KARIŞTIRILMAMALI!');
-            
+
             // İlk 50 ürünü göster (çok fazla olmasın)
             const topPrices = priceData.prices.slice(0, 50);
-            topPrices.forEach(p => {
-              contextParts.push(`- ${p.urun_adi}: ${p.birim_fiyat}₺/${p.birim || 'adet'} (${p.tedarikci || 'Bilinmiyor'}, ${new Date(p.fatura_tarihi).toLocaleDateString('tr-TR')})`);
+            topPrices.forEach((p) => {
+              contextParts.push(
+                `- ${p.urun_adi}: ${p.birim_fiyat}₺/${p.birim || 'adet'} (${p.tedarikci || 'Bilinmiyor'}, ${new Date(p.fatura_tarihi).toLocaleDateString('tr-TR')})`
+              );
             });
-            
+
             if (priceData.prices.length > 50) {
               contextParts.push(`... ve ${priceData.prices.length - 50} ürün daha`);
             }
           } else if (priceData.source === 'stok_karti') {
             contextParts.push('\n📦 SİSTEMDEKİ FİYATLAR (Stok kartlarından):');
             contextParts.push(priceData.warning);
-            
+
             const topPrices = priceData.prices.slice(0, 30);
-            topPrices.forEach(p => {
+            topPrices.forEach((p) => {
               contextParts.push(`- ${p.urun_adi}: ${p.birim_fiyat}₺/${p.birim || 'adet'} (${p.kategori || 'Genel'})`);
             });
           } else {
             contextParts.push('\n⚠️ DİKKAT: Sistemde güncel fiyat verisi bulunamadı!');
-            contextParts.push('Fiyat tahmini yapacaksan MUTLAKA belirt: "Bu fiyatlar tahminidir, gerçek fatura/piyasa fiyatlarını kontrol edin."');
+            contextParts.push(
+              'Fiyat tahmini yapacaksan MUTLAKA belirt: "Bu fiyatlar tahminidir, gerçek fatura/piyasa fiyatlarını kontrol edin."'
+            );
           }
-          
+
           // Kategori bazlı özet
           if (categoryPrices.length > 0) {
             contextParts.push('\n📊 KATEGORİ BAZLI ORTALAMA FİYATLAR (Son 1 ay):');
-            categoryPrices.forEach(c => {
-              contextParts.push(`- ${c.kategori}: Ort. ${c.ortalama_fiyat}₺ (Min: ${c.min_fiyat}₺, Max: ${c.max_fiyat}₺) - ${c.urun_sayisi} ürün`);
+            categoryPrices.forEach((c) => {
+              contextParts.push(
+                `- ${c.kategori}: Ort. ${c.ortalama_fiyat}₺ (Min: ${c.min_fiyat}₺, Max: ${c.max_fiyat}₺) - ${c.urun_sayisi} ürün`
+              );
             });
           }
         }
@@ -583,7 +615,7 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
         contextParts.push('💰 MUHASEBE/FİNANS SAYFASINDAYIM');
         contextParts.push('Tüm sorular GELİR-GİDER/KASA-BANKA bağlamında yorumlanmalı!');
       }
-      
+
       // Genel bilgi ekle
       if (department && department !== 'TÜM SİSTEM') {
         contextParts.push(`Department: ${department}`);
@@ -591,7 +623,7 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
       if (pathname) {
         contextParts.push(`URL: ${pathname}`);
       }
-      
+
       if (contextParts.length > 0) {
         contextInfo = `\n\n[SAYFA CONTEXT: ${contextParts.join(' | ')}]`;
         // NOT: systemContext varsa onu koruyoruz, sadece contextInfo ekle
@@ -615,7 +647,9 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
           templatePrompt = loadedTemplate.prompt;
           logger.debug(`[AI Agent] Şablon yüklendi: ${loadedTemplate.name}`, { templateName: loadedTemplate.name });
           if (loadedTemplate.preferred_model) {
-            logger.debug(`[AI Agent] Şablon özel modeli: ${loadedTemplate.preferred_model}`, { model: loadedTemplate.preferred_model });
+            logger.debug(`[AI Agent] Şablon özel modeli: ${loadedTemplate.preferred_model}`, {
+              model: loadedTemplate.preferred_model,
+            });
           }
         }
       }
@@ -624,7 +658,9 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
       let previousConversations = [];
       if (sessionId && conversationHistory.length === 0) {
         previousConversations = await this.loadPreviousConversations(sessionId, 10);
-        logger.debug(`[AI Agent] ${previousConversations.length} önceki konuşma yüklendi`, { conversationCount: previousConversations.length });
+        logger.debug(`[AI Agent] ${previousConversations.length} önceki konuşma yüklendi`, {
+          conversationCount: previousConversations.length,
+        });
       }
 
       // 4. Kullanıcı mesajını kaydet
@@ -633,18 +669,14 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
       }
 
       // 5. Mesaj geçmişini hazırla (zenginleştirilmiş mesaj ile)
-      const messages = [
-        ...previousConversations,
-        ...conversationHistory,
-        { role: 'user', content: enrichedMessage }
-      ];
+      const messages = [...previousConversations, ...conversationHistory, { role: 'user', content: enrichedMessage }];
 
       // Tool tanımlarını al
       const tools = aiTools.getToolDefinitions();
 
       let iteration = 0;
       let finalResponse = null;
-      let toolResults = [];
+      const toolResults = [];
 
       // 6. System prompt'u hazırla (hafıza + şablon ile)
       const systemPrompt = await this.getSystemPrompt(memories, templatePrompt);
@@ -664,42 +696,42 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
           max_tokens: 4096,
           system: systemPrompt,
           tools: tools,
-          messages: messages
+          messages: messages,
         });
 
         // Stop reason kontrol
         if (response.stop_reason === 'end_turn') {
           // Normal cevap - döngüden çık
-          const textContent = response.content.find(c => c.type === 'text');
+          const textContent = response.content.find((c) => c.type === 'text');
           finalResponse = textContent ? textContent.text : 'İşlem tamamlandı.';
           break;
         }
 
         if (response.stop_reason === 'tool_use') {
           // Tool çağrısı var
-          const toolUses = response.content.filter(c => c.type === 'tool_use');
-          
+          const toolUses = response.content.filter((c) => c.type === 'tool_use');
+
           // Assistant mesajını ekle
           messages.push({ role: 'assistant', content: response.content });
 
           // Her tool için çağrı yap
           const toolResultContents = [];
-          
+
           for (const toolUse of toolUses) {
             logger.debug(`[AI Agent] Tool çağırılıyor: ${toolUse.name}`, { toolName: toolUse.name });
-            
+
             const result = await aiTools.executeTool(toolUse.name, toolUse.input);
-            
+
             toolResults.push({
               tool: toolUse.name,
               input: toolUse.input,
-              result: result
+              result: result,
             });
 
             toolResultContents.push({
               type: 'tool_result',
               tool_use_id: toolUse.id,
-              content: JSON.stringify(result, null, 2)
+              content: JSON.stringify(result, null, 2),
             });
           }
 
@@ -707,8 +739,10 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
           messages.push({ role: 'user', content: toolResultContents });
         } else {
           // Beklenmeyen stop reason
-          logger.warn(`[AI Agent] Beklenmeyen stop_reason: ${response.stop_reason}`, { stopReason: response.stop_reason });
-          const textContent = response.content.find(c => c.type === 'text');
+          logger.warn(`[AI Agent] Beklenmeyen stop_reason: ${response.stop_reason}`, {
+            stopReason: response.stop_reason,
+          });
+          const textContent = response.content.find((c) => c.type === 'text');
           finalResponse = textContent ? textContent.text : 'Bir sorun oluştu.';
           break;
         }
@@ -723,10 +757,10 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
       let conversationId = null;
       if (sessionId && finalResponse) {
         const convResult = await this.saveConversation(
-          sessionId, 
-          'assistant', 
-          finalResponse, 
-          toolResults.map(t => t.tool), 
+          sessionId,
+          'assistant',
+          finalResponse,
+          toolResults.map((t) => t.tool),
           userId
         );
         conversationId = convResult?.id;
@@ -734,33 +768,35 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
 
       // 7. Otomatik öğrenme - arka planda çalıştır
       this.extractLearningFromConversation(userMessage, finalResponse, conversationId)
-        .then(result => {
+        .then((result) => {
           if (result.facts && result.facts.length > 0) {
             logger.info(`[AI Agent] Otomatik öğrenme: ${result.facts.length} fact`, { factCount: result.facts.length });
           }
         })
-        .catch(err => logger.error('Öğrenme hatası', { error: err.message, stack: err.stack }));
+        .catch((err) => logger.error('Öğrenme hatası', { error: err.message, stack: err.stack }));
 
-      logger.info(`[AI Agent] Cevap hazırlandı (${iteration} iterasyon, model: ${activeModel})`, { iteration, model: activeModel });
+      logger.info(`[AI Agent] Cevap hazırlandı (${iteration} iterasyon, model: ${activeModel})`, {
+        iteration,
+        model: activeModel,
+      });
 
       return {
         success: true,
         response: finalResponse,
-        toolsUsed: toolResults.map(t => t.tool),
+        toolsUsed: toolResults.map((t) => t.tool),
         toolResults: toolResults,
         iterations: iteration,
         sessionId: sessionId,
         model: activeModel,
-        templateSlug: templateSlug || 'default'
+        templateSlug: templateSlug || 'default',
       };
-
     } catch (error) {
       logger.error('[AI Agent] Hata', { error: error.message, stack: error.stack });
-      
+
       return {
         success: false,
         error: error.message,
-        response: `Üzgünüm, bir hata oluştu: ${error.message}`
+        response: `Üzgünüm, bir hata oluştu: ${error.message}`,
       };
     }
   }
@@ -775,17 +811,17 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
         model: activeModel,
         max_tokens: 1024,
         system: 'Sen yardımcı bir asistansın. Kısa ve öz Türkçe cevaplar ver.',
-        messages: [{ role: 'user', content: question }]
+        messages: [{ role: 'user', content: question }],
       });
 
       return {
         success: true,
-        response: response.content[0].text
+        response: response.content[0].text,
       };
     } catch (error) {
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -822,9 +858,8 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
         SELECT setting_value FROM ai_settings WHERE setting_key = 'auto_learn_enabled'
       `);
       const autoLearnEnabled = settingResult.rows[0]?.setting_value ?? true;
-      
+
       if (!autoLearnEnabled) {
-        console.log('📚 [AI Learning] Otomatik öğrenme devre dışı');
         return { success: true, facts: [] };
       }
 
@@ -866,11 +901,11 @@ Eğer önemli bir bilgi yoksa: {"facts": []}`;
         model: 'claude-sonnet-4-20250514', // Fact çıkarımı için hızlı model yeterli
         max_tokens: 500,
         system: 'Sen bir bilgi çıkarım asistanısın. Sadece JSON formatında yanıt ver.',
-        messages: [{ role: 'user', content: extractionPrompt }]
+        messages: [{ role: 'user', content: extractionPrompt }],
       });
 
       const responseText = response.content[0].text;
-      
+
       // JSON parse et
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
@@ -887,32 +922,31 @@ Eğer önemli bir bilgi yoksa: {"facts": []}`;
       // Fact'leri veritabanına kaydet
       for (const fact of facts) {
         if (fact.confidence >= 0.6) {
-          await query(`
+          await query(
+            `
             INSERT INTO ai_learned_facts 
             (source_conversation_id, fact_type, entity_type, entity_name, fact_key, fact_value, confidence)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
-          `, [
-            conversationId,
-            fact.fact_type,
-            fact.entity_type || 'genel',
-            fact.entity_name || null,
-            fact.fact_key,
-            fact.fact_value,
-            fact.confidence
-          ]);
+          `,
+            [
+              conversationId,
+              fact.fact_type,
+              fact.entity_type || 'genel',
+              fact.entity_name || null,
+              fact.fact_key,
+              fact.fact_value,
+              fact.confidence,
+            ]
+          );
         }
       }
-
-      console.log(`📚 [AI Learning] ${facts.length} fact çıkarıldı ve kaydedildi`);
 
       return {
         success: true,
         facts,
-        message: `${facts.length} yeni bilgi öğrenildi`
+        message: `${facts.length} yeni bilgi öğrenildi`,
       };
-
     } catch (error) {
-      console.error('❌ [AI Learning] Hata:', error);
       return { success: false, error: error.message, facts: [] };
     }
   }
@@ -922,8 +956,6 @@ Eğer önemli bir bilgi yoksa: {"facts": []}`;
    */
   async createDailySnapshot() {
     try {
-      console.log('📸 [AI Snapshot] Günlük özet oluşturuluyor...');
-
       // Bugünün snapshot'u var mı?
       const existingSnapshot = await query(`
         SELECT id FROM ai_system_snapshot 
@@ -932,7 +964,6 @@ Eğer önemli bir bilgi yoksa: {"facts": []}`;
       `);
 
       if (existingSnapshot.rows.length > 0) {
-        console.log('📸 [AI Snapshot] Bugünün özeti zaten var');
         return { success: true, message: 'Bugünün özeti mevcut' };
       }
 
@@ -1007,21 +1038,20 @@ Eğer önemli bir bilgi yoksa: {"facts": []}`;
       summaries.ai = aiResult.rows[0];
 
       // Snapshot kaydet
-      await query(`
+      await query(
+        `
         INSERT INTO ai_system_snapshot (snapshot_type, summary_data)
         VALUES ('daily', $1)
-      `, [JSON.stringify(summaries)]);
-
-      console.log('📸 [AI Snapshot] Günlük özet kaydedildi');
+      `,
+        [JSON.stringify(summaries)]
+      );
 
       return {
         success: true,
         snapshot: summaries,
-        message: 'Günlük sistem özeti oluşturuldu'
+        message: 'Günlük sistem özeti oluşturuldu',
       };
-
     } catch (error) {
-      console.error('❌ [AI Snapshot] Hata:', error);
       return { success: false, error: error.message };
     }
   }
@@ -1032,4 +1062,3 @@ const aiAgent = new AIAgentService();
 
 export default aiAgent;
 export { AIAgentService };
-

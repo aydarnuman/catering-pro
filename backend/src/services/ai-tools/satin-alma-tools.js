@@ -6,9 +6,8 @@
 import { query } from '../../database.js';
 
 const satinAlmaTools = {
-  
   // ============ OKUMA (Query) İŞLEMLERİ ============
-  
+
   /**
    * Siparişleri listele
    */
@@ -19,39 +18,39 @@ const satinAlmaTools = {
       properties: {
         proje_id: {
           type: 'number',
-          description: 'Belirli bir projenin siparişlerini getir'
+          description: 'Belirli bir projenin siparişlerini getir',
         },
         proje_kodu: {
           type: 'string',
-          description: 'Proje kodu ile filtrele (örn: KYK, HASTANE)'
+          description: 'Proje kodu ile filtrele (örn: KYK, HASTANE)',
         },
         tedarikci_id: {
-          type: 'number', 
-          description: 'Belirli bir tedarikçinin siparişlerini getir'
+          type: 'number',
+          description: 'Belirli bir tedarikçinin siparişlerini getir',
         },
         durum: {
           type: 'string',
           enum: ['talep', 'onay_bekliyor', 'onaylandi', 'siparis_verildi', 'teslim_alindi', 'iptal'],
-          description: 'Sipariş durumu filtresi'
+          description: 'Sipariş durumu filtresi',
         },
         oncelik: {
           type: 'string',
           enum: ['dusuk', 'normal', 'yuksek', 'acil'],
-          description: 'Öncelik filtresi'
+          description: 'Öncelik filtresi',
         },
         tarih_baslangic: {
           type: 'string',
-          description: 'Başlangıç tarihi (YYYY-MM-DD)'
+          description: 'Başlangıç tarihi (YYYY-MM-DD)',
         },
         tarih_bitis: {
           type: 'string',
-          description: 'Bitiş tarihi (YYYY-MM-DD)'
+          description: 'Bitiş tarihi (YYYY-MM-DD)',
         },
         limit: {
           type: 'number',
-          description: 'Maksimum kayıt sayısı (varsayılan: 50)'
-        }
-      }
+          description: 'Maksimum kayıt sayısı (varsayılan: 50)',
+        },
+      },
     },
     handler: async (params) => {
       let sql = `
@@ -106,14 +105,14 @@ const satinAlmaTools = {
       queryParams.push(params.limit || 50);
 
       const result = await query(sql, queryParams);
-      
+
       return {
         success: true,
         data: result.rows,
         count: result.rows.length,
-        message: `${result.rows.length} sipariş bulundu`
+        message: `${result.rows.length} sipariş bulundu`,
       };
-    }
+    },
   },
 
   /**
@@ -126,13 +125,13 @@ const satinAlmaTools = {
       properties: {
         siparis_id: {
           type: 'number',
-          description: 'Sipariş ID'
+          description: 'Sipariş ID',
         },
         siparis_no: {
           type: 'string',
-          description: 'Sipariş numarası (örn: SA-2026-001)'
-        }
-      }
+          description: 'Sipariş numarası (örn: SA-2026-001)',
+        },
+      },
     },
     handler: async (params) => {
       let sql = `
@@ -147,9 +146,9 @@ const satinAlmaTools = {
         LEFT JOIN cariler c ON s.tedarikci_id = c.id
         WHERE 
       `;
-      
+
       const queryParams = [];
-      
+
       if (params.siparis_id) {
         sql += 's.id = $1';
         queryParams.push(params.siparis_id);
@@ -161,7 +160,7 @@ const satinAlmaTools = {
       }
 
       const siparisResult = await query(sql, queryParams);
-      
+
       if (siparisResult.rows.length === 0) {
         return { success: false, error: 'Sipariş bulunamadı' };
       }
@@ -169,19 +168,18 @@ const satinAlmaTools = {
       const siparis = siparisResult.rows[0];
 
       // Kalemleri getir
-      const kalemlerResult = await query(
-        'SELECT * FROM siparis_kalemleri WHERE siparis_id = $1 ORDER BY id',
-        [siparis.id]
-      );
+      const kalemlerResult = await query('SELECT * FROM siparis_kalemleri WHERE siparis_id = $1 ORDER BY id', [
+        siparis.id,
+      ]);
 
       return {
         success: true,
         data: {
           ...siparis,
-          kalemler: kalemlerResult.rows
-        }
+          kalemler: kalemlerResult.rows,
+        },
       };
-    }
+    },
   },
 
   /**
@@ -194,9 +192,9 @@ const satinAlmaTools = {
       properties: {
         aktif: {
           type: 'boolean',
-          description: 'Sadece aktif projeleri getir (varsayılan: true)'
-        }
-      }
+          description: 'Sadece aktif projeleri getir (varsayılan: true)',
+        },
+      },
     },
     handler: async (params) => {
       let sql = `
@@ -217,13 +215,13 @@ const satinAlmaTools = {
       sql += ' GROUP BY p.id ORDER BY p.ad';
 
       const result = await query(sql);
-      
+
       return {
         success: true,
         data: result.rows,
-        count: result.rows.length
+        count: result.rows.length,
       };
-    }
+    },
   },
 
   /**
@@ -237,15 +235,15 @@ const satinAlmaTools = {
         donem: {
           type: 'string',
           enum: ['bugun', 'bu_hafta', 'bu_ay', 'bu_yil'],
-          description: 'Dönem filtresi'
-        }
-      }
+          description: 'Dönem filtresi',
+        },
+      },
     },
     handler: async (params) => {
       let dateFilter = '';
-      
+
       if (params.donem === 'bugun') {
-        dateFilter = "AND s.siparis_tarihi = CURRENT_DATE";
+        dateFilter = 'AND s.siparis_tarihi = CURRENT_DATE';
       } else if (params.donem === 'bu_hafta') {
         dateFilter = "AND s.siparis_tarihi >= date_trunc('week', CURRENT_DATE)";
       } else if (params.donem === 'bu_ay') {
@@ -283,10 +281,10 @@ const satinAlmaTools = {
         data: {
           genel: ozetResult.rows[0],
           proje_bazli: projeBazliResult.rows,
-          donem: params.donem || 'tum_zamanlar'
-        }
+          donem: params.donem || 'tum_zamanlar',
+        },
       };
-    }
+    },
   },
 
   // ============ YAZMA (Action) İŞLEMLERİ ============
@@ -301,36 +299,36 @@ const satinAlmaTools = {
       properties: {
         baslik: {
           type: 'string',
-          description: 'Sipariş başlığı (zorunlu)'
+          description: 'Sipariş başlığı (zorunlu)',
         },
         proje_kodu: {
           type: 'string',
-          description: 'Proje kodu (örn: KYK, HASTANE)'
+          description: 'Proje kodu (örn: KYK, HASTANE)',
         },
         proje_id: {
           type: 'number',
-          description: 'Proje ID (proje_kodu yerine kullanılabilir)'
+          description: 'Proje ID (proje_kodu yerine kullanılabilir)',
         },
         tedarikci_unvan: {
           type: 'string',
-          description: 'Tedarikçi ünvanı (arama yapılır)'
+          description: 'Tedarikçi ünvanı (arama yapılır)',
         },
         tedarikci_id: {
           type: 'number',
-          description: 'Tedarikçi ID'
+          description: 'Tedarikçi ID',
         },
         oncelik: {
           type: 'string',
           enum: ['dusuk', 'normal', 'yuksek', 'acil'],
-          description: 'Öncelik seviyesi (varsayılan: normal)'
+          description: 'Öncelik seviyesi (varsayılan: normal)',
         },
         teslim_tarihi: {
           type: 'string',
-          description: 'İstenen teslim tarihi (YYYY-MM-DD)'
+          description: 'İstenen teslim tarihi (YYYY-MM-DD)',
         },
         notlar: {
           type: 'string',
-          description: 'Sipariş notları'
+          description: 'Sipariş notları',
         },
         kalemler: {
           type: 'array',
@@ -341,21 +339,18 @@ const satinAlmaTools = {
               urun_adi: { type: 'string' },
               miktar: { type: 'number' },
               birim: { type: 'string' },
-              tahmini_fiyat: { type: 'number' }
-            }
-          }
-        }
+              tahmini_fiyat: { type: 'number' },
+            },
+          },
+        },
       },
-      required: ['baslik']
+      required: ['baslik'],
     },
     handler: async (params) => {
       // Proje bul (kod ile)
       let projeId = params.proje_id;
       if (!projeId && params.proje_kodu) {
-        const projeResult = await query(
-          'SELECT id FROM projeler WHERE UPPER(kod) = UPPER($1)',
-          [params.proje_kodu]
-        );
+        const projeResult = await query('SELECT id FROM projeler WHERE UPPER(kod) = UPPER($1)', [params.proje_kodu]);
         if (projeResult.rows.length > 0) {
           projeId = projeResult.rows[0].id;
         }
@@ -375,57 +370,58 @@ const satinAlmaTools = {
 
       // Sipariş numarası oluştur
       const year = new Date().getFullYear();
-      const countResult = await query(
-        "SELECT COUNT(*) FROM siparisler WHERE siparis_no LIKE $1",
-        [`SA-${year}-%`]
-      );
-      const count = parseInt(countResult.rows[0].count) + 1;
+      const countResult = await query('SELECT COUNT(*) FROM siparisler WHERE siparis_no LIKE $1', [`SA-${year}-%`]);
+      const count = parseInt(countResult.rows[0].count, 10) + 1;
       const siparisNo = `SA-${year}-${count.toString().padStart(3, '0')}`;
 
       // Toplam tutarı hesapla
       let toplamTutar = 0;
       if (params.kalemler && params.kalemler.length > 0) {
-        toplamTutar = params.kalemler.reduce((sum, k) => 
-          sum + (k.miktar || 0) * (k.tahmini_fiyat || 0), 0
-        );
+        toplamTutar = params.kalemler.reduce((sum, k) => sum + (k.miktar || 0) * (k.tahmini_fiyat || 0), 0);
       }
 
       // Siparişi oluştur
-      const siparisResult = await query(`
+      const siparisResult = await query(
+        `
         INSERT INTO siparisler (
           siparis_no, proje_id, tedarikci_id, baslik, 
           siparis_tarihi, teslim_tarihi, oncelik, toplam_tutar, notlar, durum
         ) VALUES ($1, $2, $3, $4, CURRENT_DATE, $5, $6, $7, $8, 'talep')
         RETURNING *
-      `, [
-        siparisNo,
-        projeId,
-        tedarikciId,
-        params.baslik,
-        params.teslim_tarihi || null,
-        params.oncelik || 'normal',
-        toplamTutar,
-        params.notlar || null
-      ]);
+      `,
+        [
+          siparisNo,
+          projeId,
+          tedarikciId,
+          params.baslik,
+          params.teslim_tarihi || null,
+          params.oncelik || 'normal',
+          toplamTutar,
+          params.notlar || null,
+        ]
+      );
 
       const siparis = siparisResult.rows[0];
 
       // Kalemleri ekle
       if (params.kalemler && params.kalemler.length > 0) {
         for (const kalem of params.kalemler) {
-          await query(`
+          await query(
+            `
             INSERT INTO siparis_kalemleri (siparis_id, urun_adi, miktar, birim, tahmini_fiyat)
             VALUES ($1, $2, $3, $4, $5)
-          `, [siparis.id, kalem.urun_adi, kalem.miktar, kalem.birim || 'adet', kalem.tahmini_fiyat || 0]);
+          `,
+            [siparis.id, kalem.urun_adi, kalem.miktar, kalem.birim || 'adet', kalem.tahmini_fiyat || 0]
+          );
         }
       }
 
       return {
         success: true,
         data: siparis,
-        message: `Sipariş oluşturuldu: ${siparisNo}`
+        message: `Sipariş oluşturuldu: ${siparisNo}`,
       };
-    }
+    },
   },
 
   /**
@@ -438,19 +434,19 @@ const satinAlmaTools = {
       properties: {
         siparis_id: {
           type: 'number',
-          description: 'Sipariş ID'
+          description: 'Sipariş ID',
         },
         siparis_no: {
           type: 'string',
-          description: 'Sipariş numarası'
+          description: 'Sipariş numarası',
         },
         durum: {
           type: 'string',
           enum: ['talep', 'onay_bekliyor', 'onaylandi', 'siparis_verildi', 'teslim_alindi', 'iptal'],
-          description: 'Yeni durum'
-        }
+          description: 'Yeni durum',
+        },
       },
-      required: ['durum']
+      required: ['durum'],
     },
     handler: async (params) => {
       let whereClause = '';
@@ -476,18 +472,18 @@ const satinAlmaTools = {
       }
 
       const durumText = {
-        'bekliyor': 'Bekliyor',
-        'tedarikciye_gonderildi': 'Tedarikçiye Gönderildi',
-        'teslim_alindi': 'Teslim Alındı',
-        'iptal': 'İptal Edildi'
+        bekliyor: 'Bekliyor',
+        tedarikciye_gonderildi: 'Tedarikçiye Gönderildi',
+        teslim_alindi: 'Teslim Alındı',
+        iptal: 'İptal Edildi',
       };
 
       return {
         success: true,
         data: result.rows[0],
-        message: `Sipariş durumu güncellendi: ${durumText[params.durum]}`
+        message: `Sipariş durumu güncellendi: ${durumText[params.durum]}`,
       };
-    }
+    },
   },
 
   /**
@@ -500,30 +496,30 @@ const satinAlmaTools = {
       properties: {
         kod: {
           type: 'string',
-          description: 'Proje kodu (benzersiz, kısa, örn: KYK)'
+          description: 'Proje kodu (benzersiz, kısa, örn: KYK)',
         },
         ad: {
           type: 'string',
-          description: 'Proje adı'
+          description: 'Proje adı',
         },
         adres: {
           type: 'string',
-          description: 'Proje adresi'
+          description: 'Proje adresi',
         },
         yetkili: {
           type: 'string',
-          description: 'Yetkili kişi adı'
+          description: 'Yetkili kişi adı',
         },
         telefon: {
           type: 'string',
-          description: 'İletişim telefonu'
+          description: 'İletişim telefonu',
         },
         renk: {
           type: 'string',
-          description: 'Renk kodu (hex, örn: #10b981)'
-        }
+          description: 'Renk kodu (hex, örn: #10b981)',
+        },
       },
-      required: ['kod', 'ad']
+      required: ['kod', 'ad'],
     },
     handler: async (params) => {
       // Kod benzersizliğini kontrol et
@@ -532,25 +528,28 @@ const satinAlmaTools = {
         return { success: false, error: `"${params.kod}" kodlu proje zaten mevcut` };
       }
 
-      const result = await query(`
+      const result = await query(
+        `
         INSERT INTO projeler (kod, ad, adres, yetkili, telefon, renk)
         VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *
-      `, [
-        params.kod.toUpperCase(),
-        params.ad,
-        params.adres || null,
-        params.yetkili || null,
-        params.telefon || null,
-        params.renk || '#6366f1'
-      ]);
+      `,
+        [
+          params.kod.toUpperCase(),
+          params.ad,
+          params.adres || null,
+          params.yetkili || null,
+          params.telefon || null,
+          params.renk || '#6366f1',
+        ]
+      );
 
       return {
         success: true,
         data: result.rows[0],
-        message: `Proje oluşturuldu: ${params.ad} (${params.kod})`
+        message: `Proje oluşturuldu: ${params.ad} (${params.kod})`,
       };
-    }
+    },
   },
 
   /**
@@ -563,13 +562,13 @@ const satinAlmaTools = {
       properties: {
         proje_id: {
           type: 'number',
-          description: 'Proje ID'
+          description: 'Proje ID',
         },
         proje_kodu: {
           type: 'string',
-          description: 'Proje kodu'
-        }
-      }
+          description: 'Proje kodu',
+        },
+      },
     },
     handler: async (params) => {
       let whereClause = '';
@@ -601,11 +600,10 @@ const satinAlmaTools = {
 
       return {
         success: true,
-        message: `Proje silindi: ${proje.ad} (${proje.kod})`
+        message: `Proje silindi: ${proje.ad} (${proje.kod})`,
       };
-    }
-  }
+    },
+  },
 };
 
 export default satinAlmaTools;
-

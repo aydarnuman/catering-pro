@@ -790,7 +790,7 @@ export default function FaturalarPage() {
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
-                    {(isLoadingInvoices || isLoadingUyumsoft) ? (
+                    {isLoadingInvoices || isLoadingUyumsoft ? (
                       <Table.Tr>
                         <Table.Td colSpan={8}>
                           <Stack align="center" py="xl" gap="md">
@@ -801,305 +801,311 @@ export default function FaturalarPage() {
                       </Table.Tr>
                     ) : (
                       <>
-                    {/* Manuel Faturalar */}
-                    {filteredFaturalar.map((fatura) => {
-                      const kalanGun = getKalanGun(fatura.vadeTarihi);
-                      return (
-                        <Table.Tr key={`manuel-${fatura.id}`}>
-                          <Table.Td>
-                            <Group gap="xs">
-                              <Badge
-                                color={fatura.tip === 'satis' ? 'green' : 'orange'}
-                                variant="light"
-                                size="xs"
-                              >
-                                {fatura.tip === 'satis' ? 'S' : 'A'}
-                              </Badge>
-                              <Text size="sm" fw={500}>
-                                {fatura.seri}
-                                {fatura.no}
-                              </Text>
-                            </Group>
-                          </Table.Td>
-                          <Table.Td>
-                            <Text size="sm">{fatura.cariUnvan}</Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Text size="sm" c="dimmed">
-                              {formatUyumsoftDate(fatura.tarih)}
-                            </Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Text size="sm" c="dimmed">
-                              {formatUyumsoftDate(fatura.vadeTarihi)}
-                            </Text>
-                            {fatura.durum !== 'odendi' && fatura.durum !== 'iptal' && (
-                              <Text
-                                size="xs"
-                                c={kalanGun < 0 ? 'red' : kalanGun < 7 ? 'orange' : 'dimmed'}
-                              >
-                                {kalanGun < 0
-                                  ? `${Math.abs(kalanGun)} gün gecikti`
-                                  : `${kalanGun} gün kaldı`}
-                              </Text>
-                            )}
-                          </Table.Td>
-                          <Table.Td>
-                            <Badge size="xs" variant="light" color="gray">
-                              Manuel
-                            </Badge>
-                          </Table.Td>
-                          <Table.Td>{getDurumBadge(fatura.durum)}</Table.Td>
-                          <Table.Td style={{ textAlign: 'right' }}>
-                            <Text
-                              size="sm"
-                              fw={600}
-                              c={fatura.tip === 'satis' ? 'green' : 'orange'}
-                            >
-                              {formatMoney(fatura.genelToplam)}
-                            </Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Menu position="bottom-end" shadow="md">
-                              <Menu.Target>
-                                <ActionIcon variant="subtle" color="gray">
-                                  <IconDotsVertical size={16} />
-                                </ActionIcon>
-                              </Menu.Target>
-                              <Menu.Dropdown>
-                                <Menu.Item
-                                  leftSection={
-                                    <IconEye style={{ width: rem(14), height: rem(14) }} />
-                                  }
-                                  onClick={() => handleViewDetail(fatura)}
+                        {/* Manuel Faturalar */}
+                        {filteredFaturalar.map((fatura) => {
+                          const kalanGun = getKalanGun(fatura.vadeTarihi);
+                          return (
+                            <Table.Tr key={`manuel-${fatura.id}`}>
+                              <Table.Td>
+                                <Group gap="xs">
+                                  <Badge
+                                    color={fatura.tip === 'satis' ? 'green' : 'orange'}
+                                    variant="light"
+                                    size="xs"
+                                  >
+                                    {fatura.tip === 'satis' ? 'S' : 'A'}
+                                  </Badge>
+                                  <Text size="sm" fw={500}>
+                                    {fatura.seri}
+                                    {fatura.no}
+                                  </Text>
+                                </Group>
+                              </Table.Td>
+                              <Table.Td>
+                                <Text size="sm">{fatura.cariUnvan}</Text>
+                              </Table.Td>
+                              <Table.Td>
+                                <Text size="sm" c="dimmed">
+                                  {formatUyumsoftDate(fatura.tarih)}
+                                </Text>
+                              </Table.Td>
+                              <Table.Td>
+                                <Text size="sm" c="dimmed">
+                                  {formatUyumsoftDate(fatura.vadeTarihi)}
+                                </Text>
+                                {fatura.durum !== 'odendi' && fatura.durum !== 'iptal' && (
+                                  <Text
+                                    size="xs"
+                                    c={kalanGun < 0 ? 'red' : kalanGun < 7 ? 'orange' : 'dimmed'}
+                                  >
+                                    {kalanGun < 0
+                                      ? `${Math.abs(kalanGun)} gün gecikti`
+                                      : `${kalanGun} gün kaldı`}
+                                  </Text>
+                                )}
+                              </Table.Td>
+                              <Table.Td>
+                                <Badge size="xs" variant="light" color="gray">
+                                  Manuel
+                                </Badge>
+                              </Table.Td>
+                              <Table.Td>{getDurumBadge(fatura.durum)}</Table.Td>
+                              <Table.Td style={{ textAlign: 'right' }}>
+                                <Text
+                                  size="sm"
+                                  fw={600}
+                                  c={fatura.tip === 'satis' ? 'green' : 'orange'}
                                 >
-                                  Görüntüle
-                                </Menu.Item>
-                                {canEditFatura && (
-                                  <>
-                                    <Menu.Divider />
-                                    <Menu.Label>Durum Değiştir</Menu.Label>
+                                  {formatMoney(fatura.genelToplam)}
+                                </Text>
+                              </Table.Td>
+                              <Table.Td>
+                                <Menu position="bottom-end" shadow="md">
+                                  <Menu.Target>
+                                    <ActionIcon variant="subtle" color="gray">
+                                      <IconDotsVertical size={16} />
+                                    </ActionIcon>
+                                  </Menu.Target>
+                                  <Menu.Dropdown>
                                     <Menu.Item
                                       leftSection={
-                                        <IconSend style={{ width: rem(14), height: rem(14) }} />
+                                        <IconEye style={{ width: rem(14), height: rem(14) }} />
                                       }
-                                      onClick={() => updateDurum(fatura.id, 'gonderildi')}
+                                      onClick={() => handleViewDetail(fatura)}
                                     >
-                                      Gönderildi
+                                      Görüntüle
                                     </Menu.Item>
+                                    {canEditFatura && (
+                                      <>
+                                        <Menu.Divider />
+                                        <Menu.Label>Durum Değiştir</Menu.Label>
+                                        <Menu.Item
+                                          leftSection={
+                                            <IconSend style={{ width: rem(14), height: rem(14) }} />
+                                          }
+                                          onClick={() => updateDurum(fatura.id, 'gonderildi')}
+                                        >
+                                          Gönderildi
+                                        </Menu.Item>
+                                        <Menu.Item
+                                          leftSection={
+                                            <IconCheck
+                                              style={{ width: rem(14), height: rem(14) }}
+                                            />
+                                          }
+                                          color="green"
+                                          onClick={() => updateDurum(fatura.id, 'odendi')}
+                                        >
+                                          Ödendi
+                                        </Menu.Item>
+                                        <Menu.Item
+                                          leftSection={
+                                            <IconX style={{ width: rem(14), height: rem(14) }} />
+                                          }
+                                          onClick={() => updateDurum(fatura.id, 'iptal')}
+                                        >
+                                          İptal
+                                        </Menu.Item>
+                                      </>
+                                    )}
+                                    {canDeleteFatura && (
+                                      <>
+                                        <Menu.Divider />
+                                        <Menu.Item
+                                          color="red"
+                                          leftSection={
+                                            <IconTrash
+                                              style={{ width: rem(14), height: rem(14) }}
+                                            />
+                                          }
+                                          onClick={() => handleDelete(fatura.id)}
+                                        >
+                                          Sil
+                                        </Menu.Item>
+                                      </>
+                                    )}
+                                  </Menu.Dropdown>
+                                </Menu>
+                              </Table.Td>
+                            </Table.Tr>
+                          );
+                        })}
+
+                        {/* Uyumsoft Faturalar */}
+                        {filteredUyumsoftFaturalar.map((fatura) => (
+                          <Table.Tr key={`uyumsoft-${fatura.ettn}`}>
+                            <Table.Td>
+                              <Group gap="xs">
+                                <Badge color="violet" variant="light" size="xs">
+                                  U
+                                </Badge>
+                                <Text size="sm" fw={500}>
+                                  {fatura.faturaNo}
+                                </Text>
+                              </Group>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="sm">{fatura.gonderenUnvan}</Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="sm" c="dimmed">
+                                {formatUyumsoftDate(fatura.faturaTarihi)}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="sm" c="dimmed">
+                                -
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Group gap={4}>
+                                <Badge size="xs" variant="light" color="violet">
+                                  Uyumsoft
+                                </Badge>
+                                {fatura.stokIslendi && (
+                                  <Badge size="xs" variant="filled" color="green">
+                                    Stok ✓
+                                  </Badge>
+                                )}
+                              </Group>
+                            </Table.Td>
+                            <Table.Td>
+                              <Badge color="blue" variant="light" size="xs">
+                                E-Fatura
+                              </Badge>
+                            </Table.Td>
+                            <Table.Td style={{ textAlign: 'right' }}>
+                              <Text size="sm" fw={600} c="violet">
+                                {formatMoney(fatura.odenecekTutar)}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Menu position="bottom-end" shadow="md">
+                                <Menu.Target>
+                                  <ActionIcon variant="subtle" color="gray">
+                                    <IconDotsVertical size={16} />
+                                  </ActionIcon>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                  <Menu.Item
+                                    leftSection={
+                                      <IconEye style={{ width: rem(14), height: rem(14) }} />
+                                    }
+                                    onClick={() => handleViewUyumsoftDetail(fatura)}
+                                  >
+                                    Görüntüle
+                                  </Menu.Item>
+                                  <Menu.Item
+                                    leftSection={
+                                      <IconDownload style={{ width: rem(14), height: rem(14) }} />
+                                    }
+                                    onClick={() =>
+                                      window.open(uyumsoftDocUrls.pdf(fatura.ettn), '_blank')
+                                    }
+                                  >
+                                    PDF İndir
+                                  </Menu.Item>
+                                  <Menu.Item
+                                    leftSection={
+                                      <IconPrinter style={{ width: rem(14), height: rem(14) }} />
+                                    }
+                                    onClick={() => {
+                                      const printWindow = window.open(
+                                        uyumsoftDocUrls.html(fatura.ettn),
+                                        '_blank'
+                                      );
+                                      if (printWindow) {
+                                        printWindow.onload = () => {
+                                          printWindow.print();
+                                        };
+                                      }
+                                    }}
+                                  >
+                                    Yazdır
+                                  </Menu.Item>
+                                  <Menu.Divider />
+                                  <Menu.Item
+                                    leftSection={
+                                      <IconTag style={{ width: rem(14), height: rem(14) }} />
+                                    }
+                                    color="blue"
+                                    onClick={() =>
+                                      router.push(`/muhasebe/faturalar/${fatura.ettn}/kalemler`)
+                                    }
+                                  >
+                                    Kalemler & Eşleştir
+                                  </Menu.Item>
+                                  {fatura.stokIslendi ? (
                                     <Menu.Item
                                       leftSection={
                                         <IconCheck style={{ width: rem(14), height: rem(14) }} />
                                       }
                                       color="green"
-                                      onClick={() => updateDurum(fatura.id, 'odendi')}
+                                      disabled
                                     >
-                                      Ödendi
+                                      Stoğa İşlendi ✓
                                     </Menu.Item>
+                                  ) : (
                                     <Menu.Item
                                       leftSection={
-                                        <IconX style={{ width: rem(14), height: rem(14) }} />
+                                        <IconPackage style={{ width: rem(14), height: rem(14) }} />
                                       }
-                                      onClick={() => updateDurum(fatura.id, 'iptal')}
-                                    >
-                                      İptal
-                                    </Menu.Item>
-                                  </>
-                                )}
-                                {canDeleteFatura && (
-                                  <>
-                                    <Menu.Divider />
-                                    <Menu.Item
-                                      color="red"
-                                      leftSection={
-                                        <IconTrash style={{ width: rem(14), height: rem(14) }} />
+                                      color="teal"
+                                      onClick={() =>
+                                        router.push(`/muhasebe/stok?fatura=${fatura.ettn}`)
                                       }
-                                      onClick={() => handleDelete(fatura.id)}
                                     >
-                                      Sil
+                                      Stoğa İşle
                                     </Menu.Item>
-                                  </>
-                                )}
-                              </Menu.Dropdown>
-                            </Menu>
-                          </Table.Td>
-                        </Table.Tr>
-                      );
-                    })}
+                                  )}
+                                </Menu.Dropdown>
+                              </Menu>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
 
-                    {/* Uyumsoft Faturalar */}
-                    {filteredUyumsoftFaturalar.map((fatura) => (
-                      <Table.Tr key={`uyumsoft-${fatura.ettn}`}>
-                        <Table.Td>
-                          <Group gap="xs">
-                            <Badge color="violet" variant="light" size="xs">
-                              U
-                            </Badge>
-                            <Text size="sm" fw={500}>
-                              {fatura.faturaNo}
-                            </Text>
-                          </Group>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm">{fatura.gonderenUnvan}</Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm" c="dimmed">
-                            {formatUyumsoftDate(fatura.faturaTarihi)}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm" c="dimmed">
-                            -
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Group gap={4}>
-                            <Badge size="xs" variant="light" color="violet">
-                              Uyumsoft
-                            </Badge>
-                            {fatura.stokIslendi && (
-                              <Badge size="xs" variant="filled" color="green">
-                                Stok ✓
-                              </Badge>
-                            )}
-                          </Group>
-                        </Table.Td>
-                        <Table.Td>
-                          <Badge color="blue" variant="light" size="xs">
-                            E-Fatura
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td style={{ textAlign: 'right' }}>
-                          <Text size="sm" fw={600} c="violet">
-                            {formatMoney(fatura.odenecekTutar)}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Menu position="bottom-end" shadow="md">
-                            <Menu.Target>
-                              <ActionIcon variant="subtle" color="gray">
-                                <IconDotsVertical size={16} />
-                              </ActionIcon>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                              <Menu.Item
-                                leftSection={
-                                  <IconEye style={{ width: rem(14), height: rem(14) }} />
-                                }
-                                onClick={() => handleViewUyumsoftDetail(fatura)}
-                              >
-                                Görüntüle
-                              </Menu.Item>
-                              <Menu.Item
-                                leftSection={
-                                  <IconDownload style={{ width: rem(14), height: rem(14) }} />
-                                }
-                                onClick={() =>
-                                  window.open(uyumsoftDocUrls.pdf(fatura.ettn), '_blank')
-                                }
-                              >
-                                PDF İndir
-                              </Menu.Item>
-                              <Menu.Item
-                                leftSection={
-                                  <IconPrinter style={{ width: rem(14), height: rem(14) }} />
-                                }
-                                onClick={() => {
-                                  const printWindow = window.open(
-                                    uyumsoftDocUrls.html(fatura.ettn),
-                                    '_blank'
-                                  );
-                                  if (printWindow) {
-                                    printWindow.onload = () => {
-                                      printWindow.print();
-                                    };
-                                  }
-                                }}
-                              >
-                                Yazdır
-                              </Menu.Item>
-                              <Menu.Divider />
-                              <Menu.Item
-                                leftSection={
-                                  <IconTag style={{ width: rem(14), height: rem(14) }} />
-                                }
-                                color="blue"
-                                onClick={() =>
-                                  router.push(`/muhasebe/faturalar/${fatura.ettn}/kalemler`)
-                                }
-                              >
-                                Kalemler & Eşleştir
-                              </Menu.Item>
-                              {fatura.stokIslendi ? (
-                                <Menu.Item
-                                  leftSection={
-                                    <IconCheck style={{ width: rem(14), height: rem(14) }} />
-                                  }
-                                  color="green"
-                                  disabled
-                                >
-                                  Stoğa İşlendi ✓
-                                </Menu.Item>
-                              ) : (
-                                <Menu.Item
-                                  leftSection={
-                                    <IconPackage style={{ width: rem(14), height: rem(14) }} />
-                                  }
-                                  color="teal"
-                                  onClick={() =>
-                                    router.push(`/muhasebe/stok?fatura=${fatura.ettn}`)
-                                  }
-                                >
-                                  Stoğa İşle
-                                </Menu.Item>
-                              )}
-                            </Menu.Dropdown>
-                          </Menu>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))}
-
-                    {/* Boş durum */}
-                    {filteredFaturalar.length === 0 && filteredUyumsoftFaturalar.length === 0 && (
-                      <Table.Tr>
-                        <Table.Td colSpan={8}>
-                          <Stack align="center" py="xl" gap="md">
-                            <ThemeIcon color="gray" size={60} variant="light" radius="xl">
-                              <IconFileInvoice size={30} />
-                            </ThemeIcon>
-                            <Text ta="center" c="dimmed">
-                              Henüz fatura bulunamadı
-                            </Text>
-                            <Group>
-                              <Button
-                                variant="light"
-                                leftSection={<IconPlus size={16} />}
-                                onClick={() => {
-                                  resetForm();
-                                  open();
-                                }}
-                              >
-                                Manuel Fatura Ekle
-                              </Button>
-                              {!uyumsoftStatus.connected && (
-                                <Button
-                                  variant="light"
-                                  color="violet"
-                                  leftSection={<IconPlugConnected size={16} />}
-                                  onClick={() => {
-                                    if (uyumsoftStatus.hasCredentials) void handleConnectSaved();
-                                    else openConnect();
-                                  }}
-                                >
-                                  Uyumsoft Bağla
-                                </Button>
-                              )}
-                            </Group>
-                          </Stack>
-                        </Table.Td>
-                      </Table.Tr>
-                    )}
+                        {/* Boş durum */}
+                        {filteredFaturalar.length === 0 &&
+                          filteredUyumsoftFaturalar.length === 0 && (
+                            <Table.Tr>
+                              <Table.Td colSpan={8}>
+                                <Stack align="center" py="xl" gap="md">
+                                  <ThemeIcon color="gray" size={60} variant="light" radius="xl">
+                                    <IconFileInvoice size={30} />
+                                  </ThemeIcon>
+                                  <Text ta="center" c="dimmed">
+                                    Henüz fatura bulunamadı
+                                  </Text>
+                                  <Group>
+                                    <Button
+                                      variant="light"
+                                      leftSection={<IconPlus size={16} />}
+                                      onClick={() => {
+                                        resetForm();
+                                        open();
+                                      }}
+                                    >
+                                      Manuel Fatura Ekle
+                                    </Button>
+                                    {!uyumsoftStatus.connected && (
+                                      <Button
+                                        variant="light"
+                                        color="violet"
+                                        leftSection={<IconPlugConnected size={16} />}
+                                        onClick={() => {
+                                          if (uyumsoftStatus.hasCredentials)
+                                            void handleConnectSaved();
+                                          else openConnect();
+                                        }}
+                                      >
+                                        Uyumsoft Bağla
+                                      </Button>
+                                    )}
+                                  </Group>
+                                </Stack>
+                              </Table.Td>
+                            </Table.Tr>
+                          )}
                       </>
                     )}
                   </Table.Tbody>

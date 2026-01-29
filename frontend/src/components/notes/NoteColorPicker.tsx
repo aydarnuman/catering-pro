@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Tooltip, UnstyledButton, Group } from '@mantine/core';
+import { Box, Group, Tooltip, UnstyledButton } from '@mantine/core';
 import { NOTE_COLORS, type NoteColor } from '@/types/notes';
 
 interface NoteColorPickerProps {

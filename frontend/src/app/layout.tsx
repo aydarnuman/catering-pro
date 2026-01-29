@@ -66,10 +66,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 '#09090b',
               ],
             },
-            fontFamily: 'var(--font-geist-sans), "Geist", -apple-system, BlinkMacSystemFont, sans-serif',
+            fontFamily:
+              'var(--font-geist-sans), "Geist", -apple-system, BlinkMacSystemFont, sans-serif',
             fontFamilyMonospace: 'var(--font-geist-mono), "Geist Mono", ui-monospace, monospace',
             headings: {
-              fontFamily: 'var(--font-geist-sans), "Geist", -apple-system, BlinkMacSystemFont, sans-serif',
+              fontFamily:
+                'var(--font-geist-sans), "Geist", -apple-system, BlinkMacSystemFont, sans-serif',
               fontWeight: '700',
             },
             other: {

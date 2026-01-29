@@ -397,7 +397,9 @@ function FirmaProjelerSection({
 
   // Ekstra alanlar state
   const [ekstraAlanlar, setEkstraAlanlar] = useState<Record<string, unknown>>({});
-  const [alanSablonlari, setAlanSablonlari] = useState<Array<{ alan_adi: string; gorunen_ad: string }>>([]);
+  const [alanSablonlari, setAlanSablonlari] = useState<
+    Array<{ alan_adi: string; gorunen_ad: string }>
+  >([]);
   const [ekstraAlanlarExpanded, setEkstraAlanlarExpanded] = useState(false);
   const [newAlanAdi, setNewAlanAdi] = useState('');
   const [newAlanDeger, setNewAlanDeger] = useState('');

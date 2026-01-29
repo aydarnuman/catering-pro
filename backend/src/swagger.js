@@ -28,18 +28,18 @@ JWT Bearer token kullanılır. Login endpoint'inden token alınır.
       `,
       contact: {
         name: 'Catering Pro Team',
-        email: 'info@cateringpro.com'
-      }
+        email: 'info@cateringpro.com',
+      },
     },
     servers: [
       {
         url: 'http://localhost:3001',
-        description: 'Development Server'
+        description: 'Development Server',
       },
       {
         url: 'https://api.cateringpro.com',
-        description: 'Production Server'
-      }
+        description: 'Production Server',
+      },
     ],
     components: {
       securitySchemes: {
@@ -47,8 +47,8 @@ JWT Bearer token kullanılır. Login endpoint'inden token alınır.
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
-          description: 'JWT token - Login endpoint\'inden alınır'
-        }
+          description: "JWT token - Login endpoint'inden alınır",
+        },
       },
       schemas: {
         // Genel Response
@@ -57,15 +57,15 @@ JWT Bearer token kullanılır. Login endpoint'inden token alınır.
           properties: {
             success: { type: 'boolean', example: true },
             data: { type: 'object' },
-            count: { type: 'integer', example: 10 }
-          }
+            count: { type: 'integer', example: 10 },
+          },
         },
         ErrorResponse: {
           type: 'object',
           properties: {
             success: { type: 'boolean', example: false },
-            error: { type: 'string', example: 'Hata mesajı' }
-          }
+            error: { type: 'string', example: 'Hata mesajı' },
+          },
         },
         // Cari
         Cari: {
@@ -82,12 +82,12 @@ JWT Bearer token kullanılır. Login endpoint'inden token alınır.
             adres: { type: 'string' },
             il: { type: 'string', example: 'Ankara' },
             ilce: { type: 'string', example: 'Çankaya' },
-            borc: { type: 'number', example: 5000.00 },
-            alacak: { type: 'number', example: 3000.00 },
-            bakiye: { type: 'number', example: -2000.00 },
+            borc: { type: 'number', example: 5000.0 },
+            alacak: { type: 'number', example: 3000.0 },
+            bakiye: { type: 'number', example: -2000.0 },
             aktif: { type: 'boolean', example: true },
-            created_at: { type: 'string', format: 'date-time' }
-          }
+            created_at: { type: 'string', format: 'date-time' },
+          },
         },
         // Stok Kartı
         StokKarti: {
@@ -100,9 +100,9 @@ JWT Bearer token kullanılır. Login endpoint'inden token alınır.
             birim: { type: 'string', example: 'kg' },
             miktar: { type: 'number', example: 150.5 },
             kritik_stok: { type: 'number', example: 20 },
-            son_alis_fiyat: { type: 'number', example: 45.00 },
-            aktif: { type: 'boolean', example: true }
-          }
+            son_alis_fiyat: { type: 'number', example: 45.0 },
+            aktif: { type: 'boolean', example: true },
+          },
         },
         // Personel
         Personel: {
@@ -116,10 +116,10 @@ JWT Bearer token kullanılır. Login endpoint'inden token alınır.
             telefon: { type: 'string', example: '0532 123 45 67' },
             departman: { type: 'string', example: 'Mutfak' },
             pozisyon: { type: 'string', example: 'Aşçı' },
-            maas: { type: 'number', example: 25000.00 },
+            maas: { type: 'number', example: 25000.0 },
             ise_giris_tarihi: { type: 'string', format: 'date' },
-            durum: { type: 'string', enum: ['aktif', 'izinli', 'pasif'], example: 'aktif' }
-          }
+            durum: { type: 'string', enum: ['aktif', 'izinli', 'pasif'], example: 'aktif' },
+          },
         },
         // İhale
         Tender: {
@@ -133,8 +133,8 @@ JWT Bearer token kullanılır. Login endpoint'inden token alınır.
             tender_date: { type: 'string', format: 'date-time' },
             estimated_cost: { type: 'number', example: 1500000 },
             status: { type: 'string', enum: ['active', 'expired', 'won', 'lost'], example: 'active' },
-            url: { type: 'string', example: 'https://ihalebul.com/...' }
-          }
+            url: { type: 'string', example: 'https://ihalebul.com/...' },
+          },
         },
         // Fatura
         Invoice: {
@@ -146,13 +146,13 @@ JWT Bearer token kullanılır. Login endpoint'inden token alınır.
             cari_id: { type: 'integer', example: 1 },
             tarih: { type: 'string', format: 'date' },
             vade_tarihi: { type: 'string', format: 'date' },
-            toplam_tutar: { type: 'number', example: 15000.00 },
-            kdv_tutar: { type: 'number', example: 2700.00 },
-            genel_toplam: { type: 'number', example: 17700.00 },
-            odendi: { type: 'boolean', example: false }
-          }
-        }
-      }
+            toplam_tutar: { type: 'number', example: 15000.0 },
+            kdv_tutar: { type: 'number', example: 2700.0 },
+            genel_toplam: { type: 'number', example: 17700.0 },
+            odendi: { type: 'boolean', example: false },
+          },
+        },
+      },
     },
     tags: [
       { name: 'Auth', description: 'Kimlik doğrulama işlemleri' },
@@ -166,10 +166,10 @@ JWT Bearer token kullanılır. Login endpoint'inden token alınır.
       { name: 'Documents', description: 'Döküman işleme ve analiz' },
       { name: 'AI', description: 'AI asistan ve analiz' },
       { name: 'Planlama', description: 'Menü ve üretim planlama' },
-      { name: 'Projeler', description: 'Proje yönetimi' }
-    ]
+      { name: 'Projeler', description: 'Proje yönetimi' },
+    ],
   },
-  apis: ['./src/routes/*.js', './src/server.js']
+  apis: ['./src/routes/*.js', './src/server.js'],
 };
 
 const swaggerSpec = swaggerJsdoc(options);

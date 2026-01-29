@@ -1,13 +1,12 @@
+import { exec } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import express from 'express';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import path from 'path';
-import os from 'os';
-import { fileURLToPath } from 'url';
-import { authenticate, requireSuperAdmin } from '../middleware/auth.js';
 import { query } from '../database.js';
-import logger from '../utils/logger.js';
+import { authenticate, requireSuperAdmin } from '../middleware/auth.js';
 import systemMonitor from '../services/system-monitor.js';
+import logger from '../utils/logger.js';
 
 const execAsync = promisify(exec);
 const router = express.Router();
@@ -26,68 +25,80 @@ const WHATSAPP_SERVICE_PATH = process.env.WHATSAPP_SERVICE_PATH || path.join(PRO
 
 // Tehlikeli komut blacklist
 const COMMAND_BLACKLIST = [
-  /rm\s+-rf\s+\/(?!\w)/i,           // rm -rf / (root silme)
-  /rm\s+-rf\s+~\s*/i,               // rm -rf ~ (home silme)
-  /mkfs\./i,                        // disk format
-  /dd\s+if=.*of=\/dev/i,            // disk yazma
-  /shutdown/i,                      // sistem kapatma
-  /init\s+0/i,                      // sistem kapatma
-  /halt/i,                          // sistem durdurma
-  /poweroff/i,                      // güç kapatma
-  /:(){ :|:& };:/,                  // fork bomb
-  />\s*\/dev\/sda/i,                // disk yazma
-  /DROP\s+DATABASE\s+postgres/i,    // ana db silme
+  /rm\s+-rf\s+\/(?!\w)/i, // rm -rf / (root silme)
+  /rm\s+-rf\s+~\s*/i, // rm -rf ~ (home silme)
+  /mkfs\./i, // disk format
+  /dd\s+if=.*of=\/dev/i, // disk yazma
+  /shutdown/i, // sistem kapatma
+  /init\s+0/i, // sistem kapatma
+  /halt/i, // sistem durdurma
+  /poweroff/i, // güç kapatma
+  /:(){ :|:& };:/, // fork bomb
+  />\s*\/dev\/sda/i, // disk yazma
+  /DROP\s+DATABASE\s+postgres/i, // ana db silme
 ];
 
 // Uyarı gerektiren komutlar
 const WARNING_COMMANDS = [
-  /rm\s+-/i,                        // rm with flags
-  /DROP\s+(TABLE|DATABASE)/i,       // SQL drop
-  /DELETE\s+FROM/i,                 // SQL delete
-  /TRUNCATE/i,                      // SQL truncate
-  /kill\s+-9/i,                     // force kill
-  /pkill/i,                         // process kill
-  /npm\s+uninstall/i,               // paket kaldırma
-  /git\s+reset\s+--hard/i,          // git hard reset
-  /git\s+push\s+--force/i,          // force push
+  /rm\s+-/i, // rm with flags
+  /DROP\s+(TABLE|DATABASE)/i, // SQL drop
+  /DELETE\s+FROM/i, // SQL delete
+  /TRUNCATE/i, // SQL truncate
+  /kill\s+-9/i, // force kill
+  /pkill/i, // process kill
+  /npm\s+uninstall/i, // paket kaldırma
+  /git\s+reset\s+--hard/i, // git hard reset
+  /git\s+push\s+--force/i, // force push
 ];
 
 // Hazır komutlar - dinamik path ile
 const getPresetCommands = () => ({
-  'pm2_status': { cmd: 'pm2 status', desc: 'PM2 Durumu', safe: true },
-  'pm2_logs': { cmd: 'pm2 logs --lines 50 --nostream', desc: 'PM2 Logları (son 50)', safe: true },
-  'disk_usage': { cmd: 'df -h', desc: 'Disk Kullanımı', safe: true },
-  'memory_usage': { cmd: 'free -h 2>/dev/null || vm_stat', desc: 'Bellek Kullanımı', safe: true },
-  'cpu_info': { cmd: 'top -l 1 | head -10 2>/dev/null || top -bn1 | head -10', desc: 'CPU Bilgisi', safe: true },
-  'network_ports': { cmd: 'lsof -i -P | grep LISTEN | head -20', desc: 'Açık Portlar', safe: true },
-  'backend_restart': { cmd: 'pm2 restart backend 2>/dev/null || echo "PM2 kullanılmıyor"', desc: 'Backend Restart', safe: false },
-  'frontend_restart': { cmd: 'pm2 restart frontend 2>/dev/null || echo "PM2 kullanılmıyor"', desc: 'Frontend Restart', safe: false },
-  'clear_cache': { cmd: 'rm -rf /tmp/catering-cache/* 2>/dev/null; echo "Cache temizlendi"', desc: 'Cache Temizle', safe: true },
-  'git_status': { cmd: `cd ${PROJECT_ROOT} && git status`, desc: 'Git Status', safe: true },
-  'git_log': { cmd: `cd ${PROJECT_ROOT} && git log --oneline -10`, desc: 'Son 10 Commit', safe: true },
-  'db_size': { cmd: 'echo "DB boyutu Supabase dashboard\'dan kontrol edilmeli"', desc: 'DB Boyutu', safe: true },
-  'system_uptime': { cmd: 'uptime', desc: 'Sistem Uptime', safe: true },
-  'node_version': { cmd: 'node -v && npm -v', desc: 'Node/NPM Versiyonu', safe: true },
+  pm2_status: { cmd: 'pm2 status', desc: 'PM2 Durumu', safe: true },
+  pm2_logs: { cmd: 'pm2 logs --lines 50 --nostream', desc: 'PM2 Logları (son 50)', safe: true },
+  disk_usage: { cmd: 'df -h', desc: 'Disk Kullanımı', safe: true },
+  memory_usage: { cmd: 'free -h 2>/dev/null || vm_stat', desc: 'Bellek Kullanımı', safe: true },
+  cpu_info: { cmd: 'top -l 1 | head -10 2>/dev/null || top -bn1 | head -10', desc: 'CPU Bilgisi', safe: true },
+  network_ports: { cmd: 'lsof -i -P | grep LISTEN | head -20', desc: 'Açık Portlar', safe: true },
+  backend_restart: {
+    cmd: 'pm2 restart backend 2>/dev/null || echo "PM2 kullanılmıyor"',
+    desc: 'Backend Restart',
+    safe: false,
+  },
+  frontend_restart: {
+    cmd: 'pm2 restart frontend 2>/dev/null || echo "PM2 kullanılmıyor"',
+    desc: 'Frontend Restart',
+    safe: false,
+  },
+  clear_cache: {
+    cmd: 'rm -rf /tmp/catering-cache/* 2>/dev/null; echo "Cache temizlendi"',
+    desc: 'Cache Temizle',
+    safe: true,
+  },
+  git_status: { cmd: `cd ${PROJECT_ROOT} && git status`, desc: 'Git Status', safe: true },
+  git_log: { cmd: `cd ${PROJECT_ROOT} && git log --oneline -10`, desc: 'Son 10 Commit', safe: true },
+  db_size: { cmd: 'echo "DB boyutu Supabase dashboard\'dan kontrol edilmeli"', desc: 'DB Boyutu', safe: true },
+  system_uptime: { cmd: 'uptime', desc: 'Sistem Uptime', safe: true },
+  node_version: { cmd: 'node -v && npm -v', desc: 'Node/NPM Versiyonu', safe: true },
 });
 const PRESET_COMMANDS = getPresetCommands();
 
 // Komut blacklist kontrolü
 function isBlacklisted(command) {
-  return COMMAND_BLACKLIST.some(pattern => pattern.test(command));
+  return COMMAND_BLACKLIST.some((pattern) => pattern.test(command));
 }
 
 // Komut uyarı kontrolü
 function needsWarning(command) {
-  return WARNING_COMMANDS.some(pattern => pattern.test(command));
+  return WARNING_COMMANDS.some((pattern) => pattern.test(command));
 }
 
 // Hazır komutları listele
-router.get('/terminal/presets', authenticate, requireSuperAdmin, (req, res) => {
+router.get('/terminal/presets', authenticate, requireSuperAdmin, (_req, res) => {
   const presets = Object.entries(PRESET_COMMANDS).map(([key, value]) => ({
     id: key,
     command: value.cmd,
     description: value.desc,
-    safe: value.safe
+    safe: value.safe,
   }));
   res.json({ success: true, presets });
 });
@@ -96,31 +107,34 @@ router.get('/terminal/presets', authenticate, requireSuperAdmin, (req, res) => {
 router.post('/terminal/preset/:id', authenticate, requireSuperAdmin, async (req, res) => {
   const { id } = req.params;
   const preset = PRESET_COMMANDS[id];
-  
+
   if (!preset) {
     return res.status(404).json({ success: false, error: 'Komut bulunamadı' });
   }
 
   try {
     const startTime = Date.now();
-    const { stdout, stderr } = await execAsync(preset.cmd, { 
+    const { stdout, stderr } = await execAsync(preset.cmd, {
       timeout: 30000,
-      maxBuffer: 1024 * 1024 // 1MB
+      maxBuffer: 1024 * 1024, // 1MB
     });
     const duration = Date.now() - startTime;
 
     // Audit log
-    await query(`
+    await query(
+      `
       INSERT INTO audit_logs (user_id, action, entity_type, description, new_data, ip_address)
       VALUES ($1, 'TERMINAL_PRESET', 'terminal', $2, $3, $4)
-    `, [req.user.id, `Preset: ${preset.description}`, JSON.stringify({ preset: id, command: preset.cmd }), req.ip]);
+    `,
+      [req.user.id, `Preset: ${preset.description}`, JSON.stringify({ preset: id, command: preset.cmd }), req.ip]
+    );
 
     res.json({
       success: true,
       preset: id,
       output: stdout || stderr,
       duration,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     res.json({
@@ -128,7 +142,7 @@ router.post('/terminal/preset/:id', authenticate, requireSuperAdmin, async (req,
       preset: id,
       error: error.message,
       output: error.stderr || error.stdout || '',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -144,15 +158,18 @@ router.post('/terminal/execute', authenticate, requireSuperAdmin, async (req, re
   // Blacklist kontrolü
   if (isBlacklisted(command)) {
     // Audit log - blocked
-    await query(`
+    await query(
+      `
       INSERT INTO audit_logs (user_id, action, entity_type, description, new_data, ip_address)
       VALUES ($1, 'TERMINAL_BLOCKED', 'terminal', $2, $3, $4)
-    `, [req.user.id, `Engellenen komut: ${command}`, JSON.stringify({ command, reason: 'blacklisted' }), req.ip]);
+    `,
+      [req.user.id, `Engellenen komut: ${command}`, JSON.stringify({ command, reason: 'blacklisted' }), req.ip]
+    );
 
-    return res.status(403).json({ 
-      success: false, 
+    return res.status(403).json({
+      success: false,
       error: '🚫 Bu komut güvenlik nedeniyle engellenmiştir.',
-      blocked: true
+      blocked: true,
     });
   }
 
@@ -162,28 +179,31 @@ router.post('/terminal/execute', authenticate, requireSuperAdmin, async (req, re
       success: false,
       warning: true,
       message: '⚠️ Bu komut tehlikeli olabilir. Devam etmek için onaylayın.',
-      command
+      command,
     });
   }
 
   try {
     const startTime = Date.now();
     const workDir = cwd || PROJECT_ROOT;
-    
-    const { stdout, stderr } = await execAsync(command, { 
+
+    const { stdout, stderr } = await execAsync(command, {
       cwd: workDir,
       timeout: 60000, // 60 saniye
       maxBuffer: 2 * 1024 * 1024, // 2MB
-      env: { ...process.env, TERM: 'xterm-256color' }
+      env: { ...process.env, TERM: 'xterm-256color' },
     });
-    
+
     const duration = Date.now() - startTime;
 
     // Audit log
-    await query(`
+    await query(
+      `
       INSERT INTO audit_logs (user_id, action, entity_type, description, new_data, ip_address)
       VALUES ($1, 'TERMINAL_EXECUTE', 'terminal', $2, $3, $4)
-    `, [req.user.id, `Komut: ${command.substring(0, 100)}`, JSON.stringify({ command, cwd: workDir, duration }), req.ip]);
+    `,
+      [req.user.id, `Komut: ${command.substring(0, 100)}`, JSON.stringify({ command, cwd: workDir, duration }), req.ip]
+    );
 
     res.json({
       success: true,
@@ -191,14 +211,22 @@ router.post('/terminal/execute', authenticate, requireSuperAdmin, async (req, re
       stderr: stderr || null,
       duration,
       cwd: workDir,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     // Audit log - error
-    await query(`
+    await query(
+      `
       INSERT INTO audit_logs (user_id, action, entity_type, description, new_data, ip_address)
       VALUES ($1, 'TERMINAL_ERROR', 'terminal', $2, $3, $4)
-    `, [req.user.id, `Hata: ${error.message.substring(0, 100)}`, JSON.stringify({ command, error: error.message }), req.ip]);
+    `,
+      [
+        req.user.id,
+        `Hata: ${error.message.substring(0, 100)}`,
+        JSON.stringify({ command, error: error.message }),
+        req.ip,
+      ]
+    );
 
     res.json({
       success: false,
@@ -206,7 +234,7 @@ router.post('/terminal/execute', authenticate, requireSuperAdmin, async (req, re
       output: error.stdout || '',
       stderr: error.stderr || '',
       exitCode: error.code,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -214,14 +242,17 @@ router.post('/terminal/execute', authenticate, requireSuperAdmin, async (req, re
 // Terminal geçmişi (son 50 komut)
 router.get('/terminal/history', authenticate, requireSuperAdmin, async (req, res) => {
   try {
-    const result = await query(`
+    const result = await query(
+      `
       SELECT id, action, description, new_data as details, created_at, ip_address
       FROM audit_logs 
       WHERE user_id = $1 
         AND action IN ('TERMINAL_EXECUTE', 'TERMINAL_PRESET', 'TERMINAL_BLOCKED', 'TERMINAL_ERROR')
       ORDER BY created_at DESC
       LIMIT 50
-    `, [req.user.id]);
+    `,
+      [req.user.id]
+    );
 
     res.json({ success: true, history: result.rows });
   } catch (error) {
@@ -230,18 +261,18 @@ router.get('/terminal/history', authenticate, requireSuperAdmin, async (req, res
 });
 
 // Servis durumlarını kontrol et
-router.get('/services/status', async (req, res) => {
+router.get('/services/status', async (_req, res) => {
   try {
     const services = {
       whatsapp: { port: 3002, status: 'unknown', name: 'WhatsApp Service' },
       backend: { port: 3001, status: 'running', name: 'Backend API' }, // Biz zaten çalışıyoruz
-      frontend: { port: 3000, status: 'unknown', name: 'Frontend' }
+      frontend: { port: 3000, status: 'unknown', name: 'Frontend' },
     };
 
     // WhatsApp servisi kontrolü
     try {
-      const waRes = await fetch('http://localhost:3002/status', { 
-        signal: AbortSignal.timeout(3000) 
+      const waRes = await fetch('http://localhost:3002/status', {
+        signal: AbortSignal.timeout(3000),
       });
       const waStatus = await waRes.json();
       services.whatsapp.status = waStatus.connected ? 'connected' : 'disconnected';
@@ -253,7 +284,7 @@ router.get('/services/status', async (req, res) => {
     // Frontend kontrolü (basit port check)
     try {
       const { stdout } = await execAsync('lsof -i :3000 | grep LISTEN | wc -l');
-      services.frontend.status = parseInt(stdout.trim()) > 0 ? 'running' : 'offline';
+      services.frontend.status = parseInt(stdout.trim(), 10) > 0 ? 'running' : 'offline';
     } catch {
       services.frontend.status = 'offline';
     }
@@ -265,21 +296,21 @@ router.get('/services/status', async (req, res) => {
 });
 
 // Tüm servisleri başlat
-router.post('/services/start-all', async (req, res) => {
+router.post('/services/start-all', async (_req, res) => {
   try {
     const scriptPath = path.join(PROJECT_ROOT, 'start-all.sh');
 
     // Script'i background'da çalıştır
-    exec(`bash "${scriptPath}"`, (error, stdout, stderr) => {
+    exec(`bash "${scriptPath}"`, (error, stdout, _stderr) => {
       if (error) {
         logger.error('Start script error', { error: error.message, stack: error.stack });
       }
       logger.info('Start script output', { output: stdout });
     });
 
-    res.json({ 
-      success: true, 
-      message: 'Servisler başlatılıyor... Birkaç saniye bekleyin.' 
+    res.json({
+      success: true,
+      message: 'Servisler başlatılıyor... Birkaç saniye bekleyin.',
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -287,18 +318,19 @@ router.post('/services/start-all', async (req, res) => {
 });
 
 // WhatsApp servisini yeniden başlat
-router.post('/services/restart/whatsapp', async (req, res) => {
+router.post('/services/restart/whatsapp', async (_req, res) => {
   try {
     // Port'u kapat ve yeniden başlat
-    exec(`lsof -ti:3002 | xargs kill -9 2>/dev/null; sleep 2; cd "${WHATSAPP_SERVICE_PATH}" && npm start &`,
-      (error, stdout, stderr) => {
+    exec(
+      `lsof -ti:3002 | xargs kill -9 2>/dev/null; sleep 2; cd "${WHATSAPP_SERVICE_PATH}" && npm start &`,
+      (error, _stdout, _stderr) => {
         if (error) logger.error('WhatsApp restart error', { error: error.message, stack: error.stack });
       }
     );
 
-    res.json({ 
-      success: true, 
-      message: 'WhatsApp servisi yeniden başlatılıyor...' 
+    res.json({
+      success: true,
+      message: 'WhatsApp servisi yeniden başlatılıyor...',
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -306,11 +338,11 @@ router.post('/services/restart/whatsapp', async (req, res) => {
 });
 
 // Backend'i yeniden başlat (dikkatli kullan!)
-router.post('/services/restart/backend', async (req, res) => {
+router.post('/services/restart/backend', async (_req, res) => {
   try {
-    res.json({ 
-      success: true, 
-      message: 'Backend yeniden başlatılacak...' 
+    res.json({
+      success: true,
+      message: 'Backend yeniden başlatılacak...',
     });
 
     // Response gönderdikten sonra restart et
@@ -324,14 +356,14 @@ router.post('/services/restart/backend', async (req, res) => {
 });
 
 // Sistem bilgisi
-router.get('/info', async (req, res) => {
+router.get('/info', async (_req, res) => {
   try {
     const info = {
       nodeVersion: process.version,
       platform: process.platform,
       uptime: Math.floor(process.uptime()),
       memoryUsage: process.memoryUsage(),
-      env: process.env.NODE_ENV || 'development'
+      env: process.env.NODE_ENV || 'development',
     };
 
     res.json({ success: true, info });
@@ -345,7 +377,7 @@ router.get('/info', async (req, res) => {
 // ==========================================
 
 // Tüm servislerin durumu (orchestrator için)
-router.get('/services', async (req, res) => {
+router.get('/services', async (_req, res) => {
   try {
     const services = {
       backend: {
@@ -381,7 +413,7 @@ router.get('/services', async (req, res) => {
     // Frontend kontrolü
     try {
       const { stdout } = await execAsync('lsof -i :3000 | grep LISTEN | wc -l');
-      const isRunning = parseInt(stdout.trim()) > 0;
+      const isRunning = parseInt(stdout.trim(), 10) > 0;
       services.frontend.status = isRunning ? 'running' : 'stopped';
       services.frontend.healthy = isRunning;
     } catch {}
@@ -440,13 +472,13 @@ router.get('/services/:name', async (req, res) => {
         name,
         port,
         running: lines.length > 0,
-        processes: lines.map(line => {
+        processes: lines.map((line) => {
           const parts = line.split(/\s+/);
           return { command: parts[0], pid: parts[1] };
         }),
       },
     });
-  } catch (error) {
+  } catch (_error) {
     res.json({
       success: true,
       service: {
@@ -460,7 +492,7 @@ router.get('/services/:name', async (req, res) => {
 });
 
 // Scheduler durumları
-router.get('/schedulers', async (req, res) => {
+router.get('/schedulers', async (_req, res) => {
   try {
     const schedulers = systemMonitor.getAllSchedulerStatus();
     res.json({ success: true, schedulers });
@@ -470,7 +502,7 @@ router.get('/schedulers', async (req, res) => {
 });
 
 // Document queue durumu - ÖNEMLİ: Bu route :name parametreli route'dan ÖNCE olmalı
-router.get('/schedulers/document-queue', async (req, res) => {
+router.get('/schedulers/document-queue', async (_req, res) => {
   try {
     // Document queue bilgisini systemMonitor'dan al
     const queueStatus = {
@@ -483,8 +515,8 @@ router.get('/schedulers/document-queue', async (req, res) => {
     };
 
     // Eğer bir scheduler varsa onun bilgilerini kullan
-    const docQueueScheduler = systemMonitor.getSchedulerStatus('documentQueue') ||
-                              systemMonitor.getSchedulerStatus('document-queue');
+    const docQueueScheduler =
+      systemMonitor.getSchedulerStatus('documentQueue') || systemMonitor.getSchedulerStatus('document-queue');
 
     if (docQueueScheduler) {
       queueStatus.isProcessing = docQueueScheduler.isRunning;
@@ -546,7 +578,7 @@ router.post('/schedulers/:name/trigger', authenticate, async (req, res) => {
 });
 
 // Realtime durumu
-router.get('/realtime/status', async (req, res) => {
+router.get('/realtime/status', async (_req, res) => {
   try {
     const status = systemMonitor.getRealtimeStatus();
     res.json({ success: true, ...status });
@@ -556,7 +588,7 @@ router.get('/realtime/status', async (req, res) => {
 });
 
 // Realtime tabloları
-router.get('/realtime/tables', async (req, res) => {
+router.get('/realtime/tables', async (_req, res) => {
   try {
     const tables = systemMonitor.getRealtimeTables();
     res.json({ success: true, tables });
@@ -566,7 +598,7 @@ router.get('/realtime/tables', async (req, res) => {
 });
 
 // Docker durumu
-router.get('/docker', async (req, res) => {
+router.get('/docker', async (_req, res) => {
   try {
     // Docker kurulu mu?
     let dockerInstalled = false;
@@ -594,7 +626,7 @@ router.get('/docker', async (req, res) => {
           .trim()
           .split('\n')
           .filter(Boolean)
-          .map(line => {
+          .map((line) => {
             const [id, name, status, ports] = line.split('|');
             return { id, name, status, ports, running: status.toLowerCase().includes('up') };
           });
@@ -615,7 +647,7 @@ router.get('/docker', async (req, res) => {
 });
 
 // Detaylı health raporu
-router.get('/health/detailed', async (req, res) => {
+router.get('/health/detailed', async (_req, res) => {
   try {
     const health = await systemMonitor.getDetailedHealth();
     res.json({ success: true, ...health });
@@ -625,7 +657,7 @@ router.get('/health/detailed', async (req, res) => {
 });
 
 // Environment doğrulama (güvenlik açısından sınırlı)
-router.get('/env/check', async (req, res) => {
+router.get('/env/check', async (_req, res) => {
   try {
     const envCheck = {
       database: {
@@ -659,7 +691,7 @@ router.get('/env/check', async (req, res) => {
 });
 
 // Sistem bilgisi (genişletilmiş)
-router.get('/system/info', async (req, res) => {
+router.get('/system/info', async (_req, res) => {
   try {
     const info = systemMonitor.getSystemInfo();
     res.json({ success: true, ...info });

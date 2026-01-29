@@ -1,73 +1,72 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
 import {
-  Modal,
-  Tabs,
-  Stack,
-  Group,
-  Text,
-  Button,
-  TextInput,
-  ScrollArea,
-  ActionIcon,
-  Badge,
-  Paper,
-  Center,
-  Loader,
-  Box,
-  Collapse,
-  Divider,
-  SimpleGrid,
-  useMantineColorScheme,
-} from '@mantine/core';
-import {
-  IconNotes,
-  IconPin,
-  IconCalendar,
-  IconPlus,
-  IconSearch,
-  IconTrash,
-  IconChevronDown,
-  IconChevronUp,
-  IconCheck,
-  IconChecks,
-} from '@tabler/icons-react';
-import {
-  DndContext,
   closestCenter,
+  DndContext,
+  type DragEndEvent,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
-  type DragEndEvent,
 } from '@dnd-kit/core';
 import {
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
   useSortable,
+  verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  format,
-  startOfMonth,
-  endOfMonth,
-  eachDayOfInterval,
-  isSameMonth,
-  isSameDay,
-  isToday,
+  ActionIcon,
+  Badge,
+  Box,
+  Button,
+  Center,
+  Collapse,
+  Divider,
+  Group,
+  Loader,
+  Modal,
+  Paper,
+  ScrollArea,
+  SimpleGrid,
+  Stack,
+  Tabs,
+  Text,
+  TextInput,
+  useMantineColorScheme,
+} from '@mantine/core';
+import {
+  IconCalendar,
+  IconCheck,
+  IconChevronDown,
+  IconChevronUp,
+  IconNotes,
+  IconPin,
+  IconPlus,
+  IconSearch,
+  IconTrash,
+} from '@tabler/icons-react';
+import {
   addMonths,
-  subMonths,
-  startOfWeek,
+  eachDayOfInterval,
+  endOfMonth,
   endOfWeek,
+  format,
+  isSameDay,
+  isSameMonth,
+  isToday,
+  startOfMonth,
+  startOfWeek,
+  subMonths,
 } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { useCallback, useMemo, useState } from 'react';
 
 import { useNotes } from '@/hooks/useNotes';
+import type { CreateNoteDTO, NoteColor, UnifiedNote } from '@/types/notes';
 import { NoteCard } from './NoteCard';
 import { NoteEditor } from './NoteEditor';
-import type { UnifiedNote, CreateNoteDTO, NoteColor } from '@/types/notes';
 
 interface UnifiedNotesModalProps {
   opened: boolean;
@@ -86,14 +85,9 @@ function SortableNoteCard({
   onEdit?: (note: UnifiedNote) => void;
   onColorChange?: (id: string, color: NoteColor) => void;
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: note.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: note.id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -195,8 +189,8 @@ function MiniCalendar({
                 backgroundColor: isSelected
                   ? 'var(--mantine-color-blue-5)'
                   : isTodayDate
-                  ? 'var(--mantine-color-blue-1)'
-                  : 'transparent',
+                    ? 'var(--mantine-color-blue-1)'
+                    : 'transparent',
                 opacity: isCurrentMonth ? 1 : 0.3,
               }}
             >
@@ -449,7 +443,10 @@ export function UnifiedNotesModal({ opened, onClose }: UnifiedNotesModalProps) {
         <Group align="flex-start" gap={0} wrap="nowrap" style={{ minHeight: 400 }}>
           {/* Mini calendar (only for agenda tab) */}
           {activeTab === 'agenda' && (
-            <Box p="md" style={{ borderRight: '1px solid var(--mantine-color-gray-3)', width: 240 }}>
+            <Box
+              p="md"
+              style={{ borderRight: '1px solid var(--mantine-color-gray-3)', width: 240 }}
+            >
               <MiniCalendar
                 selectedDate={selectedDate}
                 onDateSelect={setSelectedDate}
@@ -524,12 +521,12 @@ export function UnifiedNotesModal({ opened, onClose }: UnifiedNotesModalProps) {
                       {searchQuery
                         ? 'Aramanizla eslesen not bulunamadi'
                         : activeTab === 'pinned'
-                        ? 'Sabitlenen not yok'
-                        : activeTab === 'agenda'
-                        ? selectedDate
-                          ? 'Bu tarihte not yok'
-                          : 'Tarihli not yok'
-                        : 'Henuz not eklenmemis'}
+                          ? 'Sabitlenen not yok'
+                          : activeTab === 'agenda'
+                            ? selectedDate
+                              ? 'Bu tarihte not yok'
+                              : 'Tarihli not yok'
+                            : 'Henuz not eklenmemis'}
                     </Text>
                     {!searchQuery && activeTab === 'all' && (
                       <Button
@@ -589,7 +586,9 @@ export function UnifiedNotesModal({ opened, onClose }: UnifiedNotesModalProps) {
               initialPriority={editingNote.priority}
               initialTags={editingNote.tags?.map((t) => t.name) ?? []}
               initialDueDate={editingNote.due_date ? new Date(editingNote.due_date) : null}
-              initialReminderDate={editingNote.reminder_date ? new Date(editingNote.reminder_date) : null}
+              initialReminderDate={
+                editingNote.reminder_date ? new Date(editingNote.reminder_date) : null
+              }
               initialIsTask={editingNote.is_task}
               initialContentFormat={editingNote.content_format}
               onSave={handleUpdateNote}

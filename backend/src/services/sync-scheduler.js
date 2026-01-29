@@ -6,8 +6,8 @@
 import cron from 'node-cron';
 import { query } from '../database.js';
 import { faturaService } from '../scraper/uyumsoft/index.js';
-import { faturaKalemleriClient } from './fatura-kalemleri-client.js';
 import logger from '../utils/logger.js';
+import { faturaKalemleriClient } from './fatura-kalemleri-client.js';
 
 class SyncScheduler {
   constructor() {
@@ -18,7 +18,7 @@ class SyncScheduler {
       totalRuns: 0,
       successfulRuns: 0,
       failedRuns: 0,
-      lastError: null
+      lastError: null,
     };
   }
 
@@ -27,7 +27,8 @@ class SyncScheduler {
    */
   async logSync(status, details) {
     try {
-      await query(`
+      await query(
+        `
         INSERT INTO sync_logs (
           sync_type,
           status,
@@ -38,16 +39,18 @@ class SyncScheduler {
           error_message,
           details
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      `, [
-        details.syncType || 'auto',
-        status,
-        details.startedAt,
-        new Date(),
-        details.invoicesSynced || 0,
-        details.newInvoices || 0,
-        details.error || null,
-        JSON.stringify(details)
-      ]);
+      `,
+        [
+          details.syncType || 'auto',
+          status,
+          details.startedAt,
+          new Date(),
+          details.invoicesSynced || 0,
+          details.newInvoices || 0,
+          details.error || null,
+          JSON.stringify(details),
+        ]
+      );
     } catch (error) {
       logger.error('Sync log kayıt hatası', { error: error.message });
     }
@@ -119,7 +122,9 @@ class SyncScheduler {
       if (lastSync) {
         const hoursSince = (Date.now() - new Date(lastSync.started_at).getTime()) / (1000 * 60 * 60);
         if (hoursSince < 1) {
-          logger.info('Son sync yakın zamanda yapıldı, startup sync atlanıyor', { minutesSince: Math.round(hoursSince * 60) });
+          logger.info('Son sync yakın zamanda yapıldı, startup sync atlanıyor', {
+            minutesSince: Math.round(hoursSince * 60),
+          });
           await this.releaseSyncLock();
           return { success: true, message: 'Recent sync exists, skipped', skipped: true };
         }
@@ -135,7 +140,7 @@ class SyncScheduler {
       startedAt: startTime,
       invoicesSynced: 0,
       newInvoices: 0,
-      duplicates: 0
+      duplicates: 0,
     };
 
     logger.info('Otomatik senkronizasyon başlıyor', { syncType: options.syncType });
@@ -150,9 +155,7 @@ class SyncScheduler {
       const result = await faturaService.syncFaturalar({
         months: options.months || 3,
         maxInvoices: options.maxInvoices || 500,
-        ...(options.startDate && options.endDate
-          ? { startDate: options.startDate, endDate: options.endDate }
-          : {}),
+        ...(options.startDate && options.endDate ? { startDate: options.startDate, endDate: options.endDate } : {}),
       });
 
       if (!result.success) {
@@ -165,9 +168,7 @@ class SyncScheduler {
       if (options.category && String(options.category).trim()) {
         const cat = String(options.category).trim().toLowerCase();
         const before = data.length;
-        data = data.filter(
-          (inv) => (inv.targetTitle || '').toLowerCase().includes(cat)
-        );
+        data = data.filter((inv) => (inv.targetTitle || '').toLowerCase().includes(cat));
         if (before !== data.length) {
           logger.info('Kategori filtresi uygulandı', { category: options.category, before, after: data.length });
         }
@@ -194,12 +195,9 @@ class SyncScheduler {
       let duplicateCount = 0;
 
       // 1. Önce tüm mevcut ETTN'leri tek sorguda al
-      const ettnList = data.map(inv => inv.documentId);
-      const existingResult = await query(
-        'SELECT ettn FROM uyumsoft_invoices WHERE ettn = ANY($1)',
-        [ettnList]
-      );
-      const existingEttns = new Set(existingResult.rows.map(r => r.ettn));
+      const ettnList = data.map((inv) => inv.documentId);
+      const existingResult = await query('SELECT ettn FROM uyumsoft_invoices WHERE ettn = ANY($1)', [ettnList]);
+      const existingEttns = new Set(existingResult.rows.map((r) => r.ettn));
 
       // 2. Yeni ve mevcut faturaları ayır
       const newInvoices = [];
@@ -225,7 +223,9 @@ class SyncScheduler {
           let paramIndex = 1;
 
           for (const invoice of batch) {
-            values.push(`($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, NOW())`);
+            values.push(
+              `($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, NOW())`
+            );
             params.push(
               invoice.documentId,
               invoice.invoiceId,
@@ -247,7 +247,8 @@ class SyncScheduler {
           }
 
           try {
-            await query(`
+            await query(
+              `
               INSERT INTO uyumsoft_invoices (
                 ettn, invoice_id, invoice_no,
                 invoice_type, invoice_date, creation_date,
@@ -257,7 +258,9 @@ class SyncScheduler {
                 last_sync_date
               ) VALUES ${values.join(', ')}
               ON CONFLICT (ettn) DO NOTHING
-            `, params);
+            `,
+              params
+            );
 
             newCount += batch.length;
             savedCount += batch.length;
@@ -266,7 +269,8 @@ class SyncScheduler {
             // Fallback: tek tek dene
             for (const invoice of batch) {
               try {
-                await query(`
+                await query(
+                  `
                   INSERT INTO uyumsoft_invoices (
                     ettn, invoice_id, invoice_no,
                     invoice_type, invoice_date, creation_date,
@@ -276,24 +280,26 @@ class SyncScheduler {
                     last_sync_date
                   ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())
                   ON CONFLICT (ettn) DO NOTHING
-                `, [
-                  invoice.documentId,
-                  invoice.invoiceId,
-                  invoice.invoiceId,
-                  'incoming',
-                  invoice.executionDate,
-                  invoice.createDate,
-                  invoice.targetVkn,
-                  invoice.targetTitle,
-                  invoice.targetEmail,
-                  invoice.taxExclusiveAmount || 0,
-                  invoice.taxTotal || 0,
-                  invoice.payableAmount || 0,
-                  invoice.currency || 'TRY',
-                  invoice.status,
-                  invoice.isNew || false,
-                  invoice.isSeen || false
-                ]);
+                `,
+                  [
+                    invoice.documentId,
+                    invoice.invoiceId,
+                    invoice.invoiceId,
+                    'incoming',
+                    invoice.executionDate,
+                    invoice.createDate,
+                    invoice.targetVkn,
+                    invoice.targetTitle,
+                    invoice.targetEmail,
+                    invoice.taxExclusiveAmount || 0,
+                    invoice.taxTotal || 0,
+                    invoice.payableAmount || 0,
+                    invoice.currency || 'TRY',
+                    invoice.status,
+                    invoice.isNew || false,
+                    invoice.isSeen || false,
+                  ]
+                );
                 newCount++;
                 savedCount++;
               } catch (singleError) {
@@ -313,7 +319,9 @@ class SyncScheduler {
           // Her batch için ayrı UPDATE (PostgreSQL unnest ile toplu güncelleme)
           try {
             // Temporary values array oluştur
-            const updateValues = batch.map(inv => `(
+            const updateValues = batch
+              .map(
+                (inv) => `(
               '${inv.documentId}'::text,
               '${(inv.invoiceId || inv.documentId).replace(/'/g, "''")}'::text,
               ${inv.executionDate ? `'${inv.executionDate}'::timestamp` : 'NULL'},
@@ -328,7 +336,9 @@ class SyncScheduler {
               '${(inv.status || '').replace(/'/g, "''")}'::text,
               ${inv.isNew ?? false}::boolean,
               ${inv.isSeen ?? false}::boolean
-            )`).join(',');
+            )`
+              )
+              .join(',');
 
             await query(`
               UPDATE uyumsoft_invoices AS u SET
@@ -363,7 +373,8 @@ class SyncScheduler {
             // Fallback: tek tek güncelle
             for (const invoice of batch) {
               try {
-                await query(`
+                await query(
+                  `
                   UPDATE uyumsoft_invoices
                   SET
                     invoice_no = COALESCE($1, invoice_no),
@@ -382,22 +393,24 @@ class SyncScheduler {
                     last_sync_date = NOW(),
                     updated_at = NOW()
                   WHERE ettn = $14
-                `, [
-                  invoice.invoiceId || invoice.documentId,
-                  invoice.executionDate,
-                  invoice.createDate,
-                  invoice.targetVkn,
-                  invoice.targetTitle,
-                  invoice.targetEmail,
-                  invoice.taxExclusiveAmount ?? 0,
-                  invoice.taxTotal ?? 0,
-                  invoice.payableAmount ?? 0,
-                  invoice.currency || 'TRY',
-                  invoice.status,
-                  invoice.isNew ?? false,
-                  invoice.isSeen ?? false,
-                  invoice.documentId
-                ]);
+                `,
+                  [
+                    invoice.invoiceId || invoice.documentId,
+                    invoice.executionDate,
+                    invoice.createDate,
+                    invoice.targetVkn,
+                    invoice.targetTitle,
+                    invoice.targetEmail,
+                    invoice.taxExclusiveAmount ?? 0,
+                    invoice.taxTotal ?? 0,
+                    invoice.payableAmount ?? 0,
+                    invoice.currency || 'TRY',
+                    invoice.status,
+                    invoice.isNew ?? false,
+                    invoice.isSeen ?? false,
+                    invoice.documentId,
+                  ]
+                );
                 duplicateCount++;
                 savedCount++;
               } catch (singleError) {
@@ -423,7 +436,7 @@ class SyncScheduler {
       logger.info('Senkronizasyon tamamlandı', {
         total: savedCount,
         new: newCount,
-        updated: duplicateCount
+        updated: duplicateCount,
       });
 
       // Yeni fatura bildirimi (ileride webhook veya email gönderilebilir)
@@ -431,7 +444,7 @@ class SyncScheduler {
         this.sendNotification({
           type: 'new_invoices',
           count: newCount,
-          total: savedCount
+          total: savedCount,
         });
       }
 
@@ -440,10 +453,9 @@ class SyncScheduler {
         stats: {
           total: savedCount,
           new: newCount,
-          updated: duplicateCount
-        }
+          updated: duplicateCount,
+        },
       };
-
     } catch (error) {
       logger.error('Senkronizasyon hatası', { error: error.message, stack: error.stack });
 
@@ -455,9 +467,8 @@ class SyncScheduler {
 
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
-
     } finally {
       this.isRunning = false;
       // Database lock'u her zaman serbest bırak
@@ -484,7 +495,7 @@ class SyncScheduler {
       logger.info('6 saatlik otomatik senkronizasyon tetiklendi');
       await this.syncUyumsoftInvoices({
         syncType: 'scheduled_6h',
-        months: 1
+        months: 1,
       });
     });
 
@@ -494,7 +505,7 @@ class SyncScheduler {
       await this.syncUyumsoftInvoices({
         syncType: 'scheduled_midnight',
         months: 3,
-        maxInvoices: 1000
+        maxInvoices: 1000,
       });
     });
 
@@ -512,7 +523,7 @@ class SyncScheduler {
     setTimeout(() => {
       this.syncUyumsoftInvoices({
         syncType: 'startup',
-        months: 1
+        months: 1,
       });
     }, 60000);
 
@@ -538,7 +549,7 @@ class SyncScheduler {
     logger.info('Manuel senkronizasyon tetiklendi', options);
     return await this.syncUyumsoftInvoices({
       ...options,
-      syncType: 'manual'
+      syncType: 'manual',
     });
   }
 
@@ -551,7 +562,8 @@ class SyncScheduler {
       lastWeek.setDate(lastWeek.getDate() - 7);
 
       // Haftalık istatistikler
-      const stats = await query(`
+      const stats = await query(
+        `
         SELECT
           COUNT(*) as total_invoices,
           COUNT(*) FILTER (WHERE created_at > $1) as new_this_week,
@@ -559,7 +571,9 @@ class SyncScheduler {
           COUNT(DISTINCT sender_vkn) as unique_vendors
         FROM uyumsoft_invoices
         WHERE invoice_date > $1
-      `, [lastWeek]);
+      `,
+        [lastWeek]
+      );
 
       // Kategori bazlı özet (tek kaynak: faturaKalemleriClient)
       const lastWeekStr = lastWeek.toISOString().slice(0, 10);
@@ -568,35 +582,37 @@ class SyncScheduler {
       const report = {
         period: {
           start: lastWeek,
-          end: new Date()
+          end: new Date(),
         },
         stats: stats.rows[0],
         categories: categoryStats,
-        generated_at: new Date()
+        generated_at: new Date(),
       };
 
       // Raporu kaydet
-      await query(`
+      await query(
+        `
         INSERT INTO weekly_reports (
           report_date,
           report_data,
           created_at
         ) VALUES ($1, $2, NOW())
-      `, [new Date(), JSON.stringify(report)]);
+      `,
+        [new Date(), JSON.stringify(report)]
+      );
 
       logger.info('Haftalık rapor oluşturuldu', {
         totalInvoices: report.stats.total_invoices,
-        totalAmount: report.stats.total_amount
+        totalAmount: report.stats.total_amount,
       });
 
       // Rapor bildirimini gönder
       this.sendNotification({
         type: 'weekly_report',
-        data: report
+        data: report,
       });
 
       return report;
-
     } catch (error) {
       logger.error('Haftalık rapor hatası', { error: error.message });
       return null;
@@ -611,10 +627,10 @@ class SyncScheduler {
       isRunning: this.isRunning,
       lastSyncTime: this.lastSyncTime,
       stats: this.syncStats,
-      jobs: Array.from(this.jobs.keys()).map(name => ({
+      jobs: Array.from(this.jobs.keys()).map((name) => ({
         name,
-        isRunning: this.jobs.get(name)?.running || false
-      }))
+        isRunning: this.jobs.get(name)?.running || false,
+      })),
     };
   }
 
@@ -623,11 +639,14 @@ class SyncScheduler {
    */
   async getSyncLogs(limit = 50) {
     try {
-      const logs = await query(`
+      const logs = await query(
+        `
         SELECT * FROM sync_logs
         ORDER BY started_at DESC
         LIMIT $1
-      `, [limit]);
+      `,
+        [limit]
+      );
 
       return logs.rows;
     } catch (error) {

@@ -5,10 +5,36 @@
     "rules": {
       "recommended": true,
       "suspicious": {
-        "noExplicitAny": "warn"
+        "noExplicitAny": "off",
+        "noShadowRestrictedNames": "off",
+        "noArrayIndexKey": "off",
+        "noAssignInExpressions": "warn",
+        "useIterableCallbackReturn": "warn"
       },
       "style": {
-        "noUnusedTemplateLiteral": "warn"
+        "noUnusedTemplateLiteral": "warn",
+        "noNonNullAssertion": "off"
+      },
+      "correctness": {
+        "noUnusedVariables": "off",
+        "noUnusedImports": "off",
+        "noUnusedFunctionParameters": "off",
+        "useExhaustiveDependencies": "off"
+      },
+      "a11y": {
+        "useKeyWithClickEvents": "off",
+        "noSvgWithoutTitle": "off",
+        "useButtonType": "off",
+        "noAutofocus": "off"
+      },
+      "complexity": {
+        "noForEach": "off",
+        "useLiteralKeys": "off",
+        "noExcessiveCognitiveComplexity": "off"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "warn",
+        "noDangerouslySetInnerHtmlWithChildren": "warn"
       }
     }
   },

@@ -1,40 +1,34 @@
 'use client';
 
-import { useState } from 'react';
 import {
-  Paper,
-  Text,
-  Group,
-  Stack,
   ActionIcon,
   Badge,
-  Menu,
-  Checkbox,
-  Tooltip,
   Box,
+  Checkbox,
+  Group,
+  Menu,
+  Paper,
+  Stack,
+  Text,
+  Tooltip,
 } from '@mantine/core';
 import {
+  IconBell,
+  IconCalendar,
+  IconDotsVertical,
+  IconEdit,
+  IconFlag,
+  IconGripVertical,
+  IconPalette,
+  IconPaperclip,
   IconPin,
   IconPinFilled,
   IconTrash,
-  IconEdit,
-  IconDotsVertical,
-  IconFlag,
-  IconPalette,
-  IconCalendar,
-  IconBell,
-  IconPaperclip,
-  IconGripVertical,
 } from '@tabler/icons-react';
-import { format, isToday, isTomorrow, isPast, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, isPast, isToday, isTomorrow } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import {
-  NOTE_COLORS,
-  PRIORITY_COLORS,
-  PRIORITY_LABELS,
-  type UnifiedNote,
-  type NoteColor,
-} from '@/types/notes';
+import { useState } from 'react';
+import { NOTE_COLORS, type NoteColor, PRIORITY_LABELS, type UnifiedNote } from '@/types/notes';
 import { NoteColorPicker } from './NoteColorPicker';
 
 interface NoteCardProps {
@@ -79,7 +73,7 @@ function renderContent(content: string, format: string): React.ReactNode {
   }
 
   // Simple markdown rendering
-  let rendered = content
+  const rendered = content
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/~~(.*?)~~/g, '<del>$1</del>')
@@ -99,7 +93,7 @@ export function NoteCard({
   compact = false,
   dragHandleProps,
 }: NoteCardProps) {
-  const [colorMenuOpened, setColorMenuOpened] = useState(false);
+  const [_colorMenuOpened, _setColorMenuOpened] = useState(false);
 
   const colorConfig = NOTE_COLORS[note.color] || NOTE_COLORS.blue;
   const dueDateLabel = formatDueDate(note.due_date);
@@ -176,7 +170,9 @@ export function NoteCard({
               <Badge
                 size="xs"
                 variant="light"
-                color={note.priority === 'urgent' ? 'red' : note.priority === 'high' ? 'orange' : 'gray'}
+                color={
+                  note.priority === 'urgent' ? 'red' : note.priority === 'high' ? 'orange' : 'gray'
+                }
                 leftSection={<IconFlag size={10} />}
               >
                 {PRIORITY_LABELS[note.priority]}
@@ -198,7 +194,12 @@ export function NoteCard({
             {/* Reminder indicator */}
             {hasReminder && (
               <Tooltip label="Hatirlatici var">
-                <Badge size="xs" variant="light" color="violet" leftSection={<IconBell size={10} />}>
+                <Badge
+                  size="xs"
+                  variant="light"
+                  color="violet"
+                  leftSection={<IconBell size={10} />}
+                >
                   {note.reminders.length}
                 </Badge>
               </Tooltip>
@@ -207,7 +208,12 @@ export function NoteCard({
             {/* Attachment indicator */}
             {hasAttachments && (
               <Tooltip label={`${note.attachments.length} dosya`}>
-                <Badge size="xs" variant="light" color="cyan" leftSection={<IconPaperclip size={10} />}>
+                <Badge
+                  size="xs"
+                  variant="light"
+                  color="cyan"
+                  leftSection={<IconPaperclip size={10} />}
+                >
                   {note.attachments.length}
                 </Badge>
               </Tooltip>
@@ -215,12 +221,7 @@ export function NoteCard({
 
             {/* Tags */}
             {note.tags?.slice(0, 3).map((tag) => (
-              <Badge
-                key={tag.id}
-                size="xs"
-                variant="dot"
-                color={tag.color || 'gray'}
-              >
+              <Badge key={tag.id} size="xs" variant="dot" color={tag.color || 'gray'}>
                 {tag.name}
               </Badge>
             ))}
@@ -258,19 +259,13 @@ export function NoteCard({
 
             <Menu.Dropdown>
               {onEdit && (
-                <Menu.Item
-                  leftSection={<IconEdit size={14} />}
-                  onClick={() => onEdit(note)}
-                >
+                <Menu.Item leftSection={<IconEdit size={14} />} onClick={() => onEdit(note)}>
                   Duzenle
                 </Menu.Item>
               )}
 
               {onColorChange && (
-                <Menu.Item
-                  leftSection={<IconPalette size={14} />}
-                  closeMenuOnClick={false}
-                >
+                <Menu.Item leftSection={<IconPalette size={14} />} closeMenuOnClick={false}>
                   <NoteColorPicker
                     value={note.color}
                     onChange={(color) => {

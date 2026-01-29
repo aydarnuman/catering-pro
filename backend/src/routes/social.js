@@ -1,24 +1,23 @@
+import { Blob } from 'node:buffer';
+import fs from 'node:fs';
 import express from 'express';
 import multer from 'multer';
-import fs from 'fs';
-import path from 'path';
-import { Blob } from 'buffer';
 import {
-  generateInstagramCaption,
-  generateHashtags,
   analyzeDMAndSuggestReply,
-  generateMenuPost,
+  generateHashtags,
   generateImagePrompt,
   generateImageWithStability,
+  generateInstagramCaption,
   generateMenuCardTemplate,
+  generateMenuPost,
 } from '../services/instagram-ai.js';
 
 const router = express.Router();
 
 // Multer config for file uploads
-const upload = multer({ 
+const upload = multer({
   dest: 'temp/uploads/',
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
 });
 
 // Service URLs - Docker'da servis isimleri, local'de localhost
@@ -27,26 +26,21 @@ const INSTAGRAM_SERVICE = process.env.INSTAGRAM_SERVICE_URL || 'http://localhost
 
 // Helper function for proxy requests
 async function proxyRequest(serviceUrl, path, options = {}) {
-  try {
-    const url = `${serviceUrl}${path}`;
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    });
-    return await response.json();
-  } catch (error) {
-    console.error(`Proxy request failed: ${serviceUrl}${path}`, error.message);
-    throw error;
-  }
+  const url = `${serviceUrl}${path}`;
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+  return await response.json();
 }
 
 // ==================== WHATSAPP ROUTES ====================
 
 // WhatsApp health check
-router.get('/whatsapp/health', async (req, res) => {
+router.get('/whatsapp/health', async (_req, res) => {
   try {
     const result = await proxyRequest(WHATSAPP_SERVICE, '/health');
     res.json(result);
@@ -60,11 +54,11 @@ router.get('/whatsapp/health', async (req, res) => {
 });
 
 // WhatsApp status
-router.get('/whatsapp/status', async (req, res) => {
+router.get('/whatsapp/status', async (_req, res) => {
   try {
     const result = await proxyRequest(WHATSAPP_SERVICE, '/status');
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -73,11 +67,11 @@ router.get('/whatsapp/status', async (req, res) => {
 });
 
 // Get QR code
-router.get('/whatsapp/qr', async (req, res) => {
+router.get('/whatsapp/qr', async (_req, res) => {
   try {
     const result = await proxyRequest(WHATSAPP_SERVICE, '/qr');
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -86,13 +80,13 @@ router.get('/whatsapp/qr', async (req, res) => {
 });
 
 // Connect WhatsApp
-router.post('/whatsapp/connect', async (req, res) => {
+router.post('/whatsapp/connect', async (_req, res) => {
   try {
     const result = await proxyRequest(WHATSAPP_SERVICE, '/connect', {
       method: 'POST',
     });
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -101,13 +95,13 @@ router.post('/whatsapp/connect', async (req, res) => {
 });
 
 // Disconnect WhatsApp
-router.post('/whatsapp/disconnect', async (req, res) => {
+router.post('/whatsapp/disconnect', async (_req, res) => {
   try {
     const result = await proxyRequest(WHATSAPP_SERVICE, '/disconnect', {
       method: 'POST',
     });
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -116,13 +110,13 @@ router.post('/whatsapp/disconnect', async (req, res) => {
 });
 
 // Force reconnect WhatsApp
-router.post('/whatsapp/reconnect', async (req, res) => {
+router.post('/whatsapp/reconnect', async (_req, res) => {
   try {
     const result = await proxyRequest(WHATSAPP_SERVICE, '/reconnect', {
       method: 'POST',
     });
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -131,13 +125,13 @@ router.post('/whatsapp/reconnect', async (req, res) => {
 });
 
 // Clean session and start fresh
-router.post('/whatsapp/clean-session', async (req, res) => {
+router.post('/whatsapp/clean-session', async (_req, res) => {
   try {
     const result = await proxyRequest(WHATSAPP_SERVICE, '/clean-session', {
       method: 'POST',
     });
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -146,11 +140,11 @@ router.post('/whatsapp/clean-session', async (req, res) => {
 });
 
 // Get chats
-router.get('/whatsapp/chats', async (req, res) => {
+router.get('/whatsapp/chats', async (_req, res) => {
   try {
     const result = await proxyRequest(WHATSAPP_SERVICE, '/chats');
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -166,7 +160,7 @@ router.get('/whatsapp/chats/:chatId/messages', async (req, res) => {
     const queryStr = limit ? `?limit=${limit}` : '';
     const result = await proxyRequest(WHATSAPP_SERVICE, `/chats/${encodeURIComponent(chatId)}/messages${queryStr}`);
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -182,7 +176,7 @@ router.post('/whatsapp/chats/:chatId/seen', async (req, res) => {
       method: 'POST',
     });
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -198,7 +192,7 @@ router.post('/whatsapp/send', async (req, res) => {
       body: JSON.stringify(req.body),
     });
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -207,11 +201,11 @@ router.post('/whatsapp/send', async (req, res) => {
 });
 
 // Get contacts
-router.get('/whatsapp/contacts', async (req, res) => {
+router.get('/whatsapp/contacts', async (_req, res) => {
   try {
     const result = await proxyRequest(WHATSAPP_SERVICE, '/contacts');
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -227,7 +221,7 @@ router.post('/whatsapp/chats/:chatId/archive', async (req, res) => {
       method: 'POST',
     });
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -243,7 +237,7 @@ router.post('/whatsapp/chats/:chatId/unarchive', async (req, res) => {
       method: 'POST',
     });
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -257,7 +251,7 @@ router.get('/whatsapp/media/:messageId', async (req, res) => {
     const { messageId } = req.params;
     const result = await proxyRequest(WHATSAPP_SERVICE, `/media/${encodeURIComponent(messageId)}`);
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -274,7 +268,7 @@ router.post('/whatsapp/media/:messageId/save', async (req, res) => {
       body: JSON.stringify(req.body),
     });
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -290,7 +284,7 @@ router.post('/whatsapp/send-media', async (req, res) => {
       body: JSON.stringify(req.body),
     });
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'WhatsApp service unavailable',
@@ -301,7 +295,7 @@ router.post('/whatsapp/send-media', async (req, res) => {
 // ==================== INSTAGRAM ROUTES ====================
 
 // Instagram health check
-router.get('/instagram/health', async (req, res) => {
+router.get('/instagram/health', async (_req, res) => {
   try {
     const result = await proxyRequest(INSTAGRAM_SERVICE, '/health');
     res.json(result);
@@ -315,11 +309,11 @@ router.get('/instagram/health', async (req, res) => {
 });
 
 // Instagram status
-router.get('/instagram/status', async (req, res) => {
+router.get('/instagram/status', async (_req, res) => {
   try {
     const result = await proxyRequest(INSTAGRAM_SERVICE, '/status');
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'Instagram service unavailable',
@@ -335,7 +329,7 @@ router.post('/instagram/login', async (req, res) => {
       body: JSON.stringify(req.body),
     });
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'Instagram service unavailable',
@@ -344,13 +338,13 @@ router.post('/instagram/login', async (req, res) => {
 });
 
 // Instagram logout
-router.post('/instagram/logout', async (req, res) => {
+router.post('/instagram/logout', async (_req, res) => {
   try {
     const result = await proxyRequest(INSTAGRAM_SERVICE, '/logout', {
       method: 'POST',
     });
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'Instagram service unavailable',
@@ -359,11 +353,11 @@ router.post('/instagram/logout', async (req, res) => {
 });
 
 // Get profile
-router.get('/instagram/profile', async (req, res) => {
+router.get('/instagram/profile', async (_req, res) => {
   try {
     const result = await proxyRequest(INSTAGRAM_SERVICE, '/profile');
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'Instagram service unavailable',
@@ -378,7 +372,7 @@ router.get('/instagram/posts', async (req, res) => {
     const queryStr = limit ? `?limit=${limit}` : '';
     const result = await proxyRequest(INSTAGRAM_SERVICE, `/posts${queryStr}`);
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'Instagram service unavailable',
@@ -387,11 +381,11 @@ router.get('/instagram/posts', async (req, res) => {
 });
 
 // Get DMs
-router.get('/instagram/dms', async (req, res) => {
+router.get('/instagram/dms', async (_req, res) => {
   try {
     const result = await proxyRequest(INSTAGRAM_SERVICE, '/dms');
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'Instagram service unavailable',
@@ -407,7 +401,7 @@ router.get('/instagram/dms/:threadId', async (req, res) => {
     const queryStr = limit ? `?limit=${limit}` : '';
     const result = await proxyRequest(INSTAGRAM_SERVICE, `/dms/${threadId}${queryStr}`);
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'Instagram service unavailable',
@@ -423,7 +417,7 @@ router.post('/instagram/dms/send', async (req, res) => {
       body: JSON.stringify(req.body),
     });
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'Instagram service unavailable',
@@ -438,7 +432,7 @@ router.get('/instagram/followers', async (req, res) => {
     const queryStr = limit ? `?limit=${limit}` : '';
     const result = await proxyRequest(INSTAGRAM_SERVICE, `/followers${queryStr}`);
     res.json(result);
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({
       success: false,
       error: 'Instagram service unavailable',
@@ -457,11 +451,11 @@ router.post('/instagram/posts/upload', upload.single('file'), async (req, res) =
     }
 
     const { caption = '' } = req.body;
-    
+
     // Read file and create FormData
     const fileBuffer = fs.readFileSync(req.file.path);
     const blob = new Blob([fileBuffer], { type: req.file.mimetype });
-    
+
     const formData = new FormData();
     formData.append('file', blob, req.file.originalname);
     formData.append('caption', caption);
@@ -528,7 +522,6 @@ router.post('/instagram/ai/caption', upload.single('file'), async (req, res) => 
     if (req.file) {
       fs.unlink(req.file.path, () => {});
     }
-    console.error('AI Caption error:', error);
     res.status(500).json({
       success: false,
       error: 'AI caption üretilemedi',
@@ -556,7 +549,6 @@ router.post('/instagram/ai/hashtags', async (req, res) => {
     const result = await generateHashtags(caption, { count, city, businessType });
     res.json(result);
   } catch (error) {
-    console.error('AI Hashtag error:', error);
     res.status(500).json({
       success: false,
       error: 'Hashtag üretilemedi',
@@ -584,7 +576,6 @@ router.post('/instagram/ai/dm-reply', async (req, res) => {
     const result = await analyzeDMAndSuggestReply(message, context);
     res.json(result);
   } catch (error) {
-    console.error('AI DM Reply error:', error);
     res.status(500).json({
       success: false,
       error: 'DM analizi yapılamadı',
@@ -612,7 +603,6 @@ router.post('/instagram/ai/menu-post', async (req, res) => {
     const result = await generateMenuPost(menu, { businessName, date, includePrice });
     res.json(result);
   } catch (error) {
-    console.error('AI Menu Post error:', error);
     res.status(500).json({
       success: false,
       error: 'Menü içeriği oluşturulamadı',
@@ -640,7 +630,6 @@ router.post('/instagram/ai/image-prompt', async (req, res) => {
     const result = await generateImagePrompt(description, { style, type });
     res.json(result);
   } catch (error) {
-    console.error('AI Image Prompt error:', error);
     res.status(500).json({
       success: false,
       error: 'Prompt oluşturulamadı',
@@ -668,7 +657,6 @@ router.post('/instagram/ai/generate-image', async (req, res) => {
     const result = await generateImageWithStability(prompt, { negativePrompt, aspectRatio });
     res.json(result);
   } catch (error) {
-    console.error('AI Image Generation error:', error);
     res.status(500).json({
       success: false,
       error: 'Görsel oluşturulamadı',
@@ -693,16 +681,15 @@ router.post('/instagram/ai/menu-card', async (req, res) => {
       });
     }
 
-    const result = await generateMenuCardTemplate(menu, { 
-      template, 
-      businessName, 
-      date, 
-      primaryColor, 
-      secondaryColor 
+    const result = await generateMenuCardTemplate(menu, {
+      template,
+      businessName,
+      date,
+      primaryColor,
+      secondaryColor,
     });
     res.json(result);
   } catch (error) {
-    console.error('Menu Card Template error:', error);
     res.status(500).json({
       success: false,
       error: 'Menü kartı oluşturulamadı',
@@ -733,7 +720,6 @@ router.post('/instagram/dms/send', async (req, res) => {
     });
     res.json(result);
   } catch (error) {
-    console.error('Instagram DM Send error:', error);
     res.status(503).json({
       success: false,
       error: 'Mesaj gönderilemedi',

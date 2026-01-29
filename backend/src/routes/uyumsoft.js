@@ -19,8 +19,6 @@ router.post('/connect', async (req, res) => {
       });
     }
 
-    console.log('🔐 [Route] Uyumsoft bağlantısı test ediliyor...');
-
     // Credentials'ı kaydet
     faturaService.saveCredentials(username, password);
 
@@ -44,9 +42,7 @@ router.post('/connect', async (req, res) => {
       user: userInfo.user,
       customer: userInfo.customer,
     });
-
   } catch (error) {
-    console.error('❌ [Route] Bağlantı hatası:', error);
     return res.status(500).json({
       success: false,
       error: `Bağlantı sırasında hata oluştu: ${error.message}`,
@@ -66,8 +62,6 @@ router.post('/connect-saved', async (_req, res) => {
         error: 'Kayıtlı giriş bilgisi bulunamadı. Lütfen önce kullanıcı adı ve şifre ile giriş yapın.',
       });
     }
-
-    console.log('🔐 [Route] Kayıtlı bilgilerle bağlanılıyor...');
 
     // Bağlantıyı test et
     const testResult = await faturaService.testConnection();
@@ -89,9 +83,7 @@ router.post('/connect-saved', async (_req, res) => {
       user: userInfo.user,
       customer: userInfo.customer,
     });
-
   } catch (error) {
-    console.error('❌ [Route] Bağlantı hatası:', error);
     return res.status(500).json({
       success: false,
       error: error.message,
@@ -106,9 +98,10 @@ router.post('/connect-saved', async (_req, res) => {
 router.get('/invoice/:ettn', async (req, res) => {
   try {
     const { ettn } = req.params;
-    
+
     // Önce veritabanından dene
-    const result = await query(`
+    const result = await query(
+      `
       SELECT 
         id,
         ettn,
@@ -124,25 +117,25 @@ router.get('/invoice/:ettn', async (req, res) => {
       FROM uyumsoft_invoices
       WHERE ettn = $1 OR invoice_no = $1
       LIMIT 1
-    `, [ettn]);
-    
+    `,
+      [ettn]
+    );
+
     if (result.rows.length > 0) {
       res.json({
         success: true,
-        invoice: result.rows[0]
+        invoice: result.rows[0],
       });
     } else {
       res.status(404).json({
         success: false,
-        error: 'Fatura bulunamadı'
+        error: 'Fatura bulunamadı',
       });
     }
-    
   } catch (error) {
-    console.error('Fatura detayı hatası:', error);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -167,7 +160,7 @@ router.get('/status', async (_req, res) => {
   try {
     const hasCredentials = faturaService.hasCredentials();
     const lastSync = faturaService.getLastSync();
-    
+
     let connected = false;
     if (hasCredentials) {
       const testResult = await faturaService.testConnection();
@@ -180,7 +173,6 @@ router.get('/status', async (_req, res) => {
       lastSync: lastSync?.lastSync,
       syncCount: lastSync?.lastFaturaCount ?? lastSync?.totalFetched ?? 0,
     });
-
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -202,7 +194,6 @@ router.delete('/credentials', async (_req, res) => {
       success: true,
       message: 'Giriş bilgileri silindi',
     });
-
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -222,7 +213,6 @@ router.post('/sync/blocking', async (req, res) => {
     const maxInvoices = req.body.maxInvoices || 1000;
 
     if (requestedMonths > 3) {
-      console.log(`⚠️ [Route] İstenilen ${requestedMonths} ay, 3 aya düşürüldü`);
     }
 
     if (!faturaService.hasCredentials()) {
@@ -231,8 +221,6 @@ router.post('/sync/blocking', async (req, res) => {
         error: 'Bağlantı yok. Önce giriş yapın.',
       });
     }
-
-    console.log(`📥 [Route] Fatura senkronizasyonu başlatılıyor (${months} ay, max ${maxInvoices})`);
 
     const result = await faturaService.syncFaturalar({
       months,
@@ -254,7 +242,8 @@ router.post('/sync/blocking', async (req, res) => {
     for (const invoice of result.data) {
       try {
         // Veritabanına kaydet veya güncelle
-        const dbResult = await query(`
+        const dbResult = await query(
+          `
           INSERT INTO uyumsoft_invoices (
             ettn, invoice_id, invoice_no,
             invoice_type, invoice_date, creation_date,
@@ -283,25 +272,27 @@ router.post('/sync/blocking', async (req, res) => {
             last_sync_date = EXCLUDED.last_sync_date,
             updated_at = NOW()
           RETURNING *
-        `, [
-          invoice.documentId, // ettn
-          invoice.invoiceId,
-          invoice.invoiceId || '', // invoice_no
-          'incoming', // invoice_type
-          invoice.executionDate,
-          invoice.createDate,
-          invoice.targetVkn,
-          invoice.targetTitle,
-          invoice.targetEmail || null,
-          invoice.taxExclusiveAmount || 0,
-          invoice.taxTotal || 0,
-          invoice.payableAmount || 0,
-          invoice.currency || 'TRY',
-          invoice.status || '',
-          invoice.isNew || false,
-          invoice.isSeen || false,
-          new Date()
-        ]);
+        `,
+          [
+            invoice.documentId, // ettn
+            invoice.invoiceId,
+            invoice.invoiceId || '', // invoice_no
+            'incoming', // invoice_type
+            invoice.executionDate,
+            invoice.createDate,
+            invoice.targetVkn,
+            invoice.targetTitle,
+            invoice.targetEmail || null,
+            invoice.taxExclusiveAmount || 0,
+            invoice.taxTotal || 0,
+            invoice.payableAmount || 0,
+            invoice.currency || 'TRY',
+            invoice.status || '',
+            invoice.isNew || false,
+            invoice.isSeen || false,
+            new Date(),
+          ]
+        );
 
         savedInvoices.push(dbResult.rows[0]);
         savedCount++;
@@ -309,15 +300,11 @@ router.post('/sync/blocking', async (req, res) => {
         // Cari işlemi trigger (create_cari_hareket_from_uyumsoft) ile yapılır.
         // Sadece INSERT edilen faturalarda trigger tetiklenir; duplicate (UPDATE)
         // durumunda borç tekrar eklenmez. Route'tan borç eklemek çift sayıma yol açar.
-      } catch (dbError) {
-        console.error(`❌ Veritabanı kayıt hatası (${invoice.documentId}):`, dbError.message);
+      } catch (_dbError) {
         errorCount++;
       }
     }
-
-    console.log(`✅ Veritabanına kaydedildi: ${savedCount}/${result.data.length} fatura`);
     if (errorCount > 0) {
-      console.log(`⚠️  Kayıt hatası: ${errorCount} fatura`);
     }
 
     // Frontend interface'ine dönüştür
@@ -347,9 +334,7 @@ router.post('/sync/blocking', async (req, res) => {
       dbErrors: errorCount,
       dateRange: result.dateRange,
     });
-
   } catch (error) {
-    console.error('❌ Sync hatası:', error);
     return res.status(500).json({
       success: false,
       error: error.message,
@@ -389,7 +374,6 @@ router.post('/sync/details', async (req, res) => {
       signingDate: result.signingDate,
       error: result.message,
     });
-
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -424,11 +408,10 @@ router.get('/invoice/:ettn/pdf', async (req, res) => {
 
     // PDF'i base64'den decode et ve gönder
     const pdfBuffer = Buffer.from(result.pdfBase64, 'base64');
-    
+
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${ettn}.pdf"`);
     return res.send(pdfBuffer);
-
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -464,7 +447,6 @@ router.get('/invoice/:ettn/xml', async (req, res) => {
     res.setHeader('Content-Type', 'application/xml');
     res.setHeader('Content-Disposition', `attachment; filename="${ettn}.xml"`);
     return res.send(result.xml);
-
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -499,7 +481,6 @@ router.get('/invoice/:ettn/html', async (req, res) => {
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.send(result.html);
-
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -514,14 +495,7 @@ router.get('/invoice/:ettn/html', async (req, res) => {
  */
 router.get('/invoices', async (req, res) => {
   try {
-    const { 
-      startDate, 
-      endDate, 
-      sender, 
-      limit = 250, 
-      offset = 0,
-      search 
-    } = req.query;
+    const { startDate, endDate, sender, limit = 250, offset = 0, search } = req.query;
 
     let sql = `
       SELECT ui.*, 
@@ -531,7 +505,7 @@ router.get('/invoices', async (req, res) => {
       LEFT JOIN fatura_stok_islem fsi ON ui.ettn = fsi.ettn
       WHERE 1=1
     `;
-    
+
     const params = [];
     let paramIndex = 1;
 
@@ -602,7 +576,7 @@ router.get('/invoices', async (req, res) => {
     const countResult = await query(countSql, countParams);
 
     // Frontend formatına dönüştür
-    const formattedData = result.rows.map(row => ({
+    const formattedData = result.rows.map((row) => ({
       faturaNo: row.invoice_no,
       ettn: row.ettn,
       faturaTarihi: row.invoice_date,
@@ -621,7 +595,7 @@ router.get('/invoices', async (req, res) => {
       isVerified: row.is_verified,
       dbId: row.id, // Veritabanı ID'si
       stokIslendi: row.stok_islendi || false,
-      stokIslemTarihi: row.stok_islem_tarihi
+      stokIslemTarihi: row.stok_islem_tarihi,
     }));
 
     return res.json({
@@ -631,12 +605,10 @@ router.get('/invoices', async (req, res) => {
       limit: parseInt(String(limit), 10),
       offset: parseInt(String(offset), 10),
     });
-
   } catch (error) {
-    console.error('Uyumsoft faturalar listesi hatası:', error);
     return res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -686,14 +658,12 @@ router.get('/invoices/summary', async (_req, res) => {
       success: true,
       summary: summary.rows[0],
       byMonth: byMonth.rows,
-      topSenders: topSenders.rows
+      topSenders: topSenders.rows,
     });
-
   } catch (error) {
-    console.error('Özet bilgi hatası:', error);
     return res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -718,7 +688,6 @@ router.get('/test', async (_req, res) => {
       lastSync,
       dbInvoiceCount: parseInt(String(dbCount.rows[0]?.count ?? 0), 10),
     });
-
   } catch (error) {
     return res.status(500).json({
       success: false,

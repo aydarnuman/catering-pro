@@ -812,7 +812,11 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                     onChange={(e) =>
                       setFormData({ ...formData, birim_carpani: parseFloat(e.target.value) || 1 })
                     }
-                    rightSection={<Text size="xs" c="dimmed">KG</Text>}
+                    rightSection={
+                      <Text size="xs" c="dimmed">
+                        KG
+                      </Text>
+                    }
                   />
                 </SimpleGrid>
 
@@ -916,7 +920,8 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                       {formatMoney(selectedUrun.son_alis_fiyati, {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 3,
-                      })}/{selectedUrun.birim_kisa || 'KG'}
+                      })}
+                      /{selectedUrun.birim_kisa || 'KG'}
                     </Text>
                   </Paper>
                   <Paper p="sm" withBorder radius="md" ta="center">
@@ -1015,7 +1020,8 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                                       {formatMoney(fg.fiyat, {
                                         minimumFractionDigits: 2,
                                         maximumFractionDigits: 3,
-                                      })}/{selectedUrun?.birim_kisa || 'KG'}
+                                      })}
+                                      /{selectedUrun?.birim_kisa || 'KG'}
                                     </Text>
                                   </Table.Td>
                                 </Table.Tr>

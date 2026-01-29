@@ -44,14 +44,13 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import useSWR from 'swr';
 import { LoadingState } from '@/components/common';
 import { UnifiedNotesModal } from '@/components/notes';
-import { useNotes } from '@/hooks/useNotes';
 import { useAuth } from '@/context/AuthContext';
 import { useRealtimeRefetch } from '@/context/RealtimeContext';
+import { useNotes } from '@/hooks/useNotes';
 import { apiClient } from '@/lib/api';
 import { muhasebeAPI } from '@/lib/api/services/muhasebe';
 import { formatDate } from '@/lib/formatters';
 import type { StatsResponse } from '@/types/api';
-
 
 // Saate göre selamlama
 const getGreeting = () => {
@@ -204,7 +203,7 @@ function QuickAction({ href, icon: Icon, label, color }: QuickActionProps) {
 function HomePageContent() {
   const { user, isAuthenticated } = useAuth();
   const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === 'dark';
+  const _isDark = colorScheme === 'dark';
   const isMobile = useMediaQuery('(max-width: 768px)');
   const isTablet = useMediaQuery('(max-width: 1024px)');
 
@@ -319,9 +318,7 @@ function HomePageContent() {
   const activeTenders = stats?.activeTenders || 0;
   type FinansOzetKasa = { kasa?: { toplam?: number }; kasaBakiye?: number };
   const kasaBakiye =
-    (finansOzet as FinansOzetKasa)?.kasa?.toplam ??
-    (finansOzet as FinansOzetKasa)?.kasaBakiye ??
-    0;
+    (finansOzet as FinansOzetKasa)?.kasa?.toplam ?? (finansOzet as FinansOzetKasa)?.kasaBakiye ?? 0;
 
   return (
     <Box
@@ -651,12 +648,7 @@ function HomePageContent() {
           <Grid gutter="lg">
             {/* Yaklaşan İhaleler */}
             <Grid.Col span={12}>
-              <Paper
-                p="lg"
-                radius="md"
-                className="standard-card"
-                style={{ height: '100%' }}
-              >
+              <Paper p="lg" radius="md" className="standard-card" style={{ height: '100%' }}>
                 <Group justify="space-between" mb="md">
                   <Group gap="xs">
                     <ThemeIcon size={32} radius="md" variant="light" color="blue">
@@ -720,10 +712,7 @@ function HomePageContent() {
       </Container>
 
       {/* ========== UNIFIED NOTES MODAL (birleşik not sistemi) ========== */}
-      <UnifiedNotesModal
-        opened={notesModalOpened}
-        onClose={closeNotesModal}
-      />
+      <UnifiedNotesModal opened={notesModalOpened} onClose={closeNotesModal} />
     </Box>
   );
 }

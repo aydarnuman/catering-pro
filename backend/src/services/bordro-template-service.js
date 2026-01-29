@@ -1,12 +1,11 @@
 /**
  * Bordro Template Servisi
- * 
+ *
  * Bordro dosya formatlarını kaydetme, eşleştirme ve hızlı parse için
  */
 
+import crypto from 'node:crypto';
 import { query } from '../database.js';
-import crypto from 'crypto';
-import xlsx from 'xlsx';
 
 /**
  * Dosya formatından imza oluştur
@@ -17,25 +16,22 @@ export function createFormatSignature(excelData) {
     // İlk 3 satırın kolon isimlerini al
     const headers = excelData.headers || [];
     const firstRows = (excelData.json || []).slice(0, 3);
-    
+
     // Kolon sayısı + başlık isimleri + veri tipleri
     const signatureData = {
       kolonSayisi: headers.length,
       basliklar: headers.slice(0, 20), // İlk 20 kolon
-      veriTipleri: firstRows.map(row => 
-        Object.keys(row).map(key => typeof row[key]).slice(0, 20)
-      )
+      veriTipleri: firstRows.map((row) =>
+        Object.keys(row)
+          .map((key) => typeof row[key])
+          .slice(0, 20)
+      ),
     };
-    
-    const hash = crypto
-      .createHash('sha256')
-      .update(JSON.stringify(signatureData))
-      .digest('hex')
-      .substring(0, 16); // İlk 16 karakter yeterli
-    
+
+    const hash = crypto.createHash('sha256').update(JSON.stringify(signatureData)).digest('hex').substring(0, 16); // İlk 16 karakter yeterli
+
     return hash;
-  } catch (error) {
-    console.error('Format imzası oluşturma hatası:', error);
+  } catch (_error) {
     return null;
   }
 }
@@ -73,25 +69,25 @@ export function parseWithTemplate(excelData, template) {
     const mapping = template.kolon_mapping;
     const startRow = template.veri_baslangic_satiri || 2;
     const rows = excelData.json || [];
-    
+
     const records = [];
     const warnings = [];
-    
+
     // Her satırı parse et
     for (let i = startRow - 1; i < rows.length; i++) {
       const row = rows[i];
       const record = {};
       let hasData = false;
-      
+
       // Her alan için mapping'e göre değer al
       for (const [field, config] of Object.entries(mapping)) {
         const colIndex = columnToIndex(config.kolon);
         const colKey = Object.keys(row)[colIndex];
         let value = row[colKey];
-        
+
         if (value !== null && value !== undefined && value !== '') {
           hasData = true;
-          
+
           // Tip dönüşümü
           switch (config.tip) {
             case 'number':
@@ -101,7 +97,7 @@ export function parseWithTemplate(excelData, template) {
               }
               value = parseFloat(value) || 0;
               break;
-              
+
             case 'date':
               // Tarih formatı varsa dönüştür
               if (config.format && typeof value === 'string') {
@@ -109,37 +105,33 @@ export function parseWithTemplate(excelData, template) {
                 value = convertDateFormat(value, config.format);
               }
               break;
-              
-            case 'string':
             default:
               value = String(value).trim();
           }
         }
-        
+
         record[field] = value || null;
       }
-      
+
       // En az bir veri varsa kayıt ekle
       if (hasData && record.personel_adi) {
         records.push(record);
       }
     }
-    
+
     return {
       success: true,
       records,
       warnings,
       total: records.length,
-      template_kullanildi: template.ad
+      template_kullanildi: template.ad,
     };
-    
   } catch (error) {
-    console.error('Template parse hatası:', error);
     return {
       success: false,
       error: error.message,
       records: [],
-      warnings: ['Template ile parse başarısız']
+      warnings: ['Template ile parse başarısız'],
     };
   }
 }
@@ -149,8 +141,8 @@ export function parseWithTemplate(excelData, template) {
  */
 function convertDateFormat(dateStr, format) {
   try {
-    const parts = dateStr.split(/[\/\.\-]/);
-    
+    const parts = dateStr.split(/[/.-]/);
+
     if (format === 'DD.MM.YYYY' || format === 'DD/MM/YYYY') {
       return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
     } else if (format === 'MM/DD/YYYY') {
@@ -158,7 +150,7 @@ function convertDateFormat(dateStr, format) {
     } else if (format === 'YYYY-MM-DD') {
       return dateStr;
     }
-    
+
     return dateStr;
   } catch {
     return dateStr;
@@ -175,7 +167,7 @@ export async function findTemplateBySignature(signature, projeId = null) {
       WHERE format_imza = $1 AND aktif = TRUE
     `;
     const params = [signature];
-    
+
     // Proje varsa önce projeye özel template'i ara
     if (projeId) {
       sql = `
@@ -190,12 +182,10 @@ export async function findTemplateBySignature(signature, projeId = null) {
     } else {
       sql += ' ORDER BY kullanim_sayisi DESC LIMIT 1';
     }
-    
+
     const result = await query(sql, params);
     return result.rows[0] || null;
-    
-  } catch (error) {
-    console.error('Template arama hatası:', error);
+  } catch (_error) {
     return null;
   }
 }
@@ -212,19 +202,17 @@ export async function listTemplates(projeId = null) {
       WHERE t.aktif = TRUE
     `;
     const params = [];
-    
+
     if (projeId) {
       sql += ' AND (t.proje_id = $1 OR t.proje_id IS NULL)';
       params.push(projeId);
     }
-    
+
     sql += ' ORDER BY t.kullanim_sayisi DESC, t.created_at DESC';
-    
+
     const result = await query(sql, params);
     return result.rows;
-    
-  } catch (error) {
-    console.error('Template listeleme hatası:', error);
+  } catch (_error) {
     return [];
   }
 }
@@ -233,18 +221,9 @@ export async function listTemplates(projeId = null) {
  * Yeni template kaydet
  */
 export async function saveTemplate(templateData) {
-  try {
-    const {
-      ad,
-      aciklama,
-      proje_id,
-      kolon_mapping,
-      baslik_satiri,
-      veri_baslangic_satiri,
-      format_imza
-    } = templateData;
-    
-    const sql = `
+  const { ad, aciklama, proje_id, kolon_mapping, baslik_satiri, veri_baslangic_satiri, format_imza } = templateData;
+
+  const sql = `
       INSERT INTO bordro_templates (
         ad, aciklama, proje_id, kolon_mapping, 
         baslik_satiri, veri_baslangic_satiri, format_imza
@@ -259,23 +238,18 @@ export async function saveTemplate(templateData) {
         updated_at = NOW()
       RETURNING *
     `;
-    
-    const result = await query(sql, [
-      ad,
-      aciklama || null,
-      proje_id || null,
-      JSON.stringify(kolon_mapping),
-      baslik_satiri || 1,
-      veri_baslangic_satiri || 2,
-      format_imza || null
-    ]);
-    
-    return result.rows[0];
-    
-  } catch (error) {
-    console.error('Template kaydetme hatası:', error);
-    throw error;
-  }
+
+  const result = await query(sql, [
+    ad,
+    aciklama || null,
+    proje_id || null,
+    JSON.stringify(kolon_mapping),
+    baslik_satiri || 1,
+    veri_baslangic_satiri || 2,
+    format_imza || null,
+  ]);
+
+  return result.rows[0];
 }
 
 /**
@@ -283,72 +257,65 @@ export async function saveTemplate(templateData) {
  */
 export async function incrementTemplateUsage(templateId) {
   try {
-    await query(`
+    await query(
+      `
       UPDATE bordro_templates 
       SET kullanim_sayisi = kullanim_sayisi + 1,
           son_kullanim = NOW()
       WHERE id = $1
-    `, [templateId]);
-  } catch (error) {
-    console.error('Template kullanım güncelleme hatası:', error);
-  }
+    `,
+      [templateId]
+    );
+  } catch (_error) {}
 }
 
 /**
  * Template sil
  */
 export async function deleteTemplate(templateId) {
-  try {
-    await query(`
+  await query(
+    `
       UPDATE bordro_templates 
       SET aktif = FALSE 
       WHERE id = $1
-    `, [templateId]);
-    return true;
-  } catch (error) {
-    console.error('Template silme hatası:', error);
-    throw error;
-  }
+    `,
+    [templateId]
+  );
+  return true;
 }
 
 /**
  * Template güncelle
  */
 export async function updateTemplate(templateId, updates) {
-  try {
-    const allowedFields = ['ad', 'aciklama', 'kolon_mapping', 'baslik_satiri', 'veri_baslangic_satiri'];
-    const setClause = [];
-    const params = [];
-    let paramIndex = 1;
-    
-    for (const [key, value] of Object.entries(updates)) {
-      if (allowedFields.includes(key)) {
-        setClause.push(`${key} = $${paramIndex}`);
-        params.push(key === 'kolon_mapping' ? JSON.stringify(value) : value);
-        paramIndex++;
-      }
+  const allowedFields = ['ad', 'aciklama', 'kolon_mapping', 'baslik_satiri', 'veri_baslangic_satiri'];
+  const setClause = [];
+  const params = [];
+  let paramIndex = 1;
+
+  for (const [key, value] of Object.entries(updates)) {
+    if (allowedFields.includes(key)) {
+      setClause.push(`${key} = $${paramIndex}`);
+      params.push(key === 'kolon_mapping' ? JSON.stringify(value) : value);
+      paramIndex++;
     }
-    
-    if (setClause.length === 0) {
-      throw new Error('Güncellenecek alan bulunamadı');
-    }
-    
-    params.push(templateId);
-    
-    const sql = `
+  }
+
+  if (setClause.length === 0) {
+    throw new Error('Güncellenecek alan bulunamadı');
+  }
+
+  params.push(templateId);
+
+  const sql = `
       UPDATE bordro_templates 
       SET ${setClause.join(', ')}
       WHERE id = $${paramIndex}
       RETURNING *
     `;
-    
-    const result = await query(sql, params);
-    return result.rows[0];
-    
-  } catch (error) {
-    console.error('Template güncelleme hatası:', error);
-    throw error;
-  }
+
+  const result = await query(sql, params);
+  return result.rows[0];
 }
 
 /**
@@ -360,58 +327,56 @@ export function createMappingFromAIResult(aiResult, excelData) {
     // AI sonucundan ilk kaydı al ve hangi kolonlardan geldiğini tahmin et
     const firstRecord = aiResult.records?.[0];
     if (!firstRecord) return null;
-    
+
     const headers = excelData.headers || [];
     const mapping = {};
-    
+
     // Bilinen alanlar ve olası başlık eşleşmeleri
     const fieldMatchers = {
-      'personel_adi': ['AD SOYAD', 'ADI SOYADI', 'PERSONEL', 'İSİM', 'AD', 'ÇALIŞAN'],
-      'tc_kimlik': ['TC', 'TC KİMLİK', 'T.C.', 'KİMLİK NO', 'TC NO'],
-      'sgk_no': ['SGK', 'SGK NO', 'SİGORTA NO', 'SSK NO'],
-      'brut_maas': ['BRÜT', 'BRÜT ÜCRET', 'BRÜT MAAŞ', 'GROSS'],
-      'net_maas': ['NET', 'NET ÜCRET', 'NET MAAŞ', 'ÖDENECEK', 'NET ÖDENECEK'],
-      'sgk_isci': ['SGK İŞÇİ', 'İŞÇİ PRİMİ', 'SGK KESİNTİSİ'],
-      'gelir_vergisi': ['GELİR VERGİSİ', 'GV', 'VERGİ'],
-      'damga_vergisi': ['DAMGA', 'DAMGA VERGİSİ', 'DV'],
-      'agi_tutari': ['AGİ', 'ASGARİ GEÇİM'],
-      'ise_giris_tarihi': ['İŞE GİRİŞ', 'BAŞLAMA', 'GİRİŞ TARİHİ'],
-      'departman': ['DEPARTMAN', 'BİRİM', 'BÖLÜM'],
-      'pozisyon': ['POZİSYON', 'GÖREV', 'UNVAN']
+      personel_adi: ['AD SOYAD', 'ADI SOYADI', 'PERSONEL', 'İSİM', 'AD', 'ÇALIŞAN'],
+      tc_kimlik: ['TC', 'TC KİMLİK', 'T.C.', 'KİMLİK NO', 'TC NO'],
+      sgk_no: ['SGK', 'SGK NO', 'SİGORTA NO', 'SSK NO'],
+      brut_maas: ['BRÜT', 'BRÜT ÜCRET', 'BRÜT MAAŞ', 'GROSS'],
+      net_maas: ['NET', 'NET ÜCRET', 'NET MAAŞ', 'ÖDENECEK', 'NET ÖDENECEK'],
+      sgk_isci: ['SGK İŞÇİ', 'İŞÇİ PRİMİ', 'SGK KESİNTİSİ'],
+      gelir_vergisi: ['GELİR VERGİSİ', 'GV', 'VERGİ'],
+      damga_vergisi: ['DAMGA', 'DAMGA VERGİSİ', 'DV'],
+      agi_tutari: ['AGİ', 'ASGARİ GEÇİM'],
+      ise_giris_tarihi: ['İŞE GİRİŞ', 'BAŞLAMA', 'GİRİŞ TARİHİ'],
+      departman: ['DEPARTMAN', 'BİRİM', 'BÖLÜM'],
+      pozisyon: ['POZİSYON', 'GÖREV', 'UNVAN'],
     };
-    
+
     // Her alan için en iyi kolon eşleşmesini bul
     for (const [field, matchers] of Object.entries(fieldMatchers)) {
       for (let i = 0; i < headers.length; i++) {
         const header = (headers[i] || '').toString().toUpperCase().trim();
-        
+
         for (const matcher of matchers) {
           if (header.includes(matcher)) {
             mapping[field] = {
               kolon: indexToColumn(i),
-              tip: ['brut_maas', 'net_maas', 'sgk_isci', 'gelir_vergisi', 'damga_vergisi', 'agi_tutari'].includes(field) 
-                ? 'number' 
-                : field === 'ise_giris_tarihi' 
-                  ? 'date' 
-                  : 'string'
+              tip: ['brut_maas', 'net_maas', 'sgk_isci', 'gelir_vergisi', 'damga_vergisi', 'agi_tutari'].includes(field)
+                ? 'number'
+                : field === 'ise_giris_tarihi'
+                  ? 'date'
+                  : 'string',
             };
-            
+
             if (field === 'ise_giris_tarihi') {
               mapping[field].format = 'DD.MM.YYYY';
             }
-            
+
             break;
           }
         }
-        
+
         if (mapping[field]) break;
       }
     }
-    
+
     return Object.keys(mapping).length > 0 ? mapping : null;
-    
-  } catch (error) {
-    console.error('Mapping oluşturma hatası:', error);
+  } catch (_error) {
     return null;
   }
 }
@@ -425,6 +390,5 @@ export default {
   incrementTemplateUsage,
   deleteTemplate,
   updateTemplate,
-  createMappingFromAIResult
+  createMappingFromAIResult,
 };
-

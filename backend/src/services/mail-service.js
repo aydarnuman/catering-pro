@@ -20,15 +20,13 @@ let transporter = null;
  */
 function initResend() {
   if (resendClient) return resendClient;
-  
+
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    console.warn('⚠️ RESEND_API_KEY ayarlanmamış');
     return null;
   }
-  
+
   resendClient = new Resend(apiKey);
-  console.log('✅ Resend API bağlantısı hazır');
   return resendClient;
 }
 
@@ -37,37 +35,34 @@ function initResend() {
  */
 async function initTransporter() {
   if (transporter) return transporter;
-  
+
   // Varsayılan ayarları dene, yoksa env'den al
   const smtpConfig = {
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT) || 587,
+    port: parseInt(process.env.SMTP_PORT, 10) || 587,
     secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
     auth: {
       user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
+      pass: process.env.SMTP_PASS,
     },
     tls: {
-      rejectUnauthorized: false
-    }
+      rejectUnauthorized: false,
+    },
   };
-  
+
   if (!smtpConfig.auth.user || !smtpConfig.auth.pass) {
-    console.warn('⚠️ SMTP ayarları eksik.');
     return null;
   }
-  
+
   transporter = nodemailer.createTransport(smtpConfig);
-  
+
   // Bağlantıyı test et
   try {
     await transporter.verify();
-    console.log('✅ SMTP bağlantısı başarılı');
-  } catch (error) {
-    console.error('❌ SMTP bağlantı hatası:', error.message);
+  } catch (_error) {
     transporter = null;
   }
-  
+
   return transporter;
 }
 
@@ -117,9 +112,9 @@ const MAIL_TEMPLATES = {
           Bu e-posta Catering Pro sistem tarafından otomatik gönderilmiştir.
         </div>
       </div>
-    `
+    `,
   },
-  
+
   // Teminat iade hatırlatması
   TEMINAT_IADE: {
     subject: '💰 Teminat İade Hatırlatması - {{proje_ad}}',
@@ -157,9 +152,9 @@ const MAIL_TEMPLATES = {
           Bu e-posta Catering Pro sistem tarafından otomatik gönderilmiştir.
         </div>
       </div>
-    `
+    `,
   },
-  
+
   // Sertifika yenileme hatırlatması
   SERTIFIKA_YENILEME: {
     subject: '📜 Sertifika Yenileme Hatırlatması - {{sertifika_adi}}',
@@ -193,9 +188,9 @@ const MAIL_TEMPLATES = {
           Bu e-posta Catering Pro sistem tarafından otomatik gönderilmiştir.
         </div>
       </div>
-    `
+    `,
   },
-  
+
   // Hakediş kesim günü hatırlatması
   HAKEDIS_KESIM: {
     subject: '📊 Hakediş Kesim Günü - {{proje_ad}}',
@@ -229,9 +224,9 @@ const MAIL_TEMPLATES = {
           Bu e-posta Catering Pro sistem tarafından otomatik gönderilmiştir.
         </div>
       </div>
-    `
+    `,
   },
-  
+
   // Fatura kesim günü hatırlatması
   FATURA_KESIM: {
     subject: '🧾 Fatura Kesim Günü - {{proje_ad}}',
@@ -267,9 +262,9 @@ const MAIL_TEMPLATES = {
           Bu e-posta Catering Pro sistem tarafından otomatik gönderilmiştir.
         </div>
       </div>
-    `
+    `,
   },
-  
+
   // Genel bildirim
   GENEL_BILDIRIM: {
     subject: '📢 {{baslik}}',
@@ -285,8 +280,8 @@ const MAIL_TEMPLATES = {
           Bu e-posta Catering Pro sistem tarafından gönderilmiştir.
         </div>
       </div>
-    `
-  }
+    `,
+  },
 };
 
 // =====================================================
@@ -313,7 +308,7 @@ async function sendMail({ to, subject, html, text, template, data }) {
     // Şablon kullan
     let finalSubject = subject;
     let finalHtml = html;
-    
+
     if (template && MAIL_TEMPLATES[template]) {
       finalSubject = fillTemplate(MAIL_TEMPLATES[template].subject, data || {});
       finalHtml = fillTemplate(MAIL_TEMPLATES[template].html, data || {});
@@ -321,11 +316,11 @@ async function sendMail({ to, subject, html, text, template, data }) {
       finalSubject = fillTemplate(subject, data);
       finalHtml = fillTemplate(html, data);
     }
-    
+
     const toAddress = Array.isArray(to) ? to : [to];
     const fromAddress = process.env.MAIL_FROM || 'Catering Pro <onboarding@resend.dev>';
     let messageId = null;
-    
+
     // Önce Resend dene
     const resend = initResend();
     if (resend) {
@@ -335,17 +330,15 @@ async function sendMail({ to, subject, html, text, template, data }) {
           to: toAddress,
           subject: finalSubject,
           html: finalHtml,
-          text: text || finalHtml.replace(/<[^>]*>/g, '')
+          text: text || finalHtml.replace(/<[^>]*>/g, ''),
         });
-        
+
         if (error) {
           throw new Error(error.message);
         }
-        
+
         messageId = resendData?.id;
-        console.log('✅ Resend ile mail gönderildi:', messageId);
       } catch (resendErr) {
-        console.warn('⚠️ Resend hatası, SMTP deneniyor:', resendErr.message);
         // SMTP'ye fallback
         const smtp = await initTransporter();
         if (smtp) {
@@ -354,7 +347,7 @@ async function sendMail({ to, subject, html, text, template, data }) {
             to: toAddress.join(', '),
             subject: finalSubject,
             html: finalHtml,
-            text: text || finalHtml.replace(/<[^>]*>/g, '')
+            text: text || finalHtml.replace(/<[^>]*>/g, ''),
           });
           messageId = info.messageId;
         } else {
@@ -372,38 +365,42 @@ async function sendMail({ to, subject, html, text, template, data }) {
         to: toAddress.join(', '),
         subject: finalSubject,
         html: finalHtml,
-        text: text || finalHtml.replace(/<[^>]*>/g, '')
+        text: text || finalHtml.replace(/<[^>]*>/g, ''),
       });
       messageId = info.messageId;
     }
-    
+
     // Log kaydet
     logAPI('Mail Gönderildi', { to: toAddress, subject: finalSubject, messageId });
-    
+
     // Veritabanına kaydet
     try {
-      await query(`
+      await query(
+        `
         INSERT INTO mail_logs (alici, konu, sablon, durum, message_id)
         VALUES ($1, $2, $3, 'gonderildi', $4)
-      `, [toAddress.join(', '), finalSubject, template || null, messageId]);
-    } catch (dbErr) {
-      console.warn('Mail log kaydedilemedi:', dbErr.message);
-    }
-    
+      `,
+        [toAddress.join(', '), finalSubject, template || null, messageId]
+      );
+    } catch (_dbErr) {}
+
     return { success: true, messageId };
   } catch (error) {
     logError('Mail Gönderme', error);
-    
+
     // Hata logla
     try {
-      await query(`
+      await query(
+        `
         INSERT INTO mail_logs (alici, konu, sablon, durum, hata)
         VALUES ($1, $2, $3, 'hata', $4)
-      `, [to, subject, template || null, error.message]);
-    } catch (dbErr) {
+      `,
+        [to, subject, template || null, error.message]
+      );
+    } catch (_dbErr) {
       // Ignore
     }
-    
+
     return { success: false, error: error.message };
   }
 }
@@ -413,7 +410,7 @@ async function sendMail({ to, subject, html, text, template, data }) {
  */
 async function sendBulkMail(recipients, { subject, html, template, data }) {
   const results = [];
-  
+
   for (const recipient of recipients) {
     const recipientData = { ...data, ...recipient.data };
     const result = await sendMail({
@@ -421,14 +418,14 @@ async function sendBulkMail(recipients, { subject, html, template, data }) {
       subject,
       html,
       template,
-      data: recipientData
+      data: recipientData,
     });
     results.push({ email: recipient.email, ...result });
-    
+
     // Rate limiting - saniyede 2 mail
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  
+
   return results;
 }
 
@@ -441,7 +438,8 @@ async function sendBulkMail(recipients, { subject, html, template, data }) {
  */
 async function checkSozlesmeBitisHatirlatma(gunOnce = 30) {
   try {
-    const result = await query(`
+    const result = await query(
+      `
       SELECT 
         p.id, p.kod, p.ad, p.sozlesme_no, p.sozlesme_bedeli, p.sozlesme_bitis_tarihi,
         p.yetkili, p.email,
@@ -451,14 +449,16 @@ async function checkSozlesmeBitisHatirlatma(gunOnce = 30) {
       WHERE p.aktif = TRUE 
         AND p.sozlesme_bitis_tarihi IS NOT NULL
         AND p.sozlesme_bitis_tarihi BETWEEN CURRENT_DATE AND (CURRENT_DATE + $1 * INTERVAL '1 day')
-    `, [gunOnce]);
-    
+    `,
+      [gunOnce]
+    );
+
     const hatirlatmalar = [];
-    
+
     for (const proje of result.rows) {
-      const gun = Math.ceil((new Date(proje.sozlesme_bitis_tarihi) - new Date()) / (1000 * 60 * 60 * 24));
+      const gun = Math.ceil((new Date(proje.sozlesme_bitis_tarihi) - Date.now()) / (1000 * 60 * 60 * 24));
       const alicilar = [process.env.ADMIN_EMAIL, proje.firma_email, proje.email].filter(Boolean);
-      
+
       if (alicilar.length > 0) {
         const mailResult = await sendMail({
           to: alicilar,
@@ -470,13 +470,13 @@ async function checkSozlesmeBitisHatirlatma(gunOnce = 30) {
             bitis_tarihi: new Date(proje.sozlesme_bitis_tarihi).toLocaleDateString('tr-TR'),
             sozlesme_bedeli: (proje.sozlesme_bedeli || 0).toLocaleString('tr-TR'),
             gun: gun,
-            link: `${process.env.FRONTEND_URL}/ayarlar?section=projeler&id=${proje.id}`
-          }
+            link: `${process.env.FRONTEND_URL}/ayarlar?section=projeler&id=${proje.id}`,
+          },
         });
         hatirlatmalar.push({ proje: proje.ad, gun, ...mailResult });
       }
     }
-    
+
     return hatirlatmalar;
   } catch (error) {
     logError('Sözleşme Hatırlatma', error);
@@ -489,7 +489,8 @@ async function checkSozlesmeBitisHatirlatma(gunOnce = 30) {
  */
 async function checkTeminatIadeHatirlatma(gunOnce = 30) {
   try {
-    const result = await query(`
+    const result = await query(
+      `
       SELECT 
         p.id, p.ad, p.teminat_mektubu_tutari as teminat_tutari, p.teminat_iade_tarihi,
         f.email as firma_email
@@ -499,14 +500,16 @@ async function checkTeminatIadeHatirlatma(gunOnce = 30) {
         AND p.teminat_iade_tarihi IS NOT NULL
         AND p.teminat_mektubu_tutari > 0
         AND p.teminat_iade_tarihi BETWEEN CURRENT_DATE AND (CURRENT_DATE + $1 * INTERVAL '1 day')
-    `, [gunOnce]);
-    
+    `,
+      [gunOnce]
+    );
+
     const hatirlatmalar = [];
-    
+
     for (const proje of result.rows) {
-      const gun = Math.ceil((new Date(proje.teminat_iade_tarihi) - new Date()) / (1000 * 60 * 60 * 24));
+      const gun = Math.ceil((new Date(proje.teminat_iade_tarihi) - Date.now()) / (1000 * 60 * 60 * 24));
       const alicilar = [process.env.ADMIN_EMAIL, proje.firma_email].filter(Boolean);
-      
+
       if (alicilar.length > 0) {
         const mailResult = await sendMail({
           to: alicilar,
@@ -515,13 +518,13 @@ async function checkTeminatIadeHatirlatma(gunOnce = 30) {
             proje_ad: proje.ad,
             teminat_tutari: (proje.teminat_tutari || 0).toLocaleString('tr-TR'),
             iade_tarihi: new Date(proje.teminat_iade_tarihi).toLocaleDateString('tr-TR'),
-            gun: gun
-          }
+            gun: gun,
+          },
         });
         hatirlatmalar.push({ proje: proje.ad, gun, ...mailResult });
       }
     }
-    
+
     return hatirlatmalar;
   } catch (error) {
     logError('Teminat Hatırlatma', error);
@@ -539,25 +542,28 @@ async function checkSertifikaHatirlatma(gunOnce = 60) {
       { kolon: 'iso_sertifika_tarih', ad: 'ISO Sertifikası' },
       { kolon: 'haccp_sertifika_tarih', ad: 'HACCP Sertifikası' },
       { kolon: 'tse_belgesi_tarih', ad: 'TSE Belgesi' },
-      { kolon: 'halal_sertifika_tarih', ad: 'Helal Sertifikası' }
+      { kolon: 'halal_sertifika_tarih', ad: 'Helal Sertifikası' },
     ];
-    
+
     const hatirlatmalar = [];
-    
+
     for (const sertifika of sertifikalar) {
       try {
-        const result = await query(`
+        const result = await query(
+          `
           SELECT id, unvan, email, ${sertifika.kolon} as tarih
           FROM firmalar
           WHERE aktif = TRUE 
             AND ${sertifika.kolon} IS NOT NULL
             AND ${sertifika.kolon} BETWEEN CURRENT_DATE AND (CURRENT_DATE + $1 * INTERVAL '1 day')
-        `, [gunOnce]);
-        
+        `,
+          [gunOnce]
+        );
+
         for (const firma of result.rows) {
-          const gun = Math.ceil((new Date(firma.tarih) - new Date()) / (1000 * 60 * 60 * 24));
+          const gun = Math.ceil((new Date(firma.tarih) - Date.now()) / (1000 * 60 * 60 * 24));
           const alicilar = [process.env.ADMIN_EMAIL, firma.email].filter(Boolean);
-          
+
           if (alicilar.length > 0) {
             const mailResult = await sendMail({
               to: alicilar,
@@ -566,18 +572,15 @@ async function checkSertifikaHatirlatma(gunOnce = 60) {
                 firma_unvan: firma.unvan,
                 sertifika_adi: sertifika.ad,
                 bitis_tarihi: new Date(firma.tarih).toLocaleDateString('tr-TR'),
-                gun: gun
-              }
+                gun: gun,
+              },
             });
             hatirlatmalar.push({ firma: firma.unvan, sertifika: sertifika.ad, gun, ...mailResult });
           }
         }
-      } catch (err) {
-        // Kolon yoksa atla
-        console.warn(`${sertifika.kolon} kolonunda hata:`, err.message);
-      }
+      } catch (_err) {}
     }
-    
+
     return hatirlatmalar;
   } catch (error) {
     logError('Sertifika Hatırlatma', error);
@@ -589,16 +592,12 @@ async function checkSertifikaHatirlatma(gunOnce = 60) {
  * Tüm hatırlatmaları çalıştır
  */
 async function runAllReminders() {
-  console.log('🔔 Hatırlatma kontrolleri başlıyor...');
-  
   const results = {
     sozlesme: await checkSozlesmeBitisHatirlatma(30),
     teminat: await checkTeminatIadeHatirlatma(30),
     sertifika: await checkSertifikaHatirlatma(60),
-    tarih: new Date().toISOString()
+    tarih: new Date().toISOString(),
   };
-  
-  console.log('✅ Hatırlatma kontrolleri tamamlandı');
   return results;
 }
 
@@ -614,7 +613,7 @@ export {
   checkSozlesmeBitisHatirlatma,
   checkTeminatIadeHatirlatma,
   checkSertifikaHatirlatma,
-  runAllReminders
+  runAllReminders,
 };
 
 export default {
@@ -622,5 +621,5 @@ export default {
   sendMail,
   sendBulkMail,
   MAIL_TEMPLATES,
-  runAllReminders
+  runAllReminders,
 };

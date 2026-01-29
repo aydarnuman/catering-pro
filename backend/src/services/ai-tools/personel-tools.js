@@ -19,9 +19,9 @@ export const personelToolDefinitions = [
         departman: { type: 'string', description: 'Departman filtresi' },
         durum: { type: 'string', enum: ['aktif', 'izinli', 'pasif'], description: 'Durum filtresi' },
         proje_id: { type: 'number', description: 'Proje ID filtresi' },
-        limit: { type: 'number', description: 'Maksimum kayıt sayısı', default: 20 }
-      }
-    }
+        limit: { type: 'number', description: 'Maksimum kayıt sayısı', default: 20 },
+      },
+    },
   },
   {
     name: 'personel_ara',
@@ -29,10 +29,10 @@ export const personelToolDefinitions = [
     input_schema: {
       type: 'object',
       properties: {
-        arama: { type: 'string', description: 'Aranacak metin (ad, soyad veya TC)' }
+        arama: { type: 'string', description: 'Aranacak metin (ad, soyad veya TC)' },
       },
-      required: ['arama']
-    }
+      required: ['arama'],
+    },
   },
   {
     name: 'personel_detay',
@@ -40,18 +40,18 @@ export const personelToolDefinitions = [
     input_schema: {
       type: 'object',
       properties: {
-        personel_id: { type: 'number', description: 'Personel ID' }
+        personel_id: { type: 'number', description: 'Personel ID' },
       },
-      required: ['personel_id']
-    }
+      required: ['personel_id'],
+    },
   },
   {
     name: 'personel_istatistik',
     description: 'Personel istatistiklerini getirir (toplam, departman dağılımı, ortalama maaş vb.).',
     input_schema: {
       type: 'object',
-      properties: {}
-    }
+      properties: {},
+    },
   },
 
   // ==========================================
@@ -64,10 +64,10 @@ export const personelToolDefinitions = [
       type: 'object',
       properties: {
         personel_id: { type: 'number', description: 'Personel ID' },
-        net_maas: { type: 'number', description: 'Hedef net maaş (opsiyonel, personel maaşı kullanılır)' }
+        net_maas: { type: 'number', description: 'Hedef net maaş (opsiyonel, personel maaşı kullanılır)' },
       },
-      required: ['personel_id']
-    }
+      required: ['personel_id'],
+    },
   },
   {
     name: 'bordro_karsilastir',
@@ -75,14 +75,14 @@ export const personelToolDefinitions = [
     input_schema: {
       type: 'object',
       properties: {
-        personel_idler: { 
-          type: 'array', 
+        personel_idler: {
+          type: 'array',
           items: { type: 'number' },
-          description: 'Karşılaştırılacak personel ID listesi' 
-        }
+          description: 'Karşılaştırılacak personel ID listesi',
+        },
       },
-      required: ['personel_idler']
-    }
+      required: ['personel_idler'],
+    },
   },
   {
     name: 'toplam_maliyet_hesapla',
@@ -91,9 +91,9 @@ export const personelToolDefinitions = [
       type: 'object',
       properties: {
         departman: { type: 'string', description: 'Departman filtresi (boş bırakılırsa tümü)' },
-        proje_id: { type: 'number', description: 'Proje filtresi' }
-      }
-    }
+        proje_id: { type: 'number', description: 'Proje filtresi' },
+      },
+    },
   },
 
   // ==========================================
@@ -106,13 +106,17 @@ export const personelToolDefinitions = [
       type: 'object',
       properties: {
         personel_id: { type: 'number', description: 'Personel ID' },
-        izin_turu: { type: 'string', enum: ['yillik', 'ucretsiz', 'mazeret', 'rapor', 'evlilik', 'dogum_anne', 'dogum_baba', 'olum'], description: 'İzin türü kodu' },
+        izin_turu: {
+          type: 'string',
+          enum: ['yillik', 'ucretsiz', 'mazeret', 'rapor', 'evlilik', 'dogum_anne', 'dogum_baba', 'olum'],
+          description: 'İzin türü kodu',
+        },
         baslangic_tarihi: { type: 'string', description: 'Başlangıç tarihi (YYYY-MM-DD)' },
         bitis_tarihi: { type: 'string', description: 'Bitiş tarihi (YYYY-MM-DD)' },
-        aciklama: { type: 'string', description: 'İzin açıklaması' }
+        aciklama: { type: 'string', description: 'İzin açıklaması' },
       },
-      required: ['personel_id', 'izin_turu', 'baslangic_tarihi', 'bitis_tarihi']
-    }
+      required: ['personel_id', 'izin_turu', 'baslangic_tarihi', 'bitis_tarihi'],
+    },
   },
   {
     name: 'izin_listele',
@@ -121,9 +125,9 @@ export const personelToolDefinitions = [
       type: 'object',
       properties: {
         personel_id: { type: 'number', description: 'Personel ID filtresi' },
-        durum: { type: 'string', enum: ['beklemede', 'onaylandi', 'reddedildi'], description: 'Durum filtresi' }
-      }
-    }
+        durum: { type: 'string', enum: ['beklemede', 'onaylandi', 'reddedildi'], description: 'Durum filtresi' },
+      },
+    },
   },
   {
     name: 'izin_bakiye_sorgula',
@@ -131,18 +135,18 @@ export const personelToolDefinitions = [
     input_schema: {
       type: 'object',
       properties: {
-        personel_id: { type: 'number', description: 'Personel ID' }
+        personel_id: { type: 'number', description: 'Personel ID' },
       },
-      required: ['personel_id']
-    }
+      required: ['personel_id'],
+    },
   },
   {
     name: 'bugun_izinli_listele',
     description: 'Bugün izinli olan personelleri listeler.',
     input_schema: {
       type: 'object',
-      properties: {}
-    }
+      properties: {},
+    },
   },
 
   // ==========================================
@@ -156,10 +160,14 @@ export const personelToolDefinitions = [
       properties: {
         personel_id: { type: 'number', description: 'Personel ID' },
         cikis_tarihi: { type: 'string', description: 'Çıkış tarihi (YYYY-MM-DD, boş bırakılırsa bugün)' },
-        cikis_nedeni: { type: 'string', enum: ['istifa', 'isten_cikarma', 'karsilikli_fesih', 'emeklilik'], description: 'Çıkış nedeni' }
+        cikis_nedeni: {
+          type: 'string',
+          enum: ['istifa', 'isten_cikarma', 'karsilikli_fesih', 'emeklilik'],
+          description: 'Çıkış nedeni',
+        },
       },
-      required: ['personel_id']
-    }
+      required: ['personel_id'],
+    },
   },
 
   // ==========================================
@@ -171,11 +179,11 @@ export const personelToolDefinitions = [
     input_schema: {
       type: 'object',
       properties: {
-        konu: { type: 'string', description: 'Sorulacak konu (sgk, vergi, izin, kidem, ihbar, asgari_ucret)' }
+        konu: { type: 'string', description: 'Sorulacak konu (sgk, vergi, izin, kidem, ihbar, asgari_ucret)' },
       },
-      required: ['konu']
-    }
-  }
+      required: ['konu'],
+    },
+  },
 ];
 
 // Tool implementasyonları
@@ -221,7 +229,7 @@ export const personelToolImplementations = {
     return {
       success: true,
       count: result.rows.length,
-      personeller: result.rows.map(p => ({
+      personeller: result.rows.map((p) => ({
         id: p.id,
         ad_soyad: `${p.ad} ${p.soyad}`,
         departman: p.departman,
@@ -229,13 +237,14 @@ export const personelToolImplementations = {
         net_maas: p.maas,
         durum: p.durum || 'aktif',
         ise_giris: p.ise_giris_tarihi,
-        projeler: p.projeler
-      }))
+        projeler: p.projeler,
+      })),
     };
   },
 
   async personel_ara({ arama }) {
-    const result = await query(`
+    const result = await query(
+      `
       SELECT id, ad, soyad, departman, pozisyon, maas, tc_kimlik, telefon
       FROM personeller
       WHERE isten_cikis_tarihi IS NULL
@@ -246,19 +255,21 @@ export const personelToolImplementations = {
         LOWER(ad || ' ' || soyad) LIKE LOWER($1)
       )
       LIMIT 10
-    `, [`%${arama}%`]);
+    `,
+      [`%${arama}%`]
+    );
 
     return {
       success: true,
       count: result.rows.length,
-      sonuclar: result.rows.map(p => ({
+      sonuclar: result.rows.map((p) => ({
         id: p.id,
         ad_soyad: `${p.ad} ${p.soyad}`,
         departman: p.departman,
         pozisyon: p.pozisyon,
         net_maas: p.maas,
-        tc_kimlik: p.tc_kimlik
-      }))
+        tc_kimlik: p.tc_kimlik,
+      })),
     };
   },
 
@@ -271,21 +282,27 @@ export const personelToolImplementations = {
     const p = personelResult.rows[0];
 
     // Projeler
-    const projelerResult = await query(`
+    const projelerResult = await query(
+      `
       SELECT pr.ad, pp.gorev, pp.baslangic_tarihi
       FROM proje_personelleri pp
       JOIN projeler pr ON pr.id = pp.proje_id
       WHERE pp.personel_id = $1 AND pp.aktif = TRUE
-    `, [personel_id]);
+    `,
+      [personel_id]
+    );
 
     // İzin bakiyesi
-    const izinResult = await query(`
+    const izinResult = await query(
+      `
       SELECT 
         COALESCE(SUM(CASE WHEN it.kod = 'yillik' AND iz.durum = 'onaylandi' THEN iz.gun_sayisi ELSE 0 END), 0) as kullanilan_yillik
       FROM izin_talepleri iz
       JOIN izin_turleri it ON it.id = iz.izin_turu_id
       WHERE iz.personel_id = $1 AND EXTRACT(YEAR FROM iz.baslangic_tarihi) = EXTRACT(YEAR FROM CURRENT_DATE)
-    `, [personel_id]);
+    `,
+      [personel_id]
+    );
 
     // Kıdem
     const iseGiris = new Date(p.ise_giris_tarihi);
@@ -307,17 +324,17 @@ export const personelToolImplementations = {
         ise_giris: p.ise_giris_tarihi,
         durum: p.durum || 'aktif',
         medeni_durum: p.medeni_durum,
-        cocuk_sayisi: p.cocuk_sayisi
+        cocuk_sayisi: p.cocuk_sayisi,
       },
       kidem: {
         gun: kidemGun,
-        yil: kidemYil
+        yil: kidemYil,
       },
       projeler: projelerResult.rows,
       izin: {
         yillik_hak: kidemGun >= 365 ? 14 : 0,
-        kullanilan: parseInt(izinResult.rows[0].kullanilan_yillik) || 0
-      }
+        kullanilan: parseInt(izinResult.rows[0].kullanilan_yillik, 10) || 0,
+      },
     };
   },
 
@@ -346,17 +363,17 @@ export const personelToolImplementations = {
     return {
       success: true,
       genel: {
-        toplam: parseInt(result.rows[0].toplam_personel),
-        aktif: parseInt(result.rows[0].aktif),
-        izinli: parseInt(result.rows[0].izinli),
+        toplam: parseInt(result.rows[0].toplam_personel, 10),
+        aktif: parseInt(result.rows[0].aktif, 10),
+        izinli: parseInt(result.rows[0].izinli, 10),
         ortalama_net_maas: Math.round(result.rows[0].ortalama_maas),
-        toplam_net_maas: Math.round(result.rows[0].toplam_maas)
+        toplam_net_maas: Math.round(result.rows[0].toplam_maas),
       },
-      departmanlar: departmanResult.rows.map(d => ({
+      departmanlar: departmanResult.rows.map((d) => ({
         departman: d.departman,
-        personel_sayisi: parseInt(d.sayi),
-        ortalama_maas: Math.round(d.ort_maas)
-      }))
+        personel_sayisi: parseInt(d.sayi, 10),
+        ortalama_maas: Math.round(d.ort_maas),
+      })),
     };
   },
 
@@ -374,21 +391,21 @@ export const personelToolImplementations = {
 
     // Net'ten brüt hesapla (basit formül)
     const brutTahmin = hedefNet * 1.4;
-    
+
     // SGK oranları
     const sgkIsci = brutTahmin * 0.14;
     const issizlikIsci = brutTahmin * 0.01;
     const sgkIsveren = brutTahmin * 0.155;
     const issizlikIsveren = brutTahmin * 0.02;
-    
+
     // Vergiler
     const vergiMatrahi = brutTahmin - sgkIsci - issizlikIsci;
     const gelirVergisi = vergiMatrahi * 0.15;
     const damgaVergisi = brutTahmin * 0.00759;
-    
+
     // AGİ
     const agi = p.medeni_durum === 'evli' ? 2500 : 2000;
-    
+
     const hesaplananNet = brutTahmin - sgkIsci - issizlikIsci - gelirVergisi - damgaVergisi + agi;
     const toplamMaliyet = brutTahmin + sgkIsveren + issizlikIsveren;
 
@@ -405,8 +422,8 @@ export const personelToolImplementations = {
         agi: agi,
         sgk_isveren: Math.round(sgkIsveren),
         issizlik_isveren: Math.round(issizlikIsveren),
-        toplam_maliyet: Math.round(toplamMaliyet)
-      }
+        toplam_maliyet: Math.round(toplamMaliyet),
+      },
     };
   },
 
@@ -417,7 +434,7 @@ export const personelToolImplementations = {
       if (bordro.success) {
         sonuclar.push({
           personel: bordro.personel,
-          ...bordro.bordro
+          ...bordro.bordro,
         });
       }
     }
@@ -425,7 +442,7 @@ export const personelToolImplementations = {
     return {
       success: true,
       karsilastirma: sonuclar,
-      toplam_maliyet: sonuclar.reduce((sum, b) => sum + b.toplam_maliyet, 0)
+      toplam_maliyet: sonuclar.reduce((sum, b) => sum + b.toplam_maliyet, 0),
     };
   },
 
@@ -445,7 +462,7 @@ export const personelToolImplementations = {
     }
 
     const result = await query(sql, params);
-    
+
     let toplamNet = 0;
     let toplamMaliyet = 0;
 
@@ -460,7 +477,7 @@ export const personelToolImplementations = {
       personel_sayisi: result.rows.length,
       toplam_net_maas: Math.round(toplamNet),
       tahmini_toplam_maliyet: Math.round(toplamMaliyet),
-      ortalama_maliyet: Math.round(toplamMaliyet / result.rows.length)
+      ortalama_maliyet: Math.round(toplamMaliyet / result.rows.length),
     };
   },
 
@@ -476,16 +493,19 @@ export const personelToolImplementations = {
 
     const gunSayisi = Math.ceil((new Date(bitis_tarihi) - new Date(baslangic_tarihi)) / (1000 * 60 * 60 * 24)) + 1;
 
-    const result = await query(`
+    const result = await query(
+      `
       INSERT INTO izin_talepleri (personel_id, izin_turu_id, baslangic_tarihi, bitis_tarihi, gun_sayisi, aciklama)
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING id
-    `, [personel_id, turResult.rows[0].id, baslangic_tarihi, bitis_tarihi, gunSayisi, aciklama || '']);
+    `,
+      [personel_id, turResult.rows[0].id, baslangic_tarihi, bitis_tarihi, gunSayisi, aciklama || '']
+    );
 
     return {
       success: true,
       message: `${gunSayisi} günlük ${izin_turu} izin talebi oluşturuldu`,
-      talep_id: result.rows[0].id
+      talep_id: result.rows[0].id,
     };
   },
 
@@ -517,26 +537,28 @@ export const personelToolImplementations = {
     return {
       success: true,
       count: result.rows.length,
-      talepler: result.rows.map(t => ({
+      talepler: result.rows.map((t) => ({
         id: t.id,
         personel: `${t.ad} ${t.soyad}`,
         izin_turu: t.izin_turu_ad,
         baslangic: t.baslangic_tarihi,
         bitis: t.bitis_tarihi,
         gun_sayisi: t.gun_sayisi,
-        durum: t.durum
-      }))
+        durum: t.durum,
+      })),
     };
   },
 
   async izin_bakiye_sorgula({ personel_id }) {
-    const personelResult = await query(`SELECT ad, soyad, ise_giris_tarihi FROM personeller WHERE id = $1`, [personel_id]);
+    const personelResult = await query(`SELECT ad, soyad, ise_giris_tarihi FROM personeller WHERE id = $1`, [
+      personel_id,
+    ]);
     if (personelResult.rows.length === 0) {
       return { success: false, error: 'Personel bulunamadı' };
     }
 
     const p = personelResult.rows[0];
-    const kidemGun = Math.floor((new Date() - new Date(p.ise_giris_tarihi)) / (1000 * 60 * 60 * 24));
+    const kidemGun = Math.floor((Date.now() - new Date(p.ise_giris_tarihi)) / (1000 * 60 * 60 * 24));
     const kidemYil = kidemGun / 365;
 
     // Yıllık izin hakkı
@@ -545,15 +567,18 @@ export const personelToolImplementations = {
     else if (kidemYil >= 5) yillikHak = 20;
 
     // Kullanılan izin
-    const kullanilanResult = await query(`
+    const kullanilanResult = await query(
+      `
       SELECT COALESCE(SUM(gun_sayisi), 0) as kullanilan
       FROM izin_talepleri it
       JOIN izin_turleri itur ON itur.id = it.izin_turu_id
       WHERE it.personel_id = $1 AND itur.kod = 'yillik' AND it.durum = 'onaylandi'
       AND EXTRACT(YEAR FROM it.baslangic_tarihi) = EXTRACT(YEAR FROM CURRENT_DATE)
-    `, [personel_id]);
+    `,
+      [personel_id]
+    );
 
-    const kullanilan = parseInt(kullanilanResult.rows[0].kullanilan) || 0;
+    const kullanilan = parseInt(kullanilanResult.rows[0].kullanilan, 10) || 0;
 
     return {
       success: true,
@@ -562,8 +587,8 @@ export const personelToolImplementations = {
       yillik_izin: {
         hak: yillikHak,
         kullanilan: kullanilan,
-        kalan: yillikHak - kullanilan
-      }
+        kalan: yillikHak - kullanilan,
+      },
     };
   },
 
@@ -580,12 +605,12 @@ export const personelToolImplementations = {
     return {
       success: true,
       count: result.rows.length,
-      izinliler: result.rows.map(r => ({
+      izinliler: result.rows.map((r) => ({
         personel: `${r.ad} ${r.soyad}`,
         departman: r.departman,
         izin_turu: r.izin_turu,
-        donus_tarihi: r.bitis_tarihi
-      }))
+        donus_tarihi: r.bitis_tarihi,
+      })),
     };
   },
 
@@ -601,7 +626,7 @@ export const personelToolImplementations = {
     const p = personelResult.rows[0];
     const iseGiris = new Date(p.ise_giris_tarihi);
     const cikis = cikis_tarihi ? new Date(cikis_tarihi) : new Date();
-    
+
     const toplamGun = Math.floor((cikis - iseGiris) / (1000 * 60 * 60 * 24));
     const toplamYil = toplamGun / 365;
 
@@ -623,7 +648,7 @@ export const personelToolImplementations = {
     const ihbarTazminati = ihbarHakki ? Math.round((brutMaas / 30) * ihbarGun) : 0;
 
     // İzin ücreti
-    const yillikHak = toplamYil >= 15 ? 26 : (toplamYil >= 5 ? 20 : 14);
+    const yillikHak = toplamYil >= 15 ? 26 : toplamYil >= 5 ? 20 : 14;
     const izinUcreti = Math.round((brutMaas / 30) * yillikHak);
 
     return {
@@ -632,22 +657,22 @@ export const personelToolImplementations = {
       calisma: {
         baslangic: p.ise_giris_tarihi,
         toplam_gun: toplamGun,
-        toplam_yil: toplamYil.toFixed(1)
+        toplam_yil: toplamYil.toFixed(1),
       },
       kidem_tazminati: {
         hakki_var: kidemHakki,
-        tutar: kidemTazminati
+        tutar: kidemTazminati,
       },
       ihbar_tazminati: {
         hakki_var: ihbarHakki,
         sure_gun: ihbarGun,
-        tutar: ihbarTazminati
+        tutar: ihbarTazminati,
       },
       izin_ucreti: {
         kalan_gun: yillikHak,
-        tutar: izinUcreti
+        tutar: izinUcreti,
       },
-      toplam_tazminat: kidemTazminati + ihbarTazminati + izinUcreti
+      toplam_tazminat: kidemTazminati + ihbarTazminati + izinUcreti,
     };
   },
 
@@ -665,7 +690,7 @@ export const personelToolImplementations = {
 • İşveren İşsizlik: %2
 • SGK Tavan: ~200.000 TL (2026)
 • Bildirge: Her ayın 26'sına kadar
-• Ödeme: Her ayın sonuna kadar`
+• Ödeme: Her ayın sonuna kadar`,
       },
       vergi: {
         baslik: 'Gelir Vergisi Dilimleri (2026)',
@@ -675,7 +700,7 @@ export const personelToolImplementations = {
 • 330.000 - 800.000 TL: %27
 • 800.000 - 4.300.000 TL: %35
 • 4.300.000+ TL: %40
-• Damga Vergisi: %0.759 (brüt üzerinden)`
+• Damga Vergisi: %0.759 (brüt üzerinden)`,
       },
       izin: {
         baslik: 'Yıllık İzin Hakları',
@@ -687,7 +712,7 @@ export const personelToolImplementations = {
 • Evlilik İzni: 3 gün (ücretli)
 • Doğum İzni (Anne): 16 hafta
 • Doğum İzni (Baba): 5 gün
-• Ölüm İzni: 3 gün (1. derece yakın)`
+• Ölüm İzni: 3 gün (1. derece yakın)`,
       },
       kidem: {
         baslik: 'Kıdem Tazminatı',
@@ -697,7 +722,7 @@ export const personelToolImplementations = {
 • Tavan (2026): ~45.000 TL
 • İstifada: Hak yok (haklı nedenle istifa hariç)
 • İşveren feshi: Tam hak
-• Emeklilik: Tam hak`
+• Emeklilik: Tam hak`,
       },
       ihbar: {
         baslik: 'İhbar Süreleri',
@@ -706,7 +731,7 @@ export const personelToolImplementations = {
 • 6-18 ay: 4 hafta (28 gün)
 • 18-36 ay: 6 hafta (42 gün)
 • 36+ ay: 8 hafta (56 gün)
-• İhbar Tazminatı: Günlük brüt × süre`
+• İhbar Tazminatı: Günlük brüt × süre`,
       },
       asgari_ucret: {
         baslik: 'Asgari Ücret (2026)',
@@ -715,24 +740,23 @@ export const personelToolImplementations = {
 • Net (bekar): ~20.000 TL
 • Net (evli): ~21.000 TL
 • AGİ dahil hesaplanır
-• Her yıl Ocak'ta güncellenir`
-      }
+• Her yıl Ocak'ta güncellenir`,
+      },
     };
 
     const bilgi = bilgiler[konu.toLowerCase()];
     if (!bilgi) {
       return {
         success: false,
-        error: `"${konu}" konusu bulunamadı. Geçerli konular: sgk, vergi, izin, kidem, ihbar, asgari_ucret`
+        error: `"${konu}" konusu bulunamadı. Geçerli konular: sgk, vergi, izin, kidem, ihbar, asgari_ucret`,
       };
     }
 
     return {
       success: true,
-      ...bilgi
+      ...bilgi,
     };
-  }
+  },
 };
 
 export default { personelToolDefinitions, personelToolImplementations };
-

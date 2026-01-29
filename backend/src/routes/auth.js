@@ -7,15 +7,14 @@
  * - Refresh Token: 30 gün
  */
 
-import express from 'express';
+import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
+import express from 'express';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
 import { query } from '../database.js';
-import logger from '../utils/logger.js';
 import loginAttemptService from '../services/login-attempt-service.js';
-import adminNotificationService from '../services/admin-notification-service.js';
 import sessionService from '../services/session-service.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -28,7 +27,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 // Token süreleri - GÜNCELLENDİ
 const ACCESS_TOKEN_EXPIRY = '24h'; // 24 saat (eskiden 15 dakika)
-const REFRESH_TOKEN_EXPIRY = '30d'; // 30 gün
+const _REFRESH_TOKEN_EXPIRY = '30d'; // 30 gün
 const COOKIE_MAX_AGE = 24 * 60 * 60 * 1000; // 24 saat (ms)
 const REFRESH_COOKIE_MAX_AGE = 30 * 24 * 60 * 60 * 1000; // 30 gün (ms)
 
@@ -39,7 +38,7 @@ const validatePassword = (password) => {
   if (!/[A-Z]/.test(password)) errors.push('En az bir büyük harf gerekli');
   if (!/[a-z]/.test(password)) errors.push('En az bir küçük harf gerekli');
   if (!/[0-9]/.test(password)) errors.push('En az bir rakam gerekli');
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) errors.push('En az bir özel karakter gerekli');
+  if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) errors.push('En az bir özel karakter gerekli');
   return { valid: errors.length === 0, errors };
 };
 
@@ -49,7 +48,7 @@ const getCookieOptions = (maxAge) => ({
   secure: process.env.NODE_ENV === 'production',
   sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
   maxAge,
-  path: '/'
+  path: '/',
 });
 
 // Refresh token hash'leme
@@ -79,15 +78,12 @@ router.post('/login', async (req, res) => {
         error: `Hesabınız kilitlendi. ${minutesRemaining} dakika sonra tekrar deneyin.`,
         code: 'ACCOUNT_LOCKED',
         lockedUntil: lockStatus.lockedUntil.toISOString(),
-        minutesRemaining
+        minutesRemaining,
       });
     }
 
     // Kullanıcıyı bul
-    const result = await query(
-      'SELECT * FROM users WHERE email = $1 AND is_active = true',
-      [email]
-    );
+    const result = await query('SELECT * FROM users WHERE email = $1 AND is_active = true', [email]);
 
     if (result.rows.length === 0) {
       await loginAttemptService.recordFailedLogin(email, ipAddress, userAgent);
@@ -100,7 +96,7 @@ router.post('/login', async (req, res) => {
     if (!user.password_hash) {
       return res.status(401).json({
         error: 'Bu kullanıcı için şifre tanımlanmamış. Lütfen yöneticinizle iletişime geçin.',
-        code: 'PASSWORD_NOT_SET'
+        code: 'PASSWORD_NOT_SET',
       });
     }
 
@@ -117,13 +113,13 @@ router.post('/login', async (req, res) => {
         return res.status(423).json({
           error: `Çok fazla başarısız deneme. Hesabınız ${minutesRemaining} dakika kilitlendi.`,
           code: 'ACCOUNT_LOCKED',
-          minutesRemaining
+          minutesRemaining,
         });
       }
 
       return res.status(401).json({
         error: 'Geçersiz email veya şifre',
-        remainingAttempts: attemptResult.remainingAttempts
+        remainingAttempts: attemptResult.remainingAttempts,
       });
     }
 
@@ -133,7 +129,7 @@ router.post('/login', async (req, res) => {
     logger.info('User logged in successfully', {
       userId: user.id,
       email: user.email,
-      role: user.role
+      role: user.role,
     });
 
     // JWT Access Token oluştur (24 saat)
@@ -143,7 +139,7 @@ router.post('/login', async (req, res) => {
         email: user.email,
         role: user.role,
         user_type: user.user_type || 'user',
-        type: 'access'
+        type: 'access',
       },
       JWT_SECRET,
       { expiresIn: ACCESS_TOKEN_EXPIRY }
@@ -155,21 +151,18 @@ router.post('/login', async (req, res) => {
 
     // Refresh token'ı DB'ye kaydet
     try {
-      await query(`
+      await query(
+        `
         INSERT INTO refresh_tokens (user_id, token_hash, device_info, ip_address, expires_at)
         VALUES ($1, $2, $3, $4, NOW() + INTERVAL '30 days')
-      `, [user.id, refreshTokenHash, JSON.stringify({ userAgent }), ipAddress]);
+      `,
+        [user.id, refreshTokenHash, JSON.stringify({ userAgent }), ipAddress]
+      );
 
       // Session oluştur
       try {
         const deviceInfo = sessionService.parseDeviceInfo(userAgent);
-        await sessionService.createSession(
-          user.id,
-          refreshTokenHash,
-          ipAddress,
-          userAgent,
-          deviceInfo
-        );
+        await sessionService.createSession(user.id, refreshTokenHash, ipAddress, userAgent, deviceInfo);
       } catch (sessionError) {
         logger.warn('Session kaydedilemedi', { error: sessionError.message });
       }
@@ -189,10 +182,9 @@ router.post('/login', async (req, res) => {
         email: user.email,
         name: user.name,
         role: user.role,
-        user_type: user.user_type || 'user'
-      }
+        user_type: user.user_type || 'user',
+      },
     });
-
   } catch (error) {
     logger.error('Login hatası', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -223,18 +215,20 @@ router.post('/register', async (req, res) => {
     const finalUserType = user_type || (role === 'admin' ? 'admin' : 'user');
 
     // Kullanıcı oluştur
-    const result = await query(`
+    const result = await query(
+      `
       INSERT INTO users (email, password_hash, name, role, user_type)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING id, email, name, role, user_type
-    `, [email, passwordHash, name, role, finalUserType]);
+    `,
+      [email, passwordHash, name, role, finalUserType]
+    );
 
     res.json({
       success: true,
       message: 'Kullanıcı oluşturuldu',
-      user: result.rows[0]
+      user: result.rows[0],
     });
-
   } catch (error) {
     logger.error('Register hatası', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -284,10 +278,9 @@ router.get('/me', async (req, res) => {
         email: user.email,
         name: user.name,
         role: user.role,
-        user_type: user.user_type || 'user'
-      }
+        user_type: user.user_type || 'user',
+      },
     });
-
   } catch (error) {
     logger.error('Auth hatası', { error: error.message });
     res.status(401).json({ error: 'Geçersiz token' });
@@ -315,11 +308,14 @@ router.put('/profile', async (req, res) => {
       return res.status(400).json({ error: 'Geçerli bir isim girin (en az 2 karakter)' });
     }
 
-    const result = await query(`
+    const result = await query(
+      `
       UPDATE users SET name = $1, updated_at = NOW()
       WHERE id = $2 AND is_active = true
       RETURNING id, email, name, role, created_at
-    `, [name.trim(), decoded.id]);
+    `,
+      [name.trim(), decoded.id]
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
@@ -328,9 +324,8 @@ router.put('/profile', async (req, res) => {
     res.json({
       success: true,
       message: 'Profil güncellendi',
-      user: result.rows[0]
+      user: result.rows[0],
     });
-
   } catch (error) {
     logger.error('Profil güncelleme hatası', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -362,14 +357,13 @@ router.put('/password', async (req, res) => {
     if (!passwordValidation.valid) {
       return res.status(400).json({
         error: 'Şifre güvenlik gereksinimlerini karşılamıyor',
-        details: passwordValidation.errors
+        details: passwordValidation.errors,
       });
     }
 
-    const userResult = await query(
-      'SELECT id, password_hash FROM users WHERE id = $1 AND is_active = true',
-      [decoded.id]
-    );
+    const userResult = await query('SELECT id, password_hash FROM users WHERE id = $1 AND is_active = true', [
+      decoded.id,
+    ]);
 
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
@@ -385,16 +379,18 @@ router.put('/password', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const newPasswordHash = await bcrypt.hash(newPassword, salt);
 
-    await query(`
+    await query(
+      `
       UPDATE users SET password_hash = $1, updated_at = NOW()
       WHERE id = $2
-    `, [newPasswordHash, decoded.id]);
+    `,
+      [newPasswordHash, decoded.id]
+    );
 
     res.json({
       success: true,
-      message: 'Şifre başarıyla değiştirildi'
+      message: 'Şifre başarıyla değiştirildi',
     });
-
   } catch (error) {
     logger.error('Şifre değiştirme hatası', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -441,7 +437,8 @@ router.post('/refresh', async (req, res) => {
 
     let tokenRecord;
     try {
-      const result = await query(`
+      const result = await query(
+        `
         SELECT rt.*, u.email, u.role, u.user_type
         FROM refresh_tokens rt
         JOIN users u ON u.id = rt.user_id
@@ -449,7 +446,9 @@ router.post('/refresh', async (req, res) => {
           AND rt.expires_at > NOW()
           AND rt.revoked_at IS NULL
           AND u.is_active = true
-      `, [tokenHash]);
+      `,
+        [tokenHash]
+      );
       tokenRecord = result.rows[0];
     } catch (dbError) {
       logger.warn('Refresh tokens tablosu mevcut değil', { error: dbError.message });
@@ -475,7 +474,7 @@ router.post('/refresh', async (req, res) => {
         email: tokenRecord.email,
         role: tokenRecord.role,
         user_type: tokenRecord.user_type || 'user',
-        type: 'access'
+        type: 'access',
       },
       JWT_SECRET,
       { expiresIn: ACCESS_TOKEN_EXPIRY }
@@ -486,7 +485,7 @@ router.post('/refresh', async (req, res) => {
     res.json({
       success: true,
       token: newAccessToken,
-      message: 'Token yenilendi'
+      message: 'Token yenilendi',
     });
   } catch (error) {
     logger.error('Token refresh hatası', { error: error.message });
@@ -511,10 +510,13 @@ router.post('/revoke-all', async (req, res) => {
     const decoded = jwt.verify(token, JWT_SECRET);
 
     try {
-      await query(`
+      await query(
+        `
         UPDATE refresh_tokens SET revoked_at = NOW()
         WHERE user_id = $1 AND revoked_at IS NULL
-      `, [decoded.id]);
+      `,
+        [decoded.id]
+      );
     } catch (dbError) {
       logger.warn('Refresh tokens tablosu mevcut değil', { error: dbError.message });
     }
@@ -544,8 +546,7 @@ router.post('/validate-password', (req, res) => {
     success: true,
     valid: result.valid,
     errors: result.errors,
-    strength: result.errors.length === 0 ? 'strong' :
-              result.errors.length <= 2 ? 'medium' : 'weak'
+    strength: result.errors.length === 0 ? 'strong' : result.errors.length <= 2 ? 'medium' : 'weak',
   });
 });
 
@@ -568,7 +569,7 @@ router.get('/users', async (req, res) => {
     let decoded;
     try {
       decoded = jwt.verify(token, JWT_SECRET);
-    } catch (jwtError) {
+    } catch (_jwtError) {
       return res.status(401).json({ error: 'Geçersiz token' });
     }
 
@@ -586,7 +587,7 @@ router.get('/users', async (req, res) => {
         FROM users ORDER BY created_at DESC
       `);
     } catch (dbError) {
-      if (dbError.message && dbError.message.includes('does not exist')) {
+      if (dbError.message?.includes('does not exist')) {
         result = await query(`
           SELECT id, email, name, role, is_active, created_at, updated_at
           FROM users ORDER BY created_at DESC
@@ -598,17 +599,16 @@ router.get('/users', async (req, res) => {
 
     res.json({
       success: true,
-      users: result.rows.map(u => ({
+      users: result.rows.map((u) => ({
         ...u,
         user_type: u.user_type || 'user',
         isLocked: u.locked_until ? new Date(u.locked_until) > new Date() : false,
         lockedUntil: u.locked_until || null,
         failedAttempts: u.failed_login_attempts || 0,
         lockoutCount: u.lockout_count || 0,
-        lastFailedLogin: u.last_failed_login || null
-      }))
+        lastFailedLogin: u.last_failed_login || null,
+      })),
     });
-
   } catch (error) {
     logger.error('Kullanıcı listeleme hatası', { error: error.message });
     res.status(500).json({ error: 'Kullanıcılar yüklenemedi' });
@@ -694,11 +694,14 @@ router.put('/users/:id', async (req, res) => {
     updateFields.push('updated_at = NOW()');
     values.push(id);
 
-    const result = await query(`
+    const result = await query(
+      `
       UPDATE users SET ${updateFields.join(', ')}
       WHERE id = $${paramCount}
       RETURNING id, email, name, role, user_type, is_active, created_at
-    `, values);
+    `,
+      values
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
@@ -707,9 +710,8 @@ router.put('/users/:id', async (req, res) => {
     res.json({
       success: true,
       message: 'Kullanıcı güncellendi',
-      user: { ...result.rows[0], user_type: result.rows[0].user_type || 'user' }
+      user: { ...result.rows[0], user_type: result.rows[0].user_type || 'user' },
     });
-
   } catch (error) {
     logger.error('Kullanıcı güncelleme hatası', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -738,7 +740,7 @@ router.delete('/users/:id', async (req, res) => {
 
     const { id } = req.params;
 
-    if (parseInt(id) === decoded.id) {
+    if (parseInt(id, 10) === decoded.id) {
       return res.status(400).json({ error: 'Kendinizi silemezsiniz' });
     }
 
@@ -751,9 +753,8 @@ router.delete('/users/:id', async (req, res) => {
     res.json({
       success: true,
       message: 'Kullanıcı silindi',
-      user: result.rows[0]
+      user: result.rows[0],
     });
-
   } catch (error) {
     logger.error('Kullanıcı silme hatası', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -763,7 +764,7 @@ router.delete('/users/:id', async (req, res) => {
 /**
  * POST /setup-super-admin - İlk super admin ataması
  */
-router.post('/setup-super-admin', async (req, res) => {
+router.post('/setup-super-admin', async (_req, res) => {
   try {
     const existing = await query(`SELECT id, name, email FROM users WHERE user_type = 'super_admin' LIMIT 1`);
 
@@ -771,7 +772,7 @@ router.post('/setup-super-admin', async (req, res) => {
       return res.json({
         success: true,
         message: 'Super Admin zaten mevcut',
-        superAdmin: existing.rows[0]
+        superAdmin: existing.rows[0],
       });
     }
 
@@ -788,9 +789,8 @@ router.post('/setup-super-admin', async (req, res) => {
     res.json({
       success: true,
       message: 'Super Admin atandi',
-      superAdmin: result.rows[0]
+      superAdmin: result.rows[0],
     });
-
   } catch (error) {
     logger.error('Super admin setup hatası', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -821,20 +821,19 @@ router.put('/users/:id/lock', async (req, res) => {
     const { minutes } = req.body;
     const lockMinutes = minutes || 60;
 
-    const success = await loginAttemptService.lockAccount(parseInt(id), lockMinutes);
+    const success = await loginAttemptService.lockAccount(parseInt(id, 10), lockMinutes);
 
     if (!success) {
       return res.status(500).json({ error: 'Hesap kilitlenemedi' });
     }
 
-    const userStatus = await loginAttemptService.getUserStatus(parseInt(id));
+    const userStatus = await loginAttemptService.getUserStatus(parseInt(id, 10));
 
     res.json({
       success: true,
       message: 'Hesap kilitlendi',
-      user: userStatus
+      user: userStatus,
     });
-
   } catch (error) {
     logger.error('Hesap kilitleme hatası', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -863,20 +862,19 @@ router.put('/users/:id/unlock', async (req, res) => {
 
     const { id } = req.params;
 
-    const success = await loginAttemptService.unlockAccount(parseInt(id));
+    const success = await loginAttemptService.unlockAccount(parseInt(id, 10));
 
     if (!success) {
       return res.status(500).json({ error: 'Hesap açılamadı' });
     }
 
-    const userStatus = await loginAttemptService.getUserStatus(parseInt(id));
+    const userStatus = await loginAttemptService.getUserStatus(parseInt(id, 10));
 
     res.json({
       success: true,
       message: 'Hesap açıldı',
-      user: userStatus
+      user: userStatus,
     });
-
   } catch (error) {
     logger.error('Hesap açma hatası', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -904,17 +902,16 @@ router.get('/users/:id/login-attempts', async (req, res) => {
     }
 
     const { id } = req.params;
-    const limit = parseInt(req.query.limit) || 50;
+    const limit = parseInt(req.query.limit, 10) || 50;
 
-    const history = await loginAttemptService.getLoginHistory(parseInt(id), limit);
-    const userStatus = await loginAttemptService.getUserStatus(parseInt(id));
+    const history = await loginAttemptService.getLoginHistory(parseInt(id, 10), limit);
+    const userStatus = await loginAttemptService.getUserStatus(parseInt(id, 10));
 
     res.json({
       success: true,
       history,
-      userStatus
+      userStatus,
     });
-
   } catch (error) {
     logger.error('Login attempt geçmişi hatası', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -934,7 +931,7 @@ router.get('/admin/notifications', (req, res) => {
 });
 
 // Okunmamış bildirim sayısı - Unified system'e yönlendir
-router.get('/admin/notifications/unread-count', (req, res) => {
+router.get('/admin/notifications/unread-count', (_req, res) => {
   res.redirect(307, '/api/notifications/unread-count');
 });
 
@@ -944,7 +941,7 @@ router.put('/admin/notifications/:id/read', (req, res) => {
 });
 
 // Tüm bildirimleri okundu işaretle - Unified system'e yönlendir
-router.put('/admin/notifications/read-all', (req, res) => {
+router.put('/admin/notifications/read-all', (_req, res) => {
   res.redirect(307, '/api/notifications/read-all?source=admin');
 });
 
@@ -970,7 +967,7 @@ router.get('/sessions', async (req, res) => {
     let decoded;
     try {
       decoded = jwt.verify(token, JWT_SECRET);
-    } catch (jwtError) {
+    } catch (_jwtError) {
       return res.status(401).json({ error: 'Geçersiz token' });
     }
 
@@ -982,16 +979,15 @@ router.get('/sessions', async (req, res) => {
 
     const sessions = await sessionService.getUserSessions(decoded.id);
 
-    const sessionsWithCurrent = sessions.map(session => {
+    const sessionsWithCurrent = sessions.map((session) => {
       const isCurrent = currentTokenHash && session.refreshTokenHash === currentTokenHash;
       return { ...session, isCurrent };
     });
 
     res.json({
       success: true,
-      sessions: sessionsWithCurrent
+      sessions: sessionsWithCurrent,
     });
-
   } catch (error) {
     logger.error('Get sessions error', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -1015,10 +1011,10 @@ router.delete('/sessions/:id', async (req, res) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     const userId = decoded.id;
     const { id } = req.params;
-    const sessionId = parseInt(id);
+    const sessionId = parseInt(id, 10);
 
     const sessions = await sessionService.getUserSessions(userId);
-    const session = sessions.find(s => s.id === sessionId);
+    const session = sessions.find((s) => s.id === sessionId);
 
     if (!session) {
       return res.status(404).json({ error: 'Oturum bulunamadı' });
@@ -1041,9 +1037,8 @@ router.delete('/sessions/:id', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Oturum sonlandırıldı'
+      message: 'Oturum sonlandırıldı',
     });
-
   } catch (error) {
     logger.error('Terminate session error', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -1078,9 +1073,8 @@ router.delete('/sessions/other', async (req, res) => {
     res.json({
       success: true,
       message: `${count} oturum sonlandırıldı`,
-      count
+      count,
     });
-
   } catch (error) {
     logger.error('Terminate other sessions error', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -1132,7 +1126,7 @@ router.get('/admin/ip-rules', async (req, res) => {
 
     res.json({
       success: true,
-      rules: result.rows.map(row => ({
+      rules: result.rows.map((row) => ({
         id: row.id,
         ipAddress: row.ip_address,
         type: row.type,
@@ -1140,10 +1134,9 @@ router.get('/admin/ip-rules', async (req, res) => {
         createdBy: row.created_by,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
-        isActive: row.is_active
-      }))
+        isActive: row.is_active,
+      })),
     });
-
   } catch (error) {
     logger.error('Get IP rules error', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -1196,18 +1189,17 @@ router.post('/admin/ip-rules', async (req, res) => {
           ipAddress: result.rows[0].ip_address,
           type: result.rows[0].type,
           description: result.rows[0].description,
-          createdAt: result.rows[0].created_at
-        }
+          createdAt: result.rows[0].created_at,
+        },
       });
     } catch (dbError) {
       if (dbError.message.includes('invalid input syntax for type cidr')) {
         return res.status(400).json({
-          error: 'Geçersiz IP adresi veya CIDR formatı. Örnek: 192.168.1.0/24 veya 10.0.0.1/32'
+          error: 'Geçersiz IP adresi veya CIDR formatı. Örnek: 192.168.1.0/24 veya 10.0.0.1/32',
         });
       }
       throw dbError;
     }
-
   } catch (error) {
     logger.error('Create IP rule error', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -1287,10 +1279,9 @@ router.put('/admin/ip-rules/:id', async (req, res) => {
         type: result.rows[0].type,
         description: result.rows[0].description,
         isActive: result.rows[0].is_active,
-        updatedAt: result.rows[0].updated_at
-      }
+        updatedAt: result.rows[0].updated_at,
+      },
     });
-
   } catch (error) {
     logger.error('Update IP rule error', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -1327,9 +1318,8 @@ router.delete('/admin/ip-rules/:id', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'IP kuralı silindi'
+      message: 'IP kuralı silindi',
     });
-
   } catch (error) {
     logger.error('Delete IP rule error', { error: error.message });
     res.status(500).json({ error: error.message });

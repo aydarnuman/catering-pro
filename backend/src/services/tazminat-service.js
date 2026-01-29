@@ -1,6 +1,6 @@
 /**
  * Tazminat Hesaplama Servisi
- * 
+ *
  * Türkiye İş Hukuku'na göre:
  * - Kıdem Tazminatı (1475 Sayılı İş Kanunu Madde 14)
  * - İhbar Tazminatı (4857 Sayılı İş Kanunu Madde 17)
@@ -18,7 +18,7 @@ export const CIKIS_SEBEPLERI = {
     ihbar: true,
     izin: true,
     aciklama: 'İşveren tarafından iş akdi feshedildiğinde tüm tazminatlar ödenir.',
-    kanun: '4857 Sayılı İş Kanunu'
+    kanun: '4857 Sayılı İş Kanunu',
   },
   istifa: {
     kod: 'istifa',
@@ -27,7 +27,7 @@ export const CIKIS_SEBEPLERI = {
     ihbar: false,
     izin: true,
     aciklama: 'İşçi kendi isteğiyle ayrılırsa sadece kullanılmayan izin ücreti ödenir.',
-    kanun: '4857 Sayılı İş Kanunu Madde 17'
+    kanun: '4857 Sayılı İş Kanunu Madde 17',
   },
   emeklilik: {
     kod: 'emeklilik',
@@ -35,8 +35,8 @@ export const CIKIS_SEBEPLERI = {
     kidem: true,
     ihbar: false,
     izin: true,
-    aciklama: 'SGK\'dan yaşlılık aylığı bağlanması halinde kıdem tazminatı hakkı doğar.',
-    kanun: '1475 Sayılı İş Kanunu Madde 14'
+    aciklama: "SGK'dan yaşlılık aylığı bağlanması halinde kıdem tazminatı hakkı doğar.",
+    kanun: '1475 Sayılı İş Kanunu Madde 14',
   },
   evlilik: {
     kod: 'evlilik',
@@ -45,7 +45,7 @@ export const CIKIS_SEBEPLERI = {
     ihbar: false,
     izin: true,
     aciklama: 'Kadın işçi evlendiği tarihten itibaren 1 yıl içinde ayrılırsa kıdem tazminatı alır.',
-    kanun: '1475 Sayılı İş Kanunu Madde 14'
+    kanun: '1475 Sayılı İş Kanunu Madde 14',
   },
   askerlik: {
     kod: 'askerlik',
@@ -54,7 +54,7 @@ export const CIKIS_SEBEPLERI = {
     ihbar: false,
     izin: true,
     aciklama: 'Muvazzaf askerlik nedeniyle ayrılan işçi kıdem tazminatı alır.',
-    kanun: '1475 Sayılı İş Kanunu Madde 14'
+    kanun: '1475 Sayılı İş Kanunu Madde 14',
   },
   hakli_fesih: {
     kod: 'hakli_fesih',
@@ -63,7 +63,7 @@ export const CIKIS_SEBEPLERI = {
     ihbar: false,
     izin: true,
     aciklama: 'Maaş gecikmesi (2+ ay), mobbing, sağlık tehlikesi gibi durumlarda işçi haklı fesih yapabilir.',
-    kanun: '4857 Sayılı İş Kanunu Madde 24'
+    kanun: '4857 Sayılı İş Kanunu Madde 24',
   },
   vefat: {
     kod: 'vefat',
@@ -72,8 +72,8 @@ export const CIKIS_SEBEPLERI = {
     ihbar: false,
     izin: true,
     aciklama: 'İşçinin vefatı halinde kıdem tazminatı mirasçılara ödenir.',
-    kanun: '1475 Sayılı İş Kanunu Madde 14'
-  }
+    kanun: '1475 Sayılı İş Kanunu Madde 14',
+  },
 };
 
 // İhbar süreleri (4857 Md. 17)
@@ -81,14 +81,14 @@ const IHBAR_SURELERI = [
   { minAy: 0, maxAy: 6, hafta: 2, gun: 14 },
   { minAy: 6, maxAy: 18, hafta: 4, gun: 28 },
   { minAy: 18, maxAy: 36, hafta: 6, gun: 42 },
-  { minAy: 36, maxAy: Infinity, hafta: 8, gun: 56 }
+  { minAy: 36, maxAy: Infinity, hafta: 8, gun: 56 },
 ];
 
 // Yıllık izin hakları (4857 Md. 53)
 const IZIN_HAKLARI = [
   { minYil: 1, maxYil: 5, gun: 14 },
   { minYil: 5, maxYil: 15, gun: 20 },
-  { minYil: 15, maxYil: Infinity, gun: 26 }
+  { minYil: 15, maxYil: Infinity, gun: 26 },
 ];
 
 // Yasal bilgiler
@@ -101,9 +101,9 @@ export const YASAL_BILGILER = {
       'Kıdem tazminatı her tam yıl için 30 günlük brüt ücret üzerinden hesaplanır.',
       'Bir yıldan artan süreler için de orantılı hesaplama yapılır.',
       'Kıdem tazminatı tavanı her yıl 2 kez (Ocak ve Temmuz) güncellenir.',
-      'Tavan aşıldığında, tavan tutarı üzerinden hesaplama yapılır.'
+      'Tavan aşıldığında, tavan tutarı üzerinden hesaplama yapılır.',
     ],
-    link: 'https://www.mevzuat.gov.tr/mevzuat?MevzuatNo=1475&MevzuatTur=1&MevzuatTertip=5'
+    link: 'https://www.mevzuat.gov.tr/mevzuat?MevzuatNo=1475&MevzuatTur=1&MevzuatTertip=5',
   },
   ihbar: {
     kanun: '4857 Sayılı İş Kanunu - Madde 17',
@@ -113,9 +113,9 @@ export const YASAL_BILGILER = {
       '0-6 ay çalışanlara: 2 hafta (14 gün)',
       '6-18 ay çalışanlara: 4 hafta (28 gün)',
       '18-36 ay çalışanlara: 6 hafta (42 gün)',
-      '36+ ay çalışanlara: 8 hafta (56 gün)'
+      '36+ ay çalışanlara: 8 hafta (56 gün)',
     ],
-    link: 'https://www.mevzuat.gov.tr/mevzuat?MevzuatNo=4857&MevzuatTur=1&MevzuatTertip=5'
+    link: 'https://www.mevzuat.gov.tr/mevzuat?MevzuatNo=4857&MevzuatTur=1&MevzuatTertip=5',
   },
   izin: {
     kanun: '4857 Sayılı İş Kanunu - Madde 59',
@@ -125,10 +125,10 @@ export const YASAL_BILGILER = {
       '1-5 yıl çalışanlara: Yılda 14 gün',
       '5-15 yıl çalışanlara: Yılda 20 gün',
       '15+ yıl çalışanlara: Yılda 26 gün',
-      'İzin ücreti brüt günlük ücret üzerinden hesaplanır.'
+      'İzin ücreti brüt günlük ücret üzerinden hesaplanır.',
     ],
-    link: 'https://www.mevzuat.gov.tr/mevzuat?MevzuatNo=4857&MevzuatTur=1&MevzuatTertip=5'
-  }
+    link: 'https://www.mevzuat.gov.tr/mevzuat?MevzuatNo=4857&MevzuatTur=1&MevzuatTertip=5',
+  },
 };
 
 /**
@@ -137,33 +137,33 @@ export const YASAL_BILGILER = {
 function hesaplaCalismaSuresi(iseGiris, cikisTarihi) {
   const giris = new Date(iseGiris);
   const cikis = new Date(cikisTarihi);
-  
+
   let yil = cikis.getFullYear() - giris.getFullYear();
   let ay = cikis.getMonth() - giris.getMonth();
   let gun = cikis.getDate() - giris.getDate();
-  
+
   if (gun < 0) {
     ay--;
     const oncekiAy = new Date(cikis.getFullYear(), cikis.getMonth(), 0);
     gun += oncekiAy.getDate();
   }
-  
+
   if (ay < 0) {
     yil--;
     ay += 12;
   }
-  
+
   const toplamGun = Math.floor((cikis - giris) / (1000 * 60 * 60 * 24));
   const toplamAy = yil * 12 + ay;
   const toplamYil = toplamGun / 365.25;
-  
+
   return {
     yil,
     ay,
     gun,
     toplamGun,
     toplamAy,
-    toplamYil: Math.round(toplamYil * 100) / 100
+    toplamYil: Math.round(toplamYil * 100) / 100,
   };
 }
 
@@ -178,13 +178,13 @@ async function getKidemTavani(tarih) {
     ORDER BY gecerlilik_baslangic DESC
     LIMIT 1
   `;
-  
+
   const result = await query(sql, [tarih]);
-  
+
   if (result.rows.length > 0) {
     return parseFloat(result.rows[0].tavan_tutari);
   }
-  
+
   // Varsayılan: 2025 ilk yarı tavanı
   return 41828.42;
 }
@@ -204,7 +204,7 @@ function hesaplaIhbarSuresi(toplamAy) {
 /**
  * Yıllık izin hakkını hesapla
  */
-function hesaplaYillikIzinHakki(toplamYil) {
+function _hesaplaYillikIzinHakki(toplamYil) {
   for (const hak of IZIN_HAKLARI) {
     if (toplamYil >= hak.minYil && toplamYil < hak.maxYil) {
       return hak.gun;
@@ -218,74 +218,77 @@ function hesaplaYillikIzinHakki(toplamYil) {
  */
 export async function hesaplaTazminat(personelId, cikisTarihi, cikisSebebi, kalanIzinGun = null) {
   // 1. Personel bilgilerini getir
-  const personelResult = await query(`
+  const personelResult = await query(
+    `
     SELECT id, ad, soyad, tc_kimlik, ise_giris_tarihi, maas, kalan_izin_gun, pozisyon, departman
     FROM personeller
     WHERE id = $1
-  `, [personelId]);
-  
+  `,
+    [personelId]
+  );
+
   if (personelResult.rows.length === 0) {
     throw new Error('Personel bulunamadı');
   }
-  
+
   const personel = personelResult.rows[0];
   const iseGiris = personel.ise_giris_tarihi;
   const brutMaas = parseFloat(personel.maas) || 0;
-  const izinGun = kalanIzinGun !== null ? kalanIzinGun : (personel.kalan_izin_gun || 0);
-  
+  const izinGun = kalanIzinGun !== null ? kalanIzinGun : personel.kalan_izin_gun || 0;
+
   if (!iseGiris) {
     throw new Error('Personelin işe giriş tarihi tanımlı değil');
   }
-  
+
   // 2. Çıkış sebebi hakları
   const sebep = CIKIS_SEBEPLERI[cikisSebebi];
   if (!sebep) {
     throw new Error('Geçersiz çıkış sebebi');
   }
-  
+
   // 3. Çalışma süresi
   const calisma = hesaplaCalismaSuresi(iseGiris, cikisTarihi);
-  
+
   // 4. Günlük brüt
   const gunlukBrut = brutMaas / 30;
-  
+
   // 5. Kıdem tazminatı tavanı
   const kidemTavani = await getKidemTavani(cikisTarihi);
   const tavanAsimi = brutMaas > kidemTavani;
   const kidemMatrahi = tavanAsimi ? kidemTavani : brutMaas;
-  
+
   // 6. Kıdem Tazminatı
   let kidemTutari = 0;
   let kidemGun = 0;
   const kidemHakVar = sebep.kidem && calisma.toplamYil >= 1;
-  
+
   if (kidemHakVar) {
     kidemGun = Math.round(calisma.toplamYil * 30);
     kidemTutari = calisma.toplamYil * kidemMatrahi;
   }
-  
+
   // 7. İhbar Tazminatı
   let ihbarTutari = 0;
   let ihbarGun = 0;
   const ihbarHakVar = sebep.ihbar;
-  
+
   if (ihbarHakVar) {
     const ihbarSuresi = hesaplaIhbarSuresi(calisma.toplamAy);
     ihbarGun = ihbarSuresi.gun;
     ihbarTutari = ihbarGun * gunlukBrut;
   }
-  
+
   // 8. İzin Ücreti
   let izinTutari = 0;
   const izinHakVar = sebep.izin && izinGun > 0;
-  
+
   if (izinHakVar) {
     izinTutari = izinGun * gunlukBrut;
   }
-  
+
   // 9. Toplam
   const toplamTazminat = kidemTutari + ihbarTutari + izinTutari;
-  
+
   // Sonuç
   return {
     personel: {
@@ -298,11 +301,11 @@ export async function hesaplaTazminat(personelId, cikisTarihi, cikisSebebi, kala
       departman: personel.departman,
       ise_giris_tarihi: iseGiris,
       brut_maas: brutMaas,
-      kalan_izin_gun: izinGun
+      kalan_izin_gun: izinGun,
     },
     cikis: {
       tarih: cikisTarihi,
-      sebep: sebep
+      sebep: sebep,
     },
     calisma_suresi: {
       yil: calisma.yil,
@@ -311,46 +314,46 @@ export async function hesaplaTazminat(personelId, cikisTarihi, cikisSebebi, kala
       toplam_yil: calisma.toplamYil,
       toplam_ay: calisma.toplamAy,
       toplam_gun: calisma.toplamGun,
-      metin: `${calisma.yil} yıl ${calisma.ay} ay ${calisma.gun} gün`
+      metin: `${calisma.yil} yıl ${calisma.ay} ay ${calisma.gun} gün`,
     },
     hesaplama: {
       gunluk_brut: Math.round(gunlukBrut * 100) / 100,
       kidem_tavani: kidemTavani,
       tavan_asimi: tavanAsimi,
-      kidem_matrahi: kidemMatrahi
+      kidem_matrahi: kidemMatrahi,
     },
     kidem: {
       hak_var: kidemHakVar,
       gun: kidemGun,
       tutar: Math.round(kidemTutari * 100) / 100,
-      aciklama: kidemHakVar 
+      aciklama: kidemHakVar
         ? `${calisma.toplamYil} yıl × ${kidemMatrahi.toLocaleString('tr-TR')} ₺ = ${kidemTutari.toLocaleString('tr-TR')} ₺`
         : 'Kıdem tazminatı hakkı yok',
-      kanun_ref: YASAL_BILGILER.kidem
+      kanun_ref: YASAL_BILGILER.kidem,
     },
     ihbar: {
       hak_var: ihbarHakVar,
       gun: ihbarGun,
       tutar: Math.round(ihbarTutari * 100) / 100,
-      aciklama: ihbarHakVar 
+      aciklama: ihbarHakVar
         ? `${ihbarGun} gün × ${gunlukBrut.toLocaleString('tr-TR')} ₺ = ${ihbarTutari.toLocaleString('tr-TR')} ₺`
         : 'İhbar tazminatı hakkı yok',
-      kanun_ref: YASAL_BILGILER.ihbar
+      kanun_ref: YASAL_BILGILER.ihbar,
     },
     izin: {
       hak_var: izinHakVar,
       gun: izinGun,
       tutar: Math.round(izinTutari * 100) / 100,
-      aciklama: izinHakVar 
+      aciklama: izinHakVar
         ? `${izinGun} gün × ${gunlukBrut.toLocaleString('tr-TR')} ₺ = ${izinTutari.toLocaleString('tr-TR')} ₺`
         : 'Kullanılmayan izin yok',
-      kanun_ref: YASAL_BILGILER.izin
+      kanun_ref: YASAL_BILGILER.izin,
     },
     toplam: {
       tutar: Math.round(toplamTazminat * 100) / 100,
-      metin: toplamTazminat.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
+      metin: toplamTazminat.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' }),
     },
-    yasal_bilgiler: YASAL_BILGILER
+    yasal_bilgiler: YASAL_BILGILER,
   };
 }
 
@@ -372,7 +375,7 @@ export async function kaydetTazminatHesabi(hesap, notlar = '') {
     )
     RETURNING id
   `;
-  
+
   const values = [
     hesap.personel.id,
     hesap.cikis.tarih,
@@ -394,9 +397,9 @@ export async function kaydetTazminatHesabi(hesap, notlar = '') {
     hesap.izin.gun,
     hesap.izin.tutar,
     hesap.toplam.tutar,
-    notlar
+    notlar,
   ];
-  
+
   const result = await query(sql, values);
   return result.rows[0].id;
 }
@@ -404,7 +407,7 @@ export async function kaydetTazminatHesabi(hesap, notlar = '') {
 /**
  * Personeli pasif yap ve tazminat bilgilerini kaydet
  */
-export async function personelCikisYap(personelId, cikisTarihi, cikisSebebi, tazminatId) {
+export async function personelCikisYap(personelId, cikisTarihi, cikisSebebi, _tazminatId) {
   const sql = `
     UPDATE personeller SET
       durum = 'pasif',
@@ -414,7 +417,7 @@ export async function personelCikisYap(personelId, cikisTarihi, cikisSebebi, taz
     WHERE id = $1
     RETURNING *
   `;
-  
+
   const result = await query(sql, [personelId, cikisTarihi, cikisSebebi]);
   return result.rows[0];
 }
@@ -423,10 +426,10 @@ export async function personelCikisYap(personelId, cikisTarihi, cikisSebebi, taz
  * Toplam tazminat riskini hesapla (tüm aktif personel)
  */
 export async function hesaplaTazminatRiski(projeId = null) {
-  const whereClause = projeId 
+  const whereClause = projeId
     ? `WHERE p.durum = 'aktif' AND pp.proje_id = $1`
     : `WHERE p.durum = 'aktif' OR p.durum IS NULL`;
-  
+
   const sql = `
     SELECT 
       p.id,
@@ -440,46 +443,46 @@ export async function hesaplaTazminatRiski(projeId = null) {
     ${projeId ? 'JOIN proje_personelleri pp ON pp.personel_id = p.id' : ''}
     ${whereClause}
   `;
-  
+
   const params = projeId ? [projeId] : [];
   const result = await query(sql, params);
-  
+
   let toplamKidem = 0;
   let toplamIhbar = 0;
   let toplamIzin = 0;
   const kidemDagilimi = { '0-1': 0, '1-3': 0, '3-5': 0, '5+': 0 };
-  
+
   for (const p of result.rows) {
     const brutMaas = parseFloat(p.maas) || 0;
     const calismaYil = parseFloat(p.calisma_yil) || 0;
     const kalanIzin = p.kalan_izin_gun || 0;
     const gunlukBrut = brutMaas / 30;
-    
+
     // Kıdem (her yıl için 1 maaş)
     if (calismaYil >= 1) {
       toplamKidem += calismaYil * brutMaas;
     }
-    
+
     // İhbar (8 hafta max)
     toplamIhbar += 56 * gunlukBrut;
-    
+
     // İzin
     toplamIzin += kalanIzin * gunlukBrut;
-    
+
     // Kıdem dağılımı
     if (calismaYil < 1) kidemDagilimi['0-1']++;
     else if (calismaYil < 3) kidemDagilimi['1-3']++;
     else if (calismaYil < 5) kidemDagilimi['3-5']++;
     else kidemDagilimi['5+']++;
   }
-  
+
   return {
     personel_sayisi: result.rows.length,
     toplam_kidem_riski: Math.round(toplamKidem),
     toplam_ihbar_riski: Math.round(toplamIhbar),
     toplam_izin_riski: Math.round(toplamIzin),
     toplam_risk: Math.round(toplamKidem + toplamIhbar + toplamIzin),
-    kidem_dagilimi: kidemDagilimi
+    kidem_dagilimi: kidemDagilimi,
   };
 }
 
@@ -489,6 +492,5 @@ export default {
   hesaplaTazminat,
   kaydetTazminatHesabi,
   personelCikisYap,
-  hesaplaTazminatRiski
+  hesaplaTazminatRiski,
 };
-

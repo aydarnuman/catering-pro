@@ -38,9 +38,18 @@ export const faturaKalemleriClient = {
     const params = [];
     let idx = 1;
 
-    if (baslangic) { sql += ` AND ui.invoice_date >= $${idx++}`; params.push(baslangic); }
-    if (bitis) { sql += ` AND ui.invoice_date <= $${idx++}`; params.push(bitis); }
-    if (tedarikci_vkn) { sql += ` AND ui.sender_vkn = $${idx++}`; params.push(tedarikci_vkn); }
+    if (baslangic) {
+      sql += ` AND ui.invoice_date >= $${idx++}`;
+      params.push(baslangic);
+    }
+    if (bitis) {
+      sql += ` AND ui.invoice_date <= $${idx++}`;
+      params.push(bitis);
+    }
+    if (tedarikci_vkn) {
+      sql += ` AND ui.sender_vkn = $${idx++}`;
+      params.push(tedarikci_vkn);
+    }
 
     sql += ` GROUP BY ui.ettn, ui.invoice_no, ui.sender_vkn, ui.sender_name, ui.invoice_date, ui.payable_amount`;
 
@@ -116,7 +125,7 @@ export const faturaKalemleriClient = {
 
     return {
       fatura: faturaResult.rows[0],
-      kalemler
+      kalemler,
     };
   },
 
@@ -132,8 +141,13 @@ export const faturaKalemleriClient = {
     const params = [];
     let idx = 1;
 
-    if (kategori_id) { sql += ` AND kategori_id = $${idx++}`; params.push(kategori_id); }
-    if (sadece_fiyatli) { sql += ` AND son_fiyat IS NOT NULL`; }
+    if (kategori_id) {
+      sql += ` AND kategori_id = $${idx++}`;
+      params.push(kategori_id);
+    }
+    if (sadece_fiyatli) {
+      sql += ` AND son_fiyat IS NOT NULL`;
+    }
 
     sql += ` ORDER BY ad`;
 
@@ -267,8 +281,14 @@ export const faturaKalemleriClient = {
     const params = [];
     let idx = 1;
 
-    if (baslangic) { sql += ` AND fk.fatura_tarihi >= $${idx++}`; params.push(baslangic); }
-    if (bitis) { sql += ` AND fk.fatura_tarihi <= $${idx++}`; params.push(bitis); }
+    if (baslangic) {
+      sql += ` AND fk.fatura_tarihi >= $${idx++}`;
+      params.push(baslangic);
+    }
+    if (bitis) {
+      sql += ` AND fk.fatura_tarihi <= $${idx++}`;
+      params.push(bitis);
+    }
 
     sql += ` GROUP BY kat.id, kat.ad ORDER BY toplam_tutar DESC NULLS LAST`;
 
@@ -280,7 +300,10 @@ export const faturaKalemleriClient = {
    * Kategori harcama – haftalık özet formatı (category, count, total)
    */
   async getKategoriHarcamaHaftalik(baslangicTarih) {
-    const rows = await this.getKategoriHarcama({ baslangic: baslangicTarih, bitis: new Date().toISOString().slice(0, 10) });
+    const rows = await this.getKategoriHarcama({
+      baslangic: baslangicTarih,
+      bitis: new Date().toISOString().slice(0, 10),
+    });
     return rows.map((r) => ({ category: r.kategori_ad, count: r.kalem_sayisi, total: r.toplam_tutar }));
   },
 
@@ -305,8 +328,14 @@ export const faturaKalemleriClient = {
     `;
     const params = [];
     let idx = 1;
-    if (startDate) { sql += ` AND u.invoice_date >= $${idx++}`; params.push(startDate); }
-    if (endDate) { sql += ` AND u.invoice_date <= $${idx++}`; params.push(endDate); }
+    if (startDate) {
+      sql += ` AND u.invoice_date >= $${idx++}`;
+      params.push(startDate);
+    }
+    if (endDate) {
+      sql += ` AND u.invoice_date <= $${idx++}`;
+      params.push(endDate);
+    }
     sql += ` GROUP BY COALESCE(kat.ad, 'Diğer') ORDER BY total_amount DESC NULLS LAST`;
 
     const result = await query(sql, params);
@@ -336,8 +365,14 @@ export const faturaKalemleriClient = {
     `;
     const params = [like ?? '%'];
     let idx = 2;
-    if (startDate) { sql += ` AND u.invoice_date >= $${idx++}`; params.push(startDate); }
-    if (endDate) { sql += ` AND u.invoice_date <= $${idx++}`; params.push(endDate); }
+    if (startDate) {
+      sql += ` AND u.invoice_date >= $${idx++}`;
+      params.push(startDate);
+    }
+    if (endDate) {
+      sql += ` AND u.invoice_date <= $${idx++}`;
+      params.push(endDate);
+    }
     sql += ` GROUP BY COALESCE(kat.ad, 'Diğer')`;
 
     const result = await query(sql, params);
@@ -366,8 +401,14 @@ export const faturaKalemleriClient = {
     const params = [];
     let idx = 1;
 
-    if (baslangic) { sql += ` AND fatura_tarihi >= $${idx++}`; params.push(baslangic); }
-    if (bitis) { sql += ` AND fatura_tarihi <= $${idx++}`; params.push(bitis); }
+    if (baslangic) {
+      sql += ` AND fatura_tarihi >= $${idx++}`;
+      params.push(baslangic);
+    }
+    if (bitis) {
+      sql += ` AND fatura_tarihi <= $${idx++}`;
+      params.push(bitis);
+    }
 
     sql += ` GROUP BY tedarikci_vkn, tedarikci_ad ORDER BY toplam_tutar DESC NULLS LAST LIMIT $${idx++}`;
     params.push(limit);
@@ -393,7 +434,7 @@ export const faturaKalemleriClient = {
 
     return {
       ozet: { toplam, tamEslesen, kismiEslesen, hicEslesmemis },
-      faturalar
+      faturalar,
     };
   },
 
@@ -418,9 +459,18 @@ export const faturaKalemleriClient = {
     `;
     const params = [];
     let idx = 1;
-    if (baslangic) { sql += ` AND i.invoice_date >= $${idx++}`; params.push(baslangic); }
-    if (bitis) { sql += ` AND i.invoice_date <= $${idx++}`; params.push(bitis); }
-    if (kategoriKod) { sql += ` AND kat.kod = $${idx++}`; params.push(kategoriKod); }
+    if (baslangic) {
+      sql += ` AND i.invoice_date >= $${idx++}`;
+      params.push(baslangic);
+    }
+    if (bitis) {
+      sql += ` AND i.invoice_date <= $${idx++}`;
+      params.push(bitis);
+    }
+    if (kategoriKod) {
+      sql += ` AND kat.kod = $${idx++}`;
+      params.push(kategoriKod);
+    }
     sql += ` GROUP BY COALESCE(kat.ad, 'DİĞER') ORDER BY toplam_tutar DESC NULLS LAST`;
 
     const result = await query(sql, params);
@@ -447,16 +497,28 @@ export const faturaKalemleriClient = {
     `;
     const params = [];
     let idx = 1;
-    if (baslangic) { sql += ` AND i.invoice_date >= $${idx++}`; params.push(baslangic); }
-    if (bitis) { sql += ` AND i.invoice_date <= $${idx++}`; params.push(bitis); }
-    if (tedarikciVkn) { sql += ` AND i.sender_vkn = $${idx++}`; params.push(tedarikciVkn); }
-    if (tedarikciUnvanIlike) { sql += ` AND i.sender_name ILIKE $${idx++}`; params.push(tedarikciUnvanIlike); }
+    if (baslangic) {
+      sql += ` AND i.invoice_date >= $${idx++}`;
+      params.push(baslangic);
+    }
+    if (bitis) {
+      sql += ` AND i.invoice_date <= $${idx++}`;
+      params.push(bitis);
+    }
+    if (tedarikciVkn) {
+      sql += ` AND i.sender_vkn = $${idx++}`;
+      params.push(tedarikciVkn);
+    }
+    if (tedarikciUnvanIlike) {
+      sql += ` AND i.sender_name ILIKE $${idx++}`;
+      params.push(tedarikciUnvanIlike);
+    }
     sql += ` GROUP BY fk.orijinal_urun_adi, kat.ad ORDER BY toplam_tutar DESC NULLS LAST LIMIT $${idx++}`;
     params.push(limit);
 
     const result = await query(sql, params);
     return result.rows;
-  }
+  },
 };
 
 export default faturaKalemleriClient;

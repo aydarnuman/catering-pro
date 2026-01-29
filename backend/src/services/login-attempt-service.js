@@ -17,24 +17,25 @@ class LoginAttemptService {
    */
   async recordFailedLogin(email, ipAddress, userAgent) {
     try {
-      const result = await query(
-        `SELECT * FROM record_failed_login($1, $2, $3)`,
-        [email, ipAddress || null, userAgent || null]
-      );
+      const result = await query(`SELECT * FROM record_failed_login($1, $2, $3)`, [
+        email,
+        ipAddress || null,
+        userAgent || null,
+      ]);
 
       if (result.rows.length === 0) {
         // Kullanıcı bulunamadı
         return {
           isLocked: false,
           lockedUntil: null,
-          remainingAttempts: 0
+          remainingAttempts: 0,
         };
       }
 
       const row = result.rows[0];
       const isLocked = row.is_locked || false;
       const lockedUntil = row.locked_until ? new Date(row.locked_until) : null;
-      
+
       // Hesap kilitlendiyse admin'e bildirim gönder
       if (isLocked && lockedUntil) {
         try {
@@ -53,11 +54,11 @@ class LoginAttemptService {
           // Bildirim hatası login'i engellemez
         }
       }
-      
+
       return {
         isLocked,
         lockedUntil,
-        remainingAttempts: row.remaining_attempts || 0
+        remainingAttempts: row.remaining_attempts || 0,
       };
     } catch (error) {
       logger.error('Failed login recording error', { error: error.message, email });
@@ -65,7 +66,7 @@ class LoginAttemptService {
       return {
         isLocked: false,
         lockedUntil: null,
-        remainingAttempts: 0
+        remainingAttempts: 0,
       };
     }
   }
@@ -79,7 +80,7 @@ class LoginAttemptService {
   async recordSuccessfulLogin(userId, ipAddress, userAgent) {
     try {
       await query(`SELECT reset_login_attempts($1)`, [userId]);
-      
+
       // Başarılı login'i de kaydet
       const userResult = await query('SELECT email FROM users WHERE id = $1', [userId]);
       if (userResult.rows.length > 0) {
@@ -179,12 +180,7 @@ class LoginAttemptService {
       );
 
       // Admin'e bildirim gönder
-      await adminNotificationService.notifyAccountLocked(
-        userId,
-        userResult.rows[0].email,
-        'Admin',
-        lockedUntil
-      );
+      await adminNotificationService.notifyAccountLocked(userId, userResult.rows[0].email, 'Admin', lockedUntil);
 
       logger.info('Account manually locked', { userId, lockedUntil, minutes });
       return true;
@@ -234,13 +230,13 @@ class LoginAttemptService {
         [userId, limit]
       );
 
-      return result.rows.map(row => ({
+      return result.rows.map((row) => ({
         id: row.id,
         email: row.email,
         ipAddress: row.ip_address,
         userAgent: row.user_agent,
         success: row.success,
-        attemptedAt: row.attempted_at
+        attemptedAt: row.attempted_at,
       }));
     } catch (error) {
       logger.error('Login history fetch error', { error: error.message, userId });
@@ -273,7 +269,7 @@ class LoginAttemptService {
         failedAttempts: row.failed_login_attempts || 0,
         lockedUntil: row.locked_until ? new Date(row.locked_until) : null,
         lockoutCount: row.lockout_count || 0,
-        lastFailedLogin: row.last_failed_login ? new Date(row.last_failed_login) : null
+        lastFailedLogin: row.last_failed_login ? new Date(row.last_failed_login) : null,
       };
     } catch (error) {
       logger.error('User status fetch error', { error: error.message, userId });

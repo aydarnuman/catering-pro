@@ -1,5 +1,5 @@
 import express from 'express';
-import { query, pool } from '../database.js';
+import { query } from '../database.js';
 
 const router = express.Router();
 
@@ -60,10 +60,9 @@ router.get('/', async (req, res) => {
 
     res.json({
       success: true,
-      data: result.rows
+      data: result.rows,
     });
   } catch (error) {
-    console.error('Takip listesi hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -75,13 +74,14 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { tender_id, user_id, status, notes, priority, analysis_summary } = req.body;
-    
+
     if (!tender_id) {
       return res.status(400).json({ success: false, error: 'tender_id gerekli' });
     }
-    
+
     // Upsert - varsa güncelle, yoksa ekle
-    const result = await query(`
+    const result = await query(
+      `
       INSERT INTO tender_tracking (tender_id, user_id, status, notes, priority, analysis_summary)
       VALUES ($1, $2, $3, $4, $5, $6)
       ON CONFLICT (tender_id, user_id) 
@@ -92,21 +92,22 @@ router.post('/', async (req, res) => {
         analysis_summary = COALESCE(EXCLUDED.analysis_summary, tender_tracking.analysis_summary),
         updated_at = NOW()
       RETURNING *
-    `, [
-      tender_id,
-      user_id || null,
-      status || 'bekliyor',
-      notes || null,
-      priority || 0,
-      analysis_summary ? JSON.stringify(analysis_summary) : null
-    ]);
-    
+    `,
+      [
+        tender_id,
+        user_id || null,
+        status || 'bekliyor',
+        notes || null,
+        priority || 0,
+        analysis_summary ? JSON.stringify(analysis_summary) : null,
+      ]
+    );
+
     res.json({
       success: true,
-      data: result.rows[0]
+      data: result.rows[0],
     });
   } catch (error) {
-    console.error('Takip ekleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -118,20 +119,21 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { 
-      status, 
-      notes, 
-      priority, 
-      reminder_date, 
+    const {
+      status,
+      notes,
+      priority,
+      reminder_date,
       analysis_summary,
       // Yeni hesaplama alanları
       yaklasik_maliyet,
       sinir_deger,
       bizim_teklif,
-      hesaplama_verileri
+      hesaplama_verileri,
     } = req.body;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       UPDATE tender_tracking 
       SET 
         status = COALESCE($1, status),
@@ -146,29 +148,30 @@ router.put('/:id', async (req, res) => {
         updated_at = NOW()
       WHERE id = $10
       RETURNING *
-    `, [
-      status,
-      notes,
-      priority,
-      reminder_date || null,
-      analysis_summary ? JSON.stringify(analysis_summary) : null,
-      yaklasik_maliyet || null,
-      sinir_deger || null,
-      bizim_teklif || null,
-      hesaplama_verileri ? JSON.stringify(hesaplama_verileri) : null,
-      id
-    ]);
-    
+    `,
+      [
+        status,
+        notes,
+        priority,
+        reminder_date || null,
+        analysis_summary ? JSON.stringify(analysis_summary) : null,
+        yaklasik_maliyet || null,
+        sinir_deger || null,
+        bizim_teklif || null,
+        hesaplama_verileri ? JSON.stringify(hesaplama_verileri) : null,
+        id,
+      ]
+    );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Kayıt bulunamadı' });
     }
-    
+
     res.json({
       success: true,
-      data: result.rows[0]
+      data: result.rows[0],
     });
   } catch (error) {
-    console.error('Takip güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -188,10 +191,7 @@ router.post('/:id/notes', async (req, res) => {
     }
 
     // Tracking kaydından tender_id ve user_id al
-    const trackingResult = await query(
-      'SELECT tender_id, user_id FROM tender_tracking WHERE id = $1',
-      [id]
-    );
+    const trackingResult = await query('SELECT tender_id, user_id FROM tender_tracking WHERE id = $1', [id]);
 
     if (trackingResult.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Kayıt bulunamadı' });
@@ -200,7 +200,8 @@ router.post('/:id/notes', async (req, res) => {
     const { tender_id, user_id } = trackingResult.rows[0];
 
     // Unified notes'a ekle
-    const result = await query(`
+    const result = await query(
+      `
       INSERT INTO unified_notes (
         user_id, context_type, context_id, content, content_format,
         is_task, priority, color, pinned, sort_order
@@ -211,7 +212,9 @@ router.post('/:id/notes', async (req, res) => {
         COALESCE((SELECT MAX(sort_order) + 1 FROM unified_notes WHERE context_type = 'tender' AND context_id = $2::text), 0)
       )
       RETURNING *
-    `, [user_id || 1, tender_id, noteText.trim()]);
+    `,
+      [user_id || 1, tender_id, noteText.trim()]
+    );
 
     const newNote = result.rows[0];
 
@@ -221,11 +224,10 @@ router.post('/:id/notes', async (req, res) => {
       note: {
         id: newNote.id,
         text: newNote.content,
-        created_at: newNote.created_at
-      }
+        created_at: newNote.created_at,
+      },
     });
   } catch (error) {
-    console.error('Not ekleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -239,20 +241,14 @@ router.delete('/:id/notes/:noteId', async (req, res) => {
     const { id, noteId } = req.params;
 
     // Tracking kaydından user_id al (yetki kontrolü için)
-    const trackingResult = await query(
-      'SELECT user_id FROM tender_tracking WHERE id = $1',
-      [id]
-    );
+    const trackingResult = await query('SELECT user_id FROM tender_tracking WHERE id = $1', [id]);
 
     if (trackingResult.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Kayıt bulunamadı' });
     }
 
     // Unified notes'tan sil
-    const result = await query(
-      'DELETE FROM unified_notes WHERE id = $1 RETURNING id',
-      [noteId]
-    );
+    const result = await query('DELETE FROM unified_notes WHERE id = $1 RETURNING id', [noteId]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Not bulunamadı' });
@@ -260,10 +256,9 @@ router.delete('/:id/notes/:noteId', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Not silindi'
+      message: 'Not silindi',
     });
   } catch (error) {
-    console.error('Not silme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -275,22 +270,18 @@ router.delete('/:id/notes/:noteId', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const result = await query(
-      'DELETE FROM tender_tracking WHERE id = $1 RETURNING *',
-      [id]
-    );
-    
+
+    const result = await query('DELETE FROM tender_tracking WHERE id = $1 RETURNING *', [id]);
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Kayıt bulunamadı' });
     }
-    
+
     res.json({
       success: true,
-      message: 'Takip kaydı silindi'
+      message: 'Takip kaydı silindi',
     });
   } catch (error) {
-    console.error('Takip silme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -302,13 +293,14 @@ router.delete('/:id', async (req, res) => {
 router.post('/add-from-analysis', async (req, res) => {
   try {
     const { tender_id, user_id } = req.body;
-    
+
     if (!tender_id) {
       return res.status(400).json({ success: false, error: 'tender_id gerekli' });
     }
-    
+
     // Tüm analiz sonuçlarını topla
-    const analysisResult = await query(`
+    const analysisResult = await query(
+      `
       SELECT 
         d.id,
         d.doc_type,
@@ -317,22 +309,23 @@ router.post('/add-from-analysis', async (req, res) => {
         d.processing_status
       FROM documents d
       WHERE d.tender_id = $1 AND d.processing_status = 'completed' AND d.analysis_result IS NOT NULL
-    `, [tender_id]);
-    
+    `,
+      [tender_id]
+    );
+
     // Analiz özetini oluştur
-    let analysisSummary = {
+    const analysisSummary = {
       teknik_sartlar: [],
       birim_fiyatlar: [],
       notlar: [],
-      documents_count: analysisResult.rows.length
+      documents_count: analysisResult.rows.length,
     };
-    
+
     for (const doc of analysisResult.rows) {
       if (doc.analysis_result) {
-        const analysis = typeof doc.analysis_result === 'string' 
-          ? JSON.parse(doc.analysis_result) 
-          : doc.analysis_result;
-        
+        const analysis =
+          typeof doc.analysis_result === 'string' ? JSON.parse(doc.analysis_result) : doc.analysis_result;
+
         // Teknik şartları topla
         if (analysis.teknik_sartlar) {
           analysisSummary.teknik_sartlar.push(...analysis.teknik_sartlar);
@@ -340,7 +333,7 @@ router.post('/add-from-analysis', async (req, res) => {
         if (analysis.technical_requirements) {
           analysisSummary.teknik_sartlar.push(...analysis.technical_requirements);
         }
-        
+
         // Birim fiyatları topla
         if (analysis.birim_fiyatlar) {
           analysisSummary.birim_fiyatlar.push(...analysis.birim_fiyatlar);
@@ -348,7 +341,7 @@ router.post('/add-from-analysis', async (req, res) => {
         if (analysis.unit_prices) {
           analysisSummary.birim_fiyatlar.push(...analysis.unit_prices);
         }
-        
+
         // Notları topla
         if (analysis.notlar) {
           analysisSummary.notlar.push(...analysis.notlar);
@@ -358,9 +351,10 @@ router.post('/add-from-analysis', async (req, res) => {
         }
       }
     }
-    
+
     // Takip listesine ekle/güncelle
-    const result = await query(`
+    const result = await query(
+      `
       INSERT INTO tender_tracking (
         tender_id, user_id, status, analysis_summary, 
         documents_analyzed, last_analysis_at
@@ -373,20 +367,16 @@ router.post('/add-from-analysis', async (req, res) => {
         last_analysis_at = NOW(),
         updated_at = NOW()
       RETURNING *
-    `, [
-      tender_id,
-      user_id || null,
-      JSON.stringify(analysisSummary),
-      analysisResult.rows.length
-    ]);
-    
+    `,
+      [tender_id, user_id || null, JSON.stringify(analysisSummary), analysisResult.rows.length]
+    );
+
     res.json({
       success: true,
       data: result.rows[0],
-      analysis_summary: analysisSummary
+      analysis_summary: analysisSummary,
     });
   } catch (error) {
-    console.error('Analiz sonrası takip ekleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -399,7 +389,7 @@ router.get('/check/:tenderId', async (req, res) => {
   try {
     const { tenderId } = req.params;
     const { user_id } = req.query;
-    
+
     // user_id varsa ona göre, yoksa tüm user_id NULL olanları da dahil et
     let sql, params;
     if (user_id) {
@@ -410,16 +400,15 @@ router.get('/check/:tenderId', async (req, res) => {
       sql = `SELECT * FROM tender_tracking WHERE tender_id = $1`;
       params = [tenderId];
     }
-    
+
     const result = await query(sql, params);
-    
+
     res.json({
       success: true,
       isTracked: result.rows.length > 0,
-      data: result.rows[0] || null
+      data: result.rows[0] || null,
     });
   } catch (error) {
-    console.error('Takip kontrol hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -431,11 +420,12 @@ router.get('/check/:tenderId', async (req, res) => {
 router.get('/stats', async (req, res) => {
   try {
     const { user_id } = req.query;
-    
-    let whereClause = user_id ? 'WHERE user_id = $1' : '';
+
+    const whereClause = user_id ? 'WHERE user_id = $1' : '';
     const params = user_id ? [user_id] : [];
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       SELECT 
         COUNT(*) as toplam,
         COUNT(*) FILTER (WHERE status = 'bekliyor') as bekliyor,
@@ -445,14 +435,15 @@ router.get('/stats', async (req, res) => {
         COUNT(*) FILTER (WHERE status = 'iptal') as iptal
       FROM tender_tracking
       ${whereClause}
-    `, params);
-    
+    `,
+      params
+    );
+
     res.json({
       success: true,
-      data: result.rows[0]
+      data: result.rows[0],
     });
   } catch (error) {
-    console.error('İstatistik hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -465,9 +456,10 @@ router.get('/stats', async (req, res) => {
 router.get('/:tenderId/analysis', async (req, res) => {
   try {
     const { tenderId } = req.params;
-    
+
     // Tüm dökümanların analiz sonuçlarını çek
-    const docsResult = await query(`
+    const docsResult = await query(
+      `
       SELECT 
         id, original_filename, doc_type, processing_status, 
         analysis_result, extracted_text
@@ -475,28 +467,36 @@ router.get('/:tenderId/analysis', async (req, res) => {
       WHERE tender_id = $1 
         AND analysis_result IS NOT NULL
       ORDER BY doc_type, created_at
-    `, [tenderId]);
-    
+    `,
+      [tenderId]
+    );
+
     // İhale bilgilerini çek
-    const tenderResult = await query(`
+    const tenderResult = await query(
+      `
       SELECT id, title, organization_name, tender_date, city, 
              estimated_cost, external_id, url
       FROM tenders WHERE id = $1
-    `, [tenderId]);
-    
+    `,
+      [tenderId]
+    );
+
     if (tenderResult.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'İhale bulunamadı' });
     }
-    
+
     const tender = tenderResult.rows[0];
     const documents = docsResult.rows;
-    
+
     // Gizlenen notları al (kullanıcı tarafından silinen)
-    const trackingResult = await query(`
+    const trackingResult = await query(
+      `
       SELECT hidden_notes FROM tender_tracking WHERE tender_id = $1
-    `, [tenderId]);
+    `,
+      [tenderId]
+    );
     const hiddenNotes = trackingResult.rows[0]?.hidden_notes || [];
-    
+
     // Analiz sonuçlarını birleştir
     const combinedAnalysis = {
       ihale_basligi: tender.title,
@@ -509,25 +509,25 @@ router.get('/:tenderId/analysis', async (req, res) => {
       notlar: [], // Artık object array: { id, text, source, doc_id, verified }
       tam_metin: '',
       iletisim: null,
-      dokuman_detaylari: [] // Her dökümanın ayrı analizi
+      dokuman_detaylari: [], // Her dökümanın ayrı analizi
     };
-    
+
     // Not ID'si için sayaç
     let noteIdCounter = 1;
-    
+
     for (const doc of documents) {
       const analysis = doc.analysis_result || {};
       const sourceName = doc.original_filename || doc.doc_type || 'Bilinmeyen';
-      
+
       // Her dökümanın ayrı analizini ekle
       combinedAnalysis.dokuman_detaylari.push({
         id: doc.id,
         filename: doc.original_filename,
         doc_type: doc.doc_type,
         status: doc.processing_status,
-        analysis: analysis
+        analysis: analysis,
       });
-      
+
       // Birleşik alanları doldur
       if (analysis.sure && !combinedAnalysis.sure) {
         combinedAnalysis.sure = analysis.sure;
@@ -538,7 +538,7 @@ router.get('/:tenderId/analysis', async (req, res) => {
       if (analysis.iletisim && !combinedAnalysis.iletisim) {
         combinedAnalysis.iletisim = analysis.iletisim;
       }
-      
+
       // Teknik şartları birleştir (kaynak bilgisiyle)
       // Hem Claude formatı (teknik_sartlar) hem Gemini formatı (technical_specs) destekleniyor
       const teknikSartlarSource = analysis.teknik_sartlar || analysis.technical_specs || [];
@@ -548,11 +548,11 @@ router.get('/:tenderId/analysis', async (req, res) => {
           combinedAnalysis.teknik_sartlar.push({
             text: sartText,
             source: sourceName,
-            doc_id: doc.id
+            doc_id: doc.id,
           });
         }
       }
-      
+
       // Birim fiyatları birleştir - object olanları önce, string olanları sonra
       // Hem Claude formatı (birim_fiyatlar) hem Gemini formatı (unit_prices) destekleniyor
       const birimFiyatlarSource = analysis.birim_fiyatlar || analysis.unit_prices || [];
@@ -561,13 +561,13 @@ router.get('/:tenderId/analysis', async (req, res) => {
           // Object formatındaki birim fiyatları (kalem, miktar, birim_fiyat içerenler)
           if (typeof item === 'object' && item !== null && (item.kalem || item.name || item.description)) {
             // Başa ekle (öncelikli)
-            combinedAnalysis.birim_fiyatlar.unshift({ 
+            combinedAnalysis.birim_fiyatlar.unshift({
               kalem: item.kalem || item.name || item.description,
               miktar: item.miktar || item.quantity,
               birim: item.birim || item.unit,
               fiyat: item.fiyat || item.tutar || item.price || item.amount,
-              source: sourceName, 
-              doc_id: doc.id 
+              source: sourceName,
+              doc_id: doc.id,
             });
           } else if (typeof item === 'string') {
             // String formatındaki açıklamaları sona ekle
@@ -575,7 +575,7 @@ router.get('/:tenderId/analysis', async (req, res) => {
           }
         }
       }
-      
+
       // Notları birleştir (kaynak bilgisiyle)
       // Hem Claude formatı (notlar) hem Gemini formatı (important_notes) destekleniyor
       const notlarSource = analysis.notlar || analysis.important_notes || [];
@@ -583,45 +583,46 @@ router.get('/:tenderId/analysis', async (req, res) => {
         for (const not of notlarSource) {
           const noteText = typeof not === 'string' ? not : not.text || String(not);
           const noteId = `note_${doc.id}_${noteIdCounter++}`;
-          
+
           // Gizlenen notları atla
           if (hiddenNotes.includes(noteId) || hiddenNotes.includes(noteText)) {
             continue;
           }
-          
+
           combinedAnalysis.notlar.push({
             id: noteId,
             text: noteText,
             source: sourceName,
             doc_id: doc.id,
-            verified: false
+            verified: false,
           });
         }
       }
-      
+
       // Tam metinleri birleştir
       if (analysis.tam_metin) {
         combinedAnalysis.tam_metin += `\n\n--- ${doc.original_filename} ---\n${analysis.tam_metin}`;
       }
     }
-    
+
     // Teknik şartları: tüm şartlar gösterilsin (unique filtreleme yok)
     // İhale Listesi analizi ile aynı sayılar gösterilecek
     // String formatındakileri object'e çevir
-    combinedAnalysis.teknik_sartlar = combinedAnalysis.teknik_sartlar.map(sart => 
+    combinedAnalysis.teknik_sartlar = combinedAnalysis.teknik_sartlar.map((sart) =>
       typeof sart === 'string' ? { text: sart, source: 'Bilinmeyen' } : sart
     );
-    
+
     // Birim fiyatları: tüm kalemler gösterilsin (unique filtreleme yok)
     // İhale Listesi analizi ile aynı sayılar gösterilecek
-    
+
     // Notları: tüm notlar gösterilsin (unique filtreleme yok)
     // İhale Listesi analizi ile aynı sayılar gösterilecek
     combinedAnalysis.tam_metin = combinedAnalysis.tam_metin.trim();
-    
+
     // Döküman istatistikleri (ZIP dosyaları hariç - analiz edilemezler)
     // analysis_result dolu olan dökümanları da "completed" say (status güncellenmemiş olabilir)
-    const totalDocs = await query(`
+    const totalDocs = await query(
+      `
       SELECT COUNT(*) as total, 
              COUNT(*) FILTER (WHERE 
                processing_status = 'completed' 
@@ -632,23 +633,24 @@ router.get('/:tenderId/analysis', async (req, res) => {
       FROM documents 
       WHERE tender_id = $1 
         AND (file_type IS NULL OR file_type NOT LIKE '%zip%')
-    `, [tenderId]);
-    
+    `,
+      [tenderId]
+    );
+
     res.json({
       success: true,
       data: {
         tender: tender,
         analysis: combinedAnalysis,
         stats: {
-          toplam_dokuman: parseInt(totalDocs.rows[0].total),
-          analiz_edilen: parseInt(totalDocs.rows[0].completed),
-          basarisiz: parseInt(totalDocs.rows[0].failed),
-          bekleyen: parseInt(totalDocs.rows[0].pending)
-        }
-      }
+          toplam_dokuman: parseInt(totalDocs.rows[0].total, 10),
+          analiz_edilen: parseInt(totalDocs.rows[0].completed, 10),
+          basarisiz: parseInt(totalDocs.rows[0].failed, 10),
+          bekleyen: parseInt(totalDocs.rows[0].pending, 10),
+        },
+      },
     });
   } catch (error) {
-    console.error('Analiz getirme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -661,41 +663,46 @@ router.post('/:tenderId/hide-note', async (req, res) => {
   try {
     const { tenderId } = req.params;
     const { noteId, noteText } = req.body;
-    
+
     if (!noteId && !noteText) {
       return res.status(400).json({ success: false, error: 'noteId veya noteText gerekli' });
     }
-    
+
     // Gizlenecek değeri belirle (ID veya text)
     const hideValue = noteId || noteText;
-    
+
     // Mevcut hidden_notes'a ekle
-    const result = await query(`
+    const result = await query(
+      `
       UPDATE tender_tracking 
       SET hidden_notes = COALESCE(hidden_notes, '[]'::jsonb) || $1::jsonb,
           updated_at = NOW()
       WHERE tender_id = $2
       RETURNING hidden_notes
-    `, [JSON.stringify([hideValue]), tenderId]);
-    
+    `,
+      [JSON.stringify([hideValue]), tenderId]
+    );
+
     if (result.rows.length === 0) {
       // Tracking kaydı yoksa oluştur
-      await query(`
+      await query(
+        `
         INSERT INTO tender_tracking (tender_id, status, hidden_notes)
         VALUES ($1, 'bekliyor', $2::jsonb)
         ON CONFLICT (tender_id, user_id) DO UPDATE 
         SET hidden_notes = COALESCE(tender_tracking.hidden_notes, '[]'::jsonb) || $2::jsonb,
             updated_at = NOW()
-      `, [tenderId, JSON.stringify([hideValue])]);
+      `,
+        [tenderId, JSON.stringify([hideValue])]
+      );
     }
-    
+
     res.json({
       success: true,
       message: 'Not gizlendi',
-      hiddenNote: hideValue
+      hiddenNote: hideValue,
     });
   } catch (error) {
-    console.error('Not gizleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -708,15 +715,16 @@ router.post('/:tenderId/unhide-note', async (req, res) => {
   try {
     const { tenderId } = req.params;
     const { noteId, noteText } = req.body;
-    
+
     if (!noteId && !noteText) {
       return res.status(400).json({ success: false, error: 'noteId veya noteText gerekli' });
     }
-    
+
     const unhideValue = noteId || noteText;
-    
+
     // hidden_notes'dan çıkar
-    const result = await query(`
+    const _result = await query(
+      `
       UPDATE tender_tracking 
       SET hidden_notes = (
         SELECT COALESCE(jsonb_agg(elem), '[]'::jsonb)
@@ -726,15 +734,16 @@ router.post('/:tenderId/unhide-note', async (req, res) => {
       updated_at = NOW()
       WHERE tender_id = $2
       RETURNING hidden_notes
-    `, [JSON.stringify(unhideValue), tenderId]);
-    
+    `,
+      [JSON.stringify(unhideValue), tenderId]
+    );
+
     res.json({
       success: true,
       message: 'Not geri getirildi',
-      unhiddenNote: unhideValue
+      unhiddenNote: unhideValue,
     });
   } catch (error) {
-    console.error('Not geri getirme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -746,17 +755,19 @@ router.post('/:tenderId/unhide-note', async (req, res) => {
 router.get('/:tenderId/hidden-notes', async (req, res) => {
   try {
     const { tenderId } = req.params;
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       SELECT hidden_notes FROM tender_tracking WHERE tender_id = $1
-    `, [tenderId]);
-    
+    `,
+      [tenderId]
+    );
+
     res.json({
       success: true,
-      hiddenNotes: result.rows[0]?.hidden_notes || []
+      hiddenNotes: result.rows[0]?.hidden_notes || [],
     });
   } catch (error) {
-    console.error('Gizlenen notlar getirme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

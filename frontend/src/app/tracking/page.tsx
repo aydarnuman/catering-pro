@@ -58,6 +58,7 @@ const TeklifModal = dynamic(() => import('@/components/teklif/TeklifModal'), {
   ssr: false,
   loading: () => null,
 });
+
 import { useResponsive } from '@/hooks/useResponsive';
 import { tendersAPI } from '@/lib/api/services/tenders';
 
@@ -616,7 +617,12 @@ function TrackingPageContent() {
                   <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
                     Bekliyor
                   </Text>
-                  <Text size="xl" fw={700} c="yellow" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  <Text
+                    size="xl"
+                    fw={700}
+                    c="yellow"
+                    style={{ fontVariantNumeric: 'tabular-nums' }}
+                  >
                     {stats.bekliyor}
                   </Text>
                 </div>
@@ -668,11 +674,7 @@ function TrackingPageContent() {
           </SimpleGrid>
 
           {/* Filtreler - Glassy */}
-          <Paper
-            p="md"
-            radius="lg"
-            className="glassy-content-card"
-          >
+          <Paper p="md" radius="lg" className="glassy-content-card">
             <Stack gap="xs">
               <Group gap="xs" grow={isMobile && isMounted}>
                 <TextInput

@@ -5,15 +5,15 @@
  * Main hook for unified notes system with SWR caching
  */
 
-import useSWR from 'swr';
 import { useCallback, useMemo } from 'react';
+import useSWR from 'swr';
 import { notesAPI } from '@/lib/api/services/notes';
 import type {
-  UnifiedNote,
   CreateNoteDTO,
-  UpdateNoteDTO,
   NotesFilter,
   NoteTag,
+  UnifiedNote,
+  UpdateNoteDTO,
 } from '@/types/notes';
 
 interface UseNotesOptions {
@@ -55,20 +55,17 @@ interface UseNotesReturn {
   /** Refresh notes list */
   refresh: () => void;
   /** Mutate notes (for optimistic updates) */
-  mutate: (data?: UnifiedNote[] | ((current: UnifiedNote[] | undefined) => UnifiedNote[] | undefined), shouldRevalidate?: boolean) => void;
+  mutate: (
+    data?: UnifiedNote[] | ((current: UnifiedNote[] | undefined) => UnifiedNote[] | undefined),
+    shouldRevalidate?: boolean
+  ) => void;
 }
 
 /**
  * Hook for managing unified notes
  */
 export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
-  const {
-    filter,
-    contextType,
-    contextId,
-    enabled = true,
-    refreshInterval = 0,
-  } = options;
+  const { filter, contextType, contextId, enabled = true, refreshInterval = 0 } = options;
 
   const isContextual = !!contextType && contextId !== undefined;
 
@@ -93,12 +90,7 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
   }, [isContextual, contextType, contextId, filter]);
 
   // SWR hook
-  const {
-    data,
-    error,
-    isLoading,
-    mutate,
-  } = useSWR<{ notes: UnifiedNote[]; total: number }>(
+  const { data, error, isLoading, mutate } = useSWR<{ notes: UnifiedNote[]; total: number }>(
     cacheKey,
     fetcher,
     {
@@ -114,119 +106,130 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
   /**
    * Create a new note
    */
-  const createNote = useCallback(async (noteData: CreateNoteDTO): Promise<UnifiedNote | null> => {
-    try {
-      const res = isContextual && contextType && contextId != null
-        ? await notesAPI.createContextNote(contextType, contextId as number, noteData)
-        : await notesAPI.createNote(noteData);
+  const createNote = useCallback(
+    async (noteData: CreateNoteDTO): Promise<UnifiedNote | null> => {
+      try {
+        const res =
+          isContextual && contextType && contextId != null
+            ? await notesAPI.createContextNote(contextType, contextId as number, noteData)
+            : await notesAPI.createNote(noteData);
 
-      if (res.success && res.note) {
-        // Optimistic update - add new note at the beginning
-        mutate(
-          (current) => ({
-            notes: [res.note, ...(current?.notes ?? [])],
-            total: (current?.total ?? 0) + 1,
-          }),
-          false
-        );
-        return res.note;
+        if (res.success && res.note) {
+          // Optimistic update - add new note at the beginning
+          mutate(
+            (current) => ({
+              notes: [res.note, ...(current?.notes ?? [])],
+              total: (current?.total ?? 0) + 1,
+            }),
+            false
+          );
+          return res.note;
+        }
+        return null;
+      } catch (err) {
+        console.error('Error creating note:', err);
+        return null;
       }
-      return null;
-    } catch (err) {
-      console.error('Error creating note:', err);
-      return null;
-    }
-  }, [isContextual, contextType, contextId, mutate]);
+    },
+    [isContextual, contextType, contextId, mutate]
+  );
 
   /**
    * Update a note
    */
-  const updateNote = useCallback(async (id: string, noteData: UpdateNoteDTO): Promise<UnifiedNote | null> => {
-    try {
-      const res = await notesAPI.updateNote(id, noteData);
+  const updateNote = useCallback(
+    async (id: string, noteData: UpdateNoteDTO): Promise<UnifiedNote | null> => {
+      try {
+        const res = await notesAPI.updateNote(id, noteData);
 
-      if (res.success && res.note) {
-        // Optimistic update
-        mutate(
-          (current) => ({
-            notes: (current?.notes ?? []).map((n) => (n.id === id ? res.note : n)),
-            total: current?.total ?? 0,
-          }),
-          false
-        );
-        return res.note;
+        if (res.success && res.note) {
+          // Optimistic update
+          mutate(
+            (current) => ({
+              notes: (current?.notes ?? []).map((n) => (n.id === id ? res.note : n)),
+              total: current?.total ?? 0,
+            }),
+            false
+          );
+          return res.note;
+        }
+        return null;
+      } catch (err) {
+        console.error('Error updating note:', err);
+        return null;
       }
-      return null;
-    } catch (err) {
-      console.error('Error updating note:', err);
-      return null;
-    }
-  }, [mutate]);
+    },
+    [mutate]
+  );
 
   /**
    * Delete a note
    */
-  const deleteNote = useCallback(async (id: string): Promise<boolean> => {
-    try {
-      const res = await notesAPI.deleteNote(id);
+  const deleteNote = useCallback(
+    async (id: string): Promise<boolean> => {
+      try {
+        const res = await notesAPI.deleteNote(id);
 
-      if (res.success) {
-        // Optimistic update
-        mutate(
-          (current) => ({
-            notes: (current?.notes ?? []).filter((n) => n.id !== id),
-            total: Math.max((current?.total ?? 1) - 1, 0),
-          }),
-          false
-        );
-        return true;
+        if (res.success) {
+          // Optimistic update
+          mutate(
+            (current) => ({
+              notes: (current?.notes ?? []).filter((n) => n.id !== id),
+              total: Math.max((current?.total ?? 1) - 1, 0),
+            }),
+            false
+          );
+          return true;
+        }
+        return false;
+      } catch (err) {
+        console.error('Error deleting note:', err);
+        return false;
       }
-      return false;
-    } catch (err) {
-      console.error('Error deleting note:', err);
-      return false;
-    }
-  }, [mutate]);
+    },
+    [mutate]
+  );
 
   /**
    * Toggle note completion
    */
-  const toggleComplete = useCallback(async (id: string): Promise<UnifiedNote | null> => {
-    try {
-      const res = await notesAPI.toggleComplete(id);
+  const toggleComplete = useCallback(
+    async (id: string): Promise<UnifiedNote | null> => {
+      try {
+        const res = await notesAPI.toggleComplete(id);
 
-      if (res.success && res.note) {
-        // Optimistic update
-        mutate(
-          (current) => ({
-            notes: (current?.notes ?? []).map((n) => (n.id === id ? res.note : n)),
-            total: current?.total ?? 0,
-          }),
-          false
-        );
-        return res.note;
+        if (res.success && res.note) {
+          // Optimistic update
+          mutate(
+            (current) => ({
+              notes: (current?.notes ?? []).map((n) => (n.id === id ? res.note : n)),
+              total: current?.total ?? 0,
+            }),
+            false
+          );
+          return res.note;
+        }
+        return null;
+      } catch (err) {
+        console.error('Error toggling note completion:', err);
+        return null;
       }
-      return null;
-    } catch (err) {
-      console.error('Error toggling note completion:', err);
-      return null;
-    }
-  }, [mutate]);
+    },
+    [mutate]
+  );
 
   /**
    * Toggle note pin status
    */
-  const togglePin = useCallback(async (id: string): Promise<UnifiedNote | null> => {
-    try {
-      const res = await notesAPI.togglePin(id);
+  const togglePin = useCallback(
+    async (id: string): Promise<UnifiedNote | null> => {
+      try {
+        const res = await notesAPI.togglePin(id);
 
-      if (res.success && res.note) {
-        // Optimistic update with re-sorting (pinned first)
-        mutate(
-          (current) => {
-            const updatedNotes = (current?.notes ?? []).map((n) =>
-              n.id === id ? res.note : n
-            );
+        if (res.success && res.note) {
+          // Optimistic update with re-sorting (pinned first)
+          mutate((current) => {
+            const updatedNotes = (current?.notes ?? []).map((n) => (n.id === id ? res.note : n));
             // Re-sort: pinned first, then by sort_order
             updatedNotes.sort((a, b) => {
               if (a.pinned && !b.pinned) return -1;
@@ -237,26 +240,26 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
               notes: updatedNotes,
               total: current?.total ?? 0,
             };
-          },
-          false
-        );
-        return res.note;
+          }, false);
+          return res.note;
+        }
+        return null;
+      } catch (err) {
+        console.error('Error toggling note pin:', err);
+        return null;
       }
-      return null;
-    } catch (err) {
-      console.error('Error toggling note pin:', err);
-      return null;
-    }
-  }, [mutate]);
+    },
+    [mutate]
+  );
 
   /**
    * Reorder notes (drag-drop)
    */
-  const reorderNotes = useCallback(async (noteIds: string[]): Promise<boolean> => {
-    try {
-      // Optimistic update
-      mutate(
-        (current) => {
+  const reorderNotes = useCallback(
+    async (noteIds: string[]): Promise<boolean> => {
+      try {
+        // Optimistic update
+        mutate((current) => {
           const noteMap = new Map((current?.notes ?? []).map((n) => [n.id, n]));
           const reorderedNotes = noteIds
             .map((id, idx) => {
@@ -268,23 +271,24 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
             notes: reorderedNotes,
             total: current?.total ?? 0,
           };
-        },
-        false
-      );
+        }, false);
 
-      // API call
-      const res = isContextual && contextType && contextId != null
-        ? await notesAPI.reorderContextNotes(contextType, contextId as number, noteIds)
-        : await notesAPI.reorderNotes(noteIds);
+        // API call
+        const res =
+          isContextual && contextType && contextId != null
+            ? await notesAPI.reorderContextNotes(contextType, contextId as number, noteIds)
+            : await notesAPI.reorderNotes(noteIds);
 
-      return res.success;
-    } catch (err) {
-      console.error('Error reordering notes:', err);
-      // Revalidate on error
-      mutate();
-      return false;
-    }
-  }, [isContextual, contextType, contextId, mutate]);
+        return res.success;
+      } catch (err) {
+        console.error('Error reordering notes:', err);
+        // Revalidate on error
+        mutate();
+        return false;
+      }
+    },
+    [isContextual, contextType, contextId, mutate]
+  );
 
   /**
    * Delete all completed notes
@@ -373,18 +377,21 @@ export function useNoteTags() {
     }
   }, []);
 
-  const createTag = useCallback(async (name: string, color?: string): Promise<NoteTag | null> => {
-    try {
-      const res = await notesAPI.createTag(name, color);
-      if (res.success && res.tag) {
-        mutate();
-        return res.tag;
+  const createTag = useCallback(
+    async (name: string, color?: string): Promise<NoteTag | null> => {
+      try {
+        const res = await notesAPI.createTag(name, color);
+        if (res.success && res.tag) {
+          mutate();
+          return res.tag;
+        }
+        return null;
+      } catch {
+        return null;
       }
-      return null;
-    } catch {
-      return null;
-    }
-  }, [mutate]);
+    },
+    [mutate]
+  );
 
   return {
     suggestions,
@@ -414,18 +421,21 @@ export function useNoteReminders(limit?: number) {
 
   const reminders = data?.reminders ?? [];
 
-  const markAsSent = useCallback(async (reminderId: string): Promise<boolean> => {
-    try {
-      const res = await notesAPI.markReminderSent(reminderId);
-      if (res.success) {
-        mutate();
-        return true;
+  const markAsSent = useCallback(
+    async (reminderId: string): Promise<boolean> => {
+      try {
+        const res = await notesAPI.markReminderSent(reminderId);
+        if (res.success) {
+          mutate();
+          return true;
+        }
+        return false;
+      } catch {
+        return false;
       }
-      return false;
-    } catch {
-      return false;
-    }
-  }, [mutate]);
+    },
+    [mutate]
+  );
 
   return {
     reminders,

@@ -8,14 +8,8 @@ const router = express.Router();
 // İhale listesi (pagination + filtreleme)
 router.get('/', async (req, res) => {
   try {
-    const { 
-      page = 1, 
-      limit = 20, 
-      city, 
-      status = 'active',
-      search 
-    } = req.query;
-    
+    const { page = 1, limit = 20, city, status = 'active', search } = req.query;
+
     // Süresi dolan ihalelerin status'unu güncelle
     // Tüm süresi dolan ihaleleri expired yap (1 hafta içinde veya daha eski)
     // Bu işlem sadece aktif ihaleler için yapılır, performans için sadece gerekli durumlarda
@@ -31,14 +25,14 @@ router.get('/', async (req, res) => {
       // Status güncelleme hatası kritik değil, devam et
       logger.warn('Status güncelleme hatası (kritik değil)', { error: error.message });
     }
-    
+
     const offset = (page - 1) * limit;
-    
+
     // Status filtreleme: 'active' ise sadece aktif olanları, 'expired' ise süresi dolanları, 'all' ise hepsini göster
-    let whereClause = [];
-    let params = [];
+    const whereClause = [];
+    const params = [];
     let paramIndex = 1;
-    
+
     if (status === 'active') {
       // Varsayılan görünüm: Aktif ihaleler + Son 1 hafta içinde süresi dolanlar
       // tender_date NULL ise veya > NOW() ise VEYA son 1 hafta içinde süresi dolduysa göster
@@ -51,7 +45,9 @@ router.get('/', async (req, res) => {
       whereClause.push(`(tender_date IS NOT NULL AND tender_date < NOW())`);
     } else if (status === 'urgent') {
       // Son 7 gün içinde süresi dolacak ihaleler
-      whereClause.push(`(tender_date IS NOT NULL AND tender_date > NOW() AND tender_date <= NOW() + INTERVAL '7 days')`);
+      whereClause.push(
+        `(tender_date IS NOT NULL AND tender_date > NOW() AND tender_date <= NOW() + INTERVAL '7 days')`
+      );
     } else if (status === 'archived') {
       // Arşiv: 1 haftadan fazla geçmiş ihaleler
       whereClause.push(`(tender_date IS NOT NULL AND tender_date < NOW() - INTERVAL '7 days')`);
@@ -63,38 +59,35 @@ router.get('/', async (req, res) => {
       params.push(status);
       paramIndex++;
     }
-    
+
     if (city) {
       whereClause.push(`city = $${paramIndex}`);
       params.push(city);
       paramIndex++;
     }
-    
+
     if (search) {
       whereClause.push(`(title ILIKE $${paramIndex} OR organization_name ILIKE $${paramIndex})`);
       params.push(`%${search}%`);
       paramIndex++;
     }
-    
+
     const whereString = whereClause.length > 0 ? whereClause.join(' AND ') : '1=1';
-    
+
     // Debug: Status filtreleme bilgisi
     if (status === 'expired' && process.env.LOG_LEVEL === 'debug') {
       logger.debug('Expired filter', { where: whereString, params });
     }
-    
+
     // Toplam sayı
-    const countResult = await query(
-      `SELECT COUNT(*) FROM tenders WHERE ${whereString}`,
-      params
-    );
-    const total = parseInt(countResult.rows[0].count);
-    
+    const countResult = await query(`SELECT COUNT(*) FROM tenders WHERE ${whereString}`, params);
+    const total = parseInt(countResult.rows[0].count, 10);
+
     // Debug: Toplam sayı
     if (status === 'expired' && process.env.LOG_LEVEL === 'debug') {
       logger.debug('Expired filter total', { total });
     }
-    
+
     // Veri - Frontend mapping için field'ları düzenleyelim
     const result = await query(
       `SELECT 
@@ -148,11 +141,10 @@ router.get('/', async (req, res) => {
       success: true,
       tenders: result.rows,
       total,
-      page: parseInt(page),
-      limit: parseInt(limit),
-      totalPages: Math.ceil(total / limit)
+      page: parseInt(page, 10),
+      limit: parseInt(limit, 10),
+      totalPages: Math.ceil(total / limit),
     });
-    
   } catch (error) {
     logger.error('İhale listesi hatası', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -160,7 +152,7 @@ router.get('/', async (req, res) => {
 });
 
 // İstatistikler
-router.get('/stats', async (req, res) => {
+router.get('/stats', async (_req, res) => {
   try {
     const stats = await query(`
       SELECT 
@@ -171,7 +163,7 @@ router.get('/stats', async (req, res) => {
         COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') as this_week
       FROM tenders
     `);
-    
+
     const cities = await query(`
       SELECT city, COUNT(*) as count
       FROM tenders
@@ -180,15 +172,14 @@ router.get('/stats', async (req, res) => {
       ORDER BY count DESC
       LIMIT 10
     `);
-    
+
     res.json({
       success: true,
       data: {
         ...stats.rows[0],
-        topCities: cities.rows
-      }
+        topCities: cities.rows,
+      },
     });
-    
   } catch (error) {
     logger.error('İstatistik hatası', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -196,7 +187,7 @@ router.get('/stats', async (req, res) => {
 });
 
 // Şehir listesi
-router.get('/cities', async (req, res) => {
+router.get('/cities', async (_req, res) => {
   try {
     const result = await query(`
       SELECT city, COUNT(*) as count
@@ -205,12 +196,11 @@ router.get('/cities', async (req, res) => {
       GROUP BY city
       ORDER BY city
     `);
-    
+
     res.json({
       success: true,
-      data: result.rows
+      data: result.rows,
     });
-    
   } catch (error) {
     logger.error('Şehir listesi hatası', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -221,30 +211,23 @@ router.get('/cities', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const result = await query(
-      'SELECT * FROM tenders WHERE id = $1',
-      [id]
-    );
-    
+
+    const result = await query('SELECT * FROM tenders WHERE id = $1', [id]);
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'İhale bulunamadı' });
     }
-    
+
     // İhaleye ait dökümanları getir
-    const documents = await query(
-      'SELECT * FROM documents WHERE tender_id = $1 ORDER BY created_at DESC',
-      [id]
-    );
-    
+    const documents = await query('SELECT * FROM documents WHERE tender_id = $1 ORDER BY created_at DESC', [id]);
+
     res.json({
       success: true,
       data: {
         ...result.rows[0],
-        documents: documents.rows
-      }
+        documents: documents.rows,
+      },
     });
-    
   } catch (error) {
     logger.error('İhale detay hatası', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -256,12 +239,12 @@ router.patch('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { tender_date, status, city, organization_name, title, estimated_cost } = req.body;
-    
+
     // Güncelleme alanlarını dinamik oluştur
     const updates = [];
     const params = [];
     let paramIndex = 1;
-    
+
     if (tender_date !== undefined) {
       updates.push(`tender_date = $${paramIndex++}`);
       params.push(tender_date);
@@ -286,29 +269,28 @@ router.patch('/:id', async (req, res) => {
       updates.push(`estimated_cost = $${paramIndex++}`);
       params.push(estimated_cost);
     }
-    
+
     if (updates.length === 0) {
       return res.status(400).json({ error: 'Güncellenecek alan belirtilmedi' });
     }
-    
+
     updates.push(`updated_at = NOW()`);
     params.push(id);
-    
+
     const result = await query(
       `UPDATE tenders SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
       params
     );
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'İhale bulunamadı' });
     }
-    
+
     res.json({
       success: true,
       data: result.rows[0],
-      message: 'İhale güncellendi'
+      message: 'İhale güncellendi',
     });
-    
   } catch (error) {
     logger.error('İhale güncelleme hatası', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -319,21 +301,17 @@ router.patch('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const result = await query(
-      'DELETE FROM tenders WHERE id = $1 RETURNING *',
-      [id]
-    );
-    
+
+    const result = await query('DELETE FROM tenders WHERE id = $1 RETURNING *', [id]);
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'İhale bulunamadı' });
     }
-    
+
     res.json({
       success: true,
-      message: 'İhale silindi'
+      message: 'İhale silindi',
     });
-    
   } catch (error) {
     logger.error('İhale silme hatası', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -344,70 +322,70 @@ router.delete('/:id', async (req, res) => {
 router.post('/scrape', async (req, res) => {
   try {
     const { maxPages = 3 } = req.body;
-    
+
     logger.info('Manuel ihale scrape isteği', { maxPages });
-    
+
     const result = await tenderScheduler.triggerManualScrape({ maxPages });
-    
+
     res.json({
       success: result.success,
       message: result.success ? 'Scrape tamamlandı' : 'Scrape başarısız',
       stats: result.stats,
-      error: result.error
+      error: result.error,
     });
   } catch (error) {
     logger.error('Manuel scrape hatası', { error: error.message });
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
 
 // Scheduler durumu
-router.get('/scheduler/status', (req, res) => {
+router.get('/scheduler/status', (_req, res) => {
   try {
     const status = tenderScheduler.getStatus();
     res.json({
       success: true,
-      ...status
+      ...status,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
 
 // Scheduler'ı başlat
-router.post('/scheduler/start', (req, res) => {
+router.post('/scheduler/start', (_req, res) => {
   try {
     tenderScheduler.start();
     res.json({
       success: true,
-      message: 'İhale scheduler başlatıldı'
+      message: 'İhale scheduler başlatıldı',
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
 
 // Scheduler'ı durdur
-router.post('/scheduler/stop', (req, res) => {
+router.post('/scheduler/stop', (_req, res) => {
   try {
     tenderScheduler.stop();
     res.json({
       success: true,
-      message: 'İhale scheduler durduruldu'
+      message: 'İhale scheduler durduruldu',
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -416,78 +394,87 @@ router.post('/scheduler/stop', (req, res) => {
 router.get('/scrape/logs', async (req, res) => {
   try {
     const { limit = 50 } = req.query;
-    const logs = await tenderScheduler.getScrapeLogs(parseInt(limit));
-    
+    const logs = await tenderScheduler.getScrapeLogs(parseInt(limit, 10));
+
     res.json({
       success: true,
       logs,
-      total: logs.length
+      total: logs.length,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
 
 // Detaylı istatistikler
-router.get('/stats/detailed', async (req, res) => {
+router.get('/stats/detailed', async (_req, res) => {
   try {
     const stats = await tenderScheduler.getTenderStats();
-    
+
     res.json({
       success: true,
-      data: stats
+      data: stats,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
 
 // Son güncelleme istatistikleri
-router.get('/stats/updates', async (req, res) => {
+router.get('/stats/updates', async (_req, res) => {
   try {
     // Bugünün başlangıcı (Europe/Istanbul)
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-    
+
     // Son scraper çalışması
     const lastUpdateResult = await query(`
       SELECT MAX(updated_at) as last_update 
       FROM tenders
     `);
-    
+
     // Bugün yeni eklenen ihaleler
-    const newTodayResult = await query(`
+    const newTodayResult = await query(
+      `
       SELECT id, external_id, title, city, organization_name, created_at
       FROM tenders 
       WHERE created_at >= $1 
       ORDER BY created_at DESC 
       LIMIT 10
-    `, [todayStart.toISOString()]);
-    
+    `,
+      [todayStart.toISOString()]
+    );
+
     // Bugün güncellenen ihaleler (daha önce eklenenler)
-    const updatedTodayResult = await query(`
+    const updatedTodayResult = await query(
+      `
       SELECT id, external_id, title, city, organization_name, updated_at
       FROM tenders 
       WHERE updated_at >= $1 AND created_at < $1
       ORDER BY updated_at DESC 
       LIMIT 10
-    `, [todayStart.toISOString()]);
-    
+    `,
+      [todayStart.toISOString()]
+    );
+
     // Bugünkü toplam sayılar
-    const countsResult = await query(`
+    const countsResult = await query(
+      `
       SELECT 
         COUNT(*) FILTER (WHERE created_at >= $1) as new_count,
         COUNT(*) FILTER (WHERE updated_at >= $1 AND created_at < $1) as updated_count,
         COUNT(*) as total_count
       FROM tenders
-    `, [todayStart.toISOString()]);
-    
+    `,
+      [todayStart.toISOString()]
+    );
+
     // Son 7 gün istatistikleri
     const weeklyResult = await query(`
       SELECT 
@@ -498,27 +485,26 @@ router.get('/stats/updates', async (req, res) => {
       GROUP BY DATE(created_at)
       ORDER BY date DESC
     `);
-    
+
     res.json({
       success: true,
       data: {
         lastUpdate: lastUpdateResult.rows[0]?.last_update,
         today: {
-          newCount: parseInt(countsResult.rows[0]?.new_count || 0),
-          updatedCount: parseInt(countsResult.rows[0]?.updated_count || 0),
+          newCount: parseInt(countsResult.rows[0]?.new_count || 0, 10),
+          updatedCount: parseInt(countsResult.rows[0]?.updated_count || 0, 10),
           newTenders: newTodayResult.rows,
-          updatedTenders: updatedTodayResult.rows
+          updatedTenders: updatedTodayResult.rows,
         },
-        totalCount: parseInt(countsResult.rows[0]?.total_count || 0),
-        weeklyStats: weeklyResult.rows
-      }
+        totalCount: parseInt(countsResult.rows[0]?.total_count || 0, 10),
+        weeklyStats: weeklyResult.rows,
+      },
     });
-    
   } catch (error) {
     logger.error('Stats error', { error: error.message });
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });

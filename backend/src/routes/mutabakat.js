@@ -16,9 +16,10 @@ router.get('/ekstre/:cariId', async (req, res) => {
   try {
     const { cariId } = req.params;
     const { baslangic, bitis } = req.query;
-    
+
     // Varsayılan: Bu ay
-    const baslangicTarihi = baslangic || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    const baslangicTarihi =
+      baslangic || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
     const bitisTarihi = bitis || new Date().toISOString().split('T')[0];
 
     // Cari bilgisi
@@ -29,7 +30,8 @@ router.get('/ekstre/:cariId', async (req, res) => {
     const cari = cariResult.rows[0];
 
     // Dönem öncesi bakiye (açılış bakiyesi)
-    const acilisResult = await query(`
+    const acilisResult = await query(
+      `
       SELECT 
         COALESCE(SUM(CASE WHEN kaynak_tip = 'fatura' AND fatura_tipi = 'satis' THEN tutar ELSE 0 END), 0) -
         COALESCE(SUM(CASE WHEN kaynak_tip = 'fatura' AND fatura_tipi = 'alis' THEN tutar ELSE 0 END), 0) -
@@ -65,12 +67,15 @@ router.get('/ekstre/:cariId', async (req, res) => {
         WHERE cs.cari_id = $2 AND cs.durum IN ('tahsil_edildi', 'odendi') 
         AND COALESCE(cs.islem_tarihi, cs.vade_tarihi) < $3
       ) t
-    `, [cari.unvan, cariId, baslangicTarihi]);
-    
+    `,
+      [cari.unvan, cariId, baslangicTarihi]
+    );
+
     const acilisBakiyesi = parseFloat(acilisResult.rows[0]?.bakiye) || 0;
 
     // Dönem içi hareketler
-    const hareketlerResult = await query(`
+    const hareketlerResult = await query(
+      `
       SELECT * FROM (
         -- Manuel Faturalar (invoices)
         SELECT 
@@ -134,17 +139,19 @@ router.get('/ekstre/:cariId', async (req, res) => {
         AND COALESCE(cs.islem_tarihi, cs.vade_tarihi) BETWEEN $3 AND $4
       ) t
       ORDER BY tarih ASC, kaynak_id ASC
-    `, [cari.unvan, cariId, baslangicTarihi, bitisTarihi]);
+    `,
+      [cari.unvan, cariId, baslangicTarihi, bitisTarihi]
+    );
 
     // Running balance hesapla
     let bakiye = acilisBakiyesi;
-    const hareketler = hareketlerResult.rows.map(h => {
+    const hareketler = hareketlerResult.rows.map((h) => {
       bakiye = bakiye + parseFloat(h.borc) - parseFloat(h.alacak);
       return {
         ...h,
         borc: parseFloat(h.borc),
         alacak: parseFloat(h.alacak),
-        bakiye: bakiye
+        bakiye: bakiye,
       };
     });
 
@@ -156,17 +163,15 @@ router.get('/ekstre/:cariId', async (req, res) => {
       cari,
       donem: {
         baslangic: baslangicTarihi,
-        bitis: bitisTarihi
+        bitis: bitisTarihi,
       },
       acilis_bakiyesi: acilisBakiyesi,
       hareketler,
       toplam_borc: toplamBorc,
       toplam_alacak: toplamAlacak,
-      kapanis_bakiyesi: bakiye
+      kapanis_bakiyesi: bakiye,
     });
-
   } catch (error) {
-    console.error('Ekstre hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -189,14 +194,15 @@ router.get('/fatura-bazli/:cariId', async (req, res) => {
 
     // Tarih filtresi hesapla
     const now = new Date();
-    const year = parseInt(yil) || now.getFullYear();
-    const month = parseInt(ay) || now.getMonth() + 1;
+    const year = parseInt(yil, 10) || now.getFullYear();
+    const month = parseInt(ay, 10) || now.getMonth() + 1;
     const baslangic = `${year}-${String(month).padStart(2, '0')}-01`;
     const sonGun = new Date(year, month, 0).getDate();
     const bitis = `${year}-${String(month).padStart(2, '0')}-${sonGun}`;
 
     // Faturalar ve ödemeleri (hem manuel hem uyumsoft) - TARİH FİLTRELİ
-    const faturalarResult = await query(`
+    const faturalarResult = await query(
+      `
       SELECT * FROM (
         -- Manuel Faturalar
         SELECT 
@@ -255,19 +261,21 @@ router.get('/fatura-bazli/:cariId', async (req, res) => {
         AND u.invoice_date BETWEEN $3 AND $4
       ) all_invoices
       ORDER BY fatura_tarihi DESC
-    `, [cari.unvan, cariId, baslangic, bitis]);
+    `,
+      [cari.unvan, cariId, baslangic, bitis]
+    );
 
-    let faturalar = faturalarResult.rows.map(f => ({
+    let faturalar = faturalarResult.rows.map((f) => ({
       ...f,
       fatura_tutari: parseFloat(f.fatura_tutari),
       odenen_tutar: parseFloat(f.odenen_tutar),
       kalan_tutar: parseFloat(f.kalan_tutar),
-      odemeler: f.odemeler || []
+      odemeler: f.odemeler || [],
     }));
 
     // Durum filtresi
     if (durum && durum !== 'tumu') {
-      faturalar = faturalar.filter(f => f.odeme_durumu === durum);
+      faturalar = faturalar.filter((f) => f.odeme_durumu === durum);
     }
 
     // Özet
@@ -276,19 +284,17 @@ router.get('/fatura-bazli/:cariId', async (req, res) => {
       toplam_tutar: faturalar.reduce((sum, f) => sum + f.fatura_tutari, 0),
       odenen_tutar: faturalar.reduce((sum, f) => sum + f.odenen_tutar, 0),
       kalan_tutar: faturalar.reduce((sum, f) => sum + f.kalan_tutar, 0),
-      acik_fatura_sayisi: faturalar.filter(f => f.odeme_durumu === 'acik').length,
-      kapali_fatura_sayisi: faturalar.filter(f => f.odeme_durumu === 'kapali').length,
-      kismi_fatura_sayisi: faturalar.filter(f => f.odeme_durumu === 'kismi').length
+      acik_fatura_sayisi: faturalar.filter((f) => f.odeme_durumu === 'acik').length,
+      kapali_fatura_sayisi: faturalar.filter((f) => f.odeme_durumu === 'kapali').length,
+      kismi_fatura_sayisi: faturalar.filter((f) => f.odeme_durumu === 'kismi').length,
     };
 
     res.json({
       cari,
       faturalar,
-      ozet
+      ozet,
     });
-
   } catch (error) {
-    console.error('Fatura bazlı mutabakat hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -304,8 +310,8 @@ router.get('/donemsel/:cariId', async (req, res) => {
 
     // Varsayılan: Bu ay
     const now = new Date();
-    const year = parseInt(yil) || now.getFullYear();
-    const month = parseInt(ay) || now.getMonth() + 1;
+    const year = parseInt(yil, 10) || now.getFullYear();
+    const month = parseInt(ay, 10) || now.getMonth() + 1;
 
     const baslangic = `${year}-${String(month).padStart(2, '0')}-01`;
     const sonGun = new Date(year, month, 0).getDate();
@@ -319,7 +325,8 @@ router.get('/donemsel/:cariId', async (req, res) => {
     const cari = cariResult.rows[0];
 
     // Dönem öncesi bakiye (manuel + uyumsoft faturaları)
-    const acilisResult = await query(`
+    const acilisResult = await query(
+      `
       SELECT COALESCE(SUM(borc - alacak), 0) as bakiye FROM (
         -- Manuel faturalar
         SELECT 
@@ -337,19 +344,25 @@ router.get('/donemsel/:cariId', async (req, res) => {
           CASE WHEN h.hareket_tipi = 'giris' THEN h.tutar ELSE 0 END as alacak
         FROM kasa_banka_hareketleri h WHERE h.cari_id = $2 AND h.tarih < $3
       ) t
-    `, [cari.unvan, cariId, baslangic]);
+    `,
+      [cari.unvan, cariId, baslangic]
+    );
     const acilisBakiyesi = parseFloat(acilisResult.rows[0]?.bakiye) || 0;
 
     // Dönem içi satış faturaları (manuel)
-    const satisFaturaResult = await query(`
+    const satisFaturaResult = await query(
+      `
       SELECT COUNT(*) as adet, COALESCE(SUM(total_amount), 0) as toplam
       FROM invoices 
       WHERE (customer_name = $1 OR cari_id = $2) 
       AND invoice_type = 'satis' AND invoice_date BETWEEN $3 AND $4
-    `, [cari.unvan, cariId, baslangic, bitis]);
+    `,
+      [cari.unvan, cariId, baslangic, bitis]
+    );
 
     // Dönem içi alış faturaları (manuel + uyumsoft)
-    const alisFaturaResult = await query(`
+    const alisFaturaResult = await query(
+      `
       SELECT 
         COUNT(*) as adet, 
         COALESCE(SUM(tutar), 0) as toplam
@@ -361,38 +374,46 @@ router.get('/donemsel/:cariId', async (req, res) => {
         SELECT payable_amount as tutar FROM uyumsoft_invoices 
         WHERE sender_name = $1 AND invoice_date BETWEEN $3 AND $4
       ) t
-    `, [cari.unvan, cariId, baslangic, bitis]);
+    `,
+      [cari.unvan, cariId, baslangic, bitis]
+    );
 
     // Dönem içi tahsilatlar
-    const tahsilatResult = await query(`
+    const tahsilatResult = await query(
+      `
       SELECT COUNT(*) as adet, COALESCE(SUM(tutar), 0) as toplam
       FROM kasa_banka_hareketleri
       WHERE cari_id = $1 AND hareket_tipi = 'giris' AND tarih BETWEEN $2 AND $3
-    `, [cariId, baslangic, bitis]);
+    `,
+      [cariId, baslangic, bitis]
+    );
 
     // Dönem içi ödemeler
-    const odemeResult = await query(`
+    const odemeResult = await query(
+      `
       SELECT COUNT(*) as adet, COALESCE(SUM(tutar), 0) as toplam
       FROM kasa_banka_hareketleri
       WHERE cari_id = $1 AND hareket_tipi = 'cikis' AND tarih BETWEEN $2 AND $3
-    `, [cariId, baslangic, bitis]);
+    `,
+      [cariId, baslangic, bitis]
+    );
 
     // Hesaplamalar
     const satisFatura = {
-      adet: parseInt(satisFaturaResult.rows[0]?.adet) || 0,
-      toplam: parseFloat(satisFaturaResult.rows[0]?.toplam) || 0
+      adet: parseInt(satisFaturaResult.rows[0]?.adet, 10) || 0,
+      toplam: parseFloat(satisFaturaResult.rows[0]?.toplam) || 0,
     };
     const alisFatura = {
-      adet: parseInt(alisFaturaResult.rows[0]?.adet) || 0,
-      toplam: parseFloat(alisFaturaResult.rows[0]?.toplam) || 0
+      adet: parseInt(alisFaturaResult.rows[0]?.adet, 10) || 0,
+      toplam: parseFloat(alisFaturaResult.rows[0]?.toplam) || 0,
     };
     const tahsilat = {
-      adet: parseInt(tahsilatResult.rows[0]?.adet) || 0,
-      toplam: parseFloat(tahsilatResult.rows[0]?.toplam) || 0
+      adet: parseInt(tahsilatResult.rows[0]?.adet, 10) || 0,
+      toplam: parseFloat(tahsilatResult.rows[0]?.toplam) || 0,
     };
     const odeme = {
-      adet: parseInt(odemeResult.rows[0]?.adet) || 0,
-      toplam: parseFloat(odemeResult.rows[0]?.toplam) || 0
+      adet: parseInt(odemeResult.rows[0]?.adet, 10) || 0,
+      toplam: parseFloat(odemeResult.rows[0]?.toplam) || 0,
     };
 
     const donemBorc = satisFatura.toplam + odeme.toplam;
@@ -406,7 +427,7 @@ router.get('/donemsel/:cariId', async (req, res) => {
         ay: month,
         ay_adi: new Date(year, month - 1).toLocaleString('tr-TR', { month: 'long' }),
         baslangic,
-        bitis
+        bitis,
       },
       acilis_bakiyesi: acilisBakiyesi,
       satis_faturalari: satisFatura,
@@ -415,11 +436,9 @@ router.get('/donemsel/:cariId', async (req, res) => {
       odemeler: odeme,
       donem_borc: donemBorc,
       donem_alacak: donemAlacak,
-      kapanis_bakiyesi: kapanisBakiyesi
+      kapanis_bakiyesi: kapanisBakiyesi,
     });
-
   } catch (error) {
-    console.error('Dönemsel mutabakat hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -447,24 +466,25 @@ router.post('/fatura-odeme', async (req, res) => {
     const faturaTutari = parseFloat(faturaResult.rows[0].total_amount);
 
     if (mevcutOdeme + parseFloat(tutar) > faturaTutari) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Ödeme tutarı fatura tutarını aşamaz',
         fatura_tutari: faturaTutari,
         mevcut_odeme: mevcutOdeme,
-        kalan: faturaTutari - mevcutOdeme
+        kalan: faturaTutari - mevcutOdeme,
       });
     }
 
-    const result = await query(`
+    const result = await query(
+      `
       INSERT INTO fatura_odemeleri (fatura_id, tutar, tarih, aciklama, belge_no, hareket_id, cek_senet_id)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
-    `, [fatura_id, tutar, tarih || new Date().toISOString().split('T')[0], aciklama, belge_no, hareket_id, cek_senet_id]);
+    `,
+      [fatura_id, tutar, tarih || new Date().toISOString().split('T')[0], aciklama, belge_no, hareket_id, cek_senet_id]
+    );
 
     res.status(201).json(result.rows[0]);
-
   } catch (error) {
-    console.error('Fatura ödeme eşleştirme hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -476,7 +496,8 @@ router.get('/fatura-odemeler/:faturaId', async (req, res) => {
   try {
     const { faturaId } = req.params;
 
-    const result = await query(`
+    const result = await query(
+      `
       SELECT fo.*,
         CASE WHEN fo.hareket_id IS NOT NULL THEN
           json_build_object('id', h.id, 'hesap_adi', kb.hesap_adi, 'tarih', h.tarih)
@@ -490,15 +511,14 @@ router.get('/fatura-odemeler/:faturaId', async (req, res) => {
       LEFT JOIN cek_senetler cs ON cs.id = fo.cek_senet_id
       WHERE fo.fatura_id = $1
       ORDER BY fo.tarih
-    `, [faturaId]);
+    `,
+      [faturaId]
+    );
 
     res.json(result.rows);
-
   } catch (error) {
-    console.error('Fatura ödemeleri listesi hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 export default router;
-

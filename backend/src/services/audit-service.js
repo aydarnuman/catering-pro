@@ -6,7 +6,6 @@
 import { pool } from '../database.js';
 
 class AuditService {
-  
   /**
    * İşlem kaydı oluştur
    * @param {Object} params
@@ -35,18 +34,15 @@ class AuditService {
         ipAddress = null,
         userAgent = null,
         requestPath = null,
-        description = null
+        description = null,
       } = params;
 
       // Kullanıcı bilgilerini al
       let userName = null;
       let userEmail = null;
-      
+
       if (userId) {
-        const userResult = await pool.query(
-          'SELECT name, email FROM users WHERE id = $1',
-          [userId]
-        );
+        const userResult = await pool.query('SELECT name, email FROM users WHERE id = $1', [userId]);
         if (userResult.rows.length > 0) {
           userName = userResult.rows[0].name;
           userEmail = userResult.rows[0].email;
@@ -56,11 +52,12 @@ class AuditService {
       // Değişiklikleri hesapla
       let changes = null;
       if (oldData && newData) {
-        changes = this.calculateChanges(oldData, newData);
+        changes = AuditService.calculateChanges(oldData, newData);
       }
 
       // Açıklama oluştur
-      const finalDescription = description || this.generateDescription(action, entityType, entityName, userName);
+      const finalDescription =
+        description || AuditService.generateDescription(action, entityType, entityName, userName);
 
       const result = await pool.query(
         `INSERT INTO audit_logs 
@@ -69,17 +66,25 @@ class AuditService {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
          RETURNING id`,
         [
-          userId, userName, userEmail, action, entityType, entityId, entityName,
+          userId,
+          userName,
+          userEmail,
+          action,
+          entityType,
+          entityId,
+          entityName,
           oldData ? JSON.stringify(oldData) : null,
           newData ? JSON.stringify(newData) : null,
           changes ? JSON.stringify(changes) : null,
-          ipAddress, userAgent, requestPath, finalDescription
+          ipAddress,
+          userAgent,
+          requestPath,
+          finalDescription,
         ]
       );
 
       return result.rows[0].id;
-    } catch (error) {
-      console.error('Audit log error:', error);
+    } catch (_error) {
       // Audit hataları uygulamayı durdurmamamalı
       return null;
     }
@@ -91,22 +96,22 @@ class AuditService {
   static calculateChanges(oldData, newData) {
     const changes = {};
     const allKeys = new Set([...Object.keys(oldData || {}), ...Object.keys(newData || {})]);
-    
+
     for (const key of allKeys) {
       // Hassas alanları gizle
       if (['password', 'password_hash', 'token'].includes(key)) continue;
-      
+
       const oldVal = oldData?.[key];
       const newVal = newData?.[key];
-      
+
       if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
         changes[key] = {
           old: oldVal,
-          new: newVal
+          new: newVal,
         };
       }
     }
-    
+
     return Object.keys(changes).length > 0 ? changes : null;
   }
 
@@ -115,30 +120,30 @@ class AuditService {
    */
   static generateDescription(action, entityType, entityName, userName) {
     const entityNames = {
-      'user': 'kullanıcı',
-      'invoice': 'fatura',
-      'tender': 'ihale',
-      'cari': 'cari hesap',
-      'personel': 'personel',
-      'stok': 'stok kartı',
-      'stok_hareket': 'stok hareketi',
-      'firma': 'firma',
-      'bordro': 'bordro',
-      'kasa_banka': 'kasa/banka',
-      'permission': 'yetki',
-      'menu': 'menü',
-      'recete': 'reçete',
-      'demirbas': 'demirbaş'
+      user: 'kullanıcı',
+      invoice: 'fatura',
+      tender: 'ihale',
+      cari: 'cari hesap',
+      personel: 'personel',
+      stok: 'stok kartı',
+      stok_hareket: 'stok hareketi',
+      firma: 'firma',
+      bordro: 'bordro',
+      kasa_banka: 'kasa/banka',
+      permission: 'yetki',
+      menu: 'menü',
+      recete: 'reçete',
+      demirbas: 'demirbaş',
     };
 
     const actionNames = {
-      'create': 'oluşturdu',
-      'update': 'güncelledi',
-      'delete': 'sildi',
-      'login': 'giriş yaptı',
-      'logout': 'çıkış yaptı',
-      'export': 'dışa aktardı',
-      'view': 'görüntüledi'
+      create: 'oluşturdu',
+      update: 'güncelledi',
+      delete: 'sildi',
+      login: 'giriş yaptı',
+      logout: 'çıkış yaptı',
+      export: 'dışa aktardı',
+      view: 'görüntüledi',
     };
 
     const entity = entityNames[entityType] || entityType;
@@ -148,7 +153,7 @@ class AuditService {
 
     if (action === 'login') return `${user} sisteme giriş yaptı`;
     if (action === 'logout') return `${user} sistemden çıkış yaptı`;
-    
+
     return `${user} ${name} ${entity} kaydını ${actionText}`;
   }
 
@@ -164,7 +169,7 @@ class AuditService {
       entityType = null,
       startDate = null,
       endDate = null,
-      search = null
+      search = null,
     } = options;
 
     const offset = (page - 1) * limit;
@@ -210,11 +215,8 @@ class AuditService {
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     // Toplam sayı
-    const countResult = await pool.query(
-      `SELECT COUNT(*) FROM audit_logs ${whereClause}`,
-      params
-    );
-    const total = parseInt(countResult.rows[0].count);
+    const countResult = await pool.query(`SELECT COUNT(*) FROM audit_logs ${whereClause}`, params);
+    const total = parseInt(countResult.rows[0].count, 10);
 
     // Loglar
     const result = await pool.query(
@@ -234,8 +236,8 @@ class AuditService {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit)
-      }
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 
@@ -243,10 +245,7 @@ class AuditService {
    * Tek bir log detayını getir
    */
   static async getLogById(id) {
-    const result = await pool.query(
-      'SELECT * FROM audit_logs WHERE id = $1',
-      [id]
-    );
+    const result = await pool.query('SELECT * FROM audit_logs WHERE id = $1', [id]);
     return result.rows[0] || null;
   }
 

@@ -5,18 +5,17 @@
 import { authFetch } from '@/lib/api';
 import { getApiBaseUrlDynamic } from '@/lib/config';
 import type {
-  UnifiedNote,
   CreateNoteDTO,
-  UpdateNoteDTO,
-  NotesFilter,
-  NoteTag,
-  NoteReminder,
   NoteAttachment,
-  NotesListResponse,
+  NoteReminder,
   NoteResponse,
-  TagsResponse,
-  TagSuggestionsResponse,
+  NotesFilter,
+  NotesListResponse,
+  NoteTag,
   RemindersResponse,
+  TagSuggestionsResponse,
+  TagsResponse,
+  UpdateNoteDTO,
 } from '@/types/notes';
 
 const getApiBaseUrl = () => getApiBaseUrlDynamic() || '';
@@ -215,7 +214,10 @@ export const notesAPI = {
   /**
    * Create a new tag
    */
-  async createTag(name: string, color?: string): Promise<{ success: boolean; tag: NoteTag; message: string }> {
+  async createTag(
+    name: string,
+    color?: string
+  ): Promise<{ success: boolean; tag: NoteTag; message: string }> {
     const response = await authFetch(`${getApiBaseUrl()}/api/notes/tags`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -227,7 +229,10 @@ export const notesAPI = {
   /**
    * Update a tag
    */
-  async updateTag(tagId: number, data: { name?: string; color?: string }): Promise<{ success: boolean; tag: NoteTag; message: string }> {
+  async updateTag(
+    tagId: number,
+    data: { name?: string; color?: string }
+  ): Promise<{ success: boolean; tag: NoteTag; message: string }> {
     const response = await authFetch(`${getApiBaseUrl()}/api/notes/tags/${tagId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -253,7 +258,9 @@ export const notesAPI = {
    */
   async getUpcomingReminders(limit?: number): Promise<RemindersResponse> {
     const queryString = limit ? `?limit=${limit}` : '';
-    const response = await authFetch(`${getApiBaseUrl()}/api/notes/reminders/upcoming${queryString}`);
+    const response = await authFetch(
+      `${getApiBaseUrl()}/api/notes/reminders/upcoming${queryString}`
+    );
     return response.json();
   },
 
@@ -287,7 +294,9 @@ export const notesAPI = {
   /**
    * Mark a reminder as sent
    */
-  async markReminderSent(reminderId: string): Promise<{ success: boolean; reminder: NoteReminder; message: string }> {
+  async markReminderSent(
+    reminderId: string
+  ): Promise<{ success: boolean; reminder: NoteReminder; message: string }> {
     const response = await authFetch(`${getApiBaseUrl()}/api/notes/reminders/${reminderId}/sent`, {
       method: 'PUT',
     });
@@ -344,7 +353,9 @@ export const notesAPI = {
   /**
    * List attachments for a note
    */
-  async getNoteAttachments(noteId: string): Promise<{ success: boolean; attachments: NoteAttachment[] }> {
+  async getNoteAttachments(
+    noteId: string
+  ): Promise<{ success: boolean; attachments: NoteAttachment[] }> {
     const response = await authFetch(`${getApiBaseUrl()}/api/notes/attachments/note/${noteId}`);
     return response.json();
   },

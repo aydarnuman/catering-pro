@@ -1124,7 +1124,11 @@ export default function TenderDetailPage() {
           </Box>
 
           {/* Aksiyon Kartları */}
-          <Box p="md" className="nested-card" style={{ borderBottom: '1px solid var(--surface-border, var(--border))' }}>
+          <Box
+            p="md"
+            className="nested-card"
+            style={{ borderBottom: '1px solid var(--surface-border, var(--border))' }}
+          >
             <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
               {/* 🔍 Dökümanları Getir Kartı - Döküman yoksa veya az varsa göster */}
               {(!downloadStatus?.hasDocuments ||

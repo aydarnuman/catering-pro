@@ -16,7 +16,8 @@ router.get('/ozet/:projeId/:yil/:ay', async (req, res) => {
     const { projeId, yil, ay } = req.params;
 
     // Personel listesi ve maaş bilgileri
-    const personelResult = await query(`
+    const personelResult = await query(
+      `
       SELECT 
         p.id,
         p.id as personel_id,
@@ -40,27 +41,40 @@ router.get('/ozet/:projeId/:yil/:ay', async (req, res) => {
         AND m.proje_id = $1 AND m.yil = $2 AND m.ay = $3
       WHERE pp.proje_id = $1 AND p.durum = 'aktif'
       ORDER BY p.ad, p.soyad
-    `, [projeId, yil, ay]);
+    `,
+      [projeId, yil, ay]
+    );
 
     // Toplam hesapla
-    const toplamlar = personelResult.rows.reduce((acc, p) => ({
-      toplam_bordro: acc.toplam_bordro + parseFloat(p.bordro_maas || 0),
-      toplam_elden: acc.toplam_elden + parseFloat(p.elden_fark || 0),
-      toplam_avans: acc.toplam_avans + parseFloat(p.avans || 0),
-      toplam_prim: acc.toplam_prim + parseFloat(p.prim || 0),
-      toplam_net: acc.toplam_net + parseFloat(p.net_odenecek || p.net_maas || 0),
-      banka_odenen: acc.banka_odenen + (p.banka_odendi ? 1 : 0),
-      elden_odenen: acc.elden_odenen + (p.elden_odendi ? 1 : 0)
-    }), {
-      toplam_bordro: 0, toplam_elden: 0, toplam_avans: 0,
-      toplam_prim: 0, toplam_net: 0, banka_odenen: 0, elden_odenen: 0
-    });
+    const toplamlar = personelResult.rows.reduce(
+      (acc, p) => ({
+        toplam_bordro: acc.toplam_bordro + parseFloat(p.bordro_maas || 0),
+        toplam_elden: acc.toplam_elden + parseFloat(p.elden_fark || 0),
+        toplam_avans: acc.toplam_avans + parseFloat(p.avans || 0),
+        toplam_prim: acc.toplam_prim + parseFloat(p.prim || 0),
+        toplam_net: acc.toplam_net + parseFloat(p.net_odenecek || p.net_maas || 0),
+        banka_odenen: acc.banka_odenen + (p.banka_odendi ? 1 : 0),
+        elden_odenen: acc.elden_odenen + (p.elden_odendi ? 1 : 0),
+      }),
+      {
+        toplam_bordro: 0,
+        toplam_elden: 0,
+        toplam_avans: 0,
+        toplam_prim: 0,
+        toplam_net: 0,
+        banka_odenen: 0,
+        elden_odenen: 0,
+      }
+    );
 
     // Proje ödeme ayarları
-    const ayarResult = await query(`
+    const ayarResult = await query(
+      `
       SELECT odeme_gunu, banka_adi, iban 
       FROM proje_maas_ayarlari WHERE proje_id = $1
-    `, [projeId]);
+    `,
+      [projeId]
+    );
 
     const odemeGunu = ayarResult.rows[0]?.odeme_gunu || 15;
 
@@ -71,12 +85,11 @@ router.get('/ozet/:projeId/:yil/:ay', async (req, res) => {
         personel_sayisi: personelResult.rows.length,
         odeme_gunu: odemeGunu,
         banka_adi: ayarResult.rows[0]?.banka_adi,
-        iban: ayarResult.rows[0]?.iban
-      }
+        iban: ayarResult.rows[0]?.iban,
+      },
     };
     res.json({ success: true, data });
   } catch (error) {
-    console.error('Maaş özeti hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -90,7 +103,8 @@ router.post('/olustur/:projeId/:yil/:ay', async (req, res) => {
     const { projeId, yil, ay } = req.params;
 
     // Mevcut personelleri al ve maaş ödemesi oluştur
-    const result = await query(`
+    const result = await query(
+      `
       INSERT INTO maas_odemeleri (proje_id, personel_id, yil, ay, bordro_maas, elden_fark)
       SELECT 
         $1,
@@ -108,11 +122,12 @@ router.post('/olustur/:projeId/:yil/:ay', async (req, res) => {
         elden_fark = EXCLUDED.elden_fark,
         updated_at = NOW()
       RETURNING *
-    `, [projeId, yil, ay]);
+    `,
+      [projeId, yil, ay]
+    );
 
     res.json({ success: true, data: { count: result.rows.length } });
   } catch (error) {
-    console.error('Maaş oluşturma hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -129,16 +144,18 @@ router.patch('/:id/odendi', async (req, res) => {
     const field = tip === 'banka' ? 'banka_odendi' : 'elden_odendi';
     const dateField = tip === 'banka' ? 'banka_odeme_tarihi' : 'elden_odeme_tarihi';
 
-    const result = await query(`
+    const result = await query(
+      `
       UPDATE maas_odemeleri 
       SET ${field} = $1, ${dateField} = ${odendi ? 'NOW()' : 'NULL'}
       WHERE id = $2
       RETURNING *
-    `, [odendi, id]);
+    `,
+      [odendi, id]
+    );
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Ödeme güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -155,12 +172,13 @@ router.patch('/personel-odeme/:personelId', async (req, res) => {
     // Önce personelden bordro_maas'ı al
     const personelRes = await query('SELECT bordro_maas FROM personeller WHERE id = $1', [personelId]);
     const bordroMaas = parseFloat(personelRes.rows[0]?.bordro_maas || 0);
-    
+
     // Net ödenecek hesapla
     const netOdenecek = bordroMaas + (elden_fark || 0) + (prim || 0) - (avans || 0);
 
     // maas_odemeleri tablosunu güncelle
-    const result = await query(`
+    const result = await query(
+      `
       INSERT INTO maas_odemeleri (proje_id, personel_id, yil, ay, bordro_maas, elden_fark, avans, prim, net_odenecek)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       ON CONFLICT (proje_id, personel_id, yil, ay) 
@@ -171,11 +189,12 @@ router.patch('/personel-odeme/:personelId', async (req, res) => {
         net_odenecek = $9,
         updated_at = NOW()
       RETURNING *
-    `, [proje_id, personelId, yil, ay, bordroMaas, elden_fark, avans, prim, netOdenecek]);
+    `,
+      [proje_id, personelId, yil, ay, bordroMaas, elden_fark, avans, prim, netOdenecek]
+    );
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Personel ödeme güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -192,15 +211,17 @@ router.patch('/toplu-odendi/:projeId/:yil/:ay', async (req, res) => {
     const field = tip === 'banka' ? 'banka_odendi' : 'elden_odendi';
     const dateField = tip === 'banka' ? 'banka_odeme_tarihi' : 'elden_odeme_tarihi';
 
-    await query(`
+    await query(
+      `
       UPDATE maas_odemeleri 
       SET ${field} = $1, ${dateField} = ${odendi ? 'NOW()' : 'NULL'}
       WHERE proje_id = $2 AND yil = $3 AND ay = $4
-    `, [odendi, projeId, yil, ay]);
+    `,
+      [odendi, projeId, yil, ay]
+    );
 
     res.json({ success: true, data: null });
   } catch (error) {
-    console.error('Toplu ödeme güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -216,11 +237,14 @@ router.patch('/toplu-odendi/:projeId/:yil/:ay', async (req, res) => {
 router.get('/avans/:personelId', async (req, res) => {
   try {
     const { personelId } = req.params;
-    const result = await query(`
+    const result = await query(
+      `
       SELECT * FROM avans_hareketleri 
       WHERE personel_id = $1 
       ORDER BY tarih DESC
-    `, [personelId]);
+    `,
+      [personelId]
+    );
     res.json({ success: true, data: result.rows });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -235,25 +259,30 @@ router.post('/avans', async (req, res) => {
   try {
     const { personel_id, proje_id, tutar, tarih, aciklama, odeme_sekli, mahsup_ay, mahsup_yil } = req.body;
 
-    const result = await query(`
+    const result = await query(
+      `
       INSERT INTO avans_hareketleri 
         (personel_id, proje_id, tutar, tarih, aciklama, odeme_sekli, mahsup_ay, mahsup_yil)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
-    `, [personel_id, proje_id, tutar, tarih, aciklama, odeme_sekli || 'nakit', mahsup_ay, mahsup_yil]);
+    `,
+      [personel_id, proje_id, tutar, tarih, aciklama, odeme_sekli || 'nakit', mahsup_ay, mahsup_yil]
+    );
 
     // Maaş ödemesine avansı ekle
     if (mahsup_ay && mahsup_yil) {
-      await query(`
+      await query(
+        `
         UPDATE maas_odemeleri 
         SET avans = avans + $1
         WHERE personel_id = $2 AND proje_id = $3 AND yil = $4 AND ay = $5
-      `, [tutar, personel_id, proje_id, mahsup_yil, mahsup_ay]);
+      `,
+        [tutar, personel_id, proje_id, mahsup_yil, mahsup_ay]
+      );
     }
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Avans ekleme hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -269,11 +298,14 @@ router.post('/avans', async (req, res) => {
 router.get('/prim/:personelId', async (req, res) => {
   try {
     const { personelId } = req.params;
-    const result = await query(`
+    const result = await query(
+      `
       SELECT * FROM prim_hareketleri 
       WHERE personel_id = $1 
       ORDER BY tarih DESC
-    `, [personelId]);
+    `,
+      [personelId]
+    );
     res.json({ success: true, data: result.rows });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -288,25 +320,30 @@ router.post('/prim', async (req, res) => {
   try {
     const { personel_id, proje_id, tutar, tarih, prim_turu, aciklama, odeme_ay, odeme_yil } = req.body;
 
-    const result = await query(`
+    const result = await query(
+      `
       INSERT INTO prim_hareketleri 
         (personel_id, proje_id, tutar, tarih, prim_turu, aciklama, odeme_ay, odeme_yil)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
-    `, [personel_id, proje_id, tutar, tarih, prim_turu, aciklama, odeme_ay, odeme_yil]);
+    `,
+      [personel_id, proje_id, tutar, tarih, prim_turu, aciklama, odeme_ay, odeme_yil]
+    );
 
     // Maaş ödemesine primi ekle
     if (odeme_ay && odeme_yil) {
-      await query(`
+      await query(
+        `
         UPDATE maas_odemeleri 
         SET prim = prim + $1
         WHERE personel_id = $2 AND proje_id = $3 AND yil = $4 AND ay = $5
-      `, [tutar, personel_id, proje_id, odeme_yil, odeme_ay]);
+      `,
+        [tutar, personel_id, proje_id, odeme_yil, odeme_ay]
+      );
     }
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Prim ekleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -320,7 +357,8 @@ router.patch('/personel/:maasOdemeId', async (req, res) => {
     const { maasOdemeId } = req.params;
     const { avans, prim, fazla_mesai, notlar } = req.body;
 
-    const result = await query(`
+    const result = await query(
+      `
       UPDATE maas_odemeleri 
       SET 
         avans = COALESCE($1, avans),
@@ -329,11 +367,12 @@ router.patch('/personel/:maasOdemeId', async (req, res) => {
         notlar = COALESCE($4, notlar)
       WHERE id = $5
       RETURNING *
-    `, [avans, prim, fazla_mesai, notlar, maasOdemeId]);
+    `,
+      [avans, prim, fazla_mesai, notlar, maasOdemeId]
+    );
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Maaş güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -345,9 +384,12 @@ router.patch('/personel/:maasOdemeId', async (req, res) => {
 router.get('/proje-ayarlari/:projeId', async (req, res) => {
   try {
     const { projeId } = req.params;
-    const result = await query(`
+    const result = await query(
+      `
       SELECT * FROM proje_maas_ayarlari WHERE proje_id = $1
-    `, [projeId]);
+    `,
+      [projeId]
+    );
     res.json({ success: true, data: result.rows[0] || { odeme_gunu: 15 } });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -363,7 +405,8 @@ router.post('/proje-ayarlari/:projeId', async (req, res) => {
     const { projeId } = req.params;
     const { odeme_gunu, banka_adi, iban } = req.body;
 
-    const result = await query(`
+    const result = await query(
+      `
       INSERT INTO proje_maas_ayarlari (proje_id, odeme_gunu, banka_adi, iban)
       VALUES ($1, $2, $3, $4)
       ON CONFLICT (proje_id) DO UPDATE SET
@@ -371,7 +414,9 @@ router.post('/proje-ayarlari/:projeId', async (req, res) => {
         banka_adi = EXCLUDED.banka_adi,
         iban = EXCLUDED.iban
       RETURNING *
-    `, [projeId, odeme_gunu || 15, banka_adi, iban]);
+    `,
+      [projeId, odeme_gunu || 15, banka_adi, iban]
+    );
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
@@ -392,20 +437,25 @@ router.get('/aylik-odeme/:projeId/:yil/:ay', async (req, res) => {
     const { projeId, yil, ay } = req.params;
 
     // Kayıt yoksa oluştur
-    await query(`
+    await query(
+      `
       INSERT INTO proje_aylik_odemeler (proje_id, yil, ay)
       VALUES ($1, $2, $3)
       ON CONFLICT (proje_id, yil, ay) DO NOTHING
-    `, [projeId, yil, ay]);
+    `,
+      [projeId, yil, ay]
+    );
 
-    const result = await query(`
+    const result = await query(
+      `
       SELECT * FROM proje_aylik_odemeler 
       WHERE proje_id = $1 AND yil = $2 AND ay = $3
-    `, [projeId, yil, ay]);
+    `,
+      [projeId, yil, ay]
+    );
 
     res.json({ success: true, data: result.rows[0] || {} });
   } catch (error) {
-    console.error('Aylık ödeme getirme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -421,9 +471,12 @@ router.patch('/aylik-odeme/:projeId/:yil/:ay', async (req, res) => {
 
     // Güvenlik: sadece izin verilen alanlar
     const allowedFields = [
-      'maas_banka_odendi', 'maas_elden_odendi',
-      'sgk_odendi', 'gelir_vergisi_odendi', 
-      'damga_vergisi_odendi', 'issizlik_odendi'
+      'maas_banka_odendi',
+      'maas_elden_odendi',
+      'sgk_odendi',
+      'gelir_vergisi_odendi',
+      'damga_vergisi_odendi',
+      'issizlik_odendi',
     ];
 
     if (!allowedFields.includes(field)) {
@@ -433,23 +486,28 @@ router.patch('/aylik-odeme/:projeId/:yil/:ay', async (req, res) => {
     const tarihField = field.replace('_odendi', '_tarih');
 
     // Önce kayıt var mı kontrol et, yoksa oluştur
-    await query(`
+    await query(
+      `
       INSERT INTO proje_aylik_odemeler (proje_id, yil, ay)
       VALUES ($1, $2, $3)
       ON CONFLICT (proje_id, yil, ay) DO NOTHING
-    `, [projeId, yil, ay]);
+    `,
+      [projeId, yil, ay]
+    );
 
     // Güncelle
-    const result = await query(`
+    const result = await query(
+      `
       UPDATE proje_aylik_odemeler 
       SET ${field} = $1, ${tarihField} = ${odendi ? 'NOW()' : 'NULL'}, updated_at = NOW()
       WHERE proje_id = $2 AND yil = $3 AND ay = $4
       RETURNING *
-    `, [odendi, projeId, yil, ay]);
+    `,
+      [odendi, projeId, yil, ay]
+    );
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Ödeme güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -468,7 +526,8 @@ router.post('/finalize/:projeId/:yil/:ay', async (req, res) => {
 
     // Maaş hareketi
     if (maas > 0) {
-      const maasResult = await query(`
+      const maasResult = await query(
+        `
         INSERT INTO proje_hareketler 
           (proje_id, tip, kategori, tutar, tarih, aciklama, referans_tip, odendi, odeme_tarihi)
         SELECT $1, 'gider', 'personel_maas', $2, $3, $4, 'bordro', true, NOW()
@@ -478,13 +537,16 @@ router.post('/finalize/:projeId/:yil/:ay', async (req, res) => {
           AND EXTRACT(YEAR FROM tarih) = $5 AND EXTRACT(MONTH FROM tarih) = $6
         )
         RETURNING *
-      `, [projeId, maas, tarih, `${ay}/${yil} Personel Maaşları`, yil, ay]);
+      `,
+        [projeId, maas, tarih, `${ay}/${yil} Personel Maaşları`, yil, ay]
+      );
       if (maasResult.rows[0]) hareketler.push(maasResult.rows[0]);
     }
 
     // SGK hareketi
     if (sgk > 0) {
-      const sgkResult = await query(`
+      const sgkResult = await query(
+        `
         INSERT INTO proje_hareketler 
           (proje_id, tip, kategori, tutar, tarih, aciklama, referans_tip, odendi, odeme_tarihi)
         SELECT $1, 'gider', 'personel_sgk', $2, $3, $4, 'bordro', true, NOW()
@@ -494,13 +556,16 @@ router.post('/finalize/:projeId/:yil/:ay', async (req, res) => {
           AND EXTRACT(YEAR FROM tarih) = $5 AND EXTRACT(MONTH FROM tarih) = $6
         )
         RETURNING *
-      `, [projeId, sgk, tarih, `${ay}/${yil} SGK Primleri`, yil, ay]);
+      `,
+        [projeId, sgk, tarih, `${ay}/${yil} SGK Primleri`, yil, ay]
+      );
       if (sgkResult.rows[0]) hareketler.push(sgkResult.rows[0]);
     }
 
     // Vergi hareketi
     if (vergi > 0) {
-      const vergiResult = await query(`
+      const vergiResult = await query(
+        `
         INSERT INTO proje_hareketler 
           (proje_id, tip, kategori, tutar, tarih, aciklama, referans_tip, odendi, odeme_tarihi)
         SELECT $1, 'gider', 'personel_vergi', $2, $3, $4, 'bordro', true, NOW()
@@ -510,16 +575,16 @@ router.post('/finalize/:projeId/:yil/:ay', async (req, res) => {
           AND EXTRACT(YEAR FROM tarih) = $5 AND EXTRACT(MONTH FROM tarih) = $6
         )
         RETURNING *
-      `, [projeId, vergi, tarih, `${ay}/${yil} Vergiler`, yil, ay]);
+      `,
+        [projeId, vergi, tarih, `${ay}/${yil} Vergiler`, yil, ay]
+      );
       if (vergiResult.rows[0]) hareketler.push(vergiResult.rows[0]);
     }
 
     res.json({ success: true, data: { hareketler, count: hareketler.length } });
   } catch (error) {
-    console.error('Finalize hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 export default router;
-

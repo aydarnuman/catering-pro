@@ -570,7 +570,8 @@ export default function SyncControlPage() {
                   <Text fw={700} size="lg">
                     {(schedulerStatus?.stats?.totalRuns ?? 0) > 0
                       ? Math.round(
-                          ((schedulerStatus?.stats?.successfulRuns ?? 0) / (schedulerStatus?.stats?.totalRuns ?? 1)) *
+                          ((schedulerStatus?.stats?.successfulRuns ?? 0) /
+                            (schedulerStatus?.stats?.totalRuns ?? 1)) *
                             100
                         )
                       : 0}

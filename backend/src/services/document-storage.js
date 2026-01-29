@@ -4,18 +4,17 @@
  * ZIP dosyalarını açar ve içindeki dosyaları ayrı ayrı kaydeder
  */
 
-import { supabase } from '../supabase.js';
-import { pool } from '../database.js';
-import documentDownloadService from './document-download.js';
-import path from 'path';
-import fs from 'fs/promises';
-import os from 'os';
-import { createReadStream, createWriteStream } from 'fs';
-import { promisify } from 'util';
-import { exec } from 'child_process';
-import crypto from 'crypto';
+import { exec } from 'node:child_process';
+import crypto from 'node:crypto';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { promisify } from 'node:util';
 import AdmZip from 'adm-zip';
+import { pool } from '../database.js';
+import { supabase } from '../supabase.js';
 import logger from '../utils/logger.js';
+import documentDownloadService from './document-download.js';
 
 const execAsync = promisify(exec);
 
@@ -23,7 +22,20 @@ const execAsync = promisify(exec);
 const BUCKET_NAME = 'tender-documents';
 
 // Desteklenen dosya uzantıları
-const SUPPORTED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.zip', '.rar', '.jpg', '.jpeg', '.png', '.txt', '.csv'];
+const SUPPORTED_EXTENSIONS = [
+  '.pdf',
+  '.doc',
+  '.docx',
+  '.xls',
+  '.xlsx',
+  '.zip',
+  '.rar',
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.txt',
+  '.csv',
+];
 
 // Content-Type mapping
 const CONTENT_TYPES = {
@@ -38,25 +50,25 @@ const CONTENT_TYPES = {
   '.jpeg': 'image/jpeg',
   '.png': 'image/png',
   '.txt': 'text/plain',
-  '.csv': 'text/csv'
+  '.csv': 'text/csv',
 };
 
 // Doc type display names
 const DOC_TYPE_NAMES = {
-  'admin_spec': 'İdari Şartname',
-  'tech_spec': 'Teknik Şartname',
-  'project_files': 'Proje Dosyaları',
-  'announcement': 'İhale İlanı',
-  'zeyilname': 'Zeyilname',
-  'zeyilname_tech_spec': 'Teknik Şartname Zeyilnamesi',
-  'zeyilname_admin_spec': 'İdari Şartname Zeyilnamesi',
-  'correction_notice': 'Düzeltme İlanı',
-  'contract': 'Sözleşme Tasarısı',
-  'unit_price': 'Birim Fiyat Teklif Cetveli',
-  'pursantaj': 'Pursantaj Listesi',
-  'quantity_survey': 'Mahal Listesi / Metraj',
-  'standard_forms': 'Standart Formlar',
-  'goods_services': 'Mal/Hizmet Listesi'
+  admin_spec: 'İdari Şartname',
+  tech_spec: 'Teknik Şartname',
+  project_files: 'Proje Dosyaları',
+  announcement: 'İhale İlanı',
+  zeyilname: 'Zeyilname',
+  zeyilname_tech_spec: 'Teknik Şartname Zeyilnamesi',
+  zeyilname_admin_spec: 'İdari Şartname Zeyilnamesi',
+  correction_notice: 'Düzeltme İlanı',
+  contract: 'Sözleşme Tasarısı',
+  unit_price: 'Birim Fiyat Teklif Cetveli',
+  pursantaj: 'Pursantaj Listesi',
+  quantity_survey: 'Mahal Listesi / Metraj',
+  standard_forms: 'Standart Formlar',
+  goods_services: 'Mal/Hizmet Listesi',
 };
 
 class DocumentStorageService {
@@ -73,7 +85,7 @@ class DocumentStorageService {
    */
   detectDocTypeFromFileName(fileName, defaultDocType) {
     const nameLower = fileName.toLowerCase();
-    
+
     // Zeyilname kontrolü - dosya adında "zeyilname" geçiyorsa
     if (nameLower.includes('zeyilname')) {
       // Hangi şartnamenin zeyilnamesi?
@@ -85,47 +97,51 @@ class DocumentStorageService {
       }
       return 'zeyilname'; // Genel zeyilname
     }
-    
+
     // Düzeltme kontrolü
     if (nameLower.includes('düzeltme') || nameLower.includes('duzeltme')) {
       return 'correction_notice';
     }
-    
+
     // Birim fiyat cetveli
-    if (nameLower.includes('birim_fiyat') || nameLower.includes('birim fiyat') || nameLower.includes('teklif_cetveli')) {
+    if (
+      nameLower.includes('birim_fiyat') ||
+      nameLower.includes('birim fiyat') ||
+      nameLower.includes('teklif_cetveli')
+    ) {
       return 'unit_price';
     }
-    
+
     // Pursantaj
     if (nameLower.includes('pursantaj')) {
       return 'pursantaj';
     }
-    
+
     // Mahal listesi / Metraj
     if (nameLower.includes('mahal') || nameLower.includes('metraj')) {
       return 'quantity_survey';
     }
-    
+
     // Sözleşme
     if (nameLower.includes('sözleşme') || nameLower.includes('sozlesme')) {
       return 'contract';
     }
-    
+
     // Standart formlar
     if (nameLower.includes('form') || nameLower.includes('standart')) {
       return 'standard_forms';
     }
-    
+
     // Teknik şartname (zeyilname değilse)
     if (nameLower.includes('teknik') && nameLower.includes('şartname')) {
       return 'tech_spec';
     }
-    
+
     // İdari şartname
     if (nameLower.includes('idari') && nameLower.includes('şartname')) {
       return 'admin_spec';
     }
-    
+
     // Varsayılan tipi döndür
     return defaultDocType;
   }
@@ -137,14 +153,14 @@ class DocumentStorageService {
    */
   async downloadTenderDocuments(tenderId) {
     logger.info(`İhale ${tenderId} dökümanları indiriliyor`);
-    
+
     const results = {
       tenderId,
       success: [],
       failed: [],
       skipped: [],
       totalDownloaded: 0,
-      totalSize: 0
+      totalSize: 0,
     };
 
     try {
@@ -172,7 +188,7 @@ class DocumentStorageService {
          WHERE tender_id = $1 AND source_type = 'download'`,
         [tenderId]
       );
-      const downloadedUrls = new Set(existingDocs.rows.map(d => d.source_url));
+      const downloadedUrls = new Set(existingDocs.rows.map((d) => d.source_url));
 
       // 3. Her döküman tipi için indir
       for (const [docType, docData] of Object.entries(documentLinks)) {
@@ -199,19 +215,18 @@ class DocumentStorageService {
 
           // Dökümanı indir
           const downloadResult = await this.downloadAndStore(tenderId, docType, url, name);
-          
+
           results.success.push({
             docType,
-            ...downloadResult
+            ...downloadResult,
           });
           results.totalDownloaded += downloadResult.filesCount || 1;
           results.totalSize += downloadResult.totalSize || 0;
-
         } catch (error) {
           logger.error(`${docType}: İndirme hatası`, { error: error.message, docType, tenderId });
           results.failed.push({
             docType,
-            error: error.message
+            error: error.message,
           });
         }
       }
@@ -221,9 +236,9 @@ class DocumentStorageService {
         failed: results.failed.length,
         skipped: results.skipped.length,
         totalFiles: results.totalDownloaded,
-        totalSizeMB: (results.totalSize / 1024 / 1024).toFixed(2)
+        totalSizeMB: (results.totalSize / 1024 / 1024).toFixed(2),
       });
-      
+
       // Başarılı indirmelerin Supabase'e kaydedildiğini doğrula
       if (results.success.length > 0) {
         const verifyResult = await pool.query(
@@ -233,11 +248,12 @@ class DocumentStorageService {
           [tenderId]
         );
         const verified = verifyResult.rows[0];
-        logger.debug(`Doğrulama: ${verified.count} döküman DB'de pending durumunda (${(verified.total_size / 1024 / 1024).toFixed(2)} MB)`);
+        logger.debug(
+          `Doğrulama: ${verified.count} döküman DB'de pending durumunda (${(verified.total_size / 1024 / 1024).toFixed(2)} MB)`
+        );
       }
-      
-      return results;
 
+      return results;
     } catch (error) {
       logger.error(`İhale ${tenderId} döküman indirme hatası`, { error: error.message, stack: error.stack });
       throw error;
@@ -249,33 +265,33 @@ class DocumentStorageService {
    */
   async downloadAndStore(tenderId, docType, url, displayName = null) {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'tender-doc-'));
-    
+
     try {
       // 1. Dökümanı indir
       const fileBuffer = await documentDownloadService.downloadDocument(url);
-      
+
       // 2. Dosya uzantısını belirle - önce içeriğe bak (magic bytes)
-      let extension = this.detectFileType(fileBuffer) || this.getExtensionFromUrl(url) || '.pdf';
+      const extension = this.detectFileType(fileBuffer) || this.getExtensionFromUrl(url) || '.pdf';
       const isZip = extension === '.zip' || extension === '.rar';
-      
+
       logger.debug(`Dosya tipi tespit edildi: ${extension} (URL: ${url.substring(0, 50)}...)`);
-      
+
       // 3. Temp dosyaya kaydet
       const tempFilePath = path.join(tempDir, `download${extension}`);
       await fs.writeFile(tempFilePath, fileBuffer);
-      
+
       let uploadResults = [];
-      
+
       if (isZip) {
         // ZIP dosyasını aç ve içindekileri yükle
         uploadResults = await this.extractAndUpload(tenderId, docType, tempFilePath, url);
       } else {
         // Tek dosyayı yükle
         const result = await this.uploadSingleFile(
-          tenderId, 
-          docType, 
-          fileBuffer, 
-          extension, 
+          tenderId,
+          docType,
+          fileBuffer,
+          extension,
           displayName || this.getDisplayName(docType),
           url
         );
@@ -286,9 +302,8 @@ class DocumentStorageService {
         docType,
         filesCount: uploadResults.length,
         totalSize: uploadResults.reduce((sum, r) => sum + (r.fileSize || 0), 0),
-        files: uploadResults
+        files: uploadResults,
       };
-
     } finally {
       // Temp klasörü temizle
       try {
@@ -310,25 +325,25 @@ class DocumentStorageService {
     try {
       const ext = path.extname(zipPath).toLowerCase();
       const uploadResults = [];
-      
+
       if (ext === '.zip') {
         // adm-zip ile ZIP aç (Türkçe karakter desteği)
         logger.info(`ZIP dosyası açılıyor (adm-zip): ${zipPath}`);
         const zip = new AdmZip(zipPath);
         const zipEntries = zip.getEntries();
-        
+
         logger.info(`ZIP içinde ${zipEntries.length} dosya bulundu`);
-        
+
         for (const entry of zipEntries) {
           // Klasörleri atla
           if (entry.isDirectory) continue;
-          
+
           // Dosya adını UTF-8 olarak decode et
           let fileName = entry.entryName;
-          
+
           // Path'ten sadece dosya adını al
           fileName = path.basename(fileName);
-          
+
           // Türkçe karakterleri düzelt (CP437 -> UTF-8)
           try {
             // Buffer'dan UTF-8 string oluştur
@@ -337,29 +352,29 @@ class DocumentStorageService {
             if (utf8Name && !utf8Name.includes('�')) {
               fileName = path.basename(utf8Name);
             }
-          } catch (e) {
+          } catch (_e) {
             // Decode hatasında orijinal ismi kullan
           }
-          
+
           const fileExt = path.extname(fileName).toLowerCase();
-          
+
           // Desteklenen dosya mı kontrol et
           if (!SUPPORTED_EXTENSIONS.includes(fileExt)) {
             logger.warn(`Desteklenmeyen dosya atlandı: ${fileName}`);
             continue;
           }
-          
+
           // Dosya içeriğini al
           const buffer = entry.getData();
           logger.debug(`İşleniyor: ${fileName} (${(buffer.length / 1024).toFixed(1)} KB)`);
-          
+
           // ZIP'ten çıkan dosyalar için unique source_url oluştur
           // (aynı ZIP'ten birden fazla dosya çıkabilir)
           const uniqueSourceUrl = `${sourceUrl}#file=${encodeURIComponent(entry.entryName)}`;
-          
+
           // Dosya adına göre doc_type belirle
           const fileDocType = this.detectDocTypeFromFileName(fileName, docType);
-          
+
           // Dosyayı yükle
           const result = await this.uploadSingleFile(
             tenderId,
@@ -370,32 +385,29 @@ class DocumentStorageService {
             uniqueSourceUrl, // Unique URL
             true // ZIP'ten çıkarıldı
           );
-          
+
           uploadResults.push(result);
         }
-        
       } else if (ext === '.rar') {
         // RAR için unrar komutu dene
         try {
           await execAsync(`unrar x -o+ "${zipPath}" "${extractDir}/"`);
-          
+
           // Açılan dosyaları bul
           const extractedFiles = await this.walkDirectory(extractDir);
           logger.info(`RAR'dan ${extractedFiles.length} dosya çıkarıldı`);
-          
+
           for (const filePath of extractedFiles) {
             const fileName = path.basename(filePath);
             const fileExt = path.extname(fileName).toLowerCase();
-            
+
             if (!SUPPORTED_EXTENSIONS.includes(fileExt)) {
               logger.warn(`Desteklenmeyen dosya atlandı: ${fileName}`);
               continue;
             }
-            
+
             const buffer = await fs.readFile(filePath);
-            const result = await this.uploadSingleFile(
-              tenderId, docType, buffer, fileExt, fileName, sourceUrl, true
-            );
+            const result = await this.uploadSingleFile(tenderId, docType, buffer, fileExt, fileName, sourceUrl, true);
             uploadResults.push(result);
           }
         } catch (e) {
@@ -403,8 +415,12 @@ class DocumentStorageService {
           // RAR'ı direkt yükle
           const buffer = await fs.readFile(zipPath);
           const result = await this.uploadSingleFile(
-            tenderId, docType, buffer, '.rar',
-            this.getDisplayName(docType) + '.rar', sourceUrl
+            tenderId,
+            docType,
+            buffer,
+            '.rar',
+            this.getDisplayName(docType) + '.rar',
+            sourceUrl
           );
           return [result];
         }
@@ -413,21 +429,26 @@ class DocumentStorageService {
       // ZIP/RAR dosyasının kendisini de kaydet (parent olarak)
       const archiveBuffer = await fs.readFile(zipPath);
       const archiveResult = await this.uploadSingleFile(
-        tenderId, docType, archiveBuffer, ext,
-        this.getDisplayName(docType) + ext, sourceUrl, false, true
+        tenderId,
+        docType,
+        archiveBuffer,
+        ext,
+        this.getDisplayName(docType) + ext,
+        sourceUrl,
+        false,
+        true
       );
-      
+
       // Çıkarılan dosyaların parent_doc_id'sini güncelle
       if (uploadResults.length > 0 && archiveResult.documentId) {
-        await pool.query(
-          `UPDATE documents SET parent_doc_id = $1 WHERE id = ANY($2::int[])`,
-          [archiveResult.documentId, uploadResults.map(r => r.documentId)]
-        );
+        await pool.query(`UPDATE documents SET parent_doc_id = $1 WHERE id = ANY($2::int[])`, [
+          archiveResult.documentId,
+          uploadResults.map((r) => r.documentId),
+        ]);
       }
 
       logger.info(`ZIP'ten ${uploadResults.length} dosya yüklendi`);
       return [archiveResult, ...uploadResults];
-
     } catch (error) {
       logger.error('ZIP açma hatası', { error: error.message, stack: error.stack });
       throw error;
@@ -437,26 +458,37 @@ class DocumentStorageService {
   /**
    * Tek dosyayı Supabase Storage'a yükle ve DB'ye kaydet
    */
-  async uploadSingleFile(tenderId, docType, buffer, extension, displayName, sourceUrl, isExtracted = false, isZipParent = false) {
+  async uploadSingleFile(
+    tenderId,
+    docType,
+    buffer,
+    extension,
+    displayName,
+    sourceUrl,
+    isExtracted = false,
+    isZipParent = false
+  ) {
     // Unique dosya adı oluştur
     const uniqueId = crypto.randomBytes(4).toString('hex');
     const timestamp = Date.now();
     const safeFileName = this.sanitizeFileName(displayName || `doc-${uniqueId}`);
-    
+
     // Storage path için URL-safe dosya adı (Türkçe karakterleri ve boşlukları encode et)
     const urlSafeFileName = this.makeUrlSafe(safeFileName);
     const storageFileName = `${timestamp}-${uniqueId}-${urlSafeFileName}${extension}`;
-    
+
     // Storage path: tenders/{tenderId}/{docType}/{filename}
     const storagePath = `tenders/${tenderId}/${docType}/${storageFileName}`;
-    
+
     // Content-Type belirle
     const contentType = CONTENT_TYPES[extension] || 'application/octet-stream';
-    
+
     try {
       // Supabase kontrolü
       if (!supabase || !supabase.storage) {
-        throw new Error('Supabase client veya storage mevcut değil. Lütfen SUPABASE_SERVICE_KEY environment variable\'ını kontrol edin.');
+        throw new Error(
+          "Supabase client veya storage mevcut değil. Lütfen SUPABASE_SERVICE_KEY environment variable'ını kontrol edin."
+        );
       }
 
       // 1. Supabase Storage'a yükle
@@ -464,7 +496,7 @@ class DocumentStorageService {
         .from(BUCKET_NAME)
         .upload(storagePath, buffer, {
           contentType,
-          upsert: false
+          upsert: false,
         });
 
       if (uploadError) {
@@ -474,9 +506,11 @@ class DocumentStorageService {
           code: uploadError.statusCode,
           storagePath,
           fileSize: buffer.length,
-          contentType
+          contentType,
         });
-        throw new Error(`Storage yükleme hatası: ${uploadError.message} (Code: ${uploadError.statusCode || 'unknown'})`);
+        throw new Error(
+          `Storage yükleme hatası: ${uploadError.message} (Code: ${uploadError.statusCode || 'unknown'})`
+        );
       }
 
       if (!uploadData || !uploadData.path) {
@@ -486,9 +520,7 @@ class DocumentStorageService {
       logger.info(`Supabase'e yüklendi: ${storagePath} (${buffer.length} bytes, path: ${uploadData.path})`);
 
       // 2. Public URL al
-      const { data: urlData } = supabase.storage
-        .from(BUCKET_NAME)
-        .getPublicUrl(storagePath);
+      const { data: urlData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(storagePath);
 
       const storageUrl = urlData?.publicUrl || null;
 
@@ -519,23 +551,25 @@ class DocumentStorageService {
           docType,
           'download',
           isExtracted,
-          'pending' // Kuyrukta bekliyor
+          'pending', // Kuyrukta bekliyor
         ]
       );
 
       const insertedDoc = insertResult.rows[0];
-      
+
       // Kayıt kontrolü
       if (!insertedDoc || !insertedDoc.id) {
         throw new Error('Döküman veritabanına kaydedilemedi');
       }
-      
+
       // Duplike uyarısı
       if (!insertedDoc.is_new) {
         logger.warn(`Döküman zaten mevcut, güncellendi: ${displayName}`);
       }
 
-      logger.debug(`Döküman DB'ye kaydedildi: ID=${insertedDoc.id}, storage_path=${insertedDoc.storage_path}, storage_url=${insertedDoc.storage_url || 'NULL'}`);
+      logger.debug(
+        `Döküman DB'ye kaydedildi: ID=${insertedDoc.id}, storage_path=${insertedDoc.storage_path}, storage_url=${insertedDoc.storage_url || 'NULL'}`
+      );
 
       return {
         documentId: insertedDoc.id,
@@ -545,9 +579,8 @@ class DocumentStorageService {
         fileSize: buffer.length,
         fileType: extension,
         isExtracted,
-        isZipParent
+        isZipParent,
       };
-
     } catch (error) {
       logger.error(`Dosya yükleme hatası: ${displayName}`, { error: error.message, stack: error.stack, displayName });
       throw error;
@@ -565,7 +598,7 @@ class DocumentStorageService {
        RETURNING id, original_filename, processing_status`,
       [documentId]
     );
-    
+
     if (result.rows.length === 0) {
       throw new Error(`Döküman bulunamadı: ${documentId}`);
     }
@@ -584,7 +617,7 @@ class DocumentStorageService {
        RETURNING id, original_filename, processing_status`,
       [documentIds]
     );
-    
+
     return result.rows;
   }
 
@@ -603,7 +636,7 @@ class DocumentStorageService {
        ORDER BY doc_type, is_extracted, created_at`,
       [tenderId]
     );
-    
+
     return result.rows;
   }
 
@@ -611,10 +644,7 @@ class DocumentStorageService {
    * Döküman için signed URL al (private bucket için)
    */
   async getSignedUrl(documentId, expiresIn = 3600) {
-    const docResult = await pool.query(
-      'SELECT storage_path FROM documents WHERE id = $1',
-      [documentId]
-    );
+    const docResult = await pool.query('SELECT storage_path FROM documents WHERE id = $1', [documentId]);
 
     if (docResult.rows.length === 0) {
       throw new Error(`Döküman bulunamadı: ${documentId}`);
@@ -622,9 +652,7 @@ class DocumentStorageService {
 
     const { storage_path } = docResult.rows[0];
 
-    const { data, error } = await supabase.storage
-      .from(BUCKET_NAME)
-      .createSignedUrl(storage_path, expiresIn);
+    const { data, error } = await supabase.storage.from(BUCKET_NAME).createSignedUrl(storage_path, expiresIn);
 
     if (error) {
       throw new Error(`Signed URL oluşturma hatası: ${error.message}`);
@@ -671,51 +699,51 @@ class DocumentStorageService {
    */
   detectFileType(buffer) {
     if (!buffer || buffer.length < 4) return null;
-    
+
     // Magic bytes kontrolü
-    const magicBytes = {
+    const _magicBytes = {
       // PDF: %PDF
       pdf: [0x25, 0x50, 0x44, 0x46],
       // ZIP: PK
-      zip: [0x50, 0x4B, 0x03, 0x04],
+      zip: [0x50, 0x4b, 0x03, 0x04],
       // RAR: Rar!
       rar: [0x52, 0x61, 0x72, 0x21],
       // PNG: .PNG
-      png: [0x89, 0x50, 0x4E, 0x47],
+      png: [0x89, 0x50, 0x4e, 0x47],
       // JPEG: FFD8FF
-      jpg: [0xFF, 0xD8, 0xFF],
+      jpg: [0xff, 0xd8, 0xff],
       // DOCX/XLSX (Office Open XML - aslında ZIP)
-      docx: [0x50, 0x4B, 0x03, 0x04],
+      docx: [0x50, 0x4b, 0x03, 0x04],
     };
-    
+
     // PDF kontrolü
     if (buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46) {
       return '.pdf';
     }
-    
+
     // ZIP kontrolü (ZIP, DOCX, XLSX hepsi aynı magic bytes)
-    if (buffer[0] === 0x50 && buffer[1] === 0x4B && buffer[2] === 0x03 && buffer[3] === 0x04) {
+    if (buffer[0] === 0x50 && buffer[1] === 0x4b && buffer[2] === 0x03 && buffer[3] === 0x04) {
       // ZIP içeriğine bakarak DOCX/XLSX mi yoksa gerçek ZIP mi anlamaya çalış
       // Basit bir kontrol: ZIP header'ı varsa ZIP olarak işle
       logger.debug('ZIP formatı tespit edildi (magic bytes: PK)');
       return '.zip';
     }
-    
+
     // RAR kontrolü
     if (buffer[0] === 0x52 && buffer[1] === 0x61 && buffer[2] === 0x72 && buffer[3] === 0x21) {
       return '.rar';
     }
-    
+
     // PNG kontrolü
-    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
       return '.png';
     }
-    
+
     // JPEG kontrolü
-    if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
+    if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
       return '.jpg';
     }
-    
+
     return null;
   }
 
@@ -726,9 +754,9 @@ class DocumentStorageService {
     // Sadece tehlikeli karakterleri temizle, Türkçe karakter kalsın
     return fileName
       .replace(/[<>:"/\\|?*]/g, '') // Dosya sistemi için tehlikeli karakterler
-      .replace(/\s+/g, ' ')         // Fazla boşlukları tek boşluğa indir
+      .replace(/\s+/g, ' ') // Fazla boşlukları tek boşluğa indir
       .trim()
-      .substring(0, 200);           // Max 200 karakter
+      .substring(0, 200); // Max 200 karakter
   }
 
   /**
@@ -738,29 +766,35 @@ class DocumentStorageService {
   makeUrlSafe(fileName) {
     // Türkçe karakterleri normalize et
     const turkishMap = {
-      'ç': 'c', 'Ç': 'C',
-      'ğ': 'g', 'Ğ': 'G',
-      'ı': 'i', 'İ': 'I',
-      'ö': 'o', 'Ö': 'O',
-      'ş': 's', 'Ş': 'S',
-      'ü': 'u', 'Ü': 'U'
+      ç: 'c',
+      Ç: 'C',
+      ğ: 'g',
+      Ğ: 'G',
+      ı: 'i',
+      İ: 'I',
+      ö: 'o',
+      Ö: 'O',
+      ş: 's',
+      Ş: 'S',
+      ü: 'u',
+      Ü: 'U',
     };
-    
+
     let safe = fileName;
     // Türkçe karakterleri değiştir
     for (const [turkish, latin] of Object.entries(turkishMap)) {
       safe = safe.replace(new RegExp(turkish, 'g'), latin);
     }
-    
+
     // Boşlukları tire ile değiştir
     safe = safe.replace(/\s+/g, '-');
-    
+
     // URL-safe olmayan karakterleri encode et veya kaldır
     safe = safe
-      .replace(/[^a-zA-Z0-9\-_\.]/g, '-') // Sadece alfanumerik, tire, alt çizgi, nokta
-      .replace(/-+/g, '-')                 // Birden fazla tireyi tek tireye indir
-      .replace(/^-|-$/g, '');              // Başta ve sonda tire varsa kaldır
-    
+      .replace(/[^a-zA-Z0-9\-_.]/g, '-') // Sadece alfanumerik, tire, alt çizgi, nokta
+      .replace(/-+/g, '-') // Birden fazla tireyi tek tireye indir
+      .replace(/^-|-$/g, ''); // Başta ve sonda tire varsa kaldır
+
     return safe || 'file'; // Boşsa default isim
   }
 
@@ -770,16 +804,16 @@ class DocumentStorageService {
   async walkDirectory(dir) {
     const files = [];
     const entries = await fs.readdir(dir, { withFileTypes: true });
-    
+
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        files.push(...await this.walkDirectory(fullPath));
+        files.push(...(await this.walkDirectory(fullPath)));
       } else if (entry.isFile()) {
         files.push(fullPath);
       }
     }
-    
+
     return files;
   }
 
@@ -787,7 +821,7 @@ class DocumentStorageService {
    * Sleep helper
    */
   sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 

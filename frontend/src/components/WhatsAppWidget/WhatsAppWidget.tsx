@@ -255,20 +255,30 @@ export function WhatsAppWidget() {
       const res = await fetch(`${API_BASE_URL}/api/social/whatsapp/chats`);
       const data = await res.json();
       if (data.success && data.chats) {
-        const allChats: Chat[] = data.chats.map((chat: { id: string; name?: string; lastMessage?: string; timestamp?: number; unreadCount?: number; isGroup?: boolean; archived?: boolean }) => ({
-          id: chat.id,
-          name: chat.name || chat.id.split('@')[0],
-          lastMessage: chat.lastMessage || '',
-          timestamp: chat.timestamp
-            ? new Date(chat.timestamp * 1000).toLocaleTimeString('tr-TR', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })
-            : '',
-          unreadCount: chat.unreadCount || 0,
-          isGroup: chat.isGroup || false,
-          isArchived: chat.archived || false,
-        }));
+        const allChats: Chat[] = data.chats.map(
+          (chat: {
+            id: string;
+            name?: string;
+            lastMessage?: string;
+            timestamp?: number;
+            unreadCount?: number;
+            isGroup?: boolean;
+            archived?: boolean;
+          }) => ({
+            id: chat.id,
+            name: chat.name || chat.id.split('@')[0],
+            lastMessage: chat.lastMessage || '',
+            timestamp: chat.timestamp
+              ? new Date(chat.timestamp * 1000).toLocaleTimeString('tr-TR', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : '',
+            unreadCount: chat.unreadCount || 0,
+            isGroup: chat.isGroup || false,
+            isArchived: chat.archived || false,
+          })
+        );
         setChats(allChats.filter((c) => !c.isArchived));
         setArchivedChats(allChats.filter((c) => c.isArchived));
       }
@@ -286,20 +296,28 @@ export function WhatsAppWidget() {
         );
         const data = await res.json();
         if (data.success && data.messages) {
-          const formattedMessages: Message[] = data.messages.map((msg: { id: string; body?: string; timestamp?: number; fromMe?: boolean; sender?: string | null }) => ({
-            id: msg.id,
-            content: msg.body || '',
-            timestamp: msg.timestamp
-              ? new Date(msg.timestamp * 1000).toLocaleTimeString('tr-TR', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })
-              : '',
-            fromMe: msg.fromMe,
-            type: 'text',
-            status: 'sent',
-            sender: msg.sender || null,
-          }));
+          const formattedMessages: Message[] = data.messages.map(
+            (msg: {
+              id: string;
+              body?: string;
+              timestamp?: number;
+              fromMe?: boolean;
+              sender?: string | null;
+            }) => ({
+              id: msg.id,
+              content: msg.body || '',
+              timestamp: msg.timestamp
+                ? new Date(msg.timestamp * 1000).toLocaleTimeString('tr-TR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : '',
+              fromMe: msg.fromMe,
+              type: 'text',
+              status: 'sent',
+              sender: msg.sender || null,
+            })
+          );
           setMessages(formattedMessages.reverse());
           scrollToBottom();
         }

@@ -5,10 +5,10 @@ const router = express.Router();
 
 // Tüm teklifleri listele
 router.get('/', async (req, res) => {
-    try {
-        const { durum, ihale_id } = req.query;
-        
-        let sql = `
+  try {
+    const { durum, ihale_id } = req.query;
+
+    let sql = `
             SELECT t.*, 
                    tn.title as ihale_title,
                    tn.tender_date,
@@ -17,34 +17,34 @@ router.get('/', async (req, res) => {
             LEFT JOIN tenders tn ON t.ihale_id = tn.id
             WHERE 1=1
         `;
-        const params = [];
-        
-        if (durum) {
-            params.push(durum);
-            sql += ` AND t.durum = $${params.length}`;
-        }
-        
-        if (ihale_id) {
-            params.push(ihale_id);
-            sql += ` AND t.ihale_id = $${params.length}`;
-        }
-        
-        sql += ` ORDER BY t.created_at DESC`;
-        
-        const result = await query(sql, params);
-        res.json({ success: true, data: result.rows });
-    } catch (error) {
-        console.error('Teklifler listele hatası:', error);
-        res.status(500).json({ success: false, error: error.message });
+    const params = [];
+
+    if (durum) {
+      params.push(durum);
+      sql += ` AND t.durum = $${params.length}`;
     }
+
+    if (ihale_id) {
+      params.push(ihale_id);
+      sql += ` AND t.ihale_id = $${params.length}`;
+    }
+
+    sql += ` ORDER BY t.created_at DESC`;
+
+    const result = await query(sql, params);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // Tek teklif getir
 router.get('/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        
-        const result = await query(`
+  try {
+    const { id } = req.params;
+
+    const result = await query(
+      `
             SELECT t.*, 
                    tn.title as ihale_title,
                    tn.tender_date,
@@ -53,61 +53,65 @@ router.get('/:id', async (req, res) => {
             FROM teklifler t
             LEFT JOIN tenders tn ON t.ihale_id = tn.id
             WHERE t.id = $1
-        `, [id]);
-        
-        if (result.rows.length === 0) {
-            return res.status(404).json({ success: false, error: 'Teklif bulunamadı' });
-        }
-        
-        res.json({ success: true, data: result.rows[0] });
-    } catch (error) {
-        console.error('Teklif getir hatası:', error);
-        res.status(500).json({ success: false, error: error.message });
+        `,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Teklif bulunamadı' });
     }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // İhaleye ait teklif getir
 router.get('/ihale/:ihaleId', async (req, res) => {
-    try {
-        const { ihaleId } = req.params;
-        
-        const result = await query(`
+  try {
+    const { ihaleId } = req.params;
+
+    const result = await query(
+      `
             SELECT * FROM teklifler 
             WHERE ihale_id = $1 
             ORDER BY created_at DESC 
             LIMIT 1
-        `, [ihaleId]);
-        
-        if (result.rows.length === 0) {
-            return res.json({ success: true, data: null });
-        }
-        
-        res.json({ success: true, data: result.rows[0] });
-    } catch (error) {
-        console.error('İhale teklifi getir hatası:', error);
-        res.status(500).json({ success: false, error: error.message });
+        `,
+      [ihaleId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.json({ success: true, data: null });
     }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // Yeni teklif oluştur
 router.post('/', async (req, res) => {
-    try {
-        const {
-            ihale_id,
-            ihale_adi,
-            ihale_kayit_no,
-            maliyet_toplam,
-            kar_orani,
-            kar_tutari,
-            teklif_fiyati,
-            maliyet_detay,
-            birim_fiyat_cetveli,
-            cetvel_toplami,
-            durum,
-            notlar
-        } = req.body;
-        
-        const result = await query(`
+  try {
+    const {
+      ihale_id,
+      ihale_adi,
+      ihale_kayit_no,
+      maliyet_toplam,
+      kar_orani,
+      kar_tutari,
+      teklif_fiyati,
+      maliyet_detay,
+      birim_fiyat_cetveli,
+      cetvel_toplami,
+      durum,
+      notlar,
+    } = req.body;
+
+    const result = await query(
+      `
             INSERT INTO teklifler (
                 ihale_id, ihale_adi, ihale_kayit_no,
                 maliyet_toplam, kar_orani, kar_tutari, teklif_fiyati,
@@ -115,47 +119,49 @@ router.post('/', async (req, res) => {
                 durum, notlar
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             RETURNING *
-        `, [
-            ihale_id || null,
-            ihale_adi,
-            ihale_kayit_no || null,
-            maliyet_toplam || 0,
-            kar_orani || 12,
-            kar_tutari || 0,
-            teklif_fiyati || 0,
-            JSON.stringify(maliyet_detay || {}),
-            JSON.stringify(birim_fiyat_cetveli || []),
-            cetvel_toplami || 0,
-            durum || 'taslak',
-            notlar || null
-        ]);
-        
-        res.status(201).json({ success: true, data: result.rows[0] });
-    } catch (error) {
-        console.error('Teklif oluştur hatası:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
+        `,
+      [
+        ihale_id || null,
+        ihale_adi,
+        ihale_kayit_no || null,
+        maliyet_toplam || 0,
+        kar_orani || 12,
+        kar_tutari || 0,
+        teklif_fiyati || 0,
+        JSON.stringify(maliyet_detay || {}),
+        JSON.stringify(birim_fiyat_cetveli || []),
+        cetvel_toplami || 0,
+        durum || 'taslak',
+        notlar || null,
+      ]
+    );
+
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // Teklif güncelle
 router.put('/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const {
-            ihale_adi,
-            ihale_kayit_no,
-            maliyet_toplam,
-            kar_orani,
-            kar_tutari,
-            teklif_fiyati,
-            maliyet_detay,
-            birim_fiyat_cetveli,
-            cetvel_toplami,
-            durum,
-            notlar
-        } = req.body;
-        
-        const result = await query(`
+  try {
+    const { id } = req.params;
+    const {
+      ihale_adi,
+      ihale_kayit_no,
+      maliyet_toplam,
+      kar_orani,
+      kar_tutari,
+      teklif_fiyati,
+      maliyet_detay,
+      birim_fiyat_cetveli,
+      cetvel_toplami,
+      durum,
+      notlar,
+    } = req.body;
+
+    const result = await query(
+      `
             UPDATE teklifler SET
                 ihale_adi = COALESCE($1, ihale_adi),
                 ihale_kayit_no = COALESCE($2, ihale_kayit_no),
@@ -170,48 +176,48 @@ router.put('/:id', async (req, res) => {
                 notlar = COALESCE($11, notlar)
             WHERE id = $12
             RETURNING *
-        `, [
-            ihale_adi,
-            ihale_kayit_no,
-            maliyet_toplam,
-            kar_orani,
-            kar_tutari,
-            teklif_fiyati,
-            maliyet_detay ? JSON.stringify(maliyet_detay) : null,
-            birim_fiyat_cetveli ? JSON.stringify(birim_fiyat_cetveli) : null,
-            cetvel_toplami,
-            durum,
-            notlar,
-            id
-        ]);
-        
-        if (result.rows.length === 0) {
-            return res.status(404).json({ success: false, error: 'Teklif bulunamadı' });
-        }
-        
-        res.json({ success: true, data: result.rows[0] });
-    } catch (error) {
-        console.error('Teklif güncelle hatası:', error);
-        res.status(500).json({ success: false, error: error.message });
+        `,
+      [
+        ihale_adi,
+        ihale_kayit_no,
+        maliyet_toplam,
+        kar_orani,
+        kar_tutari,
+        teklif_fiyati,
+        maliyet_detay ? JSON.stringify(maliyet_detay) : null,
+        birim_fiyat_cetveli ? JSON.stringify(birim_fiyat_cetveli) : null,
+        cetvel_toplami,
+        durum,
+        notlar,
+        id,
+      ]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Teklif bulunamadı' });
     }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // Teklif sil
 router.delete('/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        
-        const result = await query('DELETE FROM teklifler WHERE id = $1 RETURNING id', [id]);
-        
-        if (result.rows.length === 0) {
-            return res.status(404).json({ success: false, error: 'Teklif bulunamadı' });
-        }
-        
-        res.json({ success: true, message: 'Teklif silindi' });
-    } catch (error) {
-        console.error('Teklif sil hatası:', error);
-        res.status(500).json({ success: false, error: error.message });
+  try {
+    const { id } = req.params;
+
+    const result = await query('DELETE FROM teklifler WHERE id = $1 RETURNING id', [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Teklif bulunamadı' });
     }
+
+    res.json({ success: true, message: 'Teklif silindi' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 export default router;

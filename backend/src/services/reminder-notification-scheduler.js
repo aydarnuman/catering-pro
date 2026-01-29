@@ -11,12 +11,12 @@
 
 import cron from 'node-cron';
 import { query } from '../database.js';
-import unifiedNotificationService, {
-  NotificationType,
-  NotificationSeverity,
-  NotificationSource
-} from './unified-notification-service.js';
 import logger from '../utils/logger.js';
+import unifiedNotificationService, {
+  NotificationSeverity,
+  NotificationSource,
+  NotificationType,
+} from './unified-notification-service.js';
 
 class ReminderNotificationScheduler {
   constructor() {
@@ -29,7 +29,7 @@ class ReminderNotificationScheduler {
       cekSenetProcessed: 0,
       notificationsCreated: 0,
       duplicatesSkipped: 0,
-      errors: 0
+      errors: 0,
     };
   }
 
@@ -64,7 +64,8 @@ class ReminderNotificationScheduler {
 
     try {
       // 3 gün sonra vadesi dolacak notları bul
-      const notes = await query(`
+      const notes = await query(
+        `
         SELECT
           n.id,
           n.user_id,
@@ -77,7 +78,9 @@ class ReminderNotificationScheduler {
         WHERE n.due_date::date = $1::date
           AND n.is_completed = FALSE
           AND n.user_id IS NOT NULL
-      `, [targetDate]);
+      `,
+        [targetDate]
+      );
 
       let created = 0;
       let skipped = 0;
@@ -92,9 +95,7 @@ class ReminderNotificationScheduler {
         }
 
         // İçerik önizlemesi (ilk 80 karakter)
-        const contentPreview = note.content.length > 80
-          ? note.content.substring(0, 80) + '...'
-          : note.content;
+        const contentPreview = note.content.length > 80 ? note.content.substring(0, 80) + '...' : note.content;
 
         // Link belirleme (context'e göre)
         let link = '/ayarlar?tab=notlar';
@@ -109,14 +110,11 @@ class ReminderNotificationScheduler {
           userId: note.user_id,
           title: '📅 Hatırlatıcı: 3 gün kaldı',
           message: contentPreview,
-          type: note.priority === 'high' || note.priority === 'urgent'
-            ? NotificationType.WARNING
-            : NotificationType.INFO,
+          type:
+            note.priority === 'high' || note.priority === 'urgent' ? NotificationType.WARNING : NotificationType.INFO,
           category: 'reminder',
           link,
-          severity: note.priority === 'urgent'
-            ? NotificationSeverity.WARNING
-            : NotificationSeverity.INFO,
+          severity: note.priority === 'urgent' ? NotificationSeverity.WARNING : NotificationSeverity.INFO,
           source: NotificationSource.SYSTEM,
           metadata: {
             scheduler_type: 'reminder_due',
@@ -126,8 +124,8 @@ class ReminderNotificationScheduler {
             notification_key: notificationKey,
             context_type: note.context_type,
             context_id: note.context_id,
-            priority: note.priority
-          }
+            priority: note.priority,
+          },
         });
 
         created++;
@@ -135,7 +133,6 @@ class ReminderNotificationScheduler {
 
       logger.info(`Note reminders: total=${notes.rows.length}, created=${created}, skipped=${skipped}`);
       return { total: notes.rows.length, created, skipped };
-
     } catch (error) {
       logger.error('Process note reminders error:', { error: error.message });
       return { total: 0, created: 0, skipped: 0, error: error.message };
@@ -155,7 +152,8 @@ class ReminderNotificationScheduler {
 
     try {
       // 3 gün sonra vadesi dolacak bekleyen çek/senetleri bul
-      const items = await query(`
+      const items = await query(
+        `
         SELECT
           cs.id,
           cs.tip,
@@ -170,7 +168,9 @@ class ReminderNotificationScheduler {
         LEFT JOIN cariler c ON c.id = cs.cari_id
         WHERE cs.vade_tarihi = $1::date
           AND cs.durum = 'beklemede'
-      `, [targetDate]);
+      `,
+        [targetDate]
+      );
 
       let created = 0;
       let skipped = 0;
@@ -190,7 +190,7 @@ class ReminderNotificationScheduler {
         // Tutar formatla
         const tutar = new Intl.NumberFormat('tr-TR', {
           style: 'currency',
-          currency: item.doviz || 'TRY'
+          currency: item.doviz || 'TRY',
         }).format(item.tutar);
 
         const title = `${yonuEmoji} ${yonuText} ${tipText} - 3 gün kaldı`;
@@ -204,9 +204,10 @@ class ReminderNotificationScheduler {
           type: NotificationType.WARNING,
           category: 'cek_senet',
           link: '/muhasebe/kasa-banka?tab=cek-senet',
-          severity: item.yonu === 'verilen'
-            ? NotificationSeverity.WARNING // Verilen = ödeme yapılacak
-            : NotificationSeverity.INFO,
+          severity:
+            item.yonu === 'verilen'
+              ? NotificationSeverity.WARNING // Verilen = ödeme yapılacak
+              : NotificationSeverity.INFO,
           source: NotificationSource.SYSTEM,
           metadata: {
             scheduler_type: 'cek_senet_due',
@@ -218,8 +219,8 @@ class ReminderNotificationScheduler {
             yonu: item.yonu,
             tutar: item.tutar,
             doviz: item.doviz || 'TRY',
-            belge_no: item.belge_no
-          }
+            belge_no: item.belge_no,
+          },
         });
 
         created++;
@@ -227,7 +228,6 @@ class ReminderNotificationScheduler {
 
       logger.info(`Cek/Senet reminders: total=${items.rows.length}, created=${created}, skipped=${skipped}`);
       return { total: items.rows.length, created, skipped };
-
     } catch (error) {
       logger.error('Process cek/senet reminders error:', { error: error.message });
       return { total: 0, created: 0, skipped: 0, error: error.message };
@@ -282,7 +282,7 @@ class ReminderNotificationScheduler {
 
         const tutar = new Intl.NumberFormat('tr-TR', {
           style: 'currency',
-          currency: item.doviz || 'TRY'
+          currency: item.doviz || 'TRY',
         }).format(item.tutar);
 
         await unifiedNotificationService.createNotification({
@@ -304,8 +304,8 @@ class ReminderNotificationScheduler {
             tip: item.tip,
             yonu: item.yonu,
             tutar: item.tutar,
-            doviz: item.doviz || 'TRY'
-          }
+            doviz: item.doviz || 'TRY',
+          },
         });
 
         created++;
@@ -313,7 +313,6 @@ class ReminderNotificationScheduler {
 
       logger.info(`Overdue items: total=${overdueItems.rows.length}, created=${created}, skipped=${skipped}`);
       return { total: overdueItems.rows.length, created, skipped };
-
     } catch (error) {
       logger.error('Process overdue items error:', { error: error.message });
       return { total: 0, created: 0, skipped: 0, error: error.message };
@@ -356,21 +355,21 @@ class ReminderNotificationScheduler {
 
       const duration = (Date.now() - startTime) / 1000;
       logger.info(`========== Reminder scheduler completed in ${duration.toFixed(2)}s ==========`);
-      logger.info(`Summary: notes=${noteResults.created}, cek_senet=${cekSenetResults.created}, overdue=${overdueResults.created}`);
+      logger.info(
+        `Summary: notes=${noteResults.created}, cek_senet=${cekSenetResults.created}, overdue=${overdueResults.created}`
+      );
 
       return {
         success: true,
         duration,
         notes: noteResults,
         cekSenet: cekSenetResults,
-        overdue: overdueResults
+        overdue: overdueResults,
       };
-
     } catch (error) {
       this.stats.errors++;
       logger.error('Reminder scheduler error:', { error: error.message, stack: error.stack });
       return { success: false, error: error.message };
-
     } finally {
       this.isRunning = false;
     }
@@ -383,12 +382,16 @@ class ReminderNotificationScheduler {
     logger.info('Initializing reminder notification scheduler...');
 
     // Her gün saat 07:00'de çalış
-    const dailyJob = cron.schedule('0 7 * * *', async () => {
-      logger.info('[CRON] Daily reminder check triggered at 07:00');
-      await this.processReminders();
-    }, {
-      timezone: 'Europe/Istanbul'
-    });
+    const dailyJob = cron.schedule(
+      '0 7 * * *',
+      async () => {
+        logger.info('[CRON] Daily reminder check triggered at 07:00');
+        await this.processReminders();
+      },
+      {
+        timezone: 'Europe/Istanbul',
+      }
+    );
     this.jobs.set('daily_reminders', dailyJob);
 
     // Sunucu başlangıcında da çalış (30 saniye gecikme ile)
@@ -437,8 +440,8 @@ class ReminderNotificationScheduler {
       stats: { ...this.stats },
       jobs: Array.from(this.jobs.keys()),
       schedule: {
-        daily: '07:00 (Europe/Istanbul)'
-      }
+        daily: '07:00 (Europe/Istanbul)',
+      },
     };
   }
 }

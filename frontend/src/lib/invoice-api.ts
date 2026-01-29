@@ -214,7 +214,9 @@ async function fetchUyumsoftAPI(endpoint: string, options?: RequestInit) {
   if (!response.ok) {
     const status = response.status;
     const statusText = response.statusText;
-    console.error(`❌ Uyumsoft API: ${status} ${statusText} - ${options?.method || 'GET'} ${endpoint}`);
+    console.error(
+      `❌ Uyumsoft API: ${status} ${statusText} - ${options?.method || 'GET'} ${endpoint}`
+    );
     let errorMessage = `HTTP ${status}`;
     try {
       const text = await response.text();
@@ -228,7 +230,8 @@ async function fetchUyumsoftAPI(endpoint: string, options?: RequestInit) {
     }
     if (status === 403) throw new ApiError(status, 'Bu işlem için yetkiniz bulunmuyor.');
     if (status === 404) throw new ApiError(status, `Endpoint bulunamadı: ${endpoint}`);
-    if (status === 0) throw new ApiError(0, 'Backend erişilemiyor. CORS veya adres (API URL) kontrol edin.');
+    if (status === 0)
+      throw new ApiError(0, 'Backend erişilemiyor. CORS veya adres (API URL) kontrol edin.');
     throw new ApiError(status, errorMessage);
   }
 

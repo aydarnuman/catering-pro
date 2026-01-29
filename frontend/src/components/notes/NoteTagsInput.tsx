@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import { TagsInput, Loader } from '@mantine/core';
-import { IconTag } from '@tabler/icons-react';
+import { Loader, TagsInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
+import { IconTag } from '@tabler/icons-react';
+import { useCallback, useEffect, useState } from 'react';
 import { notesAPI } from '@/lib/api/services/notes';
 import type { NoteTag } from '@/types/notes';
 
@@ -65,9 +65,7 @@ export function NoteTagsInput({
   }, [fetchSuggestions]);
 
   // Filter out already selected tags from suggestions
-  const filteredSuggestions = suggestions.filter(
-    (s) => !value.includes(s)
-  );
+  const filteredSuggestions = suggestions.filter((s) => !value.includes(s));
 
   return (
     <TagsInput

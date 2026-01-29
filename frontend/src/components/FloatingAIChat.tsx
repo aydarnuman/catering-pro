@@ -239,154 +239,155 @@ export function FloatingAIChat() {
     <>
       {/* Floating Button - Ana sayfa dışında göster (tek AI girişi: toolbar) */}
       {showFloatingButton && (
-      <Tooltip
-        label={
-          <Stack gap={4} align="center">
-            <Text size="sm" fw={600}>
-              {info.icon} {info.title}
-            </Text>
-            {alertCount > 0 && (
-              <Text size="xs" c="red.3">
-                {alertCount} uyarı bekliyor
+        <Tooltip
+          label={
+            <Stack gap={4} align="center">
+              <Text size="sm" fw={600}>
+                {info.icon} {info.title}
               </Text>
-            )}
-            {!isMobile && (
-              <Text size="xs" c="dimmed">
-                ⌘K ile aç
-              </Text>
-            )}
-          </Stack>
-        }
-        position="left"
-        withArrow
-        disabled={isOpen}
-        styles={{ tooltip: { padding: '8px 12px' } }}
-      >
-        <Box
-          style={{
-            position: 'fixed',
-            /* GenerationToolbar üstünde: toolbar ~200px + 24 bottom */
-            bottom: isMobile && isMounted ? 'calc(200px + env(safe-area-inset-bottom, 0px))' : 220,
-            right: isMobile && isMounted ? 12 : 24,
-            zIndex: 50,
-          }}
+              {alertCount > 0 && (
+                <Text size="xs" c="red.3">
+                  {alertCount} uyarı bekliyor
+                </Text>
+              )}
+              {!isMobile && (
+                <Text size="xs" c="dimmed">
+                  ⌘K ile aç
+                </Text>
+              )}
+            </Stack>
+          }
+          position="left"
+          withArrow
+          disabled={isOpen}
+          styles={{ tooltip: { padding: '8px 12px' } }}
         >
-          {/* Outer glow - Artlist altın vurgu */}
           <Box
             style={{
-              position: 'absolute',
-              inset: -4,
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #e6c530, #ca8a04)',
-              opacity: isOpen ? 0.8 : 0.4,
-              filter: 'blur(8px)',
-              transition: 'all 0.3s ease',
-              animation: showPulse && !isOpen ? 'pulse 2s infinite' : 'none',
-            }}
-          />
-
-          {/* Main button - Artlist primary */}
-          <Box
-            style={{
-              position: 'relative',
-              width: isMobile && isMounted ? 56 : 68,
-              height: isMobile && isMounted ? 56 : 68,
-              borderRadius: '50%',
-              background: 'linear-gradient(145deg, #e6c530, #ca8a04)',
-              boxShadow: isOpen
-                ? '0 8px 32px rgba(230, 197, 48, 0.5), inset 0 1px 0 rgba(255,255,255,0.3)'
-                : '0 6px 24px rgba(230, 197, 48, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: '2px solid transparent',
-              backgroundClip: 'padding-box',
-              overflow: 'hidden',
-              transform: isOpen ? 'scale(0.95)' : 'scale(1)',
-            }}
-            onClick={() => setIsOpen(!isOpen)}
-            onMouseEnter={(e) => {
-              if (!isOpen && !isMobile) {
-                e.currentTarget.style.transform = 'scale(1.08)';
-                e.currentTarget.style.boxShadow = '0 10px 40px rgba(230, 197, 48, 0.5)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isMobile) {
-                e.currentTarget.style.transform = isOpen ? 'scale(0.95)' : 'scale(1)';
-                e.currentTarget.style.boxShadow = isOpen
-                  ? '0 8px 32px rgba(230, 197, 48, 0.5), inset 0 1px 0 rgba(255,255,255,0.3)'
-                  : '0 6px 24px rgba(230, 197, 48, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)';
-              }
+              position: 'fixed',
+              /* GenerationToolbar üstünde: toolbar ~200px + 24 bottom */
+              bottom:
+                isMobile && isMounted ? 'calc(200px + env(safe-area-inset-bottom, 0px))' : 220,
+              right: isMobile && isMounted ? 12 : 24,
+              zIndex: 50,
             }}
           >
-            {/* Artlist altın border */}
+            {/* Outer glow - Artlist altın vurgu */}
             <Box
               style={{
                 position: 'absolute',
-                inset: -2,
+                inset: -4,
                 borderRadius: '50%',
                 background: 'linear-gradient(135deg, #e6c530, #ca8a04)',
-                zIndex: -1,
+                opacity: isOpen ? 0.8 : 0.4,
+                filter: 'blur(8px)',
+                transition: 'all 0.3s ease',
+                animation: showPulse && !isOpen ? 'pulse 2s infinite' : 'none',
               }}
             />
-            <Image
-              src="/ai-chef-icon-trimmed.png"
-              alt="AI Asistan"
-              width={isMobile && isMounted ? 44 : 56}
-              height={isMobile && isMounted ? 44 : 56}
+
+            {/* Main button - Artlist primary */}
+            <Box
               style={{
                 position: 'relative',
-                width: isMobile && isMounted ? 44 : 56,
-                height: isMobile && isMounted ? 44 : 56,
-                objectFit: 'cover',
+                width: isMobile && isMounted ? 56 : 68,
+                height: isMobile && isMounted ? 56 : 68,
                 borderRadius: '50%',
+                background: 'linear-gradient(145deg, #e6c530, #ca8a04)',
+                boxShadow: isOpen
+                  ? '0 8px 32px rgba(230, 197, 48, 0.5), inset 0 1px 0 rgba(255,255,255,0.3)'
+                  : '0 6px 24px rgba(230, 197, 48, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '2px solid transparent',
+                backgroundClip: 'padding-box',
+                overflow: 'hidden',
+                transform: isOpen ? 'scale(0.95)' : 'scale(1)',
+              }}
+              onClick={() => setIsOpen(!isOpen)}
+              onMouseEnter={(e) => {
+                if (!isOpen && !isMobile) {
+                  e.currentTarget.style.transform = 'scale(1.08)';
+                  e.currentTarget.style.boxShadow = '0 10px 40px rgba(230, 197, 48, 0.5)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isMobile) {
+                  e.currentTarget.style.transform = isOpen ? 'scale(0.95)' : 'scale(1)';
+                  e.currentTarget.style.boxShadow = isOpen
+                    ? '0 8px 32px rgba(230, 197, 48, 0.5), inset 0 1px 0 rgba(255,255,255,0.3)'
+                    : '0 6px 24px rgba(230, 197, 48, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)';
+                }
+              }}
+            >
+              {/* Artlist altın border */}
+              <Box
+                style={{
+                  position: 'absolute',
+                  inset: -2,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #e6c530, #ca8a04)',
+                  zIndex: -1,
+                }}
+              />
+              <Image
+                src="/ai-chef-icon-trimmed.png"
+                alt="AI Asistan"
+                width={isMobile && isMounted ? 44 : 56}
+                height={isMobile && isMounted ? 44 : 56}
+                style={{
+                  position: 'relative',
+                  width: isMobile && isMounted ? 44 : 56,
+                  height: isMobile && isMounted ? 44 : 56,
+                  objectFit: 'cover',
+                  borderRadius: '50%',
+                }}
+              />
+            </Box>
+
+            {/* Alert Badge - Improved */}
+            {alertCount > 0 && !isOpen && (
+              <Badge
+                size="sm"
+                color="red"
+                variant="filled"
+                style={{
+                  position: 'absolute',
+                  top: -6,
+                  right: -6,
+                  minWidth: 22,
+                  height: 22,
+                  padding: '0 6px',
+                  borderRadius: 11,
+                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.5)',
+                  border: '2px solid white',
+                  fontWeight: 700,
+                  animation: 'pulse 1.5s infinite',
+                }}
+              >
+                {alertCount > 9 ? '9+' : alertCount}
+              </Badge>
+            )}
+
+            {/* Online indicator dot */}
+            <Box
+              style={{
+                position: 'absolute',
+                bottom: 4,
+                right: 4,
+                width: 14,
+                height: 14,
+                borderRadius: '50%',
+                background: '#4ade80',
+                border: '2px solid white',
+                boxShadow: '0 0 8px rgba(74, 222, 128, 0.6)',
               }}
             />
           </Box>
-
-          {/* Alert Badge - Improved */}
-          {alertCount > 0 && !isOpen && (
-            <Badge
-              size="sm"
-              color="red"
-              variant="filled"
-              style={{
-                position: 'absolute',
-                top: -6,
-                right: -6,
-                minWidth: 22,
-                height: 22,
-                padding: '0 6px',
-                borderRadius: 11,
-                boxShadow: '0 2px 8px rgba(239, 68, 68, 0.5)',
-                border: '2px solid white',
-                fontWeight: 700,
-                animation: 'pulse 1.5s infinite',
-              }}
-            >
-              {alertCount > 9 ? '9+' : alertCount}
-            </Badge>
-          )}
-
-          {/* Online indicator dot */}
-          <Box
-            style={{
-              position: 'absolute',
-              bottom: 4,
-              right: 4,
-              width: 14,
-              height: 14,
-              borderRadius: '50%',
-              background: '#4ade80',
-              border: '2px solid white',
-              boxShadow: '0 0 8px rgba(74, 222, 128, 0.6)',
-            }}
-          />
-        </Box>
-      </Tooltip>
+        </Tooltip>
       )}
 
       {/* Animations */}
@@ -474,7 +475,9 @@ export function FloatingAIChat() {
             <Box
               style={{
                 background: isDark ? '#1a1b1e' : '#25262b',
-                borderBottom: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                borderBottom: isDark
+                  ? '1px solid rgba(255,255,255,0.08)'
+                  : '1px solid rgba(0,0,0,0.08)',
                 padding: isMinimized ? '4px 10px' : '14px 16px',
                 paddingTop:
                   isMobile && isMounted
@@ -487,7 +490,12 @@ export function FloatingAIChat() {
               }}
               onClick={() => isMinimized && setIsMinimized(false)}
             >
-              <Group justify="space-between" style={{ position: 'relative', zIndex: 1 }} gap={isMinimized ? 6 : undefined} wrap="nowrap">
+              <Group
+                justify="space-between"
+                style={{ position: 'relative', zIndex: 1 }}
+                gap={isMinimized ? 6 : undefined}
+                wrap="nowrap"
+              >
                 <Group gap={isMinimized ? 6 : 'sm'} wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
                   {/* AI Avatar - kapalıyken daha küçük */}
                   <Box
@@ -499,15 +507,25 @@ export function FloatingAIChat() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.15)',
+                      border: isDark
+                        ? '1px solid rgba(255,255,255,0.1)'
+                        : '1px solid rgba(255,255,255,0.15)',
                       flexShrink: 0,
                     }}
                   >
-                    <Text size={isMinimized ? 'xs' : 'lg'} style={{ lineHeight: 1 }}>{info.icon}</Text>
+                    <Text size={isMinimized ? 'xs' : 'lg'} style={{ lineHeight: 1 }}>
+                      {info.icon}
+                    </Text>
                   </Box>
                   <div style={{ minWidth: 0 }}>
                     <Group gap={isMinimized ? 4 : 6} wrap="nowrap">
-                      <Text size={isMinimized ? 'xs' : 'sm'} fw={600} c="white" style={{ letterSpacing: '0.2px', lineHeight: 1.2 }} truncate>
+                      <Text
+                        size={isMinimized ? 'xs' : 'sm'}
+                        fw={600}
+                        c="white"
+                        style={{ letterSpacing: '0.2px', lineHeight: 1.2 }}
+                        truncate
+                      >
                         {isMinimized ? 'AI Asistan' : info.title}
                       </Text>
                       {/* Online indicator - kapalıyken daha küçük */}
@@ -556,7 +574,9 @@ export function FloatingAIChat() {
                               ) {
                                 return extId;
                               }
-                              const title = String(pageContext.data?.title || pageContext.title || '');
+                              const title = String(
+                                pageContext.data?.title || pageContext.title || ''
+                              );
                               const match = title.match(/^(\d{4}\/\d+)/);
                               if (match) return match[1];
                               return `#${pageContext.id}`;

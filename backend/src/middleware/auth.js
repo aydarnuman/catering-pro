@@ -10,8 +10,8 @@
 
 import jwt from 'jsonwebtoken';
 import { query } from '../database.js';
-import PermissionService from '../services/permission-service.js';
 import AuditService from '../services/audit-service.js';
+import PermissionService from '../services/permission-service.js';
 import logger from '../utils/logger.js';
 
 // JWT_SECRET kontrolü
@@ -31,7 +31,7 @@ const authenticate = async (req, res, next) => {
     let token = req.cookies?.access_token;
     if (!token) {
       const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
+      if (authHeader?.startsWith('Bearer ')) {
         token = authHeader.substring(7).trim();
       }
     }
@@ -40,7 +40,7 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         error: 'Token gerekli',
-        code: 'NO_TOKEN'
+        code: 'NO_TOKEN',
       });
     }
 
@@ -53,13 +53,13 @@ const authenticate = async (req, res, next) => {
         return res.status(401).json({
           success: false,
           error: 'Token süresi dolmuş',
-          code: 'TOKEN_EXPIRED'
+          code: 'TOKEN_EXPIRED',
         });
       }
       return res.status(401).json({
         success: false,
         error: 'Geçersiz token',
-        code: 'INVALID_TOKEN'
+        code: 'INVALID_TOKEN',
       });
     }
 
@@ -73,7 +73,7 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         error: 'Kullanıcı bulunamadı',
-        code: 'USER_NOT_FOUND'
+        code: 'USER_NOT_FOUND',
       });
     }
 
@@ -104,12 +104,12 @@ const authenticate = async (req, res, next) => {
  * Opsiyonel token doğrulama
  * Token varsa kullanıcı bilgisi alır, yoksa da devam eder
  */
-const optionalAuth = async (req, res, next) => {
+const optionalAuth = async (req, _res, next) => {
   try {
     let token = req.cookies?.access_token;
     if (!token) {
       const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
+      if (authHeader?.startsWith('Bearer ')) {
         token = authHeader.substring(7).trim();
       }
     }
@@ -159,10 +159,7 @@ const requireAdmin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ success: false, error: 'Yetkilendirme gerekli' });
   }
-  if (
-    req.user.userType !== 'admin' &&
-    req.user.userType !== 'super_admin'
-  ) {
+  if (req.user.userType !== 'admin' && req.user.userType !== 'super_admin') {
     return res.status(403).json({
       success: false,
       error: 'Admin yetkisi gerekli',
@@ -201,11 +198,7 @@ const requirePermission = (moduleName, action) => {
       }
       if (req.user.isSuperAdmin) return next();
 
-      const hasPermission = await PermissionService.check(
-        req.user.id,
-        moduleName,
-        action
-      );
+      const hasPermission = await PermissionService.check(req.user.id, moduleName, action);
 
       if (!hasPermission) {
         await AuditService.log({
@@ -270,9 +263,8 @@ const auditLog = (entityType) => {
   };
 };
 
-const addRequestInfo = (req, res, next) => {
-  req.clientIp =
-    req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress;
+const addRequestInfo = (req, _res, next) => {
+  req.clientIp = req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress;
   req.userAgent = req.headers['user-agent'];
   next();
 };
@@ -281,12 +273,12 @@ const addRequestInfo = (req, res, next) => {
  * PUBLIC ROUTE - Auth gerektirmez
  * Token varsa kullanıcı bilgisini alır, yoksa da devam eder
  */
-const publicRoute = async (req, res, next) => {
+const publicRoute = async (req, _res, next) => {
   try {
     let token = req.cookies?.access_token;
     if (!token) {
       const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
+      if (authHeader?.startsWith('Bearer ')) {
         token = authHeader.substring(7).trim();
       }
     }
@@ -329,7 +321,7 @@ const publicRoute = async (req, res, next) => {
 /**
  * NO AUTH - Hiç auth kontrolü yapmaz
  */
-const noAuth = (req, res, next) => {
+const noAuth = (req, _res, next) => {
   req.user = null;
   next();
 };

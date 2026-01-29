@@ -383,7 +383,9 @@ function SortableNoteCard({
                     </ActionIcon>
                   }
                   style={{ cursor: 'pointer' }}
-                  onClick={() => window.open(notesAPI.getAttachmentDownloadUrl(String(att.id)), '_blank')}
+                  onClick={() =>
+                    window.open(notesAPI.getAttachmentDownloadUrl(String(att.id)), '_blank')
+                  }
                 >
                   {att.original_filename.length > 10
                     ? `${att.original_filename.substring(0, 10)}...`

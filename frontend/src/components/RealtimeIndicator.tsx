@@ -37,21 +37,21 @@ export function RealtimeIndicator() {
 
   return (
     <Tooltip label={isConnected ? 'Gerçek zamanlı bağlı' : 'Bağlanıyor...'} withArrow>
-        <Badge
-          size="sm"
-          color={isConnected ? 'green' : 'yellow'}
-          variant="dot"
-          leftSection={<IconWifi size={10} />}
-          styles={{
-            root: {
-              minWidth: 52,
-              whiteSpace: 'nowrap',
-              display: 'inline-flex',
-              alignItems: 'center',
-              alignSelf: 'center',
-            },
-          }}
-        >
+      <Badge
+        size="sm"
+        color={isConnected ? 'green' : 'yellow'}
+        variant="dot"
+        leftSection={<IconWifi size={10} />}
+        styles={{
+          root: {
+            minWidth: 52,
+            whiteSpace: 'nowrap',
+            display: 'inline-flex',
+            alignItems: 'center',
+            alignSelf: 'center',
+          },
+        }}
+      >
         {isConnected ? 'LIVE' : '...'}
       </Badge>
     </Tooltip>

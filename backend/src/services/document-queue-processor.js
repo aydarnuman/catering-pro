@@ -4,7 +4,7 @@
  */
 
 import { pool } from '../database.js';
-import { processDocument, processContentDocument } from './document.js';
+import { processContentDocument, processDocument } from './document.js';
 
 class DocumentQueueProcessor {
   constructor() {
@@ -19,19 +19,14 @@ class DocumentQueueProcessor {
    */
   start() {
     if (this.scheduler) {
-      console.log('⚠️ Document queue processor zaten çalışıyor');
       return;
     }
 
-    console.log('🚀 Document queue processor başlatılıyor...');
-    
     this.scheduler = setInterval(async () => {
       if (!this.isProcessing) {
         await this.processQueue();
       }
     }, this.processInterval);
-
-    console.log(`✅ Document queue processor başlatıldı (${this.processInterval/1000}s interval)`);
   }
 
   /**
@@ -41,7 +36,6 @@ class DocumentQueueProcessor {
     if (this.scheduler) {
       clearInterval(this.scheduler);
       this.scheduler = null;
-      console.log('🛑 Document queue processor durduruldu');
     }
   }
 
@@ -50,12 +44,11 @@ class DocumentQueueProcessor {
    */
   async processQueue() {
     if (this.isProcessing) {
-      console.log('⏳ Queue zaten işleniyor...');
       return;
     }
 
     this.isProcessing = true;
-    
+
     try {
       // Kuyruktaki dökümanları al
       const queuedResult = await pool.query(
@@ -73,15 +66,11 @@ class DocumentQueueProcessor {
         return; // Kuyruk boş
       }
 
-      console.log(`📋 ${queuedDocs.length} döküman kuyruğundan işlenecek`);
-
       // Her dökümanı sırayla işle
       for (const doc of queuedDocs) {
         await this.processQueuedDocument(doc);
       }
-
-    } catch (error) {
-      console.error('❌ Queue işleme hatası:', error);
+    } catch (_error) {
     } finally {
       this.isProcessing = false;
     }
@@ -93,18 +82,13 @@ class DocumentQueueProcessor {
    */
   async processQueuedDocument(doc) {
     const { id, original_filename, file_path, source_type, content_type } = doc;
-    
+
     try {
-      console.log(`🔄 Queue'dan işleniyor [${id}]: ${original_filename}`);
-      
       // Status'u processing yap
-      await pool.query(
-        'UPDATE documents SET processing_status = $1 WHERE id = $2',
-        ['processing', id]
-      );
+      await pool.query('UPDATE documents SET processing_status = $1 WHERE id = $2', ['processing', id]);
 
       let result;
-      
+
       // Source type'a göre farklı işleme
       if (source_type === 'content') {
         // Content dökümanları için özel işleme
@@ -120,7 +104,6 @@ class DocumentQueueProcessor {
       }
 
       if (!result.analysis || typeof result.analysis !== 'object') {
-        console.warn(`⚠️ Döküman [${id}] için analiz sonucu eksik veya geçersiz`);
         // Analiz yapılmadıysa bile metin çıkarıldıysa completed yap ama analiz sonucu null olsun
         await pool.query(
           `UPDATE documents 
@@ -131,13 +114,8 @@ class DocumentQueueProcessor {
              processing_status = 'completed',
              processed_at = NOW()
            WHERE id = $3`,
-          [
-            result.text,
-            JSON.stringify(result.ocr || null),
-            id
-          ]
+          [result.text, JSON.stringify(result.ocr || null), id]
         );
-        console.log(`✅ Queue döküman tamamlandı (analiz yok) [${id}]: ${original_filename}`);
       } else {
         // Normal kayıt - hem metin hem analiz var
         await pool.query(
@@ -149,19 +127,10 @@ class DocumentQueueProcessor {
              processing_status = 'completed',
              processed_at = NOW()
            WHERE id = $4`,
-          [
-            result.text,
-            JSON.stringify(result.ocr || null),
-            JSON.stringify(result.analysis),
-            id
-          ]
+          [result.text, JSON.stringify(result.ocr || null), JSON.stringify(result.analysis), id]
         );
-        console.log(`✅ Queue döküman tamamlandı [${id}]: ${original_filename} (${result.text.length} karakter, analiz: ${result.analysis ? 'var' : 'yok'})`);
       }
-
-    } catch (error) {
-      console.error(`❌ Queue döküman hatası [${id}]:`, error);
-      
+    } catch (_error) {
       // Hata durumunda status'u failed yap
       await pool.query(
         `UPDATE documents 
@@ -180,13 +149,11 @@ class DocumentQueueProcessor {
     if (this.isProcessing) {
       throw new Error('Queue zaten işleniyor');
     }
-
-    console.log('🔧 Manuel queue işleme tetikleniyor...');
     await this.processQueue();
-    
+
     return {
       success: true,
-      message: 'Queue işleme tamamlandı'
+      message: 'Queue işleme tamamlandı',
     };
   }
 
@@ -209,22 +176,22 @@ class DocumentQueueProcessor {
       pending: 0,
       queued: 0,
       processing: 0,
-      bySourceType: {}
+      bySourceType: {},
     };
 
-    result.rows.forEach(row => {
-      stats[row.processing_status] += parseInt(row.count);
-      
+    result.rows.forEach((row) => {
+      stats[row.processing_status] += parseInt(row.count, 10);
+
       if (!stats.bySourceType[row.source_type]) {
         stats.bySourceType[row.source_type] = {};
       }
-      stats.bySourceType[row.source_type][row.processing_status] = parseInt(row.count);
+      stats.bySourceType[row.source_type][row.processing_status] = parseInt(row.count, 10);
     });
 
     return {
       ...stats,
       isProcessing: this.isProcessing,
-      totalInQueue: stats.pending + stats.queued + stats.processing
+      totalInQueue: stats.pending + stats.queued + stats.processing,
     };
   }
 }

@@ -6,7 +6,6 @@
 import { query } from '../../database.js';
 
 const ihaleTools = {
-  
   /**
    * İhaleleri listele
    */
@@ -17,41 +16,41 @@ const ihaleTools = {
       properties: {
         kurum: {
           type: 'string',
-          description: 'Kurum/organizasyon adı (arama)'
+          description: 'Kurum/organizasyon adı (arama)',
         },
         il: {
           type: 'string',
-          description: 'İl filtresi'
+          description: 'İl filtresi',
         },
         aktif: {
           type: 'boolean',
-          description: 'Sadece aktif (tarihi geçmemiş) ihaleleri getir'
+          description: 'Sadece aktif (tarihi geçmemiş) ihaleleri getir',
         },
         tarih_baslangic: {
           type: 'string',
-          description: 'İhale tarihi başlangıç (YYYY-MM-DD)'
+          description: 'İhale tarihi başlangıç (YYYY-MM-DD)',
         },
         tarih_bitis: {
           type: 'string',
-          description: 'İhale tarihi bitiş (YYYY-MM-DD)'
+          description: 'İhale tarihi bitiş (YYYY-MM-DD)',
         },
         tutar_min: {
           type: 'number',
-          description: 'Minimum tahmini bedel'
+          description: 'Minimum tahmini bedel',
         },
         tutar_max: {
           type: 'number',
-          description: 'Maksimum tahmini bedel'
+          description: 'Maksimum tahmini bedel',
         },
         arama: {
           type: 'string',
-          description: 'Başlık veya açıklamada arama'
+          description: 'Başlık veya açıklamada arama',
         },
         limit: {
           type: 'number',
-          description: 'Maksimum kayıt sayısı'
-        }
-      }
+          description: 'Maksimum kayıt sayısı',
+        },
+      },
     },
     handler: async (params) => {
       let sql = `
@@ -112,18 +111,18 @@ const ihaleTools = {
 
       // Özet istatistikler
       const toplamTutar = result.rows.reduce((sum, i) => sum + parseFloat(i.estimated_cost || 0), 0);
-      
+
       return {
         success: true,
         data: result.rows,
         count: result.rows.length,
         ozet: {
           ihale_sayisi: result.rows.length,
-          toplam_tahmini_bedel: toplamTutar
+          toplam_tahmini_bedel: toplamTutar,
         },
-        message: `${result.rows.length} ihale bulundu`
+        message: `${result.rows.length} ihale bulundu`,
       };
-    }
+    },
   },
 
   /**
@@ -136,13 +135,13 @@ const ihaleTools = {
       properties: {
         ihale_id: {
           type: 'number',
-          description: 'İhale ID'
+          description: 'İhale ID',
         },
         external_id: {
           type: 'string',
-          description: 'İhale kayıt numarası'
-        }
-      }
+          description: 'İhale kayıt numarası',
+        },
+      },
     },
     handler: async (params) => {
       let sql = 'SELECT * FROM tenders WHERE ';
@@ -159,7 +158,7 @@ const ihaleTools = {
       }
 
       const result = await query(sql, [queryParam]);
-      
+
       if (result.rows.length === 0) {
         return { success: false, error: 'İhale bulunamadı' };
       }
@@ -167,23 +166,26 @@ const ihaleTools = {
       const ihale = result.rows[0];
 
       // Benzer ihaleleri bul
-      const benzerResult = await query(`
+      const benzerResult = await query(
+        `
         SELECT id, title, organization_name, tender_date, estimated_cost
         FROM tenders
         WHERE id != $1
         AND organization_name = $2
         ORDER BY tender_date DESC
         LIMIT 5
-      `, [ihale.id, ihale.organization_name]);
+      `,
+        [ihale.id, ihale.organization_name]
+      );
 
       return {
         success: true,
         data: {
           ...ihale,
-          benzer_ihaleler: benzerResult.rows
-        }
+          benzer_ihaleler: benzerResult.rows,
+        },
       };
-    }
+    },
   },
 
   /**
@@ -197,16 +199,16 @@ const ihaleTools = {
         donem: {
           type: 'string',
           enum: ['bu_hafta', 'bu_ay', 'bu_yil', 'gelecek_ay'],
-          description: 'Dönem filtresi'
-        }
-      }
+          description: 'Dönem filtresi',
+        },
+      },
     },
     handler: async (params) => {
       let dateFilter = '';
-      
+
       if (params.donem) {
-        const now = new Date();
-        
+        const _now = new Date();
+
         switch (params.donem) {
           case 'bu_hafta':
             dateFilter = `AND tender_date >= date_trunc('week', NOW()) AND tender_date < date_trunc('week', NOW()) + INTERVAL '7 days'`;
@@ -276,10 +278,10 @@ const ihaleTools = {
           kurum_bazli: kurumResult.rows,
           il_bazli: ilResult.rows,
           yaklasan_ihaleler: yaklasanResult.rows,
-          donem: params.donem || 'tum_zamanlar'
-        }
+          donem: params.donem || 'tum_zamanlar',
+        },
       };
-    }
+    },
   },
 
   /**
@@ -292,20 +294,21 @@ const ihaleTools = {
       properties: {
         ay: {
           type: 'number',
-          description: 'Ay (1-12)'
+          description: 'Ay (1-12)',
         },
         yil: {
           type: 'number',
-          description: 'Yıl'
-        }
-      }
+          description: 'Yıl',
+        },
+      },
     },
     handler: async (params) => {
       const now = new Date();
-      const ay = params.ay || (now.getMonth() + 1);
+      const ay = params.ay || now.getMonth() + 1;
       const yil = params.yil || now.getFullYear();
 
-      const result = await query(`
+      const result = await query(
+        `
         SELECT 
           id, title, organization_name, tender_date, estimated_cost, city,
           EXTRACT(DAY FROM tender_date) as gun
@@ -313,11 +316,13 @@ const ihaleTools = {
         WHERE EXTRACT(MONTH FROM tender_date) = $1
         AND EXTRACT(YEAR FROM tender_date) = $2
         ORDER BY tender_date ASC
-      `, [ay, yil]);
+      `,
+        [ay, yil]
+      );
 
       // Günlere göre grupla
       const gunlukMap = {};
-      result.rows.forEach(ihale => {
+      result.rows.forEach((ihale) => {
         const gun = ihale.gun;
         if (!gunlukMap[gun]) {
           gunlukMap[gun] = [];
@@ -332,10 +337,10 @@ const ihaleTools = {
           yil,
           toplam_ihale: result.rows.length,
           gunluk: gunlukMap,
-          liste: result.rows
-        }
+          liste: result.rows,
+        },
       };
-    }
+    },
   },
 
   /**
@@ -348,13 +353,14 @@ const ihaleTools = {
       properties: {
         kurum: {
           type: 'string',
-          description: 'Kurum/organizasyon adı'
-        }
+          description: 'Kurum/organizasyon adı',
+        },
       },
-      required: ['kurum']
+      required: ['kurum'],
     },
     handler: async (params) => {
-      const ozetResult = await query(`
+      const ozetResult = await query(
+        `
         SELECT 
           organization_name,
           COUNT(*) as toplam_ihale,
@@ -366,23 +372,29 @@ const ihaleTools = {
         FROM tenders
         WHERE UPPER(organization_name) LIKE UPPER($1)
         GROUP BY organization_name
-      `, [`%${params.kurum}%`]);
+      `,
+        [`%${params.kurum}%`]
+      );
 
       if (ozetResult.rows.length === 0) {
         return { success: false, error: 'Bu kuruma ait ihale bulunamadı' };
       }
 
       // Son ihaleler
-      const sonIhalelerResult = await query(`
+      const sonIhalelerResult = await query(
+        `
         SELECT id, title, tender_date, estimated_cost, city
         FROM tenders
         WHERE UPPER(organization_name) LIKE UPPER($1)
         ORDER BY tender_date DESC
         LIMIT 10
-      `, [`%${params.kurum}%`]);
+      `,
+        [`%${params.kurum}%`]
+      );
 
       // Yıllık trend
-      const trendResult = await query(`
+      const trendResult = await query(
+        `
         SELECT 
           EXTRACT(YEAR FROM tender_date) as yil,
           COUNT(*) as ihale_sayisi,
@@ -391,17 +403,19 @@ const ihaleTools = {
         WHERE UPPER(organization_name) LIKE UPPER($1)
         GROUP BY EXTRACT(YEAR FROM tender_date)
         ORDER BY yil DESC
-      `, [`%${params.kurum}%`]);
+      `,
+        [`%${params.kurum}%`]
+      );
 
       return {
         success: true,
         data: {
           kurum: ozetResult.rows[0],
           son_ihaleler: sonIhalelerResult.rows,
-          yillik_trend: trendResult.rows
-        }
+          yillik_trend: trendResult.rows,
+        },
       };
-    }
+    },
   },
 
   /**
@@ -409,40 +423,39 @@ const ihaleTools = {
    * AI Agent'ın döküman içeriklerine erişmesi için
    */
   get_ihale_dokumanlari: {
-    description: 'Bir ihalenin döküman analizlerini getirir. Teknik şartlar, birim fiyatlar, notlar ve tam metin içerir.',
+    description:
+      'Bir ihalenin döküman analizlerini getirir. Teknik şartlar, birim fiyatlar, notlar ve tam metin içerir.',
     parameters: {
       type: 'object',
       properties: {
         ihale_id: {
           type: 'number',
-          description: 'İhale ID'
+          description: 'İhale ID',
         },
         external_id: {
           type: 'string',
-          description: 'İhale kayıt numarası (örn: 2024/12345)'
-        }
-      }
+          description: 'İhale kayıt numarası (örn: 2024/12345)',
+        },
+      },
     },
     handler: async (params) => {
       // İhale ID'yi bul
       let tenderId = params.ihale_id;
-      
+
       if (!tenderId && params.external_id) {
-        const tenderResult = await query(
-          'SELECT id FROM tenders WHERE external_id = $1',
-          [params.external_id]
-        );
+        const tenderResult = await query('SELECT id FROM tenders WHERE external_id = $1', [params.external_id]);
         if (tenderResult.rows.length > 0) {
           tenderId = tenderResult.rows[0].id;
         }
       }
-      
+
       if (!tenderId) {
         return { success: false, error: 'İhale bulunamadı. ihale_id veya external_id gerekli.' };
       }
 
       // Döküman analizlerini çek
-      const docsResult = await query(`
+      const docsResult = await query(
+        `
         SELECT 
           id, original_filename, doc_type, processing_status, 
           analysis_result
@@ -450,13 +463,15 @@ const ihaleTools = {
         WHERE tender_id = $1 
           AND analysis_result IS NOT NULL
         ORDER BY doc_type, created_at
-      `, [tenderId]);
+      `,
+        [tenderId]
+      );
 
       if (docsResult.rows.length === 0) {
-        return { 
-          success: false, 
+        return {
+          success: false,
           error: 'Bu ihale için analiz edilmiş döküman bulunamadı.',
-          ihale_id: tenderId
+          ihale_id: tenderId,
         };
       }
 
@@ -466,27 +481,27 @@ const ihaleTools = {
         birim_fiyatlar: [],
         notlar: [],
         tam_metin: '',
-        dokuman_sayisi: docsResult.rows.length
+        dokuman_sayisi: docsResult.rows.length,
       };
 
       for (const doc of docsResult.rows) {
         const analysis = doc.analysis_result || {};
-        
+
         // Teknik şartları birleştir
         if (analysis.teknik_sartlar && Array.isArray(analysis.teknik_sartlar)) {
           combinedAnalysis.teknik_sartlar.push(...analysis.teknik_sartlar);
         }
-        
+
         // Birim fiyatları birleştir
         if (analysis.birim_fiyatlar && Array.isArray(analysis.birim_fiyatlar)) {
           combinedAnalysis.birim_fiyatlar.push(...analysis.birim_fiyatlar);
         }
-        
+
         // Notları birleştir
         if (analysis.notlar && Array.isArray(analysis.notlar)) {
           combinedAnalysis.notlar.push(...analysis.notlar);
         }
-        
+
         // Tam metinleri birleştir
         if (analysis.tam_metin) {
           combinedAnalysis.tam_metin += `\n--- ${doc.original_filename} ---\n${analysis.tam_metin}`;
@@ -496,7 +511,7 @@ const ihaleTools = {
       // Tekrarları kaldır
       combinedAnalysis.teknik_sartlar = [...new Set(combinedAnalysis.teknik_sartlar)];
       combinedAnalysis.notlar = [...new Set(combinedAnalysis.notlar)];
-      
+
       // Birim fiyatlardan tekrarları kaldır
       const uniqueBirimFiyatlar = [];
       const seen = new Set();
@@ -518,13 +533,12 @@ const ihaleTools = {
           birim_fiyat_sayisi: combinedAnalysis.birim_fiyatlar.length,
           not_sayisi: combinedAnalysis.notlar.length,
           dokuman_sayisi: combinedAnalysis.dokuman_sayisi,
-          tam_metin_uzunluk: combinedAnalysis.tam_metin.length
+          tam_metin_uzunluk: combinedAnalysis.tam_metin.length,
         },
-        message: `${combinedAnalysis.dokuman_sayisi} döküman analizi getirildi`
+        message: `${combinedAnalysis.dokuman_sayisi} döküman analizi getirildi`,
       };
-    }
-  }
+    },
+  },
 };
 
 export default ihaleTools;
-

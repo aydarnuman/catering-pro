@@ -6,7 +6,7 @@ const router = express.Router();
 // ==================== PROJELER ====================
 
 // Tüm projeleri getir
-router.get('/projeler', async (req, res) => {
+router.get('/projeler', async (_req, res) => {
   try {
     const result = await pool.query(`
       SELECT * FROM projeler 
@@ -15,7 +15,6 @@ router.get('/projeler', async (req, res) => {
     `);
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Projeler getirme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -24,14 +23,16 @@ router.get('/projeler', async (req, res) => {
 router.post('/projeler', async (req, res) => {
   try {
     const { kod, ad, adres, yetkili, telefon, renk } = req.body;
-    const result = await pool.query(`
+    const result = await pool.query(
+      `
       INSERT INTO projeler (kod, ad, adres, yetkili, telefon, renk)
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
-    `, [kod.toUpperCase(), ad, adres, yetkili, telefon, renk || '#6366f1']);
+    `,
+      [kod.toUpperCase(), ad, adres, yetkili, telefon, renk || '#6366f1']
+    );
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Proje ekleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -41,7 +42,8 @@ router.put('/projeler/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { kod, ad, adres, yetkili, telefon, renk, aktif } = req.body;
-    const result = await pool.query(`
+    const result = await pool.query(
+      `
       UPDATE projeler SET 
         kod = COALESCE($1, kod),
         ad = COALESCE($2, ad),
@@ -53,10 +55,11 @@ router.put('/projeler/:id', async (req, res) => {
         updated_at = CURRENT_TIMESTAMP
       WHERE id = $8
       RETURNING *
-    `, [kod, ad, adres, yetkili, telefon, renk, aktif, id]);
+    `,
+      [kod, ad, adres, yetkili, telefon, renk, aktif, id]
+    );
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Proje güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -68,7 +71,6 @@ router.delete('/projeler/:id', async (req, res) => {
     await pool.query('UPDATE projeler SET aktif = false WHERE id = $1', [id]);
     res.json({ success: true });
   } catch (error) {
-    console.error('Proje silme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -79,7 +81,7 @@ router.delete('/projeler/:id', async (req, res) => {
 router.get('/siparisler', async (req, res) => {
   try {
     const { proje_id, tedarikci_id, durum, baslangic, bitis } = req.query;
-    
+
     let query = `
       SELECT 
         s.*,
@@ -132,7 +134,6 @@ router.get('/siparisler', async (req, res) => {
     const result = await pool.query(query, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Siparişler getirme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -141,8 +142,9 @@ router.get('/siparisler', async (req, res) => {
 router.get('/siparisler/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const siparisResult = await pool.query(`
+
+    const siparisResult = await pool.query(
+      `
       SELECT 
         s.*,
         p.kod as proje_kod,
@@ -154,25 +156,29 @@ router.get('/siparisler/:id', async (req, res) => {
       LEFT JOIN projeler p ON s.proje_id = p.id
       LEFT JOIN cariler c ON s.tedarikci_id = c.id
       WHERE s.id = $1
-    `, [id]);
+    `,
+      [id]
+    );
 
     if (siparisResult.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Sipariş bulunamadı' });
     }
 
-    const kalemlerResult = await pool.query(`
+    const kalemlerResult = await pool.query(
+      `
       SELECT * FROM siparis_kalemleri WHERE siparis_id = $1 ORDER BY id
-    `, [id]);
+    `,
+      [id]
+    );
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: {
         ...siparisResult.rows[0],
-        kalemler: kalemlerResult.rows
-      }
+        kalemler: kalemlerResult.rows,
+      },
     });
   } catch (error) {
-    console.error('Sipariş detay hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -182,42 +188,62 @@ router.post('/siparisler', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
+
     const { proje_id, tedarikci_id, baslik, siparis_tarihi, teslim_tarihi, oncelik, notlar, kalemler } = req.body;
-    
+
     // Sipariş numarası oluştur
     const yil = new Date().getFullYear();
-    const countResult = await client.query(`
+    const countResult = await client.query(
+      `
       SELECT COUNT(*) FROM siparisler WHERE EXTRACT(YEAR FROM created_at) = $1
-    `, [yil]);
-    const siparisNo = `SA-${yil}-${String(parseInt(countResult.rows[0].count) + 1).padStart(3, '0')}`;
-    
+    `,
+      [yil]
+    );
+    const siparisNo = `SA-${yil}-${String(parseInt(countResult.rows[0].count, 10) + 1).padStart(3, '0')}`;
+
     // Toplam tutarı hesapla
     const toplamTutar = (kalemler || []).reduce((acc, k) => acc + (parseFloat(k.tahmini_fiyat) || 0), 0);
-    
+
     // Siparişi ekle
-    const siparisResult = await client.query(`
+    const siparisResult = await client.query(
+      `
       INSERT INTO siparisler (siparis_no, proje_id, tedarikci_id, baslik, siparis_tarihi, teslim_tarihi, oncelik, toplam_tutar, notlar)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
-    `, [siparisNo, proje_id, tedarikci_id, baslik, siparis_tarihi, teslim_tarihi, oncelik || 'normal', toplamTutar, notlar]);
-    
+    `,
+      [
+        siparisNo,
+        proje_id,
+        tedarikci_id,
+        baslik,
+        siparis_tarihi,
+        teslim_tarihi,
+        oncelik || 'normal',
+        toplamTutar,
+        notlar,
+      ]
+    );
+
     const siparisId = siparisResult.rows[0].id;
-    
+
     // Kalemleri ekle
     if (kalemler && kalemler.length > 0) {
       for (const kalem of kalemler) {
-        await client.query(`
+        await client.query(
+          `
           INSERT INTO siparis_kalemleri (siparis_id, urun_adi, miktar, birim, tahmini_fiyat)
           VALUES ($1, $2, $3, $4, $5)
-        `, [siparisId, kalem.urun_adi, kalem.miktar, kalem.birim, kalem.tahmini_fiyat || 0]);
+        `,
+          [siparisId, kalem.urun_adi, kalem.miktar, kalem.birim, kalem.tahmini_fiyat || 0]
+        );
       }
     }
-    
+
     await client.query('COMMIT');
-    
+
     // Tam veriyi döndür
-    const fullResult = await pool.query(`
+    const fullResult = await pool.query(
+      `
       SELECT 
         s.*,
         p.kod as proje_kod,
@@ -228,12 +254,13 @@ router.post('/siparisler', async (req, res) => {
       LEFT JOIN projeler p ON s.proje_id = p.id
       LEFT JOIN cariler c ON s.tedarikci_id = c.id
       WHERE s.id = $1
-    `, [siparisId]);
-    
+    `,
+      [siparisId]
+    );
+
     res.json({ success: true, data: fullResult.rows[0] });
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Sipariş oluşturma hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   } finally {
     client.release();
@@ -245,15 +272,17 @@ router.put('/siparisler/:id', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
+
     const { id } = req.params;
-    const { proje_id, tedarikci_id, baslik, siparis_tarihi, teslim_tarihi, durum, oncelik, notlar, kalemler } = req.body;
-    
+    const { proje_id, tedarikci_id, baslik, siparis_tarihi, teslim_tarihi, durum, oncelik, notlar, kalemler } =
+      req.body;
+
     // Toplam tutarı hesapla
     const toplamTutar = kalemler ? kalemler.reduce((acc, k) => acc + (parseFloat(k.tahmini_fiyat) || 0), 0) : undefined;
-    
+
     // Siparişi güncelle
-    await client.query(`
+    await client.query(
+      `
       UPDATE siparisler SET 
         proje_id = COALESCE($1, proje_id),
         tedarikci_id = COALESCE($2, tedarikci_id),
@@ -266,26 +295,32 @@ router.put('/siparisler/:id', async (req, res) => {
         notlar = COALESCE($9, notlar),
         updated_at = CURRENT_TIMESTAMP
       WHERE id = $10
-    `, [proje_id, tedarikci_id, baslik, siparis_tarihi, teslim_tarihi, durum, oncelik, toplamTutar, notlar, id]);
-    
+    `,
+      [proje_id, tedarikci_id, baslik, siparis_tarihi, teslim_tarihi, durum, oncelik, toplamTutar, notlar, id]
+    );
+
     // Kalemleri güncelle (varsa)
     if (kalemler) {
       // Eski kalemleri sil
       await client.query('DELETE FROM siparis_kalemleri WHERE siparis_id = $1', [id]);
-      
+
       // Yeni kalemleri ekle
       for (const kalem of kalemler) {
-        await client.query(`
+        await client.query(
+          `
           INSERT INTO siparis_kalemleri (siparis_id, urun_adi, miktar, birim, tahmini_fiyat, gercek_fiyat)
           VALUES ($1, $2, $3, $4, $5, $6)
-        `, [id, kalem.urun_adi, kalem.miktar, kalem.birim, kalem.tahmini_fiyat || 0, kalem.gercek_fiyat || 0]);
+        `,
+          [id, kalem.urun_adi, kalem.miktar, kalem.birim, kalem.tahmini_fiyat || 0, kalem.gercek_fiyat || 0]
+        );
       }
     }
-    
+
     await client.query('COMMIT');
-    
+
     // Güncel veriyi döndür
-    const result = await pool.query(`
+    const result = await pool.query(
+      `
       SELECT 
         s.*,
         p.kod as proje_kod,
@@ -296,12 +331,13 @@ router.put('/siparisler/:id', async (req, res) => {
       LEFT JOIN projeler p ON s.proje_id = p.id
       LEFT JOIN cariler c ON s.tedarikci_id = c.id
       WHERE s.id = $1
-    `, [id]);
-    
+    `,
+      [id]
+    );
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Sipariş güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   } finally {
     client.release();
@@ -313,16 +349,18 @@ router.put('/siparisler/:id/durum', async (req, res) => {
   try {
     const { id } = req.params;
     const { durum } = req.body;
-    
-    const result = await pool.query(`
+
+    const result = await pool.query(
+      `
       UPDATE siparisler SET durum = $1, updated_at = CURRENT_TIMESTAMP
       WHERE id = $2
       RETURNING *
-    `, [durum, id]);
-    
+    `,
+      [durum, id]
+    );
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Durum güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -334,7 +372,6 @@ router.delete('/siparisler/:id', async (req, res) => {
     await pool.query('DELETE FROM siparisler WHERE id = $1', [id]);
     res.json({ success: true });
   } catch (error) {
-    console.error('Sipariş silme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -342,7 +379,7 @@ router.delete('/siparisler/:id', async (req, res) => {
 // ==================== RAPORLAR ====================
 
 // Özet istatistikler
-router.get('/ozet', async (req, res) => {
+router.get('/ozet', async (_req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
@@ -355,7 +392,6 @@ router.get('/ozet', async (req, res) => {
     `);
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Özet getirme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -364,7 +400,7 @@ router.get('/ozet', async (req, res) => {
 router.get('/raporlar/proje-bazli', async (req, res) => {
   try {
     const { baslangic, bitis } = req.query;
-    
+
     let query = `
       SELECT 
         p.id,
@@ -376,19 +412,18 @@ router.get('/raporlar/proje-bazli', async (req, res) => {
       FROM projeler p
       LEFT JOIN siparisler s ON p.id = s.proje_id AND s.durum = 'teslim_alindi'
     `;
-    
+
     const params = [];
     if (baslangic && bitis) {
       query += ` AND s.siparis_tarihi BETWEEN $1 AND $2`;
       params.push(baslangic, bitis);
     }
-    
+
     query += ` GROUP BY p.id ORDER BY toplam_harcama DESC`;
-    
+
     const result = await pool.query(query, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Proje raporu hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -397,7 +432,7 @@ router.get('/raporlar/proje-bazli', async (req, res) => {
 router.get('/raporlar/tedarikci-bazli', async (req, res) => {
   try {
     const { baslangic, bitis } = req.query;
-    
+
     let query = `
       SELECT 
         c.id,
@@ -408,22 +443,20 @@ router.get('/raporlar/tedarikci-bazli', async (req, res) => {
       INNER JOIN siparisler s ON c.id = s.tedarikci_id
       WHERE c.tip = 'tedarikci'
     `;
-    
+
     const params = [];
     if (baslangic && bitis) {
       query += ` AND s.siparis_tarihi BETWEEN $1 AND $2`;
       params.push(baslangic, bitis);
     }
-    
+
     query += ` GROUP BY c.id ORDER BY toplam_tutar DESC`;
-    
+
     const result = await pool.query(query, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Tedarikçi raporu hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 export default router;
-

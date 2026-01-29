@@ -1,5 +1,6 @@
 import pg from 'pg';
 import logger from './utils/logger.js';
+
 // Note: .env is loaded by env-loader.js in server.js
 
 const { Pool } = pg;

@@ -1,37 +1,32 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
 import {
-  Stack,
-  Textarea,
-  Group,
   ActionIcon,
-  Tooltip,
-  Paper,
-  Text,
-  Divider,
-  Switch,
   Box,
+  Divider,
+  Group,
+  Paper,
+  Stack,
+  Switch,
+  Text,
+  Textarea,
+  Tooltip,
 } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
 import {
   IconBold,
-  IconItalic,
-  IconStrikethrough,
   IconCode,
+  IconItalic,
   IconLink,
   IconList,
   IconMarkdown,
+  IconStrikethrough,
 } from '@tabler/icons-react';
+import { useCallback, useRef, useState } from 'react';
+import type { CreateNoteDTO, NoteColor, NoteContentFormat, NotePriority } from '@/types/notes';
 import { NoteColorPicker } from './NoteColorPicker';
 import { NotePrioritySelect } from './NotePrioritySelect';
 import { NoteTagsInput } from './NoteTagsInput';
-import type {
-  CreateNoteDTO,
-  NoteColor,
-  NotePriority,
-  NoteContentFormat,
-} from '@/types/notes';
 
 interface NoteEditorProps {
   initialContent?: string;
@@ -83,7 +78,10 @@ function MarkdownPreview({ content }: { content: string }) {
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/~~(.*?)~~/g, '<del>$1</del>')
-    .replace(/`(.*?)`/g, '<code style="background:#f1f3f4;padding:2px 4px;border-radius:3px">$1</code>')
+    .replace(
+      /`(.*?)`/g,
+      '<code style="background:#f1f3f4;padding:2px 4px;border-radius:3px">$1</code>'
+    )
     .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
     .replace(/^- (.*)$/gm, '<li>$1</li>')
     .replace(/\n/g, '<br/>');
@@ -91,7 +89,11 @@ function MarkdownPreview({ content }: { content: string }) {
   return (
     <Paper p="xs" withBorder style={{ minHeight: 60 }}>
       <Text size="sm">
-        <span dangerouslySetInnerHTML={{ __html: rendered || '<em style="color:gray">Onizleme...</em>' }} />
+        <span
+          dangerouslySetInnerHTML={{
+            __html: rendered || '<em style="color:gray">Onizleme...</em>',
+          }}
+        />
       </Text>
     </Paper>
   );
@@ -132,38 +134,37 @@ export function NoteEditor({
   /**
    * Insert formatting at cursor position
    */
-  const insertFormatting = useCallback((before: string, after: string = before) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
+  const insertFormatting = useCallback(
+    (before: string, after: string = before) => {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = content.substring(start, end);
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const selectedText = content.substring(start, end);
 
-    const newContent =
-      content.substring(0, start) +
-      before +
-      selectedText +
-      after +
-      content.substring(end);
+      const newContent =
+        content.substring(0, start) + before + selectedText + after + content.substring(end);
 
-    setContent(newContent);
+      setContent(newContent);
 
-    // Re-focus and set cursor position
-    setTimeout(() => {
-      textarea.focus();
-      const newCursorPos = start + before.length + selectedText.length + after.length;
-      textarea.setSelectionRange(
-        start + before.length,
-        start + before.length + selectedText.length
-      );
-    }, 0);
-  }, [content]);
+      // Re-focus and set cursor position
+      setTimeout(() => {
+        textarea.focus();
+        const _newCursorPos = start + before.length + selectedText.length + after.length;
+        textarea.setSelectionRange(
+          start + before.length,
+          start + before.length + selectedText.length
+        );
+      }, 0);
+    },
+    [content]
+  );
 
   /**
    * Handle save
    */
-  const handleSave = useCallback(() => {
+  const _handleSave = useCallback(() => {
     if (!content.trim()) return;
 
     const data: CreateNoteDTO = {
@@ -187,11 +188,7 @@ export function NoteEditor({
         <Group gap="xs">
           {contentFormat === 'markdown' && (
             <>
-              <FormatButton
-                icon={IconBold}
-                label="Kalin"
-                onClick={() => insertFormatting('**')}
-              />
+              <FormatButton icon={IconBold} label="Kalin" onClick={() => insertFormatting('**')} />
               <FormatButton
                 icon={IconItalic}
                 label="Italik"
@@ -202,11 +199,7 @@ export function NoteEditor({
                 label="Ustu cizili"
                 onClick={() => insertFormatting('~~')}
               />
-              <FormatButton
-                icon={IconCode}
-                label="Kod"
-                onClick={() => insertFormatting('`')}
-              />
+              <FormatButton icon={IconCode} label="Kod" onClick={() => insertFormatting('`')} />
               <FormatButton
                 icon={IconLink}
                 label="Link"
@@ -264,7 +257,9 @@ export function NoteEditor({
 
       {/* Color picker */}
       <Group gap="xs" align="center">
-        <Text size="xs" c="dimmed">Renk:</Text>
+        <Text size="xs" c="dimmed">
+          Renk:
+        </Text>
         <NoteColorPicker value={color} onChange={setColor} size="sm" />
       </Group>
 
@@ -280,12 +275,10 @@ export function NoteEditor({
       {/* Priority */}
       {showPriority && isTask && (
         <Box>
-          <Text size="xs" c="dimmed" mb={4}>Oncelik:</Text>
-          <NotePrioritySelect
-            value={priority}
-            onChange={setPriority}
-            size="sm"
-          />
+          <Text size="xs" c="dimmed" mb={4}>
+            Oncelik:
+          </Text>
+          <NotePrioritySelect value={priority} onChange={setPriority} size="sm" />
         </Box>
       )}
 
@@ -316,7 +309,9 @@ export function NoteEditor({
       {/* Tags */}
       {showTags && (
         <Box>
-          <Text size="xs" c="dimmed" mb={4}>Etiketler:</Text>
+          <Text size="xs" c="dimmed" mb={4}>
+            Etiketler:
+          </Text>
           <NoteTagsInput value={tags} onChange={setTags} />
         </Box>
       )}

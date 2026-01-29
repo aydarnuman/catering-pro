@@ -257,10 +257,10 @@ export const faturaKalemleriAPI = {
       data: FaturaKalem;
       fiyat_guncelleme?: FiyatGuncelleme | null;
       error?: string;
-    }>(
-      `${BASE_URL}/faturalar/${encodeURIComponent(ettn)}/kalemler/${sira}/eslesdir`,
-      { urun_id: urunId, ...opts }
-    );
+    }>(`${BASE_URL}/faturalar/${encodeURIComponent(ettn)}/kalemler/${sira}/eslesdir`, {
+      urun_id: urunId,
+      ...opts,
+    });
     const body = res.data;
     if (!body.success) throw new Error(body.error || 'İstek başarısız');
     // fiyat_guncelleme bilgisini data'ya ekle

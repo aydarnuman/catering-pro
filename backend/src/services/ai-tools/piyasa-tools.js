@@ -4,183 +4,253 @@
  */
 
 import { query } from '../../database.js';
-import { searchMarketPrices } from '../market-scraper.js';
 import claudeAI from '../claude-ai.js';
+import { searchMarketPrices } from '../market-scraper.js';
 
 // Genel kategoriler ve alt ürünleri
 const PRODUCT_CATEGORIES = {
-  'makarna': {
+  makarna: {
     kategori: 'Makarna',
-    oneriler: ['spagetti makarna 500g', 'burgu makarna 500g', 'penne makarna 500g', 'erişte 500g', 'lazanya makarna 500g'],
-    mesaj: 'Makarna türünü ve gramajını belirtin'
+    oneriler: [
+      'spagetti makarna 500g',
+      'burgu makarna 500g',
+      'penne makarna 500g',
+      'erişte 500g',
+      'lazanya makarna 500g',
+    ],
+    mesaj: 'Makarna türünü ve gramajını belirtin',
   },
-  'pirinç': {
+  pirinç: {
     kategori: 'Pirinç',
-    oneriler: ['baldo pirinç 1kg', 'osmancık pirinç 1kg', 'basmati pirinç 1kg', 'kırık pirinç 1kg', 'jasmine pirinç 1kg'],
-    mesaj: 'Pirinç çeşidini ve miktarını belirtin'
+    oneriler: [
+      'baldo pirinç 1kg',
+      'osmancık pirinç 1kg',
+      'basmati pirinç 1kg',
+      'kırık pirinç 1kg',
+      'jasmine pirinç 1kg',
+    ],
+    mesaj: 'Pirinç çeşidini ve miktarını belirtin',
   },
-  'yağ': {
+  yağ: {
     kategori: 'Yağ',
     oneriler: ['ayçiçek yağı 5lt', 'zeytinyağı 1lt', 'mısır yağı 5lt', 'tereyağı 500g', 'margarin 250g'],
-    mesaj: 'Yağ türünü ve miktarını belirtin'
+    mesaj: 'Yağ türünü ve miktarını belirtin',
   },
-  'et': {
+  et: {
     kategori: 'Et',
     oneriler: ['dana kıyma 1kg', 'kuzu pirzola 1kg', 'dana but 1kg', 'kuzu kuşbaşı 1kg', 'dana antrikot 1kg'],
-    mesaj: 'Et türünü belirtin'
+    mesaj: 'Et türünü belirtin',
   },
-  'tavuk': {
+  tavuk: {
     kategori: 'Tavuk',
     oneriler: ['tavuk but 1kg', 'tavuk göğüs 1kg', 'bütün tavuk 1kg', 'tavuk kanat 1kg', 'tavuk pirzola 1kg'],
-    mesaj: 'Tavuk parçasını belirtin'
+    mesaj: 'Tavuk parçasını belirtin',
   },
-  'süt': {
+  süt: {
     kategori: 'Süt Ürünleri',
     oneriler: ['günlük süt 1lt', 'uht süt 1lt', 'yoğurt 1kg', 'beyaz peynir 1kg', 'kaşar peynir 500g'],
-    mesaj: 'Süt ürünü türünü belirtin'
+    mesaj: 'Süt ürünü türünü belirtin',
   },
-  'sebze': {
+  sebze: {
     kategori: 'Sebze',
     oneriler: ['domates 1kg', 'biber 1kg', 'soğan 1kg', 'patates 1kg', 'salatalık 1kg'],
-    mesaj: 'Sebze türünü belirtin'
+    mesaj: 'Sebze türünü belirtin',
   },
-  'meyve': {
+  meyve: {
     kategori: 'Meyve',
     oneriler: ['elma 1kg', 'portakal 1kg', 'muz 1kg', 'üzüm 1kg', 'karpuz 1kg'],
-    mesaj: 'Meyve türünü belirtin'
+    mesaj: 'Meyve türünü belirtin',
   },
-  'un': {
+  un: {
     kategori: 'Un',
     oneriler: ['buğday unu 5kg', 'tam buğday unu 2kg', 'ekmeklik un 5kg', 'mısır unu 1kg'],
-    mesaj: 'Un türünü ve miktarını belirtin'
+    mesaj: 'Un türünü ve miktarını belirtin',
   },
-  'şeker': {
+  şeker: {
     kategori: 'Şeker',
     oneriler: ['toz şeker 5kg', 'küp şeker 1kg', 'esmer şeker 1kg', 'pudra şekeri 500g'],
-    mesaj: 'Şeker türünü ve miktarını belirtin'
+    mesaj: 'Şeker türünü ve miktarını belirtin',
   },
   // Bakliyat
-  'fasulye': {
+  fasulye: {
     kategori: 'Bakliyat',
     oneriler: ['kuru fasulye dermason 1kg', 'kuru fasulye şeker 1kg', 'barbunya 1kg', 'börülce 1kg'],
-    mesaj: 'Fasulye çeşidini ve miktarını belirtin'
+    mesaj: 'Fasulye çeşidini ve miktarını belirtin',
   },
   'kuru fasulye': {
     kategori: 'Bakliyat',
-    oneriler: ['kuru fasulye dermason 1kg', 'kuru fasulye şeker 1kg', 'kuru fasulye ispir 1kg', 'kuru fasulye çalı 1kg'],
-    mesaj: 'Fasulye çeşidini belirtin (dermason, şeker, ispir)'
+    oneriler: [
+      'kuru fasulye dermason 1kg',
+      'kuru fasulye şeker 1kg',
+      'kuru fasulye ispir 1kg',
+      'kuru fasulye çalı 1kg',
+    ],
+    mesaj: 'Fasulye çeşidini belirtin (dermason, şeker, ispir)',
   },
-  'fasul': {
+  fasul: {
     kategori: 'Bakliyat',
     oneriler: ['kuru fasulye dermason 1kg', 'kuru fasulye şeker 1kg', 'barbunya 1kg'],
-    mesaj: 'Fasulye çeşidini belirtin'
+    mesaj: 'Fasulye çeşidini belirtin',
   },
-  'nohut': {
+  nohut: {
     kategori: 'Bakliyat',
     oneriler: ['nohut 1kg', 'nohut koçbaşı 1kg', 'nohut yerli 1kg', 'leblebi 500g'],
-    mesaj: 'Nohut çeşidini ve miktarını belirtin'
+    mesaj: 'Nohut çeşidini ve miktarını belirtin',
   },
-  'mercimek': {
+  mercimek: {
     kategori: 'Bakliyat',
     oneriler: ['kırmızı mercimek 1kg', 'yeşil mercimek 1kg', 'sarı mercimek 1kg'],
-    mesaj: 'Mercimek rengini belirtin'
+    mesaj: 'Mercimek rengini belirtin',
   },
-  'bulgur': {
+  bulgur: {
     kategori: 'Bakliyat',
     oneriler: ['bulgur pilavlık 1kg', 'bulgur köftelik 1kg', 'bulgur ince 1kg'],
-    mesaj: 'Bulgur türünü belirtin'
+    mesaj: 'Bulgur türünü belirtin',
   },
   // Diğer gıdalar
-  'peynir': {
+  peynir: {
     kategori: 'Süt Ürünleri',
     oneriler: ['beyaz peynir 1kg', 'kaşar peynir 500g', 'tulum peyniri 500g', 'lor peyniri 500g', 'hellim 250g'],
-    mesaj: 'Peynir türünü belirtin'
+    mesaj: 'Peynir türünü belirtin',
   },
-  'yoğurt': {
+  yoğurt: {
     kategori: 'Süt Ürünleri',
     oneriler: ['yoğurt 1kg', 'süzme yoğurt 1kg', 'mevsim yoğurt 500g'],
-    mesaj: 'Yoğurt türünü belirtin'
+    mesaj: 'Yoğurt türünü belirtin',
   },
-  'salça': {
+  salça: {
     kategori: 'Konserve',
     oneriler: ['domates salçası 700g', 'biber salçası 700g', 'karışık salça 700g'],
-    mesaj: 'Salça türünü belirtin'
+    mesaj: 'Salça türünü belirtin',
   },
-  'zeytinyağı': {
+  zeytinyağı: {
     kategori: 'Yağ',
     oneriler: ['sızma zeytinyağı 1lt', 'riviera zeytinyağı 1lt', 'natürel zeytinyağı 2lt'],
-    mesaj: 'Zeytinyağı türünü belirtin'
+    mesaj: 'Zeytinyağı türünü belirtin',
   },
-  'tereyağı': {
+  tereyağı: {
     kategori: 'Yağ',
     oneriler: ['tereyağı 500g', 'tereyağı 250g', 'tuzsuz tereyağı 500g'],
-    mesaj: 'Tereyağı miktarını belirtin'
+    mesaj: 'Tereyağı miktarını belirtin',
   },
-  'kıyma': {
+  kıyma: {
     kategori: 'Et',
     oneriler: ['dana kıyma 1kg', 'kuzu kıyma 1kg', 'karışık kıyma 1kg', 'yağsız dana kıyma 1kg'],
-    mesaj: 'Kıyma türünü belirtin'
+    mesaj: 'Kıyma türünü belirtin',
   },
-  'balık': {
+  balık: {
     kategori: 'Balık',
     oneriler: ['levrek 1kg', 'çipura 1kg', 'hamsi 1kg', 'somon 1kg', 'palamut 1kg'],
-    mesaj: 'Balık türünü belirtin'
+    mesaj: 'Balık türünü belirtin',
   },
-  'tuz': {
+  tuz: {
     kategori: 'Baharat',
     oneriler: ['sofra tuzu 1kg', 'deniz tuzu 500g', 'himalaya tuzu 500g', 'iyotlu tuz 750g'],
-    mesaj: 'Tuz türünü belirtin'
-  }
+    mesaj: 'Tuz türünü belirtin',
+  },
 };
 
 // Ürün kategorisine göre varsayılan birim mapping
 const CATEGORY_DEFAULT_UNITS = {
   // Litre ile satılanlar
-  'süt': 'lt', 'ayran': 'lt', 'su': 'lt', 'içecek': 'lt', 'meyve suyu': 'lt',
-  'kola': 'lt', 'gazoz': 'lt', 'soda': 'lt', 'şalgam': 'lt', 'limonata': 'lt',
-  'zeytinyağı': 'lt', 'sızma zeytinyağı': 'lt', 'ayçiçek yağı': 'lt', 
-  'mısır yağı': 'lt', 'fındık yağı': 'lt', 'sıvı yağ': 'lt',
-  
+  süt: 'lt',
+  ayran: 'lt',
+  su: 'lt',
+  içecek: 'lt',
+  'meyve suyu': 'lt',
+  kola: 'lt',
+  gazoz: 'lt',
+  soda: 'lt',
+  şalgam: 'lt',
+  limonata: 'lt',
+  zeytinyağı: 'lt',
+  'sızma zeytinyağı': 'lt',
+  'ayçiçek yağı': 'lt',
+  'mısır yağı': 'lt',
+  'fındık yağı': 'lt',
+  'sıvı yağ': 'lt',
+
   // Adet ile satılanlar
-  'yumurta': 'adet', 'ekmek': 'adet', 'pide': 'adet', 'simit': 'adet',
-  'poğaça': 'adet', 'börek': 'adet', 'limon': 'adet', 'portakal': 'adet',
-  'muz': 'adet', 'elma': 'adet', 'armut': 'adet', 'karpuz': 'adet',
-  'kavun': 'adet', 'ananas': 'adet', 'lahana': 'adet', 'marul': 'adet',
-  
+  yumurta: 'adet',
+  ekmek: 'adet',
+  pide: 'adet',
+  simit: 'adet',
+  poğaça: 'adet',
+  börek: 'adet',
+  limon: 'adet',
+  portakal: 'adet',
+  muz: 'adet',
+  elma: 'adet',
+  armut: 'adet',
+  karpuz: 'adet',
+  kavun: 'adet',
+  ananas: 'adet',
+  lahana: 'adet',
+  marul: 'adet',
+
   // Kg ile satılanlar (default)
-  'et': 'kg', 'kıyma': 'kg', 'tavuk': 'kg', 'balık': 'kg', 'dana': 'kg',
-  'kuzu': 'kg', 'pirinç': 'kg', 'bulgur': 'kg', 'makarna': 'kg',
-  'un': 'kg', 'şeker': 'kg', 'tuz': 'kg', 'nohut': 'kg', 'mercimek': 'kg',
-  'fasulye': 'kg', 'barbunya': 'kg', 'yoğurt': 'kg', 'peynir': 'kg',
-  'tereyağı': 'kg', 'margarin': 'kg', 'domates': 'kg', 'biber': 'kg',
-  'soğan': 'kg', 'patates': 'kg', 'havuç': 'kg', 'salatalık': 'kg',
-  'patlıcan': 'kg', 'kabak': 'kg', 'ıspanak': 'kg', 'maydanoz': 'kg',
-  'salça': 'kg', 'bal': 'kg', 'reçel': 'kg', 'zeytin': 'kg',
-  'ceviz': 'kg', 'fındık': 'kg', 'badem': 'kg', 'antep fıstığı': 'kg'
+  et: 'kg',
+  kıyma: 'kg',
+  tavuk: 'kg',
+  balık: 'kg',
+  dana: 'kg',
+  kuzu: 'kg',
+  pirinç: 'kg',
+  bulgur: 'kg',
+  makarna: 'kg',
+  un: 'kg',
+  şeker: 'kg',
+  tuz: 'kg',
+  nohut: 'kg',
+  mercimek: 'kg',
+  fasulye: 'kg',
+  barbunya: 'kg',
+  yoğurt: 'kg',
+  peynir: 'kg',
+  tereyağı: 'kg',
+  margarin: 'kg',
+  domates: 'kg',
+  biber: 'kg',
+  soğan: 'kg',
+  patates: 'kg',
+  havuç: 'kg',
+  salatalık: 'kg',
+  patlıcan: 'kg',
+  kabak: 'kg',
+  ıspanak: 'kg',
+  maydanoz: 'kg',
+  salça: 'kg',
+  bal: 'kg',
+  reçel: 'kg',
+  zeytin: 'kg',
+  ceviz: 'kg',
+  fındık: 'kg',
+  badem: 'kg',
+  'antep fıstığı': 'kg',
 };
 
 // Ürün adı → Market arama terimi dönüşümü
 const PRODUCT_SEARCH_TERMS = {
-  'su': 'içme suyu',
-  'tuz': 'sofra tuzu',
-  'un': 'buğday unu',
-  'şeker': 'toz şeker',
-  'pirinç': 'baldo pirinç',
-  'bulgur': 'pilavlık bulgur',
-  'makarna': 'spagetti makarna',
-  'yağ': 'ayçiçek yağı',
-  'süt': 'günlük süt',
-  'yoğurt': 'kaymaksız yoğurt',
-  'peynir': 'beyaz peynir',
-  'et': 'dana kıyma',
-  'tavuk': 'tavuk göğüs',
-  'mercimek': 'kırmızı mercimek',
-  'fasulye': 'kuru fasulye',
-  'nohut': 'nohut',
-  'salça': 'domates salçası',
-  'tereyağı': 'tereyağı',
-  'margarin': 'margarin',
-  'zeytinyağı': 'sızma zeytinyağı'
+  su: 'içme suyu',
+  tuz: 'sofra tuzu',
+  un: 'buğday unu',
+  şeker: 'toz şeker',
+  pirinç: 'baldo pirinç',
+  bulgur: 'pilavlık bulgur',
+  makarna: 'spagetti makarna',
+  yağ: 'ayçiçek yağı',
+  süt: 'günlük süt',
+  yoğurt: 'kaymaksız yoğurt',
+  peynir: 'beyaz peynir',
+  et: 'dana kıyma',
+  tavuk: 'tavuk göğüs',
+  mercimek: 'kırmızı mercimek',
+  fasulye: 'kuru fasulye',
+  nohut: 'nohut',
+  salça: 'domates salçası',
+  tereyağı: 'tereyağı',
+  margarin: 'margarin',
+  zeytinyağı: 'sızma zeytinyağı',
 };
 
 /**
@@ -191,25 +261,25 @@ const PRODUCT_SEARCH_TERMS = {
  */
 const normalizeProductName = (urunAdi, birim = null) => {
   const lower = urunAdi.toLowerCase().trim();
-  
+
   // Zaten gramaj/miktar içeriyor mu?
   const hasQty = /\d+\s*(kg|gr|g|lt|l|ml|litre|adet)/i.test(lower);
-  
+
   if (hasQty) {
     // Gramaj varsa direkt kullan
     return {
       normalizedName: urunAdi,
       searchTerm: urunAdi,
-      defaultUnit: null
+      defaultUnit: null,
     };
   }
-  
+
   // Ürün adı için arama terimi bul
-  let searchTerm = PRODUCT_SEARCH_TERMS[lower] || urunAdi;
-  
+  const searchTerm = PRODUCT_SEARCH_TERMS[lower] || urunAdi;
+
   // Varsayılan birim belirle
   let defaultUnit = 'kg'; // Fallback
-  
+
   // Önce tam eşleşme ara
   if (CATEGORY_DEFAULT_UNITS[lower]) {
     defaultUnit = CATEGORY_DEFAULT_UNITS[lower];
@@ -222,7 +292,7 @@ const normalizeProductName = (urunAdi, birim = null) => {
       }
     }
   }
-  
+
   // Birim parametresi varsa ona göre düzelt
   if (birim) {
     const birimLower = birim.toLowerCase();
@@ -234,42 +304,71 @@ const normalizeProductName = (urunAdi, birim = null) => {
       defaultUnit = 'adet';
     }
   }
-  
+
   // Arama terimi oluştur
   const quantity = defaultUnit === 'adet' ? '1 adet' : `1${defaultUnit}`;
   const finalSearchTerm = `${searchTerm} ${quantity}`;
-  
+
   return {
     normalizedName: urunAdi,
     searchTerm: finalSearchTerm,
-    defaultUnit
+    defaultUnit,
   };
 };
 
 // Yazım hataları sözlüğü (fallback - AI çalışmazsa)
 const SPELLING_CORRECTIONS = {
-  'pirnc': 'pirinç', 'pirinc': 'pirinç', 'princ': 'pirinç', 'prınc': 'pirinç',
-  'sut': 'süt', 'süd': 'süt',
-  'yogurt': 'yoğurt', 'yoğurd': 'yoğurt', 'yogurd': 'yoğurt',
-  'peynr': 'peynir', 'penir': 'peynir', 'peynır': 'peynir',
-  'tereyag': 'tereyağı', 'tereyagı': 'tereyağı', 'tere yağ': 'tereyağı',
-  'zeytnyag': 'zeytinyağı', 'zeytınyag': 'zeytinyağı', 'zeytin yağ': 'zeytinyağı',
-  'makrna': 'makarna', 'maakrna': 'makarna', 'makrana': 'makarna',
-  'spageti': 'spagetti', 'sapgetti': 'spagetti',
-  'tavk': 'tavuk', 'tavuuk': 'tavuk',
-  'kiyma': 'kıyma', 'kıma': 'kıyma',
-  'dmates': 'domates', 'domtes': 'domates',
-  'pataes': 'patates', 'patats': 'patates',
-  'sogan': 'soğan', 'soğn': 'soğan',
-  'biber': 'biber', 'bibr': 'biber',
-  'ayçiçek': 'ayçiçek', 'aycicek': 'ayçiçek',
-  'bakliyat': 'bakliyat', 'baklyat': 'bakliyat',
+  pirnc: 'pirinç',
+  pirinc: 'pirinç',
+  princ: 'pirinç',
+  prınc: 'pirinç',
+  sut: 'süt',
+  süd: 'süt',
+  yogurt: 'yoğurt',
+  yoğurd: 'yoğurt',
+  yogurd: 'yoğurt',
+  peynr: 'peynir',
+  penir: 'peynir',
+  peynır: 'peynir',
+  tereyag: 'tereyağı',
+  tereyagı: 'tereyağı',
+  'tere yağ': 'tereyağı',
+  zeytnyag: 'zeytinyağı',
+  zeytınyag: 'zeytinyağı',
+  'zeytin yağ': 'zeytinyağı',
+  makrna: 'makarna',
+  maakrna: 'makarna',
+  makrana: 'makarna',
+  spageti: 'spagetti',
+  sapgetti: 'spagetti',
+  tavk: 'tavuk',
+  tavuuk: 'tavuk',
+  kiyma: 'kıyma',
+  kıma: 'kıyma',
+  dmates: 'domates',
+  domtes: 'domates',
+  pataes: 'patates',
+  patats: 'patates',
+  sogan: 'soğan',
+  soğn: 'soğan',
+  biber: 'biber',
+  bibr: 'biber',
+  ayçiçek: 'ayçiçek',
+  aycicek: 'ayçiçek',
+  bakliyat: 'bakliyat',
+  baklyat: 'bakliyat',
   // Şeker varyasyonları
-  'seker': 'şeker', 'şekr': 'şeker', 'sekr': 'şeker',
-  'şerk': 'şeker', 'serk': 'şeker', 'sekker': 'şeker',
+  seker: 'şeker',
+  şekr: 'şeker',
+  sekr: 'şeker',
+  şerk: 'şeker',
+  serk: 'şeker',
+  sekker: 'şeker',
   // Kesme şeker
-  'kesme seker': 'kesme şeker', 'kesme sekr': 'kesme şeker',
-  'kesme şerk': 'kesme şeker', 'kesme serk': 'kesme şeker'
+  'kesme seker': 'kesme şeker',
+  'kesme sekr': 'kesme şeker',
+  'kesme şerk': 'kesme şeker',
+  'kesme serk': 'kesme şeker',
 };
 
 /**
@@ -295,20 +394,18 @@ SADECE JSON formatında yanıt ver, başka hiçbir şey yazma:
 }`;
 
     const result = await claudeAI.askQuestion(prompt, 'STOK', 'default');
-    
+
     if (!result.success) {
-      console.error('AI düzeltme hatası:', result.error);
       return null;
     }
-    
+
     // JSON çıkar
     const jsonMatch = result.response.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
     }
     return null;
-  } catch (error) {
-    console.error('AI düzeltme hatası:', error);
+  } catch (_error) {
     return null;
   }
 };
@@ -317,17 +414,18 @@ SADECE JSON formatında yanıt ver, başka hiçbir şey yazma:
 export const piyasaToolDefinitions = [
   {
     name: 'piyasa_urun_oneri',
-    description: 'Kullanıcının girdiği terimi analiz eder, yazım hatası varsa düzeltir, genel bir terimse spesifik öneriler verir.',
+    description:
+      'Kullanıcının girdiği terimi analiz eder, yazım hatası varsa düzeltir, genel bir terimse spesifik öneriler verir.',
     input_schema: {
       type: 'object',
       properties: {
         arama_terimi: {
           type: 'string',
-          description: 'Kullanıcının girdiği arama terimi'
-        }
+          description: 'Kullanıcının girdiği arama terimi',
+        },
       },
-      required: ['arama_terimi']
-    }
+      required: ['arama_terimi'],
+    },
   },
   {
     name: 'piyasa_urun_ara',
@@ -337,11 +435,11 @@ export const piyasaToolDefinitions = [
       properties: {
         urun_adi: {
           type: 'string',
-          description: 'Aranan ürün adı'
-        }
+          description: 'Aranan ürün adı',
+        },
       },
-      required: ['urun_adi']
-    }
+      required: ['urun_adi'],
+    },
   },
   {
     name: 'piyasa_fiyat_arastir',
@@ -351,15 +449,15 @@ export const piyasaToolDefinitions = [
       properties: {
         urun_adi: {
           type: 'string',
-          description: 'Fiyatı araştırılacak ürün adı'
+          description: 'Fiyatı araştırılacak ürün adı',
         },
         stok_kart_id: {
           type: 'integer',
-          description: 'Varsa stok kartı ID'
-        }
+          description: 'Varsa stok kartı ID',
+        },
       },
-      required: ['urun_adi']
-    }
+      required: ['urun_adi'],
+    },
   },
   {
     name: 'piyasa_listeye_ekle',
@@ -370,10 +468,10 @@ export const piyasaToolDefinitions = [
         stok_kart_id: { type: 'integer' },
         urun_adi: { type: 'string' },
         sistem_fiyat: { type: 'number' },
-        piyasa_fiyat: { type: 'number' }
+        piyasa_fiyat: { type: 'number' },
       },
-      required: ['urun_adi', 'piyasa_fiyat']
-    }
+      required: ['urun_adi', 'piyasa_fiyat'],
+    },
   },
   {
     name: 'piyasa_takip_listesi',
@@ -381,10 +479,10 @@ export const piyasaToolDefinitions = [
     input_schema: {
       type: 'object',
       properties: {
-        sadece_aktif: { type: 'boolean', default: true }
-      }
-    }
-  }
+        sadece_aktif: { type: 'boolean', default: true },
+      },
+    },
+  },
 ];
 
 /**
@@ -413,9 +511,10 @@ const levenshtein = (a, b) => {
   for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
   for (let i = 1; i <= b.length; i++) {
     for (let j = 1; j <= a.length; j++) {
-      matrix[i][j] = b[i-1] === a[j-1] 
-        ? matrix[i-1][j-1]
-        : Math.min(matrix[i-1][j-1] + 1, matrix[i][j-1] + 1, matrix[i-1][j] + 1);
+      matrix[i][j] =
+        b[i - 1] === a[j - 1]
+          ? matrix[i - 1][j - 1]
+          : Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
     }
   }
   return matrix[b.length][a.length];
@@ -427,7 +526,7 @@ const levenshtein = (a, b) => {
 const findClosestMatch = (term, candidates, threshold = 3) => {
   let closest = null;
   let minDistance = Infinity;
-  
+
   for (const candidate of candidates) {
     const distance = levenshtein(term.toLowerCase(), candidate.toLowerCase());
     if (distance < minDistance && distance <= threshold) {
@@ -435,13 +534,12 @@ const findClosestMatch = (term, candidates, threshold = 3) => {
       closest = candidate;
     }
   }
-  
+
   return closest;
 };
 
 // Tool implementasyonları
 export const piyasaToolImplementations = {
-  
   /**
    * AI Destekli Ürün Öneri Sistemi (Claude AI ile)
    */
@@ -449,28 +547,27 @@ export const piyasaToolImplementations = {
     try {
       const originalTerm = arama_terimi.trim();
       const lowerTerm = originalTerm.toLowerCase();
-      
+
       // 1. Önce basit sözlük kontrolü (hızlı)
       let correctedTerm = correctSpelling(originalTerm);
-      
+
       // Kelimeleri ayrı ayrı da kontrol et
       const words = lowerTerm.split(' ');
-      const correctedWords = words.map(w => SPELLING_CORRECTIONS[w] || w);
+      const correctedWords = words.map((w) => SPELLING_CORRECTIONS[w] || w);
       const wordCorrected = correctedWords.join(' ');
       if (wordCorrected !== lowerTerm) {
         correctedTerm = wordCorrected;
       }
-      
+
       const hasBasicSpellingError = correctedTerm.toLowerCase() !== lowerTerm;
       const termHasQuantity = hasQuantity(originalTerm);
-      
+
       // 2. AI düzeltme (sözlükte bulunamadıysa veya gramaj yoksa)
       let aiResult = null;
       if (!hasBasicSpellingError || !termHasQuantity) {
         aiResult = await getAICorrection(originalTerm);
-        console.log('AI öneri sonucu:', aiResult);
       }
-      
+
       // 3. AI sonucu varsa kullan
       if (aiResult) {
         return {
@@ -482,33 +579,40 @@ export const piyasaToolImplementations = {
           oneriler: aiResult.oneriler || [],
           mesaj: aiResult.mesaj || '',
           arama_yapilabilir: aiResult.arama_yapilabilir || false,
-          ai_powered: true
+          ai_powered: true,
         };
       }
-      
+
       // 4. Fallback: Eski sistem
       const searchTerm = hasBasicSpellingError ? correctedTerm.toLowerCase() : lowerTerm;
-      
+
       // Kategori kontrolü
-      const categoryKey = Object.keys(PRODUCT_CATEGORIES).find(key => {
+      const categoryKey = Object.keys(PRODUCT_CATEGORIES).find((key) => {
         const keyLower = key.toLowerCase();
-        return searchTerm === keyLower || 
-               searchTerm.includes(keyLower) || 
-               keyLower.includes(searchTerm) ||
-               searchTerm.split(' ').some(word => word === keyLower || keyLower.includes(word));
+        return (
+          searchTerm === keyLower ||
+          searchTerm.includes(keyLower) ||
+          keyLower.includes(searchTerm) ||
+          searchTerm.split(' ').some((word) => word === keyLower || keyLower.includes(word))
+        );
       });
-      
+
       // Stok kartlarından benzer ürünleri ara
       let stokOneriler = [];
       try {
-        const stokResult = await query(`
+        const stokResult = await query(
+          `
           SELECT DISTINCT ad FROM stok_kartlari 
           WHERE aktif = true AND ad ILIKE $1
           ORDER BY ad LIMIT 5
-        `, [`%${searchTerm}%`]);
-        stokOneriler = stokResult.rows.map(r => r.ad);
-      } catch (e) { /* ignore */ }
-      
+        `,
+          [`%${searchTerm}%`]
+        );
+        stokOneriler = stokResult.rows.map((r) => r.ad);
+      } catch (_e) {
+        /* ignore */
+      }
+
       // Kategorideki ürünlerden öneri
       let kategoriOneriler = [];
       let kategoriMesaj = '';
@@ -516,13 +620,13 @@ export const piyasaToolImplementations = {
         kategoriOneriler = PRODUCT_CATEGORIES[categoryKey].oneriler;
         kategoriMesaj = PRODUCT_CATEGORIES[categoryKey].mesaj;
       }
-      
+
       // Yazım hatasına en yakın kategoriyi bul
       let yakinKategori = null;
       if (!categoryKey && !hasBasicSpellingError) {
         yakinKategori = findClosestMatch(lowerTerm, Object.keys(PRODUCT_CATEGORIES));
       }
-      
+
       // Sonuç oluştur
       const result = {
         success: true,
@@ -533,9 +637,9 @@ export const piyasaToolImplementations = {
         oneriler: [],
         mesaj: '',
         arama_yapilabilir: false,
-        ai_powered: false
+        ai_powered: false,
       };
-      
+
       // Yazım hatası varsa
       if (hasBasicSpellingError) {
         result.mesaj = `"${originalTerm}" → "${correctedTerm}" olarak düzeltildi.`;
@@ -565,9 +669,10 @@ export const piyasaToolImplementations = {
       else {
         if (lowerTerm.split(' ').length <= 2) {
           result.mesaj = `"${originalTerm}" için miktar belirtin (örn: 1kg, 500g, 1lt)`;
-          result.oneriler = stokOneriler.length > 0 
-            ? stokOneriler 
-            : [`${originalTerm} 1kg`, `${originalTerm} 500g`, `${originalTerm} 1lt`];
+          result.oneriler =
+            stokOneriler.length > 0
+              ? stokOneriler
+              : [`${originalTerm} 1kg`, `${originalTerm} 500g`, `${originalTerm} 1lt`];
           result.genel_terim = true;
         } else {
           result.mesaj = `"${originalTerm}" için fiyat araması yapılacak.`;
@@ -575,11 +680,9 @@ export const piyasaToolImplementations = {
           result.oneriler = [originalTerm];
         }
       }
-      
+
       return result;
-      
     } catch (error) {
-      console.error('Öneri hatası:', error);
       return { success: false, error: error.message };
     }
   },
@@ -589,10 +692,11 @@ export const piyasaToolImplementations = {
       if (!urun_adi) {
         return { success: false, error: 'Ürün adı gerekli' };
       }
-      
+
       const corrected = correctSpelling(urun_adi);
-      
-      const result = await query(`
+
+      const result = await query(
+        `
         SELECT sk.id, sk.kod, sk.ad, sk.son_alis_fiyat, sk.toplam_stok,
                k.ad as kategori, b.kisa_ad as birim
         FROM stok_kartlari sk
@@ -600,79 +704,85 @@ export const piyasaToolImplementations = {
         LEFT JOIN birimler b ON b.id = sk.ana_birim_id
         WHERE sk.aktif = true AND (sk.ad ILIKE $1 OR sk.kod ILIKE $1)
         ORDER BY sk.ad LIMIT 10
-      `, [`%${corrected}%`]);
-      
+      `,
+        [`%${corrected}%`]
+      );
+
       if (result.rows.length === 0) {
         return {
           success: true,
           bulunan: false,
           duzeltme: corrected !== urun_adi ? corrected : null,
-          mesaj: `"${corrected}" stokta bulunamadı. Piyasa fiyatı araştırabilirim.`
+          mesaj: `"${corrected}" stokta bulunamadı. Piyasa fiyatı araştırabilirim.`,
         };
       }
-      
+
       return {
         success: true,
         bulunan: true,
         duzeltme: corrected !== urun_adi ? corrected : null,
-        sonuclar: result.rows.map(p => ({
-          id: p.id, kod: p.kod, ad: p.ad,
-          kategori: p.kategori, birim: p.birim,
-          sistem_fiyat: p.son_alis_fiyat, stok: p.toplam_stok
-        }))
+        sonuclar: result.rows.map((p) => ({
+          id: p.id,
+          kod: p.kod,
+          ad: p.ad,
+          kategori: p.kategori,
+          birim: p.birim,
+          sistem_fiyat: p.son_alis_fiyat,
+          stok: p.toplam_stok,
+        })),
       };
     } catch (error) {
       return { success: false, error: error.message };
     }
   },
-  
+
   piyasa_fiyat_arastir: async ({ urun_adi, stok_kart_id }) => {
     try {
       let sistemFiyat = null;
       let urunBilgi = null;
-      
+
       // Stok kartından bilgi al
       let stokBirim = null;
       if (stok_kart_id) {
-        const result = await query(`
+        const result = await query(
+          `
           SELECT sk.id, sk.ad, sk.son_alis_fiyat, 
                  k.ad as kategori, b.kisa_ad as birim
           FROM stok_kartlari sk
           LEFT JOIN stok_kategoriler k ON k.id = sk.kategori_id
           LEFT JOIN birimler b ON b.id = sk.ana_birim_id
           WHERE sk.id = $1
-        `, [stok_kart_id]);
-        
+        `,
+          [stok_kart_id]
+        );
+
         if (result.rows.length > 0) {
           urunBilgi = result.rows[0];
           sistemFiyat = urunBilgi.son_alis_fiyat;
           stokBirim = urunBilgi.birim;
         }
       }
-      
+
       // Ürün adını normalize et (akıllı birim belirleme)
       const normalized = normalizeProductName(urun_adi, stokBirim);
       const aramaTermi = normalized.searchTerm;
-      
-      console.log(`🔍 Piyasa Araması: "${urun_adi}" → "${aramaTermi}"`);
-      
+
       // ScrapingBee ile piyasa fiyatlarını araştır
       const piyasaData = await searchMarketPrices(aramaTermi);
-      
+
       if (!piyasaData.success) {
         return piyasaData;
       }
-      
+
       // Fark hesapla
       let farkYuzde = null;
       let durum = 'bilinmiyor';
-      
+
       if (sistemFiyat && piyasaData.ortalama) {
-        farkYuzde = ((piyasaData.ortalama - sistemFiyat) / sistemFiyat * 100).toFixed(1);
-        durum = parseFloat(farkYuzde) < -5 ? 'ucuz' : 
-                parseFloat(farkYuzde) > 5 ? 'pahali' : 'normal';
+        farkYuzde = (((piyasaData.ortalama - sistemFiyat) / sistemFiyat) * 100).toFixed(1);
+        durum = parseFloat(farkYuzde) < -5 ? 'ucuz' : parseFloat(farkYuzde) > 5 ? 'pahali' : 'normal';
       }
-      
+
       // Öneri
       let oneri = '';
       if (durum === 'ucuz') {
@@ -682,18 +792,26 @@ export const piyasaToolImplementations = {
       } else {
         oneri = 'Fiyatınız piyasa ortalamasında.';
       }
-      
+
       // Geçmişe kaydet
-      await query(`
+      await query(
+        `
         INSERT INTO piyasa_fiyat_gecmisi 
         (stok_kart_id, urun_adi, sistem_fiyat, piyasa_fiyat_min, piyasa_fiyat_max, piyasa_fiyat_ort, kaynaklar, ai_oneri)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      `, [
-        stok_kart_id, urun_adi, sistemFiyat,
-        piyasaData.min, piyasaData.max, piyasaData.ortalama,
-        JSON.stringify(piyasaData.fiyatlar), oneri
-      ]).catch(() => {});
-      
+      `,
+        [
+          stok_kart_id,
+          urun_adi,
+          sistemFiyat,
+          piyasaData.min,
+          piyasaData.max,
+          piyasaData.ortalama,
+          JSON.stringify(piyasaData.fiyatlar),
+          oneri,
+        ]
+      ).catch(() => {});
+
       return {
         success: true,
         urun: urun_adi,
@@ -704,60 +822,69 @@ export const piyasaToolImplementations = {
           min: piyasaData.min,
           max: piyasaData.max,
           ortalama: piyasaData.ortalama,
-          kaynaklar: piyasaData.fiyatlar
+          kaynaklar: piyasaData.fiyatlar,
         },
         karsilastirma: {
           fark_yuzde: farkYuzde,
           durum,
-          emoji: durum === 'ucuz' ? '📉' : durum === 'pahali' ? '📈' : '➡️'
+          emoji: durum === 'ucuz' ? '📉' : durum === 'pahali' ? '📈' : '➡️',
         },
         oneri,
-        arastirma_tarihi: new Date().toISOString()
+        arastirma_tarihi: new Date().toISOString(),
       };
-      
     } catch (error) {
-      console.error('Fiyat araştırma hatası:', error);
       return { success: false, error: error.message };
     }
   },
-  
+
   piyasa_listeye_ekle: async ({ stok_kart_id, urun_adi, sistem_fiyat, piyasa_fiyat }) => {
     try {
-      const farkYuzde = sistem_fiyat 
-        ? ((piyasa_fiyat - sistem_fiyat) / sistem_fiyat * 100).toFixed(2) : null;
-      
-      const durum = !farkYuzde ? 'bilinmiyor' :
-                    parseFloat(farkYuzde) < -5 ? 'ucuz' :
-                    parseFloat(farkYuzde) > 5 ? 'pahali' : 'normal';
-      
-      const existing = await query(`
+      const farkYuzde = sistem_fiyat ? (((piyasa_fiyat - sistem_fiyat) / sistem_fiyat) * 100).toFixed(2) : null;
+
+      const durum = !farkYuzde
+        ? 'bilinmiyor'
+        : parseFloat(farkYuzde) < -5
+          ? 'ucuz'
+          : parseFloat(farkYuzde) > 5
+            ? 'pahali'
+            : 'normal';
+
+      const existing = await query(
+        `
         SELECT id FROM piyasa_takip_listesi 
         WHERE (stok_kart_id = $1 OR urun_adi = $2) AND aktif = true
-      `, [stok_kart_id, urun_adi]).catch(() => ({ rows: [] }));
-      
+      `,
+        [stok_kart_id, urun_adi]
+      ).catch(() => ({ rows: [] }));
+
       if (existing.rows.length > 0) {
-        await query(`
+        await query(
+          `
           UPDATE piyasa_takip_listesi 
           SET son_sistem_fiyat = $1, son_piyasa_fiyat = $2, fark_yuzde = $3, durum = $4
           WHERE id = $5
-        `, [sistem_fiyat, piyasa_fiyat, farkYuzde, durum, existing.rows[0].id]);
-        
+        `,
+          [sistem_fiyat, piyasa_fiyat, farkYuzde, durum, existing.rows[0].id]
+        );
+
         return { success: true, islem: 'guncellendi', mesaj: `"${urun_adi}" güncellendi.` };
       }
-      
-      await query(`
+
+      await query(
+        `
         INSERT INTO piyasa_takip_listesi 
         (stok_kart_id, urun_adi, son_sistem_fiyat, son_piyasa_fiyat, fark_yuzde, durum)
         VALUES ($1, $2, $3, $4, $5, $6)
-      `, [stok_kart_id, urun_adi, sistem_fiyat, piyasa_fiyat, farkYuzde, durum]);
-      
+      `,
+        [stok_kart_id, urun_adi, sistem_fiyat, piyasa_fiyat, farkYuzde, durum]
+      );
+
       return { success: true, islem: 'eklendi', mesaj: `"${urun_adi}" eklendi.` };
-      
     } catch (error) {
       return { success: false, error: error.message };
     }
   },
-  
+
   piyasa_takip_listesi: async ({ sadece_aktif = true }) => {
     try {
       const result = await query(`
@@ -770,23 +897,30 @@ export const piyasaToolImplementations = {
         ${sadece_aktif ? 'WHERE ptl.aktif = true' : ''}
         ORDER BY ptl.updated_at DESC
       `).catch(() => ({ rows: [] }));
-      
+
       return {
         success: true,
         toplam: result.rows.length,
-        ucuz_firsatlar: result.rows.filter(r => r.durum === 'ucuz').length,
-        pahali_uyarilar: result.rows.filter(r => r.durum === 'pahali').length,
-        liste: result.rows.map(r => ({
-          id: r.id, stok_kart_id: r.stok_kart_id, stok_kod: r.stok_kod,
-          urun_adi: r.urun_adi, kategori: r.kategori, birim: r.birim,
-          sistem_fiyat: r.son_sistem_fiyat, piyasa_fiyat: r.son_piyasa_fiyat,
-          fark_yuzde: r.fark_yuzde, durum: r.durum, stok: r.toplam_stok
-        }))
+        ucuz_firsatlar: result.rows.filter((r) => r.durum === 'ucuz').length,
+        pahali_uyarilar: result.rows.filter((r) => r.durum === 'pahali').length,
+        liste: result.rows.map((r) => ({
+          id: r.id,
+          stok_kart_id: r.stok_kart_id,
+          stok_kod: r.stok_kod,
+          urun_adi: r.urun_adi,
+          kategori: r.kategori,
+          birim: r.birim,
+          sistem_fiyat: r.son_sistem_fiyat,
+          piyasa_fiyat: r.son_piyasa_fiyat,
+          fark_yuzde: r.fark_yuzde,
+          durum: r.durum,
+          stok: r.toplam_stok,
+        })),
       };
     } catch (error) {
       return { success: false, error: error.message, liste: [] };
     }
-  }
+  },
 };
 
 export default { piyasaToolDefinitions, piyasaToolImplementations };

@@ -7,8 +7,8 @@
 
 import express from 'express';
 import { query } from '../database.js';
-import { logError, logAPI } from '../utils/logger.js';
-import { authenticate, requirePermission, auditLog } from '../middleware/auth.js';
+import { auditLog, authenticate, requirePermission } from '../middleware/auth.js';
+import { logAPI, logError } from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -62,8 +62,8 @@ router.get('/', async (req, res) => {
     const { tip, aktif = true, search, page = 1, limit = 20 } = req.query;
 
     // Limit kontrolü (max 100)
-    const safeLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
-    const safePage = Math.max(parseInt(page) || 1, 1);
+    const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+    const safePage = Math.max(parseInt(page, 10) || 1, 1);
     const offset = (safePage - 1) * safeLimit;
 
     // Base WHERE koşulları
@@ -98,7 +98,7 @@ router.get('/', async (req, res) => {
     // Count sorgusu (pagination için)
     const countSql = `SELECT COUNT(*) FROM cariler ${whereClause}`;
     const countResult = await query(countSql, params);
-    const total = parseInt(countResult.rows[0].count);
+    const total = parseInt(countResult.rows[0].count, 10);
     const totalPages = Math.ceil(total / safeLimit);
 
     // Data sorgusu
@@ -119,10 +119,9 @@ router.get('/', async (req, res) => {
         page: safePage,
         limit: safeLimit,
         total,
-        totalPages
-      }
+        totalPages,
+      },
     });
-
   } catch (error) {
     logError('Cariler Liste', error);
     res.status(500).json({ error: error.message });
@@ -150,21 +149,17 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const result = await query(
-      'SELECT * FROM cariler WHERE id = $1',
-      [id]
-    );
-    
+
+    const result = await query('SELECT * FROM cariler WHERE id = $1', [id]);
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Cari bulunamadı' });
     }
-    
+
     res.json({
       success: true,
-      data: result.rows[0]
+      data: result.rows[0],
     });
-    
   } catch (error) {
     logError('Cari Detay', error, { cariId: req.params.id });
     res.status(500).json({ error: error.message });
@@ -211,16 +206,17 @@ router.post('/', authenticate, requirePermission('cari', 'create'), auditLog('ca
       banka_adi,
       iban,
       notlar,
-      etiket
+      etiket,
     } = req.body;
-    
+
     if (!tip || !unvan) {
-      return res.status(400).json({ 
-        error: 'Tip ve ünvan zorunludur' 
+      return res.status(400).json({
+        error: 'Tip ve ünvan zorunludur',
       });
     }
-    
-    const result = await query(`
+
+    const result = await query(
+      `
       INSERT INTO cariler (
         tip, unvan, yetkili, vergi_no, vergi_dairesi,
         telefon, email, adres, il, ilce,
@@ -228,29 +224,44 @@ router.post('/', authenticate, requirePermission('cari', 'create'), auditLog('ca
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
       ) RETURNING *
-    `, [
-      tip, unvan, yetkili, vergi_no, vergi_dairesi,
-      telefon, email, adres, il, ilce,
-      borc, alacak, kredi_limiti, banka_adi, iban, notlar, etiket
-    ]);
-    
+    `,
+      [
+        tip,
+        unvan,
+        yetkili,
+        vergi_no,
+        vergi_dairesi,
+        telefon,
+        email,
+        adres,
+        il,
+        ilce,
+        borc,
+        alacak,
+        kredi_limiti,
+        banka_adi,
+        iban,
+        notlar,
+        etiket,
+      ]
+    );
+
     logAPI('Cariler', 'Yeni cari oluşturuldu', { cariId: result.rows[0].id, unvan });
-    
+
     res.status(201).json({
       success: true,
       data: result.rows[0],
-      message: 'Cari başarıyla oluşturuldu'
+      message: 'Cari başarıyla oluşturuldu',
     });
-    
   } catch (error) {
     logError('Cari Oluşturma', error, { unvan: req.body.unvan });
-    
+
     if (error.code === '23505') {
-      return res.status(400).json({ 
-        error: 'Bu vergi numarası zaten kayıtlı' 
+      return res.status(400).json({
+        error: 'Bu vergi numarası zaten kayıtlı',
       });
     }
-    
+
     res.status(500).json({ error: error.message });
   }
 });
@@ -277,42 +288,41 @@ router.put('/:id', authenticate, requirePermission('cari', 'edit'), auditLog('ca
   try {
     const { id } = req.params;
     const updates = req.body;
-    
-    delete updates.id;
-    delete updates.bakiye;
-    delete updates.created_at;
-    delete updates.updated_at;
-    
+
+    updates.id = undefined;
+    updates.bakiye = undefined;
+    updates.created_at = undefined;
+    updates.updated_at = undefined;
+
     if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ 
-        error: 'Güncellenecek alan bulunamadı' 
+      return res.status(400).json({
+        error: 'Güncellenecek alan bulunamadı',
       });
     }
-    
-    const setClause = Object.keys(updates).map(
-      (key, index) => `${key} = $${index + 2}`
-    ).join(', ');
-    
+
+    const setClause = Object.keys(updates)
+      .map((key, index) => `${key} = $${index + 2}`)
+      .join(', ');
+
     const values = [id, ...Object.values(updates)];
-    
+
     const result = await query(
       `UPDATE cariler SET ${setClause}, updated_at = NOW() 
        WHERE id = $1 RETURNING *`,
       values
     );
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Cari bulunamadı' });
     }
-    
+
     logAPI('Cariler', 'Cari güncellendi', { cariId: id });
-    
+
     res.json({
       success: true,
       data: result.rows[0],
-      message: 'Cari güncellendi'
+      message: 'Cari güncellendi',
     });
-    
   } catch (error) {
     logError('Cari Güncelleme', error, { cariId: req.params.id });
     res.status(500).json({ error: error.message });
@@ -339,7 +349,7 @@ router.get('/:id/hareketler', async (req, res) => {
   try {
     const { id } = req.params;
     const { baslangic, bitis, tip } = req.query;
-    
+
     let sql = `
       SELECT 
         ch.id,
@@ -357,42 +367,41 @@ router.get('/:id/hareketler', async (req, res) => {
       FROM cari_hareketler ch
       WHERE ch.cari_id = $1
     `;
-    
+
     const params = [id];
     let paramIndex = 2;
-    
+
     if (baslangic) {
       sql += ` AND ch.belge_tarihi >= $${paramIndex}`;
       params.push(baslangic);
       paramIndex++;
     }
-    
+
     if (bitis) {
       sql += ` AND ch.belge_tarihi <= $${paramIndex}`;
       params.push(bitis);
       paramIndex++;
     }
-    
+
     if (tip && tip !== 'all') {
       sql += ` AND ch.hareket_tipi = $${paramIndex}`;
       params.push(tip);
       paramIndex++;
     }
-    
+
     sql += ` ORDER BY ch.belge_tarihi DESC, ch.id DESC`;
-    
+
     const result = await query(sql, params);
-    
+
     res.json({
       success: true,
-      data: result.rows
+      data: result.rows,
     });
-    
   } catch (error) {
     logError('Cari Hareketler', error, { cariId: req.params.id });
     res.status(500).json({
       success: false,
-      error: 'Cari hareketleri alınırken bir hata oluştu'
+      error: 'Cari hareketleri alınırken bir hata oluştu',
     });
   }
 });
@@ -408,7 +417,7 @@ router.get('/:id/aylik-ozet', async (req, res) => {
   try {
     const { id } = req.params;
     const { yil } = req.query;
-    
+
     let sql = `
       SELECT 
         CASE 
@@ -433,32 +442,31 @@ router.get('/:id/aylik-ozet', async (req, res) => {
       FROM cari_hareketler ch
       WHERE ch.cari_id = $1
     `;
-    
+
     const params = [id];
-    
+
     if (yil) {
       sql += ` AND EXTRACT(YEAR FROM ch.belge_tarihi) = $2`;
       params.push(yil);
     }
-    
+
     sql += `
       GROUP BY DATE_TRUNC('month', ch.belge_tarihi)
       ORDER BY ay_tarih DESC
       LIMIT 12
     `;
-    
+
     const result = await query(sql, params);
-    
+
     res.json({
       success: true,
-      data: result.rows
+      data: result.rows,
     });
-    
   } catch (error) {
     logError('Cari Aylık Özet', error, { cariId: req.params.id });
     res.status(500).json({
       success: false,
-      error: 'Aylık özet alınırken bir hata oluştu'
+      error: 'Aylık özet alınırken bir hata oluştu',
     });
   }
 });
@@ -473,23 +481,19 @@ router.get('/:id/aylik-ozet', async (req, res) => {
 router.delete('/:id', authenticate, requirePermission('cari', 'delete'), auditLog('cari'), async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const result = await query(
-      'UPDATE cariler SET aktif = false, updated_at = NOW() WHERE id = $1 RETURNING *',
-      [id]
-    );
-    
+
+    const result = await query('UPDATE cariler SET aktif = false, updated_at = NOW() WHERE id = $1 RETURNING *', [id]);
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Cari bulunamadı' });
     }
-    
+
     logAPI('Cariler', 'Cari silindi (pasif)', { cariId: id });
-    
+
     res.json({
       success: true,
-      message: 'Cari silindi (pasif edildi)'
+      message: 'Cari silindi (pasif edildi)',
     });
-    
   } catch (error) {
     logError('Cari Silme', error, { cariId: req.params.id });
     res.status(500).json({ error: error.message });
@@ -507,16 +511,13 @@ router.get('/:id/ekstre', async (req, res) => {
   try {
     const { id } = req.params;
     const { startDate, endDate } = req.query;
-    
-    const cariResult = await query(
-      'SELECT * FROM cariler WHERE id = $1',
-      [id]
-    );
-    
+
+    const cariResult = await query('SELECT * FROM cariler WHERE id = $1', [id]);
+
     if (cariResult.rows.length === 0) {
       return res.status(404).json({ error: 'Cari bulunamadı' });
     }
-    
+
     let invoiceSql = `
       SELECT 
         'fatura' as kaynak,
@@ -537,28 +538,28 @@ router.get('/:id/ekstre', async (req, res) => {
       FROM invoices 
       WHERE customer_name = $1
     `;
-    
+
     const params = [cariResult.rows[0].unvan];
-    
+
     if (startDate) {
       invoiceSql += ' AND invoice_date >= $2';
       params.push(startDate);
     }
-    
+
     if (endDate) {
       const endIndex = startDate ? 3 : 2;
       invoiceSql += ` AND invoice_date <= $${endIndex}`;
       params.push(endDate);
     }
-    
+
     invoiceSql += ' ORDER BY invoice_date DESC';
-    
+
     const invoiceResult = await query(invoiceSql, params);
-    
+
     const toplamBorc = invoiceResult.rows.reduce((sum, row) => sum + parseFloat(row.borc || 0), 0);
     const toplamAlacak = invoiceResult.rows.reduce((sum, row) => sum + parseFloat(row.alacak || 0), 0);
     const bakiye = toplamAlacak - toplamBorc;
-    
+
     res.json({
       success: true,
       data: {
@@ -567,11 +568,10 @@ router.get('/:id/ekstre', async (req, res) => {
         ozet: {
           toplamBorc,
           toplamAlacak,
-          bakiye
-        }
-      }
+          bakiye,
+        },
+      },
     });
-    
   } catch (error) {
     logError('Cari Ekstre', error, { cariId: req.params.id });
     res.status(500).json({ error: error.message });

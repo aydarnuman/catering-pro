@@ -6,7 +6,6 @@
 import { query } from '../../database.js';
 
 const cariTools = {
-  
   /**
    * Carileri listele
    */
@@ -18,37 +17,37 @@ const cariTools = {
         tip: {
           type: 'string',
           enum: ['MÜŞTERİ', 'TEDARİKÇİ'],
-          description: 'Cari tipi filtresi'
+          description: 'Cari tipi filtresi',
         },
         il: {
           type: 'string',
-          description: 'İl filtresi'
+          description: 'İl filtresi',
         },
         unvan_arama: {
           type: 'string',
-          description: 'Ünvan araması (kısmi eşleşme)'
+          description: 'Ünvan araması (kısmi eşleşme)',
         },
         bakiye_min: {
           type: 'number',
-          description: 'Minimum bakiye'
+          description: 'Minimum bakiye',
         },
         bakiye_max: {
           type: 'number',
-          description: 'Maksimum bakiye'
+          description: 'Maksimum bakiye',
         },
         alacakli: {
           type: 'boolean',
-          description: 'Sadece alacaklı olanları getir'
+          description: 'Sadece alacaklı olanları getir',
         },
         borclu: {
-          type: 'boolean', 
-          description: 'Sadece borçlu olanları getir'
+          type: 'boolean',
+          description: 'Sadece borçlu olanları getir',
         },
         limit: {
           type: 'number',
-          description: 'Maksimum kayıt sayısı'
-        }
-      }
+          description: 'Maksimum kayıt sayısı',
+        },
+      },
     },
     handler: async (params) => {
       let sql = `
@@ -99,14 +98,14 @@ const cariTools = {
       queryParams.push(params.limit || 100);
 
       const result = await query(sql, queryParams);
-      
+
       return {
         success: true,
         data: result.rows,
         count: result.rows.length,
-        message: `${result.rows.length} cari bulundu`
+        message: `${result.rows.length} cari bulundu`,
       };
-    }
+    },
   },
 
   /**
@@ -119,17 +118,17 @@ const cariTools = {
       properties: {
         cari_id: {
           type: 'number',
-          description: 'Cari ID'
+          description: 'Cari ID',
         },
         unvan: {
           type: 'string',
-          description: 'Cari ünvanı (arama)'
+          description: 'Cari ünvanı (arama)',
         },
         vergi_no: {
           type: 'string',
-          description: 'Vergi numarası'
-        }
-      }
+          description: 'Vergi numarası',
+        },
+      },
     },
     handler: async (params) => {
       let sql = 'SELECT * FROM cariler WHERE ';
@@ -149,7 +148,7 @@ const cariTools = {
       }
 
       const result = await query(sql, [queryParam]);
-      
+
       if (result.rows.length === 0) {
         return { success: false, error: 'Cari bulunamadı' };
       }
@@ -159,14 +158,17 @@ const cariTools = {
       // Sipariş istatistikleri (tedarikçiyse)
       let siparisIstatistik = null;
       if (cari.tip === 'TEDARİKÇİ') {
-        const siparisResult = await query(`
+        const siparisResult = await query(
+          `
           SELECT 
             COUNT(*) as toplam_siparis,
             COUNT(CASE WHEN durum = 'teslim_alindi' THEN 1 END) as tamamlanan,
             COALESCE(SUM(toplam_tutar), 0) as toplam_tutar
           FROM siparisler
           WHERE tedarikci_id = $1
-        `, [cari.id]);
+        `,
+          [cari.id]
+        );
         siparisIstatistik = siparisResult.rows[0];
       }
 
@@ -174,10 +176,10 @@ const cariTools = {
         success: true,
         data: {
           ...cari,
-          siparis_istatistik: siparisIstatistik
-        }
+          siparis_istatistik: siparisIstatistik,
+        },
       };
-    }
+    },
   },
 
   /**
@@ -187,7 +189,7 @@ const cariTools = {
     description: 'Tüm carilerin genel özet istatistiklerini getirir.',
     parameters: {
       type: 'object',
-      properties: {}
+      properties: {},
     },
     handler: async () => {
       const ozetResult = await query(`
@@ -220,10 +222,10 @@ const cariTools = {
         success: true,
         data: {
           genel: ozetResult.rows[0],
-          top_tedarikciler: topTedarikciResult.rows
-        }
+          top_tedarikciler: topTedarikciResult.rows,
+        },
       };
-    }
+    },
   },
 
   /**
@@ -236,47 +238,47 @@ const cariTools = {
       properties: {
         unvan: {
           type: 'string',
-          description: 'Firma ünvanı (zorunlu)'
+          description: 'Firma ünvanı (zorunlu)',
         },
         tip: {
           type: 'string',
           enum: ['MÜŞTERİ', 'TEDARİKÇİ'],
-          description: 'Cari tipi (zorunlu)'
+          description: 'Cari tipi (zorunlu)',
         },
         vergi_no: {
           type: 'string',
-          description: 'Vergi numarası'
+          description: 'Vergi numarası',
         },
         vergi_dairesi: {
           type: 'string',
-          description: 'Vergi dairesi'
+          description: 'Vergi dairesi',
         },
         yetkili: {
           type: 'string',
-          description: 'Yetkili kişi adı'
+          description: 'Yetkili kişi adı',
         },
         telefon: {
           type: 'string',
-          description: 'Telefon numarası'
+          description: 'Telefon numarası',
         },
         email: {
           type: 'string',
-          description: 'E-posta adresi'
+          description: 'E-posta adresi',
         },
         adres: {
           type: 'string',
-          description: 'Adres'
+          description: 'Adres',
         },
         il: {
           type: 'string',
-          description: 'İl'
+          description: 'İl',
         },
         ilce: {
           type: 'string',
-          description: 'İlçe'
-        }
+          description: 'İlçe',
+        },
       },
-      required: ['unvan', 'tip']
+      required: ['unvan', 'tip'],
     },
     handler: async (params) => {
       // Vergi no benzersizliğini kontrol et
@@ -287,29 +289,32 @@ const cariTools = {
         }
       }
 
-      const result = await query(`
+      const result = await query(
+        `
         INSERT INTO cariler (unvan, tip, vergi_no, vergi_dairesi, yetkili, telefon, email, adres, il, ilce, bakiye)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0)
         RETURNING *
-      `, [
-        params.unvan,
-        params.tip,
-        params.vergi_no || null,
-        params.vergi_dairesi || null,
-        params.yetkili || null,
-        params.telefon || null,
-        params.email || null,
-        params.adres || null,
-        params.il || null,
-        params.ilce || null
-      ]);
+      `,
+        [
+          params.unvan,
+          params.tip,
+          params.vergi_no || null,
+          params.vergi_dairesi || null,
+          params.yetkili || null,
+          params.telefon || null,
+          params.email || null,
+          params.adres || null,
+          params.il || null,
+          params.ilce || null,
+        ]
+      );
 
       return {
         success: true,
         data: result.rows[0],
-        message: `Cari oluşturuldu: ${params.unvan}`
+        message: `Cari oluşturuldu: ${params.unvan}`,
       };
-    }
+    },
   },
 
   /**
@@ -322,31 +327,31 @@ const cariTools = {
       properties: {
         arama: {
           type: 'string',
-          description: 'Arama terimi (ünvan içinde)'
-        }
+          description: 'Arama terimi (ünvan içinde)',
+        },
       },
-      required: ['arama']
+      required: ['arama'],
     },
     handler: async (params) => {
-      const result = await query(`
+      const result = await query(
+        `
         SELECT id, unvan, telefon, email, il
         FROM cariler
         WHERE tip = 'TEDARİKÇİ' AND UPPER(unvan) LIKE UPPER($1)
         ORDER BY unvan
         LIMIT 10
-      `, [`%${params.arama}%`]);
+      `,
+        [`%${params.arama}%`]
+      );
 
       return {
         success: true,
         data: result.rows,
         count: result.rows.length,
-        message: result.rows.length > 0 
-          ? `${result.rows.length} tedarikçi bulundu`
-          : 'Tedarikçi bulunamadı'
+        message: result.rows.length > 0 ? `${result.rows.length} tedarikçi bulundu` : 'Tedarikçi bulunamadı',
       };
-    }
-  }
+    },
+  },
 };
 
 export default cariTools;
-
