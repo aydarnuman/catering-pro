@@ -65,6 +65,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { notesAPI } from '@/lib/api/services/notes';
 import { tendersAPI } from '@/lib/api/services/tenders';
 
 // Types
@@ -382,7 +383,7 @@ function SortableNoteCard({
                     </ActionIcon>
                   }
                   style={{ cursor: 'pointer' }}
-                  onClick={() => window.open(tendersAPI.getAttachmentDownloadUrl(att.id), '_blank')}
+                  onClick={() => window.open(notesAPI.getAttachmentDownloadUrl(String(att.id)), '_blank')}
                 >
                   {att.original_filename.length > 10
                     ? `${att.original_filename.substring(0, 10)}...`
@@ -974,7 +975,7 @@ export default function NotesSection({
           </Group>
 
           {/* Formatting Toolbar */}
-          <Paper p="xs" withBorder radius="sm" bg="gray.0">
+          <Paper p="xs" radius="sm" className="nested-card">
             <Group gap={4}>
               <Tooltip label="Kalın">
                 <ActionIcon variant="subtle" size="sm" onClick={() => insertFormatting('**', '**')}>

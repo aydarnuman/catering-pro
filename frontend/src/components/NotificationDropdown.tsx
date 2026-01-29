@@ -10,6 +10,7 @@ import {
   Loader,
   Menu,
   ScrollArea,
+  SegmentedControl,
   Stack,
   Text,
   Tooltip,
@@ -23,8 +24,11 @@ import {
   IconExternalLink,
   IconFileText,
   IconInfoCircle,
+  IconLock,
   IconPackage,
   IconReceipt,
+  IconServer,
+  IconShieldExclamation,
   IconX,
 } from '@tabler/icons-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -32,6 +36,7 @@ import { tr } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { adminAPI } from '@/lib/api/services/admin';
+import { useAuth } from '@/context/AuthContext';
 
 interface Notification {
   id: number;
@@ -42,9 +47,12 @@ interface Notification {
   link: string | null;
   is_read: boolean;
   created_at: string;
-  source?: 'normal' | 'admin';
-  severity?: string;
+  source: 'user' | 'admin' | 'system';
+  severity: 'info' | 'warning' | 'error' | 'critical';
+  metadata?: Record<string, unknown>;
 }
+
+type FilterType = 'all' | 'user' | 'admin';
 
 const typeConfig = {
   info: { icon: IconInfoCircle, color: 'blue' },
@@ -57,7 +65,18 @@ const categoryIcons: Record<string, typeof IconInfoCircle> = {
   tender: IconFileText,
   invoice: IconReceipt,
   stock: IconPackage,
-  system: IconInfoCircle,
+  system: IconServer,
+  account_locked: IconLock,
+  suspicious_activity: IconShieldExclamation,
+  system_error: IconServer,
+  high_priority: IconAlertTriangle,
+};
+
+const severityColors: Record<string, string> = {
+  info: 'blue',
+  warning: 'orange',
+  error: 'red',
+  critical: 'red',
 };
 
 export function NotificationDropdown() {
@@ -65,11 +84,16 @@ export function NotificationDropdown() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [opened, setOpened] = useState(false);
+  const [filter, setFilter] = useState<FilterType>('all');
   const router = useRouter();
   const { colorScheme } = useMantineColorScheme();
+  const { user } = useAuth();
   const isDark = colorScheme === 'dark';
 
-  // Sadece normal bildirim sayısı (auth/admin bildirimleri kaldırıldı)
+  // Kullanıcı admin mi?
+  const isAdmin = user?.user_type === 'admin' || user?.user_type === 'super_admin';
+
+  // Bildirim sayısını getir
   const fetchUnreadCount = useCallback(async () => {
     try {
       const data = await adminAPI.getUnreadNotificationCount();
@@ -80,14 +104,24 @@ export function NotificationDropdown() {
     }
   }, []);
 
-  // Sadece normal bildirimler (auth/admin bildirimleri kaldırıldı)
+  // Bildirimleri getir
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await adminAPI.getNotifications(10);
+      const params: Parameters<typeof adminAPI.getNotifications>[0] = {
+        limit: 15,
+      };
+
+      // Filtre uygula
+      if (filter === 'user') {
+        params.source = 'user';
+      } else if (filter === 'admin' && isAdmin) {
+        params.source = 'admin';
+      }
+
+      const data = await adminAPI.getNotifications(params);
       if (data.success && data.data) {
-        const list = (data.data as Notification[]).map((n) => ({ ...n, source: 'normal' as const }));
-        setNotifications(list.slice(0, 10));
+        setNotifications(data.data as Notification[]);
       } else {
         setNotifications([]);
       }
@@ -96,7 +130,7 @@ export function NotificationDropdown() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filter, isAdmin]);
 
   // İlk yükleme ve 60 sn'de bir poll
   useEffect(() => {
@@ -105,14 +139,14 @@ export function NotificationDropdown() {
     return () => clearInterval(interval);
   }, [fetchUnreadCount]);
 
-  // Fetch when opened
+  // Dropdown açıldığında veya filtre değiştiğinde fetch
   useEffect(() => {
     if (opened) {
       fetchNotifications();
     }
   }, [opened, fetchNotifications]);
 
-  // Mark as read (sadece normal bildirimler)
+  // Bildirimi okundu işaretle
   const markAsRead = async (id: number) => {
     try {
       await adminAPI.markNotificationRead(id);
@@ -123,19 +157,20 @@ export function NotificationDropdown() {
     }
   };
 
-  // Mark all as read
+  // Tüm bildirimleri okundu işaretle
   const markAllAsRead = async () => {
     try {
-      await adminAPI.markAllNotificationsRead();
+      const source = filter === 'all' ? undefined : filter === 'admin' ? 'admin' : 'user';
+      await adminAPI.markAllNotificationsRead(source);
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-      setUnreadCount(0);
+      fetchUnreadCount(); // Sayıyı güncelle
     } catch {
       // Sessizce devam
     }
   };
 
-  // Handle notification click
-  const handleClick = (notification: Notification & { source?: string }) => {
+  // Bildirime tıkla
+  const handleClick = (notification: Notification) => {
     if (!notification.is_read) {
       markAsRead(notification.id);
     }
@@ -146,6 +181,7 @@ export function NotificationDropdown() {
     }
   };
 
+  // Zaman formatla
   const formatTime = (dateString: string) => {
     try {
       return formatDistanceToNow(new Date(dateString), {
@@ -157,12 +193,43 @@ export function NotificationDropdown() {
     }
   };
 
+  // Bildirim tipi belirleme
+  const getNotificationType = (notification: Notification) => {
+    if (notification.severity === 'critical' || notification.severity === 'error') {
+      return 'error';
+    }
+    if (notification.severity === 'warning') {
+      return 'warning';
+    }
+    return notification.type || 'info';
+  };
+
+  // Kaynak badge'i
+  const getSourceBadge = (source: string) => {
+    switch (source) {
+      case 'admin':
+        return (
+          <Badge size="xs" variant="light" color="red">
+            Admin
+          </Badge>
+        );
+      case 'system':
+        return (
+          <Badge size="xs" variant="light" color="gray">
+            Sistem
+          </Badge>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <Menu
       opened={opened}
       onChange={setOpened}
       shadow="lg"
-      width={360}
+      width={400}
       position="bottom-end"
       transitionProps={{ transition: 'pop-top-right' }}
       styles={{
@@ -192,7 +259,7 @@ export function NotificationDropdown() {
               color="gray"
               style={{
                 transition: 'all 0.2s ease',
-                background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                background: isDark ? 'var(--surface-elevated)' : 'rgba(0,0,0,0.03)',
               }}
             >
               <IconBell size={20} />
@@ -206,10 +273,10 @@ export function NotificationDropdown() {
         <Box
           p="sm"
           style={{
-            borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+            borderBottom: `1px solid ${isDark ? 'var(--surface-border)' : 'rgba(0,0,0,0.08)'}`,
           }}
         >
-          <Group justify="space-between">
+          <Group justify="space-between" mb="xs">
             <Group gap="xs">
               <Text fw={600} size="sm">
                 Bildirimler
@@ -220,7 +287,7 @@ export function NotificationDropdown() {
                 </Badge>
               )}
             </Group>
-            {unreadCount > 0 && (
+            {notifications.some((n) => !n.is_read) && (
               <UnstyledButton onClick={markAllAsRead}>
                 <Text size="xs" c="blue" fw={500}>
                   Tümünü okundu işaretle
@@ -228,10 +295,25 @@ export function NotificationDropdown() {
               </UnstyledButton>
             )}
           </Group>
+
+          {/* Filtre - Sadece admin kullanıcıları için */}
+          {isAdmin && (
+            <SegmentedControl
+              value={filter}
+              onChange={(value) => setFilter(value as FilterType)}
+              size="xs"
+              fullWidth
+              data={[
+                { label: 'Tümü', value: 'all' },
+                { label: 'Genel', value: 'user' },
+                { label: 'Admin', value: 'admin' },
+              ]}
+            />
+          )}
         </Box>
 
         {/* Content */}
-        <ScrollArea.Autosize mah={350}>
+        <ScrollArea.Autosize mah={400}>
           {loading ? (
             <Center py="xl">
               <Loader size="sm" />
@@ -248,17 +330,13 @@ export function NotificationDropdown() {
           ) : (
             <Stack gap={0}>
               {notifications.map((notification) => {
-                // Admin bildirimleri için severity'ye göre type belirle
-                const notificationType =
-                  notification.severity === 'critical'
-                    ? 'error'
-                    : notification.severity === 'warning'
-                      ? 'warning'
-                      : notification.type;
-
+                const notificationType = getNotificationType(notification);
                 const config = typeConfig[notificationType] || typeConfig.info;
-                const Icon = config.icon;
-                const _CategoryIcon = categoryIcons[notification.category] || IconInfoCircle;
+                const Icon = categoryIcons[notification.category] || config.icon;
+                const iconColor =
+                  notification.source === 'admin'
+                    ? severityColors[notification.severity] || config.color
+                    : config.color;
 
                 return (
                   <UnstyledButton
@@ -266,12 +344,16 @@ export function NotificationDropdown() {
                     onClick={() => handleClick(notification)}
                     p="sm"
                     style={{
-                      borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
+                      borderBottom: `1px solid ${isDark ? 'var(--surface-border-subtle)' : 'rgba(0,0,0,0.05)'}`,
                       backgroundColor: notification.is_read
                         ? 'transparent'
                         : isDark
-                          ? 'rgba(34, 139, 230, 0.1)'
-                          : 'rgba(34, 139, 230, 0.05)',
+                          ? notification.source === 'admin'
+                            ? 'rgba(250, 82, 82, 0.1)'
+                            : 'rgba(34, 139, 230, 0.1)'
+                          : notification.source === 'admin'
+                            ? 'rgba(250, 82, 82, 0.05)'
+                            : 'rgba(34, 139, 230, 0.05)',
                       transition: 'all 0.15s ease',
                     }}
                     className="notification-item"
@@ -283,29 +365,35 @@ export function NotificationDropdown() {
                           height: 36,
                           borderRadius: 8,
                           backgroundColor: isDark
-                            ? `var(--mantine-color-${config.color}-9)`
-                            : `var(--mantine-color-${config.color}-0)`,
+                            ? `var(--mantine-color-${iconColor}-9)`
+                            : `var(--mantine-color-${iconColor}-0)`,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           flexShrink: 0,
                         }}
                       >
-                        <Icon size={18} color={`var(--mantine-color-${config.color}-6)`} />
+                        <Icon size={18} color={`var(--mantine-color-${iconColor}-6)`} />
                       </Box>
 
                       <Box style={{ flex: 1, minWidth: 0 }}>
                         <Group justify="space-between" wrap="nowrap" mb={2}>
-                          <Text size="sm" fw={notification.is_read ? 400 : 600} truncate>
-                            {notification.title}
-                          </Text>
+                          <Group gap={6}>
+                            <Text size="sm" fw={notification.is_read ? 400 : 600} truncate>
+                              {notification.title}
+                            </Text>
+                            {getSourceBadge(notification.source)}
+                          </Group>
                           {!notification.is_read && (
                             <Box
                               style={{
                                 width: 8,
                                 height: 8,
                                 borderRadius: '50%',
-                                backgroundColor: 'var(--mantine-color-blue-6)',
+                                backgroundColor:
+                                  notification.source === 'admin'
+                                    ? 'var(--mantine-color-red-6)'
+                                    : 'var(--mantine-color-blue-6)',
                                 flexShrink: 0,
                               }}
                             />
@@ -322,6 +410,11 @@ export function NotificationDropdown() {
                           <Text size="xs" c="dimmed">
                             {formatTime(notification.created_at)}
                           </Text>
+                          {notification.severity === 'critical' && (
+                            <Badge size="xs" color="red" variant="filled">
+                              Kritik
+                            </Badge>
+                          )}
                           {notification.link && (
                             <IconExternalLink size={12} style={{ opacity: 0.5 }} />
                           )}
@@ -346,7 +439,7 @@ export function NotificationDropdown() {
           >
             <UnstyledButton
               onClick={() => {
-                router.push('/ayarlar');
+                router.push('/ayarlar?tab=bildirimler');
                 setOpened(false);
               }}
               style={{ width: '100%' }}
