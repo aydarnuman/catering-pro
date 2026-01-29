@@ -8,8 +8,8 @@ import { type NextRequest, NextResponse } from 'next/server';
  * Gerçek auth doğrulaması backend'de yapılır.
  */
 
-// Auth gerektiren path'ler
-const PROTECTED_PATHS = ['/ayarlar', '/admin', '/profil', '/muhasebe', '/ai-chat', '/tracking'];
+// Auth gerektiren path'ler ('/' ana sayfa dahil)
+const PROTECTED_PATHS = ['/', '/ayarlar', '/admin', '/profil', '/muhasebe', '/ai-chat', '/tracking'];
 
 // Static dosyalar - middleware atla
 const STATIC_PATHS = ['/_next', '/api', '/favicon.ico', '/images', '/fonts', '/logo'];
@@ -36,7 +36,10 @@ export async function middleware(request: NextRequest) {
   // Cookie yoksa login'e yönlendir
   if (!accessToken) {
     const loginUrl = new URL('/giris', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
+    // Ana sayfa için redirect parametresi ekleme (temiz URL)
+    if (pathname !== '/') {
+      loginUrl.searchParams.set('redirect', pathname);
+    }
     return NextResponse.redirect(loginUrl);
   }
 
