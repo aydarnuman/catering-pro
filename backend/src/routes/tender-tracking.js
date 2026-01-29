@@ -38,7 +38,7 @@ router.get('/', async (req, res) => {
           '[]'::json
         ) as user_notes
       FROM tender_tracking tt
-      JOIN tenders t ON tt.tender_id::integer = t.id
+      JOIN tenders t ON tt.tender_id = t.id::text
       WHERE 1=1
     `;
 
