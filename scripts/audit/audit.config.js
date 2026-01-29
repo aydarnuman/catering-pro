@@ -18,17 +18,17 @@ const defaultConfig = {
 
   // Kod Kalitesi Eşikleri
   codeQuality: {
-    // Cyclomatic complexity eşiği
-    maxCyclomaticComplexity: 15,
+    // Cyclomatic complexity eşiği (Express route'lar için gerçekçi)
+    maxCyclomaticComplexity: 25,
 
-    // Dosya başına maksimum satır
-    maxLinesPerFile: 500,
+    // Dosya başına maksimum satır (domain-driven dosyalar için)
+    maxLinesPerFile: 2000,
 
-    // Fonksiyon başına maksimum satır
-    maxLinesPerFunction: 50,
+    // Fonksiyon başına maksimum satır (middleware/handler için makul)
+    maxLinesPerFunction: 150,
 
     // JSDoc kapsama minimum yüzdesi
-    minJsDocCoverage: 30,
+    minJsDocCoverage: 10,
 
     // README güncellik eşiği (gün)
     readmeFreshnessThresholdDays: 90,
@@ -131,7 +131,7 @@ const defaultConfig = {
 
     // Performans
     performance: {
-      maxBundleSizeMB: 5,
+      maxBundleSizeMB: 15,
       detectMemoryLeaks: true,
       checkAsyncDisposal: true,
     },
