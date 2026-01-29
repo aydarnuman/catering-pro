@@ -83,34 +83,51 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             components: {
               Paper: {
                 defaultProps: {
-                  bg: '#2d2d32',
+                  bg: '#252529',
                 },
                 styles: {
                   root: {
-                    backgroundColor: '#2d2d32',
+                    backgroundColor: '#252529',
                     border: '1px solid rgba(255, 255, 255, 0.08)',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
                   },
                 },
               },
               Card: {
                 defaultProps: {
-                  bg: '#2d2d32',
+                  bg: '#252529',
                 },
                 styles: {
                   root: {
-                    backgroundColor: '#2d2d32',
+                    backgroundColor: '#252529',
                     border: '1px solid rgba(255, 255, 255, 0.08)',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      borderColor: 'rgba(255, 255, 255, 0.12)',
+                      boxShadow: '0 6px 20px rgba(0, 0, 0, 0.18)',
+                    },
                   },
                 },
               },
               Modal: {
                 styles: {
                   content: {
-                    backgroundColor: '#2d2d32',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    backgroundColor: '#1c1c20',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
                   },
                   header: {
-                    backgroundColor: '#2d2d32',
+                    backgroundColor: '#1c1c20',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                    padding: '16px 20px',
+                  },
+                  title: {
+                    fontWeight: 600,
+                    fontSize: '16px',
+                  },
+                  body: {
+                    padding: '20px',
                   },
                 },
               },
@@ -238,14 +255,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 styles: {
                   table: {
                     '& thead tr th': {
-                      backgroundColor: '#27272a',
-                      borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                      backgroundColor: '#1e1e24',
+                      borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                      color: '#a1a1aa',
+                      fontWeight: 600,
+                      fontSize: '12px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      padding: '12px 16px',
                     },
                     '& tbody tr td': {
                       borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+                      padding: '14px 16px',
                     },
                     '& tbody tr:hover': {
-                      backgroundColor: '#27272a',
+                      backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                    },
+                    '& tbody tr:nth-of-type(even)': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
                     },
                   },
                 },

@@ -28,17 +28,19 @@
   --warning: #f59e0b;
 }
 
-/* Full width containers */
+/* Full width containers - improved spacing */
 .main-content .mantine-Container-root {
-  max-width: 95%;
-  width: 95%;
-  padding-left: 24px;
-  padding-right: 24px;
+  max-width: 100%;
+  width: 100%;
+  padding-left: 32px;
+  padding-right: 32px;
 }
 
 @media (min-width: 1600px) {
   .main-content .mantine-Container-root {
-    max-width: 1700px;
+    max-width: 1920px;
+    padding-left: 48px;
+    padding-right: 48px;
   }
 }
 
@@ -252,61 +254,29 @@ a {
   z-index: 1; /* İçeriğin overlay'lerin üstünde görünmesi için */
 }
 
-/* Ana içerik alanının üst kısmında pulse animasyonlu siyah-gri ağırlıklı overlay + beyaz efekt */
+/* Ana içerik alanı - subtle gradient (no animation for better readability) */
 .main-content::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 300px;
+  height: 200px;
   background: linear-gradient(
     180deg,
-    rgba(0, 0, 0, 0.5) 0%,
-    rgba(20, 20, 25, 0.4) 20%,
-    rgba(40, 40, 50, 0.3) 40%,
-    rgba(60, 60, 70, 0.2) 60%,
-    transparent 100%
-  ),
-  linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.15) 0%,
-    rgba(255, 255, 255, 0.1) 30%,
-    rgba(255, 255, 255, 0.05) 60%,
+    rgba(59, 130, 246, 0.03) 0%,
     transparent 100%
   );
   pointer-events: none;
   z-index: 0;
-  animation: pulseOverlay 2.5s ease-in-out infinite;
 }
 
 [data-mantine-color-scheme="light"] .main-content::before {
   background: linear-gradient(
     180deg,
-    rgba(100, 100, 120, 0.4) 0%,
-    rgba(120, 120, 140, 0.3) 20%,
-    rgba(140, 140, 160, 0.2) 40%,
-    rgba(160, 160, 180, 0.15) 60%,
-    transparent 100%
-  ),
-  linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.3) 0%,
-    rgba(255, 255, 255, 0.2) 30%,
-    rgba(255, 255, 255, 0.1) 60%,
+    rgba(59, 130, 246, 0.05) 0%,
     transparent 100%
   );
-}
-
-@keyframes pulseOverlay {
-  0%, 100% {
-    opacity: 0.4;
-    filter: brightness(1);
-  }
-  50% {
-    opacity: 0.6;
-    filter: brightness(1.3);
-  }
 }
 
 .main-content.has-navbar {
@@ -1762,15 +1732,15 @@ html body [data-dates-dropdown="true"] .mantine-Calendar-headerLevel {
 
 /* İç içe kart (nested card) - ProjeCard gibi durumlar için */
 .nested-card {
-  background: var(--surface-elevated, rgba(255, 255, 255, 0.05));
-  border: 1px solid var(--surface-border, var(--border));
-  border-radius: var(--mantine-radius-sm);
-  padding: var(--mantine-spacing-xs);
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 12px !important;
+  padding: 12px;
 }
 
 [data-mantine-color-scheme="light"] .nested-card {
-  background: rgba(0, 0, 0, 0.02);
-  border-color: rgba(0, 0, 0, 0.06);
+  background: rgba(0, 0, 0, 0.03) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
 }
 
 /* Glassmorphism kart (hero alanları için) */
@@ -2710,4 +2680,128 @@ html body [data-dates-dropdown="true"] .mantine-Calendar-headerLevel {
 
 [data-mantine-color-scheme="light"] .auth-page-blob-3 {
   background: radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0) 70%);
+}
+
+/* ===== TRACKING PAGE STAT CARDS ===== */
+.tracking-stat-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.tracking-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.2));
+}
+
+.tracking-stat-bekliyor::before {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.tracking-stat-basvuruldu::before {
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+.tracking-stat-kazanildi::before {
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+}
+
+.tracking-stat-toplam::before {
+  background: linear-gradient(90deg, #6b7280, #9ca3af);
+}
+
+/* ===== IMPROVED EMPTY STATE ===== */
+.empty-state-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.empty-state-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+/* ===== IMPROVED SCROLLBAR FOR MODALS ===== */
+.mantine-Modal-body::-webkit-scrollbar,
+.mantine-Drawer-body::-webkit-scrollbar,
+.mantine-ScrollArea-viewport::-webkit-scrollbar {
+  width: 8px;
+}
+
+.mantine-Modal-body::-webkit-scrollbar-track,
+.mantine-Drawer-body::-webkit-scrollbar-track,
+.mantine-ScrollArea-viewport::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+}
+
+.mantine-Modal-body::-webkit-scrollbar-thumb,
+.mantine-Drawer-body::-webkit-scrollbar-thumb,
+.mantine-ScrollArea-viewport::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+.mantine-Modal-body::-webkit-scrollbar-thumb:hover,
+.mantine-Drawer-body::-webkit-scrollbar-thumb:hover,
+.mantine-ScrollArea-viewport::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* ===== IMPROVED TABLE STYLING ===== */
+.mantine-Table-root {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.mantine-Table-root thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.mantine-Table-root th {
+  background: #1e1e24 !important;
+  color: #a1a1aa !important;
+  font-weight: 600 !important;
+  font-size: 11px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.mantine-Table-root td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+.mantine-Table-root tbody tr:hover {
+  background: rgba(59, 130, 246, 0.08) !important;
+}
+
+.mantine-Table-root tbody tr:nth-of-type(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.mantine-Table-root tbody tr:nth-of-type(even):hover {
+  background: rgba(59, 130, 246, 0.08) !important;
+}
+
+/* ===== IMPROVED BADGE STYLING ===== */
+.mantine-Badge-root {
+  font-weight: 600;
+  letter-spacing: 0.3px;
 }

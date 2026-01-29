@@ -141,11 +141,10 @@ export function DokumanlarTab({
             Teknik Şartlar
             <Badge
               size="xs"
-              variant="light"
+              variant="filled"
+              color="gray"
               styles={{
                 root: {
-                  backgroundColor: '#f3f4f6',
-                  color: '#374151',
                   fontWeight: 600,
                   minWidth: 24,
                 },
@@ -160,11 +159,10 @@ export function DokumanlarTab({
             Mal/Hizmet Listesi
             <Badge
               size="xs"
-              variant="light"
+              variant="filled"
+              color="gray"
               styles={{
                 root: {
-                  backgroundColor: '#f3f4f6',
-                  color: '#374151',
                   fontWeight: 600,
                   minWidth: 24,
                 },
@@ -179,11 +177,10 @@ export function DokumanlarTab({
             AI Notları
             <Badge
               size="xs"
-              variant="light"
+              variant="filled"
+              color="yellow"
               styles={{
                 root: {
-                  backgroundColor: '#fef3c7',
-                  color: '#92400e',
                   fontWeight: 600,
                   minWidth: 24,
                 },
@@ -271,15 +268,15 @@ export function DokumanlarTab({
                   const isImportant = /zorunlu|mecburi|şart|gerekli|mutlaka/i.test(sartText);
                   const isWarning = /dikkat|uyarı|önemli|not:|ödeme/i.test(sartText);
                   const borderColor = isImportant
-                    ? 'var(--mantine-color-red-4)'
+                    ? 'var(--mantine-color-red-6)'
                     : isWarning
-                      ? 'var(--mantine-color-orange-4)'
-                      : 'var(--mantine-color-gray-3)';
+                      ? 'var(--mantine-color-orange-6)'
+                      : 'rgba(255, 255, 255, 0.12)';
                   const bgColor = isImportant
-                    ? 'rgba(254, 226, 226, 0.3)'
+                    ? 'rgba(239, 68, 68, 0.12)'
                     : isWarning
-                      ? 'rgba(255, 237, 213, 0.3)'
-                      : 'white';
+                      ? 'rgba(245, 158, 11, 0.12)'
+                      : 'rgba(255, 255, 255, 0.04)';
                   const iconColor = isImportant ? 'red' : isWarning ? 'orange' : 'blue';
 
                   return (
@@ -479,7 +476,7 @@ export function DokumanlarTab({
                   style={{
                     position: 'sticky',
                     top: 0,
-                    background: 'var(--mantine-color-blue-0)',
+                    background: '#1e1e24',
                     zIndex: 1,
                   }}
                 >
@@ -626,8 +623,10 @@ export function DokumanlarTab({
           mb="md"
           radius="md"
           withBorder
-          bg="orange.0"
-          style={{ borderColor: 'var(--mantine-color-orange-3)' }}
+          style={{
+            background: 'rgba(245, 158, 11, 0.1)',
+            borderColor: 'rgba(245, 158, 11, 0.3)'
+          }}
         >
           <Group gap="md" justify="space-between">
             <Group gap="sm" style={{ flex: 1 }}>
@@ -676,19 +675,19 @@ export function DokumanlarTab({
                   const isWarning = /dikkat|uyarı|önemli|risk|zorunlu/i.test(noteText);
 
                   const bgColor = isWarning
-                    ? 'rgba(254, 226, 226, 0.4)'
+                    ? 'rgba(239, 68, 68, 0.12)'
                     : isNumeric
-                      ? 'rgba(219, 234, 254, 0.4)'
+                      ? 'rgba(59, 130, 246, 0.12)'
                       : isProcedure
-                        ? 'rgba(220, 252, 231, 0.4)'
-                        : 'rgba(255, 237, 213, 0.5)';
+                        ? 'rgba(34, 197, 94, 0.12)'
+                        : 'rgba(245, 158, 11, 0.12)';
                   const borderColor = isWarning
-                    ? 'var(--mantine-color-red-4)'
+                    ? 'var(--mantine-color-red-6)'
                     : isNumeric
-                      ? 'var(--mantine-color-blue-4)'
+                      ? 'var(--mantine-color-blue-6)'
                       : isProcedure
-                        ? 'var(--mantine-color-green-4)'
-                        : 'var(--mantine-color-orange-4)';
+                        ? 'var(--mantine-color-green-6)'
+                        : 'var(--mantine-color-orange-6)';
 
                   return (
                     <Paper

@@ -89,35 +89,35 @@ interface HesaplamalarTabProps {
   hesaplaBedel: () => void;
 }
 
-// Pro Theme Colors - Light uyumlu
+// Pro Theme Colors - Dark mode uyumlu
 const theme = {
-  bg: '#f8fafc',
-  cardBg: '#ffffff',
-  border: '#e2e8f0',
-  borderFocus: '#0ea5e9',
-  text: '#0f172a',
-  textMuted: '#64748b',
-  textDimmed: '#94a3b8',
-  accent: '#0ea5e9',
-  accentLight: '#e0f2fe',
-  success: '#059669',
-  successLight: '#d1fae5',
-  warning: '#d97706',
-  warningLight: '#fef3c7',
-  danger: '#dc2626',
+  bg: '#1e1e24',
+  cardBg: '#252529',
+  border: 'rgba(255, 255, 255, 0.1)',
+  borderFocus: '#3b82f6',
+  text: '#ffffff',
+  textMuted: '#a1a1aa',
+  textDimmed: '#71717a',
+  accent: '#3b82f6',
+  accentLight: 'rgba(59, 130, 246, 0.15)',
+  success: '#22c55e',
+  successLight: 'rgba(34, 197, 94, 0.15)',
+  warning: '#f59e0b',
+  warningLight: 'rgba(245, 158, 11, 0.15)',
+  danger: '#ef4444',
 };
 
-// Clean input styles
+// Clean input styles - dark mode
 const inputStyles = {
   input: {
-    backgroundColor: '#f8fafc',
-    borderColor: theme.border,
-    color: theme.text,
+    backgroundColor: '#1e1e24',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    color: '#ffffff',
     fontWeight: 600,
-    '&:focus': { borderColor: theme.borderFocus },
+    '&:focus': { borderColor: '#3b82f6' },
   },
   label: {
-    color: theme.textMuted,
+    color: '#a1a1aa',
     fontSize: 11,
     fontWeight: 600,
     textTransform: 'uppercase' as const,
