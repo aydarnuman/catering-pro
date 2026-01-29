@@ -22,8 +22,8 @@ router.get('/', async (req, res) => {
         t.city,
         t.external_id,
         t.url,
-        (SELECT COUNT(*) FROM documents WHERE tender_id = t.id::text AND (file_type IS NULL OR file_type NOT LIKE '%zip%')) as dokuman_sayisi,
-        (SELECT COUNT(*) FROM documents WHERE tender_id = t.id::text AND processing_status = 'completed' AND (file_type IS NULL OR file_type NOT LIKE '%zip%')) as analiz_edilen_dokuman,
+        (SELECT COUNT(*) FROM documents d WHERE d.tender_id = tt.tender_id AND (d.file_type IS NULL OR d.file_type NOT LIKE '%zip%')) as dokuman_sayisi,
+        (SELECT COUNT(*) FROM documents d WHERE d.tender_id = tt.tender_id AND d.processing_status = 'completed' AND (d.file_type IS NULL OR d.file_type NOT LIKE '%zip%')) as analiz_edilen_dokuman,
         COALESCE(
           (SELECT json_agg(json_build_object(
             'id', un.id,
@@ -34,11 +34,11 @@ router.get('/', async (req, res) => {
             'created_at', un.created_at
           ) ORDER BY un.pinned DESC, un.sort_order ASC, un.created_at DESC)
           FROM unified_notes un
-          WHERE un.context_type = 'tender' AND un.context_id = tt.tender_id::text),
+          WHERE un.context_type = 'tender' AND un.context_id = tt.tender_id),
           '[]'::json
         ) as user_notes
       FROM tender_tracking tt
-      JOIN tenders t ON tt.tender_id = t.id::text
+      JOIN tenders t ON t.id = tt.tender_id::integer
       WHERE 1=1
     `;
 
