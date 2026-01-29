@@ -250,15 +250,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   },
                 },
               },
-              Tabs: {
-                styles: {
-                  tab: {
-                    '&[data-active]': {
-                      borderColor: '#3b82f6',
-                    },
-                  },
-                },
-              },
               Drawer: {
                 styles: {
                   content: {
