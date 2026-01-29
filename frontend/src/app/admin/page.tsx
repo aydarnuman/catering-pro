@@ -364,7 +364,7 @@ export default function AdminPage() {
 
             {Object.entries(adminCategories).map(([key, category]) => (
               <Tabs.Panel key={key} value={key}>
-                <SimpleGrid cols={{ base: 1, sm: 2, md: category.items.length }} spacing="md">
+                <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="md">
                   {category.items.map((item) => (
                     <Tooltip
                       key={item.id}
@@ -374,9 +374,9 @@ export default function AdminPage() {
                       multiline
                       w={220}
                     >
-                      <UnstyledButton component="a" href={item.path} style={{ width: '100%' }}>
-                        <Card padding="lg" radius="md" className="standard-card-hover">
-                          <Stack gap="sm" align="center">
+                      <UnstyledButton component="a" href={item.path} style={{ width: '100%', height: '100%' }}>
+                        <Card padding="lg" radius="md" className="standard-card-hover" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                          <Stack gap="sm" align="center" style={{ flex: 1, justifyContent: 'center' }}>
                             <ThemeIcon size={50} radius="xl" variant="light" color={item.color}>
                               <item.icon size={26} />
                             </ThemeIcon>
