@@ -1,23 +1,121 @@
 /**
  * Prompt Builder API Routes
  * AI Prompt Builder modülü için API endpoint'leri
+ *
+ * Güvenlik Güncellemeleri:
+ * - Rate limiting eklendi
+ * - Seed endpoint auth koruması eklendi
+ * - Input validation eklendi
  */
 
 import express from 'express';
-import { authenticate, optionalAuth } from '../middleware/auth.js';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import { authenticate, optionalAuth, requireSuperAdmin } from '../middleware/auth.js';
 import * as pbService from '../services/prompt-builder-service.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
 
+// ============================================
+// RATE LIMITING CONFIGURATION
+// ============================================
+
+/**
+ * AI endpoint'leri için rate limiter
+ * Claude API çağrıları masraflı - abuse önleme
+ */
+const aiRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 dakika
+  max: 15, // dakikada max 15 istek
+  message: {
+    success: false,
+    error: 'Çok fazla istek gönderdiniz. Lütfen 1 dakika bekleyin.',
+    code: 'RATE_LIMIT_EXCEEDED'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
+  keyGenerator: (req) => {
+    if (req.user?.id) return `user_${req.user.id}`;
+    const ip = req.ip || req.socket?.remoteAddress;
+    return ip ? ipKeyGenerator(ip) : 'unknown';
+  }
+});
+
+// ============================================
+// VALIDATION HELPERS
+// ============================================
+
+/**
+ * Input sanitization - XSS ve injection önleme
+ */
+function sanitizeInput(input) {
+  if (typeof input !== 'string') return input;
+  return input
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .trim();
+}
+
+/**
+ * Allowed fields only - field injection önleme
+ */
+function pickAllowedFields(obj, allowedFields) {
+  const result = {};
+  for (const field of allowedFields) {
+    if (obj[field] !== undefined) {
+      result[field] = obj[field];
+    }
+  }
+  return result;
+}
+
+/**
+ * JSON parse helper - robust parsing
+ */
+function extractJSON(text) {
+  if (!text) return null;
+
+  // İlk { ile son } arasını al
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+
+  if (start === -1 || end === -1 || start >= end) {
+    return null;
+  }
+
+  try {
+    const jsonStr = text.substring(start, end + 1);
+    return JSON.parse(jsonStr);
+  } catch {
+    // Markdown code block içinde olabilir
+    const cleaned = text
+      .replace(/```json\n?/g, '')
+      .replace(/```\n?/g, '')
+      .trim();
+
+    const cleanStart = cleaned.indexOf('{');
+    const cleanEnd = cleaned.lastIndexOf('}');
+
+    if (cleanStart !== -1 && cleanEnd !== -1 && cleanStart < cleanEnd) {
+      try {
+        return JSON.parse(cleaned.substring(cleanStart, cleanEnd + 1));
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+}
+
 /**
  * GET /api/prompt-builder/categories
  * Tüm aktif kategorileri listele
  */
-router.get('/categories', async (req, res) => {
+router.get('/categories', async (_req, res) => {
   try {
     const categories = await pbService.getCategories();
-    
+
     res.json({
       success: true,
       data: categories
@@ -209,21 +307,48 @@ router.post('/generate', optionalAuth, async (req, res) => {
  */
 router.post('/save', authenticate, async (req, res) => {
   try {
-    const { name, generatedPrompt, originalInput, style, categoryId, templateId, description, answers } = req.body;
-    
-    if (!name || !generatedPrompt) {
+    // Sadece izin verilen alanları al (field injection önleme)
+    const allowedFields = ['name', 'generatedPrompt', 'originalInput', 'style', 'categoryId', 'templateId', 'description', 'answers'];
+    const safeBody = pickAllowedFields(req.body, allowedFields);
+
+    const { name, generatedPrompt, originalInput, style, categoryId, templateId, description, answers } = safeBody;
+
+    // Validation
+    if (!name || typeof name !== 'string' || name.trim().length < 3) {
       return res.status(400).json({
         success: false,
-        error: 'İsim ve prompt gerekli'
+        error: 'İsim en az 3 karakter olmalı'
       });
     }
-    
+
+    if (!generatedPrompt || typeof generatedPrompt !== 'string' || generatedPrompt.trim().length < 10) {
+      return res.status(400).json({
+        success: false,
+        error: 'Prompt en az 10 karakter olmalı'
+      });
+    }
+
+    // Max length kontrolü
+    if (name.length > 255) {
+      return res.status(400).json({
+        success: false,
+        error: 'İsim en fazla 255 karakter olabilir'
+      });
+    }
+
+    if (generatedPrompt.length > 50000) {
+      return res.status(400).json({
+        success: false,
+        error: 'Prompt en fazla 50000 karakter olabilir'
+      });
+    }
+
     const saved = await pbService.savePrompt(req.user.id, {
-      categoryId: categoryId || null,
-      templateId: templateId || null,
-      name,
-      description: description || null,
-      generatedPrompt,
+      categoryId: categoryId ? parseInt(categoryId, 10) : null,
+      templateId: templateId ? parseInt(templateId, 10) : null,
+      name: sanitizeInput(name.trim()),
+      description: description ? sanitizeInput(description.trim()) : null,
+      generatedPrompt: generatedPrompt.trim(),
       answers: answers || { originalInput: originalInput || '' },
       style: style || 'professional'
     });
@@ -243,7 +368,7 @@ router.post('/save', authenticate, async (req, res) => {
     logger.error('[Prompt Builder] Prompt kaydedilemedi', { error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
-      error: 'Prompt kaydedilemedi: ' + error.message
+      error: `Prompt kaydedilemedi: ${error.message}`
     });
   }
 });
@@ -258,9 +383,9 @@ router.get('/saved', authenticate, async (req, res) => {
     const { limit = 50, offset = 0, categoryId, favoriteOnly } = req.query;
     
     const prompts = await pbService.getSavedPrompts(req.user.id, {
-      limit: parseInt(limit),
-      offset: parseInt(offset),
-      categoryId: categoryId ? parseInt(categoryId) : null,
+      limit: parseInt(limit, 10),
+      offset: parseInt(offset, 10),
+      categoryId: categoryId ? parseInt(categoryId, 10) : null,
       favoriteOnly: favoriteOnly === 'true'
     });
     
@@ -317,15 +442,60 @@ router.get('/saved/:id', optionalAuth, async (req, res) => {
 router.patch('/saved/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, isFavorite, isPublic } = req.body;
-    
+
+    // Sadece izin verilen alanları al (field injection önleme)
+    const allowedFields = ['name', 'description', 'isFavorite', 'isPublic'];
+    const safeBody = pickAllowedFields(req.body, allowedFields);
+
+    const { name, description, isFavorite, isPublic } = safeBody;
+
+    // Validation
+    if (name !== undefined) {
+      if (typeof name !== 'string' || name.trim().length < 3) {
+        return res.status(400).json({
+          success: false,
+          error: 'İsim en az 3 karakter olmalı'
+        });
+      }
+      if (name.length > 255) {
+        return res.status(400).json({
+          success: false,
+          error: 'İsim en fazla 255 karakter olabilir'
+        });
+      }
+    }
+
+    if (description !== undefined && description !== null) {
+      if (typeof description !== 'string' || description.length > 1000) {
+        return res.status(400).json({
+          success: false,
+          error: 'Açıklama en fazla 1000 karakter olabilir'
+        });
+      }
+    }
+
+    // Boolean validation
+    if (isFavorite !== undefined && typeof isFavorite !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        error: 'isFavorite boolean olmalı'
+      });
+    }
+
+    if (isPublic !== undefined && typeof isPublic !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        error: 'isPublic boolean olmalı'
+      });
+    }
+
     const updated = await pbService.updateSavedPrompt(id, req.user.id, {
-      name,
-      description,
+      name: name ? sanitizeInput(name.trim()) : undefined,
+      description: description ? sanitizeInput(description.trim()) : description,
       isFavorite,
       isPublic
     });
-    
+
     if (!updated) {
       return res.status(404).json({
         success: false,
@@ -421,9 +591,9 @@ router.get('/gallery', async (req, res) => {
     const { limit = 50, offset = 0, categoryId, sortBy = 'usage_count' } = req.query;
     
     const prompts = await pbService.getPublicPrompts({
-      limit: parseInt(limit),
-      offset: parseInt(offset),
-      categoryId: categoryId ? parseInt(categoryId) : null,
+      limit: parseInt(limit, 10),
+      offset: parseInt(offset, 10),
+      categoryId: categoryId ? parseInt(categoryId, 10) : null,
       sortBy
     });
     
@@ -465,8 +635,9 @@ router.get('/my-stats', authenticate, async (req, res) => {
 /**
  * POST /api/prompt-builder/ask
  * AI'dan dinamik soru iste - Chat tarzı interaktif akış
+ * Rate Limited: 15 req/min
  */
-router.post('/ask', optionalAuth, async (req, res) => {
+router.post('/ask', aiRateLimiter, optionalAuth, async (req, res) => {
   try {
     const { userInput, conversationHistory = [] } = req.body;
     
@@ -540,23 +711,31 @@ KULLANICININ İLK İSTEĞİ: "${userInput}"
     });
 
     const responseText = response.content[0]?.text?.trim() || '';
-    
-    // JSON parse et
-    let result;
-    try {
-      // JSON bloğunu bul
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        result = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('JSON bulunamadı');
-      }
-    } catch (parseError) {
-      // Fallback: basit soru oluştur
+
+    // JSON parse et - Robust parsing kullan
+    let result = extractJSON(responseText);
+
+    // Eğer parse edilemezse fallback
+    if (!result) {
+      logger.warn('[Prompt Builder] JSON parse başarısız, fallback kullanılıyor', {
+        responseLength: responseText.length,
+        responsePreview: responseText.substring(0, 200)
+      });
       result = {
         question: 'Bu konuda hangi işlemi yapmak istiyorsunuz?',
         options: ['Bilgi sorgulama', 'Analiz yapma', 'Rapor oluşturma', 'Öneri alma'],
-        isComplete: false
+        isComplete: false,
+        _fallback: true
+      };
+    }
+
+    // Result validation
+    if (!result.isComplete && (!result.question || !Array.isArray(result.options))) {
+      result = {
+        question: result.question || 'Nasıl yardımcı olabilirim?',
+        options: Array.isArray(result.options) ? result.options : ['Devam et', 'Yeniden başla'],
+        isComplete: false,
+        _validated: true
       };
     }
 
@@ -583,8 +762,9 @@ KULLANICININ İLK İSTEĞİ: "${userInput}"
 /**
  * POST /api/prompt-builder/transform
  * Prompt dönüştürme işlemleri
+ * Rate Limited: 15 req/min
  */
-router.post('/transform', optionalAuth, async (req, res) => {
+router.post('/transform', aiRateLimiter, optionalAuth, async (req, res) => {
   try {
     const { prompt, action } = req.body;
     
@@ -627,8 +807,9 @@ router.post('/transform', optionalAuth, async (req, res) => {
 /**
  * POST /api/prompt-builder/optimize
  * AI ile prompt optimize et - BASIT VE ETKİLİ
+ * Rate Limited: 15 req/min
  */
-router.post('/optimize', optionalAuth, async (req, res) => {
+router.post('/optimize', aiRateLimiter, optionalAuth, async (req, res) => {
   try {
     const { userInput, style = 'professional' } = req.body;
     
@@ -744,7 +925,7 @@ Lütfen:
 router.get('/popular-categories', async (req, res) => {
   try {
     const { limit = 5 } = req.query;
-    const categories = await pbService.getPopularCategories(parseInt(limit));
+    const categories = await pbService.getPopularCategories(parseInt(limit, 10));
     
     res.json({
       success: true,
@@ -761,9 +942,10 @@ router.get('/popular-categories', async (req, res) => {
 
 /**
  * POST /api/prompt-builder/seed
- * Başlangıç verilerini oluştur (sadece admin)
+ * Başlangıç verilerini oluştur
+ * AUTH: Super Admin Only - Güvenlik kritik!
  */
-router.post('/seed', async (req, res) => {
+router.post('/seed', authenticate, requireSuperAdmin, async (_req, res) => {
   try {
     const { query } = await import('../database.js');
     

@@ -6,10 +6,12 @@
 import rateLimit from 'express-rate-limit';
 import logger from '../utils/logger.js';
 
-// Genel API rate limiter (100 istek / 15 dakika)
+// Genel API rate limiter
+// Production: 100 istek/15 dk. Development: yüksek limit (SPA + Strict Mode çok istek atar)
+const apiMax = process.env.NODE_ENV === 'production' ? 100 : 3000;
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 dakika
-  max: 100, // Her IP için maksimum 100 istek
+  max: apiMax, // Her IP için maksimum istek
   message: {
     error: 'Çok fazla istek gönderildi. Lütfen 15 dakika sonra tekrar deneyin.',
   },
@@ -28,10 +30,11 @@ export const apiLimiter = rateLimit({
   },
 });
 
-// Auth endpoint'leri için daha sıkı rate limiter (10 istek / 15 dakika)
+// Auth endpoint'leri için rate limiter
+// Development: 50 istek / 15 dakika, Production: 10 istek / 15 dakika
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 dakika
-  max: 10, // Her IP için maksimum 10 istek (brute-force koruması)
+  max: process.env.NODE_ENV === 'production' ? 10 : 50, // Brute-force koruması
   message: {
     error: 'Çok fazla giriş denemesi. Lütfen 15 dakika sonra tekrar deneyin.',
   },

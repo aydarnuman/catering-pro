@@ -268,7 +268,9 @@ import projelerRouter from './routes/projeler.js';
 import planlamaRouter from './routes/planlama.js';
 import menuPlanlamaRouter from './routes/menu-planlama.js';
 import tekliflerRouter from './routes/teklifler.js';
-import notlarRouter from './routes/notlar.js';
+// DEPRECATED: Eski not sistemi - unified_notes'a taşındı (2026-01-29)
+// import notlarRouter from './routes/notlar.js';
+import unifiedNotesRouter from './routes/notes/index.js';
 import firmalarRouter from './routes/firmalar.js';
 import ihaleSonuclariRouter from './routes/ihale-sonuclari.js';
 import searchRouter from './routes/search.js';
@@ -281,7 +283,8 @@ import auditLogsRouter from './routes/audit-logs.js';
 import mailRouter from './routes/mail.js';
 import scraperRouter from './routes/scraper.js';
 import maliyetAnaliziRouter from './routes/maliyet-analizi.js';
-import tenderNotesRouter from './routes/tender-notes.js';
+// DEPRECATED: Eski ihale not sistemi - unified_notes'a taşındı (2026-01-29)
+// import tenderNotesRouter from './routes/tender-notes.js';
 import tenderDilekceRouter from './routes/tender-dilekce.js';
 import socialRouter from './routes/social.js';
 import systemRouter from './routes/system.js';
@@ -290,6 +293,7 @@ import preferencesRouter from './routes/preferences.js';
 import scheduler from './services/sync-scheduler.js';
 import tenderScheduler from './services/tender-scheduler.js';
 import documentQueueProcessor from './services/document-queue-processor.js';
+import reminderNotificationScheduler from './services/reminder-notification-scheduler.js';
 // Migration'lar artık Supabase CLI ile yönetiliyor
 // import { runMigrations } from './utils/migration-runner.js';
 // Yeni migration oluşturma: supabase migration new <isim>
@@ -331,7 +335,9 @@ app.use('/api/projeler', projelerRouter);
 app.use('/api/planlama', planlamaRouter);
 app.use('/api/menu-planlama', menuPlanlamaRouter);
 app.use('/api/teklifler', tekliflerRouter);
-app.use('/api/notlar', notlarRouter);
+// DEPRECATED: Eski not sistemi - unified_notes'a taşındı (2026-01-29)
+// app.use('/api/notlar', notlarRouter);
+app.use('/api/notes', unifiedNotesRouter);  // Unified Notes System
 app.use('/api/firmalar', firmalarRouter);
 app.use('/api/ihale-sonuclari', ihaleSonuclariRouter);
 app.use('/api/search', searchRouter);
@@ -344,7 +350,8 @@ app.use('/api/audit-logs', auditLogsRouter);
 app.use('/api/mail', mailRouter);
 app.use('/api/scraper', scraperRouter);
 app.use('/api/maliyet-analizi', maliyetAnaliziRouter);
-app.use('/api/tender-notes', tenderNotesRouter);
+// DEPRECATED: Eski ihale not sistemi - unified_notes'a taşındı (2026-01-29)
+// app.use('/api/tender-notes', tenderNotesRouter);
 app.use('/api/tender-dilekce', tenderDilekceRouter);
 app.use('/api/social', socialRouter);
 app.use('/api/system', systemRouter);
@@ -478,6 +485,10 @@ const startServer = async () => {
         description: 'Döküman işleme kuyruğu',
         nextRun: null,
       });
+      systemMonitor.registerScheduler('reminderScheduler', {
+        description: 'Not ve Çek/Senet vade hatırlatıcıları',
+        nextRun: null,
+      });
 
       // Scheduler'ları başlat
       logger.info('🔄 Otomatik senkronizasyon scheduler başlatılıyor...');
@@ -488,6 +499,9 @@ const startServer = async () => {
 
       logger.info('📋 Document queue processor başlatılıyor...');
       documentQueueProcessor.start();
+
+      logger.info('🔔 Reminder notification scheduler başlatılıyor...');
+      reminderNotificationScheduler.start();
 
       logger.info('📡 System monitor hazır');
     });

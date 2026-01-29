@@ -22,7 +22,7 @@ export const globalErrorHandler = (err, req, res, next) => {
   });
 
   // Status code belirle
-  const statusCode = err.statusCode || err.status || 500;
+  let statusCode = err.statusCode || err.status || 500;
 
   // Production'da hassas bilgileri gizle
   const isProduction = process.env.NODE_ENV === 'production';

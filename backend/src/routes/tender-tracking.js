@@ -10,11 +10,10 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const { status, user_id } = req.query;
-    
+
     let sql = `
-      SELECT 
+      SELECT
         tt.*,
-        COALESCE(tt.user_notes, '[]'::jsonb) as user_notes,
         COALESCE(tt.hesaplama_verileri, '{}'::jsonb) as hesaplama_verileri,
         t.title as ihale_basligi,
         t.organization_name as kurum,
@@ -24,28 +23,41 @@ router.get('/', async (req, res) => {
         t.external_id,
         t.url,
         (SELECT COUNT(*) FROM documents WHERE tender_id = t.id AND (file_type IS NULL OR file_type NOT LIKE '%zip%')) as dokuman_sayisi,
-        (SELECT COUNT(*) FROM documents WHERE tender_id = t.id AND processing_status = 'completed' AND (file_type IS NULL OR file_type NOT LIKE '%zip%')) as analiz_edilen_dokuman
+        (SELECT COUNT(*) FROM documents WHERE tender_id = t.id AND processing_status = 'completed' AND (file_type IS NULL OR file_type NOT LIKE '%zip%')) as analiz_edilen_dokuman,
+        COALESCE(
+          (SELECT json_agg(json_build_object(
+            'id', un.id,
+            'text', un.content,
+            'color', un.color,
+            'pinned', un.pinned,
+            'is_completed', un.is_completed,
+            'created_at', un.created_at
+          ) ORDER BY un.pinned DESC, un.sort_order ASC, un.created_at DESC)
+          FROM unified_notes un
+          WHERE un.context_type = 'tender' AND un.context_id = tt.tender_id::text),
+          '[]'::json
+        ) as user_notes
       FROM tender_tracking tt
       JOIN tenders t ON tt.tender_id = t.id
       WHERE 1=1
     `;
-    
+
     const params = [];
-    
+
     if (status) {
       params.push(status);
       sql += ` AND tt.status = $${params.length}`;
     }
-    
+
     if (user_id) {
       params.push(user_id);
       sql += ` AND tt.user_id = $${params.length}`;
     }
-    
+
     sql += ` ORDER BY tt.created_at DESC`;
-    
+
     const result = await query(sql, params);
-    
+
     res.json({
       success: true,
       data: result.rows
@@ -162,40 +174,55 @@ router.put('/:id', async (req, res) => {
 });
 
 /**
- * Not ekle
+ * Not ekle - Unified Notes sistemine yönlendirildi
  * POST /api/tender-tracking/:id/notes
  */
 router.post('/:id/notes', async (req, res) => {
   try {
     const { id } = req.params;
-    const { text } = req.body;
-    
-    if (!text || !text.trim()) {
+    const { text, note } = req.body;
+    const noteText = text || note;
+
+    if (!noteText || !noteText.trim()) {
       return res.status(400).json({ success: false, error: 'Not metni gerekli' });
     }
-    
-    const newNote = {
-      id: `note_${Date.now()}`,
-      text: text.trim(),
-      created_at: new Date().toISOString()
-    };
-    
-    const result = await query(`
-      UPDATE tender_tracking 
-      SET user_notes = COALESCE(user_notes, '[]'::jsonb) || $1::jsonb,
-          updated_at = NOW()
-      WHERE id = $2
-      RETURNING *
-    `, [JSON.stringify(newNote), id]);
-    
-    if (result.rows.length === 0) {
+
+    // Tracking kaydından tender_id ve user_id al
+    const trackingResult = await query(
+      'SELECT tender_id, user_id FROM tender_tracking WHERE id = $1',
+      [id]
+    );
+
+    if (trackingResult.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Kayıt bulunamadı' });
     }
-    
+
+    const { tender_id, user_id } = trackingResult.rows[0];
+
+    // Unified notes'a ekle
+    const result = await query(`
+      INSERT INTO unified_notes (
+        user_id, context_type, context_id, content, content_format,
+        is_task, priority, color, pinned, sort_order
+      )
+      VALUES (
+        $1, 'tender', $2::text, $3, 'plain',
+        false, 'normal', 'yellow', false,
+        COALESCE((SELECT MAX(sort_order) + 1 FROM unified_notes WHERE context_type = 'tender' AND context_id = $2::text), 0)
+      )
+      RETURNING *
+    `, [user_id || 1, tender_id, noteText.trim()]);
+
+    const newNote = result.rows[0];
+
+    // Eski format ile uyumluluk için dönüşüm
     res.json({
       success: true,
-      data: result.rows[0],
-      note: newNote
+      note: {
+        id: newNote.id,
+        text: newNote.content,
+        created_at: newNote.created_at
+      }
     });
   } catch (error) {
     console.error('Not ekleme hatası:', error);
@@ -204,33 +231,36 @@ router.post('/:id/notes', async (req, res) => {
 });
 
 /**
- * Not sil
+ * Not sil - Unified Notes sistemine yönlendirildi
  * DELETE /api/tender-tracking/:id/notes/:noteId
  */
 router.delete('/:id/notes/:noteId', async (req, res) => {
   try {
     const { id, noteId } = req.params;
-    
-    // JSONB array'den belirli notu kaldır
-    const result = await query(`
-      UPDATE tender_tracking 
-      SET user_notes = (
-        SELECT COALESCE(jsonb_agg(elem), '[]'::jsonb)
-        FROM jsonb_array_elements(COALESCE(user_notes, '[]'::jsonb)) elem
-        WHERE elem->>'id' != $1
-      ),
-      updated_at = NOW()
-      WHERE id = $2
-      RETURNING *
-    `, [noteId, id]);
-    
-    if (result.rows.length === 0) {
+
+    // Tracking kaydından user_id al (yetki kontrolü için)
+    const trackingResult = await query(
+      'SELECT user_id FROM tender_tracking WHERE id = $1',
+      [id]
+    );
+
+    if (trackingResult.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Kayıt bulunamadı' });
     }
-    
+
+    // Unified notes'tan sil
+    const result = await query(
+      'DELETE FROM unified_notes WHERE id = $1 RETURNING id',
+      [noteId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Not bulunamadı' });
+    }
+
     res.json({
       success: true,
-      data: result.rows[0]
+      message: 'Not silindi'
     });
   } catch (error) {
     console.error('Not silme hatası:', error);

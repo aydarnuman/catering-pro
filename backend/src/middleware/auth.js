@@ -1,181 +1,79 @@
 /**
- * AUTH MIDDLEWARE
- * Supabase JWT doğrulama + public.users profil eşlemesi
+ * AUTH MIDDLEWARE - PostgreSQL Only (Simplified)
+ * Supabase Auth KALDIRILDI - Sadece kendi JWT sistemimiz
+ *
+ * Avantajlar:
+ * - Tek network call (timeout yok)
+ * - Hızlı doğrulama (50-100ms)
+ * - Tam kontrol
  */
 
-import { createClient } from '@supabase/supabase-js';
+import jwt from 'jsonwebtoken';
 import { query } from '../database.js';
 import PermissionService from '../services/permission-service.js';
 import AuditService from '../services/audit-service.js';
 import logger from '../utils/logger.js';
 
-// Supabase URL - önce NEXT_PUBLIC_SUPABASE_URL kontrol et (frontend ile tutarlılık için)
-const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
-
-let supabase = null;
-let supabaseAvailable = false;
-
-// Lazy initialization - sadece gerektiğinde Supabase client oluştur
-function getSupabaseClient() {
-  if (supabase) return supabase;
-
-  if (supabaseUrl && supabaseServiceKey) {
-    try {
-      supabase = createClient(supabaseUrl, supabaseServiceKey);
-      supabaseAvailable = true;
-      logger.info('✅ Supabase auth middleware başlatıldı', {
-        url: supabaseUrl.substring(0, 30) + '...',
-        hasServiceKey: !!supabaseServiceKey
-      });
-    } catch (error) {
-      logger.error('Supabase client oluşturulamadı:', error.message);
-      supabaseAvailable = false;
-    }
-  } else {
-    logger.warn('⚠️ Supabase credentials eksik, fallback PostgreSQL auth kullanılacak', {
-      hasUrl: !!supabaseUrl,
-      hasServiceKey: !!supabaseServiceKey
-    });
-    supabaseAvailable = false;
-  }
-
-  return supabase;
+// JWT_SECRET kontrolü
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  logger.error('KRITIK: JWT_SECRET tanımlanmamış!');
+  throw new Error('JWT_SECRET environment variable is required');
 }
 
 /**
- * Token doğrulama middleware
- * Sadece Authorization: Bearer <token> kabul eder.
- * Supabase JWT doğrulanır, public.users'dan profil alınır.
- * req.user.id = integer (profile.id)
+ * Token doğrulama middleware (Ana middleware)
+ * Sadece kendi JWT token'ımızı doğrular - Supabase YOK
  */
 const authenticate = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      logger.warn('Auth middleware: Token header eksik', {
-        url: req.originalUrl,
-        hasAuthHeader: !!authHeader,
-        authHeaderPreview: authHeader?.substring(0, 30),
-        authHeaderLength: authHeader?.length || 0
-      });
-      return res.status(401).json({ success: false, error: 'Token gerekli' });
+    // Token'ı al: Cookie > Header
+    let token = req.cookies?.access_token;
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7).trim();
+      }
     }
 
-    // Token'ın boş olmadığını kontrol et
-    const token = authHeader.substring(7).trim();
-    if (!token || token.length === 0) {
-      logger.warn('Auth middleware: Token boş', {
-        url: req.originalUrl,
-        authHeaderLength: authHeader.length
-      });
-      return res.status(401).json({ success: false, error: 'Token boş' });
-    }
-
-    // Supabase client'ı başlat (lazy initialization)
-    const supabaseClient = getSupabaseClient();
-
-    // Token'ı decode et (JWT format kontrolü)
-    const tokenParts = token.split('.');
-    if (tokenParts.length !== 3) {
-      logger.warn('Auth middleware: Token formatı geçersiz (JWT 3 parça olmalı)', {
-        url: req.originalUrl,
-        tokenParts: tokenParts.length,
-        tokenPreview: token.substring(0, 30) + '...'
-      });
+    if (!token) {
       return res.status(401).json({
         success: false,
-        error: 'Geçersiz token formatı',
-        details: 'Token JWT formatında değil'
+        error: 'Token gerekli',
+        code: 'NO_TOKEN'
       });
     }
 
-    let authUser = null;
-    let authError = null;
-
-    // Supabase kullanılabilirse token'ı Supabase ile doğrula
-    if (supabaseClient && supabaseAvailable) {
-      try {
-        // Supabase getUser - 3 saniye timeout korumalı (5 saniyeden 3'e düşürüldü)
-        const userPromise = supabaseClient.auth.getUser(token);
-        const timeoutPromise = new Promise((resolve) =>
-          setTimeout(
-            () => resolve({ data: { user: null }, error: { message: 'Auth timeout (3s)' } }),
-            3000
-          )
-        );
-        const { data: { user }, error } = await Promise.race([userPromise, timeoutPromise]);
-
-        if (error || !user) {
-          logger.warn('Supabase token doğrulama başarısız, email fallback deneniyor', {
-            url: req.originalUrl,
-            error: error?.message,
-            tokenPreview: token.substring(0, 30) + '...'
-          });
-        } else {
-          authUser = user;
-        }
-      } catch (supabaseError) {
-        logger.error('Supabase auth error, fallback kullanılacak:', supabaseError.message);
-        authError = supabaseError;
+    // JWT doğrula
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (jwtError) {
+      if (jwtError.name === 'TokenExpiredError') {
+        return res.status(401).json({
+          success: false,
+          error: 'Token süresi dolmuş',
+          code: 'TOKEN_EXPIRED'
+        });
       }
-    }
-
-    // Supabase başarısız veya kullanılamıyorsa: email extraction fallback
-    if (!authUser) {
-      // JWT token'dan email'i çıkar (base64 decode)
-      try {
-        const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
-        if (payload.email) {
-          // PostgreSQL'den direkt email ile kullanıcıyı ara
-          const emailAuthResult = await query(
-            `SELECT id, email, name, user_type FROM users WHERE email = $1 AND is_active = true`,
-            [payload.email]
-          );
-          if (emailAuthResult.rows.length > 0) {
-            // Email ile kullanıcı bulundu, devam et
-            const profile = emailAuthResult.rows[0];
-            const userType = profile.user_type || 'user';
-
-            req.user = {
-              id: profile.id,
-              email: profile.email,
-              name: profile.name,
-              user_type: userType,
-              userType,
-              isSuperAdmin: userType === 'super_admin',
-            };
-
-            return next();
-          }
-        }
-      } catch (decodeError) {
-        logger.error('JWT decode error:', decodeError.message);
-      }
-
-      // Her iki yöntem de başarısız
       return res.status(401).json({
         success: false,
         error: 'Geçersiz token',
-        details: authError?.message || 'Token doğrulanamadı'
+        code: 'INVALID_TOKEN'
       });
     }
 
+    // Kullanıcıyı veritabanından al
     const profileResult = await query(
-      `SELECT id, email, name, user_type FROM users WHERE email = $1 AND is_active = true`,
-      [authUser.email]
+      `SELECT id, email, name, user_type, role FROM users WHERE id = $1 AND is_active = true`,
+      [decoded.id]
     );
 
     if (!profileResult.rows.length) {
-      logger.warn('Auth middleware: Kullanıcı profil bulunamadı', {
-        url: req.originalUrl,
-        email: authUser.email,
-        authUserId: authUser.id
-      });
       return res.status(401).json({
         success: false,
         error: 'Kullanıcı bulunamadı',
-        details: `public.users tablosunda ${authUser.email} için kayıt yok`
+        code: 'USER_NOT_FOUND'
       });
     }
 
@@ -188,6 +86,7 @@ const authenticate = async (req, res, next) => {
       name: profile.name,
       user_type: userType,
       userType,
+      role: profile.role,
       isSuperAdmin: userType === 'super_admin',
     };
 
@@ -202,62 +101,53 @@ const authenticate = async (req, res, next) => {
 };
 
 /**
- * Opsiyonel token doğrulama (giriş yapmadan da çalışan sayfalar için)
- * Sadece Authorization: Bearer kabul eder.
+ * Opsiyonel token doğrulama
+ * Token varsa kullanıcı bilgisi alır, yoksa da devam eder
  */
 const optionalAuth = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    const supabaseClient = getSupabaseClient();
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return next();
-    }
-
-    const token = authHeader.substring(7);
-
-    let authUser = null;
-
-    // Supabase mevcutsa token'ı doğrula
-    if (supabaseClient && supabaseAvailable) {
-      try {
-        // Supabase getUser - 2 saniye timeout korumalı (optional auth için daha kısa)
-        const userPromise = supabaseClient.auth.getUser(token);
-        const timeoutPromise = new Promise((resolve) =>
-          setTimeout(() => resolve({ data: { user: null }, error: { message: 'Auth timeout' } }), 2000)
-        );
-        const { data: { user }, error } = await Promise.race([userPromise, timeoutPromise]);
-
-        if (!error && user) {
-          authUser = user;
-        }
-      } catch {
-        // Hata olsa bile next() - optional auth
+    let token = req.cookies?.access_token;
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7).trim();
       }
     }
 
-    if (!authUser) return next();
+    if (!token) {
+      req.user = null;
+      return next();
+    }
 
-    const profileResult = await query(
-      `SELECT id, email, name, user_type FROM users WHERE email = $1 AND is_active = true`,
-      [authUser.email]
-    );
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
 
-    if (!profileResult.rows.length) return next();
+      const profileResult = await query(
+        `SELECT id, email, name, user_type, role FROM users WHERE id = $1 AND is_active = true`,
+        [decoded.id]
+      );
 
-    const profile = profileResult.rows[0];
-    const userType = profile.user_type || 'user';
+      if (profileResult.rows.length) {
+        const profile = profileResult.rows[0];
+        const userType = profile.user_type || 'user';
 
-    req.user = {
-      id: profile.id,
-      email: profile.email,
-      name: profile.name,
-      user_type: userType,
-      userType,
-      isSuperAdmin: userType === 'super_admin',
-    };
+        req.user = {
+          id: profile.id,
+          email: profile.email,
+          name: profile.name,
+          user_type: userType,
+          userType,
+          role: profile.role,
+          isSuperAdmin: userType === 'super_admin',
+        };
+      } else {
+        req.user = null;
+      }
+    } catch {
+      req.user = null;
+    }
   } catch {
-    /* ignore */
+    req.user = null;
   }
   next();
 };
@@ -390,70 +280,44 @@ const addRequestInfo = (req, res, next) => {
 /**
  * PUBLIC ROUTE - Auth gerektirmez
  * Token varsa kullanıcı bilgisini alır, yoksa da devam eder
- * Tüm public API'ler için kullan
  */
 const publicRoute = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    const supabaseClient = getSupabaseClient();
-
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7).trim();
-      if (token && token.length > 0) {
-        try {
-          let authUser = null;
-
-          // Supabase mevcutsa kullan
-          if (supabaseClient && supabaseAvailable) {
-            try {
-              const { data: { user } } = await supabaseClient.auth.getUser(token);
-              if (user) {
-                authUser = user;
-              }
-            } catch {
-              // Supabase hatası - fallback dene
-            }
-          }
-
-          // Supabase başarısız ise JWT'den email çıkar
-          if (!authUser) {
-            const tokenParts = token.split('.');
-            if (tokenParts.length === 3) {
-              try {
-                const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
-                if (payload.email) {
-                  authUser = { email: payload.email };
-                }
-              } catch {
-                // Decode hatası - devam et
-              }
-            }
-          }
-
-          if (authUser && authUser.email) {
-            const profileResult = await query(
-              `SELECT id, email, name, user_type FROM users WHERE email = $1 AND is_active = true`,
-              [authUser.email]
-            );
-            if (profileResult.rows.length) {
-              const profile = profileResult.rows[0];
-              req.user = {
-                id: profile.id,
-                email: profile.email,
-                name: profile.name,
-                user_type: profile.user_type || 'user',
-                userType: profile.user_type || 'user',
-                isSuperAdmin: profile.user_type === 'super_admin',
-              };
-            }
-          }
-        } catch {
-          // Token hatası olsa bile devam et
-        }
+    let token = req.cookies?.access_token;
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7).trim();
       }
     }
-    // User yoksa bile devam et - public route
-    if (!req.user) {
+
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        const profileResult = await query(
+          `SELECT id, email, name, user_type, role FROM users WHERE id = $1 AND is_active = true`,
+          [decoded.id]
+        );
+
+        if (profileResult.rows.length) {
+          const profile = profileResult.rows[0];
+          req.user = {
+            id: profile.id,
+            email: profile.email,
+            name: profile.name,
+            user_type: profile.user_type || 'user',
+            userType: profile.user_type || 'user',
+            role: profile.role,
+            isSuperAdmin: profile.user_type === 'super_admin',
+          };
+        } else {
+          req.user = null;
+        }
+      } catch {
+        req.user = null;
+      }
+    } else {
       req.user = null;
     }
   } catch {
