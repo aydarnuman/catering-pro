@@ -141,7 +141,7 @@ function showBrowserNotification(title: string, body: string) {
 }
 
 export function WhatsAppWidget() {
-  const [opened, { open, close, toggle }] = useDisclosure(false);
+  const [opened, { open: _open, close, toggle }] = useDisclosure(false);
   const [expanded, setExpanded] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -162,7 +162,7 @@ export function WhatsAppWidget() {
 
   // WebSocket connection
   const {
-    isSocketConnected,
+    isSocketConnected: _isSocketConnected,
     waStatus,
     qrCode,
     sendTypingStart,
@@ -242,20 +242,20 @@ export function WhatsAppWidget() {
     requestNotificationPermission().then(setNotificationsEnabled);
   }, []);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     setTimeout(() => {
       if (messagesViewportRef.current) {
         messagesViewportRef.current.scrollTop = messagesViewportRef.current.scrollHeight;
       }
     }, 100);
-  };
+  }, []);
 
   const fetchChats = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/social/whatsapp/chats`);
       const data = await res.json();
       if (data.success && data.chats) {
-        const allChats: Chat[] = data.chats.map((chat: any) => ({
+        const allChats: Chat[] = data.chats.map((chat: { id: string; name?: string; lastMessage?: string; timestamp?: number; unreadCount?: number; isGroup?: boolean; archived?: boolean }) => ({
           id: chat.id,
           name: chat.name || chat.id.split('@')[0],
           lastMessage: chat.lastMessage || '',
@@ -286,7 +286,7 @@ export function WhatsAppWidget() {
         );
         const data = await res.json();
         if (data.success && data.messages) {
-          const formattedMessages: Message[] = data.messages.map((msg: any) => ({
+          const formattedMessages: Message[] = data.messages.map((msg: { id: string; body?: string; timestamp?: number; fromMe?: boolean; sender?: string | null }) => ({
             id: msg.id,
             content: msg.body || '',
             timestamp: msg.timestamp
@@ -416,7 +416,7 @@ export function WhatsAppWidget() {
       } else {
         throw new Error(data.error);
       }
-    } catch (_error: any) {
+    } catch (_error: unknown) {
       setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'error' } : m)));
       notifications.show({
         title: 'Gönderilemedi',
@@ -447,11 +447,11 @@ export function WhatsAppWidget() {
       } else {
         throw new Error(data.error);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, status: 'error' } : m)));
       notifications.show({
         title: 'Hata',
-        message: error.message || 'Mesaj gönderilemedi',
+        message: error instanceof Error ? error.message : 'Mesaj gönderilemedi',
         color: 'red',
       });
     }
@@ -534,11 +534,11 @@ export function WhatsAppWidget() {
       } else {
         throw new Error(data.error);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'error' } : m)));
       notifications.show({
         title: 'Gönderilemedi',
-        message: error.message || 'Medya gönderilemedi',
+        message: error instanceof Error ? error.message : 'Medya gönderilemedi',
         color: 'red',
       });
     } finally {
@@ -717,9 +717,10 @@ export function WhatsAppWidget() {
               {qrCode ? (
                 <>
                   <Box p="md" style={{ background: 'white', borderRadius: 16 }}>
+                    {/* biome-ignore lint/performance/noImgElement: QR code data URL */}
                     <img
                       src={qrCode}
-                      alt="QR"
+                      alt="QR kod"
                       style={{ width: 200, height: 200, borderRadius: 8 }}
                     />
                   </Box>
@@ -836,7 +837,7 @@ export function WhatsAppWidget() {
                     }
                     styles={{
                       input: {
-                        background: 'rgba(255,255,255,0.05)',
+                        background: 'var(--surface-elevated)',
                         border: 'none',
                         color: 'white',
                       },
@@ -999,7 +1000,7 @@ export function WhatsAppWidget() {
                     size="xs"
                     styles={{
                       input: {
-                        background: 'rgba(255,255,255,0.05)',
+                        background: 'var(--surface-elevated)',
                         border: '1px solid rgba(255,255,255,0.1)',
                         color: 'white',
                         fontSize: 13,
@@ -1042,7 +1043,7 @@ export function WhatsAppWidget() {
                   radius="lg"
                   styles={{
                     input: {
-                      background: 'rgba(255,255,255,0.05)',
+                      background: 'var(--surface-elevated)',
                       border: '1px solid rgba(255,255,255,0.1)',
                       color: 'white',
                     },
@@ -1056,7 +1057,7 @@ export function WhatsAppWidget() {
                     px="sm"
                     py="xs"
                     onClick={() => setShowArchived(!showArchived)}
-                    style={{ cursor: 'pointer', background: 'rgba(255,255,255,0.02)' }}
+                    style={{ cursor: 'pointer', background: 'var(--surface-elevated-more)' }}
                   >
                     <Group justify="space-between">
                       <Group gap="xs">
@@ -1165,7 +1166,7 @@ function ChatItem({
           ? 'linear-gradient(90deg, rgba(37,211,102,0.15) 0%, transparent 100%)'
           : 'transparent',
         borderLeft: selected ? '3px solid #25D366' : '3px solid transparent',
-        borderBottom: '1px solid rgba(255,255,255,0.04)',
+        borderBottom: '1px solid var(--surface-border-subtle)',
       }}
     >
       <Group wrap="nowrap" gap="sm">

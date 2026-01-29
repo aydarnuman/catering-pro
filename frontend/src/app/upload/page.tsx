@@ -757,7 +757,7 @@ export default function UploadPage() {
               </Box>
 
               {/* İhale Bilgileri - Özet Kartları */}
-              <Box p="lg" bg="gray.0">
+              <Box p="lg" className="nested-card">
                 <SimpleGrid cols={{ base: 2, sm: 3, md: 5 }} spacing="md">
                   {combinedResult.ihale_basligi && (
                     <Paper p="md" withBorder radius="md">
@@ -841,7 +841,7 @@ export default function UploadPage() {
                       <ScrollArea h={400} type="auto" offsetScrollbars>
                         <Stack gap="xs">
                           {combinedResult.teknik_sartlar.map((sart, i) => (
-                            <Paper key={i} p="sm" withBorder radius="sm" bg="gray.0">
+                            <Paper key={i} p="sm" radius="sm" className="nested-card">
                               <Group gap="xs" wrap="nowrap">
                                 <Badge size="sm" variant="light" color="blue" circle>
                                   {i + 1}
@@ -927,7 +927,7 @@ export default function UploadPage() {
                   <Tabs.Panel value="metin" pt="md">
                     {combinedResult.tam_metin ? (
                       <ScrollArea h={400} type="auto" offsetScrollbars>
-                        <Paper p="md" withBorder bg="gray.0">
+                        <Paper p="md" className="nested-card">
                           <Text
                             size="sm"
                             style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}

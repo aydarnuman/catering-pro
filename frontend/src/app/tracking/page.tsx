@@ -342,7 +342,7 @@ function TrackingPageContent() {
   // Not sil
   const deleteUserNote = async (trackingId: string, noteId: string) => {
     try {
-      const result = await tendersAPI.deleteTrackingNote(Number(trackingId), Number(noteId));
+      const result = await tendersAPI.deleteTrackingNote(Number(trackingId), noteId);
 
       if (!result.success) throw new Error('Not silme hatası');
 
@@ -548,8 +548,8 @@ function TrackingPageContent() {
 
   return (
     <Box
+      className="tracking-page-wrap"
       style={{
-        background: 'linear-gradient(180deg, rgba(59,130,246,0.05) 0%, rgba(255,255,255,0) 100%)',
         minHeight: '100vh',
       }}
     >
@@ -584,87 +584,95 @@ function TrackingPageContent() {
             )}
           </Stack>
 
-          {/* İstatistik Kartları */}
-          <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
-            <Paper p="md" radius="md" withBorder>
+          {/* İstatistik Kartları - Glassy */}
+          <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md" className="tracking-stats-grid">
+            <Paper
+              p="md"
+              radius="lg"
+              className="glassy-card tracking-stat-card tracking-stat-toplam"
+            >
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
                     Toplam
                   </Text>
-                  <Text size="xl" fw={700}>
+                  <Text size="xl" fw={700} style={{ fontVariantNumeric: 'tabular-nums' }}>
                     {stats.toplam}
                   </Text>
                 </div>
-                <ThemeIcon size={40} radius="md" variant="light" color="gray">
-                  <IconBookmark size={22} />
+                <ThemeIcon size={32} radius="md" variant="light" color="gray">
+                  <IconBookmark size={18} />
                 </ThemeIcon>
               </Group>
             </Paper>
             <Paper
               p="md"
-              radius="md"
-              withBorder
-              style={{ borderColor: 'var(--mantine-color-yellow-5)' }}
+              radius="lg"
+              className="glassy-card tracking-stat-card tracking-stat-bekliyor"
+              data-gradient="yellow"
             >
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
                     Bekliyor
                   </Text>
-                  <Text size="xl" fw={700} c="yellow">
+                  <Text size="xl" fw={700} c="yellow" style={{ fontVariantNumeric: 'tabular-nums' }}>
                     {stats.bekliyor}
                   </Text>
                 </div>
-                <ThemeIcon size={40} radius="md" variant="light" color="yellow">
-                  <IconClock size={22} />
+                <ThemeIcon size={32} radius="md" variant="light" color="yellow">
+                  <IconClock size={18} />
                 </ThemeIcon>
               </Group>
             </Paper>
             <Paper
               p="md"
-              radius="md"
-              withBorder
-              style={{ borderColor: 'var(--mantine-color-blue-5)' }}
+              radius="lg"
+              className="glassy-card tracking-stat-card tracking-stat-basvuruldu"
+              data-gradient="blue"
             >
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
                     Başvuruldu
                   </Text>
-                  <Text size="xl" fw={700} c="blue">
+                  <Text size="xl" fw={700} c="blue" style={{ fontVariantNumeric: 'tabular-nums' }}>
                     {stats.basvuruldu}
                   </Text>
                 </div>
-                <ThemeIcon size={40} radius="md" variant="light" color="blue">
-                  <IconFileAnalytics size={22} />
+                <ThemeIcon size={32} radius="md" variant="light" color="blue">
+                  <IconFileAnalytics size={18} />
                 </ThemeIcon>
               </Group>
             </Paper>
             <Paper
               p="md"
-              radius="md"
-              withBorder
-              style={{ borderColor: 'var(--mantine-color-green-5)' }}
+              radius="lg"
+              className="glassy-card tracking-stat-card tracking-stat-kazanildi"
+              data-gradient="green"
             >
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
                     Kazanıldı
                   </Text>
-                  <Text size="xl" fw={700} c="green">
+                  <Text size="xl" fw={700} c="green" style={{ fontVariantNumeric: 'tabular-nums' }}>
                     {stats.kazanildi}
                   </Text>
                 </div>
-                <ThemeIcon size={40} radius="md" variant="light" color="green">
-                  <IconCheck size={22} />
+                <ThemeIcon size={32} radius="md" variant="light" color="green">
+                  <IconCheck size={18} />
                 </ThemeIcon>
               </Group>
             </Paper>
           </SimpleGrid>
 
-          {/* Filtreler */}
-          <Paper p="md" radius="md" withBorder>
+          {/* Filtreler - Glassy */}
+          <Paper
+            p="md"
+            radius="lg"
+            className="glassy-content-card"
+          >
             <Stack gap="xs">
               <Group gap="xs" grow={isMobile && isMounted}>
                 <TextInput
@@ -712,13 +720,13 @@ function TrackingPageContent() {
                 return (
                   <Card
                     key={tender.id}
-                    shadow="sm"
                     padding="lg"
-                    radius="md"
-                    withBorder
+                    radius="lg"
+                    className="glassy-card"
                     style={{
                       borderColor: isUrgent ? 'var(--mantine-color-red-5)' : undefined,
                       borderWidth: isUrgent ? 2 : 1,
+                      cursor: 'pointer',
                     }}
                   >
                     {/* Üst Kısım - Durum ve Menü */}

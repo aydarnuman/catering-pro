@@ -157,7 +157,7 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
     return (
       <Stack gap="md">
         {/* Dönem Özeti */}
-        <Paper withBorder p="md" radius="md" bg="gray.0">
+        <Paper p="md" radius="md" className="nested-card">
           <SimpleGrid cols={{ base: 2, md: 4 }}>
             <Box>
               <Text size="xs" c="dimmed">
@@ -668,7 +668,7 @@ export default function MutabakatModal({ opened, onClose, cari }: MutabakatModal
 
         {/* Mutabakat Onay Alanı - Sadece Bakiye Teyidi */}
         <Divider my="md" />
-        <Paper withBorder p="md" radius="md" bg="gray.0">
+        <Paper p="md" radius="md" className="nested-card">
           <Group justify="space-between">
             <Stack gap={4}>
               <Text size="sm" fw={600}>

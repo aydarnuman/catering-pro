@@ -8,12 +8,15 @@ import {
   Button,
   Card,
   Center,
+  Checkbox,
   Container,
   Group,
   Loader,
+  Menu,
   Modal,
   Paper,
   PasswordInput,
+  SegmentedControl,
   Select,
   SimpleGrid,
   Stack,
@@ -23,21 +26,27 @@ import {
   TextInput,
   ThemeIcon,
   Title,
+  Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
   IconArrowLeft,
   IconCheck,
+  IconChevronDown,
   IconClock,
   IconCrown,
   IconEdit,
+  IconFilter,
   IconHistory,
   IconLock,
   IconLockOpen,
   IconRefresh,
+  IconSearch,
   IconShield,
   IconShieldLock,
+  IconSquare,
+  IconSquareCheck,
   IconTrash,
   IconUserPlus,
   IconUserShield,
@@ -45,9 +54,10 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { adminAPI, type User } from '@/lib/api/services/admin';
+import { useConfirmDialog } from '@/components/ConfirmDialog';
 
 export default function KullanicilarPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -69,6 +79,64 @@ export default function KullanicilarPage() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [loginHistory, setLoginHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // Arama ve Filtreleme
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  // Toplu Seçim
+  const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set());
+
+  // Confirm Dialog
+  const { confirm, ConfirmDialogComponent } = useConfirmDialog();
+
+  // Filtrelenmiş kullanıcılar
+  const filteredUsers = useMemo(() => {
+    return users.filter((user) => {
+      // Arama filtresi
+      const matchesSearch =
+        searchQuery === '' ||
+        user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchQuery.toLowerCase());
+
+      // Rol filtresi
+      const matchesRole =
+        !roleFilter ||
+        (roleFilter === 'super_admin' && user.user_type === 'super_admin') ||
+        (roleFilter === 'admin' && user.role === 'admin' && user.user_type !== 'super_admin') ||
+        (roleFilter === 'user' && user.role === 'user');
+
+      // Durum filtresi
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'active' && user.is_active) ||
+        (statusFilter === 'inactive' && !user.is_active) ||
+        (statusFilter === 'locked' && user.isLocked);
+
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [users, searchQuery, roleFilter, statusFilter]);
+
+  // Tümünü seç / Seçimi kaldır
+  const toggleSelectAll = () => {
+    if (selectedUsers.size === filteredUsers.length) {
+      setSelectedUsers(new Set());
+    } else {
+      setSelectedUsers(new Set(filteredUsers.map((u) => u.id)));
+    }
+  };
+
+  // Tek kullanıcı seç
+  const toggleUserSelect = (userId: number) => {
+    const newSelected = new Set(selectedUsers);
+    if (newSelected.has(userId)) {
+      newSelected.delete(userId);
+    } else {
+      newSelected.add(userId);
+    }
+    setSelectedUsers(newSelected);
+  };
 
   // Kullanıcıları getir
   const fetchUsers = useCallback(async () => {
@@ -187,9 +255,16 @@ export default function KullanicilarPage() {
 
   // Kullanıcı sil
   const handleDeleteUser = async (userId: number) => {
-    if (!confirm('Bu kullanıcıyı silmek istediğinize emin misiniz?')) {
-      return;
-    }
+    const user = users.find((u) => u.id === userId);
+    const confirmed = await confirm({
+      title: 'Kullanıcıyı Sil',
+      message: `"${user?.name || 'Bu kullanıcı'}" kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+      variant: 'danger',
+      confirmText: 'Sil',
+      cancelText: 'Vazgeç',
+    });
+
+    if (!confirmed) return;
 
     try {
       const data = await adminAPI.deleteUser(userId);
@@ -200,6 +275,11 @@ export default function KullanicilarPage() {
           message: 'Kullanıcı silindi',
           color: 'green',
           icon: <IconCheck size={16} />,
+        });
+        setSelectedUsers((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(userId);
+          return newSet;
         });
         fetchUsers();
       } else {
@@ -214,11 +294,98 @@ export default function KullanicilarPage() {
     }
   };
 
+  // Toplu silme
+  const handleBulkDelete = async () => {
+    if (selectedUsers.size === 0) return;
+
+    const confirmed = await confirm({
+      title: 'Toplu Silme',
+      message: `${selectedUsers.size} kullanıcı kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+      variant: 'danger',
+      confirmText: `${selectedUsers.size} Kullanıcıyı Sil`,
+      cancelText: 'Vazgeç',
+    });
+
+    if (!confirmed) return;
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const userId of selectedUsers) {
+      try {
+        const data = await adminAPI.deleteUser(userId);
+        if (data.success) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      } catch {
+        failCount++;
+      }
+    }
+
+    notifications.show({
+      title: 'Toplu Silme Tamamlandı',
+      message: `${successCount} başarılı, ${failCount} başarısız`,
+      color: failCount > 0 ? 'orange' : 'green',
+    });
+
+    setSelectedUsers(new Set());
+    fetchUsers();
+  };
+
+  // Toplu aktif/pasif
+  const handleBulkToggleActive = async (activate: boolean) => {
+    if (selectedUsers.size === 0) return;
+
+    const confirmed = await confirm({
+      title: activate ? 'Toplu Aktif Et' : 'Toplu Pasif Et',
+      message: `${selectedUsers.size} kullanıcı ${activate ? 'aktif' : 'pasif'} duruma getirilecek.`,
+      variant: 'warning',
+      confirmText: activate ? 'Aktif Et' : 'Pasif Et',
+      cancelText: 'Vazgeç',
+    });
+
+    if (!confirmed) return;
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const userId of selectedUsers) {
+      try {
+        const data = await adminAPI.updateUser(userId, { is_active: activate });
+        if (data.success) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      } catch {
+        failCount++;
+      }
+    }
+
+    notifications.show({
+      title: 'İşlem Tamamlandı',
+      message: `${successCount} başarılı, ${failCount} başarısız`,
+      color: failCount > 0 ? 'orange' : 'green',
+    });
+
+    setSelectedUsers(new Set());
+    fetchUsers();
+  };
+
   // Hesabı kilitle
   const handleLockUser = async (userId: number) => {
-    if (!confirm('Bu hesabı kilitlemek istediğinize emin misiniz? (Varsayılan: 1 saat)')) {
-      return;
-    }
+    const user = users.find((u) => u.id === userId);
+    const confirmed = await confirm({
+      title: 'Hesabı Kilitle',
+      message: `"${user?.name || 'Bu kullanıcı'}" hesabı 1 saat boyunca kilitlenecek ve giriş yapamayacak.`,
+      variant: 'warning',
+      confirmText: 'Kilitle',
+      cancelText: 'Vazgeç',
+    });
+
+    if (!confirmed) return;
 
     try {
       const data = await adminAPI.lockUser(userId, 60);
@@ -321,7 +488,7 @@ export default function KullanicilarPage() {
             </ActionIcon>
             <div>
               <Title order={1} size="h2" mb={4}>
-                👥 Kullanıcı Yönetimi
+                Kullanıcı Yönetimi
               </Title>
               <Text c="dimmed">Kullanıcılar, roller ve izinler</Text>
             </div>
@@ -336,20 +503,137 @@ export default function KullanicilarPage() {
           </Group>
         </Group>
 
+        {/* Arama ve Filtreleme */}
+        <Paper p="md" radius="md" withBorder>
+          <Group justify="space-between" wrap="wrap">
+            <Group>
+              <TextInput
+                placeholder="Ad veya email ara..."
+                leftSection={<IconSearch size={16} />}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                w={250}
+              />
+              <Select
+                placeholder="Rol filtrele"
+                leftSection={<IconFilter size={16} />}
+                data={[
+                  { value: 'super_admin', label: 'Süper Admin' },
+                  { value: 'admin', label: 'Yönetici' },
+                  { value: 'user', label: 'Kullanıcı' },
+                ]}
+                value={roleFilter}
+                onChange={setRoleFilter}
+                clearable
+                w={160}
+              />
+              <SegmentedControl
+                value={statusFilter}
+                onChange={setStatusFilter}
+                data={[
+                  { value: 'all', label: 'Tümü' },
+                  { value: 'active', label: 'Aktif' },
+                  { value: 'inactive', label: 'Pasif' },
+                  { value: 'locked', label: 'Kilitli' },
+                ]}
+              />
+            </Group>
+
+            {/* Toplu İşlem Butonları */}
+            {selectedUsers.size > 0 && (
+              <Group>
+                <Badge variant="light" size="lg">
+                  {selectedUsers.size} seçili
+                </Badge>
+                <Menu shadow="md" width={200}>
+                  <Menu.Target>
+                    <Button
+                      variant="light"
+                      rightSection={<IconChevronDown size={16} />}
+                    >
+                      Toplu İşlem
+                    </Button>
+                  </Menu.Target>
+                  <Menu.Dropdown>
+                    <Menu.Item
+                      leftSection={<IconCheck size={16} />}
+                      onClick={() => handleBulkToggleActive(true)}
+                    >
+                      Aktif Et
+                    </Menu.Item>
+                    <Menu.Item
+                      leftSection={<IconX size={16} />}
+                      onClick={() => handleBulkToggleActive(false)}
+                    >
+                      Pasif Et
+                    </Menu.Item>
+                    <Menu.Divider />
+                    <Menu.Item
+                      color="red"
+                      leftSection={<IconTrash size={16} />}
+                      onClick={handleBulkDelete}
+                    >
+                      Sil
+                    </Menu.Item>
+                  </Menu.Dropdown>
+                </Menu>
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  onClick={() => setSelectedUsers(new Set())}
+                  title="Seçimi Temizle"
+                >
+                  <IconX size={16} />
+                </ActionIcon>
+              </Group>
+            )}
+          </Group>
+
+          {/* Sonuç bilgisi */}
+          {(searchQuery || roleFilter || statusFilter !== 'all') && (
+            <Text size="sm" c="dimmed" mt="sm">
+              {filteredUsers.length} / {users.length} kullanıcı gösteriliyor
+            </Text>
+          )}
+        </Paper>
+
         {/* Kullanıcı Listesi */}
         <Paper p="lg" radius="md" withBorder>
           {loading ? (
             <Center py="xl">
               <Loader />
             </Center>
-          ) : users.length === 0 ? (
+          ) : filteredUsers.length === 0 ? (
             <Alert color="blue" icon={<IconUsers size={16} />}>
-              Henüz kullanıcı bulunmuyor
+              {users.length === 0
+                ? 'Henüz kullanıcı bulunmuyor'
+                : 'Filtrelere uygun kullanıcı bulunamadı'}
             </Alert>
           ) : (
             <Table>
               <Table.Thead>
                 <Table.Tr>
+                  <Table.Th w={40}>
+                    <Tooltip
+                      label={
+                        selectedUsers.size === filteredUsers.length
+                          ? 'Tüm seçimi kaldır'
+                          : 'Tümünü seç'
+                      }
+                    >
+                      <ActionIcon
+                        variant="subtle"
+                        onClick={toggleSelectAll}
+                        color={selectedUsers.size > 0 ? 'blue' : 'gray'}
+                      >
+                        {selectedUsers.size === filteredUsers.length && filteredUsers.length > 0 ? (
+                          <IconSquareCheck size={18} />
+                        ) : (
+                          <IconSquare size={18} />
+                        )}
+                      </ActionIcon>
+                    </Tooltip>
+                  </Table.Th>
                   <Table.Th>Kullanıcı</Table.Th>
                   <Table.Th>Email</Table.Th>
                   <Table.Th>Rol</Table.Th>
@@ -359,8 +643,17 @@ export default function KullanicilarPage() {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {users.map((user) => (
-                  <Table.Tr key={user.id}>
+                {filteredUsers.map((user) => (
+                  <Table.Tr
+                    key={user.id}
+                    bg={selectedUsers.has(user.id) ? 'var(--mantine-color-blue-light)' : undefined}
+                  >
+                    <Table.Td>
+                      <Checkbox
+                        checked={selectedUsers.has(user.id)}
+                        onChange={() => toggleUserSelect(user.id)}
+                      />
+                    </Table.Td>
                     <Table.Td>
                       <Group gap="sm">
                         <Avatar
@@ -698,6 +991,9 @@ export default function KullanicilarPage() {
           </Stack>
         )}
       </Modal>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialogComponent />
     </Container>
   );
 }

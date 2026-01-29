@@ -278,7 +278,7 @@ export default function AdminPage() {
 
         {/* 📊 Bugünkü Aktivite Panel - Header'dan açılır */}
         <Collapse in={activityOpen}>
-          <Paper p="md" radius="md" withBorder>
+          <Paper p="md" radius="md" className="standard-card">
             <Group justify="space-between" mb="md">
               <Text fw={600}>📊 Bugünkü Aktivite</Text>
               <Badge color="blue" variant="light">
@@ -343,7 +343,7 @@ export default function AdminPage() {
         </Collapse>
 
         {/* 🔧 Yönetim - Tab Bar + Kompakt Kartlar */}
-        <Paper p="lg" radius="md" withBorder>
+        <Paper p="lg" radius="md" className="standard-card">
           <Title order={3} mb="md">
             🔧 Yönetim
           </Title>
@@ -378,12 +378,7 @@ export default function AdminPage() {
                         <Card
                           padding="lg"
                           radius="md"
-                          withBorder
-                          style={{
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                          }}
-                          className="admin-card-hover"
+                          className="standard-card-hover"
                         >
                           <Stack gap="sm" align="center">
                             <ThemeIcon size={50} radius="xl" variant="light" color={item.color}>
@@ -413,7 +408,7 @@ export default function AdminPage() {
         {/* Sistem Durumu Kartları */}
         <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
           {/* Backend Status */}
-          <Card padding="lg" radius="md" withBorder>
+          <Card padding="lg" radius="md" className="stat-card">
             <Group justify="space-between" mb="xs">
               <Text size="sm" c="dimmed">
                 Backend API
@@ -452,7 +447,7 @@ export default function AdminPage() {
           </Card>
 
           {/* Database Status */}
-          <Card padding="lg" radius="md" withBorder>
+          <Card padding="lg" radius="md" className="stat-card">
             <Group justify="space-between" mb="xs">
               <Text size="sm" c="dimmed">
                 Veritabanı
@@ -486,7 +481,7 @@ export default function AdminPage() {
           </Card>
 
           {/* DB Boyutu */}
-          <Card padding="lg" radius="md" withBorder>
+          <Card padding="lg" radius="md" className="stat-card">
             <Group justify="space-between" mb="xs">
               <Text size="sm" c="dimmed">
                 DB Boyutu
@@ -513,7 +508,7 @@ export default function AdminPage() {
           </Card>
 
           {/* Uptime */}
-          <Card padding="lg" radius="md" withBorder>
+          <Card padding="lg" radius="md" className="stat-card">
             <Group justify="space-between" mb="xs">
               <Text size="sm" c="dimmed">
                 Uptime
@@ -540,7 +535,7 @@ export default function AdminPage() {
         {/* İki Kolon - Tablolar ve Yönetim */}
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
           {/* Tablo Kayıt Sayıları */}
-          <Paper p="lg" radius="md" withBorder>
+          <Paper p="lg" radius="md" className="standard-card">
             <Title order={4} mb="md">
               🗄️ Veritabanı Tabloları
             </Title>
@@ -573,7 +568,7 @@ export default function AdminPage() {
           </Paper>
 
           {/* Bağlantı Durumu */}
-          <Paper p="lg" radius="md" withBorder>
+          <Paper p="lg" radius="md" className="standard-card">
             <Title order={4} mb="md">
               🔗 Bağlantı Durumu
             </Title>
@@ -609,7 +604,7 @@ export default function AdminPage() {
         </SimpleGrid>
 
         {/* Hızlı Linkler */}
-        <Paper p="lg" radius="md" withBorder>
+        <Paper p="lg" radius="md" className="standard-card">
           <Title order={3} mb="md">
             🔗 Hızlı Erişim
           </Title>

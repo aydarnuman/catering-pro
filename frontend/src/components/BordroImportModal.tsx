@@ -762,7 +762,7 @@ export function BordroImportModal({
             )}
 
             {/* Özet bilgi */}
-            <Paper withBorder p="sm" bg="gray.0">
+            <Paper p="sm" className="nested-card">
               <Group justify="space-between">
                 <Text size="sm">
                   <strong>Proje:</strong> {selectedProje?.ad || 'Genel'}
@@ -1217,7 +1217,7 @@ export function BordroImportModal({
                     </Table.Tbody>
                   </Table>
                 </ScrollArea>
-                <Box p="xs" bg="gray.0">
+                <Box p="xs" className="nested-card">
                   <Text size="xs" c="dimmed">
                     "Oluştur" ile personeli sisteme ekleyip projeye atayabilirsiniz.
                   </Text>

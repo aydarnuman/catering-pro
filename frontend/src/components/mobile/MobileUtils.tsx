@@ -310,7 +310,7 @@ export function MobileActionSheet({ opened, onClose, title, actions }: MobileAct
       <Stack gap={0}>
         {actions.map((action, index) => (
           <UnstyledButton
-            key={index}
+            key={action.label}
             onClick={() => {
               action.onClick();
               onClose();
@@ -580,7 +580,7 @@ export function MobileExpandableCard({
               borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
             }}
             p="sm"
-            bg={isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)'}
+            bg={isDark ? 'var(--surface-elevated)' : 'rgba(0,0,0,0.02)'}
           >
             {expandedContent}
           </Box>

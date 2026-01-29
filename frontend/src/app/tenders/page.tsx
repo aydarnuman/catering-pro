@@ -430,7 +430,6 @@ export default function TendersPage() {
   return (
     <Box
       style={{
-        background: 'linear-gradient(180deg, rgba(34,139,230,0.03) 0%, rgba(255,255,255,0) 100%)',
         minHeight: '100vh',
       }}
     >
@@ -526,23 +525,23 @@ export default function TendersPage() {
             </MobileShow>
           </MobileStack>
 
-          {/* Bugünün Özeti - Dashboard Kartları */}
+          {/* Bugünün Özeti - Dashboard Kartları - Glassy */}
           {statsData?.data && (
             <SimpleGrid cols={{ base: 3, sm: 4 }} spacing="xs">
               {/* Stat Kartları */}
-              <Paper p="xs" radius="md" bg="blue.0" ta="center">
-                <Text size={isMobile ? 'lg' : 'xl'} fw={700} c="blue.7">
+              <Paper p="xs" radius="lg" className="glassy-card-nested" ta="center">
+                <Text size={isMobile ? 'lg' : 'xl'} fw={700} c="blue.4">
                   {statsData.data.totalCount}
                 </Text>
-                <Text size="xs" c="blue.6">
+                <Text size="xs" c="dimmed">
                   Toplam
                 </Text>
               </Paper>
 
               <Paper
                 p="xs"
-                radius="md"
-                bg="green.0"
+                radius="lg"
+                className="glassy-card-nested"
                 ta="center"
                 style={{ cursor: statsData.data.today.newCount > 0 ? 'pointer' : 'default' }}
                 onClick={() =>
@@ -550,18 +549,18 @@ export default function TendersPage() {
                   setShowStats(showStats === 'new' ? false : 'new')
                 }
               >
-                <Text size={isMobile ? 'lg' : 'xl'} fw={700} c="green.7">
+                <Text size={isMobile ? 'lg' : 'xl'} fw={700} c="green.4">
                   {statsData.data.today.newCount}
                 </Text>
-                <Text size="xs" c="green.6">
+                <Text size="xs" c="dimmed">
                   Yeni {statsData.data.today.newCount > 0 && '▾'}
                 </Text>
               </Paper>
 
               <Paper
                 p="xs"
-                radius="md"
-                bg="orange.0"
+                radius="lg"
+                className="glassy-card-nested"
                 ta="center"
                 style={{ cursor: statsData.data.today.updatedCount > 0 ? 'pointer' : 'default' }}
                 onClick={() =>
@@ -569,18 +568,18 @@ export default function TendersPage() {
                   setShowStats(showStats === 'updated' ? false : 'updated')
                 }
               >
-                <Text size={isMobile ? 'lg' : 'xl'} fw={700} c="orange.7">
+                <Text size={isMobile ? 'lg' : 'xl'} fw={700} c="orange.4">
                   {statsData.data.today.updatedCount}
                 </Text>
-                <Text size="xs" c="orange.6">
+                <Text size="xs" c="dimmed">
                   Güncellenen {statsData.data.today.updatedCount > 0 && '▾'}
                 </Text>
               </Paper>
 
               <MobileHide hideOnMobile>
-                <Paper p="xs" radius="md" bg="gray.0">
+                <Paper p="xs" radius="lg" className="glassy-card-nested">
                   <Group gap="xs" justify="center" h="100%" align="center">
-                    <IconClock size={14} color="var(--mantine-color-gray-6)" />
+                    <IconClock size={14} color="var(--muted)" />
                     <Text size="xs" c="dimmed">
                       {new Date(statsData.data.lastUpdate).toLocaleString('tr-TR', {
                         day: '2-digit',
@@ -595,13 +594,13 @@ export default function TendersPage() {
             </SimpleGrid>
           )}
 
-          {/* Yeni Eklenen İhaleler - Açılır Liste */}
+          {/* Yeni Eklenen İhaleler - Açılır Liste - Glassy */}
           {statsData?.data && showStats === 'new' && statsData.data.today.newTenders.length > 0 && (
             <Paper
               p="sm"
-              radius="md"
-              withBorder
-              style={{ borderColor: 'var(--mantine-color-green-3)' }}
+              radius="lg"
+              className="glassy-content-card"
+              style={{ borderColor: 'rgba(34, 197, 94, 0.3)' }}
             >
               <Group justify="space-between" mb="xs">
                 <Text size="sm" fw={600} c="green.7">
@@ -638,15 +637,15 @@ export default function TendersPage() {
             </Paper>
           )}
 
-          {/* Güncellenen İhaleler - Açılır Liste */}
+          {/* Güncellenen İhaleler - Açılır Liste - Glassy */}
           {statsData?.data &&
             showStats === 'updated' &&
             statsData.data.today.updatedTenders.length > 0 && (
               <Paper
                 p="sm"
-                radius="md"
-                withBorder
-                style={{ borderColor: 'var(--mantine-color-orange-3)' }}
+                radius="lg"
+                className="glassy-content-card"
+                style={{ borderColor: 'rgba(249, 115, 22, 0.3)' }}
               >
                 <Group justify="space-between" mb="xs">
                   <Text size="sm" fw={600} c="orange.7">
@@ -934,39 +933,22 @@ export default function TendersPage() {
           {/* Loading State */}
           {isLoading && <LoadingState loading={true} message="İhaleler yükleniyor..." />}
 
-          {/* Tenders Grid */}
+          {/* Tenders Grid - Glassy */}
           {filteredTenders.length > 0 && (
             <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing={isMobile ? 'sm' : 'md'}>
               {filteredTenders.map((tender) => (
                 <Card
                   key={tender.id}
-                  shadow="sm"
                   padding={isMobile ? 'sm' : 'lg'}
-                  radius="md"
-                  withBorder
+                  radius="lg"
                   h="100%"
+                  className="glassy-card"
                   style={{
-                    transition: 'all 0.2s ease',
                     cursor: 'pointer',
                     borderColor: trackingIds.has(tender.id)
-                      ? 'var(--mantine-color-yellow-5)'
+                      ? 'rgba(250, 204, 21, 0.5)'
                       : undefined,
                     borderWidth: trackingIds.has(tender.id) ? 2 : undefined,
-                    background: trackingIds.has(tender.id)
-                      ? 'linear-gradient(135deg, rgba(255,212,59,0.05) 0%, rgba(255,255,255,1) 100%)'
-                      : undefined,
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isMobile) {
-                      e.currentTarget.style.transform = 'translateY(-4px)';
-                      e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.1)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isMobile) {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '';
-                    }
                   }}
                 >
                   <Stack gap="sm" h="100%">
@@ -1189,7 +1171,7 @@ export default function TendersPage() {
               leftSection={<IconLink size={16} />}
             />
 
-            <Paper p="sm" bg="gray.0" radius="md">
+            <Paper p="sm" radius="md" className="nested-card">
               <Text size="xs" c="dimmed">
                 <strong>Örnek:</strong> https://ihalebul.com/tender/1768253602118
               </Text>

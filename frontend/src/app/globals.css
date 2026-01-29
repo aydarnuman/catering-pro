@@ -1,4 +1,4 @@
-/* Global Styles */
+/* Global Styles - Modern Dark Theme (Görüntüdeki tasarıma uygun) */
 :root {
   --max-width: 100%;
   --content-max-width: 1800px;
@@ -6,28 +6,48 @@
   --font-mono: ui-monospace, Menlo, Monaco, 'Cascadia Mono', 'Segoe UI Mono',
     'Roboto Mono', 'Oxygen Mono', 'Ubuntu Monospace', 'Source Code Pro',
     'Fira Mono', 'Droid Sans Mono', 'Courier New', monospace;
+  
+  /* Yeni renk paleti - görüntüdeki tasarıma uygun */
+  --background: #18181b;
+  --foreground: #ffffff;
+  --card: #2d2d32;
+  --card-hover: #333338;
+  --input: #1e1e24;
+  --muted: #71717a;
+  --muted-foreground: #a1a1aa;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-light: rgba(255, 255, 255, 0.12);
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #3f3f46;
+  --secondary-hover: #52525b;
+  --accent: #3b82f6;
+  --destructive: #ef4444;
+  --success: #22c55e;
+  --warning: #f59e0b;
 }
 
 /* Full width containers */
 .main-content .mantine-Container-root {
-  max-width: 95% !important;
-  width: 95% !important;
-  padding-left: 24px !important;
-  padding-right: 24px !important;
+  max-width: 95%;
+  width: 95%;
+  padding-left: 24px;
+  padding-right: 24px;
 }
 
 @media (min-width: 1600px) {
   .main-content .mantine-Container-root {
-    max-width: 1700px !important;
+    max-width: 1700px;
   }
 }
 
 @media (max-width: 768px) {
   .main-content .mantine-Container-root {
-    max-width: 100% !important;
-    width: 100% !important;
-    padding-left: 12px !important;
-    padding-right: 12px !important;
+    max-width: 100%;
+    width: 100%;
+    padding-left: 12px;
+    padding-right: 12px;
   }
 }
 
@@ -41,16 +61,23 @@ html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y pan-x;
 }
 
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
-/* Smooth scrolling */
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
 }
 
 /* Custom scrollbar */
@@ -60,16 +87,16 @@ html {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--card);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #888;
+  background: var(--secondary);
   border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: var(--secondary-hover);
 }
 
 /* Hover Card Effect */
@@ -79,17 +106,17 @@ html {
 
 .hover-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 /* Hover lift effect for cards */
 .hover-lift {
-  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .hover-lift:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
 }
 
 .hover-lift:active {
@@ -104,24 +131,11 @@ html {
 
 .ihale-card:hover {
   transform: translateY(-6px) scale(1.01);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
 }
 
 .ihale-card:active {
   transform: translateY(-3px) scale(1.005);
-}
-
-/* Dark mode scrollbar */
-[data-mantine-color-scheme='dark'] ::-webkit-scrollbar-track {
-  background: #1a1b1e;
-}
-
-[data-mantine-color-scheme='dark'] ::-webkit-scrollbar-thumb {
-  background: #373a40;
-}
-
-[data-mantine-color-scheme='dark'] ::-webkit-scrollbar-thumb:hover {
-  background: #5c5f66;
 }
 
 /* Animations */
@@ -147,7 +161,6 @@ html {
   }
 }
 
-/* Animation utilities */
 .fade-in {
   animation: fadeIn 0.3s ease-in-out;
 }
@@ -163,29 +176,24 @@ html {
 
 .card-hover:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
 }
 
 /* Settings card hover effect */
 .settings-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
 
 /* Admin panel card hover */
 .admin-card-hover {
-  transition: all 0.2s ease !important;
+  transition: all 0.2s ease;
 }
 
 .admin-card-hover:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
-  border-color: var(--mantine-color-blue-4) !important;
-}
-
-[data-mantine-color-scheme='dark'] .admin-card-hover:hover {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
-  border-color: var(--mantine-color-blue-6) !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  border-color: var(--primary);
 }
 
 /* Hover red for menu items - click to delete */
@@ -197,8 +205,8 @@ html {
 }
 
 .hover-red:hover {
-  background: rgba(250, 82, 82, 0.1);
-  color: #fa5252;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
   text-decoration: line-through;
 }
 
@@ -215,7 +223,7 @@ a {
   }
   
   nav, .no-print {
-    display: none !important;
+    display: none;
   }
 }
 
@@ -228,32 +236,30 @@ a {
 
 /* Main content padding - Navbar altı için */
 .main-content {
-  padding-top: 0; /* Default: navbar yokken padding yok */
+  padding-top: 0;
   transition: padding-top 0.3s ease;
+  background-color: var(--background);
 }
 
-/* Navbar varsa padding ekle */
 .main-content.has-navbar {
-  padding-top: 128px; /* Desktop: 72px primary + 48px nav + padding */
+  padding-top: 152px;
 }
 
 @media (max-width: 1024px) {
   .main-content.has-navbar {
-    padding-top: 80px; /* Tablet: tek satır header */
+    padding-top: 116px;
   }
 }
 
 @media (max-width: 768px) {
   .main-content.has-navbar {
-    padding-top: 72px; /* Mobile: kompakt header */
+    padding-top: 108px;
   }
 }
 
 /* ===== Navbar Micro-interactions ===== */
-
-/* ActionIcon hover & active effects */
 .mantine-ActionIcon-root {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .mantine-ActionIcon-root:hover {
@@ -264,31 +270,27 @@ a {
   transform: scale(0.95);
 }
 
-/* Navbar specific ActionIcon styling */
 @media (max-width: 768px) {
-  /* Navbar buttons - softer, more refined */
   .navbar-action-icon {
-    background: transparent !important;
-    border: none !important;
+    background: transparent;
+    border: none;
   }
   
   .navbar-action-icon:hover {
-    background: rgba(128, 128, 128, 0.1) !important;
+    background: rgba(128, 128, 128, 0.1);
   }
 }
 
-/* Button press effect */
 .mantine-Button-root {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .mantine-Button-root:active {
   transform: scale(0.97);
 }
 
-/* Burger menu animation enhancement */
 .mantine-Burger-root {
-  transition: all 0.2s ease !important;
+  transition: all 0.2s ease;
 }
 
 .mantine-Burger-root:hover {
@@ -299,7 +301,6 @@ a {
   transform: scale(0.95);
 }
 
-/* Tooltip animation */
 .mantine-Tooltip-tooltip {
   animation: tooltipFadeIn 0.15s ease-out;
 }
@@ -315,30 +316,26 @@ a {
   }
 }
 
-/* Avatar hover effect */
 .mantine-Avatar-root {
-  transition: all 0.2s ease !important;
+  transition: all 0.2s ease;
 }
 
 .mantine-Avatar-root:hover {
-  box-shadow: 0 0 0 2px rgba(34, 139, 230, 0.3);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
 }
 
-/* Focus visible for accessibility */
 :focus-visible {
-  outline: 2px solid #228be6;
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
 
-/* FAB button clearance - prevent content from being hidden */
+/* FAB button clearance */
 @media (max-width: 768px) {
-  /* Add bottom padding to main content for FAB button */
-  .mantine-Container-root,
+  .main-content .mantine-Container-root,
   main {
-    padding-bottom: 80px !important;
+    padding-bottom: 80px;
   }
   
-  /* Specific padding for scrollable areas */
   .mantine-ScrollArea-viewport {
     padding-bottom: 70px;
   }
@@ -346,14 +343,12 @@ a {
 
 /* Touch-friendly sizes for mobile */
 @media (max-width: 768px) {
-  /* Minimum touch target size (44px Apple HIG standard) */
   .mantine-Button-root,
   .mantine-ActionIcon-root,
   .mantine-UnstyledButton-root {
     min-height: 44px;
   }
   
-  /* Increase tap targets for buttons with compact variants */
   .mantine-Button-root[data-size="xs"],
   .mantine-Button-root[data-size="compact-xs"],
   .mantine-Button-root[data-size="compact-sm"] {
@@ -363,43 +358,37 @@ a {
     font-size: 13px;
   }
   
-  /* Better spacing for action icons */
   .mantine-ActionIcon-root[data-size="sm"],
   .mantine-ActionIcon-root[data-size="xs"] {
     min-width: 40px;
     min-height: 40px;
   }
   
-  /* Increase input field heights */
   .mantine-Input-input,
   .mantine-TextInput-input,
   .mantine-Select-input,
   .mantine-NumberInput-input,
   .mantine-Textarea-input {
     min-height: 44px;
-    font-size: 16px; /* Prevents iOS zoom on focus */
+    font-size: 16px;
   }
   
-  /* Better checkbox/radio sizing */
   .mantine-Checkbox-input,
   .mantine-Radio-input {
     width: 24px;
     height: 24px;
   }
   
-  /* Menu items touch-friendly */
   .mantine-Menu-item {
     min-height: 44px;
     padding: 12px 16px;
   }
   
-  /* Tabs touch-friendly */
   .mantine-Tabs-tab {
     min-height: 44px;
     padding: 8px 16px;
   }
   
-  /* Table scroll container improvements */
   .mantine-ScrollArea-root {
     -webkit-overflow-scrolling: touch;
   }
@@ -414,12 +403,10 @@ a {
     vertical-align: middle;
   }
   
-  /* Standard row height for touch */
   .mantine-Table-tr {
     min-height: 48px;
   }
   
-  /* Truncate long text in table cells */
   .mantine-Table-td {
     max-width: 150px;
     overflow: hidden;
@@ -427,23 +414,21 @@ a {
     white-space: nowrap;
   }
   
-  /* Allow multi-line for specific columns */
   .mantine-Table-td[data-multiline="true"] {
     white-space: normal;
     max-width: none;
   }
   
-  /* Better spacing for table headers */
   .mantine-Table-th {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--mantine-color-dimmed);
+    color: var(--muted);
     font-weight: 600;
   }
 }
 
-/* Settings page layout - responsive wrap */
+/* Settings page layout */
 .settings-main-content {
   flex-wrap: wrap;
 }
@@ -456,25 +441,21 @@ a {
 
 /* Piyasa Robotu - Soft hover effect */
 .price-row {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .price-row:hover {
-  background: var(--mantine-color-violet-light) !important;
+  background: rgba(59, 130, 246, 0.1);
   transform: scale(1.002);
 }
 
 .price-row:hover td:first-child {
-  border-left: 3px solid var(--mantine-color-violet-5);
-}
-
-[data-mantine-color-scheme='dark'] .price-row:hover {
-  background: rgba(139, 92, 246, 0.15) !important;
+  border-left: 3px solid var(--primary);
 }
 
 /* İhale Uzmanı Modal - Modern Kartlar */
 .ihale-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
 }
@@ -486,14 +467,14 @@ a {
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--mantine-color-violet-5), var(--mantine-color-blue-5));
+  background: linear-gradient(90deg, var(--primary), #60a5fa);
   transform: scaleX(0);
   transition: transform 0.3s ease;
 }
 
 .ihale-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
 }
 
 .ihale-card:hover::before {
@@ -502,26 +483,21 @@ a {
 
 /* AI Not Kartları */
 .ai-note-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  background: linear-gradient(135deg, rgba(255, 244, 230, 0.9) 0%, rgba(255, 237, 213, 0.7) 100%);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(59, 130, 246, 0.1);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(251, 191, 36, 0.3) !important;
+  border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 .ai-note-card:hover {
   transform: translateX(4px);
-  box-shadow: -4px 4px 15px rgba(251, 191, 36, 0.2);
-  border-color: rgba(251, 191, 36, 0.5) !important;
+  box-shadow: -4px 4px 15px rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.4);
 }
 
-[data-mantine-color-scheme='dark'] .ai-note-card {
-  background: linear-gradient(135deg, rgba(120, 53, 15, 0.3) 0%, rgba(146, 64, 14, 0.2) 100%);
-  border: 1px solid rgba(251, 191, 36, 0.2) !important;
-}
-
-/* Teknik Şart Kartları - Önem Renkleri */
+/* Teknik Şart Kartları */
 .teknik-sart-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
 }
 
@@ -531,24 +507,24 @@ a {
 }
 
 .teknik-sart-card.important {
-  border-left: 4px solid var(--mantine-color-red-5) !important;
-  background: linear-gradient(90deg, rgba(239, 68, 68, 0.05) 0%, transparent 100%);
+  border-left: 4px solid var(--destructive);
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.08) 0%, transparent 100%);
 }
 
 .teknik-sart-card.warning {
-  border-left: 4px solid var(--mantine-color-orange-5) !important;
-  background: linear-gradient(90deg, rgba(249, 115, 22, 0.05) 0%, transparent 100%);
+  border-left: 4px solid var(--warning);
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.08) 0%, transparent 100%);
 }
 
 .teknik-sart-card.info {
-  border-left: 4px solid var(--mantine-color-blue-5) !important;
-  background: linear-gradient(90deg, rgba(59, 130, 246, 0.05) 0%, transparent 100%);
+  border-left: 4px solid var(--primary);
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.08) 0%, transparent 100%);
 }
 
 /* Tab Pulse Animasyonu */
 @keyframes tab-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
-  50% { box-shadow: 0 0 0 4px rgba(139, 92, 246, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0); }
 }
 
 .tab-badge-pulse {
@@ -557,14 +533,14 @@ a {
 
 /* Modern Tab Stilleri */
 .modern-tabs [data-active="true"] {
-  background: linear-gradient(135deg, var(--mantine-color-violet-5), var(--mantine-color-blue-5)) !important;
-  color: white !important;
-  border-color: transparent !important;
+  background: linear-gradient(135deg, var(--primary), #60a5fa);
+  color: white;
+  border-color: transparent;
 }
 
 /* Glassmorphism Modal Header */
 .modal-header-glass {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(96, 165, 250, 0.05) 100%);
   backdrop-filter: blur(10px);
   border-radius: 12px;
   padding: 12px 16px;
@@ -587,63 +563,34 @@ a {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
   }
 }
 
-/* ========================================
-   New Navbar & Search Styles
-   ======================================== */
-
-/* Search trigger hover */
+/* Search & Menu Styles */
 .search-trigger:hover {
-  background-color: rgba(34, 139, 230, 0.08) !important;
-  border-color: rgba(34, 139, 230, 0.2) !important;
+  background-color: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.2);
 }
 
-[data-mantine-color-scheme='dark'] .search-trigger:hover {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  border-color: rgba(255, 255, 255, 0.15) !important;
-}
-
-/* User menu trigger hover */
 .user-menu-trigger:hover {
-  background-color: rgba(34, 139, 230, 0.08) !important;
-  border-color: rgba(34, 139, 230, 0.2) !important;
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
-[data-mantine-color-scheme='dark'] .user-menu-trigger:hover {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  border-color: rgba(255, 255, 255, 0.15) !important;
-}
-
-/* Search result item hover */
 .search-result-item:hover {
-  background-color: rgba(34, 139, 230, 0.08) !important;
+  background-color: rgba(59, 130, 246, 0.1);
 }
 
-[data-mantine-color-scheme='dark'] .search-result-item:hover {
-  background-color: rgba(255, 255, 255, 0.08) !important;
-}
-
-/* Notification item hover */
 .notification-item:hover {
-  background-color: rgba(0, 0, 0, 0.03) !important;
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
-[data-mantine-color-scheme='dark'] .notification-item:hover {
-  background-color: rgba(255, 255, 255, 0.05) !important;
-}
-
-/* ========================================
-   Premium Mobile Sidebar Styles
-   ======================================== */
-
-/* Sidebar close button hover */
+/* Premium Mobile Sidebar Styles */
 .sidebar-close-btn:hover {
-  background-color: rgba(255, 255, 255, 0.25) !important;
+  background-color: rgba(255, 255, 255, 0.15);
   transform: scale(1.05);
 }
 
@@ -651,9 +598,8 @@ a {
   transform: scale(0.95);
 }
 
-/* Menu item hover effects */
 .menu-item {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .menu-item:hover {
@@ -662,38 +608,19 @@ a {
 
 .menu-item:hover .menu-chevron {
   transform: translateX(4px);
-  opacity: 0.8 !important;
+  opacity: 0.8;
 }
 
 .menu-item:active {
   transform: scale(0.98);
 }
 
-/* User action buttons */
 .user-action-btn:hover {
-  background-color: rgba(59, 130, 246, 0.15) !important;
-}
-
-[data-mantine-color-scheme='dark'] .user-action-btn:hover {
-  background-color: rgba(59, 130, 246, 0.2) !important;
+  background-color: rgba(59, 130, 246, 0.15);
 }
 
 .logout-btn:hover {
-  background-color: rgba(239, 68, 68, 0.2) !important;
-}
-
-[data-mantine-color-scheme='dark'] .logout-btn:hover {
-  background-color: rgba(239, 68, 68, 0.25) !important;
-}
-
-/* Active menu item glow animation */
-@keyframes activeGlow {
-  0%, 100% {
-    box-shadow: 0 0 8px currentColor;
-  }
-  50% {
-    box-shadow: 0 0 16px currentColor;
-  }
+  background-color: rgba(239, 68, 68, 0.2);
 }
 
 /* Stagger animation for menu items */
@@ -708,49 +635,52 @@ a {
   }
 }
 
-/* Apply stagger to menu groups */
 .menu-item {
   animation: menuItemSlideIn 0.3s ease-out forwards;
 }
 
-/* Premium badge gradient */
-.ai-badge {
-  background: linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%) !important;
-  color: white !important;
-  font-weight: 600 !important;
+/* Premium Dashboard Styles */
+.tracking-stat-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-/* ========================================
-   Premium Dashboard Styles
-   ======================================== */
+.tracking-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.tracking-stat-bekliyor:hover { border-color: rgba(234, 179, 8, 0.5); }
+.tracking-stat-basvuruldu:hover { border-color: rgba(59, 130, 246, 0.5); }
+.tracking-stat-kazanildi:hover { border-color: rgba(34, 197, 94, 0.5); }
+.tracking-stat-toplam:hover { border-color: var(--border-light); }
+
+.asistan-ac-btn:hover {
+  box-shadow: 0 8px 32px rgba(59, 130, 246, 0.25), 0 0 0 1px rgba(96, 165, 250, 0.15);
+}
 
 /* KPI Card hover effects */
 .kpi-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .kpi-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-}
-
-[data-mantine-color-scheme='dark'] .kpi-card:hover {
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
 }
 
 /* Quick action button hover */
 .quick-action-btn {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .quick-action-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
 
 /* Note item hover */
 .note-item {
-  transition: all 0.2s ease !important;
+  transition: all 0.2s ease;
 }
 
 .note-item:hover {
@@ -778,19 +708,9 @@ a {
 .kpi-card:nth-child(3) { animation-delay: 0.15s; }
 .kpi-card:nth-child(4) { animation-delay: 0.2s; }
 
-/* Pulse animation for status indicators */
-@keyframes statusPulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
 /* Gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, #60a5fa 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -798,131 +718,87 @@ a {
 
 /* Kbd styling for search */
 .mantine-Kbd-root {
-  font-size: 10px !important;
-  padding: 2px 6px !important;
-  min-width: auto !important;
+  font-size: 10px;
+  padding: 2px 6px;
+  min-width: auto;
 }
 
-/* ========================================
-   Hero Section Animations
-   ======================================== */
-
-/* Animated gradient background */
-@keyframes gradientShift {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-/* Hero action buttons hover effect */
+/* Hero Section */
 .hero-action-btn:hover {
-  background: rgba(255,255,255,0.35) !important;
+  background: rgba(255,255,255,0.2);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
 }
 
 .hero-action-btn:active {
   transform: translateY(0);
 }
 
-/* Stats pills subtle animation */
-@keyframes pulseGlow {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(255,255,255,0);
-  }
-  50% {
-    box-shadow: 0 0 20px 0 rgba(255,255,255,0.2);
-  }
-}
-
-/* Responsive hero on mobile */
 @media (max-width: 768px) {
   .hero-action-btn {
-    width: 40px !important;
-    height: 40px !important;
-    min-width: 40px !important;
-    min-height: 40px !important;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
   }
 }
 
-/* ========================================
-   AI Chat Mobile Improvements
-   ======================================== */
-
-/* Mobilde scroll iyileştirmeleri */
+/* AI Chat Mobile Improvements */
 .mantine-ScrollArea-viewport {
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
+  transform: translateZ(0);
 }
 
-/* Mobilde dokunma alanlarını büyüt */
 @media (max-width: 768px) {
-  /* AI Chat input alanı */
   .mantine-TextInput-input {
-    min-height: 44px !important;
-    font-size: 16px !important; /* iOS zoom'u önler */
+    min-height: 44px;
+    font-size: 16px;
   }
   
-  /* AI Chat butonları */
   .mantine-ActionIcon-root {
     min-width: 44px;
     min-height: 44px;
   }
   
-  /* AI Chat mesajları - daha okunabilir */
   .mantine-Paper-root .mantine-Text-root {
     line-height: 1.5;
   }
   
-  /* Safe area için padding (iPhone notch) */
   .ai-chat-input-area {
-    padding-bottom: env(safe-area-inset-bottom, 8px) !important;
+    padding-bottom: env(safe-area-inset-bottom, 8px);
   }
 }
 
-/* Touch scroll için */
 .touch-scroll {
   -webkit-overflow-scrolling: touch;
   overflow-y: auto;
   overscroll-behavior-y: contain;
 }
 
-/* Prevent pull-to-refresh on chat */
 .no-pull-refresh {
   overscroll-behavior-y: none;
 }
 
-/* ============================================
-   İHALE UZMANI MODAL - UI İYİLEŞTİRMELERİ
-   ============================================ */
-
-/* Teknik Şart Kartları - Hover Effect */
+/* İhale Uzmanı Modal UI İyileştirmeleri */
 .teknik-sart-item {
   transition: all 0.2s ease;
 }
 
 .teknik-sart-item:hover {
   transform: translateX(4px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* AI Not Kartları - Hover Effect */
 .ai-note-compact {
   transition: all 0.2s ease;
 }
 
 .ai-note-compact:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
-/* Staggered Animation for List Items */
 @keyframes fadeInSlide {
   from {
     opacity: 0;
@@ -940,7 +816,6 @@ a {
   animation-fill-mode: both;
 }
 
-/* Stagger delays for first 10 items */
 .teknik-sart-item:nth-child(1),
 .ai-note-compact:nth-child(1) { animation-delay: 0.02s; }
 .teknik-sart-item:nth-child(2),
@@ -951,23 +826,11 @@ a {
 .ai-note-compact:nth-child(4) { animation-delay: 0.08s; }
 .teknik-sart-item:nth-child(5),
 .ai-note-compact:nth-child(5) { animation-delay: 0.1s; }
-.teknik-sart-item:nth-child(6),
-.ai-note-compact:nth-child(6) { animation-delay: 0.12s; }
-.teknik-sart-item:nth-child(7),
-.ai-note-compact:nth-child(7) { animation-delay: 0.14s; }
-.teknik-sart-item:nth-child(8),
-.ai-note-compact:nth-child(8) { animation-delay: 0.16s; }
-.teknik-sart-item:nth-child(9),
-.ai-note-compact:nth-child(9) { animation-delay: 0.18s; }
-.teknik-sart-item:nth-child(10),
-.ai-note-compact:nth-child(10) { animation-delay: 0.2s; }
 
-/* Birim Fiyat Tablosu - Row Hover */
 .mantine-Table-tr:hover {
-  background-color: rgba(64, 192, 87, 0.06) !important;
+  background-color: rgba(59, 130, 246, 0.08);
 }
 
-/* Badge Number Animation */
 @keyframes pulseGlow {
   0%, 100% {
     box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
@@ -981,37 +844,23 @@ a {
   animation: pulseGlow 1s ease-in-out infinite;
 }
 
-/* Search Input Focus Effect */
 .mantine-TextInput-input:focus {
-  border-color: var(--mantine-color-blue-5) !important;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
-/* Chip Toggle Active State */
 .mantine-Chip-label[data-checked="true"] {
   font-weight: 600;
 }
 
-/* Modal Header Glass Effect Enhancement */
-.modal-header-glass {
-  background: linear-gradient(135deg, 
-    rgba(139, 92, 246, 0.08) 0%, 
-    rgba(59, 130, 246, 0.05) 50%,
-    rgba(236, 72, 153, 0.03) 100%
-  ) !important;
-  backdrop-filter: blur(10px);
-}
-
-/* Smooth Tab Transition */
 .mantine-Tabs-tab {
-  transition: all 0.2s ease !important;
+  transition: all 0.2s ease;
 }
 
 .mantine-Tabs-tab:hover:not([data-active]) {
-  background-color: rgba(0, 0, 0, 0.03);
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
-/* Responsive adjustments for mobile */
 @media (max-width: 768px) {
   .teknik-sart-item,
   .ai-note-compact {
@@ -1024,181 +873,139 @@ a {
   }
 }
 
-/* ============================================
-   İHALE UZMANI - PROFESYONEL TAB STİLLERİ
-   ============================================ */
-
-/* Ana Sekmeler (Özet, Döküman Analizi, Hesaplamalar, AI & Dilekçeler) */
+/* İhale Uzmanı Tab Stilleri */
 .ihale-tabs-root {
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border);
 }
 
 .ihale-tabs-list {
-  gap: 0 !important;
-  border-bottom: none !important;
+  gap: 0;
+  border-bottom: none;
 }
 
 .ihale-tabs-tab {
-  padding: 14px 24px !important;
-  font-weight: 500 !important;
-  font-size: 14px !important;
-  color: #6b7280 !important;
-  border-bottom: 2px solid transparent !important;
-  margin-bottom: -1px !important;
-  transition: all 0.15s ease !important;
-  background: transparent !important;
-  border-radius: 0 !important;
+  padding: 14px 24px;
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.15s ease;
+  background: transparent;
+  border-radius: 0;
 }
 
 .ihale-tabs-tab:hover {
-  color: #374151 !important;
-  background: transparent !important;
+  color: var(--muted-foreground);
+  background: transparent;
 }
 
 .ihale-tabs-tab[data-active="true"],
 .ihale-tabs-tab[data-active] {
-  color: #1f2937 !important;
-  font-weight: 600 !important;
-  border-bottom-color: #2563eb !important;
-  background: transparent !important;
+  color: var(--foreground);
+  font-weight: 600;
+  border-bottom-color: var(--primary);
+  background: transparent;
 }
 
-/* Alt Sekmeler (Teknik Şartlar, Birim Fiyatlar, AI Notları, Tam Metin) */
 .ihale-subtabs-list {
-  gap: 0 !important;
-  border-bottom: 1px solid #e5e7eb !important;
-  padding-bottom: 0 !important;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
 }
 
 .ihale-subtabs-tab {
-  padding: 10px 16px !important;
-  font-weight: 500 !important;
-  font-size: 13px !important;
-  color: #6b7280 !important;
-  border-bottom: 2px solid transparent !important;
-  margin-bottom: -1px !important;
-  transition: all 0.15s ease !important;
-  background: transparent !important;
-  border-radius: 0 !important;
+  padding: 10px 16px;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.15s ease;
+  background: transparent;
+  border-radius: 0;
 }
 
 .ihale-subtabs-tab:hover {
-  color: #374151 !important;
-  background: transparent !important;
+  color: var(--muted-foreground);
+  background: transparent;
 }
 
 .ihale-subtabs-tab[data-active="true"],
 .ihale-subtabs-tab[data-active] {
-  color: #1f2937 !important;
-  font-weight: 600 !important;
-  border-bottom-color: #2563eb !important;
-  background: transparent !important;
+  color: var(--foreground);
+  font-weight: 600;
+  border-bottom-color: var(--primary);
+  background: transparent;
 }
 
-/* Dark mode desteği */
-[data-mantine-color-scheme='dark'] .ihale-tabs-root,
-[data-mantine-color-scheme='dark'] .ihale-subtabs-list {
-  border-color: #374151 !important;
-}
-
-[data-mantine-color-scheme='dark'] .ihale-tabs-tab,
-[data-mantine-color-scheme='dark'] .ihale-subtabs-tab {
-  color: #9ca3af !important;
-}
-
-[data-mantine-color-scheme='dark'] .ihale-tabs-tab:hover,
-[data-mantine-color-scheme='dark'] .ihale-subtabs-tab:hover {
-  color: #d1d5db !important;
-}
-
-[data-mantine-color-scheme='dark'] .ihale-tabs-tab[data-active="true"],
-[data-mantine-color-scheme='dark'] .ihale-tabs-tab[data-active],
-[data-mantine-color-scheme='dark'] .ihale-subtabs-tab[data-active="true"],
-[data-mantine-color-scheme='dark'] .ihale-subtabs-tab[data-active] {
-  color: #f3f4f6 !important;
-  border-bottom-color: #3b82f6 !important;
-}
-
-/* ============================================
-   MOBİL UYUMLULUK - EK STİLLER
-   ============================================ */
-
-/* Mobilde yatay scroll'u önle */
+/* Mobil Uyumluluk */
 @media (max-width: 768px) {
   body {
-    overflow-x: hidden !important;
+    overflow-x: hidden;
   }
   
-  /* Container'ları mobil için optimize et */
-  .mantine-Container-root {
-    max-width: 100% !important;
-    padding-left: 12px !important;
-    padding-right: 12px !important;
+  .main-content .mantine-Container-root {
+    max-width: 100%;
+    padding-left: 12px;
+    padding-right: 12px;
   }
   
-  /* Paper/Card bileşenlerinde taşmayı önle */
   .mantine-Paper-root,
   .mantine-Card-root {
     overflow: hidden;
     max-width: 100%;
   }
   
-  /* Group ve Stack - wrap özelliği */
   .mobile-wrap .mantine-Group-root {
-    flex-wrap: wrap !important;
+    flex-wrap: wrap;
   }
   
-  /* Grid kolonları otomatik daralsın */
   .mantine-Grid-col {
-    flex-basis: 100% !important;
-    max-width: 100% !important;
+    flex-basis: 100%;
+    max-width: 100%;
   }
   
-  /* SimpleGrid mobil tek kolon */
   .mantine-SimpleGrid-root {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
   }
   
-  /* Modal tam ekran */
   .mantine-Modal-content {
-    max-height: 95vh !important;
-    border-radius: 16px 16px 0 0 !important;
+    max-height: 95vh;
+    border-radius: 16px 16px 0 0;
   }
   
   .mantine-Modal-body {
-    max-height: calc(95vh - 80px) !important;
-    overflow-y: auto !important;
+    max-height: calc(95vh - 80px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
   }
   
-  /* Drawer animasyonu iyileştirmesi */
   .mantine-Drawer-content {
-    border-radius: 16px 16px 0 0 !important;
+    border-radius: 16px 16px 0 0;
   }
   
-  /* Buton grupları wrap olsun */
   .mantine-Group-root[data-wrap] {
-    flex-wrap: wrap !important;
-    gap: 8px !important;
+    flex-wrap: wrap;
+    gap: 8px;
   }
   
-  /* Text truncation */
   .mobile-truncate {
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-    max-width: 100% !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
   }
   
-  /* Badge'ler küçülsün */
   .mantine-Badge-root {
-    font-size: 10px !important;
-    padding: 2px 6px !important;
+    font-size: 10px;
+    padding: 2px 6px;
   }
   
-  /* Tabs yatay scroll */
   .mantine-Tabs-list {
-    flex-wrap: nowrap !important;
-    overflow-x: auto !important;
+    flex-wrap: nowrap;
+    overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -1208,178 +1015,183 @@ a {
     display: none;
   }
   
-  /* Tab'lar küçülmesin */
   .mantine-Tabs-tab {
-    flex-shrink: 0 !important;
-    white-space: nowrap !important;
+    flex-shrink: 0;
+    white-space: nowrap;
   }
   
-  /* Tooltip mobilde gösterme */
   .mantine-Tooltip-tooltip {
-    display: none !important;
+    display: none;
   }
   
-  /* NumberInput ve Select genişliği */
   .mantine-NumberInput-root,
   .mantine-Select-root,
   .mantine-TextInput-root,
   .mantine-Textarea-root {
-    width: 100% !important;
+    width: 100%;
   }
   
-  /* ActionIcon grupları */
   .mantine-ActionIcon-root {
     touch-action: manipulation;
   }
   
-  /* Segmented Control yatay scroll */
   .mantine-SegmentedControl-root {
-    overflow-x: auto !important;
+    overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
   
-  /* DatePicker mobil */
   .mantine-DatePickerInput-root,
   .mantine-DateInput-root {
-    width: 100% !important;
+    width: 100%;
   }
-  
-  /* Stats grid mobil */
+}
+
+/* Tarih seçici */
+html body .mantine-Popover-dropdown[data-dates-dropdown="true"],
+html body [data-dates-dropdown="true"] {
+  max-width: 320px;
+  padding: 12px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+html body [data-dates-dropdown="true"] .mantine-Calendar-day {
+  font-size: 13px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+html body [data-dates-dropdown="true"] .mantine-Calendar-weekday {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+html body [data-dates-dropdown="true"] .mantine-Calendar-header {
+  margin-bottom: 8px;
+}
+
+html body [data-dates-dropdown="true"] .mantine-Calendar-headerLevel {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
   .stats-grid {
-    grid-template-columns: 1fr 1fr !important;
+    grid-template-columns: 1fr 1fr;
   }
   
-  /* Hero section mobil */
   .hero-section {
-    padding: 16px !important;
-    border-radius: 12px !important;
+    padding: 16px;
+    border-radius: 12px;
   }
   
-  /* Kart hover'ları mobilde kaldır */
   .hover-card:hover,
   .hover-lift:hover,
   .ihale-card:hover,
   .kpi-card:hover {
-    transform: none !important;
+    transform: none;
   }
 }
 
-/* Küçük mobil ekranlar (< 480px) */
 @media (max-width: 480px) {
-  /* Daha küçük padding'ler */
-  .mantine-Container-root {
-    padding-left: 8px !important;
-    padding-right: 8px !important;
+  .main-content .mantine-Container-root {
+    padding-left: 8px;
+    padding-right: 8px;
   }
   
-  /* Daha küçük font boyutları */
   .mantine-Title-root[data-order="1"] {
-    font-size: 1.5rem !important;
+    font-size: 1.5rem;
   }
   
   .mantine-Title-root[data-order="2"] {
-    font-size: 1.25rem !important;
+    font-size: 1.25rem;
   }
   
   .mantine-Title-root[data-order="3"] {
-    font-size: 1.1rem !important;
+    font-size: 1.1rem;
   }
   
-  /* Stats tek kolon */
   .stats-grid {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
   }
   
-  /* Butonlar tam genişlik */
   .mobile-full-width .mantine-Button-root {
-    width: 100% !important;
+    width: 100%;
   }
   
-  /* Avatar küçülsün */
   .mantine-Avatar-root {
-    width: 32px !important;
-    height: 32px !important;
-    min-width: 32px !important;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
   }
 }
 
-/* Touch cihazlar için optimize */
+/* Touch cihazlar */
 @media (pointer: coarse) {
-  /* Daha büyük dokunma alanları */
   .mantine-Button-root,
   .mantine-ActionIcon-root,
   .mantine-CloseButton-root {
-    min-height: 44px !important;
-    min-width: 44px !important;
+    min-height: 44px;
+    min-width: 44px;
   }
   
-  /* Checkbox/Radio büyüsün */
   .mantine-Checkbox-input,
   .mantine-Radio-radio {
-    width: 22px !important;
-    height: 22px !important;
+    width: 22px;
+    height: 22px;
   }
   
-  /* Switch büyüsün */
   .mantine-Switch-track {
-    min-width: 46px !important;
-    min-height: 24px !important;
+    min-width: 46px;
+    min-height: 24px;
   }
   
-  /* Menu item'lar */
   .mantine-Menu-item {
-    min-height: 48px !important;
-    padding: 12px 16px !important;
+    min-height: 48px;
+    padding: 12px 16px;
   }
   
-  /* Accordion header */
   .mantine-Accordion-control {
-    min-height: 52px !important;
+    min-height: 52px;
   }
   
-  /* List item'lar */
   .mantine-NavLink-root {
-    min-height: 48px !important;
+    min-height: 48px;
   }
 }
 
 /* Landscape mobil */
 @media (max-width: 768px) and (orientation: landscape) {
-  /* Modal yüksekliği azalt */
   .mantine-Modal-content {
-    max-height: 90vh !important;
+    max-height: 90vh;
   }
   
-  /* Drawer daha dar */
   .mantine-Drawer-content {
-    max-width: 50vw !important;
+    max-width: 50vw;
   }
 }
 
-/* Safe area (iPhone notch) desteği */
+/* Safe area (iPhone notch) */
 @supports (padding-top: env(safe-area-inset-top)) {
   @media (max-width: 768px) {
-    /* Header safe area */
     .navbar-header {
-      padding-top: calc(env(safe-area-inset-top) + 8px) !important;
+      padding-top: calc(env(safe-area-inset-top) + 8px);
     }
     
-    /* Bottom safe area */
     .mobile-bottom-bar,
     .fab-button-container {
-      padding-bottom: calc(env(safe-area-inset-bottom) + 16px) !important;
+      padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
     }
     
-    /* Modal bottom safe area */
     .mantine-Modal-body {
-      padding-bottom: env(safe-area-inset-bottom) !important;
+      padding-bottom: env(safe-area-inset-bottom);
     }
   }
 }
 
-/* Mobil tablo stilleri */
+/* Mobil tablo */
 @media (max-width: 768px) {
-  /* Horizontal scroll table container */
   .table-responsive {
     width: 100%;
     overflow-x: auto;
@@ -1387,132 +1199,105 @@ a {
     margin-bottom: 16px;
   }
   
-  /* Min-width for tables */
   .table-responsive .mantine-Table-root {
     min-width: 600px;
   }
   
-  /* Card-based table alternative */
   .table-cards .mantine-Table-root {
-    display: none !important;
+    display: none;
   }
   
-  /* Action column sticky */
   .table-responsive .mantine-Table-th:last-child,
   .table-responsive .mantine-Table-td:last-child {
     position: sticky;
     right: 0;
     background: inherit;
-    box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+    box-shadow: -2px 0 5px rgba(0,0,0,0.15);
   }
 }
 
-/* Floating Action Button (FAB) */
+/* Floating Action Button */
 .fab-button {
-  position: fixed !important;
-  bottom: 24px !important;
-  right: 24px !important;
-  z-index: 100 !important;
-  width: 56px !important;
-  height: 56px !important;
-  border-radius: 50% !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 100;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 @media (max-width: 768px) {
   .fab-button {
-    bottom: calc(24px + env(safe-area-inset-bottom, 0px)) !important;
-    right: 16px !important;
-  }
-}
-
-/* Pull to refresh desteği */
-.pull-to-refresh-container {
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
-}
-
-/* Skeleton loading mobil */
-@media (max-width: 768px) {
-  .mantine-Skeleton-root {
-    border-radius: 8px !important;
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    right: 16px;
   }
 }
 
 /* Form layout mobil */
 @media (max-width: 768px) {
-  /* Form row'ları stack olsun */
   .form-row {
-    flex-direction: column !important;
-    gap: 12px !important;
+    flex-direction: column;
+    gap: 12px;
   }
   
   .form-row > * {
-    width: 100% !important;
+    width: 100%;
   }
   
-  /* Label'lar üstte */
   .mantine-InputWrapper-root {
-    flex-direction: column !important;
+    flex-direction: column;
   }
   
-  /* Submit buton tam genişlik */
   .form-actions {
-    flex-direction: column-reverse !important;
-    gap: 8px !important;
+    flex-direction: column-reverse;
+    gap: 8px;
   }
   
   .form-actions .mantine-Button-root {
-    width: 100% !important;
+    width: 100%;
   }
 }
 
-/* ============================================
-   MOBİL MODAL - TAM EKRAN DENEYİMİ
-   ============================================ */
+/* Mobil Modal - Tam Ekran */
 @media (max-width: 768px) {
-  /* Tüm Modal'ları tam ekran yap */
   .mantine-Modal-root .mantine-Modal-content {
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    top: auto !important;
-    max-height: 92vh !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    border-radius: 20px 20px 0 0 !important;
-    transform: none !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    max-height: 92vh;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    border-radius: 20px 20px 0 0;
+    transform: none;
   }
   
   .mantine-Modal-inner {
-    padding: 0 !important;
-    align-items: flex-end !important;
+    padding: 0;
+    align-items: flex-end;
   }
   
   .mantine-Modal-header {
-    padding: 16px 20px 12px !important;
-    border-bottom: 1px solid var(--mantine-color-gray-2) !important;
-    position: sticky !important;
-    top: 0 !important;
-    background: inherit !important;
-    z-index: 10 !important;
-  }
-  
-  [data-mantine-color-scheme='dark'] .mantine-Modal-header {
-    border-bottom-color: var(--mantine-color-dark-4) !important;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: inherit;
+    z-index: 10;
   }
   
   .mantine-Modal-body {
-    padding: 16px !important;
-    overflow-y: auto !important;
-    max-height: calc(92vh - 70px) !important;
-    -webkit-overflow-scrolling: touch !important;
+    padding: 16px;
+    overflow-y: auto;
+    max-height: calc(92vh - 70px);
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
   }
   
-  /* Handle bar - iOS tarzı */
   .mantine-Modal-header::before {
     content: '';
     position: absolute;
@@ -1522,54 +1307,42 @@ a {
     width: 36px;
     height: 4px;
     border-radius: 2px;
-    background: var(--mantine-color-gray-3);
-  }
-  
-  [data-mantine-color-scheme='dark'] .mantine-Modal-header::before {
-    background: var(--mantine-color-dark-3);
+    background: var(--secondary);
   }
   
   .mantine-Modal-title {
-    padding-top: 4px !important;
-    font-size: 1rem !important;
-    font-weight: 600 !important;
+    padding-top: 4px;
+    font-size: 1rem;
+    font-weight: 600;
   }
   
-  /* Kapatma butonu */
   .mantine-Modal-close {
-    position: absolute !important;
-    right: 12px !important;
-    top: 16px !important;
+    position: absolute;
+    right: 12px;
+    top: 16px;
   }
   
-  /* Modal backdrop */
   .mantine-Modal-overlay {
-    background: rgba(0, 0, 0, 0.5) !important;
-    backdrop-filter: blur(2px) !important;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
   }
 }
 
-/* Drawer mobil iyileştirmeleri */
+/* Drawer mobil */
 @media (max-width: 768px) {
-  /* Bottom drawer */
   .mantine-Drawer-root[data-position="bottom"] .mantine-Drawer-content {
-    max-height: 90vh !important;
-    border-radius: 20px 20px 0 0 !important;
+    max-height: 90vh;
+    border-radius: 20px 20px 0 0;
   }
   
   .mantine-Drawer-header {
-    padding: 16px 20px 12px !important;
-    border-bottom: 1px solid var(--mantine-color-gray-2) !important;
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 10 !important;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
   }
   
-  [data-mantine-color-scheme='dark'] .mantine-Drawer-header {
-    border-bottom-color: var(--mantine-color-dark-4) !important;
-  }
-  
-  /* Handle bar for drawer */
   .mantine-Drawer-root[data-position="bottom"] .mantine-Drawer-header::before {
     content: '';
     position: absolute;
@@ -1579,26 +1352,18 @@ a {
     width: 36px;
     height: 4px;
     border-radius: 2px;
-    background: var(--mantine-color-gray-3);
-  }
-  
-  [data-mantine-color-scheme='dark'] .mantine-Drawer-root[data-position="bottom"] .mantine-Drawer-header::before {
-    background: var(--mantine-color-dark-3);
+    background: var(--secondary);
   }
   
   .mantine-Drawer-body {
-    padding: 16px !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    padding-bottom: calc(16px + env(safe-area-inset-bottom)) !important;
+    padding: 16px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
   }
 }
 
-/* ============================================
-   MOBİL - EK KRİTİK İYİLEŞTİRMELER
-   ============================================ */
-
-/* Touch cihazlarda hover efektlerini tamamen kaldır */
+/* Touch cihazlarda hover efektlerini kaldır */
 @media (hover: none) and (pointer: coarse) {
   .hover-card:hover,
   .hover-lift:hover,
@@ -1612,24 +1377,23 @@ a {
   .teknik-sart-item:hover,
   .ai-note-compact:hover,
   .menu-item:hover {
-    transform: none !important;
-    box-shadow: inherit !important;
+    transform: none;
+    box-shadow: inherit;
   }
   
   .mantine-ActionIcon-root:hover,
   .mantine-Button-root:hover {
-    transform: none !important;
+    transform: none;
   }
   
-  /* Active durumu için hafif geri bildirim */
   .mantine-Button-root:active,
   .mantine-ActionIcon-root:active {
-    transform: scale(0.96) !important;
-    transition: transform 0.1s ease !important;
+    transform: scale(0.96);
+    transition: transform 0.1s ease;
   }
 }
 
-/* iOS form zoom sorunu - 16px altı font'larda zoom yapar */
+/* iOS form zoom sorunu */
 @media (max-width: 768px) {
   input[type="text"],
   input[type="email"],
@@ -1649,26 +1413,24 @@ a {
   .mantine-PasswordInput-input,
   .mantine-DateInput-input,
   .mantine-DatePickerInput-input {
-    font-size: 16px !important;
+    font-size: 16px;
     -webkit-text-size-adjust: 100%;
   }
 }
 
-/* Mobil Responsive Table - Kart Görünümü Desteği */
+/* Responsive Table - Kart Görünümü */
 @media (max-width: 768px) {
-  /* Desktop table gizle, card göster */
   .responsive-table-desktop {
-    display: none !important;
+    display: none;
   }
   
   .responsive-table-mobile {
-    display: block !important;
+    display: block;
   }
   
-  /* Mobil kart stili */
   .mobile-data-card {
-    background: var(--mantine-color-body);
-    border: 1px solid var(--mantine-color-gray-3);
+    background: var(--card);
+    border: 1px solid var(--border);
     border-radius: 12px;
     padding: 12px;
     margin-bottom: 8px;
@@ -1676,45 +1438,34 @@ a {
   }
   
   .mobile-data-card:active {
-    border-color: var(--mantine-color-blue-4);
-    background: var(--mantine-color-blue-0);
-  }
-  
-  [data-mantine-color-scheme='dark'] .mobile-data-card {
-    border-color: var(--mantine-color-dark-4);
-  }
-  
-  [data-mantine-color-scheme='dark'] .mobile-data-card:active {
-    border-color: var(--mantine-color-blue-6);
-    background: var(--mantine-color-dark-6);
+    border-color: var(--primary);
+    background: rgba(59, 130, 246, 0.08);
   }
 }
 
 @media (min-width: 769px) {
   .responsive-table-desktop {
-    display: block !important;
+    display: block;
   }
   
   .responsive-table-mobile {
-    display: none !important;
+    display: none;
   }
 }
 
-/* Mobil Detay Modal İyileştirmeleri */
+/* Mobil Detay Modal */
 @media (max-width: 768px) {
-  /* Detay modal tam ekran */
   .detail-modal .mantine-Modal-content {
-    max-height: 100vh !important;
-    height: 100vh !important;
-    border-radius: 0 !important;
+    max-height: 100vh;
+    height: 100vh;
+    border-radius: 0;
   }
   
   .detail-modal .mantine-Modal-body {
-    max-height: calc(100vh - 60px) !important;
-    padding-bottom: calc(20px + env(safe-area-inset-bottom)) !important;
+    max-height: calc(100vh - 60px);
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
   }
   
-  /* Scroll indicator - sayfanın devam ettiğini göster */
   .detail-modal .mantine-Modal-body::after {
     content: '';
     position: fixed;
@@ -1722,12 +1473,12 @@ a {
     left: 0;
     right: 0;
     height: 40px;
-    background: linear-gradient(transparent, var(--mantine-color-body));
+    background: linear-gradient(transparent, var(--card));
     pointer-events: none;
   }
 }
 
-/* Mobil buton grupları için utility class */
+/* Mobil buton grupları */
 .mobile-button-stack {
   display: flex;
   flex-direction: row;
@@ -1744,15 +1495,15 @@ a {
   }
 }
 
-/* Sticky footer buttons (form submit vb.) */
+/* Sticky footer buttons */
 .sticky-footer-buttons {
   position: sticky;
   bottom: 0;
   left: 0;
   right: 0;
   padding: 16px;
-  background: var(--mantine-color-body);
-  border-top: 1px solid var(--mantine-color-gray-2);
+  background: var(--card);
+  border-top: 1px solid var(--border);
   margin: 0 -16px -16px -16px;
   z-index: 10;
 }
@@ -1763,18 +1514,14 @@ a {
   }
 }
 
-[data-mantine-color-scheme='dark'] .sticky-footer-buttons {
-  border-top-color: var(--mantine-color-dark-4);
-}
-
-/* Loading overlay mobil düzeltmesi */
+/* Loading overlay mobil */
 @media (max-width: 768px) {
   .mantine-LoadingOverlay-root {
-    border-radius: inherit !important;
+    border-radius: inherit;
   }
 }
 
-/* Tabs scroll indicator - daha fazla sekme olduğunu göster */
+/* Tabs scroll indicator */
 @media (max-width: 768px) {
   .mantine-Tabs-list::after {
     content: '';
@@ -1783,7 +1530,7 @@ a {
     top: 0;
     bottom: 0;
     width: 40px;
-    background: linear-gradient(to right, transparent, var(--mantine-color-body));
+    background: linear-gradient(to right, transparent, var(--card));
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.2s;
@@ -1802,4 +1549,529 @@ a {
 
 .swipe-hint {
   animation: swipeHint 1.5s ease-in-out 2;
+}
+
+/* ===== STANDART KART SİSTEMİ ===== */
+/* Tüm sayfalarda tutarlı kart görünümü için kullanılır */
+
+/* Temel kart stilleri */
+.standard-card {
+  background: var(--surface-elevated, var(--card));
+  border: 1px solid var(--surface-border, var(--border));
+  border-radius: var(--mantine-radius-md);
+  padding: var(--mantine-spacing-lg);
+  transition: all 0.2s ease;
+}
+
+/* Light mode için */
+[data-mantine-color-scheme="light"] .standard-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Hover efektli kart */
+.standard-card-hover {
+  background: var(--surface-elevated, var(--card));
+  border: 1px solid var(--surface-border, var(--border));
+  border-radius: var(--mantine-radius-md);
+  padding: var(--mantine-spacing-lg);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.standard-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  border-color: var(--primary);
+}
+
+[data-mantine-color-scheme="light"] .standard-card-hover {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-mantine-color-scheme="light"] .standard-card-hover:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* İstatistik kartı (KPI, stat kartları için) */
+.stat-card {
+  background: var(--surface-elevated, var(--card));
+  border: 1px solid var(--surface-border, var(--border));
+  border-radius: var(--mantine-radius-md);
+  padding: var(--mantine-spacing-md);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+[data-mantine-color-scheme="light"] .stat-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Accent renk varyantları (stat kartlar için üst çizgi) */
+.stat-card[data-accent="blue"]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+}
+
+.stat-card[data-accent="green"]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+}
+
+.stat-card[data-accent="yellow"]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+}
+
+.stat-card[data-accent="red"]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+}
+
+.stat-card[data-accent="violet"]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+}
+
+.stat-card[data-accent="cyan"]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(135deg, #06B6D4 0%, #0891B2 100%);
+}
+
+/* Gradient arka plan varyantı */
+.stat-card[data-gradient="blue"] {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, var(--surface-elevated, var(--card)) 100%);
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+.stat-card[data-gradient="green"] {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, var(--surface-elevated, var(--card)) 100%);
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+.stat-card[data-gradient="yellow"] {
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.08) 0%, var(--surface-elevated, var(--card)) 100%);
+  border-color: rgba(234, 179, 8, 0.25);
+}
+
+.stat-card[data-gradient="red"] {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, var(--surface-elevated, var(--card)) 100%);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+/* İç içe kart (nested card) - ProjeCard gibi durumlar için */
+.nested-card {
+  background: var(--surface-elevated, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--surface-border, var(--border));
+  border-radius: var(--mantine-radius-sm);
+  padding: var(--mantine-spacing-xs);
+}
+
+[data-mantine-color-scheme="light"] .nested-card {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+/* Glassmorphism kart (hero alanları için) */
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--mantine-radius-lg);
+  padding: var(--mantine-spacing-lg);
+}
+
+[data-mantine-color-scheme="light"] .glass-card {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+/* Mobil cihazlarda hover efektlerini kaldır */
+@media (hover: none) and (pointer: coarse) {
+  .standard-card-hover:hover,
+  .stat-card:hover {
+    transform: none;
+    box-shadow: inherit;
+  }
+}
+
+/* ===== LIQUIDE GLASSY STYLE KARTLAR ===== */
+/* Dribbble'daki "Liquide Glassy Style Dashboard" tasarımına uygun */
+
+/* Glassy sayfa arka planı - blur efektinin görünmesi için */
+.glassy-page-bg {
+  position: relative;
+  min-height: 100vh;
+}
+
+.glassy-page-bg::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* Unsplash'tan ücretsiz arka plan resmi + blur */
+  background-image: url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=80');
+  background-size: cover;
+  background-position: center;
+  filter: blur(60px) saturate(1.2);
+  transform: scale(1.1);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Arka plan üzerine koyu overlay */
+.glassy-page-bg::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(10, 10, 15, 0.7);
+  pointer-events: none;
+  z-index: -1;
+}
+
+[data-mantine-color-scheme="light"] .glassy-page-bg::after {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Ana glassmorphism kart stili */
+.glassy-card {
+  background: rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateZ(0);
+}
+
+.glassy-card:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18) !important;
+}
+
+/* Light mode için glassy kart */
+[data-mantine-color-scheme="light"] .glassy-card {
+  background: rgba(255, 255, 255, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.8) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-mantine-color-scheme="light"] .glassy-card:hover {
+  background: rgba(255, 255, 255, 0.75) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Header kartı - Görseldeki üst kısım gibi */
+.glassy-header-card {
+  background: rgba(255, 255, 255, 0.06) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 20px !important;
+  padding: 24px;
+  transform: translateZ(0);
+}
+
+[data-mantine-color-scheme="light"] .glassy-header-card {
+  background: rgba(255, 255, 255, 0.7) !important;
+  border-color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* İçerik kartı - Ana içerik alanı */
+.glassy-content-card {
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 16px !important;
+  padding: 20px;
+  transform: translateZ(0);
+}
+
+[data-mantine-color-scheme="light"] .glassy-content-card {
+  background: rgba(255, 255, 255, 0.55) !important;
+  border-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Bilgi satırı - Görseldeki Legal business name, State vs. */
+.glassy-info-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 16px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glassy-info-item {
+  position: relative;
+  padding-right: 24px;
+}
+
+.glassy-info-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 40px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+[data-mantine-color-scheme="light"] .glassy-info-row {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-mantine-color-scheme="light"] .glassy-info-item::after {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.glassy-info-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.glassy-info-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+/* Stage Indicator - Turuncu aşama göstergesi */
+.stage-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.stage-item {
+  display: flex;
+  align-items: center;
+  position: relative;
+  height: 36px;
+  padding: 0 16px 0 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: white;
+  background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%, 12px 50%);
+  transition: all 0.2s ease;
+}
+
+.stage-item:first-child {
+  padding-left: 16px;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%);
+  border-radius: 6px 0 0 6px;
+}
+
+.stage-item:last-child {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 12px 50%);
+  border-radius: 0 6px 6px 0;
+}
+
+.stage-item.active {
+  background: linear-gradient(135deg, #FB923C 0%, #F97316 100%);
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);
+}
+
+.stage-item.completed {
+  background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
+}
+
+.stage-item.pending {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--muted);
+}
+
+/* Tab navigasyonu - Görseldeki Overview, Submissions vs. */
+.glassy-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 20px;
+}
+
+.glassy-tab {
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.glassy-tab:hover {
+  color: var(--muted-foreground);
+}
+
+.glassy-tab.active {
+  color: var(--foreground);
+  border-bottom-color: var(--foreground);
+}
+
+[data-mantine-color-scheme="light"] .glassy-tabs {
+  border-bottom-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Modal içindeki glassmorphism kartlar */
+.mantine-Modal-content .glassy-card,
+.mantine-Drawer-content .glassy-card {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Tab panel içindeki kartlar */
+.mantine-Tabs-panel .glassy-card {
+  margin-top: 16px;
+}
+
+/* Nested glassy kart (kart içinde kart) */
+.glassy-card-nested {
+  background: rgba(255, 255, 255, 0.04) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 12px !important;
+  padding: 16px;
+}
+
+[data-mantine-color-scheme="light"] .glassy-card-nested {
+  background: rgba(255, 255, 255, 0.4) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Glassy badge */
+.glassy-badge {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.glassy-badge.success {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: #22C55E;
+}
+
+.glassy-badge.warning {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #F59E0B;
+}
+
+.glassy-badge.info {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #3B82F6;
+}
+
+/* Glassy divider */
+.glassy-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+  margin: 16px 0;
+}
+
+[data-mantine-color-scheme="light"] .glassy-divider {
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.1), transparent);
+}
+
+/* Progress bar için glassmorphism container */
+.glassy-progress-container {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+[data-mantine-color-scheme="light"] .glassy-progress-container {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Glassy sidebar - Görseldeki sol menü */
+.glassy-sidebar {
+  background: rgba(20, 20, 20, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+[data-mantine-color-scheme="light"] .glassy-sidebar {
+  background: rgba(255, 255, 255, 0.9);
+  border-right-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Mobil için glassmorphism performans optimizasyonu */
+@media (max-width: 768px) {
+  .glassy-card,
+  .glassy-header-card,
+  .glassy-content-card,
+  .glassy-card-nested,
+  .glassy-progress-container {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+}
+
+/* Hover efektlerini touch cihazlarda kaldır */
+@media (hover: none) and (pointer: coarse) {
+  .glassy-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  }
 }

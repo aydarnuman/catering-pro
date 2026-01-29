@@ -1,8 +1,8 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { usePathname } from 'next/navigation';
-import { Suspense } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
 // FloatingAIChat'i lazy load et - bundle size'ı küçültür
@@ -11,18 +11,41 @@ const FloatingAIChat = dynamic(() => import('./FloatingAIChat').then(mod => ({ d
   loading: () => null, // Yüklenirken hiçbir şey gösterme
 });
 
+// Altta sabit AI input toolbar (Artlist tarzı)
+const GenerationToolbar = dynamic(
+  () => import('./artlist/GenerationToolbar').then(mod => ({ default: mod.GenerationToolbar })),
+  { ssr: false, loading: () => null }
+);
+
 interface ClientLayoutProps {
   children: React.ReactNode;
 }
 
-// FloatingAIChat'in gösterilmeyeceği sayfalar
+// FloatingAIChat ve GenerationToolbar'ın gösterilmeyeceği sayfalar
 const EXCLUDED_PATHS = ['/giris', '/kayit', '/sifremi-unuttum', '/auth'];
 
 export function ClientLayout({ children }: ClientLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
 
-  // Auth yükleniyor, excluded path veya authenticate olmamışsa FloatingAIChat'i gösterme
+  // Toolbar açılır kapanır; AI açıldığında toolbar kapalı olsun
+  const [toolbarExpanded, setToolbarExpanded] = useState(true);
+  useEffect(() => {
+    const handler = () => setToolbarExpanded(false);
+    window.addEventListener('open-ai-chat', handler);
+    return () => window.removeEventListener('open-ai-chat', handler);
+  }, []);
+
+  // Toolbar "Hızlı Not": ana sayfada değilsek önce ana sayfaya yönlendir, notlar modalı açılsın
+  useEffect(() => {
+    const handler = () => {
+      if (pathname !== '/') router.push('/?openNotes=1');
+    };
+    window.addEventListener('open-notes-modal', handler);
+    return () => window.removeEventListener('open-notes-modal', handler);
+  }, [pathname, router]);
+
   const shouldShowChat =
     !isLoading && isAuthenticated && !EXCLUDED_PATHS.some((path) => pathname?.startsWith(path));
 
@@ -30,9 +53,18 @@ export function ClientLayout({ children }: ClientLayoutProps) {
     <>
       {children}
       {shouldShowChat && (
-        <Suspense fallback={null}>
-          <FloatingAIChat />
-        </Suspense>
+        <>
+          <Suspense fallback={null}>
+            <FloatingAIChat />
+          </Suspense>
+          <Suspense fallback={null}>
+            <GenerationToolbar
+              variant="catering"
+              expanded={toolbarExpanded}
+              onToggle={() => setToolbarExpanded((v) => !v)}
+            />
+          </Suspense>
+        </>
       )}
     </>
   );

@@ -808,7 +808,7 @@ export default function ProjeYonetimModal({
 
             {/* Notlar */}
             {selectedProje.notlar && (
-              <Paper p="md" radius="md" withBorder bg="gray.0">
+              <Paper p="md" radius="md" className="nested-card">
                 <Text size="sm" fw={600} mb="sm">
                   📝 Notlar
                 </Text>

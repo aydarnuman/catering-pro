@@ -70,7 +70,6 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
     removeItem,
     copyAll,
     clearAll,
-    exportAsText,
     downloadAsFile,
     getByCategory,
     getFiltered,
@@ -346,16 +345,17 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
       size="xl"
       radius="lg"
       centered
+      classNames={{ content: 'clipboard-modal-content' }}
       styles={{
         header: {
           padding: '16px 20px',
           borderBottom: '1px solid var(--mantine-color-pink-2)',
-          background: 'linear-gradient(180deg, var(--mantine-color-pink-0) 0%, white 100%)',
+          background: 'linear-gradient(180deg, var(--mantine-color-pink-0) 0%, #fff 100%)',
         },
         body: { padding: 0 },
       }}
     >
-      <Box>
+      <Box className="clipboard-modal-body">
         {/* Üst Araç Çubuğu */}
         <Box
           p="md"
@@ -454,7 +454,11 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
                 minRows={3}
                 autosize
                 styles={{
-                  input: { background: 'white' },
+                  input: {
+                    backgroundColor: '#fff',
+                    color: '#1a1b1e',
+                    border: '1px solid #e9ecef',
+                  },
                 }}
               />
 
@@ -474,6 +478,7 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
                       { value: 'medium', label: '🟡 Orta' },
                       { value: 'low', label: '🟢 Düşük' },
                     ]}
+                    className="clipboard-modal-segmented"
                   />
                 </div>
 
@@ -488,7 +493,13 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
                     onChange={(v) => setNoteColor(v || '')}
                     data={colorOptions}
                     w={130}
-                    styles={{ input: { background: 'white' } }}
+                    styles={{
+                      input: {
+                        backgroundColor: '#fff',
+                        color: '#1a1b1e',
+                        border: '1px solid #e9ecef',
+                      },
+                    }}
                   />
                 </div>
               </Group>
@@ -532,10 +543,10 @@ export function ClipboardModal({ clipboard }: ClipboardModalProps) {
           </Box>
         </Collapse>
 
-        {/* İçerik */}
-        <ScrollArea h={showAddNote ? 320 : 450} p="md">
+        {/* İçerik - form ile arasında boşluk, çakışma önlenir */}
+        <ScrollArea h={showAddNote ? 320 : 450} p="md" mt={showAddNote ? 'md' : 0}>
           {items.length === 0 ? (
-            <Stack align="center" justify="center" h={350} gap="md">
+            <Stack align="center" justify="center" style={{ minHeight: 220 }} py="xl" gap="md">
               <ThemeIcon size={80} variant="light" color="pink" radius="xl">
                 <IconClipboardCopy size={40} />
               </ThemeIcon>

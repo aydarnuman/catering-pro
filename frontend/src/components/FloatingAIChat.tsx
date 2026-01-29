@@ -13,6 +13,7 @@ import {
   useMantineColorScheme,
 } from '@mantine/core';
 import { IconBolt, IconMaximize, IconMinus, IconX } from '@tabler/icons-react';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -56,7 +57,7 @@ interface PageContext {
   type: 'tender' | 'invoice' | 'cari' | 'personel' | 'stok' | 'planlama' | 'muhasebe' | 'general';
   id?: number | string;
   title?: string;
-  data?: any;
+  data?: Record<string, unknown>;
   pathname?: string; // URL bilgisi
   department?: string; // Department bilgisi
 }
@@ -86,6 +87,7 @@ export function FloatingAIChat() {
   const [showPulse, setShowPulse] = useState(true);
   const [alertCount, setAlertCount] = useState(0);
   const [pageContext, setPageContext] = useState<PageContext | undefined>(undefined);
+  const [pendingInitialMessage, setPendingInitialMessage] = useState<string | null>(null);
   const { colorScheme } = useMantineColorScheme();
   const pathname = usePathname();
   const isDark = colorScheme === 'dark';
@@ -182,6 +184,19 @@ export function FloatingAIChat() {
     };
   }, []);
 
+  // Toolbar'dan "Gönder" veya "AI'ya Sor" ile açılış; opsiyonel ilk mesaj
+  useEffect(() => {
+    const handleOpenAI = (e: Event) => {
+      const detail = (e as CustomEvent<{ message?: string }>).detail;
+      setPendingInitialMessage(detail?.message?.trim() || null);
+      setIsOpen(true);
+      setIsMinimized(false);
+    };
+
+    window.addEventListener('open-ai-chat', handleOpenAI as EventListener);
+    return () => window.removeEventListener('open-ai-chat', handleOpenAI as EventListener);
+  }, []);
+
   // İlk açılışta pulse animasyonu, 5 saniye sonra durur
   useEffect(() => {
     const timer = setTimeout(() => setShowPulse(false), 5000);
@@ -217,9 +232,13 @@ export function FloatingAIChat() {
     return () => clearInterval(interval);
   }, []);
 
+  // Tek AI girişi: sadece alttaki toolbar (metin + Gönder / AI'ya Sor). Floating buton her yerde gizli.
+  const showFloatingButton = false;
+
   return (
     <>
-      {/* Floating Button - Modern Design */}
+      {/* Floating Button - Ana sayfa dışında göster (tek AI girişi: toolbar) */}
+      {showFloatingButton && (
       <Tooltip
         label={
           <Stack gap={4} align="center">
@@ -246,18 +265,19 @@ export function FloatingAIChat() {
         <Box
           style={{
             position: 'fixed',
-            bottom: isMobile && isMounted ? 'calc(16px + env(safe-area-inset-bottom, 0px))' : 24,
+            /* GenerationToolbar üstünde: toolbar ~200px + 24 bottom */
+            bottom: isMobile && isMounted ? 'calc(200px + env(safe-area-inset-bottom, 0px))' : 220,
             right: isMobile && isMounted ? 12 : 24,
-            zIndex: 99, // Modal'ın arkasında kalması için düşük z-index
+            zIndex: 50,
           }}
         >
-          {/* Outer glow ring */}
+          {/* Outer glow - Artlist altın vurgu */}
           <Box
             style={{
               position: 'absolute',
               inset: -4,
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, #667eea, #764ba2, #f093fb)',
+              background: 'linear-gradient(135deg, #e6c530, #ca8a04)',
               opacity: isOpen ? 0.8 : 0.4,
               filter: 'blur(8px)',
               transition: 'all 0.3s ease',
@@ -265,17 +285,17 @@ export function FloatingAIChat() {
             }}
           />
 
-          {/* Main button */}
+          {/* Main button - Artlist primary */}
           <Box
             style={{
               position: 'relative',
               width: isMobile && isMounted ? 56 : 68,
               height: isMobile && isMounted ? 56 : 68,
               borderRadius: '50%',
-              background: 'linear-gradient(145deg, #ffffff, #f5f5f5)',
+              background: 'linear-gradient(145deg, #e6c530, #ca8a04)',
               boxShadow: isOpen
-                ? '0 8px 32px rgba(102, 126, 234, 0.6), inset 0 1px 0 rgba(255,255,255,0.8)'
-                : '0 6px 24px rgba(102, 126, 234, 0.4), inset 0 1px 0 rgba(255,255,255,0.8)',
+                ? '0 8px 32px rgba(230, 197, 48, 0.5), inset 0 1px 0 rgba(255,255,255,0.3)'
+                : '0 6px 24px rgba(230, 197, 48, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               cursor: 'pointer',
               display: 'flex',
@@ -290,39 +310,33 @@ export function FloatingAIChat() {
             onMouseEnter={(e) => {
               if (!isOpen && !isMobile) {
                 e.currentTarget.style.transform = 'scale(1.08)';
-                e.currentTarget.style.boxShadow = '0 10px 40px rgba(102, 126, 234, 0.6)';
+                e.currentTarget.style.boxShadow = '0 10px 40px rgba(230, 197, 48, 0.5)';
               }
             }}
             onMouseLeave={(e) => {
               if (!isMobile) {
                 e.currentTarget.style.transform = isOpen ? 'scale(0.95)' : 'scale(1)';
                 e.currentTarget.style.boxShadow = isOpen
-                  ? '0 8px 32px rgba(102, 126, 234, 0.6), inset 0 1px 0 rgba(255,255,255,0.8)'
-                  : '0 6px 24px rgba(102, 126, 234, 0.4), inset 0 1px 0 rgba(255,255,255,0.8)';
+                  ? '0 8px 32px rgba(230, 197, 48, 0.5), inset 0 1px 0 rgba(255,255,255,0.3)'
+                  : '0 6px 24px rgba(230, 197, 48, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)';
               }
             }}
           >
-            {/* Gradient border */}
+            {/* Artlist altın border */}
             <Box
               style={{
                 position: 'absolute',
                 inset: -2,
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg, #667eea, #764ba2, #f093fb)',
+                background: 'linear-gradient(135deg, #e6c530, #ca8a04)',
                 zIndex: -1,
               }}
             />
-            <Box
-              style={{
-                position: 'absolute',
-                inset: 0,
-                borderRadius: '50%',
-                background: 'white',
-              }}
-            />
-            <img
+            <Image
               src="/ai-chef-icon-trimmed.png"
               alt="AI Asistan"
+              width={isMobile && isMounted ? 44 : 56}
+              height={isMobile && isMounted ? 44 : 56}
               style={{
                 position: 'relative',
                 width: isMobile && isMounted ? 44 : 56,
@@ -373,6 +387,7 @@ export function FloatingAIChat() {
           />
         </Box>
       </Tooltip>
+      )}
 
       {/* Animations */}
       <style jsx global>{`
@@ -427,18 +442,17 @@ export function FloatingAIChat() {
 
       {/* Chat Window - Modern Design */}
       <Transition mounted={isOpen} transition="slide-up" duration={300}>
-        {(styles) => (
+        {(transitionStyles) => (
           <Paper
             style={{
-              ...styles,
+              ...transitionStyles,
               position: 'fixed',
-              // Mobilde tam ekran, desktop'ta normal
               bottom: isMobile && isMounted ? 0 : 110,
               right: isMobile && isMounted ? 0 : 24,
               left: isMobile && isMounted ? 0 : 'auto',
               top: isMobile && isMounted ? 0 : 'auto',
-              zIndex: 9999, // Modal'ın üstünde kalması için yüksek z-index
-              width: isMobile && isMounted ? '100%' : isMinimized ? 340 : 440,
+              zIndex: 9999,
+              width: isMobile && isMounted ? '100%' : isMinimized ? 280 : 440,
               height: isMobile && isMounted ? '100%' : isMinimized ? 'auto' : 580,
               maxHeight: isMobile && isMounted ? '100%' : 'calc(100vh - 150px)',
               overflow: 'hidden',
@@ -446,79 +460,89 @@ export function FloatingAIChat() {
               boxShadow:
                 isMobile && isMounted
                   ? 'none'
-                  : '0 25px 50px -12px rgba(102, 126, 234, 0.25), 0 0 0 1px rgba(102, 126, 234, 0.1)',
+                  : isDark
+                    ? '0 25px 50px -12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)'
+                    : '0 25px 50px -12px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.06)',
               border: 'none',
               display: 'flex',
               flexDirection: 'column',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              background: isDark ? '#1a1b1e' : '#ffffff',
+              background: isDark ? '#141517' : '#f8f9fa',
             }}
           >
-            {/* Header - Modern Glassmorphism */}
+            {/* Header - dark klasik */}
             <Box
               style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
-                padding: isMinimized ? '10px 16px' : '14px 16px',
+                background: isDark ? '#1a1b1e' : '#25262b',
+                borderBottom: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                padding: isMinimized ? '4px 10px' : '14px 16px',
                 paddingTop:
                   isMobile && isMounted
                     ? 'calc(env(safe-area-inset-top, 0px) + 14px)'
                     : isMinimized
-                      ? '10px'
+                      ? '4px'
                       : '14px',
                 cursor: 'pointer',
                 position: 'relative',
-                overflow: 'hidden',
               }}
               onClick={() => isMinimized && setIsMinimized(false)}
             >
-              {/* Animated background effect */}
-              <Box
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background:
-                    'linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%)',
-                  animation: 'shimmer 3s infinite',
-                }}
-              />
-
-              <Group justify="space-between" style={{ position: 'relative', zIndex: 1 }}>
-                <Group gap="sm">
-                  {/* AI Avatar with glow */}
+              <Group justify="space-between" style={{ position: 'relative', zIndex: 1 }} gap={isMinimized ? 6 : undefined} wrap="nowrap">
+                <Group gap={isMinimized ? 6 : 'sm'} wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                  {/* AI Avatar - kapalıyken daha küçük */}
                   <Box
                     style={{
-                      width: 36,
-                      height: 36,
+                      width: isMinimized ? 24 : 36,
+                      height: isMinimized ? 24 : 36,
                       borderRadius: '50%',
-                      background: 'rgba(255,255,255,0.2)',
-                      backdropFilter: 'blur(10px)',
+                      background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.12)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: '0 0 20px rgba(255,255,255,0.3)',
+                      border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.15)',
+                      flexShrink: 0,
                     }}
                   >
-                    <Text size="lg">{info.icon}</Text>
+                    <Text size={isMinimized ? 'xs' : 'lg'} style={{ lineHeight: 1 }}>{info.icon}</Text>
                   </Box>
-                  <div>
-                    <Group gap={6}>
-                      <Text size="sm" fw={700} c="white" style={{ letterSpacing: '0.3px' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <Group gap={isMinimized ? 4 : 6} wrap="nowrap">
+                      <Text size={isMinimized ? 'xs' : 'sm'} fw={600} c="white" style={{ letterSpacing: '0.2px', lineHeight: 1.2 }} truncate>
                         {isMinimized ? 'AI Asistan' : info.title}
                       </Text>
-                      {/* Online indicator */}
+                      {/* Online indicator - kapalıyken daha küçük */}
                       <Box
                         style={{
-                          width: 8,
-                          height: 8,
+                          width: isMinimized ? 4 : 6,
+                          height: isMinimized ? 4 : 6,
                           borderRadius: '50%',
                           background: '#4ade80',
-                          boxShadow: '0 0 8px #4ade80',
-                          animation: 'pulse-green 2s infinite',
+                          opacity: 0.9,
+                          flexShrink: 0,
                         }}
                       />
+                      {/* Kapalıyken tek satır: sohbete devam badge inline */}
+                      {isMinimized && (
+                        <Badge
+                          size="xs"
+                          variant="white"
+                          style={{
+                            background: 'rgba(255,255,255,0.12)',
+                            color: 'white',
+                            cursor: 'pointer',
+                            fontSize: 10,
+                            padding: '1px 6px',
+                            fontWeight: 500,
+                            flexShrink: 0,
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsMinimized(false);
+                          }}
+                        >
+                          💬 Aç
+                        </Badge>
+                      )}
                     </Group>
                     {!isMinimized && (
                       <Text size="xs" c="rgba(255,255,255,0.8)" mt={2}>
@@ -532,7 +556,7 @@ export function FloatingAIChat() {
                               ) {
                                 return extId;
                               }
-                              const title = pageContext.data?.title || pageContext.title || '';
+                              const title = String(pageContext.data?.title || pageContext.title || '');
                               const match = title.match(/^(\d{4}\/\d+)/);
                               if (match) return match[1];
                               return `#${pageContext.id}`;
@@ -546,7 +570,12 @@ export function FloatingAIChat() {
                     )}
                   </div>
                 </Group>
-                <Group gap={6}>
+                <Group gap={6} wrap="nowrap">
+                  {isMinimized && alertCount > 0 && (
+                    <Badge size="xs" color="red" variant="filled" style={{ flexShrink: 0 }}>
+                      {alertCount}
+                    </Badge>
+                  )}
                   {/* Keyboard shortcut hint */}
                   {!isMinimized && !isMobile && (
                     <Tooltip label="Kısayol: ⌘K" withArrow position="bottom">
@@ -570,7 +599,7 @@ export function FloatingAIChat() {
                   <ActionIcon
                     variant="transparent"
                     c="white"
-                    size="sm"
+                    size={isMinimized ? 'xs' : 'sm'}
                     style={{
                       background: 'rgba(255,255,255,0.1)',
                       borderRadius: 6,
@@ -580,12 +609,12 @@ export function FloatingAIChat() {
                       setIsMinimized(!isMinimized);
                     }}
                   >
-                    {isMinimized ? <IconMaximize size={14} /> : <IconMinus size={14} />}
+                    {isMinimized ? <IconMaximize size={12} /> : <IconMinus size={14} />}
                   </ActionIcon>
                   <ActionIcon
                     variant="transparent"
                     c="white"
-                    size="sm"
+                    size={isMinimized ? 'xs' : 'sm'}
                     style={{
                       background: 'rgba(255,255,255,0.1)',
                       borderRadius: 6,
@@ -595,42 +624,22 @@ export function FloatingAIChat() {
                       setIsOpen(false);
                     }}
                   >
-                    <IconX size={14} />
+                    <IconX size={isMinimized ? 12 : 14} />
                   </ActionIcon>
                 </Group>
               </Group>
-
-              {/* Quick actions bar when minimized */}
-              {isMinimized && (
-                <Group gap="xs" mt={8} style={{ position: 'relative', zIndex: 1 }}>
-                  <Badge
-                    size="xs"
-                    variant="white"
-                    style={{
-                      background: 'rgba(255,255,255,0.2)',
-                      color: 'white',
-                      cursor: 'pointer',
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsMinimized(false);
-                    }}
-                  >
-                    💬 Sohbete devam et
-                  </Badge>
-                  {alertCount > 0 && (
-                    <Badge size="xs" color="red" variant="filled">
-                      {alertCount} uyarı
-                    </Badge>
-                  )}
-                </Group>
-              )}
             </Box>
 
             {/* Chat Content */}
             {!isMinimized && (
               <Box style={{ flex: 1, overflow: 'hidden' }}>
-                <AIChat defaultDepartment={department} compact pageContext={pageContext} />
+                <AIChat
+                  defaultDepartment={department}
+                  compact
+                  pageContext={pageContext}
+                  initialMessage={pendingInitialMessage}
+                  onInitialMessageConsumed={() => setPendingInitialMessage(null)}
+                />
               </Box>
             )}
           </Paper>

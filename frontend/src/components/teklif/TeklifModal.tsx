@@ -1916,7 +1916,7 @@ export default function TeklifModal({
           </Button>
 
           {/* Karşılaştırma */}
-          <Paper withBorder p="md" bg="gray.0">
+          <Paper p="md" className="nested-card">
             <Text fw={600} mb="xs">
               Karşılaştırma
             </Text>

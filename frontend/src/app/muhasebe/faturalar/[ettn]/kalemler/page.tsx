@@ -725,7 +725,7 @@ export default function FaturaKalemlerPage() {
         {seciliKalem && (
           <Stack gap="md">
             {/* Seçili kalem bilgisi */}
-            <Paper p="sm" bg="gray.0" withBorder>
+            <Paper p="sm" className="nested-card">
               <Text size="sm" fw={600}>
                 {seciliKalem.fatura_urun_adi}
               </Text>
@@ -935,7 +935,7 @@ export default function FaturaKalemlerPage() {
             </Paper>
 
             {/* Fatura kalem bilgisi */}
-            <Paper p="sm" bg="gray.0" withBorder>
+            <Paper p="sm" className="nested-card">
               <Text size="xs" c="dimmed" mb={4}>Fatura Kalemi:</Text>
               <Text size="sm" fw={500}>{seciliKalem.fatura_urun_adi}</Text>
               <Text size="xs" c="dimmed" mt={4}>Birim Fiyat: {formatMoney(seciliKalem.birim_fiyat)}</Text>

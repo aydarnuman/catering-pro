@@ -212,10 +212,10 @@ export const adminAPI = {
     return response.data;
   },
 
-  // ========== BİLDİRİMLER ==========
+  // ========== BİRLEŞİK BİLDİRİM SİSTEMİ ==========
 
   /**
-   * Okunmamış bildirim sayısı
+   * Okunmamış bildirim sayısı (tüm kaynaklar)
    */
   async getUnreadNotificationCount(): Promise<ApiResponse<{ count: number }>> {
     const response = await api.get('/api/notifications/unread-count');
@@ -223,12 +223,26 @@ export const adminAPI = {
   },
 
   /**
-   * Bildirimleri listele
+   * Bildirimleri listele (birleşik sistem)
+   * @param params - Filtreleme parametreleri
    */
-  async getNotifications(limit?: number): Promise<ApiResponse<any[]>> {
-    const response = await api.get('/api/notifications', {
-      params: { limit: limit || 10 },
-    });
+  async getNotifications(params?: {
+    limit?: number;
+    offset?: number;
+    unread_only?: boolean;
+    source?: 'user' | 'admin' | 'system';
+    category?: string;
+    severity?: 'info' | 'warning' | 'error' | 'critical';
+  }): Promise<ApiResponse<any[]>> {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    if (params?.unread_only) searchParams.append('unread_only', 'true');
+    if (params?.source) searchParams.append('source', params.source);
+    if (params?.category) searchParams.append('category', params.category);
+    if (params?.severity) searchParams.append('severity', params.severity);
+
+    const response = await api.get(`/api/notifications?${searchParams.toString()}`);
     return response.data;
   },
 
@@ -242,9 +256,29 @@ export const adminAPI = {
 
   /**
    * Tüm bildirimleri okundu işaretle
+   * @param source - Opsiyonel: sadece belirli kaynaktaki bildirimleri işaretle
    */
-  async markAllNotificationsRead(): Promise<ApiResponse<any>> {
-    const response = await api.patch('/api/notifications/read-all');
+  async markAllNotificationsRead(source?: 'user' | 'admin' | 'system'): Promise<ApiResponse<any>> {
+    const url = source
+      ? `/api/notifications/read-all?source=${source}`
+      : '/api/notifications/read-all';
+    const response = await api.patch(url);
+    return response.data;
+  },
+
+  /**
+   * Bildirimi sil
+   */
+  async deleteNotification(id: number): Promise<ApiResponse<any>> {
+    const response = await api.delete(`/api/notifications/${id}`);
+    return response.data;
+  },
+
+  /**
+   * Eski bildirimleri temizle (admin only)
+   */
+  async cleanupOldNotifications(): Promise<ApiResponse<{ count: number }>> {
+    const response = await api.post('/api/notifications/cleanup');
     return response.data;
   },
 
@@ -363,10 +397,12 @@ export const adminAPI = {
     return API_BASE_URL;
   },
 
-  // ========== ADMIN NOTIFICATIONS ==========
+  // ========== ADMIN NOTIFICATIONS (DEPRECATED - use unified notification system) ==========
+  // Bu fonksiyonlar geriye dönük uyumluluk için korunuyor
+  // Yeni kod için getNotifications({ source: 'admin' }) kullanın
 
   /**
-   * Admin bildirimlerini listele
+   * @deprecated Use getNotifications({ source: 'admin' }) instead
    */
   async getAdminNotifications(params?: {
     limit?: number;
@@ -374,46 +410,42 @@ export const adminAPI = {
     type?: string;
     severity?: string;
   }): Promise<ApiResponse<{ notifications: any[] }>> {
-    const searchParams = new URLSearchParams();
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
-    if (params?.read !== undefined) searchParams.append('read', params.read.toString());
-    if (params?.type) searchParams.append('type', params.type);
-    if (params?.severity) searchParams.append('severity', params.severity);
-
-    const response = await api.get(`/api/auth/admin/notifications?${searchParams.toString()}`);
-    return response.data;
+    const response = await this.getNotifications({
+      limit: params?.limit,
+      source: 'admin',
+      category: params?.type,
+      severity: params?.severity as any,
+      unread_only: params?.read === false,
+    });
+    return { ...response, data: { notifications: response.data || [] } };
   },
 
   /**
-   * Okunmamış admin bildirim sayısı
+   * @deprecated Use getUnreadNotificationCount() instead
    */
   async getAdminUnreadCount(): Promise<ApiResponse<{ count: number }>> {
-    const response = await api.get('/api/auth/admin/notifications/unread-count');
-    return response.data;
+    return this.getUnreadNotificationCount();
   },
 
   /**
-   * Admin bildirimi okundu işaretle
+   * @deprecated Use markNotificationRead() instead
    */
   async markAdminNotificationRead(id: number): Promise<ApiResponse<any>> {
-    const response = await api.put(`/api/auth/admin/notifications/${id}/read`);
-    return response.data;
+    return this.markNotificationRead(id);
   },
 
   /**
-   * Tüm admin bildirimlerini okundu işaretle
+   * @deprecated Use markAllNotificationsRead('admin') instead
    */
   async markAllAdminNotificationsRead(): Promise<ApiResponse<any>> {
-    const response = await api.put('/api/auth/admin/notifications/read-all');
-    return response.data;
+    return this.markAllNotificationsRead('admin');
   },
 
   /**
-   * Admin bildirimi sil
+   * @deprecated Use deleteNotification() instead
    */
   async deleteAdminNotification(id: number): Promise<ApiResponse<any>> {
-    const response = await api.delete(`/api/auth/admin/notifications/${id}`);
-    return response.data;
+    return this.deleteNotification(id);
   },
 
   // ========== SESSION MANAGEMENT ==========

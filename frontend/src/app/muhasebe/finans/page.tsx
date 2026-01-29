@@ -26,6 +26,7 @@ import {
   ThemeIcon,
   Title,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
   IconAlertCircle,
@@ -45,8 +46,11 @@ import {
   IconReportMoney,
   IconTrendingDown,
   IconTrendingUp,
+  IconUsers,
   IconWallet,
 } from '@tabler/icons-react';
+import dynamic from 'next/dynamic';
+import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import StyledDatePicker from '@/components/ui/StyledDatePicker';
 import { useRealtimeRefetch } from '@/context/RealtimeContext';
@@ -54,6 +58,14 @@ import { muhasebeAPI } from '@/lib/api/services/muhasebe';
 import { personelAPI } from '@/lib/api/services/personel';
 import { formatMoney } from '@/lib/formatters';
 import type { Cari } from '@/types/domain';
+
+// Dynamic imports for better code splitting
+const CariListTab = dynamic(() => import('@/components/finans/CariListTab'), { ssr: false });
+const CariDetailDrawer = dynamic(() => import('@/components/finans/CariDetailDrawer'), { ssr: false });
+const MutabakatModal = dynamic(
+  () => import('@/components/muhasebe/MutabakatModal').then((m) => m.default),
+  { ssr: false }
+);
 
 // ==================== INTERFACES ====================
 
@@ -129,8 +141,19 @@ const formatDate = (date: string) => {
 // ==================== MAIN COMPONENT ====================
 
 export default function FinansMerkeziPage() {
-  const [activeTab, setActiveTab] = useState<string | null>('ozet');
+  const searchParams = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+
+  // URL'den gelen tab parametresini kullan, yoksa 'ozet' varsayılan
+  const [activeTab, setActiveTab] = useState<string | null>(tabFromUrl || 'ozet');
   const [loading, setLoading] = useState(true);
+
+  // URL parametresi değiştiğinde tab'ı güncelle
+  useEffect(() => {
+    if (tabFromUrl && ['ozet', 'cariler', 'hesaplar', 'cek-senet', 'proje-karlilik'].includes(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
 
   // Data States
   const [hesaplar, setHesaplar] = useState<Hesap[]>([]);
@@ -157,6 +180,11 @@ export default function FinansMerkeziPage() {
     kategori: string;
     baslik: string;
   }>({ open: false, kategori: '', baslik: '' });
+
+  // Cari States
+  const [selectedCari, setSelectedCari] = useState<Cari | null>(null);
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
+  const [mutabakatOpened, { open: openMutabakat, close: closeMutabakat }] = useDisclosure(false);
 
   // Form States
   const [hesapForm, setHesapForm] = useState({
@@ -362,16 +390,19 @@ export default function FinansMerkeziPage() {
       {/* Tabs */}
       <Tabs value={activeTab} onChange={setActiveTab}>
         <Tabs.List mb="lg">
-          <Tabs.Tab value="ozet" leftSection={<IconChartPie size={18} />} fw={500}>
+          <Tabs.Tab value="ozet" leftSection={<IconChartPie size={18} />} style={{ fontWeight: 500 }}>
             Özet
           </Tabs.Tab>
-          <Tabs.Tab value="hesaplar" leftSection={<IconWallet size={18} />} fw={500}>
+          <Tabs.Tab value="cariler" leftSection={<IconUsers size={18} />} style={{ fontWeight: 500 }}>
+            Cariler
+          </Tabs.Tab>
+          <Tabs.Tab value="hesaplar" leftSection={<IconWallet size={18} />} style={{ fontWeight: 500 }}>
             Hesaplar
           </Tabs.Tab>
-          <Tabs.Tab value="cek-senet" leftSection={<IconReceipt size={18} />} fw={500}>
+          <Tabs.Tab value="cek-senet" leftSection={<IconReceipt size={18} />} style={{ fontWeight: 500 }}>
             Çek/Senet
           </Tabs.Tab>
-          <Tabs.Tab value="proje-karlilik" leftSection={<IconChartBar size={18} />} fw={500}>
+          <Tabs.Tab value="proje-karlilik" leftSection={<IconChartBar size={18} />} style={{ fontWeight: 500 }}>
             Proje Analiz
           </Tabs.Tab>
         </Tabs.List>
@@ -492,9 +523,9 @@ export default function FinansMerkeziPage() {
 
             {/* İkinci Satır */}
             <Grid>
-              {/* Bekleyen İşlemler */}
+              {/* Bekleyen İşlemler - Glassy */}
               <Grid.Col span={{ base: 12, md: 4 }}>
-                <Paper withBorder p="lg" radius="lg" h="100%">
+                <Paper p="lg" radius="lg" h="100%" className="glassy-content-card">
                   <Group justify="space-between" mb="md">
                     <Text fw={600} size="sm">
                       ⏳ Bekleyen İşlemler
@@ -561,9 +592,9 @@ export default function FinansMerkeziPage() {
                 </Paper>
               </Grid.Col>
 
-              {/* Son Hareketler */}
+              {/* Son Hareketler - Glassy */}
               <Grid.Col span={{ base: 12, md: 8 }}>
-                <Paper withBorder p="lg" radius="lg" h="100%">
+                <Paper p="lg" radius="lg" h="100%" className="glassy-content-card">
                   <Group justify="space-between" mb="md">
                     <Text fw={600} size="sm">
                       📊 Son Hareketler
@@ -633,8 +664,8 @@ export default function FinansMerkeziPage() {
               </Grid.Col>
             </Grid>
 
-            {/* Proje Analiz Özeti */}
-            <Paper withBorder p="lg" radius="lg">
+            {/* Proje Analiz Özeti - Glassy */}
+            <Paper p="lg" radius="lg" className="glassy-content-card">
               <Group justify="space-between" mb="md">
                 <Text fw={600} size="sm">
                   📊 Proje Analiz Özeti
@@ -651,7 +682,7 @@ export default function FinansMerkeziPage() {
               {projeler.length > 0 ? (
                 <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
                   {projeler.slice(0, 6).map((proje) => (
-                    <Paper key={proje.id} withBorder p="md" radius="md" bg="gray.0">
+                    <Paper key={proje.id} p="md" radius="lg" className="glassy-card-nested" style={{ cursor: 'pointer' }}>
                       <Group justify="space-between" mb="xs">
                         <Text size="sm" fw={500} lineClamp={1}>
                           {proje.ad}
@@ -671,6 +702,20 @@ export default function FinansMerkeziPage() {
               )}
             </Paper>
           </Stack>
+        </Tabs.Panel>
+
+        {/* ==================== CARİLER TAB ==================== */}
+        <Tabs.Panel value="cariler">
+          <CariListTab
+            onCariSelect={(cari) => {
+              setSelectedCari(cari);
+              openDrawer();
+            }}
+            onMutabakat={(cari) => {
+              setSelectedCari(cari);
+              openMutabakat();
+            }}
+          />
         </Tabs.Panel>
 
         {/* ==================== HESAPLAR TAB ==================== */}
@@ -701,9 +746,9 @@ export default function FinansMerkeziPage() {
 
             {/* Hesap Listeleri */}
             <Grid>
-              {/* Kasalar */}
+              {/* Kasalar - Glassy */}
               <Grid.Col span={{ base: 12, md: 4 }}>
-                <Paper withBorder p="md" radius="lg">
+                <Paper p="md" radius="lg" className="glassy-content-card">
                   <Group justify="space-between" mb="md">
                     <Group gap="xs">
                       <ThemeIcon size={28} radius="md" variant="light" color="violet">
@@ -719,7 +764,7 @@ export default function FinansMerkeziPage() {
                     {hesaplar
                       .filter((h) => h.tip === 'kasa')
                       .map((hesap) => (
-                        <Paper key={hesap.id} withBorder p="sm" radius="md" bg="gray.0">
+                        <Paper key={hesap.id} p="sm" radius="md" className="glassy-card-nested">
                           <Group justify="space-between">
                             <Text size="sm">{hesap.ad}</Text>
                             <Text size="sm" fw={600}>
@@ -737,9 +782,9 @@ export default function FinansMerkeziPage() {
                 </Paper>
               </Grid.Col>
 
-              {/* Bankalar */}
+              {/* Bankalar - Glassy */}
               <Grid.Col span={{ base: 12, md: 4 }}>
-                <Paper withBorder p="md" radius="lg">
+                <Paper p="md" radius="lg" className="glassy-content-card">
                   <Group justify="space-between" mb="md">
                     <Group gap="xs">
                       <ThemeIcon size={28} radius="md" variant="light" color="teal">
@@ -755,7 +800,7 @@ export default function FinansMerkeziPage() {
                     {hesaplar
                       .filter((h) => h.tip === 'banka')
                       .map((hesap) => (
-                        <Paper key={hesap.id} withBorder p="sm" radius="md" bg="gray.0">
+                        <Paper key={hesap.id} p="sm" radius="md" className="glassy-card-nested">
                           <Group justify="space-between">
                             <div>
                               <Text size="sm" fw={500}>
@@ -784,7 +829,7 @@ export default function FinansMerkeziPage() {
 
               {/* Kredi Kartları */}
               <Grid.Col span={{ base: 12, md: 4 }}>
-                <Paper withBorder p="md" radius="lg">
+                <Paper p="md" radius="md" className="glassy-content-card">
                   <Group justify="space-between" mb="md">
                     <Group gap="xs">
                       <ThemeIcon size={28} radius="md" variant="light" color="red">
@@ -800,7 +845,7 @@ export default function FinansMerkeziPage() {
                     {hesaplar
                       .filter((h) => h.tip === 'kredi_karti')
                       .map((hesap) => (
-                        <Paper key={hesap.id} withBorder p="sm" radius="md" bg="gray.0">
+                        <Paper key={hesap.id} p="sm" radius="md" className="glassy-card-nested">
                           <Group justify="space-between" mb="xs">
                             <Text size="sm" fw={500}>
                               {hesap.ad}
@@ -839,7 +884,7 @@ export default function FinansMerkeziPage() {
             </Grid>
 
             {/* Son Hareketler */}
-            <Paper withBorder p="lg" radius="lg">
+            <Paper p="lg" radius="lg" className="glassy-content-card">
               <Text fw={600} mb="md">
                 📋 Tüm Hareketler
               </Text>
@@ -927,9 +972,9 @@ export default function FinansMerkeziPage() {
             {/* Özet Kartlar */}
             <SimpleGrid cols={{ base: 2, sm: 4 }}>
               <Paper
-                withBorder
                 p="md"
                 radius="lg"
+                className="glassy-card"
                 style={{ borderLeft: '4px solid var(--mantine-color-teal-6)' }}
               >
                 <Text size="xs" c="dimmed">
@@ -946,9 +991,9 @@ export default function FinansMerkeziPage() {
                 </Text>
               </Paper>
               <Paper
-                withBorder
                 p="md"
                 radius="lg"
+                className="glassy-card"
                 style={{ borderLeft: '4px solid var(--mantine-color-red-6)' }}
               >
                 <Text size="xs" c="dimmed">
@@ -963,9 +1008,9 @@ export default function FinansMerkeziPage() {
                 </Text>
               </Paper>
               <Paper
-                withBorder
                 p="md"
                 radius="lg"
+                className="glassy-card"
                 style={{ borderLeft: '4px solid var(--mantine-color-grape-6)' }}
               >
                 <Text size="xs" c="dimmed">
@@ -982,9 +1027,9 @@ export default function FinansMerkeziPage() {
                 </Text>
               </Paper>
               <Paper
-                withBorder
                 p="md"
                 radius="lg"
+                className="glassy-card"
                 style={{ borderLeft: '4px solid var(--mantine-color-orange-6)' }}
               >
                 <Text size="xs" c="dimmed">
@@ -1003,7 +1048,7 @@ export default function FinansMerkeziPage() {
             </SimpleGrid>
 
             {/* Çek/Senet Listesi */}
-            <Paper withBorder p="lg" radius="lg">
+            <Paper p="lg" radius="lg" className="glassy-content-card">
               <Text fw={600} mb="md">
                 📋 Çek/Senet Listesi
               </Text>
@@ -1114,7 +1159,7 @@ export default function FinansMerkeziPage() {
         <Tabs.Panel value="proje-karlilik">
           <Stack gap="lg">
             {/* Filtre Bar */}
-            <Paper withBorder p="md" radius="lg" bg="gray.0">
+            <Paper p="md" radius="md" className="glassy-content-card">
               <Group justify="space-between">
                 <Group>
                   <Select
@@ -1236,17 +1281,16 @@ export default function FinansMerkeziPage() {
                 {/* Kategori Detay */}
                 <Grid>
                   <Grid.Col span={{ base: 12, md: 6 }}>
-                    <Paper withBorder p="lg" radius="lg">
+                    <Paper p="lg" radius="lg" className="glassy-content-card">
                       <Text fw={600} mb="md" c="red.7">
                         📉 Gider Kalemleri
                       </Text>
                       <Stack gap="xs">
                         {/* Personel Giderleri */}
                         <Paper
-                          withBorder
                           p="md"
                           radius="md"
-                          bg="red.0"
+                          className="glassy-card-nested"
                           style={{ cursor: 'pointer' }}
                           onClick={() =>
                             setKategoriDetayModal({
@@ -1290,10 +1334,9 @@ export default function FinansMerkeziPage() {
                         </Paper>
                         {/* Diğer Giderler */}
                         <Paper
-                          withBorder
                           p="md"
                           radius="md"
-                          bg="gray.0"
+                          className="glassy-card-nested"
                           style={{ cursor: 'pointer' }}
                           onClick={() =>
                             setKategoriDetayModal({
@@ -1335,17 +1378,16 @@ export default function FinansMerkeziPage() {
                   </Grid.Col>
 
                   <Grid.Col span={{ base: 12, md: 6 }}>
-                    <Paper withBorder p="lg" radius="lg">
+                    <Paper p="lg" radius="lg" className="glassy-content-card">
                       <Text fw={600} mb="md" c="teal.7">
                         📈 Gelir Kalemleri
                       </Text>
                       <Stack gap="xs">
                         {/* Hakediş */}
                         <Paper
-                          withBorder
                           p="md"
                           radius="md"
-                          bg="teal.0"
+                          className="glassy-card-nested"
                           style={{ cursor: 'pointer' }}
                           onClick={() =>
                             setKategoriDetayModal({
@@ -1377,10 +1419,9 @@ export default function FinansMerkeziPage() {
                         </Paper>
                         {/* Diğer Gelirler */}
                         <Paper
-                          withBorder
                           p="md"
                           radius="md"
-                          bg="gray.0"
+                          className="glassy-card-nested"
                           style={{ cursor: 'pointer' }}
                           onClick={() =>
                             setKategoriDetayModal({
@@ -1416,7 +1457,7 @@ export default function FinansMerkeziPage() {
                 </Grid>
 
                 {/* Hareket Listesi */}
-                <Paper withBorder p="lg" radius="lg">
+                <Paper p="lg" radius="lg" className="glassy-content-card">
                   <Text fw={600} mb="md">
                     📋 Hareket Listesi
                   </Text>
@@ -1490,7 +1531,7 @@ export default function FinansMerkeziPage() {
                 </Paper>
               </>
             ) : (
-              <Paper withBorder p="xl" radius="lg">
+              <Paper p="xl" radius="lg" className="glassy-content-card">
                 <Center py="xl">
                   <Stack align="center" gap="md">
                     <ThemeIcon size={60} variant="light" color="grape" radius="xl">
@@ -2102,6 +2143,51 @@ export default function FinansMerkeziPage() {
           )}
         </Stack>
       </Modal>
+
+      {/* Cari Detay Drawer */}
+      <CariDetailDrawer
+        cari={selectedCari}
+        opened={drawerOpened}
+        onClose={() => {
+          closeDrawer();
+          setSelectedCari(null);
+        }}
+        onMutabakat={(cari) => {
+          closeDrawer();
+          setSelectedCari(cari);
+          openMutabakat();
+        }}
+        onOdemeYap={(cari) => {
+          // Ödeme modalını aç - hesaplar tabında hareket ekle
+          closeDrawer();
+          setHareketForm({
+            ...hareketForm,
+            cari_id: cari.id,
+            tip: 'gider',
+          });
+          setHareketModalOpen(true);
+        }}
+        onTahsilatYap={(cari) => {
+          // Tahsilat modalını aç - hesaplar tabında hareket ekle
+          closeDrawer();
+          setHareketForm({
+            ...hareketForm,
+            cari_id: cari.id,
+            tip: 'gelir',
+          });
+          setHareketModalOpen(true);
+        }}
+      />
+
+      {/* Mutabakat Modal */}
+      <MutabakatModal
+        cari={selectedCari}
+        opened={mutabakatOpened}
+        onClose={() => {
+          closeMutabakat();
+          setSelectedCari(null);
+        }}
+      />
     </Container>
   );
 }

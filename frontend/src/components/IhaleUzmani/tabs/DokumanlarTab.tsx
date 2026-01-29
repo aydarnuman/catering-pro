@@ -201,7 +201,7 @@ export function DokumanlarTab({
       {/* TEKNİK ŞARTLAR */}
       <Tabs.Panel value="teknik">
         {/* Arama ve Filtreleme Toolbar */}
-        <Paper p="sm" mb="md" radius="md" withBorder bg="gray.0">
+        <Paper p="sm" mb="md" radius="md" className="nested-card">
           <Group gap="md" justify="space-between">
             <Group gap="sm" style={{ flex: 1 }}>
               <TextInput
@@ -435,7 +435,7 @@ export function DokumanlarTab({
 
       {/* BİRİM FİYATLAR */}
       <Tabs.Panel value="fiyat">
-        <Paper p="sm" mb="md" radius="md" withBorder bg="gray.0">
+        <Paper p="sm" mb="md" radius="md" className="nested-card">
           <Group gap="md" justify="space-between">
             <TextInput
               placeholder="Kalemlerde ara..."
@@ -847,7 +847,7 @@ export function DokumanlarTab({
       <Tabs.Panel value="metin">
         <ScrollArea h="calc(100vh - 280px)" offsetScrollbars>
           {analysisData.tam_metin ? (
-            <Paper p="md" withBorder bg="gray.0">
+            <Paper p="md" className="nested-card">
               <Text size="sm" style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
                 {analysisData.tam_metin}
               </Text>

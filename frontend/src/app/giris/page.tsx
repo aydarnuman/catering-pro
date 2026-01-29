@@ -40,7 +40,7 @@ function LoginForm() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { signIn, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
   const redirectTo = searchParams.get('redirect') || '/';
   const hasRedirected = useRef(false);
 
@@ -152,7 +152,7 @@ function LoginForm() {
     setIsLoading(true);
 
     try {
-      const result = await signIn(email, password);
+      const result = await login(email, password);
 
       if (result.success) {
         // Beni hatırla
@@ -245,7 +245,9 @@ function LoginForm() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: rem(20),
-        overflow: 'hidden',
+        overflowX: 'hidden',
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
       }}
     >
       {/* Animated background decorations */}

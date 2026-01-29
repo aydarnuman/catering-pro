@@ -184,7 +184,7 @@ function LeafletMap({
   onCitySelect: (city: string) => void;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
+  const mapInstanceRef = useRef<{ remove: () => void } | null>(null);
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
@@ -516,11 +516,11 @@ export default function TenderMapModal({
                         radius="md"
                         withBorder
                         style={{
-                          background: 'rgba(255,255,255,0.05)',
+                          background: 'var(--surface-elevated)',
                           borderColor:
                             tender.status === 'active'
                               ? 'rgba(34, 197, 94, 0.4)'
-                              : 'rgba(255,255,255,0.1)',
+                              : 'var(--surface-border)',
                           cursor: 'pointer',
                         }}
                         onClick={() => window.open(`/tenders/${tender.id}`, '_blank')}
@@ -585,8 +585,8 @@ export default function TenderMapModal({
                         radius="sm"
                         withBorder
                         style={{
-                          background: 'rgba(255,255,255,0.03)',
-                          borderColor: 'rgba(255,255,255,0.08)',
+                          background: 'var(--surface-elevated)',
+                          borderColor: 'var(--surface-border)',
                           cursor: 'pointer',
                         }}
                         onClick={() => setSelectedCity(group.city)}

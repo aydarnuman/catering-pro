@@ -32,6 +32,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AIChat } from '@/components/AIChat';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { GodModeTerminal } from '@/components/GodModeTerminal';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/lib/api';
@@ -47,6 +48,8 @@ export default function GodModePage() {
   const { isSuperAdmin, isLoading: authLoading } = useAuth();
   const [tools, setTools] = useState<GodModeTool[]>([]);
   const [_loading, setLoading] = useState(true);
+  const [showWarning, setShowWarning] = useState(true);
+  const [accessConfirmed, setAccessConfirmed] = useState(false);
 
   // Erişim kontrolü
   useEffect(() => {
@@ -54,6 +57,16 @@ export default function GodModePage() {
       router.push('/admin');
     }
   }, [authLoading, isSuperAdmin, router]);
+
+  // Uyarı onayı
+  const handleWarningConfirm = () => {
+    setAccessConfirmed(true);
+    setShowWarning(false);
+  };
+
+  const handleWarningCancel = () => {
+    router.push('/admin');
+  };
 
   // Tool listesini al
   useEffect(() => {
@@ -101,6 +114,30 @@ export default function GodModePage() {
           </Button>
         </Stack>
       </Container>
+    );
+  }
+
+  // God Mode uyarı dialogu
+  if (!accessConfirmed) {
+    return (
+      <>
+        <Container size="xl" py="xl">
+          <Stack align="center" gap="md" py={100}>
+            <Loader size="lg" color="red" />
+            <Text c="dimmed">God Mode yükleniyor...</Text>
+          </Stack>
+        </Container>
+        <ConfirmDialog
+          opened={showWarning}
+          onClose={handleWarningCancel}
+          onConfirm={handleWarningConfirm}
+          title="God Mode Uyarısı"
+          message="God Mode ile AI, veritabanı sorguları çalıştırabilir, dosya okuyup yazabilir ve shell komutları yürütebilir. Tüm işlemler loglanır. Devam etmek istiyor musunuz?"
+          variant="warning"
+          confirmText="Devam Et"
+          cancelText="Geri Dön"
+        />
+      </>
     );
   }
 

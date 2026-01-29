@@ -1124,7 +1124,7 @@ export default function TenderDetailPage() {
           </Box>
 
           {/* Aksiyon Kartları */}
-          <Box p="md" bg="gray.0" style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
+          <Box p="md" className="nested-card" style={{ borderBottom: '1px solid var(--surface-border, var(--border))' }}>
             <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
               {/* 🔍 Dökümanları Getir Kartı - Döküman yoksa veya az varsa göster */}
               {(!downloadStatus?.hasDocuments ||
@@ -1397,8 +1397,8 @@ export default function TenderDetailPage() {
           {/* Aksiyon Bar */}
           <Box
             p={isMobile && isMounted ? 'sm' : 'md'}
-            bg="gray.0"
-            style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}
+            className="nested-card"
+            style={{ borderBottom: '1px solid var(--surface-border, var(--border))' }}
           >
             {isMobile && isMounted ? (
               <Stack gap="xs">
@@ -1725,7 +1725,7 @@ export default function TenderDetailPage() {
                   {combinedResult.teknik_sartlar?.length ? (
                     <Stack gap="xs">
                       {combinedResult.teknik_sartlar.map((sart, i) => (
-                        <Paper key={i} p="xs" withBorder bg="gray.0">
+                        <Paper key={i} p="xs" className="nested-card">
                           <Group gap="xs">
                             <Badge size="sm" circle variant="light">
                               {i + 1}

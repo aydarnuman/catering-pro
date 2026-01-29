@@ -88,6 +88,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import ProjeYonetimModal from '@/components/muhasebe/ProjeYonetimModal';
+import { HotkeysCard, SettingsCard } from '@/components/ui/cards';
 import { useAuth } from '@/context/AuthContext';
 import { authFetch } from '@/lib/api';
 import { firmalarAPI } from '@/lib/api/services/firmalar';
@@ -198,6 +199,26 @@ interface FirmaBilgileri {
   updated_at?: string;
 }
 
+// AI Analiz sonucu tipleri
+interface AIAnalysisData {
+  guven_skoru?: number;
+  [key: string]: string | number | null | undefined;
+}
+
+interface AIAnalysisResult {
+  data?: AIAnalysisData;
+  [key: string]: unknown;
+}
+
+interface BelgeAnalysisResult {
+  analiz?: {
+    success: boolean;
+    belgeTipiAd?: string;
+    data?: AIAnalysisData;
+  };
+  [key: string]: unknown;
+}
+
 // Yeni firma için boş şablon
 const emptyFirma: Partial<FirmaBilgileri> = {
   unvan: '',
@@ -286,19 +307,6 @@ interface Proje {
   toplam_maas?: number;
 }
 
-interface Personel {
-  id: number;
-  tc_kimlik: string;
-  ad: string;
-  soyad: string;
-  telefon: string;
-  email: string;
-  departman: string;
-  pozisyon: string;
-  ise_giris_tarihi: string;
-  durum: string;
-}
-
 // Firma & Projeler Section Component - Merkezi Proje Yönetimi
 // Döküman tipi
 interface FirmaDokuman {
@@ -358,8 +366,8 @@ function FirmaProjelerSection({
   firmalar,
   firmaLoading,
   handleOpenFirmaModal,
-  handleDeleteFirma,
-  handleSetVarsayilan,
+  handleDeleteFirma: _handleDeleteFirma,
+  handleSetVarsayilan: _handleSetVarsayilan,
   API_BASE_URL,
 }: {
   firmalar: FirmaBilgileri[];
@@ -382,14 +390,14 @@ function FirmaProjelerSection({
   const [uploadingDokuman, setUploadingDokuman] = useState(false);
   const [selectedBelgeTipi, setSelectedBelgeTipi] = useState('auto');
   const [selectedBelgeKategori, setSelectedBelgeKategori] = useState('kurumsal');
-  const [lastAIAnalysis, setLastAIAnalysis] = useState<any>(null);
+  const [lastAIAnalysis, setLastAIAnalysis] = useState<AIAnalysisResult | null>(null);
   const [aiApplyModalOpened, { open: openAIApplyModal, close: closeAIApplyModal }] =
     useDisclosure(false);
   const [selectedDokumanForApply, setSelectedDokumanForApply] = useState<FirmaDokuman | null>(null);
 
   // Ekstra alanlar state
-  const [ekstraAlanlar, setEkstraAlanlar] = useState<Record<string, any>>({});
-  const [alanSablonlari, setAlanSablonlari] = useState<any[]>([]);
+  const [ekstraAlanlar, setEkstraAlanlar] = useState<Record<string, unknown>>({});
+  const [alanSablonlari, setAlanSablonlari] = useState<Array<{ alan_adi: string; gorunen_ad: string }>>([]);
   const [ekstraAlanlarExpanded, setEkstraAlanlarExpanded] = useState(false);
   const [newAlanAdi, setNewAlanAdi] = useState('');
   const [newAlanDeger, setNewAlanDeger] = useState('');
@@ -399,7 +407,7 @@ function FirmaProjelerSection({
   const varsayilanFirma = firmalar.find((f) => f.varsayilan) || firmalar[0];
 
   // Projeleri yükle
-  const fetchProjeler = async () => {
+  const fetchProjeler = useCallback(async () => {
     try {
       setLoadingProjeler(true);
       const res = await authFetch(`${API_BASE_URL}/api/projeler`);
@@ -413,10 +421,10 @@ function FirmaProjelerSection({
     } finally {
       setLoadingProjeler(false);
     }
-  };
+  }, [API_BASE_URL]);
 
   // Dökümanları yükle
-  const fetchDokumanlar = async () => {
+  const fetchDokumanlar = useCallback(async () => {
     if (!varsayilanFirma?.id) return;
     try {
       setLoadingDokumanlar(true);
@@ -430,10 +438,10 @@ function FirmaProjelerSection({
     } finally {
       setLoadingDokumanlar(false);
     }
-  };
+  }, [varsayilanFirma?.id, API_BASE_URL]);
 
   // Ekstra alanları ve şablonları yükle
-  const fetchEkstraAlanlar = async () => {
+  const fetchEkstraAlanlar = useCallback(async () => {
     if (!varsayilanFirma?.id) return;
     try {
       setLoadingEkstraAlanlar(true);
@@ -464,10 +472,10 @@ function FirmaProjelerSection({
     } finally {
       setLoadingEkstraAlanlar(false);
     }
-  };
+  }, [varsayilanFirma?.id, API_BASE_URL]);
 
   // Ekstra alan ekle/güncelle
-  const handleAddEkstraAlan = async (alanAdi: string, deger: any) => {
+  const handleAddEkstraAlan = async (alanAdi: string, deger: string | number | boolean | null) => {
     if (!varsayilanFirma?.id || !alanAdi) return;
 
     try {
@@ -1606,7 +1614,7 @@ function AIDataSelector({
   onApply,
   onCancel,
 }: {
-  aiData: Record<string, string | number | null>;
+  aiData: AIAnalysisData;
   onApply: (fields: string[]) => void;
   onCancel: () => void;
 }) {
@@ -1743,10 +1751,10 @@ function AyarlarContent() {
   // AuthContext'ten user'ı al
   const {
     user: authUser,
-    isLoading: authLoading,
-    isAuthenticated,
-    refreshUser,
-    signOut,
+    isLoading: _authLoading,
+    isAuthenticated: _isAuthenticated,
+    refreshUser: _refreshUser,
+    logout,
   } = useAuth();
 
   // Active section
@@ -1775,7 +1783,7 @@ function AyarlarContent() {
   const [selectedBelgeTipi, setSelectedBelgeTipi] = useState<string>('');
   const [uploadingBelge, setUploadingBelge] = useState(false);
   const [analyzingBelge, setAnalyzingBelge] = useState(false);
-  const [lastAnalysis, setLastAnalysis] = useState<any>(null);
+  const [lastAnalysis, setLastAnalysis] = useState<BelgeAnalysisResult | null>(null);
 
   // Modal states
   const [passwordModalOpened, { open: openPasswordModal, close: closePasswordModal }] =
@@ -1910,10 +1918,10 @@ function AyarlarContent() {
         const data = await res.json();
         throw new Error(data.error || 'İşlem başarısız');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       notifications.show({
         title: 'Hata',
-        message: err.message || 'Firma kaydedilemedi',
+        message: err instanceof Error ? err.message : 'Firma kaydedilemedi',
         color: 'red',
       });
     } finally {
@@ -2169,10 +2177,10 @@ function AyarlarContent() {
         const data = await res.json();
         throw new Error(data.error || 'Şifre değiştirilemedi');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       notifications.show({
         title: 'Hata',
-        message: err.message || 'Şifre değiştirilirken bir hata oluştu',
+        message: err instanceof Error ? err.message : 'Şifre değiştirilirken bir hata oluştu',
         color: 'red',
         icon: <IconX size={16} />,
       });
@@ -2183,7 +2191,7 @@ function AyarlarContent() {
 
   // Çıkış yap
   const handleLogout = () => {
-    signOut();
+    logout();
   };
 
   // Menü öğeleri
@@ -2230,6 +2238,13 @@ function AyarlarContent() {
       icon: IconSettings,
       color: 'gray',
       description: 'Genel tercihler',
+    },
+    {
+      id: 'kisayollar',
+      label: 'Kısayollar',
+      icon: IconKey,
+      color: 'green',
+      description: 'Klavye kısayolları',
     },
   ];
 
@@ -3145,130 +3160,126 @@ function AyarlarContent() {
               </Text>
             </div>
 
-            {/* Tema Seçimi */}
-            <Paper p="lg" radius="md" withBorder>
-              <Stack gap="md">
-                <Group justify="space-between">
-                  <Text fw={600}>Tema</Text>
-                  {colorScheme === 'dark' ? <IconMoon size={18} /> : <IconSun size={18} />}
+            <SettingsCard
+              title="Tema"
+              rightAction={
+                colorScheme === 'dark' ? (
+                  <IconMoon size={18} color="var(--card-accent)" />
+                ) : (
+                  <IconSun size={18} color="var(--card-accent)" />
+                )
+              }
+            >
+              <Divider />
+              <SegmentedControl
+                value={preferences.theme}
+                onChange={handleThemeChange}
+                fullWidth
+                data={[
+                  {
+                    label: (
+                      <Group gap="xs" justify="center">
+                        <IconSun size={16} />
+                        <span>Açık</span>
+                      </Group>
+                    ),
+                    value: 'light',
+                  },
+                  {
+                    label: (
+                      <Group gap="xs" justify="center">
+                        <IconMoon size={16} />
+                        <span>Koyu</span>
+                      </Group>
+                    ),
+                    value: 'dark',
+                  },
+                  {
+                    label: (
+                      <Group gap="xs" justify="center">
+                        <IconDeviceDesktop size={16} />
+                        <span>Sistem</span>
+                      </Group>
+                    ),
+                    value: 'auto',
+                  },
+                ]}
+              />
+            </SettingsCard>
+
+            <SettingsCard
+              title="Ana Renk"
+              rightAction={
+                <ColorSwatch
+                  color={
+                    colorOptions.find((c) => c.value === preferences.accentColor)?.color ||
+                    '#228be6'
+                  }
+                  size={20}
+                />
+              }
+            >
+              <Divider />
+              <Group gap="xs">
+                {colorOptions.map((option) => (
+                  <Tooltip key={option.value} label={option.name}>
+                    <ColorSwatch
+                      color={option.color}
+                      onClick={() => savePreferences({ accentColor: option.value })}
+                      style={{ cursor: 'pointer' }}
+                      size={36}
+                    >
+                      {preferences.accentColor === option.value && (
+                        <IconCheck size={18} color="white" />
+                      )}
+                    </ColorSwatch>
+                  </Tooltip>
+                ))}
+              </Group>
+            </SettingsCard>
+
+            <SettingsCard title="Görünüm Seçenekleri">
+              <Divider />
+              <Group justify="space-between">
+                <div>
+                  <Text size="sm" fw={500}>
+                    Kompakt Mod
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Daha az boşluk, daha fazla içerik
+                  </Text>
+                </div>
+                <Switch
+                  checked={preferences.compactMode}
+                  onChange={(e) => savePreferences({ compactMode: e.currentTarget.checked })}
+                />
+              </Group>
+              <Divider />
+              <div>
+                <Group justify="space-between" mb="xs">
+                  <Text size="sm" fw={500}>
+                    Yazı Boyutu
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    {preferences.fontSize}px
+                  </Text>
                 </Group>
-                <Divider />
-                <SegmentedControl
-                  value={preferences.theme}
-                  onChange={handleThemeChange}
-                  fullWidth
-                  data={[
-                    {
-                      label: (
-                        <Group gap="xs" justify="center">
-                          <IconSun size={16} />
-                          <span>Açık</span>
-                        </Group>
-                      ),
-                      value: 'light',
-                    },
-                    {
-                      label: (
-                        <Group gap="xs" justify="center">
-                          <IconMoon size={16} />
-                          <span>Koyu</span>
-                        </Group>
-                      ),
-                      value: 'dark',
-                    },
-                    {
-                      label: (
-                        <Group gap="xs" justify="center">
-                          <IconDeviceDesktop size={16} />
-                          <span>Sistem</span>
-                        </Group>
-                      ),
-                      value: 'auto',
-                    },
+                <Slider
+                  value={preferences.fontSize}
+                  onChange={(value) => setPreferences({ ...preferences, fontSize: value })}
+                  onChangeEnd={(value) => savePreferences({ fontSize: value })}
+                  min={12}
+                  max={18}
+                  step={1}
+                  marks={[
+                    { value: 12, label: 'Küçük' },
+                    { value: 14, label: 'Normal' },
+                    { value: 16, label: 'Büyük' },
+                    { value: 18, label: 'Çok Büyük' },
                   ]}
                 />
-              </Stack>
-            </Paper>
-
-            {/* Accent Renk */}
-            <Paper p="lg" radius="md" withBorder>
-              <Stack gap="md">
-                <Group justify="space-between">
-                  <Text fw={600}>Ana Renk</Text>
-                  <ColorSwatch
-                    color={
-                      colorOptions.find((c) => c.value === preferences.accentColor)?.color ||
-                      '#228be6'
-                    }
-                    size={20}
-                  />
-                </Group>
-                <Divider />
-                <Group gap="xs">
-                  {colorOptions.map((option) => (
-                    <Tooltip key={option.value} label={option.name}>
-                      <ColorSwatch
-                        color={option.color}
-                        onClick={() => savePreferences({ accentColor: option.value })}
-                        style={{ cursor: 'pointer' }}
-                        size={36}
-                      >
-                        {preferences.accentColor === option.value && (
-                          <IconCheck size={18} color="white" />
-                        )}
-                      </ColorSwatch>
-                    </Tooltip>
-                  ))}
-                </Group>
-              </Stack>
-            </Paper>
-
-            {/* Görünüm Seçenekleri */}
-            <Paper p="lg" radius="md" withBorder>
-              <Stack gap="md">
-                <Text fw={600}>Görünüm Seçenekleri</Text>
-                <Divider />
-                <Group justify="space-between">
-                  <div>
-                    <Text size="sm" fw={500}>
-                      Kompakt Mod
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      Daha az boşluk, daha fazla içerik
-                    </Text>
-                  </div>
-                  <Switch
-                    checked={preferences.compactMode}
-                    onChange={(e) => savePreferences({ compactMode: e.currentTarget.checked })}
-                  />
-                </Group>
-                <Divider />
-                <div>
-                  <Group justify="space-between" mb="xs">
-                    <Text size="sm" fw={500}>
-                      Yazı Boyutu
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                      {preferences.fontSize}px
-                    </Text>
-                  </Group>
-                  <Slider
-                    value={preferences.fontSize}
-                    onChange={(value) => setPreferences({ ...preferences, fontSize: value })}
-                    onChangeEnd={(value) => savePreferences({ fontSize: value })}
-                    min={12}
-                    max={18}
-                    step={1}
-                    marks={[
-                      { value: 12, label: 'Küçük' },
-                      { value: 14, label: 'Normal' },
-                      { value: 16, label: 'Büyük' },
-                      { value: 18, label: 'Çok Büyük' },
-                    ]}
-                  />
-                </div>
-              </Stack>
-            </Paper>
+              </div>
+            </SettingsCard>
           </Stack>
         );
 
@@ -3284,139 +3295,120 @@ function AyarlarContent() {
               </Text>
             </div>
 
-            {/* E-posta Bildirimleri */}
-            <Paper p="lg" radius="md" withBorder>
-              <Stack gap="md">
-                <Group justify="space-between">
-                  <Group gap="sm">
-                    <ThemeIcon variant="light" color="blue" size="lg">
-                      <IconMailOpened size={18} />
-                    </ThemeIcon>
-                    <Text fw={600}>E-posta Bildirimleri</Text>
-                  </Group>
-                  <Switch
-                    checked={preferences.notifications.email}
-                    onChange={(e) =>
-                      savePreferences({
-                        notifications: {
-                          ...preferences.notifications,
-                          email: e.currentTarget.checked,
-                        },
-                      })
-                    }
-                  />
-                </Group>
-                <Text size="xs" c="dimmed">
-                  Önemli güncellemeler için e-posta alın
-                </Text>
-              </Stack>
-            </Paper>
+            <SettingsCard
+              title="E-posta Bildirimleri"
+              description="Önemli güncellemeler için e-posta alın"
+              icon={
+                <ThemeIcon variant="light" color="blue" size="lg">
+                  <IconMailOpened size={18} />
+                </ThemeIcon>
+              }
+              rightAction={
+                <Switch
+                  checked={preferences.notifications.email}
+                  onChange={(e) =>
+                    savePreferences({
+                      notifications: {
+                        ...preferences.notifications,
+                        email: e.currentTarget.checked,
+                      },
+                    })
+                  }
+                />
+              }
+            />
 
-            {/* Tarayıcı Bildirimleri */}
-            <Paper p="lg" radius="md" withBorder>
-              <Stack gap="md">
-                <Group justify="space-between">
-                  <Group gap="sm">
-                    <ThemeIcon variant="light" color="violet" size="lg">
-                      <IconBellRinging size={18} />
-                    </ThemeIcon>
-                    <Text fw={600}>Tarayıcı Bildirimleri</Text>
-                  </Group>
-                  <Switch
-                    checked={preferences.notifications.browser}
-                    onChange={(e) =>
-                      savePreferences({
-                        notifications: {
-                          ...preferences.notifications,
-                          browser: e.currentTarget.checked,
-                        },
-                      })
-                    }
-                  />
-                </Group>
-                <Text size="xs" c="dimmed">
-                  Masaüstü bildirimleri alın (tarayıcı izni gerekli)
-                </Text>
-              </Stack>
-            </Paper>
+            <SettingsCard
+              title="Tarayıcı Bildirimleri"
+              description="Masaüstü bildirimleri alın (tarayıcı izni gerekli)"
+              icon={
+                <ThemeIcon variant="light" color="violet" size="lg">
+                  <IconBellRinging size={18} />
+                </ThemeIcon>
+              }
+              rightAction={
+                <Switch
+                  checked={preferences.notifications.browser}
+                  onChange={(e) =>
+                    savePreferences({
+                      notifications: {
+                        ...preferences.notifications,
+                        browser: e.currentTarget.checked,
+                      },
+                    })
+                  }
+                />
+              }
+            />
 
-            {/* Bildirim Kategorileri */}
-            <Paper p="lg" radius="md" withBorder>
-              <Stack gap="md">
-                <Text fw={600}>Bildirim Kategorileri</Text>
-                <Divider />
-
-                <Group justify="space-between">
-                  <div>
-                    <Text size="sm" fw={500}>
-                      İhale Güncellemeleri
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      Yeni ihaleler ve durum değişiklikleri
-                    </Text>
-                  </div>
-                  <Switch
-                    checked={preferences.notifications.tenderUpdates}
-                    onChange={(e) =>
-                      savePreferences({
-                        notifications: {
-                          ...preferences.notifications,
-                          tenderUpdates: e.currentTarget.checked,
-                        },
-                      })
-                    }
-                  />
-                </Group>
-
-                <Divider />
-
-                <Group justify="space-between">
-                  <div>
-                    <Text size="sm" fw={500}>
-                      Fatura Hatırlatıcıları
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      Yaklaşan ödeme tarihleri
-                    </Text>
-                  </div>
-                  <Switch
-                    checked={preferences.notifications.invoiceReminders}
-                    onChange={(e) =>
-                      savePreferences({
-                        notifications: {
-                          ...preferences.notifications,
-                          invoiceReminders: e.currentTarget.checked,
-                        },
-                      })
-                    }
-                  />
-                </Group>
-
-                <Divider />
-
-                <Group justify="space-between">
-                  <div>
-                    <Text size="sm" fw={500}>
-                      Haftalık Özet Raporu
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      Haftanın özeti e-posta ile
-                    </Text>
-                  </div>
-                  <Switch
-                    checked={preferences.notifications.weeklyReport}
-                    onChange={(e) =>
-                      savePreferences({
-                        notifications: {
-                          ...preferences.notifications,
-                          weeklyReport: e.currentTarget.checked,
-                        },
-                      })
-                    }
-                  />
-                </Group>
-              </Stack>
-            </Paper>
+            <SettingsCard title="Bildirim Kategorileri">
+              <Divider />
+              <Group justify="space-between">
+                <div>
+                  <Text size="sm" fw={500}>
+                    İhale Güncellemeleri
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Yeni ihaleler ve durum değişiklikleri
+                  </Text>
+                </div>
+                <Switch
+                  checked={preferences.notifications.tenderUpdates}
+                  onChange={(e) =>
+                    savePreferences({
+                      notifications: {
+                        ...preferences.notifications,
+                        tenderUpdates: e.currentTarget.checked,
+                      },
+                    })
+                  }
+                />
+              </Group>
+              <Divider />
+              <Group justify="space-between">
+                <div>
+                  <Text size="sm" fw={500}>
+                    Fatura Hatırlatıcıları
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Yaklaşan ödeme tarihleri
+                  </Text>
+                </div>
+                <Switch
+                  checked={preferences.notifications.invoiceReminders}
+                  onChange={(e) =>
+                    savePreferences({
+                      notifications: {
+                        ...preferences.notifications,
+                        invoiceReminders: e.currentTarget.checked,
+                      },
+                    })
+                  }
+                />
+              </Group>
+              <Divider />
+              <Group justify="space-between">
+                <div>
+                  <Text size="sm" fw={500}>
+                    Haftalık Özet Raporu
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Haftanın özeti e-posta ile
+                  </Text>
+                </div>
+                <Switch
+                  checked={preferences.notifications.weeklyReport}
+                  onChange={(e) =>
+                    savePreferences({
+                      notifications: {
+                        ...preferences.notifications,
+                        weeklyReport: e.currentTarget.checked,
+                      },
+                    })
+                  }
+                />
+              </Group>
+            </SettingsCard>
           </Stack>
         );
 
@@ -3432,120 +3424,105 @@ function AyarlarContent() {
               </Text>
             </div>
 
-            {/* Bölgesel Ayarlar */}
-            <Paper p="lg" radius="md" withBorder>
-              <Stack gap="md">
-                <Group justify="space-between">
-                  <Text fw={600}>Bölgesel Ayarlar</Text>
-                  <IconLanguage size={18} color="var(--mantine-color-dimmed)" />
-                </Group>
-                <Divider />
+            <SettingsCard
+              title="Bölgesel Ayarlar"
+              rightAction={<IconLanguage size={18} color="var(--card-accent)" />}
+            >
+              <Divider />
+              <Select
+                label="Dil"
+                value={preferences.language}
+                onChange={(value) => savePreferences({ language: value || 'tr' })}
+                data={[
+                  { value: 'tr', label: '🇹🇷 Türkçe' },
+                  { value: 'en', label: '🇬🇧 English (Yakında)' },
+                ]}
+                leftSection={<IconLanguage size={16} />}
+              />
+              <Select
+                label="Tarih Formatı"
+                value={preferences.dateFormat}
+                onChange={(value) => savePreferences({ dateFormat: value || 'DD.MM.YYYY' })}
+                data={[
+                  { value: 'DD.MM.YYYY', label: '31.12.2024' },
+                  { value: 'DD/MM/YYYY', label: '31/12/2024' },
+                  { value: 'YYYY-MM-DD', label: '2024-12-31' },
+                  { value: 'MM/DD/YYYY', label: '12/31/2024' },
+                ]}
+                leftSection={<IconCalendarEvent size={16} />}
+              />
+              <Select
+                label="Para Birimi"
+                value={preferences.currency}
+                onChange={(value) => savePreferences({ currency: value || 'TRY' })}
+                data={[
+                  { value: 'TRY', label: '₺ Türk Lirası (TRY)' },
+                  { value: 'USD', label: '$ Amerikan Doları (USD)' },
+                  { value: 'EUR', label: '€ Euro (EUR)' },
+                ]}
+                leftSection={<IconCurrencyLira size={16} />}
+              />
+            </SettingsCard>
 
-                <Select
-                  label="Dil"
-                  value={preferences.language}
-                  onChange={(value) => savePreferences({ language: value || 'tr' })}
-                  data={[
-                    { value: 'tr', label: '🇹🇷 Türkçe' },
-                    { value: 'en', label: '🇬🇧 English (Yakında)' },
-                  ]}
-                  leftSection={<IconLanguage size={16} />}
-                />
+            <SettingsCard title="Uygulama Ayarları">
+              <Divider />
+              <Select
+                label="Sayfa Başına Kayıt"
+                description="Listelerde kaç kayıt gösterilsin"
+                defaultValue="20"
+                data={[
+                  { value: '10', label: '10 kayıt' },
+                  { value: '20', label: '20 kayıt' },
+                  { value: '50', label: '50 kayıt' },
+                  { value: '100', label: '100 kayıt' },
+                ]}
+              />
+              <Select
+                label="Otomatik Oturum Kapatma"
+                description="İşlem yapılmadığında oturumu kapat"
+                defaultValue="never"
+                data={[
+                  { value: 'never', label: 'Hiçbir zaman' },
+                  { value: '30', label: '30 dakika' },
+                  { value: '60', label: '1 saat' },
+                  { value: '120', label: '2 saat' },
+                ]}
+                leftSection={<IconClock size={16} />}
+              />
+            </SettingsCard>
 
-                <Select
-                  label="Tarih Formatı"
-                  value={preferences.dateFormat}
-                  onChange={(value) => savePreferences({ dateFormat: value || 'DD.MM.YYYY' })}
-                  data={[
-                    { value: 'DD.MM.YYYY', label: '31.12.2024' },
-                    { value: 'DD/MM/YYYY', label: '31/12/2024' },
-                    { value: 'YYYY-MM-DD', label: '2024-12-31' },
-                    { value: 'MM/DD/YYYY', label: '12/31/2024' },
-                  ]}
-                  leftSection={<IconCalendarEvent size={16} />}
-                />
-
-                <Select
-                  label="Para Birimi"
-                  value={preferences.currency}
-                  onChange={(value) => savePreferences({ currency: value || 'TRY' })}
-                  data={[
-                    { value: 'TRY', label: '₺ Türk Lirası (TRY)' },
-                    { value: 'USD', label: '$ Amerikan Doları (USD)' },
-                    { value: 'EUR', label: '€ Euro (EUR)' },
-                  ]}
-                  leftSection={<IconCurrencyLira size={16} />}
-                />
-              </Stack>
-            </Paper>
-
-            {/* Uygulama Ayarları */}
-            <Paper p="lg" radius="md" withBorder>
-              <Stack gap="md">
-                <Text fw={600}>Uygulama Ayarları</Text>
-                <Divider />
-
-                <Select
-                  label="Sayfa Başına Kayıt"
-                  description="Listelerde kaç kayıt gösterilsin"
-                  defaultValue="20"
-                  data={[
-                    { value: '10', label: '10 kayıt' },
-                    { value: '20', label: '20 kayıt' },
-                    { value: '50', label: '50 kayıt' },
-                    { value: '100', label: '100 kayıt' },
-                  ]}
-                />
-
-                <Select
-                  label="Otomatik Oturum Kapatma"
-                  description="İşlem yapılmadığında oturumu kapat"
-                  defaultValue="never"
-                  data={[
-                    { value: 'never', label: 'Hiçbir zaman' },
-                    { value: '30', label: '30 dakika' },
-                    { value: '60', label: '1 saat' },
-                    { value: '120', label: '2 saat' },
-                  ]}
-                  leftSection={<IconClock size={16} />}
-                />
-              </Stack>
-            </Paper>
-
-            {/* Sistem Bilgisi */}
-            <Paper p="lg" radius="md" withBorder>
-              <Stack gap="md">
-                <Group justify="space-between">
-                  <Text fw={600}>Sistem Bilgisi</Text>
-                  <Badge variant="light" color="blue">
-                    v1.0.0
-                  </Badge>
-                </Group>
-                <Divider />
-                <SimpleGrid cols={{ base: 1, sm: 2 }}>
-                  <div>
-                    <Text size="xs" c="dimmed">
-                      Backend
-                    </Text>
-                    <Text size="sm">{API_BASE_URL}</Text>
-                  </div>
-                  <div>
-                    <Text size="xs" c="dimmed">
-                      Ortam
-                    </Text>
-                    <Text size="sm">{process.env.NODE_ENV}</Text>
-                  </div>
-                </SimpleGrid>
-                <Button
-                  variant="light"
-                  leftSection={<IconDatabase size={16} />}
-                  component={Link}
-                  href="/admin/sistem"
-                >
-                  Detaylı Sistem Bilgisi
-                </Button>
-              </Stack>
-            </Paper>
+            <SettingsCard
+              title="Sistem Bilgisi"
+              rightAction={
+                <Badge variant="light" color="blue">
+                  v1.0.0
+                </Badge>
+              }
+            >
+              <Divider />
+              <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                <div>
+                  <Text size="xs" c="dimmed">
+                    Backend
+                  </Text>
+                  <Text size="sm">{API_BASE_URL}</Text>
+                </div>
+                <div>
+                  <Text size="xs" c="dimmed">
+                    Ortam
+                  </Text>
+                  <Text size="sm">{process.env.NODE_ENV}</Text>
+                </div>
+              </SimpleGrid>
+              <Button
+                variant="light"
+                leftSection={<IconDatabase size={16} />}
+                component={Link}
+                href="/admin/sistem"
+              >
+                Detaylı Sistem Bilgisi
+              </Button>
+            </SettingsCard>
 
             {/* Admin Panel */}
             {user?.role === 'admin' && (
@@ -3579,6 +3556,21 @@ function AyarlarContent() {
                 </Group>
               </Paper>
             )}
+          </Stack>
+        );
+
+      case 'kisayollar':
+        return (
+          <Stack gap="lg">
+            <div>
+              <Title order={3} mb={4}>
+                ⌨️ Kısayollar
+              </Title>
+              <Text c="dimmed" size="sm">
+                Klavye kısayolları ile hızlı erişim
+              </Text>
+            </div>
+            <HotkeysCard />
           </Stack>
         );
 

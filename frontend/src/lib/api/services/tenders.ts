@@ -100,7 +100,7 @@ export const tendersAPI = {
   /**
    * Takip notunu sil
    */
-  async deleteTrackingNote(trackingId: number, noteId: number): Promise<ApiResponse<any>> {
+  async deleteTrackingNote(trackingId: number, noteId: string | number): Promise<ApiResponse<any>> {
     const response = await api.delete(`/api/tender-tracking/${trackingId}/notes/${noteId}`);
     return response.data;
   },
@@ -171,128 +171,107 @@ export const tendersAPI = {
     return response.data;
   },
 
-  // ========== TENDER NOTES ==========
+  // ========== TENDER NOTES (LEGACY COMPATIBILITY) ==========
+  // Bu bölüm eski NotesSection component'i için geriye dönük uyumluluk sağlar.
+  // Yeni kodlar için unified notes sistemi kullanılmalıdır.
+  // Frontend: ContextualNotesSection component'i ve useNotes hook'u
+  // Backend: /api/notes/context/tender/:id endpoint'leri
 
-  /**
-   * İhale notlarını getir
-   */
   async getTenderNotes(trackingId: number): Promise<ApiResponse<TenderNote[]>> {
-    const response = await api.get(`/api/tender-notes/${trackingId}`);
+    const response = await api.get(`/api/notes/context/tender/${trackingId}`);
     return response.data;
   },
 
-  /**
-   * Etiket önerilerini getir
-   */
   async getTagSuggestions(): Promise<ApiResponse<string[]>> {
-    const response = await api.get('/api/tender-notes/tags/suggestions');
+    const response = await api.get('/api/notes/tags/suggestions');
     return response.data;
   },
 
-  /**
-   * Not oluştur
-   */
   async createTenderNote(
     trackingId: number,
-    data: Omit<TenderNote, 'id' | 'created_at' | 'updated_at'>
+    noteData: {
+      text?: string;
+      content?: string;
+      color?: string;
+      priority?: string;
+      tags?: string[];
+      pinned?: boolean;
+      reminder_date?: string | null;
+    }
   ): Promise<ApiResponse<TenderNote>> {
-    const response = await api.post(`/api/tender-notes/${trackingId}`, data);
+    // Legacy field mapping: text -> content
+    const payload = {
+      content: noteData.content || noteData.text || '',
+      color: noteData.color,
+      priority: noteData.priority,
+      tags: noteData.tags,
+      is_pinned: noteData.pinned,
+      due_date: noteData.reminder_date,
+    };
+    const response = await api.post(`/api/notes/context/tender/${trackingId}`, payload);
     return response.data;
   },
 
-  /**
-   * Not güncelle
-   */
   async updateTenderNote(
     trackingId: number,
     noteId: number,
-    data: Partial<TenderNote>
+    updates: {
+      text?: string;
+      content?: string;
+      color?: string;
+      priority?: string;
+      pinned?: boolean;
+      tags?: string[];
+      reminder_date?: string | null;
+    }
   ): Promise<ApiResponse<TenderNote>> {
-    const response = await api.put(`/api/tender-notes/${trackingId}/${noteId}`, data);
+    // Legacy field mapping
+    const payload: Record<string, unknown> = {};
+    if (updates.content || updates.text) payload.content = updates.content || updates.text;
+    if (updates.color !== undefined) payload.color = updates.color;
+    if (updates.priority !== undefined) payload.priority = updates.priority;
+    if (updates.pinned !== undefined) payload.is_pinned = updates.pinned;
+    if (updates.tags !== undefined) payload.tags = updates.tags;
+    if (updates.reminder_date !== undefined) payload.due_date = updates.reminder_date;
+    const response = await api.put(`/api/notes/${noteId}`, payload);
     return response.data;
   },
 
-  /**
-   * Not sil
-   */
-  async deleteTenderNote(trackingId: number, noteId: number): Promise<ApiResponse<any>> {
-    const response = await api.delete(`/api/tender-notes/${trackingId}/${noteId}`);
+  async deleteTenderNote(trackingId: number, noteId: number): Promise<ApiResponse<void>> {
+    const response = await api.delete(`/api/notes/${noteId}`);
     return response.data;
   },
 
-  /**
-   * Not sabitle/kaldır
-   */
-  async pinTenderNote(
-    trackingId: number,
-    noteId: number,
-    isPinned: boolean
-  ): Promise<ApiResponse<any>> {
-    const response = await api.put(`/api/tender-notes/${trackingId}/${noteId}/pin`, {
-      is_pinned: isPinned,
-    });
+  async pinTenderNote(trackingId: number, noteId: number, pinned: boolean): Promise<ApiResponse<TenderNote>> {
+    const response = await api.put(`/api/notes/${noteId}/pin`);
     return response.data;
   },
 
-  /**
-   * Not tamamlanma durumunu güncelle
-   */
-  async completeTenderNote(
-    trackingId: number,
-    noteId: number,
-    isCompleted: boolean
-  ): Promise<ApiResponse<any>> {
-    const response = await api.put(`/api/tender-notes/${trackingId}/${noteId}`, {
-      is_completed: isCompleted,
-    });
-    return response.data;
-  },
-
-  /**
-   * Nota dosya ekle
-   */
   async addTenderNoteAttachment(
     trackingId: number,
     noteId: number,
     formData: FormData
   ): Promise<ApiResponse<any>> {
-    const response = await api.post(
-      `/api/tender-notes/${trackingId}/${noteId}/attachments`,
-      formData,
-      {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      }
-    );
+    const response = await api.post(`/api/notes/${noteId}/attachments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   },
 
-  /**
-   * Not dosyasını sil
-   */
   async deleteTenderNoteAttachment(
     trackingId: number,
     noteId: number,
     attachmentId: number
-  ): Promise<ApiResponse<any>> {
-    const response = await api.delete(
-      `/api/tender-notes/${trackingId}/${noteId}/attachments/${attachmentId}`
-    );
+  ): Promise<ApiResponse<void>> {
+    const response = await api.delete(`/api/notes/${noteId}/attachments/${attachmentId}`);
     return response.data;
   },
 
-  /**
-   * Notları yeniden sırala
-   */
-  async reorderTenderNotes(trackingId: number, orderedIds: number[]): Promise<ApiResponse<any>> {
-    const response = await api.put(`/api/tender-notes/${trackingId}/reorder`, { orderedIds });
+  async reorderTenderNotes(trackingId: number, noteIds: number[]): Promise<ApiResponse<void>> {
+    const response = await api.put(`/api/notes/context/tender/${trackingId}/reorder`, {
+      noteIds: noteIds.map(String),
+    });
     return response.data;
-  },
-
-  /**
-   * Ek dosya indirme URL'i
-   */
-  getAttachmentDownloadUrl(attachmentId: number): string {
-    return `${API_BASE_URL}/api/tender-notes/attachments/${attachmentId}/download`;
   },
 
   // ========== TENDER CONTENT & DOCUMENTS ==========

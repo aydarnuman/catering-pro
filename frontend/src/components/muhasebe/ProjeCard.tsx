@@ -144,11 +144,10 @@ export default function ProjeCard({ onYonetClick }: ProjeCardProps) {
     <Paper
       p="lg"
       radius="md"
-      withBorder
+      className="standard-card"
       style={{
         background:
-          'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%)',
-        borderColor: 'var(--mantine-color-indigo-2)',
+          'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, var(--surface-elevated, var(--card)) 100%)',
       }}
     >
       {/* Header */}
@@ -184,7 +183,7 @@ export default function ProjeCard({ onYonetClick }: ProjeCardProps) {
 
       {/* Proje Sayıları */}
       <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="xs" mb="md">
-        <Paper p="xs" radius="sm" bg="white">
+        <Paper p="xs" radius="sm" className="nested-card">
           <Text size="xs" c="dimmed">
             Aktif
           </Text>
@@ -192,7 +191,7 @@ export default function ProjeCard({ onYonetClick }: ProjeCardProps) {
             {ozet.projeler.aktif}
           </Text>
         </Paper>
-        <Paper p="xs" radius="sm" bg="white">
+        <Paper p="xs" radius="sm" className="nested-card">
           <Text size="xs" c="dimmed">
             Bekleyen
           </Text>
@@ -200,7 +199,7 @@ export default function ProjeCard({ onYonetClick }: ProjeCardProps) {
             {ozet.projeler.bekleyen}
           </Text>
         </Paper>
-        <Paper p="xs" radius="sm" bg="white">
+        <Paper p="xs" radius="sm" className="nested-card">
           <Text size="xs" c="dimmed">
             Tamamlanan
           </Text>
@@ -208,7 +207,7 @@ export default function ProjeCard({ onYonetClick }: ProjeCardProps) {
             {ozet.projeler.tamamlanan}
           </Text>
         </Paper>
-        <Paper p="xs" radius="sm" bg="white">
+        <Paper p="xs" radius="sm" className="nested-card">
           <Text size="xs" c="dimmed">
             Toplam
           </Text>

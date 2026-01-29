@@ -330,7 +330,7 @@ export function ExportModal({
 
         {/* Seçilen Rapor Bilgisi */}
         {currentRapor && (
-          <Paper withBorder p="sm" radius="md" bg="gray.0">
+          <Paper p="sm" radius="md" className="nested-card">
             <Group justify="space-between">
               <Text size="sm" c="dimmed">
                 Seçilen Rapor:

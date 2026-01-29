@@ -55,7 +55,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { aiAPI } from '@/lib/api/services/ai';
 import { tendersAPI } from '@/lib/api/services/tenders';
 
-// NotesSection kaldırıldı - Çalışma Panosu kullanılacak
+// Unified Notes System
 
 import {
   IconBuildingBank,
@@ -1656,100 +1656,70 @@ KURALLAR:
               </Group>
             </Group>
 
-            {/* Özet Kartları */}
-            <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="sm">
-              <Tooltip
-                label={tender.ihale_basligi}
-                multiline
-                w={300}
-                withArrow
-                disabled={!tender.ihale_basligi}
-              >
-                <Paper p="sm" withBorder radius="md" shadow="xs" className="hover-card">
-                  <Text size="xs" c="gray.6" tt="uppercase" fw={600} mb={4}>
-                    İhale Başlığı
-                  </Text>
-                  <Text size="sm" fw={500} lineClamp={2}>
-                    {tender.ihale_basligi || (
-                      <Text span c="gray.5">
-                        Belirtilmemiş
-                      </Text>
-                    )}
-                  </Text>
-                </Paper>
-              </Tooltip>
-              <Tooltip label={tender.kurum} multiline w={300} withArrow disabled={!tender.kurum}>
-                <Paper p="sm" withBorder radius="md" shadow="xs" className="hover-card">
-                  <Text size="xs" c="gray.6" tt="uppercase" fw={600} mb={4}>
-                    Kurum
-                  </Text>
-                  <Text size="sm" fw={500} lineClamp={2}>
-                    {tender.kurum || (
-                      <Text span c="gray.5">
-                        Belirtilmemiş
-                      </Text>
-                    )}
-                  </Text>
-                </Paper>
-              </Tooltip>
-              <Paper p="sm" withBorder radius="md" shadow="xs" className="hover-card">
-                <Text size="xs" c="gray.6" tt="uppercase" fw={600} mb={4}>
-                  Tarih
-                </Text>
-                <Text size="sm" fw={600}>
-                  {tender.tarih || (
-                    <Text span c="gray.5">
-                      Belirtilmemiş
+            {/* Özet Kartları - Glassy Header Card */}
+            <Paper className="glassy-header-card" p="lg" radius="lg">
+              {/* Üst Bilgi Satırı */}
+              <Group justify="space-between" mb="md">
+                <div>
+                  <Group gap="xs" mb={4}>
+                    <Text fw={700} size="lg">
+                      {tender.ihale_basligi?.substring(0, 60) || 'İhale'}
+                      {tender.ihale_basligi && tender.ihale_basligi.length > 60 ? '...' : ''}
                     </Text>
-                  )}
-                </Text>
-              </Paper>
-              <Paper p="sm" withBorder radius="md" shadow="xs" className="hover-card">
-                <Text size="xs" c="gray.6" tt="uppercase" fw={600} mb={4}>
-                  Şehir
-                </Text>
-                <Text size="sm" fw={500}>
-                  {tender.city || (
-                    <Text span c="gray.5">
-                      Belirtilmemiş
-                    </Text>
-                  )}
-                </Text>
-              </Paper>
-            </SimpleGrid>
+                    <Badge className="glassy-badge info" size="sm">
+                      {tender.status === 'bekliyor' ? 'Bekliyor' : tender.status === 'kazanildi' ? 'Kazanıldı' : tender.status === 'basvuruldu' ? 'Başvuruldu' : 'Kaybedildi'}
+                    </Badge>
+                  </Group>
+                  <Text size="sm" c="dimmed">
+                    İhale No: #{tender.tender_id || tender.id}
+                  </Text>
+                </div>
+              </Group>
 
-            {/* Hesaplama Özeti - Hesaplamalar sekmesine yönlendirme */}
-            {yaklasikMaliyet > 0 || sinirDeger || bizimTeklif > 0 ? (
-              <Paper
-                p="md"
-                withBorder
-                radius="md"
-                shadow="sm"
-                style={{
-                  background:
-                    sinirDeger && bizimTeklif > 0
-                      ? bizimTeklif < sinirDeger
-                        ? 'linear-gradient(135deg, rgba(255,244,230,0.5) 0%, rgba(255,255,255,1) 100%)'
-                        : 'linear-gradient(135deg, rgba(235,251,238,0.5) 0%, rgba(255,255,255,1) 100%)'
-                      : 'var(--mantine-color-gray-0)',
-                  cursor: 'pointer',
-                }}
-                onClick={() => setActiveTab('hesaplamalar')}
-              >
-                <Group justify="space-between">
-                  <Group gap="md">
-                    <ThemeIcon
-                      size="lg"
-                      variant="gradient"
-                      gradient={{ from: 'violet', to: 'indigo' }}
-                      radius="xl"
-                    >
-                      <IconCalculator size={20} />
-                    </ThemeIcon>
-                    <div>
-                      <Text fw={600} size="sm">
-                        Teklif Hesaplamaları
-                      </Text>
+              {/* Glassy Bilgi Satırı - Görsel'deki gibi */}
+              <div className="glassy-info-row">
+                <div className="glassy-info-item">
+                  <div className="glassy-info-label">Kurum</div>
+                  <div className="glassy-info-value">{tender.kurum || 'Belirtilmemiş'}</div>
+                </div>
+                <div className="glassy-info-item">
+                  <div className="glassy-info-label">Şehir</div>
+                  <div className="glassy-info-value">{tender.city || 'Belirtilmemiş'}</div>
+                </div>
+                <div className="glassy-info-item">
+                  <div className="glassy-info-label">Tarih</div>
+                  <div className="glassy-info-value">{tender.tarih || 'Belirtilmemiş'}</div>
+                </div>
+                <div className="glassy-info-item">
+                  <div className="glassy-info-label">Bedel</div>
+                  <div className="glassy-info-value">{tender.bedel || 'Belirtilmemiş'}</div>
+                </div>
+              </div>
+            </Paper>
+
+            {/* Hesaplama Özeti - Glassy Content Card */}
+            <Paper
+              className="glassy-content-card"
+              p="md"
+              radius="lg"
+              style={{ cursor: 'pointer' }}
+              onClick={() => setActiveTab('hesaplamalar')}
+            >
+              <Group justify="space-between">
+                <Group gap="md">
+                  <ThemeIcon
+                    size="lg"
+                    variant="gradient"
+                    gradient={{ from: 'violet', to: 'indigo' }}
+                    radius="xl"
+                  >
+                    <IconCalculator size={20} />
+                  </ThemeIcon>
+                  <div>
+                    <Text fw={600} size="sm">
+                      Teklif Hesaplamaları
+                    </Text>
+                    {yaklasikMaliyet > 0 || sinirDeger || bizimTeklif > 0 ? (
                       <Group gap="lg" mt={4}>
                         {yaklasikMaliyet > 0 && (
                           <Text size="xs" c="dimmed">
@@ -1767,75 +1737,43 @@ KURALLAR:
                           </Text>
                         )}
                       </Group>
-                    </div>
-                  </Group>
-                  <Group gap="sm">
-                    {sinirDeger && bizimTeklif > 0 && (
-                      <Badge
-                        size="md"
-                        variant="filled"
-                        color={bizimTeklif < sinirDeger ? 'orange' : 'green'}
-                        leftSection={
-                          bizimTeklif < sinirDeger ? (
-                            <IconAlertTriangle size={12} />
-                          ) : (
-                            <IconCheck size={12} />
-                          )
-                        }
-                      >
-                        {bizimTeklif < sinirDeger
-                          ? `%${Math.round((bizimTeklif / sinirDeger) * 100)} - Risk`
-                          : 'Uygun'}
-                      </Badge>
-                    )}
-                    <Badge variant="light" color="violet" rightSection={<IconEye size={12} />}>
-                      Detay
-                    </Badge>
-                  </Group>
-                </Group>
-              </Paper>
-            ) : (
-              <Paper
-                p="md"
-                withBorder
-                radius="md"
-                bg="gray.0"
-                style={{ cursor: 'pointer' }}
-                onClick={() => setActiveTab('hesaplamalar')}
-              >
-                <Group justify="space-between">
-                  <Group gap="md">
-                    <ThemeIcon size="lg" variant="light" color="violet" radius="xl">
-                      <IconCalculator size={20} />
-                    </ThemeIcon>
-                    <div>
-                      <Text fw={600} size="sm">
-                        Teklif Hesaplamaları
-                      </Text>
+                    ) : (
                       <Text size="xs" c="dimmed">
                         Sınır değer, aşırı düşük ve itiraz bedeli hesapla
                       </Text>
-                    </div>
-                  </Group>
-                  <Badge variant="light" color="violet" rightSection={<IconEye size={12} />}>
-                    Hesapla
+                    )}
+                  </div>
+                </Group>
+                <Group gap="sm">
+                  {sinirDeger && bizimTeklif > 0 && (
+                    <Badge
+                      className={`glassy-badge ${bizimTeklif < sinirDeger ? 'warning' : 'success'}`}
+                      leftSection={
+                        bizimTeklif < sinirDeger ? (
+                          <IconAlertTriangle size={12} />
+                        ) : (
+                          <IconCheck size={12} />
+                        )
+                      }
+                    >
+                      {bizimTeklif < sinirDeger
+                        ? `%${Math.round((bizimTeklif / sinirDeger) * 100)} - Risk`
+                        : 'Uygun'}
+                    </Badge>
+                  )}
+                  <Badge className="glassy-badge info" rightSection={<IconEye size={12} />}>
+                    {yaklasikMaliyet > 0 ? 'Detay' : 'Hesapla'}
                   </Badge>
                 </Group>
-              </Paper>
-            )}
+              </Group>
+            </Paper>
 
-            {/* TEKLİF CETVELİ KARTI */}
+
+            {/* TEKLİF CETVELİ KARTI - Glassy Style */}
             <Paper
+              className="glassy-content-card"
               p="lg"
-              withBorder
-              radius="md"
-              shadow="sm"
-              style={{
-                background: teklifOzet
-                  ? 'linear-gradient(135deg, rgba(236,253,245,0.5) 0%, rgba(255,255,255,1) 100%)'
-                  : 'var(--mantine-color-gray-0)',
-                border: teklifOzet ? '1px solid var(--mantine-color-teal-3)' : undefined,
-              }}
+              radius="lg"
             >
               <Group justify="space-between" mb="md">
                 <Group gap="sm">
@@ -1873,136 +1811,101 @@ KURALLAR:
 
               {teklifOzet ? (
                 <>
-                  {/* Maliyet Kartları */}
+                  {/* Maliyet Kartları - Glassy Nested */}
                   <SimpleGrid cols={{ base: 2, sm: 3, md: 6 }} spacing="xs" mb="md">
-                    <Paper
-                      p="xs"
-                      radius="sm"
-                      bg="blue.0"
-                      style={{ border: '1px solid var(--mantine-color-blue-2)' }}
-                    >
+                    <Paper className="glassy-card-nested" p="xs" radius="md">
                       <Group gap={4} mb={2}>
-                        <IconUsers size={14} color="var(--mantine-color-blue-6)" />
-                        <Text size="xs" c="blue.7" fw={600}>
+                        <IconUsers size={14} color="var(--mantine-color-blue-5)" />
+                        <Text size="xs" c="blue.4" fw={600}>
                           Personel
                         </Text>
                       </Group>
                       <Text size="xs" c="dimmed">
                         {teklifOzet.personelSayisi} kişi
                       </Text>
-                      <Text size="sm" fw={700} c="blue.7">
+                      <Text size="sm" fw={700} c="blue.4">
                         {teklifOzet.personelMaliyet.toLocaleString('tr-TR')} ₺
                       </Text>
                     </Paper>
 
-                    <Paper
-                      p="xs"
-                      radius="sm"
-                      bg="orange.0"
-                      style={{ border: '1px solid var(--mantine-color-orange-2)' }}
-                    >
+                    <Paper className="glassy-card-nested" p="xs" radius="md">
                       <Group gap={4} mb={2}>
-                        <IconTruck size={14} color="var(--mantine-color-orange-6)" />
-                        <Text size="xs" c="orange.7" fw={600}>
+                        <IconTruck size={14} color="var(--mantine-color-orange-5)" />
+                        <Text size="xs" c="orange.4" fw={600}>
                           Nakliye
                         </Text>
                       </Group>
                       <Text size="xs" c="dimmed">
                         {teklifOzet.aracSayisi} araç
                       </Text>
-                      <Text size="sm" fw={700} c="orange.7">
+                      <Text size="sm" fw={700} c="orange.4">
                         {teklifOzet.nakliyeMaliyet.toLocaleString('tr-TR')} ₺
                       </Text>
                     </Paper>
 
-                    <Paper
-                      p="xs"
-                      radius="sm"
-                      bg="green.0"
-                      style={{ border: '1px solid var(--mantine-color-green-2)' }}
-                    >
+                    <Paper className="glassy-card-nested" p="xs" radius="md">
                       <Group gap={4} mb={2}>
-                        <IconPackage size={14} color="var(--mantine-color-green-6)" />
-                        <Text size="xs" c="green.7" fw={600}>
+                        <IconPackage size={14} color="var(--mantine-color-green-5)" />
+                        <Text size="xs" c="green.4" fw={600}>
                           Sarf
                         </Text>
                       </Group>
                       <Text size="xs" c="dimmed">
                         {teklifOzet.sarfKalemSayisi} kalem
                       </Text>
-                      <Text size="sm" fw={700} c="green.7">
+                      <Text size="sm" fw={700} c="green.4">
                         {teklifOzet.sarfMaliyet.toLocaleString('tr-TR')} ₺
                       </Text>
                     </Paper>
 
-                    <Paper
-                      p="xs"
-                      radius="sm"
-                      bg="grape.0"
-                      style={{ border: '1px solid var(--mantine-color-grape-2)' }}
-                    >
+                    <Paper className="glassy-card-nested" p="xs" radius="md">
                       <Group gap={4} mb={2}>
-                        <IconTool size={14} color="var(--mantine-color-grape-6)" />
-                        <Text size="xs" c="grape.7" fw={600}>
+                        <IconTool size={14} color="var(--mantine-color-grape-5)" />
+                        <Text size="xs" c="grape.4" fw={600}>
                           Ekipman
                         </Text>
                       </Group>
                       <Text size="xs" c="dimmed">
                         {teklifOzet.ekipmanSayisi} kalem
                       </Text>
-                      <Text size="sm" fw={700} c="grape.7">
+                      <Text size="sm" fw={700} c="grape.4">
                         {teklifOzet.ekipmanMaliyet.toLocaleString('tr-TR')} ₺
                       </Text>
                     </Paper>
 
-                    <Paper
-                      p="xs"
-                      radius="sm"
-                      bg="red.0"
-                      style={{ border: '1px solid var(--mantine-color-red-2)' }}
-                    >
+                    <Paper className="glassy-card-nested" p="xs" radius="md">
                       <Group gap={4} mb={2}>
-                        <IconBuildingBank size={14} color="var(--mantine-color-red-6)" />
-                        <Text size="xs" c="red.7" fw={600}>
+                        <IconBuildingBank size={14} color="var(--mantine-color-red-5)" />
+                        <Text size="xs" c="red.4" fw={600}>
                           Yasal
                         </Text>
                       </Group>
                       <Text size="xs" c="dimmed">
                         SGK, Vergi
                       </Text>
-                      <Text size="sm" fw={700} c="red.7">
+                      <Text size="sm" fw={700} c="red.4">
                         {teklifOzet.yasalMaliyet.toLocaleString('tr-TR')} ₺
                       </Text>
                     </Paper>
 
-                    <Paper
-                      p="xs"
-                      radius="sm"
-                      bg="gray.1"
-                      style={{ border: '1px solid var(--mantine-color-gray-3)' }}
-                    >
+                    <Paper className="glassy-card-nested" p="xs" radius="md">
                       <Group gap={4} mb={2}>
-                        <IconReceipt size={14} color="var(--mantine-color-gray-6)" />
-                        <Text size="xs" c="gray.7" fw={600}>
+                        <IconReceipt size={14} color="var(--mantine-color-gray-5)" />
+                        <Text size="xs" c="gray.4" fw={600}>
                           Genel
                         </Text>
                       </Group>
                       <Text size="xs" c="dimmed">
                         Giderler
                       </Text>
-                      <Text size="sm" fw={700} c="gray.7">
+                      <Text size="sm" fw={700} c="gray.4">
                         {teklifOzet.genelGiderMaliyet.toLocaleString('tr-TR')} ₺
                       </Text>
                     </Paper>
                   </SimpleGrid>
 
-                  {/* Özet Satır */}
-                  <Paper
-                    p="sm"
-                    radius="md"
-                    bg="teal.0"
-                    style={{ border: '1px solid var(--mantine-color-teal-3)' }}
-                  >
+                  {/* Özet Satır - Glassy */}
+                  <Paper className="glassy-card-nested" p="sm" radius="md">
                     <Group justify="space-between">
                       <div>
                         <Text size="xs" c="dimmed">
@@ -2361,7 +2264,7 @@ KURALLAR:
 
               {/* Seçili Tür Bilgisi */}
               {dilekceType && (
-                <Paper p="sm" radius="md" bg="gray.0" mt="auto">
+                <Paper p="sm" radius="md" className="nested-card" mt="auto">
                   <Text size="xs" c="dimmed" mb={4}>
                     📋 Seçili:
                   </Text>
@@ -2701,7 +2604,7 @@ KURALLAR:
                               >
                                 <IconBrain size={18} />
                               </ThemeIcon>
-                              <Paper p="md" radius="lg" bg="gray.0">
+                              <Paper p="md" radius="md" className="nested-card">
                                 <Loader size="sm" color="violet" />
                               </Paper>
                             </Group>
@@ -2983,7 +2886,7 @@ KURALLAR:
                       {dilekceConversations.length === 0 &&
                         savedDilekces.filter((d) => d.dilekce_type === dilekceType).length ===
                           0 && (
-                          <Paper p="xl" radius="lg" bg="gray.0">
+                          <Paper p="xl" radius="md" className="nested-card">
                             <Stack align="center" gap="md">
                               <ThemeIcon
                                 size={60}
@@ -3134,7 +3037,7 @@ KURALLAR:
 
                   {/* Sohbet Geçmişi - Collapsible */}
                   <Collapse in={showChatHistory}>
-                    <Paper p="md" withBorder radius="md" bg="gray.0" mah={250}>
+                    <Paper p="md" radius="md" className="nested-card" mah={250}>
                       <ScrollArea h={200} offsetScrollbars>
                         <Stack gap="sm">
                           {dilekceMessages.length === 0 ? (

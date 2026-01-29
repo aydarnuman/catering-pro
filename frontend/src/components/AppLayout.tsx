@@ -26,6 +26,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <>
       <Notifications position="top-right" />
       <Box
+        className={isAuthPage ? '' : 'glassy-page-bg'}
         style={{
           minHeight: '100vh',
           display: 'flex',
@@ -36,7 +37,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <Box
           component="main"
           className={`main-content ${showNavbar ? 'has-navbar' : 'no-navbar'}`}
-          style={{ flex: 1 }}
+          style={{ flex: 1, minHeight: 0, overflow: 'visible' }}
         >
           <ClientLayout>{children}</ClientLayout>
         </Box>

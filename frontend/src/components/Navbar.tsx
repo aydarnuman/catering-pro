@@ -33,7 +33,6 @@ import {
   IconList,
   IconLogin,
   IconLogout,
-  IconMoon,
   IconPackage,
   IconReceipt,
   IconSearch,
@@ -41,15 +40,16 @@ import {
   IconShieldLock,
   IconShoppingCart,
   IconSparkles,
-  IconSun,
   IconToolsKitchen2,
   IconTrendingUp,
   IconUser,
   IconUserCircle,
   IconUsers,
   IconWallet,
+  IconX,
 } from '@tabler/icons-react';
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
@@ -57,34 +57,39 @@ import { useAuth } from '@/context/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { MobileSidebar } from './MobileSidebar';
 import { NotificationDropdown } from './NotificationDropdown';
-import { RealtimeIndicator } from './RealtimeIndicator';
 import { WhatsAppNavButton } from './WhatsAppNavButton';
 
 // SearchModal'ı lazy load et - sadece açıldığında yükle
-const SearchModal = dynamic(() => import('./SearchModal').then(mod => ({ default: mod.SearchModal })), {
-  ssr: false,
-  loading: () => null,
-});
+const SearchModal = dynamic(
+  () => import('./SearchModal').then((mod) => ({ default: mod.SearchModal })),
+  {
+    ssr: false,
+    loading: () => null,
+  }
+);
 
 export function Navbar() {
-  const { colorScheme, toggleColorScheme } = useMantineColorScheme();
+  const { colorScheme } = useMantineColorScheme();
   const pathname = usePathname();
   const [mobileMenuOpened, setMobileMenuOpened] = useState(false);
   const [searchModalOpened, { open: openSearchModal, close: closeSearchModal }] =
     useDisclosure(false);
   const [mounted, setMounted] = useState(false);
-  const { user, isAuthenticated, isAdmin: userIsAdmin, isLoading, signOut } = useAuth();
+  const { user, isAdmin: userIsAdmin, logout } = useAuth();
   const { canView, isSuperAdmin, loading: permLoading, error: permError } = usePermissions();
 
   // Fallback: Yetkiler yüklenemediğinde veya loading durumunda tüm sayfaları göster
   // useMemo ile cache'le - her render'da yeniden oluşturulmasın
-  const safeCanView = useCallback((module: string) => {
-    // Loading durumunda veya hata varsa true döndür (fallback)
-    if (permLoading || permError) return true;
-    // canView undefined ise true döndür (fallback)
-    if (!canView) return true;
-    return canView(module);
-  }, [permLoading, permError, canView]);
+  const safeCanView = useCallback(
+    (module: string) => {
+      // Loading durumunda veya hata varsa true döndür (fallback)
+      if (permLoading || permError) return true;
+      // canView undefined ise true döndür (fallback)
+      if (!canView) return true;
+      return canView(module);
+    },
+    [permLoading, permError, canView]
+  );
 
   const safeIsSuperAdmin = useMemo(
     () => (permLoading || permError ? false : isSuperAdmin),
@@ -93,6 +98,20 @@ export function Navbar() {
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // AI banner: kapatılabilir (localStorage)
+  const AI_BANNER_KEY = 'catering_ai_banner_dismissed';
+  const [aiBannerDismissed, setAiBannerDismissed] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setAiBannerDismissed(window.localStorage.getItem(AI_BANNER_KEY) === 'true');
+  }, []);
+  const dismissAiBanner = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(AI_BANNER_KEY, 'true');
+      setAiBannerDismissed(true);
+    }
   }, []);
 
   // AppLayout zaten navbar'ın gösterilip gösterilmeyeceğini kontrol ediyor
@@ -107,6 +126,13 @@ export function Navbar() {
 
   // Keyboard shortcut for search
   useHotkeys([['mod+k', () => openSearchModal()]]);
+
+  // Toolbar'daki arama ikonundan gelen event: sayfaya gitmeden arama modalını aç
+  useEffect(() => {
+    const handler = () => openSearchModal();
+    window.addEventListener('open-search-modal', handler);
+    return () => window.removeEventListener('open-search-modal', handler);
+  }, [openSearchModal]);
 
   // Use mounted check to avoid hydration mismatch
   const isDark = mounted ? colorScheme === 'dark' : true; // Default to dark for SSR
@@ -138,8 +164,8 @@ export function Navbar() {
   const isSosyalMedya = pathname.startsWith('/sosyal-medya');
 
   const handleLogout = useCallback(() => {
-    signOut();
-  }, [signOut]);
+    logout();
+  }, [logout]);
 
   const getInitials = useCallback((name: string) => {
     return (
@@ -152,14 +178,17 @@ export function Navbar() {
     );
   }, []);
 
-  // Glassmorphism styles - More transparent (useMemo ile cache'le)
-  const glassStyle = useMemo(() => ({
-    backgroundColor: isDark ? 'rgba(26, 27, 30, 0.65)' : 'rgba(255, 255, 255, 0.6)',
-    backdropFilter: 'blur(16px) saturate(180%)',
-    WebkitBackdropFilter: 'blur(16px) saturate(180%)',
-    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}`,
-    boxShadow: isDark ? '0 4px 30px rgba(0, 0, 0, 0.2)' : '0 4px 30px rgba(0, 0, 0, 0.04)',
-  }), [isDark]);
+  // Artlist tarzı: çok şeffaf cam, minimal çizgi, güçlü blur
+  const glassStyle = useMemo(
+    () => ({
+      backgroundColor: isDark ? 'rgba(18, 18, 18, 0.25)' : 'rgba(255, 255, 255, 0.35)',
+      backdropFilter: 'blur(24px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+      borderBottom: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)'}`,
+      boxShadow: 'none',
+    }),
+    [isDark]
+  );
 
   return (
     <>
@@ -180,11 +209,44 @@ export function Navbar() {
           transition: 'all 0.3s ease',
         }}
       >
-        {/* ========== PRIMARY BAR ========== */}
+        {/* ========== AI DUYURU ÇUBUĞU (kapatılabilir) ========== */}
+        {!aiBannerDismissed && (
+          <Box
+            py={6}
+            px="md"
+            style={{
+              textAlign: 'center',
+              background: isDark
+                ? 'linear-gradient(90deg, rgba(30,30,30,0.98) 0%, rgba(26,26,26,0.99) 100%)'
+                : 'linear-gradient(90deg, rgba(250,250,250,0.98) 0%, rgba(245,245,245,0.99) 100%)',
+              borderBottom: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)'}`,
+            }}
+          >
+            <Group gap={8} justify="center">
+              <IconSparkles size={14} color="#e6c530" />
+              <Text size="xs" c="dimmed">
+                Yeni! İhtiyaç duyduğunuz tüm yapay zeka araçları tek bir araç setinde bir araya
+                getirildi.
+              </Text>
+              <ActionIcon
+                size="sm"
+                variant="subtle"
+                color="gray"
+                aria-label="Bannerı kapat"
+                onClick={dismissAiBanner}
+                style={{ opacity: 0.8, minWidth: 28, minHeight: 28 }}
+              >
+                <IconX size={14} />
+              </ActionIcon>
+            </Group>
+          </Box>
+        )}
+
+        {/* ========== PRIMARY BAR (Artlist: tek sade bar) ========== */}
         <Box
           px={mounted && isMobile ? 'sm' : 'lg'}
           style={{
-            height: mounted && isMobile ? 64 : 72,
+            height: mounted && isMobile ? 60 : 68,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -203,7 +265,7 @@ export function Navbar() {
               }}
               className="logo-container"
             >
-              {/* Logo with subtle glow */}
+              {/* Logo - Artlist tarzı minimal */}
               <Box
                 style={{
                   position: 'relative',
@@ -212,29 +274,37 @@ export function Navbar() {
                   justifyContent: 'center',
                 }}
               >
-                {/* Glow effect behind logo */}
                 <Box
                   style={{
                     position: 'absolute',
-                    width: mounted && isMobile ? 50 : 65,
-                    height: mounted && isMobile ? 50 : 65,
+                    width: mounted && isMobile ? 44 : 56,
+                    height: mounted && isMobile ? 44 : 56,
                     borderRadius: '50%',
-                    background:
-                      'linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(139, 92, 246, 0.12))',
-                    filter: 'blur(10px)',
+                    background: isDark
+                      ? 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%)'
+                      : 'radial-gradient(circle, rgba(255,255,255,0.35) 0%, transparent 70%)',
+                    filter: 'blur(6px)',
                     transition: 'all 0.3s ease',
                   }}
                   className="logo-glow"
                 />
-                <img
+                <Image
                   src="/logo-transparent.png"
                   alt="Catering Pro"
+                  width={136}
+                  height={136}
+                  sizes="(max-width: 768px) 56px, 68px"
+                  priority
                   style={{
                     position: 'relative',
-                    height: mounted && isMobile ? 56 : 68,
-                    width: 'auto',
+                    width: mounted && isMobile ? 56 : 68,
+                    height: 'auto',
                     objectFit: 'contain',
-                    transition: 'transform 0.3s ease',
+                    transition: 'transform 0.3s ease, filter 0.3s ease',
+                    // Dark theme: logo beyaz/açık ton (mavi-mor uyumsuzluğu gider)
+                    ...(isDark && {
+                      filter: 'brightness(0) invert(1)',
+                    }),
                   }}
                   className="logo-image"
                 />
@@ -245,40 +315,46 @@ export function Navbar() {
           {/* Logo hover styles */}
           <style jsx global>{`
             .logo-container:hover {
-              background: ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(59, 130, 246, 0.04)'};
+              background: ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.3)'};
             }
             .logo-container:hover .logo-glow {
-              filter: blur(14px);
-              transform: scale(1.3);
+              filter: blur(8px);
+              transform: scale(1.15);
+              opacity: 1;
             }
             .logo-container:hover .logo-image {
-              transform: scale(1.05);
+              transform: scale(1.04);
+              filter: ${isDark ? 'brightness(0) invert(1) drop-shadow(0 0 8px rgba(255,255,255,0.2))' : 'drop-shadow(0 0 6px rgba(255,255,255,0.4))'};
+            }
+            .user-menu-trigger:hover {
+              background: ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'} !important;
+              border-color: ${isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.1)'} !important;
             }
           `}</style>
 
-          {/* CENTER: Search Bar (Desktop & Tablet) */}
+          {/* CENTER: Search Bar - Artlist tarzı pill */}
           {mounted && !isMobile && (
-            <Box style={{ flex: 1, maxWidth: 480 }} mx="lg">
+            <Box style={{ flex: 1, maxWidth: 420 }} mx="lg">
               <UnstyledButton
                 onClick={openSearchModal}
                 style={{
                   width: '100%',
-                  padding: 'var(--mantine-spacing-sm)',
-                  borderRadius: 12,
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
-                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+                  padding: '10px 16px',
+                  borderRadius: 9999,
+                  backgroundColor: isDark ? 'var(--surface-elevated)' : 'rgba(0,0,0,0.04)',
+                  border: `1px solid ${isDark ? 'var(--surface-border)' : 'rgba(0,0,0,0.06)'}`,
                   transition: 'all 0.2s ease',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 'var(--mantine-spacing-sm)',
+                  gap: 10,
                 }}
                 className="search-trigger"
               >
-                <IconSearch size={18} style={{ opacity: 0.5 }} />
-                <Text size="sm" c="dimmed" style={{ flex: 1 }}>
+                <IconSearch size={16} style={{ opacity: 0.5, flexShrink: 0 }} />
+                <Text size="sm" c="dimmed" style={{ flex: 1, textAlign: 'left' }}>
                   İhale, cari, fatura ara...
                 </Text>
-                <Group gap={4}>
+                <Group gap={4} style={{ flexShrink: 0 }}>
                   <Kbd size="xs">⌘</Kbd>
                   <Kbd size="xs">K</Kbd>
                 </Group>
@@ -298,7 +374,7 @@ export function Navbar() {
                   color="gray"
                   onClick={openSearchModal}
                   style={{
-                    background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                    background: isDark ? 'var(--surface-elevated)' : 'rgba(0,0,0,0.03)',
                   }}
                 >
                   <IconSearch size={18} />
@@ -306,31 +382,11 @@ export function Navbar() {
               </Tooltip>
             )}
 
-            {/* Realtime Indicator */}
-            {mounted && !isMobile && <RealtimeIndicator />}
-
             {/* WhatsApp */}
             <WhatsAppNavButton />
 
             {/* Notifications */}
             <NotificationDropdown />
-
-            {/* Theme Toggle */}
-            <Tooltip label={isDark ? 'Aydınlık mod' : 'Karanlık mod'} withArrow>
-              <ActionIcon
-                variant="subtle"
-                onClick={() => toggleColorScheme()}
-                size="lg"
-                radius="xl"
-                color="gray"
-                style={{
-                  background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                {isDark ? <IconSun size={18} /> : <IconMoon size={18} />}
-              </ActionIcon>
-            </Tooltip>
 
             {/* User Menu */}
             {!mounted ? (
@@ -340,36 +396,56 @@ export function Navbar() {
                 <Menu.Target>
                   <UnstyledButton
                     style={{
-                      p: mounted && isMobile ? 'xs' : 'sm',
-                      borderRadius: 12,
-                      backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                      border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+                      padding: mounted && isMobile ? '6px 8px' : '8px 12px',
+                      borderRadius: 9999,
+                      backgroundColor: isDark ? 'var(--surface-elevated)' : 'rgba(0,0,0,0.04)',
+                      border: `1px solid ${isDark ? 'var(--surface-border)' : 'rgba(0,0,0,0.06)'}`,
                       transition: 'all 0.2s ease',
                     }}
                     className="user-menu-trigger"
                   >
-                    <Group gap="xs" wrap="nowrap">
+                    <Group gap={mounted && isMobile ? 6 : 10} wrap="nowrap">
                       <Avatar
                         size={mounted && isMobile ? 'sm' : 32}
                         radius="xl"
                         color="blue"
                         variant="filled"
+                        style={{ flexShrink: 0 }}
                       >
                         {getInitials(user.name ?? '')}
                       </Avatar>
                       {mounted && !isMobile && (
                         <>
-                          <Box style={{ lineHeight: 1.2 }}>
-                            <Text size="sm" fw={500} style={{ lineHeight: 1.2 }}>
-                              {(user.name ?? user.email).split(' ')[0]}
-                            </Text>
-                            {userIsAdmin && (
-                              <Badge size="xs" color="red" variant="light">
-                                Admin
-                              </Badge>
-                            )}
+                          <Box style={{ lineHeight: 1.25, minWidth: 0 }}>
+                            <Group gap={6} wrap="nowrap" align="center">
+                              <Text size="sm" fw={600} truncate style={{ lineHeight: 1.25 }}>
+                                {(user.name ?? user.email).split(' ')[0]}
+                              </Text>
+                              {userIsAdmin && (
+                                <Badge
+                                  size="xs"
+                                  color="red"
+                                  variant="light"
+                                  radius="sm"
+                                  styles={{
+                                    root: {
+                                      fontWeight: 600,
+                                      paddingLeft: 6,
+                                      paddingRight: 6,
+                                      textTransform: 'uppercase',
+                                      letterSpacing: '0.02em',
+                                    },
+                                  }}
+                                >
+                                  Admin
+                                </Badge>
+                              )}
+                            </Group>
                           </Box>
-                          <IconChevronDown size={14} style={{ opacity: 0.5 }} />
+                          <IconChevronDown
+                            size={16}
+                            style={{ opacity: 0.5, flexShrink: 0, marginLeft: 2 }}
+                          />
                         </>
                       )}
                     </Group>
@@ -464,7 +540,7 @@ export function Navbar() {
               height: 48,
               display: 'flex',
               alignItems: 'center',
-              borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'}`,
+              borderTop: `1px solid ${isDark ? 'var(--surface-border-subtle)' : 'rgba(0,0,0,0.04)'}`,
               gap: 'xs',
             }}
           >
@@ -477,6 +553,7 @@ export function Navbar() {
               color={isActive('/') ? 'blue' : 'gray'}
               size="compact-sm"
               radius="md"
+              style={isActive('/') ? { borderRadius: 8 } : undefined}
             >
               Ana Sayfa
             </Button>
@@ -497,6 +574,7 @@ export function Navbar() {
                     color={isIhaleMerkezi ? 'blue' : 'gray'}
                     size="compact-sm"
                     radius="md"
+                    style={isIhaleMerkezi ? { borderRadius: 8 } : undefined}
                   >
                     İhale Merkezi
                   </Button>
@@ -558,6 +636,7 @@ export function Navbar() {
                     color={isFinans ? 'teal' : 'gray'}
                     size="compact-sm"
                     radius="md"
+                    style={isFinans ? { borderRadius: 8 } : undefined}
                   >
                     Finans
                   </Button>
@@ -577,18 +656,18 @@ export function Navbar() {
                       )}
                     </Group>
                   </Menu.Item>
-                  {(safeIsSuperAdmin || safeCanView('kasa_banka')) && (
+                  {(safeIsSuperAdmin || safeCanView('kasa_banka') || safeCanView('cari')) && (
                     <Menu.Item
                       component={Link}
-                      href="/muhasebe/kasa-banka"
+                      href="/muhasebe/finans"
                       leftSection={<IconWallet size={16} color="var(--mantine-color-blue-6)" />}
                     >
                       <Box>
                         <Text size="sm" fw={500}>
-                          Kasa & Banka
+                          Finans Merkezi
                         </Text>
                         <Text size="xs" c="dimmed">
-                          Nakit akışı
+                          Kasa, Banka, Cariler
                         </Text>
                       </Box>
                     </Menu.Item>
@@ -601,26 +680,6 @@ export function Navbar() {
                       leftSection={<IconReceipt size={16} />}
                     >
                       Faturalar
-                    </Menu.Item>
-                  )}
-                  {(safeIsSuperAdmin || safeCanView('kasa_banka')) && (
-                    <Menu.Item
-                      component={Link}
-                      href="/muhasebe/gelir-gider"
-                      leftSection={
-                        <IconTrendingUp size={16} color="var(--mantine-color-green-6)" />
-                      }
-                    >
-                      Gelir-Gider
-                    </Menu.Item>
-                  )}
-                  {(safeIsSuperAdmin || safeCanView('cari')) && (
-                    <Menu.Item
-                      component={Link}
-                      href="/muhasebe/cariler"
-                      leftSection={<IconUsers size={16} />}
-                    >
-                      Cari Hesaplar
                     </Menu.Item>
                   )}
                   <Menu.Divider />
@@ -657,6 +716,7 @@ export function Navbar() {
                     color={isOperasyon ? 'violet' : 'gray'}
                     size="compact-sm"
                     radius="md"
+                    style={isOperasyon ? { borderRadius: 8 } : undefined}
                   >
                     Operasyon
                   </Button>
@@ -754,6 +814,7 @@ export function Navbar() {
                     color={isSosyalMedya ? 'pink' : 'gray'}
                     size="compact-sm"
                     radius="md"
+                    style={isSosyalMedya ? { borderRadius: 8 } : undefined}
                   >
                     Sosyal Medya
                   </Button>

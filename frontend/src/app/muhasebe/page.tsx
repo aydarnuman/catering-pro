@@ -183,9 +183,6 @@ export default function MuhasebeDashboard() {
   return (
     <Box
       style={{
-        background: isDark
-          ? 'linear-gradient(180deg, rgba(20,184,166,0.05) 0%, rgba(0,0,0,0) 100%)'
-          : 'linear-gradient(180deg, rgba(20,184,166,0.08) 0%, rgba(255,255,255,0) 100%)',
         minHeight: '100vh',
       }}
     >
@@ -211,10 +208,10 @@ export default function MuhasebeDashboard() {
             </Badge>
           </Group>
 
-          {/* Stats Cards */}
+          {/* Stats Cards - Glassy */}
           <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }}>
             {stats.map((stat, index) => (
-              <Card key={index} withBorder shadow="sm" p="lg" radius="md">
+              <Card key={index} p="lg" radius="lg" className="glassy-card">
                 <Group justify="space-between">
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                     {stat.title}
@@ -257,10 +254,10 @@ export default function MuhasebeDashboard() {
           {/* Proje Yönetim Modal */}
           <ProjeYonetimModal opened={projeModalOpen} onClose={() => setProjeModalOpen(false)} />
 
-          {/* Charts Row */}
+          {/* Charts Row - Glassy */}
           <SimpleGrid cols={{ base: 1, lg: 2 }}>
             {/* Gelir/Gider Grafiği */}
-            <Card withBorder shadow="sm" p="lg" radius="md">
+            <Card p="lg" radius="lg" className="glassy-content-card">
               <Group justify="space-between" mb="md">
                 <div>
                   <Text fw={600} size="lg">
@@ -333,8 +330,8 @@ export default function MuhasebeDashboard() {
               </Box>
             </Card>
 
-            {/* Gider Dağılımı */}
-            <Card withBorder shadow="sm" p="lg" radius="md">
+            {/* Gider Dağılımı - Glassy */}
+            <Card p="lg" radius="lg" className="glassy-content-card">
               <Group justify="space-between" mb="md">
                 <div>
                   <Text fw={600} size="lg">
@@ -390,10 +387,10 @@ export default function MuhasebeDashboard() {
             </Card>
           </SimpleGrid>
 
-          {/* Tables Row */}
+          {/* Tables Row - Glassy */}
           <SimpleGrid cols={{ base: 1, lg: 2 }}>
             {/* Son İşlemler */}
-            <Card withBorder shadow="sm" p="lg" radius="md">
+            <Card p="lg" radius="lg" className="glassy-content-card">
               <Group justify="space-between" mb="md">
                 <div>
                   <Text fw={600} size="lg">
@@ -463,8 +460,8 @@ export default function MuhasebeDashboard() {
               </Table.ScrollContainer>
             </Card>
 
-            {/* Bekleyen Faturalar */}
-            <Card withBorder shadow="sm" p="lg" radius="md">
+            {/* Bekleyen Faturalar - Glassy */}
+            <Card p="lg" radius="lg" className="glassy-content-card">
               <Group justify="space-between" mb="md">
                 <div>
                   <Text fw={600} size="lg">
@@ -482,11 +479,11 @@ export default function MuhasebeDashboard() {
                 {bekleyenFaturalar.map((fatura) => (
                   <Paper
                     key={fatura.id}
-                    withBorder
                     p="md"
-                    radius="md"
+                    radius="lg"
+                    className="glassy-card-nested"
                     style={{
-                      borderColor: fatura.gun <= 3 ? 'var(--mantine-color-red-5)' : undefined,
+                      borderColor: fatura.gun <= 3 ? 'rgba(239, 68, 68, 0.5)' : undefined,
                       borderWidth: fatura.gun <= 3 ? 2 : 1,
                     }}
                   >
@@ -522,9 +519,9 @@ export default function MuhasebeDashboard() {
             </Card>
           </SimpleGrid>
 
-          {/* Quick Stats Bottom */}
+          {/* Quick Stats Bottom - Glassy */}
           <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }}>
-            <Paper withBorder p="md" radius="md">
+            <Paper p="md" radius="lg" className="glassy-card">
               <Group>
                 <ThemeIcon color="blue" variant="light" size="xl" radius="md">
                   <IconUsers size={24} />
@@ -539,7 +536,7 @@ export default function MuhasebeDashboard() {
                 </div>
               </Group>
             </Paper>
-            <Paper withBorder p="md" radius="md">
+            <Paper p="md" radius="lg" className="glassy-card">
               <Group>
                 <ThemeIcon color="violet" variant="light" size="xl" radius="md">
                   <IconReceipt size={24} />
@@ -554,7 +551,7 @@ export default function MuhasebeDashboard() {
                 </div>
               </Group>
             </Paper>
-            <Paper withBorder p="md" radius="md">
+            <Paper p="md" radius="lg" className="glassy-card">
               <Group>
                 <ThemeIcon color="cyan" variant="light" size="xl" radius="md">
                   <IconPackage size={24} />
@@ -569,7 +566,7 @@ export default function MuhasebeDashboard() {
                 </div>
               </Group>
             </Paper>
-            <Paper withBorder p="md" radius="md">
+            <Paper p="md" radius="lg" className="glassy-card">
               <Group>
                 <ThemeIcon color="green" variant="light" size="xl" radius="md">
                   <IconBuildingBank size={24} />

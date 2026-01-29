@@ -3253,7 +3253,7 @@ export default function MenuMaliyetPage() {
                   </Table>
                 )
               ) : (
-                <Paper p="xl" withBorder ta="center" bg="gray.0">
+                <Paper p="xl" ta="center" className="nested-card">
                   <Text c="dimmed">Bu reçeteye henüz malzeme eklenmemiş</Text>
                 </Paper>
               )}

@@ -62,9 +62,9 @@ export default function SosyalMedyaDashboard() {
   });
 
   const cardStyle = {
-    background: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.8)',
+    background: isDark ? 'var(--surface-elevated)' : 'rgba(255, 255, 255, 0.8)',
     backdropFilter: 'blur(10px)',
-    border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+    border: `1px solid ${isDark ? 'var(--surface-border)' : 'rgba(0,0,0,0.06)'}`,
   };
 
   return (
@@ -191,7 +191,7 @@ export default function SosyalMedyaDashboard() {
                 p="xl"
                 ta="center"
                 style={{
-                  background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                  background: isDark ? 'var(--surface-elevated-more)' : 'rgba(0,0,0,0.02)',
                   borderRadius: 12,
                   marginBottom: 16,
                 }}
@@ -303,7 +303,7 @@ export default function SosyalMedyaDashboard() {
                 p="xl"
                 ta="center"
                 style={{
-                  background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                  background: isDark ? 'var(--surface-elevated-more)' : 'rgba(0,0,0,0.02)',
                   borderRadius: 12,
                   marginBottom: 16,
                 }}

@@ -38,6 +38,7 @@ import {
   IconWallet,
   IconX,
 } from '@tabler/icons-react';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef } from 'react';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -93,19 +94,12 @@ const allMenuGroups: MenuGroup[] = [
     items: [
       { label: 'Dashboard', href: '/muhasebe', icon: IconChartPie },
       {
-        label: 'Kasa & Banka',
+        label: 'Finans Merkezi',
         href: '/muhasebe/finans',
         icon: IconWallet,
         permission: 'kasa_banka',
       },
       { label: 'Faturalar', href: '/muhasebe/faturalar', icon: IconReceipt, permission: 'fatura' },
-      {
-        label: 'Gelir-Gider',
-        href: '/muhasebe/gelir-gider',
-        icon: IconTrendingUp,
-        permission: 'kasa_banka',
-      },
-      { label: 'Cari Hesaplar', href: '/muhasebe/cariler', icon: IconUsers, permission: 'cari' },
       { label: 'Raporlar', href: '/muhasebe/raporlar', icon: IconChartBar, permission: 'rapor' },
     ],
   },
@@ -286,50 +280,67 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
               boxShadow: '-10px 0 40px rgba(0, 0, 0, 0.3)',
             }}
           >
-            {/* Hero Section with Logo */}
+            {/* Hero Section with Logo – modern, logo düzgün oran */}
             <Box
               style={{
-                background: isDark
-                  ? 'linear-gradient(135deg, #1E3A5F 0%, #0D1B2A 100%)'
-                  : 'linear-gradient(135deg, #1E40AF 0%, #1E3A8A 100%)',
-                padding: '24px 20px',
                 position: 'relative',
+                padding: '20px 20px 24px',
                 overflow: 'hidden',
+                background: isDark
+                  ? 'linear-gradient(160deg, #1a2d47 0%, #0f1929 50%, #0a1219 100%)'
+                  : 'linear-gradient(160deg, #2563eb 0%, #1d4ed8 50%, #1e40af 100%)',
+                borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.12)'}`,
               }}
             >
-              {/* Decorative circles */}
+              {/* Subtle radial glow */}
               <Box
                 style={{
                   position: 'absolute',
-                  top: -30,
-                  right: -30,
-                  width: 120,
-                  height: 120,
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: 200,
+                  height: 200,
                   borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.1)',
+                  background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%)',
+                  pointerEvents: 'none',
                 }}
               />
+              {/* Accent line */}
               <Box
                 style={{
                   position: 'absolute',
-                  bottom: -20,
-                  left: -20,
-                  width: 80,
-                  height: 80,
-                  borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.05)',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 3,
+                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
                 }}
               />
 
-              <Group justify="space-between" align="center">
-                <Box>
-                  <img
+              <Group justify="space-between" align="center" style={{ position: 'relative', zIndex: 1 }}>
+                <Box
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    minHeight: 64,
+                    padding: '4px 0',
+                  }}
+                >
+                  <Image
                     src="/logo-transparent.png"
                     alt="Catering Pro"
+                    width={200}
+                    height={80}
+                    sizes="(max-width: 360px) 160px, 200px"
+                    priority
                     style={{
-                      height: 64,
+                      height: 'auto',
+                      maxHeight: 64,
                       width: 'auto',
-                      filter: 'brightness(1.1)',
+                      maxWidth: 220,
+                      objectFit: 'contain',
+                      filter: 'brightness(0) invert(1)',
                     }}
                   />
                 </Box>
@@ -337,14 +348,15 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                 <UnstyledButton
                   onClick={onClose}
                   style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    backgroundColor: 'rgba(255,255,255,0.15)',
+                    width: 40,
+                    height: 40,
+                    borderRadius: 12,
+                    backgroundColor: 'rgba(255,255,255,0.12)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     transition: 'all 0.2s ease',
+                    border: '1px solid rgba(255,255,255,0.08)',
                   }}
                   className="sidebar-close-btn"
                 >
@@ -421,9 +433,9 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                   <Box
                     key={group.title}
                     style={{
-                      backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.8)',
+                      backgroundColor: isDark ? 'var(--surface-elevated)' : 'rgba(255,255,255,0.8)',
                       borderRadius: 16,
-                      border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
+                      border: `1px solid ${isDark ? 'var(--surface-border)' : 'rgba(0,0,0,0.06)'}`,
                       borderLeft: `3px solid ${group.color}`,
                       overflow: 'hidden',
                       boxShadow: isDark
@@ -436,8 +448,8 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                       px="md"
                       py="sm"
                       style={{
-                        borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
-                        background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                        borderBottom: `1px solid ${isDark ? 'var(--surface-border-subtle)' : 'rgba(0,0,0,0.06)'}`,
+                        background: isDark ? 'var(--surface-elevated-more)' : 'rgba(0,0,0,0.02)',
                       }}
                     >
                       <Text
@@ -467,11 +479,11 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                               padding: '12px 16px',
                               borderBottom:
                                 itemIndex < group.items.length - 1
-                                  ? `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)'}`
+                                  ? `1px solid ${isDark ? 'var(--surface-border-subtle)' : 'rgba(0,0,0,0.04)'}`
                                   : 'none',
                               backgroundColor: active
                                 ? isDark
-                                  ? 'rgba(255,255,255,0.08)'
+                                  ? 'var(--surface-elevated-more)'
                                   : 'rgba(0,0,0,0.04)'
                                 : 'transparent',
                               position: 'relative',
@@ -506,7 +518,7 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                                     background: active
                                       ? group.gradient
                                       : isDark
-                                        ? 'rgba(255,255,255,0.08)'
+                                        ? 'var(--surface-elevated)'
                                         : 'rgba(0,0,0,0.05)',
                                     display: 'flex',
                                     alignItems: 'center',
@@ -624,10 +636,10 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
             {user && (
               <Box
                 style={{
-                  borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+                  borderTop: `1px solid ${isDark ? 'var(--surface-border)' : 'rgba(0,0,0,0.08)'}`,
                   padding: '16px 20px',
                   background: isDark
-                    ? 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.05) 100%)'
+                    ? 'var(--surface-elevated)'
                     : 'linear-gradient(180deg, rgba(0,0,0,0.01) 0%, rgba(0,0,0,0.03) 100%)',
                 }}
               >
@@ -664,7 +676,7 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                     style={{
                       padding: '10px 12px',
                       borderRadius: 8,
-                      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                      backgroundColor: isDark ? 'var(--surface-elevated-more)' : 'rgba(0,0,0,0.05)',
                       textAlign: 'center',
                       transition: 'all 0.2s ease',
                     }}

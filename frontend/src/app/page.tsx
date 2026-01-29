@@ -6,17 +6,14 @@ import {
   Badge,
   Box,
   Button,
-  Checkbox,
   Container,
   Grid,
   Group,
-  Modal,
   Paper,
   ScrollArea,
   SimpleGrid,
   Stack,
   Text,
-  TextInput,
   ThemeIcon,
   Tooltip,
   useMantineColorScheme,
@@ -33,10 +30,8 @@ import {
   IconMoon,
   IconNote,
   IconPackage,
-  IconPlus,
   IconReceipt,
   IconSun,
-  IconTrash,
   IconTrendingDown,
   IconTrendingUp,
   IconUpload,
@@ -44,27 +39,19 @@ import {
   IconWallet,
 } from '@tabler/icons-react';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import useSWR from 'swr';
-import { EmptyState, LoadingState, showError } from '@/components/common';
+import { LoadingState } from '@/components/common';
+import { UnifiedNotesModal } from '@/components/notes';
+import { useNotes } from '@/hooks/useNotes';
 import { useAuth } from '@/context/AuthContext';
 import { useRealtimeRefetch } from '@/context/RealtimeContext';
-import { apiClient, authFetch } from '@/lib/api';
+import { apiClient } from '@/lib/api';
 import { muhasebeAPI } from '@/lib/api/services/muhasebe';
-import { API_BASE_URL } from '@/lib/config';
 import { formatDate } from '@/lib/formatters';
 import type { StatsResponse } from '@/types/api';
 
-// Types
-interface Not {
-  id: number;
-  content: string;
-  is_completed: boolean;
-  priority: string;
-  color: string;
-  due_date: string | null;
-  created_at: string;
-}
 
 // Saate göre selamlama
 const getGreeting = () => {
@@ -100,24 +87,17 @@ function KPICard({
   onClick,
   isLoading,
 }: KPICardProps) {
-  const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === 'dark';
-
   return (
     <Paper
       p="md"
       radius="lg"
       onClick={onClick}
+      className="glassy-card kpi-card"
       style={{
         cursor: onClick ? 'pointer' : 'default',
-        background: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.8)',
-        backdropFilter: 'blur(10px)',
-        border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
-        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         position: 'relative',
         overflow: 'hidden',
       }}
-      className="kpi-card"
     >
       {/* Gradient accent */}
       <Box
@@ -128,6 +108,7 @@ function KPICard({
           right: 0,
           height: 3,
           background: gradient,
+          borderRadius: '16px 16px 0 0',
         }}
       />
 
@@ -166,7 +147,6 @@ function KPICard({
           fw={800}
           mt="sm"
           style={{
-            color: isDark ? 'var(--mantine-color-gray-0)' : 'var(--mantine-color-dark-9)',
             lineHeight: 1.1,
           }}
         >
@@ -193,10 +173,9 @@ interface QuickActionProps {
   icon: React.ElementType;
   label: string;
   color: string;
-  gradient: string;
 }
 
-function QuickAction({ href, icon: Icon, label, color, gradient }: QuickActionProps) {
+function QuickAction({ href, icon: Icon, label, color }: QuickActionProps) {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -222,31 +201,46 @@ function QuickAction({ href, icon: Icon, label, color, gradient }: QuickActionPr
   );
 }
 
-export default function HomePage() {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+function HomePageContent() {
+  const { user, isAuthenticated } = useAuth();
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
   const isMobile = useMediaQuery('(max-width: 768px)');
   const isTablet = useMediaQuery('(max-width: 1024px)');
 
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [newNote, setNewNote] = useState('');
   const [aiTip, setAiTip] = useState<string>('');
   const [_aiTipIndex, setAiTipIndex] = useState(0);
+  const [aiTipOpacity, setAiTipOpacity] = useState(1);
+  const aiTipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [notesModalOpened, { open: openNotesModal, close: closeNotesModal }] = useDisclosure(false);
+  const searchParams = useSearchParams();
+
+  // Toolbar "Hızlı Not" tıklanınca notlar modalını aç
+  useEffect(() => {
+    const handler = () => openNotesModal();
+    window.addEventListener('open-notes-modal', handler);
+    return () => window.removeEventListener('open-notes-modal', handler);
+  }, [openNotesModal]);
+
+  // Ana sayfaya ?openNotes=1 ile gelindiyse notlar modalını aç
+  useEffect(() => {
+    if (searchParams?.get('openNotes') === '1') openNotesModal();
+  }, [searchParams, openNotesModal]);
+
   const greeting = getGreeting();
   const GreetingIcon = greeting.icon;
 
-  // AI önerileri - döngüsel
+  // AI önerileri - tek satır, sabit boyut (layout shift önlenir)
   const aiTips = [
-    '💡 Bu hafta 3 ihale son başvuru tarihine yaklaşıyor. Takip listesini kontrol edin.',
-    '📊 Geçen aya göre alış faturalarında %12 artış var. Maliyet analizi yapmanızı öneririm.',
-    '🎯 En çok kazandığınız kategori: Okul yemekhaneleri. Bu alana odaklanabilirsiniz.',
-    '⚡ 5 adet stok kalemi kritik seviyede. Tedarik siparişi oluşturmayı unutmayın.',
-    "📈 Son 30 günde 8 yeni ihale eklendi. Fırsat analizi için AI Uzmanı'nı kullanın.",
-    '💰 Vadesi geçmiş 2 fatura bulunuyor. Tahsilat takibi yapmanızı öneririm.',
-    '🔔 Yarın için planlanmış 1 ihale toplantısı var. Dökümanları hazırladınız mı?',
-    '✨ Yeni özellik: Döküman analizi artık daha hızlı! İhale detayından deneyin.',
+    '💡 3 ihale son başvuruya yaklaşıyor — takip listesini kontrol edin.',
+    '📊 Alış faturalarında %12 artış. Maliyet analizi yapmanızı öneririz.',
+    '🎯 En kazançlı kategori: okul yemekhaneleri. Bu alana odaklanın.',
+    '⚡ 5 stok kalemi kritik seviyede. Tedarik siparişi oluşturmayı unutmayın.',
+    '📈 Son 30 günde 8 yeni ihale. Asistanı açıp fırsat analizi yapın.',
+    '💰 Vadesi geçmiş 2 fatura var. Tahsilat takibini yapın.',
+    '🔔 Yarın 1 ihale toplantısı planlı. Dökümanları hazırlayın.',
+    '✨ Döküman analizi artık daha hızlı. İhale detayından deneyin.',
   ];
 
   // Saat güncelleme
@@ -255,17 +249,26 @@ export default function HomePage() {
     return () => clearInterval(timer);
   }, []);
 
-  // AI öneri döngüsü
+  // AI öneri döngüsü — fade out → metin değiş → fade in
   useEffect(() => {
     setAiTip(aiTips[0]);
+    setAiTipIndex(0);
+    setAiTipOpacity(1);
     const tipTimer = setInterval(() => {
-      setAiTipIndex((prev) => {
-        const next = (prev + 1) % aiTips.length;
-        setAiTip(aiTips[next]);
-        return next;
-      });
-    }, 8000); // Her 8 saniyede değiş
-    return () => clearInterval(tipTimer);
+      setAiTipOpacity(0);
+      aiTipTimeoutRef.current = setTimeout(() => {
+        setAiTipIndex((prev) => {
+          const next = (prev + 1) % aiTips.length;
+          setAiTip(aiTips[next]);
+          setAiTipOpacity(1);
+          return next;
+        });
+      }, 320);
+    }, 8000);
+    return () => {
+      clearInterval(tipTimer);
+      if (aiTipTimeoutRef.current) clearTimeout(aiTipTimeoutRef.current);
+    };
   }, []);
 
   // Stats fetch - Auth olmadan da çalışır
@@ -277,16 +280,12 @@ export default function HomePage() {
     mutate: mutateStats,
   } = useSWR<StatsResponse>('stats', apiClient.getStats, SWR_OPTS);
 
-  // Notlar fetch - Auth olmadan da çalışır (token varsa kullanır)
-  const { data: notlarData, mutate: mutateNotlar } = useSWR(
-    'notlar',
-    async () => {
-      const res = await authFetch(`${API_BASE_URL}/api/notlar?limit=10`);
-      return res.json();
-    },
-    SWR_OPTS
-  );
-  const notlar: Not[] = notlarData?.notlar || [];
+  // Unified Notes System - Kişisel notları getir
+  const { notes: personalNotes, refresh: refreshNotes } = useNotes({
+    contextType: null, // Kişisel notlar
+    contextId: null,
+    enabled: true,
+  });
 
   // Finans özeti fetch - Auth olmadan da çalışır
   const { data: finansOzet, mutate: mutateFinans } = useSWR(
@@ -309,60 +308,24 @@ export default function HomePage() {
   // 🔴 REALTIME - Ana sayfa için tüm tabloları dinle
   const refetchDashboard = useCallback(() => {
     mutateStats();
-    mutateNotlar();
+    refreshNotes();
     mutateFinans();
     mutateYaklasanIhaleler();
-  }, [mutateStats, mutateNotlar, mutateFinans, mutateYaklasanIhaleler]);
+  }, [mutateStats, refreshNotes, mutateFinans, mutateYaklasanIhaleler]);
 
   useRealtimeRefetch(['invoices', 'tenders', 'stok', 'notifications'], refetchDashboard);
 
   const totalTenders = stats?.totalTenders || 0;
   const activeTenders = stats?.activeTenders || 0;
-  const kasaBakiye = (finansOzet as any)?.kasa?.toplam || (finansOzet as any)?.kasaBakiye || 0;
-
-  // Not ekle
-  const handleAddNote = async () => {
-    if (!newNote.trim()) return;
-
-    try {
-      await authFetch(`${API_BASE_URL}/api/notlar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newNote.trim() }),
-      });
-      setNewNote('');
-      mutateNotlar();
-    } catch (error) {
-      showError(error, { title: 'Not Ekleme Hatası' });
-    }
-  };
-
-  // Not toggle
-  const handleToggleNote = async (id: number) => {
-    try {
-      await authFetch(`${API_BASE_URL}/api/notlar/${id}/toggle`, { method: 'PUT' });
-      mutateNotlar();
-    } catch (error) {
-      showError(error, { title: 'Not Güncelleme Hatası' });
-    }
-  };
-
-  // Not sil
-  const handleDeleteNote = async (id: number) => {
-    try {
-      await authFetch(`${API_BASE_URL}/api/notlar/${id}`, { method: 'DELETE' });
-      mutateNotlar();
-    } catch (error) {
-      showError(error, { title: 'Not Silme Hatası' });
-    }
-  };
+  type FinansOzetKasa = { kasa?: { toplam?: number }; kasaBakiye?: number };
+  const kasaBakiye =
+    (finansOzet as FinansOzetKasa)?.kasa?.toplam ??
+    (finansOzet as FinansOzetKasa)?.kasaBakiye ??
+    0;
 
   return (
     <Box
       style={{
-        background: isDark
-          ? 'linear-gradient(180deg, #0a0a0f 0%, #111118 100%)'
-          : 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
         minHeight: '100vh',
         paddingTop: '1rem',
         paddingBottom: '4rem',
@@ -370,17 +333,18 @@ export default function HomePage() {
     >
       <Container size="xl">
         <Stack gap="lg">
-          {/* ========== DARK HERO BANNER WITH AI ========== */}
+          {/* ========== ARTLIST-STYLE HERO BANNER (koyu + altın vurgu) ========== */}
           <Box
             style={{
               position: 'relative',
               borderRadius: 20,
               overflow: 'hidden',
-              background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%)',
+              background: 'linear-gradient(135deg, #121212 0%, #1a1a1a 50%, #252525 100%)',
+              border: '1px solid var(--artlist-border, #262626)',
               padding: isMobile ? '20px' : '28px 32px',
             }}
           >
-            {/* Decorative elements */}
+            {/* Decorative - Artlist altın vurgu */}
             <Box
               style={{
                 position: 'absolute',
@@ -389,7 +353,7 @@ export default function HomePage() {
                 width: 250,
                 height: 250,
                 borderRadius: '50%',
-                background: 'radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, transparent 70%)',
+                background: 'radial-gradient(circle, rgba(230, 197, 48, 0.15) 0%, transparent 70%)',
                 filter: 'blur(40px)',
               }}
             />
@@ -401,21 +365,8 @@ export default function HomePage() {
                 width: 200,
                 height: 200,
                 borderRadius: '50%',
-                background: 'radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, transparent 70%)',
+                background: 'radial-gradient(circle, rgba(230, 197, 48, 0.1) 0%, transparent 70%)',
                 filter: 'blur(50px)',
-              }}
-            />
-            <Box
-              style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: 400,
-                height: 400,
-                borderRadius: '50%',
-                background: 'radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, transparent 60%)',
-                filter: 'blur(60px)',
               }}
             />
 
@@ -436,7 +387,7 @@ export default function HomePage() {
                 </Group>
 
                 <Group gap="sm" align="center">
-                  <GreetingIcon size={isMobile ? 24 : 28} color="#fbbf24" />
+                  <GreetingIcon size={isMobile ? 24 : 28} color="#e6c530" />
                   <Text
                     size={isMobile ? 'lg' : 'xl'}
                     fw={700}
@@ -449,37 +400,41 @@ export default function HomePage() {
                 </Group>
               </Box>
 
-              {/* Orta: AI Önerileri */}
+              {/* Orta: AI Önerileri — çerçevesiz, fade geçişli metin */}
               {!isMobile && (
                 <Box
                   style={{
                     flex: '1 1 auto',
                     maxWidth: 550,
                     margin: '0 32px',
+                    minHeight: 40,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}
                 >
-                  <Paper
-                    px="md"
-                    py="xs"
-                    radius="xl"
+                  <Box
                     style={{
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      backdropFilter: 'blur(10px)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      width: '100%',
+                      opacity: aiTipOpacity,
+                      transition: 'opacity 0.35s ease',
                     }}
                   >
                     <Text
                       size="sm"
                       c="rgba(255,255,255,0.85)"
                       ta="center"
+                      lineClamp={1}
                       style={{
-                        lineHeight: 1.5,
-                        transition: 'opacity 0.3s ease',
+                        lineHeight: 1.4,
+                        width: '100%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
                       }}
                     >
                       {aiTip}
                     </Text>
-                  </Paper>
+                  </Box>
                 </Box>
               )}
 
@@ -503,7 +458,7 @@ export default function HomePage() {
                   />
                   <Box ta="center">
                     <Text size="1.75rem" fw={800} c="white" style={{ lineHeight: 1 }}>
-                      {notlar.filter((n) => !n.is_completed).length}
+                      {personalNotes.filter((n) => !n.is_completed).length}
                     </Text>
                     <Text size="xs" c="rgba(255,255,255,0.5)" mt={4}>
                       Bekleyen Not
@@ -518,13 +473,15 @@ export default function HomePage() {
                   />
                   <Tooltip label="Notlarım" position="bottom" withArrow>
                     <ActionIcon
-                      variant="gradient"
-                      gradient={{ from: 'violet', to: 'purple', deg: 135 }}
+                      variant="filled"
+                      color="yellow"
                       size="xl"
                       radius="xl"
                       onClick={openNotesModal}
                       style={{
-                        boxShadow: '0 4px 20px rgba(139, 92, 246, 0.4)',
+                        backgroundColor: '#e6c530',
+                        color: '#0a0a0a',
+                        boxShadow: '0 4px 20px rgba(230, 197, 48, 0.35)',
                         transition: 'all 0.2s ease',
                       }}
                     >
@@ -538,13 +495,15 @@ export default function HomePage() {
               {(isMobile || isTablet) && (
                 <Tooltip label="Notlarım" position="bottom" withArrow>
                   <ActionIcon
-                    variant="gradient"
-                    gradient={{ from: 'violet', to: 'purple', deg: 135 }}
+                    variant="filled"
+                    color="yellow"
                     size="lg"
                     radius="xl"
                     onClick={openNotesModal}
                     style={{
-                      boxShadow: '0 4px 20px rgba(139, 92, 246, 0.4)',
+                      backgroundColor: '#e6c530',
+                      color: '#0a0a0a',
+                      boxShadow: '0 4px 20px rgba(230, 197, 48, 0.35)',
                     }}
                   >
                     <IconNote size={18} />
@@ -553,21 +512,39 @@ export default function HomePage() {
               )}
             </Group>
 
-            {/* Mobile: AI öneri alt satırda */}
+            {/* Mobile: AI öneri alt satırda — çerçevesiz, fade geçişli */}
             {isMobile && (
-              <Paper
-                p="xs"
-                radius="md"
+              <Box
                 mt="md"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  minHeight: 36,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                <Text size="xs" c="white" lineClamp={2}>
-                  {aiTip}
-                </Text>
-              </Paper>
+                <Box
+                  style={{
+                    width: '100%',
+                    opacity: aiTipOpacity,
+                    transition: 'opacity 0.35s ease',
+                  }}
+                >
+                  <Text
+                    size="xs"
+                    c="rgba(255,255,255,0.85)"
+                    lineClamp={1}
+                    style={{
+                      width: '100%',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {aiTip}
+                  </Text>
+                </Box>
+              </Box>
             )}
           </Box>
 
@@ -641,35 +618,30 @@ export default function HomePage() {
                   icon={IconUpload}
                   label="Döküman Yükle"
                   color="#8B5CF6"
-                  gradient="linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)"
                 />
                 <QuickAction
                   href="/tenders"
                   icon={IconList}
                   label="İhale Listesi"
                   color="#3B82F6"
-                  gradient="linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)"
                 />
                 <QuickAction
                   href="/muhasebe/finans"
                   icon={IconBuildingBank}
                   label="Finans"
                   color="#10B981"
-                  gradient="linear-gradient(135deg, #10B981 0%, #059669 100%)"
                 />
                 <QuickAction
                   href="/muhasebe/cariler"
                   icon={IconUsers}
                   label="Cariler"
                   color="#06B6D4"
-                  gradient="linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)"
                 />
                 <QuickAction
                   href="/muhasebe/faturalar"
                   icon={IconReceipt}
                   label="Faturalar"
                   color="#F59E0B"
-                  gradient="linear-gradient(135deg, #F59E0B 0%, #D97706 100%)"
                 />
               </Group>
             </ScrollArea>
@@ -681,16 +653,13 @@ export default function HomePage() {
             <Grid.Col span={12}>
               <Paper
                 p="lg"
-                radius="lg"
-                style={{
-                  background: isDark ? 'rgba(255,255,255,0.03)' : 'white',
-                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
-                  height: '100%',
-                }}
+                radius="md"
+                className="standard-card"
+                style={{ height: '100%' }}
               >
                 <Group justify="space-between" mb="md">
                   <Group gap="xs">
-                    <ThemeIcon size={32} radius="lg" variant="light" color="blue">
+                    <ThemeIcon size={32} radius="md" variant="light" color="blue">
                       <IconClock size={18} />
                     </ThemeIcon>
                     <Text fw={700} size="md">
@@ -703,15 +672,13 @@ export default function HomePage() {
                 </Group>
 
                 <Stack gap="xs">
-                  {yaklasanIhaleler?.slice(0, 4).map((ihale: any, i: number) => (
+                  {yaklasanIhaleler?.slice(0, 4).map((ihale) => (
                     <Paper
-                      key={i}
+                      key={ihale.id}
                       p="sm"
                       radius="md"
-                      style={{
-                        background: isDark ? 'rgba(59,130,246,0.08)' : 'rgba(59,130,246,0.05)',
-                        border: `1px solid ${isDark ? 'rgba(59,130,246,0.2)' : 'rgba(59,130,246,0.1)'}`,
-                      }}
+                      className="stat-card"
+                      data-gradient="blue"
                     >
                       <Text size="sm" fw={600} lineClamp={1}>
                         {ihale.title || 'İhale'}
@@ -752,193 +719,20 @@ export default function HomePage() {
         </Stack>
       </Container>
 
-      {/* ========== NOTES MODAL ========== */}
-      <Modal
+      {/* ========== UNIFIED NOTES MODAL (birleşik not sistemi) ========== */}
+      <UnifiedNotesModal
         opened={notesModalOpened}
         onClose={closeNotesModal}
-        title={
-          <Group gap="sm">
-            <ThemeIcon
-              size={32}
-              radius="lg"
-              variant="gradient"
-              gradient={{ from: 'violet', to: 'purple' }}
-            >
-              <IconNote size={18} />
-            </ThemeIcon>
-            <Box>
-              <Text fw={700} size="lg">
-                Notlarım
-              </Text>
-              <Text size="xs" c="dimmed">
-                Yapışkan notlar ve hatırlatıcılar
-              </Text>
-            </Box>
-          </Group>
-        }
-        size="lg"
-        radius="xl"
-        padding="xl"
-        overlayProps={{
-          backgroundOpacity: 0.55,
-          blur: 3,
-        }}
-        styles={{
-          header: {
-            paddingBottom: 16,
-            borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
-          },
-          content: {
-            background: isDark ? '#1a1b26' : 'white',
-          },
-        }}
-      >
-        <Stack gap="md" pt="sm">
-          {/* Not ekleme formu */}
-          <Paper
-            p="md"
-            radius="lg"
-            style={{
-              background: isDark ? 'rgba(139, 92, 246, 0.1)' : 'rgba(139, 92, 246, 0.05)',
-              border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.3)' : 'rgba(139, 92, 246, 0.2)'}`,
-            }}
-          >
-            <TextInput
-              placeholder="Yeni not ekle... (Enter ile kaydet)"
-              value={newNote}
-              onChange={(e) => setNewNote(e.currentTarget.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
-              size="md"
-              radius="lg"
-              leftSection={<IconPlus size={16} color="#8B5CF6" />}
-              rightSection={
-                <ActionIcon
-                  variant="gradient"
-                  gradient={{ from: 'violet', to: 'purple' }}
-                  size="md"
-                  radius="lg"
-                  onClick={handleAddNote}
-                  disabled={!newNote.trim()}
-                >
-                  <IconPlus size={16} />
-                </ActionIcon>
-              }
-              styles={{
-                input: {
-                  background: isDark ? 'rgba(0,0,0,0.3)' : 'white',
-                  border: 'none',
-                  '&:focus': {
-                    borderColor: '#8B5CF6',
-                  },
-                },
-              }}
-            />
-          </Paper>
-
-          {/* Stats */}
-          <Group justify="space-between">
-            <Group gap="xl">
-              <Box>
-                <Text size="xl" fw={800} c="violet">
-                  {notlar.filter((n) => !n.is_completed).length}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  Bekleyen
-                </Text>
-              </Box>
-              <Box>
-                <Text size="xl" fw={800} c="teal">
-                  {notlar.filter((n) => n.is_completed).length}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  Tamamlanan
-                </Text>
-              </Box>
-            </Group>
-            <Badge size="lg" variant="light" color="violet" radius="md">
-              Toplam: {notlar.length}
-            </Badge>
-          </Group>
-
-          {/* Notlar listesi */}
-          <ScrollArea h={350} scrollbarSize={6} offsetScrollbars>
-            <Stack gap="xs">
-              {notlar.length === 0 ? (
-                <EmptyState
-                  title="Henüz not yok"
-                  description="Yukarıdaki alana yazarak ilk notunuzu ekleyin"
-                  icon={<IconNote size={48} />}
-                  iconColor="violet"
-                />
-              ) : (
-                notlar.map((not) => (
-                  <Paper
-                    key={not.id}
-                    p="md"
-                    radius="lg"
-                    style={{
-                      background: not.is_completed
-                        ? isDark
-                          ? 'rgba(34, 197, 94, 0.1)'
-                          : 'rgba(34, 197, 94, 0.08)'
-                        : isDark
-                          ? 'rgba(255,255,255,0.03)'
-                          : 'rgba(0,0,0,0.02)',
-                      borderLeft: `4px solid ${not.is_completed ? '#22c55e' : '#8B5CF6'}`,
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    <Group justify="space-between" wrap="wrap">
-                      <Group gap="sm" wrap="nowrap" style={{ flex: 1 }}>
-                        <Checkbox
-                          checked={not.is_completed}
-                          onChange={() => handleToggleNote(not.id)}
-                          size="md"
-                          color="green"
-                          radius="xl"
-                          styles={{
-                            input: {
-                              cursor: 'pointer',
-                            },
-                          }}
-                        />
-                        <Box style={{ flex: 1, minWidth: 0 }}>
-                          <Text
-                            size="sm"
-                            fw={500}
-                            c={not.is_completed ? 'dimmed' : undefined}
-                            td={not.is_completed ? 'line-through' : undefined}
-                            lineClamp={2}
-                          >
-                            {not.content}
-                          </Text>
-                          <Text size="xs" c="dimmed" mt={4}>
-                            {new Date(not.created_at).toLocaleDateString('tr-TR', {
-                              day: 'numeric',
-                              month: 'short',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </Text>
-                        </Box>
-                      </Group>
-                      <ActionIcon
-                        variant="subtle"
-                        color="red"
-                        size="md"
-                        radius="lg"
-                        onClick={() => handleDeleteNote(not.id)}
-                      >
-                        <IconTrash size={16} />
-                      </ActionIcon>
-                    </Group>
-                  </Paper>
-                ))
-              )}
-            </Stack>
-          </ScrollArea>
-        </Stack>
-      </Modal>
+      />
     </Box>
+  );
+}
+
+// Suspense boundary ile sarmalanmış export
+export default function HomePage() {
+  return (
+    <Suspense fallback={<LoadingState loading={true} message="Yükleniyor..." />}>
+      <HomePageContent />
+    </Suspense>
   );
 }

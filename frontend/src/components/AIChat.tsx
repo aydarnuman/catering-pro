@@ -21,6 +21,7 @@ import {
   ThemeIcon,
   Tooltip,
   UnstyledButton,
+  useMantineColorScheme,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -76,7 +77,7 @@ interface PageContext {
   type?: 'tender' | 'invoice' | 'cari' | 'personel' | 'stok' | 'planlama' | 'muhasebe' | 'general';
   id?: number | string;
   title?: string;
-  data?: any;
+  data?: Record<string, unknown>;
   pathname?: string;
   department?: string;
   page?: string;
@@ -88,6 +89,10 @@ interface AIChatProps {
   compact?: boolean;
   pageContext?: PageContext;
   defaultGodMode?: boolean; // God Mode varsayılan olarak aktif mi?
+  /** Toolbar vb. dışarıdan açıldığında ilk mesajı otomatik gönder */
+  initialMessage?: string | null;
+  /** initialMessage gönderildikten sonra çağrılır (state temizliği için) */
+  onInitialMessageConsumed?: () => void;
 }
 
 // Tool ikon mapping
@@ -125,9 +130,13 @@ export function AIChat({
   compact = false,
   pageContext,
   defaultGodMode = false,
+  initialMessage,
+  onInitialMessageConsumed,
 }: AIChatProps) {
   // Auth context - God Mode için
-  const { isSuperAdmin, user } = useAuth();
+  const { isSuperAdmin } = useAuth();
+  const { colorScheme } = useMantineColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -271,11 +280,24 @@ export function AIChat({
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
-        const data = (await aiAPI.getTemplates()) as any;
-
-        if (data.success && (data.templates || data.data?.templates)) {
-          const templates = data.templates || data.data?.templates;
-          const activeTemplates = templates.filter((t: PromptTemplate) => t.is_active);
+        const res = await aiAPI.getTemplates();
+        const rawTemplates = res.data?.templates ?? (res as { templates?: PromptTemplate[] }).templates;
+        if (rawTemplates?.length) {
+          // API'den gelen template'leri PromptTemplate formatına dönüştür
+          const templates: PromptTemplate[] = rawTemplates.map((t) => {
+            const tmpl = t as unknown as Record<string, unknown>;
+            return {
+              id: t.id,
+              slug: (tmpl.slug as string) || `template-${t.id}`,
+              name: t.name,
+              description: t.description || '',
+              category: t.category || 'general',
+              icon: (tmpl.icon as string) || 'robot',
+              color: (tmpl.color as string) || 'blue',
+              is_active: (tmpl.is_active as boolean) ?? true,
+            };
+          });
+          const activeTemplates = templates.filter((t) => t.is_active);
           setPromptTemplates(activeTemplates);
         }
       } catch (_error) {
@@ -328,18 +350,19 @@ export function AIChat({
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() || isLoading) return;
+  const handleSendMessage = async (overrideContent?: string) => {
+    const content = (overrideContent ?? inputValue).trim();
+    if (!content || isLoading) return;
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       type: 'user',
-      content: inputValue.trim(),
+      content,
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    setInputValue('');
+    if (!overrideContent) setInputValue('');
     setIsLoading(true);
 
     try {
@@ -350,7 +373,7 @@ export function AIChat({
       }));
 
       const messageData = {
-        message: userMessage.content,
+        message: content,
         history,
         sessionId,
         department: defaultDepartment,
@@ -359,16 +382,26 @@ export function AIChat({
       };
 
       // God Mode veya normal Agent endpoint'i kullan
-      let data;
+      type AgentResult = {
+        success: boolean;
+        response?: string;
+        toolsUsed?: string[];
+        iterations?: number;
+        godMode?: boolean;
+        error?: string;
+        message?: string;
+      };
+      let data: AgentResult;
       try {
         data =
           godModeEnabled && isSuperAdmin
             ? await aiAPI.sendGodModeMessage(messageData)
             : await aiAPI.sendAgentMessage(messageData);
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('[AIChat] API çağrısı hatası:', error);
-        const errorMessage = error?.response?.data?.error || error?.message || 'API hatası';
-        const statusCode = error?.response?.status;
+        const err = error as { response?: { data?: { error?: string }; status?: number }; message?: string };
+        const errorMessage = err?.response?.data?.error || err?.message || 'API hatası';
+        const statusCode = err?.response?.status;
         throw new Error(
           statusCode === 404
             ? `Endpoint bulunamadı (404). Backend çalışıyor mu? Endpoint: ${godModeEnabled ? '/api/ai/god-mode/execute' : '/api/ai/agent'}`
@@ -385,7 +418,7 @@ export function AIChat({
           success: data.success,
           error: data.error,
           message: data.message,
-          data: data,
+          data,
           endpoint: godModeEnabled ? '/api/ai/god-mode/execute' : '/api/ai/agent',
           godMode: godModeEnabled,
         });
@@ -399,11 +432,11 @@ export function AIChat({
       const aiMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
-        content: (data as any).response,
+        content: data.response ?? '',
         timestamp: new Date(),
-        toolsUsed: (data as any).toolsUsed || [],
-        iterations: (data as any).iterations,
-        godMode: godModeEnabled && (data as any).godMode, // God Mode yanıtı mı?
+        toolsUsed: data.toolsUsed ?? [],
+        iterations: data.iterations,
+        godMode: godModeEnabled && data.godMode,
       };
 
       setMessages((prev) => [...prev, aiMessage]);
@@ -425,6 +458,20 @@ export function AIChat({
       setIsLoading(false);
     }
   };
+
+  // Toolbar'dan gelen ilk mesajı otomatik gönder (tek seferlik)
+  const initialMessageConsumedRef = useRef(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sadece initialMessage ile tetiklenmeli
+  useEffect(() => {
+    if (!initialMessage) {
+      initialMessageConsumedRef.current = false;
+      return;
+    }
+    if (!initialMessage.trim() || initialMessageConsumedRef.current) return;
+    initialMessageConsumedRef.current = true;
+    onInitialMessageConsumed?.();
+    handleSendMessage(initialMessage.trim());
+  }, [initialMessage]);
 
   const handleSuggestedQuestion = (question: string) => {
     setInputValue(question);
@@ -486,15 +533,19 @@ export function AIChat({
           overflow: 'hidden', // Önemli: taşmayı engeller
         }}
       >
-        {/* Compact Header with Template Select */}
+        {/* Compact Header - dark klasik */}
         <Box
           p="xs"
-          style={{ borderBottom: '1px solid var(--mantine-color-gray-3)', flexShrink: 0 }}
+          style={{
+            borderBottom: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid var(--mantine-color-gray-3)',
+            flexShrink: 0,
+            background: isDark ? 'rgba(0,0,0,0.2)' : undefined,
+          }}
         >
           <Group gap="xs" justify="space-between">
             <Group gap="xs">
-              <IconBrain size={16} color="var(--mantine-color-violet-6)" />
-              <Text size="xs" fw={500}>
+              <IconBrain size={16} color={isDark ? 'gray.4' : 'var(--mantine-color-violet-6)'} />
+              <Text size="xs" fw={500} c={isDark ? 'gray.4' : undefined}>
                 AI Agent
               </Text>
             </Group>
@@ -516,8 +567,8 @@ export function AIChat({
                     gap: 6,
                     padding: '4px 8px',
                     borderRadius: 6,
-                    background: 'var(--mantine-color-gray-0)',
-                    border: '1px solid var(--mantine-color-gray-3)',
+                    background: isDark ? 'rgba(255,255,255,0.08)' : 'var(--mantine-color-gray-0)',
+                    border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid var(--mantine-color-gray-3)',
                     fontSize: 12,
                   }}
                 >
@@ -617,20 +668,27 @@ export function AIChat({
             <Stack gap="sm" p="sm">
               {messages.length === 0 ? (
                 <Stack gap="sm" align="center" py="md">
-                  <Text size="sm" c="dimmed" ta="center">
+                  <Text size="sm" c={isDark ? 'gray.4' : 'dimmed'} ta="center">
                     Merhaba! 👋 Size nasıl yardımcı olabilirim?
                   </Text>
                   <Stack gap={4} w="100%">
-                    {suggestedQuestions.slice(0, 4).map((question, index) => (
+                    {suggestedQuestions.slice(0, 4).map((question) => (
                       <Paper
-                        key={index}
+                        key={question}
                         p="xs"
                         radius="sm"
-                        withBorder
-                        style={{ cursor: 'pointer', fontSize: '12px' }}
+                        withBorder={!isDark}
+                        style={{
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          ...(isDark && {
+                            background: 'rgba(255,255,255,0.06)',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                          }),
+                        }}
                         onClick={() => handleSuggestedQuestion(question)}
                       >
-                        <Text size="xs">{question}</Text>
+                        <Text size="xs" c={isDark ? 'gray.3' : undefined}>{question}</Text>
                       </Paper>
                     ))}
                   </Stack>
@@ -649,15 +707,22 @@ export function AIChat({
                       p="xs"
                       bg={message.type === 'user' ? 'blue.0' : 'gray.0'}
                       radius="md"
-                      style={{ flex: 1, maxWidth: 'calc(100% - 40px)' }}
+                      style={{
+                        flex: 1,
+                        maxWidth: 'calc(100% - 40px)',
+                        ...(isDark && {
+                          background: message.type === 'user' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.06)',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                        }),
+                      }}
                     >
-                      <Text size="xs" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                      <Text size="xs" c={isDark ? 'gray.3' : undefined} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                         {message.content}
                       </Text>
                       {message.toolsUsed && message.toolsUsed.length > 0 && (
                         <Group gap={4} mt={4}>
-                          {message.toolsUsed.slice(0, 3).map((tool, i) => (
-                            <Badge key={i} size="xs" variant="dot" color="violet">
+                          {message.toolsUsed.slice(0, 3).map((tool) => (
+                            <Badge key={tool} size="xs" variant="dot" color="violet">
                               {tool.split('_').slice(0, 2).join(' ')}
                             </Badge>
                           ))}
@@ -677,10 +742,14 @@ export function AIChat({
                   <Avatar size="sm" color="violet" radius="xl">
                     <IconRobot size={14} />
                   </Avatar>
-                  <Paper p="xs" bg="gray.0" radius="md">
+                  <Paper
+                    p="xs"
+                    radius="md"
+                    className="nested-card"
+                  >
                     <Group gap="xs">
                       <Loader size="xs" color="violet" />
-                      <Text size="xs" c="dimmed">
+                      <Text size="xs" c={isDark ? 'gray.4' : 'dimmed'}>
                         Düşünüyor...
                       </Text>
                     </Group>
@@ -692,13 +761,14 @@ export function AIChat({
           </ScrollArea>
         </Box>
 
-        {/* Input Area */}
+        {/* Input Area - dark klasik */}
         <Box
           p="sm"
           style={{
-            borderTop: '1px solid var(--mantine-color-gray-3)',
+            borderTop: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid var(--mantine-color-gray-3)',
             paddingBottom: 'env(safe-area-inset-bottom, 8px)',
             flexShrink: 0,
+            background: isDark ? 'rgba(0,0,0,0.2)' : undefined,
           }}
         >
           <Group gap="xs">
@@ -719,19 +789,29 @@ export function AIChat({
                 input: {
                   paddingLeft: 16,
                   paddingRight: 16,
-                  minHeight: 44, // Mobilde daha büyük dokunma alanı
+                  minHeight: 44,
+                  ...(isDark && {
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: 'rgba(255,255,255,0.9)',
+                  }),
                 },
               }}
             />
             <ActionIcon
               size={44}
               radius="xl"
-              variant="gradient"
-              gradient={{ from: 'violet', to: 'grape' }}
-              onClick={handleSendMessage}
+              variant={isDark ? 'filled' : 'gradient'}
+              color={isDark ? 'dark.4' : undefined}
+              gradient={!isDark ? { from: 'violet', to: 'grape' } : undefined}
+              onClick={() => handleSendMessage()}
               loading={isLoading}
               disabled={!inputValue.trim()}
-              style={{ minWidth: 44, minHeight: 44 }} // Mobilde daha büyük dokunma alanı
+              style={{
+                minWidth: 44,
+                minHeight: 44,
+                ...(isDark && { background: 'rgba(255,255,255,0.12)', color: 'white' }),
+              }}
             >
               <IconSend size={16} />
             </ActionIcon>
@@ -801,8 +881,8 @@ export function AIChat({
             </div>
           </Group>
 
-          <Group gap="md">
-            {/* 🔥 God Mode Toggle - Sadece Super Admin */}
+          <Group gap="sm">
+            {/* God Mode + Şablon: aynı yükseklik ve stil */}
             {isSuperAdmin && (
               <Tooltip
                 label={
@@ -818,7 +898,8 @@ export function AIChat({
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
-                    padding: '6px 12px',
+                    minHeight: 40,
+                    padding: '8px 14px',
                     borderRadius: 8,
                     background: godModeEnabled
                       ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)'
@@ -831,7 +912,7 @@ export function AIChat({
                   }}
                 >
                   <IconFlame
-                    size={20}
+                    size={18}
                     color={godModeEnabled ? 'white' : '#666'}
                     style={{
                       animation: godModeEnabled ? 'pulse 1s infinite' : 'none',
@@ -849,7 +930,7 @@ export function AIChat({
               </Tooltip>
             )}
 
-            {/* Şablon Seçici - Popover */}
+            {/* Şablon Seçici - God Mode ile aynı yükseklik/stil */}
             <Popover
               opened={templatePopoverOpened}
               onChange={setTemplatePopoverOpened}
@@ -865,26 +946,29 @@ export function AIChat({
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
-                    padding: '6px 12px',
+                    minHeight: 40,
+                    padding: '8px 14px',
                     borderRadius: 8,
                     background: 'var(--mantine-color-gray-0)',
                     border: '1px solid var(--mantine-color-gray-3)',
                     transition: 'all 0.2s',
                   }}
                 >
-                  <Text size="xl">{currentTemplate?.icon || '🤖'}</Text>
-                  <div>
-                    <Text size="sm" fw={500}>
+                  <Text size="lg" style={{ lineHeight: 1 }}>
+                    {currentTemplate?.icon || '🤖'}
+                  </Text>
+                  <Group gap={6} wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                    <Text size="sm" fw={500} lineClamp={1}>
                       {currentTemplate?.name?.replace(
                         /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u,
                         ''
                       ) || 'Şablon Seç'}
                     </Text>
-                    <Text size="xs" c="dimmed">
+                    <Badge size="xs" variant="light" color="gray" style={{ flexShrink: 0 }}>
                       {currentTemplate?.category || 'Genel'}
-                    </Text>
-                  </div>
-                  <IconChevronDown size={16} style={{ marginLeft: 8, opacity: 0.5 }} />
+                    </Badge>
+                  </Group>
+                  <IconChevronDown size={16} style={{ opacity: 0.5, flexShrink: 0 }} />
                 </UnstyledButton>
               </Popover.Target>
               <Popover.Dropdown p="md" style={{ maxHeight: 450, overflowY: 'auto' }}>
@@ -1033,9 +1117,9 @@ export function AIChat({
                     {godModeEnabled ? '🔥 God Mode Komutları:' : '💡 Önerilen Sorular:'}
                   </Text>
                   <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
-                    {suggestedQuestions.map((question, index) => (
+                    {suggestedQuestions.map((question) => (
                       <Card
-                        key={index}
+                        key={question}
                         p="sm"
                         radius="md"
                         withBorder
@@ -1061,9 +1145,9 @@ export function AIChat({
                     {godModeEnabled ? '⚡ Güçlü Komutlar:' : '⚡ Hızlı Komutlar:'}
                   </Text>
                   <Group gap="xs">
-                    {quickCommands.map((cmd, index) => (
+                    {quickCommands.map((cmd) => (
                       <Badge
-                        key={index}
+                        key={cmd.value}
                         size="lg"
                         variant={godModeEnabled ? 'gradient' : 'light'}
                         gradient={godModeEnabled ? { from: 'red', to: 'orange' } : undefined}
@@ -1124,14 +1208,14 @@ export function AIChat({
                     {/* Tool detayları */}
                     {message.toolsUsed && message.toolsUsed.length > 0 && (
                       <Collapse in={expandedMessages.has(message.id)}>
-                        <Paper p="xs" bg="gray.0" radius="sm" mb="xs">
+                        <Paper p="xs" className="nested-card" radius="sm" mb="xs">
                           <Text size="xs" fw={500} mb={4}>
                             🔧 Kullanılan Araçlar:
                           </Text>
                           <Group gap={4}>
-                            {message.toolsUsed.map((tool, i) => (
+                            {message.toolsUsed.map((tool) => (
                               <Badge
-                                key={i}
+                                key={tool}
                                 size="sm"
                                 variant="dot"
                                 color="violet"
@@ -1283,7 +1367,7 @@ export function AIChat({
             variant={godModeEnabled ? 'gradient' : 'filled'}
             gradient={godModeEnabled ? { from: 'red', to: 'orange' } : undefined}
             color={godModeEnabled ? undefined : 'violet'}
-            onClick={handleSendMessage}
+            onClick={() => handleSendMessage()}
             loading={isLoading}
             style={godModeEnabled ? { boxShadow: '0 0 15px rgba(255, 71, 87, 0.4)' } : undefined}
             disabled={!inputValue.trim()}

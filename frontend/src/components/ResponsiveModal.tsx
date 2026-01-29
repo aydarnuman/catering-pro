@@ -81,9 +81,9 @@ export function ResponsiveModal({
               background: headerGradient
                 ? `linear-gradient(135deg, ${headerGradient.from} 0%, ${headerGradient.to} 100%)`
                 : isDark
-                  ? 'rgba(255,255,255,0.05)'
+                  ? 'var(--surface-elevated-more)'
                   : 'rgba(0,0,0,0.03)',
-              borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+              borderBottom: `1px solid ${isDark ? 'var(--surface-border)' : 'rgba(0,0,0,0.1)'}`,
             }}
           >
             <Group justify="space-between" align="center">
@@ -172,8 +172,8 @@ export function ResponsiveDrawer({
           borderRadius: isMobile ? '16px 16px 0 0' : 0,
         },
         header: {
-          background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-          borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+          background: isDark ? 'var(--surface-elevated)' : 'rgba(0,0,0,0.02)',
+          borderBottom: `1px solid ${isDark ? 'var(--surface-border)' : 'rgba(0,0,0,0.1)'}`,
         },
       }}
     >

@@ -33,7 +33,21 @@ interface SearchResult {
   id: number;
   title: string;
   type: string;
-  [key: string]: any;
+  // Tender specific
+  city?: string;
+  organization?: string;
+  // Cari specific
+  tip?: string;
+  vergi_no?: string;
+  // Invoice specific
+  customer_name?: string;
+  // Stok specific
+  kategori?: string;
+  kod?: string;
+  // Personel specific
+  departman?: string;
+  pozisyon?: string;
+  [key: string]: unknown;
 }
 
 interface SearchResults {
@@ -126,8 +140,8 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
     try {
       const data = await adminAPI.search(searchQuery, 5);
 
-      if (data.success) {
-        setResults((data as any).results);
+      if (data.success && 'results' in data && data.results) {
+        setResults(data.results as SearchResults);
       }
     } catch (error) {
       console.error('Arama hatası:', error);
@@ -401,8 +415,8 @@ export function SearchModal({ opened, onClose }: SearchModalProps) {
       <Box
         p="sm"
         style={{
-          borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
-          backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)',
+          borderTop: `1px solid ${isDark ? 'var(--surface-border)' : 'rgba(0,0,0,0.08)'}`,
+          backgroundColor: isDark ? 'var(--surface-elevated)' : 'rgba(0,0,0,0.02)',
         }}
       >
         <Group justify="space-between">

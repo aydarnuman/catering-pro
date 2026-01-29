@@ -486,7 +486,7 @@ export default function InstagramPage() {
 
   // ===== STYLES =====
   const cardStyle = {
-    background: isDark ? 'rgba(255, 255, 255, 0.02)' : '#ffffff',
+    background: isDark ? 'var(--surface-elevated)' : '#ffffff',
     border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
   };
 
@@ -508,7 +508,7 @@ export default function InstagramPage() {
   const isConnected = statusData?.connected === true;
   const currentUser = statusData?.user;
 
-  const { data: profileData, isLoading: profileLoading } = useQuery({
+  const { data: profileData, isLoading: _profileLoading } = useQuery({
     queryKey: ['instagram-profile', selectedAccountId],
     queryFn: getProfile,
     enabled: isConnected,
@@ -1076,8 +1076,8 @@ export default function InstagramPage() {
 
                 {postsLoading ? (
                   <SimpleGrid cols={4}>
-                    {[...Array(8)].map((_, i) => (
-                      <Skeleton key={i} height={100} radius="md" />
+                    {['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'].map((k) => (
+                      <Skeleton key={k} height={100} radius="md" />
                     ))}
                   </SimpleGrid>
                 ) : posts.length === 0 ? (
@@ -1210,8 +1210,8 @@ export default function InstagramPage() {
 
                 {dmsLoading ? (
                   <Stack gap="xs">
-                    {[...Array(3)].map((_, i) => (
-                      <Skeleton key={i} height={50} radius="md" />
+                    {['d1', 'd2', 'd3'].map((k) => (
+                      <Skeleton key={k} height={50} radius="md" />
                     ))}
                   </Stack>
                 ) : dms.length === 0 ? (
@@ -1230,7 +1230,7 @@ export default function InstagramPage() {
                           borderRadius: 8,
                           background: dm.unread
                             ? isDark
-                              ? 'rgba(255,255,255,0.03)'
+                              ? 'var(--surface-elevated)'
                               : 'rgba(0,0,0,0.02)'
                             : 'transparent',
                         }}
@@ -1286,7 +1286,7 @@ export default function InstagramPage() {
                     style={{
                       padding: '12px',
                       borderRadius: 8,
-                      background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                      background: isDark ? 'var(--surface-elevated)' : 'rgba(0,0,0,0.02)',
                     }}
                   >
                     <Group gap="sm">
@@ -1308,7 +1308,7 @@ export default function InstagramPage() {
                     style={{
                       padding: '12px',
                       borderRadius: 8,
-                      background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                      background: isDark ? 'var(--surface-elevated)' : 'rgba(0,0,0,0.02)',
                     }}
                   >
                     <Group gap="sm">
@@ -1330,7 +1330,7 @@ export default function InstagramPage() {
                     style={{
                       padding: '12px',
                       borderRadius: 8,
-                      background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                      background: isDark ? 'var(--surface-elevated)' : 'rgba(0,0,0,0.02)',
                     }}
                   >
                     <Group gap="sm">
@@ -1352,7 +1352,7 @@ export default function InstagramPage() {
                     style={{
                       padding: '12px',
                       borderRadius: 8,
-                      background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                      background: isDark ? 'var(--surface-elevated)' : 'rgba(0,0,0,0.02)',
                     }}
                   >
                     <Group gap="sm">
@@ -1399,7 +1399,7 @@ export default function InstagramPage() {
                         p="xs"
                         style={{
                           borderRadius: 6,
-                          background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                          background: isDark ? 'var(--surface-elevated)' : 'rgba(0,0,0,0.02)',
                         }}
                       >
                         <Group gap="xs">
@@ -1554,9 +1554,9 @@ export default function InstagramPage() {
 
           {selectedFile && (
             <Box style={{ borderRadius: 12, overflow: 'hidden', maxHeight: 250 }}>
-              <img
+              <Image
                 src={URL.createObjectURL(selectedFile)}
-                alt=""
+                alt="Seçilen dosya önizlemesi"
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
             </Box>
@@ -1764,10 +1764,10 @@ export default function InstagramPage() {
                         style={{
                           background: msg.is_me
                             ? isDark
-                              ? 'rgba(255,255,255,0.1)'
+                              ? 'var(--surface-elevated-more)'
                               : 'rgba(0,0,0,0.05)'
                             : isDark
-                              ? 'rgba(255,255,255,0.03)'
+                              ? 'var(--surface-elevated)'
                               : 'rgba(0,0,0,0.02)',
                         }}
                       >
@@ -1784,9 +1784,9 @@ export default function InstagramPage() {
 
             <ScrollArea type="never">
               <Group gap="xs" wrap="nowrap">
-                {quickReplies.map((qr, i) => (
+                {quickReplies.map((qr) => (
                   <Button
-                    key={i}
+                    key={`qr-${qr.label}-${qr.text.slice(0, 8)}`}
                     size="xs"
                     variant="light"
                     onClick={() => setNewMessage(qr.text)}
@@ -1886,7 +1886,7 @@ export default function InstagramPage() {
                 leftSection={<IconPhoto size={14} />}
                 styles={{
                   input: {
-                    background: isDark ? 'rgba(255,255,255,0.02)' : '#fff',
+                      background: isDark ? 'var(--surface-elevated)' : '#fff',
                   },
                 }}
               />
@@ -1899,7 +1899,7 @@ export default function InstagramPage() {
                     position: 'relative',
                   }}
                 >
-                  <img
+                  <Image
                     src={URL.createObjectURL(selectedFile)}
                     alt=""
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
@@ -2045,7 +2045,7 @@ export default function InstagramPage() {
                 minRows={3}
                 styles={{
                   input: {
-                    background: isDark ? 'rgba(255,255,255,0.02)' : '#fff',
+                      background: isDark ? 'var(--surface-elevated)' : '#fff',
                     '&:focus': { borderColor: 'var(--mantine-color-indigo-5)' },
                   },
                 }}
@@ -2199,7 +2199,7 @@ export default function InstagramPage() {
                 minRows={2}
                 styles={{
                   input: {
-                    background: isDark ? 'rgba(255,255,255,0.02)' : '#fff',
+                      background: isDark ? 'var(--surface-elevated)' : '#fff',
                   },
                 }}
               />
@@ -2249,9 +2249,9 @@ export default function InstagramPage() {
                   }}
                 >
                   <Box style={{ borderRadius: 8, overflow: 'hidden', marginBottom: 8 }}>
-                    <img
+                    <Image
                       src={generatedImage}
-                      alt="AI Generated"
+                      alt="AI üretimi"
                       style={{ width: '100%', height: 200, objectFit: 'cover' }}
                     />
                   </Box>
@@ -2353,7 +2353,7 @@ export default function InstagramPage() {
                 ]}
                 styles={{
                   input: {
-                    background: isDark ? 'rgba(255,255,255,0.02)' : '#fff',
+                      background: isDark ? 'var(--surface-elevated)' : '#fff',
                   },
                 }}
               />
@@ -2362,8 +2362,8 @@ export default function InstagramPage() {
                 p="sm"
                 radius="md"
                 style={{
-                  background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
-                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
+                  background: isDark ? 'var(--surface-elevated)' : 'rgba(0,0,0,0.02)',
+                  border: `1px solid ${isDark ? 'var(--surface-border-subtle)' : 'rgba(0,0,0,0.05)'}`,
                 }}
               >
                 <Text size="xs" fw={500} mb={4}>

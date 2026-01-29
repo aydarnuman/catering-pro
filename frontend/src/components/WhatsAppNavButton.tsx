@@ -503,6 +503,11 @@ export function WhatsAppNavButton() {
             setLoading(false);
             return;
           }
+          if (res.status === 429) {
+            setConnectionError('Çok fazla istek. Lütfen birkaç dakika sonra tekrar deneyin.');
+            setLoading(false);
+            return;
+          }
           throw new Error(`HTTP ${res.status}: ${res.statusText}`);
         }
 
@@ -520,6 +525,8 @@ export function WhatsAppNavButton() {
           setConnectionError(
             'WhatsApp servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.'
           );
+        } else if (err.message?.includes('429')) {
+          setConnectionError('Çok fazla istek. Lütfen birkaç dakika sonra tekrar deneyin.');
         } else {
           console.error('WhatsApp status check failed:', err);
           setConnectionError('Sunucuya bağlanılamıyor');
@@ -552,6 +559,16 @@ export function WhatsAppNavButton() {
             title: '⚠️ Servis Kullanılamıyor',
             message: 'WhatsApp servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.',
             color: 'orange',
+          });
+          setConnecting(false);
+          return;
+        }
+        if (res.status === 429) {
+          setConnectionError('Çok fazla istek. Lütfen birkaç dakika sonra tekrar deneyin.');
+          notifications.show({
+            title: 'Çok Fazla İstek',
+            message: 'Çok fazla istek gönderildi. Lütfen birkaç dakika sonra tekrar deneyin.',
+            color: 'yellow',
           });
           setConnecting(false);
           return;
@@ -801,7 +818,7 @@ export function WhatsAppNavButton() {
                   ? 'rgba(37,211,102,0.15)'
                   : 'rgba(37,211,102,0.1)'
                 : isDark
-                  ? 'rgba(255,255,255,0.05)'
+                  ? 'var(--surface-elevated)'
                   : 'rgba(0,0,0,0.03)',
               border: connected ? '1px solid rgba(37,211,102,0.3)' : 'none',
             }}
@@ -1066,7 +1083,7 @@ export function WhatsAppNavButton() {
                     }
                     styles={{
                       input: {
-                        background: 'rgba(255,255,255,0.05)',
+                        background: 'var(--surface-elevated)',
                         border: 'none',
                         color: 'white',
                       },
@@ -1380,7 +1397,7 @@ export function WhatsAppNavButton() {
                     size="xs"
                     styles={{
                       input: {
-                        background: 'rgba(255,255,255,0.05)',
+                        background: 'var(--surface-elevated)',
                         border: '1px solid rgba(255,255,255,0.1)',
                         color: 'white',
                         fontSize: 13,
@@ -1425,7 +1442,7 @@ export function WhatsAppNavButton() {
                   radius="lg"
                   styles={{
                     input: {
-                      background: 'rgba(255,255,255,0.05)',
+                      background: 'var(--surface-elevated)',
                       border: '1px solid rgba(255,255,255,0.1)',
                       color: 'white',
                     },
@@ -1440,7 +1457,7 @@ export function WhatsAppNavButton() {
                     px="sm"
                     py="xs"
                     onClick={() => setShowArchived(!showArchived)}
-                    style={{ cursor: 'pointer', background: 'rgba(255,255,255,0.02)' }}
+                    style={{ cursor: 'pointer', background: 'var(--surface-elevated-more)' }}
                   >
                     <Group justify="space-between">
                       <Group gap="xs">
@@ -1635,7 +1652,7 @@ function ChatItem({
           ? 'linear-gradient(90deg, rgba(37,211,102,0.15) 0%, transparent 100%)'
           : 'transparent',
         borderLeft: selected ? '3px solid #25D366' : '3px solid transparent',
-        borderBottom: '1px solid rgba(255,255,255,0.04)',
+        borderBottom: '1px solid var(--surface-border-subtle)',
         borderTop: 'none',
         borderRight: 'none',
         display: 'flex',

@@ -921,7 +921,7 @@ export default function ScraperDashboardPage() {
             leftSection={<IconLink size={16} />}
           />
 
-          <Paper p="sm" bg="gray.0" radius="md">
+          <Paper p="sm" radius="md" className="nested-card">
             <Text size="xs" c="dimmed">
               <strong>Örnek:</strong> https://ihalebul.com/tender/1768253602118
             </Text>

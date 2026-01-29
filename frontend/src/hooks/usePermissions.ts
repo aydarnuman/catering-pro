@@ -1,5 +1,10 @@
 'use client';
 
+/**
+ * usePermissions - PostgreSQL Only (Simplified)
+ * Supabase session KALDIRILDI - Cookie tabanlı auth
+ */
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { adminAPI } from '@/lib/api/services/admin';
@@ -18,7 +23,7 @@ interface Permission {
 }
 
 export function usePermissions() {
-  const { user, session, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [userType, setUserType] = useState<string>('user');
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -36,12 +41,11 @@ export function usePermissions() {
       return;
     }
 
-    // Token yoksa veya authenticated değilse API çağrısı yapma
-    if (!isAuthenticated || !user || !session?.access_token) {
+    // Authenticated değilse API çağrısı yapma
+    if (!isAuthenticated || !user) {
       logger.debug('usePermissions: Auth hazır değil', {
         isAuthenticated,
         hasUser: !!user,
-        hasToken: !!session?.access_token,
       });
       setLoading(false);
       return;
@@ -112,7 +116,7 @@ export function usePermissions() {
     } finally {
       setLoading(false);
     }
-  }, [authLoading, isAuthenticated, user, session?.access_token, permissions.length]);
+  }, [authLoading, isAuthenticated, user, permissions.length]);
 
   useEffect(() => {
     // Auth yükleniyorsa bekle
@@ -121,13 +125,13 @@ export function usePermissions() {
     }
 
     // Authenticated ise ve henüz fetch yapılmadıysa
-    if (isAuthenticated && user && session?.access_token && !hasFetched.current) {
+    if (isAuthenticated && user && !hasFetched.current) {
       fetchPermissions();
     } else if (!isAuthenticated && !authLoading) {
       // Auth yüklendi ama authenticated değil
       setLoading(false);
     }
-  }, [authLoading, isAuthenticated, user, session?.access_token, fetchPermissions]);
+  }, [authLoading, isAuthenticated, user, fetchPermissions]);
 
   /**
    * Belirli bir modül ve işlem için yetki kontrolü

@@ -263,7 +263,7 @@ export const muhasebeAPI = {
    * Çek/Senetleri listele (kasa-banka için)
    */
   async getCekSenetlerListe(): Promise<ApiResponse<any[]>> {
-    const response = await api.get('/api/kasa-banka/cek-senetler');
+    const response = await api.get('/api/kasa-banka/cek-senet');
     return response.data;
   },
 

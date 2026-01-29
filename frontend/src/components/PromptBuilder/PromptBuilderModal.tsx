@@ -146,16 +146,21 @@ export function PromptBuilderModal({
   const [promptHistory, setPromptHistory] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto scroll
+  // Auto scroll - messages değiştiğinde otomatik scroll
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
     }
-  }, []);
+  }, [messages]); // FIX: Boş array yerine messages dependency eklendi
 
-  // Token count
+  // Token count - Türkçe için daha doğru tahmin
   useEffect(() => {
-    setTokenCount(Math.ceil(generatedPrompt.length / 4));
+    // Türkçe karakterler daha fazla token kullanır
+    const text = generatedPrompt;
+    const turkishChars = (text.match(/[çğıöşüÇĞİÖŞÜ]/g) || []).length;
+    const baseTokens = Math.ceil((text.length - turkishChars) / 4);
+    const turkishTokens = Math.ceil(turkishChars / 2); // Türkçe karakterler ~2 char/token
+    setTokenCount(baseTokens + turkishTokens);
   }, [generatedPrompt]);
 
   // Akıllı modül önerisi - prompt içeriğine göre
@@ -225,8 +230,20 @@ export function PromptBuilderModal({
           ]);
         }
       }
-    } catch {
-      notifications.show({ title: 'Hata', message: 'AI yanıt veremedi', color: 'red' });
+    } catch (error) {
+      console.error('[PromptBuilder] AI start error:', error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message.includes('429')
+            ? 'Çok fazla istek gönderildi. Lütfen biraz bekleyin.'
+            : error.message
+          : 'AI yanıt veremedi. Lütfen tekrar deneyin.';
+      notifications.show({
+        title: 'Hata',
+        message: errorMessage,
+        color: 'red',
+        autoClose: 5000,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -282,8 +299,20 @@ export function PromptBuilderModal({
             ]);
           }
         }
-      } catch {
-        notifications.show({ title: 'Hata', message: 'AI yanıt veremedi', color: 'red' });
+      } catch (error) {
+        console.error('[PromptBuilder] AI select error:', error);
+        const errorMessage =
+          error instanceof Error
+            ? error.message.includes('429')
+              ? 'Çok fazla istek gönderildi. Lütfen biraz bekleyin.'
+              : error.message
+            : 'AI yanıt veremedi. Lütfen tekrar deneyin.';
+        notifications.show({
+          title: 'Hata',
+          message: errorMessage,
+          color: 'red',
+          autoClose: 5000,
+        });
       } finally {
         setIsLoading(false);
       }
@@ -331,8 +360,20 @@ export function PromptBuilderModal({
             color: 'green',
           });
         }
-      } catch {
-        notifications.show({ title: 'Hata', message: 'Dönüştürme başarısız', color: 'red' });
+      } catch (error) {
+        console.error('[PromptBuilder] Transform error:', error);
+        const errorMessage =
+          error instanceof Error
+            ? error.message.includes('429')
+              ? 'Çok fazla dönüştürme isteği. Lütfen biraz bekleyin.'
+              : 'Dönüştürme başarısız oldu.'
+            : 'Dönüştürme başarısız oldu.';
+        notifications.show({
+          title: 'Hata',
+          message: errorMessage,
+          color: 'red',
+          autoClose: 5000,
+        });
       } finally {
         setIsTransforming(false);
       }
@@ -617,7 +658,7 @@ export function PromptBuilderModal({
                     <ThemeIcon size="sm" radius="xl" color="teal" variant="light">
                       <IconRobot size={14} />
                     </ThemeIcon>
-                    <Paper p="sm" radius="xl" bg="gray.0">
+                    <Paper p="sm" radius="xl" className="nested-card">
                       <Group gap="xs">
                         <Loader size="xs" color="violet" type="dots" />
                         <Text size="sm" c="dimmed">

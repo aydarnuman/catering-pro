@@ -14,7 +14,21 @@ export function RealtimeIndicator() {
   if (connectionError) {
     return (
       <Tooltip label={connectionError} withArrow>
-        <Badge size="xs" color="red" variant="dot" leftSection={<IconWifiOff size={10} />}>
+        <Badge
+          size="sm"
+          color="red"
+          variant="dot"
+          leftSection={<IconWifiOff size={10} />}
+          styles={{
+            root: {
+              minWidth: 52,
+              whiteSpace: 'nowrap',
+              display: 'inline-flex',
+              alignItems: 'center',
+              alignSelf: 'center',
+            },
+          }}
+        >
           Offline
         </Badge>
       </Tooltip>
@@ -23,13 +37,22 @@ export function RealtimeIndicator() {
 
   return (
     <Tooltip label={isConnected ? 'Gerçek zamanlı bağlı' : 'Bağlanıyor...'} withArrow>
-      <Badge
-        size="xs"
-        color={isConnected ? 'green' : 'yellow'}
-        variant="dot"
-        leftSection={<IconWifi size={10} />}
-      >
-        {isConnected ? 'Live' : '...'}
+        <Badge
+          size="sm"
+          color={isConnected ? 'green' : 'yellow'}
+          variant="dot"
+          leftSection={<IconWifi size={10} />}
+          styles={{
+            root: {
+              minWidth: 52,
+              whiteSpace: 'nowrap',
+              display: 'inline-flex',
+              alignItems: 'center',
+              alignSelf: 'center',
+            },
+          }}
+        >
+        {isConnected ? 'LIVE' : '...'}
       </Badge>
     </Tooltip>
   );

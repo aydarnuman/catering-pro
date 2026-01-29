@@ -22,7 +22,7 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import Link from 'next/link';
-import { NotesSection } from '@/components/NotesSection';
+import { ContextualNotesSection } from '@/components/notes';
 import { type SavedTender, statusConfig, type TenderStatus } from '../types';
 
 interface OzetTabProps {
@@ -256,10 +256,8 @@ export function OzetTab({
       ) : (
         <Paper
           p="md"
-          withBorder
           radius="md"
-          bg="gray.0"
-          style={{ cursor: 'pointer' }}
+          className="nested-card standard-card-hover"
           onClick={onNavigateToHesaplamalar}
         >
           <Group justify="space-between">
@@ -283,8 +281,14 @@ export function OzetTab({
         </Paper>
       )}
 
-      {/* Notlar */}
-      <NotesSection trackingId={Number(tender.id)} tenderId={tender.tender_id} />
+      {/* Notlar - Unified Notes System */}
+      <ContextualNotesSection
+        contextType="tender"
+        contextId={Number(tender.tender_id)}
+        title="İhale Notları"
+        defaultContentFormat="markdown"
+        showAddButton
+      />
     </Stack>
   );
 }

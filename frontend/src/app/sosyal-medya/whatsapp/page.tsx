@@ -11,6 +11,7 @@ import {
   Divider,
   Grid,
   Group,
+  Image,
   Indicator,
   Loader,
   Menu,
@@ -101,6 +102,47 @@ interface Message {
   filesize?: number;
   caption?: string;
   isDownloading?: boolean;
+}
+
+/** API chat list item shape */
+interface ApiChat {
+  id: string;
+  name?: string;
+  lastMessage?: string;
+  timestamp?: number;
+  unreadCount?: number;
+  isGroup?: boolean;
+  archived?: boolean;
+}
+
+/** API message shape */
+interface ApiMessage {
+  id: string;
+  body?: string;
+  caption?: string;
+  timestamp?: number;
+  fromMe?: boolean;
+  type?: string;
+  hasMedia?: boolean;
+  mediaUrl?: string;
+  mimetype?: string;
+  filename?: string;
+  filesize?: number;
+}
+
+/** Renders sanitized docx HTML from mammoth. Sandboxed in modal. */
+function DocxHtmlBody({ html }: { html: string }) {
+  return (
+    <div
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: docx HTML from mammoth, sandboxed in modal
+      dangerouslySetInnerHTML={{ __html: html }}
+      style={{
+        color: '#333',
+        fontSize: 14,
+        lineHeight: 1.6,
+      }}
+    />
+  );
 }
 
 export default function WhatsAppPage() {
@@ -301,7 +343,7 @@ export default function WhatsAppPage() {
       const res = await authFetch(`${API_BASE_URL}/api/social/whatsapp/chats`);
       const data = await res.json();
       if (data.success && data.chats) {
-        const allChats: Chat[] = data.chats.map((chat: any) => ({
+        const allChats: Chat[] = data.chats.map((chat: ApiChat) => ({
           id: chat.id,
           name: chat.name || chat.id.split('@')[0],
           lastMessage: chat.lastMessage || '',
@@ -316,8 +358,8 @@ export default function WhatsAppPage() {
           isArchived: chat.archived || false,
         }));
         // Arşivlenmiş ve normal sohbetleri ayır
-        const archived = allChats.filter((c: any) => c.isArchived);
-        const active = allChats.filter((c: any) => !c.isArchived);
+        const archived = allChats.filter((c: Chat) => c.isArchived);
+        const active = allChats.filter((c: Chat) => !c.isArchived);
         setChats(active);
         setArchivedChats(archived);
       }
@@ -401,8 +443,8 @@ export default function WhatsAppPage() {
       const data = await res.json();
       if (data.success && data.messages) {
         const formattedMessages: Message[] = data.messages
-          .sort((a: any, b: any) => (a.timestamp || 0) - (b.timestamp || 0)) // Eskiden yeniye sırala
-          .map((msg: any) => ({
+          .sort((a: ApiMessage, b: ApiMessage) => (a.timestamp || 0) - (b.timestamp || 0)) // Eskiden yeniye sırala
+          .map((msg: ApiMessage) => ({
             id: msg.id,
             content: msg.body || msg.caption || '',
             timestamp: msg.timestamp
@@ -466,7 +508,7 @@ export default function WhatsAppPage() {
         const data = await res.json();
         if (data.success && data.messages) {
           const apiMessages: Message[] = data.messages
-            .map((msg: any) => ({
+            .map((msg: ApiMessage) => ({
               id: msg.id,
               content: msg.body || msg.caption || '',
               timestamp: msg.timestamp
@@ -653,7 +695,7 @@ export default function WhatsAppPage() {
           color: 'red',
         });
       }
-    } catch (_error: any) {
+    } catch (_error: unknown) {
       // Network hatası
       setMessages((prev) => prev.map((m) => (m.id === newMsg.id ? { ...m, status: 'failed' } : m)));
       notifications.show({
@@ -828,7 +870,7 @@ export default function WhatsAppPage() {
           color: 'red',
         });
       }
-    } catch (_error: any) {
+    } catch (_error: unknown) {
       setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' } : m)));
       notifications.show({
         title: 'Bağlantı Hatası',
@@ -882,7 +924,7 @@ export default function WhatsAppPage() {
       mediaRecorder.onstop = () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         setAudioBlob(audioBlob);
-        stream.getTracks().forEach((track) => track.stop());
+        for (const track of stream.getTracks()) track.stop();
       };
 
       mediaRecorder.start(100);
@@ -918,7 +960,7 @@ export default function WhatsAppPage() {
   const cancelRecording = () => {
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+      for (const track of mediaRecorderRef.current.stream.getTracks()) track.stop();
     }
     setIsRecording(false);
     setAudioBlob(null);
@@ -1228,9 +1270,9 @@ export default function WhatsAppPage() {
               style={{ cursor: 'pointer', borderRadius: 8, overflow: 'hidden' }}
               onClick={() => openMediaViewer(msg)}
             >
-              <img
-                src={msg.mediaUrl}
-                alt="Image"
+              <Image
+                src={msg.mediaUrl ?? ''}
+                alt=""
                 style={{
                   maxWidth: 'min(280px, 85vw)',
                   maxHeight: 300,
@@ -1302,7 +1344,9 @@ export default function WhatsAppPage() {
                   borderRadius: 8,
                   display: 'block',
                 }}
-              />
+              >
+                <track kind="captions" />
+              </video>
             </Box>
           ) : (
             <Box
@@ -1356,7 +1400,9 @@ export default function WhatsAppPage() {
       return (
         <Box>
           {msg.mediaUrl ? (
-            <audio src={msg.mediaUrl} controls style={{ maxWidth: 'min(250px, 85vw)' }} />
+            <audio src={msg.mediaUrl} controls style={{ maxWidth: 'min(250px, 85vw)' }}>
+              <track kind="captions" />
+            </audio>
           ) : (
             <Box
               p="md"
@@ -1531,10 +1577,13 @@ export default function WhatsAppPage() {
                   radius="md"
                   onClick={(e) => {
                     e.stopPropagation();
-                    const link = document.createElement('a');
-                    link.href = msg.mediaUrl!;
-                    link.download = msg.filename || 'document';
-                    link.click();
+                    const url = msg.mediaUrl;
+                    if (url) {
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = msg.filename || 'document';
+                      link.click();
+                    }
                   }}
                 >
                   <IconDownload size={16} />
@@ -1552,8 +1601,11 @@ export default function WhatsAppPage() {
                   radius="md"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setPreviewUrl(msg.mediaUrl!);
-                    setPreviewFilename(msg.filename || 'Döküman');
+                    const url = msg.mediaUrl;
+                    if (url) {
+                      setPreviewUrl(url);
+                      setPreviewFilename(msg.filename || 'Döküman');
+                    }
                   }}
                 >
                   <IconEye size={16} />
@@ -1593,7 +1645,7 @@ export default function WhatsAppPage() {
       return (
         <Box>
           {msg.mediaUrl ? (
-            <img
+            <Image
               src={msg.mediaUrl}
               alt="Sticker"
               style={{ width: 128, height: 128, objectFit: 'contain' }}
@@ -1797,9 +1849,8 @@ export default function WhatsAppPage() {
                 p="xl"
                 radius="xl"
                 style={{
-                  background:
-                    'linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'var(--surface-elevated)',
+                  border: '1px solid var(--surface-border)',
                   backdropFilter: 'blur(20px)',
                 }}
               >
@@ -1820,7 +1871,7 @@ export default function WhatsAppPage() {
                         boxShadow: '0 20px 60px rgba(37, 211, 102, 0.3)',
                       }}
                     >
-                      <img
+                      <Image
                         src={qrCode}
                         alt="QR"
                         style={{ width: 260, height: 260, borderRadius: 12 }}
@@ -1850,7 +1901,11 @@ export default function WhatsAppPage() {
 
                   {qrCode ? (
                     <Stack gap="md" w="100%">
-                      <Paper p="md" radius="lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                      <Paper
+                        p="md"
+                        radius="lg"
+                        style={{ background: 'var(--surface-elevated-more)' }}
+                      >
                         <Stack gap="xs">
                           <Group gap="xs">
                             <Text c="green" fw={600}>
@@ -2091,9 +2146,8 @@ export default function WhatsAppPage() {
         <Paper
           radius="xl"
           style={{
-            background:
-              'linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
-            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'var(--surface-elevated)',
+            border: '1px solid var(--surface-border)',
             overflow: 'hidden',
             height: 'calc(100vh - 250px)',
             minHeight: 400,
@@ -2105,14 +2159,14 @@ export default function WhatsAppPage() {
               span={{ base: 12, md: 4 }}
               h="100%"
               style={{
-                borderRight: '1px solid rgba(255,255,255,0.06)',
+                borderRight: '1px solid var(--surface-border-subtle)',
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
               }}
             >
               {/* Search Header */}
-              <Box p="md" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <Box p="md" style={{ borderBottom: '1px solid var(--surface-border-subtle)' }}>
                 <Group justify="space-between" mb="sm">
                   <Group gap="xs">
                     <IconBrandWhatsapp size={24} color="#25D366" />
@@ -2131,8 +2185,8 @@ export default function WhatsAppPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   styles={{
                     input: {
-                      background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: 'var(--surface-elevated)',
+                      border: '1px solid var(--surface-border)',
                       color: 'white',
                       '&::placeholder': { color: 'rgba(255,255,255,0.4)' },
                     },
@@ -2150,8 +2204,8 @@ export default function WhatsAppPage() {
                     onClick={() => setShowArchived(!showArchived)}
                     style={{
                       cursor: 'pointer',
-                      background: 'rgba(255,255,255,0.02)',
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
+                      background: 'var(--surface-elevated-more)',
+                      borderBottom: '1px solid var(--surface-border-subtle)',
                     }}
                   >
                     <Group justify="space-between">
@@ -2189,8 +2243,8 @@ export default function WhatsAppPage() {
                         background:
                           selectedChat?.id === chat.id
                             ? 'linear-gradient(90deg, rgba(107,114,128,0.15) 0%, transparent 100%)'
-                            : 'rgba(255,255,255,0.01)',
-                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                            : 'var(--surface-elevated-more)',
+                        borderBottom: '1px solid var(--surface-border-subtle)',
                         borderLeft:
                           selectedChat?.id === chat.id
                             ? '3px solid #6B7280'
@@ -2247,7 +2301,7 @@ export default function WhatsAppPage() {
                                 selectedChat?.id === chat.id
                                   ? 'linear-gradient(90deg, rgba(37,211,102,0.15) 0%, transparent 100%)'
                                   : 'transparent',
-                              borderBottom: '1px solid rgba(255,255,255,0.04)',
+                              borderBottom: '1px solid var(--surface-border-subtle)',
                               borderLeft:
                                 selectedChat?.id === chat.id
                                   ? '3px solid #25D366'
@@ -2330,7 +2384,7 @@ export default function WhatsAppPage() {
                                 selectedChat?.id === chat.id
                                   ? 'linear-gradient(90deg, rgba(59,130,246,0.15) 0%, transparent 100%)'
                                   : 'transparent',
-                              borderBottom: '1px solid rgba(255,255,255,0.04)',
+                              borderBottom: '1px solid var(--surface-border-subtle)',
                               borderLeft:
                                 selectedChat?.id === chat.id
                                   ? '3px solid #3B82F6'
@@ -2527,75 +2581,88 @@ export default function WhatsAppPage() {
                       </Stack>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {messages.map((msg) => (
-                          <div
-                            key={msg.id}
-                            style={{
-                              textAlign: msg.fromMe ? 'right' : 'left',
-                              cursor: msg.status === 'failed' ? 'pointer' : 'default',
-                            }}
-                            onClick={() => msg.status === 'failed' && handleRetryMessage(msg)}
-                          >
-                            <div
+                        {messages.map((msg) => {
+                          const Wrapper = msg.status === 'failed' ? 'button' : 'div';
+                          const wrapperProps =
+                            msg.status === 'failed'
+                              ? { type: 'button' as const, onClick: () => handleRetryMessage(msg) }
+                              : {};
+                          return (
+                            <Wrapper
+                              key={msg.id}
                               style={{
-                                display: 'inline-block',
-                                maxWidth: '75%',
-                                padding: msg.type === 'sticker' ? '4px' : '8px 12px',
-                                background:
-                                  msg.type === 'sticker'
-                                    ? 'transparent'
-                                    : msg.status === 'failed'
-                                      ? '#7f1d1d'
-                                      : msg.fromMe
-                                        ? '#005C4B'
-                                        : 'rgba(255,255,255,0.08)',
-                                borderRadius: 10,
-                                borderBottomRightRadius: msg.fromMe ? 3 : 10,
-                                borderBottomLeftRadius: msg.fromMe ? 10 : 3,
-                                textAlign: 'left',
-                                opacity: msg.status === 'sending' ? 0.7 : 1,
+                                textAlign: msg.fromMe ? 'right' : 'left',
+                                cursor: msg.status === 'failed' ? 'pointer' : 'default',
+                                border: 'none',
+                                background: 'none',
+                                padding: 0,
+                                margin: 0,
+                                font: 'inherit',
+                                width: '100%',
                               }}
+                              {...wrapperProps}
                             >
-                              {renderMessageContent(msg)}
                               <div
                                 style={{
-                                  display: 'flex',
-                                  justifyContent: 'flex-end',
-                                  alignItems: 'center',
-                                  gap: 4,
-                                  marginTop: 4,
-                                  opacity: 0.6,
+                                  display: 'inline-block',
+                                  maxWidth: '75%',
+                                  padding: msg.type === 'sticker' ? '4px' : '8px 12px',
+                                  background:
+                                    msg.type === 'sticker'
+                                      ? 'transparent'
+                                      : msg.status === 'failed'
+                                        ? '#7f1d1d'
+                                        : msg.fromMe
+                                          ? '#005C4B'
+                                          : 'rgba(255,255,255,0.08)',
+                                  borderRadius: 10,
+                                  borderBottomRightRadius: msg.fromMe ? 3 : 10,
+                                  borderBottomLeftRadius: msg.fromMe ? 10 : 3,
+                                  textAlign: 'left',
+                                  opacity: msg.status === 'sending' ? 0.7 : 1,
                                 }}
                               >
-                                <span
-                                  style={{ fontSize: 10, color: msg.fromMe ? 'white' : '#999' }}
-                                >
-                                  {msg.timestamp}
-                                </span>
-                                {msg.fromMe &&
-                                  (msg.status === 'sending' ? (
-                                    <Loader size={10} color="white" />
-                                  ) : msg.status === 'failed' ? (
-                                    <IconX size={12} color="#ef4444" />
-                                  ) : (
-                                    <IconChecks size={12} color="white" />
-                                  ))}
-                              </div>
-                              {msg.status === 'failed' && (
+                                {renderMessageContent(msg)}
                                 <div
                                   style={{
-                                    textAlign: 'center',
+                                    display: 'flex',
+                                    justifyContent: 'flex-end',
+                                    alignItems: 'center',
+                                    gap: 4,
                                     marginTop: 4,
-                                    fontSize: 11,
-                                    color: '#fca5a5',
+                                    opacity: 0.6,
                                   }}
                                 >
-                                  ⟳ Tekrar dene
+                                  <span
+                                    style={{ fontSize: 10, color: msg.fromMe ? 'white' : '#999' }}
+                                  >
+                                    {msg.timestamp}
+                                  </span>
+                                  {msg.fromMe &&
+                                    (msg.status === 'sending' ? (
+                                      <Loader size={10} color="white" />
+                                    ) : msg.status === 'failed' ? (
+                                      <IconX size={12} color="#ef4444" />
+                                    ) : (
+                                      <IconChecks size={12} color="white" />
+                                    ))}
                                 </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                                {msg.status === 'failed' && (
+                                  <div
+                                    style={{
+                                      textAlign: 'center',
+                                      marginTop: 4,
+                                      fontSize: 11,
+                                      color: '#fca5a5',
+                                    }}
+                                  >
+                                    ⟳ Tekrar dene
+                                  </div>
+                                )}
+                              </div>
+                            </Wrapper>
+                          );
+                        })}
                         <div ref={messagesEndRef} />
                       </div>
                     )}
@@ -2705,9 +2772,9 @@ export default function WhatsAppPage() {
                               Sık Kullanılan Emojiler
                             </Text>
                             <SimpleGrid cols={8} spacing={4}>
-                              {commonEmojis.map((emoji, i) => (
+                              {commonEmojis.map((emoji) => (
                                 <ActionIcon
-                                  key={i}
+                                  key={emoji}
                                   variant="subtle"
                                   color="gray"
                                   size="lg"
@@ -2795,8 +2862,8 @@ export default function WhatsAppPage() {
                           radius="xl"
                           styles={{
                             input: {
-                              background: 'rgba(255,255,255,0.05)',
-                              border: '1px solid rgba(255,255,255,0.1)',
+                              background: 'var(--surface-elevated)',
+                              border: '1px solid var(--surface-border)',
                               color: 'white',
                               '&::placeholder': { color: 'rgba(255,255,255,0.4)' },
                             },
@@ -2914,9 +2981,9 @@ export default function WhatsAppPage() {
           {viewingMedia?.mediaUrl && (
             <>
               {viewingMedia.type === 'image' || viewingMedia.mimetype?.startsWith('image/') ? (
-                <img
+                <Image
                   src={viewingMedia.mediaUrl}
-                  alt="Full size"
+                  alt="Tam boy"
                   style={{
                     maxWidth: '100%',
                     maxHeight: '70vh',
@@ -2930,7 +2997,9 @@ export default function WhatsAppPage() {
                   controls
                   autoPlay
                   style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 8 }}
-                />
+                >
+                  <track kind="captions" />
+                </video>
               ) : null}
 
               {viewingMedia.caption && (
@@ -3002,9 +3071,9 @@ export default function WhatsAppPage() {
               }}
             >
               {pendingFile.type === 'image' ? (
-                <img
+                <Image
                   src={pendingFile.preview}
-                  alt="Preview"
+                  alt="Önizleme"
                   style={{
                     maxWidth: '100%',
                     maxHeight: 400,
@@ -3019,7 +3088,9 @@ export default function WhatsAppPage() {
                     maxWidth: '100%',
                     maxHeight: 400,
                   }}
-                />
+                >
+                  <track kind="captions" />
+                </video>
               )}
             </Box>
           )}
@@ -3046,8 +3117,8 @@ export default function WhatsAppPage() {
             radius="md"
             styles={{
               input: {
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
+                background: 'var(--surface-elevated)',
+                border: '1px solid var(--surface-border)',
                 color: 'white',
               },
             }}
@@ -3156,14 +3227,7 @@ export default function WhatsAppPage() {
                     boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
                   }}
                 >
-                  <div
-                    dangerouslySetInnerHTML={{ __html: docxHtml }}
-                    style={{
-                      color: '#333',
-                      fontSize: 14,
-                      lineHeight: 1.6,
-                    }}
-                  />
+                  <DocxHtmlBody html={docxHtml} />
                 </Paper>
               </ScrollArea>
 
@@ -3207,7 +3271,7 @@ export default function WhatsAppPage() {
                     background: '#0d0d1a',
                   }}
                 >
-                  <img
+                  <Image
                     src={previewBlobUrl}
                     alt={previewFilename}
                     style={{
