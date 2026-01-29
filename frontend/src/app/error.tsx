@@ -12,6 +12,11 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
+    // Chunk load error - auto reload page
+    if (error.message?.includes('Loading chunk') || error.message?.includes('ChunkLoadError')) {
+      window.location.reload();
+      return;
+    }
     // Log error to console for debugging
     console.error('Application error:', error);
   }, [error]);
