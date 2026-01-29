@@ -176,34 +176,14 @@ export function Navbar() {
     );
   }, []);
 
-  // Artlist tarzı: çok şeffaf cam, minimal çizgi, güçlü blur + gradient efektleri
+  // Artlist tarzı: çok şeffaf cam, minimal çizgi, güçlü blur
   const glassStyle = useMemo(
     () => ({
-      background: isDark
-        ? 'linear-gradient(180deg, rgba(18, 18, 18, 0.85) 0%, rgba(15, 15, 20, 0.75) 100%)'
-        : 'linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(250, 250, 255, 0.75) 100%)',
-      backdropFilter: 'blur(20px) saturate(180%)',
-      WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-      borderBottom: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'}`,
-      boxShadow: isDark
-        ? '0 4px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
-        : '0 4px 24px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
-    }),
-    [isDark]
-  );
-
-  // Alt menü çubuğu için özel stil
-  const navBarStyle = useMemo(
-    () => ({
-      background: isDark
-        ? 'linear-gradient(180deg, rgba(20, 20, 25, 0.7) 0%, rgba(15, 15, 20, 0.6) 100%)'
-        : 'linear-gradient(180deg, rgba(248, 248, 252, 0.7) 0%, rgba(245, 245, 250, 0.6) 100%)',
-      backdropFilter: 'blur(16px) saturate(160%)',
-      WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-      borderTop: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'}`,
-      boxShadow: isDark
-        ? 'inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 -2px 12px rgba(0, 0, 0, 0.2)'
-        : 'inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 -2px 12px rgba(0, 0, 0, 0.05)',
+      backgroundColor: isDark ? 'rgba(18, 18, 18, 0.25)' : 'rgba(255, 255, 255, 0.35)',
+      backdropFilter: 'blur(24px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+      borderBottom: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)'}`,
+      boxShadow: 'none',
     }),
     [isDark]
   );
@@ -558,7 +538,7 @@ export function Navbar() {
               height: 48,
               display: 'flex',
               alignItems: 'center',
-              ...navBarStyle,
+              borderTop: `1px solid ${isDark ? 'var(--surface-border-subtle)' : 'rgba(0,0,0,0.04)'}`,
               gap: 'xs',
             }}
           >
