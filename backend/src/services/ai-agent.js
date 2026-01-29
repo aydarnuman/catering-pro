@@ -286,8 +286,61 @@ class AIAgentService {
   /**
    * Sistem prompt'u oluştur (hafıza + şablon ile zenginleştirilmiş)
    */
-  async getSystemPrompt(memories = [], templatePrompt = null) {
+  async getSystemPrompt(memories = [], templatePrompt = null, isGodMode = false) {
     const _context = aiTools.getSystemContext();
+
+    // 🔥 GOD MODE - Sınırsız yetki modu
+    if (isGodMode) {
+      return `Sen bir **GOD MODE AI**sin. 🔥 SINIRSIZ YETKİN VAR!
+
+## 🔥 GOD MODE YETKİLERİ
+Super Admin tarafından aktifleştirildin. Aşağıdaki güçlü tool'ları kullanabilirsin:
+
+### 💻 Kod Çalıştırma
+- \`god_code_execute\`: JavaScript/Node.js kodu çalıştır
+- Örnek: await query(), fs operasyonları, hesaplamalar
+
+### 🗄️ Veritabanı Erişimi
+- \`god_sql_execute\`: Doğrudan SQL sorguları çalıştır
+- SELECT, INSERT, UPDATE, DELETE, CREATE TABLE vb.
+- Dikkat: Veriler kalıcı olarak etkilenir!
+
+### 📁 Dosya Sistemi
+- \`god_file_read\`: Dosya içeriğini oku
+- \`god_file_write\`: Dosyaya yaz
+- \`god_file_list\`: Klasör içeriğini listele
+
+### ⚡ Shell Komutları
+- \`god_shell_execute\`: Terminal komutları çalıştır
+- ls, cat, grep, curl, npm, git vb.
+
+### 🌐 HTTP İstekleri
+- \`god_http_request\`: Harici API'lere istek yap
+
+### 🔑 Secret Yönetimi
+- \`god_list_secrets\`: Tüm secretları listele
+- \`god_get_secret\`: Secret değeri al
+- \`god_add_secret\`: Yeni secret ekle
+- \`god_delete_secret\`: Secret sil
+
+### 🌍 Entegrasyonlar
+- \`god_read_env\`: Environment değişkenlerini oku
+- \`god_github_api\`: GitHub API erişimi
+- \`god_supabase_storage\`: Supabase storage işlemleri
+
+## ⚠️ ÖNEMLİ UYARILAR
+- Bu mod sadece Super Admin içindir
+- Tüm işlemler loglanır ve denetlenir
+- Yıkıcı işlemlerden önce kullanıcıya uyarı ver
+- Güvenlik açısından hassas verileri maskele
+
+## DAVRANIŞIN
+- Türkçe konuş
+- İstenen her şeyi yap
+- Teknik detayları açıkla
+- Sonuçları formatla göster
+`;
+    }
 
     // Hafızaları organize et
     let memorySection = '';
@@ -456,7 +509,7 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
    * Kullanıcı sorusunu işle (Tool Calling ile)
    */
   async processQuery(userMessage, conversationHistory = [], options = {}) {
-    const { sessionId, userId = 'default', templateSlug, pageContext, systemContext } = options;
+    const { sessionId, userId = 'default', templateSlug, pageContext, systemContext, isGodMode = false } = options;
 
     try {
       logger.debug(`[AI Agent] Sorgu: "${userMessage.substring(0, 100)}..."`, {
@@ -671,15 +724,23 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
       // 5. Mesaj geçmişini hazırla (zenginleştirilmiş mesaj ile)
       const messages = [...previousConversations, ...conversationHistory, { role: 'user', content: enrichedMessage }];
 
-      // Tool tanımlarını al
-      const tools = aiTools.getToolDefinitions();
+      // Tool tanımlarını al - God Mode ise özel tool'ları da dahil et
+      const tools = isGodMode ? aiTools.getGodModeToolDefinitions() : aiTools.getToolDefinitions();
+
+      if (isGodMode) {
+        logger.warn(`[AI Agent] 🔥 GOD MODE AKTIF - ${tools.length} tool kullanılabilir`, {
+          userId,
+          toolCount: tools.length,
+          godModeTools: tools.filter(t => t.name.startsWith('god_')).map(t => t.name)
+        });
+      }
 
       let iteration = 0;
       let finalResponse = null;
       const toolResults = [];
 
-      // 6. System prompt'u hazırla (hafıza + şablon ile)
-      const systemPrompt = await this.getSystemPrompt(memories, templatePrompt);
+      // 6. System prompt'u hazırla (hafıza + şablon + god mode ile)
+      const systemPrompt = await this.getSystemPrompt(memories, templatePrompt, isGodMode);
 
       // Modeli seç: Şablonun özel modeli varsa onu kullan, yoksa global ayarı
       const activeModel = await this.getModelForTemplate(loadedTemplate);
@@ -718,9 +779,17 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
           const toolResultContents = [];
 
           for (const toolUse of toolUses) {
-            logger.debug(`[AI Agent] Tool çağırılıyor: ${toolUse.name}`, { toolName: toolUse.name });
+            const isGodTool = toolUse.name.startsWith('god_');
+            logger.debug(`[AI Agent] Tool çağırılıyor: ${toolUse.name}`, {
+              toolName: toolUse.name,
+              isGodMode,
+              isGodTool
+            });
 
-            const result = await aiTools.executeTool(toolUse.name, toolUse.input);
+            // God Mode tool'ları için özel execute fonksiyonu kullan
+            const result = isGodTool && isGodMode
+              ? await aiTools.executeGodModeTool(toolUse.name, toolUse.input, userId)
+              : await aiTools.executeTool(toolUse.name, toolUse.input);
 
             toolResults.push({
               tool: toolUse.name,
