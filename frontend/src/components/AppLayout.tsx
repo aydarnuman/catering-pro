@@ -27,7 +27,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return (
       <>
         <Notifications position="top-right" />
-        <Center h="100vh" bg="#050507">
+        <Center h="100vh" style={{ backgroundColor: '#18181b' }}>
           <Loader color="indigo" size="lg" />
         </Center>
       </>

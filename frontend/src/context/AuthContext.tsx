@@ -48,13 +48,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Kullanıcı bilgisini API'den al
   const fetchUser = useCallback(async (): Promise<AppUser | null> => {
     try {
+      // Timeout ile fetch - 3 saniye içinde cevap gelmezse null döndür
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
       const response = await fetch(`${getApiUrl()}/api/auth/me`, {
         method: 'GET',
         credentials: 'include', // Cookie'leri gönder
         headers: {
           'Content-Type': 'application/json',
         },
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         return null;
@@ -72,7 +79,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return null;
     } catch (error) {
-      console.error('Fetch user error:', error);
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.warn('Auth check timeout - API yanıt vermedi');
+      } else {
+        console.error('Fetch user error:', error);
+      }
       return null;
     }
   }, [getApiUrl]);
@@ -83,13 +94,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initRef.current = true;
 
     const initAuth = async () => {
+      // Timeout ekle - 5 saniye sonra loading'i kapat
+      const timeoutId = setTimeout(() => {
+        setIsLoading(false);
+      }, 5000);
+
       try {
         const userData = await fetchUser();
+        clearTimeout(timeoutId);
         setUser(userData);
       } catch (error) {
+        clearTimeout(timeoutId);
         console.error('Init auth error:', error);
         setUser(null);
       } finally {
+        clearTimeout(timeoutId);
         setIsLoading(false);
       }
     };
