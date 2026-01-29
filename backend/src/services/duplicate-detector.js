@@ -289,7 +289,9 @@ Analiz et ve JSON formatında yanıt ver:
 
         // İşlenenleri işaretle
         processed.add(invoice.id);
-        duplicates.highRisk.forEach((d) => processed.add(d.id));
+        for (const d of duplicates.highRisk) {
+          processed.add(d.id);
+        }
       }
     }
 

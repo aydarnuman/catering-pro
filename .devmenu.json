@@ -150,6 +150,60 @@
       "label": "Tümünü Yeniden Başlat",
       "time": "12:44:54",
       "success": true
+    },
+    {
+      "id": "audit-all",
+      "label": "Tüm Denetimleri Çalıştır",
+      "time": "14:12:47",
+      "success": false
+    },
+    {
+      "id": "audit-code",
+      "label": "Kod Kalitesi",
+      "time": "14:13:58",
+      "success": false
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "14:16:55",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "14:21:25",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "14:50:31",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "14:54:56",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "15:47:26",
+      "success": true
+    },
+    {
+      "id": "db-status",
+      "label": "Database Durumu",
+      "time": "15:54:04",
+      "success": true
+    },
+    {
+      "id": "db-status",
+      "label": "Database Durumu",
+      "time": "15:54:06",
+      "success": true
     }
   ],
   "theme": "dark"

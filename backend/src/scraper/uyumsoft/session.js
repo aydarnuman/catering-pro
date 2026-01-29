@@ -72,10 +72,8 @@ class UyumsoftSession {
         savedAt: new Date().toISOString(),
       };
       fs.writeFileSync(this.sessionPath, JSON.stringify(data, null, 2));
-      console.log('💾 [UyumsoftSession] Credentials kaydedildi');
       return true;
-    } catch (error) {
-      console.error('❌ Credentials kaydetme hatası:', error.message);
+    } catch (_error) {
       return false;
     }
   }
@@ -102,7 +100,6 @@ class UyumsoftSession {
       const username = decrypt(data.username);
       const password = decrypt(data.password);
       if (!username || !password) {
-        console.warn('⚠️ Credentials decrypt edilemedi');
         return null;
       }
       return {
@@ -110,8 +107,7 @@ class UyumsoftSession {
         password,
         savedAt: data.savedAt,
       };
-    } catch (error) {
-      console.error('❌ Credentials yükleme hatası:', error.message);
+    } catch (_error) {
       return null;
     }
   }
@@ -123,11 +119,9 @@ class UyumsoftSession {
     try {
       if (fs.existsSync(this.sessionPath)) {
         fs.unlinkSync(this.sessionPath);
-        console.log('🗑️ [UyumsoftSession] Credentials silindi');
       }
       return true;
-    } catch (error) {
-      console.error('❌ Credentials silme hatası:', error.message);
+    } catch (_error) {
       return false;
     }
   }
@@ -155,10 +149,8 @@ class UyumsoftSession {
         count: cookies.length,
       };
       fs.writeFileSync(this.cookiePath, JSON.stringify(data, null, 2));
-      console.log(`💾 [UyumsoftSession] ${cookies.length} cookie kaydedildi`);
       return true;
-    } catch (error) {
-      console.error('❌ Cookie kaydetme hatası:', error.message);
+    } catch (_error) {
       return false;
     }
   }
@@ -173,8 +165,7 @@ class UyumsoftSession {
       }
       const data = JSON.parse(fs.readFileSync(this.cookiePath, 'utf8'));
       return data.cookies || null;
-    } catch (error) {
-      console.error('❌ Cookie yükleme hatası:', error.message);
+    } catch (_error) {
       return null;
     }
   }
@@ -214,11 +205,9 @@ class UyumsoftSession {
     try {
       if (fs.existsSync(this.cookiePath)) {
         fs.unlinkSync(this.cookiePath);
-        console.log('🗑️ [UyumsoftSession] Cookie\'ler silindi');
       }
       return true;
-    } catch (error) {
-      console.error('❌ Cookie silme hatası:', error.message);
+    } catch (_error) {
       return false;
     }
   }
@@ -244,10 +233,8 @@ class UyumsoftSession {
         ],
       };
       fs.writeFileSync(this.syncPath, JSON.stringify(data, null, 2));
-      console.log(`💾 [UyumsoftSession] Sync kaydedildi (#${data.syncCount})`);
       return true;
-    } catch (error) {
-      console.error('❌ Sync kaydetme hatası:', error.message);
+    } catch (_error) {
       return false;
     }
   }
@@ -290,7 +277,6 @@ class UyumsoftSession {
   clearAll() {
     this.deleteCredentials();
     this.deleteCookies();
-    console.log('🗑️ [UyumsoftSession] Tüm veriler temizlendi');
   }
 
   /**
@@ -307,7 +293,7 @@ class UyumsoftSession {
       hasCredentials: credentials,
       hasCookies: !!cookies,
       cookieCount: cookies?.length || 0,
-      cookieAgeHours: Math.round(cookieAge / (60 * 60 * 1000) * 10) / 10,
+      cookieAgeHours: Math.round((cookieAge / (60 * 60 * 1000)) * 10) / 10,
       cookiesValid: this.areCookiesValid(),
       lastSync,
       syncCount,

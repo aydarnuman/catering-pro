@@ -50,7 +50,7 @@ class FaturaService {
     try {
       this.initClient();
       const result = await this.client.whoAmI();
-      
+
       if (!result.success) {
         throw new Error('Kullanıcı bilgisi alınamadı');
       }
@@ -92,27 +92,21 @@ class FaturaService {
    * @param {number} options.pageSize - Sayfa başı kayıt (default: 100)
    */
   async syncFaturalar(options = {}) {
-    const {
-      months = 3,
-      maxInvoices = 1000,
-      pageSize = 100,
-      startDate: optStart,
-      endDate: optEnd,
-    } = options;
+    const { months = 3, maxInvoices = 1000, pageSize = 100, startDate: optStart, endDate: optEnd } = options;
 
     try {
       this.initClient();
 
-      const endDate = optEnd
-        ? (typeof optEnd === 'string' ? new Date(optEnd) : optEnd)
-        : new Date();
+      const endDate = optEnd ? (typeof optEnd === 'string' ? new Date(optEnd) : optEnd) : new Date();
       const startDate = optStart
-        ? (typeof optStart === 'string' ? new Date(optStart) : optStart)
-        : (() => { const d = new Date(); d.setMonth(d.getMonth() - months); return d; })();
-
-      console.log(`📥 Fatura senkronizasyonu başlıyor...`);
-      console.log(`   Tarih aralığı: ${startDate.toLocaleDateString('tr-TR')} - ${endDate.toLocaleDateString('tr-TR')}`);
-      console.log(`   Maksimum fatura: ${maxInvoices}`);
+        ? typeof optStart === 'string'
+          ? new Date(optStart)
+          : optStart
+        : (() => {
+            const d = new Date();
+            d.setMonth(d.getMonth() - months);
+            return d;
+          })();
 
       const allInvoices = [];
       let pageIndex = 0;
@@ -127,19 +121,13 @@ class FaturaService {
       });
 
       totalCount = firstPage.totalCount;
-      console.log(`   Toplam fatura: ${totalCount}`);
 
       allInvoices.push(...firstPage.invoices);
 
       // Kalan sayfaları çek
-      const totalPages = Math.min(
-        firstPage.totalPages,
-        Math.ceil(maxInvoices / pageSize)
-      );
+      const totalPages = Math.min(firstPage.totalPages, Math.ceil(maxInvoices / pageSize));
 
       for (pageIndex = 1; pageIndex < totalPages && allInvoices.length < maxInvoices; pageIndex++) {
-        console.log(`   Sayfa ${pageIndex + 1}/${totalPages} çekiliyor...`);
-        
         const page = await this.client.getInboxInvoiceList({
           pageIndex,
           pageSize,
@@ -150,7 +138,7 @@ class FaturaService {
         allInvoices.push(...page.invoices);
 
         // Rate limiting
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise((resolve) => setTimeout(resolve, 200));
       }
 
       // Limiti uygula
@@ -158,8 +146,6 @@ class FaturaService {
 
       // Sync bilgisini kaydet
       this.session.saveLastSync(new Date().toISOString(), invoices.length);
-
-      console.log(`✅ Senkronizasyon tamamlandı: ${invoices.length} fatura`);
 
       return {
         success: true,
@@ -171,9 +157,7 @@ class FaturaService {
           end: endDate.toISOString(),
         },
       };
-
     } catch (error) {
-      console.error('❌ Senkronizasyon hatası:', error.message);
       return {
         success: false,
         message: error.message,
@@ -190,11 +174,9 @@ class FaturaService {
     try {
       this.initClient();
 
-      console.log(`🔍 Fatura detayı çekiliyor: ${ettn}`);
-
       // HTML görünümü al
       const viewResult = await this.client.getInboxInvoiceView(ettn);
-      
+
       return {
         success: true,
         ettn,
@@ -202,9 +184,7 @@ class FaturaService {
         isVerified: viewResult.isVerified,
         signingDate: viewResult.signingDate,
       };
-
     } catch (error) {
-      console.error('❌ Fatura detay hatası:', error.message);
       return {
         success: false,
         message: error.message,
@@ -220,18 +200,14 @@ class FaturaService {
     try {
       this.initClient();
 
-      console.log(`📄 Fatura PDF çekiliyor: ${ettn}`);
-
       const pdfResult = await this.client.getInboxInvoicePdf(ettn);
-      
+
       return {
         success: true,
         ettn,
         pdfBase64: pdfResult.pdfBase64,
       };
-
     } catch (error) {
-      console.error('❌ Fatura PDF hatası:', error.message);
       return {
         success: false,
         message: error.message,
@@ -247,23 +223,17 @@ class FaturaService {
     try {
       this.initClient();
 
-      console.log(`📋 Fatura XML çekiliyor: ${ettn}`);
-
       const xmlResult = await this.client.getInboxInvoiceData(ettn);
-      
+
       // Base64'den XML'e çevir
-      const xmlContent = xmlResult.xmlBase64 
-        ? Buffer.from(xmlResult.xmlBase64, 'base64').toString('utf-8')
-        : null;
+      const xmlContent = xmlResult.xmlBase64 ? Buffer.from(xmlResult.xmlBase64, 'base64').toString('utf-8') : null;
 
       return {
         success: true,
         ettn,
         xml: xmlContent,
       };
-
     } catch (error) {
-      console.error('❌ Fatura XML hatası:', error.message);
       return {
         success: false,
         message: error.message,
@@ -298,4 +268,3 @@ const faturaService = new FaturaService();
 
 export { FaturaService, faturaService };
 export default faturaService;
-

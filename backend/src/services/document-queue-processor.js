@@ -81,7 +81,7 @@ class DocumentQueueProcessor {
    * @param {Object} doc - Döküman bilgisi
    */
   async processQueuedDocument(doc) {
-    const { id, original_filename, file_path, source_type, content_type } = doc;
+    const { id, original_filename, file_path, source_type } = doc;
 
     try {
       // Status'u processing yap

@@ -15,8 +15,6 @@ class BrowserManager {
    */
   async getBrowser() {
     if (!this.browser || !this.browser.isConnected()) {
-      console.log('🌐 Browser başlatılıyor...');
-      
       this.browser = await puppeteer.launch({
         headless: 'new',
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
@@ -26,12 +24,10 @@ class BrowserManager {
           '--disable-dev-shm-usage',
           '--disable-gpu',
           '--disable-web-security',
-          '--disable-features=IsolateOrigins,site-per-process'
+          '--disable-features=IsolateOrigins,site-per-process',
         ],
-        defaultViewport: { width: 1280, height: 800 }
+        defaultViewport: { width: 1280, height: 800 },
       });
-
-      console.log('✅ Browser başlatıldı');
     }
     return this.browser;
   }
@@ -60,10 +56,8 @@ class BrowserManager {
    */
   async close() {
     if (this.browser) {
-      console.log('🔒 Browser kapatılıyor...');
       await this.browser.close();
       this.browser = null;
-      console.log('✅ Browser kapatıldı');
     }
   }
 }

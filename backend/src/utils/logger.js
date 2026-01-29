@@ -3,10 +3,10 @@
  * Catering Pro - Merkezi Loglama Sistemi
  */
 
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,17 +20,17 @@ const logFormat = winston.format.combine(
   winston.format.errors({ stack: true }),
   winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
     let log = `${timestamp} [${level.toUpperCase()}]: ${message}`;
-    
+
     // Meta bilgileri ekle
     if (Object.keys(meta).length > 0) {
       log += ` ${JSON.stringify(meta)}`;
     }
-    
+
     // Stack trace ekle (hata durumunda)
     if (stack) {
       log += `\n${stack}`;
     }
-    
+
     return log;
   })
 );
@@ -55,7 +55,7 @@ const dailyRotateTransport = new DailyRotateFile({
   datePattern: 'YYYY-MM-DD',
   maxSize: '20m',
   maxFiles: '14d', // 14 gün sakla
-  format: logFormat
+  format: logFormat,
 });
 
 // Daily rotate transport - Sadece hatalar
@@ -66,7 +66,7 @@ const errorRotateTransport = new DailyRotateFile({
   maxSize: '20m',
   maxFiles: '30d', // 30 gün sakla
   level: 'error',
-  format: logFormat
+  format: logFormat,
 });
 
 // Logger oluştur
@@ -74,40 +74,39 @@ const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: logFormat,
   defaultMeta: { service: 'catering-api' },
-  transports: [
-    dailyRotateTransport,
-    errorRotateTransport
-  ],
+  transports: [dailyRotateTransport, errorRotateTransport],
   // Uncaught exception handling
   exceptionHandlers: [
     new DailyRotateFile({
       dirname: logDir,
       filename: 'exceptions-%DATE%.log',
       datePattern: 'YYYY-MM-DD',
-      maxFiles: '30d'
-    })
+      maxFiles: '30d',
+    }),
   ],
   rejectionHandlers: [
     new DailyRotateFile({
       dirname: logDir,
       filename: 'rejections-%DATE%.log',
       datePattern: 'YYYY-MM-DD',
-      maxFiles: '30d'
-    })
-  ]
+      maxFiles: '30d',
+    }),
+  ],
 });
 
 // Development ortamında console'a da yaz
 if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: consoleFormat
-  }));
+  logger.add(
+    new winston.transports.Console({
+      format: consoleFormat,
+    })
+  );
 }
 
 // HTTP request logger middleware
 export const httpLogger = (req, res, next) => {
   const start = Date.now();
-  
+
   res.on('finish', () => {
     const duration = Date.now() - start;
     const logData = {
@@ -115,9 +114,9 @@ export const httpLogger = (req, res, next) => {
       url: req.originalUrl,
       status: res.statusCode,
       duration: `${duration}ms`,
-      ip: req.ip || req.connection.remoteAddress
+      ip: req.ip || req.connection.remoteAddress,
     };
-    
+
     // 4xx ve 5xx hataları warn/error olarak logla
     if (res.statusCode >= 500) {
       logger.error('HTTP Request', logData);
@@ -127,7 +126,7 @@ export const httpLogger = (req, res, next) => {
       logger.info('HTTP Request', logData);
     }
   });
-  
+
   next();
 };
 
@@ -148,7 +147,7 @@ export const logError = (context, error, details = {}) => {
   logger.error(`${context}: ${error.message}`, {
     type: 'error',
     stack: error.stack,
-    ...details
+    ...details,
   });
 };
 

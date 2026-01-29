@@ -1,11 +1,11 @@
 {
   "guncelleme_tarihi": "2026-02-01",
   "kaynak": "4734 sayılı Kamu İhale Kanunu, 4735 sayılı Kamu İhale Sözleşmeleri Kanunu",
-  
+
   "esik_degerler_2026": {
     "gecerlilik": "01.02.2026 tarihinden itibaren",
     "yeniden_degerleme_orani": 27.67,
-    
+
     "mal_hizmet_alimlari": {
       "genel_butce": 18734124,
       "diger_idareler": 31223308
@@ -19,7 +19,7 @@
     },
     "pazarlik_usulu_21f": 3406508
   },
-  
+
   "ihale_usulleri": {
     "acik_ihale": {
       "aciklama": "Bütün isteklilerin teklif verebildiği usul",
@@ -38,7 +38,7 @@
       "limit": "Büyükşehir içinde 1.021.827 TL (2026)"
     }
   },
-  
+
   "yemek_ihalesi_ozel": {
     "hizmet_alimi_tipi": "Personel çalıştırılmasına dayalı hizmet alımı",
     "onemli_hususlar": [
@@ -51,7 +51,7 @@
     ],
     "benzer_is_tanimlari": [
       "Yemek pişirme ve dağıtım hizmetleri",
-      "Catering hizmetleri", 
+      "Catering hizmetleri",
       "Toplu yemek üretimi",
       "Tabldot yemek hizmetleri"
     ],
@@ -62,24 +62,19 @@
       "İş deneyim belgesi tutarı"
     ]
   },
-  
+
   "asiri_dusuk_teklif": {
     "aciklama": "Aşırı düşük teklif değerlendirmesi yemek ihalelerinde özel kurallara tabidir",
     "yemek_ihalesi_formulu": {
       "formul": "(Ana Çiğ Girdi + İşçilik) / Toplam Teklif",
-      "gecerli_oran_alt": 0.80,
+      "gecerli_oran_alt": 0.8,
       "gecerli_oran_ust": 0.95,
       "aciklama": "Hesaplanan oran 0.80-0.95 aralığında olmalıdır. Bu aralık dışındaki teklifler reddedilir."
     },
     "ek_h4": {
       "ad": "Malzemeli Yemek Sunumu Hesap Cetveli (EK-H.4)",
       "aciklama": "Yemek ihalelerinde aşırı düşük açıklaması için kullanılan resmi format",
-      "icerik": [
-        "Ana çiğ girdi maliyetleri",
-        "İşçilik maliyetleri",
-        "Genel giderler",
-        "Kar oranı"
-      ]
+      "icerik": ["Ana çiğ girdi maliyetleri", "İşçilik maliyetleri", "Genel giderler", "Kar oranı"]
     },
     "dikkat_edilecekler": [
       "Tüm ana çiğ girdilerin tek tek fiyatlandırılması",
@@ -88,7 +83,7 @@
       "Birim fiyat teklif cetvelinde tutarlılık"
     ]
   },
-  
+
   "itiraz_sureleri": {
     "idareye_sikayet": {
       "sure_gun": 10,
@@ -107,7 +102,7 @@
       "Elektronik tebligatta tebliğ tarihi = sistemde görüntülenme tarihi"
     ]
   },
-  
+
   "itirazen_sikayet_bedelleri_2025": {
     "gecerlilik": "2025 yılı için geçerli",
     "bedeller": [
@@ -141,7 +136,7 @@
       "aciklama": "Başvuru ile birlikte dekont ibrazı zorunlu"
     }
   },
-  
+
   "resmi_tatiller_2026": {
     "aciklama": "Süre hesaplamada dikkate alınacak resmi tatiller",
     "tatiller": [
@@ -163,7 +158,7 @@
       { "tarih": "2026-10-29", "ad": "Cumhuriyet Bayramı" }
     ]
   },
-  
+
   "kik_karar_arama": {
     "url": "https://www.ihale.gov.tr/kararlar.html",
     "arama_ipuclari": [
@@ -174,7 +169,7 @@
     ],
     "emsal_karar_onemi": "Benzer konulardaki KİK kararları itiraz ve açıklamalarda emsal teşkil eder"
   },
-  
+
   "dilekce_sablonlari": {
     "idareye_sikayet": {
       "baslik": "[İDARE ADI] İHALE KOMİSYONU BAŞKANLIĞINA",
@@ -199,7 +194,7 @@
       ]
     }
   },
-  
+
   "yasaklilik": {
     "sureler": {
       "ihaleye_fesat": "1-2 yıl",

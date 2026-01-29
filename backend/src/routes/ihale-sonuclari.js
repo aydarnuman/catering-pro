@@ -415,7 +415,9 @@ router.post('/:id/rakip-teklif', async (req, res) => {
 
     // Sıraya göre sırala
     teklifler.sort((a, b) => a.teklif - b.teklif);
-    teklifler.forEach((t, i) => (t.sira = i + 1));
+    for (let i = 0; i < teklifler.length; i++) {
+      teklifler[i].sira = i + 1;
+    }
 
     const result = await query('UPDATE ihale_sonuclari SET diger_teklifler = $1 WHERE id = $2 RETURNING *', [
       JSON.stringify(teklifler),
@@ -455,7 +457,9 @@ router.delete('/:id/rakip-teklif/:sira', async (req, res) => {
 
     // Sıraları yeniden düzenle
     teklifler.sort((a, b) => a.teklif - b.teklif);
-    teklifler.forEach((t, i) => (t.sira = i + 1));
+    for (let i = 0; i < teklifler.length; i++) {
+      teklifler[i].sira = i + 1;
+    }
 
     const result = await query('UPDATE ihale_sonuclari SET diger_teklifler = $1 WHERE id = $2 RETURNING *', [
       JSON.stringify(teklifler),

@@ -16,7 +16,7 @@ const receteler = [
   { kategori: 'corba', ad: 'Patates Çorbası', kalori: 145, protein: 4, karbonhidrat: 22, yag: 4 },
   { kategori: 'corba', ad: 'Pirinç Çorbası', kalori: 135, protein: 3, karbonhidrat: 26, yag: 2 },
   { kategori: 'corba', ad: 'Tavuk Suyu Çorbası', kalori: 90, protein: 8, karbonhidrat: 8, yag: 3 },
-  
+
   // ANA YEMEKLER
   { kategori: 'ana_yemek', ad: 'Kuru Fasulye', kalori: 320, protein: 18, karbonhidrat: 45, yag: 8 },
   { kategori: 'ana_yemek', ad: 'Nohut Yemeği', kalori: 300, protein: 15, karbonhidrat: 42, yag: 7 },
@@ -37,7 +37,7 @@ const receteler = [
   { kategori: 'ana_yemek', ad: 'Patlıcan Kebabı', kalori: 310, protein: 22, karbonhidrat: 15, yag: 18 },
   { kategori: 'ana_yemek', ad: 'Güveç', kalori: 380, protein: 24, karbonhidrat: 28, yag: 18 },
   { kategori: 'ana_yemek', ad: 'Karışık Kızartma', kalori: 400, protein: 15, karbonhidrat: 35, yag: 22 },
-  
+
   // PİLAV / MAKARNA
   { kategori: 'pilav_makarna', ad: 'Pirinç Pilavı', kalori: 200, protein: 4, karbonhidrat: 42, yag: 3 },
   { kategori: 'pilav_makarna', ad: 'Bulgur Pilavı', kalori: 180, protein: 6, karbonhidrat: 38, yag: 2 },
@@ -47,7 +47,7 @@ const receteler = [
   { kategori: 'pilav_makarna', ad: 'Makarna (Domates Soslu)', kalori: 260, protein: 8, karbonhidrat: 48, yag: 4 },
   { kategori: 'pilav_makarna', ad: 'Nohutlu Pilav', kalori: 220, protein: 8, karbonhidrat: 40, yag: 4 },
   { kategori: 'pilav_makarna', ad: 'Domatesli Bulgur Pilavı', kalori: 190, protein: 6, karbonhidrat: 38, yag: 3 },
-  
+
   // SALATA / MEZE
   { kategori: 'salata_meze', ad: 'Mevsim Salata', kalori: 45, protein: 2, karbonhidrat: 8, yag: 1 },
   { kategori: 'salata_meze', ad: 'Çoban Salata', kalori: 50, protein: 2, karbonhidrat: 10, yag: 1 },
@@ -59,7 +59,7 @@ const receteler = [
   { kategori: 'salata_meze', ad: 'Rus Salatası', kalori: 200, protein: 4, karbonhidrat: 18, yag: 12 },
   { kategori: 'salata_meze', ad: 'Yoğurt', kalori: 90, protein: 5, karbonhidrat: 8, yag: 4 },
   { kategori: 'salata_meze', ad: 'Haydari', kalori: 110, protein: 6, karbonhidrat: 5, yag: 8 },
-  
+
   // TATLILAR
   { kategori: 'tatli', ad: 'Sütlaç', kalori: 180, protein: 5, karbonhidrat: 32, yag: 4 },
   { kategori: 'tatli', ad: 'İrmik Helvası', kalori: 250, protein: 4, karbonhidrat: 35, yag: 10 },
@@ -69,7 +69,7 @@ const receteler = [
   { kategori: 'tatli', ad: 'Ayva Tatlısı', kalori: 220, protein: 1, karbonhidrat: 50, yag: 2 },
   { kategori: 'tatli', ad: 'Kabak Tatlısı', kalori: 200, protein: 2, karbonhidrat: 45, yag: 2 },
   { kategori: 'tatli', ad: 'Meyve Komposto', kalori: 100, protein: 0, karbonhidrat: 25, yag: 0 },
-  
+
   // KAHVALTILIK
   { kategori: 'kahvaltilik', ad: 'Menemen', kalori: 180, protein: 10, karbonhidrat: 12, yag: 12 },
   { kategori: 'kahvaltilik', ad: 'Haşlanmış Yumurta', kalori: 75, protein: 6, karbonhidrat: 1, yag: 5 },
@@ -82,7 +82,7 @@ const receteler = [
   { kategori: 'kahvaltilik', ad: 'Sucuk', kalori: 200, protein: 12, karbonhidrat: 2, yag: 16 },
   { kategori: 'kahvaltilik', ad: 'Süt', kalori: 120, protein: 6, karbonhidrat: 10, yag: 6 },
   { kategori: 'kahvaltilik', ad: 'Simit', kalori: 280, protein: 8, karbonhidrat: 50, yag: 5 },
-  
+
   // İÇECEKLER
   { kategori: 'icecek', ad: 'Ayran', kalori: 60, protein: 3, karbonhidrat: 4, yag: 3 },
   { kategori: 'icecek', ad: 'Limonata', kalori: 80, protein: 0, karbonhidrat: 20, yag: 0 },
@@ -93,75 +93,68 @@ const receteler = [
 
 async function run() {
   try {
-    // Kategorileri al
-    console.log('📋 Kategoriler alınıyor...');
     const katRes = await fetch(API + '/kategoriler');
     const katData = await katRes.json();
-    
+
     if (!katData.success || !katData.data) {
-      console.error('❌ Kategori verisi alınamadı:', katData);
       return;
     }
-    
+
     const kategoriler = {};
-    katData.data.forEach(k => { kategoriler[k.kod] = k.id; });
-    console.log('✅ Kategoriler:', Object.keys(kategoriler).join(', '));
-    
+    katData.data.forEach((k) => {
+      kategoriler[k.kod] = k.id;
+    });
+
     // Mevcut reçeteleri kontrol et (duplicate önleme)
     const mevcutRes = await fetch(API + '/receteler?limit=500');
     const mevcutData = await mevcutRes.json();
-    const mevcutAdlar = new Set((mevcutData.data || []).map(r => r.ad.toLowerCase()));
-    console.log(`📊 Mevcut reçete sayısı: ${mevcutAdlar.size}`);
-    
-    let eklenen = 0;
-    let atlanan = 0;
-    
+    const mevcutAdlar = new Set((mevcutData.data || []).map((r) => r.ad.toLowerCase()));
+
+    let _eklenen = 0;
+    let _atlanan = 0;
+
     for (const r of receteler) {
       // Duplicate kontrolü
       if (mevcutAdlar.has(r.ad.toLowerCase())) {
-        atlanan++;
+        _atlanan++;
         continue;
       }
-      
-      const kod = r.ad.substring(0,3).toUpperCase().replace(/[^A-ZĞÜŞİÖÇ]/gi,'X') + '-' + Date.now().toString().slice(-6);
-      const body = { 
-        kod, 
-        ad: r.ad, 
-        kategori_id: kategoriler[r.kategori], 
+
+      const kod =
+        r.ad
+          .substring(0, 3)
+          .toUpperCase()
+          .replace(/[^A-ZĞÜŞİÖÇ]/gi, 'X') +
+        '-' +
+        Date.now().toString().slice(-6);
+      const body = {
+        kod,
+        ad: r.ad,
+        kategori_id: kategoriler[r.kategori],
         porsiyon_miktar: 1,
         kalori: r.kalori,
         protein: r.protein,
         karbonhidrat: r.karbonhidrat,
-        yag: r.yag
+        yag: r.yag,
       };
 
       const res = await fetch(API + '/receteler', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
-      
-      if (res.ok) { 
-        eklenen++; 
-        process.stdout.write('.'); 
-      } else { 
-        const err = await res.text();
-        console.log('\n❌ Hata:', r.ad, err.substring(0, 100)); 
+
+      if (res.ok) {
+        _eklenen++;
+        process.stdout.write('.');
+      } else {
+        const _err = await res.text();
       }
-      
+
       // Rate limiting
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
     }
-    
-    console.log(`\n\n✅ Tamamlandı!`);
-    console.log(`   📥 Eklenen: ${eklenen}`);
-    console.log(`   ⏭️  Atlanan (zaten var): ${atlanan}`);
-    console.log(`   📊 Toplam reçete: ${mevcutAdlar.size + eklenen}`);
-    
-  } catch (error) {
-    console.error('❌ Hata:', error.message);
-  }
+  } catch (_error) {}
 }
 
 run();
-

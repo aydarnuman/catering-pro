@@ -5,9 +5,9 @@
  * - Her migration sadece bir kez çalışır
  */
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { query } from '../database.js';
 import logger from './logger.js';
 
@@ -31,7 +31,7 @@ async function ensureMigrationTable() {
 // Çalışmış migration'ları al
 async function getExecutedMigrations() {
   const result = await query('SELECT name FROM _migrations WHERE success = true');
-  return new Set(result.rows.map(r => r.name));
+  return new Set(result.rows.map((r) => r.name));
 }
 
 // "Already exists" hatalarını kontrol et (zararsız hatalar)
@@ -46,10 +46,10 @@ function isHarmlessError(error) {
     'index.*already exists',
     'cannot change name of',
     'does not exist', // DROP IF EXISTS sonrası oluşan hatalar
-    'column.*does not exist' // ALTER TABLE IF EXISTS sonrası
+    'column.*does not exist', // ALTER TABLE IF EXISTS sonrası
   ];
-  
-  return harmlessPatterns.some(pattern => {
+
+  return harmlessPatterns.some((pattern) => {
     try {
       return new RegExp(pattern).test(errorMsg);
     } catch {
@@ -61,22 +61,19 @@ function isHarmlessError(error) {
 // Tek migration çalıştır
 async function executeMigration(filePath, fileName) {
   const sql = fs.readFileSync(filePath, 'utf8');
-  
+
   try {
     await query(sql);
-    await query(
-      'INSERT INTO _migrations (name, success) VALUES ($1, true) ON CONFLICT (name) DO NOTHING',
-      [fileName]
-    );
+    await query('INSERT INTO _migrations (name, success) VALUES ($1, true) ON CONFLICT (name) DO NOTHING', [fileName]);
     return { success: true };
   } catch (error) {
     // Zararsız hataları (already exists vb.) başarılı olarak işaretle
     if (isHarmlessError(error)) {
-      logger.warn(`⚠️  Migration uyarısı (zararsız): ${fileName}`, { 
+      logger.warn(`⚠️  Migration uyarısı (zararsız): ${fileName}`, {
         error: error.message,
-        note: 'Bu hata genellikle zaten var olan objeler nedeniyle oluşur ve güvenlidir.'
+        note: 'Bu hata genellikle zaten var olan objeler nedeniyle oluşur ve güvenlidir.',
       });
-      
+
       // Zararsız hataları da başarılı olarak kaydet
       await query(
         'INSERT INTO _migrations (name, success, error_message) VALUES ($1, true, $2) ON CONFLICT (name) DO UPDATE SET success = true, error_message = $2',
@@ -84,7 +81,7 @@ async function executeMigration(filePath, fileName) {
       );
       return { success: true, warning: error.message };
     }
-    
+
     // Gerçek hataları kaydet
     logger.error(`❌ Migration hatası: ${fileName}`, { error: error.message });
     await query(
@@ -98,7 +95,7 @@ async function executeMigration(filePath, fileName) {
 // Ana runner fonksiyonu
 export async function runMigrations() {
   const migrationsDir = path.join(__dirname, '..', 'migrations');
-  
+
   if (!fs.existsSync(migrationsDir)) {
     logger.warn('Migration klasörü bulunamadı');
     return { executed: 0, skipped: 0, failed: 0 };
@@ -107,33 +104,34 @@ export async function runMigrations() {
   try {
     // Migration tablosunu oluştur
     await ensureMigrationTable();
-    
+
     // Çalışmış migration'ları al
     const executed = await getExecutedMigrations();
-    
+
     // SQL dosyalarını al ve sırala
-    const files = fs.readdirSync(migrationsDir)
-      .filter(f => f.endsWith('.sql'))
+    const files = fs
+      .readdirSync(migrationsDir)
+      .filter((f) => f.endsWith('.sql'))
       .sort((a, b) => {
         // Dosya adındaki numaraya göre sırala (001_, 002_, vb.)
-        const numA = parseInt(a.split('_')[0]) || 999;
-        const numB = parseInt(b.split('_')[0]) || 999;
+        const numA = parseInt(a.split('_')[0], 10) || 999;
+        const numB = parseInt(b.split('_')[0], 10) || 999;
         return numA - numB;
       });
 
-    let stats = { executed: 0, skipped: 0, failed: 0 };
-    
+    const stats = { executed: 0, skipped: 0, failed: 0 };
+
     for (const file of files) {
       if (executed.has(file)) {
         stats.skipped++;
         continue;
       }
-      
+
       const filePath = path.join(migrationsDir, file);
       logger.info(`📦 Migration çalıştırılıyor: ${file}`);
-      
+
       const result = await executeMigration(filePath, file);
-      
+
       if (result.success) {
         if (result.warning) {
           // Zararsız uyarı ile başarılı
@@ -149,15 +147,14 @@ export async function runMigrations() {
         // break; // İsterseniz hata durumunda durdurmak için aktif edin
       }
     }
-    
+
     logger.info(`📊 Migration özeti: ${stats.executed} çalıştırıldı, ${stats.skipped} atlandı, ${stats.failed} hatalı`);
-    
+
     if (stats.failed > 0) {
       logger.warn(`⚠️  ${stats.failed} migration hatalı - kontrol edin`);
     }
-    
+
     return stats;
-    
   } catch (error) {
     logger.error('Migration runner hatası', { error: error.message });
     return { executed: 0, skipped: 0, failed: 0, error: error.message };

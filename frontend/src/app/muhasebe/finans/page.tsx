@@ -40,6 +40,7 @@ import {
   IconChevronRight,
   IconCreditCard,
   IconDots,
+  IconNotes,
   IconPlus,
   IconReceipt,
   IconRefresh,
@@ -66,6 +67,10 @@ const CariDetailDrawer = dynamic(() => import('@/components/finans/CariDetailDra
 });
 const MutabakatModal = dynamic(
   () => import('@/components/muhasebe/MutabakatModal').then((m) => m.default),
+  { ssr: false }
+);
+const UnifiedNotesModal = dynamic(
+  () => import('@/components/notes/UnifiedNotesModal'),
   { ssr: false }
 );
 
@@ -174,6 +179,7 @@ export default function FinansMerkeziPage() {
   const [projeHareketler, setProjeHareketler] = useState<ProjeHareket[]>([]);
 
   // Modal States
+  const [notesModalOpened, setNotesModalOpened] = useState(false);
   const [hesapModalOpen, setHesapModalOpen] = useState(false);
   const [hareketModalOpen, setHareketModalOpen] = useState(false);
   const [_cekSenetModalOpen, setCekSenetModalOpen] = useState(false);
@@ -386,6 +392,14 @@ export default function FinansMerkeziPage() {
           </Text>
         </div>
         <Group>
+          <Button
+            variant="gradient"
+            gradient={{ from: 'blue', to: 'cyan', deg: 45 }}
+            leftSection={<IconNotes size={18} />}
+            onClick={() => setNotesModalOpened(true)}
+          >
+            Notlar & Ajanda
+          </Button>
           <Button variant="light" leftSection={<IconRefresh size={18} />} onClick={loadData}>
             Yenile
           </Button>
@@ -562,15 +576,21 @@ export default function FinansMerkeziPage() {
                   <Stack gap="sm">
                     <Group
                       justify="space-between"
-                      p="sm"
-                      style={{ background: 'var(--mantine-color-blue-0)', borderRadius: 8 }}
+                      p="md"
+                      className="glassy-card-nested"
+                      style={{
+                        background: 'rgba(59, 130, 246, 0.1)',
+                        border: '1px solid rgba(59, 130, 246, 0.2)',
+                        borderRadius: 12,
+                        transition: 'all 0.2s ease',
+                      }}
                     >
                       <Group gap="xs">
                         <Text size="sm">📄</Text>
-                        <Text size="sm">Bekleyen Çekler</Text>
+                        <Text size="sm" fw={500}>Bekleyen Çekler</Text>
                       </Group>
                       <div style={{ textAlign: 'right' }}>
-                        <Text size="sm" fw={600}>
+                        <Text size="sm" fw={600} c="blue.4">
                           {bekleyenCekler.length} adet
                         </Text>
                         <Text size="xs" c="dimmed">
@@ -580,15 +600,21 @@ export default function FinansMerkeziPage() {
                     </Group>
                     <Group
                       justify="space-between"
-                      p="sm"
-                      style={{ background: 'var(--mantine-color-grape-0)', borderRadius: 8 }}
+                      p="md"
+                      className="glassy-card-nested"
+                      style={{
+                        background: 'rgba(139, 92, 246, 0.1)',
+                        border: '1px solid rgba(139, 92, 246, 0.2)',
+                        borderRadius: 12,
+                        transition: 'all 0.2s ease',
+                      }}
                     >
                       <Group gap="xs">
                         <Text size="sm">📋</Text>
-                        <Text size="sm">Bekleyen Senetler</Text>
+                        <Text size="sm" fw={500}>Bekleyen Senetler</Text>
                       </Group>
                       <div style={{ textAlign: 'right' }}>
-                        <Text size="sm" fw={600}>
+                        <Text size="sm" fw={600} c="grape.4">
                           {bekleyenSenetler.length} adet
                         </Text>
                         <Text size="xs" c="dimmed">
@@ -2218,6 +2244,12 @@ export default function FinansMerkeziPage() {
           closeMutabakat();
           setSelectedCari(null);
         }}
+      />
+
+      {/* Notlar & Ajanda Modal */}
+      <UnifiedNotesModal
+        opened={notesModalOpened}
+        onClose={() => setNotesModalOpened(false)}
       />
     </Container>
   );

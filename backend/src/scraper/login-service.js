@@ -1,7 +1,7 @@
 /**
  * Login Service - ihalebul.com Authentication
  * Session yönetimi ve login işlemleri
- * 
+ *
  * NOT: ihalebul.com login formu modal olarak açılıyor, ayrı sayfa yok
  */
 
@@ -15,12 +15,9 @@ class LoginService {
    * Login yap (session restore veya fresh login)
    */
   async performLogin(page) {
-    console.log('🔐 Login işlemi başlıyor...');
-
     // 1. Mevcut session'ı dene
     const session = await sessionManager.loadSession();
-    if (session && session.cookies) {
-      console.log('📦 Kayıtlı session deneniyor...');
+    if (session?.cookies) {
       await sessionManager.applyCookies(page, session.cookies);
 
       // Test sayfasına git
@@ -29,10 +26,8 @@ class LoginService {
 
       // Login kontrolü
       if (await this.isLoggedIn(page)) {
-        console.log('✅ Session ile login başarılı');
         return true;
       }
-      console.log('⚠️ Session geçersiz, fresh login yapılacak');
     }
 
     // 2. Fresh login
@@ -51,8 +46,6 @@ class LoginService {
       throw new Error('IHALEBUL_USERNAME ve IHALEBUL_PASSWORD env değişkenleri gerekli');
     }
 
-    console.log('🔑 Fresh login yapılıyor...');
-
     // Ana sayfaya git
     await page.goto(HOME_URL, { waitUntil: 'networkidle2', timeout: 30000 });
     await this.delay(2000);
@@ -61,59 +54,60 @@ class LoginService {
     // Önce mevcut login durumunu kontrol et
     const alreadyLoggedIn = await this.isLoggedIn(page);
     if (alreadyLoggedIn) {
-      console.log('✅ Zaten giriş yapılmış');
       const cookies = await page.cookies();
       await sessionManager.saveSession(cookies, username);
       return true;
     }
 
-    // Form doldurmak için waitForSelector kullan
-    console.log('📝 Login formu dolduruluyor...');
-    
     // Kullanıcı adı input'u - doğrudan selector ile bekle
     try {
       await page.waitForSelector('input[placeholder="Kullanıcı adı"]', { timeout: 5000, visible: true });
-    } catch (e) {
-      console.log('⚠️ Kullanıcı adı input görünür değil, alternatif deneniyor...');
-    }
-    
+    } catch (_e) {}
+
     // Kullanıcı adı input'u
-    const usernameInput = await this.findInputByPlaceholder(page, ['Kullanıcı adı', 'E-posta', 'Username', 'kullanıcı'], false);
+    const usernameInput = await this.findInputByPlaceholder(
+      page,
+      ['Kullanıcı adı', 'E-posta', 'Username', 'kullanıcı'],
+      false
+    );
     if (!usernameInput) {
       throw new Error('Kullanıcı adı input alanı bulunamadı');
     }
-    
+
     // Input'u focus yap ve yaz - evaluate ile doğrudan DOM'a eriş
-    await page.evaluate((el, val) => {
-      el.focus();
-      el.value = val;
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-    }, usernameInput, username);
-    console.log('  ✓ Kullanıcı adı girildi');
-    
+    await page.evaluate(
+      (el, val) => {
+        el.focus();
+        el.value = val;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      },
+      usernameInput,
+      username
+    );
+
     await this.delay(300);
-    
+
     // Şifre input'u
     const passwordInput = await this.findInputByPlaceholder(page, ['Şifre', 'Password', 'Parola'], true);
     if (!passwordInput) {
       throw new Error('Şifre input alanı bulunamadı');
     }
-    
+
     // Şifreyi doğrudan DOM üzerinden yaz
-    await page.evaluate((el, val) => {
-      el.focus();
-      el.value = val;
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-    }, passwordInput, password);
-    console.log('  ✓ Şifre girildi');
+    await page.evaluate(
+      (el, val) => {
+        el.focus();
+        el.value = val;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      },
+      passwordInput,
+      password
+    );
 
     await this.delay(500);
-    
-    // Giriş butonuna tıkla - evaluate ile form submit
-    console.log('🔘 Giriş butonuna tıklanıyor...');
-    
+
     // Önce butonu bul ve tıkla
     const submitClicked = await page.evaluate(() => {
       // Form içindeki Giriş butonunu bul
@@ -124,14 +118,14 @@ class LoginService {
           return true;
         }
       }
-      
+
       // Submit butonunu bul
       const submitBtns = document.querySelectorAll('button[type="submit"], input[type="submit"]');
       if (submitBtns.length > 0) {
         submitBtns[0].click();
         return true;
       }
-      
+
       // Form submit
       const forms = document.querySelectorAll('form');
       for (const form of forms) {
@@ -140,7 +134,7 @@ class LoginService {
           return true;
         }
       }
-      
+
       return false;
     });
 
@@ -153,14 +147,11 @@ class LoginService {
         throw new Error('Giriş butonu bulunamadı');
       }
     }
-    
+
     // Navigation'ı bekle
     try {
       await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 });
-    } catch (e) {
-      // Navigation timeout olabilir, sayfa zaten yenilenmemiş olabilir
-      console.log('⚠️ Navigation timeout, sayfa kontrol ediliyor...');
-    }
+    } catch (_e) {}
 
     await this.delay(3000);
 
@@ -169,7 +160,6 @@ class LoginService {
       // Cookie'leri kaydet
       const cookies = await page.cookies();
       await sessionManager.saveSession(cookies, username);
-      console.log('✅ Fresh login başarılı');
       return true;
     }
 
@@ -190,7 +180,7 @@ class LoginService {
       '.user-menu',
       // Fallback: data attribute ile
       '[data-target*="login"]',
-      '[data-target*="signin"]'
+      '[data-target*="signin"]',
     ];
 
     for (const selector of selectors) {
@@ -199,9 +189,7 @@ class LoginService {
         if (element) {
           return selector;
         }
-      } catch (e) {
-        continue;
-      }
+      } catch (_e) {}
     }
     return null;
   }
@@ -215,7 +203,7 @@ class LoginService {
       'form input[placeholder*="kullanıcı"]',
       'form input[type="password"]',
       '.modal.show form',
-      '.modal-dialog form'
+      '.modal-dialog form',
     ];
 
     for (let i = 0; i < 10; i++) {
@@ -223,18 +211,12 @@ class LoginService {
         try {
           const element = await page.$(selector);
           if (element) {
-            console.log('✅ Login formu bulundu');
             return true;
           }
-        } catch (e) {
-          continue;
-        }
+        } catch (_e) {}
       }
       await this.delay(500);
     }
-    
-    // Form bulunamadıysa sayfanın zaten açık olduğunu varsay
-    console.log('⚠️ Login formu aranıyor, alternatif yöntem deneniyor...');
     return true;
   }
 
@@ -244,19 +226,14 @@ class LoginService {
   async findInputByPlaceholder(page, placeholders, isPassword = false) {
     // Şifre alanı için doğrudan password type ara
     if (isPassword) {
-      const pwdSelectors = [
-        'form input[type="password"]',
-        '.modal input[type="password"]',
-        'input[type="password"]'
-      ];
+      const pwdSelectors = ['form input[type="password"]', '.modal input[type="password"]', 'input[type="password"]'];
       for (const sel of pwdSelectors) {
         try {
           const input = await page.$(sel);
           if (input) {
-            console.log(`  ✓ Şifre alanı bulundu: ${sel}`);
             return input;
           }
-        } catch (e) { continue; }
+        } catch (_e) {}
       }
     }
 
@@ -267,50 +244,47 @@ class LoginService {
         const selectors = [
           `input[placeholder="${placeholder}"]`,
           `input[placeholder*="${placeholder}"]`,
-          `input[aria-label*="${placeholder}"]`
+          `input[aria-label*="${placeholder}"]`,
         ];
-        
+
         for (const sel of selectors) {
           try {
             const input = await page.$(sel);
             if (input) {
-              console.log(`  ✓ Input bulundu: ${sel}`);
               return input;
             }
-          } catch (e) { continue; }
+          } catch (_e) {}
         }
-      } catch (e) {
-        continue;
-      }
+      } catch (_e) {}
     }
-    
+
     // XPath ile ara (daha esnek)
     for (const placeholder of placeholders) {
       try {
         const [input] = await page.$x(`//input[contains(@placeholder, "${placeholder}")]`);
         if (input) {
-          console.log(`  ✓ Input XPath ile bulundu: ${placeholder}`);
           return input;
         }
-      } catch (e) { continue; }
+      } catch (_e) {}
     }
-    
+
     // Fallback: Form içindeki tüm text input'ları bul
     if (!isPassword) {
-      const inputs = await page.$$('form input[type="text"], form input:not([type]):not([type="hidden"]):not([type="password"])');
+      const inputs = await page.$$(
+        'form input[type="text"], form input:not([type]):not([type="hidden"]):not([type="password"])'
+      );
       // Hidden olmayan ilk input'u döndür
       for (const input of inputs) {
-        const isHidden = await page.evaluate(el => {
+        const isHidden = await page.evaluate((el) => {
           const style = window.getComputedStyle(el);
           return style.display === 'none' || style.visibility === 'hidden' || el.type === 'hidden';
         }, input);
         if (!isHidden) {
-          console.log(`  ✓ Fallback: İlk visible text input kullanılıyor`);
           return input;
         }
       }
     }
-    
+
     return null;
   }
 
@@ -325,36 +299,34 @@ class LoginService {
       '.modal-body button.btn-primary',
       '.modal button[type="submit"]',
       'button.login-btn',
-      '#login-btn'
+      '#login-btn',
     ];
 
     for (const selector of selectors) {
       try {
         const element = await page.$(selector);
         if (element) return element;
-      } catch (e) {
-        continue;
-      }
+      } catch (_e) {}
     }
-    
+
     // Fallback: "Giriş" yazısı içeren butonu bul
     const button = await page.evaluateHandle(() => {
       const buttons = document.querySelectorAll('button, input[type="submit"]');
       for (const btn of buttons) {
-        if (btn.textContent && btn.textContent.includes('Giriş')) {
+        if (btn.textContent?.includes('Giriş')) {
           return btn;
         }
-        if (btn.value && btn.value.includes('Giriş')) {
+        if (btn.value?.includes('Giriş')) {
           return btn;
         }
       }
       return null;
     });
-    
-    if (button && button.asElement()) {
+
+    if (button?.asElement()) {
       return button.asElement();
     }
-    
+
     return null;
   }
 
@@ -380,7 +352,7 @@ class LoginService {
       });
 
       return hasLogoutBtn;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }
@@ -399,13 +371,12 @@ class LoginService {
    * Zorla yeniden login
    */
   async forceRelogin(page) {
-    console.log('🔄 Force re-login yapılıyor...');
     sessionManager.clearSession();
     return await this.freshLogin(page);
   }
 
   delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 

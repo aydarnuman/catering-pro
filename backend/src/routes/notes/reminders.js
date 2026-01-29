@@ -42,15 +42,14 @@ router.get('/upcoming', async (req, res) => {
          AND r.reminder_date >= NOW() - INTERVAL '1 day'
        ORDER BY r.reminder_date ASC
        LIMIT $2`,
-      [userId, parseInt(limit)]
+      [userId, parseInt(limit, 10)]
     );
 
     res.json({
       success: true,
-      reminders: result.rows
+      reminders: result.rows,
     });
-  } catch (error) {
-    console.error('Error fetching upcoming reminders:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, message: 'Hatırlatıcılar yüklenirken hata oluştu' });
   }
 });
@@ -86,10 +85,9 @@ router.get('/due', async (req, res) => {
 
     res.json({
       success: true,
-      reminders: result.rows
+      reminders: result.rows,
     });
-  } catch (error) {
-    console.error('Error fetching due reminders:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, message: 'Hatırlatıcılar yüklenirken hata oluştu' });
   }
 });
@@ -109,10 +107,7 @@ router.post('/:noteId', async (req, res) => {
     }
 
     // Verify note ownership
-    const noteCheck = await pool.query(
-      `SELECT id FROM unified_notes WHERE id = $1 AND user_id = $2`,
-      [noteId, userId]
-    );
+    const noteCheck = await pool.query(`SELECT id FROM unified_notes WHERE id = $1 AND user_id = $2`, [noteId, userId]);
 
     if (noteCheck.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Not bulunamadı' });
@@ -137,18 +132,14 @@ router.post('/:noteId', async (req, res) => {
     );
 
     // Also update the note's reminder_date field
-    await pool.query(
-      `UPDATE unified_notes SET reminder_date = $1 WHERE id = $2`,
-      [reminder_date, noteId]
-    );
+    await pool.query(`UPDATE unified_notes SET reminder_date = $1 WHERE id = $2`, [reminder_date, noteId]);
 
     res.status(201).json({
       success: true,
       reminder: result.rows[0],
-      message: 'Hatırlatıcı eklendi'
+      message: 'Hatırlatıcı eklendi',
     });
-  } catch (error) {
-    console.error('Error adding reminder:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, message: 'Hatırlatıcı eklenirken hata oluştu' });
   }
 });
@@ -177,10 +168,9 @@ router.put('/:id/sent', async (req, res) => {
     res.json({
       success: true,
       reminder: result.rows[0],
-      message: 'Hatırlatıcı gönderildi olarak işaretlendi'
+      message: 'Hatırlatıcı gönderildi olarak işaretlendi',
     });
-  } catch (error) {
-    console.error('Error marking reminder as sent:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, message: 'Hatırlatıcı güncellenirken hata oluştu' });
   }
 });
@@ -207,10 +197,7 @@ router.delete('/:id', async (req, res) => {
     const noteId = reminderResult.rows[0].note_id;
 
     // Delete the reminder
-    await pool.query(
-      `DELETE FROM unified_note_reminders WHERE id = $1 AND user_id = $2`,
-      [id, userId]
-    );
+    await pool.query(`DELETE FROM unified_note_reminders WHERE id = $1 AND user_id = $2`, [id, userId]);
 
     // Check if there are other reminders for this note
     const otherReminders = await pool.query(
@@ -222,14 +209,10 @@ router.delete('/:id', async (req, res) => {
 
     // Update the note's reminder_date to the next reminder or null
     const nextReminder = otherReminders.rows[0]?.next_reminder || null;
-    await pool.query(
-      `UPDATE unified_notes SET reminder_date = $1 WHERE id = $2`,
-      [nextReminder, noteId]
-    );
+    await pool.query(`UPDATE unified_notes SET reminder_date = $1 WHERE id = $2`, [nextReminder, noteId]);
 
     res.json({ success: true, message: 'Hatırlatıcı silindi' });
-  } catch (error) {
-    console.error('Error deleting reminder:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, message: 'Hatırlatıcı silinirken hata oluştu' });
   }
 });

@@ -1,6 +1,6 @@
 {
   "guncelleme_tarihi": "2026-01-01",
-  
+
   "istihdam_tesvikleri": {
     "genc_istihdam_17103": {
       "aciklama": "18-29 yaş arası ilk defa sigortalı olan gençler",
@@ -19,21 +19,15 @@
     "kadin_istihdam": {
       "aciklama": "Kadın istihdamı teşviki",
       "destek": "SGK işveren payının yarısı 24-54 ay Hazine tarafından karşılanır",
-      "sartlar": [
-        "İŞKUR'a kayıtlı olması",
-        "İşe alım tarihinden önceki 6 ayda sigortalı olmaması"
-      ]
+      "sartlar": ["İŞKUR'a kayıtlı olması", "İşe alım tarihinden önceki 6 ayda sigortalı olmaması"]
     },
     "5_puanlik_indirim": {
       "aciklama": "Tüm işverenlere uygulanan prim indirimi",
       "destek": "SGK işveren priminden 5 puan indirim",
-      "sartlar": [
-        "SGK prim borcunun bulunmaması",
-        "Belgelerin zamanında verilmesi"
-      ]
+      "sartlar": ["SGK prim borcunun bulunmaması", "Belgelerin zamanında verilmesi"]
     }
   },
-  
+
   "sgk_eksik_gun_kodlari": {
     "01": "İstirahat (rapor)",
     "02": "Ücretsiz/aylıksız izin",
@@ -58,7 +52,7 @@
     "21": "Yol izni",
     "22": "Diğer ücretsiz izin"
   },
-  
+
   "onemli_sureler": {
     "sgk_islem_sureleri": {
       "ise_giris_bildirimi": "İşe başlamadan önce veya işe başladığı gün",
@@ -72,4 +66,3 @@
     }
   }
 }
-

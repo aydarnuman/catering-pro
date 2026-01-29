@@ -109,8 +109,7 @@ export function useUyumsoftFaturalar(
         }
       } catch (err: unknown) {
         const msg =
-          err instanceof Error &&
-          (err.name === 'AbortError' || /abort|timeout/i.test(err.message))
+          err instanceof Error && (err.name === 'AbortError' || /abort|timeout/i.test(err.message))
             ? 'Uyumsoft servisi zaman aşımına uğradı. İnternet bağlantınızı ve Uyumsoft erişimini kontrol edin.'
             : err instanceof Error
               ? err.message

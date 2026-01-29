@@ -3,7 +3,7 @@
   "kanun_no": "4857",
   "kanun_adi": "İş Kanunu",
   "resmi_gazete": "10.06.2003 tarih ve 25134 sayılı",
-  
+
   "kidem_tazminati": {
     "hesaplama": "Her tam yıl için 30 günlük brüt ücret",
     "tavan_2026_ocak": 35058.58,
@@ -23,7 +23,7 @@
       "1 yıldan az çalışma"
     ]
   },
-  
+
   "ihbar_tazminati": {
     "sureler": [
       { "kidem": "0-6 ay", "sure_hafta": 2, "gun": 14 },
@@ -33,7 +33,7 @@
     ],
     "aciklama": "İhbar süresine uymayan taraf, karşı tarafa ihbar tazminatı öder"
   },
-  
+
   "yillik_izin": {
     "hak_edis_suresi": "1 yıl çalışma",
     "sureler": [
@@ -49,7 +49,7 @@
       "İş sözleşmesi sona erdiğinde kullanılmayan izinler ücret olarak ödenir"
     ]
   },
-  
+
   "fazla_mesai": {
     "haftalik_calisma": 45,
     "gunluk_maksimum": 11,
@@ -57,17 +57,16 @@
     "yillik_fazla_mesai_limiti": 270,
     "serbest_zaman": "Her 1 saat fazla mesai için 1.5 saat serbest zaman verilebilir"
   },
-  
+
   "deneme_suresi": {
     "sure": "En fazla 2 ay",
     "toplu_sozlesmede": "En fazla 4 ay",
     "fesih": "Deneme süresinde her iki taraf da tazminatsız feshedebilir"
   },
-  
+
   "fesih_bildirimi": {
     "madde_17": "Belirsiz süreli sözleşmelerde fesih bildirimi",
     "madde_24": "İşçinin haklı nedenle fesih hakkı",
     "madde_25": "İşverenin haklı nedenle fesih hakkı"
   }
 }
-

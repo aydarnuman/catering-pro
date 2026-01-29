@@ -3,16 +3,16 @@
  * Login session'ını dosyada saklar
  */
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SESSION_FILE = path.join(__dirname, '../../storage/session.json');
 
 class SessionManager {
   constructor() {
-    this.sessionTTL = parseInt(process.env.SESSION_TTL_HOURS || '8') * 60 * 60 * 1000; // 8 saat
+    this.sessionTTL = parseInt(process.env.SESSION_TTL_HOURS || '8', 10) * 60 * 60 * 1000; // 8 saat
   }
 
   /**
@@ -25,7 +25,7 @@ class SessionManager {
       username,
       createdAt: Date.now(),
       expiresAt: Date.now() + this.sessionTTL,
-      lastUsedAt: Date.now()
+      lastUsedAt: Date.now(),
     };
 
     // Klasörü oluştur
@@ -35,7 +35,6 @@ class SessionManager {
     }
 
     fs.writeFileSync(SESSION_FILE, JSON.stringify(session, null, 2));
-    console.log(`✅ Session kaydedildi: ${session.id}`);
     return session;
   }
 
@@ -53,7 +52,6 @@ class SessionManager {
 
       // Süre kontrolü
       if (Date.now() > session.expiresAt) {
-        console.log('⚠️ Session süresi dolmuş');
         this.clearSession();
         return null;
       }
@@ -63,8 +61,7 @@ class SessionManager {
       fs.writeFileSync(SESSION_FILE, JSON.stringify(session, null, 2));
 
       return session;
-    } catch (error) {
-      console.error('❌ Session yükleme hatası:', error.message);
+    } catch (_error) {
       return null;
     }
   }
@@ -76,11 +73,8 @@ class SessionManager {
     try {
       if (fs.existsSync(SESSION_FILE)) {
         fs.unlinkSync(SESSION_FILE);
-        console.log('🗑️ Session silindi');
       }
-    } catch (error) {
-      console.error('❌ Session silme hatası:', error.message);
-    }
+    } catch (_error) {}
   }
 
   /**
@@ -88,7 +82,7 @@ class SessionManager {
    */
   async isSessionValid() {
     const session = await this.loadSession();
-    return session !== null && session.cookies && session.cookies.length > 0;
+    return session?.cookies && session.cookies.length > 0;
   }
 
   /**
@@ -97,7 +91,6 @@ class SessionManager {
   async applyCookies(page, cookies) {
     if (cookies && cookies.length > 0) {
       await page.setCookie(...cookies);
-      console.log(`🍪 ${cookies.length} cookie uygulandı`);
     }
   }
 }

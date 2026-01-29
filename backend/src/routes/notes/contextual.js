@@ -73,24 +73,23 @@ router.get('/:type/:id', async (req, res) => {
       LIMIT $4 OFFSET $5
     `;
 
-    const result = await pool.query(query, [userId, type, parseInt(id), parseInt(limit), parseInt(offset)]);
+    const result = await pool.query(query, [userId, type, parseInt(id, 10), parseInt(limit, 10), parseInt(offset, 10)]);
 
     // Get total count
     const countResult = await pool.query(
       `SELECT COUNT(*) as total FROM unified_notes
        WHERE user_id = $1 AND context_type = $2 AND context_id = $3`,
-      [userId, type, parseInt(id)]
+      [userId, type, parseInt(id, 10)]
     );
 
     res.json({
       success: true,
       notes: result.rows,
-      total: parseInt(countResult.rows[0].total),
+      total: parseInt(countResult.rows[0].total, 10),
       context_type: type,
-      context_id: parseInt(id)
+      context_id: parseInt(id, 10),
     });
-  } catch (error) {
-    console.error('Error fetching context notes:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, message: 'Notlar yüklenirken hata oluştu' });
   }
 });
@@ -114,7 +113,7 @@ router.post('/:type/:id', async (req, res) => {
       pinned = false,
       due_date = null,
       reminder_date = null,
-      tags = []
+      tags = [],
     } = req.body;
 
     if (!VALID_CONTEXT_TYPES.includes(type)) {
@@ -132,7 +131,7 @@ router.post('/:type/:id', async (req, res) => {
       `SELECT COALESCE(MAX(sort_order), 0) + 1 as next_order
        FROM unified_notes
        WHERE user_id = $1 AND context_type = $2 AND context_id = $3`,
-      [userId, type, parseInt(contextId)]
+      [userId, type, parseInt(contextId, 10)]
     );
     const sortOrder = orderResult.rows[0].next_order;
 
@@ -149,7 +148,7 @@ router.post('/:type/:id', async (req, res) => {
     const noteResult = await client.query(insertQuery, [
       userId,
       type,
-      parseInt(contextId),
+      parseInt(contextId, 10),
       content.trim(),
       content_format,
       is_task,
@@ -158,7 +157,7 @@ router.post('/:type/:id', async (req, res) => {
       pinned,
       due_date,
       reminder_date,
-      sortOrder
+      sortOrder,
     ]);
 
     const note = noteResult.rows[0];
@@ -166,7 +165,7 @@ router.post('/:type/:id', async (req, res) => {
     // Add tags
     const addedTags = [];
     for (const tagName of tags) {
-      if (tagName && tagName.trim()) {
+      if (tagName?.trim()) {
         const tagResult = await client.query(
           `INSERT INTO note_tags_master (user_id, name)
            VALUES ($1, $2)
@@ -176,10 +175,10 @@ router.post('/:type/:id', async (req, res) => {
         );
         const tag = tagResult.rows[0];
 
-        await client.query(
-          `INSERT INTO note_tags (note_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-          [note.id, tag.id]
-        );
+        await client.query(`INSERT INTO note_tags (note_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [
+          note.id,
+          tag.id,
+        ]);
 
         addedTags.push(tag);
       }
@@ -205,13 +204,12 @@ router.post('/:type/:id', async (req, res) => {
         ...note,
         tags: addedTags,
         attachments: [],
-        reminders
+        reminders,
       },
-      message: 'Not başarıyla oluşturuldu'
+      message: 'Not başarıyla oluşturuldu',
     });
-  } catch (error) {
+  } catch (_error) {
     await client.query('ROLLBACK');
-    console.error('Error creating context note:', error);
     res.status(500).json({ success: false, message: 'Not oluşturulurken hata oluştu' });
   } finally {
     client.release();
@@ -246,16 +244,15 @@ router.put('/:type/:id/reorder', async (req, res) => {
         `UPDATE unified_notes
          SET sort_order = $1
          WHERE id = $2 AND user_id = $3 AND context_type = $4 AND context_id = $5`,
-        [i, noteIds[i], userId, type, parseInt(contextId)]
+        [i, noteIds[i], userId, type, parseInt(contextId, 10)]
       );
     }
 
     await client.query('COMMIT');
 
     res.json({ success: true, message: 'Sıralama güncellendi' });
-  } catch (error) {
+  } catch (_error) {
     await client.query('ROLLBACK');
-    console.error('Error reordering context notes:', error);
     res.status(500).json({ success: false, message: 'Sıralama güncellenirken hata oluştu' });
   } finally {
     client.release();

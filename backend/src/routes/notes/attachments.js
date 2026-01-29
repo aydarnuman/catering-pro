@@ -3,10 +3,10 @@
  * Handles file attachments for notes
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import express from 'express';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 import { pool } from '../../database.js';
 import { authenticate } from '../../middleware/auth.js';
 
@@ -25,18 +25,18 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 
 // Configure multer storage
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: (_req, _file, cb) => {
     cb(null, UPLOAD_DIR);
   },
-  filename: (req, file, cb) => {
+  filename: (_req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     const ext = path.extname(file.originalname);
     cb(null, `note-${uniqueSuffix}${ext}`);
-  }
+  },
 });
 
 // File filter
-const fileFilter = (req, file, cb) => {
+const fileFilter = (_req, file, cb) => {
   const allowedMimes = [
     'image/jpeg',
     'image/png',
@@ -48,7 +48,7 @@ const fileFilter = (req, file, cb) => {
     'application/vnd.ms-excel',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'text/plain',
-    'text/csv'
+    'text/csv',
   ];
 
   if (allowedMimes.includes(file.mimetype)) {
@@ -63,8 +63,8 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB
-  }
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
 });
 
 /**
@@ -81,10 +81,7 @@ router.post('/:noteId', upload.single('file'), async (req, res) => {
     }
 
     // Verify note ownership
-    const noteCheck = await pool.query(
-      `SELECT id FROM unified_notes WHERE id = $1 AND user_id = $2`,
-      [noteId, userId]
-    );
+    const noteCheck = await pool.query(`SELECT id FROM unified_notes WHERE id = $1 AND user_id = $2`, [noteId, userId]);
 
     if (noteCheck.rows.length === 0) {
       // Delete uploaded file
@@ -99,15 +96,7 @@ router.post('/:noteId', upload.single('file'), async (req, res) => {
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *`,
-      [
-        noteId,
-        userId,
-        req.file.filename,
-        req.file.originalname,
-        req.file.path,
-        req.file.size,
-        req.file.mimetype
-      ]
+      [noteId, userId, req.file.filename, req.file.originalname, req.file.path, req.file.size, req.file.mimetype]
     );
 
     res.status(201).json({
@@ -117,16 +106,15 @@ router.post('/:noteId', upload.single('file'), async (req, res) => {
         filename: result.rows[0].filename,
         original_filename: result.rows[0].original_filename,
         file_type: result.rows[0].file_type,
-        file_size: result.rows[0].file_size
+        file_size: result.rows[0].file_size,
       },
-      message: 'Dosya yüklendi'
+      message: 'Dosya yüklendi',
     });
-  } catch (error) {
+  } catch (_error) {
     // Clean up uploaded file on error
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
-    console.error('Error uploading attachment:', error);
     res.status(500).json({ success: false, message: 'Dosya yüklenirken hata oluştu' });
   }
 });
@@ -172,8 +160,7 @@ router.get('/:id/download', async (req, res) => {
     // Stream file
     const fileStream = fs.createReadStream(attachment.file_path);
     fileStream.pipe(res);
-  } catch (error) {
-    console.error('Error downloading attachment:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, message: 'Dosya indirilirken hata oluştu' });
   }
 });
@@ -213,14 +200,10 @@ router.delete('/:id', async (req, res) => {
     }
 
     // Delete from database
-    await pool.query(
-      `DELETE FROM unified_note_attachments WHERE id = $1`,
-      [id]
-    );
+    await pool.query(`DELETE FROM unified_note_attachments WHERE id = $1`, [id]);
 
     res.json({ success: true, message: 'Dosya silindi' });
-  } catch (error) {
-    console.error('Error deleting attachment:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, message: 'Dosya silinirken hata oluştu' });
   }
 });
@@ -235,10 +218,7 @@ router.get('/note/:noteId', async (req, res) => {
     const { noteId } = req.params;
 
     // Verify note ownership
-    const noteCheck = await pool.query(
-      `SELECT id FROM unified_notes WHERE id = $1 AND user_id = $2`,
-      [noteId, userId]
-    );
+    const noteCheck = await pool.query(`SELECT id FROM unified_notes WHERE id = $1 AND user_id = $2`, [noteId, userId]);
 
     if (noteCheck.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Not bulunamadı' });
@@ -254,19 +234,18 @@ router.get('/note/:noteId', async (req, res) => {
 
     res.json({
       success: true,
-      attachments: result.rows
+      attachments: result.rows,
     });
-  } catch (error) {
-    console.error('Error fetching attachments:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, message: 'Dosyalar yüklenirken hata oluştu' });
   }
 });
 
 // Error handling for multer
-router.use((error, req, res, next) => {
+router.use((error, _req, res, next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ success: false, message: 'Dosya boyutu 10MB\'ı geçemez' });
+      return res.status(400).json({ success: false, message: "Dosya boyutu 10MB'ı geçemez" });
     }
     return res.status(400).json({ success: false, message: error.message });
   }

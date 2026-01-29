@@ -1,13 +1,13 @@
 /**
  * List Scraper - İhale Listesi Tarayıcı
- * 
+ *
  * ihalebul.com kategori 15 (Hazır Yemek) sayfalarını tarar
  * ve ihaleleri veritabanına kaydeder.
  */
 
-import loginService from './login-service.js';
-import documentScraper from './document-scraper.js';
 import { query } from '../database.js';
+import documentScraper from './document-scraper.js';
+import loginService from './login-service.js';
 
 const CATEGORY_URL = 'https://www.ihalebul.com/tenders/search?workcategory_in=15';
 const PAGE_DELAY = 2000;
@@ -18,125 +18,101 @@ const PAGE_DELAY = 2000;
 export async function scrapeList(page, options = {}) {
   const { maxPages = 100, startPage = 1, includeDocuments = false, onPageComplete = null } = options;
 
-  console.log(`📋 Liste scraping başlıyor (sayfa ${startPage}-${maxPages})`);
-
   const stats = { pages_scraped: 0, tenders_found: 0, tenders_new: 0, tenders_updated: 0 };
+  // Login kontrol
+  await loginService.ensureLoggedIn(page);
+  await delay(3000);
 
-  try {
-    // Login kontrol
-    await loginService.ensureLoggedIn(page);
-    await delay(3000);
+  // Başlangıç sayfasına git
+  const startUrl = startPage > 1 ? `${CATEGORY_URL}&page=${startPage}` : CATEGORY_URL;
+  await page.goto(startUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+  await delay(PAGE_DELAY);
 
-    // Başlangıç sayfasına git
-    const startUrl = startPage > 1 ? `${CATEGORY_URL}&page=${startPage}` : CATEGORY_URL;
-    await page.goto(startUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-    await delay(PAGE_DELAY);
+  let currentPage = startPage;
 
-    let currentPage = startPage;
+  // Sayfa döngüsü
+  while (currentPage <= maxPages) {
+    // Login kontrolü
+    if (!(await loginService.isLoggedIn(page))) {
+      await loginService.forceRelogin(page);
+      await page.goto(`${CATEGORY_URL}&page=${currentPage}`, { waitUntil: 'networkidle2', timeout: 30000 });
+      await delay(PAGE_DELAY);
+    }
 
-    // Sayfa döngüsü
-    while (currentPage <= maxPages) {
-      console.log(`📄 Sayfa ${currentPage} işleniyor...`);
+    // Scroll (lazy load için)
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await delay(1000);
 
-      // Login kontrolü
-      if (!await loginService.isLoggedIn(page)) {
-        console.log('⚠️ Login gerekli, tekrar giriş yapılıyor...');
-        await loginService.forceRelogin(page);
-        await page.goto(`${CATEGORY_URL}&page=${currentPage}`, { waitUntil: 'networkidle2', timeout: 30000 });
-        await delay(PAGE_DELAY);
-      }
+    // İhaleleri çıkar
+    const tenders = await extractTenders(page);
 
-      // Scroll (lazy load için)
-      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      await delay(1000);
+    if (tenders.length === 0) {
+      break;
+    }
 
-      // İhaleleri çıkar
-      const tenders = await extractTenders(page);
+    // Maskelenmiş veri kontrolü
+    const maskedCount = tenders.filter((t) => isMasked(t)).length;
+    if (maskedCount > tenders.length * 0.3) {
+      await loginService.forceRelogin(page);
+      continue;
+    }
 
-      if (tenders.length === 0) {
-        console.log('⚠️ Hiç ihale bulunamadı - muhtemelen son sayfa');
-        break;
-      }
-
-      console.log(`   ${tenders.length} ihale bulundu`);
-
-      // Maskelenmiş veri kontrolü
-      const maskedCount = tenders.filter(t => isMasked(t)).length;
-      if (maskedCount > tenders.length * 0.3) {
-        console.log('⚠️ Çok fazla maskelenmiş veri - login sorunu');
-        await loginService.forceRelogin(page);
-        continue;
-      }
-
-      // Döküman içerikleri çek (opsiyonel)
-      if (includeDocuments) {
-        console.log('   Döküman içerikleri çekiliyor...');
-        for (const tender of tenders) {
-          if (isMasked(tender)) continue;
-          try {
-            const content = await documentScraper.scrapeAllContent(page, tender.url);
-            Object.assign(tender, {
-              document_links: content.documentLinks,
-              announcement_content: content.announcementContent,
-              goods_services_content: content.goodsServicesList,
-              zeyilname_content: content.zeyilnameContent,
-              correction_notice_content: content.correctionNoticeContent,
-              is_updated: !!(content.zeyilnameContent || content.correctionNoticeContent)
-            });
-            await delay(1000);
-          } catch (e) {
-            console.log(`   ⚠️ ${tender.id} içerik hatası: ${e.message}`);
-          }
-        }
-        // Liste sayfasına geri dön
-        await page.goto(`${CATEGORY_URL}&page=${currentPage}`, { waitUntil: 'networkidle2', timeout: 30000 });
-        await delay(1000);
-      }
-
-      // Veritabanına kaydet
+    // Döküman içerikleri çek (opsiyonel)
+    if (includeDocuments) {
       for (const tender of tenders) {
         if (isMasked(tender)) continue;
         try {
-          const result = await saveTender(tender);
-          if (result?.is_new) stats.tenders_new++;
-          else stats.tenders_updated++;
-        } catch (e) {
-          console.log(`   ❌ Kayıt hatası: ${e.message}`);
-        }
+          const content = await documentScraper.scrapeAllContent(page, tender.url);
+          Object.assign(tender, {
+            document_links: content.documentLinks,
+            announcement_content: content.announcementContent,
+            goods_services_content: content.goodsServicesList,
+            zeyilname_content: content.zeyilnameContent,
+            correction_notice_content: content.correctionNoticeContent,
+            is_updated: !!(content.zeyilnameContent || content.correctionNoticeContent),
+          });
+          await delay(1000);
+        } catch (_e) {}
       }
-
-      stats.pages_scraped++;
-      stats.tenders_found += tenders.length;
-
-      if (onPageComplete) onPageComplete(currentPage, tenders);
-
-      // Sonraki sayfa
-      const hasNext = await page.evaluate((current) => {
-        const select = document.querySelector('select[name="page"]');
-        if (select) {
-          const options = Array.from(select.querySelectorAll('option'));
-          return current < options.length;
-        }
-        return false;
-      }, currentPage);
-
-      if (!hasNext) {
-        console.log('✅ Son sayfaya ulaşıldı');
-        break;
-      }
-
-      await page.goto(`${CATEGORY_URL}&page=${currentPage + 1}`, { waitUntil: 'networkidle2', timeout: 30000 });
-      await delay(PAGE_DELAY);
-      currentPage++;
+      // Liste sayfasına geri dön
+      await page.goto(`${CATEGORY_URL}&page=${currentPage}`, { waitUntil: 'networkidle2', timeout: 30000 });
+      await delay(1000);
     }
 
-    console.log(`✅ Liste scraping tamamlandı: ${stats.pages_scraped} sayfa, ${stats.tenders_new} yeni, ${stats.tenders_updated} güncellenen`);
-    return { success: true, stats };
+    // Veritabanına kaydet
+    for (const tender of tenders) {
+      if (isMasked(tender)) continue;
+      try {
+        const result = await saveTender(tender);
+        if (result?.is_new) stats.tenders_new++;
+        else stats.tenders_updated++;
+      } catch (_e) {}
+    }
 
-  } catch (error) {
-    console.error('❌ Liste scraping hatası:', error.message);
-    throw error;
+    stats.pages_scraped++;
+    stats.tenders_found += tenders.length;
+
+    if (onPageComplete) onPageComplete(currentPage, tenders);
+
+    // Sonraki sayfa
+    const hasNext = await page.evaluate((current) => {
+      const select = document.querySelector('select[name="page"]');
+      if (select) {
+        const options = Array.from(select.querySelectorAll('option'));
+        return current < options.length;
+      }
+      return false;
+    }, currentPage);
+
+    if (!hasNext) {
+      break;
+    }
+
+    await page.goto(`${CATEGORY_URL}&page=${currentPage + 1}`, { waitUntil: 'networkidle2', timeout: 30000 });
+    await delay(PAGE_DELAY);
+    currentPage++;
   }
+  return { success: true, stats };
 }
 
 /**
@@ -146,11 +122,12 @@ async function extractTenders(page) {
   return await page.evaluate(() => {
     const tenders = [];
 
-    document.querySelectorAll('.card.border-secondary.my-2.mx-1').forEach(card => {
+    document.querySelectorAll('.card.border-secondary.my-2.mx-1').forEach((card) => {
       try {
         // Detay linki
-        const detailLink = Array.from(card.querySelectorAll('a[href*="/tender/"]'))
-          .find(a => a.href.match(/\/tender\/\d+$/));
+        const detailLink = Array.from(card.querySelectorAll('a[href*="/tender/"]')).find((a) =>
+          a.href.match(/\/tender\/\d+$/)
+        );
         if (!detailLink) return;
 
         const url = detailLink.href;
@@ -179,17 +156,17 @@ async function extractTenders(page) {
 
         // Döküman butonları - URL pattern'ine göre tip belirle (daha güvenilir)
         const documentButtons = {};
-        card.querySelectorAll('a.btn[href*="/tender/"]').forEach(btn => {
+        card.querySelectorAll('a.btn[href*="/tender/"]').forEach((btn) => {
           const href = btn.href;
           const fullUrl = href.startsWith('http') ? href : 'https://ihalebul.com' + href;
-          
+
           // URL pattern: /tender/{id}/{type_code}
           const match = fullUrl.match(/\/tender\/\d+\/(\d+)/);
           if (!match) return;
-          
+
           const typeCode = match[1];
           const originalText = btn.textContent.trim();
-          
+
           // ihalebul.com URL kodları:
           // 2 = İhale İlanı
           // 3 = Düzeltme İlanı
@@ -198,19 +175,19 @@ async function extractTenders(page) {
           // 8 = Teknik Şartname
           // 9 = Zeyilname
           const typeMap = {
-            '2': { type: 'announcement', defaultName: 'İhale İlanı' },
-            '3': { type: 'correction_notice', defaultName: 'Düzeltme İlanı' },
-            '6': { type: 'goods_list', defaultName: 'Malzeme Listesi' },
-            '7': { type: 'admin_spec', defaultName: 'İdari Şartname' },
-            '8': { type: 'tech_spec', defaultName: 'Teknik Şartname' },
-            '9': { type: 'zeyilname', defaultName: 'Zeyilname' }
+            2: { type: 'announcement', defaultName: 'İhale İlanı' },
+            3: { type: 'correction_notice', defaultName: 'Düzeltme İlanı' },
+            6: { type: 'goods_list', defaultName: 'Malzeme Listesi' },
+            7: { type: 'admin_spec', defaultName: 'İdari Şartname' },
+            8: { type: 'tech_spec', defaultName: 'Teknik Şartname' },
+            9: { type: 'zeyilname', defaultName: 'Zeyilname' },
           };
-          
+
           const typeInfo = typeMap[typeCode];
           if (typeInfo) {
-            documentButtons[typeInfo.type] = { 
-              name: originalText || typeInfo.defaultName, 
-              url: fullUrl.split('?')[0] // Query string'i temizle
+            documentButtons[typeInfo.type] = {
+              name: originalText || typeInfo.defaultName,
+              url: fullUrl.split('?')[0], // Query string'i temizle
             };
           }
         });
@@ -225,7 +202,7 @@ async function extractTenders(page) {
           tutar: extract(['maliyet', 'bedel']),
           sure: extract(['İşin süresi']),
           url: url.startsWith('http') ? url : `https://www.ihalebul.com${url}`,
-          documentButtons: Object.keys(documentButtons).length > 0 ? documentButtons : null
+          documentButtons: Object.keys(documentButtons).length > 0 ? documentButtons : null,
         });
       } catch {}
     });
@@ -238,7 +215,7 @@ async function extractTenders(page) {
  * Maskelenmiş veri kontrolü
  */
 function isMasked(tender) {
-  return [tender.kurum, tender.baslik, tender.kayitNo].some(f => f?.includes('***'));
+  return [tender.kurum, tender.baslik, tender.kayitNo].some((f) => f?.includes('***'));
 }
 
 /**
@@ -264,10 +241,11 @@ async function saveTender(tender) {
     goods_services_content: tender.goods_services_content || null,
     zeyilname_content: tender.zeyilname_content || null,
     correction_notice_content: tender.correction_notice_content || null,
-    is_updated: tender.is_updated || false
+    is_updated: tender.is_updated || false,
   };
 
-  const result = await query(`
+  const result = await query(
+    `
     INSERT INTO tenders (
       external_id, ikn, title, city, organization_name, tender_date, estimated_cost,
       work_duration, url, tender_source, category_id, category_name,
@@ -288,17 +266,28 @@ async function saveTender(tender) {
       is_updated = COALESCE(EXCLUDED.is_updated, tenders.is_updated),
       updated_at = NOW()
     RETURNING id, external_id, (xmax = 0) as is_new
-  `, [
-    data.external_id, data.ikn, data.title, data.city, data.organization_name,
-    data.tender_date, data.estimated_cost, data.work_duration, data.url,
-    data.tender_source, data.category_id, data.category_name,
-    data.document_links ? JSON.stringify(data.document_links) : null,
-    data.announcement_content,
-    data.goods_services_content ? JSON.stringify(data.goods_services_content) : null,
-    data.zeyilname_content ? JSON.stringify(data.zeyilname_content) : null,
-    data.correction_notice_content ? JSON.stringify(data.correction_notice_content) : null,
-    data.is_updated
-  ]);
+  `,
+    [
+      data.external_id,
+      data.ikn,
+      data.title,
+      data.city,
+      data.organization_name,
+      data.tender_date,
+      data.estimated_cost,
+      data.work_duration,
+      data.url,
+      data.tender_source,
+      data.category_id,
+      data.category_name,
+      data.document_links ? JSON.stringify(data.document_links) : null,
+      data.announcement_content,
+      data.goods_services_content ? JSON.stringify(data.goods_services_content) : null,
+      data.zeyilname_content ? JSON.stringify(data.zeyilname_content) : null,
+      data.correction_notice_content ? JSON.stringify(data.correction_notice_content) : null,
+      data.is_updated,
+    ]
+  );
 
   return result.rows[0];
 }
@@ -326,13 +315,16 @@ function parseAmount(str) {
   if (rangeMatch) {
     return parseFloat(rangeMatch[1].replace(/\./g, '').replace(',', '.'));
   }
-  const clean = str.replace(/[^\d.,]/g, '').replace(/\./g, '').replace(',', '.');
+  const clean = str
+    .replace(/[^\d.,]/g, '')
+    .replace(/\./g, '')
+    .replace(',', '.');
   const amount = parseFloat(clean);
-  return isNaN(amount) ? null : amount;
+  return Number.isNaN(amount) ? null : amount;
 }
 
 function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export default { scrapeList };

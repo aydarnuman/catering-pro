@@ -30,10 +30,9 @@ router.get('/', async (req, res) => {
 
     res.json({
       success: true,
-      tags: result.rows
+      tags: result.rows,
     });
-  } catch (error) {
-    console.error('Error fetching tags:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, message: 'Etiketler yüklenirken hata oluştu' });
   }
 });
@@ -60,16 +59,15 @@ router.get('/suggestions', async (req, res) => {
     }
 
     query += ` ORDER BY usage_count DESC, name ASC LIMIT $${params.length + 1}`;
-    params.push(parseInt(limit));
+    params.push(parseInt(limit, 10));
 
     const result = await pool.query(query, params);
 
     res.json({
       success: true,
-      suggestions: result.rows
+      suggestions: result.rows,
     });
-  } catch (error) {
-    console.error('Error fetching tag suggestions:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, message: 'Etiket önerileri yüklenirken hata oluştu' });
   }
 });
@@ -98,10 +96,9 @@ router.post('/', async (req, res) => {
     res.status(201).json({
       success: true,
       tag: result.rows[0],
-      message: 'Etiket oluşturuldu'
+      message: 'Etiket oluşturuldu',
     });
-  } catch (error) {
-    console.error('Error creating tag:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, message: 'Etiket oluşturulurken hata oluştu' });
   }
 });
@@ -139,7 +136,7 @@ router.put('/:tagId', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Güncellenecek veri yok' });
     }
 
-    params.push(parseInt(tagId), userId);
+    params.push(parseInt(tagId, 10), userId);
     const result = await pool.query(
       `UPDATE note_tags_master
        SET ${updates.join(', ')}
@@ -155,10 +152,9 @@ router.put('/:tagId', async (req, res) => {
     res.json({
       success: true,
       tag: result.rows[0],
-      message: 'Etiket güncellendi'
+      message: 'Etiket güncellendi',
     });
-  } catch (error) {
-    console.error('Error updating tag:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, message: 'Etiket güncellenirken hata oluştu' });
   }
 });
@@ -176,7 +172,7 @@ router.delete('/:tagId', async (req, res) => {
       `DELETE FROM note_tags_master
        WHERE id = $1 AND user_id = $2
        RETURNING id`,
-      [parseInt(tagId), userId]
+      [parseInt(tagId, 10), userId]
     );
 
     if (result.rows.length === 0) {
@@ -184,8 +180,7 @@ router.delete('/:tagId', async (req, res) => {
     }
 
     res.json({ success: true, message: 'Etiket silindi' });
-  } catch (error) {
-    console.error('Error deleting tag:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, message: 'Etiket silinirken hata oluştu' });
   }
 });

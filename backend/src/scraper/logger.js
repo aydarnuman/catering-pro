@@ -20,27 +20,37 @@ class Logger {
   async log(level, module, message, data = {}) {
     if (LOG_LEVELS[level] < this.level) return;
 
-    const timestamp = new Date().toISOString();
-    const emoji = { DEBUG: '🔍', INFO: 'ℹ️', WARN: '⚠️', ERROR: '❌', FATAL: '💀' }[level] || '';
-    
-    console.log(`${timestamp} ${emoji} [${module}] ${message}`, Object.keys(data).length ? data : '');
+    const _timestamp = new Date().toISOString();
+    const _emoji = { DEBUG: '🔍', INFO: 'ℹ️', WARN: '⚠️', ERROR: '❌', FATAL: '💀' }[level] || '';
 
     // DB'ye kaydet
     if (LOG_TO_DB && LOG_LEVELS[level] >= LOG_LEVELS.WARN) {
       try {
-        await query(
-          'INSERT INTO scraper_logs (level, module, message, data) VALUES ($1, $2, $3, $4)',
-          [level, module, message, JSON.stringify(data)]
-        );
+        await query('INSERT INTO scraper_logs (level, module, message, data) VALUES ($1, $2, $3, $4)', [
+          level,
+          module,
+          message,
+          JSON.stringify(data),
+        ]);
       } catch {}
     }
   }
 
-  debug(module, message, data) { return this.log('DEBUG', module, message, data); }
-  info(module, message, data) { return this.log('INFO', module, message, data); }
-  warn(module, message, data) { return this.log('WARN', module, message, data); }
-  error(module, message, data) { return this.log('ERROR', module, message, data); }
-  fatal(module, message, data) { return this.log('FATAL', module, message, data); }
+  debug(module, message, data) {
+    return this.log('DEBUG', module, message, data);
+  }
+  info(module, message, data) {
+    return this.log('INFO', module, message, data);
+  }
+  warn(module, message, data) {
+    return this.log('WARN', module, message, data);
+  }
+  error(module, message, data) {
+    return this.log('ERROR', module, message, data);
+  }
+  fatal(module, message, data) {
+    return this.log('FATAL', module, message, data);
+  }
 
   /**
    * Session başlat (süre ölçümü için)
@@ -55,7 +65,7 @@ class Logger {
         const duration = Date.now() - startTime;
         this.info(module, 'Session tamamlandı', { ...data, duration_ms: duration });
         return { duration_ms: duration, ...data };
-      }
+      },
     };
   }
 }

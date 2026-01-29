@@ -29,7 +29,7 @@ router.get('/', async (req, res) => {
       due_date_to,
       search,
       limit = 100,
-      offset = 0
+      offset = 0,
     } = req.query;
 
     let query = `
@@ -139,7 +139,7 @@ router.get('/', async (req, res) => {
         n.created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
-    params.push(parseInt(limit), parseInt(offset));
+    params.push(parseInt(limit, 10), parseInt(offset, 10));
 
     const result = await pool.query(query, params);
 
@@ -154,12 +154,11 @@ router.get('/', async (req, res) => {
     res.json({
       success: true,
       notes: result.rows,
-      total: parseInt(countResult.rows[0].total),
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      total: parseInt(countResult.rows[0].total, 10),
+      limit: parseInt(limit, 10),
+      offset: parseInt(offset, 10),
     });
-  } catch (error) {
-    console.error('Error fetching personal notes:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, message: 'Notlar yüklenirken hata oluştu' });
   }
 });
@@ -217,8 +216,7 @@ router.get('/:id', async (req, res) => {
     }
 
     res.json({ success: true, note: result.rows[0] });
-  } catch (error) {
-    console.error('Error fetching note:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, message: 'Not yüklenirken hata oluştu' });
   }
 });
@@ -241,7 +239,7 @@ router.post('/', async (req, res) => {
       pinned = false,
       due_date = null,
       reminder_date = null,
-      tags = []
+      tags = [],
     } = req.body;
 
     if (!content || content.trim() === '') {
@@ -279,7 +277,7 @@ router.post('/', async (req, res) => {
       pinned,
       due_date,
       reminder_date,
-      sortOrder
+      sortOrder,
     ]);
 
     const note = noteResult.rows[0];
@@ -287,7 +285,7 @@ router.post('/', async (req, res) => {
     // Add tags
     const addedTags = [];
     for (const tagName of tags) {
-      if (tagName && tagName.trim()) {
+      if (tagName?.trim()) {
         // Get or create tag
         const tagResult = await client.query(
           `INSERT INTO note_tags_master (user_id, name)
@@ -299,10 +297,10 @@ router.post('/', async (req, res) => {
         const tag = tagResult.rows[0];
 
         // Link tag to note
-        await client.query(
-          `INSERT INTO note_tags (note_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-          [note.id, tag.id]
-        );
+        await client.query(`INSERT INTO note_tags (note_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [
+          note.id,
+          tag.id,
+        ]);
 
         addedTags.push(tag);
       }
@@ -328,13 +326,12 @@ router.post('/', async (req, res) => {
         ...note,
         tags: addedTags,
         attachments: [],
-        reminders
+        reminders,
       },
-      message: 'Not başarıyla oluşturuldu'
+      message: 'Not başarıyla oluşturuldu',
     });
-  } catch (error) {
+  } catch (_error) {
     await client.query('ROLLBACK');
-    console.error('Error creating note:', error);
     res.status(500).json({ success: false, message: 'Not oluşturulurken hata oluştu' });
   } finally {
     client.release();
@@ -362,16 +359,13 @@ router.put('/:id', async (req, res) => {
       due_date,
       reminder_date,
       sort_order,
-      tags
+      tags,
     } = req.body;
 
     await client.query('BEGIN');
 
     // Verify note ownership
-    const checkResult = await client.query(
-      `SELECT id FROM unified_notes WHERE id = $1 AND user_id = $2`,
-      [id, userId]
-    );
+    const checkResult = await client.query(`SELECT id FROM unified_notes WHERE id = $1 AND user_id = $2`, [id, userId]);
 
     if (checkResult.rows.length === 0) {
       await client.query('ROLLBACK');
@@ -472,7 +466,7 @@ router.put('/:id', async (req, res) => {
 
       // Add new tags
       for (const tagName of tags) {
-        if (tagName && tagName.trim()) {
+        if (tagName?.trim()) {
           const tagResult = await client.query(
             `INSERT INTO note_tags_master (user_id, name)
              VALUES ($1, $2)
@@ -480,10 +474,10 @@ router.put('/:id', async (req, res) => {
              RETURNING id`,
             [userId, tagName.trim()]
           );
-          await client.query(
-            `INSERT INTO note_tags (note_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-            [id, tagResult.rows[0].id]
-          );
+          await client.query(`INSERT INTO note_tags (note_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [
+            id,
+            tagResult.rows[0].id,
+          ]);
         }
       }
     }
@@ -491,10 +485,7 @@ router.put('/:id', async (req, res) => {
     // Update reminder if provided
     if (reminder_date !== undefined) {
       // Remove existing unsent reminders
-      await client.query(
-        `DELETE FROM unified_note_reminders WHERE note_id = $1 AND reminder_sent = FALSE`,
-        [id]
-      );
+      await client.query(`DELETE FROM unified_note_reminders WHERE note_id = $1 AND reminder_sent = FALSE`, [id]);
 
       // Add new reminder if date provided
       if (reminder_date) {
@@ -550,11 +541,10 @@ router.put('/:id', async (req, res) => {
     res.json({
       success: true,
       note: noteResult.rows[0],
-      message: 'Not güncellendi'
+      message: 'Not güncellendi',
     });
-  } catch (error) {
+  } catch (_error) {
     await client.query('ROLLBACK');
-    console.error('Error updating note:', error);
     res.status(500).json({ success: false, message: 'Not güncellenirken hata oluştu' });
   } finally {
     client.release();
@@ -570,18 +560,17 @@ router.delete('/:id', async (req, res) => {
     const userId = req.user.id;
     const { id } = req.params;
 
-    const result = await pool.query(
-      `DELETE FROM unified_notes WHERE id = $1 AND user_id = $2 RETURNING id`,
-      [id, userId]
-    );
+    const result = await pool.query(`DELETE FROM unified_notes WHERE id = $1 AND user_id = $2 RETURNING id`, [
+      id,
+      userId,
+    ]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Not bulunamadı' });
     }
 
     res.json({ success: true, message: 'Not silindi' });
-  } catch (error) {
-    console.error('Error deleting note:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, message: 'Not silinirken hata oluştu' });
   }
 });
@@ -612,10 +601,9 @@ router.put('/:id/toggle', async (req, res) => {
     res.json({
       success: true,
       note,
-      message: note.is_completed ? 'Not tamamlandı' : 'Not tamamlanmadı olarak işaretlendi'
+      message: note.is_completed ? 'Not tamamlandı' : 'Not tamamlanmadı olarak işaretlendi',
     });
-  } catch (error) {
-    console.error('Error toggling note:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, message: 'Not güncellenirken hata oluştu' });
   }
 });
@@ -645,10 +633,9 @@ router.put('/:id/pin', async (req, res) => {
     res.json({
       success: true,
       note,
-      message: note.pinned ? 'Not sabitlendi' : 'Not sabitleme kaldırıldı'
+      message: note.pinned ? 'Not sabitlendi' : 'Not sabitleme kaldırıldı',
     });
-  } catch (error) {
-    console.error('Error pinning note:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, message: 'Not güncellenirken hata oluştu' });
   }
 });
@@ -683,9 +670,8 @@ router.put('/reorder', async (req, res) => {
     await client.query('COMMIT');
 
     res.json({ success: true, message: 'Sıralama güncellendi' });
-  } catch (error) {
+  } catch (_error) {
     await client.query('ROLLBACK');
-    console.error('Error reordering notes:', error);
     res.status(500).json({ success: false, message: 'Sıralama güncellenirken hata oluştu' });
   } finally {
     client.release();
@@ -710,10 +696,9 @@ router.delete('/completed', async (req, res) => {
     res.json({
       success: true,
       deleted: result.rowCount,
-      message: `${result.rowCount} tamamlanmış not silindi`
+      message: `${result.rowCount} tamamlanmış not silindi`,
     });
-  } catch (error) {
-    console.error('Error deleting completed notes:', error);
+  } catch (_error) {
     res.status(500).json({ success: false, message: 'Notlar silinirken hata oluştu' });
   }
 });

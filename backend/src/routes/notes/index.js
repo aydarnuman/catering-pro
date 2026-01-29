@@ -4,11 +4,11 @@
  */
 
 import express from 'express';
-import personalRoutes from './personal.js';
-import contextualRoutes from './contextual.js';
-import tagsRoutes from './tags.js';
-import remindersRoutes from './reminders.js';
 import attachmentsRoutes from './attachments.js';
+import contextualRoutes from './contextual.js';
+import personalRoutes from './personal.js';
+import remindersRoutes from './reminders.js';
+import tagsRoutes from './tags.js';
 
 const router = express.Router();
 

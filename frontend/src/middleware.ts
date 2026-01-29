@@ -9,14 +9,7 @@ import { type NextRequest, NextResponse } from 'next/server';
  */
 
 // Auth gerektiren path'ler
-const PROTECTED_PATHS = [
-  '/ayarlar',
-  '/admin',
-  '/profil',
-  '/muhasebe',
-  '/ai-chat',
-  '/tracking',
-];
+const PROTECTED_PATHS = ['/ayarlar', '/admin', '/profil', '/muhasebe', '/ai-chat', '/tracking'];
 
 // Static dosyalar - middleware atla
 const STATIC_PATHS = ['/_next', '/api', '/favicon.ico', '/images', '/fonts', '/logo'];

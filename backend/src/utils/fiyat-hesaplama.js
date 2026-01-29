@@ -3,7 +3,7 @@
  * Fatura ve piyasa fiyatı önceliklendirme
  */
 
-import { miktarDonustur, standartBirimAl } from './birim-donusum.js';
+import { miktarDonustur } from './birim-donusum.js';
 
 // Fiyat geçerlilik süresi (gün)
 const FIYAT_GECERLILIK_GUN = 90;
@@ -16,27 +16,27 @@ const FIYAT_GECERLILIK_GUN = 90;
  */
 export function fiyatGuncelMi(tarih, maxGun = FIYAT_GECERLILIK_GUN) {
   if (!tarih) return { guncel: false, gun: null };
-  
+
   const fiyatTarihi = new Date(tarih);
   const simdi = new Date();
   const farkMs = simdi - fiyatTarihi;
   const gun = Math.floor(farkMs / (1000 * 60 * 60 * 24));
-  
+
   // Gelecek tarihler için (negatif gün) güncel sayılır
   if (gun < 0) {
     return { guncel: true, gun: 0 };
   }
-  
+
   return {
     guncel: gun <= maxGun,
-    gun: gun
+    gun: gun,
   };
 }
 
 /**
  * Malzeme için en uygun fiyatı belirle
  * Öncelik: fatura (güncel) > piyasa > fatura (eski) > manuel > 0
- * 
+ *
  * @param {Object} malzeme - recete_malzemeler satırı
  * @param {string} tercih - 'auto', 'fatura', 'piyasa'
  * @returns {Object} { fiyat, kaynak, tarih, guncel, uyari }
@@ -47,25 +47,25 @@ export function getFiyat(malzeme, tercih = 'auto') {
     kaynak: null,
     tarih: null,
     guncel: false,
-    uyari: null
+    uyari: null,
   };
-  
+
   // Eğer malzeme objesinde fiyat_tercihi varsa, onu kullan (parametre öncelikli)
-  const kullanilacakTercih = tercih !== 'auto' ? tercih : (malzeme.fiyat_tercihi || 'auto');
-  
+  const kullanilacakTercih = tercih !== 'auto' ? tercih : malzeme.fiyat_tercihi || 'auto';
+
   // Fatura fiyatı kontrolü
   const faturaFiyat = parseFloat(malzeme.fatura_fiyat) || 0;
   const faturaTarih = malzeme.fatura_fiyat_tarihi;
   const faturaGuncel = fiyatGuncelMi(faturaTarih);
-  
-  // Piyasa fiyatı kontrolü  
+
+  // Piyasa fiyatı kontrolü
   const piyasaFiyat = parseFloat(malzeme.piyasa_fiyat) || parseFloat(malzeme.birim_fiyat) || 0;
   const piyasaTarih = malzeme.piyasa_fiyat_tarihi;
   const piyasaGuncel = piyasaTarih ? fiyatGuncelMi(piyasaTarih) : { guncel: false, gun: null };
-  
+
   // Manuel fiyat
   const manuelFiyat = parseFloat(malzeme.manuel_fiyat) || parseFloat(malzeme.toplam_fiyat) || 0;
-  
+
   // Tercih: Sadece fatura
   if (kullanilacakTercih === 'fatura') {
     if (faturaFiyat > 0) {
@@ -74,12 +74,12 @@ export function getFiyat(malzeme, tercih = 'auto') {
         kaynak: 'fatura',
         tarih: faturaTarih,
         guncel: faturaGuncel.guncel,
-        uyari: !faturaGuncel.guncel ? `Fatura fiyatı ${faturaGuncel.gun} gün önce` : null
+        uyari: !faturaGuncel.guncel ? `Fatura fiyatı ${faturaGuncel.gun} gün önce` : null,
       };
     }
     return { ...result, uyari: 'Fatura fiyatı bulunamadı' };
   }
-  
+
   // Tercih: Sadece piyasa
   if (kullanilacakTercih === 'piyasa') {
     if (piyasaFiyat > 0) {
@@ -88,12 +88,17 @@ export function getFiyat(malzeme, tercih = 'auto') {
         kaynak: 'piyasa',
         tarih: piyasaTarih,
         guncel: piyasaGuncel.guncel,
-        uyari: !piyasaGuncel.guncel && piyasaGuncel.gun !== null ? `Piyasa fiyatı ${piyasaGuncel.gun} gün önce` : (!piyasaTarih ? 'Piyasa fiyatı tarihi belirtilmemiş' : null)
+        uyari:
+          !piyasaGuncel.guncel && piyasaGuncel.gun !== null
+            ? `Piyasa fiyatı ${piyasaGuncel.gun} gün önce`
+            : !piyasaTarih
+              ? 'Piyasa fiyatı tarihi belirtilmemiş'
+              : null,
       };
     }
     return { ...result, uyari: 'Piyasa fiyatı bulunamadı' };
   }
-  
+
   // Tercih: Auto (akıllı seçim)
   // 1. Güncel fatura fiyatı varsa onu kullan
   if (faturaFiyat > 0 && faturaGuncel.guncel) {
@@ -102,10 +107,10 @@ export function getFiyat(malzeme, tercih = 'auto') {
       kaynak: 'fatura',
       tarih: faturaTarih,
       guncel: true,
-      uyari: null
+      uyari: null,
     };
   }
-  
+
   // 2. Piyasa fiyatı varsa onu kullan
   if (piyasaFiyat > 0) {
     return {
@@ -113,10 +118,15 @@ export function getFiyat(malzeme, tercih = 'auto') {
       kaynak: 'piyasa',
       tarih: piyasaTarih,
       guncel: piyasaGuncel.guncel,
-      uyari: !piyasaGuncel.guncel && piyasaGuncel.gun !== null ? `Piyasa fiyatı ${piyasaGuncel.gun} gün önce` : (!piyasaTarih ? 'Piyasa fiyatı tarihi belirtilmemiş' : null)
+      uyari:
+        !piyasaGuncel.guncel && piyasaGuncel.gun !== null
+          ? `Piyasa fiyatı ${piyasaGuncel.gun} gün önce`
+          : !piyasaTarih
+            ? 'Piyasa fiyatı tarihi belirtilmemiş'
+            : null,
     };
   }
-  
+
   // 3. Eski fatura fiyatı varsa onu kullan (uyarıyla)
   if (faturaFiyat > 0) {
     return {
@@ -124,10 +134,10 @@ export function getFiyat(malzeme, tercih = 'auto') {
       kaynak: 'fatura',
       tarih: faturaTarih,
       guncel: false,
-      uyari: `Fatura fiyatı ${faturaGuncel.gun} gün önce güncellendi`
+      uyari: `Fatura fiyatı ${faturaGuncel.gun} gün önce güncellendi`,
     };
   }
-  
+
   // 4. Manuel fiyat
   if (manuelFiyat > 0) {
     return {
@@ -135,17 +145,17 @@ export function getFiyat(malzeme, tercih = 'auto') {
       kaynak: 'manuel',
       tarih: null,
       guncel: false,
-      uyari: 'Manuel fiyat kullanılıyor'
+      uyari: 'Manuel fiyat kullanılıyor',
     };
   }
-  
+
   // 5. Fiyat yok
   return {
     fiyat: 0,
     kaynak: null,
     tarih: null,
     guncel: false,
-    uyari: 'Fiyat bilgisi bulunamadı'
+    uyari: 'Fiyat bilgisi bulunamadı',
   };
 }
 
@@ -158,27 +168,27 @@ export function getFiyat(malzeme, tercih = 'auto') {
 export async function hesaplaMalzemeMaliyet(malzeme, fiyatTercihi = null) {
   // Eğer fiyatTercihi verilmemişse, malzeme objesindeki fiyat_tercihi'ni kullan
   const kullanilacakTercih = fiyatTercihi || malzeme.fiyat_tercihi || 'auto';
-  
+
   const miktar = parseFloat(malzeme.miktar) || 0;
   const malzemeBirim = malzeme.birim || 'g';
   const fiyatBirim = malzeme.fiyat_birimi || malzeme.stok_birim || 'kg';
-  
+
   // Birim dönüşümü: malzeme birimi -> fiyat birimi
   // Örnek: 100g malzeme, fiyat kg bazında -> 0.1 kg
   const donusturulmusMiktar = await miktarDonustur(miktar, malzemeBirim, fiyatBirim);
-  
+
   // Fatura maliyeti
   const faturaFiyatBilgi = getFiyat(malzeme, 'fatura');
   const faturaMaliyet = donusturulmusMiktar * faturaFiyatBilgi.fiyat;
-  
+
   // Piyasa maliyeti
   const piyasaFiyatBilgi = getFiyat(malzeme, 'piyasa');
   const piyasaMaliyet = donusturulmusMiktar * piyasaFiyatBilgi.fiyat;
-  
+
   // Seçilen (auto) maliyet
   const secilenFiyatBilgi = getFiyat(malzeme, kullanilacakTercih);
   const secilenMaliyet = donusturulmusMiktar * secilenFiyatBilgi.fiyat;
-  
+
   // Uyarıları topla
   const uyarilar = [];
   if (faturaFiyatBilgi.uyari) uyarilar.push({ tip: 'fatura', mesaj: faturaFiyatBilgi.uyari });
@@ -186,35 +196,35 @@ export async function hesaplaMalzemeMaliyet(malzeme, fiyatTercihi = null) {
   if (secilenFiyatBilgi.uyari && secilenFiyatBilgi.kaynak !== 'fatura' && secilenFiyatBilgi.kaynak !== 'piyasa') {
     uyarilar.push({ tip: 'secilen', mesaj: secilenFiyatBilgi.uyari });
   }
-  
+
   return {
     miktar: miktar,
     birim: malzemeBirim,
     donusturulen_miktar: donusturulmusMiktar,
     fiyat_birim: fiyatBirim,
-    
+
     fatura: {
       birim_fiyat: faturaFiyatBilgi.fiyat,
       toplam: faturaMaliyet,
       guncel: faturaFiyatBilgi.guncel,
-      tarih: faturaFiyatBilgi.tarih
+      tarih: faturaFiyatBilgi.tarih,
     },
-    
+
     piyasa: {
       birim_fiyat: piyasaFiyatBilgi.fiyat,
       toplam: piyasaMaliyet,
       guncel: piyasaFiyatBilgi.guncel,
-      tarih: piyasaFiyatBilgi.tarih
+      tarih: piyasaFiyatBilgi.tarih,
     },
-    
+
     secilen: {
       kaynak: secilenFiyatBilgi.kaynak,
       birim_fiyat: secilenFiyatBilgi.fiyat,
       toplam: secilenMaliyet,
-      guncel: secilenFiyatBilgi.guncel
+      guncel: secilenFiyatBilgi.guncel,
     },
-    
-    uyarilar: uyarilar
+
+    uyarilar: uyarilar,
   };
 }
 
@@ -231,25 +241,25 @@ export function fiyatFarkiHesapla(fatura, piyasa) {
   if (!piyasa || piyasa === 0) {
     return { fark: 0, yuzde: 0, durum: 'piyasa_yok' };
   }
-  
+
   const fark = piyasa - fatura;
-  const yuzde = ((fark) / fatura * 100);
-  
+  const yuzde = (fark / fatura) * 100;
+
   let durum = 'normal';
   if (yuzde > 10) durum = 'piyasa_yuksek';
   else if (yuzde < -10) durum = 'piyasa_dusuk';
-  
+
   return {
     fark: fark,
     yuzde: parseFloat(yuzde.toFixed(1)),
-    durum: durum
+    durum: durum,
   };
 }
 
 /**
  * Maliyet değişikliğini logla
  * Sadece %5'ten fazla değişimleri kaydeder
- * 
+ *
  * @param {Function} queryFn - Database query fonksiyonu
  * @param {Object} data - Log verisi
  * @returns {Promise<number|null>} - Log ID veya null
@@ -264,27 +274,24 @@ export async function logMaliyetDegisimi(queryFn, data) {
     yeni_piyasa,
     sebep,
     aciklama,
-    kullanici_id
+    kullanici_id,
   } = data;
-  
+
   // Değişim hesapla
   const faturaDegisim = (yeni_fatura || 0) - (onceki_fatura || 0);
   const piyasaDegisim = (yeni_piyasa || 0) - (onceki_piyasa || 0);
-  
-  const faturaDegisimYuzde = onceki_fatura > 0 
-    ? (faturaDegisim / onceki_fatura * 100) 
-    : 0;
-  const piyasaDegisimYuzde = onceki_piyasa > 0 
-    ? (piyasaDegisim / onceki_piyasa * 100) 
-    : 0;
-  
+
+  const faturaDegisimYuzde = onceki_fatura > 0 ? (faturaDegisim / onceki_fatura) * 100 : 0;
+  const piyasaDegisimYuzde = onceki_piyasa > 0 ? (piyasaDegisim / onceki_piyasa) * 100 : 0;
+
   // Sadece %5'ten fazla değişimleri logla
   if (Math.abs(faturaDegisimYuzde) < 5 && Math.abs(piyasaDegisimYuzde) < 5) {
     return null;
   }
-  
+
   try {
-    const result = await queryFn(`
+    const result = await queryFn(
+      `
       INSERT INTO maliyet_audit_log (
         recete_id, sablon_id,
         onceki_fatura_maliyet, onceki_piyasa_maliyet,
@@ -294,49 +301,39 @@ export async function logMaliyetDegisimi(queryFn, data) {
         sebep, aciklama, kullanici_id
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING id
-    `, [
-      recete_id || null,
-      sablon_id || null,
-      onceki_fatura || 0,
-      onceki_piyasa || 0,
-      yeni_fatura || 0,
-      yeni_piyasa || 0,
-      faturaDegisim,
-      piyasaDegisim,
-      parseFloat(faturaDegisimYuzde.toFixed(2)),
-      parseFloat(piyasaDegisimYuzde.toFixed(2)),
-      sebep,
-      aciklama || null,
-      kullanici_id || null
-    ]);
-    
+    `,
+      [
+        recete_id || null,
+        sablon_id || null,
+        onceki_fatura || 0,
+        onceki_piyasa || 0,
+        yeni_fatura || 0,
+        yeni_piyasa || 0,
+        faturaDegisim,
+        piyasaDegisim,
+        parseFloat(faturaDegisimYuzde.toFixed(2)),
+        parseFloat(piyasaDegisimYuzde.toFixed(2)),
+        sebep,
+        aciklama || null,
+        kullanici_id || null,
+      ]
+    );
+
     return result.rows[0]?.id;
-  } catch (error) {
-    console.error('Audit log hatası:', error);
+  } catch (_error) {
     return null;
   }
 }
 
 // Test fonksiyonu
 export async function testFiyatHesaplama() {
-  console.log('=== Fiyat Hesaplama Testi ===');
-  
-  const testMalzeme = {
+  const _testMalzeme = {
     miktar: 100,
     birim: 'g',
     fatura_fiyat: 45,
     fatura_fiyat_tarihi: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 gün önce
     piyasa_fiyat: 52,
     piyasa_fiyat_tarihi: new Date(),
-    fiyat_birimi: 'kg'
+    fiyat_birimi: 'kg',
   };
-  
-  console.log('Test malzeme:', testMalzeme);
-  console.log('Fatura fiyat:', getFiyat(testMalzeme, 'fatura'));
-  console.log('Piyasa fiyat:', getFiyat(testMalzeme, 'piyasa'));
-  console.log('Auto fiyat:', getFiyat(testMalzeme, 'auto'));
-  console.log('Maliyet hesabı:', await hesaplaMalzemeMaliyet(testMalzeme));
-  console.log('Fark:', fiyatFarkiHesapla(45, 52));
-  
-  console.log('=== Test Tamamlandı ===');
 }

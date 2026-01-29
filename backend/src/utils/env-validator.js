@@ -12,7 +12,7 @@ const REQUIRED_ENV_VARS = {
     required: true,
     description: 'PostgreSQL connection string (Supabase)',
   },
-  
+
   // Authentication (her zaman zorunlu)
   JWT_SECRET: {
     required: true,
@@ -69,7 +69,7 @@ export function validateEnvironment() {
   // Zorunlu değişkenleri kontrol et
   for (const [key, config] of Object.entries(REQUIRED_ENV_VARS)) {
     const value = process.env[key];
-    
+
     if (!value) {
       missing.push({ key, description: config.description });
     } else if (config.validate) {
@@ -85,7 +85,7 @@ export function validateEnvironment() {
   if (isProduction) {
     for (const [key, config] of Object.entries(PRODUCTION_REQUIRED_ENV_VARS)) {
       const value = process.env[key];
-      
+
       if (!value) {
         missing.push({ key, description: config.description });
       } else if (config.validate) {
@@ -100,9 +100,9 @@ export function validateEnvironment() {
 
   // Eksik zorunlu değişkenler varsa hata ver
   if (missing.length > 0) {
-    logger.error('Eksik environment variable\'lar tespit edildi:', { missing });
+    logger.error("Eksik environment variable'lar tespit edildi:", { missing });
     throw new Error(
-      `Eksik environment variable'lar:\n${missing.map(m => `  - ${m.key}: ${m.description}`).join('\n')}`
+      `Eksik environment variable'lar:\n${missing.map((m) => `  - ${m.key}: ${m.description}`).join('\n')}`
     );
   }
 
@@ -114,8 +114,8 @@ export function validateEnvironment() {
   }
 
   if (warnings.length > 0 && isProduction) {
-    logger.warn('Opsiyonel environment variable\'lar eksik (bazı özellikler çalışmayabilir):', {
-      warnings: warnings.map(w => `${w.key}: ${w.description}`),
+    logger.warn("Opsiyonel environment variable'lar eksik (bazı özellikler çalışmayabilir):", {
+      warnings: warnings.map((w) => `${w.key}: ${w.description}`),
     });
   }
 

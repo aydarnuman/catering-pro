@@ -1,6 +1,6 @@
 /**
  * Uyumsoft e-Fatura SOAP API Client
- * 
+ *
  * API Endpoint: https://efatura.uyumsoft.com.tr/Services/Integration
  * Authentication: WS-Security (UsernameToken)
  */
@@ -71,7 +71,7 @@ export class UyumsoftApiClient {
         method: 'POST',
         headers: {
           'Content-Type': 'text/xml; charset=utf-8',
-          'SOAPAction': action,
+          SOAPAction: action,
         },
         body: envelope,
         signal: controller.signal,
@@ -89,7 +89,6 @@ export class UyumsoftApiClient {
 
       if (!response.ok) {
         const msg = fault ? this._faultMessage(fault) : `HTTP ${response.status}`;
-        console.error('SOAP Error Response:', msg || text.slice(0, 500));
         throw new Error(msg || `SOAP isteği başarısız: ${response.status}`);
       }
 
@@ -101,12 +100,17 @@ export class UyumsoftApiClient {
       return result;
     } catch (error) {
       if (error.name === 'AbortError') {
-        throw new Error('Uyumsoft servisi zaman aşımına uğradı. İnternet bağlantınızı ve Uyumsoft erişimini kontrol edin.');
+        throw new Error(
+          'Uyumsoft servisi zaman aşımına uğradı. İnternet bağlantınızı ve Uyumsoft erişimini kontrol edin.'
+        );
       }
-      if (error.message?.startsWith('Uyumsoft') || error.message?.includes('yetkiniz') || error.message?.includes('Ip:')) {
+      if (
+        error.message?.startsWith('Uyumsoft') ||
+        error.message?.includes('yetkiniz') ||
+        error.message?.includes('Ip:')
+      ) {
         throw error;
       }
-      console.error('SOAP Request Error:', error.message);
       throw error;
     } finally {
       clearTimeout(timeoutId);
@@ -147,18 +151,12 @@ export class UyumsoftApiClient {
    * @param {Date} options.endDate - End date
    */
   async getInboxInvoiceList(options = {}) {
-    const {
-      pageIndex = 0,
-      pageSize = 100,
-      startDate = null,
-      endDate = null,
-      onlyNewest = false,
-    } = options;
+    const { pageIndex = 0, pageSize = 100, startDate = null, endDate = null, onlyNewest = false } = options;
 
-    const startDateXml = startDate 
+    const startDateXml = startDate
       ? `<tns:ExecutionStartDate>${startDate.toISOString()}</tns:ExecutionStartDate>`
       : `<tns:ExecutionStartDate xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/>`;
-    
+
     const endDateXml = endDate
       ? `<tns:ExecutionEndDate>${endDate.toISOString()}</tns:ExecutionEndDate>`
       : `<tns:ExecutionEndDate xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/>`;
@@ -178,9 +176,9 @@ export class UyumsoftApiClient {
     </tns:GetInboxInvoiceList>`;
 
     const result = await this.soapRequest('http://tempuri.org/IIntegration/GetInboxInvoiceList', body);
-    
+
     const response = result?.Envelope?.Body?.GetInboxInvoiceListResponse?.GetInboxInvoiceListResult;
-    
+
     if (response?.$?.IsSucceded !== 'true') {
       throw new Error(response?.$?.Message || 'Failed to get invoice list');
     }
@@ -189,7 +187,7 @@ export class UyumsoftApiClient {
     const items = value?.Items || [];
 
     // Normalize items to array
-    const invoices = Array.isArray(items) ? items : (items ? [items] : []);
+    const invoices = Array.isArray(items) ? items : items ? [items] : [];
 
     return {
       success: true,
@@ -234,9 +232,9 @@ export class UyumsoftApiClient {
     </tns:GetInboxInvoice>`;
 
     const result = await this.soapRequest('http://tempuri.org/IIntegration/GetInboxInvoice', body);
-    
+
     const response = result?.Envelope?.Body?.GetInboxInvoiceResponse?.GetInboxInvoiceResult;
-    
+
     if (response?.$?.IsSucceded !== 'true') {
       throw new Error(response?.$?.Message || 'Failed to get invoice');
     }
@@ -258,9 +256,9 @@ export class UyumsoftApiClient {
     </tns:GetInboxInvoiceView>`;
 
     const result = await this.soapRequest('http://tempuri.org/IIntegration/GetInboxInvoiceView', body);
-    
+
     const response = result?.Envelope?.Body?.GetInboxInvoiceViewResponse?.GetInboxInvoiceViewResult;
-    
+
     if (response?.$?.IsSucceded !== 'true') {
       throw new Error(response?.$?.Message || 'Failed to get invoice view');
     }
@@ -284,9 +282,9 @@ export class UyumsoftApiClient {
     </tns:GetInboxInvoicePdf>`;
 
     const result = await this.soapRequest('http://tempuri.org/IIntegration/GetInboxInvoicePdf', body);
-    
+
     const response = result?.Envelope?.Body?.GetInboxInvoicePdfResponse?.GetInboxInvoicePdfResult;
-    
+
     if (response?.$?.IsSucceded !== 'true') {
       throw new Error(response?.$?.Message || 'Failed to get invoice PDF');
     }
@@ -309,9 +307,9 @@ export class UyumsoftApiClient {
     </tns:GetInboxInvoiceData>`;
 
     const result = await this.soapRequest('http://tempuri.org/IIntegration/GetInboxInvoiceData', body);
-    
+
     const response = result?.Envelope?.Body?.GetInboxInvoiceDataResponse?.GetInboxInvoiceDataResult;
-    
+
     if (response?.$?.IsSucceded !== 'true') {
       throw new Error(response?.$?.Message || 'Failed to get invoice data');
     }
@@ -325,4 +323,3 @@ export class UyumsoftApiClient {
 }
 
 export default UyumsoftApiClient;
-

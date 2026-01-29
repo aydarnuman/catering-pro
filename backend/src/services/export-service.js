@@ -33,7 +33,6 @@ export function createExcel(data, options = {}) {
   const {
     sheetName = 'Veri',
     columns = null, // { key: 'header', ... }
-    title = null,
   } = options;
 
   // Eğer columns tanımlıysa, veriyi düzenle
@@ -474,7 +473,7 @@ export function createStokPDF(stoklar) {
  */
 export function createDilekcePDF(dilekce) {
   return new Promise((resolve, reject) => {
-    const { title = 'DİLEKÇE', type = 'genel', content = '', ihale = {}, footer = null } = dilekce;
+    const { title = 'DİLEKÇE', content = '', ihale = {}, footer = null } = dilekce;
 
     const doc = new PDFDocument({
       margin: 60,
