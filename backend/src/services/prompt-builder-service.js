@@ -99,19 +99,26 @@ export async function getTemplateById(id) {
 
 /**
  * Prompt oluştur (template + answers)
+ * GÜVENLİK: Template injection koruması eklendi
  */
 export function generatePrompt(templateText, answers) {
   let prompt = templateText;
-  
+
   // {{variable}} formatındaki placeholder'ları değiştir
   for (const [key, value] of Object.entries(answers)) {
+    // GÜVENLİK: Değerlerdeki {{ ve }} karakterlerini escape et
+    // Bu, kullanıcının {{başka_değişken}} yazarak injection yapmasını engeller
+    const safeValue = String(value || '')
+      .replace(/\{\{/g, '{ {')  // {{ -> { { (kırılır)
+      .replace(/\}\}/g, '} }'); // }} -> } } (kırılır)
+
     const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-    prompt = prompt.replace(regex, value || '');
+    prompt = prompt.replace(regex, safeValue);
   }
-  
+
   // Kullanılmayan placeholder'ları temizle
   prompt = prompt.replace(/\{\{[^}]+\}\}/g, '[Belirtilmedi]');
-  
+
   return prompt;
 }
 
