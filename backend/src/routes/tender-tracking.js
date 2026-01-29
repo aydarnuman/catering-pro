@@ -50,7 +50,7 @@ router.get('/', async (req, res) => {
     }
 
     if (user_id) {
-      params.push(user_id);
+      params.push(parseInt(user_id, 10));
       sql += ` AND tt.user_id = $${params.length}`;
     }
 
@@ -394,11 +394,11 @@ router.get('/check/:tenderId', async (req, res) => {
     let sql, params;
     if (user_id) {
       sql = `SELECT * FROM tender_tracking WHERE tender_id = $1 AND user_id = $2`;
-      params = [tenderId, user_id];
+      params = [parseInt(tenderId, 10), parseInt(user_id, 10)];
     } else {
       // user_id yoksa, bu tender için herhangi bir takip var mı?
       sql = `SELECT * FROM tender_tracking WHERE tender_id = $1`;
-      params = [tenderId];
+      params = [parseInt(tenderId, 10)];
     }
 
     const result = await query(sql, params);
@@ -422,7 +422,7 @@ router.get('/stats', async (req, res) => {
     const { user_id } = req.query;
 
     const whereClause = user_id ? 'WHERE user_id = $1' : '';
-    const params = user_id ? [user_id] : [];
+    const params = user_id ? [parseInt(user_id, 10)] : [];
 
     const result = await query(
       `
