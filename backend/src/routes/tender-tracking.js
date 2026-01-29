@@ -22,8 +22,8 @@ router.get('/', async (req, res) => {
         t.city,
         t.external_id,
         t.url,
-        (SELECT COUNT(*) FROM documents WHERE tender_id::integer = t.id AND (file_type IS NULL OR file_type NOT LIKE '%zip%')) as dokuman_sayisi,
-        (SELECT COUNT(*) FROM documents WHERE tender_id::integer = t.id AND processing_status = 'completed' AND (file_type IS NULL OR file_type NOT LIKE '%zip%')) as analiz_edilen_dokuman,
+        (SELECT COUNT(*) FROM documents WHERE tender_id = t.id::text AND (file_type IS NULL OR file_type NOT LIKE '%zip%')) as dokuman_sayisi,
+        (SELECT COUNT(*) FROM documents WHERE tender_id = t.id::text AND processing_status = 'completed' AND (file_type IS NULL OR file_type NOT LIKE '%zip%')) as analiz_edilen_dokuman,
         COALESCE(
           (SELECT json_agg(json_build_object(
             'id', un.id,
