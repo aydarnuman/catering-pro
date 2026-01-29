@@ -148,6 +148,11 @@ export function AIChat({
   const [godModeEnabled, setGodModeEnabled] = useState(defaultGodMode); // God Mode toggle - varsayılan prop'tan
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // God Mode prop değiştiğinde state'i güncelle
+  useEffect(() => {
+    setGodModeEnabled(defaultGodMode);
+  }, [defaultGodMode]);
+
   // Session ID - tarayıcı oturumu boyunca aynı kalır, hafıza için kullanılır
   const [sessionId] = useState(() => {
     if (typeof window !== 'undefined') {

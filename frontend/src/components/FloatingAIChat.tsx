@@ -5,6 +5,7 @@ import {
   Badge,
   Box,
   Group,
+  Modal,
   Paper,
   Stack,
   Text,
@@ -12,10 +13,11 @@ import {
   Transition,
   useMantineColorScheme,
 } from '@mantine/core';
-import { IconBolt, IconMaximize, IconMinus, IconX } from '@tabler/icons-react';
+import { IconBolt, IconFlame, IconMaximize, IconMinus, IconX } from '@tabler/icons-react';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import { useResponsive } from '@/hooks/useResponsive';
 import { muhasebeAPI } from '@/lib/api/services/muhasebe';
 import { tendersAPI } from '@/lib/api/services/tenders';
@@ -88,10 +90,13 @@ export function FloatingAIChat() {
   const [alertCount, setAlertCount] = useState(0);
   const [pageContext, setPageContext] = useState<PageContext | undefined>(undefined);
   const [pendingInitialMessage, setPendingInitialMessage] = useState<string | null>(null);
+  const [godModeEnabled, setGodModeEnabled] = useState(false);
+  const [showGodModeConfirm, setShowGodModeConfirm] = useState(false);
   const { colorScheme } = useMantineColorScheme();
   const pathname = usePathname();
   const isDark = colorScheme === 'dark';
   const { isMobile, isMounted } = useResponsive();
+  const { isSuperAdmin } = useAuth();
 
   // Path'e göre department belirle
   const department = pathToDepartment[pathname] || 'TÜM SİSTEM';
@@ -439,7 +444,78 @@ export function FloatingAIChat() {
             transform: translateY(-5px);
           }
         }
+
+        @keyframes godmode-glow {
+          0%, 100% {
+            box-shadow: 0 0 20px rgba(230, 197, 48, 0.3);
+          }
+          50% {
+            box-shadow: 0 0 40px rgba(230, 197, 48, 0.6);
+          }
+        }
       `}</style>
+
+      {/* God Mode Confirmation Modal */}
+      <Modal
+        opened={showGodModeConfirm}
+        onClose={() => setShowGodModeConfirm(false)}
+        title="⚠️ God Mode Aktifleştir"
+        centered
+        zIndex={10001}
+        styles={{
+          header: {
+            background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
+            color: 'white',
+          },
+          title: { fontWeight: 700 },
+        }}
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            God Mode, AI&apos;ya <strong>sınırsız yetki</strong> verir:
+          </Text>
+          <Box
+            style={{
+              background: 'rgba(255, 71, 87, 0.1)',
+              borderRadius: 8,
+              padding: 12,
+              border: '1px solid rgba(255, 71, 87, 0.3)',
+            }}
+          >
+            <Stack gap="xs">
+              <Text size="xs">🔥 Doğrudan SQL sorguları çalıştırma</Text>
+              <Text size="xs">📁 Dosya sistemi erişimi</Text>
+              <Text size="xs">⚡ Shell komutları yürütme</Text>
+              <Text size="xs">🔑 Sistem secretlarına erişim</Text>
+            </Stack>
+          </Box>
+          <Text size="xs" c="red" fw={500}>
+            ⚠️ Bu mod sadece yetkili Super Admin kullanıcıları içindir!
+          </Text>
+          <Group justify="flex-end" gap="sm">
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              onClick={() => setShowGodModeConfirm(false)}
+              size="lg"
+            >
+              <IconX size={18} />
+            </ActionIcon>
+            <ActionIcon
+              variant="gradient"
+              gradient={{ from: 'red', to: 'orange' }}
+              onClick={() => {
+                setGodModeEnabled(true);
+                setShowGodModeConfirm(false);
+              }}
+              size="lg"
+              style={{ boxShadow: '0 0 15px rgba(255, 71, 87, 0.5)' }}
+            >
+              <IconFlame size={18} />
+            </ActionIcon>
+          </Group>
+        </Stack>
+      </Modal>
 
       {/* Chat Window - Modern Design */}
       <Transition mounted={isOpen} transition="slide-up" duration={300}>
@@ -461,23 +537,31 @@ export function FloatingAIChat() {
               boxShadow:
                 isMobile && isMounted
                   ? 'none'
-                  : isDark
-                    ? '0 25px 50px -12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)'
-                    : '0 25px 50px -12px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.06)',
-              border: 'none',
+                  : godModeEnabled
+                    ? '0 0 40px rgba(230, 197, 48, 0.5), 0 25px 50px -12px rgba(0,0,0,0.5)'
+                    : isDark
+                      ? '0 25px 50px -12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)'
+                      : '0 25px 50px -12px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.06)',
+              border: godModeEnabled ? '2px solid #e6c530' : 'none',
               display: 'flex',
               flexDirection: 'column',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               background: isDark ? '#141517' : '#f8f9fa',
             }}
           >
-            {/* Header - dark klasik */}
+            {/* Header - dark klasik / God Mode gold */}
             <Box
               style={{
-                background: isDark ? '#1a1b1e' : '#25262b',
-                borderBottom: isDark
-                  ? '1px solid rgba(255,255,255,0.08)'
-                  : '1px solid rgba(0,0,0,0.08)',
+                background: godModeEnabled
+                  ? 'linear-gradient(135deg, #1a1b1e 0%, rgba(230, 197, 48, 0.15) 100%)'
+                  : isDark
+                    ? '#1a1b1e'
+                    : '#25262b',
+                borderBottom: godModeEnabled
+                  ? '1px solid rgba(230, 197, 48, 0.3)'
+                  : isDark
+                    ? '1px solid rgba(255,255,255,0.08)'
+                    : '1px solid rgba(0,0,0,0.08)',
                 padding: isMinimized ? '4px 10px' : '14px 16px',
                 paddingTop:
                   isMobile && isMounted
@@ -487,6 +571,7 @@ export function FloatingAIChat() {
                       : '14px',
                 cursor: 'pointer',
                 position: 'relative',
+                transition: 'all 0.3s ease',
               }}
               onClick={() => isMinimized && setIsMinimized(false)}
             >
@@ -497,24 +582,32 @@ export function FloatingAIChat() {
                 wrap="nowrap"
               >
                 <Group gap={isMinimized ? 6 : 'sm'} wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-                  {/* AI Avatar - kapalıyken daha küçük */}
+                  {/* AI Avatar - kapalıyken daha küçük / God Mode'da altın */}
                   <Box
                     style={{
                       width: isMinimized ? 24 : 36,
                       height: isMinimized ? 24 : 36,
                       borderRadius: '50%',
-                      background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.12)',
+                      background: godModeEnabled
+                        ? 'linear-gradient(135deg, #e6c530, #ca8a04)'
+                        : isDark
+                          ? 'rgba(255,255,255,0.08)'
+                          : 'rgba(255,255,255,0.12)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      border: isDark
-                        ? '1px solid rgba(255,255,255,0.1)'
-                        : '1px solid rgba(255,255,255,0.15)',
+                      border: godModeEnabled
+                        ? '2px solid #e6c530'
+                        : isDark
+                          ? '1px solid rgba(255,255,255,0.1)'
+                          : '1px solid rgba(255,255,255,0.15)',
                       flexShrink: 0,
+                      boxShadow: godModeEnabled ? '0 0 12px rgba(230, 197, 48, 0.5)' : 'none',
+                      transition: 'all 0.3s ease',
                     }}
                   >
                     <Text size={isMinimized ? 'xs' : 'lg'} style={{ lineHeight: 1 }}>
-                      {info.icon}
+                      {godModeEnabled ? '⚡' : info.icon}
                     </Text>
                   </Box>
                   <div style={{ minWidth: 0 }}>
@@ -522,31 +615,58 @@ export function FloatingAIChat() {
                       <Text
                         size={isMinimized ? 'xs' : 'sm'}
                         fw={600}
-                        c="white"
-                        style={{ letterSpacing: '0.2px', lineHeight: 1.2 }}
+                        c={godModeEnabled ? '#e6c530' : 'white'}
+                        style={{ letterSpacing: '0.2px', lineHeight: 1.2, transition: 'color 0.3s' }}
                         truncate
                       >
-                        {isMinimized ? 'AI Asistan' : info.title}
+                        {godModeEnabled
+                          ? isMinimized
+                            ? '⚡ GOD'
+                            : '⚡ GOD MODE'
+                          : isMinimized
+                            ? 'AI Asistan'
+                            : info.title}
                       </Text>
-                      {/* Online indicator - kapalıyken daha küçük */}
+                      {/* Online indicator - God Mode'da altın */}
                       <Box
                         style={{
                           width: isMinimized ? 4 : 6,
                           height: isMinimized ? 4 : 6,
                           borderRadius: '50%',
-                          background: '#4ade80',
+                          background: godModeEnabled ? '#e6c530' : '#4ade80',
                           opacity: 0.9,
                           flexShrink: 0,
+                          boxShadow: godModeEnabled ? '0 0 6px #e6c530' : 'none',
+                          transition: 'all 0.3s ease',
                         }}
                       />
+                      {/* God Mode Badge - küçük */}
+                      {godModeEnabled && !isMinimized && (
+                        <Badge
+                          size="xs"
+                          variant="gradient"
+                          gradient={{ from: 'yellow', to: 'orange' }}
+                          style={{
+                            fontSize: 9,
+                            padding: '1px 6px',
+                            fontWeight: 700,
+                            flexShrink: 0,
+                            animation: 'pulse 2s infinite',
+                          }}
+                        >
+                          ADMIN
+                        </Badge>
+                      )}
                       {/* Kapalıyken tek satır: sohbete devam badge inline */}
                       {isMinimized && (
                         <Badge
                           size="xs"
                           variant="white"
                           style={{
-                            background: 'rgba(255,255,255,0.12)',
-                            color: 'white',
+                            background: godModeEnabled
+                              ? 'rgba(230, 197, 48, 0.3)'
+                              : 'rgba(255,255,255,0.12)',
+                            color: godModeEnabled ? '#e6c530' : 'white',
                             cursor: 'pointer',
                             fontSize: 10,
                             padding: '1px 6px',
@@ -596,8 +716,45 @@ export function FloatingAIChat() {
                       {alertCount}
                     </Badge>
                   )}
+                  {/* God Mode Toggle - sadece Super Admin görür */}
+                  {isSuperAdmin && !isMinimized && (
+                    <Tooltip
+                      label={godModeEnabled ? 'God Mode Kapat' : 'God Mode Aç'}
+                      withArrow
+                      position="bottom"
+                    >
+                      <ActionIcon
+                        variant={godModeEnabled ? 'gradient' : 'subtle'}
+                        gradient={godModeEnabled ? { from: 'yellow', to: 'orange' } : undefined}
+                        color={godModeEnabled ? undefined : 'gray'}
+                        size="sm"
+                        style={{
+                          background: godModeEnabled ? undefined : 'rgba(255,255,255,0.1)',
+                          borderRadius: 6,
+                          boxShadow: godModeEnabled ? '0 0 12px rgba(230, 197, 48, 0.5)' : 'none',
+                          transition: 'all 0.3s ease',
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (godModeEnabled) {
+                            setGodModeEnabled(false);
+                          } else {
+                            setShowGodModeConfirm(true);
+                          }
+                        }}
+                      >
+                        <IconFlame
+                          size={14}
+                          color={godModeEnabled ? 'white' : undefined}
+                          style={{
+                            animation: godModeEnabled ? 'pulse 1.5s infinite' : 'none',
+                          }}
+                        />
+                      </ActionIcon>
+                    </Tooltip>
+                  )}
                   {/* Keyboard shortcut hint */}
-                  {!isMinimized && !isMobile && (
+                  {!isMinimized && !isMobile && !godModeEnabled && (
                     <Tooltip label="Kısayol: ⌘K" withArrow position="bottom">
                       <Badge
                         size="xs"
@@ -657,6 +814,7 @@ export function FloatingAIChat() {
                   defaultDepartment={department}
                   compact
                   pageContext={pageContext}
+                  defaultGodMode={godModeEnabled}
                   initialMessage={pendingInitialMessage}
                   onInitialMessageConsumed={() => setPendingInitialMessage(null)}
                 />
