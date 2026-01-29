@@ -14,11 +14,19 @@ const PROTECTED_PATHS = ['/', '/ayarlar', '/admin', '/profil', '/muhasebe', '/ai
 // Static dosyalar - middleware atla
 const STATIC_PATHS = ['/_next', '/api', '/favicon.ico', '/images', '/fonts', '/logo'];
 
+// Auth sayfaları - redirect yapılmaz
+const AUTH_PAGES = ['/giris', '/kayit', '/sifremi-unuttum', '/sifre-sifirla'];
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Static dosyaları atla
   if (STATIC_PATHS.some((path) => pathname.startsWith(path))) {
+    return NextResponse.next();
+  }
+
+  // Auth sayfalarını atla (sonsuz döngü önlenir)
+  if (AUTH_PAGES.some((path) => pathname.startsWith(path))) {
     return NextResponse.next();
   }
 
