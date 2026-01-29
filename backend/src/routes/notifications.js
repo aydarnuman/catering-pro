@@ -1,56 +1,88 @@
 /**
- * Bildirim Sistemi API
- * Kullanıcı bildirimlerini yönetir
+ * Unified Notification System API
+ * Tüm kullanıcı ve admin bildirimlerini tek endpoint'te yönetir
  */
 
 import express from 'express';
-import { query } from '../database.js';
+import unifiedNotificationService from '../services/unified-notification-service.js';
 
 const router = express.Router();
+
+/**
+ * Helper: Kullanıcı admin mi?
+ */
+const isUserAdmin = (req) => {
+  const userType = req.user?.user_type || req.user?.role;
+  return userType === 'admin' || userType === 'super_admin';
+};
 
 /**
  * @swagger
  * /api/notifications:
  *   get:
- *     summary: Kullanıcı bildirimlerini listele
+ *     summary: Bildirimleri listele
  *     tags: [Notifications]
  *     parameters:
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
- *           default: 10
+ *           default: 20
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
  *       - in: query
  *         name: unread_only
  *         schema:
  *           type: boolean
  *           default: false
+ *       - in: query
+ *         name: source
+ *         schema:
+ *           type: string
+ *           enum: [user, admin, system]
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: severity
+ *         schema:
+ *           type: string
+ *           enum: [info, warning, error, critical]
  */
 router.get('/', async (req, res) => {
   try {
-    const { limit = 10, unread_only = false } = req.query;
-    // TODO: user_id JWT'den alınacak, şimdilik 1 kullanıyoruz
-    const userId = req.user?.id || 1;
-    
-    let sql = `
-      SELECT * FROM notifications 
-      WHERE user_id = $1
-    `;
-    
-    if (unread_only === 'true' || unread_only === true) {
-      sql += ' AND is_read = false';
-    }
-    
-    sql += ' ORDER BY created_at DESC LIMIT $2';
-    
-    const result = await query(sql, [userId, parseInt(limit)]);
-    
+    const {
+      limit = 20,
+      offset = 0,
+      unread_only = false,
+      source,
+      category,
+      severity
+    } = req.query;
+
+    const userId = req.user?.id;
+    const isAdmin = isUserAdmin(req);
+
+    const notifications = await unifiedNotificationService.getNotifications({
+      userId,
+      isAdmin,
+      source: source || null,
+      category: category || null,
+      severity: severity || null,
+      unreadOnly: unread_only === 'true' || unread_only === true,
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
     res.json({
       success: true,
-      data: result.rows,
-      count: result.rowCount
+      data: notifications,
+      count: notifications.length
     });
-    
   } catch (error) {
     console.error('Bildirimler hatası:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -66,21 +98,46 @@ router.get('/', async (req, res) => {
  */
 router.get('/unread-count', async (req, res) => {
   try {
-    const userId = req.user?.id || 1;
-    
-    const result = await query(`
-      SELECT COUNT(*) as count 
-      FROM notifications 
-      WHERE user_id = $1 AND is_read = false
-    `, [userId]);
-    
+    const userId = req.user?.id;
+    const isAdmin = isUserAdmin(req);
+
+    const count = await unifiedNotificationService.getUnreadCount(userId, isAdmin);
+
     res.json({
       success: true,
-      count: parseInt(result.rows[0].count)
+      data: { count }
     });
-    
   } catch (error) {
     console.error('Bildirim sayısı hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/notifications/{id}:
+ *   get:
+ *     summary: Tek bildirim detayı
+ *     tags: [Notifications]
+ */
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    const isAdmin = isUserAdmin(req);
+
+    const notification = await unifiedNotificationService.getNotification(id, userId, isAdmin);
+
+    if (!notification) {
+      return res.status(404).json({ success: false, error: 'Bildirim bulunamadı' });
+    }
+
+    res.json({
+      success: true,
+      data: notification
+    });
+  } catch (error) {
+    console.error('Bildirim detay hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -95,24 +152,19 @@ router.get('/unread-count', async (req, res) => {
 router.patch('/:id/read', async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user?.id || 1;
-    
-    const result = await query(`
-      UPDATE notifications 
-      SET is_read = true, read_at = CURRENT_TIMESTAMP
-      WHERE id = $1 AND user_id = $2
-      RETURNING *
-    `, [id, userId]);
-    
-    if (result.rowCount === 0) {
-      return res.status(404).json({ success: false, error: 'Bildirim bulunamadı' });
+    const userId = req.user?.id;
+    const isAdmin = isUserAdmin(req);
+
+    const result = await unifiedNotificationService.markAsRead(id, userId, isAdmin);
+
+    if (!result.success) {
+      return res.status(404).json({ success: false, error: result.message });
     }
-    
+
     res.json({
       success: true,
-      data: result.rows[0]
+      message: 'Bildirim okundu olarak işaretlendi'
     });
-    
   } catch (error) {
     console.error('Bildirim güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -125,23 +177,27 @@ router.patch('/:id/read', async (req, res) => {
  *   patch:
  *     summary: Tüm bildirimleri okundu olarak işaretle
  *     tags: [Notifications]
+ *     parameters:
+ *       - in: query
+ *         name: source
+ *         schema:
+ *           type: string
+ *           enum: [user, admin, system]
+ *         description: Sadece belirli kaynaktaki bildirimleri işaretle
  */
 router.patch('/read-all', async (req, res) => {
   try {
-    const userId = req.user?.id || 1;
-    
-    const result = await query(`
-      UPDATE notifications 
-      SET is_read = true, read_at = CURRENT_TIMESTAMP
-      WHERE user_id = $1 AND is_read = false
-      RETURNING id
-    `, [userId]);
-    
+    const { source } = req.query;
+    const userId = req.user?.id;
+    const isAdmin = isUserAdmin(req);
+
+    const result = await unifiedNotificationService.markAllAsRead(userId, isAdmin, source || null);
+
     res.json({
       success: true,
-      message: `${result.rowCount} bildirim okundu olarak işaretlendi`
+      message: `${result.count} bildirim okundu olarak işaretlendi`,
+      count: result.count
     });
-    
   } catch (error) {
     console.error('Toplu bildirim güncelleme hatası:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -157,26 +213,56 @@ router.patch('/read-all', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const { user_id, title, message, type = 'info', category, link } = req.body;
-    
-    if (!user_id || !title) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'user_id ve title zorunludur' 
+    const {
+      user_id,
+      title,
+      message,
+      type = 'info',
+      category,
+      link,
+      severity = 'info',
+      source = 'user',
+      metadata = {}
+    } = req.body;
+
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        error: 'title zorunludur'
       });
     }
-    
-    const result = await query(`
-      INSERT INTO notifications (user_id, title, message, type, category, link)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING *
-    `, [user_id, title, message, type, category, link]);
-    
+
+    // Admin bildirimi oluşturmak için admin yetkisi gerekli
+    if (source === 'admin' && !isUserAdmin(req)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Admin bildirimi oluşturmak için yetki gerekli'
+      });
+    }
+
+    const notificationId = await unifiedNotificationService.createNotification({
+      userId: user_id || null,
+      title,
+      message,
+      type,
+      category,
+      link,
+      severity,
+      source,
+      metadata
+    });
+
+    if (!notificationId) {
+      return res.status(500).json({
+        success: false,
+        error: 'Bildirim oluşturulamadı'
+      });
+    }
+
     res.status(201).json({
       success: true,
-      data: result.rows[0]
+      data: { id: notificationId }
     });
-    
   } catch (error) {
     console.error('Bildirim oluşturma hatası:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -193,25 +279,107 @@ router.post('/', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user?.id || 1;
-    
-    const result = await query(`
-      DELETE FROM notifications 
-      WHERE id = $1 AND user_id = $2
-      RETURNING id
-    `, [id, userId]);
-    
-    if (result.rowCount === 0) {
-      return res.status(404).json({ success: false, error: 'Bildirim bulunamadı' });
+    const userId = req.user?.id;
+    const isAdmin = isUserAdmin(req);
+
+    const result = await unifiedNotificationService.deleteNotification(id, userId, isAdmin);
+
+    if (!result.success) {
+      return res.status(404).json({ success: false, error: result.message });
     }
-    
+
     res.json({
       success: true,
       message: 'Bildirim silindi'
     });
-    
   } catch (error) {
     console.error('Bildirim silme hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/notifications/cleanup:
+ *   post:
+ *     summary: Eski bildirimleri temizle (admin only)
+ *     tags: [Notifications]
+ */
+router.post('/cleanup', async (req, res) => {
+  try {
+    if (!isUserAdmin(req)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Bu işlem için admin yetkisi gerekli'
+      });
+    }
+
+    const count = await unifiedNotificationService.cleanupOldNotifications();
+
+    res.json({
+      success: true,
+      message: `${count} eski bildirim temizlendi`,
+      count
+    });
+  } catch (error) {
+    console.error('Bildirim temizleme hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/notifications/scheduler-status:
+ *   get:
+ *     summary: Reminder scheduler durumu (admin only)
+ *     tags: [Notifications]
+ */
+router.get('/scheduler-status', async (req, res) => {
+  try {
+    if (!isUserAdmin(req)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Bu işlem için admin yetkisi gerekli'
+      });
+    }
+
+    const reminderScheduler = (await import('../services/reminder-notification-scheduler.js')).default;
+
+    res.json({
+      success: true,
+      data: reminderScheduler.getStatus()
+    });
+  } catch (error) {
+    console.error('Scheduler status hatası:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/notifications/trigger-reminders:
+ *   post:
+ *     summary: Reminder scheduler'ı manuel tetikle (admin only)
+ *     tags: [Notifications]
+ */
+router.post('/trigger-reminders', async (req, res) => {
+  try {
+    if (!isUserAdmin(req)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Bu işlem için admin yetkisi gerekli'
+      });
+    }
+
+    const reminderScheduler = (await import('../services/reminder-notification-scheduler.js')).default;
+    const result = await reminderScheduler.processReminders();
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Trigger reminders hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
