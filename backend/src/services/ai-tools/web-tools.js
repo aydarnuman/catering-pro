@@ -1,11 +1,18 @@
 /**
  * Web Arama ve Mevzuat Tools
  * AI Agent'ın internetten güncel bilgi almasını sağlar
+ *
+ * Tavily API: Gerçek web araması (ücretsiz 1000 istek/ay)
+ * DuckDuckGo: Yedek arama (sınırlı sonuçlar)
+ * Yerel Mevzuat: Güncel 2026 verileri
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+// Tavily API Key (ücretsiz: https://tavily.com)
+const TAVILY_API_KEY = process.env.TAVILY_API_KEY || '';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -50,7 +57,7 @@ export const webToolDefinitions = [
   {
     name: 'web_arama',
     description:
-      'İnternetten güncel bilgi arar. SADECE yerel bilgi bankasında bulunamayan, güncel veya spesifik bilgiler için kullanılmalıdır. Örn: son dakika haberler, güncel döviz kuru, yeni yayınlanan tebliğler.',
+      'İnternetten güncel bilgi arar (Tavily API). SADECE yerel bilgi bankasında bulunamayan, güncel veya spesifik bilgiler için kullanılmalıdır. Örn: son dakika haberler, güncel döviz kuru, yeni yayınlanan tebliğler, ihale fiyatları.',
     input_schema: {
       type: 'object',
       properties: {
@@ -62,6 +69,10 @@ export const webToolDefinitions = [
           type: 'string',
           description: 'Arama tipi',
           enum: ['genel', 'haber', 'mevzuat', 'fiyat'],
+        },
+        max_sonuc: {
+          type: 'number',
+          description: 'Maksimum sonuç sayısı (varsayılan: 5)',
         },
       },
       required: ['sorgu'],
@@ -173,69 +184,16 @@ export const webToolImplementations = {
     }
   },
 
-  web_arama: async ({ sorgu, tip = 'genel' }) => {
+  web_arama: async ({ sorgu, tip = 'genel', max_sonuc = 5 }) => {
     try {
-      // DuckDuckGo Instant Answer API (ücretsiz, API key gerektirmez)
-      const encodedQuery = encodeURIComponent(sorgu);
-      const url = `https://api.duckduckgo.com/?q=${encodedQuery}&format=json&no_html=1&skip_disambig=1`;
-
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'CateringPro/1.0',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      // Tavily API varsa kullan (gerçek web araması)
+      if (TAVILY_API_KEY) {
+        return await tavilyArama(sorgu, tip, max_sonuc);
       }
 
-      const data = await response.json();
-
-      // Sonuçları düzenle
-      const results = [];
-
-      if (data.AbstractText) {
-        results.push({
-          tip: 'ozet',
-          baslik: data.Heading || sorgu,
-          icerik: data.AbstractText,
-          kaynak: data.AbstractSource,
-          url: data.AbstractURL,
-        });
-      }
-
-      if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-        data.RelatedTopics.slice(0, 5).forEach((topic) => {
-          if (topic.Text) {
-            results.push({
-              tip: 'ilgili',
-              icerik: topic.Text,
-              url: topic.FirstURL,
-            });
-          }
-        });
-      }
-
-      if (results.length === 0) {
-        return {
-          success: true,
-          kaynak: 'web_arama',
-          sorgu,
-          sonuc:
-            'Direkt sonuç bulunamadı. Bu konuda daha spesifik bir arama yapılabilir veya resmi kaynaklara başvurulabilir.',
-          oneri: 'mevzuat.gov.tr, sgk.gov.tr, kik.gov.tr gibi resmi siteleri kontrol edin.',
-        };
-      }
-
-      return {
-        success: true,
-        kaynak: 'web_arama',
-        sorgu,
-        tip,
-        sonuc_sayisi: results.length,
-        sonuclar: results,
-        uyari: 'Web araması sonuçları her zaman doğrulanmalıdır. Resmi işlemler için yetkili kurumlara başvurun.',
-      };
+      // Tavily yoksa DuckDuckGo'ya fallback (sınırlı sonuçlar)
+      console.warn('[web_arama] Tavily API key yok, DuckDuckGo kullanılıyor (sınırlı sonuçlar)');
+      return await duckduckgoArama(sorgu, tip);
     } catch (error) {
       return {
         success: false,
@@ -464,6 +422,121 @@ function getYerelEmsaller(arama_tipi) {
   };
 
   return emsaller[arama_tipi] || emsaller.genel;
+}
+
+// ============================================================
+// TAVILY API - Gerçek Web Araması
+// ============================================================
+
+async function tavilyArama(sorgu, tip, maxSonuc = 5) {
+  const searchDepth = tip === 'haber' ? 'advanced' : 'basic';
+
+  const response = await fetch('https://api.tavily.com/search', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      api_key: TAVILY_API_KEY,
+      query: sorgu,
+      search_depth: searchDepth,
+      include_answer: true,
+      include_raw_content: false,
+      max_results: maxSonuc,
+      include_domains: tip === 'mevzuat' ? ['mevzuat.gov.tr', 'sgk.gov.tr', 'kik.gov.tr', 'resmigazete.gov.tr'] : [],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Tavily API hatası: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+
+  // Sonuçları düzenle
+  const sonuclar = data.results?.map((r) => ({
+    baslik: r.title,
+    icerik: r.content,
+    url: r.url,
+    skor: r.score,
+  })) || [];
+
+  return {
+    success: true,
+    kaynak: 'tavily_api',
+    sorgu,
+    tip,
+    ai_cevap: data.answer || null,
+    sonuc_sayisi: sonuclar.length,
+    sonuclar,
+    uyari: 'Web araması sonuçları her zaman doğrulanmalıdır.',
+  };
+}
+
+// ============================================================
+// DUCKDUCKGO API - Yedek Arama (Sınırlı)
+// ============================================================
+
+async function duckduckgoArama(sorgu, tip) {
+  const encodedQuery = encodeURIComponent(sorgu);
+  const url = `https://api.duckduckgo.com/?q=${encodedQuery}&format=json&no_html=1&skip_disambig=1`;
+
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'CateringPro/1.0',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+  const results = [];
+
+  if (data.AbstractText) {
+    results.push({
+      tip: 'ozet',
+      baslik: data.Heading || sorgu,
+      icerik: data.AbstractText,
+      kaynak: data.AbstractSource,
+      url: data.AbstractURL,
+    });
+  }
+
+  if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+    data.RelatedTopics.slice(0, 5).forEach((topic) => {
+      if (topic.Text) {
+        results.push({
+          tip: 'ilgili',
+          icerik: topic.Text,
+          url: topic.FirstURL,
+        });
+      }
+    });
+  }
+
+  if (results.length === 0) {
+    return {
+      success: true,
+      kaynak: 'duckduckgo_fallback',
+      sorgu,
+      sonuc: 'Direkt sonuç bulunamadı. Tavily API key ekleyerek daha iyi sonuçlar alabilirsiniz.',
+      oneri: 'TAVILY_API_KEY ekleyin veya mevzuat.gov.tr, sgk.gov.tr, kik.gov.tr gibi resmi siteleri kontrol edin.',
+      tavily_kayit: 'https://tavily.com - Ücretsiz 1000 istek/ay',
+    };
+  }
+
+  return {
+    success: true,
+    kaynak: 'duckduckgo_fallback',
+    sorgu,
+    tip,
+    sonuc_sayisi: results.length,
+    sonuclar: results,
+    uyari: 'DuckDuckGo sınırlı sonuç verir. Tavily API key ekleyerek daha iyi sonuçlar alabilirsiniz.',
+  };
 }
 
 export default { webToolDefinitions, webToolImplementations };

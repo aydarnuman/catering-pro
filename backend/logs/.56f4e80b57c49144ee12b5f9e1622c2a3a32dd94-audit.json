@@ -64,6 +64,26 @@
             "date": 1769347419862,
             "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-25.log",
             "hash": "09363d215e014fae883ef307b3839d73550ea77cf3928f625019fb28371656b6"
+        },
+        {
+            "date": 1769403600215,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-26.log",
+            "hash": "f3a6864434b9fe4fa2945713641fcc49d82bfb34c08535f7094cfe80690cf1f4"
+        },
+        {
+            "date": 1769504323572,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-27.log",
+            "hash": "2953b3cea77bb5268a14e2012f5f84d9c4c46faae25f9aa40c3fbbb430a82e5a"
+        },
+        {
+            "date": 1769587326113,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-28.log",
+            "hash": "b9073b385d4a67045dba0f25fe63b6b05d5e6bd06b67aa0d5e9dc57a6ace6c0e"
+        },
+        {
+            "date": 1769673045570,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-29.log",
+            "hash": "d3da9599585b5adaa35038885a8c27868fc62cefa38af355fba3944622072c6a"
         }
     ],
     "hashType": "sha256"

@@ -1,0 +1,1901 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "timestamp": "2026-01-29T11:41:03.243Z",
+    "duration": 5897,
+    "projectRoot": "/Users/numanaydar/Desktop/CATERİNG",
+    "nodeVersion": "v25.1.0",
+    "outputPath": "/Users/numanaydar/Desktop/CATERİNG/scripts/audit/output/audit-1769686863243.json"
+  },
+  "summary": {
+    "totalChecks": 6,
+    "passed": 1,
+    "errors": 1,
+    "warnings": 4,
+    "info": 58,
+    "skipped": 0,
+    "byCategory": {
+      "code-quality": {
+        "passed": 1,
+        "errors": 1,
+        "warnings": 4,
+        "info": 58
+      }
+    }
+  },
+  "results": {
+    "code-quality": {
+      "name": "Kod Kalitesi",
+      "description": "Lint, formatting, dead code, complexity ve dokümantasyon kontrolleri",
+      "checks": [
+        {
+          "id": "lint-format",
+          "name": "Lint & Formatting",
+          "status": "warning",
+          "severity": "warning",
+          "fixable": true,
+          "findings": [
+            {
+              "severity": "warning",
+              "message": "Frontend için Biome bulunamadı. npm install @biomejs/biome çalıştırın.",
+              "file": "frontend/package.json",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": null
+            }
+          ],
+          "summary": {
+            "total": 1,
+            "errors": 0,
+            "warnings": 1
+          },
+          "duration": 10
+        },
+        {
+          "id": "dead-code",
+          "name": "Dead Code Tespiti",
+          "status": "warning",
+          "severity": "warning",
+          "fixable": true,
+          "findings": [
+            {
+              "severity": "warning",
+              "message": "Kullanılmayan bağımlılık: axios",
+              "file": "backend/package.json",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "npm uninstall axios",
+              "package": "axios"
+            },
+            {
+              "severity": "warning",
+              "message": "Kullanılmayan bağımlılık: cheerio",
+              "file": "backend/package.json",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "npm uninstall cheerio",
+              "package": "cheerio"
+            },
+            {
+              "severity": "warning",
+              "message": "Kullanılmayan bağımlılık: @emotion/cache",
+              "file": "frontend/package.json",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "npm uninstall @emotion/cache",
+              "package": "@emotion/cache"
+            },
+            {
+              "severity": "warning",
+              "message": "Kullanılmayan bağımlılık: @mantine/charts",
+              "file": "frontend/package.json",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "npm uninstall @mantine/charts",
+              "package": "@mantine/charts"
+            },
+            {
+              "severity": "warning",
+              "message": "Kullanılmayan bağımlılık: @mantine/form",
+              "file": "frontend/package.json",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "npm uninstall @mantine/form",
+              "package": "@mantine/form"
+            },
+            {
+              "severity": "warning",
+              "message": "Kullanılmayan bağımlılık: leaflet",
+              "file": "frontend/package.json",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "npm uninstall leaflet",
+              "package": "leaflet"
+            }
+          ],
+          "summary": {
+            "total": 6,
+            "unusedDependencies": 6,
+            "unusedImports": 0
+          },
+          "duration": 108
+        },
+        {
+          "id": "typescript-strict",
+          "name": "TypeScript Strict Mode",
+          "status": "warning",
+          "severity": "warning",
+          "fixable": false,
+          "findings": [
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/admin/kullanicilar/page.tsx",
+              "line": 212,
+              "column": null,
+              "rule": null,
+              "snippet": "const body: any = {",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/admin/kullanicilar/page.tsx",
+              "line": 951,
+              "column": null,
+              "rule": null,
+              "snippet": "{loginHistory.map((attempt: any, index: number) => (",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/admin/kullanicilar/page.tsx",
+              "line": 147,
+              "column": null,
+              "rule": null,
+              "snippet": "setUsers((data as any).users || []);",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/admin/loglar/page.tsx",
+              "line": 62,
+              "column": null,
+              "rule": null,
+              "snippet": "changes: any;",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/admin/loglar/page.tsx",
+              "line": 118,
+              "column": null,
+              "rule": null,
+              "snippet": "setLogs((data as any).logs || []);",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/admin/loglar/page.tsx",
+              "line": 119,
+              "column": null,
+              "rule": null,
+              "snippet": "setTotalPages((data as any).pagination?.totalPages || 1);",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/admin/yetkiler/page.tsx",
+              "line": 60,
+              "column": null,
+              "rule": null,
+              "snippet": "permissions: any;",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/admin/yetkiler/page.tsx",
+              "line": 80,
+              "column": null,
+              "rule": null,
+              "snippet": "permissions: any;",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/admin/yetkiler/page.tsx",
+              "line": 366,
+              "column": null,
+              "rule": null,
+              "snippet": "? u.permissions.filter((p: any) => p.view).length",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/ai-chat/history/page.tsx",
+              "line": 82,
+              "column": null,
+              "rule": null,
+              "snippet": "setConversations((data as any).conversations || []);",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/ai-chat/history/page.tsx",
+              "line": 121,
+              "column": null,
+              "rule": null,
+              "snippet": "setSearchResults((data as any).results || []);",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/ai-chat/history/page.tsx",
+              "line": 122,
+              "column": null,
+              "rule": null,
+              "snippet": "if (!(data as any).results || (data as any).results.length === 0) {",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/ai-chat/history/page.tsx",
+              "line": 122,
+              "column": null,
+              "rule": null,
+              "snippet": "if (!(data as any).results || (data as any).results.length === 0) {",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/ai-chat/history/page.tsx",
+              "line": 151,
+              "column": null,
+              "rule": null,
+              "snippet": "setSessionMessages((data as any).messages || []);",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/ai-chat/history/page.tsx",
+              "line": 182,
+              "column": null,
+              "rule": null,
+              "snippet": "message: `${(data as any).deletedCount || 0} mesaj silindi`,",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/ayarlar/ai/page.tsx",
+              "line": 260,
+              "column": null,
+              "rule": null,
+              "snippet": "const parseValue = (value: any, defaultValue: any) => {",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/ayarlar/ai/page.tsx",
+              "line": 260,
+              "column": null,
+              "rule": null,
+              "snippet": "const parseValue = (value: any, defaultValue: any) => {",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/ayarlar/ai/page.tsx",
+              "line": 320,
+              "column": null,
+              "rule": null,
+              "snippet": "} catch (error: any) {",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/ayarlar/ai/page.tsx",
+              "line": 394,
+              "column": null,
+              "rule": null,
+              "snippet": "} catch (error: any) {",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/ayarlar/ai/page.tsx",
+              "line": 255,
+              "column": null,
+              "rule": null,
+              "snippet": "const settings = (settingsData.data?.settings as any) || {};",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/ayarlar/ai/page.tsx",
+              "line": 377,
+              "column": null,
+              "rule": null,
+              "snippet": "message: (data.data as any).message || `${data.data.imported} ayar import edildi",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/ayarlar/ai/page.tsx",
+              "line": 685,
+              "column": null,
+              "rule": null,
+              "snippet": "preferred_model: (template as any).preferred_model || '',",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Generic \"any\" kullanımı",
+              "file": "frontend/src/app/ayarlar/ai/page.tsx",
+              "line": 202,
+              "column": null,
+              "rule": null,
+              "snippet": "const [importPreview, setImportPreview] = useState<any>(null);",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 352,
+              "column": null,
+              "rule": null,
+              "snippet": "} catch (err: any) {",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 464,
+              "column": null,
+              "rule": null,
+              "snippet": "} catch (err: any) {",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 539,
+              "column": null,
+              "rule": null,
+              "snippet": "} catch (err: any) {",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 614,
+              "column": null,
+              "rule": null,
+              "snippet": "} catch (err: any) {",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 637,
+              "column": null,
+              "rule": null,
+              "snippet": "} catch (err: any) {",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 679,
+              "column": null,
+              "rule": null,
+              "snippet": "} catch (err: any) {",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 712,
+              "column": null,
+              "rule": null,
+              "snippet": "} catch (err: any) {",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 732,
+              "column": null,
+              "rule": null,
+              "snippet": "} catch (err: any) {",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 758,
+              "column": null,
+              "rule": null,
+              "snippet": "} catch (err: any) {",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 807,
+              "column": null,
+              "rule": null,
+              "snippet": "} catch (err: any) {",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 826,
+              "column": null,
+              "rule": null,
+              "snippet": "} catch (err: any) {",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Explicit \"any\" type kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 2317,
+              "column": null,
+              "rule": null,
+              "snippet": "{detayData.hareketler.map((h: any, i: number) => (",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 277,
+              "column": null,
+              "rule": null,
+              "snippet": "setDemirbaslar((demirbasRes.value.data as any) || []);",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 287,
+              "column": null,
+              "rule": null,
+              "snippet": "setKategoriler((kategoriRes.value.data as any) || []);",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 297,
+              "column": null,
+              "rule": null,
+              "snippet": "setLokasyonlar((lokasyonRes.value.data as any) || []);",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 317,
+              "column": null,
+              "rule": null,
+              "snippet": "setPersoneller((personelRes.value.data as any) || []);",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 449,
+              "column": null,
+              "rule": null,
+              "snippet": "} as any);",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 524,
+              "column": null,
+              "rule": null,
+              "snippet": "} as any);",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 777,
+              "column": null,
+              "rule": null,
+              "snippet": "adres: (lokasyon as any).adres || '',",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 778,
+              "column": null,
+              "rule": null,
+              "snippet": "aciklama: (lokasyon as any).aciklama || '',",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 792,
+              "column": null,
+              "rule": null,
+              "snippet": "? await demirbasAPI.updateLokasyon(editingLokasyon.id, lokasyonForm as any)",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 793,
+              "column": null,
+              "rule": null,
+              "snippet": ": await demirbasAPI.createLokasyon(lokasyonForm as any);",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "Generic \"any\" kullanımı",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": 186,
+              "column": null,
+              "rule": null,
+              "snippet": "const [detayData, setDetayData] = useState<any>(null);",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/muhasebe/finans/page.tsx",
+              "line": 303,
+              "column": null,
+              "rule": null,
+              "snippet": "const result = await muhasebeAPI.createKasaBankaHesap(hesapForm as any);",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/muhasebe/finans/page.tsx",
+              "line": 329,
+              "column": null,
+              "rule": null,
+              "snippet": "} as any);",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/muhasebe/finans/page.tsx",
+              "line": 1603,
+              "column": null,
+              "rule": null,
+              "snippet": "onChange={(v) => setHesapForm({ ...hesapForm, tip: v as any })}",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/muhasebe/finans/page.tsx",
+              "line": 1679,
+              "column": null,
+              "rule": null,
+              "snippet": "onChange={(v) => setHareketForm({ ...hareketForm, tip: v as any })}",
+              "suggestion": "Specific type tanımlayın"
+            },
+            {
+              "severity": "warning",
+              "message": "\"as any\" type assertion kullanımı",
+              "file": "frontend/src/app/muhasebe/finans/page.tsx",
+              "line": 1784,
+              "column": null,
+              "rule": null,
+              "snippet": "onChange={(v) => setHareketForm({ ...hareketForm, tip: v as any })}",
+              "suggestion": "Specific type tanımlayın"
+            }
+          ],
+          "summary": {
+            "total": 51,
+            "errors": 0,
+            "warnings": 51
+          },
+          "duration": 5671
+        },
+        {
+          "id": "complexity",
+          "name": "Kod Karmaşıklığı",
+          "status": "error",
+          "severity": "error",
+          "fixable": false,
+          "findings": [
+            {
+              "severity": "warning",
+              "message": "Dosya çok uzun: 2125 satır (max: 2000)",
+              "file": "backend/src/routes/ai.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Dosyayı daha küçük modüllere bölün",
+              "fileLines": 2125
+            },
+            {
+              "severity": "warning",
+              "message": "Fonksiyon çok uzun: hesaplaSablonMaliyet (156 satır, max: 150)",
+              "file": "backend/src/routes/maliyet-analizi.js",
+              "line": 563,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Fonksiyonu daha küçük parçalara bölün",
+              "function": "hesaplaSablonMaliyet",
+              "functionLines": 156
+            },
+            {
+              "severity": "warning",
+              "message": "Dosya çok uzun: 2830 satır (max: 2000)",
+              "file": "backend/src/routes/menu-planlama.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Dosyayı daha küçük modüllere bölün",
+              "fileLines": 2830
+            },
+            {
+              "severity": "warning",
+              "message": "Fonksiyon çok uzun: for (249 satır, max: 150)",
+              "file": "backend/src/routes/stok.js",
+              "line": 1624,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Fonksiyonu daha küçük parçalara bölün",
+              "function": "for",
+              "functionLines": 249
+            },
+            {
+              "severity": "error",
+              "message": "Yüksek karmaşıklık: for (46, max: 25)",
+              "file": "backend/src/routes/stok.js",
+              "line": 1624,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Koşulları ve döngüleri basitleştirin, helper fonksiyonlar kullanın",
+              "function": "for",
+              "complexity": 46,
+              "threshold": 25
+            },
+            {
+              "severity": "error",
+              "message": "Yüksek karmaşıklık: for (44, max: 25)",
+              "file": "backend/src/routes/tender-tracking.js",
+              "line": 518,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Koşulları ve döngüleri basitleştirin, helper fonksiyonlar kullanın",
+              "function": "for",
+              "complexity": 44,
+              "threshold": 25
+            },
+            {
+              "severity": "warning",
+              "message": "Yüksek karmaşıklık: scrapeGoodsServicesList (31, max: 25)",
+              "file": "backend/src/scraper/document-scraper.js",
+              "line": 68,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Koşulları ve döngüleri basitleştirin, helper fonksiyonlar kullanın",
+              "function": "scrapeGoodsServicesList",
+              "complexity": 31,
+              "threshold": 25
+            },
+            {
+              "severity": "error",
+              "message": "Yüksek karmaşıklık: scrapeDocumentLinksFromPage (63, max: 25)",
+              "file": "backend/src/scraper/document-scraper.js",
+              "line": 363,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Koşulları ve döngüleri basitleştirin, helper fonksiyonlar kullanın",
+              "function": "scrapeDocumentLinksFromPage",
+              "complexity": 63,
+              "threshold": 25
+            },
+            {
+              "severity": "warning",
+              "message": "Yüksek karmaşıklık: parseInvoiceListItem (26, max: 25)",
+              "file": "backend/src/scraper/uyumsoft/api-client.js",
+              "line": 205,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Koşulları ve döngüleri basitleştirin, helper fonksiyonlar kullanın",
+              "function": "parseInvoiceListItem",
+              "complexity": 26,
+              "threshold": 25
+            },
+            {
+              "severity": "warning",
+              "message": "Yüksek karmaşıklık: run (34, max: 25)",
+              "file": "backend/src/scripts/import-kahvalti.js",
+              "line": 44,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Koşulları ve döngüleri basitleştirin, helper fonksiyonlar kullanın",
+              "function": "run",
+              "complexity": 34,
+              "threshold": 25
+            },
+            {
+              "severity": "warning",
+              "message": "Yüksek karmaşıklık: parseKahvaltiExcel (26, max: 25)",
+              "file": "backend/src/scripts/import-ocak-menu.js",
+              "line": 13,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Koşulları ve döngüleri basitleştirin, helper fonksiyonlar kullanın",
+              "function": "parseKahvaltiExcel",
+              "complexity": 26,
+              "threshold": 25
+            },
+            {
+              "severity": "error",
+              "message": "Yüksek karmaşıklık: getOrCreateRecete (38, max: 25)",
+              "file": "backend/src/scripts/import-ocak-menu.js",
+              "line": 136,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Koşulları ve döngüleri basitleştirin, helper fonksiyonlar kullanın",
+              "function": "getOrCreateRecete",
+              "complexity": 38,
+              "threshold": 25
+            },
+            {
+              "severity": "warning",
+              "message": "Yüksek karmaşıklık: main (31, max: 25)",
+              "file": "backend/src/scripts/kahvalti-import.js",
+              "line": 63,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Koşulları ve döngüleri basitleştirin, helper fonksiyonlar kullanın",
+              "function": "main",
+              "complexity": 31,
+              "threshold": 25
+            },
+            {
+              "severity": "warning",
+              "message": "Fonksiyon çok uzun: getSystemPrompt (165 satır, max: 150)",
+              "file": "backend/src/services/ai-agent.js",
+              "line": 289,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Fonksiyonu daha küçük parçalara bölün",
+              "function": "getSystemPrompt",
+              "functionLines": 165
+            },
+            {
+              "severity": "warning",
+              "message": "Fonksiyon çok uzun: processQuery (345 satır, max: 150)",
+              "file": "backend/src/services/ai-agent.js",
+              "line": 458,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Fonksiyonu daha küçük parçalara bölün",
+              "function": "processQuery",
+              "functionLines": 345
+            },
+            {
+              "severity": "error",
+              "message": "Yüksek karmaşıklık: processQuery (81, max: 25)",
+              "file": "backend/src/services/ai-agent.js",
+              "line": 458,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Koşulları ve döngüleri basitleştirin, helper fonksiyonlar kullanın",
+              "function": "processQuery",
+              "complexity": 81,
+              "threshold": 25
+            },
+            {
+              "severity": "warning",
+              "message": "Fonksiyon çok uzun: analyzeBordroFile (164 satır, max: 150)",
+              "file": "backend/src/services/bordro-import-service.js",
+              "line": 374,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Fonksiyonu daha küçük parçalara bölün",
+              "function": "analyzeBordroFile",
+              "functionLines": 164
+            },
+            {
+              "severity": "error",
+              "message": "Yüksek karmaşıklık: analyzeBordroFile (49, max: 25)",
+              "file": "backend/src/services/bordro-import-service.js",
+              "line": 374,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Koşulları ve döngüleri basitleştirin, helper fonksiyonlar kullanın",
+              "function": "analyzeBordroFile",
+              "complexity": 49,
+              "threshold": 25
+            },
+            {
+              "severity": "warning",
+              "message": "Fonksiyon çok uzun: getDepartmentData (165 satır, max: 150)",
+              "file": "backend/src/services/claude-ai.js",
+              "line": 77,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Fonksiyonu daha küçük parçalara bölün",
+              "function": "getDepartmentData",
+              "functionLines": 165
+            },
+            {
+              "severity": "error",
+              "message": "Yüksek karmaşıklık: analyzeFile (52, max: 25)",
+              "file": "backend/src/services/claude.js",
+              "line": 1055,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Koşulları ve döngüleri basitleştirin, helper fonksiyonlar kullanın",
+              "function": "analyzeFile",
+              "complexity": 52,
+              "threshold": 25
+            },
+            {
+              "severity": "warning",
+              "message": "Fonksiyon çok uzun: createPDF (177 satır, max: 150)",
+              "file": "backend/src/services/export-service.js",
+              "line": 78,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Fonksiyonu daha küçük parçalara bölün",
+              "function": "createPDF",
+              "functionLines": 177
+            },
+            {
+              "severity": "warning",
+              "message": "Fonksiyon çok uzun: analyzeAndMap (169 satır, max: 150)",
+              "file": "backend/src/services/import-service.js",
+              "line": 342,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Fonksiyonu daha küçük parçalara bölün",
+              "function": "analyzeAndMap",
+              "functionLines": 169
+            },
+            {
+              "severity": "warning",
+              "message": "Fonksiyon çok uzun: syncUyumsoftInvoices (373 satır, max: 150)",
+              "file": "backend/src/services/sync-scheduler.js",
+              "line": 105,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Fonksiyonu daha küçük parçalara bölün",
+              "function": "syncUyumsoftInvoices",
+              "functionLines": 373
+            },
+            {
+              "severity": "error",
+              "message": "Yüksek karmaşıklık: syncUyumsoftInvoices (83, max: 25)",
+              "file": "backend/src/services/sync-scheduler.js",
+              "line": 105,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Koşulları ve döngüleri basitleştirin, helper fonksiyonlar kullanın",
+              "function": "syncUyumsoftInvoices",
+              "complexity": 83,
+              "threshold": 25
+            },
+            {
+              "severity": "warning",
+              "message": "Fonksiyon çok uzun: runRunner (167 satır, max: 150)",
+              "file": "backend/src/services/tender-scheduler.js",
+              "line": 71,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Fonksiyonu daha küçük parçalara bölün",
+              "function": "runRunner",
+              "functionLines": 167
+            },
+            {
+              "severity": "warning",
+              "message": "Yüksek karmaşıklık: query (34, max: 25)",
+              "file": "backend/src/supabase.js",
+              "line": 65,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Koşulları ve döngüleri basitleştirin, helper fonksiyonlar kullanın",
+              "function": "query",
+              "complexity": 34,
+              "threshold": 25
+            },
+            {
+              "severity": "warning",
+              "message": "Dosya çok uzun: 4302 satır (max: 2000)",
+              "file": "frontend/src/app/ayarlar/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Dosyayı daha küçük modüllere bölün",
+              "fileLines": 4302
+            },
+            {
+              "severity": "warning",
+              "message": "Fonksiyon çok uzun: FirmaProjelerSection (1247 satır, max: 150)",
+              "file": "frontend/src/app/ayarlar/page.tsx",
+              "line": 365,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Fonksiyonu daha küçük parçalara bölün",
+              "function": "FirmaProjelerSection",
+              "functionLines": 1247
+            },
+            {
+              "severity": "error",
+              "message": "Yüksek karmaşıklık: FirmaProjelerSection (142, max: 25)",
+              "file": "frontend/src/app/ayarlar/page.tsx",
+              "line": 365,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Koşulları ve döngüleri basitleştirin, helper fonksiyonlar kullanın",
+              "function": "FirmaProjelerSection",
+              "complexity": 142,
+              "threshold": 25
+            },
+            {
+              "severity": "warning",
+              "message": "Fonksiyon çok uzun: AyarlarContent (2545 satır, max: 150)",
+              "file": "frontend/src/app/ayarlar/page.tsx",
+              "line": 1748,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Fonksiyonu daha küçük parçalara bölün",
+              "function": "AyarlarContent",
+              "functionLines": 2545
+            },
+            {
+              "severity": "error",
+              "message": "Yüksek karmaşıklık: AyarlarContent (206, max: 25)",
+              "file": "frontend/src/app/ayarlar/page.tsx",
+              "line": 1748,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Koşulları ve döngüleri basitleştirin, helper fonksiyonlar kullanın",
+              "function": "AyarlarContent",
+              "complexity": 206,
+              "threshold": 25
+            },
+            {
+              "severity": "warning",
+              "message": "Dosya çok uzun: 2424 satır (max: 2000)",
+              "file": "frontend/src/app/muhasebe/demirbas/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Dosyayı daha küçük modüllere bölün",
+              "fileLines": 2424
+            },
+            {
+              "severity": "warning",
+              "message": "Fonksiyon çok uzun: useFaturaForm (296 satır, max: 150)",
+              "file": "frontend/src/app/muhasebe/faturalar/hooks/useFaturaForm.ts",
+              "line": 56,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Fonksiyonu daha küçük parçalara bölün",
+              "function": "useFaturaForm",
+              "functionLines": 296
+            },
+            {
+              "severity": "error",
+              "message": "Yüksek karmaşıklık: useFaturaForm (38, max: 25)",
+              "file": "frontend/src/app/muhasebe/faturalar/hooks/useFaturaForm.ts",
+              "line": 56,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Koşulları ve döngüleri basitleştirin, helper fonksiyonlar kullanın",
+              "function": "useFaturaForm",
+              "complexity": 38,
+              "threshold": 25
+            },
+            {
+              "severity": "warning",
+              "message": "Yüksek karmaşıklık: useUyumsoftConnection (29, max: 25)",
+              "file": "frontend/src/app/muhasebe/faturalar/hooks/useUyumsoftConnection.ts",
+              "line": 40,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Koşulları ve döngüleri basitleştirin, helper fonksiyonlar kullanın",
+              "function": "useUyumsoftConnection",
+              "complexity": 29,
+              "threshold": 25
+            },
+            {
+              "severity": "warning",
+              "message": "Dosya çok uzun: 2118 satır (max: 2000)",
+              "file": "frontend/src/app/muhasebe/faturalar/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Dosyayı daha küçük modüllere bölün",
+              "fileLines": 2118
+            },
+            {
+              "severity": "warning",
+              "message": "Dosya çok uzun: 2225 satır (max: 2000)",
+              "file": "frontend/src/app/muhasebe/finans/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Dosyayı daha küçük modüllere bölün",
+              "fileLines": 2225
+            },
+            {
+              "severity": "warning",
+              "message": "Dosya çok uzun: 3278 satır (max: 2000)",
+              "file": "frontend/src/app/muhasebe/menu-planlama/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Dosyayı daha küçük modüllere bölün",
+              "fileLines": 3278
+            },
+            {
+              "severity": "warning",
+              "message": "Dosya çok uzun: 2494 satır (max: 2000)",
+              "file": "frontend/src/app/muhasebe/personel/page.tsx",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Dosyayı daha küçük modüllere bölün",
+              "fileLines": 2494
+            }
+          ],
+          "summary": {
+            "total": 39,
+            "highComplexityFunctions": 18,
+            "largeFunctions": 13,
+            "largeFiles": 8
+          },
+          "duration": 55
+        },
+        {
+          "id": "api-consistency",
+          "name": "API Tutarlılığı",
+          "status": "warning",
+          "severity": "warning",
+          "fixable": false,
+          "findings": [
+            {
+              "severity": "info",
+              "message": "Response \"success\" field içermiyor",
+              "file": "backend/src/routes/ai-memory.js",
+              "line": 98,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Tüm response'lara success: true/false ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Response \"success\" field içermiyor",
+              "file": "backend/src/routes/bordro-import.js",
+              "line": 111,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Tüm response'lara success: true/false ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Response \"success\" field içermiyor",
+              "file": "backend/src/routes/bordro-import.js",
+              "line": 274,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Tüm response'lara success: true/false ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Response \"success\" field içermiyor",
+              "file": "backend/src/routes/bordro-import.js",
+              "line": 280,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Tüm response'lara success: true/false ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Response \"success\" field içermiyor",
+              "file": "backend/src/routes/document-proxy.js",
+              "line": 165,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Tüm response'lara success: true/false ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Response \"success\" field içermiyor",
+              "file": "backend/src/routes/import.js",
+              "line": 66,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Tüm response'lara success: true/false ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Response \"success\" field içermiyor",
+              "file": "backend/src/routes/invoices.js",
+              "line": 37,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Tüm response'lara success: true/false ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Response \"success\" field içermiyor",
+              "file": "backend/src/routes/mutabakat.js",
+              "line": 292,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Tüm response'lara success: true/false ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Response \"success\" field içermiyor",
+              "file": "backend/src/routes/mutabakat.js",
+              "line": 423,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Tüm response'lara success: true/false ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Response \"success\" field içermiyor",
+              "file": "backend/src/routes/proje-hareketler.js",
+              "line": 59,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Tüm response'lara success: true/false ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Response \"success\" field içermiyor",
+              "file": "backend/src/routes/proje-hareketler.js",
+              "line": 353,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Tüm response'lara success: true/false ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Response \"success\" field içermiyor",
+              "file": "backend/src/routes/projeler.js",
+              "line": 598,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Tüm response'lara success: true/false ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Response \"success\" field içermiyor",
+              "file": "backend/src/routes/uyumsoft.js",
+              "line": 170,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Tüm response'lara success: true/false ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Endpoint fiil içeriyor: /conversations/list",
+              "file": "backend/src/routes/ai.js",
+              "line": 1668,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "HTTP method fiili belirtir, endpoint isim olmalı",
+              "endpoint": "/conversations/list"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /user",
+              "file": "backend/src/routes/audit-logs.js",
+              "line": 154,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /users veya /userler",
+              "endpoint": "/user/:userId/activity"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Endpoint fiil içeriyor: /create-personel",
+              "file": "backend/src/routes/bordro-import.js",
+              "line": 213,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "HTTP method fiili belirtir, endpoint isim olmalı",
+              "endpoint": "/create-personel"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Endpoint fiil içeriyor: /list/:tenderId",
+              "file": "backend/src/routes/document-proxy.js",
+              "line": 125,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "HTTP method fiili belirtir, endpoint isim olmalı",
+              "endpoint": "/list/:tenderId"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Endpoint fiil içeriyor: /list",
+              "file": "backend/src/routes/duplicate-check.js",
+              "line": 91,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "HTTP method fiili belirtir, endpoint isim olmalı",
+              "endpoint": "/list"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /personel",
+              "file": "backend/src/routes/export.js",
+              "line": 33,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /personels veya /personeller",
+              "endpoint": "/personel/excel"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /personel",
+              "file": "backend/src/routes/export.js",
+              "line": 67,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /personels veya /personeller",
+              "endpoint": "/personel/pdf"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /personel",
+              "file": "backend/src/routes/export.js",
+              "line": 101,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /personels veya /personeller",
+              "endpoint": "/personel/mail"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /cari",
+              "file": "backend/src/routes/export.js",
+              "line": 329,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /caris veya /cariler",
+              "endpoint": "/cari/excel"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /cari",
+              "file": "backend/src/routes/export.js",
+              "line": 362,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /caris veya /cariler",
+              "endpoint": "/cari/pdf"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /cari",
+              "file": "backend/src/routes/export.js",
+              "line": 396,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /caris veya /cariler",
+              "endpoint": "/cari/mail"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /stok",
+              "file": "backend/src/routes/export.js",
+              "line": 465,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /stoks veya /stokler",
+              "endpoint": "/stok/excel"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /stok",
+              "file": "backend/src/routes/export.js",
+              "line": 497,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /stoks veya /stokler",
+              "endpoint": "/stok/pdf"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /stok",
+              "file": "backend/src/routes/export.js",
+              "line": 530,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /stoks veya /stokler",
+              "endpoint": "/stok/mail"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /personel",
+              "file": "backend/src/routes/export.js",
+              "line": 599,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /personels veya /personeller",
+              "endpoint": "/personel/proje/:projeId"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /stok",
+              "file": "backend/src/routes/export.js",
+              "line": 907,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /stoks veya /stokler",
+              "endpoint": "/stok/kritik"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /cari",
+              "file": "backend/src/routes/export.js",
+              "line": 963,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /caris veya /cariler",
+              "endpoint": "/cari/bakiye"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Endpoint fiil içeriyor: /varsayilan/get",
+              "file": "backend/src/routes/firmalar.js",
+              "line": 271,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "HTTP method fiili belirtir, endpoint isim olmalı",
+              "endpoint": "/varsayilan/get"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Endpoint fiil içeriyor: /belge-tipleri/listele",
+              "file": "backend/src/routes/firmalar.js",
+              "line": 1756,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "HTTP method fiili belirtir, endpoint isim olmalı",
+              "endpoint": "/belge-tipleri/listele"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /personel",
+              "file": "backend/src/routes/izin.js",
+              "line": 205,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /personels veya /personeller",
+              "endpoint": "/personel/:id/ozet"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /personel",
+              "file": "backend/src/routes/maas-odeme.js",
+              "line": 355,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /personels veya /personeller",
+              "endpoint": "/personel/:maasOdemeId"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Endpoint fiil içeriyor: /sartname/liste",
+              "file": "backend/src/routes/menu-planlama.js",
+              "line": 1511,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "HTTP method fiili belirtir, endpoint isim olmalı",
+              "endpoint": "/sartname/liste"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /user",
+              "file": "backend/src/routes/permissions.js",
+              "line": 241,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /users veya /userler",
+              "endpoint": "/user/:userId"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /user",
+              "file": "backend/src/routes/permissions.js",
+              "line": 270,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /users veya /userler",
+              "endpoint": "/user/:userId"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /user",
+              "file": "backend/src/routes/permissions.js",
+              "line": 322,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /users veya /userler",
+              "endpoint": "/user/:userId/apply-template"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /personel",
+              "file": "backend/src/routes/personel.js",
+              "line": 565,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /personels veya /personeller",
+              "endpoint": "/projeler/:projeId/personel"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /personel",
+              "file": "backend/src/routes/personel.js",
+              "line": 612,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /personels veya /personeller",
+              "endpoint": "/projeler/:projeId/personel/bulk"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Endpoint fiil içeriyor: /fetch-documents/:tenderId",
+              "file": "backend/src/routes/scraper.js",
+              "line": 674,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "HTTP method fiili belirtir, endpoint isim olmalı",
+              "endpoint": "/fetch-documents/:tenderId"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Endpoint fiil içeriyor: /add-tender",
+              "file": "backend/src/routes/scraper.js",
+              "line": 815,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "HTTP method fiili belirtir, endpoint isim olmalı",
+              "endpoint": "/add-tender"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Endpoint fiil içeriyor: /update-tracked",
+              "file": "backend/src/routes/scraper.js",
+              "line": 1010,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "HTTP method fiili belirtir, endpoint isim olmalı",
+              "endpoint": "/update-tracked"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Endpoint fiil içeriyor: /:tenderId/create-documents",
+              "file": "backend/src/routes/tender-content-documents.js",
+              "line": 16,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "HTTP method fiili belirtir, endpoint isim olmalı",
+              "endpoint": "/:tenderId/create-documents"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Endpoint fiil içeriyor: /add-from-analysis",
+              "file": "backend/src/routes/tender-tracking.js",
+              "line": 293,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "HTTP method fiili belirtir, endpoint isim olmalı",
+              "endpoint": "/add-from-analysis"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Endpoint fiil içeriyor: /stats/updates",
+              "file": "backend/src/routes/tenders.js",
+              "line": 430,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "HTTP method fiili belirtir, endpoint isim olmalı",
+              "endpoint": "/stats/updates"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Endpoint fiil içeriyor: /kategoriler/liste",
+              "file": "backend/src/routes/urunler.js",
+              "line": 765,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "HTTP method fiili belirtir, endpoint isim olmalı",
+              "endpoint": "/kategoriler/liste"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Endpoint fiil içeriyor: /ana-urunler/liste",
+              "file": "backend/src/routes/urunler.js",
+              "line": 1164,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "HTTP method fiili belirtir, endpoint isim olmalı",
+              "endpoint": "/ana-urunler/liste"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Endpoint fiil içeriyor: /duplikeler/liste",
+              "file": "backend/src/routes/urunler.js",
+              "line": 1489,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "HTTP method fiili belirtir, endpoint isim olmalı",
+              "endpoint": "/duplikeler/liste"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /invoice",
+              "file": "backend/src/routes/uyumsoft.js",
+              "line": 98,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /invoices veya /invoiceler",
+              "endpoint": "/invoice/:ettn"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /invoice",
+              "file": "backend/src/routes/uyumsoft.js",
+              "line": 389,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /invoices veya /invoiceler",
+              "endpoint": "/invoice/:ettn/pdf"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /invoice",
+              "file": "backend/src/routes/uyumsoft.js",
+              "line": 427,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /invoices veya /invoiceler",
+              "endpoint": "/invoice/:ettn/xml"
+            },
+            {
+              "severity": "info",
+              "message": "RESTful: Collection endpoint tekil isim kullanıyor: /invoice",
+              "file": "backend/src/routes/uyumsoft.js",
+              "line": 462,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Çoğul form kullanın: /invoices veya /invoiceler",
+              "endpoint": "/invoice/:ettn/html"
+            },
+            {
+              "severity": "warning",
+              "message": "DELETE endpoint parametre içermiyor: /sessions/other",
+              "file": "backend/src/routes/auth.js",
+              "line": 1051,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bulk delete tehlikeli olabilir, :id parametresi ekleyin"
+            },
+            {
+              "severity": "warning",
+              "message": "DELETE endpoint parametre içermiyor: /donem-sil",
+              "file": "backend/src/routes/bordro.js",
+              "line": 846,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bulk delete tehlikeli olabilir, :id parametresi ekleyin"
+            },
+            {
+              "severity": "warning",
+              "message": "DELETE endpoint parametre içermiyor: /completed",
+              "file": "backend/src/routes/notes/personal.js",
+              "line": 685,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bulk delete tehlikeli olabilir, :id parametresi ekleyin"
+            },
+            {
+              "severity": "warning",
+              "message": "DELETE endpoint parametre içermiyor: /completed/all",
+              "file": "backend/src/routes/notlar.js",
+              "line": 295,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bulk delete tehlikeli olabilir, :id parametresi ekleyin"
+            },
+            {
+              "severity": "warning",
+              "message": "GET method ile create/update işlemi: /stats/updates",
+              "file": "backend/src/routes/tenders.js",
+              "line": 430,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "POST/PUT/PATCH method kullanın"
+            },
+            {
+              "severity": "warning",
+              "message": "DELETE endpoint parametre içermiyor: /credentials",
+              "file": "backend/src/routes/uyumsoft.js",
+              "line": 188,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bulk delete tehlikeli olabilir, :id parametresi ekleyin"
+            }
+          ],
+          "summary": {
+            "totalEndpoints": 798,
+            "issues": 59
+          },
+          "duration": 34
+        },
+        {
+          "id": "documentation",
+          "name": "Dokümantasyon Kapsamı",
+          "status": "passed",
+          "severity": "info",
+          "fixable": false,
+          "findings": [
+            {
+              "severity": "info",
+              "message": "Düşük JSDoc coverage: backend/src/database.js (0.0%)",
+              "file": "backend/src/database.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Dokümante edilmemiş: query, transaction"
+            },
+            {
+              "severity": "info",
+              "message": "Düşük JSDoc coverage: backend/src/migrate.js (0.0%)",
+              "file": "backend/src/migrate.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Dokümante edilmemiş: runMigrations"
+            },
+            {
+              "severity": "info",
+              "message": "Düşük JSDoc coverage: backend/src/routes/auth.js (0.0%)",
+              "file": "backend/src/routes/auth.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Dokümante edilmemiş: validatePassword, getCookieOptions, hashToken"
+            },
+            {
+              "severity": "info",
+              "message": "Düşük JSDoc coverage: backend/src/routes/bordro.js (0.0%)",
+              "file": "backend/src/routes/bordro.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Dokümante edilmemiş: nettenBrutHesapla, hesaplaGelirVergisiSync, hesaplaGelirVergisi"
+            },
+            {
+              "severity": "info",
+              "message": "Düşük JSDoc coverage: backend/src/routes/database-stats.js (0.0%)",
+              "file": "backend/src/routes/database-stats.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Dokümante edilmemiş: safeQuery"
+            }
+          ],
+          "summary": {
+            "issues": 5
+          },
+          "duration": 19
+        }
+      ],
+      "status": "error"
+    }
+  },
+  "recommendations": [
+    {
+      "priority": "high",
+      "category": "code-quality",
+      "check": "complexity",
+      "action": "Yüksek karmaşıklıktaki fonksiyonları refactor edin"
+    },
+    {
+      "priority": "medium",
+      "category": "code-quality",
+      "check": "lint-format",
+      "action": "Lint ve formatting hatalarını düzeltin",
+      "command": "npm run lint:fix"
+    },
+    {
+      "priority": "medium",
+      "category": "code-quality",
+      "check": "dead-code",
+      "action": "Kullanılmayan kod ve bağımlılıkları temizleyin",
+      "command": "npm prune && eslint --fix"
+    },
+    {
+      "priority": "medium",
+      "category": "code-quality",
+      "check": "typescript-strict",
+      "action": "TypeScript strict mode uyumluluğunu sağlayın"
+    },
+    {
+      "priority": "medium",
+      "category": "code-quality",
+      "check": "api-consistency",
+      "action": "API endpoint adlandırma ve response formatlarını standartlaştırın"
+    }
+  ]
+}

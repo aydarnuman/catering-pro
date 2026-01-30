@@ -64,6 +64,26 @@
             "date": 1769347419863,
             "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/rejections-2026-01-25.log",
             "hash": "c85e7cd6bd50d8e15e64f297721db3d262aa50b438d6055eabd3d77a965f7c50"
+        },
+        {
+            "date": 1769403600216,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/rejections-2026-01-26.log",
+            "hash": "49e1e6da11cd9acb5a86a5ffb152573d9309ba0d18fc5462a08ddbc98d0a6cc5"
+        },
+        {
+            "date": 1769504323572,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/rejections-2026-01-27.log",
+            "hash": "9f3c3b8c9a87de021f4303735c38e83049cffda768c5d54f7bc5dffc89fa381e"
+        },
+        {
+            "date": 1769587326114,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/rejections-2026-01-28.log",
+            "hash": "076d65c1a18e81e5f2c98292aab5599889e31cb71b42ef169c461459d29c38e3"
+        },
+        {
+            "date": 1769673045571,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/rejections-2026-01-29.log",
+            "hash": "f1ed676bd9b6ccb46d0dfdd343dc4b8f9bd6529dfedf3c7f4cff59123d4cc7b1"
         }
     ],
     "hashType": "sha256"

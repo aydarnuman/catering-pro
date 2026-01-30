@@ -1,0 +1,1711 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "timestamp": "2026-01-29T11:42:02.148Z",
+    "duration": 3148,
+    "projectRoot": "/Users/numanaydar/Desktop/CATERİNG",
+    "nodeVersion": "v25.1.0",
+    "outputPath": "/Users/numanaydar/Desktop/CATERİNG/scripts/audit/output/audit-1769686922148.json"
+  },
+  "summary": {
+    "totalChecks": 7,
+    "passed": 1,
+    "errors": 5,
+    "warnings": 1,
+    "info": 84,
+    "skipped": 0,
+    "byCategory": {
+      "security": {
+        "passed": 1,
+        "errors": 5,
+        "warnings": 1,
+        "info": 84
+      }
+    }
+  },
+  "results": {
+    "security": {
+      "name": "Güvenlik",
+      "description": "Bağımlılık güvenliği, gizli anahtarlar, auth, CORS, rate limiting ve input validation kontrolleri",
+      "checks": [
+        {
+          "id": "dependencies",
+          "name": "Bağımlılık Güvenliği",
+          "status": "error",
+          "severity": "error",
+          "fixable": true,
+          "findings": [
+            {
+              "severity": "error",
+              "message": "qs: qs's arrayLimit bypass in its bracket notation allows DoS via memory exhaustion",
+              "file": "backend/package.json",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "npm audit fix veya npm update qs",
+              "package": "qs",
+              "version": "<6.14.1",
+              "vulnSeverity": "high",
+              "fixAvailable": true
+            },
+            {
+              "severity": "error",
+              "message": "xlsx: Prototype Pollution in sheetJS",
+              "file": "backend/package.json",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Manuel güncelleme gerekli",
+              "package": "xlsx",
+              "version": "*",
+              "vulnSeverity": "high",
+              "fixAvailable": false
+            },
+            {
+              "severity": "error",
+              "message": "next: Next Server Actions Source Code Exposure ",
+              "file": "frontend/package.json",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "npm audit fix veya npm update next",
+              "package": "next",
+              "version": "10.0.0 - 15.6.0-canary.60",
+              "vulnSeverity": "high",
+              "fixAvailable": true
+            }
+          ],
+          "summary": {
+            "critical": 0,
+            "high": 3,
+            "moderate": 0,
+            "low": 0
+          },
+          "duration": 2946
+        },
+        {
+          "id": "secrets",
+          "name": "Gizli Anahtar Tespiti",
+          "status": "passed",
+          "severity": "info",
+          "fixable": false,
+          "findings": [
+            {
+              "severity": "warning",
+              "message": ".env gerçek secret değerleri içeriyor olabilir",
+              "file": ".env",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu dosyanın git'e commit edilmediğinden emin olun"
+            },
+            {
+              "severity": "warning",
+              "message": "backend/.env gerçek secret değerleri içeriyor olabilir",
+              "file": "backend/.env",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu dosyanın git'e commit edilmediğinden emin olun"
+            }
+          ],
+          "summary": {
+            "scannedFiles": 349,
+            "potentialSecrets": 2
+          },
+          "duration": 57
+        },
+        {
+          "id": "auth-security",
+          "name": "Auth & Permission Güvenliği",
+          "status": "error",
+          "severity": "error",
+          "fixable": false,
+          "findings": [
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/ai-memory.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/ai.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "warning",
+              "message": "Sensitive endpoint (admin) auth middleware olmadan tanımlanmış olabilir",
+              "file": "backend/src/routes/auth.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Auth middleware ekleyin"
+            },
+            {
+              "severity": "warning",
+              "message": "Sensitive endpoint (users) auth middleware olmadan tanımlanmış olabilir",
+              "file": "backend/src/routes/auth.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Auth middleware ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/bordro-import.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/bordro.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/cariler.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "warning",
+              "message": "Sensitive endpoint (admin) auth middleware olmadan tanımlanmış olabilir",
+              "file": "backend/src/routes/database-stats.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Auth middleware ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/demirbas.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/document-proxy.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/documents.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/duplicate-check.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/etiketler.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/export.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/fatura-kalemler.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/firmalar.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/ihale-sonuclari.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/import.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/invoices.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/izin.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/kasa-banka.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/maas-odeme.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "warning",
+              "message": "Sensitive endpoint (settings) auth middleware olmadan tanımlanmış olabilir",
+              "file": "backend/src/routes/mail.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Auth middleware ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/mail.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/maliyet-analizi.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/menu-planlama.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/mutabakat.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/notes/attachments.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/notes/contextual.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/notes/personal.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/notes/reminders.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/notes/tags.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/notifications.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/notlar.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/permissions.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/personel.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/planlama.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/preferences.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/proje-hareketler.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/projeler.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/prompt-builder.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/satin-alma.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/scraper.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/social.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/stok.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "warning",
+              "message": "Sensitive endpoint (settings) auth middleware olmadan tanımlanmış olabilir",
+              "file": "backend/src/routes/sync.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Auth middleware ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/sync.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/system.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/teklifler.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/tender-content-documents.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/tender-dilekce.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/tender-documents.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/tender-notes.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/tender-tracking.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/tenders.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/urunler.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "info",
+              "message": "Mutasyon endpoint'leri (POST/PUT/DELETE) auth kontrolü olmadan kullanılıyor",
+              "file": "backend/src/routes/uyumsoft.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Bu endpoint'lerin public olması gerektiğinden emin olun"
+            },
+            {
+              "severity": "warning",
+              "message": "JWT verify'da algorithm belirtilmemiş",
+              "file": "backend/src/middleware/auth.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "algorithms: [\"HS256\"] gibi explicit algorithm belirtin"
+            },
+            {
+              "severity": "warning",
+              "message": "JWT verify'da algorithm belirtilmemiş",
+              "file": "backend/src/routes/auth.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "algorithms: [\"HS256\"] gibi explicit algorithm belirtin"
+            },
+            {
+              "severity": "error",
+              "message": "Password plain text olarak kaydediliyor olabilir",
+              "file": "backend/src/routes/uyumsoft.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "bcrypt veya argon2 ile hash'leyin"
+            }
+          ],
+          "summary": {
+            "issues": 60
+          },
+          "duration": 38
+        },
+        {
+          "id": "cors-headers",
+          "name": "CORS & Security Headers",
+          "status": "warning",
+          "severity": "warning",
+          "fixable": false,
+          "findings": [
+            {
+              "severity": "warning",
+              "message": "CORS wildcard (*) origin kullanılıyor",
+              "file": "backend/src/routes/documents.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Production'da spesifik origin'ler belirtin"
+            },
+            {
+              "severity": "info",
+              "message": "CORS preflight cache (maxAge) ayarlanmamış",
+              "file": "backend/src/server.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Performans için maxAge ekleyin (örn: 86400)"
+            }
+          ],
+          "summary": {
+            "issues": 2
+          },
+          "duration": 28
+        },
+        {
+          "id": "rate-limiting",
+          "name": "Rate Limiting",
+          "status": "error",
+          "severity": "error",
+          "fixable": false,
+          "findings": [
+            {
+              "severity": "error",
+              "message": "Auth endpoint'lerinde rate limiting eksik",
+              "file": "backend/src/routes/auth.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Login/register endpoint'lerine rate limiting ekleyin"
+            },
+            {
+              "severity": "error",
+              "message": "Auth endpoint'lerinde rate limiting eksik",
+              "file": "backend/src/routes/scraper.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Login/register endpoint'lerine rate limiting ekleyin"
+            },
+            {
+              "severity": "warning",
+              "message": "Login endpoint'inde brute force koruması eksik olabilir",
+              "file": "backend/src/routes/scraper.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Başarısız giriş denemelerini sayın ve hesabı geçici olarak kilitleyin"
+            },
+            {
+              "severity": "error",
+              "message": "Auth endpoint'lerinde rate limiting eksik",
+              "file": "backend/src/routes/social.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Login/register endpoint'lerine rate limiting ekleyin"
+            },
+            {
+              "severity": "warning",
+              "message": "Login endpoint'inde brute force koruması eksik olabilir",
+              "file": "backend/src/routes/social.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Başarısız giriş denemelerini sayın ve hesabı geçici olarak kilitleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Rate limit window çok kısa: 15ms",
+              "file": "backend/src/middleware/rate-limiter.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "En az 1 dakika (60000ms) önerilir"
+            },
+            {
+              "severity": "info",
+              "message": "Rate limit skip options kullanılmıyor",
+              "file": "backend/src/middleware/rate-limiter.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Başarısız istekleri saymak için skipSuccessfulRequests: true düşünün"
+            },
+            {
+              "severity": "info",
+              "message": "Rate limit window çok kısa: 60ms",
+              "file": "backend/src/routes/prompt-builder.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "En az 1 dakika (60000ms) önerilir"
+            },
+            {
+              "severity": "info",
+              "message": "Rate limit skip options kullanılmıyor",
+              "file": "backend/src/routes/prompt-builder.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Başarısız istekleri saymak için skipSuccessfulRequests: true düşünün"
+            }
+          ],
+          "summary": {
+            "issues": 9
+          },
+          "duration": 21
+        },
+        {
+          "id": "input-validation",
+          "name": "Input Validation",
+          "status": "error",
+          "severity": "error",
+          "fixable": false,
+          "findings": [
+            {
+              "severity": "warning",
+              "message": "Doğrudan request verisi SQL query'de kullanılıyor",
+              "file": "backend/src/routes/ai-memory.js",
+              "line": 188,
+              "column": null,
+              "rule": null,
+              "snippet": "DELETE FROM ai_memory WHERE id = $1 RETURNING *', [req.params.",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/ai.js",
+              "line": 1334,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `\n      SELECT id, memory_type, category, key, value, importance, u",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/ai.js",
+              "line": 1457,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `\n      SELECT id, fact_type, entity_type, entity_name, fact_key, f",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/auth.js",
+              "line": 697,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `\n      UPDATE users SET ${updateFields.join(', ')}\n      WHERE id ",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/auth.js",
+              "line": 1262,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `UPDATE ip_access_rules SET ${updateFields.join(', ')}\n       WHERE",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/demirbas.js",
+              "line": 370,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `\n      SELECT \n        d.*,\n        k.ad as kategori_ad,\n        k",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/demirbas.js",
+              "line": 402,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `\n      SELECT COUNT(*) as total\n      FROM demirbaslar d\n      WHE",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/etiketler.js",
+              "line": 144,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `\n      SELECT fe.fatura_ettn, e.*\n      FROM fatura_etiketler fe\n ",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/etiketler.js",
+              "line": 289,
+              "column": null,
+              "rule": null,
+              "snippet": "query(`INSERT INTO fatura_etiketler (fatura_ettn, etiket_id) VALUES ${values}`",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/kasa-banka.js",
+              "line": 469,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `UPDATE cek_senetler SET ${setClause}, updated_at = NOW() WHERE id ",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/maliyet-analizi.js",
+              "line": 76,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `\n      SELECT \n        ms.id,\n        ms.ad,\n        ms.aciklama,\n",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/maliyet-analizi.js",
+              "line": 835,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `\n      SELECT \n        mpo.id,\n        mpo.tarih,\n        ot.kod a",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/menu-planlama.js",
+              "line": 103,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `\n      SELECT \n        r.id,\n        r.kod,\n        r.ad,\n        ",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/menu-planlama.js",
+              "line": 138,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `\n      SELECT COUNT(*) as total\n      FROM receteler r\n      LEFT ",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/menu-planlama.js",
+              "line": 1533,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `\n      SELECT \n        ps.*,\n        sk.ad as kurum_adi,\n        s",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/menu-planlama.js",
+              "line": 1879,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `\n      UPDATE sartname_ogun_yapisi \n      SET ${updates.join(', ')",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/notes/tags.js",
+              "line": 140,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `UPDATE note_tags_master\n       SET ${updates.join(', ')}\n       WH",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/planlama.js",
+              "line": 241,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `\n      SELECT * FROM piyasa_fiyat_gecmisi\n      ${whereConditions.",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/planlama.js",
+              "line": 1313,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `\n      SELECT\n        uk.id,\n        uk.kod,\n        uk.ad,\n      ",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/proje-hareketler.js",
+              "line": 39,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `\n      SELECT \n        tip,\n        kategori,\n        COALESCE(SUM",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/proje-hareketler.js",
+              "line": 103,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `\n      SELECT \n        h.*,\n        p.ad as proje_adi\n      FROM p",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/scraper.js",
+              "line": 553,
+              "column": null,
+              "rule": null,
+              "snippet": "query(`\n        DELETE FROM scraper_jobs\n        WHERE status IN ('completed', '",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/stok.js",
+              "line": 174,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `\n      SELECT \n        uk.id,\n        uk.kod,\n        uk.ad,\n     ",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/tender-tracking.js",
+              "line": 427,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `\n      SELECT \n        COUNT(*) as toplam,\n        COUNT(*) FILTER",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/tenders.js",
+              "line": 83,
+              "column": null,
+              "rule": null,
+              "snippet": "query(`SELECT COUNT(*) FROM tenders WHERE ${whereString}`",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/routes/urunler.js",
+              "line": 254,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `\n      SELECT\n        uk.id,\n        uk.kod,\n        uk.ad,\n      ",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/services/ai-tools/fatura-tools.js",
+              "line": 257,
+              "column": null,
+              "rule": null,
+              "snippet": "query(`\n        SELECT \n          COUNT(*) as fatura_sayisi,\n          COALESCE(",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/services/ai-tools/ihale-tools.js",
+              "line": 228,
+              "column": null,
+              "rule": null,
+              "snippet": "query(`\n        SELECT \n          COUNT(*) as toplam_ihale,\n          COUNT(CASE",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/services/ai-tools/menu-tools.js",
+              "line": 334,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n        `\n        SELECT \n          r.id, r.kod, r.ad,\n          rk.ad as",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/services/ai-tools/rapor-tools.js",
+              "line": 134,
+              "column": null,
+              "rule": null,
+              "snippet": "query(`\n        SELECT \n          p.kod,\n          p.ad,\n          p.renk,\n     ",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/services/ai-tools/satin-alma-tools.js",
+              "line": 255,
+              "column": null,
+              "rule": null,
+              "snippet": "query(`\n        SELECT \n          COUNT(*) as toplam_siparis,\n          COUNT(CA",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/services/audit-service.js",
+              "line": 218,
+              "column": null,
+              "rule": null,
+              "snippet": "query(`SELECT COUNT(*) FROM audit_logs ${whereClause}`",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/services/permission-service.js",
+              "line": 221,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n      `UPDATE permission_templates \n         SET ${updates.join(', ')}\n  ",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/services/prompt-builder-service.js",
+              "line": 196,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n    `\n    SELECT \n      sp.*,\n      c.name as category_name,\n      c.slug",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "error",
+              "message": "Template literal ile SQL query - SQL injection riski",
+              "file": "backend/src/services/sync-scheduler.js",
+              "line": 250,
+              "column": null,
+              "rule": null,
+              "snippet": "query(\n              `\n              INSERT INTO uyumsoft_invoices (\n           ",
+              "suggestion": "Parameterized query kullanın ($1, $2 veya ?)"
+            },
+            {
+              "severity": "warning",
+              "message": "HTML response'da user input kullanımı olabilir",
+              "file": "backend/src/routes/uyumsoft.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "HTML escape veya template engine kullanın"
+            },
+            {
+              "severity": "warning",
+              "message": "Input validation library bulunamadı",
+              "file": "backend/package.json",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "joi, zod veya express-validator kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/ai-memory.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/bordro.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/document-proxy.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/duplicate-check.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/ihale-sonuclari.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/invoices.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/izin.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/maas-odeme.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/mail.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/mutabakat.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/notes/contextual.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/notes/reminders.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/permissions.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/personel.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/proje-hareketler.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/projeler.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/satin-alma.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/social.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/sync.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/teklifler.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/tender-dilekce.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/tender-documents.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/tender-tracking.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "Mutation endpoint'lerinde validation tespit edilemedi",
+              "file": "backend/src/routes/uyumsoft.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Request body validation ekleyin"
+            }
+          ],
+          "summary": {
+            "issues": 61
+          },
+          "duration": 43
+        },
+        {
+          "id": "env-security",
+          "name": "Environment Güvenliği",
+          "status": "error",
+          "severity": "error",
+          "fixable": false,
+          "findings": [
+            {
+              "severity": "error",
+              "message": "API_SECRET_KEY varsayılan/örnek değer içeriyor",
+              "file": ".env",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Gerçek bir değer atayın"
+            },
+            {
+              "severity": "error",
+              "message": "JWT_SECRET varsayılan/örnek değer içeriyor",
+              "file": ".env",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Gerçek bir değer atayın"
+            },
+            {
+              "severity": "error",
+              "message": "NEXTAUTH_SECRET varsayılan/örnek değer içeriyor",
+              "file": ".env",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Gerçek bir değer atayın"
+            },
+            {
+              "severity": "error",
+              "message": "API_SECRET_KEY varsayılan/örnek değer içeriyor",
+              "file": "backend/.env",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Gerçek bir değer atayın"
+            },
+            {
+              "severity": "error",
+              "message": "JWT_SECRET varsayılan/örnek değer içeriyor",
+              "file": "backend/.env",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Gerçek bir değer atayın"
+            },
+            {
+              "severity": "error",
+              "message": "NEXTAUTH_SECRET varsayılan/örnek değer içeriyor",
+              "file": "backend/.env",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Gerçek bir değer atayın"
+            },
+            {
+              "severity": "warning",
+              "message": ".env.*.local .gitignore'da yok",
+              "file": ".gitignore",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": ".env.*.local ekleyin"
+            },
+            {
+              "severity": "warning",
+              "message": "*.env .gitignore'da yok",
+              "file": ".gitignore",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "*.env ekleyin"
+            },
+            {
+              "severity": "info",
+              "message": "serviceAccount.json .gitignore'da yok",
+              "file": ".gitignore",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "serviceAccount.json eklemeyi düşünün"
+            },
+            {
+              "severity": "info",
+              "message": "DATABASE_URL için fallback değer yok",
+              "file": "backend/src/migrate.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "process.env.VAR || defaultValue kullanın"
+            },
+            {
+              "severity": "info",
+              "message": "Çok sayıda doğrudan process.env kullanımı (13)",
+              "file": "backend/src/services/mail-service.js",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "Merkezi config dosyası kullanın"
+            },
+            {
+              "severity": "warning",
+              "message": "SUPABASE_URL .env'de eksik (.env.example'da var)",
+              "file": ".env",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "SUPABASE_URL değerini ekleyin"
+            },
+            {
+              "severity": "warning",
+              "message": "JWT_EXPIRES_IN .env'de eksik (.env.example'da var)",
+              "file": ".env",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "JWT_EXPIRES_IN değerini ekleyin"
+            },
+            {
+              "severity": "warning",
+              "message": "CLAUDE_API_KEY .env'de eksik (.env.example'da var)",
+              "file": ".env",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "CLAUDE_API_KEY değerini ekleyin"
+            },
+            {
+              "severity": "warning",
+              "message": "UYUMSOFT_API_URL .env'de eksik (.env.example'da var)",
+              "file": ".env",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "UYUMSOFT_API_URL değerini ekleyin"
+            },
+            {
+              "severity": "warning",
+              "message": "PORT .env'de eksik (.env.example'da var)",
+              "file": ".env",
+              "line": null,
+              "column": null,
+              "rule": null,
+              "snippet": null,
+              "suggestion": "PORT değerini ekleyin"
+            }
+          ],
+          "summary": {
+            "issues": 16
+          },
+          "duration": 15
+        }
+      ],
+      "status": "error"
+    }
+  },
+  "recommendations": [
+    {
+      "priority": "high",
+      "category": "security",
+      "check": "dependencies",
+      "action": "Güvenlik açığı olan bağımlılıkları güncelleyin",
+      "command": "npm audit fix"
+    },
+    {
+      "priority": "high",
+      "category": "security",
+      "check": "auth-security",
+      "action": "Authentication ve authorization kontrollerini güçlendirin"
+    },
+    {
+      "priority": "high",
+      "category": "security",
+      "check": "rate-limiting",
+      "action": "Rate limiting yapılandırmasını gözden geçirin"
+    },
+    {
+      "priority": "high",
+      "category": "security",
+      "check": "input-validation",
+      "action": "Input validation ve sanitization ekleyin"
+    },
+    {
+      "priority": "high",
+      "category": "security",
+      "check": "env-security",
+      "action": ".env dosyalarını ve environment variable güvenliğini kontrol edin"
+    },
+    {
+      "priority": "medium",
+      "category": "security",
+      "check": "cors-headers",
+      "action": "CORS ve security header yapılandırmasını kontrol edin"
+    }
+  ]
+}

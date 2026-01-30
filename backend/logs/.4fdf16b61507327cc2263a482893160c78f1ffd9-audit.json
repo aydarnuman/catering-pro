@@ -79,6 +79,26 @@
             "date": 1769347419862,
             "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-25.log",
             "hash": "4eb5b059a63de44a1a1f5bc62d067093c84dfb721fbbbee812e3133cef5eac2c"
+        },
+        {
+            "date": 1769403600215,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-26.log",
+            "hash": "a0813934c2666da71c8194ba4b49f9ac993fc82705c42f705006a0d87547f8f0"
+        },
+        {
+            "date": 1769477387286,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-27.log",
+            "hash": "473e3d6e980c97a46ad0fede18699590284d742af115382d43907b92707f3f0f"
+        },
+        {
+            "date": 1769581220579,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-28.log",
+            "hash": "6c69e4b5bc0976d68c3e83a2403516faa9b33b5c382aec757745b657e84d9089"
+        },
+        {
+            "date": 1769673045569,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-29.log",
+            "hash": "e1b216177eb9b5c26290fcb195f34aef4873cd7d01fb78328f3132774d75e62d"
         }
     ],
     "hashType": "sha256"
