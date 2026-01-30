@@ -4,7 +4,7 @@ import { auditLog, authenticate, requirePermission } from '../middleware/auth.js
 
 const router = express.Router();
 
-// NOT: GET route'ları herkese açık, POST/PUT/DELETE route'ları authentication gerektirir
+// NOT: TÜM route'lar authentication gerektirir (güvenlik)
 
 // =====================================================
 // PERSONEL İSTATİSTİKLERİ (Dashboard Widget için)
@@ -226,7 +226,7 @@ router.delete('/projeler/:id', async (req, res) => {
 // =====================================================
 // PERSONELLERİ LİSTELE
 // =====================================================
-router.get('/', async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
   try {
     const { departman, durum, proje_id, sadece_atamasiz } = req.query;
 
@@ -291,7 +291,7 @@ router.get('/', async (req, res) => {
 // =====================================================
 // PERSONEL DETAYI
 // =====================================================
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -721,7 +721,7 @@ router.delete('/atama/:atamaId', async (req, res) => {
 // =====================================================
 // İSTATİSTİKLER
 // =====================================================
-router.get('/stats/overview', async (_req, res) => {
+router.get('/stats/overview', authenticate, async (_req, res) => {
   try {
     const stats = await query(`
       SELECT 
@@ -741,7 +741,7 @@ router.get('/stats/overview', async (_req, res) => {
 // =====================================================
 // DEPARTMAN BAZLI İSTATİSTİKLER
 // =====================================================
-router.get('/stats/departman', async (_req, res) => {
+router.get('/stats/departman', authenticate, async (_req, res) => {
   try {
     const result = await query(`
       SELECT 
@@ -763,7 +763,7 @@ router.get('/stats/departman', async (_req, res) => {
 // =====================================================
 // GÖREVLER - LİSTELE
 // =====================================================
-router.get('/gorevler', async (_req, res) => {
+router.get('/gorevler', authenticate, async (_req, res) => {
   try {
     const result = await query(`
       SELECT * FROM gorevler 

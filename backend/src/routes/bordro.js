@@ -1,5 +1,6 @@
 import express from 'express';
 import { query } from '../database.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -705,7 +706,7 @@ router.post('/toplu-hesapla', async (req, res) => {
 // =====================================================
 // BORDRO LİSTELE (AY BAZLI)
 // =====================================================
-router.get('/', async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
   try {
     const { yil, ay, odeme_durumu } = req.query;
 
@@ -746,7 +747,7 @@ router.get('/', async (req, res) => {
 // =====================================================
 // BORDRO ÖZET
 // =====================================================
-router.get('/ozet/:yil/:ay', async (req, res) => {
+router.get('/ozet/:yil/:ay', authenticate, async (req, res) => {
   try {
     const { yil, ay } = req.params;
 
@@ -879,7 +880,7 @@ router.delete('/donem-sil', async (req, res) => {
 // =====================================================
 // VERGİ DİLİMLERİ
 // =====================================================
-router.get('/vergi-dilimleri/:yil', async (req, res) => {
+router.get('/vergi-dilimleri/:yil', authenticate, async (req, res) => {
   try {
     const { yil } = req.params;
     const result = await query(
@@ -897,7 +898,7 @@ router.get('/vergi-dilimleri/:yil', async (req, res) => {
 // =====================================================
 // ASGARİ ÜCRET
 // =====================================================
-router.get('/asgari-ucret/:yil', async (req, res) => {
+router.get('/asgari-ucret/:yil', authenticate, async (req, res) => {
   try {
     const { yil } = req.params;
     const result = await query(
