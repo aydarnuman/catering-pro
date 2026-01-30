@@ -84,6 +84,11 @@
             "date": 1769673045571,
             "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/rejections-2026-01-29.log",
             "hash": "f1ed676bd9b6ccb46d0dfdd343dc4b8f9bd6529dfedf3c7f4cff59123d4cc7b1"
+        },
+        {
+            "date": 1769758477484,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/rejections-2026-01-30.log",
+            "hash": "393df53b3b2c1031e828fd4cc587653f612572d0bd41e53349d816bd0660e711"
         }
     ],
     "hashType": "sha256"

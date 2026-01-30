@@ -983,14 +983,31 @@ router.post('/menu-planlari/:planId/ogunler', async (req, res) => {
     const { planId } = req.params;
     const { tarih, ogun_tipi_id, kisi_sayisi } = req.body;
 
+    // Önce çakışma kontrolü yap (kullanıcıya daha anlaşılır mesaj için)
+    const existing = await query(
+      `
+      SELECT mpo.id, ot.ad as ogun_adi
+      FROM menu_plan_ogunleri mpo
+      JOIN ogun_tipleri ot ON ot.id = mpo.ogun_tipi_id
+      WHERE mpo.menu_plan_id = $1 AND mpo.tarih = $2 AND mpo.ogun_tipi_id = $3
+    `,
+      [planId, tarih, ogun_tipi_id]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        error: `Bu tarih için ${existing.rows[0].ogun_adi} öğünü zaten planlanmış!`,
+        conflict: true,
+        existing_id: existing.rows[0].id,
+      });
+    }
+
     const result = await query(
       `
       INSERT INTO menu_plan_ogunleri (
         menu_plan_id, tarih, ogun_tipi_id, kisi_sayisi
       ) VALUES ($1, $2, $3, $4)
-      ON CONFLICT (menu_plan_id, tarih, ogun_tipi_id) DO UPDATE SET
-        kisi_sayisi = EXCLUDED.kisi_sayisi,
-        updated_at = NOW()
       RETURNING *
     `,
       [planId, tarih, ogun_tipi_id, kisi_sayisi]

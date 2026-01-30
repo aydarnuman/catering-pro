@@ -7,6 +7,7 @@
 import express from 'express';
 import { query } from '../database.js';
 import { authenticate, optionalAuth, requireAdmin, requireSuperAdmin } from '../middleware/auth.js';
+import { apiLimiter } from '../middleware/rate-limiter.js';
 import aiAgent from '../services/ai-agent.js';
 import aiTools from '../services/ai-tools/index.js';
 import claudeAI from '../services/claude-ai.js';
@@ -23,7 +24,7 @@ const router = express.Router();
  * POST /api/ai/chat
  * AI ile sohbet et (Eski endpoint - geriye uyumluluk için)
  */
-router.post('/chat', optionalAuth, async (req, res) => {
+router.post('/chat', apiLimiter, optionalAuth, async (req, res) => {
   try {
     const { question, department = 'TÜM SİSTEM', promptTemplate = 'default' } = req.body;
 
@@ -124,7 +125,7 @@ router.post('/chat', optionalAuth, async (req, res) => {
  * AI Agent - Tool Calling ile akıllı asistan
  * Tüm sisteme erişebilir, veri okuyabilir ve yazabilir
  */
-router.post('/agent', optionalAuth, async (req, res) => {
+router.post('/agent', apiLimiter, optionalAuth, async (req, res) => {
   try {
     const { message, systemContext, history = [], sessionId, department, templateSlug, pageContext } = req.body;
 
@@ -1964,7 +1965,7 @@ router.get('/dashboard', async (_req, res) => {
  * God Mode ile AI Agent çalıştır
  * Super Admin yetkisi gerekli
  */
-router.post('/god-mode/execute', authenticate, requireSuperAdmin, async (req, res) => {
+router.post('/god-mode/execute', apiLimiter, authenticate, requireSuperAdmin, async (req, res) => {
   try {
     const { message, sessionId, history = [] } = req.body;
 
@@ -2130,7 +2131,7 @@ router.get('/god-mode/logs', authenticate, requireSuperAdmin, async (req, res) =
  * Frontend'den toplanan hataları AI ile analiz et
  * God Mode aktifken kullanılır
  */
-router.post('/analyze-errors', optionalAuth, async (req, res) => {
+router.post('/analyze-errors', apiLimiter, optionalAuth, async (req, res) => {
   try {
     const { errors, context } = req.body;
 

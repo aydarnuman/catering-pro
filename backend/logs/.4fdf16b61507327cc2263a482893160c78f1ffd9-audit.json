@@ -99,6 +99,11 @@
             "date": 1769673045569,
             "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-29.log",
             "hash": "e1b216177eb9b5c26290fcb195f34aef4873cd7d01fb78328f3132774d75e62d"
+        },
+        {
+            "date": 1769758477483,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-30.log",
+            "hash": "b209205b11e80bb7222f3dba66d0fab862f076383679d37eea3ddc346020ded9"
         }
     ],
     "hashType": "sha256"

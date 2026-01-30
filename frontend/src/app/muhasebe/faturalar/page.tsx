@@ -77,6 +77,7 @@ import { useUyumsoftConnection } from './hooks/useUyumsoftConnection';
 import { useUyumsoftFaturalar } from './hooks/useUyumsoftFaturalar';
 import type { Fatura, FaturaKalem, FaturaTip, UyumsoftFatura } from './types';
 import { BIRIMLER, KDV_ORANLARI } from './types';
+import { InvoiceFilters } from './components/InvoiceFilters';
 
 const birimler = [...BIRIMLER];
 const kdvOranlari = [...KDV_ORANLARI];
@@ -677,101 +678,27 @@ export default function FaturalarPage() {
             </Alert>
           )}
 
-          {/* Stats Cards */}
-          <SimpleGrid cols={{ base: 2, md: 4 }}>
-            <Card withBorder shadow="sm" p="lg" radius="md">
-              <Group justify="space-between">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                  Satış Faturaları
-                </Text>
-                <ThemeIcon color="green" variant="light" size="lg" radius="md">
-                  <IconReceipt size={20} />
-                </ThemeIcon>
-              </Group>
-              <Text fw={700} size="xl" mt="md" c="green">
-                {formatMoney(toplamSatis)}
-              </Text>
-              <Text size="xs" c="dimmed">
-                {faturalar.filter((f) => f.tip === 'satis').length} fatura
-              </Text>
-            </Card>
-            <Card withBorder shadow="sm" p="lg" radius="md">
-              <Group justify="space-between">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                  Alış Faturaları
-                </Text>
-                <ThemeIcon color="orange" variant="light" size="lg" radius="md">
-                  <IconFileInvoice size={20} />
-                </ThemeIcon>
-              </Group>
-              <Text fw={700} size="xl" mt="md" c="orange">
-                {formatMoney(toplamAlis)}
-              </Text>
-              <Text size="xs" c="dimmed">
-                {faturalar.filter((f) => f.tip === 'alis').length} fatura
-              </Text>
-            </Card>
-            <Card withBorder shadow="sm" p="lg" radius="md">
-              <Group justify="space-between">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                  Uyumsoft Gelen
-                </Text>
-                <ThemeIcon color="violet" variant="light" size="lg" radius="md">
-                  <IconCloudDownload size={20} />
-                </ThemeIcon>
-              </Group>
-              <Text fw={700} size="xl" mt="md" c="violet">
-                {formatMoney(uyumsoftToplam)}
-              </Text>
-              <Text size="xs" c="dimmed">
-                {uyumsoftFaturalar.length} fatura
-              </Text>
-            </Card>
-            <Card withBorder shadow="sm" p="lg" radius="md">
-              <Group justify="space-between">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                  Bekleyen Tahsilat
-                </Text>
-                <ThemeIcon color="blue" variant="light" size="lg" radius="md">
-                  <IconClock size={20} />
-                </ThemeIcon>
-              </Group>
-              <Text fw={700} size="xl" mt="md" c="blue">
-                {formatMoney(bekleyenToplam)}
-              </Text>
-            </Card>
-          </SimpleGrid>
+          {/* Stats Cards & Filters */}
+          <InvoiceFilters
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            stats={{
+              toplamSatis,
+              toplamAlis,
+              uyumsoftToplam,
+              bekleyenToplam,
+              manuelCount: faturalar.length,
+              uyumsoftCount: uyumsoftFaturalar.length,
+              satisCount: faturalar.filter((f) => f.tip === 'satis').length,
+              alisCount: faturalar.filter((f) => f.tip === 'alis').length,
+            }}
+            isMobile={isMobile}
+          />
 
-          {/* Filters & Table */}
+          {/* Invoice Tables */}
           <Card withBorder shadow="sm" p={{ base: 'sm', sm: 'lg' }} radius="md">
-            <Stack gap="md" mb="md">
-              {/* Tabs with horizontal scroll on mobile */}
-              <ScrollArea type="scroll" offsetScrollbars scrollbarSize={4}>
-                <Tabs value={activeTab} onChange={setActiveTab}>
-                  <Tabs.List style={{ flexWrap: 'nowrap' }}>
-                    <Tabs.Tab value="tumu">Tümü</Tabs.Tab>
-                    <Tabs.Tab value="manuel">Manuel ({faturalar.length})</Tabs.Tab>
-                    <Tabs.Tab value="uyumsoft" color="violet">
-                      Uyumsoft ({uyumsoftFaturalar.length})
-                    </Tabs.Tab>
-                    <Tabs.Tab value="satis" color="green">
-                      Satış
-                    </Tabs.Tab>
-                    <Tabs.Tab value="alis" color="orange">
-                      Alış
-                    </Tabs.Tab>
-                  </Tabs.List>
-                </Tabs>
-              </ScrollArea>
-              {/* Search - full width on mobile */}
-              <TextInput
-                placeholder="Fatura ara..."
-                leftSection={<IconSearch size={16} />}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.currentTarget.value)}
-                style={{ maxWidth: isMobile ? '100%' : 250 }}
-              />
-            </Stack>
 
             {/* Tümü Sekmesi - Manuel + Uyumsoft Birleşik */}
             {activeTab === 'tumu' ? (
