@@ -2086,7 +2086,7 @@ router.get('/god-mode/logs', authenticate, requireSuperAdmin, async (req, res) =
     // God mode loglarını getir (ai_conversations tablosundan)
     const result = await query(
       `
-      SELECT 
+      SELECT
         id,
         session_id,
         user_id,
@@ -2117,6 +2117,126 @@ router.get('/god-mode/logs', authenticate, requireSuperAdmin, async (req, res) =
     return res.status(500).json({
       success: false,
       error: 'Loglar alınamadı',
+    });
+  }
+});
+
+// ============================================
+// ERROR ANALYSIS ENDPOINT (Frontend Error Collector)
+// ============================================
+
+/**
+ * POST /api/ai/analyze-errors
+ * Frontend'den toplanan hataları AI ile analiz et
+ * God Mode aktifken kullanılır
+ */
+router.post('/analyze-errors', optionalAuth, async (req, res) => {
+  try {
+    const { errors, context } = req.body;
+
+    if (!errors || !Array.isArray(errors) || errors.length === 0) {
+      return res.json({
+        success: true,
+        analysis: 'Analiz edilecek hata yok.',
+        suggestions: [],
+      });
+    }
+
+    logger.info('[Error Analysis] Frontend hataları alındı', {
+      errorCount: errors.length,
+      context: context?.currentUrl,
+    });
+
+    // Hataları AI'a gönder
+    const errorSummary = errors
+      .slice(0, 10) // Maksimum 10 hata
+      .map((e, i) => `${i + 1}. [${e.type}] ${e.message}\n   URL: ${e.url}\n   Zaman: ${e.timestamp}${e.stack ? `\n   Stack: ${e.stack.substring(0, 200)}...` : ''}`)
+      .join('\n\n');
+
+    const analysisPrompt = `
+Frontend'den aşağıdaki hatalar toplandı. Lütfen analiz et ve çözüm öner:
+
+HATALAR:
+${errorSummary}
+
+CONTEXT:
+- Sayfa: ${context?.currentUrl || 'Bilinmiyor'}
+- Zaman: ${context?.timestamp || new Date().toISOString()}
+
+Lütfen:
+1. Her hatanın olası nedenini açıkla
+2. Çözüm önerileri sun
+3. Kritiklik seviyesini belirt (düşük/orta/yüksek)
+4. Hangi dosyalarda düzeltme yapılması gerektiğini belirt
+`;
+
+    // AI Agent ile analiz yap (God Mode olmadan - sadece okuma)
+    const result = await aiAgent.processQuery(analysisPrompt, [], {
+      sessionId: `error-analysis-${Date.now()}`,
+      userId: req.user?.id || 'error_collector',
+      templateSlug: 'default',
+    });
+
+    // Sonuçları parse et
+    const suggestions = [];
+    const response = result.response || '';
+
+    // Basit öneri çıkarma
+    const lines = response.split('\n');
+    lines.forEach((line) => {
+      if (line.includes('Öneri:') || line.includes('Çözüm:') || line.match(/^\d+\./)) {
+        suggestions.push(line.trim());
+      }
+    });
+
+    return res.json({
+      success: true,
+      analysis: result.response,
+      suggestions: suggestions.slice(0, 10),
+      errorCount: errors.length,
+      analyzedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error('[Error Analysis] Hata', { error: error.message, stack: error.stack });
+    return res.status(500).json({
+      success: false,
+      error: 'Hata analizi yapılamadı: ' + error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/ai/errors/recent
+ * Son frontend hatalarını getir (Admin için)
+ */
+router.get('/errors/recent', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { limit = 50 } = req.query;
+
+    // Eğer hata log tablosu varsa oradan çek
+    // Şimdilik basit bir yapı kullanıyoruz
+    const result = await query(
+      `
+      SELECT
+        id, error_type, message, stack_trace, url, user_agent,
+        additional_info, created_at
+      FROM frontend_errors
+      ORDER BY created_at DESC
+      LIMIT $1
+    `,
+      [parseInt(limit, 10)]
+    ).catch(() => ({ rows: [] }));
+
+    return res.json({
+      success: true,
+      errors: result.rows,
+      count: result.rows.length,
+    });
+  } catch (error) {
+    logger.error('[Recent Errors] Hata', { error: error.message });
+    return res.status(500).json({
+      success: false,
+      error: 'Hatalar yüklenemedi',
     });
   }
 });

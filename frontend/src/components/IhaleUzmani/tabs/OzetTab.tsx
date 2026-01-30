@@ -15,10 +15,15 @@ import {
 } from '@mantine/core';
 import {
   IconAlertTriangle,
+  IconBuilding,
   IconCalculator,
+  IconCalendar,
   IconCheck,
+  IconCurrencyLira,
   IconDownload,
   IconEye,
+  IconFileText,
+  IconMapPin,
   IconTrash,
 } from '@tabler/icons-react';
 import Link from 'next/link';
@@ -97,7 +102,7 @@ export function OzetTab({
       </Group>
 
       {/* Özet Kartları */}
-      <SimpleGrid cols={{ base: 2, sm: 3, md: 5 }} spacing="sm">
+      <SimpleGrid cols={{ base: 2, sm: 3, md: 5 }} spacing="sm" className="stagger-enter">
         <Tooltip
           label={tender.ihale_basligi}
           multiline
@@ -105,13 +110,18 @@ export function OzetTab({
           withArrow
           disabled={!tender.ihale_basligi}
         >
-          <Paper p="sm" withBorder radius="md" shadow="xs" className="hover-card">
-            <Text size="xs" c="gray.6" tt="uppercase" fw={600} mb={4}>
-              İhale Başlığı
-            </Text>
+          <Paper p="sm" withBorder radius="md" shadow="xs" className="info-card-enhanced card-hover-scale">
+            <Group gap="xs" mb={6}>
+              <ThemeIcon size="sm" variant="light" color="blue" radius="xl">
+                <IconFileText size={12} />
+              </ThemeIcon>
+              <Text size="xs" c="gray.6" tt="uppercase" fw={600}>
+                İhale Başlığı
+              </Text>
+            </Group>
             <Text size="sm" fw={500} lineClamp={2}>
               {tender.ihale_basligi || (
-                <Text span c="gray.5">
+                <Text span c="gray.5" fs="italic">
                   Belirtilmemiş
                 </Text>
               )}
@@ -120,13 +130,18 @@ export function OzetTab({
         </Tooltip>
 
         <Tooltip label={tender.kurum} multiline w={300} withArrow disabled={!tender.kurum}>
-          <Paper p="sm" withBorder radius="md" shadow="xs" className="hover-card">
-            <Text size="xs" c="gray.6" tt="uppercase" fw={600} mb={4}>
-              Kurum
-            </Text>
+          <Paper p="sm" withBorder radius="md" shadow="xs" className="info-card-enhanced card-hover-scale">
+            <Group gap="xs" mb={6}>
+              <ThemeIcon size="sm" variant="light" color="violet" radius="xl">
+                <IconBuilding size={12} />
+              </ThemeIcon>
+              <Text size="xs" c="gray.6" tt="uppercase" fw={600}>
+                Kurum
+              </Text>
+            </Group>
             <Text size="sm" fw={500} lineClamp={2}>
               {tender.kurum || (
-                <Text span c="gray.5">
+                <Text span c="gray.5" fs="italic">
                   Belirtilmemiş
                 </Text>
               )}
@@ -134,13 +149,18 @@ export function OzetTab({
           </Paper>
         </Tooltip>
 
-        <Paper p="sm" withBorder radius="md" shadow="xs" className="hover-card">
-          <Text size="xs" c="gray.6" tt="uppercase" fw={600} mb={4}>
-            Tarih
-          </Text>
+        <Paper p="sm" withBorder radius="md" shadow="xs" className="info-card-enhanced card-hover-scale">
+          <Group gap="xs" mb={6}>
+            <ThemeIcon size="sm" variant="light" color="cyan" radius="xl">
+              <IconCalendar size={12} />
+            </ThemeIcon>
+            <Text size="xs" c="gray.6" tt="uppercase" fw={600}>
+              Tarih
+            </Text>
+          </Group>
           <Text size="sm" fw={600}>
             {tender.tarih || (
-              <Text span c="gray.5">
+              <Text span c="gray.5" fs="italic">
                 Belirtilmemiş
               </Text>
             )}
@@ -153,23 +173,33 @@ export function OzetTab({
           radius="md"
           shadow="xs"
           style={{ borderColor: tender.bedel ? 'var(--mantine-color-green-5)' : undefined }}
-          className="hover-card"
+          className={`info-card-enhanced card-hover-scale ${tender.bedel ? 'card-gradient-hover success' : ''}`}
         >
-          <Text size="xs" c="gray.6" tt="uppercase" fw={600} mb={4}>
-            Tahmini Bedel
-          </Text>
+          <Group gap="xs" mb={6}>
+            <ThemeIcon size="sm" variant="light" color="green" radius="xl">
+              <IconCurrencyLira size={12} />
+            </ThemeIcon>
+            <Text size="xs" c="gray.6" tt="uppercase" fw={600}>
+              Tahmini Bedel
+            </Text>
+          </Group>
           <Text size="sm" fw={700} c={tender.bedel ? 'green' : 'gray.5'}>
-            {tender.bedel || 'Belirtilmemiş'}
+            {tender.bedel || <Text span fs="italic">Belirtilmemiş</Text>}
           </Text>
         </Paper>
 
-        <Paper p="sm" withBorder radius="md" shadow="xs" className="hover-card">
-          <Text size="xs" c="gray.6" tt="uppercase" fw={600} mb={4}>
-            Şehir
-          </Text>
+        <Paper p="sm" withBorder radius="md" shadow="xs" className="info-card-enhanced card-hover-scale">
+          <Group gap="xs" mb={6}>
+            <ThemeIcon size="sm" variant="light" color="orange" radius="xl">
+              <IconMapPin size={12} />
+            </ThemeIcon>
+            <Text size="xs" c="gray.6" tt="uppercase" fw={600}>
+              Şehir
+            </Text>
+          </Group>
           <Text size="sm" fw={500}>
             {tender.city || (
-              <Text span c="gray.5">
+              <Text span c="gray.5" fs="italic">
                 Belirtilmemiş
               </Text>
             )}
@@ -184,14 +214,20 @@ export function OzetTab({
           withBorder
           radius="md"
           shadow="sm"
+          className="card-hover-scale"
           style={{
             background:
               sinirDeger && bizimTeklif > 0
                 ? bizimTeklif < sinirDeger
-                  ? 'linear-gradient(135deg, rgba(255,244,230,0.5) 0%, rgba(255,255,255,1) 100%)'
-                  : 'linear-gradient(135deg, rgba(235,251,238,0.5) 0%, rgba(255,255,255,1) 100%)'
-                : 'var(--mantine-color-gray-0)',
+                  ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(30, 30, 36, 1) 100%)'
+                  : 'linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(30, 30, 36, 1) 100%)'
+                : 'rgba(139, 92, 246, 0.08)',
             cursor: 'pointer',
+            borderColor: sinirDeger && bizimTeklif > 0
+              ? bizimTeklif < sinirDeger
+                ? 'rgba(245, 158, 11, 0.3)'
+                : 'rgba(34, 197, 94, 0.3)'
+              : 'rgba(139, 92, 246, 0.3)',
           }}
           onClick={onNavigateToHesaplamalar}
         >

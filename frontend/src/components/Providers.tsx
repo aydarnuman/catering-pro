@@ -6,10 +6,14 @@ import { AuthModalProvider } from '@/components/auth';
 import { AuthProvider } from '@/context/AuthContext';
 import { RealtimeProvider } from '@/context/RealtimeContext';
 import { ErrorBoundary } from './ErrorBoundary';
+import { initializeErrorCollector } from '@/lib/error-handling';
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  // Global chunk load error handler
+  // Global chunk load error handler + AI Error Collector
   useEffect(() => {
+    // AI Error Collector'ı başlat
+    initializeErrorCollector();
+
     const handleChunkError = (event: ErrorEvent) => {
       if (event.message?.includes('Loading chunk') || event.message?.includes('ChunkLoadError')) {
         event.preventDefault();
