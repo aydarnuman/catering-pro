@@ -1,25 +1,25 @@
 'use client';
 
-import { useState } from 'react';
 import {
   ActionIcon,
+  Badge,
   Box,
   Button,
+  Center,
   Container,
   Group,
+  Loader,
   Paper,
   SegmentedControl,
+  Select,
   Stack,
   Text,
   Title,
-  Select,
-  Badge,
-  Loader,
-  Center,
 } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import { IconCalendar, IconList, IconPlus, IconRefresh } from '@tabler/icons-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { notifications } from '@mantine/notifications';
+import { useState } from 'react';
 import MenuPlanCalendarView from '@/components/MenuPlanCalendarView';
 import { api } from '@/lib/api';
 
@@ -91,10 +91,10 @@ export default function MenuPlanlamaTakvimPage() {
     queryKey: ['plan-ogunleri', selectedPlanId],
     queryFn: async () => {
       if (!selectedPlanId) return [];
-      const response = await api.get<{ success: boolean; data: MenuPlanOgun[] }>(
+      const response = await api.get<{ success: boolean; data: { ogunler?: MenuPlanOgun[] } }>(
         `/api/menu-planlama/menu-planlari/${selectedPlanId}`
       );
-      return response.data.data.ogunler || [];
+      return response.data.data?.ogunler || [];
     },
     enabled: !!selectedPlanId,
   });
@@ -112,15 +112,22 @@ export default function MenuPlanlamaTakvimPage() {
 
   const selectedPlan = menuPlanlari?.find((p) => p.id === Number(selectedPlanId));
 
-  const handleOgunEkle = async (data: { tarih: Date; ogun_tipi_id: number; kisi_sayisi: number }) => {
+  const handleOgunEkle = async (data: {
+    tarih: Date;
+    ogun_tipi_id: number;
+    kisi_sayisi: number;
+  }) => {
     if (!selectedPlanId) return;
 
     try {
-      const response = await api.post(`/api/menu-planlama/menu-planlari/${selectedPlanId}/ogunler`, {
-        tarih: data.tarih.toISOString().split('T')[0],
-        ogun_tipi_id: data.ogun_tipi_id,
-        kisi_sayisi: data.kisi_sayisi,
-      });
+      const response = await api.post(
+        `/api/menu-planlama/menu-planlari/${selectedPlanId}/ogunler`,
+        {
+          tarih: data.tarih.toISOString().split('T')[0],
+          ogun_tipi_id: data.ogun_tipi_id,
+          kisi_sayisi: data.kisi_sayisi,
+        }
+      );
 
       if (response.data.success) {
         await queryClient.invalidateQueries({ queryKey: ['plan-ogunleri', selectedPlanId] });

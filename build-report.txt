@@ -1,0 +1,80 @@
+
+> catering-frontend@1.0.0 build
+> next build
+
+   ▲ Next.js 15.5.11
+   - Environments: .env.local, .env.production, .env
+   - Experiments (use with caution):
+     · optimizePackageImports
+
+   Creating an optimized production build ...
+ ⚠ Mismatching @next/swc version, detected: 15.5.7 while Next.js is on 15.5.11. Please ensure these match
+ ✓ Compiled successfully in 4.1s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/46) ...
+   Generating static pages (11/46) 
+   Generating static pages (22/46) 
+   Generating static pages (34/46) 
+ ✓ Generating static pages (46/46)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                    46.4 kB         331 kB
+├ ○ /_not-found                            127 B         103 kB
+├ ○ /admin                               14.5 kB         182 kB
+├ ○ /admin/god-mode                      18.2 kB         214 kB
+├ ○ /admin/ip-management                 12.3 kB         194 kB
+├ ○ /admin/kullanicilar                  12.4 kB         222 kB
+├ ○ /admin/loglar                        11.7 kB         214 kB
+├ ○ /admin/prompt-builder                14.6 kB         201 kB
+├ ○ /admin/prompt-builder/saved          12.1 kB         186 kB
+├ ○ /admin/scraper                       14.7 kB         216 kB
+├ ○ /admin/sistem                        2.19 kB         153 kB
+├ ○ /admin/sync                          20.3 kB         216 kB
+├ ○ /admin/yetki-sablonlari              14.3 kB         192 kB
+├ ○ /admin/yetkiler                      10.1 kB         208 kB
+├ ○ /ai-chat                              8.7 kB         193 kB
+├ ○ /ai-chat/history                       12 kB         191 kB
+├ ○ /artlist-demo                        11.7 kB         238 kB
+├ ○ /ayarlar                             29.3 kB         247 kB
+├ ○ /ayarlar/ai                          13.8 kB         222 kB
+├ ○ /ayarlar/sistem                      3.19 kB         174 kB
+├ ○ /giris                               8.49 kB         131 kB
+├ ○ /ihale-uzmani                        1.58 kB         115 kB
+├ ○ /muhasebe                            5.67 kB         377 kB
+├ ○ /muhasebe/cariler                    1.44 kB         115 kB
+├ ○ /muhasebe/demirbas                   22.3 kB         283 kB
+├ ○ /muhasebe/faturalar                    20 kB         299 kB
+├ ƒ /muhasebe/faturalar/[ettn]/kalemler  10.6 kB         212 kB
+├ ○ /muhasebe/finans                     11.9 kB         272 kB
+├ ○ /muhasebe/gelir-gider                1.44 kB         115 kB
+├ ○ /muhasebe/kasa-banka                 1.44 kB         115 kB
+├ ○ /muhasebe/menu-planlama              25.3 kB         395 kB
+├ ○ /muhasebe/menu-planlama-takvim       79.5 kB         300 kB
+├ ○ /muhasebe/personel                   18.9 kB         301 kB
+├ ○ /muhasebe/raporlar                   12.4 kB         272 kB
+├ ○ /muhasebe/raporlar/dashboard         13.4 kB         188 kB
+├ ○ /muhasebe/satin-alma                 13.7 kB         277 kB
+├ ○ /muhasebe/stok                       30.1 kB         315 kB
+├ ○ /planlama                              372 B         103 kB
+├ ○ /profil                              8.18 kB         187 kB
+├ ○ /sosyal-medya                        7.87 kB         127 kB
+├ ○ /sosyal-medya/instagram              17.9 kB         234 kB
+├ ○ /sosyal-medya/whatsapp                298 kB         510 kB
+├ ○ /tenders                             19.1 kB         278 kB
+├ ƒ /tenders/[id]                        22.5 kB         209 kB
+├ ○ /tracking                            9.09 kB         248 kB
+└ ○ /upload                              16.1 kB         174 kB
++ First Load JS shared by all             103 kB
+  ├ chunks/3131-e432d3e6724ae36e.js      46.2 kB
+  ├ chunks/c7879cf7-fabe25011515220e.js  54.2 kB
+  └ other shared chunks (total)          2.63 kB
+
+
+ƒ Middleware                             34.2 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

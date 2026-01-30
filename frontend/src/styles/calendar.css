@@ -1,6 +1,6 @@
-/* FullCalendar Base Styles */
-@import '@fullcalendar/core/main.css';
-@import '@fullcalendar/daygrid/main.css';
+/* FullCalendar Base Styles - v6 exports main.css kullanmıyor; stil bileşenlerden geliyor */
+/* @import '@fullcalendar/core/main.css'; */
+/* @import '@fullcalendar/daygrid/main.css'; */
 
 /* FullCalendar Customization */
 .fc {

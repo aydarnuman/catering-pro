@@ -6,6 +6,7 @@
 import { query } from '../database.js';
 import logger from '../utils/logger.js';
 
+// biome-ignore lint/complexity/noStaticOnlyClass: API tutarlılığı için sınıf namespace kullanılıyor
 class SettingsVersionService {
   /**
    * Ayar değişikliğini versiyon geçmişine kaydet

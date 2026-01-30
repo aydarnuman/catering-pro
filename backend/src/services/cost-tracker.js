@@ -14,7 +14,7 @@ import logger from '../utils/logger.js';
 // Model fiyatlandırması (USD per 1M tokens)
 const PRICING = {
   'claude-sonnet-4-20250514': {
-    input: 3 / 1_000_000,   // $3 per 1M tokens
+    input: 3 / 1_000_000, // $3 per 1M tokens
     output: 15 / 1_000_000, // $15 per 1M tokens
     name: 'Claude Sonnet 4',
   },
@@ -70,7 +70,7 @@ export async function trackAIUsage({
     // Maliyet hesapla
     const inputCostUsd = inputTokens * pricing.input;
     const outputCostUsd = outputTokens * pricing.output;
-    const totalCostUsd = inputCostUsd + outputCostUsd;
+    const _totalCostUsd = inputCostUsd + outputCostUsd;
 
     // Veritabanına kaydet
     const result = await query(

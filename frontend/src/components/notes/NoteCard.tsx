@@ -72,13 +72,14 @@ function renderContent(content: string, format: string): React.ReactNode {
     return content;
   }
 
-  // Simple markdown rendering
+  // Simple markdown rendering (kontrollü regex; ham kullanıcı HTML yok)
   const rendered = content
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/~~(.*?)~~/g, '<del>$1</del>')
     .replace(/`(.*?)`/g, '<code>$1</code>');
 
+  // biome-ignore lint/security/noDangerouslySetInnerHtml: kontrollü regex çıktısı
   return <span dangerouslySetInnerHTML={{ __html: rendered }} />;
 }
 

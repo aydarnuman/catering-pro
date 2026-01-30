@@ -30,7 +30,9 @@ function buildQueryString(filter?: Record<string, unknown>): string {
   for (const [key, value] of Object.entries(filter)) {
     if (value !== undefined && value !== null && value !== '') {
       if (Array.isArray(value)) {
-        value.forEach((v) => params.append(key, String(v)));
+        value.forEach((v) => {
+          params.append(key, String(v));
+        });
       } else {
         params.append(key, String(value));
       }

@@ -2,11 +2,14 @@
  * Reminder Notification Scheduler
  *
  * Otomatik bildirim oluşturan scheduler:
- * 1. Not/Ajanda - due_date'i 3 gün sonra olan notlar için bildirim
- * 2. Çek/Senet - vade_tarihi 3 gün sonra olan bekleyen kayıtlar için bildirim
- * 3. Vadesi geçmiş - Vadesi geçmiş çek/senetler için günlük uyarı
+ * 1. Not/Ajanda - due_date'i 3 gün sonra olan notlar için bildirim (günlük 07:00)
+ * 2. Çek/Senet - vade_tarihi 3 gün sonra olan bekleyen kayıtlar için bildirim (günlük 07:00)
+ * 3. Vadesi geçmiş - Vadesi geçmiş çek/senetler için günlük uyarı (günlük 07:00)
+ * 4. Zamanlanmış hatırlatıcılar - unified_note_reminders tablosundaki hatırlatıcılar (her 5 dk)
  *
- * Zamanlama: Her gün saat 07:00
+ * Zamanlamalar:
+ * - Günlük: Her gün saat 07:00 (Europe/Istanbul)
+ * - Sık: Her 5 dakikada bir (zamanlanmış hatırlatıcılar için)
  */
 
 import cron from 'node-cron';
@@ -98,11 +101,13 @@ class ReminderNotificationScheduler {
         const contentPreview = note.content.length > 80 ? note.content.substring(0, 80) + '...' : note.content;
 
         // Link belirleme (context'e göre)
-        let link = '/ayarlar?tab=notlar';
+        let link = '/?openNotes=1';
         if (note.context_type === 'tender' && note.context_id) {
           link = `/tracking?ihale=${note.context_id}`;
         } else if (note.context_type === 'customer' && note.context_id) {
           link = `/muhasebe/cariler?id=${note.context_id}`;
+        } else if (note.context_type === 'event' && note.context_id) {
+          link = `/muhasebe/finans?event=${note.context_id}`;
         }
 
         // Bildirim oluştur
@@ -320,6 +325,109 @@ class ReminderNotificationScheduler {
   }
 
   /**
+   * Zamanlanmış hatırlatıcıları işle (unified_note_reminders)
+   * Kullanıcının not üzerinde seçtiği hatırlatıcı saatleri için bildirim üret
+   * Her 5 dakikada bir çalışır
+   */
+  async processScheduledReminders() {
+    logger.info('Processing scheduled note reminders...');
+
+    try {
+      // Vadesi gelmiş ve henüz gönderilmemiş hatırlatıcıları bul
+      const reminders = await query(`
+        SELECT
+          r.id as reminder_id,
+          r.note_id,
+          r.reminder_date,
+          r.reminder_type,
+          n.user_id,
+          n.content,
+          n.priority,
+          n.context_type,
+          n.context_id
+        FROM unified_note_reminders r
+        INNER JOIN unified_notes n ON n.id = r.note_id
+        WHERE r.reminder_date <= NOW()
+          AND r.reminder_sent = FALSE
+          AND n.is_completed = FALSE
+          AND n.user_id IS NOT NULL
+        ORDER BY r.reminder_date ASC
+        LIMIT 100
+      `);
+
+      let created = 0;
+      let errors = 0;
+
+      for (const reminder of reminders.rows) {
+        try {
+          // İçerik önizlemesi
+          const contentPreview = reminder.content.length > 80
+            ? reminder.content.substring(0, 80) + '...'
+            : reminder.content;
+
+          // Link belirleme (context'e göre)
+          let link = '/?openNotes=1';
+          if (reminder.context_type === 'tender' && reminder.context_id) {
+            link = `/tracking?ihale=${reminder.context_id}`;
+          } else if (reminder.context_type === 'customer' && reminder.context_id) {
+            link = `/muhasebe/cariler?id=${reminder.context_id}`;
+          } else if (reminder.context_type === 'event' && reminder.context_id) {
+            link = `/muhasebe/finans?event=${reminder.context_id}`;
+          }
+
+          // Bildirim oluştur
+          await unifiedNotificationService.createNotification({
+            userId: reminder.user_id,
+            title: '🔔 Hatırlatıcı',
+            message: contentPreview,
+            type: reminder.priority === 'high' || reminder.priority === 'urgent'
+              ? NotificationType.WARNING
+              : NotificationType.INFO,
+            category: 'reminder',
+            link,
+            severity: reminder.priority === 'urgent'
+              ? NotificationSeverity.WARNING
+              : NotificationSeverity.INFO,
+            source: NotificationSource.SYSTEM,
+            metadata: {
+              scheduler_type: 'scheduled_reminder',
+              source_table: 'unified_note_reminders',
+              source_id: reminder.reminder_id,
+              note_id: reminder.note_id,
+              reminder_date: reminder.reminder_date,
+              reminder_type: reminder.reminder_type,
+              context_type: reminder.context_type,
+              context_id: reminder.context_id,
+              priority: reminder.priority,
+            },
+          });
+
+          // Hatırlatıcıyı "gönderildi" olarak işaretle
+          await query(`
+            UPDATE unified_note_reminders
+            SET reminder_sent = TRUE, sent_at = NOW()
+            WHERE id = $1
+          `, [reminder.reminder_id]);
+
+          created++;
+        } catch (err) {
+          logger.error('Process single scheduled reminder error:', {
+            reminder_id: reminder.reminder_id,
+            error: err.message
+          });
+          errors++;
+        }
+      }
+
+      logger.info(`Scheduled reminders: total=${reminders.rows.length}, created=${created}, errors=${errors}`);
+      return { total: reminders.rows.length, created, errors };
+    } catch (error) {
+      logger.error('Process scheduled reminders error:', { error: error.message });
+      return { total: 0, created: 0, errors: 1, error: error.message };
+    }
+  }
+
+  /**
    * Tüm hatırlatıcıları işle
    */
   async processReminders() {
@@ -381,7 +489,7 @@ class ReminderNotificationScheduler {
   start() {
     logger.info('Initializing reminder notification scheduler...');
 
-    // Her gün saat 07:00'de çalış
+    // Her gün saat 07:00'de çalış (due_date bazlı hatırlatıcılar + çek/senet)
     const dailyJob = cron.schedule(
       '0 7 * * *',
       async () => {
@@ -394,6 +502,19 @@ class ReminderNotificationScheduler {
     );
     this.jobs.set('daily_reminders', dailyJob);
 
+    // Her 5 dakikada bir çalış (zamanlanmış hatırlatıcılar - unified_note_reminders)
+    const scheduledJob = cron.schedule(
+      '*/5 * * * *',
+      async () => {
+        logger.debug('[CRON] Scheduled reminders check triggered');
+        await this.processScheduledReminders();
+      },
+      {
+        timezone: 'Europe/Istanbul',
+      }
+    );
+    this.jobs.set('scheduled_reminders', scheduledJob);
+
     // Sunucu başlangıcında da çalış (30 saniye gecikme ile)
     setTimeout(async () => {
       const shouldRun = this.shouldRunStartup();
@@ -403,9 +524,12 @@ class ReminderNotificationScheduler {
       } else {
         logger.info('[STARTUP] Skipping initial run - already ran recently');
       }
+      // Zamanlanmış hatırlatıcıları da kontrol et
+      logger.info('[STARTUP] Running initial scheduled reminders check...');
+      await this.processScheduledReminders();
     }, 30000);
 
-    logger.info('Reminder scheduler started. Schedule: Daily at 07:00 (Europe/Istanbul)');
+    logger.info('Reminder scheduler started. Schedules: Daily at 07:00, Every 5 minutes (Europe/Istanbul)');
   }
 
   /**
@@ -440,7 +564,8 @@ class ReminderNotificationScheduler {
       stats: { ...this.stats },
       jobs: Array.from(this.jobs.keys()),
       schedule: {
-        daily: '07:00 (Europe/Istanbul)',
+        daily: '07:00 (Europe/Istanbul) - due_date, çek/senet',
+        scheduled: 'Her 5 dakika - unified_note_reminders',
       },
     };
   }

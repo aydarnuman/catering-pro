@@ -110,7 +110,13 @@ export function OzetTab({
           withArrow
           disabled={!tender.ihale_basligi}
         >
-          <Paper p="sm" withBorder radius="md" shadow="xs" className="info-card-enhanced card-hover-scale">
+          <Paper
+            p="sm"
+            withBorder
+            radius="md"
+            shadow="xs"
+            className="info-card-enhanced card-hover-scale"
+          >
             <Group gap="xs" mb={6}>
               <ThemeIcon size="sm" variant="light" color="blue" radius="xl">
                 <IconFileText size={12} />
@@ -130,7 +136,13 @@ export function OzetTab({
         </Tooltip>
 
         <Tooltip label={tender.kurum} multiline w={300} withArrow disabled={!tender.kurum}>
-          <Paper p="sm" withBorder radius="md" shadow="xs" className="info-card-enhanced card-hover-scale">
+          <Paper
+            p="sm"
+            withBorder
+            radius="md"
+            shadow="xs"
+            className="info-card-enhanced card-hover-scale"
+          >
             <Group gap="xs" mb={6}>
               <ThemeIcon size="sm" variant="light" color="violet" radius="xl">
                 <IconBuilding size={12} />
@@ -149,7 +161,13 @@ export function OzetTab({
           </Paper>
         </Tooltip>
 
-        <Paper p="sm" withBorder radius="md" shadow="xs" className="info-card-enhanced card-hover-scale">
+        <Paper
+          p="sm"
+          withBorder
+          radius="md"
+          shadow="xs"
+          className="info-card-enhanced card-hover-scale"
+        >
           <Group gap="xs" mb={6}>
             <ThemeIcon size="sm" variant="light" color="cyan" radius="xl">
               <IconCalendar size={12} />
@@ -184,11 +202,21 @@ export function OzetTab({
             </Text>
           </Group>
           <Text size="sm" fw={700} c={tender.bedel ? 'green' : 'gray.5'}>
-            {tender.bedel || <Text span fs="italic">Belirtilmemiş</Text>}
+            {tender.bedel || (
+              <Text span fs="italic">
+                Belirtilmemiş
+              </Text>
+            )}
           </Text>
         </Paper>
 
-        <Paper p="sm" withBorder radius="md" shadow="xs" className="info-card-enhanced card-hover-scale">
+        <Paper
+          p="sm"
+          withBorder
+          radius="md"
+          shadow="xs"
+          className="info-card-enhanced card-hover-scale"
+        >
           <Group gap="xs" mb={6}>
             <ThemeIcon size="sm" variant="light" color="orange" radius="xl">
               <IconMapPin size={12} />
@@ -223,11 +251,12 @@ export function OzetTab({
                   : 'linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(30, 30, 36, 1) 100%)'
                 : 'rgba(139, 92, 246, 0.08)',
             cursor: 'pointer',
-            borderColor: sinirDeger && bizimTeklif > 0
-              ? bizimTeklif < sinirDeger
-                ? 'rgba(245, 158, 11, 0.3)'
-                : 'rgba(34, 197, 94, 0.3)'
-              : 'rgba(139, 92, 246, 0.3)',
+            borderColor:
+              sinirDeger && bizimTeklif > 0
+                ? bizimTeklif < sinirDeger
+                  ? 'rgba(245, 158, 11, 0.3)'
+                  : 'rgba(34, 197, 94, 0.3)'
+                : 'rgba(139, 92, 246, 0.3)',
           }}
           onClick={onNavigateToHesaplamalar}
         >

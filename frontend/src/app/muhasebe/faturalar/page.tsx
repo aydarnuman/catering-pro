@@ -72,13 +72,13 @@ import 'dayjs/locale/tr';
 import { DataActions } from '@/components/DataActions';
 import { usePermissions } from '@/hooks/usePermissions';
 import { convertToAPIFormat, invoiceAPI, uyumsoftAPI, uyumsoftDocUrls } from '@/lib/invoice-api';
+import { InvoiceFilters } from './components/InvoiceFilters';
+import { InvoiceFormModal } from './components/InvoiceFormModal';
 import { type FaturaTab, useFaturalar } from './hooks/useFaturalar';
 import { useUyumsoftConnection } from './hooks/useUyumsoftConnection';
 import { useUyumsoftFaturalar } from './hooks/useUyumsoftFaturalar';
 import type { Fatura, FaturaKalem, FaturaTip, UyumsoftFatura } from './types';
 import { BIRIMLER, KDV_ORANLARI } from './types';
-import { InvoiceFilters } from './components/InvoiceFilters';
-import { InvoiceFormModal } from './components/InvoiceFormModal';
 
 const birimler = [...BIRIMLER];
 const kdvOranlari = [...KDV_ORANLARI];
@@ -695,12 +695,11 @@ export default function FaturalarPage() {
               satisCount: faturalar.filter((f) => f.tip === 'satis').length,
               alisCount: faturalar.filter((f) => f.tip === 'alis').length,
             }}
-            isMobile={isMobile}
+            isMobile={!!isMobile}
           />
 
           {/* Invoice Tables */}
           <Card withBorder shadow="sm" p={{ base: 'sm', sm: 'lg' }} radius="md">
-
             {/* Tümü Sekmesi - Manuel + Uyumsoft Birleşik */}
             {activeTab === 'tumu' ? (
               <Table.ScrollContainer minWidth={800}>
@@ -1559,7 +1558,7 @@ export default function FaturalarPage() {
           onClose={closeConnect}
           title="🔐 Uyumsoft Bağlantısı"
           size="sm"
-          fullScreen={isMobile}
+          fullScreen={!!isMobile}
         >
           <Stack gap="md">
             <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
@@ -1611,7 +1610,7 @@ export default function FaturalarPage() {
         <InvoiceFormModal
           opened={opened}
           onClose={close}
-          isMobile={isMobile}
+          isMobile={!!isMobile}
           formData={formData}
           setFormData={setFormData}
           kalemler={kalemler}
@@ -1627,7 +1626,7 @@ export default function FaturalarPage() {
         <Modal
           opened={uyumsoftDetailOpened}
           onClose={closeUyumsoftDetail}
-          fullScreen={isMobile}
+          fullScreen={!!isMobile}
           title={
             <Group gap="sm">
               <Title order={3}>📄 E-Fatura Görüntüleyici</Title>
@@ -1746,7 +1745,7 @@ export default function FaturalarPage() {
           onClose={closeDetail}
           title="📋 Fatura Detayı"
           size="lg"
-          fullScreen={isMobile}
+          fullScreen={!!isMobile}
         >
           {selectedFatura && (
             <Stack gap="md">

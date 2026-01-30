@@ -3,7 +3,7 @@
 > Framework: Next.js 15 (App Router)  
 > UI Library: Mantine UI 7.17  
 > Port: 3000  
-> Son Güncelleme: 27 Ocak 2026
+> Son Güncelleme: 30 Ocak 2026
 
 ---
 
@@ -23,8 +23,9 @@
 | 10 | [Ayarlar](#10-ayarlar) | `/ayarlar` | 1 | ✅ |
 | 11 | [Sosyal Medya](#11-sosyal-medya) | `/sosyal-medya` | 1 | ✅ |
 | 12 | [Giriş](#12-giriş) | `/giris` | 1 | ✅ |
+| 13 | [Upload](#13-upload) | `/upload` | 1 | ✅ |
 
-**Toplam: 34 sayfa**
+**Toplam: 35+ sayfa** (alt route’lar dahil: faturalar/[ettn]/kalemler, admin/prompt-builder/saved, raporlar/dashboard vb.)
 
 ---
 
@@ -50,8 +51,15 @@ frontend/src/app/
 ├── sosyal-medya/        # Sosyal Medya
 ├── tenders/             # İhaleler
 ├── tracking/            # İhale Takip
-└── upload/              # Dosya Yükleme
+├── upload/              # Dosya Yükleme
+├── muhasebe/
+│   ├── menu-planlama-takvim/  # Menü planlama takvim görünümü
+│   └── faturalar/[ettn]/kalemler/  # Fatura kalemleri sayfası
+└── admin/prompt-builder/saved/  # Kayıtlı promptlar
 ```
+
+### API Kullanımı
+Sayfalar çoğunlukla `@/lib/api` (api.get/post vb.) veya modül bazlı servisler kullanır: `@/lib/api/services/admin`, `@/lib/api/services/muhasebe`, `@/lib/api/services/tenders`, `@/lib/api/services/stok`, `@/lib/api/services/personel`, `@/lib/api/services/ai`, `@/lib/api/services/scraper`, `@/lib/api/services/fatura-kalemleri`, `@/lib/api/services/menu-planlama`, `@/lib/api/services/demirbas`, `@/lib/api/services/firmalar`. Doğrudan `API_BASE_URL` + `authFetch` kullanan sayfalar: sosyal-medya (WhatsApp, Instagram), ayarlar, admin/sync, admin/yetkiler, admin/yetki-sablonlari, admin/sistem, upload.
 
 ---
 
@@ -68,10 +76,11 @@ frontend/src/app/
 - Hızlı erişim linkleri
 
 ### Kullanılan API'ler
-- `GET /api/tenders?limit=5`
-- `GET /api/invoices/stats`
-- `GET /api/stok?kritik=true`
+- `GET /api/tenders` (tendersAPI; limit, sayfalama)
+- `GET /api/invoices/stats` (muhasebeAPI)
+- `GET /api/stok/kritik` (kritik stok; stok route’u kartlar/depolar yapısında)
 - `GET /api/notifications`
+- API çağrıları: `@/lib/api/services/muhasebe`, `@/lib/api/services/tenders`
 
 ---
 
@@ -281,9 +290,20 @@ components/muhasebe/
 
 ### Özellikler
 - Login formu
-- JWT authentication
+- JWT authentication (Cookie: access_token, refresh_token)
 - "Beni hatırla" özelliği
 - Şifremi unuttum
+
+---
+
+## 13. Upload
+
+**Route:** `/upload`  
+**Dosya:** `upload/page.tsx`
+
+### Özellikler
+- Dosya yükleme
+- Döküman analizi: `POST /api/documents/analyze` (API_BASE_URL)
 
 ---
 

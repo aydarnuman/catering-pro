@@ -3,7 +3,7 @@
 > Backend: Express.js (ES Modules)  
 > Port: 3001  
 > Base URL: `http://localhost:3001` veya `https://catering-tr.com/api`  
-> Son Güncelleme: 27 Ocak 2026
+> Son Güncelleme: 30 Ocak 2026
 
 ---
 
@@ -20,9 +20,10 @@
 | [Personel & Bordro](#7-personel--bordro) | personel.js, bordro.js | ~25 |
 | [Planlama](#8-planlama) | planlama.js, menu-planlama.js | ~15 |
 | [AI & Chat](#9-ai--chat) | ai.js, ai-memory.js | ~10 |
+| [Unified Notes](#unified-notes) | notes/index.js, personal, contextual, tags, reminders, attachments | ~26 |
 | [Sistem & Admin](#10-sistem--admin) | system.js, admin-*.js | ~20 |
 
-**Toplam: ~52 route dosyası, ~175+ endpoint**
+**Toplam: ~52 route dosyası, ~200+ endpoint**
 
 ---
 
@@ -64,44 +65,87 @@ Header: Authorization: Bearer <JWT_TOKEN>
 
 ## 1. Auth & Güvenlik
 
+**Route dosyası:** `auth.js` (Cookie + JWT; loginAttemptService, sessionService)
+
 ### `POST /api/auth/login`
-Kullanıcı girişi
+Kullanıcı girişi. Cookie: access_token, refresh_token.
 
 | Parametre | Tip | Zorunlu | Açıklama |
 |-----------|-----|---------|----------|
 | email | string | ✅ | E-posta |
 | password | string | ✅ | Şifre |
 
-**Response:**
-```json
-{
-  "success": true,
-  "token": "eyJhbG...",
-  "refreshToken": "...",
-  "user": { "id": 1, "email": "...", "name": "...", "role": "admin" }
-}
-```
+**Response:** `{ success, token, user: { id, email, name, role, user_type } }`  
+**Hata:** 423 ACCOUNT_LOCKED (kilitli hesap), 401 geçersiz şifre
 
-### `POST /api/auth/logout` 🔒
-Çıkış yap
-
-### `POST /api/auth/refresh`
-Token yenile
-
-| Parametre | Tip | Zorunlu |
-|-----------|-----|---------|
-| refreshToken | string | ✅ |
+### `POST /api/auth/register`
+Yeni kullanıcı kaydı (body: email, password, name, role?, user_type?).
 
 ### `GET /api/auth/me` 🔒
-Mevcut kullanıcı bilgisi
+Mevcut kullanıcı bilgisi (Cookie veya Authorization header).
+
+### `PUT /api/auth/profile` 🔒
+Profil güncelle (body: name, en az 2 karakter).
 
 ### `PUT /api/auth/password` 🔒
-Şifre değiştir
+Şifre değiştir (body: currentPassword, newPassword). Şifre güçlülük kuralları uygulanır.
 
-| Parametre | Tip | Zorunlu |
-|-----------|-----|---------|
-| currentPassword | string | ✅ |
-| newPassword | string | ✅ |
+### `POST /api/auth/logout` 🔒
+Çıkış; cookie temizlenir, refresh token revoke edilir.
+
+### `POST /api/auth/refresh`
+Token yenile (Cookie: refresh_token).
+
+### `POST /api/auth/revoke-all` 🔒
+Tüm oturumları kapat (refresh token’lar revoke).
+
+### `POST /api/auth/validate-password`
+Şifre güçlülük kontrolü (body: password). Response: valid, errors, strength.
+
+### `GET /api/auth/users` 🔑
+Tüm kullanıcıları listele (admin/super_admin).
+
+### `PUT /api/auth/users/:id` 🔑
+Kullanıcı güncelle (body: name, email, password?, role?, user_type?, is_active).
+
+### `DELETE /api/auth/users/:id` 🔑
+Kullanıcı sil (kendinizi silemezsiniz).
+
+### `POST /api/auth/setup-super-admin`
+İlk super admin ataması (en düşük id’li admin’i super_admin yapar).
+
+### `PUT /api/auth/users/:id/lock` 🔑
+Hesabı kilitle (body: minutes?, default 60).
+
+### `PUT /api/auth/users/:id/unlock` 🔑
+Hesabı aç.
+
+### `GET /api/auth/users/:id/login-attempts` 🔑
+Login geçmişi (query: limit?, default 50).
+
+### `GET /api/auth/sessions` 🔒
+Aktif oturumları listele.
+
+### `DELETE /api/auth/sessions/:id` 🔒
+Belirli oturumu sonlandır (mevcut oturum hariç).
+
+### `DELETE /api/auth/sessions/other` 🔒
+Diğer tüm oturumları sonlandır.
+
+### `GET /api/auth/admin/ip-rules` 🔑
+IP kurallarını listele (query: type?, active?).
+
+### `POST /api/auth/admin/ip-rules` 🔑
+Yeni IP kuralı (body: ipAddress, type: whitelist|blacklist, description?).
+
+### `PUT /api/auth/admin/ip-rules/:id` 🔑
+IP kuralını güncelle.
+
+### `DELETE /api/auth/admin/ip-rules/:id` 🔑
+IP kuralını sil.
+
+### [DEPRECATED] `GET/PUT/DELETE /api/auth/admin/notifications*`
+307 redirect → `/api/notifications`. Yeni kodda doğrudan `/api/notifications` kullanın.
 
 ### `GET /api/permissions` 🔑
 Tüm yetkileri listele
@@ -116,47 +160,59 @@ Kullanıcıya yetki ata
 
 ## 2. İhale Yönetimi
 
+**Route dosyası:** `tenders.js` (tenderScheduler). Belgeler için ayrı route: `tender-documents.js`, `documents.js`.
+
 ### `GET /api/tenders`
-İhale listesi
+İhale listesi (pagination + filtre). Süresi dolan ihaleler otomatik status=expired yapılır.
 
 | Query Param | Tip | Default | Açıklama |
 |-------------|-----|---------|----------|
-| status | string | - | active/closed/won/lost |
+| page | number | 1 | Sayfa |
+| limit | number | 20 | Sayfa boyutu |
 | city | string | - | Şehir filtresi |
-| search | string | - | Başlık araması |
-| startDate | date | - | Başlangıç tarihi |
-| endDate | date | - | Bitiş tarihi |
-| limit | number | 50 | Limit |
-| offset | number | 0 | Offset |
+| status | string | active | active, expired, urgent, archived, all |
+| search | string | - | title veya organization_name ILIKE |
+
+**Response:** `{ success, tenders, total, page, limit, totalPages }`
+
+### `GET /api/tenders/stats`
+İstatistikler (total, active, with_detail, today, this_week, topCities).
+
+### `GET /api/tenders/cities`
+Şehir listesi (city, count) aktif ihalelerden.
 
 ### `GET /api/tenders/:id`
-İhale detayı
+İhale detayı + documents listesi.
 
-### `POST /api/tenders` 🔒
-Yeni ihale oluştur
+### `PATCH /api/tenders/:id`
+İhale güncelle (body: tender_date, status, city, organization_name, title, estimated_cost).
 
-| Body | Tip | Zorunlu |
-|------|-----|---------|
-| title | string | ✅ |
-| organization_name | string | ✅ |
-| tender_date | date | - |
-| city | string | - |
-| estimated_cost | number | - |
+### `DELETE /api/tenders/:id`
+İhale sil.
 
-### `PUT /api/tenders/:id` 🔒
-İhale güncelle
+### `POST /api/tenders/scrape`
+Manuel scrape (body: maxPages?, default 3). tenderScheduler kullanır.
 
-### `DELETE /api/tenders/:id` 🔑
-İhale sil
+### `GET /api/tenders/scheduler/status`
+Scheduler durumu.
 
-### `GET /api/tenders/:id/documents`
-İhale belgeleri
+### `POST /api/tenders/scheduler/start`
+Scheduler başlat.
 
-### `POST /api/tenders/:id/documents` 🔒
-Belge yükle (multipart/form-data)
+### `POST /api/tenders/scheduler/stop`
+Scheduler durdur.
 
-### `DELETE /api/tenders/:tenderId/documents/:docId` 🔒
-Belge sil
+### `GET /api/tenders/scrape/logs`
+Scrape logları (query: limit?, default 50).
+
+### `GET /api/tenders/stats/detailed`
+Detaylı istatistikler (tenderScheduler.getTenderStats()).
+
+### `GET /api/tenders/stats/updates`
+Son güncelleme ve günlük/haftalık özet (lastUpdate, today, totalCount, weeklyStats).
+
+### İhale belgeleri (ayrı route)
+`GET/POST /api/tender-docs/*`, `GET/POST /api/documents/*` — bk. Sistem & İhale Belgeleri.
 
 ### `GET /api/tender-tracking`
 Takip listesi
@@ -183,79 +239,74 @@ Sonuç kaydet
 
 ## 3. Muhasebe - Cariler
 
+**Route dosyası:** `cariler.js` (authenticate, requirePermission, auditLog). Tablolar: cariler, cari_hareketler.
+
 ### `GET /api/cariler`
-Cari listesi
+Cari listesi (sayfalama + filtre).
 
 | Query Param | Tip | Default | Açıklama |
 |-------------|-----|---------|----------|
-| tip | string | - | musteri/tedarikci/her_ikisi |
+| tip | string | - | musteri, tedarikci, her_ikisi |
 | aktif | boolean | true | Aktif filtresi |
-| search | string | - | Ünvan/VKN araması |
+| search | string | - | unvan, vergi_no, telefon, email ILIKE |
+| page | number | 1 | Sayfa |
+| limit | number | 20 | Max 100 |
+
+**Response:** `{ success, data, pagination: { page, limit, total, totalPages } }`
 
 ### `GET /api/cariler/:id`
 Cari detayı
 
-### `POST /api/cariler` 🔒
-Yeni cari oluştur
+### `POST /api/cariler` 🔒 🛡️ cari.create
+Yeni cari (body: tip, unvan, yetkili, vergi_no, vergi_dairesi, telefon, email, adres, il, ilce, borc, alacak, kredi_limiti, banka_adi, iban, notlar, etiket).
 
-| Body | Tip | Zorunlu |
-|------|-----|---------|
-| tip | string | ✅ |
-| unvan | string | ✅ |
-| vergi_no | string | - |
-| vergi_dairesi | string | - |
-| telefon | string | - |
-| email | string | - |
-| adres | string | - |
-| il | string | - |
-| ilce | string | - |
+### `PUT /api/cariler/:id` 🔒 🛡️ cari.edit
+Cari güncelle (body: tüm düzenlenebilir alanlar; id, bakiye, created_at, updated_at gönderilmez).
 
-### `PUT /api/cariler/:id` 🔒
-Cari güncelle
-
-### `DELETE /api/cariler/:id` 🔑
-Cari sil
+### `DELETE /api/cariler/:id` 🔒 🛡️ cari.delete
+Cari sil (soft: aktif=false).
 
 ### `GET /api/cariler/:id/hareketler`
-Cari hareketleri
+Cari hareketleri (cari_hareketler). Query: baslangic, bitis, tip (hareket_tipi).
 
-### `POST /api/cariler/:id/hareketler` 🔒
-Hareket ekle
+### `GET /api/cariler/:id/aylik-ozet`
+Aylık özet (query: yil). Son 12 ay borç/alacak/bakiye/hareket_sayisi.
 
-### `GET /api/cariler/:id/bakiye`
-Cari bakiye özeti
+### `GET /api/cariler/:id/ekstre`
+Cari ekstre (query: startDate, endDate). Faturalardan borç/alacak + özet (toplamBorc, toplamAlacak, bakiye).
 
 ---
 
 ## 4. Muhasebe - Faturalar
 
-### `GET /api/invoices`
-Fatura listesi
-
-| Query Param | Tip | Default | Açıklama |
-|-------------|-----|---------|----------|
-| type | string | - | sales/purchase |
-| status | string | - | WaitingForAprovement/Approved/Rejected |
-| customer | string | - | Müşteri araması |
-| startDate | date | - | Başlangıç |
-| endDate | date | - | Bitiş |
-| proje_id | number | - | Proje filtresi |
-| limit | number | 250 | Limit |
+**Route dosyası:** `invoices.js` (authenticate, requirePermission, auditLog). Kalem verisi tek kaynak: `fatura_kalemleri` / fatura-kalemler route.
 
 ### `GET /api/invoices/stats`
-Fatura istatistikleri (dashboard)
+Fatura istatistikleri (dashboard): toplam_fatura, bekleyen_fatura, onaylanan_fatura, reddedilen_fatura, bugun_vade, geciken_fatura, toplam_tutar, bekleyen_tutar (son 30 gün).
+
+### `GET /api/invoices`
+Fatura listesi. Query: type, status, customer, startDate, endDate, search, proje_id, limit (default 250), offset (default 0). Proje bilgisi LEFT JOIN projeler. items her zaman [].
 
 ### `GET /api/invoices/:id`
-Fatura detayı
+Fatura detayı (items=[]; kalemler /api/fatura-kalemler ile alınır).
 
-### `POST /api/invoices` 🔒
-Manuel fatura oluştur
+### `POST /api/invoices` 🔒 🛡️ fatura.create
+Manuel fatura oluştur (body: invoice_type, series, invoice_no, customer_*, invoice_date, due_date, status, notes, items, created_by). Kalemler transaction içinde hesaplanır; kayıt fatura_kalemleri ile ayrı yönetiliyor.
 
-### `PUT /api/invoices/:id` 🔒
-Fatura güncelle
+### `PUT /api/invoices/:id` 🔒 🛡️ fatura.edit
+Fatura güncelle (body: aynı alanlar + updated_by).
 
-### `DELETE /api/invoices/:id` 🔑
+### `PATCH /api/invoices/:id/status`
+Fatura durumunu güncelle (body: status). Auth yok.
+
+### `DELETE /api/invoices/:id` 🔒 🛡️ fatura.delete
 Fatura sil
+
+### `GET /api/invoices/summary/monthly`
+Aylık fatura özeti (query: year?, type?). Grup: month, invoice_type, count, subtotal, vat_total, total_amount.
+
+### `GET /api/invoices/summary/category`
+Kategori bazlı özet (faturaKalemleriClient.getKategoriOzetSummary). Query: startDate, endDate.
 
 ### `GET /api/fatura-kalemler`
 Fatura kalemleri listesi
@@ -271,11 +322,7 @@ Fatura kalemleri listesi
 Kalem detayı
 
 ### `PUT /api/fatura-kalemler/:id/eslesme` 🔒
-Ürün eşleştir
-
-| Body | Tip | Zorunlu |
-|------|-----|---------|
-| urun_id | number | ✅ |
+Ürün eşleştir (body: urun_id).
 
 ### `POST /api/fatura-kalemler/bulk-eslesme` 🔒
 Toplu eşleştirme
@@ -287,52 +334,62 @@ Eşleştirme önerileri (AI)
 
 ## 5. Muhasebe - Stok
 
-### `GET /api/stok`
-Stok kartları listesi
+**Route dosyası:** `stok.js`. Tablolar: urun_kartlari, urun_depo_durumlari, urun_hareketleri, depolar, depo_lokasyonlar, fatura_stok_islem, urun_kategorileri, birimler. Servis: faturaKalemleriClient, faturaService (Uyumsoft).
 
-| Query Param | Tip | Default | Açıklama |
-|-------------|-----|---------|----------|
-| kategori | string | - | Kategori filtresi |
-| aktif | boolean | true | Aktif filtresi |
-| kritik | boolean | - | Sadece kritik stok |
-| search | string | - | Ad/kod araması |
+### Depo yönetimi
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/stok/depolar | Depo listesi (urun_sayisi, toplam_deger, kritik_urun) | - |
+| GET | /api/stok/depolar/:depoId/lokasyonlar | Depo lokasyonları | - |
+| GET | /api/stok/lokasyonlar/:lokasyonId/stoklar | Lokasyondaki stoklar (query: arama) | - |
+| GET | /api/stok/depolar/:depoId/stoklar | Depodaki stoklar (query: kritik, kategori, arama) | - |
+| GET | /api/stok/depolar/karsilastirma | Depo karşılaştırma (v_depo_karsilastirma) | - |
+| POST | /api/stok/depolar | Yeni depo (body: ad, kod, tur, adres, telefon, email, yetkili, kapasite_m3) | - |
+| PUT | /api/stok/depolar/:id | Depo güncelle | - |
+| DELETE | /api/stok/depolar/:id | Depo pasif (stok varsa 400) | - |
 
-### `GET /api/stok/:id`
-Stok kartı detayı
+### Stok kartları (urun_kartlari)
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/stok/kartlar | Kart listesi (query: kategori, depo, kritik, arama, limit, offset) | - |
+| GET | /api/stok/kartlar/:id | Kart detay + depo_durumlari + son_hareketler | - |
+| POST | /api/stok/kartlar | Yeni ürün kartı (body: kod?, ad, barkod, kategori_id, ana_birim_id, min_stok, max_stok, kritik_stok, son_alis_fiyat, kdv_orani, raf_omru_gun, aciklama) | 🔒 🛡️ stok.create |
+| DELETE | /api/stok/kartlar/:id | Kart sil (ilişkili hareket/depo durumu temizlenir, soft delete) | 🔒 🛡️ stok.delete |
+| GET | /api/stok/kartlar/ara | Arama (query: q, min 2 karakter) | - |
 
-### `POST /api/stok` 🔒
-Yeni stok kartı
+### Stok hareketleri (urun_hareketleri)
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/stok/hareketler | Hareket listesi (query: limit, offset, urun_kart_id|stok_kart_id, depo_id, hareket_tipi) | - |
+| POST | /api/stok/hareketler/giris | Stok girişi (body: urun_kart_id|stok_kart_id, depo_id, miktar, birim_fiyat?, belge_no?, cari_id?, aciklama?) | - |
+| POST | /api/stok/hareketler/cikis | Stok çıkışı (body: urun_kart_id|stok_kart_id, depo_id, miktar, belge_no?, aciklama?) | - |
+| POST | /api/stok/hareketler/transfer | Transfer (body: urun_kart_id|stok_kart_id, kaynak_depo_id, hedef_depo_id, miktar, belge_no?, aciklama?) | - |
 
-| Body | Tip | Zorunlu |
-|------|-----|---------|
-| kod | string | ✅ |
-| ad | string | ✅ |
-| kategori | string | ✅ |
-| birim | string | ✅ |
-| min_stok | number | - |
-| alis_fiyati | number | - |
-| satis_fiyati | number | - |
+### Raporlar ve yardımcı
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/stok/kritik | Kritik stoklar (query: depo_id) | - |
+| GET | /api/stok/rapor/deger | Stok değer raporu (kategori bazlı) | - |
+| GET | /api/stok/kategoriler | urun_kategorileri listesi | - |
+| GET | /api/stok/birimler | birimler listesi | - |
 
-### `PUT /api/stok/:id` 🔒
-Stok kartı güncelle
+### Faturadan stok
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/stok/faturalar | İşlenmemiş/ işlenmiş faturalar (limit, offset) | - |
+| GET | /api/stok/faturalar/islenmemis | İşlenmemiş faturalar (limit) | - |
+| GET | /api/stok/faturalar/:ettn/kalemler | Fatura kalemleri (faturaKalemleriClient) | - |
+| GET | /api/stok/faturalar/:ettn/akilli-kalemler | Akıllı eşleştirme ile kalemler (Uyumsoft XML + akilli_stok_eslestir) | - |
+| POST | /api/stok/faturadan-giris | Faturadan stok girişi (body: ettn, depo_id, kalemler, notlar?) | - |
+| POST | /api/stok/toplu-fatura-isle | 🔒 Toplu fatura işleme (body: fatura_ettnler, depo_id, sadece_otomatik?) | - |
+| GET | /api/stok/fiyat-anomaliler | Fiyat anomali raporu (query: limit) | - |
 
-### `DELETE /api/stok/:id` 🔑
-Stok kartı sil
+### Akıllı eşleştirme
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| POST | /api/stok/akilli-eslestir | Tek ürün akıllı eşleştirme (body: urun_adi, urun_kodu?, tedarikci_vkn?). PostgreSQL: akilli_stok_eslestir() | - |
 
-### `GET /api/stok/:id/hareketler`
-Stok hareketleri
-
-### `POST /api/stok/:id/hareketler` 🔒
-Stok hareketi ekle
-
-| Body | Tip | Zorunlu |
-|------|-----|---------|
-| hareket_tipi | string | ✅ (giris/cikis/transfer/sayim) |
-| miktar | number | ✅ |
-| birim_fiyat | number | - |
-| aciklama | string | - |
-
-### `GET /api/urunler`
+### `GET /api/urunler` (ayrı route: urunler.js)
 Ürün kartları listesi
 
 ### `GET /api/urunler/:id`
@@ -354,216 +411,303 @@ Fiyat geçmişi
 
 ## 6. Muhasebe - Finans
 
-### `GET /api/kasa-banka`
-Kasa/banka hesapları
+**Route dosyası:** `kasa-banka.js`. Path prefix: /api/kasa-banka. Tablolar: kasa_banka_hesaplari, kasa_banka_hareketleri, cek_senet vb.
 
-### `GET /api/kasa-banka/:id`
-Hesap detayı
+### Hesaplar
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/kasa-banka/hesaplar | Kasa/banka hesapları listesi | - |
+| POST | /api/kasa-banka/hesaplar | Yeni hesap | - |
+| PUT | /api/kasa-banka/hesaplar/:id | Hesap güncelle | - |
+| DELETE | /api/kasa-banka/hesaplar/:id | Hesap sil | - |
 
-### `POST /api/kasa-banka` 🔒
-Yeni hesap
+### Hareketler
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/kasa-banka/hareketler | Hareket listesi (query: hesap_id vb.) | - |
+| POST | /api/kasa-banka/hareketler | Hareket ekle | - |
+| POST | /api/kasa-banka/transfer | Hesaplar arası transfer (body: kaynak_hesap_id, hedef_hesap_id, tutar, aciklama?) | - |
 
-### `PUT /api/kasa-banka/:id` 🔒
-Hesap güncelle
+### Çek/Senet
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/kasa-banka/cek-senet | Çek/senet listesi | - |
+| POST | /api/kasa-banka/cek-senet | Yeni çek/senet | - |
+| PUT | /api/kasa-banka/cek-senet/:id | Güncelle | - |
+| POST | /api/kasa-banka/cek-senet/:id/tahsil | Tahsil | - |
+| POST | /api/kasa-banka/cek-senet/:id/ciro | Ciro | - |
+| POST | /api/kasa-banka/cek-senet/:id/iade | İade | - |
+| DELETE | /api/kasa-banka/cek-senet/:id | Sil | - |
 
-### `GET /api/kasa-banka/:id/hareketler`
-Hesap hareketleri
+### Özet ve cariler
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/kasa-banka/ozet | Kasa/banka özet | - |
+| GET | /api/kasa-banka/cariler | Cariler listesi (dropdown vb.) | - |
 
-### `POST /api/kasa-banka/:id/hareketler` 🔒
-Hareket ekle
-
-### `POST /api/kasa-banka/transfer` 🔒
-Hesaplar arası transfer
-
-| Body | Tip | Zorunlu |
-|------|-----|---------|
-| kaynak_hesap_id | number | ✅ |
-| hedef_hesap_id | number | ✅ |
-| tutar | number | ✅ |
-| aciklama | string | - |
-
-### `GET /api/gelir-gider`
-Gelir/gider listesi
-
-### `POST /api/gelir-gider` 🔒
-Yeni gelir/gider
-
-### `GET /api/gelir-gider/ozet`
-Aylık özet
+### Gelir/gider (ayrı route varsa)
+`GET/POST /api/gelir-gider`, `GET /api/gelir-gider/ozet` — gelir-gider route’u varsa aynı şekilde dokümante edilir.
 
 ---
 
 ## 7. Personel & Bordro
 
-### `GET /api/personel`
-Personel listesi
+**Route dosyası personel:** `personel.js` (mount: /api/personel). İçerir: personel CRUD, projeler CRUD, proje-personel atama, görevler, tazminat, izin günü. **Route dosyası bordro:** `bordro.js` (mount: /api/bordro). **İzin:** `izin.js` (mount: /api/izin).
 
-| Query Param | Tip | Default | Açıklama |
-|-------------|-----|---------|----------|
-| aktif | boolean | true | Aktif filtresi |
-| departman | string | - | Departman |
-| search | string | - | Ad/TC araması |
+### Personel (personel.js)
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/personel/stats | Personel istatistikleri | 🔒 |
+| GET | /api/personel | Personel listesi (query: aktif, departman, search vb.) | 🔒 |
+| GET | /api/personel/:id | Personel detayı | 🔒 |
+| POST | /api/personel | Yeni personel (body: tc_kimlik, ad, soyad, ise_giris_tarihi, departman, pozisyon, maas vb.) | 🔒 🛡️ personel.create |
+| PUT | /api/personel/:id | Personel güncelle | 🔒 🛡️ personel.edit |
+| DELETE | /api/personel/:id | Personel sil | 🔒 🛡️ personel.delete |
+| PUT | /api/personel/:id/izin-gun | İzin günü güncelle | - |
 
-### `GET /api/personel/:id`
-Personel detayı
+### Projeler (personel.js altında /api/personel/projeler)
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/personel/projeler | Proje listesi | 🔒 |
+| GET | /api/personel/projeler/:id | Proje detayı | 🔒 |
+| POST | /api/personel/projeler | Yeni proje | - |
+| PUT | /api/personel/projeler/:id | Proje güncelle | - |
+| DELETE | /api/personel/projeler/:id | Proje sil | - |
+| POST | /api/personel/projeler/:projeId/personel | Projeye personel ata | - |
+| POST | /api/personel/projeler/:projeId/personel/bulk | Toplu personel ata | - |
+| PUT | /api/personel/atama/:atamaId | Atama güncelle | - |
+| DELETE | /api/personel/atama/:atamaId | Atama sil | - |
 
-### `POST /api/personel` 🔒
-Yeni personel
+### İstatistikler ve görevler (personel.js)
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/personel/stats/overview | Genel özet | 🔒 |
+| GET | /api/personel/stats/departman | Departman bazlı | 🔒 |
+| GET | /api/personel/gorevler | Görev listesi | 🔒 |
+| POST | /api/personel/gorevler | Yeni görev | - |
+| PUT | /api/personel/gorevler/:id | Görev güncelle | - |
+| DELETE | /api/personel/gorevler/:id | Görev sil | - |
 
-| Body | Tip | Zorunlu |
-|------|-----|---------|
-| tc_kimlik | string | ✅ |
-| ad | string | ✅ |
-| soyad | string | ✅ |
-| ise_giris_tarihi | date | ✅ |
-| departman | string | - |
-| pozisyon | string | - |
-| maas | number | - |
+### Tazminat (personel.js)
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/personel/tazminat/sebepler | Sebepler listesi | - |
+| GET | /api/personel/tazminat/yasal-bilgiler | Yasal bilgiler | - |
+| POST | /api/personel/tazminat/hesapla | Tazminat hesapla | - |
+| POST | /api/personel/tazminat/kaydet | Tazminat kaydet | - |
+| GET | /api/personel/tazminat/risk | Risk listesi | - |
+| GET | /api/personel/tazminat/gecmis | Geçmiş hesaplamalar | - |
 
-### `PUT /api/personel/:id` 🔒
-Personel güncelle
+### Bordro (bordro.js)
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| POST | /api/bordro/net-brut-hesapla | Net/brüt hesaplama | - |
+| POST | /api/bordro/hesapla | Bordro hesapla | - |
+| POST | /api/bordro/kaydet | Bordro kaydet | - |
+| POST | /api/bordro/toplu-hesapla | Toplu bordro hesapla | - |
+| GET | /api/bordro | Bordro listesi | 🔒 |
+| GET | /api/bordro/ozet/:yil/:ay | Aylık özet | 🔒 |
+| PATCH | /api/bordro/:id/odeme | Bordro ödeme işaretle | - |
+| POST | /api/bordro/toplu-odeme | Toplu ödeme | - |
+| DELETE | /api/bordro/donem-sil | Dönem sil | - |
+| GET | /api/bordro/vergi-dilimleri/:yil | Vergi dilimleri | 🔒 |
+| GET | /api/bordro/asgari-ucret/:yil | Asgari ücret | 🔒 |
 
-### `DELETE /api/personel/:id` 🔑
-Personel sil
-
-### `GET /api/bordro`
-Bordro listesi
-
-| Query Param | Tip | Açıklama |
-|-------------|-----|----------|
-| yil | number | Yıl |
-| ay | number | Ay |
-| personel_id | number | Personel filtresi |
-| odeme_durumu | string | beklemede/odendi |
-
-### `GET /api/bordro/:id`
-Bordro detayı
-
-### `POST /api/bordro/hesapla` 🔒
-Bordro hesapla
-
-| Body | Tip | Zorunlu |
-|------|-----|---------|
-| personel_id | number | ✅ |
-| yil | number | ✅ |
-| ay | number | ✅ |
-
-### `POST /api/bordro/toplu-hesapla` 🔒
-Toplu bordro hesapla
-
-| Body | Tip | Zorunlu |
-|------|-----|---------|
-| yil | number | ✅ |
-| ay | number | ✅ |
-
-### `PUT /api/bordro/:id/ode` 🔒
-Bordro öde
-
-### `GET /api/bordro/ozet`
-Bordro özeti
-
-### `GET /api/izin`
-İzin talepleri
-
-### `POST /api/izin` 🔒
-İzin talebi oluştur
-
-### `PUT /api/izin/:id/onayla` 🔒
-İzin onayla
-
-### `PUT /api/izin/:id/reddet` 🔒
-İzin reddet
+### İzin (izin.js)
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/izin | İzin talepleri | - |
+| POST | /api/izin | İzin talebi oluştur | 🔒 |
+| PUT | /api/izin/:id/onayla | İzin onayla | 🔒 |
+| PUT | /api/izin/:id/reddet | İzin reddet | 🔒 |
 
 ---
 
 ## 8. Planlama
 
-### `GET /api/planlama`
-Üretim planları
+**Route dosyası planlama:** `planlama.js` (mount: /api/planlama). Piyasa takip, market scraper, ana ürünler, ambalaj parse. **Route dosyası menü:** `menu-planlama.js` (mount: /api/menu-planlama). Reçeteler, menü planları, şartname, import, AI malzeme öneri.
 
-| Query Param | Tip | Açıklama |
-|-------------|-----|----------|
-| proje_id | number | Proje filtresi |
-| tarih | date | Tarih |
-| hafta | string | 2026-W05 formatı |
+### Piyasa (planlama.js)
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/planlama/piyasa/takip-listesi | Piyasa takip listesi | - |
+| POST | /api/planlama/piyasa/takip-listesi | Takip ekle | - |
+| DELETE | /api/planlama/piyasa/takip-listesi/:id | Takip sil | - |
+| POST | /api/planlama/piyasa/toplu-guncelle | Toplu güncelle | - |
+| GET | /api/planlama/piyasa/gecmis | Geçmiş fiyatlar | - |
+| POST | /api/planlama/piyasa/chat | Piyasa chat | - |
+| POST | /api/planlama/piyasa/oneri | Öneri | - |
+| POST | /api/planlama/piyasa/hizli-arastir | Hızlı araştır | - |
+| POST | /api/planlama/piyasa/detayli-arastir | Detaylı araştır | - |
+| POST | /api/planlama/piyasa/kaydet-sonuclar | Sonuçları kaydet | - |
+| POST | /api/planlama/piyasa/fiyat-kaydet | Fiyat kaydet | - |
+| GET | /api/planlama/piyasa/urun-ara | Ürün ara | - |
+| GET | /api/planlama/piyasa/fatura-fiyatlari | Fatura fiyatları | - |
+| GET | /api/planlama/piyasa/karsilastirma | Karşılaştırma | - |
+| PUT | /api/planlama/piyasa/fiyat-guncelle/:stokKartId | Fiyat güncelle | - |
 
-### `POST /api/planlama` 🔒
-Plan oluştur
+### Market (planlama.js)
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/planlama/market/sources | Kaynak listesi | - |
+| POST | /api/planlama/market/collect | Topla | - |
+| GET | /api/planlama/market | Market verisi | - |
 
-### `PUT /api/planlama/:id` 🔒
-Plan güncelle
+### Ana ürünler ve ambalaj (planlama.js)
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/planlama/ana-urunler | Ana ürün listesi | - |
+| GET | /api/planlama/ana-urunler/:id | Ana ürün detayı | - |
+| POST | /api/planlama/ana-urunler | Yeni ana ürün | - |
+| POST | /api/planlama/ana-urunler/:id/eslestir | Stok kartı eşleştir | - |
+| DELETE | /api/planlama/ana-urunler/:id/eslestir/:stokKartId | Eşleştirme sil | - |
+| PUT | /api/planlama/ana-urunler/:id/fiyat | Fiyat güncelle | - |
+| GET | /api/planlama/ana-urunler-kategoriler | Kategoriler | - |
+| GET | /api/planlama/eslesmemis-stok-kartlari | Eşleşmemiş stok kartları | - |
+| POST | /api/planlama/ambalaj-parse | Ambalaj parse | - |
+| POST | /api/planlama/stok-karti/:id/ambalaj-guncelle | Ambalaj güncelle | - |
+| POST | /api/planlama/stok-karti/toplu-ambalaj-guncelle | Toplu ambalaj güncelle | - |
+| GET | /api/planlama/stok-karti/ambalaj-ozet | Ambalaj özet | - |
 
-### `GET /api/menu-planlama`
-Menü planları
-
-### `POST /api/menu-planlama` 🔒
-Menü oluştur
-
-### `GET /api/menu-planlama/receteler`
-Reçete listesi
-
-### `POST /api/menu-planlama/receteler` 🔒
-Reçete oluştur
-
-### `GET /api/menu-planlama/receteler/:id`
-Reçete detayı
-
-### `PUT /api/menu-planlama/receteler/:id` 🔒
-Reçete güncelle
-
-### `GET /api/menu-planlama/malzeme-ihtiyac`
-Malzeme ihtiyaç hesaplama
-
-| Query Param | Tip | Açıklama |
-|-------------|-----|----------|
-| menu_id | number | Menü ID |
-| porsiyon | number | Porsiyon sayısı |
+### Menü planlama (menu-planlama.js)
+Kategoriler, receteler (CRUD, malzemeler, maliyet-hesapla), öğün tipleri, proje öğün şablonları, menu-planlari (CRUD, öğünler, yemekler), menu-plan (yemek-ekle), gunluk-ozet, sablon-kopyala, sartname (CRUD, gramaj, proje-ata, ogun-yapisi), recete gramaj-kontrol, import (analyze, save), AI malzeme oneri (tekli ve batch), urun-kategorileri, urun-kartlari (CRUD, eslestir), stok-kartlari-listesi. Detaylı path’ler route dosyasından okunabilir.
 
 ---
 
 ## 9. AI & Chat
 
-### `POST /api/ai/chat`
-AI sohbet
+**Route dosyası:** `ai.js` (mount: /api/ai). Servis: ai-agent, claude. Chat streaming, agent/tools, templates, settings, memory, conversations, god-mode, analyze-errors.
 
-| Body | Tip | Zorunlu |
-|------|-----|---------|
-| message | string | ✅ |
-| conversation_id | string | - |
-| context | object | - |
+### Chat ve agent
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| POST | /api/ai/chat | AI sohbet (streaming; message, conversation_id?, context?) | - |
+| GET | /api/ai/agent/tools | Agent araç listesi | - |
+| POST | /api/ai/agent/execute | Agent araç çalıştır | - |
 
-**Response:** Server-Sent Events (streaming)
+### Templates
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/ai/templates | Şablon listesi | - |
+| GET | /api/ai/templates/:id | Şablon detayı | - |
+| POST | /api/ai/templates | Yeni şablon | 🔑 |
+| PUT | /api/ai/templates/:id | Şablon güncelle | 🔑 |
+| DELETE | /api/ai/templates/:id | Şablon sil | 🔑 |
+| POST | /api/ai/templates/:id/increment-usage | Kullanım artır | - |
 
-### `GET /api/ai/conversations`
-Konuşma listesi
+### Ürün analizi ve durum
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| POST | /api/ai/analyze-product | Ürün analizi | - |
+| POST | /api/ai/analyze-products-batch | Toplu ürün analizi | - |
+| GET | /api/ai/status | AI durumu | - |
 
-### `GET /api/ai/conversations/:id`
-Konuşma detayı
+### Settings (admin)
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/ai/settings | Ayarlar | - |
+| PUT | /api/ai/settings | Ayarları güncelle | 🔑 |
+| GET | /api/ai/settings/export | Ayarları dışa aktar | 🔑 |
+| POST | /api/ai/settings/import | Ayarları içe aktar | 🔑 |
+| GET | /api/ai/settings/history | Ayarlar geçmişi | 🔑 |
+| GET | /api/ai/settings/history/:settingKey/:version | Sürüm detayı | 🔑 |
+| POST | /api/ai/settings/restore/:settingKey/:version | Sürüm geri yükle | 🔑 |
+| GET | /api/ai/settings/models | Model listesi | - |
+| PUT | /api/ai/settings/model | Model güncelle | 🔑 |
 
-### `DELETE /api/ai/conversations/:id` 🔒
-Konuşma sil
+### Memory ve öğrenilen bilgiler
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/ai/memory | AI hafıza | - |
+| POST | /api/ai/memory | Hafızaya ekle | - |
+| DELETE | /api/ai/memory/:id | Hafızadan sil | 🔑 |
+| GET | /api/ai/learned-facts | Öğrenilen bilgiler | - |
+| PUT | /api/ai/learned-facts/:id/verify | Doğrula | - |
 
-### `POST /api/ai/analyze-document`
-Belge analizi (Gemini Vision)
+### Snapshot ve konuşmalar
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| POST | /api/ai/snapshot | Snapshot al | - |
+| GET | /api/ai/snapshots | Snapshot listesi | - |
+| GET | /api/ai/conversations | Konuşma listesi | - |
+| GET | /api/ai/conversations/list | Konuşma listesi (alternatif) | - |
+| GET | /api/ai/conversations/search | Konuşma arama | - |
+| GET | /api/ai/conversations/:sessionId | Konuşma detayı | - |
+| DELETE | /api/ai/conversations/:sessionId | Konuşma sil | - |
 
-| Body | Tip | Zorunlu |
-|------|-----|---------|
-| document_id | number | ✅ |
+### Dashboard, feedback, god-mode, hata analizi
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/ai/dashboard | AI dashboard | - |
+| POST | /api/ai/feedback | Geri bildirim | - |
+| GET | /api/ai/feedback/stats | Feedback istatistikleri | - |
+| POST | /api/ai/god-mode/execute | God mode komut çalıştır | 🔒 super_admin |
+| GET | /api/ai/god-mode/tools | God mode araçları | 🔒 super_admin |
+| GET | /api/ai/god-mode/logs | God mode logları | 🔒 super_admin |
+| POST | /api/ai/analyze-errors | Hata analizi (optionalAuth) | - |
+| GET | /api/ai/errors/recent | Son hatalar | 🔑 |
 
-### `GET /api/ai-memory`
-AI hafıza
+### Ayrı route: ai-memory.js, prompt-builder
+`GET/POST/DELETE /api/ai/memory` ai.js içinde. `/api/ai/memory` prefix’i ai.js’te kullanılıyor; ai-memory router’ı server’da `/api/ai/memory` ile mount edilmişse çakışma olabilir — server’da sıra: önce `/api/ai`, sonra `/api/ai/memory`. Prompt builder: `prompt-builder.js` → `/api/prompt-builder/templates`, `/api/prompt-builder/generate` vb.
 
-### `POST /api/ai-memory` 🔒
-Hafızaya ekle
+---
 
-### `DELETE /api/ai-memory/:id` 🔒
-Hafızadan sil
+## Unified Notes
 
-### `GET /api/prompt-builder/templates`
-Prompt şablonları
+**Route:** `routes/notes/index.js` → mount `/api/notes`. Alt route’lar: personal.js, contextual.js, tags.js, reminders.js, attachments.js. **Tüm endpoint’ler** `authenticate` middleware ile korunur. Tablolar: `unified_notes`, `note_tags_master`, `note_tags`, `unified_note_reminders`, `unified_note_attachments`.
 
-### `POST /api/prompt-builder/generate` 🔒
-Prompt oluştur
+### Kişisel notlar (personal) — `/api/notes`
+
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/notes | Kişisel not listesi (context_type IS NULL). Query: is_task, is_completed, priority, color, pinned, due_date_from, due_date_to, search, limit (default 100), offset (default 0). Response: notes (tags, attachments, reminders dahil) | 🔒 |
+| GET | /api/notes/:id | Tek not detayı | 🔒 |
+| POST | /api/notes | Yeni kişisel not. Body: content (zorunlu), content_format (default plain), is_task (default false), priority (default normal), color (default blue), pinned (default false), due_date, reminder_date, tags (array) | 🔒 |
+| PUT | /api/notes/:id | Not güncelle. Body: content, content_format, is_task, is_completed, priority, color, pinned, due_date, reminder_date, sort_order, tags | 🔒 |
+| DELETE | /api/notes/:id | Not sil | 🔒 |
+| PUT | /api/notes/:id/toggle | Görev tamamla/aç (is_completed toggle) | 🔒 |
+| PUT | /api/notes/:id/pin | Sabitle/sabitten kaldır (pinned toggle) | 🔒 |
+| PUT | /api/notes/reorder | Sıra güncelle (body: sıralama bilgisi) | 🔒 |
+| DELETE | /api/notes/completed | Tamamlanan kişisel notları toplu sil | 🔒 |
+
+### Bağlama bağlı notlar (contextual) — `/api/notes/context/:type/:id`
+
+Geçerli `type`: tender, customer, event, project.
+
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/notes/context/:type/:id | Belirtilen bağlamdaki notları listele. Query: limit (default 100), offset (default 0). Response: notes, total, context_type, context_id | 🔒 |
+| POST | /api/notes/context/:type/:id | Bu bağlam için yeni not oluştur (body: content, content_format, is_task, priority, color, pinned, due_date, reminder_date, tags vb.) | 🔒 |
+| PUT | /api/notes/context/:type/:id/reorder | Bağlam notlarının sırasını güncelle | 🔒 |
+
+### Etiketler (tags) — `/api/notes/tags`
+
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/notes/tags | Kullanıcının tüm etiketleri (usage_count, name, color) | 🔒 |
+| GET | /api/notes/tags/suggestions | Etiket önerileri (autocomplete). Query: q, limit (default 20) | 🔒 |
+| POST | /api/notes/tags | Yeni etiket. Body: name, color | 🔒 |
+| PUT | /api/notes/tags/:tagId | Etiket güncelle (name, color) | 🔒 |
+| DELETE | /api/notes/tags/:tagId | Etiket sil | 🔒 |
+
+### Hatırlatıcılar (reminders) — `/api/notes/reminders`
+
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| GET | /api/notes/reminders/upcoming | Yaklaşan (gönderilmemiş) hatırlatıcılar. Query: limit (default 50) | 🔒 |
+| GET | /api/notes/reminders/due | Vadesi gelmiş hatırlatıcılar (bildirim sistemi için) | 🔒 |
+| POST | /api/notes/reminders/:noteId | Nota hatırlatıcı ekle. Body: reminder_date (zorunlu), reminder_type (default notification) | 🔒 |
+| PUT | /api/notes/reminders/:id/sent | Hatırlatıcıyı “gönderildi” işaretle | 🔒 |
+| DELETE | /api/notes/reminders/:id | Hatırlatıcı sil | 🔒 |
+
+### Ekler (attachments) — `/api/notes/attachments`
+
+| Method | Path | Açıklama | Auth |
+|--------|------|----------|------|
+| POST | /api/notes/attachments/:noteId | Nota dosya ekle. multipart/form-data, field: file. Max 10MB. İzin verilen: jpeg, png, gif, webp, pdf, doc, docx, xls, xlsx, txt, csv | 🔒 |
+| GET | /api/notes/attachments/:id/download | Eki indir | 🔒 |
+| GET | /api/notes/attachments/note/:noteId | Belirli notun eklerini listele | 🔒 |
+| DELETE | /api/notes/attachments/:id | Eki sil | 🔒 |
 
 ---
 

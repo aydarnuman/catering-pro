@@ -1,6 +1,6 @@
 'use client';
 
-import { Alert, Box, Button, Group, Modal, Select, Stack, Text, NumberInput } from '@mantine/core';
+import { Alert, Box, Button, Group, Modal, NumberInput, Select, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -114,7 +114,8 @@ export default function MenuPlanCalendarView({
     <>
       <Box>
         <Alert icon={<IconCalendar size={16} />} title="Takvim Görünümü" color="blue" mb="md">
-          Bir tarihe tıklayarak hızlıca öğün ekleyebilirsiniz. Mevcut öğünlere tıklayarak detayları görebilirsiniz.
+          Bir tarihe tıklayarak hızlıca öğün ekleyebilirsiniz. Mevcut öğünlere tıklayarak detayları
+          görebilirsiniz.
         </Alert>
 
         <MenuCalendar

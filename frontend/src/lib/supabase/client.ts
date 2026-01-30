@@ -1,3 +1,19 @@
+/**
+ * SUPABASE BROWSER CLIENT - DEPRECATED
+ *
+ * ⚠️  BU DOSYA ARTIK KULLANILMIYOR
+ * ⚠️  Auth sistemi PostgreSQL + JWT tabanlı (AuthContext.tsx)
+ *
+ * Bu dosya sadece geriye dönük uyumluluk için bırakıldı.
+ * Yeni kod yazarken bu dosyayı import etmeyin.
+ *
+ * Auth için: frontend/src/context/AuthContext.tsx
+ * API çağrıları için: frontend/src/lib/api/*
+ *
+ * @see /docs/ARCHITECTURE.md
+ * @deprecated
+ */
+
 import { createBrowserClient } from '@supabase/ssr';
 
 // Supabase URL ve Anon Key kontrolü
@@ -8,22 +24,21 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const PLACEHOLDER_URL = 'https://placeholder.supabase.co';
 const PLACEHOLDER_KEY = 'placeholder-key';
 
+/**
+ * @deprecated Auth için AuthContext kullanın
+ */
 export function createClient() {
-  // Runtime'da gerçek değerler kullanılacak
+  console.warn('[DEPRECATED] supabase/client.ts kullanılmamalı - AuthContext kullanın');
+
   const url = supabaseUrl || PLACEHOLDER_URL;
   const key = supabaseAnonKey || PLACEHOLDER_KEY;
-
-  // Build sırasında uyarı ver ama hata verme
-  if (!supabaseUrl || !supabaseAnonKey) {
-    if (typeof window !== 'undefined') {
-      console.warn('[Supabase] Environment variables not set. Auth will not work.');
-    }
-  }
 
   return createBrowserClient(url, key);
 }
 
-// Supabase'in gerçekten kullanılabilir olup olmadığını kontrol et
+/**
+ * @deprecated
+ */
 export function isSupabaseConfigured(): boolean {
   return Boolean(supabaseUrl && supabaseAnonKey);
 }

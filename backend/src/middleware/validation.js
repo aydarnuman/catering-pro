@@ -13,7 +13,7 @@ export const validate = (req, res, next) => {
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
-    const errorMessages = errors.array().map(err => ({
+    const errorMessages = errors.array().map((err) => ({
       field: err.path || err.param,
       message: err.msg,
       value: err.value,
@@ -66,7 +66,7 @@ export const normalizePagination = (req, _res, next) => {
  */
 export const trimStrings = (req, _res, next) => {
   if (req.query) {
-    Object.keys(req.query).forEach(key => {
+    Object.keys(req.query).forEach((key) => {
       if (typeof req.query[key] === 'string') {
         req.query[key] = req.query[key].trim();
       }
@@ -74,7 +74,7 @@ export const trimStrings = (req, _res, next) => {
   }
 
   if (req.body) {
-    Object.keys(req.body).forEach(key => {
+    Object.keys(req.body).forEach((key) => {
       if (typeof req.body[key] === 'string') {
         req.body[key] = req.body[key].trim();
       }

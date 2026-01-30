@@ -1,12 +1,16 @@
 'use client';
 
-import { Badge, Box, Group, Paper, Text, Title, Tooltip } from '@mantine/core';
-import FullCalendar from '@fullcalendar/react';
+import type { EventClickArg, EventContentArg, EventInput } from '@fullcalendar/core';
+import trLocale from '@fullcalendar/core/locales/tr';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import trLocale from '@fullcalendar/core/locales/tr';
+import FullCalendar from '@fullcalendar/react';
+import { Badge, Box, Group, Paper, Text, Title, Tooltip } from '@mantine/core';
+import type React from 'react';
 import { useRef } from 'react';
-import type { EventClickArg, EventInput } from '@fullcalendar/core';
+
+// FullCalendar React tip tanımı props'u tanımıyor; JSX için geçici cast
+const Calendar = FullCalendar as unknown as React.ComponentType<Record<string, unknown>>;
 
 interface MenuPlanOgun {
   id: number;
@@ -29,8 +33,13 @@ interface MenuCalendarProps {
   height?: number | string;
 }
 
-export default function MenuCalendar({ ogunler, onDateClick, onEventClick, height = 600 }: MenuCalendarProps) {
-  const calendarRef = useRef<FullCalendar>(null);
+export default function MenuCalendar({
+  ogunler,
+  onDateClick,
+  onEventClick,
+  height = 600,
+}: MenuCalendarProps) {
+  const calendarRef = useRef<Record<string, unknown> | null>(null);
 
   // Öğünleri FullCalendar event formatına dönüştür
   const events: EventInput[] = ogunler.map((ogun) => {
@@ -78,7 +87,7 @@ export default function MenuCalendar({ ogunler, onDateClick, onEventClick, heigh
   return (
     <Paper p="md" withBorder>
       <Box>
-        <FullCalendar
+        <Calendar
           ref={calendarRef}
           plugins={[dayGridPlugin, interactionPlugin]}
           initialView="dayGridMonth"
@@ -97,8 +106,9 @@ export default function MenuCalendar({ ogunler, onDateClick, onEventClick, heigh
           events={events}
           dateClick={handleDateClick}
           eventClick={handleEventClick}
-          eventContent={(eventInfo) => {
-            const { kisiSayisi, yemekSayisi, maliyet, yemekListesi } = eventInfo.event.extendedProps;
+          eventContent={(eventInfo: EventContentArg) => {
+            const { kisiSayisi, yemekSayisi, maliyet, yemekListesi } =
+              eventInfo.event.extendedProps;
 
             return (
               <Tooltip
@@ -135,7 +145,11 @@ export default function MenuCalendar({ ogunler, onDateClick, onEventClick, heigh
                   }}
                 >
                   <Group gap={4} wrap="nowrap">
-                    <Text size="xs" fw={500} style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <Text
+                      size="xs"
+                      fw={500}
+                      style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                    >
                       {eventInfo.event.title}
                     </Text>
                     <Badge size="xs" variant="light" color="dark">
@@ -148,7 +162,7 @@ export default function MenuCalendar({ ogunler, onDateClick, onEventClick, heigh
           }}
           dayMaxEvents={3}
           eventMaxStack={3}
-          moreLinkText={(num) => `+${num} öğün`}
+          moreLinkText={(num: number) => `+${num} öğün`}
           firstDay={1} // Pazartesi
           weekends={true}
           selectable={true}

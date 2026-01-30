@@ -230,12 +230,7 @@ export function InvoiceFormModal({
           </Table.Tbody>
         </Table>
 
-        <Button
-          variant="light"
-          size="xs"
-          leftSection={<IconPlus size={14} />}
-          onClick={addKalem}
-        >
+        <Button variant="light" size="xs" leftSection={<IconPlus size={14} />} onClick={addKalem}>
           Kalem Ekle
         </Button>
 

@@ -206,7 +206,9 @@ export default function TeklifModal({
   // Cetvel kalemi sil
   const handleCetvelKalemSil = (index: number) => {
     const yeniCetvel = teklifData.birim_fiyat_cetveli.filter((_, i) => i !== index);
-    yeniCetvel.forEach((k, i) => (k.sira = i + 1));
+    yeniCetvel.forEach((k, i) => {
+      k.sira = i + 1;
+    });
     const cetvelToplami = hesaplaCetvelToplami(yeniCetvel);
     setTeklifData((prev) => ({
       ...prev,

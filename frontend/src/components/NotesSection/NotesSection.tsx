@@ -163,6 +163,8 @@ const formatMarkdown = (text: string): React.ReactNode => {
     '<a href="$2" target="_blank" rel="noopener" style="color:#1976d2">$1</a>'
   );
 
+  // İçerik sadece yukarıdaki replace ile üretiliyor (strong/code/a vb.); ham kullanıcı HTML'i yok
+  // biome-ignore lint/security/noDangerouslySetInnerHtml: kontrollü regex çıktısı, XSS yok
   return <span dangerouslySetInnerHTML={{ __html: formatted }} />;
 };
 

@@ -5,6 +5,7 @@
 
 import { pool } from '../database.js';
 
+// biome-ignore lint/complexity/noStaticOnlyClass: API tutarlılığı için sınıf namespace kullanılıyor
 class AuditService {
   /**
    * İşlem kaydı oluştur

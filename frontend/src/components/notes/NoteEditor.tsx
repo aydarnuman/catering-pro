@@ -86,15 +86,13 @@ function MarkdownPreview({ content }: { content: string }) {
     .replace(/^- (.*)$/gm, '<li>$1</li>')
     .replace(/\n/g, '<br/>');
 
+  const html = rendered || '<em style="color:gray">Onizleme...</em>';
+  // biome-ignore lint/security/noDangerouslySetInnerHtml: kontrollü regex + sabit fallback
+  const previewEl = <span dangerouslySetInnerHTML={{ __html: html }} />;
+
   return (
     <Paper p="xs" withBorder style={{ minHeight: 60 }}>
-      <Text size="sm">
-        <span
-          dangerouslySetInnerHTML={{
-            __html: rendered || '<em style="color:gray">Onizleme...</em>',
-          }}
-        />
-      </Text>
+      <Text size="sm">{previewEl}</Text>
     </Paper>
   );
 }

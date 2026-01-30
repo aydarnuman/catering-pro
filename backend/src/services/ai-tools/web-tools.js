@@ -10,6 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import logger from '../../utils/logger.js';
 
 // Tavily API Key (ücretsiz: https://tavily.com)
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY || '';
@@ -192,7 +193,7 @@ export const webToolImplementations = {
       }
 
       // Tavily yoksa DuckDuckGo'ya fallback (sınırlı sonuçlar)
-      console.warn('[web_arama] Tavily API key yok, DuckDuckGo kullanılıyor (sınırlı sonuçlar)');
+      logger.warn('[web_arama] Tavily API key yok, DuckDuckGo kullanılıyor (sınırlı sonuçlar)');
       return await duckduckgoArama(sorgu, tip);
     } catch (error) {
       return {
@@ -455,12 +456,13 @@ async function tavilyArama(sorgu, tip, maxSonuc = 5) {
   const data = await response.json();
 
   // Sonuçları düzenle
-  const sonuclar = data.results?.map((r) => ({
-    baslik: r.title,
-    icerik: r.content,
-    url: r.url,
-    skor: r.score,
-  })) || [];
+  const sonuclar =
+    data.results?.map((r) => ({
+      baslik: r.title,
+      icerik: r.content,
+      url: r.url,
+      skor: r.score,
+    })) || [];
 
   return {
     success: true,

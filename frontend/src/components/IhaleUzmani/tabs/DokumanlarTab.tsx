@@ -625,7 +625,7 @@ export function DokumanlarTab({
           withBorder
           style={{
             background: 'rgba(245, 158, 11, 0.1)',
-            borderColor: 'rgba(245, 158, 11, 0.3)'
+            borderColor: 'rgba(245, 158, 11, 0.3)',
           }}
         >
           <Group gap="md" justify="space-between">

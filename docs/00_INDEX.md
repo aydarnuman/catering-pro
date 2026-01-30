@@ -1,7 +1,7 @@
 # 📚 Catering Pro - Teknik Dokümantasyon İndeksi
 
-> Son Güncelleme: 27 Ocak 2026  
-> Versiyon: 2.0
+> Son Güncelleme: 30 Ocak 2026  
+> Versiyon: 2.1
 
 ---
 
@@ -15,11 +15,19 @@
 | 03 | [FRONTEND_MODULES.md](./03_FRONTEND_MODULES.md) | Frontend modül yapısı | ✅ |
 | 04 | [COMPONENT_REGISTRY.md](./04_COMPONENT_REGISTRY.md) | Bileşen kayıt defteri | ✅ |
 | 05 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Genel mimari (mevcut) | ✅ |
-| 06 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Deployment kılavuzu (mevcut) | ✅ |
+| 06 | [SERVICES.md](./SERVICES.md) | Backend servis kataloğu | ✅ |
+| 07 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Deployment kılavuzu (mevcut) | ✅ |
+| 08 | [INCONSISTENCY-REPORT.md](./INCONSISTENCY-REPORT.md) | Dokümantasyon tutarsızlık raporu | ✅ |
+| 09 | [MIMARI_OZET.md](./MIMARI_OZET.md) | Mimari özet (tek sayfa) | ✅ |
 
 ---
 
 ## 🎯 Hızlı Referans
+
+- **API referansı (tüm endpoint’ler):** [02_API_ENDPOINTS.md](./02_API_ENDPOINTS.md)
+- **Veritabanı şeması:** [01_DATABASE_SCHEMA.md](./01_DATABASE_SCHEMA.md)
+- **Backend servis kataloğu:** [SERVICES.md](./SERVICES.md)
+- **Tutarsızlık raporu (doc vs kod):** [INCONSISTENCY-REPORT.md](./INCONSISTENCY-REPORT.md)
 
 ### Proje Yapısı
 ```
@@ -70,10 +78,12 @@ Bu dosyalara **DOKUNMAYIN** - sistemi bozabilir:
 
 | Metrik | Sayı |
 |--------|------|
-| Frontend Modül | 12 |
+| Frontend Modül | 13 |
+| Frontend Sayfa | 35+ |
 | Frontend Bileşen | 35+ |
-| Backend Route | 52 |
-| Backend Service | 35+ |
+| Backend Route Dosyası | 52 (notes/ altı dahil) |
+| Backend Mounted Route | 48 |
+| Backend Service | 35+ (ai-tools dahil 45+) |
 | DB Migration | 93 |
 | DB Tablo | ~50+ |
 | Custom Hook | 7 |

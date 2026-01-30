@@ -13,9 +13,9 @@
  * npm test -- stock-transaction.test.js
  */
 
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import { query } from '../database.js';
-import { withTransaction, selectForUpdate } from '../utils/transaction.js';
+import { selectForUpdate, withTransaction } from '../utils/transaction.js';
 
 describe('Stock Transaction Safety Tests', () => {
   let testUrunId;
@@ -58,15 +58,15 @@ describe('Stock Transaction Safety Tests', () => {
   // =============================================
   it('hata durumunda transaction rollback yapmalı', async () => {
     // Başlangıç stoku
-    const oncekiStok = await query(
-      'SELECT miktar FROM urun_depo_durumlari WHERE urun_kart_id = $1 AND depo_id = $2',
-      [testUrunId, testDepoId]
-    );
+    const oncekiStok = await query('SELECT miktar FROM urun_depo_durumlari WHERE urun_kart_id = $1 AND depo_id = $2', [
+      testUrunId,
+      testDepoId,
+    ]);
     const oncekiMiktar = parseFloat(oncekiStok.rows[0].miktar);
 
     // Başlangıç hareket sayısı
     const oncekiHareket = await query('SELECT COUNT(*) FROM urun_hareketleri WHERE urun_kart_id = $1', [testUrunId]);
-    const oncekiHareketSayisi = parseInt(oncekiHareket.rows[0].count);
+    const oncekiHareketSayisi = parseInt(oncekiHareket.rows[0].count, 10);
 
     // Transaction içinde hata oluştur
     try {
@@ -94,17 +94,17 @@ describe('Stock Transaction Safety Tests', () => {
     }
 
     // Stok değişmemiş olmalı
-    const sonrakiStok = await query(
-      'SELECT miktar FROM urun_depo_durumlari WHERE urun_kart_id = $1 AND depo_id = $2',
-      [testUrunId, testDepoId]
-    );
+    const sonrakiStok = await query('SELECT miktar FROM urun_depo_durumlari WHERE urun_kart_id = $1 AND depo_id = $2', [
+      testUrunId,
+      testDepoId,
+    ]);
     const sonrakiMiktar = parseFloat(sonrakiStok.rows[0].miktar);
 
     expect(sonrakiMiktar).toBe(oncekiMiktar);
 
     // Hareket kaydı eklenmemiş olmalı
     const sonrakiHareket = await query('SELECT COUNT(*) FROM urun_hareketleri WHERE urun_kart_id = $1', [testUrunId]);
-    const sonrakiHareketSayisi = parseInt(sonrakiHareket.rows[0].count);
+    const sonrakiHareketSayisi = parseInt(sonrakiHareket.rows[0].count, 10);
 
     expect(sonrakiHareketSayisi).toBe(oncekiHareketSayisi);
   });
@@ -179,10 +179,10 @@ describe('Stock Transaction Safety Tests', () => {
     expect(hataliSayisi).toBe(1);
 
     // Son stok 0 olmalı (tek bir çıkış başarılı oldu)
-    const sonStok = await query(
-      'SELECT miktar FROM urun_depo_durumlari WHERE urun_kart_id = $1 AND depo_id = $2',
-      [testUrunId, testDepoId]
-    );
+    const sonStok = await query('SELECT miktar FROM urun_depo_durumlari WHERE urun_kart_id = $1 AND depo_id = $2', [
+      testUrunId,
+      testDepoId,
+    ]);
     expect(parseFloat(sonStok.rows[0].miktar)).toBe(0);
   });
 
@@ -199,10 +199,10 @@ describe('Stock Transaction Safety Tests', () => {
     }).rejects.toThrow();
 
     // Stok değişmemiş olmalı
-    const stok = await query(
-      'SELECT miktar FROM urun_depo_durumlari WHERE urun_kart_id = $1 AND depo_id = $2',
-      [testUrunId, testDepoId]
-    );
+    const stok = await query('SELECT miktar FROM urun_depo_durumlari WHERE urun_kart_id = $1 AND depo_id = $2', [
+      testUrunId,
+      testDepoId,
+    ]);
     expect(parseFloat(stok.rows[0].miktar)).toBeGreaterThanOrEqual(0);
   });
 
@@ -210,10 +210,10 @@ describe('Stock Transaction Safety Tests', () => {
   // TEST 4: ATOMICITY - Tüm işlemler ya tamamen başarılı ya da hiç
   // =============================================
   it('faturadan giriş - tüm kalemler ya kaydedilir ya da hiç', async () => {
-    const oncekiStok = await query(
-      'SELECT miktar FROM urun_depo_durumlari WHERE urun_kart_id = $1 AND depo_id = $2',
-      [testUrunId, testDepoId]
-    );
+    const oncekiStok = await query('SELECT miktar FROM urun_depo_durumlari WHERE urun_kart_id = $1 AND depo_id = $2', [
+      testUrunId,
+      testDepoId,
+    ]);
     const oncekiMiktar = parseFloat(oncekiStok.rows[0].miktar);
 
     // 3 kalemli fatura simülasyonu
@@ -256,10 +256,10 @@ describe('Stock Transaction Safety Tests', () => {
     }
 
     // Stok DEĞİŞMEMİŞ olmalı (hiçbir kalem eklenmedi)
-    const sonrakiStok = await query(
-      'SELECT miktar FROM urun_depo_durumlari WHERE urun_kart_id = $1 AND depo_id = $2',
-      [testUrunId, testDepoId]
-    );
+    const sonrakiStok = await query('SELECT miktar FROM urun_depo_durumlari WHERE urun_kart_id = $1 AND depo_id = $2', [
+      testUrunId,
+      testDepoId,
+    ]);
     const sonrakiMiktar = parseFloat(sonrakiStok.rows[0].miktar);
 
     expect(sonrakiMiktar).toBe(oncekiMiktar);
@@ -268,12 +268,12 @@ describe('Stock Transaction Safety Tests', () => {
   // =============================================
   // TEST 5: VERSION - Optimistic locking çalışıyor mu?
   // =============================================
-  it('version column her update\'te artmalı', async () => {
+  it("version column her update'te artmalı", async () => {
     const oncekiVersion = await query(
       'SELECT version FROM urun_depo_durumlari WHERE urun_kart_id = $1 AND depo_id = $2',
       [testUrunId, testDepoId]
     );
-    const oncekiVersionNo = parseInt(oncekiVersion.rows[0].version);
+    const oncekiVersionNo = parseInt(oncekiVersion.rows[0].version, 10);
 
     // Stok güncelle
     await query(
@@ -286,7 +286,7 @@ describe('Stock Transaction Safety Tests', () => {
       'SELECT version FROM urun_depo_durumlari WHERE urun_kart_id = $1 AND depo_id = $2',
       [testUrunId, testDepoId]
     );
-    const sonrakiVersionNo = parseInt(sonrakiVersion.rows[0].version);
+    const sonrakiVersionNo = parseInt(sonrakiVersion.rows[0].version, 10);
 
     expect(sonrakiVersionNo).toBe(oncekiVersionNo + 1);
   });
@@ -311,7 +311,6 @@ describe('Stock Performance Tests', () => {
     await Promise.all(promises);
 
     const sure = Date.now() - baslangic;
-    console.log(`100 transaction süresi: ${sure}ms`);
 
     // 10 saniyeden kısa olmalı
     expect(sure).toBeLessThan(10000);

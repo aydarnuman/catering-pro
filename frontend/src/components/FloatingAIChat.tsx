@@ -616,7 +616,11 @@ export function FloatingAIChat() {
                         size={isMinimized ? 'xs' : 'sm'}
                         fw={600}
                         c={godModeEnabled ? '#e6c530' : 'white'}
-                        style={{ letterSpacing: '0.2px', lineHeight: 1.2, transition: 'color 0.3s' }}
+                        style={{
+                          letterSpacing: '0.2px',
+                          lineHeight: 1.2,
+                          transition: 'color 0.3s',
+                        }}
                         truncate
                       >
                         {godModeEnabled

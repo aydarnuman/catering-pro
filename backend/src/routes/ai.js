@@ -6,13 +6,13 @@
 
 import express from 'express';
 import { query } from '../database.js';
-import { trackAIUsage } from '../services/cost-tracker.js';
 import { authenticate, optionalAuth, requireAdmin, requireSuperAdmin } from '../middleware/auth.js';
-import { apiLimiter } from '../middleware/rate-limiter.js';
 import { promptSecurityMiddleware } from '../middleware/prompt-security.js';
+import { apiLimiter } from '../middleware/rate-limiter.js';
 import aiAgent from '../services/ai-agent.js';
 import aiTools from '../services/ai-tools/index.js';
 import claudeAI from '../services/claude-ai.js';
+import { trackAIUsage } from '../services/cost-tracker.js';
 import { executeInvoiceQuery, formatInvoiceResponse } from '../services/invoice-ai.js';
 import SettingsVersionService from '../services/settings-version-service.js';
 import logger from '../utils/logger.js';
@@ -26,50 +26,55 @@ const router = express.Router();
  * POST /api/ai/chat
  * AI ile sohbet et (Eski endpoint - geriye uyumluluk için)
  */
-router.post('/chat', promptSecurityMiddleware({ fieldName: 'question' }), apiLimiter, optionalAuth, async (req, res) => {
-  const startTime = Date.now();
-  try {
-    const { question, department = 'TÜM SİSTEM', promptTemplate = 'default' } = req.body;
+router.post(
+  '/chat',
+  promptSecurityMiddleware({ fieldName: 'question' }),
+  apiLimiter,
+  optionalAuth,
+  async (req, res) => {
+    const startTime = Date.now();
+    try {
+      const { question, department = 'TÜM SİSTEM', promptTemplate = 'default' } = req.body;
 
-    if (!question || question.trim().length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Soru boş olamaz',
-      });
-    }
+      if (!question || question.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Soru boş olamaz',
+        });
+      }
 
-    logger.debug(`[AI Chat] Soru: "${question}" | Departman: ${department} | Prompt: ${promptTemplate}`);
+      logger.debug(`[AI Chat] Soru: "${question}" | Departman: ${department} | Prompt: ${promptTemplate}`);
 
-    // Fatura ile ilgili sorgu kontrolü
-    const lowerQuestion = question.toLowerCase();
-    const invoiceKeywords = [
-      'fatura',
-      'tavuk',
-      'et',
-      'sebze',
-      'alım',
-      'satış',
-      'tedarikçi',
-      'toplam tutar',
-      'kdv',
-      'ödeme',
-      'gider',
-      'maliyet',
-    ];
-    const isInvoiceQuery = invoiceKeywords.some((keyword) => lowerQuestion.includes(keyword));
+      // Fatura ile ilgili sorgu kontrolü
+      const lowerQuestion = question.toLowerCase();
+      const invoiceKeywords = [
+        'fatura',
+        'tavuk',
+        'et',
+        'sebze',
+        'alım',
+        'satış',
+        'tedarikçi',
+        'toplam tutar',
+        'kdv',
+        'ödeme',
+        'gider',
+        'maliyet',
+      ];
+      const isInvoiceQuery = invoiceKeywords.some((keyword) => lowerQuestion.includes(keyword));
 
-    let result;
+      let result;
 
-    if (isInvoiceQuery) {
-      // Fatura sorgusunu çalıştır
-      logger.debug('[AI Chat] Fatura sorgusu tespit edildi, veritabanından sorgulama yapılıyor');
+      if (isInvoiceQuery) {
+        // Fatura sorgusunu çalıştır
+        logger.debug('[AI Chat] Fatura sorgusu tespit edildi, veritabanından sorgulama yapılıyor');
 
-      try {
-        const invoiceResult = await executeInvoiceQuery(question);
-        const formattedResponse = formatInvoiceResponse(invoiceResult);
+        try {
+          const invoiceResult = await executeInvoiceQuery(question);
+          const formattedResponse = formatInvoiceResponse(invoiceResult);
 
-        // AI'ya sonuçları yorumlatmak için gönder
-        const enrichedQuestion = `
+          // AI'ya sonuçları yorumlatmak için gönder
+          const enrichedQuestion = `
           Kullanıcı sorusu: ${question}
 
           Veritabanı sorgu sonuçları:
@@ -79,126 +84,184 @@ router.post('/chat', promptSecurityMiddleware({ fieldName: 'question' }), apiLim
           Rakamları ve önemli bilgileri vurgula.
         `;
 
-        result = await claudeAI.askQuestion(enrichedQuestion, 'MUHASEBE', promptTemplate);
+          result = await claudeAI.askQuestion(enrichedQuestion, 'MUHASEBE', promptTemplate);
 
-        // Orijinal soruyu da yanıta ekle
-        if (result.success && formattedResponse) {
-          result.response = `📊 **Veritabanı Sorgu Sonuçları:**\n\n${formattedResponse}\n\n---\n\n${result.response}`;
+          // Orijinal soruyu da yanıta ekle
+          if (result.success && formattedResponse) {
+            result.response = `📊 **Veritabanı Sorgu Sonuçları:**\n\n${formattedResponse}\n\n---\n\n${result.response}`;
+          }
+        } catch (invoiceError) {
+          logger.error('[AI Chat] Fatura sorgu hatası', { error: invoiceError.message, stack: invoiceError.stack });
+          // Hata durumunda normal AI'ya devam et
+          result = await claudeAI.askQuestion(question, department, promptTemplate);
         }
-      } catch (invoiceError) {
-        logger.error('[AI Chat] Fatura sorgu hatası', { error: invoiceError.message, stack: invoiceError.stack });
-        // Hata durumunda normal AI'ya devam et
+      } else {
+        // Normal AI sorgusu
         result = await claudeAI.askQuestion(question, department, promptTemplate);
       }
-    } else {
-      // Normal AI sorgusu
-      result = await claudeAI.askQuestion(question, department, promptTemplate);
-    }
 
-    if (!result.success) {
-      // Cost tracking (hata durumu)
+      if (!result.success) {
+        // Cost tracking (hata durumu)
+        trackAIUsage({
+          userId: req.user?.id || 'default',
+          endpoint: '/api/ai/chat',
+          model: 'claude-3-haiku-20240307',
+          inputTokens: 0,
+          outputTokens: 0,
+          promptTemplate,
+          responseTimeMs: Date.now() - startTime,
+          success: false,
+          errorMessage: result.error,
+        }).catch(() => {}); // Sessizce başarısız ol
+
+        return res.status(500).json({
+          success: false,
+          error: result.error,
+          response: result.response,
+        });
+      }
+
+      logger.debug(`[AI Chat] Cevap uzunluğu: ${result.response.length} karakter`);
+
+      // ✅ COST TRACKING
+      trackAIUsage({
+        userId: req.user?.id || 'default',
+        endpoint: '/api/ai/chat',
+        model: 'claude-3-haiku-20240307',
+        inputTokens: result.usage?.inputTokens || 0,
+        outputTokens: result.usage?.outputTokens || 0,
+        promptTemplate,
+        toolsUsed: [],
+        responseTimeMs: Date.now() - startTime,
+        success: true,
+      }).catch((err) => {
+        logger.error('Cost tracking hatası (silent fail)', { error: err.message });
+      });
+
+      return res.json({
+        success: true,
+        response: result.response,
+        department,
+        promptTemplate,
+        usage: result.usage,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error('[AI Chat] Hata', { error: error.message, stack: error.stack });
+
+      // Cost tracking (exception durumu)
       trackAIUsage({
         userId: req.user?.id || 'default',
         endpoint: '/api/ai/chat',
         model: 'claude-3-haiku-20240307',
         inputTokens: 0,
         outputTokens: 0,
-        promptTemplate,
         responseTimeMs: Date.now() - startTime,
         success: false,
-        errorMessage: result.error,
-      }).catch(() => {}); // Sessizce başarısız ol
+        errorMessage: error.message,
+      }).catch(() => {});
 
       return res.status(500).json({
         success: false,
-        error: result.error,
-        response: result.response,
+        error: 'Sunucu hatası',
+        response: 'Üzgünüm, şu anda bir teknik sorun yaşıyorum. Lütfen daha sonra tekrar deneyin.',
       });
     }
-
-    logger.debug(`[AI Chat] Cevap uzunluğu: ${result.response.length} karakter`);
-
-    // ✅ COST TRACKING
-    trackAIUsage({
-      userId: req.user?.id || 'default',
-      endpoint: '/api/ai/chat',
-      model: 'claude-3-haiku-20240307',
-      inputTokens: result.usage?.inputTokens || 0,
-      outputTokens: result.usage?.outputTokens || 0,
-      promptTemplate,
-      toolsUsed: [],
-      responseTimeMs: Date.now() - startTime,
-      success: true,
-    }).catch((err) => {
-      logger.error('Cost tracking hatası (silent fail)', { error: err.message });
-    });
-
-    return res.json({
-      success: true,
-      response: result.response,
-      department,
-      promptTemplate,
-      usage: result.usage,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    logger.error('[AI Chat] Hata', { error: error.message, stack: error.stack });
-
-    // Cost tracking (exception durumu)
-    trackAIUsage({
-      userId: req.user?.id || 'default',
-      endpoint: '/api/ai/chat',
-      model: 'claude-3-haiku-20240307',
-      inputTokens: 0,
-      outputTokens: 0,
-      responseTimeMs: Date.now() - startTime,
-      success: false,
-      errorMessage: error.message,
-    }).catch(() => {});
-
-    return res.status(500).json({
-      success: false,
-      error: 'Sunucu hatası',
-      response: 'Üzgünüm, şu anda bir teknik sorun yaşıyorum. Lütfen daha sonra tekrar deneyin.',
-    });
   }
-});
+);
 
 /**
  * POST /api/ai/agent
  * AI Agent - Tool Calling ile akıllı asistan
  * Tüm sisteme erişebilir, veri okuyabilir ve yazabilir
  */
-router.post('/agent', apiLimiter, optionalAuth, async (req, res) => {
-  const startTime = Date.now();
-  try {
-    const { message, systemContext, history = [], sessionId, department, templateSlug, pageContext } = req.body;
+router.post(
+  '/agent',
+  promptSecurityMiddleware({ fieldName: 'message' }),
+  apiLimiter,
+  optionalAuth,
+  async (req, res) => {
+    const startTime = Date.now();
+    try {
+      const { message, systemContext, history = [], sessionId, department, templateSlug, pageContext } = req.body;
 
-    if (!message || message.trim().length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Mesaj boş olamaz',
+      if (!message || message.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Mesaj boş olamaz',
+        });
+      }
+
+      logger.debug(
+        `[AI Agent] Mesaj: "${message.substring(0, 100)}..." | Session: ${sessionId || 'yok'} | Dept: ${department || 'genel'} | Şablon: ${templateSlug || 'default'} | Context: ${pageContext?.type || 'genel'}${pageContext?.id ? '#' + pageContext.id : ''}`
+      );
+
+      // Options ile sessionId, department, templateSlug, pageContext ve systemContext gönder
+      const options = {
+        sessionId: sessionId || undefined,
+        userId: 'default',
+        department: department || 'TÜM SİSTEM',
+        templateSlug: templateSlug || 'default',
+        pageContext: pageContext || undefined,
+        systemContext: systemContext || undefined, // İhale verileri context'i (kaydedilmeyecek)
+      };
+
+      const result = await aiAgent.processQuery(message, history, options);
+
+      if (!result.success) {
+        // Cost tracking (hata durumu)
+        trackAIUsage({
+          userId: req.user?.id || 'default',
+          endpoint: '/api/ai/agent',
+          model: 'claude-sonnet-4-20250514',
+          sessionId,
+          inputTokens: 0,
+          outputTokens: 0,
+          promptTemplate: templateSlug || 'default',
+          responseTimeMs: Date.now() - startTime,
+          success: false,
+          errorMessage: result.error,
+        }).catch(() => {});
+
+        return res.status(500).json({
+          success: false,
+          error: result.error,
+          response: result.response,
+        });
+      }
+
+      logger.info(
+        `[AI Agent] Cevap hazırlandı | Tools: ${result.toolsUsed.length} | İterasyonlar: ${result.iterations} | Session: ${sessionId || 'yok'}`
+      );
+
+      // ✅ COST TRACKING
+      trackAIUsage({
+        userId: req.user?.id || 'default',
+        endpoint: '/api/ai/agent',
+        model: 'claude-sonnet-4-20250514',
+        sessionId,
+        inputTokens: result.inputTokens || 0,
+        outputTokens: result.outputTokens || 0,
+        promptTemplate: templateSlug || 'default',
+        toolsUsed: result.toolsUsed || [],
+        responseTimeMs: Date.now() - startTime,
+        success: true,
+      }).catch((err) => {
+        logger.error('Cost tracking hatası (silent fail)', { error: err.message });
       });
-    }
 
-    logger.debug(
-      `[AI Agent] Mesaj: "${message.substring(0, 100)}..." | Session: ${sessionId || 'yok'} | Dept: ${department || 'genel'} | Şablon: ${templateSlug || 'default'} | Context: ${pageContext?.type || 'genel'}${pageContext?.id ? '#' + pageContext.id : ''}`
-    );
+      return res.json({
+        success: true,
+        response: result.response,
+        toolsUsed: result.toolsUsed,
+        iterations: result.iterations,
+        sessionId: result.sessionId,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error('[AI Agent] Hata', { error: error.message, stack: error.stack });
 
-    // Options ile sessionId, department, templateSlug, pageContext ve systemContext gönder
-    const options = {
-      sessionId: sessionId || undefined,
-      userId: 'default',
-      department: department || 'TÜM SİSTEM',
-      templateSlug: templateSlug || 'default',
-      pageContext: pageContext || undefined,
-      systemContext: systemContext || undefined, // İhale verileri context'i (kaydedilmeyecek)
-    };
-
-    const result = await aiAgent.processQuery(message, history, options);
-
-    if (!result.success) {
-      // Cost tracking (hata durumu)
+      // Cost tracking (exception durumu)
       trackAIUsage({
         userId: req.user?.id || 'default',
         endpoint: '/api/ai/agent',
@@ -209,68 +272,17 @@ router.post('/agent', apiLimiter, optionalAuth, async (req, res) => {
         promptTemplate: templateSlug || 'default',
         responseTimeMs: Date.now() - startTime,
         success: false,
-        errorMessage: result.error,
+        errorMessage: error.message,
       }).catch(() => {});
 
       return res.status(500).json({
         success: false,
-        error: result.error,
-        response: result.response,
+        error: 'Sunucu hatası',
+        response: 'Üzgünüm, şu anda bir teknik sorun yaşıyorum. Lütfen daha sonra tekrar deneyin.',
       });
     }
-
-    logger.info(
-      `[AI Agent] Cevap hazırlandı | Tools: ${result.toolsUsed.length} | İterasyonlar: ${result.iterations} | Session: ${sessionId || 'yok'}`
-    );
-
-    // ✅ COST TRACKING
-    trackAIUsage({
-      userId: req.user?.id || 'default',
-      endpoint: '/api/ai/agent',
-      model: 'claude-sonnet-4-20250514',
-      sessionId,
-      inputTokens: result.inputTokens || 0,
-      outputTokens: result.outputTokens || 0,
-      promptTemplate: templateSlug || 'default',
-      toolsUsed: result.toolsUsed || [],
-      responseTimeMs: Date.now() - startTime,
-      success: true,
-    }).catch((err) => {
-      logger.error('Cost tracking hatası (silent fail)', { error: err.message });
-    });
-
-    return res.json({
-      success: true,
-      response: result.response,
-      toolsUsed: result.toolsUsed,
-      iterations: result.iterations,
-      sessionId: result.sessionId,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    logger.error('[AI Agent] Hata', { error: error.message, stack: error.stack });
-
-    // Cost tracking (exception durumu)
-    trackAIUsage({
-      userId: req.user?.id || 'default',
-      endpoint: '/api/ai/agent',
-      model: 'claude-sonnet-4-20250514',
-      sessionId,
-      inputTokens: 0,
-      outputTokens: 0,
-      promptTemplate: templateSlug || 'default',
-      responseTimeMs: Date.now() - startTime,
-      success: false,
-      errorMessage: error.message,
-    }).catch(() => {});
-
-    return res.status(500).json({
-      success: false,
-      error: 'Sunucu hatası',
-      response: 'Üzgünüm, şu anda bir teknik sorun yaşıyorum. Lütfen daha sonra tekrar deneyin.',
-    });
   }
-});
+);
 
 // ============================================================
 // NORMAL AI ENDPOINT'LERİ
@@ -2241,7 +2253,10 @@ router.post('/analyze-errors', apiLimiter, optionalAuth, async (req, res) => {
     // Hataları AI'a gönder
     const errorSummary = errors
       .slice(0, 10) // Maksimum 10 hata
-      .map((e, i) => `${i + 1}. [${e.type}] ${e.message}\n   URL: ${e.url}\n   Zaman: ${e.timestamp}${e.stack ? `\n   Stack: ${e.stack.substring(0, 200)}...` : ''}`)
+      .map(
+        (e, i) =>
+          `${i + 1}. [${e.type}] ${e.message}\n   URL: ${e.url}\n   Zaman: ${e.timestamp}${e.stack ? `\n   Stack: ${e.stack.substring(0, 200)}...` : ''}`
+      )
       .join('\n\n');
 
     const analysisPrompt = `
