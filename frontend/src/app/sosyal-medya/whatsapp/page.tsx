@@ -251,7 +251,7 @@ export default function WhatsAppPage() {
       // Base64 data URL'i parse et
       const matches = dataUrl.match(/^data:(.+);base64,(.+)$/);
       if (!matches) {
-        console.log('Not a base64 data URL, using directly');
+        logger.debug('Not a base64 data URL, using directly');
         return dataUrl;
       }
 
@@ -271,10 +271,10 @@ export default function WhatsAppPage() {
 
       // Blob URL oluştur
       const blobUrl = URL.createObjectURL(blob);
-      console.log('Created blob URL:', blobUrl);
+      logger.debug('Created blob URL', { blobUrl });
       return blobUrl;
     } catch (error) {
-      console.error('Blob conversion error:', error);
+      logger.error('Blob conversion error', { error });
       return dataUrl;
     }
   }, []);
@@ -290,7 +290,7 @@ export default function WhatsAppPage() {
       try {
         // DOCX dosyası için Mammoth.js ile HTML'e çevir
         if (previewFilename.match(/\.docx?$/i)) {
-          console.log('Processing DOCX with Mammoth.js...');
+          logger.debug('Processing DOCX with Mammoth.js...');
 
           // Base64'ü ArrayBuffer'a çevir
           const matches = previewUrl.match(/^data:(.+);base64,(.+)$/);
@@ -305,7 +305,7 @@ export default function WhatsAppPage() {
 
             // Mammoth.js ile HTML'e çevir
             const result = await mammoth.convertToHtml({ arrayBuffer });
-            console.log('Mammoth conversion successful');
+            logger.debug('Mammoth conversion successful');
             setDocxHtml(result.value);
           }
         } else {
@@ -318,7 +318,7 @@ export default function WhatsAppPage() {
           }
         }
       } catch (error) {
-        console.error('Preview processing error:', error);
+        logger.error('Preview processing error', { error });
       } finally {
         setPreviewLoading(false);
       }
@@ -363,7 +363,7 @@ export default function WhatsAppPage() {
         setArchivedChats(archived);
       }
     } catch (e) {
-      console.error('Failed to fetch chats:', e);
+      logger.error('Failed to fetch chats', { error: e });
     }
   }, []);
 
@@ -393,7 +393,7 @@ export default function WhatsAppPage() {
           }
         }
       } catch (e) {
-        console.error('WhatsApp status check failed:', e);
+        logger.error('WhatsApp status check failed', { error: e });
         setConnectionError('Sunucuya bağlanılamıyor. Backend servisleri çalışmıyor olabilir.');
       }
       setLoading(false);
@@ -465,7 +465,7 @@ export default function WhatsAppPage() {
         scrollToBottom();
       }
     } catch (e) {
-      console.error('Failed to fetch messages:', e);
+      logger.error('Failed to fetch messages', { error: e });
     }
     setLoadingMessages(false);
   };
@@ -481,7 +481,7 @@ export default function WhatsAppPage() {
       // Chat listesini güncelle
       setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, unreadCount: 0 } : c)));
     } catch (e) {
-      console.error('Failed to mark as read:', e);
+      logger.error('Failed to mark as read', { error: e });
     }
   }, []);
 
@@ -935,7 +935,7 @@ export default function WhatsAppPage() {
         setRecordingTime((prev) => prev + 1);
       }, 1000);
     } catch (error) {
-      console.error('Mikrofon erişimi hatası:', error);
+      logger.error('Mikrofon erişimi hatası', { error });
       notifications.show({
         title: 'Mikrofon Hatası',
         message: 'Mikrofon erişimi sağlanamadı. Lütfen tarayıcı izinlerini kontrol edin.',
@@ -1115,7 +1115,7 @@ export default function WhatsAppPage() {
         return false;
       }
     } catch (e) {
-      console.error('Failed to download media:', e);
+      logger.error('Failed to download media', { error: e });
       notifications.show({
         title: 'Bağlantı Hatası',
         message: 'WhatsApp servisine bağlanılamadı. Servisin çalıştığından emin olun.',
@@ -1160,7 +1160,7 @@ export default function WhatsAppPage() {
         });
       }
     } catch (e) {
-      console.error('Failed to save media:', e);
+      logger.error('Failed to save media', { error: e });
       notifications.show({
         title: 'Hata',
         message: 'Sunucuya kaydetme başarısız',

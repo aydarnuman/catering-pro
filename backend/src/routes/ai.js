@@ -169,6 +169,7 @@ router.post('/chat', apiLimiter, optionalAuth, async (req, res) => {
  * Tüm sisteme erişebilir, veri okuyabilir ve yazabilir
  */
 router.post('/agent', apiLimiter, optionalAuth, async (req, res) => {
+  const startTime = Date.now();
   try {
     const { message, systemContext, history = [], sessionId, department, templateSlug, pageContext } = req.body;
 
@@ -196,6 +197,20 @@ router.post('/agent', apiLimiter, optionalAuth, async (req, res) => {
     const result = await aiAgent.processQuery(message, history, options);
 
     if (!result.success) {
+      // Cost tracking (hata durumu)
+      trackAIUsage({
+        userId: req.user?.id || 'default',
+        endpoint: '/api/ai/agent',
+        model: 'claude-sonnet-4-20250514',
+        sessionId,
+        inputTokens: 0,
+        outputTokens: 0,
+        promptTemplate: templateSlug || 'default',
+        responseTimeMs: Date.now() - startTime,
+        success: false,
+        errorMessage: result.error,
+      }).catch(() => {});
+
       return res.status(500).json({
         success: false,
         error: result.error,
@@ -207,6 +222,22 @@ router.post('/agent', apiLimiter, optionalAuth, async (req, res) => {
       `[AI Agent] Cevap hazırlandı | Tools: ${result.toolsUsed.length} | İterasyonlar: ${result.iterations} | Session: ${sessionId || 'yok'}`
     );
 
+    // ✅ COST TRACKING
+    trackAIUsage({
+      userId: req.user?.id || 'default',
+      endpoint: '/api/ai/agent',
+      model: 'claude-sonnet-4-20250514',
+      sessionId,
+      inputTokens: result.inputTokens || 0,
+      outputTokens: result.outputTokens || 0,
+      promptTemplate: templateSlug || 'default',
+      toolsUsed: result.toolsUsed || [],
+      responseTimeMs: Date.now() - startTime,
+      success: true,
+    }).catch((err) => {
+      logger.error('Cost tracking hatası (silent fail)', { error: err.message });
+    });
+
     return res.json({
       success: true,
       response: result.response,
@@ -217,6 +248,21 @@ router.post('/agent', apiLimiter, optionalAuth, async (req, res) => {
     });
   } catch (error) {
     logger.error('[AI Agent] Hata', { error: error.message, stack: error.stack });
+
+    // Cost tracking (exception durumu)
+    trackAIUsage({
+      userId: req.user?.id || 'default',
+      endpoint: '/api/ai/agent',
+      model: 'claude-sonnet-4-20250514',
+      sessionId,
+      inputTokens: 0,
+      outputTokens: 0,
+      promptTemplate: templateSlug || 'default',
+      responseTimeMs: Date.now() - startTime,
+      success: false,
+      errorMessage: error.message,
+    }).catch(() => {});
+
     return res.status(500).json({
       success: false,
       error: 'Sunucu hatası',
