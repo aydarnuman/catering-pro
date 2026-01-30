@@ -9,6 +9,7 @@ import { query } from '../database.js';
 import { trackAIUsage } from '../services/cost-tracker.js';
 import { authenticate, optionalAuth, requireAdmin, requireSuperAdmin } from '../middleware/auth.js';
 import { apiLimiter } from '../middleware/rate-limiter.js';
+import { promptSecurityMiddleware } from '../middleware/prompt-security.js';
 import aiAgent from '../services/ai-agent.js';
 import aiTools from '../services/ai-tools/index.js';
 import claudeAI from '../services/claude-ai.js';
@@ -25,7 +26,7 @@ const router = express.Router();
  * POST /api/ai/chat
  * AI ile sohbet et (Eski endpoint - geriye uyumluluk için)
  */
-router.post('/chat', apiLimiter, optionalAuth, async (req, res) => {
+router.post('/chat', promptSecurityMiddleware({ fieldName: 'question' }), apiLimiter, optionalAuth, async (req, res) => {
   const startTime = Date.now();
   try {
     const { question, department = 'TÜM SİSTEM', promptTemplate = 'default' } = req.body;
