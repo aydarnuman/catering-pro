@@ -9,7 +9,7 @@ const router = express.Router();
 // =====================================================
 // PERSONEL İSTATİSTİKLERİ (Dashboard Widget için)
 // =====================================================
-router.get('/stats', async (_req, res) => {
+router.get('/stats', authenticate, async (_req, res) => {
   try {
     const result = await query(`
       SELECT 
@@ -49,7 +49,7 @@ router.get('/stats', async (_req, res) => {
 // =====================================================
 // PROJELERİ LİSTELE
 // =====================================================
-router.get('/projeler', async (req, res) => {
+router.get('/projeler', authenticate, async (req, res) => {
   try {
     const { durum } = req.query;
 
@@ -81,7 +81,7 @@ router.get('/projeler', async (req, res) => {
 // =====================================================
 // PROJE DETAYI (personellerle birlikte)
 // =====================================================
-router.get('/projeler/:id', async (req, res) => {
+router.get('/projeler/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
 

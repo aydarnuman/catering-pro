@@ -6,6 +6,7 @@
 
 import express from 'express';
 import { query } from '../database.js';
+import { trackAIUsage } from '../services/cost-tracker.js';
 import { authenticate, optionalAuth, requireAdmin, requireSuperAdmin } from '../middleware/auth.js';
 import { apiLimiter } from '../middleware/rate-limiter.js';
 import aiAgent from '../services/ai-agent.js';
@@ -25,6 +26,7 @@ const router = express.Router();
  * AI ile sohbet et (Eski endpoint - geriye uyumluluk için)
  */
 router.post('/chat', apiLimiter, optionalAuth, async (req, res) => {
+  const startTime = Date.now();
   try {
     const { question, department = 'TÜM SİSTEM', promptTemplate = 'default' } = req.body;
 
@@ -68,10 +70,10 @@ router.post('/chat', apiLimiter, optionalAuth, async (req, res) => {
         // AI'ya sonuçları yorumlatmak için gönder
         const enrichedQuestion = `
           Kullanıcı sorusu: ${question}
-          
+
           Veritabanı sorgu sonuçları:
           ${formattedResponse}
-          
+
           Bu sonuçları kullanarak kullanıcının sorusuna detaylı ve anlaşılır bir cevap ver.
           Rakamları ve önemli bilgileri vurgula.
         `;
@@ -93,6 +95,19 @@ router.post('/chat', apiLimiter, optionalAuth, async (req, res) => {
     }
 
     if (!result.success) {
+      // Cost tracking (hata durumu)
+      trackAIUsage({
+        userId: req.user?.id || 'default',
+        endpoint: '/api/ai/chat',
+        model: 'claude-3-haiku-20240307',
+        inputTokens: 0,
+        outputTokens: 0,
+        promptTemplate,
+        responseTimeMs: Date.now() - startTime,
+        success: false,
+        errorMessage: result.error,
+      }).catch(() => {}); // Sessizce başarısız ol
+
       return res.status(500).json({
         success: false,
         error: result.error,
@@ -101,6 +116,21 @@ router.post('/chat', apiLimiter, optionalAuth, async (req, res) => {
     }
 
     logger.debug(`[AI Chat] Cevap uzunluğu: ${result.response.length} karakter`);
+
+    // ✅ COST TRACKING
+    trackAIUsage({
+      userId: req.user?.id || 'default',
+      endpoint: '/api/ai/chat',
+      model: 'claude-3-haiku-20240307',
+      inputTokens: result.usage?.inputTokens || 0,
+      outputTokens: result.usage?.outputTokens || 0,
+      promptTemplate,
+      toolsUsed: [],
+      responseTimeMs: Date.now() - startTime,
+      success: true,
+    }).catch((err) => {
+      logger.error('Cost tracking hatası (silent fail)', { error: err.message });
+    });
 
     return res.json({
       success: true,
@@ -112,6 +142,19 @@ router.post('/chat', apiLimiter, optionalAuth, async (req, res) => {
     });
   } catch (error) {
     logger.error('[AI Chat] Hata', { error: error.message, stack: error.stack });
+
+    // Cost tracking (exception durumu)
+    trackAIUsage({
+      userId: req.user?.id || 'default',
+      endpoint: '/api/ai/chat',
+      model: 'claude-3-haiku-20240307',
+      inputTokens: 0,
+      outputTokens: 0,
+      responseTimeMs: Date.now() - startTime,
+      success: false,
+      errorMessage: error.message,
+    }).catch(() => {});
+
     return res.status(500).json({
       success: false,
       error: 'Sunucu hatası',
