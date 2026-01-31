@@ -889,6 +889,17 @@ export default function FaturalarPage() {
                                 <Badge size="xs" variant="light" color="violet">
                                   Uyumsoft
                                 </Badge>
+                                {/* Eşleşme Durumu */}
+                                {fatura.eslesmeOrani !== undefined && fatura.eslesmeOrani > 0 ? (
+                                  <Badge
+                                    size="xs"
+                                    variant="light"
+                                    color={fatura.eslesmeOrani === 100 ? 'green' : 'yellow'}
+                                  >
+                                    %{fatura.eslesmeOrani}
+                                  </Badge>
+                                ) : null}
+                                {/* Stok Durumu */}
                                 {fatura.stokIslendi && (
                                   <Badge size="xs" variant="filled" color="green">
                                     Stok ✓

@@ -318,14 +318,13 @@ await fetch(`${API_BASE_URL}/api/tender-docs/${tenderId}/download-documents`, {
 ## 🚫 Yapılmaması Gerekenler
 
 1. Raw SQL'de string concatenation (SQL injection riski)
-2. Hardcoded credentials (.env kullan)
-3. console.log production'da (winston logger kullan)
-4. Senkron dosya işlemleri (async kullan)
-5. Global state (component-level state tercih)
-6. **Hardcoded API URL'ler (`localhost:3001`)** - `API_BASE_URL` kullan!
-7. **Tailwind CSS kullanma** - Mantine kullan!
-8. **require/module.exports** - ES Modules import/export kullan!
-9. **NextAuth kullanma** - Custom AuthContext kullan!
+2. console.log production'da (winston logger kullan)
+3. Senkron dosya işlemleri (async kullan)
+4. Global state (component-level state tercih)
+5. **Hardcoded API URL'ler (`localhost:3001`)** - `API_BASE_URL` kullan!
+6. **Tailwind CSS kullanma** - Mantine kullan!
+7. **require/module.exports** - ES Modules import/export kullan!
+8. **NextAuth kullanma** - Custom AuthContext kullan!
 
 ---
 

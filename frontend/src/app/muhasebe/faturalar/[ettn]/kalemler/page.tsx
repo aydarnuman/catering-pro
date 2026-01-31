@@ -7,6 +7,7 @@ import {
   Box,
   Button,
   Card,
+  Checkbox,
   Container,
   Divider,
   Group,
@@ -14,6 +15,7 @@ import {
   Modal,
   NumberInput,
   Paper,
+  Progress,
   ScrollArea,
   Select,
   Skeleton,
@@ -32,10 +34,12 @@ import {
   IconArrowLeft,
   IconCalculator,
   IconCheck,
+  IconCheckbox,
   IconCircleCheck,
   IconCircleDashed,
   IconLink,
   IconPackage,
+  IconPackageImport,
   IconPlus,
   IconRefresh,
   IconSearch,
@@ -50,6 +54,7 @@ import {
   type FiyatGuncelleme,
   faturaKalemleriAPI,
 } from '@/lib/api/services/fatura-kalemleri';
+import { stokAPI, type Depo } from '@/lib/api/services/stok';
 import { formatDate, formatMoney } from '@/lib/formatters';
 
 // Tip tanımları (sayfa görünümü; API kaleminden map edilir)
@@ -128,6 +133,14 @@ export default function FaturaKalemlerPage() {
   const [calcAdet, setCalcAdet] = useState<number | ''>('');
   const [calcBirimDeger, setCalcBirimDeger] = useState<number | ''>('');
   const [calcHedefBirim, setCalcHedefBirim] = useState<'KG' | 'LT'>('KG');
+
+  // Stoğa işleme state'leri
+  const [stokModalAcik, { open: stokModalAc, close: stokModalKapat }] = useDisclosure(false);
+  const [depolar, setDepolar] = useState<Depo[]>([]);
+  const [secilenDepo, setSecilenDepo] = useState<number | null>(null);
+  const [secilenKalemSiralari, setSecilenKalemSiralari] = useState<number[]>([]);
+  const [stokIslemleniyor, setStokIslemleniyor] = useState(false);
+  const [stokIslendi, setStokIslendi] = useState(false);
 
   // Verileri yükle (TEK KAYNAK: faturaKalemleriAPI)
   const verileriYukle = useCallback(async () => {
@@ -211,6 +224,43 @@ export default function FaturaKalemlerPage() {
       verileriYukle();
     }
   }, [ettn, verileriYukle]);
+
+  // Depoları yükle
+  useEffect(() => {
+    const depolariYukle = async () => {
+      try {
+        const response = await stokAPI.getDepolar();
+        if (response.data) {
+          setDepolar(response.data);
+          // Varsayılan depoyu localStorage'dan oku
+          const varsayilanDepo = localStorage.getItem('varsayilan_stok_depo');
+          if (varsayilanDepo) {
+            setSecilenDepo(parseInt(varsayilanDepo));
+          }
+        }
+      } catch (error) {
+        console.error('Depolar yüklenemedi:', error);
+      }
+    };
+    depolariYukle();
+  }, []);
+
+  // Stok işlendi mi kontrol et
+  useEffect(() => {
+    const stokDurumKontrol = async () => {
+      if (!ettn) return;
+      try {
+        // Backend'e istek at - eğer daha önce işlendiyse fatura_stok_islem tablosunda kayıt var
+        const response = await stokAPI.faturadanGiris({ ettn, depo_id: 0, kalemler: [] });
+        // Bu istek hata verirse (çift işlem koruması) zaten işlenmiş demektir
+      } catch (error: any) {
+        if (error?.response?.data?.error?.includes('zaten işlenmiş')) {
+          setStokIslendi(true);
+        }
+      }
+    };
+    // Kontrol için boş istek yapma - sadece state kontrol et
+  }, [ettn]);
 
   // Birim Dönüşümü modalı her açıldığında mini hesaplayıcıyı temizle (başka ürüne geçince eski 48/250 vb. kalmasın)
   useEffect(() => {
@@ -318,18 +368,39 @@ export default function FaturaKalemlerPage() {
     try {
       setOtomatikLoading(true);
       const result = await faturaKalemleriAPI.topluOtomatikEslesdir(ettn);
-      if (result.data.basarili > 0) {
+      const basarili = result.data?.basarili || 0;
+      const kalan = eslesmemis - basarili;
+
+      if (basarili > 0) {
         notifications.show({
-          title: 'Başarılı',
-          message: `${result.data.basarili} kalem otomatik eşleştirildi`,
-          color: 'green',
+          title: 'Otomatik Eşleştirme Tamamlandı',
+          message: (
+            <Stack gap={4}>
+              <Text size="sm">✓ {basarili} kalem eşleştirildi</Text>
+              {kalan > 0 && (
+                <Text size="sm" c="dimmed">
+                  ⚠ {kalan} kalem manuel eşleştirme bekliyor
+                </Text>
+              )}
+              {kalan === 0 && (
+                <Text size="sm" c="green" fw={500}>
+                  Tüm kalemler eşleşti! Stoğa işlemeye hazır.
+                </Text>
+              )}
+            </Stack>
+          ),
+          color: kalan === 0 ? 'green' : 'yellow',
+          icon: <IconCheck size={18} />,
+          autoClose: 5000,
         });
         verileriYukle();
       } else {
         notifications.show({
           title: 'Bilgi',
-          message: 'Otomatik eşleştirilebilecek kalem bulunamadı',
+          message:
+            'Otomatik eşleştirilebilecek kalem bulunamadı. Lütfen manuel olarak eşleştirin.',
           color: 'yellow',
+          icon: <IconAlertCircle size={18} />,
         });
       }
     } catch {
@@ -337,9 +408,88 @@ export default function FaturaKalemlerPage() {
         title: 'Hata',
         message: 'Otomatik eşleştirme başarısız',
         color: 'red',
+        icon: <IconAlertCircle size={18} />,
       });
     } finally {
       setOtomatikLoading(false);
+    }
+  };
+
+  // Stoğa işle modal aç
+  const stokModalAcHandler = () => {
+    // Eşleşmiş kalemleri otomatik seç
+    const eslesmisSiralar = kalemler
+      .filter((k) => k.urun_id !== null)
+      .map((k) => k.kalem_sira);
+    setSecilenKalemSiralari(eslesmisSiralar);
+    stokModalAc();
+  };
+
+  // Stoğa işle
+  const stogaIsle = async () => {
+    if (!secilenDepo) {
+      notifications.show({
+        title: 'Hata',
+        message: 'Lütfen bir depo seçin',
+        color: 'red',
+        icon: <IconAlertCircle size={18} />,
+      });
+      return;
+    }
+
+    // Sadece eşleşmiş ve seçili kalemleri filtrele
+    const islenecekKalemler = kalemler.filter(
+      (k) => k.urun_id && secilenKalemSiralari.includes(k.kalem_sira)
+    );
+
+    if (islenecekKalemler.length === 0) {
+      notifications.show({
+        title: 'Uyarı',
+        message: 'İşlenecek eşleşmiş kalem bulunamadı',
+        color: 'yellow',
+      });
+      return;
+    }
+
+    setStokIslemleniyor(true);
+    try {
+      // Varsayılan depoyu kaydet
+      localStorage.setItem('varsayilan_stok_depo', secilenDepo.toString());
+
+      await stokAPI.faturadanGiris({
+        ettn,
+        depo_id: secilenDepo,
+        kalemler: secilenKalemSiralari,
+      });
+
+      notifications.show({
+        title: 'Başarılı',
+        message: `${islenecekKalemler.length} kalem stoğa işlendi`,
+        color: 'green',
+        icon: <IconCheck size={18} />,
+      });
+
+      setStokIslendi(true);
+      stokModalKapat();
+    } catch (error: any) {
+      const errorMsg = error?.response?.data?.error || error.message || 'Stok işleme başarısız';
+      notifications.show({
+        title: 'Hata',
+        message: errorMsg,
+        color: 'red',
+        icon: <IconAlertCircle size={18} />,
+      });
+    } finally {
+      setStokIslemleniyor(false);
+    }
+  };
+
+  // Depo seçimi handler (localStorage'a kaydet)
+  const handleDepoSecimi = (val: string | null) => {
+    const depoId = val ? parseInt(val) : null;
+    setSecilenDepo(depoId);
+    if (depoId) {
+      localStorage.setItem('varsayilan_stok_depo', depoId.toString());
     }
   };
 
@@ -566,18 +716,10 @@ export default function FaturaKalemlerPage() {
             </Group>
 
             <Group>
-              <Badge
-                size="lg"
-                variant="light"
-                color={eslesmeYuzdesi === 100 ? 'green' : eslesmeYuzdesi > 50 ? 'yellow' : 'red'}
-                leftSection={<IconLink size={14} />}
-              >
-                {eslesmis}/{kalemler.length} Eşleştirildi ({eslesmeYuzdesi}%)
-              </Badge>
               <Button
                 leftSection={<IconWand size={16} />}
                 variant="light"
-                color="green"
+                color="blue"
                 onClick={otomatikEslesdir}
                 loading={otomatikLoading}
                 disabled={eslesmis === kalemler.length}
@@ -592,8 +734,59 @@ export default function FaturaKalemlerPage() {
               >
                 Yenile
               </Button>
+              {/* Stoğa İşle Butonu */}
+              <Button
+                leftSection={<IconPackageImport size={16} />}
+                color="green"
+                onClick={stokModalAcHandler}
+                disabled={eslesmis === 0 || stokIslendi}
+              >
+                {stokIslendi ? 'Stoğa İşlendi ✓' : `Stoğa İşle (${eslesmis})`}
+              </Button>
             </Group>
           </Group>
+        </Paper>
+
+        {/* İlerleme Göstergesi */}
+        <Paper p="md" withBorder>
+          <Group justify="space-between" mb="xs">
+            <Text size="sm" fw={500}>
+              Eşleştirme Durumu
+            </Text>
+            <Group gap="xs">
+              <Badge
+                size="lg"
+                variant="light"
+                color={eslesmeYuzdesi === 100 ? 'green' : eslesmeYuzdesi > 50 ? 'yellow' : 'red'}
+                leftSection={<IconLink size={14} />}
+              >
+                {eslesmis}/{kalemler.length} Eşleştirildi
+              </Badge>
+              {stokIslendi && (
+                <Badge size="lg" variant="filled" color="green" leftSection={<IconCheck size={14} />}>
+                  Stoğa İşlendi
+                </Badge>
+              )}
+            </Group>
+          </Group>
+          <Progress
+            value={eslesmeYuzdesi}
+            color={eslesmeYuzdesi === 100 ? 'green' : eslesmeYuzdesi > 50 ? 'yellow' : 'red'}
+            size="lg"
+            radius="xl"
+            striped={eslesmeYuzdesi < 100}
+            animated={eslesmeYuzdesi < 100}
+          />
+          {eslesmeYuzdesi === 100 && !stokIslendi && (
+            <Text size="xs" c="green" mt="xs" fw={500}>
+              ✓ Tüm kalemler eşleşti! Stoğa işlemeye hazır.
+            </Text>
+          )}
+          {eslesmeYuzdesi < 100 && (
+            <Text size="xs" c="dimmed" mt="xs">
+              {eslesmemis} kalem eşleştirme bekliyor
+            </Text>
+          )}
         </Paper>
 
         {/* Kalemler Tablosu */}
@@ -1161,6 +1354,152 @@ export default function FaturaKalemlerPage() {
             </Group>
           </Stack>
         )}
+      </Modal>
+
+      {/* Stoğa İşle Modal */}
+      <Modal
+        opened={stokModalAcik}
+        onClose={stokModalKapat}
+        title={
+          <Group gap="xs">
+            <IconPackageImport size={20} />
+            <Text fw={600}>Stoğa İşle</Text>
+          </Group>
+        }
+        size="lg"
+      >
+        <Stack gap="md">
+          {/* Depo Seçimi */}
+          <Select
+            label="Hedef Depo"
+            placeholder="Depo seçin"
+            description="Ürünlerin giriş yapacağı depoyu seçin"
+            data={depolar.map((d) => ({ value: d.id.toString(), label: d.ad }))}
+            value={secilenDepo?.toString() || null}
+            onChange={handleDepoSecimi}
+            required
+            leftSection={<IconPackage size={16} />}
+          />
+
+          {/* Kalem Özeti */}
+          <Paper p="sm" withBorder>
+            <Group justify="space-between" mb="xs">
+              <Text size="sm" fw={500}>
+                İşlenecek Kalemler
+              </Text>
+              <Group gap="xs">
+                <Checkbox
+                  label="Tümünü Seç"
+                  checked={
+                    secilenKalemSiralari.length === kalemler.filter((k) => k.urun_id).length &&
+                    secilenKalemSiralari.length > 0
+                  }
+                  indeterminate={
+                    secilenKalemSiralari.length > 0 &&
+                    secilenKalemSiralari.length < kalemler.filter((k) => k.urun_id).length
+                  }
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSecilenKalemSiralari(
+                        kalemler.filter((k) => k.urun_id).map((k) => k.kalem_sira)
+                      );
+                    } else {
+                      setSecilenKalemSiralari([]);
+                    }
+                  }}
+                />
+              </Group>
+            </Group>
+
+            <ScrollArea h={300}>
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th style={{ width: 40 }}>
+                      <IconCheckbox size={16} />
+                    </Table.Th>
+                    <Table.Th>Ürün</Table.Th>
+                    <Table.Th style={{ textAlign: 'right' }}>Miktar</Table.Th>
+                    <Table.Th style={{ textAlign: 'right' }}>Birim Fiyat</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {kalemler
+                    .filter((k) => k.urun_id)
+                    .map((kalem) => (
+                      <Table.Tr key={kalem.kalem_sira}>
+                        <Table.Td>
+                          <Checkbox
+                            checked={secilenKalemSiralari.includes(kalem.kalem_sira)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSecilenKalemSiralari([...secilenKalemSiralari, kalem.kalem_sira]);
+                              } else {
+                                setSecilenKalemSiralari(
+                                  secilenKalemSiralari.filter((s) => s !== kalem.kalem_sira)
+                                );
+                              }
+                            }}
+                          />
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="sm" fw={500}>
+                            {kalem.urun_ad}
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            {kalem.fatura_urun_adi}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td style={{ textAlign: 'right' }}>
+                          <Text size="sm">
+                            {kalem.miktar} {kalem.birim}
+                          </Text>
+                          {kalem.birim_carpani && kalem.birim_carpani !== 1 && (
+                            <Text size="xs" c="dimmed">
+                              ({(kalem.miktar * kalem.birim_carpani).toFixed(2)}{' '}
+                              {kalem.standart_birim || 'KG'})
+                            </Text>
+                          )}
+                        </Table.Td>
+                        <Table.Td style={{ textAlign: 'right' }}>
+                          <Text size="sm">{formatMoney(kalem.birim_fiyat)}</Text>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
+          </Paper>
+
+          {/* Özet Bilgi */}
+          <Alert color="blue" icon={<IconAlertCircle size={18} />}>
+            <Text size="sm">
+              <strong>{secilenKalemSiralari.length}</strong> kalem seçildi.{' '}
+              {kalemler.filter((k) => !k.urun_id).length > 0 && (
+                <>
+                  <strong>{kalemler.filter((k) => !k.urun_id).length}</strong> kalem eşleştirilmediği
+                  için listede görünmüyor.
+                </>
+              )}
+            </Text>
+          </Alert>
+
+          {/* Onay Butonları */}
+          <Group justify="flex-end">
+            <Button variant="light" onClick={stokModalKapat}>
+              İptal
+            </Button>
+            <Button
+              color="green"
+              leftSection={<IconPackageImport size={16} />}
+              onClick={stogaIsle}
+              loading={stokIslemleniyor}
+              disabled={!secilenDepo || secilenKalemSiralari.length === 0}
+            >
+              {secilenKalemSiralari.length} Kalemi Stoğa İşle
+            </Button>
+          </Group>
+        </Stack>
       </Modal>
     </Container>
   );

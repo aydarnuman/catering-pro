@@ -1,7 +1,7 @@
 # 📚 Catering Pro - Teknik Dokümantasyon İndeksi
 
-> Son Güncelleme: 30 Ocak 2026  
-> Versiyon: 2.1
+> Son Güncelleme: 31 Ocak 2026
+> Versiyon: 2.2
 
 ---
 
@@ -19,15 +19,59 @@
 | 07 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Deployment kılavuzu (mevcut) | ✅ |
 | 08 | [INCONSISTENCY-REPORT.md](./INCONSISTENCY-REPORT.md) | Dokümantasyon tutarsızlık raporu | ✅ |
 | 09 | [MIMARI_OZET.md](./MIMARI_OZET.md) | Mimari özet (tek sayfa) | ✅ |
+| 10 | [analiz/NOTION-EKLEME-PLANI.md](./analiz/NOTION-EKLEME-PLANI.md) | Modeller analiz dökümanları ve Notion ekleme planı | ✅ |
+
+### 🔍 Kapsamlı Analiz Dökümanları (Yeni - 2026-01-31)
+
+| # | Döküman | Açıklama | Durum |
+|---|---------|----------|-------|
+| A1 | [analiz/01_DATABASE_SCHEMA.md](./analiz/01_DATABASE_SCHEMA.md) | **Kapsamlı Database Schema Referansı** - 110 migration, 60+ tablo detaylı analizi | ✅ **NEW** |
+| A2 | [analiz/02_API_ENDPOINTS.md](./analiz/02_API_ENDPOINTS.md) | **Tam API Endpoint Kataloğu** - 220+ endpoint, Türkçe dokümantasyon | ✅ **NEW** |
+| A3 | [analiz/03_FRONTEND_ARCHITECTURE.md](./analiz/03_FRONTEND_ARCHITECTURE.md) | **Frontend Mimari Dökümantasyonu** - 69 sayfa, 95 component, hooks, state yönetimi | ✅ **NEW** |
+| A4 | [analiz/04_TUTARSIZLIKLAR_VE_ONERILER.md](./analiz/04_TUTARSIZLIKLAR_VE_ONERILER.md) | **Tutarsızlıklar ve Öneriler Raporu** - 45+ sorun, kritiklik analizi, çözüm önerileri | ✅ **NEW** |
+| A5 | [analiz/05_NOTION_VS_KOD_KARSILASTIRMA.md](./analiz/05_NOTION_VS_KOD_KARSILASTIRMA.md) | **Notion vs Kod Karşılaştırma** - 127 tutarsızlık, güncelleme planı | ✅ **NEW** |
 
 ---
 
 ## 🎯 Hızlı Referans
 
-- **API referansı (tüm endpoint’ler):** [02_API_ENDPOINTS.md](./02_API_ENDPOINTS.md)
+### Ana Dökümantasyon
+- **API referansı (tüm endpoint'ler):** [02_API_ENDPOINTS.md](./02_API_ENDPOINTS.md)
 - **Veritabanı şeması:** [01_DATABASE_SCHEMA.md](./01_DATABASE_SCHEMA.md)
 - **Backend servis kataloğu:** [SERVICES.md](./SERVICES.md)
 - **Tutarsızlık raporu (doc vs kod):** [INCONSISTENCY-REPORT.md](./INCONSISTENCY-REPORT.md)
+
+### 🆕 Kapsamlı Analiz Dökümanları (2026-01-31)
+- **📊 Tam Database Schema:** [analiz/01_DATABASE_SCHEMA.md](./analiz/01_DATABASE_SCHEMA.md)
+  - 110 Supabase + 106 Backend migrations
+  - 60+ tablo detaylı açıklamaları
+  - Migration tarihçesi ve modül gruplandırması
+  - İsimlendirme tutarsızlıkları analizi
+
+- **🔌 Tam API Endpoint Kataloğu:** [analiz/02_API_ENDPOINTS.md](./analiz/02_API_ENDPOINTS.md)
+  - 220+ endpoint tam dokümantasyonu
+  - Request/Response örnekleri
+  - Auth patterns ve middleware
+  - Türkçe açıklamalar
+
+- **⚛️ Frontend Mimari:** [analiz/03_FRONTEND_ARCHITECTURE.md](./analiz/03_FRONTEND_ARCHITECTURE.md)
+  - 69 sayfa + 95 component
+  - State yönetimi (Context, Hooks)
+  - API entegrasyonu (14 service dosyası)
+  - Type system ve custom hooks
+
+- **⚠️ Tutarsızlıklar ve Öneriler:** [analiz/04_TUTARSIZLIKLAR_VE_ONERILER.md](./analiz/04_TUTARSIZLIKLAR_VE_ONERILER.md)
+  - 45+ tespit edilen sorun
+  - Kritiklik seviyeleri (Critical, High, Medium, Low)
+  - Detaylı çözüm önerileri
+  - Sprint planlaması ve tahmini süreler
+
+- **📝 Notion vs Kod Karşılaştırma:** [analiz/05_NOTION_VS_KOD_KARSILASTIRMA.md](./analiz/05_NOTION_VS_KOD_KARSILASTIRMA.md)
+  - 127 tutarsızlık tespit edildi
+  - Migration sayısı: 93 → 216 (110 Supabase + 106 Backend)
+  - Frontend sayfa: 35 → 69
+  - Tablo sayısı: 50 → 60+
+  - Detaylı güncelleme planı (5 Sprint)
 
 ### Proje Yapısı
 ```
@@ -76,18 +120,31 @@ Bu dosyalara **DOKUNMAYIN** - sistemi bozabilir:
 
 ## 📊 İstatistikler
 
-| Metrik | Sayı |
-|--------|------|
-| Frontend Modül | 13 |
-| Frontend Sayfa | 35+ |
-| Frontend Bileşen | 35+ |
-| Backend Route Dosyası | 52 (notes/ altı dahil) |
-| Backend Mounted Route | 48 |
-| Backend Service | 35+ (ai-tools dahil 45+) |
-| DB Migration | 93 |
-| DB Tablo | ~50+ |
-| Custom Hook | 7 |
-| Context | 2 |
+### Güncellenmiş Proje Metrikleri (2026-01-31)
+
+| Katman | Metrik | Sayı |
+|--------|--------|------|
+| **Database** | Supabase Migrations | 110 |
+| | Backend Migrations | 106 |
+| | Toplam Tablo | 60+ |
+| | Modül Sayısı | 10+ (İhale, Muhasebe, Personel, Stok, vb.) |
+| **Backend** | Route Dosyası | 58 (notes/ subdirectory dahil) |
+| | Mounted Routes | 52+ |
+| | Service Dosyası | 37 + 10 AI tools = 47 |
+| | Middleware | 7 |
+| | Utility Files | 5 |
+| | Toplam Endpoint | 220+ |
+| **Frontend** | Sayfa | 69 .tsx/.ts |
+| | Component | 95 .tsx/.ts |
+| | API Service | 14 |
+| | Custom Hook | 9 |
+| | Context Provider | 2 |
+| | Type Definition | 5 |
+| | Library Files | 28 |
+| **Dokümantasyon** | Docs Dosyası | 36+ |
+| | Analiz Dökümanı | 4 (yeni) |
+| **Scripts** | Script Dosyası | 60+ |
+| **TOPLAM PROJE** | Tracked Files | ~736 |
 
 ---
 

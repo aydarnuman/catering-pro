@@ -10,7 +10,6 @@ import express from 'express';
 import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 import { pool, query } from './database.js';
-import { csrfProtection } from './middleware/csrf.js';
 import { globalErrorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { ipAccessControl } from './middleware/ip-access-control.js';
 import { apiLimiter, authLimiter } from './middleware/rate-limiter.js';
@@ -84,7 +83,7 @@ app.use(
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma', 'Expires', 'X-CSRF-Token'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma', 'Expires'],
   })
 );
 
@@ -112,9 +111,6 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // HTTP Request Logger (Winston)
 app.use(httpLogger);
-
-// CSRF Protection - Cookie parser'dan sonra, route'lardan önce
-app.use(csrfProtection);
 
 // IP Access Control - Rate limiting'den önce (güvenlik için)
 // NOT: Health check ve auth endpoint'leri hariç

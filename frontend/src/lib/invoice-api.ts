@@ -197,7 +197,7 @@ async function fetchAPI(endpoint: string, options?: RequestInit) {
 }
 
 /**
- * Uyumsoft istekleri için auth’lu fetch (Bearer token → CSRF atlanır, 403 önlenir)
+ * Uyumsoft istekleri için auth’lu fetch (cookie ile kimlik doğrulama)
  * Base URL her istekte güncel alınır (SSR / farklı origin senaryolarında doğru adrese gider).
  */
 async function fetchUyumsoftAPI(endpoint: string, options?: RequestInit) {
@@ -338,7 +338,7 @@ export const invoiceAPI = {
 
 /**
  * Uyumsoft API Servisi
- * Tüm istekler authFetch ile gider → Bearer token sayesinde CSRF atlanır, 403 önlenir.
+ * Tüm istekler authFetch ile gider (cookie ile kimlik doğrulama).
  */
 export const uyumsoftAPI = {
   async status() {

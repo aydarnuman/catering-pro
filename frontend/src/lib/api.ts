@@ -28,7 +28,7 @@ export const api = axios.create({
   validateStatus: (status) => status < 500,
 });
 
-// Request interceptor - Sadece base URL ayarla
+// Request interceptor - Base URL ayarla
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   // URL base'i ayarla
   if (config.url && !config.url.startsWith('http://') && !config.url.startsWith('https://')) {
@@ -37,10 +37,6 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
       config.baseURL = baseUrl;
     }
   }
-
-  // Cookie'ler otomatik gönderilecek (withCredentials: true)
-  // Authorization header'a gerek yok
-
   return config;
 });
 
@@ -154,28 +150,15 @@ export const apiClient = {
 
 export default apiClient;
 
-/** Tarayıcıda csrf-token cookie'sinden token oku (POST/PUT/DELETE için backend CSRF doğrulaması) */
-function getCsrfToken(): string | null {
-  if (typeof document === 'undefined') return null;
-  const match = document.cookie.match(/csrf-token=([^;]+)/);
-  return match ? decodeURIComponent(match[1].trim()) : null;
-}
-
 /**
  * Native fetch için auth wrapper
- * Cookie'ler otomatik gönderiliyor; mutating isteklerde x-csrf-token header eklenir
+ * Cookie'ler otomatik gönderiliyor (credentials: 'include')
  */
 export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const headers = new Headers(options.headers);
 
   if (options.body && !(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
-  }
-
-  const method = (options.method || 'GET').toUpperCase();
-  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
-    const csrf = getCsrfToken();
-    if (csrf) headers.set('x-csrf-token', csrf);
   }
 
   const baseUrl = getApiBaseUrlDynamic();

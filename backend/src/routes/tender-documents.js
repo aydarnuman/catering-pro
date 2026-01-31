@@ -6,6 +6,7 @@
 import express from 'express';
 import { pool } from '../database.js';
 import documentStorageService from '../services/document-storage.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -44,6 +45,14 @@ router.post('/:tenderId/download-documents', async (req, res) => {
     // Dökümanları indir
     const result = await documentStorageService.downloadTenderDocuments(parseInt(tenderId, 10));
 
+    // Liste güncellensin diye doğrulama: indirme sonrası DB'de kaç döküman var?
+    const countResult = await pool.query(
+      `SELECT COUNT(*) as count FROM documents WHERE tender_id = $1 AND source_type = 'download'`,
+      [tenderId]
+    );
+    const dbCount = parseInt(countResult.rows[0]?.count ?? 0, 10);
+    logger.info(`[tender-docs] İndirme tamamlandı tenderId=${tenderId} totalDownloaded=${result.totalDownloaded ?? 0} DB'de toplam download döküman=${dbCount}`);
+
     res.json({
       success: true,
       data: {
@@ -68,6 +77,7 @@ router.get('/:tenderId/downloaded-documents', async (req, res) => {
     const { tenderId } = req.params;
 
     const documents = await documentStorageService.getDownloadedDocuments(parseInt(tenderId, 10));
+    logger.debug(`[tender-docs] getDownloadedDocuments tenderId=${tenderId} dönen kayıt=${documents.length}`);
 
     // Dökümanları doc_type'a göre grupla
     const grouped = {};

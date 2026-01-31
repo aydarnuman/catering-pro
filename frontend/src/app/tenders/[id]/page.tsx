@@ -364,14 +364,15 @@ export default function TenderDetailPage() {
         const downloadData = await tendersAPI.getDownloadedDocuments(tenderId);
         if (downloadData.success && downloadData.data?.documents) {
           downloadDocs = downloadData.data.documents.flatMap((group: any) =>
-            group.files.map((file: any) => ({
+            (group.files || []).map((file: any) => ({
               ...file,
               source_type: 'download' as const,
             }))
           );
         }
-      } catch {
-        // İndirilen dökümanlar yoksa devam et
+      } catch (err: any) {
+        // Hata logla; liste boş kalmasın diye sessizce devam et
+        console.warn('[Tenders] getDownloadedDocuments hatası:', err?.message || err);
       }
 
       // Tüm dökümanları birleştir
@@ -493,6 +494,10 @@ export default function TenderDetailPage() {
           color: 'green',
         });
         await fetchData();
+        // İndirme yapıldıysa liste bazen gecikmeyle güncellenebilir; kısa süre sonra tekrar çek
+        if (downloadedCount > 0) {
+          setTimeout(() => fetchData(), 800);
+        }
       } else {
         throw new Error(result.error || 'İndirme hatası');
       }
@@ -616,6 +621,7 @@ export default function TenderDetailPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ documentIds }),
+        credentials: 'include', // Cookie ile auth
       });
 
       if (!response.ok) throw new Error('Analiz hatası');
@@ -626,48 +632,54 @@ export default function TenderDetailPage() {
       if (!reader) throw new Error('Stream okunamadı');
 
       const allResults: AnalysisResult[] = [];
+      let buffer = '';
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const text = decoder.decode(value);
-        const lines = text.split('\n');
+        buffer += decoder.decode(value, { stream: true });
 
-        for (const line of lines) {
-          if (line.startsWith('data: ') && line.length > 6) {
-            try {
-              const data = JSON.parse(line.slice(6));
+        // SSE: Her mesaj "data: {...}\n\n" ile biter - tam mesajları işle
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() || ''; // Kalan kısmı buffera al (tam mesaj değilse)
 
-              if (data.stage === 'processing') {
-                setAnalysisProgress({
-                  current: data.current,
-                  total: data.total,
-                  message: data.message,
-                });
-              }
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith('data: ') || line.length <= 6) continue;
 
-              if (data.stage === 'complete') {
-                // Başarılı sonuçları topla
-                data.results?.forEach((r: any) => {
-                  if (r.success && r.analysis) {
-                    allResults.push(r.analysis);
-                  }
-                });
+          try {
+            const data = JSON.parse(line.slice(6));
 
-                setAnalysisProgress({
-                  current: data.summary.total,
-                  total: data.summary.total,
-                  message: `Tamamlandı! (${data.summary.success}/${data.summary.total})`,
-                });
-              }
-
-              if (data.stage === 'error') {
-                throw new Error(data.message);
-              }
-            } catch (_parseErr) {
-              // JSON parse hatası - devam et
+            if (data.stage === 'processing') {
+              setAnalysisProgress({
+                current: data.current,
+                total: data.total,
+                message: data.message,
+              });
             }
+
+            if (data.stage === 'complete') {
+              data.results?.forEach((r: any) => {
+                if (r.success && r.analysis) {
+                  allResults.push(r.analysis);
+                }
+              });
+
+              setAnalysisProgress({
+                current: data.summary?.total ?? data.results?.length ?? 0,
+                total: data.summary?.total ?? data.results?.length ?? 0,
+                message: `Tamamlandı! (${data.summary?.success ?? 0}/${data.summary?.total ?? 0})`,
+              });
+            }
+
+            if (data.stage === 'error') {
+              throw new Error(data.message);
+            }
+          } catch (parseErr: any) {
+            // Sadece SyntaxError (JSON parse) görmezden gel - chunk sınırında kesilmiş olabilir
+            if (parseErr instanceof SyntaxError) continue;
+            throw parseErr; // Diğer hatalar (stage:'error') yukarı fırlat
           }
         }
       }

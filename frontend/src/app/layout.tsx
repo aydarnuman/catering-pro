@@ -273,7 +273,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     '& tbody tr:hover': {
                       backgroundColor: 'rgba(59, 130, 246, 0.08)',
                     },
-                    '& tbody tr:nth-of-type(even)': {
+                    '& tbody tr:nthOfType(even)': {
                       backgroundColor: 'rgba(255, 255, 255, 0.02)',
                     },
                   },

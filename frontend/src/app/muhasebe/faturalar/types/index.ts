@@ -68,6 +68,10 @@ export interface UyumsoftFatura {
   isSeen?: boolean;
   stokIslendi?: boolean;
   stokIslemTarihi?: string;
+  // Kalem eşleştirme durumu
+  eslesmeOrani?: number; // 0-100 arası yüzde
+  eslesmisKalem?: number;
+  toplamKalem?: number;
 }
 
 // === UYUMSOFT BAĞLANTI DURUMU ===

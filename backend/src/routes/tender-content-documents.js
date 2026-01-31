@@ -6,6 +6,7 @@
 import express from 'express';
 import documentQueueProcessor from '../services/document-queue-processor.js';
 import tenderContentService from '../services/tender-content-service.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -360,7 +361,9 @@ router.post('/analyze-batch', async (req, res) => {
 
         results.push({ id: docId, success: true, analysis: analysisResult });
       } catch (docError) {
-        results.push({ id: docId, success: false, error: docError.message });
+        const errMsg = docError?.message || String(docError);
+        logger.warn('Döküman analiz hatası', { documentId: docId, error: errMsg });
+        results.push({ id: docId, success: false, error: errMsg });
 
         // Hata durumunu kaydet
         await pool.query(`UPDATE documents SET processing_status = 'failed' WHERE id = $1`, [docId]);
