@@ -54,7 +54,7 @@ import {
   type FiyatGuncelleme,
   faturaKalemleriAPI,
 } from '@/lib/api/services/fatura-kalemleri';
-import { stokAPI, type Depo } from '@/lib/api/services/stok';
+import { type Depo, stokAPI } from '@/lib/api/services/stok';
 import { formatDate, formatMoney } from '@/lib/formatters';
 
 // Tip tanımları (sayfa görünümü; API kaleminden map edilir)
@@ -235,7 +235,7 @@ export default function FaturaKalemlerPage() {
           // Varsayılan depoyu localStorage'dan oku
           const varsayilanDepo = localStorage.getItem('varsayilan_stok_depo');
           if (varsayilanDepo) {
-            setSecilenDepo(parseInt(varsayilanDepo));
+            setSecilenDepo(parseInt(varsayilanDepo, 10));
           }
         }
       } catch (error) {
@@ -397,8 +397,7 @@ export default function FaturaKalemlerPage() {
       } else {
         notifications.show({
           title: 'Bilgi',
-          message:
-            'Otomatik eşleştirilebilecek kalem bulunamadı. Lütfen manuel olarak eşleştirin.',
+          message: 'Otomatik eşleştirilebilecek kalem bulunamadı. Lütfen manuel olarak eşleştirin.',
           color: 'yellow',
           icon: <IconAlertCircle size={18} />,
         });
@@ -418,9 +417,7 @@ export default function FaturaKalemlerPage() {
   // Stoğa işle modal aç
   const stokModalAcHandler = () => {
     // Eşleşmiş kalemleri otomatik seç
-    const eslesmisSiralar = kalemler
-      .filter((k) => k.urun_id !== null)
-      .map((k) => k.kalem_sira);
+    const eslesmisSiralar = kalemler.filter((k) => k.urun_id !== null).map((k) => k.kalem_sira);
     setSecilenKalemSiralari(eslesmisSiralar);
     stokModalAc();
   };
@@ -486,7 +483,7 @@ export default function FaturaKalemlerPage() {
 
   // Depo seçimi handler (localStorage'a kaydet)
   const handleDepoSecimi = (val: string | null) => {
-    const depoId = val ? parseInt(val) : null;
+    const depoId = val ? parseInt(val, 10) : null;
     setSecilenDepo(depoId);
     if (depoId) {
       localStorage.setItem('varsayilan_stok_depo', depoId.toString());
@@ -763,7 +760,12 @@ export default function FaturaKalemlerPage() {
                 {eslesmis}/{kalemler.length} Eşleştirildi
               </Badge>
               {stokIslendi && (
-                <Badge size="lg" variant="filled" color="green" leftSection={<IconCheck size={14} />}>
+                <Badge
+                  size="lg"
+                  variant="filled"
+                  color="green"
+                  leftSection={<IconCheck size={14} />}
+                >
                   Stoğa İşlendi
                 </Badge>
               )}
@@ -1433,7 +1435,10 @@ export default function FaturaKalemlerPage() {
                             checked={secilenKalemSiralari.includes(kalem.kalem_sira)}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setSecilenKalemSiralari([...secilenKalemSiralari, kalem.kalem_sira]);
+                                setSecilenKalemSiralari([
+                                  ...secilenKalemSiralari,
+                                  kalem.kalem_sira,
+                                ]);
                               } else {
                                 setSecilenKalemSiralari(
                                   secilenKalemSiralari.filter((s) => s !== kalem.kalem_sira)
@@ -1477,8 +1482,8 @@ export default function FaturaKalemlerPage() {
               <strong>{secilenKalemSiralari.length}</strong> kalem seçildi.{' '}
               {kalemler.filter((k) => !k.urun_id).length > 0 && (
                 <>
-                  <strong>{kalemler.filter((k) => !k.urun_id).length}</strong> kalem eşleştirilmediği
-                  için listede görünmüyor.
+                  <strong>{kalemler.filter((k) => !k.urun_id).length}</strong> kalem
+                  eşleştirilmediği için listede görünmüyor.
                 </>
               )}
             </Text>

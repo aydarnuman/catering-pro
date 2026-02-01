@@ -39,8 +39,14 @@ import {
   IconVolume,
 } from '@tabler/icons-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { RealtimeIndicator } from '@/components/RealtimeIndicator';
+import {
+  spacing,
+  radius,
+  sizes,
+  animations,
+} from '@/styles/neumorphism';
 import { ToolbarNotesWidget } from './ToolbarNotesWidget';
 
 export type GenerationToolbarVariant = 'artlist' | 'catering';
@@ -114,9 +120,16 @@ export function GenerationToolbar({
   onToggle,
 }: GenerationToolbarProps) {
   const [prompt, setPrompt] = useState('');
+  const [mounted, setMounted] = useState(false);
   const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === 'dark';
-  const isMobile = useMediaQuery('(max-width: 768px)');
+  const isDark = mounted ? colorScheme === 'dark' : true;
+  const isMobileQuery = useMediaQuery('(max-width: 768px)');
+  const isMobile = mounted ? isMobileQuery : false;
+  
+  // Mount check for SSR
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const isCatering = variant === 'catering';
   const isCollapsed = isCatering && !expanded;
@@ -153,24 +166,24 @@ export function GenerationToolbar({
     }
   };
 
-  // Artlist Toolkit: ultra şeffaf cam – neredeyse sadece blur
-  const toolbarGlassStyle = {
+  // Glassmorphism: ultra transparent with strong blur
+  const toolbarStyle = useMemo(() => ({
     backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.18)',
     backdropFilter: 'blur(48px) saturate(180%)',
     WebkitBackdropFilter: 'blur(48px) saturate(180%)',
     border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.12)'}`,
     boxShadow: 'none',
-  };
+  }), [isDark]);
 
-  // Kapalıyken: profesyonel asistan FAB (mobilde kompakt)
-  const fabIconSize = isMobile ? 22 : 28;
-  const fabIconInner = isMobile ? 14 : 16;
+  // Kapalıyken: Glassmorphism FAB - professional assistant button
+  const fabIconSize = isMobile ? sizes.icon.lg : sizes.icon.xl;
+  const fabIconInner = isMobile ? sizes.icon.sm : sizes.icon.md - 2;
   if (isCollapsed) {
     return (
       <Box
         style={{
           position: 'fixed',
-          bottom: isMobile ? 16 : 24,
+          bottom: isMobile ? spacing.md : spacing.lg,
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 40,
@@ -178,15 +191,15 @@ export function GenerationToolbar({
       >
         <Tooltip
           label="Asistan panelini aç"
-          position="bottom"
+          position="top"
           withArrow
           styles={{
             tooltip: {
               fontSize: isMobile ? 11 : 12,
               fontWeight: 500,
               letterSpacing: '0.01em',
-              padding: isMobile ? '6px 10px' : '8px 12px',
-              borderRadius: 10,
+              padding: isMobile ? `${spacing.sm - 2}px ${spacing.sm + 2}px` : `${spacing.sm}px ${spacing.md - 4}px`,
+              borderRadius: radius.md,
               boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.4)' : '0 4px 20px rgba(0,0,0,0.12)',
             },
           }}
@@ -195,7 +208,7 @@ export function GenerationToolbar({
             className="asistan-ac-btn"
             onClick={onToggle}
             size={isMobile ? 'sm' : 'md'}
-            radius="xl"
+            radius={radius.full}
             leftSection={
               <Box
                 style={{
@@ -204,7 +217,7 @@ export function GenerationToolbar({
                   justifyContent: 'center',
                   width: fabIconSize,
                   height: fabIconSize,
-                  borderRadius: isMobile ? 8 : 10,
+                  borderRadius: radius.md,
                   background: isDark ? 'rgba(167, 139, 250, 0.18)' : 'rgba(124, 58, 237, 0.12)',
                   color: isDark ? '#a78bfa' : '#7c3aed',
                 }}
@@ -212,32 +225,34 @@ export function GenerationToolbar({
                 <IconSparkles size={fabIconInner} stroke={2.25} />
               </Box>
             }
-            rightSection={<IconChevronUp size={isMobile ? 14 : 16} style={{ opacity: 0.85 }} />}
+            rightSection={<IconChevronUp size={isMobile ? sizes.icon.xs : sizes.icon.sm} style={{ opacity: 0.85 }} />}
             styles={{
               root: {
-                borderRadius: 9999,
-                paddingLeft: isMobile ? 12 : 16,
-                paddingRight: isMobile ? 14 : 18,
-                minHeight: isMobile ? 40 : 44,
+                borderRadius: radius.full,
+                paddingLeft: isMobile ? spacing.md - 4 : spacing.md,
+                paddingRight: isMobile ? spacing.md - 2 : spacing.md + 2,
+                minHeight: isMobile ? sizes.touchTarget.min : sizes.touchTarget.comfortable,
                 fontSize: isMobile ? 13 : undefined,
                 fontWeight: 600,
                 letterSpacing: '0.02em',
-                transition: 'all 0.2s ease',
+                transition: `all ${animations.transition.normal}`,
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.18)',
+                backdropFilter: 'blur(48px) saturate(180%)',
                 boxShadow: isDark
                   ? '0 4px 24px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.04)'
                   : '0 4px 24px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04)',
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.5)'}`,
+                color: isDark ? 'rgba(255,255,255,0.96)' : 'rgba(0,0,0,0.88)',
                 '&:hover': {
                   transform: 'translateY(-1px)',
                   boxShadow: isDark
                     ? '0 8px 32px rgba(0,0,0,0.35), 0 0 0 1px rgba(167,139,250,0.15)'
                     : '0 8px 32px rgba(124,58,237,0.12), 0 0 0 1px rgba(124,58,237,0.08)',
                 },
+                '&:active': {
+                  transform: 'translateY(0) scale(0.98)',
+                },
               },
-            }}
-            style={{
-              ...toolbarGlassStyle,
-              color: isDark ? 'rgba(255,255,255,0.96)' : 'rgba(0,0,0,0.88)',
-              border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.5)'}`,
             }}
           >
             Asistanı aç
@@ -251,29 +266,29 @@ export function GenerationToolbar({
     <Box
       style={{
         position: 'fixed',
-        bottom: isMobile ? 16 : 24,
+        bottom: isMobile ? spacing.md : spacing.lg,
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 40,
         width: '100%',
-        maxWidth: isMobile ? 'calc(100% - 32px)' : 960,
-        padding: isMobile ? '0 8px' : 0,
+        maxWidth: isMobile ? `calc(100% - ${spacing.xl}px)` : 960,
+        padding: isMobile ? `0 ${spacing.sm}px` : 0,
       }}
     >
       <Box
         style={{
           display: 'flex',
           flexDirection: 'column',
-          ...toolbarGlassStyle,
-          borderRadius: 24,
+          ...toolbarStyle,
+          borderRadius: radius.xxl,
           overflow: 'hidden',
         }}
       >
-        {/* Üst satır: solda bugünün tarihi, sağda LIVE + kapat butonu - Catering */}
+        {/* Üst satır: solda bugünün tarihi, sağda LIVE + kapat butonu - Catering - Glassmorphism */}
         {isCatering && onToggle && (
           <Group
             justify="space-between"
-            p="xs"
+            p={spacing.sm}
             style={{
               borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.03)'}`,
             }}
@@ -286,33 +301,37 @@ export function GenerationToolbar({
                 year: 'numeric',
               })}
             </Text>
-            <Group gap="sm">
+            <Group gap={spacing.sm}>
               <RealtimeIndicator />
               <Tooltip label="Toolbar'ı kapat" position="bottom" withArrow>
                 <ActionIcon
                   variant="subtle"
                   size="sm"
-                  radius="xl"
+                  radius={radius.md}
                   onClick={onToggle}
-                  style={{ color: 'rgba(255,255,255,0.6)' }}
+                  style={{ 
+                    color: 'rgba(255,255,255,0.6)',
+                    transition: `all ${animations.transition.fast}`,
+                  }}
+                  className="toolbar-close-btn"
                 >
-                  <IconChevronDown size={18} />
+                  <IconChevronDown size={sizes.icon.md - 2} />
                 </ActionIcon>
               </Tooltip>
             </Group>
           </Group>
         )}
-        {/* Ana Input Alanı - Artlist Toolkit: tek sade blok */}
-        <Group gap="md" align="flex-start" p="sm" wrap="nowrap">
-          {/* Sol İkonlar */}
+        {/* Ana Input Alanı - Neumorphism: soft elevated panel */}
+        <Group gap={spacing.md} align="flex-start" p={spacing.sm} wrap="nowrap">
+          {/* Sol İkonlar - Glassmorphism buttons */}
           {!isMobile && (
-            <Box style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4 }}>
+            <Box style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, paddingTop: spacing.xs }}>
               {leftIcons.map((item) => {
                 const actionIcon = (
                   <ActionIcon
                     variant="filled"
                     size="lg"
-                    radius="xl"
+                    radius={radius.lg}
                     onClick={
                       isCatering && 'action' in item
                         ? item.action === 'search'
@@ -329,10 +348,11 @@ export function GenerationToolbar({
                       backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
                       color: isDark ? '#d4d4d4' : '#374151',
                       border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'}`,
-                      transition: 'all 0.2s ease',
+                      transition: `all ${animations.transition.normal}`,
                     }}
+                    className="toolbar-action-btn"
                   >
-                    <item.icon size={20} />
+                    <item.icon size={sizes.icon.md} />
                   </ActionIcon>
                 );
                 const btn =
@@ -363,23 +383,24 @@ export function GenerationToolbar({
             </Box>
           )}
 
-          {/* Sol Medya / Hızlı Erişim Butonları */}
+          {/* Sol Medya / Hızlı Erişim Butonları - Glassmorphism outline */}
           {!isMobile && (
-            <Box style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4 }}>
+            <Box style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, paddingTop: spacing.xs }}>
               {mediaButtons.map((item) => {
                 const actionIcon = (
                   <ActionIcon
                     variant="outline"
                     size="lg"
-                    radius="xl"
+                    radius={radius.lg}
                     style={{
                       borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
                       color: isDark ? '#a3a3a3' : '#6b7280',
                       backgroundColor: 'transparent',
-                      transition: 'all 0.2s ease',
+                      transition: `all ${animations.transition.normal}`,
                     }}
+                    className="toolbar-action-btn"
                   >
-                    <item.icon size={20} />
+                    <item.icon size={sizes.icon.md} />
                   </ActionIcon>
                 );
                 const btn =
@@ -410,7 +431,7 @@ export function GenerationToolbar({
             </Box>
           )}
 
-          {/* Metin Girişi – Artlist: sade placeholder, label yok */}
+          {/* Metin Girişi – Glassmorphism: transparent input field */}
           <Box style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0 }}>
             <Textarea
               value={prompt}
@@ -437,24 +458,25 @@ export function GenerationToolbar({
             />
           </Box>
 
-          {/* Sağ İkonlar - Catering'de boş (tek giriş: sarı buton) */}
+          {/* Sağ İkonlar - Glassmorphism - Catering'de boş */}
           {!isMobile && rightIcons.length > 0 && (
-            <Box style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4 }}>
+            <Box style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, paddingTop: spacing.xs }}>
               {rightIcons.map((item) => {
                 const actionIcon = (
                   <ActionIcon
                     variant="subtle"
                     size="lg"
-                    radius="xl"
+                    radius={radius.lg}
                     onClick={
                       isCatering && 'action' in item && item.action === 'ai' ? onAIClick : undefined
                     }
                     style={{
                       color: '#a3a3a3',
-                      transition: 'all 0.2s ease',
+                      transition: `all ${animations.transition.normal}`,
                     }}
+                    className="toolbar-action-btn"
                   >
-                    <item.icon size={20} />
+                    <item.icon size={sizes.icon.md} />
                   </ActionIcon>
                 );
                 const btn =
@@ -485,7 +507,7 @@ export function GenerationToolbar({
             </Box>
           )}
 
-          {/* Notlar / Ajanda: panelin içinde sağ sütun (masaüstü) */}
+          {/* Notlar / Ajanda: panelin içinde sağ sütun (masaüstü) - Glassmorphism */}
           {isCatering && !isMobile && (
             <Box
               style={{
@@ -502,16 +524,16 @@ export function GenerationToolbar({
           )}
         </Group>
 
-        {/* Alt Toolbar - Artlist: ince çizgi */}
+        {/* Alt Toolbar - Glassmorphism: thin border */}
         <Box
-          px="md"
-          py="sm"
+          px={spacing.md}
+          py={spacing.sm}
           style={{
             borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.04)'}`,
           }}
         >
-          <Group justify="space-between" wrap="nowrap" gap="md">
-            {/* Badge'ler - Mobilde kaydırılabilir */}
+          <Group justify="space-between" wrap="nowrap" gap={spacing.md}>
+            {/* Badge'ler - Mobilde kaydırılabilir - Glassmorphism pills */}
             <ScrollArea type="never" offsetScrollbars={false} style={{ flex: 1 }}>
               <Group gap={10} wrap="nowrap">
                 {toolbarBadges.map((badge) => {
@@ -519,7 +541,7 @@ export function GenerationToolbar({
                     <Badge
                       key={badge.label}
                       size="lg"
-                      radius="xl"
+                      radius={radius.full}
                       variant="outline"
                       leftSection={
                         'gradient' in badge && badge.gradient ? (
@@ -546,9 +568,9 @@ export function GenerationToolbar({
                           padding: '8px 14px',
                           height: 'auto',
                           flexShrink: 0,
-                          transition: 'all 0.2s ease',
+                          transition: `all ${animations.transition.normal}`,
                           textDecoration: 'none',
-                          borderRadius: 9999,
+                          borderRadius: radius.full,
                           '&:hover': {
                             backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
                             color: isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.9)',
@@ -575,12 +597,12 @@ export function GenerationToolbar({
               </Group>
             </ScrollArea>
 
-            {/* CTA: Artlist Toolkit tarzı - pill, yumuşak vurgu, gölge yok */}
+            {/* CTA: Glassmorphism - accent pill button */}
             <Button
-              radius="xl"
+              radius={radius.full}
               size={isMobile ? 'sm' : 'md'}
               fw={600}
-              px={isMobile ? 'md' : 'xl'}
+              px={isMobile ? spacing.md : spacing.xl}
               leftSection={
                 isCatering ? (
                   prompt.trim() ? (
@@ -602,7 +624,9 @@ export function GenerationToolbar({
                     ? '1px solid rgba(230, 197, 48, 0.35)'
                     : '1px solid rgba(230, 197, 48, 0.5)',
                   boxShadow: 'none',
-                  borderRadius: 9999,
+                  borderRadius: radius.full,
+                  minHeight: sizes.touchTarget.min,
+                  transition: `all ${animations.transition.normal}`,
                   '&:hover': {
                     backgroundColor: isDark ? 'rgba(230, 197, 48, 0.28)' : 'rgba(230, 197, 48, 1)',
                     borderColor: isDark ? 'rgba(230, 197, 48, 0.5)' : 'rgba(230, 197, 48, 0.6)',
@@ -615,12 +639,37 @@ export function GenerationToolbar({
           </Group>
         </Box>
       </Box>
-      {/* Mobil: notlar panelin altında */}
+      {/* Mobil: notlar panelin altında - Glassmorphism */}
       {isCatering && isMobile && (
-        <Box style={{ maxHeight: 120, overflowY: 'auto', marginTop: 8, width: '100%' }}>
+        <Box style={{ maxHeight: 120, overflowY: 'auto', marginTop: spacing.sm, width: '100%' }}>
           <ToolbarNotesWidget />
         </Box>
       )}
+      
+      {/* Global styles for toolbar animations */}
+      <style jsx global>{`
+        .toolbar-action-btn:hover {
+          transform: translateY(-2px) scale(1.05);
+          background: ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'} !important;
+          border-color: ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)'} !important;
+        }
+        .toolbar-action-btn:active {
+          transform: translateY(0) scale(0.95);
+        }
+        .toolbar-close-btn:hover {
+          background: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'} !important;
+          transform: scale(1.1);
+        }
+        .toolbar-close-btn:active {
+          transform: scale(0.95);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .toolbar-action-btn, .toolbar-close-btn, .asistan-ac-btn {
+            transition: none !important;
+            transform: none !important;
+          }
+        }
+      `}</style>
     </Box>
   );
 }

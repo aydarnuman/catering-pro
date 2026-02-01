@@ -162,7 +162,7 @@ export function NoteEditor({
   /**
    * Handle save
    */
-  const _handleSave = useCallback(() => {
+  const handleSave = useCallback(() => {
     if (!content.trim()) return;
 
     const data: CreateNoteDTO = {
@@ -179,141 +179,160 @@ export function NoteEditor({
     onSave(data);
   }, [content, contentFormat, color, priority, tags, isTask, dueDate, reminderDate, onSave]);
 
+  /**
+   * Handle form submit
+   */
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      handleSave();
+    },
+    [handleSave]
+  );
+
   return (
-    <Stack gap="sm">
-      {/* Content format toggle and toolbar */}
-      <Group justify="space-between">
-        <Group gap="xs">
+    <form data-note-editor onSubmit={handleSubmit}>
+      <Stack gap="sm">
+        {/* Content format toggle and toolbar */}
+        <Group justify="space-between">
+          <Group gap="xs">
+            {contentFormat === 'markdown' && (
+              <>
+                <FormatButton
+                  icon={IconBold}
+                  label="Kalin"
+                  onClick={() => insertFormatting('**')}
+                />
+                <FormatButton
+                  icon={IconItalic}
+                  label="Italik"
+                  onClick={() => insertFormatting('*')}
+                />
+                <FormatButton
+                  icon={IconStrikethrough}
+                  label="Ustu cizili"
+                  onClick={() => insertFormatting('~~')}
+                />
+                <FormatButton icon={IconCode} label="Kod" onClick={() => insertFormatting('`')} />
+                <FormatButton
+                  icon={IconLink}
+                  label="Link"
+                  onClick={() => insertFormatting('[', '](url)')}
+                />
+                <FormatButton
+                  icon={IconList}
+                  label="Liste"
+                  onClick={() => insertFormatting('- ', '')}
+                />
+                <Divider orientation="vertical" />
+              </>
+            )}
+            <Tooltip label={contentFormat === 'markdown' ? 'Markdown acik' : 'Markdown kapali'}>
+              <ActionIcon
+                variant={contentFormat === 'markdown' ? 'filled' : 'subtle'}
+                size="sm"
+                color={contentFormat === 'markdown' ? 'blue' : 'gray'}
+                onClick={() =>
+                  setContentFormat(contentFormat === 'markdown' ? 'plain' : 'markdown')
+                }
+              >
+                <IconMarkdown size={16} />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
+
           {contentFormat === 'markdown' && (
-            <>
-              <FormatButton icon={IconBold} label="Kalin" onClick={() => insertFormatting('**')} />
-              <FormatButton
-                icon={IconItalic}
-                label="Italik"
-                onClick={() => insertFormatting('*')}
-              />
-              <FormatButton
-                icon={IconStrikethrough}
-                label="Ustu cizili"
-                onClick={() => insertFormatting('~~')}
-              />
-              <FormatButton icon={IconCode} label="Kod" onClick={() => insertFormatting('`')} />
-              <FormatButton
-                icon={IconLink}
-                label="Link"
-                onClick={() => insertFormatting('[', '](url)')}
-              />
-              <FormatButton
-                icon={IconList}
-                label="Liste"
-                onClick={() => insertFormatting('- ', '')}
-              />
-              <Divider orientation="vertical" />
-            </>
+            <Switch
+              label="Onizleme"
+              size="xs"
+              checked={showPreview}
+              onChange={(e) => setShowPreview(e.currentTarget.checked)}
+            />
           )}
-          <Tooltip label={contentFormat === 'markdown' ? 'Markdown acik' : 'Markdown kapali'}>
-            <ActionIcon
-              variant={contentFormat === 'markdown' ? 'filled' : 'subtle'}
-              size="sm"
-              color={contentFormat === 'markdown' ? 'blue' : 'gray'}
-              onClick={() => setContentFormat(contentFormat === 'markdown' ? 'plain' : 'markdown')}
-            >
-              <IconMarkdown size={16} />
-            </ActionIcon>
-          </Tooltip>
         </Group>
 
-        {contentFormat === 'markdown' && (
-          <Switch
-            label="Onizleme"
-            size="xs"
-            checked={showPreview}
-            onChange={(e) => setShowPreview(e.currentTarget.checked)}
+        {/* Textarea or preview */}
+        {showPreview && contentFormat === 'markdown' ? (
+          <MarkdownPreview content={content} />
+        ) : (
+          <Textarea
+            ref={textareaRef}
+            value={content}
+            onChange={(e) => setContent(e.currentTarget.value)}
+            placeholder={placeholder}
+            minRows={minRows}
+            maxRows={maxRows}
+            autosize
+            styles={{
+              input: {
+                fontFamily: contentFormat === 'markdown' ? 'monospace' : 'inherit',
+              },
+            }}
           />
         )}
-      </Group>
 
-      {/* Textarea or preview */}
-      {showPreview && contentFormat === 'markdown' ? (
-        <MarkdownPreview content={content} />
-      ) : (
-        <Textarea
-          ref={textareaRef}
-          value={content}
-          onChange={(e) => setContent(e.currentTarget.value)}
-          placeholder={placeholder}
-          minRows={minRows}
-          maxRows={maxRows}
-          autosize
-          styles={{
-            input: {
-              fontFamily: contentFormat === 'markdown' ? 'monospace' : 'inherit',
-            },
-          }}
-        />
-      )}
-
-      {/* Color picker */}
-      <Group gap="xs" align="center">
-        <Text size="xs" c="dimmed">
-          Renk:
-        </Text>
-        <NoteColorPicker value={color} onChange={setColor} size="sm" />
-      </Group>
-
-      {/* Task toggle */}
-      {showTaskToggle && (
-        <Switch
-          label="Gorev olarak isaretle"
-          checked={isTask}
-          onChange={(e) => setIsTask(e.currentTarget.checked)}
-        />
-      )}
-
-      {/* Priority */}
-      {showPriority && isTask && (
-        <Box>
-          <Text size="xs" c="dimmed" mb={4}>
-            Oncelik:
+        {/* Color picker */}
+        <Group gap="xs" align="center">
+          <Text size="xs" c="dimmed">
+            Renk:
           </Text>
-          <NotePrioritySelect value={priority} onChange={setPriority} size="sm" />
-        </Box>
-      )}
+          <NoteColorPicker value={color} onChange={setColor} size="sm" />
+        </Group>
 
-      {/* Due date */}
-      {showDueDate && (
-        <DateTimePicker
-          label="Bitis tarihi"
-          placeholder="Tarih secin"
-          value={dueDate}
-          onChange={setDueDate}
-          clearable
-          minDate={new Date()}
-        />
-      )}
+        {/* Task toggle */}
+        {showTaskToggle && (
+          <Switch
+            label="Gorev olarak isaretle"
+            checked={isTask}
+            onChange={(e) => setIsTask(e.currentTarget.checked)}
+          />
+        )}
 
-      {/* Reminder */}
-      {showReminder && (
-        <DateTimePicker
-          label="Hatirlatici"
-          placeholder="Hatirlatici tarihi"
-          value={reminderDate}
-          onChange={setReminderDate}
-          clearable
-          minDate={new Date()}
-        />
-      )}
+        {/* Priority */}
+        {showPriority && isTask && (
+          <Box>
+            <Text size="xs" c="dimmed" mb={4}>
+              Oncelik:
+            </Text>
+            <NotePrioritySelect value={priority} onChange={setPriority} size="sm" />
+          </Box>
+        )}
 
-      {/* Tags */}
-      {showTags && (
-        <Box>
-          <Text size="xs" c="dimmed" mb={4}>
-            Etiketler:
-          </Text>
-          <NoteTagsInput value={tags} onChange={setTags} />
-        </Box>
-      )}
-    </Stack>
+        {/* Due date */}
+        {showDueDate && (
+          <DateTimePicker
+            label="Bitis tarihi"
+            placeholder="Tarih secin"
+            value={dueDate}
+            onChange={setDueDate}
+            clearable
+            minDate={new Date()}
+          />
+        )}
+
+        {/* Reminder */}
+        {showReminder && (
+          <DateTimePicker
+            label="Hatirlatici"
+            placeholder="Hatirlatici tarihi"
+            value={reminderDate}
+            onChange={setReminderDate}
+            clearable
+            minDate={new Date()}
+          />
+        )}
+
+        {/* Tags */}
+        {showTags && (
+          <Box>
+            <Text size="xs" c="dimmed" mb={4}>
+              Etiketler:
+            </Text>
+            <NoteTagsInput value={tags} onChange={setTags} />
+          </Box>
+        )}
+      </Stack>
+    </form>
   );
 }
 

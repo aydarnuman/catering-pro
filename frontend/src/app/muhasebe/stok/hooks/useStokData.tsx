@@ -316,6 +316,10 @@ export function useStokData(): UseStokDataReturn {
           kritik_stok: parseFloat(u.kritik_stok) || 0,
           son_alis_fiyat: parseFloat(u.son_alis_fiyati) || 0,
           durum: u.durum || 'normal',
+          // Fiyat durumu alanları (yeni mimari)
+          aktif_fiyat_tipi: u.aktif_fiyat_tipi || null,
+          aktif_fiyat_guven: u.aktif_fiyat_guven || 0,
+          aktif_fiyat_guncelleme: u.aktif_fiyat_guncelleme || null,
         })
       );
 

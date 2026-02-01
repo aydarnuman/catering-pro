@@ -23,6 +23,7 @@ import {
   TextInput,
   ThemeIcon,
   Title,
+  Tooltip,
   useMantineColorScheme,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -312,10 +313,10 @@ function StokPageContent() {
       }, 30000);
 
       // Paralel istekler - Promise.allSettled kullan (bir hata olsa bile diğerleri tamamlansın)
-      // İlk yüklemede limit: 100 kullan (performans için)
+      // Limit kaldırıldı - tüm ürünler yüklenecek
       // Axios'un kendi timeout'u kullanılıyor (60 saniye)
       const results = await Promise.allSettled([
-        urunlerAPI.getUrunler({ limit: 100 }),
+        urunlerAPI.getUrunler(), // Limit kaldırıldı - tüm ürünler yüklenecek
         stokAPI.getDepolar(),
         urunlerAPI.getKategoriler(),
         stokAPI.getBirimler(),
@@ -2078,11 +2079,40 @@ function StokPageContent() {
                               {formatMiktar(item.toplam_stok)} {item.birim}
                             </Table.Td>
                             <Table.Td>
-                              <Text size="sm" fw={500} c="blue">
-                                {item.son_alis_fiyat
-                                  ? `${formatMoney(item.son_alis_fiyat, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}/${item.birim}`
-                                  : '-'}
-                              </Text>
+                              <Group gap={4}>
+                                <Text size="sm" fw={500} c="blue">
+                                  {item.son_alis_fiyat
+                                    ? `${formatMoney(item.son_alis_fiyat, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}/${item.birim}`
+                                    : '-'}
+                                </Text>
+                                {item.aktif_fiyat_tipi && (
+                                  <Tooltip label={`Güven: %${item.aktif_fiyat_guven || 0}`}>
+                                    <Badge
+                                      size="xs"
+                                      variant="dot"
+                                      color={
+                                        item.aktif_fiyat_tipi === 'SOZLESME'
+                                          ? 'blue'
+                                          : item.aktif_fiyat_tipi === 'FATURA'
+                                            ? 'green'
+                                            : item.aktif_fiyat_tipi === 'PIYASA'
+                                              ? 'cyan'
+                                              : 'gray'
+                                      }
+                                    >
+                                      {item.aktif_fiyat_tipi === 'SOZLESME'
+                                        ? 'SÖZ'
+                                        : item.aktif_fiyat_tipi === 'FATURA'
+                                          ? 'FTR'
+                                          : item.aktif_fiyat_tipi === 'PIYASA'
+                                            ? 'PYS'
+                                            : item.aktif_fiyat_tipi === 'MANUEL'
+                                              ? 'MNL'
+                                              : 'VRS'}
+                                    </Badge>
+                                  </Tooltip>
+                                )}
+                              </Group>
                             </Table.Td>
                             <Table.Td>
                               <Badge

@@ -23,6 +23,7 @@ import {
   IconBrandWhatsapp,
   IconBuildingFactory2,
   IconBuildingStore,
+  IconCalculator,
   IconChartBar,
   IconChartPie,
   IconChevronDown,
@@ -53,6 +54,15 @@ import { usePathname } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import {
+  getShadow,
+  getColors,
+  neuColors,
+  spacing,
+  radius,
+  sizes,
+  animations,
+} from '@/styles/neumorphism';
 import { MobileSidebar } from './MobileSidebar';
 import { NotificationDropdown } from './NotificationDropdown';
 import { WhatsAppNavButton } from './WhatsAppNavButton';
@@ -119,8 +129,10 @@ export function Navbar() {
   // Responsive breakpoints - SSR için mounted kontrolü
   const isMobileQuery = useMediaQuery('(max-width: 768px)');
   const isTabletQuery = useMediaQuery('(max-width: 1024px)');
+  const isSmallMobileQuery = useMediaQuery('(max-width: 480px)');
   const isMobile = mounted ? isMobileQuery : false; // SSR'da false, client'da gerçek değer
   const isTablet = mounted ? isTabletQuery : false;
+  const isSmallMobile = mounted ? isSmallMobileQuery : false;
 
   // Keyboard shortcut for search
   useHotkeys([['mod+k', () => openSearchModal()]]);
@@ -176,8 +188,10 @@ export function Navbar() {
     );
   }, []);
 
-  // Artlist tarzı: çok şeffaf cam, minimal çizgi, güçlü blur
-  const glassStyle = useMemo(
+  // Glassmorphism style: transparent with blur + soft shadows
+  const colors = useMemo(() => getColors(isDark), [isDark]);
+  
+  const navbarStyle = useMemo(
     () => ({
       backgroundColor: isDark ? 'rgba(18, 18, 18, 0.25)' : 'rgba(255, 255, 255, 0.35)',
       backdropFilter: 'blur(24px) saturate(180%)',
@@ -198,31 +212,32 @@ export function Navbar() {
       {/* Main Header Container */}
       <Box
         style={{
-          ...glassStyle,
+          ...navbarStyle,
           position: 'fixed',
           top: 0,
           left: 0,
           right: 0,
           zIndex: 100,
-          transition: 'all 0.3s ease',
+          transition: `all ${animations.transition.slow}`,
         }}
       >
         {/* ========== AI DUYURU ÇUBUĞU (kapatılabilir) ========== */}
         {!aiBannerDismissed && (
           <Box
-            py={6}
-            px="md"
+            py={spacing.sm}
+            px={spacing.md}
             style={{
               textAlign: 'center',
               background: isDark
-                ? 'linear-gradient(90deg, rgba(30,30,30,0.98) 0%, rgba(26,26,26,0.99) 100%)'
-                : 'linear-gradient(90deg, rgba(250,250,250,0.98) 0%, rgba(245,245,245,0.99) 100%)',
-              borderBottom: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)'}`,
+                ? colors.surfaceElevated
+                : colors.surface,
+              borderBottom: `1px solid ${colors.borderSubtle}`,
+              boxShadow: getShadow('subtle', isDark),
             }}
           >
-            <Group gap={8} justify="center">
-              <IconSparkles size={14} color="#e6c530" />
-              <Text size="xs" c="dimmed">
+            <Group gap={spacing.sm} justify="center">
+              <IconSparkles size={14} color={colors.accent} />
+              <Text size="xs" c={colors.textSecondary} fw={500}>
                 Yeni! İhtiyaç duyduğunuz tüm yapay zeka araçları tek bir araç setinde bir araya
                 getirildi.
               </Text>
@@ -232,7 +247,12 @@ export function Navbar() {
                 color="gray"
                 aria-label="Bannerı kapat"
                 onClick={dismissAiBanner}
-                style={{ opacity: 0.8, minWidth: 28, minHeight: 28 }}
+                style={{ 
+                  opacity: 0.8, 
+                  minWidth: sizes.touchTarget.min, 
+                  minHeight: sizes.touchTarget.min,
+                  borderRadius: radius.sm,
+                }}
               >
                 <IconX size={14} />
               </ActionIcon>
@@ -240,142 +260,289 @@ export function Navbar() {
           </Box>
         )}
 
-        {/* ========== PRIMARY BAR (Artlist: tek sade bar) ========== */}
+        {/* ========== PRIMARY BAR (Neumorphism: soft elevated bar) ========== */}
         <Box
-          px={mounted && isMobile ? 'sm' : 'lg'}
+          px={mounted && isSmallMobile ? spacing.sm : mounted && isMobile ? spacing.md : spacing.lg}
           style={{
-            height: mounted && isMobile ? 60 : 68,
+            height: mounted && isSmallMobile ? sizes.navbar.mobile : mounted && isMobile ? sizes.navbar.tablet : sizes.navbar.desktop,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
           }}
         >
           {/* LEFT: Logo */}
-          <Link href="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
+          <Link 
+            href="/" 
+            style={{ textDecoration: 'none', flexShrink: 0 }}
+            aria-label="Ana sayfaya git"
+          >
             <Box
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                padding: 'xs',
-                borderRadius: 12,
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                background: 'transparent',
+                padding: spacing.xs,
+                borderRadius: radius.lg,
+                transition: `all ${animations.transition.slow}`,
+                background: colors.surface,
+                boxShadow: getShadow('subtle', isDark),
+                border: `1px solid ${colors.borderSubtle}`,
               }}
               className="logo-container"
             >
-              {/* Logo - Artlist tarzı minimal */}
+              {/* Logo - Neumorphism: soft inset container */}
               <Box
                 style={{
                   position: 'relative',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  padding: spacing.xs,
                 }}
               >
-                <Box
-                  style={{
-                    position: 'absolute',
-                    width: mounted && isMobile ? 44 : 56,
-                    height: mounted && isMobile ? 44 : 56,
-                    borderRadius: '50%',
-                    background: isDark
-                      ? 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%)'
-                      : 'radial-gradient(circle, rgba(255,255,255,0.35) 0%, transparent 70%)',
-                    filter: 'blur(6px)',
-                    transition: 'all 0.3s ease',
-                  }}
-                  className="logo-glow"
-                />
-                <Image
-                  src="/logo-transparent.png"
-                  alt="Catering Pro"
-                  width={136}
-                  height={136}
-                  sizes="(max-width: 768px) 56px, 68px"
-                  priority
-                  style={{
-                    position: 'relative',
-                    width: mounted && isMobile ? 56 : 68,
-                    height: 'auto',
-                    objectFit: 'contain',
-                    transition: 'transform 0.3s ease, filter 0.3s ease',
-                    // Dark theme: logo beyaz/açık ton (mavi-mor uyumsuzluğu gider)
-                    ...(isDark && {
-                      filter: 'brightness(0) invert(1)',
-                    }),
-                  }}
-                  className="logo-image"
-                />
+                  <Box
+                    style={{
+                      position: 'absolute',
+                      width: mounted && isSmallMobile ? 40 : mounted && isMobile ? 44 : 56,
+                      height: mounted && isSmallMobile ? 40 : mounted && isMobile ? 44 : 56,
+                      borderRadius: '50%',
+                      background: isDark
+                        ? `radial-gradient(circle, ${colors.accent}15 0%, transparent 70%)`
+                        : `radial-gradient(circle, ${colors.accent}20 0%, transparent 70%)`,
+                      filter: mounted && isMobile ? 'blur(6px)' : 'blur(8px)',
+                      transition: `all ${animations.transition.slow}`,
+                    }}
+                    className="logo-glow"
+                  />
+                  <Image
+                    src="/logo-transparent.png"
+                    alt="Catering Pro"
+                    width={136}
+                    height={136}
+                    sizes="(max-width: 480px) 48px, (max-width: 768px) 56px, 68px"
+                    priority
+                    style={{
+                      position: 'relative',
+                      width: mounted && isSmallMobile ? 48 : mounted && isMobile ? 56 : 68,
+                      height: 'auto',
+                      objectFit: 'contain',
+                      transition: `transform ${animations.transition.slow}, filter ${animations.transition.slow}`,
+                      ...(isDark && {
+                        filter: 'brightness(0) invert(1)',
+                      }),
+                    }}
+                    className="logo-image"
+                  />
               </Box>
             </Box>
           </Link>
 
-          {/* Logo hover styles */}
+          {/* Logo hover styles + Focus states for accessibility - Neumorphism */}
           <style jsx global>{`
-            .logo-container:hover {
-              background: ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.3)'};
+            .logo-container:hover,
+            .logo-container:focus-visible {
+              background: ${colors.surfaceHover};
+              box-shadow: ${getShadow('raised', isDark)};
+              border-color: ${colors.borderHover};
+              transform: translateY(-2px);
             }
-            .logo-container:hover .logo-glow {
-              filter: blur(8px);
-              transform: scale(1.15);
+            .logo-container:active {
+              transform: translateY(0) scale(0.98);
+              box-shadow: ${getShadow('pressed', isDark)};
+            }
+            .logo-container:focus-visible {
+              outline: 2px solid ${colors.accent};
+              outline-offset: 2px;
+            }
+            .logo-container:hover .logo-glow,
+            .logo-container:focus-visible .logo-glow {
+              filter: blur(10px);
+              transform: scale(1.2);
               opacity: 1;
             }
-            .logo-container:hover .logo-image {
-              transform: scale(1.04);
-              filter: ${isDark ? 'brightness(0) invert(1) drop-shadow(0 0 8px rgba(255,255,255,0.2))' : 'drop-shadow(0 0 6px rgba(255,255,255,0.4))'};
+            .logo-container:hover .logo-image,
+            .logo-container:focus-visible .logo-image {
+              transform: scale(1.05);
+              filter: ${isDark ? 'brightness(0) invert(1) drop-shadow(0 0 12px rgba(230, 197, 48, 0.3))' : 'drop-shadow(0 0 8px rgba(202, 138, 4, 0.3))'};
             }
-            .user-menu-trigger:hover {
-              background: ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'} !important;
-              border-color: ${isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.1)'} !important;
+            .user-menu-trigger:hover,
+            .user-menu-trigger:focus-visible {
+              background: ${colors.surfaceHover} !important;
+              box-shadow: ${getShadow('subtle', isDark)} !important;
+              border-color: ${colors.borderHover} !important;
+              transform: translateY(-1px);
+            }
+            .user-menu-trigger:active {
+              transform: translateY(0) scale(0.98);
+              box-shadow: ${getShadow('pressed', isDark)} !important;
+            }
+            .user-menu-trigger:focus-visible {
+              outline: 2px solid ${colors.accent};
+              outline-offset: 2px;
+            }
+            .search-trigger:hover {
+              background: ${colors.surfaceHover} !important;
+              box-shadow: ${getShadow('raised', isDark)} !important;
+              border-color: ${colors.borderHover} !important;
+              transform: translateY(-1px);
+            }
+            .search-trigger:active {
+              transform: translateY(0) scale(0.99);
+              box-shadow: ${getShadow('inset', isDark)} !important;
+            }
+            .search-trigger:focus-visible {
+              outline: 2px solid ${colors.accent};
+              outline-offset: 2px;
+            }
+            /* Hamburger container animations */
+            .hamburger-container:hover {
+              background: ${colors.surfaceHover} !important;
+              box-shadow: ${getShadow('raised', isDark)} !important;
+              border-color: ${colors.borderHover} !important;
+              transform: translateY(-1px);
+            }
+            .hamburger-container:active {
+              transform: translateY(0) scale(0.96);
+              box-shadow: ${getShadow('pressed', isDark)} !important;
+            }
+            
+            /* Navigation button animations */
+            .mantine-Button-root {
+              transition: all ${animations.transition.normal} !important;
+            }
+            .mantine-Button-root:hover {
+              transform: translateY(-1px);
+            }
+            .mantine-Button-root:active {
+              transform: translateY(0) scale(0.98);
+            }
+            
+            /* Menu dropdown animations */
+            .mantine-Menu-dropdown {
+              background: ${isDark ? neuColors.dark.bgSecondary : neuColors.light.bgSecondary} !important;
+              border: 1px solid ${colors.border} !important;
+              box-shadow: ${getShadow('floating', isDark)} !important;
+              border-radius: ${radius.lg}px !important;
+              backdrop-filter: blur(20px);
+            }
+            .mantine-Menu-item {
+              border-radius: ${radius.md}px !important;
+              margin: 2px 4px !important;
+              transition: all ${animations.transition.fast} !important;
+            }
+            .mantine-Menu-item:hover {
+              background: ${colors.surfaceHover} !important;
+              transform: translateX(2px);
+            }
+            .mantine-Menu-item[data-hovered] {
+              background: ${colors.surfaceHover} !important;
+            }
+            
+            /* Action icon animations */
+            .mantine-ActionIcon-root {
+              transition: all ${animations.transition.normal} !important;
+            }
+            .mantine-ActionIcon-root:hover {
+              transform: translateY(-1px) scale(1.05);
+              box-shadow: ${getShadow('subtle', isDark)} !important;
+            }
+            .mantine-ActionIcon-root:active {
+              transform: translateY(0) scale(0.95);
+              box-shadow: ${getShadow('pressed', isDark)} !important;
+            }
+            
+            /* Tooltip styling */
+            .mantine-Tooltip-tooltip {
+              background: ${isDark ? neuColors.dark.surfaceElevated : neuColors.light.surfaceElevated} !important;
+              color: ${colors.textPrimary} !important;
+              border: 1px solid ${colors.border} !important;
+              box-shadow: ${getShadow('subtle', isDark)} !important;
+              border-radius: ${radius.sm}px !important;
+              font-weight: 500;
+            }
+            
+            /* Badge animations */
+            .mantine-Badge-root {
+              transition: all ${animations.transition.fast} !important;
+            }
+            
+            /* High contrast mode support */
+            @media (prefers-contrast: high) {
+              .logo-container, .user-menu-trigger, .search-trigger, .hamburger-container {
+                border: 2px solid currentColor !important;
+              }
+            }
+            /* Reduced motion support */
+            @media (prefers-reduced-motion: reduce) {
+              .logo-container *, .user-menu-trigger *, .search-trigger *, .hamburger-container *,
+              .mantine-Button-root, .mantine-ActionIcon-root, .mantine-Menu-item {
+                transition: none !important;
+                animation: none !important;
+                transform: none !important;
+              }
             }
           `}</style>
 
-          {/* CENTER: Search Bar - Artlist tarzı pill */}
+          {/* CENTER: Search Bar - Neumorphism: inset input field */}
           {mounted && !isMobile && (
-            <Box style={{ flex: 1, maxWidth: 420 }} mx="lg">
+            <Box style={{ flex: 1, maxWidth: 420 }} mx={spacing.lg}>
               <UnstyledButton
                 onClick={openSearchModal}
+                aria-label="Arama yap (⌘K)"
                 style={{
                   width: '100%',
-                  padding: '10px 16px',
-                  borderRadius: 9999,
-                  backgroundColor: isDark ? 'var(--surface-elevated)' : 'rgba(0,0,0,0.04)',
-                  border: `1px solid ${isDark ? 'var(--surface-border)' : 'rgba(0,0,0,0.06)'}`,
-                  transition: 'all 0.2s ease',
+                  padding: `${spacing.sm + 2}px ${spacing.md}px`,
+                  borderRadius: radius.full,
+                  backgroundColor: colors.surface,
+                  border: `1px solid ${colors.border}`,
+                  boxShadow: getShadow('inset', isDark),
+                  transition: `all ${animations.transition.normal}`,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 10,
+                  gap: spacing.sm + 2,
                 }}
                 className="search-trigger"
               >
-                <IconSearch size={16} style={{ opacity: 0.5, flexShrink: 0 }} />
-                <Text size="sm" c="dimmed" style={{ flex: 1, textAlign: 'left' }}>
+                <IconSearch size={sizes.icon.sm} style={{ opacity: 0.5, flexShrink: 0, color: colors.textMuted }} />
+                <Text size="sm" c={colors.textMuted} style={{ flex: 1, textAlign: 'left' }}>
                   İhale, cari, fatura ara...
                 </Text>
-                <Group gap={4} style={{ flexShrink: 0 }}>
-                  <Kbd size="xs">⌘</Kbd>
-                  <Kbd size="xs">K</Kbd>
+                <Group gap={spacing.xs} style={{ flexShrink: 0 }}>
+                  <Kbd size="xs" style={{ 
+                    background: colors.surfaceElevated,
+                    border: `1px solid ${colors.border}`,
+                    boxShadow: getShadow('subtle', isDark),
+                  }}>⌘</Kbd>
+                  <Kbd size="xs" style={{ 
+                    background: colors.surfaceElevated,
+                    border: `1px solid ${colors.border}`,
+                    boxShadow: getShadow('subtle', isDark),
+                  }}>K</Kbd>
                 </Group>
               </UnstyledButton>
             </Box>
           )}
 
           {/* RIGHT: Actions */}
-          <Group gap={mounted && isMobile ? 6 : 'sm'}>
+          <Group gap={mounted && isSmallMobile ? spacing.xs : mounted && isMobile ? spacing.sm : spacing.sm}>
             {/* Mobile Search Icon */}
             {mounted && isMobile && (
               <Tooltip label="Ara" withArrow>
                 <ActionIcon
                   variant="subtle"
-                  size="lg"
-                  radius="xl"
+                  size={mounted && isSmallMobile ? 'md' : 'lg'}
+                  radius={radius.lg}
                   color="gray"
                   onClick={openSearchModal}
                   style={{
-                    background: isDark ? 'var(--surface-elevated)' : 'rgba(0,0,0,0.03)',
+                    background: colors.surfaceElevated,
+                    boxShadow: getShadow('subtle', isDark),
+                    border: `1px solid ${colors.border}`,
+                    minWidth: sizes.touchTarget.min,
+                    minHeight: sizes.touchTarget.min,
+                    transition: `all ${animations.transition.normal}`,
                   }}
                 >
-                  <IconSearch size={18} />
+                  <IconSearch size={mounted && isSmallMobile ? sizes.icon.sm : sizes.icon.md - 2} />
                 </ActionIcon>
               </Tooltip>
             )}
@@ -390,48 +557,60 @@ export function Navbar() {
             {!mounted ? (
               <Loader size="sm" />
             ) : user ? (
-              <Menu shadow="md" width={220} position="bottom-end">
+              <Menu shadow="lg" width={220} position="bottom-end">
                 <Menu.Target>
                   <UnstyledButton
+                    aria-label={`Kullanıcı menüsü - ${user.name ?? user.email}`}
                     style={{
-                      padding: mounted && isMobile ? '6px 8px' : '8px 12px',
-                      borderRadius: 9999,
-                      backgroundColor: isDark ? 'var(--surface-elevated)' : 'rgba(0,0,0,0.04)',
-                      border: `1px solid ${isDark ? 'var(--surface-border)' : 'rgba(0,0,0,0.06)'}`,
-                      transition: 'all 0.2s ease',
+                      padding: mounted && isSmallMobile ? `${spacing.xs}px ${spacing.sm - 2}px` : mounted && isMobile ? `${spacing.sm - 2}px ${spacing.sm}px` : `${spacing.sm}px ${spacing.md - 4}px`,
+                      borderRadius: radius.full,
+                      backgroundColor: colors.surfaceElevated,
+                      border: `1px solid ${colors.border}`,
+                      boxShadow: getShadow('subtle', isDark),
+                      transition: `all ${animations.transition.normal}`,
+                      minWidth: mounted && isMobile ? sizes.touchTarget.min : 'auto',
+                      minHeight: mounted && isMobile ? sizes.touchTarget.min : 'auto',
                     }}
                     className="user-menu-trigger"
                   >
-                    <Group gap={mounted && isMobile ? 6 : 10} wrap="nowrap">
+                    <Group
+                      gap={mounted && isSmallMobile ? spacing.xs : mounted && isMobile ? spacing.sm - 2 : spacing.sm + 2}
+                      wrap="nowrap"
+                    >
                       <Avatar
-                        size={mounted && isMobile ? 'sm' : 32}
-                        radius="xl"
+                        size={mounted && isSmallMobile ? sizes.avatar.sm - 4 : mounted && isMobile ? 'sm' : sizes.avatar.md - 4}
+                        radius={radius.lg}
                         color="blue"
-                        variant="filled"
-                        style={{ flexShrink: 0 }}
+                        variant="gradient"
+                        gradient={{ from: colors.accent, to: isDark ? '#f0d050' : '#b47d04', deg: 135 }}
+                        style={{ 
+                          flexShrink: 0,
+                          boxShadow: getShadow('subtle', isDark),
+                        }}
                       >
                         {getInitials(user.name ?? '')}
                       </Avatar>
                       {mounted && !isMobile && (
                         <>
                           <Box style={{ lineHeight: 1.25, minWidth: 0 }}>
-                            <Group gap={6} wrap="nowrap" align="center">
-                              <Text size="sm" fw={600} truncate style={{ lineHeight: 1.25 }}>
+                            <Group gap={spacing.sm - 2} wrap="nowrap" align="center">
+                              <Text size="sm" fw={600} truncate style={{ lineHeight: 1.25, color: colors.textPrimary }}>
                                 {(user.name ?? user.email).split(' ')[0]}
                               </Text>
                               {userIsAdmin && (
                                 <Badge
                                   size="xs"
-                                  color="red"
-                                  variant="light"
-                                  radius="sm"
+                                  variant="gradient"
+                                  gradient={{ from: colors.error, to: '#f87171', deg: 135 }}
+                                  radius={radius.sm}
                                   styles={{
                                     root: {
                                       fontWeight: 600,
-                                      paddingLeft: 6,
-                                      paddingRight: 6,
+                                      paddingLeft: spacing.sm - 2,
+                                      paddingRight: spacing.sm - 2,
                                       textTransform: 'uppercase',
                                       letterSpacing: '0.02em',
+                                      boxShadow: getShadow('subtle', isDark),
                                     },
                                   }}
                                 >
@@ -441,8 +620,8 @@ export function Navbar() {
                             </Group>
                           </Box>
                           <IconChevronDown
-                            size={16}
-                            style={{ opacity: 0.5, flexShrink: 0, marginLeft: 2 }}
+                            size={sizes.icon.sm}
+                            style={{ opacity: 0.5, flexShrink: 0, marginLeft: 2, color: colors.textMuted }}
                           />
                         </>
                       )}
@@ -498,22 +677,36 @@ export function Navbar() {
                 <ActionIcon
                   component={Link}
                   href="/giris"
-                  variant="light"
-                  color="blue"
-                  size="lg"
-                  radius="xl"
+                  variant="filled"
+                  size={mounted && isSmallMobile ? 'md' : 'lg'}
+                  radius={radius.lg}
+                  style={{
+                    minWidth: sizes.touchTarget.min,
+                    minHeight: sizes.touchTarget.min,
+                    background: `linear-gradient(135deg, ${colors.accent} 0%, ${colors.accentHover} 100%)`,
+                    boxShadow: getShadow('raised', isDark),
+                    border: 'none',
+                    transition: `all ${animations.transition.normal}`,
+                  }}
                 >
-                  <IconLogin size={18} />
+                  <IconLogin size={mounted && isSmallMobile ? sizes.icon.sm : sizes.icon.md - 2} color={isDark ? '#0a0a0a' : '#ffffff'} />
                 </ActionIcon>
               </Tooltip>
             ) : (
               <Button
                 component={Link}
                 href="/giris"
-                variant="light"
                 size="sm"
-                radius="xl"
-                leftSection={<IconLogin size={16} />}
+                radius={radius.full}
+                leftSection={<IconLogin size={sizes.icon.sm} />}
+                style={{
+                  background: `linear-gradient(135deg, ${colors.accent} 0%, ${colors.accentHover} 100%)`,
+                  color: isDark ? '#0a0a0a' : '#ffffff',
+                  boxShadow: getShadow('raised', isDark),
+                  border: 'none',
+                  fontWeight: 600,
+                  transition: `all ${animations.transition.normal}`,
+                }}
               >
                 Giriş
               </Button>
@@ -521,37 +714,62 @@ export function Navbar() {
 
             {/* Mobile Hamburger */}
             {mounted && (isMobile || isTablet) && (
-              <Burger
-                opened={mobileMenuOpened}
-                onClick={() => setMobileMenuOpened(!mobileMenuOpened)}
-                size="sm"
-              />
+              <Box
+                style={{
+                  padding: spacing.xs,
+                  borderRadius: radius.md,
+                  background: colors.surfaceElevated,
+                  boxShadow: getShadow('subtle', isDark),
+                  border: `1px solid ${colors.border}`,
+                  transition: `all ${animations.transition.normal}`,
+                }}
+                className="hamburger-container"
+              >
+                <Burger
+                  opened={mobileMenuOpened}
+                  onClick={() => setMobileMenuOpened(!mobileMenuOpened)}
+                  size={mounted && isSmallMobile ? 'xs' : 'sm'}
+                  aria-label={mobileMenuOpened ? "Menüyü kapat" : "Menüyü aç"}
+                  color={colors.textPrimary}
+                  style={{
+                    minWidth: sizes.touchTarget.min - spacing.sm,
+                    minHeight: sizes.touchTarget.min - spacing.sm,
+                  }}
+                />
+              </Box>
             )}
           </Group>
         </Box>
 
-        {/* ========== NAVIGATION BAR (Desktop Only) ========== */}
+        {/* ========== NAVIGATION BAR (Desktop Only) - Neumorphism ========== */}
         {mounted && !isMobile && !isTablet && (
           <Box
-            px="lg"
+            px={spacing.lg}
             style={{
               height: 48,
               display: 'flex',
               alignItems: 'center',
-              borderTop: `1px solid ${isDark ? 'var(--surface-border-subtle)' : 'rgba(0,0,0,0.04)'}`,
-              gap: 'xs',
+              borderTop: `1px solid ${colors.borderSubtle}`,
+              background: colors.surface,
+              gap: spacing.xs,
             }}
           >
             {/* Ana Sayfa */}
             <Button
               component={Link}
               href="/"
-              leftSection={<IconHome size={16} />}
-              variant={isActive('/') ? 'light' : 'subtle'}
-              color={isActive('/') ? 'blue' : 'gray'}
+              leftSection={<IconHome size={sizes.icon.sm} />}
+              variant={isActive('/') ? 'filled' : 'subtle'}
               size="compact-sm"
-              radius="md"
-              style={isActive('/') ? { borderRadius: 8 } : undefined}
+              radius={radius.md}
+              style={{
+                background: isActive('/') ? colors.surfaceElevated : 'transparent',
+                color: isActive('/') ? colors.textPrimary : colors.textSecondary,
+                boxShadow: isActive('/') ? getShadow('subtle', isDark) : 'none',
+                border: isActive('/') ? `1px solid ${colors.border}` : '1px solid transparent',
+                fontWeight: isActive('/') ? 600 : 500,
+                transition: `all ${animations.transition.normal}`,
+              }}
             >
               Ana Sayfa
             </Button>
@@ -567,12 +785,18 @@ export function Navbar() {
                 <Menu.Target>
                   <Button
                     rightSection={<IconChevronDown size={14} />}
-                    leftSection={<IconFolder size={16} />}
-                    variant={isIhaleMerkezi ? 'light' : 'subtle'}
-                    color={isIhaleMerkezi ? 'blue' : 'gray'}
+                    leftSection={<IconFolder size={sizes.icon.sm} />}
+                    variant={isIhaleMerkezi ? 'filled' : 'subtle'}
                     size="compact-sm"
-                    radius="md"
-                    style={isIhaleMerkezi ? { borderRadius: 8 } : undefined}
+                    radius={radius.md}
+                    style={{
+                      background: isIhaleMerkezi ? colors.infoMuted : 'transparent',
+                      color: isIhaleMerkezi ? colors.info : colors.textSecondary,
+                      boxShadow: isIhaleMerkezi ? getShadow('subtle', isDark) : 'none',
+                      border: isIhaleMerkezi ? `1px solid ${isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(37, 99, 235, 0.2)'}` : '1px solid transparent',
+                      fontWeight: isIhaleMerkezi ? 600 : 500,
+                      transition: `all ${animations.transition.normal}`,
+                    }}
                   >
                     İhale Merkezi
                   </Button>
@@ -629,12 +853,18 @@ export function Navbar() {
                 <Menu.Target>
                   <Button
                     rightSection={<IconChevronDown size={14} />}
-                    leftSection={<IconCoin size={16} />}
-                    variant={isFinans ? 'light' : 'subtle'}
-                    color={isFinans ? 'teal' : 'gray'}
+                    leftSection={<IconCoin size={sizes.icon.sm} />}
+                    variant={isFinans ? 'filled' : 'subtle'}
                     size="compact-sm"
-                    radius="md"
-                    style={isFinans ? { borderRadius: 8 } : undefined}
+                    radius={radius.md}
+                    style={{
+                      background: isFinans ? colors.successMuted : 'transparent',
+                      color: isFinans ? colors.success : colors.textSecondary,
+                      boxShadow: isFinans ? getShadow('subtle', isDark) : 'none',
+                      border: isFinans ? `1px solid ${isDark ? 'rgba(34, 197, 94, 0.3)' : 'rgba(22, 163, 74, 0.2)'}` : '1px solid transparent',
+                      fontWeight: isFinans ? 600 : 500,
+                      transition: `all ${animations.transition.normal}`,
+                    }}
                   >
                     Finans
                   </Button>
@@ -709,12 +939,18 @@ export function Navbar() {
                 <Menu.Target>
                   <Button
                     rightSection={<IconChevronDown size={14} />}
-                    leftSection={<IconBuildingFactory2 size={16} />}
-                    variant={isOperasyon ? 'light' : 'subtle'}
-                    color={isOperasyon ? 'violet' : 'gray'}
+                    leftSection={<IconBuildingFactory2 size={sizes.icon.sm} />}
+                    variant={isOperasyon ? 'filled' : 'subtle'}
                     size="compact-sm"
-                    radius="md"
-                    style={isOperasyon ? { borderRadius: 8 } : undefined}
+                    radius={radius.md}
+                    style={{
+                      background: isOperasyon ? 'rgba(139, 92, 246, 0.15)' : 'transparent',
+                      color: isOperasyon ? '#8B5CF6' : colors.textSecondary,
+                      boxShadow: isOperasyon ? getShadow('subtle', isDark) : 'none',
+                      border: isOperasyon ? `1px solid ${isDark ? 'rgba(139, 92, 246, 0.3)' : 'rgba(139, 92, 246, 0.2)'}` : '1px solid transparent',
+                      fontWeight: isOperasyon ? 600 : 500,
+                      transition: `all ${animations.transition.normal}`,
+                    }}
                   >
                     Operasyon
                   </Button>
@@ -807,12 +1043,18 @@ export function Navbar() {
                 <Menu.Target>
                   <Button
                     rightSection={<IconChevronDown size={14} />}
-                    leftSection={<IconDeviceMobile size={16} />}
-                    variant={isSosyalMedya ? 'light' : 'subtle'}
-                    color={isSosyalMedya ? 'pink' : 'gray'}
+                    leftSection={<IconDeviceMobile size={sizes.icon.sm} />}
+                    variant={isSosyalMedya ? 'filled' : 'subtle'}
                     size="compact-sm"
-                    radius="md"
-                    style={isSosyalMedya ? { borderRadius: 8 } : undefined}
+                    radius={radius.md}
+                    style={{
+                      background: isSosyalMedya ? 'rgba(236, 72, 153, 0.15)' : 'transparent',
+                      color: isSosyalMedya ? '#EC4899' : colors.textSecondary,
+                      boxShadow: isSosyalMedya ? getShadow('subtle', isDark) : 'none',
+                      border: isSosyalMedya ? `1px solid ${isDark ? 'rgba(236, 72, 153, 0.3)' : 'rgba(236, 72, 153, 0.2)'}` : '1px solid transparent',
+                      fontWeight: isSosyalMedya ? 600 : 500,
+                      transition: `all ${animations.transition.normal}`,
+                    }}
                   >
                     Sosyal Medya
                   </Button>

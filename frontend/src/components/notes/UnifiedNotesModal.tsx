@@ -601,7 +601,11 @@ export function UnifiedNotesModal({ opened, onClose }: UnifiedNotesModalProps) {
               <Button
                 leftSection={<IconCheck size={16} />}
                 onClick={() => {
-                  // Will be handled by NoteEditor's internal save
+                  // Trigger save via form submission
+                  const form = document.querySelector('[data-note-editor]');
+                  if (form) {
+                    (form as HTMLFormElement).requestSubmit();
+                  }
                 }}
               >
                 Kaydet

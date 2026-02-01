@@ -20,6 +20,7 @@ import {
   Text,
   TextInput,
   ThemeIcon,
+  Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -28,6 +29,7 @@ import {
   IconDotsVertical,
   IconEdit,
   IconHistory,
+  IconInfoCircle,
   IconLink,
   IconPackage,
   IconPlus,
@@ -38,6 +40,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useResponsive } from '@/hooks/useResponsive';
 import { urunlerAPI } from '@/lib/api/services/urunler';
+import { getUrunBirimBilgisi, DEFAULT_OIL_DENSITY } from '@/lib/birim-donusum';
 import { formatMoney } from '@/lib/formatters';
 
 // Birimler
@@ -527,7 +530,7 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                                 <Badge size="xs" variant="light" color="gray">
                                   {ana.kod}
                                 </Badge>
-                                {ana.son_alis_fiyati && (
+                {ana.son_alis_fiyati && (
                                   <Badge size="xs" variant="filled" color="green">
                                     {formatMoney(ana.son_alis_fiyati, {
                                       minimumFractionDigits: 2,
@@ -536,6 +539,37 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                                     /{ana.birim_kisa || 'KG'}
                                   </Badge>
                                 )}
+                                {/* Birim Dönüşüm Mini Bilgi */}
+                                {(() => {
+                                  const birimInfo = getUrunBirimBilgisi(ana.ad, ana.birim || 'kg');
+                                  if (birimInfo.tip !== 'bilinmiyor' && birimInfo.tip !== 'agirlik') {
+                                    return (
+                                      <Tooltip
+                                        label={
+                                          <Box>
+                                            <Text size="xs" fw={600}>{birimInfo.bilgi}</Text>
+                                            <Text size="xs" c="dimmed">{birimInfo.formul}</Text>
+                                            <Text size="xs" c="dimmed">Kaynak: {birimInfo.kaynak}</Text>
+                                          </Box>
+                                        }
+                                        withArrow
+                                        multiline
+                                        w={200}
+                                      >
+                                        <Badge 
+                                          size="xs" 
+                                          variant="outline" 
+                                          color={birimInfo.tip === 'adet' ? 'orange' : 'cyan'}
+                                          leftSection={<IconInfoCircle size={10} />}
+                                          style={{ cursor: 'help' }}
+                                        >
+                                          {birimInfo.tip === 'adet' ? 'AD' : 'LT'}
+                                        </Badge>
+                                      </Tooltip>
+                                    );
+                                  }
+                                  return null;
+                                })()}
                                 <Badge
                                   size="xs"
                                   variant="light"
@@ -649,6 +683,37 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                                             /{varyant.birim_kisa || 'KG'}
                                           </Badge>
                                         )}
+                                        {/* Varyant Birim Dönüşüm Mini Bilgi */}
+                                        {(() => {
+                                          const birimInfo = getUrunBirimBilgisi(varyant.ad, varyant.birim || 'kg');
+                                          if (birimInfo.tip !== 'bilinmiyor' && birimInfo.tip !== 'agirlik') {
+                                            return (
+                                              <Tooltip
+                                                label={
+                                                  <Box>
+                                                    <Text size="xs" fw={600}>{birimInfo.bilgi}</Text>
+                                                    <Text size="xs" c="dimmed">{birimInfo.formul}</Text>
+                                                    <Text size="xs" c="dimmed">Kaynak: {birimInfo.kaynak}</Text>
+                                                  </Box>
+                                                }
+                                                withArrow
+                                                multiline
+                                                w={200}
+                                              >
+                                                <Badge 
+                                                  size="xs" 
+                                                  variant="outline" 
+                                                  color={birimInfo.tip === 'adet' ? 'orange' : 'cyan'}
+                                                  leftSection={<IconInfoCircle size={10} />}
+                                                  style={{ cursor: 'help' }}
+                                                >
+                                                  {birimInfo.tip === 'adet' ? 'AD' : 'LT'}
+                                                </Badge>
+                                              </Tooltip>
+                                            );
+                                          }
+                                          return null;
+                                        })()}
                                       </Group>
                                     </Box>
                                   </Group>
@@ -934,6 +999,72 @@ export default function UrunKartlariModal({ opened, onClose, onUrunSelect }: Pro
                     </Text>
                   </Paper>
                 </SimpleGrid>
+
+                {/* Birim Dönüşüm Bilgisi Kartı */}
+                {(() => {
+                  const birimInfo = getUrunBirimBilgisi(selectedUrun.ad, selectedUrun.birim || 'kg');
+                  const tipRenkler = {
+                    adet: { bg: 'orange.0', border: 'orange.3', text: 'orange.8' },
+                    sivi: { bg: 'cyan.0', border: 'cyan.3', text: 'cyan.8' },
+                    agirlik: { bg: 'gray.0', border: 'gray.3', text: 'gray.7' },
+                    bilinmiyor: { bg: 'gray.0', border: 'gray.3', text: 'gray.6' },
+                  };
+                  const renk = tipRenkler[birimInfo.tip];
+                  
+                  return (
+                    <Paper 
+                      p="sm" 
+                      withBorder 
+                      radius="md" 
+                      bg={renk.bg}
+                      style={{ borderColor: `var(--mantine-color-${renk.border})` }}
+                    >
+                      <Group justify="space-between" mb="xs">
+                        <Group gap="xs">
+                          <IconInfoCircle size={16} style={{ color: `var(--mantine-color-${renk.text})` }} />
+                          <Text size="sm" fw={600} c={renk.text}>
+                            Birim Dönüşüm Bilgisi
+                          </Text>
+                        </Group>
+                        <Badge 
+                          size="xs" 
+                          variant="filled" 
+                          color={birimInfo.tip === 'adet' ? 'orange' : birimInfo.tip === 'sivi' ? 'cyan' : 'gray'}
+                        >
+                          {birimInfo.tip === 'adet' ? 'ADET' : birimInfo.tip === 'sivi' ? 'SIVI' : 'AĞIRLIK'}
+                        </Badge>
+                      </Group>
+                      <SimpleGrid cols={3} spacing="xs">
+                        <Box>
+                          <Text size="xs" c="dimmed">Formül</Text>
+                          <Text size="sm" fw={600}>{birimInfo.bilgi}</Text>
+                        </Box>
+                        <Box>
+                          <Text size="xs" c="dimmed">Açıklama</Text>
+                          <Text size="sm">{birimInfo.formul || '-'}</Text>
+                        </Box>
+                        <Box>
+                          <Text size="xs" c="dimmed">Kaynak</Text>
+                          <Text size="sm">{birimInfo.kaynak}</Text>
+                        </Box>
+                      </SimpleGrid>
+                      {birimInfo.tip === 'adet' && selectedUrun.son_alis_fiyati && (
+                        <Box mt="xs" pt="xs" style={{ borderTop: '1px dashed var(--mantine-color-orange-3)' }}>
+                          <Text size="xs" c="dimmed">
+                            💡 Maliyet hesabı: {birimInfo.bilgi.match(/\d+/)?.[0] || 50}g × {formatMoney(selectedUrun.son_alis_fiyati / 1000)} = {formatMoney((parseFloat(birimInfo.bilgi.match(/\d+/)?.[0] || '50') * (selectedUrun.son_alis_fiyati || 0)) / 1000)}/adet
+                          </Text>
+                        </Box>
+                      )}
+                      {birimInfo.tip === 'sivi' && selectedUrun.son_alis_fiyati && (
+                        <Box mt="xs" pt="xs" style={{ borderTop: '1px dashed var(--mantine-color-cyan-3)' }}>
+                          <Text size="xs" c="dimmed">
+                            💡 Maliyet hesabı: 1L = {birimInfo.bilgi.match(/[\d.]+/)?.[0] || DEFAULT_OIL_DENSITY}kg → {formatMoney(selectedUrun.son_alis_fiyati * parseFloat(birimInfo.bilgi.match(/[\d.]+/)?.[0] || String(DEFAULT_OIL_DENSITY)))}/lt
+                          </Text>
+                        </Box>
+                      )}
+                    </Paper>
+                  );
+                })()}
 
                 {detayLoading ? (
                   <Center py="xl">

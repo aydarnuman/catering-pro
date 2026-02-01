@@ -12,11 +12,13 @@ import {
   UnstyledButton,
   useMantineColorScheme,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import {
   IconBookmark,
   IconBrandInstagram,
   IconBrandWhatsapp,
   IconBuildingStore,
+  IconCalculator,
   IconChartBar,
   IconChartPie,
   IconChevronRight,
@@ -40,6 +42,15 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef } from 'react';
 import { usePermissions } from '@/hooks/usePermissions';
+import {
+  getShadow,
+  getColors,
+  neuColors,
+  spacing,
+  radius,
+  sizes,
+  animations,
+} from '@/styles/neumorphism';
 
 interface MobileSidebarProps {
   opened: boolean;
@@ -160,6 +171,12 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
   const isDark = colorScheme === 'dark';
   const sidebarRef = useRef<HTMLDivElement>(null);
   const { canView, isSuperAdmin, loading: permLoading, error: permError } = usePermissions();
+  
+  // Neumorphism colors
+  const colors = useMemo(() => getColors(isDark), [isDark]);
+  
+  // Responsive breakpoints
+  const isSmallMobile = useMediaQuery('(max-width: 480px)');
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
@@ -210,6 +227,10 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
   };
 
   const handleNavigation = (href: string) => {
+    // Haptic feedback for mobile
+    if (typeof window !== 'undefined' && 'vibrate' in navigator && isSmallMobile) {
+      navigator.vibrate(10); // Subtle vibration
+    }
     onClose();
     router.push(href);
   };
@@ -240,26 +261,45 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
     };
   }, [opened]);
 
+  // Keyboard accessibility - ESC to close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && opened) {
+        onClose();
+      }
+    };
+
+    if (opened) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [opened, onClose]);
+
   return (
     <>
-      {/* Backdrop */}
-      <Transition mounted={opened} transition="fade" duration={200}>
+      {/* Backdrop - Neumorphism: deeper blur */}
+      <Transition mounted={opened} transition="fade" duration={250}>
         {(styles) => (
           <Box
             style={{
               ...styles,
               position: 'fixed',
               inset: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.6)',
-              backdropFilter: 'blur(4px)',
+              backgroundColor: isDark ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
               zIndex: 199,
             }}
           />
         )}
       </Transition>
 
-      {/* Sidebar */}
-      <Transition mounted={opened} transition="slide-left" duration={300}>
+      {/* Sidebar - Glassmorphism: transparent with blur */}
+      <Transition 
+        mounted={opened} 
+        transition="slide-left" 
+        duration={isSmallMobile ? 200 : 280}
+      >
         {(styles) => (
           <Box
             ref={sidebarRef}
@@ -269,20 +309,24 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
               top: 0,
               right: 0,
               bottom: 0,
-              width: '85%',
-              maxWidth: 360,
+              width: isSmallMobile ? '90%' : '85%',
+              maxWidth: isSmallMobile ? 320 : 360,
               zIndex: 200,
               display: 'flex',
               flexDirection: 'column',
-              backgroundColor: isDark ? '#0D1117' : '#FAFBFC',
+              backgroundColor: isDark ? 'rgba(13, 17, 23, 0.85)' : 'rgba(250, 251, 252, 0.9)',
+              backdropFilter: 'blur(20px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(180%)',
               boxShadow: '-10px 0 40px rgba(0, 0, 0, 0.3)',
+              borderLeft: `1px solid ${colors.borderSubtle}`,
             }}
           >
-            {/* Hero Section with Logo – modern, logo düzgün oran */}
+            {/* Hero Section with Logo – Glassmorphism: transparent gradient */}
             <Box
               style={{
                 position: 'relative',
-                padding: '20px 20px 24px',
+                padding: isSmallMobile ? `${spacing.md}px ${spacing.md}px ${spacing.lg}px` : `${spacing.lg}px ${spacing.lg}px ${spacing.lg}px`,
+                minHeight: 80,
                 overflow: 'hidden',
                 background: isDark
                   ? 'linear-gradient(160deg, #1a2d47 0%, #0f1929 50%, #0a1219 100%)'
@@ -312,8 +356,7 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                   left: 0,
                   right: 0,
                   height: 3,
-                  background:
-                    'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
                 }}
               />
 
@@ -327,7 +370,7 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                     display: 'flex',
                     alignItems: 'center',
                     minHeight: 64,
-                    padding: '4px 0',
+                    padding: `${spacing.xs}px 0`,
                   }}
                 >
                   <Image
@@ -335,124 +378,122 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                     alt="Catering Pro"
                     width={200}
                     height={80}
-                    sizes="(max-width: 360px) 160px, 200px"
+                    sizes="(max-width: 480px) 140px, (max-width: 360px) 160px, 200px"
                     priority
                     style={{
                       height: 'auto',
-                      maxHeight: 64,
+                      maxHeight: isSmallMobile ? 56 : 64,
                       width: 'auto',
-                      maxWidth: 220,
+                      maxWidth: isSmallMobile ? 180 : 220,
                       objectFit: 'contain',
                       filter: 'brightness(0) invert(1)',
+                      transition: `all ${animations.transition.normal}`,
                     }}
                   />
                 </Box>
 
                 <UnstyledButton
                   onClick={onClose}
+                  aria-label="Menüyü kapat"
                   style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 12,
+                    width: sizes.touchTarget.comfortable,
+                    height: sizes.touchTarget.comfortable,
+                    borderRadius: radius.lg,
                     backgroundColor: 'rgba(255,255,255,0.12)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    transition: 'all 0.2s ease',
+                    transition: `all ${animations.transition.normal}`,
                     border: '1px solid rgba(255,255,255,0.08)',
                   }}
                   className="sidebar-close-btn"
                 >
-                  <IconX size={20} color="white" />
+                  <IconX size={sizes.icon.md} color="white" />
                 </UnstyledButton>
               </Group>
             </Box>
 
             {/* Menu Content */}
             <ScrollArea style={{ flex: 1 }} offsetScrollbars>
-              <Stack gap="md" p="md">
-                {/* Ana Sayfa - Standalone */}
+              <Stack gap={isSmallMobile ? spacing.sm : spacing.md} p={isSmallMobile ? spacing.sm : spacing.md}>
+                {/* Ana Sayfa - Standalone - Neumorphism */}
                 <UnstyledButton
                   onClick={() => handleNavigation('/')}
+                  aria-label="Ana sayfa"
+                  role="button"
+                  tabIndex={0}
                   style={{
-                    padding: '14px 16px',
-                    borderRadius: 12,
+                    padding: `${spacing.md}px`,
+                    minHeight: sizes.touchTarget.comfortable,
+                    borderRadius: radius.lg,
                     backgroundColor: isActive('/')
-                      ? isDark
-                        ? 'rgba(59, 130, 246, 0.2)'
-                        : 'rgba(59, 130, 246, 0.1)'
-                      : isDark
-                        ? 'rgba(255,255,255,0.05)'
-                        : 'rgba(0,0,0,0.03)',
-                    border: `1px solid ${isActive('/') ? 'rgba(59, 130, 246, 0.3)' : 'transparent'}`,
-                    transition: 'all 0.2s ease',
+                      ? colors.surfaceElevated
+                      : colors.surface,
+                    boxShadow: isActive('/') ? getShadow('raised', isDark) : getShadow('subtle', isDark),
+                    border: `1px solid ${isActive('/') ? colors.accent + '40' : colors.border}`,
+                    transition: `all ${animations.transition.normal}`,
                   }}
                   className="menu-item"
                 >
                   <Group justify="space-between">
-                    <Group gap="sm">
+                    <Group gap={spacing.sm}>
                       <Box
                         style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 10,
+                          width: sizes.touchTarget.min,
+                          height: sizes.touchTarget.min,
+                          borderRadius: radius.md,
                           background: isActive('/')
-                            ? 'linear-gradient(135deg, #3B82F6 0%, #6366F1 100%)'
-                            : isDark
-                              ? 'rgba(255,255,255,0.1)'
-                              : 'rgba(0,0,0,0.08)',
+                            ? `linear-gradient(135deg, ${colors.accent} 0%, ${colors.accentHover} 100%)`
+                            : colors.surfaceElevated,
+                          boxShadow: isActive('/') ? getShadow('subtle', isDark) : getShadow('inset', isDark),
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
+                          transition: `all ${animations.transition.normal}`,
                         }}
                       >
                         <IconHome
-                          size={22}
-                          color={isActive('/') ? 'white' : isDark ? '#9CA3AF' : '#6B7280'}
+                          size={sizes.icon.lg}
+                          color={isActive('/') ? (isDark ? '#0a0a0a' : '#ffffff') : colors.textSecondary}
                         />
                       </Box>
                       <Text
-                        fw={600}
+                        fw={isActive('/') ? 700 : 600}
                         size="md"
-                        c={
-                          isActive('/')
-                            ? isDark
-                              ? 'white'
-                              : '#1F2937'
-                            : isDark
-                              ? '#E5E7EB'
-                              : '#374151'
-                        }
+                        c={isActive('/') ? colors.textPrimary : colors.textSecondary}
+                        style={{
+                          letterSpacing: '0.01em',
+                          lineHeight: 1.3
+                        }}
                       >
                         Ana Sayfa
                       </Text>
                     </Group>
-                    <IconChevronRight size={18} style={{ opacity: 0.4 }} />
+                    <IconChevronRight size={sizes.icon.md - 2} style={{ opacity: 0.4, color: colors.textMuted }} />
                   </Group>
                 </UnstyledButton>
 
-                {/* Menu Groups */}
+                {/* Menu Groups - Neumorphism cards */}
                 {menuGroups.map((group, _groupIndex) => (
                   <Box
                     key={group.title}
                     style={{
-                      backgroundColor: isDark ? 'var(--surface-elevated)' : 'rgba(255,255,255,0.8)',
-                      borderRadius: 16,
-                      border: `1px solid ${isDark ? 'var(--surface-border)' : 'rgba(0,0,0,0.06)'}`,
-                      borderLeft: `3px solid ${group.color}`,
+                      backgroundColor: colors.surfaceElevated,
+                      borderRadius: radius.xl,
+                      border: `1px solid ${colors.border}`,
+                      borderLeft: `4px solid ${group.color}`,
                       overflow: 'hidden',
-                      boxShadow: isDark
-                        ? '0 4px 20px rgba(0,0,0,0.3)'
-                        : '0 4px 20px rgba(0,0,0,0.05)',
+                      boxShadow: getShadow('raised', isDark),
+                      transition: `all ${animations.transition.normal}`,
                     }}
                   >
                     {/* Group Header */}
                     <Box
-                      px="md"
-                      py="sm"
+                      px={spacing.md}
+                      py={spacing.sm + 2}
                       style={{
-                        borderBottom: `1px solid ${isDark ? 'var(--surface-border-subtle)' : 'rgba(0,0,0,0.06)'}`,
-                        background: isDark ? 'var(--surface-elevated-more)' : 'rgba(0,0,0,0.02)',
+                        borderBottom: `1px solid ${colors.borderSubtle}`,
+                        background: colors.surface,
                       }}
                     >
                       <Text
@@ -460,15 +501,19 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                         fw={700}
                         tt="uppercase"
                         style={{
-                          letterSpacing: 1.2,
+                          letterSpacing: '0.1em',
                           color: group.color,
+                          lineHeight: 1.2,
+                          textShadow: isDark 
+                            ? `0 1px 3px rgba(0,0,0,0.4)` 
+                            : `0 1px 2px rgba(255,255,255,0.9)`,
                         }}
                       >
                         {group.title}
                       </Text>
                     </Box>
 
-                    {/* Group Items */}
+                    {/* Group Items - Neumorphism with proper touch targets */}
                     <Stack gap={0}>
                       {group.items.map((item, itemIndex) => {
                         const Icon = item.icon;
@@ -478,23 +523,25 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                           <UnstyledButton
                             key={item.href}
                             onClick={() => handleNavigation(item.href)}
+                            aria-label={`${item.label} sayfasına git${active ? ' (aktif sayfa)' : ''}`}
+                            role="button"
+                            tabIndex={0}
                             style={{
-                              padding: '12px 16px',
+                              padding: `${spacing.md - 2}px ${spacing.md}px`,
+                              minHeight: sizes.touchTarget.comfortable,
                               borderBottom:
                                 itemIndex < group.items.length - 1
-                                  ? `1px solid ${isDark ? 'var(--surface-border-subtle)' : 'rgba(0,0,0,0.04)'}`
+                                  ? `1px solid ${colors.borderSubtle}`
                                   : 'none',
                               backgroundColor: active
-                                ? isDark
-                                  ? 'var(--surface-elevated-more)'
-                                  : 'rgba(0,0,0,0.04)'
+                                ? colors.surfaceHover
                                 : 'transparent',
                               position: 'relative',
-                              transition: 'all 0.15s ease',
+                              transition: `all ${animations.transition.fast}`,
                             }}
                             className="menu-item"
                           >
-                            {/* Active indicator */}
+                            {/* Active indicator - glowing bar */}
                             {active && (
                               <Box
                                 style={{
@@ -502,53 +549,48 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                                   left: 0,
                                   top: '50%',
                                   transform: 'translateY(-50%)',
-                                  width: 3,
-                                  height: '60%',
+                                  width: 4,
+                                  height: '65%',
                                   backgroundColor: group.color,
-                                  borderRadius: '0 4px 4px 0',
-                                  boxShadow: `0 0 10px ${group.color}`,
+                                  borderRadius: `0 ${radius.sm}px ${radius.sm}px 0`,
+                                  boxShadow: `0 0 12px ${group.color}80, 0 0 4px ${group.color}`,
                                 }}
                               />
                             )}
 
                             <Group justify="space-between">
-                              <Group gap="sm">
+                              <Group gap={spacing.sm}>
                                 <Box
                                   style={{
-                                    width: 36,
-                                    height: 36,
-                                    borderRadius: 8,
+                                    width: sizes.touchTarget.min - 4,
+                                    height: sizes.touchTarget.min - 4,
+                                    borderRadius: radius.md,
                                     background: active
                                       ? group.gradient
-                                      : isDark
-                                        ? 'var(--surface-elevated)'
-                                        : 'rgba(0,0,0,0.05)',
+                                      : colors.surface,
+                                    boxShadow: active ? getShadow('subtle', isDark) : getShadow('inset', isDark),
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    transition: 'all 0.2s ease',
+                                    transition: `all ${animations.transition.normal}`,
                                   }}
                                 >
                                   <Icon
-                                    size={20}
+                                    size={sizes.icon.md}
                                     color={active ? 'white' : group.color}
-                                    style={{ transition: 'all 0.2s ease' }}
+                                    style={{ transition: `all ${animations.transition.normal}` }}
                                   />
                                 </Box>
                                 <Box>
-                                  <Group gap={6}>
+                                  <Group gap={spacing.sm - 2}>
                                     <Text
                                       fw={active ? 600 : 500}
                                       size="sm"
-                                      c={
-                                        active
-                                          ? isDark
-                                            ? 'white'
-                                            : '#111827'
-                                          : isDark
-                                            ? '#D1D5DB'
-                                            : '#4B5563'
-                                      }
+                                      c={active ? colors.textPrimary : colors.textSecondary}
+                                      style={{
+                                        letterSpacing: '0.01em',
+                                        lineHeight: 1.3
+                                      }}
                                     >
                                       {item.label}
                                     </Text>
@@ -556,11 +598,12 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                                       <Badge
                                         size="xs"
                                         variant="gradient"
-                                        gradient={{ from: 'violet', to: 'grape', deg: 90 }}
+                                        gradient={{ from: colors.accent, to: colors.accentHover, deg: 90 }}
                                         style={{
                                           fontSize: 9,
-                                          padding: '0 6px',
+                                          padding: `0 ${spacing.sm - 2}px`,
                                           textTransform: 'uppercase',
+                                          boxShadow: getShadow('subtle', isDark),
                                         }}
                                       >
                                         {item.badge}
@@ -570,10 +613,11 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                                 </Box>
                               </Group>
                               <IconChevronRight
-                                size={16}
+                                size={sizes.icon.sm}
                                 style={{
                                   opacity: active ? 0.8 : 0.3,
-                                  transition: 'all 0.2s ease',
+                                  color: colors.textMuted,
+                                  transition: `all ${animations.transition.normal}`,
                                 }}
                                 className="menu-chevron"
                               />
@@ -585,48 +629,73 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                   </Box>
                 ))}
 
-                {/* Admin Panel (if admin) */}
+                {/* Admin Panel (if admin) - Neumorphism */}
                 {isAdmin && (
                   <UnstyledButton
                     onClick={() => handleNavigation('/admin')}
+                    aria-label="Admin panel sayfasına git"
+                    role="button"
+                    tabIndex={0}
                     style={{
-                      padding: '14px 16px',
-                      borderRadius: 12,
+                      padding: spacing.md,
+                      minHeight: sizes.touchTarget.comfortable,
+                      borderRadius: radius.lg,
                       background: isActive('/admin')
-                        ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.2) 100%)'
-                        : isDark
-                          ? 'rgba(239, 68, 68, 0.1)'
-                          : 'rgba(239, 68, 68, 0.05)',
-                      border: `1px solid ${isActive('/admin') ? 'rgba(239, 68, 68, 0.4)' : 'rgba(239, 68, 68, 0.2)'}`,
-                      transition: 'all 0.2s ease',
+                        ? colors.errorMuted
+                        : `${colors.error}10`,
+                      boxShadow: isActive('/admin') ? getShadow('raised', isDark) : getShadow('subtle', isDark),
+                      border: `1px solid ${isActive('/admin') ? `${colors.error}50` : `${colors.error}30`}`,
+                      transition: `all ${animations.transition.normal}`,
                     }}
                     className="menu-item"
                   >
                     <Group justify="space-between">
-                      <Group gap="sm">
+                      <Group gap={spacing.sm}>
                         <Box
                           style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: 10,
-                            background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+                            width: sizes.touchTarget.min,
+                            height: sizes.touchTarget.min,
+                            borderRadius: radius.md,
+                            background: `linear-gradient(135deg, ${colors.error} 0%, #DC2626 100%)`,
+                            boxShadow: getShadow('subtle', isDark),
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                           }}
                         >
-                          <IconShieldLock size={22} color="white" />
+                          <IconShieldLock size={sizes.icon.lg} color="white" />
                         </Box>
                         <Box>
-                          <Text fw={600} size="md" c={isDark ? '#FCA5A5' : '#DC2626'}>
+                          <Text 
+                            fw={600} 
+                            size="md" 
+                            c={isDark ? '#FCA5A5' : colors.error}
+                            style={{
+                              letterSpacing: '0.01em',
+                              lineHeight: 1.3
+                            }}
+                          >
                             Admin Panel
                           </Text>
-                          <Text size="xs" c="dimmed">
+                          <Text 
+                            size="xs" 
+                            c={colors.textMuted}
+                            fw={500}
+                            style={{
+                              letterSpacing: '0.025em',
+                              lineHeight: 1.2
+                            }}
+                          >
                             Sistem yönetimi
                           </Text>
                         </Box>
                       </Group>
-                      <Badge size="sm" color="red" variant="light">
+                      <Badge 
+                        size="sm" 
+                        variant="gradient"
+                        gradient={{ from: colors.error, to: '#DC2626', deg: 135 }}
+                        style={{ boxShadow: getShadow('subtle', isDark) }}
+                      >
                         ADMIN
                       </Badge>
                     </Group>
@@ -635,59 +704,87 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
               </Stack>
             </ScrollArea>
 
-            {/* User Section - Fixed at bottom */}
+            {/* User Section - Fixed at bottom - Neumorphism */}
             {user && (
               <Box
                 style={{
-                  borderTop: `1px solid ${isDark ? 'var(--surface-border)' : 'rgba(0,0,0,0.08)'}`,
-                  padding: '16px 20px',
-                  background: isDark
-                    ? 'var(--surface-elevated)'
-                    : 'linear-gradient(180deg, rgba(0,0,0,0.01) 0%, rgba(0,0,0,0.03) 100%)',
+                  borderTop: `1px solid ${colors.border}`,
+                  padding: `${spacing.md}px ${spacing.lg}px`,
+                  background: colors.surfaceElevated,
+                  boxShadow: `0 -4px 20px ${isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)'}`,
                 }}
               >
-                <Group justify="space-between" mb="sm">
-                  <Group gap="sm">
+                <Group justify="space-between" mb={spacing.sm}>
+                  <Group gap={spacing.sm}>
                     <Avatar
-                      size={44}
-                      radius="md"
-                      color="blue"
+                      size={sizes.touchTarget.min}
+                      radius={radius.md}
                       variant="gradient"
-                      gradient={{ from: 'blue', to: 'cyan', deg: 90 }}
+                      gradient={{ from: colors.accent, to: colors.accentHover, deg: 135 }}
+                      style={{ boxShadow: getShadow('subtle', isDark) }}
                     >
                       {getInitials(user.name ?? '')}
                     </Avatar>
                     <Box>
-                      <Text fw={600} size="sm" c={isDark ? 'white' : '#111827'}>
+                      <Text 
+                        fw={600} 
+                        size="sm" 
+                        c={colors.textPrimary}
+                        style={{
+                          letterSpacing: '0.01em',
+                          lineHeight: 1.3
+                        }}
+                      >
                         {user.name ?? user.email}
                       </Text>
-                      <Text size="xs" c="dimmed" truncate style={{ maxWidth: 160 }}>
+                      <Text 
+                        size="xs" 
+                        c={colors.textMuted}
+                        fw={500}
+                        truncate 
+                        style={{ 
+                          maxWidth: 160,
+                          letterSpacing: '0.025em',
+                          lineHeight: 1.2
+                        }}
+                      >
                         {user.email}
                       </Text>
                     </Box>
                   </Group>
                   {isAdmin && (
-                    <Badge size="xs" color="red" variant="dot">
+                    <Badge 
+                      size="xs" 
+                      color="red" 
+                      variant="dot"
+                      style={{ boxShadow: getShadow('subtle', isDark) }}
+                    >
                       Admin
                     </Badge>
                   )}
                 </Group>
 
-                <Group grow gap="xs">
+                <Group grow gap={spacing.sm}>
                   <UnstyledButton
                     onClick={() => handleNavigation('/profil')}
+                    aria-label="Profil sayfasına git"
+                    role="button"
+                    tabIndex={0}
                     style={{
-                      padding: '10px 12px',
-                      borderRadius: 8,
-                      backgroundColor: isDark ? 'var(--surface-elevated-more)' : 'rgba(0,0,0,0.05)',
+                      padding: `${spacing.sm + 2}px ${spacing.md - 4}px`,
+                      minHeight: sizes.touchTarget.min,
+                      borderRadius: radius.md,
+                      backgroundColor: colors.surface,
+                      boxShadow: getShadow('raised', isDark),
+                      border: `1px solid ${colors.border}`,
                       textAlign: 'center',
-                      transition: 'all 0.2s ease',
+                      transition: `all ${animations.transition.normal}`,
                     }}
                     className="user-action-btn"
                   >
-                    <Group gap={6} justify="center">
-                      <IconUser size={16} />
-                      <Text size="xs" fw={500}>
+                    <Group gap={spacing.sm - 2} justify="center">
+                      <IconUser size={sizes.icon.sm} color={colors.textSecondary} />
+                      <Text size="xs" fw={600} c={colors.textSecondary}>
                         Profil
                       </Text>
                     </Group>
@@ -698,20 +795,24 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                       onClose();
                       onLogout();
                     }}
+                    aria-label="Çıkış yap"
+                    role="button"
+                    tabIndex={0}
                     style={{
-                      padding: '10px 12px',
-                      borderRadius: 8,
-                      backgroundColor: isDark
-                        ? 'rgba(239, 68, 68, 0.15)'
-                        : 'rgba(239, 68, 68, 0.1)',
+                      padding: `${spacing.sm + 2}px ${spacing.md - 4}px`,
+                      minHeight: sizes.touchTarget.min,
+                      borderRadius: radius.md,
+                      backgroundColor: colors.errorMuted,
+                      boxShadow: getShadow('raised', isDark),
+                      border: `1px solid ${colors.error}30`,
                       textAlign: 'center',
-                      transition: 'all 0.2s ease',
+                      transition: `all ${animations.transition.normal}`,
                     }}
                     className="logout-btn"
                   >
-                    <Group gap={6} justify="center">
-                      <IconLogout size={16} color="#EF4444" />
-                      <Text size="xs" fw={500} c="#EF4444">
+                    <Group gap={spacing.sm - 2} justify="center">
+                      <IconLogout size={sizes.icon.sm} color={colors.error} />
+                      <Text size="xs" fw={600} c={colors.error}>
                         Çıkış
                       </Text>
                     </Group>
@@ -719,6 +820,85 @@ export function MobileSidebar({ opened, onClose, user, isAdmin, onLogout }: Mobi
                 </Group>
               </Box>
             )}
+
+            {/* Accessibility styles - Neumorphism enhanced */}
+            <style jsx global>{`
+              .menu-item:hover {
+                background: ${colors.surfaceHover} !important;
+                transform: translateX(4px);
+              }
+              .menu-item:hover .menu-chevron {
+                opacity: 0.8 !important;
+                transform: translateX(2px);
+              }
+              .menu-item:active {
+                transform: translateX(2px) scale(0.99);
+                box-shadow: ${getShadow('pressed', isDark)} !important;
+              }
+              .menu-item:focus-visible,
+              .user-action-btn:focus-visible,
+              .logout-btn:focus-visible,
+              .sidebar-close-btn:focus-visible {
+                outline: 2px solid ${colors.accent} !important;
+                outline-offset: 2px;
+              }
+              
+              .sidebar-close-btn:hover {
+                background: ${colors.surfaceHover} !important;
+                box-shadow: ${getShadow('raised', isDark)} !important;
+                transform: scale(1.05);
+              }
+              .sidebar-close-btn:active {
+                transform: scale(0.95);
+                box-shadow: ${getShadow('pressed', isDark)} !important;
+              }
+              
+              .user-action-btn:hover {
+                background: ${colors.surfaceHover} !important;
+                box-shadow: ${getShadow('raised', isDark)} !important;
+                transform: translateY(-2px);
+              }
+              .user-action-btn:active {
+                transform: translateY(0) scale(0.98);
+                box-shadow: ${getShadow('pressed', isDark)} !important;
+              }
+              
+              .logout-btn:hover {
+                background: ${colors.error}25 !important;
+                box-shadow: ${getShadow('raised', isDark)} !important;
+                transform: translateY(-2px);
+              }
+              .logout-btn:active {
+                transform: translateY(0) scale(0.98);
+                box-shadow: ${getShadow('pressed', isDark)} !important;
+              }
+              
+              /* High contrast mode support */
+              @media (prefers-contrast: high) {
+                .menu-item, .user-action-btn, .logout-btn, .sidebar-close-btn {
+                  border: 2px solid currentColor !important;
+                }
+              }
+              
+              /* Reduced motion support */
+              @media (prefers-reduced-motion: reduce) {
+                .menu-item *, .user-action-btn *, .logout-btn *, .sidebar-close-btn * {
+                  transition: none !important;
+                  animation: none !important;
+                  transform: none !important;
+                }
+              }
+
+              /* Touch device optimizations */
+              @media (hover: none) and (pointer: coarse) {
+                .menu-item {
+                  min-height: ${sizes.touchTarget.comfortable}px !important;
+                }
+                .user-action-btn, .logout-btn {
+                  min-height: ${sizes.touchTarget.min}px !important;
+                }
+              }
+            `}</style>
           </Box>
         )}
       </Transition>

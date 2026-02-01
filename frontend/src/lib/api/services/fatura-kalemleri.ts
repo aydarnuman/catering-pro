@@ -442,7 +442,7 @@ export const faturaKalemleriAPI = {
       if (params?.urun_id) p.append('urun_id', params.urun_id);
       if (params?.kategori_id) p.append('kategori_id', params.kategori_id);
       const res = await api.get<{ success: boolean; data: MaliyetOzetItem[]; error?: string }>(
-        `${BASE_URL}/urunler/maliyet-ozet?${p}`
+        `/api/maliyet-analizi/ozet?${p}`
       );
       const d = res.data as { success?: boolean; data?: MaliyetOzetItem[] };
       if (d?.success && Array.isArray(d.data)) return { success: true, data: d.data };

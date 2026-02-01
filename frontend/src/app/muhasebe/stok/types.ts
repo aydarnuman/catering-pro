@@ -23,6 +23,10 @@ export interface StokItem {
   tedarikci?: string;
   durum: 'normal' | 'dusuk' | 'kritik' | 'fazla' | 'tukendi';
   depo_durumlari?: DepoStok[];
+  // Fiyat durumu alanları (yeni mimari)
+  aktif_fiyat_tipi?: string | null;
+  aktif_fiyat_guven?: number;
+  aktif_fiyat_guncelleme?: string | null;
 }
 
 // Depo stok durumu

@@ -1,4 +1,4 @@
-export { ApiErrorFallback, ErrorBoundary } from './ErrorBoundary';
+export { ErrorBoundary } from './ErrorBoundary';
 export { MobileSidebar } from './MobileSidebar';
 // Mobile Utilities
 export {

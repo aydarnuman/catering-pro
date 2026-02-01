@@ -48,6 +48,13 @@ import { EmptyState, LoadingState } from '@/components/common';
 import { useResponsive } from '@/hooks/useResponsive';
 import { menuPlanlamaAPI } from '@/lib/api/services/menu-planlama';
 import { stokAPI } from '@/lib/api/services/stok';
+import {
+  GRAM_PER_ADET_DEFAULT,
+  GRAM_TO_KG,
+  ML_TO_LITRE,
+  KG_TO_GRAM,
+  hesaplaMalzemeMaliyeti,
+} from '@/lib/birim-donusum';
 import { formatMoney } from '@/lib/formatters';
 import UrunKartlariModal from './UrunKartlariModal';
 
@@ -242,7 +249,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
     ad: '',
     kod: '',
     kategori_id: null as number | null,
-    porsiyon_miktar: 1,
+    porsiyon_miktar: 250, // Standart porsiyon gramajı (1 değil!)
     hazirlik_suresi: 0,
     pisirme_suresi: 0,
     kalori: 0,
@@ -394,7 +401,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
 
             // Birim dönüşümü: gram/ml için kg/lt fiyatını kullan
             if (['g', 'gr', 'ml'].includes(birim)) {
-              maliyet = (m.miktar / 1000) * fiyat;
+              maliyet = (m.miktar * GRAM_TO_KG) * fiyat;
             } else {
               maliyet = m.miktar * fiyat;
             }
@@ -500,11 +507,11 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
     const birimLower = birim.toLowerCase();
     const anaBirimLower = anaBirim?.toLowerCase() || 'kg';
 
-    // gr → kg veya ml → lt dönüşümü
+    // gr → kg veya ml → lt dönüşümü (GRAM_TO_KG = ML_TO_LITRE = 0.001)
     if (['gr', 'g'].includes(birimLower) && anaBirimLower === 'kg') {
-      return (miktar / 1000) * birimFiyat;
+      return (miktar * GRAM_TO_KG) * birimFiyat;
     } else if (['ml'].includes(birimLower) && ['lt', 'l'].includes(anaBirimLower)) {
-      return (miktar / 1000) * birimFiyat;
+      return (miktar * ML_TO_LITRE) * birimFiyat;
     } else {
       return miktar * birimFiyat;
     }
@@ -1446,29 +1453,57 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                     <Paper p="md" withBorder radius="lg" bg="var(--mantine-color-green-light)">
                       <Group justify="space-between" mb="md">
                         {(() => {
-                          // Toplam maliyeti frontend'de hesapla (son fiyat = ortalama)
-                          const hesaplananMaliyet =
-                            selectedRecete.malzemeler?.reduce((toplam, m) => {
-                              const faturaF = m.sistem_fiyat || 0;
-                              const piyasaF = m.piyasa_fiyat || 0;
-                              const fiyat =
-                                faturaF && piyasaF
-                                  ? (faturaF + piyasaF) / 2
-                                  : piyasaF || faturaF || 0;
-                              const miktar = Number(m.miktar) || 0;
-                              const birimLower = (m.birim || '').toLowerCase();
-
-                              let maliyet = 0;
-                              if (['g', 'gr', 'ml'].includes(birimLower)) {
-                                maliyet = (miktar / 1000) * Number(fiyat);
-                              } else if (['kg', 'lt', 'l'].includes(birimLower)) {
-                                maliyet = miktar * Number(fiyat);
+                          // Geliştirilmiş maliyet hesaplama - birim dönüşümü dahil
+                          const hesaplaMalzeme = (m: Malzeme): { sistem: number; piyasa: number } => {
+                            const sistemFiyat = m.sistem_fiyat || 0;
+                            const piyasaFiyat = m.piyasa_fiyat || m.birim_fiyat || sistemFiyat || 0;
+                            const miktar = Number(m.miktar) || 0;
+                            const birimLower = (m.birim || '').toLowerCase();
+                            const urunBirim = (m.urun_birim || m.stok_birim || 'kg').toLowerCase();
+                            
+                            let carpan = 1;
+                            
+                            // Birim dönüşümü
+                            if (urunBirim === 'adet') {
+                              if (['g', 'gr'].includes(birimLower)) {
+                                carpan = Math.ceil(miktar / GRAM_PER_ADET_DEFAULT) / miktar || 1; // Gram -> Adet (USDA standardı)
                               } else {
-                                maliyet = miktar * Number(fiyat);
+                                carpan = 1;
                               }
-                              return toplam + maliyet;
-                            }, 0) || 0;
-
+                            } else if (['lt', 'l'].includes(urunBirim)) {
+                              if (['ml'].includes(birimLower)) carpan = ML_TO_LITRE;
+                              else if (['lt', 'l'].includes(birimLower)) carpan = 1;
+                              else carpan = 1;
+                            } else {
+                              // kg birimi
+                              if (['g', 'gr'].includes(birimLower)) carpan = GRAM_TO_KG;
+                              else if (['ml'].includes(birimLower)) carpan = ML_TO_LITRE;
+                              else if (['kg'].includes(birimLower)) carpan = 1;
+                              else carpan = 1;
+                            }
+                            
+                            return {
+                              sistem: miktar * carpan * sistemFiyat,
+                              piyasa: miktar * carpan * piyasaFiyat,
+                            };
+                          };
+                          
+                          let toplamSistem = 0;
+                          let toplamPiyasa = 0;
+                          let eksikFiyatSayisi = 0;
+                          
+                          selectedRecete.malzemeler?.forEach((m) => {
+                            const { sistem, piyasa } = hesaplaMalzeme(m);
+                            toplamSistem += sistem;
+                            toplamPiyasa += piyasa;
+                            if (!m.sistem_fiyat && !m.piyasa_fiyat && !m.birim_fiyat) {
+                              eksikFiyatSayisi++;
+                            }
+                          });
+                          
+                          // Porsiyon bazlı maliyet (eğer porsiyon 1'den farklıysa)
+                          const porsiyonGram = selectedRecete.porsiyon_miktar || 250;
+                          
                           return (
                             <>
                               <Group gap="sm">
@@ -1476,14 +1511,16 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                                   <IconCurrencyLira size={20} />
                                 </ThemeIcon>
                                 <Box>
-                                  <Text fw={600}>1 Porsiyon Maliyet</Text>
+                                  <Text fw={600}>Porsiyon ({porsiyonGram}g) Maliyet</Text>
                                   <Text size="xs" c="dimmed">
-                                    Piyasa fiyatlarıyla hesaplandı
+                                    {eksikFiyatSayisi > 0 
+                                      ? `⚠️ ${eksikFiyatSayisi} malzemenin fiyatı eksik` 
+                                      : 'Sistem fiyatlarıyla hesaplandı'}
                                   </Text>
                                 </Box>
                               </Group>
                               <Text fw={700} size="xl" c="green">
-                                {formatMoney(hesaplananMaliyet)}
+                                {formatMoney(toplamSistem || toplamPiyasa)}
                               </Text>
                             </>
                           );
@@ -1492,23 +1529,33 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
 
                       {/* Hızlı Hesap */}
                       {(() => {
-                        // Toplam maliyeti frontend'de hesapla
-                        const hesaplananMaliyet =
-                          selectedRecete.malzemeler?.reduce((toplam, m) => {
-                            const fiyat = m.piyasa_fiyat || m.sistem_fiyat || 0;
-                            const miktar = Number(m.miktar) || 0;
-                            const birimLower = (m.birim || '').toLowerCase();
-
-                            let maliyet = 0;
-                            if (['g', 'gr', 'ml'].includes(birimLower)) {
-                              maliyet = (miktar / 1000) * Number(fiyat);
-                            } else if (['kg', 'lt', 'l'].includes(birimLower)) {
-                              maliyet = miktar * Number(fiyat);
-                            } else {
-                              maliyet = miktar * Number(fiyat);
+                        // Malzeme maliyetini hesapla - geliştirilmiş birim dönüşümü
+                        const hesaplaMalzemeMaliyet = (m: Malzeme): number => {
+                          const fiyat = m.sistem_fiyat || m.piyasa_fiyat || m.birim_fiyat || 0;
+                          if (fiyat <= 0) return 0;
+                          
+                          const miktar = Number(m.miktar) || 0;
+                          const birimLower = (m.birim || '').toLowerCase();
+                          const urunBirim = (m.urun_birim || m.stok_birim || 'kg').toLowerCase();
+                          
+                          // Birim dönüşümü
+                          if (urunBirim === 'adet') {
+                            if (['g', 'gr'].includes(birimLower)) {
+                              return Math.ceil(miktar / GRAM_PER_ADET_DEFAULT) * fiyat; // USDA standardı
                             }
-                            return toplam + maliyet;
-                          }, 0) || 0;
+                            return miktar * fiyat;
+                          } else if (['lt', 'l'].includes(urunBirim)) {
+                            if (['ml'].includes(birimLower)) return (miktar * ML_TO_LITRE) * fiyat;
+                            return miktar * fiyat;
+                          } else {
+                            if (['g', 'gr', 'ml'].includes(birimLower)) return (miktar * GRAM_TO_KG) * fiyat;
+                            return miktar * fiyat;
+                          }
+                        };
+                        
+                        const hesaplananMaliyet = selectedRecete.malzemeler?.reduce(
+                          (toplam, m) => toplam + hesaplaMalzemeMaliyet(m), 0
+                        ) || 0;
 
                         return (
                           <SimpleGrid cols={4} mb="md">
@@ -1662,14 +1709,18 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                           selectedRecete.malzemeler.map((m) => {
                             const isEditing = editingMalzemeId === m.id;
 
-                            // Maliyet hesapla
+                            // Maliyet hesapla - Geliştirilmiş birim dönüşüm sistemi
                             let fiyat = 0;
+                            let urunBirim = 'kg'; // Ürün kartındaki fiyat birimi
+                            
                             if (m.stok_kart_id) {
                               const stokKart = piyasaUrunleri.find(
                                 (s) => s.stok_kart_id === m.stok_kart_id
                               );
-                              if (stokKart && stokKart.son_sistem_fiyat > 0)
-                                fiyat = stokKart.son_sistem_fiyat;
+                              if (stokKart) {
+                                if (stokKart.son_sistem_fiyat > 0) fiyat = stokKart.son_sistem_fiyat;
+                                urunBirim = (stokKart.birim || 'kg').toLowerCase();
+                              }
                             }
                             if (fiyat <= 0)
                               fiyat = m.birim_fiyat || m.piyasa_fiyat || m.sistem_fiyat || 0;
@@ -1677,17 +1728,47 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                             const miktar = Number(m.miktar) || 0;
                             const birimLower = (m.birim || '').toLowerCase();
                             let maliyet = 0;
-                            if (['g', 'gr', 'ml'].includes(birimLower)) {
-                              maliyet = (miktar / 1000) * Number(fiyat);
+                            
+                            // Birim dönüşümü ile maliyet hesaplama
+                            if (urunBirim === 'adet') {
+                              // ADET birimli ürünler (yumurta, limon, vb.)
+                              if (birimLower === 'adet' || birimLower === 'ad') {
+                                maliyet = miktar * Number(fiyat);
+                              } else                               if (['g', 'gr'].includes(birimLower)) {
+                                // Gram olarak girildiyse, adet başına standart gram varsayımı
+                                // USDA Standardı: Büyük yumurta ~50g (kabuksuz)
+                                const adetSayisi = Math.ceil(miktar / GRAM_PER_ADET_DEFAULT);
+                                maliyet = adetSayisi * Number(fiyat);
+                              } else {
+                                maliyet = miktar * Number(fiyat);
+                              }
+                            } else if (['lt', 'l'].includes(urunBirim)) {
+                              // LİTRE birimli ürünler (süt, yağ, vb.)
+                              if (['ml'].includes(birimLower)) {
+                                maliyet = (miktar * ML_TO_LITRE) * Number(fiyat);
+                              } else if (['lt', 'l'].includes(birimLower)) {
+                                maliyet = miktar * Number(fiyat);
+                              } else {
+                                maliyet = miktar * Number(fiyat);
+                              }
                             } else {
-                              maliyet = miktar * Number(fiyat);
+                              // KG birimli ürünler (varsayılan)
+                              if (['g', 'gr'].includes(birimLower)) {
+                                maliyet = (miktar * GRAM_TO_KG) * Number(fiyat);
+                              } else if (['kg'].includes(birimLower)) {
+                                maliyet = miktar * Number(fiyat);
+                              } else if (['ml'].includes(birimLower)) {
+                                // ml->kg dönüşümü (yaklaşık 1:1 yoğunluk varsayımı)
+                                maliyet = (miktar * ML_TO_LITRE) * Number(fiyat);
+                              } else {
+                                maliyet = miktar * Number(fiyat);
+                              }
                             }
 
-                            const fiyatBirimi = ['ml', 'lt', 'l'].includes(birimLower)
-                              ? 'lt'
-                              : birimLower === 'adet'
-                                ? 'adet'
-                                : 'kg';
+                            // Fiyat birimi gösterimi - ürün kartı birimini kullan
+                            const fiyatBirimi = urunBirim === 'adet' ? 'adet' 
+                              : ['lt', 'l'].includes(urunBirim) ? 'lt' 
+                              : 'kg';
 
                             if (isEditing) {
                               // DÜZENLEME MODU - Kompakt satır içi
@@ -1790,13 +1871,21 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                             }
 
                             // NORMAL GÖRÜNÜM - Temiz ve tıklanabilir
+                            // Fiyatı olmayan malzemeleri sarı çerçeve ile göster
+                            const fiyatYok = maliyet <= 0;
+                            
                             return (
                               <Paper
                                 key={m.id}
                                 p="sm"
                                 radius="md"
                                 withBorder
-                                style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
+                                style={{ 
+                                  cursor: 'pointer', 
+                                  transition: 'all 0.15s ease',
+                                  borderColor: fiyatYok ? 'var(--mantine-color-yellow-5)' : undefined,
+                                  background: fiyatYok ? 'var(--mantine-color-yellow-0)' : undefined,
+                                }}
                                 className="hover-card"
                                 onClick={() => handleMalzemeDuzenleBasla(m)}
                               >
@@ -1805,16 +1894,23 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                                     <Text size="lg">
                                       {getMalzemeIcon(m.urun_adi || m.malzeme_adi)}
                                     </Text>
-                                    <Text fw={500} size="sm">
-                                      {m.urun_adi || m.malzeme_adi}
-                                    </Text>
+                                    <Box>
+                                      <Text fw={500} size="sm">
+                                        {m.urun_adi || m.malzeme_adi}
+                                      </Text>
+                                      {fiyatYok && (
+                                        <Text size="xs" c="orange">
+                                          ⚠️ Fiyat eksik
+                                        </Text>
+                                      )}
+                                    </Box>
                                   </Group>
 
                                   <Group gap="md" wrap="nowrap">
                                     <Text fw={600} size="sm" c="dark">
                                       {m.miktar} {m.birim}
                                     </Text>
-                                    <Text fw={700} size="sm" c={maliyet > 0 ? 'teal' : 'dimmed'}>
+                                    <Text fw={700} size="sm" c={maliyet > 0 ? 'teal' : 'orange'}>
                                       {maliyet > 0 ? formatMoney(maliyet) : '—'}
                                     </Text>
                                     <ActionIcon
