@@ -11,7 +11,7 @@ const defaultConfig = {
   paths: {
     backend: 'backend',
     frontend: 'frontend',
-    migrations: 'backend/src/migrations',
+    migrations: 'supabase/migrations',  // Supabase CLI migration sistemi
     routes: 'backend/src/routes',
     logs: 'backend/logs',
   },

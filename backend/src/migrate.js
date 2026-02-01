@@ -1,3 +1,20 @@
+/**
+ * ⚠️ DEPRECATED - Bu dosya artık kullanılmıyor!
+ * 
+ * Migration sistemi Supabase CLI'a taşındı.
+ * Yeni komutlar:
+ *   - supabase migration new <isim>
+ *   - supabase db push
+ *   - supabase migration list
+ * 
+ * Bu dosya referans için saklanıyor.
+ * @deprecated 2026-02-01
+ */
+
+console.warn('⚠️  DEPRECATED: Bu migration sistemi artık kullanılmıyor.');
+console.warn('📦 Supabase CLI kullanın: supabase db push');
+process.exit(1);
+
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

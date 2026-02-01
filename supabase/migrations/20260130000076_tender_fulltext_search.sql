@@ -22,10 +22,10 @@ CREATE INDEX IF NOT EXISTS idx_tenders_status_tender_date
 ON tenders (status, tender_date DESC NULLS LAST);
 
 -- Partial index - Sadece aktif ihaleler (daha küçük, daha hızlı)
--- Gelecekteki ihaleler için optimize edilmiş
+-- NOT: NOW() kullanılamaz, sadece status filtresi ile yapıyoruz
 CREATE INDEX IF NOT EXISTS idx_tenders_active_upcoming
 ON tenders (tender_date ASC)
-WHERE status = 'active' AND tender_date > NOW();
+WHERE status = 'active';
 
 -- Partial index - Şehir ve status (aktif ihaleler için)
 CREATE INDEX IF NOT EXISTS idx_tenders_city_active
@@ -36,7 +36,7 @@ WHERE status = 'active';
 -- ✅ title ILIKE '%X%' → 10 saniye
 -- ✅ title % 'X' (trigram) → 0.5 saniye (20x hızlı)
 --
--- ✅ WHERE status = 'active' AND tender_date > NOW()
+-- ✅ WHERE status = 'active' AND tender_date > [tarih]
 --    → idx_tenders_active_upcoming kullanır (çok hızlı)
 --
 -- ✅ WHERE city = 'İstanbul' AND status = 'active'

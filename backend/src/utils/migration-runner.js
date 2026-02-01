@@ -1,9 +1,19 @@
 /**
- * Otomatik Migration Runner
- * - Startup'ta tüm migration'ları kontrol eder
- * - Çalışmamış olanları sırayla çalıştırır
- * - Her migration sadece bir kez çalışır
+ * ⚠️ DEPRECATED - Bu dosya artık kullanılmıyor!
+ * 
+ * Migration sistemi Supabase CLI'a taşındı (2026-02-01).
+ * server.js'deki import yorum satırına alındı.
+ * 
+ * Yeni sistem: supabase/migrations/ + Supabase CLI
+ * Komutlar: supabase db push, supabase migration new
+ * 
+ * @deprecated 2026-02-01
  */
+
+// Otomatik Migration Runner (DEPRECATED)
+// - Startup'ta tüm migration'ları kontrol eder
+// - Çalışmamış olanları sırayla çalıştırır
+// - Her migration sadece bir kez çalışır
 
 import fs from 'node:fs';
 import path from 'node:path';
