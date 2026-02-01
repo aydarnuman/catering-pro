@@ -340,12 +340,61 @@ chore: Bakım işleri
 
 ---
 
+## 💰 Fiyat Yönetimi Sistemi (YENİ MİMARİ)
+
+### Single Source of Truth
+Tüm sistemler `urun_kartlari.aktif_fiyat` alanından fiyat okur.
+
+### Fiyat Öncelik Sırası
+```
+1. TEDARİKÇİ SÖZLEŞMESİ → güven: %100
+2. FATURA (son 30 gün)  → güven: %95
+3. PİYASA (TZOB/ESK)    → güven: %80
+4. ESKİ FATURA (30-90)  → güven: %60
+5. MANUEL GİRİŞ         → güven: %50
+6. AI_TAHMINI           → güven: %40 (Claude AI piyasa tahmini)
+```
+> NOT: VARSAYILAN (sahte fiyat) kaldırıldı. Fiyat yoksa AI tahmini yapılır.
+
+### Fiyat Kullanım Kuralları
+```javascript
+// ✅ DOĞRU - aktif_fiyat kullan
+const fiyat = urun.aktif_fiyat || 0;
+const stokDeger = miktar * urun.aktif_fiyat;
+
+// ❌ YANLIŞ - Eski alanları direkt kullanma
+const fiyat = urun.son_alis_fiyati;  // Deprecated
+const fiyat = urun.manuel_fiyat;     // Fallback için saklanıyor
+```
+
+### Backend Fiyat Servisi
+```javascript
+import { hesaplaAktifFiyat } from '../services/fiyat-motor.js';
+
+// Tek ürün fiyat hesapla
+const { fiyat, tip, guven } = await hesaplaAktifFiyat(urunId);
+
+// Fiyat geçmişine ekle (trigger aktif_fiyat'ı otomatik günceller)
+await query(`
+  INSERT INTO urun_fiyat_gecmisi (urun_kart_id, fiyat, kaynak_id, ...)
+  VALUES ($1, $2, (SELECT id FROM fiyat_kaynaklari WHERE kod = 'FATURA'), ...)
+`, [urunId, fiyat]);
+```
+
+### Dokümantasyon
+- Ana Döküman: `docs/fiyat-yonetimi/README.md`
+- API Referans: `docs/fiyat-yonetimi/API.md`
+- Temizlik Planı: `docs/fiyat-yonetimi/TEMIZLIK_PLANI.md`
+
+---
+
 ## 🎯 Öncelikli Geliştirme Alanları
 
-1. **Stok Yönetimi** - Depo bazlı takip
-2. **Menü Planlama** - Reçete-gramaj entegrasyonu
-3. **Raporlama** - Dashboard ve export
-4. **Mobile** - Responsive iyileştirmeler
+1. **Fiyat Yönetimi** - Merkezi fiyat sistemi (✅ Tamamlandı)
+2. **Stok Yönetimi** - Depo bazlı takip
+3. **Menü Planlama** - Reçete-gramaj entegrasyonu
+4. **Raporlama** - Dashboard ve export
+5. **Mobile** - Responsive iyileştirmeler
 
 ---
 

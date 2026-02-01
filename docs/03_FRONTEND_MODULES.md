@@ -3,7 +3,15 @@
 > Framework: Next.js 15 (App Router)  
 > UI Library: Mantine UI 7.17  
 > Port: 3000  
-> Son Güncelleme: 30 Ocak 2026
+> Son Güncelleme: 1 Şubat 2026 - **MAJOR REFACTOR**
+
+## 🚀 **YENİ MİMARİ GÜNCELLEMESİ**
+
+**📅 1 Şubat 2026:** Menü Planlama modülü **tamamen refactor edildi**:
+- ✅ Tek dosyadan (2868 satır) → 5 modular dosya  
+- ✅ Tab-based navigation → Route-based architecture
+- ✅ Component extraction ve performance optimization
+- ✅ Shared context implementation
 
 ---
 

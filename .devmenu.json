@@ -2,30 +2,6 @@
   "favorites": {},
   "history": [
     {
-      "id": "audit-all",
-      "label": "Tüm Denetimleri Çalıştır",
-      "time": "11:08:12",
-      "success": false
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "11:16:51",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "11:17:05",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "11:37:00",
-      "success": true
-    },
-    {
       "id": "restart-all",
       "label": "Tümünü Yeniden Başlat",
       "time": "11:49:13",
@@ -239,6 +215,90 @@
       "id": "restart-all",
       "label": "Tümünü Yeniden Başlat",
       "time": "13:30:17",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "14:21:28",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "15:43:55",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "15:52:18",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "17:02:58",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "17:04:52",
+      "success": true
+    },
+    {
+      "id": "clean-fast",
+      "label": "Hızlı Temizlik",
+      "time": "18:32:43",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "18:33:11",
+      "success": true
+    },
+    {
+      "id": "clean-fast",
+      "label": "Hızlı Temizlik",
+      "time": "19:41:35",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "19:41:39",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "19:47:54",
+      "success": true
+    },
+    {
+      "id": "type-check",
+      "label": "TypeScript Check",
+      "time": "19:48:14",
+      "success": false
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "23:18:32",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "09:46:42",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "11:05:04",
       "success": true
     }
   ],

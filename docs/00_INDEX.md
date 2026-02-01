@@ -20,6 +20,7 @@
 | 08 | [INCONSISTENCY-REPORT.md](./INCONSISTENCY-REPORT.md) | Dokümantasyon tutarsızlık raporu | ✅ |
 | 09 | [MIMARI_OZET.md](./MIMARI_OZET.md) | Mimari özet (tek sayfa) | ✅ |
 | 10 | [analiz/NOTION-EKLEME-PLANI.md](./analiz/NOTION-EKLEME-PLANI.md) | Modeller analiz dökümanları ve Notion ekleme planı | ✅ |
+| 11 | [fiyat-yonetimi/README.md](./fiyat-yonetimi/README.md) | **Fiyat Yönetimi Merkezi Mimarisi** | ✅ **YENİ** |
 
 ### 🔍 Kapsamlı Analiz Dökümanları (Yeni - 2026-01-31)
 
@@ -40,6 +41,19 @@
 - **Veritabanı şeması:** [01_DATABASE_SCHEMA.md](./01_DATABASE_SCHEMA.md)
 - **Backend servis kataloğu:** [SERVICES.md](./SERVICES.md)
 - **Tutarsızlık raporu (doc vs kod):** [INCONSISTENCY-REPORT.md](./INCONSISTENCY-REPORT.md)
+
+### 💰 Fiyat Yönetimi Sistemi (2026-01-31 - YENİ MİMARİ)
+- **📖 Ana Dokümantasyon:** [fiyat-yonetimi/README.md](./fiyat-yonetimi/README.md)
+  - Single Source of Truth mimarisi
+  - Fiyat öncelik sırası ve güven skorları
+  - Veritabanı şeması ve trigger'lar
+- **🔌 API Referansı:** [fiyat-yonetimi/API.md](./fiyat-yonetimi/API.md)
+  - Dashboard, Ürün, Sözleşme, Toplu İşlem endpoint'leri
+  - Request/Response örnekleri
+- **🧹 Temizlik Planı:** [fiyat-yonetimi/TEMIZLIK_PLANI.md](./fiyat-yonetimi/TEMIZLIK_PLANI.md)
+  - Eski fiyat alanları analizi
+  - Kod güncelleme adımları
+  - Test ve rollback planları
 
 ### 🆕 Kapsamlı Analiz Dökümanları (2026-01-31)
 - **📊 Tam Database Schema:** [analiz/01_DATABASE_SCHEMA.md](./analiz/01_DATABASE_SCHEMA.md)
