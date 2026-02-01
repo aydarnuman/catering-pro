@@ -9,7 +9,7 @@
  *   pm2 logs
  */
 
-module.exports = {
+export default {
   apps: [
     {
       name: 'catering-backend',
