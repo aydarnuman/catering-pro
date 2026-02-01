@@ -311,6 +311,7 @@ import scheduler from './services/sync-scheduler.js';
 // Migration uygulama: supabase db push
 import systemMonitor from './services/system-monitor.js';
 import tenderScheduler from './services/tender-scheduler.js';
+import { startTenderStatusUpdater } from './jobs/tender-status-updater.js';
 
 // Auth routes - Özel rate limiter ile (brute-force koruması)
 app.use('/api/auth', authLimiter, authRouter);
@@ -503,6 +504,10 @@ const startServer = async () => {
         description: 'Not ve Çek/Senet vade hatırlatıcıları',
         nextRun: null,
       });
+      systemMonitor.registerScheduler('tenderStatusUpdater', {
+        description: 'Süresi dolan ihaleleri expired olarak işaretle',
+        nextRun: null,
+      });
 
       // Scheduler'ları başlat
       logger.info('🔄 Otomatik senkronizasyon scheduler başlatılıyor...');
@@ -516,6 +521,9 @@ const startServer = async () => {
 
       logger.info('🔔 Reminder notification scheduler başlatılıyor...');
       reminderNotificationScheduler.start();
+
+      logger.info('⏰ Tender status updater başlatılıyor...');
+      startTenderStatusUpdater();
 
       logger.info('📡 System monitor hazır');
     });
