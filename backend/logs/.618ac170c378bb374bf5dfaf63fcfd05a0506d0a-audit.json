@@ -6,79 +6,14 @@
     "auditLog": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/.618ac170c378bb374bf5dfaf63fcfd05a0506d0a-audit.json",
     "files": [
         {
-            "date": 1768631999969,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-17.log",
-            "hash": "1758ea19ef1008c13e1d9054d13359fb9bff02e0239ffe177d69d83bb6d15783"
+            "date": 1769877705754,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-31.log",
+            "hash": "18f5a29ccddc2eb08048bd8b5bc7b75a8162d41fc28172a8dba45812ed6455ea"
         },
         {
-            "date": 1768719920257,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-18.log",
-            "hash": "6ad8ea07717b7b5518bd9166ef9a44e3f17fab6309c3212ec9071beb06595f51"
-        },
-        {
-            "date": 1768823676794,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-19.log",
-            "hash": "af89987af3533223805c70814ef01cc8cdb7f0f1024720d86ef3ffe48687d266"
-        },
-        {
-            "date": 1768895280280,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-20.log",
-            "hash": "1ee5c77b2d76999debe624deb7b1c15e1b32ad44ace4c9c792f0ed465190f383"
-        },
-        {
-            "date": 1768945845688,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-21.log",
-            "hash": "e266fe84e3c3da853ab723b918e3e5b4ac6bd66fc94f67c7ac67ec2d65ab0ee7"
-        },
-        {
-            "date": 1769031093597,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-22.log",
-            "hash": "8ded394324d10b62ffcfa2a9d1651010f6c91fd2dfe1bc32746f617354952478"
-        },
-        {
-            "date": 1769116863996,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-23.log",
-            "hash": "caf5de6ed94c5c36cc028ca33022558b98ec75ae5f033cb95df1e75c091101e0"
-        },
-        {
-            "date": 1769205565702,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-24.log",
-            "hash": "a6d7e6ec05d52be8fc684f1699ea9c383df7b907d822ef7e12316e0dca18c362"
-        },
-        {
-            "date": 1769347419858,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-25.log",
-            "hash": "4b7ee83037ecb1fa95a86bd9a212c3cd1e16f8beb26b11c2e6637c4dc053aacb"
-        },
-        {
-            "date": 1769368031542,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-25.log.1",
-            "hash": "dabc3c4e8efe4760c919596108f732fea6b64b9aaa6d15d5ee431375700e73a7"
-        },
-        {
-            "date": 1769403600212,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-26.log",
-            "hash": "aa92c972f7006f0f0cd3f1ef8ce8bda460e2b7f3ba084e6e582c8724be7f5833"
-        },
-        {
-            "date": 1769463365315,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-27.log",
-            "hash": "023803be9fcc8d96b85a2f279fce58937b430430f847e1ee51549254b963d655"
-        },
-        {
-            "date": 1769553868969,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-28.log",
-            "hash": "848933e3348a41fc881b6b73dcdbce9dd0f48f5705f66d9c367ea7e032f24a3d"
-        },
-        {
-            "date": 1769637100864,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-29.log",
-            "hash": "3e5b2833e433d0ee7684a355b209597480e352ff6f9167edbca43fc99ee02ace"
-        },
-        {
-            "date": 1769758477482,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-01-30.log",
-            "hash": "ea62c3e7378034c86d3d4090aac72d82695882fd1c1ced9f0b0616fee9d9cbd4"
+            "date": 1769928407967,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/app-2026-02-01.log",
+            "hash": "d9f8ea8e4b1861a64a8977684059f7d327c3546477d3df9562d279dd5b176041"
         }
     ],
     "hashType": "sha256"

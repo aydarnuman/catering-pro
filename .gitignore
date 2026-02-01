@@ -54,3 +54,5 @@ test-*.js
 
 # Audit logs (hidden files)
 backend/logs/.*-audit.json
+*.backup
+.cursor/

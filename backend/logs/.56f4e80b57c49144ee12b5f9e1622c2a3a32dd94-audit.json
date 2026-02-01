@@ -6,89 +6,14 @@
     "auditLog": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/.56f4e80b57c49144ee12b5f9e1622c2a3a32dd94-audit.json",
     "files": [
         {
-            "date": 1768054424747,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-10.log",
-            "hash": "27293458af48bddfe60a4d63497f3c2025de23bf238dfe447e46939ca33681a1"
+            "date": 1769877705755,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-31.log",
+            "hash": "316767cfd73b57bc4a7af5a1931e89014f0dfaf2281072e9663cb20387ae7e6b"
         },
         {
-            "date": 1768203828288,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-12.log",
-            "hash": "b3a022a48cba1f44c01ac5a6a45f5b3a07e298579bc3d9c0e50368480183303b"
-        },
-        {
-            "date": 1768319113985,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-13.log",
-            "hash": "7c263f6bc040cfd57469e1dfdceed29ca18c15bc0198b433b4799944f5b3c079"
-        },
-        {
-            "date": 1768377950293,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-14.log",
-            "hash": "1ad909f4e56d0c1af43cd09a3c5daf398904966f4ccc02c4f80ba3235768cd31"
-        },
-        {
-            "date": 1768462093490,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-15.log",
-            "hash": "66e18b4ab0388f20142f06c5166b867f5c27e69a4441fe5a3b0ec11d216281c4"
-        },
-        {
-            "date": 1768631999970,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-17.log",
-            "hash": "546d4cac33a463c18ea79fc0ca6f7fb6da395973e438ed9734a09863eb7cefa5"
-        },
-        {
-            "date": 1768719920258,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-18.log",
-            "hash": "d469f203fdf44b025eed41c15353366f3ff9bc955ba1b3f50f2cdd85506c708e"
-        },
-        {
-            "date": 1768823676796,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-19.log",
-            "hash": "b4e401f89b8c676c921ee791636c23b458819aa085cc3548fa9fa05587386d8f"
-        },
-        {
-            "date": 1768895280281,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-20.log",
-            "hash": "b1f44dbc7d642fab29f3b39eb0f05b639ab03f25c224a66f456a4ef8b5642f4e"
-        },
-        {
-            "date": 1769072035840,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-22.log",
-            "hash": "7cdf2cef680af38f886da6d22f3e1f5c5d88942a6c3eb52512a6c4c4bd28d341"
-        },
-        {
-            "date": 1769252400873,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-24.log",
-            "hash": "20ec75ff6b683752d15bf9da86e0b9d3662bcaec8ec6d093212dbd34d68abd87"
-        },
-        {
-            "date": 1769347419862,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-25.log",
-            "hash": "09363d215e014fae883ef307b3839d73550ea77cf3928f625019fb28371656b6"
-        },
-        {
-            "date": 1769403600215,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-26.log",
-            "hash": "f3a6864434b9fe4fa2945713641fcc49d82bfb34c08535f7094cfe80690cf1f4"
-        },
-        {
-            "date": 1769504323572,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-27.log",
-            "hash": "2953b3cea77bb5268a14e2012f5f84d9c4c46faae25f9aa40c3fbbb430a82e5a"
-        },
-        {
-            "date": 1769587326113,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-28.log",
-            "hash": "b9073b385d4a67045dba0f25fe63b6b05d5e6bd06b67aa0d5e9dc57a6ace6c0e"
-        },
-        {
-            "date": 1769673045570,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-29.log",
-            "hash": "d3da9599585b5adaa35038885a8c27868fc62cefa38af355fba3944622072c6a"
-        },
-        {
-            "date": 1769758477484,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-01-30.log",
-            "hash": "12642889ad5c9dee4439d172ca1001787cb7e6050134df2697cf76d67bbd82ed"
+            "date": 1769928407969,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-02-01.log",
+            "hash": "edb169451a5439cb0eebbc03fea5dc5b298daa6d7e91f34aa76a275194ab038a"
         }
     ],
     "hashType": "sha256"

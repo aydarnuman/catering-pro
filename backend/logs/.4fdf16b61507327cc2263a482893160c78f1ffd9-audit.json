@@ -6,104 +6,14 @@
     "auditLog": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/.4fdf16b61507327cc2263a482893160c78f1ffd9-audit.json",
     "files": [
         {
-            "date": 1768054424746,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-10.log",
-            "hash": "224defd322611d6ee1f201f2b04abbedb603aaf48b811ac8ad0b84964629f4e2"
+            "date": 1769877705755,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-31.log",
+            "hash": "8d18cef48ede752ad5da7a7de8ab01a32632618ef9aadea1697b9b94f3797345"
         },
         {
-            "date": 1768091330668,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-11.log",
-            "hash": "8ba208d07ef8e140c62f7e379a9307410acc137bd941462bb14141177a4da337"
-        },
-        {
-            "date": 1768203005061,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-12.log",
-            "hash": "a23f8da148ee5d482ee098d93ccaf3db983fcbd4b8fcbc0b651c741f1a4fba42"
-        },
-        {
-            "date": 1768263451920,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-13.log",
-            "hash": "823eac1f5e74cb57592ae32a218982300d99e914a91426da99eee36651d7dbcd"
-        },
-        {
-            "date": 1768377950292,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-14.log",
-            "hash": "7af242b1d804e1de3a732a7a4355b1ca8f178272baf57ff629f1e5fcb13ffed6"
-        },
-        {
-            "date": 1768462093490,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-15.log",
-            "hash": "70147ab09f5974fffbc4a9820ea3d5985a2ebeed21e4aa505dd2d52904613821"
-        },
-        {
-            "date": 1768631999970,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-17.log",
-            "hash": "6e7186f7c2dbb1b9ff197f2404c57b2fa3082209b41c8235a1735268d3dee95c"
-        },
-        {
-            "date": 1768719920258,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-18.log",
-            "hash": "3913e9551ab16ad2f706c9e6c7460eec988f458d3bf9f9e456e347c22f40d355"
-        },
-        {
-            "date": 1768823676795,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-19.log",
-            "hash": "d3dc14ea0b2e1441548bed90c9a9d8c41ea6db16e69a70fa000a8a4d4e77e97c"
-        },
-        {
-            "date": 1768895280281,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-20.log",
-            "hash": "446695ab71a4a85acea4a0238af8c79952b4f190cbb86f7f61cdac5bef5fd040"
-        },
-        {
-            "date": 1768973701443,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-21.log",
-            "hash": "047506c95efce8b564267cb639d5da3a9d9b28889dc03b78634d03f6ccf69ef6"
-        },
-        {
-            "date": 1769068015947,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-22.log",
-            "hash": "681dd307b9f2ea7789726779c2fdfb9350bf9003a661cb476ccced355f43f887"
-        },
-        {
-            "date": 1769137265656,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-23.log",
-            "hash": "af77aa03b58286c5c664431c1a2dd7dadef43e85e09d3401fb593f13023f1679"
-        },
-        {
-            "date": 1769229786766,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-24.log",
-            "hash": "6a476278cf1187ca236302b21fe518d756b1d840d8e966ad339b0517ef26bdf2"
-        },
-        {
-            "date": 1769347419862,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-25.log",
-            "hash": "4eb5b059a63de44a1a1f5bc62d067093c84dfb721fbbbee812e3133cef5eac2c"
-        },
-        {
-            "date": 1769403600215,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-26.log",
-            "hash": "a0813934c2666da71c8194ba4b49f9ac993fc82705c42f705006a0d87547f8f0"
-        },
-        {
-            "date": 1769477387286,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-27.log",
-            "hash": "473e3d6e980c97a46ad0fede18699590284d742af115382d43907b92707f3f0f"
-        },
-        {
-            "date": 1769581220579,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-28.log",
-            "hash": "6c69e4b5bc0976d68c3e83a2403516faa9b33b5c382aec757745b657e84d9089"
-        },
-        {
-            "date": 1769673045569,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-29.log",
-            "hash": "e1b216177eb9b5c26290fcb195f34aef4873cd7d01fb78328f3132774d75e62d"
-        },
-        {
-            "date": 1769758477483,
-            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-01-30.log",
-            "hash": "b209205b11e80bb7222f3dba66d0fab862f076383679d37eea3ddc346020ded9"
+            "date": 1769928407968,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/error-2026-02-01.log",
+            "hash": "6de58f91e3cb20839f2532256cd7f561dea1d22d255be1186512b5690b4147d1"
         }
     ],
     "hashType": "sha256"
