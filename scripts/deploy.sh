@@ -77,7 +77,7 @@ case $DEPLOY_TYPE in
             cd ${PROJECT_PATH}
             echo '📥 Git pull...'
             git stash 2>/dev/null || true
-            git pull origin main
+            git fetch origin main && git reset --hard origin/main
             
             echo '📦 Paketler kontrol ediliyor...'
             cd frontend
@@ -88,7 +88,7 @@ case $DEPLOY_TYPE in
             npm run build
             
             echo '🔄 PM2 restart...'
-            pm2 restart catering-frontend || pm2 start ecosystem.config.js --only catering-frontend
+            pm2 restart catering-frontend || pm2 start ecosystem.config.cjs --only catering-frontend
             
             echo ''
             echo '✅ Frontend deploy tamamlandı!'
@@ -101,17 +101,17 @@ case $DEPLOY_TYPE in
             cd ${PROJECT_PATH}
             echo '📥 Git pull...'
             git stash 2>/dev/null || true
-            git pull origin main
+            git fetch origin main && git reset --hard origin/main
             
             echo '📦 Paketler kontrol ediliyor...'
             cd backend
             npm install --silent
             
             echo '🗄️  Migration kontrol ediliyor...'
-            npm run migrate
+            npm run migrate:push 2>/dev/null || echo '⚠️  Migration atlandı (Supabase CLI ile ayrıca çalıştırın)'
             
             echo '🔄 PM2 restart...'
-            pm2 restart catering-backend || pm2 start ecosystem.config.js --only catering-backend
+            pm2 restart catering-backend || pm2 start ecosystem.config.cjs --only catering-backend
             
             echo ''
             echo '✅ Backend deploy tamamlandı!'
@@ -124,7 +124,7 @@ case $DEPLOY_TYPE in
             cd ${PROJECT_PATH}
             echo '📥 Git pull...'
             git stash 2>/dev/null || true
-            git pull origin main
+            git fetch origin main && git reset --hard origin/main
             
             echo ''
             echo '✅ Hızlı deploy tamamlandı!'
@@ -138,7 +138,7 @@ case $DEPLOY_TYPE in
             cd ${PROJECT_PATH}
             echo '📥 Git pull...'
             git stash 2>/dev/null || true
-            git pull origin main
+            git fetch origin main && git reset --hard origin/main
             
             echo ''
             echo '📦 Backend paketleri kontrol ediliyor...'
@@ -146,7 +146,7 @@ case $DEPLOY_TYPE in
             npm install --silent
             
             echo '🗄️  Migration kontrol ediliyor...'
-            npm run migrate
+            npm run migrate:push 2>/dev/null || echo '⚠️  Migration atlandı (Supabase CLI ile ayrıca çalıştırın)'
             
             echo ''
             echo '📦 Frontend paketleri kontrol ediliyor...'
@@ -167,7 +167,7 @@ case $DEPLOY_TYPE in
             # PM2'yi tamamen durdur ve yeniden başlat (env cache'i temizlemek için)
             pm2 stop all || true
             pm2 delete all || true
-            pm2 start ecosystem.config.js
+            pm2 start ecosystem.config.cjs
             
             echo ''
             pm2 list
