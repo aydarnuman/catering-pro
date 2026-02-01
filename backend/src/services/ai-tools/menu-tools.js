@@ -278,10 +278,10 @@ export const menuToolImplementations = {
         for (let i = 0; i < malzemeler.length; i++) {
           const m = malzemeler[i];
 
-          // Stok kartı var mı ara
+          // Ürün kartı var mı ara - YENİ: urun_kartlari
           const stokResult = await query(
             `
-            SELECT id FROM stok_kartlari 
+            SELECT id FROM urun_kartlari 
             WHERE ad ILIKE $1 
             LIMIT 1
           `,
@@ -380,17 +380,18 @@ export const menuToolImplementations = {
         return { success: false, error: 'Reçete bulunamadı' };
       }
 
-      // Malzemeler
+      // Malzemeler - YENİ: aktif_fiyat sistemi
       const malzemeResult = await query(
         `
         SELECT 
           rm.*,
-          sk.son_alis_fiyat as sistem_fiyat,
+          COALESCE(uk.aktif_fiyat, uk.son_alis_fiyati) as sistem_fiyat,
+          uk.aktif_fiyat_tipi,
           (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi 
-           WHERE stok_kart_id = rm.stok_kart_id 
+           WHERE urun_kart_id = rm.urun_kart_id 
            ORDER BY arastirma_tarihi DESC LIMIT 1) as piyasa_fiyat
         FROM recete_malzemeler rm
-        LEFT JOIN stok_kartlari sk ON sk.id = rm.stok_kart_id
+        LEFT JOIN urun_kartlari uk ON uk.id = rm.urun_kart_id
         WHERE rm.recete_id = $1
         ORDER BY rm.sira
       `,
@@ -655,11 +656,12 @@ export const menuToolImplementations = {
         return { success: false, error: 'Reçete bulunamadı' };
       }
 
+      // YENİ: urun_kartlari kullan
       const malzemeResult = await query(
         `
-        SELECT rm.*, sk.ad as stok_adi
+        SELECT rm.*, uk.ad as stok_adi, COALESCE(uk.aktif_fiyat, uk.son_alis_fiyati) as guncel_fiyat
         FROM recete_malzemeler rm
-        LEFT JOIN stok_kartlari sk ON sk.id = rm.stok_kart_id
+        LEFT JOIN urun_kartlari uk ON uk.id = rm.urun_kart_id
         WHERE rm.recete_id = $1
         ORDER BY rm.toplam_fiyat DESC NULLS LAST
       `,

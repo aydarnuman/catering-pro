@@ -269,12 +269,13 @@ router.get('/', async (req, res) => {
         uk.kritik_stok,
         uk.kdv_orani,
         uk.toplam_stok,
-        uk.ortalama_fiyat,
+        uk.aktif_fiyat,
         uk.birim_carpani,
         uk.fatura_birimi,
-        -- son_alis_fiyati: STANDART BİRİM FİYATI (birim_carpani uygulanmış)
+        -- son_alis_fiyati: STANDART BİRİM FİYATI (aktif_fiyat öncelikli)
         COALESCE(
-          uk.son_alis_fiyati,
+          uk.aktif_fiyat,
+          uk.aktif_fiyat,
           (SELECT COALESCE(fk.birim_fiyat_standart, fk.birim_fiyat / NULLIF(uk.birim_carpani, 0), fk.birim_fiyat)
            FROM fatura_kalemleri fk
            WHERE fk.urun_id = uk.id AND fk.birim_fiyat IS NOT NULL
@@ -732,8 +733,8 @@ router.patch('/:id/fiyat', async (req, res) => {
     // Fiyat geçmişine kaydet
     await query(
       `
-      INSERT INTO urun_fiyat_gecmisi (urun_kart_id, fiyat, kaynak, aciklama, tarih)
-      VALUES ($1, $2, $3, $4, NOW())
+      INSERT INTO urun_fiyat_gecmisi (urun_kart_id, fiyat, kaynak, kaynak_id, aciklama, tarih)
+      VALUES ($1, $2, $3, (SELECT id FROM fiyat_kaynaklari WHERE kod = CASE WHEN $3 LIKE '%fatura%' THEN 'FATURA' ELSE 'MANUEL' END), $4, NOW())
     `,
       [id, birim_fiyat, kaynak || 'fatura_manuel', aciklama || 'Faturadan manuel fiyat güncellemesi']
     );
@@ -824,8 +825,8 @@ router.post('/:id/giris', authenticate, async (req, res) => {
       await query(
         `
         INSERT INTO urun_fiyat_gecmisi (
-          urun_kart_id, cari_id, fiyat, fatura_ettn, kaynak, tarih
-        ) VALUES ($1, $2, $3, $4, $5, CURRENT_DATE)
+          urun_kart_id, cari_id, fiyat, fatura_ettn, kaynak, kaynak_id, tarih
+        ) VALUES ($1, $2, $3, $4, $5, (SELECT id FROM fiyat_kaynaklari WHERE kod = CASE WHEN $4 IS NOT NULL THEN 'FATURA' ELSE 'MANUEL' END), CURRENT_DATE)
       `,
         [id, cari_id, birim_fiyat, fatura_ettn, fatura_ettn ? 'fatura' : 'manuel']
       );
@@ -1070,7 +1071,7 @@ router.get('/ozet/istatistikler', async (_req, res) => {
         COUNT(*) FILTER (WHERE toplam_stok <= 0 AND aktif = true) as tukenmis,
         COUNT(*) FILTER (WHERE kritik_stok IS NOT NULL AND toplam_stok <= kritik_stok AND toplam_stok > 0 AND aktif = true) as kritik,
         COUNT(*) FILTER (WHERE min_stok IS NOT NULL AND toplam_stok <= min_stok AND toplam_stok > kritik_stok AND aktif = true) as dusuk,
-        COALESCE(SUM(toplam_stok * COALESCE(son_alis_fiyati, 0)) FILTER (WHERE aktif = true), 0) as toplam_deger
+        COALESCE(SUM(toplam_stok * COALESCE(aktif_fiyat, son_alis_fiyati, 0)) FILTER (WHERE aktif = true), 0) as toplam_deger
       FROM urun_kartlari
     `);
 
@@ -1141,7 +1142,7 @@ router.get('/:id/varyantlar', async (req, res) => {
       `
       SELECT 
         uk.id, uk.kod, uk.ad, uk.varyant_tipi, uk.varyant_aciklama,
-        uk.tedarikci_urun_adi, uk.son_alis_fiyati, uk.toplam_stok,
+        uk.tedarikci_urun_adi, COALESCE(uk.aktif_fiyat, uk.aktif_fiyat) as son_alis_fiyati, uk.toplam_stok,
         b.kisa_ad as birim
       FROM urun_kartlari uk
       LEFT JOIN birimler b ON b.id = uk.ana_birim_id
@@ -1345,8 +1346,8 @@ router.post('/varyant-olustur', async (req, res) => {
     if (birim_fiyat) {
       await query(
         `
-        INSERT INTO urun_fiyat_gecmisi (urun_kart_id, fiyat, kaynak, aciklama, tarih)
-        VALUES ($1, $2, 'fatura_yeni_urun', 'Faturadan yeni ürün/varyant oluşturuldu', NOW())
+        INSERT INTO urun_fiyat_gecmisi (urun_kart_id, fiyat, kaynak, kaynak_id, aciklama, tarih)
+        VALUES ($1, $2, 'fatura_yeni_urun', (SELECT id FROM fiyat_kaynaklari WHERE kod = 'FATURA'), 'Faturadan yeni ürün/varyant oluşturuldu', NOW())
       `,
         [result.rows[0].id, birim_fiyat]
       );

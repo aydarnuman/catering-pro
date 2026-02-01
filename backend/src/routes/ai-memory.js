@@ -96,13 +96,16 @@ router.get('/context', async (req, res) => {
     `);
 
     res.json({
-      memories: memories.rows,
-      recentConversations,
-      systemStats: systemStats.rows[0],
-      timestamp: new Date().toISOString(),
+      success: true,
+      data: {
+        memories: memories.rows,
+        recentConversations,
+        systemStats: systemStats.rows[0],
+        timestamp: new Date().toISOString(),
+      },
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -112,12 +115,12 @@ router.get('/:id', async (req, res) => {
     const result = await query('SELECT * FROM ai_memory WHERE id = $1', [req.params.id]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Hafıza bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Hafıza bulunamadı' });
     }
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -127,7 +130,7 @@ router.post('/', async (req, res) => {
     const { user_id = 'default', memory_type, category, key, value, importance = 5 } = req.body;
 
     if (!memory_type || !key || !value) {
-      return res.status(400).json({ error: 'memory_type, key ve value zorunludur' });
+      return res.status(400).json({ success: false, error: 'memory_type, key ve value zorunludur' });
     }
 
     const result = await query(
@@ -146,9 +149,9 @@ router.post('/', async (req, res) => {
       [user_id, memory_type, category, key, value, importance]
     );
 
-    res.status(201).json(result.rows[0]);
+    res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -173,12 +176,12 @@ router.put('/:id', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Hafıza bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Hafıza bulunamadı' });
     }
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -188,12 +191,12 @@ router.delete('/:id', async (req, res) => {
     const result = await query('DELETE FROM ai_memory WHERE id = $1 RETURNING *', [req.params.id]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Hafıza bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Hafıza bulunamadı' });
     }
 
-    res.json({ success: true, deleted: result.rows[0] });
+    res.json({ success: true, data: { deleted: result.rows[0] } });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -211,9 +214,9 @@ router.post('/use/:id', async (req, res) => {
       [req.params.id]
     );
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -227,7 +230,7 @@ router.post('/conversation', async (req, res) => {
     const { session_id, user_id = 'default', role, content, tools_used, metadata } = req.body;
 
     if (!session_id || !role || !content) {
-      return res.status(400).json({ error: 'session_id, role ve content zorunludur' });
+      return res.status(400).json({ success: false, error: 'session_id, role ve content zorunludur' });
     }
 
     const result = await query(
@@ -239,9 +242,9 @@ router.post('/conversation', async (req, res) => {
       [session_id, user_id, role, content, tools_used || [], metadata || {}]
     );
 
-    res.status(201).json(result.rows[0]);
+    res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -260,9 +263,9 @@ router.get('/conversation/:sessionId', async (req, res) => {
       [req.params.sessionId, limit]
     );
 
-    res.json(result.rows);
+    res.json({ success: true, data: result.rows });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -285,9 +288,9 @@ router.get('/conversations/recent', async (req, res) => {
       [user_id, limit]
     );
 
-    res.json(result.rows);
+    res.json({ success: true, data: result.rows });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -309,9 +312,9 @@ router.post('/feedback', async (req, res) => {
       [conversation_id, user_id, rating, feedback_type, comment]
     );
 
-    res.status(201).json(result.rows[0]);
+    res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -321,7 +324,7 @@ router.post('/learn', async (req, res) => {
     const { user_id = 'default', learnings } = req.body;
 
     if (!Array.isArray(learnings)) {
-      return res.status(400).json({ error: 'learnings array olmalı' });
+      return res.status(400).json({ success: false, error: 'learnings array olmalı' });
     }
 
     const results = [];
@@ -347,9 +350,9 @@ router.post('/learn', async (req, res) => {
       results.push(result.rows[0]);
     }
 
-    res.status(201).json({ success: true, learned: results.length, items: results });
+    res.status(201).json({ success: true, data: { learned: results.length, items: results } });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

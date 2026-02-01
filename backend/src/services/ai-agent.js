@@ -37,27 +37,27 @@ async function getProductPrices(_productNames = null) {
       return priceData;
     }
 
-    // 2. FATURADA YOKSA STOK KARTLARINDAN BAK
+    // 2. FATURADA YOKSA ÜRÜN KARTLARINDAN BAK - YENİ: aktif_fiyat sistemi
     const stockPrices = await query(`
       SELECT 
         ad as urun_adi,
-        alis_fiyati as birim_fiyat,
-        birim,
-        kategori,
-        updated_at as guncelleme_tarihi,
-        'stok_karti' as kaynak
-      FROM stok_kartlari
+        COALESCE(aktif_fiyat, son_alis_fiyati) as birim_fiyat,
+        varsayilan_birim as birim,
+        aktif_fiyat_tipi as kaynak_tipi,
+        aktif_fiyat_guncelleme as guncelleme_tarihi,
+        'urun_karti' as kaynak
+      FROM urun_kartlari
       WHERE aktif = true
-        AND alis_fiyati > 0
-      ORDER BY updated_at DESC
+        AND COALESCE(aktif_fiyat, son_alis_fiyati) > 0
+      ORDER BY aktif_fiyat_guncelleme DESC NULLS LAST
     `);
 
     if (stockPrices.rows.length > 0) {
-      priceData.source = 'stok_karti';
+      priceData.source = 'urun_karti';
       priceData.prices = stockPrices.rows;
       priceData.lastUpdate = stockPrices.rows[0]?.guncelleme_tarihi;
-      priceData.warning = '⚠️ Fiyatlar stok kartlarından alındı, fatura verisi bulunamadı. Güncelliğini kontrol edin.';
-      logger.debug(`[Fiyat] Stok kartlarından ${stockPrices.rows.length} ürün fiyatı bulundu`, {
+      priceData.warning = '⚠️ Fiyatlar ürün kartlarından alındı (aktif_fiyat sistemi).';
+      logger.debug(`[Fiyat] Ürün kartlarından ${stockPrices.rows.length} ürün fiyatı bulundu`, {
         count: stockPrices.rows.length,
       });
       return priceData;
@@ -1084,13 +1084,16 @@ Eğer önemli bir bilgi yoksa: {"facts": []}`;
       `);
       summaries.ihaleler = ihaleResult.rows[0];
 
-      // Stok özeti (varsa)
+      // Stok özeti - YENİ: urun_kartlari
       try {
         const stokResult = await query(`
           SELECT 
             COUNT(*) as toplam_urun,
-            COUNT(CASE WHEN mevcut_miktar <= minimum_stok THEN 1 END) as kritik
-          FROM stok_kartlari
+            COUNT(CASE WHEN COALESCE(
+              (SELECT SUM(miktar) FROM urun_depo_durumlari udd WHERE udd.urun_kart_id = uk.id), 0
+            ) <= uk.kritik_stok THEN 1 END) as kritik
+          FROM urun_kartlari uk
+          WHERE uk.aktif = true
         `);
         summaries.stok = stokResult.rows[0];
       } catch {

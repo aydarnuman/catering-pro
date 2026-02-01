@@ -597,12 +597,12 @@ export const piyasaToolImplementations = {
         );
       });
 
-      // Stok kartlarından benzer ürünleri ara
+      // Ürün kartlarından benzer ürünleri ara - YENİ: urun_kartlari
       let stokOneriler = [];
       try {
         const stokResult = await query(
           `
-          SELECT DISTINCT ad FROM stok_kartlari 
+          SELECT DISTINCT ad FROM urun_kartlari 
           WHERE aktif = true AND ad ILIKE $1
           ORDER BY ad LIMIT 5
         `,
@@ -695,15 +695,19 @@ export const piyasaToolImplementations = {
 
       const corrected = correctSpelling(urun_adi);
 
+      // YENİ: urun_kartlari + aktif_fiyat
       const result = await query(
         `
-        SELECT sk.id, sk.kod, sk.ad, sk.son_alis_fiyat, sk.toplam_stok,
+        SELECT uk.id, uk.kod, uk.ad, 
+               COALESCE(uk.aktif_fiyat, uk.son_alis_fiyati) as son_alis_fiyat,
+               uk.aktif_fiyat_tipi,
+               (SELECT SUM(miktar) FROM urun_depo_durumlari WHERE urun_kart_id = uk.id) as toplam_stok,
                k.ad as kategori, b.kisa_ad as birim
-        FROM stok_kartlari sk
-        LEFT JOIN stok_kategoriler k ON k.id = sk.kategori_id
-        LEFT JOIN birimler b ON b.id = sk.ana_birim_id
-        WHERE sk.aktif = true AND (sk.ad ILIKE $1 OR sk.kod ILIKE $1)
-        ORDER BY sk.ad LIMIT 10
+        FROM urun_kartlari uk
+        LEFT JOIN urun_kategorileri k ON k.id = uk.kategori_id
+        LEFT JOIN birimler b ON b.id = uk.ana_birim_id
+        WHERE uk.aktif = true AND (uk.ad ILIKE $1 OR uk.kod ILIKE $1)
+        ORDER BY uk.ad LIMIT 10
       `,
         [`%${corrected}%`]
       );
@@ -741,17 +745,19 @@ export const piyasaToolImplementations = {
       let sistemFiyat = null;
       let urunBilgi = null;
 
-      // Stok kartından bilgi al
+      // Ürün kartından bilgi al - YENİ: aktif_fiyat
       let stokBirim = null;
       if (stok_kart_id) {
         const result = await query(
           `
-          SELECT sk.id, sk.ad, sk.son_alis_fiyat, 
+          SELECT uk.id, uk.ad, 
+                 COALESCE(uk.aktif_fiyat, uk.son_alis_fiyati) as son_alis_fiyat,
+                 uk.aktif_fiyat_tipi,
                  k.ad as kategori, b.kisa_ad as birim
-          FROM stok_kartlari sk
-          LEFT JOIN stok_kategoriler k ON k.id = sk.kategori_id
-          LEFT JOIN birimler b ON b.id = sk.ana_birim_id
-          WHERE sk.id = $1
+          FROM urun_kartlari uk
+          LEFT JOIN urun_kategorileri k ON k.id = uk.kategori_id
+          LEFT JOIN birimler b ON b.id = uk.ana_birim_id
+          WHERE uk.id = $1
         `,
           [stok_kart_id]
         );
@@ -887,13 +893,15 @@ export const piyasaToolImplementations = {
 
   piyasa_takip_listesi: async ({ sadece_aktif = true }) => {
     try {
+      // YENİ: urun_kartlari kullan
       const result = await query(`
-        SELECT ptl.*, sk.kod as stok_kod, sk.toplam_stok,
+        SELECT ptl.*, uk.kod as stok_kod,
+               (SELECT SUM(miktar) FROM urun_depo_durumlari WHERE urun_kart_id = uk.id) as toplam_stok,
                k.ad as kategori, b.kisa_ad as birim
         FROM piyasa_takip_listesi ptl
-        LEFT JOIN stok_kartlari sk ON sk.id = ptl.stok_kart_id
-        LEFT JOIN stok_kategoriler k ON k.id = sk.kategori_id
-        LEFT JOIN birimler b ON b.id = sk.ana_birim_id
+        LEFT JOIN urun_kartlari uk ON uk.id = ptl.stok_kart_id
+        LEFT JOIN urun_kategorileri k ON k.id = uk.kategori_id
+        LEFT JOIN birimler b ON b.id = uk.ana_birim_id
         ${sadece_aktif ? 'WHERE ptl.aktif = true' : ''}
         ORDER BY ptl.updated_at DESC
       `).catch(() => ({ rows: [] }));

@@ -4,6 +4,13 @@ import multer from 'multer';
 import { query } from '../database.js';
 import aiAgent from '../services/ai-agent.js';
 import { parseExcelMenu, parseImageMenu, parsePdfMenu } from '../services/menu-import.js';
+import {
+  GRAM_PER_ADET_DEFAULT,
+  GRAM_TO_KG,
+  ML_TO_LITRE,
+  getSiviYogunluk,
+  DEFAULT_OIL_DENSITY,
+} from '../utils/birim-constants.js';
 
 const router = express.Router();
 
@@ -196,28 +203,22 @@ router.get('/receteler/:id', async (req, res) => {
         uk.varsayilan_birim as urun_birim,
         uk.ikon as urun_ikon,
 
-        -- FATURA FİYATI (YENİ SİSTEM: urun_kartlari.son_alis_fiyati)
+        -- FİYAT (YENİ SİSTEM: aktif_fiyat - Single Source of Truth)
         COALESCE(
+          uk.aktif_fiyat,
           rm.fatura_fiyat,
-          uk.son_alis_fiyati
+          uk.aktif_fiyat
         ) as fatura_fiyat,
 
-        -- PİYASA FİYATI (AI araştırmasından veya fiyat geçmişi)
+        -- PİYASA FİYATI (fallback zinciri)
         COALESCE(
-          rm.piyasa_fiyat,
-          uk.manuel_fiyat,
+          uk.aktif_fiyat,
+          rm.aktif_fiyat,
           (
             SELECT fiyat
             FROM urun_fiyat_gecmisi
             WHERE urun_kart_id = uk.id
             ORDER BY tarih DESC
-            LIMIT 1
-          ),
-          (
-            SELECT piyasa_fiyat_ort
-            FROM piyasa_fiyat_gecmisi
-            WHERE LOWER(urun_adi) LIKE '%' || LOWER(COALESCE(uk.ad, rm.malzeme_adi)) || '%'
-            ORDER BY arastirma_tarihi DESC
             LIMIT 1
           )
         ) as piyasa_fiyat,
@@ -291,16 +292,19 @@ router.post('/recete/:receteId/malzeme', async (req, res) => {
 router.put('/recete/malzeme/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { malzeme_adi, miktar, birim, stok_kart_id } = req.body;
+    const { malzeme_adi, miktar, birim, stok_kart_id, urun_kart_id } = req.body;
 
+    // urun_kart_id veya stok_kart_id güncellenebilir
     const result = await query(
       `
       UPDATE recete_malzemeler 
-      SET malzeme_adi = $1, miktar = $2, birim = $3, stok_kart_id = $4
-      WHERE id = $5
+      SET malzeme_adi = $1, miktar = $2, birim = $3, 
+          stok_kart_id = COALESCE($4, stok_kart_id),
+          urun_kart_id = COALESCE($5, urun_kart_id)
+      WHERE id = $6
       RETURNING *
     `,
-      [malzeme_adi, miktar, birim, stok_kart_id, id]
+      [malzeme_adi, miktar, birim, stok_kart_id, urun_kart_id, id]
     );
 
     if (result.rows.length === 0) {
@@ -538,15 +542,15 @@ router.post('/receteler/:id/malzemeler', async (req, res) => {
     let fiyatKaynagi = 'manuel';
     let finalStokKartId = stok_kart_id;
 
-    // Ürün kartından fiyat ve stok kartı ID'si al
+    // Ürün kartından fiyat al - YENİ: aktif_fiyat sistemi
     if (urun_kart_id && !birim_fiyat) {
       const urunResult = await query(
         `
         SELECT 
-          uk.stok_kart_id,
-          COALESCE(uk.manuel_fiyat, sk.son_alis_fiyat) as fiyat
+          uk.id,
+          COALESCE(uk.aktif_fiyat, uk.aktif_fiyat) as fiyat,
+          uk.aktif_fiyat_tipi
         FROM urun_kartlari uk
-        -- stok_kartlari artık kullanılmıyor, uk zaten urun_kartlari
         WHERE uk.id = $1
       `,
         [urun_kart_id]
@@ -555,11 +559,9 @@ router.post('/receteler/:id/malzemeler', async (req, res) => {
       if (urunResult.rows.length > 0) {
         if (urunResult.rows[0].fiyat) {
           finalFiyat = urunResult.rows[0].fiyat;
-          fiyatKaynagi = 'urun_kart';
+          fiyatKaynagi = urunResult.rows[0].aktif_fiyat_tipi || 'urun_kart';
         }
-        if (urunResult.rows[0].stok_kart_id) {
-          finalStokKartId = urunResult.rows[0].stok_kart_id;
-        }
+        finalStokKartId = urunResult.rows[0].id; // urun_kart_id kullan
       }
     }
 
@@ -567,13 +569,13 @@ router.post('/receteler/:id/malzemeler', async (req, res) => {
     if (finalStokKartId && !finalFiyat) {
       const urunResult = await query(
         `
-        SELECT son_alis_fiyati, ad FROM urun_kartlari WHERE id = $1
+        SELECT COALESCE(aktif_fiyat, son_alis_fiyati) as fiyat, ad FROM urun_kartlari WHERE id = $1
       `,
         [finalStokKartId]
       );
 
-      if (urunResult.rows.length > 0 && urunResult.rows[0].son_alis_fiyati) {
-        finalFiyat = urunResult.rows[0].son_alis_fiyati;
+      if (urunResult.rows.length > 0 && urunResult.rows[0].fiyat) {
+        finalFiyat = urunResult.rows[0].fiyat;
         fiyatKaynagi = 'urun_kart';
       }
     }
@@ -613,23 +615,26 @@ router.post('/receteler/:id/malzemeler', async (req, res) => {
 router.put('/malzemeler/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { stok_kart_id, malzeme_adi, miktar, birim, zorunlu, birim_fiyat } = req.body;
+    const { stok_kart_id, urun_kart_id, malzeme_adi, miktar, birim, zorunlu, birim_fiyat } = req.body;
 
     // Fiyat belirleme
     let finalFiyat = birim_fiyat;
     let fiyatKaynagi = birim_fiyat ? 'manuel' : null;
 
-    // Eğer stok kartı seçilmişse ve fiyat verilmemişse, ürün kartından çek - YENİ SİSTEM
-    if (stok_kart_id && !birim_fiyat) {
+    // Ürün kartı veya stok kartı id'si - YENİ SİSTEM
+    const kartId = urun_kart_id || stok_kart_id;
+    
+    // Eğer kart seçilmişse ve fiyat verilmemişse, ürün kartından çek
+    if (kartId && !birim_fiyat) {
       const urunResult = await query(
         `
-        SELECT son_alis_fiyati FROM urun_kartlari WHERE id = $1
+        SELECT COALESCE(aktif_fiyat, son_alis_fiyati) as fiyat FROM urun_kartlari WHERE id = $1
       `,
-        [stok_kart_id]
+        [kartId]
       );
 
-      if (urunResult.rows.length > 0 && urunResult.rows[0].son_alis_fiyati) {
-        finalFiyat = urunResult.rows[0].son_alis_fiyati;
+      if (urunResult.rows.length > 0 && urunResult.rows[0].fiyat) {
+        finalFiyat = urunResult.rows[0].fiyat;
         fiyatKaynagi = 'urun_kart';
       }
     }
@@ -638,6 +643,7 @@ router.put('/malzemeler/:id', async (req, res) => {
       `
       UPDATE recete_malzemeler SET
         stok_kart_id = COALESCE($1, stok_kart_id),
+        urun_kart_id = COALESCE($9, urun_kart_id),
         malzeme_adi = COALESCE($2, malzeme_adi),
         miktar = COALESCE($3, miktar),
         birim = COALESCE($4, birim),
@@ -649,7 +655,7 @@ router.put('/malzemeler/:id', async (req, res) => {
       WHERE id = $6
       RETURNING *
     `,
-      [stok_kart_id, malzeme_adi, miktar, birim, zorunlu, id, finalFiyat, fiyatKaynagi]
+      [stok_kart_id, malzeme_adi, miktar, birim, zorunlu, id, finalFiyat, fiyatKaynagi, urun_kart_id]
     );
 
     if (result.rows.length === 0) {
@@ -697,12 +703,20 @@ router.delete('/malzemeler/:id', async (req, res) => {
 // Reçete maliyetini hesapla
 async function hesaplaReceteMaliyet(receteId) {
   try {
-    // Malzemeleri al (stok_kart_id veya malzeme adına göre fiyat ara)
+    // Malzemeleri al - YENİ: aktif_fiyat sistemini kullan
     const malzemeler = await query(
       `
       SELECT 
         rm.*,
-        sk.son_alis_fiyat as sistem_fiyat,
+        -- Yeni aktif_fiyat sistemi
+        urk.aktif_fiyat,
+        urk.aktif_fiyat_tipi,
+        urk.aktif_fiyat_guven,
+        urk.varsayilan_birim,
+        urk.fiyat_birimi,
+        urk.ad as urun_adi,
+        -- Eski sistem (fallback)
+        urk.son_alis_fiyati as sistem_fiyat,
         COALESCE(
           -- 1. Öncelik: stok_kart_id ile eşleşen fiyat
           (
@@ -731,22 +745,65 @@ async function hesaplaReceteMaliyet(receteId) {
     let toplamMaliyet = 0;
 
     for (const m of malzemeler.rows) {
-      // Fiyat önceliği: piyasa > sistem > 0
-      const birimFiyat = m.piyasa_fiyat || m.sistem_fiyat || 0;
+      // Fiyat önceliği: aktif_fiyat > piyasa > sistem > 0
+      const birimFiyat = m.aktif_fiyat || m.aktif_fiyat || 0;
 
-      // Birim dönüşümü (g → kg, ml → L)
+      // Birim dönüşümü - fiyat_birimi ve varsayilan_birim kullan (birim-constants ile uyumlu)
       let maliyet = 0;
-      const birim = (m.birim || '').toLowerCase();
+      const malzemeBirim = (m.birim || '').toLowerCase().replace(/\./g, '');
+      const urunBirim = (m.varsayilan_birim || '').toLowerCase().replace(/\./g, '');
+      const fiyatBirim = (m.fiyat_birimi || 'kg').toLowerCase().replace(/\./g, '').replace('tl/', '');
+      const urunAdi = m.urun_adi || m.malzeme_adi || '';
 
-      if (birim === 'g' || birim === 'gr') {
-        maliyet = (m.miktar / 1000) * birimFiyat; // kg fiyatı
-      } else if (birim === 'ml') {
-        maliyet = (m.miktar / 1000) * birimFiyat; // L fiyatı
-      } else {
-        maliyet = m.miktar * birimFiyat;
+      // ADET birimli ürünler için özel hesaplama
+      if (urunBirim === 'adet') {
+        if (malzemeBirim === 'g' || malzemeBirim === 'gr') {
+          const adetSayisi = Math.ceil(m.miktar / GRAM_PER_ADET_DEFAULT);
+          maliyet = adetSayisi * birimFiyat;
+        } else if (malzemeBirim === 'adet' || malzemeBirim === 'ad') {
+          maliyet = m.miktar * birimFiyat;
+        } else {
+          maliyet = m.miktar * birimFiyat;
+        }
+      }
+      // Fiyat /Lt ise: ml→L
+      else if (fiyatBirim === 'lt' || fiyatBirim === 'l') {
+        if (malzemeBirim === 'ml') {
+          maliyet = (m.miktar * ML_TO_LITRE) * birimFiyat;
+        } else if (malzemeBirim === 'lt' || malzemeBirim === 'l') {
+          maliyet = m.miktar * birimFiyat;
+        } else {
+          maliyet = (m.miktar * GRAM_TO_KG) * birimFiyat;
+        }
+      }
+      // Fiyat /Kg ise: g→kg, ml→kg (yoğunluk ile)
+      else {
+        if (malzemeBirim === 'g' || malzemeBirim === 'gr') {
+          maliyet = (m.miktar * GRAM_TO_KG) * birimFiyat;
+        } else if (malzemeBirim === 'ml') {
+          const yogunluk = getSiviYogunluk(urunAdi);
+          const density = yogunluk?.yogunluk ?? DEFAULT_OIL_DENSITY;
+          maliyet = (m.miktar * ML_TO_LITRE * density) * birimFiyat; // ml→L→kg
+        } else if (malzemeBirim === 'lt' || malzemeBirim === 'l') {
+          const yogunluk = getSiviYogunluk(urunAdi);
+          const density = yogunluk?.yogunluk ?? DEFAULT_OIL_DENSITY;
+          maliyet = (m.miktar * density) * birimFiyat; // L→kg
+        } else if (malzemeBirim === 'kg') {
+          maliyet = m.miktar * birimFiyat;
+        } else {
+          maliyet = m.miktar * birimFiyat;
+        }
       }
 
-      // Malzeme fiyatını güncelle
+      // Malzeme fiyatını güncelle - kaynak belirleme
+      const fiyatKaynagi = m.aktif_fiyat
+        ? m.aktif_fiyat_tipi || 'aktif'
+        : m.aktif_fiyat
+          ? 'piyasa'
+          : m.aktif_fiyat
+            ? 'sistem'
+            : 'manuel';
+
       await query(
         `
         UPDATE recete_malzemeler SET
@@ -755,7 +812,7 @@ async function hesaplaReceteMaliyet(receteId) {
           fiyat_kaynagi = $3
         WHERE id = $4
       `,
-        [birimFiyat, maliyet, m.piyasa_fiyat ? 'piyasa' : m.sistem_fiyat ? 'sistem' : 'manuel', m.id]
+        [birimFiyat, maliyet, fiyatKaynagi, m.id]
       );
 
       toplamMaliyet += maliyet;
@@ -2266,6 +2323,7 @@ router.post('/receteler/:id/ai-malzeme-oneri', async (req, res) => {
     const recete = receteResult.rows[0];
 
     // Ürün kartlarını getir (AI eşleştirme için - temiz isimler!)
+    // YENİ: aktif_fiyat sistemini kullan
     const urunKartlariResult = await query(`
       SELECT 
         uk.id, 
@@ -2273,10 +2331,9 @@ router.post('/receteler/:id/ai-malzeme-oneri', async (req, res) => {
         uk.varsayilan_birim as birim,
         uk.fiyat_birimi,
         kat.ad as kategori,
-        COALESCE(uk.manuel_fiyat, sk.son_alis_fiyat) as fiyat
+        COALESCE(uk.aktif_fiyat, uk.aktif_fiyat) as fiyat
       FROM urun_kartlari uk
       LEFT JOIN urun_kategorileri kat ON kat.id = uk.kategori_id
-      -- stok_kartlari artık kullanılmıyor, uk zaten urun_kartlari
       WHERE uk.aktif = true
       ORDER BY kat.sira, uk.ad
     `);
@@ -2588,19 +2645,20 @@ router.get('/urun-kartlari', async (req, res) => {
   try {
     const { kategori_id, arama, aktif = 'true' } = req.query;
 
+    // YENİ: aktif_fiyat sistemini kullan
     let sql = `
       SELECT 
         uk.*,
         kat.ad as kategori_adi,
         kat.ikon as kategori_ikon,
-        sk.ad as stok_kart_adi,
-        sk.son_alis_fiyat as stok_fiyat,
-        b.kisa_ad as stok_birim,
-        COALESCE(uk.manuel_fiyat, sk.son_alis_fiyat) as guncel_fiyat
+        uk.ad as stok_kart_adi,
+        COALESCE(uk.aktif_fiyat, uk.aktif_fiyat) as stok_fiyat,
+        uk.varsayilan_birim as stok_birim,
+        COALESCE(uk.aktif_fiyat, uk.aktif_fiyat) as guncel_fiyat,
+        uk.aktif_fiyat_tipi,
+        uk.aktif_fiyat_guven
       FROM urun_kartlari uk
       LEFT JOIN urun_kategorileri kat ON kat.id = uk.kategori_id
-      -- stok_kartlari artık kullanılmıyor, uk zaten urun_kartlari
-      LEFT JOIN birimler b ON b.id = sk.ana_birim_id
       WHERE 1=1
     `;
 
@@ -2635,20 +2693,21 @@ router.get('/urun-kartlari/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
+    // YENİ: aktif_fiyat sistemini kullan
     const result = await query(
       `
       SELECT 
         uk.*,
         kat.ad as kategori_adi,
         kat.ikon as kategori_ikon,
-        sk.ad as stok_kart_adi,
-        sk.son_alis_fiyat as stok_fiyat,
-        b.kisa_ad as stok_birim,
-        COALESCE(uk.manuel_fiyat, sk.son_alis_fiyat) as guncel_fiyat
+        uk.ad as stok_kart_adi,
+        COALESCE(uk.aktif_fiyat, uk.aktif_fiyat) as stok_fiyat,
+        uk.varsayilan_birim as stok_birim,
+        COALESCE(uk.aktif_fiyat, uk.aktif_fiyat) as guncel_fiyat,
+        uk.aktif_fiyat_tipi,
+        uk.aktif_fiyat_guven
       FROM urun_kartlari uk
       LEFT JOIN urun_kategorileri kat ON kat.id = uk.kategori_id
-      -- stok_kartlari artık kullanılmıyor, uk zaten urun_kartlari
-      LEFT JOIN birimler b ON b.id = sk.ana_birim_id
       WHERE uk.id = $1
     `,
       [id]
@@ -2707,7 +2766,7 @@ router.post('/urun-kartlari', async (req, res) => {
 router.put('/urun-kartlari/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { ad, kategori_id, varsayilan_birim, stok_kart_id, manuel_fiyat, fiyat_birimi, ikon, aktif } = req.body;
+    const { ad, kategori_id, varsayilan_birim, stok_kart_id, manuel_fiyat, fiyat_birimi, ikon, aktif, aktif_fiyat } = req.body;
 
     // Mevcut ürünü kontrol et
     const existing = await query('SELECT * FROM urun_kartlari WHERE id = $1', [id]);
@@ -2717,6 +2776,8 @@ router.put('/urun-kartlari/:id', async (req, res) => {
 
     const current = existing.rows[0];
 
+    // aktif_fiyat verilmişse onu da güncelle
+    const updateAktifFiyat = aktif_fiyat !== undefined;
     const result = await query(
       `
       UPDATE urun_kartlari SET
@@ -2728,6 +2789,9 @@ router.put('/urun-kartlari/:id', async (req, res) => {
         fiyat_birimi = $6,
         ikon = $7,
         aktif = $8,
+        aktif_fiyat = CASE WHEN $10 THEN $11 ELSE aktif_fiyat END,
+        aktif_fiyat_tipi = CASE WHEN $10 THEN 'MANUEL' ELSE aktif_fiyat_tipi END,
+        aktif_fiyat_guncelleme = CASE WHEN $10 THEN NOW() ELSE aktif_fiyat_guncelleme END,
         son_guncelleme = CURRENT_TIMESTAMP
       WHERE id = $9
       RETURNING *
@@ -2737,11 +2801,13 @@ router.put('/urun-kartlari/:id', async (req, res) => {
         kategori_id ?? current.kategori_id,
         varsayilan_birim ?? current.varsayilan_birim,
         stok_kart_id !== undefined ? stok_kart_id : current.stok_kart_id,
-        manuel_fiyat !== undefined ? manuel_fiyat : current.manuel_fiyat,
+        manuel_fiyat !== undefined ? manuel_fiyat : current.aktif_fiyat,
         fiyat_birimi ?? current.fiyat_birimi,
         ikon ?? current.ikon,
         aktif !== undefined ? aktif : current.aktif,
         id,
+        updateAktifFiyat,
+        aktif_fiyat,
       ]
     );
 
@@ -2819,7 +2885,7 @@ router.get('/stok-kartlari-listesi', async (req, res) => {
         uk.kod,
         uk.ad,
         b.kisa_ad as birim,
-        uk.son_alis_fiyati as son_alis_fiyat
+        COALESCE(uk.aktif_fiyat, uk.aktif_fiyat) as son_alis_fiyat
       FROM urun_kartlari uk
       LEFT JOIN birimler b ON b.id = uk.ana_birim_id
       WHERE uk.aktif = true
@@ -2837,6 +2903,107 @@ router.get('/stok-kartlari-listesi', async (req, res) => {
     const result = await query(sql, params);
 
     res.json({ success: true, data: result.rows });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =============================================
+// OTOMATİK MALZEME-ÜRÜN KARTI EŞLEŞTİRME
+// =============================================
+
+// Tüm reçete malzemelerini ürün kartlarıyla otomatik eşleştir (HIZLI)
+router.post('/malzemeler/otomatik-esle', async (req, res) => {
+  try {
+    // 1. Tam eşleşme ile toplu güncelle
+    const tamEslesme = await query(`
+      UPDATE recete_malzemeler rm
+      SET urun_kart_id = uk.id, updated_at = NOW()
+      FROM urun_kartlari uk
+      WHERE rm.urun_kart_id IS NULL
+        AND LOWER(rm.malzeme_adi) = LOWER(uk.ad)
+        AND uk.aktif = true
+    `);
+
+    // 2. Benzer eşleşme (malzeme adı ürün adında geçiyor)
+    const benzerEslesme = await query(`
+      UPDATE recete_malzemeler rm
+      SET urun_kart_id = (
+        SELECT uk.id FROM urun_kartlari uk 
+        WHERE uk.aktif = true 
+          AND LOWER(uk.ad) LIKE '%' || LOWER(rm.malzeme_adi) || '%'
+        ORDER BY LENGTH(uk.ad) ASC
+        LIMIT 1
+      ), updated_at = NOW()
+      WHERE rm.urun_kart_id IS NULL
+        AND EXISTS (
+          SELECT 1 FROM urun_kartlari uk 
+          WHERE uk.aktif = true 
+            AND LOWER(uk.ad) LIKE '%' || LOWER(rm.malzeme_adi) || '%'
+        )
+    `);
+
+    // 3. Ters benzer eşleşme (ürün adı malzeme adında geçiyor)
+    const tersEslesme = await query(`
+      UPDATE recete_malzemeler rm
+      SET urun_kart_id = (
+        SELECT uk.id FROM urun_kartlari uk 
+        WHERE uk.aktif = true 
+          AND LOWER(rm.malzeme_adi) LIKE '%' || LOWER(uk.ad) || '%'
+        ORDER BY LENGTH(uk.ad) DESC
+        LIMIT 1
+      ), updated_at = NOW()
+      WHERE rm.urun_kart_id IS NULL
+        AND EXISTS (
+          SELECT 1 FROM urun_kartlari uk 
+          WHERE uk.aktif = true 
+            AND LOWER(rm.malzeme_adi) LIKE '%' || LOWER(uk.ad) || '%'
+        )
+    `);
+
+    const toplam = (tamEslesme.rowCount || 0) + (benzerEslesme.rowCount || 0) + (tersEslesme.rowCount || 0);
+
+    // Eşleşemeyen malzemeleri say
+    const kalan = await query(`
+      SELECT COUNT(*) as sayi FROM recete_malzemeler WHERE urun_kart_id IS NULL
+    `);
+
+    res.json({
+      success: true,
+      data: {
+        tam_eslesme: tamEslesme.rowCount || 0,
+        benzer_eslesme: benzerEslesme.rowCount || 0,
+        ters_eslesme: tersEslesme.rowCount || 0,
+        toplam_eslestirilen: toplam,
+        kalan_eslesmeyen: parseInt(kalan.rows[0].sayi, 10)
+      },
+      message: `${toplam} malzeme eşleştirildi, ${kalan.rows[0].sayi} malzeme eşleşemedi`
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Belirli malzeme adını ürün kartına toplu bağla
+router.post('/malzemeler/toplu-bagla', async (req, res) => {
+  try {
+    const { malzeme_adi, urun_kart_id } = req.body;
+    
+    if (!malzeme_adi || !urun_kart_id) {
+      return res.status(400).json({ success: false, error: 'malzeme_adi ve urun_kart_id gerekli' });
+    }
+    
+    const result = await query(`
+      UPDATE recete_malzemeler
+      SET urun_kart_id = $1, updated_at = NOW()
+      WHERE LOWER(malzeme_adi) = LOWER($2)
+    `, [urun_kart_id, malzeme_adi]);
+    
+    res.json({
+      success: true,
+      data: { guncellenen: result.rowCount },
+      message: `${result.rowCount} "${malzeme_adi}" malzemesi ürün kartına bağlandı`
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

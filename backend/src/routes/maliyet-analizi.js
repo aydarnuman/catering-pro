@@ -1,6 +1,13 @@
 import express from 'express';
 import { query } from '../database.js';
 import { fiyatFarkiHesapla, hesaplaMalzemeMaliyet } from '../utils/fiyat-hesaplama.js';
+import {
+  GRAM_PER_ADET_DEFAULT,
+  GRAM_TO_KG,
+  ML_TO_LITRE,
+  getSiviYogunluk,
+  DEFAULT_OIL_DENSITY,
+} from '../utils/birim-constants.js';
 
 const router = express.Router();
 
@@ -318,9 +325,9 @@ router.post('/sablonlar', async (req, res) => {
                   m.malzeme_adi,
                   m.miktar,
                   m.birim,
-                  m.sistem_fiyat,
-                  m.piyasa_fiyat,
-                  m.manuel_fiyat,
+                  m.aktif_fiyat,
+                  m.aktif_fiyat,
+                  m.aktif_fiyat,
                   j + 1,
                 ]
               );
@@ -595,14 +602,17 @@ async function hesaplaSablonMaliyet(sablonId) {
 
       if (yemek.recete_id) {
         // Reçeteden malzemeleri al ve maliyet hesapla
+        // YENİ: aktif_fiyat sistemini kullan (stok_kartlari yerine urun_kartlari)
         const malzemeler = await query(
           `
           SELECT 
             rm.*,
-            sk.son_alis_fiyat as stok_fatura_fiyat,
-            sk.birim as stok_birim
+            COALESCE(uk.aktif_fiyat, uk.aktif_fiyat) as stok_fatura_fiyat,
+            uk.varsayilan_birim as stok_birim,
+            uk.aktif_fiyat_tipi,
+            uk.aktif_fiyat_guven
           FROM recete_malzemeler rm
-          LEFT JOIN stok_kartlari sk ON sk.id = rm.stok_kart_id
+          LEFT JOIN urun_kartlari uk ON uk.id = rm.urun_kart_id
           WHERE rm.recete_id = $1
         `,
           [yemek.recete_id]
@@ -617,8 +627,8 @@ async function hesaplaSablonMaliyet(sablonId) {
               birim: m.birim,
               fatura_fiyat: m.fatura_fiyat || m.stok_fatura_fiyat,
               fatura_fiyat_tarihi: m.fatura_fiyat_tarihi,
-              piyasa_fiyat: m.piyasa_fiyat || m.birim_fiyat,
-              piyasa_fiyat_tarihi: m.piyasa_fiyat_tarihi,
+              piyasa_fiyat: m.aktif_fiyat || m.birim_fiyat,
+              piyasa_fiyat_tarihi: m.aktif_fiyat_tarihi,
               fiyat_birimi: m.stok_birim || 'kg',
             },
             'auto'
@@ -898,17 +908,19 @@ router.get('/receteler', async (req, res) => {
         r.kalori,
         r.protein,
         r.porsiyon_miktar,
-        -- Piyasa maliyet hesaplama
+        -- Piyasa maliyet hesaplama (YENİ: aktif_fiyat öncelikli)
         (SELECT COALESCE(SUM(
           CASE
             WHEN rm.birim IN ('g', 'gr', 'ml') THEN (rm.miktar / 1000.0) * COALESCE(
+              uk.aktif_fiyat,
               (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi WHERE urun_kart_id = rm.urun_kart_id ORDER BY arastirma_tarihi DESC LIMIT 1),
-              uk.son_alis_fiyati,
+              uk.aktif_fiyat,
               rm.birim_fiyat
             )
             ELSE rm.miktar * COALESCE(
+              uk.aktif_fiyat,
               (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi WHERE urun_kart_id = rm.urun_kart_id ORDER BY arastirma_tarihi DESC LIMIT 1),
-              uk.son_alis_fiyati,
+              uk.aktif_fiyat,
               rm.birim_fiyat
             )
           END
@@ -924,7 +936,7 @@ router.get('/receteler', async (req, res) => {
         -- Piyasa güncellik kontrolü (7 gün - piyasa daha sık güncellenmeli)
         (SELECT MIN(fiyat_guncel_mi(
            COALESCE(
-             rm.piyasa_fiyat_tarihi,
+             rm.aktif_fiyat_tarihi,
              (SELECT arastirma_tarihi FROM piyasa_fiyat_gecmisi WHERE urun_kart_id = rm.urun_kart_id ORDER BY arastirma_tarihi DESC LIMIT 1)
            ), 7))::boolean
          FROM recete_malzemeler rm
@@ -1016,7 +1028,7 @@ router.get('/receteler/:id/maliyet', async (req, res) => {
 
     const recete = receteResult.rows[0];
 
-    // Malzemeler ve fiyatlar
+    // Malzemeler ve fiyatlar (YENİ: aktif_fiyat öncelikli)
     const malzemelerResult = await query(
       `
       SELECT 
@@ -1026,7 +1038,11 @@ router.get('/receteler/:id/maliyet', async (req, res) => {
         rm.birim,
         rm.birim_fiyat as sistem_birim_fiyat,
         rm.toplam_fiyat as sistem_toplam,
-        uk.son_alis_fiyati,
+        COALESCE(uk.aktif_fiyat, uk.aktif_fiyat) as son_alis_fiyati,
+        uk.aktif_fiyat_tipi,
+        uk.aktif_fiyat_guven,
+        uk.varsayilan_birim as urun_birim,
+        uk.fiyat_birimi,
         (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi 
          WHERE urun_kart_id = rm.urun_kart_id 
          ORDER BY arastirma_tarihi DESC LIMIT 1) as piyasa_fiyat,
@@ -1052,12 +1068,41 @@ router.get('/receteler/:id/maliyet', async (req, res) => {
 
     const malzemeler = malzemelerResult.rows.map((m) => {
       const miktar = parseFloat(m.miktar) || 0;
-      const birim = (m.birim || '').toLowerCase();
-      const sistemFiyat = parseFloat(m.sistem_birim_fiyat) || parseFloat(m.son_alis_fiyat) || 0;
-      const piyasaFiyat = parseFloat(m.piyasa_fiyat) || sistemFiyat;
+      const malzemeBirim = (m.birim || '').toLowerCase().replace(/\./g, '');
+      const urunBirim = (m.urun_birim || '').toLowerCase().replace(/\./g, '');
+      const fiyatBirim = (m.fiyat_birimi || 'kg').toLowerCase().replace(/\./g, '').replace('tl/', '');
+      const urunAdi = m.malzeme_adi || '';
+      // Öncelik: aktif_fiyat (güncel) > cache'lenmiş birim_fiyat
+      const sistemFiyat = parseFloat(m.son_alis_fiyati) || parseFloat(m.sistem_birim_fiyat) || 0;
+      const piyasaFiyat = parseFloat(m.aktif_fiyat) || sistemFiyat;
 
-      // Birim dönüşümü (g, ml -> kg, L)
-      const carpan = birim === 'g' || birim === 'gr' || birim === 'ml' ? 0.001 : 1;
+      // Birim dönüşümü - fiyat_birimi ve yoğunluk (birim-constants ile uyumlu)
+      let carpan = 1;
+      if (urunBirim === 'adet') {
+        if (malzemeBirim === 'g' || malzemeBirim === 'gr') {
+          carpan = Math.ceil(miktar / GRAM_PER_ADET_DEFAULT) / miktar;
+        } else {
+          carpan = 1;
+        }
+      } else if (fiyatBirim === 'lt' || fiyatBirim === 'l') {
+        if (malzemeBirim === 'ml') carpan = ML_TO_LITRE;
+        else if (malzemeBirim === 'lt' || malzemeBirim === 'l') carpan = 1;
+        else carpan = GRAM_TO_KG;
+      } else {
+        // Fiyat /Kg ise
+        if (malzemeBirim === 'g' || malzemeBirim === 'gr') carpan = GRAM_TO_KG;
+        else if (malzemeBirim === 'ml') {
+          const yogunluk = getSiviYogunluk(urunAdi);
+          carpan = ML_TO_LITRE * (yogunluk?.yogunluk ?? DEFAULT_OIL_DENSITY); // ml→kg
+        } else if (malzemeBirim === 'lt' || malzemeBirim === 'l') {
+          const yogunluk = getSiviYogunluk(urunAdi);
+          carpan = yogunluk?.yogunluk ?? DEFAULT_OIL_DENSITY;
+        } else if (malzemeBirim === 'kg') {
+          carpan = 1; // kg→kg aynı birim
+        } else {
+          carpan = 1; // bilinmeyen birim için varsayılan
+        }
+      }
 
       const sistemToplam = miktar * carpan * sistemFiyat;
       const piyasaToplam = miktar * carpan * piyasaFiyat;
@@ -1070,6 +1115,7 @@ router.get('/receteler/:id/maliyet', async (req, res) => {
         malzeme_adi: m.malzeme_adi,
         miktar: m.miktar,
         birim: m.birim,
+        urun_birim: m.urun_birim || 'kg', // Ürün kartındaki fiyat birimi
         sistem_fiyat: sistemFiyat,
         piyasa_fiyat: piyasaFiyat,
         sistem_toplam: sistemToplam,

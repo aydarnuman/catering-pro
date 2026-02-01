@@ -261,6 +261,7 @@ import etiketlerRouter from './routes/etiketler.js';
 import exportRouter from './routes/export.js';
 import faturaKalemlerRouter from './routes/fatura-kalemler.js';
 import firmalarRouter from './routes/firmalar.js';
+import fiyatYonetimiRouter from './routes/fiyat-yonetimi.js';
 import ihaleSonuclariRouter from './routes/ihale-sonuclari.js';
 import importRouter from './routes/import.js';
 import invoicesRouter from './routes/invoices.js';
@@ -300,6 +301,7 @@ import tenderTrackingRouter from './routes/tender-tracking.js';
 import tendersRouter from './routes/tenders.js';
 import urunlerRouter from './routes/urunler.js';
 import uyumsoftRouter from './routes/uyumsoft.js';
+import dailyAuditRouter from './routes/daily-audit.js';
 import documentQueueProcessor from './services/document-queue-processor.js';
 import reminderNotificationScheduler from './services/reminder-notification-scheduler.js';
 import scheduler from './services/sync-scheduler.js';
@@ -360,6 +362,7 @@ app.use('/api/audit-logs', auditLogsRouter);
 app.use('/api/mail', mailRouter);
 app.use('/api/scraper', scraperRouter);
 app.use('/api/maliyet-analizi', maliyetAnaliziRouter);
+app.use('/api/fiyat-yonetimi', fiyatYonetimiRouter);
 // DEPRECATED: Eski ihale not sistemi - unified_notes'a taşındı (2026-01-29)
 // app.use('/api/tender-notes', tenderNotesRouter);
 app.use('/api/tender-dilekce', tenderDilekceRouter);
@@ -367,6 +370,7 @@ app.use('/api/social', socialRouter);
 app.use('/api/system', systemRouter);
 app.use('/api/prompt-builder', promptBuilderRouter);
 app.use('/api/preferences', preferencesRouter);
+app.use('/api/daily-audit', dailyAuditRouter);
 
 /**
  * @swagger

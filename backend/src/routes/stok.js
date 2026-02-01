@@ -19,7 +19,7 @@ router.get('/depolar', async (_req, res) => {
       SELECT 
         d.*,
         COUNT(DISTINCT udd.urun_kart_id) as urun_sayisi,
-        COALESCE(SUM(udd.miktar * uk.son_alis_fiyati), 0) as toplam_deger,
+        COALESCE(SUM(udd.miktar * COALESCE(uk.aktif_fiyat, uk.aktif_fiyat, 0)), 0) as toplam_deger,
         SUM(CASE WHEN udd.miktar <= COALESCE(uk.kritik_stok, 0) AND udd.miktar > 0 THEN 1 ELSE 0 END) as kritik_urun
       FROM depolar d
       LEFT JOIN urun_depo_durumlari udd ON udd.depo_id = d.id
@@ -55,7 +55,7 @@ router.get('/depolar/:depoId/lokasyonlar', async (req, res) => {
         dl.sicaklik_min,
         dl.sicaklik_max,
         COUNT(DISTINCT udd.urun_kart_id) as urun_sayisi,
-        COALESCE(SUM(udd.miktar * COALESCE(uk.son_alis_fiyati, 0)), 0) as toplam_deger
+        COALESCE(SUM(udd.miktar * COALESCE(uk.aktif_fiyat, uk.aktif_fiyat, 0)), 0) as toplam_deger
       FROM depo_lokasyonlar dl
       LEFT JOIN urun_depo_durumlari udd ON udd.depo_id = dl.depo_id AND udd.raf_konum = dl.kod
       LEFT JOIN urun_kartlari uk ON uk.id = udd.urun_kart_id
@@ -113,8 +113,11 @@ router.get('/lokasyonlar/:lokasyonId/stoklar', async (req, res) => {
         uk.min_stok,
         uk.max_stok,
         uk.kritik_stok,
-        uk.son_alis_fiyati as son_alis_fiyat,
-        (udd.miktar * COALESCE(uk.son_alis_fiyati, 0)) as stok_deger,
+        COALESCE(uk.aktif_fiyat, uk.aktif_fiyat) as son_alis_fiyat,
+        (udd.miktar * COALESCE(uk.aktif_fiyat, uk.aktif_fiyat, 0)) as stok_deger,
+        uk.aktif_fiyat_tipi,
+        uk.aktif_fiyat_guven,
+        uk.aktif_fiyat_guncelleme,
         CASE
           WHEN udd.miktar = 0 THEN 'tukendi'
           WHEN uk.kritik_stok IS NOT NULL AND udd.miktar <= uk.kritik_stok THEN 'kritik'
@@ -187,8 +190,10 @@ router.get('/depolar/:depoId/stoklar', async (req, res) => {
         uk.min_stok,
         uk.max_stok,
         uk.kritik_stok,
-        uk.son_alis_fiyati as son_alis_fiyat,
-        (udd.miktar * COALESCE(uk.son_alis_fiyati, 0)) as stok_deger,
+        COALESCE(uk.aktif_fiyat, uk.aktif_fiyat) as son_alis_fiyat,
+        (udd.miktar * COALESCE(uk.aktif_fiyat, uk.aktif_fiyat, 0)) as stok_deger,
+        uk.aktif_fiyat_tipi,
+        uk.aktif_fiyat_guven,
         CASE 
           WHEN udd.miktar = 0 THEN 'tukendi'
           WHEN udd.miktar <= COALESCE(uk.kritik_stok, 0) THEN 'kritik'
@@ -355,7 +360,7 @@ router.delete('/depolar/:id', async (req, res) => {
 // Tüm stok kartlarını listele - YENİ SİSTEM: urun_kartlari + urun_depo_durumlari
 router.get('/kartlar', async (req, res) => {
   try {
-    const { kategori, depo, kritik, arama, limit = 100, offset = 0 } = req.query;
+    const { kategori, depo, kritik, arama, limit, offset = 0 } = req.query;
 
     const whereConditions = ['uk.aktif = true'];
     const queryParams = [];
@@ -390,9 +395,14 @@ router.get('/kartlar', async (req, res) => {
       paramIndex++;
     }
 
-    const limitIndex = paramIndex;
-    const offsetIndex = paramIndex + 1;
-    queryParams.push(limit, offset);
+    // Limit ve offset'i sadece limit varsa ekle
+    let limitClause = '';
+    if (limit) {
+      const limitIndex = paramIndex;
+      const offsetIndex = paramIndex + 1;
+      queryParams.push(limit, offset);
+      limitClause = `LIMIT $${limitIndex} OFFSET $${offsetIndex}`;
+    }
 
     const result = await query(
       `
@@ -409,9 +419,9 @@ router.get('/kartlar', async (req, res) => {
         uk.min_stok,
         uk.max_stok,
         uk.kritik_stok,
-        uk.son_alis_fiyati as son_alis_fiyat,
-        uk.ortalama_fiyat as ortalama_maliyet,
-        (COALESCE(toplam.miktar, 0) * COALESCE(uk.son_alis_fiyati, 0)) as stok_deger,
+        COALESCE(uk.aktif_fiyat, uk.aktif_fiyat) as son_alis_fiyat,
+        uk.aktif_fiyat as ortalama_maliyet,
+        (COALESCE(toplam.miktar, 0) * COALESCE(uk.aktif_fiyat, uk.aktif_fiyat, 0)) as stok_deger,
         NULL as tedarikci,
         NULL as tedarik_suresi,
         CASE 
@@ -430,12 +440,12 @@ router.get('/kartlar', async (req, res) => {
       LEFT JOIN birimler b ON b.id = uk.ana_birim_id
       WHERE ${whereConditions.join(' AND ')}
       ORDER BY uk.kod
-      LIMIT $${limitIndex} OFFSET $${offsetIndex}
+      ${limitClause}
     `,
       queryParams
     );
 
-    const countParams = queryParams.slice(0, -2);
+    const countParams = limit ? queryParams.slice(0, -2) : queryParams;
     const countResult = await query(
       `
       SELECT COUNT(DISTINCT uk.id) as total
@@ -454,7 +464,7 @@ router.get('/kartlar', async (req, res) => {
       success: true,
       data: result.rows,
       total: parseInt(countResult.rows[0].total, 10),
-      limit: parseInt(limit, 10),
+      limit: limit ? parseInt(limit, 10) : null,
       offset: parseInt(offset, 10),
     });
   } catch (error) {
@@ -531,7 +541,7 @@ router.get('/kartlar/:id', async (req, res) => {
       `
       SELECT
         uk.*,
-        uk.son_alis_fiyati as son_alis_fiyat,
+        COALESCE(uk.aktif_fiyat, uk.aktif_fiyat) as son_alis_fiyat,
         k.ad as kategori_ad,
         b.ad as birim_ad,
         b.kisa_ad as birim_kisa
@@ -778,12 +788,12 @@ router.post('/hareketler/giris', async (req, res) => {
       ]
     );
 
-    // Fiyat geçmişine ekle
+    // Fiyat geçmişine ekle (MANUEL kaynak ID: kod='MANUEL')
     if (birim_fiyat && birim_fiyat > 0) {
       await query(
         `
-        INSERT INTO urun_fiyat_gecmisi (urun_kart_id, cari_id, fiyat, kaynak, tarih, created_at)
-        VALUES ($1, $2, $3, 'manuel', CURRENT_DATE, NOW())
+        INSERT INTO urun_fiyat_gecmisi (urun_kart_id, cari_id, fiyat, kaynak, kaynak_id, tarih, created_at)
+        VALUES ($1, $2, $3, 'manuel', (SELECT id FROM fiyat_kaynaklari WHERE kod = 'MANUEL'), CURRENT_DATE, NOW())
       `,
         [urunId, cari_id, birim_fiyat]
       );
@@ -988,7 +998,7 @@ router.get('/rapor/deger', async (_req, res) => {
         COALESCE(k.ad, 'Kategorisiz') as kategori,
         COUNT(*) as urun_sayisi,
         COALESCE(SUM(uk.toplam_stok), 0) as toplam_miktar,
-        COALESCE(SUM(uk.toplam_stok * COALESCE(uk.son_alis_fiyati, 0)), 0) as toplam_deger
+        COALESCE(SUM(uk.toplam_stok * COALESCE(uk.aktif_fiyat, uk.aktif_fiyat, 0)), 0) as toplam_deger
       FROM urun_kartlari uk
       LEFT JOIN urun_kategorileri k ON k.id = uk.kategori_id
       WHERE uk.aktif = true
@@ -1237,12 +1247,12 @@ router.post('/faturadan-giris', async (req, res) => {
         [birimFiyat, kalem.stok_kart_id]
       );
 
-      // 4. Fiyat geçmişi kaydet (urun_fiyat_gecmisi)
+      // 4. Fiyat geçmişi kaydet (urun_fiyat_gecmisi) - FATURA kaynağı
       if (birimFiyat > 0) {
         await query(
           `
-          INSERT INTO urun_fiyat_gecmisi (urun_kart_id, fiyat, kaynak, fatura_ettn, tarih, created_at)
-          VALUES ($1, $2, $3, $4, CURRENT_DATE, NOW())
+          INSERT INTO urun_fiyat_gecmisi (urun_kart_id, fiyat, kaynak, kaynak_id, fatura_ettn, tarih, created_at)
+          VALUES ($1, $2, $3, (SELECT id FROM fiyat_kaynaklari WHERE kod = 'FATURA'), $4, CURRENT_DATE, NOW())
         `,
           [kalem.stok_kart_id, birimFiyat, `Fatura: ${tedarikci.substring(0, 40)}`, ettn]
         );
@@ -1334,7 +1344,7 @@ router.get('/kartlar/ara', async (req, res) => {
     // YENİ SİSTEM: urun_kartlari tablosu
     const result = await query(
       `
-      SELECT uk.id, uk.kod, uk.ad, uk.ana_birim_id, uk.son_alis_fiyati as son_alis_fiyat,
+      SELECT uk.id, uk.kod, uk.ad, uk.ana_birim_id, COALESCE(uk.aktif_fiyat, uk.aktif_fiyat) as son_alis_fiyat,
              COALESCE(b.kisa_ad, 'Ad') as birim
       FROM urun_kartlari uk
       LEFT JOIN birimler b ON b.id = uk.ana_birim_id
@@ -1464,14 +1474,14 @@ router.get('/faturalar/:ettn/akilli-kalemler', async (req, res) => {
 
     // Fatura bilgileri
     const tedarikciVkn =
-      invoice.AccountingSupplierParty?.Party?.PartyIdentification?.ID?.['_'] ||
+      invoice.AccountingSupplierParty?.Party?.PartyIdentification?.ID?._ ||
       invoice.AccountingSupplierParty?.Party?.PartyIdentification?.ID ||
       '';
     const faturaInfo = {
-      fatura_no: invoice.ID?.['_'] || invoice.ID,
+      fatura_no: invoice.ID?._ || invoice.ID,
       tarih: invoice.IssueDate,
       toplam_tutar: parseFloat(
-        invoice.LegalMonetaryTotal?.PayableAmount?.['_'] || invoice.LegalMonetaryTotal?.PayableAmount || 0
+        invoice.LegalMonetaryTotal?.PayableAmount?._ || invoice.LegalMonetaryTotal?.PayableAmount || 0
       ),
       gonderen: invoice.AccountingSupplierParty?.Party?.PartyName?.Name || tedarikciVkn,
       gonderen_vkn: tedarikciVkn,
@@ -1487,11 +1497,11 @@ router.get('/faturalar/:ettn/akilli-kalemler', async (req, res) => {
       invoiceLines.map(async (line, index) => {
         const item = line.Item || {};
         const price = line.Price || {};
-        const urunKodu = item.SellersItemIdentification?.ID?.['_'] || item.SellersItemIdentification?.ID || '';
+        const urunKodu = item.SellersItemIdentification?.ID?._ || item.SellersItemIdentification?.ID || '';
         const urunAdi = item.Name || 'Bilinmiyor';
-        const ublBirim = line.InvoicedQuantity?.['$']?.unitCode || 'C62';
-        const miktar = parseFloat(line.InvoicedQuantity?.['_'] || line.InvoicedQuantity || 0);
-        const birimFiyat = parseFloat(price.PriceAmount?.['_'] || price.PriceAmount || 0);
+        const ublBirim = line.InvoicedQuantity?.$?.unitCode || 'C62';
+        const miktar = parseFloat(line.InvoicedQuantity?._ || line.InvoicedQuantity || 0);
+        const birimFiyat = parseFloat(price.PriceAmount?._ || price.PriceAmount || 0);
 
         // Birim dönüşümü
         const birimSonuc = await donusturBirim(ublBirim, miktar);
@@ -1547,9 +1557,9 @@ router.get('/faturalar/:ettn/akilli-kalemler', async (req, res) => {
           birim_kod: birimSonuc.birim_kod,
           birim_donusturuldu: birimSonuc.donusturuldu,
           birim_fiyat: birimSonuc.donusturuldu ? (birimFiyat / birimSonuc.miktar) * miktar : birimFiyat,
-          tutar: parseFloat(line.LineExtensionAmount?.['_'] || line.LineExtensionAmount || 0),
+          tutar: parseFloat(line.LineExtensionAmount?._ || line.LineExtensionAmount || 0),
           kdv_orani: parseFloat(line.TaxTotal?.TaxSubtotal?.TaxCategory?.Percent || 0),
-          kdv_tutar: parseFloat(line.TaxTotal?.TaxAmount?.['_'] || line.TaxTotal?.TaxAmount || 0),
+          kdv_tutar: parseFloat(line.TaxTotal?.TaxAmount?._ || line.TaxTotal?.TaxAmount || 0),
           // Akıllı eşleştirme sonuçları
           eslesme: enIyiEslesme
             ? {
@@ -1657,7 +1667,7 @@ router.post('/toplu-fatura-isle', authenticate, async (req, res) => {
           continue;
         }
 
-        const tedarikciVkn = invoice.AccountingSupplierParty?.Party?.PartyIdentification?.ID?.['_'] || '';
+        const tedarikciVkn = invoice.AccountingSupplierParty?.Party?.PartyIdentification?.ID?._ || '';
         const tedarikci = invoice.AccountingSupplierParty?.Party?.PartyName?.Name || tedarikciVkn;
 
         let invoiceLines = invoice.InvoiceLine;
@@ -1673,11 +1683,11 @@ router.post('/toplu-fatura-isle', authenticate, async (req, res) => {
           const line = invoiceLines[i];
           const item = line.Item || {};
           const price = line.Price || {};
-          const urunKodu = item.SellersItemIdentification?.ID?.['_'] || item.SellersItemIdentification?.ID || '';
+          const urunKodu = item.SellersItemIdentification?.ID?._ || item.SellersItemIdentification?.ID || '';
           const urunAdi = item.Name || 'Bilinmiyor';
-          const ublBirim = line.InvoicedQuantity?.['$']?.unitCode || 'C62';
-          const miktar = parseFloat(line.InvoicedQuantity?.['_'] || line.InvoicedQuantity || 0);
-          const birimFiyat = parseFloat(price.PriceAmount?.['_'] || price.PriceAmount || 0);
+          const ublBirim = line.InvoicedQuantity?.$?.unitCode || 'C62';
+          const miktar = parseFloat(line.InvoicedQuantity?._ || line.InvoicedQuantity || 0);
+          const birimFiyat = parseFloat(price.PriceAmount?._ || price.PriceAmount || 0);
 
           // Birim dönüşümü
           const birimSonuc = await donusturBirim(ublBirim, miktar);
@@ -1794,8 +1804,10 @@ router.post('/toplu-fatura-isle', authenticate, async (req, res) => {
             `
             INSERT INTO urun_fiyat_gecmisi (
               urun_kart_id, tedarikci_vkn, tedarikci_ad, fatura_ettn, fatura_tarihi,
-              fiyat, miktar, onceki_fiyat, fiyat_degisim_orani, anomali_var, anomali_aciklama
-            ) VALUES ($1, $2, $3, $4, CURRENT_DATE, $5, $6, $7, $8, $9, $10)
+              fiyat, miktar, onceki_fiyat, fiyat_degisim_orani, anomali_var, anomali_aciklama,
+              kaynak, kaynak_id
+            ) VALUES ($1, $2, $3, $4, CURRENT_DATE, $5, $6, $7, $8, $9, $10, 
+              'Fatura otomatik', (SELECT id FROM fiyat_kaynaklari WHERE kod = 'FATURA'))
           `,
             [
               urunKartId,
@@ -1956,7 +1968,7 @@ router.get('/fiyat-anomaliler', async (req, res) => {
         ufg.*,
         uk.kod as stok_kodu,
         uk.ad as stok_adi,
-        uk.son_alis_fiyati as guncel_fiyat
+        COALESCE(uk.aktif_fiyat, uk.aktif_fiyat) as guncel_fiyat
       FROM urun_fiyat_gecmisi ufg
       JOIN urun_kartlari uk ON uk.id = ufg.urun_kart_id
       WHERE ufg.anomali_var = true

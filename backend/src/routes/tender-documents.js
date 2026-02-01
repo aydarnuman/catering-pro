@@ -51,7 +51,9 @@ router.post('/:tenderId/download-documents', async (req, res) => {
       [tenderId]
     );
     const dbCount = parseInt(countResult.rows[0]?.count ?? 0, 10);
-    logger.info(`[tender-docs] İndirme tamamlandı tenderId=${tenderId} totalDownloaded=${result.totalDownloaded ?? 0} DB'de toplam download döküman=${dbCount}`);
+    logger.info(
+      `[tender-docs] İndirme tamamlandı tenderId=${tenderId} totalDownloaded=${result.totalDownloaded ?? 0} DB'de toplam download döküman=${dbCount}`
+    );
 
     res.json({
       success: true,

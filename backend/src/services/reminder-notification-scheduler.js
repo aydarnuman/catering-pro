@@ -20,6 +20,7 @@ import unifiedNotificationService, {
   NotificationSource,
   NotificationType,
 } from './unified-notification-service.js';
+import dailyAuditService from './daily-audit.js';
 
 class ReminderNotificationScheduler {
   constructor() {
@@ -361,9 +362,8 @@ class ReminderNotificationScheduler {
       for (const reminder of reminders.rows) {
         try {
           // İçerik önizlemesi
-          const contentPreview = reminder.content.length > 80
-            ? reminder.content.substring(0, 80) + '...'
-            : reminder.content;
+          const contentPreview =
+            reminder.content.length > 80 ? reminder.content.substring(0, 80) + '...' : reminder.content;
 
           // Link belirleme (context'e göre)
           let link = '/?openNotes=1';
@@ -380,14 +380,13 @@ class ReminderNotificationScheduler {
             userId: reminder.user_id,
             title: '🔔 Hatırlatıcı',
             message: contentPreview,
-            type: reminder.priority === 'high' || reminder.priority === 'urgent'
-              ? NotificationType.WARNING
-              : NotificationType.INFO,
+            type:
+              reminder.priority === 'high' || reminder.priority === 'urgent'
+                ? NotificationType.WARNING
+                : NotificationType.INFO,
             category: 'reminder',
             link,
-            severity: reminder.priority === 'urgent'
-              ? NotificationSeverity.WARNING
-              : NotificationSeverity.INFO,
+            severity: reminder.priority === 'urgent' ? NotificationSeverity.WARNING : NotificationSeverity.INFO,
             source: NotificationSource.SYSTEM,
             metadata: {
               scheduler_type: 'scheduled_reminder',
@@ -403,17 +402,20 @@ class ReminderNotificationScheduler {
           });
 
           // Hatırlatıcıyı "gönderildi" olarak işaretle
-          await query(`
+          await query(
+            `
             UPDATE unified_note_reminders
             SET reminder_sent = TRUE, sent_at = NOW()
             WHERE id = $1
-          `, [reminder.reminder_id]);
+          `,
+            [reminder.reminder_id]
+          );
 
           created++;
         } catch (err) {
           logger.error('Process single scheduled reminder error:', {
             reminder_id: reminder.reminder_id,
-            error: err.message
+            error: err.message,
           });
           errors++;
         }
@@ -502,6 +504,31 @@ class ReminderNotificationScheduler {
     );
     this.jobs.set('daily_reminders', dailyJob);
 
+    // Her gün saat 06:00'da AI denetim çalıştır
+    const dailyAuditJob = cron.schedule(
+      '0 6 * * *',
+      async () => {
+        logger.info('[CRON] Daily AI audit triggered at 06:00');
+        try {
+          const result = await dailyAuditService.runFullAudit();
+          if (result.success) {
+            logger.info('[DailyAudit] Günlük denetim tamamlandı', {
+              runId: result.runId,
+              stats: result.stats,
+            });
+          } else {
+            logger.error('[DailyAudit] Günlük denetim başarısız', { error: result.error });
+          }
+        } catch (error) {
+          logger.error('[DailyAudit] Cron job hatası', { error: error.message });
+        }
+      },
+      {
+        timezone: 'Europe/Istanbul',
+      }
+    );
+    this.jobs.set('daily_audit', dailyAuditJob);
+
     // Her 5 dakikada bir çalış (zamanlanmış hatırlatıcılar - unified_note_reminders)
     const scheduledJob = cron.schedule(
       '*/5 * * * *',
@@ -529,7 +556,7 @@ class ReminderNotificationScheduler {
       await this.processScheduledReminders();
     }, 30000);
 
-    logger.info('Reminder scheduler started. Schedules: Daily at 07:00, Every 5 minutes (Europe/Istanbul)');
+    logger.info('Reminder scheduler started. Schedules: Daily at 06:00 (audit), 07:00 (reminders), Every 5 minutes (Europe/Istanbul)');
   }
 
   /**
@@ -564,6 +591,7 @@ class ReminderNotificationScheduler {
       stats: { ...this.stats },
       jobs: Array.from(this.jobs.keys()),
       schedule: {
+        daily_audit: '06:00 (Europe/Istanbul) - AI denetim (reçete, menü, fiyat)',
         daily: '07:00 (Europe/Istanbul) - due_date, çek/senet',
         scheduled: 'Her 5 dakika - unified_note_reminders',
       },

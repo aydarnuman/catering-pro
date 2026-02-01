@@ -15,6 +15,8 @@ import express from 'express';
 import { parseStringPromise } from 'xml2js';
 import { query } from '../database.js';
 import { faturaService } from '../scraper/uyumsoft/index.js';
+import { eslestirVeFiyatKaydet, kuyrukOnayla, topluEslestir } from '../services/eslestirme-merkezi.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -285,6 +287,36 @@ router.get('/faturalar/:ettn/kalemler', async (req, res) => {
           kategori_id: null,
           kategori_ad: null,
         });
+
+        // OTOMATİK EŞLEŞTİRME: Kalem eşleşmemişse otomatik eşleştirmeyi dene
+        if (!r.urun_id) {
+          try {
+            const eslestirme = await eslestirVeFiyatKaydet({
+              id: r.id,
+              fatura_ettn: ettn,
+              orijinal_urun_adi: r.orijinal_urun_adi,
+              orijinal_urun_kodu: r.orijinal_urun_kodu,
+              tedarikci_vkn: tedarikciVkn,
+              tedarikci_ad: tedarikciAd,
+              birim: r.birim,
+              birim_fiyat: r.birim_fiyat,
+            });
+
+            if (eslestirme) {
+              // Başarılı eşleştirme - response'a ekle
+              insertedRows[insertedRows.length - 1] = {
+                ...r,
+                urun_id: eslestirme.urun_kart_id,
+                urun_kod: eslestirme.urun_kod,
+                urun_ad: eslestirme.urun_ad,
+                eslestirme_yontemi: eslestirme.yontem,
+                eslestirme_guven: eslestirme.guven_skoru,
+              };
+            }
+          } catch (eslestirmeHata) {
+            logger.warn('Otomatik eşleştirme hatası', { kalem: r.orijinal_urun_adi, hata: eslestirmeHata.message });
+          }
+        }
       }
     }
     res.json({
@@ -353,10 +385,10 @@ async function urunFiyatGuncelle(urunId, birimFiyat, faturaTarihi, faturaEttn, _
     [standartBirimFiyat, faturaTarihi, urunId]
   );
 
-  // Fiyat geçmişine kaydet (STANDART fiyat)
+  // Fiyat geçmişine kaydet (STANDART fiyat) - FATURA kaynağı ile
   await query(
-    `INSERT INTO urun_fiyat_gecmisi (urun_kart_id, fiyat, fatura_ettn, kaynak, aciklama, tarih)
-     VALUES ($1, $2, $3, 'fatura_eslestirme', $4, COALESCE($5::date, CURRENT_DATE))
+    `INSERT INTO urun_fiyat_gecmisi (urun_kart_id, fiyat, fatura_ettn, kaynak, kaynak_id, aciklama, tarih)
+     VALUES ($1, $2, $3, 'fatura_eslestirme', (SELECT id FROM fiyat_kaynaklari WHERE kod = 'FATURA'), $4, COALESCE($5::date, CURRENT_DATE))
      ON CONFLICT DO NOTHING`,
     [
       urunId,
@@ -480,7 +512,7 @@ router.post('/faturalar/:ettn/kalemler/:sira/eslesdir', async (req, res) => {
     let urunBilgisi = null;
     if (urun_id) {
       const urunResult = await query(
-        `SELECT uk.kod as urun_kod, uk.ad as urun_ad, uk.son_alis_fiyati, 
+        `SELECT uk.kod as urun_kod, uk.ad as urun_ad, COALESCE(uk.aktif_fiyat, uk.aktif_fiyat) as son_alis_fiyati, 
                 kat.ad as kategori_ad
          FROM urun_kartlari uk
          LEFT JOIN urun_kategorileri kat ON kat.id = uk.kategori_id
@@ -681,7 +713,7 @@ router.get('/urunler/ara', async (req, res) => {
         SELECT 
           uk.id, uk.kod, uk.ad, uk.kategori_id,
           kat.ad as kategori_ad,
-          vgf.son_fiyat, vgf.ortalama_fiyat
+          vgf.son_fiyat, vgf.aktif_fiyat
         FROM urun_kartlari uk
         LEFT JOIN urun_kategorileri kat ON kat.id = uk.kategori_id
         LEFT JOIN v_urun_guncel_fiyat vgf ON vgf.id = uk.id
@@ -1062,5 +1094,120 @@ router.get('/raporlar/tedarikci-ozet', async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// ==================== OTOMATİK EŞLEŞTİRME API ====================
+
+/**
+ * POST /eslestirme/toplu
+ * Eşleşmemiş tüm kalemleri otomatik eşleştir
+ */
+router.post('/eslestirme/toplu', async (req, res) => {
+  try {
+    const { limit = 50 } = req.body;
+
+    const sonuc = await topluEslestir(Math.min(limit, 200));
+
+    res.json({
+      success: true,
+      data: sonuc,
+      message: `${sonuc.basarili} kalem eşleştirildi, ${sonuc.kuyruk} kalem kuyruğa eklendi`,
+    });
+  } catch (error) {
+    logger.error('Toplu eşleştirme API hatası', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /eslestirme/kuyruk
+ * Onay bekleyen eşleştirmeleri getir
+ */
+router.get('/eslestirme/kuyruk', async (req, res) => {
+  try {
+    const { durum = 'bekliyor', limit = 50, offset = 0 } = req.query;
+
+    const result = await query(
+      `
+      SELECT 
+        ek.*,
+        uk.kod as onerilen_urun_kod,
+        uk.ad as onerilen_urun_ad
+      FROM eslestirme_kuyrugu ek
+      LEFT JOIN urun_kartlari uk ON uk.id = ek.onerilen_urun_id
+      WHERE ek.durum = $1
+      ORDER BY ek.created_at DESC
+      LIMIT $2 OFFSET $3
+    `,
+      [durum, Number(limit), Number(offset)]
+    );
+
+    // Toplam sayı
+    const countResult = await query('SELECT COUNT(*) as total FROM eslestirme_kuyrugu WHERE durum = $1', [durum]);
+
+    res.json({
+      success: true,
+      data: result.rows,
+      total: parseInt(countResult.rows[0]?.total, 10) || 0,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /eslestirme/kuyruk/:id/onayla
+ * Kuyruktan manuel onay
+ */
+router.post('/eslestirme/kuyruk/:id/onayla', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { urun_kart_id, birim_carpan = 1 } = req.body;
+
+    if (!urun_kart_id) {
+      return res.status(400).json({ success: false, error: 'urun_kart_id gerekli' });
+    }
+
+    await kuyrukOnayla(parseInt(id, 10), parseInt(urun_kart_id, 10), parseFloat(birim_carpan));
+
+    res.json({ success: true, message: 'Eşleştirme onaylandı' });
+  } catch (error) {
+    logger.error('Kuyruk onaylama API hatası', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /eslestirme/kuyruk/:id/reddet
+ * Kuyruktan reddet
+ */
+router.post('/eslestirme/kuyruk/:id/reddet', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await query(`UPDATE eslestirme_kuyrugu SET durum = 'reddedildi', islem_tarihi = NOW() WHERE id = $1`, [id]);
+
+    res.json({ success: true, message: 'Eşleştirme reddedildi' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /eslestirme/istatistik
+ * Eşleştirme istatistikleri
+ */
+router.get('/eslestirme/istatistik', async (_req, res) => {
+  try {
+    const result = await query('SELECT * FROM v_eslestirme_istatistik');
+
+    res.json({
+      success: true,
+      data: result.rows[0] || {},
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 
 export default router;

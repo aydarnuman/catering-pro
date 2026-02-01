@@ -466,7 +466,7 @@ router.get('/stok/excel', async (req, res) => {
   try {
     const { kategori, kritik } = req.query;
 
-    let sql = 'SELECT *, son_alis_fiyati as son_alis_fiyat FROM urun_kartlari WHERE aktif = true';
+    let sql = 'SELECT *, COALESCE(aktif_fiyat, son_alis_fiyati) as son_alis_fiyat FROM urun_kartlari WHERE aktif = true';
     const params = [];
 
     if (kategori) {
@@ -498,7 +498,7 @@ router.get('/stok/pdf', async (req, res) => {
   try {
     const { kategori, kritik } = req.query;
 
-    let sql = 'SELECT *, son_alis_fiyati as son_alis_fiyat FROM urun_kartlari WHERE aktif = true';
+    let sql = 'SELECT *, COALESCE(aktif_fiyat, son_alis_fiyati) as son_alis_fiyat FROM urun_kartlari WHERE aktif = true';
     const params = [];
 
     if (kategori) {
@@ -535,7 +535,7 @@ router.post('/stok/mail', async (req, res) => {
       return res.status(400).json({ error: 'E-posta adresi gerekli' });
     }
 
-    let sql = 'SELECT *, son_alis_fiyati as son_alis_fiyat FROM urun_kartlari WHERE aktif = true';
+    let sql = 'SELECT *, COALESCE(aktif_fiyat, son_alis_fiyati) as son_alis_fiyat FROM urun_kartlari WHERE aktif = true';
     const params = [];
 
     if (kategori) {
