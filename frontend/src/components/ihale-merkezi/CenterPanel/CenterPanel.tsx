@@ -501,16 +501,7 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
                                 leftSection={<IconBookmark size={14} />}
                                 onClick={async () => {
                                   try {
-                                    await tendersAPI.addTracking({
-                                      tender_id: selectedTender.id,
-                                      external_id: selectedTender.external_id,
-                                      ihale_basligi: selectedTender.title,
-                                      kurum: selectedTender.organization,
-                                      city: selectedTender.city,
-                                      tarih: selectedTender.deadline,
-                                      bedel: selectedTender.estimated_cost?.toString(),
-                                      url: selectedTender.url,
-                                    });
+                                    await tendersAPI.addTracking(selectedTender.id);
                                     onRefreshData?.();
                                   } catch (error) {
                                     console.error('Takibe ekleme hatası:', error);
