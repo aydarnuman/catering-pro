@@ -589,8 +589,27 @@ class DocumentStorageService {
 
   /**
    * Belirli bir dökümanı kuyruğa ekle (analiz için)
+   * ALTIN KURAL: ZIP dosyaları asla analize gönderilmez!
    */
   async addToQueue(documentId) {
+    // Önce dökümanı kontrol et
+    const checkResult = await pool.query(
+      `SELECT id, original_filename, file_type, is_extracted 
+       FROM documents WHERE id = $1`,
+      [documentId]
+    );
+
+    if (checkResult.rows.length === 0) {
+      throw new Error(`Döküman bulunamadı: ${documentId}`);
+    }
+
+    const doc = checkResult.rows[0];
+
+    // ZIP dosyaları analize gönderilemez - ALTIN KURAL
+    if (doc.file_type === 'zip' || doc.file_type === '.zip') {
+      throw new Error(`ZIP dosyaları analize gönderilemez. Önce çıkarılmalı: ${doc.original_filename}`);
+    }
+
     const result = await pool.query(
       `UPDATE documents 
        SET processing_status = 'queued'
@@ -599,24 +618,33 @@ class DocumentStorageService {
       [documentId]
     );
 
-    if (result.rows.length === 0) {
-      throw new Error(`Döküman bulunamadı: ${documentId}`);
-    }
-
     return result.rows[0];
   }
 
   /**
    * Birden fazla dökümanı kuyruğa ekle
+   * ALTIN KURAL: ZIP dosyaları otomatik olarak atlanır!
    */
   async addMultipleToQueue(documentIds) {
+    // ZIP dosyalarını hariç tut - ALTIN KURAL
     const result = await pool.query(
       `UPDATE documents 
        SET processing_status = 'queued'
        WHERE id = ANY($1::int[])
+         AND file_type NOT IN ('zip', '.zip')
        RETURNING id, original_filename, processing_status`,
       [documentIds]
     );
+
+    // Atlanan ZIP'leri logla
+    if (result.rows.length < documentIds.length) {
+      const skippedCount = documentIds.length - result.rows.length;
+      logger.info('ZIP files skipped from queue', {
+        module: 'document-storage',
+        skippedCount,
+        queuedCount: result.rows.length,
+      });
+    }
 
     return result.rows;
   }

@@ -1,3 +1,11 @@
+/**
+ * @deprecated Bu modül artık kullanılmıyor!
+ * Yeni Pipeline v5.0 kullanın: ai-analyzer/pipeline/
+ *
+ * Dosya analizi için: import { runPipeline } from './ai-analyzer/index.js'
+ * Metin analizi için: import { analyze } from './ai-analyzer/pipeline/analyzer.js'
+ */
+
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -372,129 +380,227 @@ function mergeSayfalar(sayfalar) {
 }
 
 /**
- * PDF'i doğrudan Claude'a gönder (görüntü dönüşümü başarısız olduğunda)
- * Claude PDF'i base64 olarak kabul eder
+ * PDF'i doğrudan Claude'a gönder
+ * Akış: Native PDF → OCR → Görüntü analizi
  */
 async function analyzePdfDirectWithClaude(pdfPath, onProgress) {
   const pdfBuffer = fs.readFileSync(pdfPath);
   const base64Pdf = pdfBuffer.toString('base64');
-
-  // PDF boyut kontrolü (Claude max ~25MB)
   const sizeMB = pdfBuffer.length / (1024 * 1024);
-  if (sizeMB > 20) {
-    // Büyük PDF için sadece metin çıkar
+
+  if (onProgress) onProgress({ stage: 'analyzing', message: `PDF analiz ediliyor (${sizeMB.toFixed(1)} MB)...` });
+
+  // Metin çıkarmayı dene
+  let extractedText = '';
+  try {
     const pdfParse = (await import('pdf-parse')).default;
     const data = await pdfParse(pdfBuffer);
+    extractedText = data.text || '';
+  } catch (_e) {}
 
-    if (data.text && data.text.length > 100) {
-      return await analyzeTextWithClaudeInternal(data.text.substring(0, 50000));
+  const isScannedPdf = extractedText.length < 200;
+
+  // 1. Claude native PDF (32MB'a kadar, taranmış değilse)
+  if (sizeMB <= 32 && !isScannedPdf) {
+    if (onProgress) onProgress({ stage: 'analyzing', message: 'Claude native PDF analizi...' });
+    
+    try {
+      const response = await anthropic.messages.create({
+        model: 'claude-opus-4-20250514',
+        max_tokens: 8192,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'document',
+                source: { type: 'base64', media_type: 'application/pdf', data: base64Pdf },
+              },
+              { type: 'text', text: getIhaleAnalysisPrompt() },
+            ],
+          },
+        ],
+      });
+      return parseClaudeResponse(response.content[0].text);
+    } catch (err) {
+      console.warn('Claude native PDF başarısız:', err.message);
     }
-
-    throw new Error('PDF çok büyük ve metin çıkarılamadı');
   }
 
-  if (onProgress) onProgress({ stage: 'analyzing', message: 'PDF Claude ile analiz ediliyor...' });
+  // 2. Taranmış PDF → OCR
+  if (isScannedPdf || sizeMB > 32) {
+    if (onProgress) onProgress({ stage: 'ocr', message: 'Taranmış PDF - OCR başlatılıyor...' });
+    const ocrText = await extractTextWithOCR(pdfPath, onProgress);
+    if (ocrText && ocrText.length > 200) {
+      if (onProgress) onProgress({ stage: 'analyzing', message: 'OCR metni analiz ediliyor...' });
+      return await analyzeTextWithClaudeInternal(ocrText.substring(0, 80000));
+    }
+  }
 
-  const response = await anthropic.messages.create({
-    model: 'claude-opus-4-20250514',
-    max_tokens: 8192,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'document',
-            source: {
-              type: 'base64',
-              media_type: 'application/pdf',
-              data: base64Pdf,
-            },
-          },
-          {
-            type: 'text',
-            text: `Sen bir YEMEK/CATERİNG ihale dökümanı analiz uzmanısın. Bu PDF'i DİKKATLİCE analiz et ve SOMUT bilgileri çıkar.
+  // 3. Metin varsa analiz et
+  if (extractedText.length > 200) {
+    if (onProgress) onProgress({ stage: 'analyzing', message: 'Metin analiz ediliyor...' });
+    return await analyzeTextWithClaudeInternal(extractedText.substring(0, 80000));
+  }
 
-ÖNEMLİ TALİMATLAR:
-1. Aşağıdaki STANDART/GENEL bilgileri ASLA yazma (bunlar tüm ihalelerde aynı):
-   - "EKAP üzerinden teklif verilecek/e-imza ile" 
-   - "Açık ihale usulü"
-   - "4734 sayılı Kanun kapsamında"
-   - "Sözleşme Türkçe hazırlanmış"
-   - "Tebligatlar EKAP üzerinden"
-   - "EKAP'a kayıt zorunlu"
-   - "İhale dokümanı EKAP'ta görülebilir"
-   - "Belgeler Türkçe olacak"
-   - "İhale tarihinin tatil gününe rastlaması halinde..."
-   - "Yerli istekliler katılabilir"
-   - "Konsorsiyum olarak teklif verilemez"
-   - "Elektronik eksiltme yapılmayacak"
-   
-2. SADECE BU İHALEYE ÖZGÜ SPESİFİK bilgileri çıkar:
-   - Günlük/haftalık/aylık YEMEK SAYISI
-   - Kaç KİŞİYE yemek verileceği
-   - GRAMAJ bilgileri (et, pilav, salata vb. için gram cinsinden)
-   - MENÜ TİPLERİ (kahvaltı, öğle, akşam, ara öğün)
-   - GIDA GÜVENLİĞİ gereksinimleri (ISO, HACCP, sertifikalar)
-   - KALORİ ihtiyaçları
-   - TESLİMAT saatleri ve yerleri
-   - CEZA ŞARTLARI (gecikme, eksik teslimat için TL cinsinden cezalar)
-   - ZORUNLU BELGELER listesi
+  // 4. Son çare: Sayfa sayfa görüntü analizi
+  if (onProgress) onProgress({ stage: 'fallback', message: 'Görüntü analizi başlatılıyor...' });
+  return await analyzePdfAsImages(pdfPath, onProgress);
+}
 
-3. teknik_sartlar için: Yemek gramajları, porsiyon boyutları, malzeme kalitesi, saklama koşulları gibi SOMUT teknik detaylar
-4. notlar için: Sadece İŞ İÇİN KRİTİK bilgiler (cezalar, zorunlu belgeler, özel koşullar)
-5. birim_fiyatlar için: Her kalemi TAM olarak çıkar (kalem adı, birim, miktar)
+/**
+ * Tesseract OCR ile PDF'den metin çıkar
+ */
+async function extractTextWithOCR(pdfPath, onProgress) {
+  const tempDir = path.join(path.dirname(pdfPath), `ocr_${Date.now()}`);
+  
+  try {
+    fs.mkdirSync(tempDir, { recursive: true });
+
+    // PDF'i görüntülere çevir
+    if (onProgress) onProgress({ stage: 'ocr', message: 'PDF sayfaları görüntüye çevriliyor...' });
+    
+    const convert = fromPath(pdfPath, {
+      density: 200,
+      saveFilename: 'page',
+      savePath: tempDir,
+      format: 'png',
+      width: 1600,
+      height: 2200,
+    });
+
+    // Sayfa sayısını bul ve çevir
+    const images = [];
+    let pageNum = 1;
+    
+    while (pageNum <= 100) {
+      try {
+        const result = await convert(pageNum);
+        if (result && result.path) {
+          images.push(result.path);
+          pageNum++;
+        } else {
+          break;
+        }
+      } catch (_e) {
+        break;
+      }
+    }
+
+    if (images.length === 0) {
+      throw new Error('PDF görüntüye çevrilemedi');
+    }
+
+    // Dil kontrolü (Türkçe varsa kullan)
+    let langParam = 'eng';
+    try {
+      const langs = execSync('tesseract --list-langs 2>/dev/null', { encoding: 'utf-8' });
+      if (langs.includes('tur')) {
+        langParam = 'tur+eng';
+      }
+    } catch (_e) {}
+
+    if (onProgress) onProgress({ stage: 'ocr', message: `${images.length} sayfa OCR ile işleniyor (${langParam})...` });
+    
+    let fullText = '';
+    
+    for (let i = 0; i < images.length; i++) {
+      const imgPath = images[i];
+      
+      try {
+        const ocrResult = execSync(
+          `tesseract "${imgPath}" stdout -l ${langParam} --psm 3 2>/dev/null`,
+          { encoding: 'utf-8', timeout: 60000, maxBuffer: 10 * 1024 * 1024 }
+        );
+        
+        fullText += `\n--- Sayfa ${i + 1} ---\n${ocrResult}\n`;
+        
+        if (onProgress && i % 5 === 0) {
+          onProgress({ 
+            stage: 'ocr', 
+            message: `OCR: ${i + 1}/${images.length} sayfa işlendi...`,
+            progress: Math.round((i / images.length) * 100)
+          });
+        }
+      } catch (ocrError) {
+        console.warn(`Sayfa ${i + 1} OCR hatası:`, ocrError.message);
+      }
+    }
+
+    return fullText.trim();
+    
+  } catch (error) {
+    console.warn('OCR işlemi başarısız:', error.message);
+    return '';
+  } finally {
+    try {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch (_e) {}
+  }
+}
+
+/**
+ * PDF'i sayfa sayfa görüntü olarak analiz et
+ */
+async function analyzePdfAsImages(pdfPath, onProgress) {
+  let images = [];
+  try {
+    images = await pdfToImages(pdfPath);
+  } catch (_e) {
+    throw new Error('PDF görüntüye çevrilemedi');
+  }
+
+  if (images.length === 0) throw new Error('PDF boş');
+
+  const sayfaSonuclari = [];
+  for (let i = 0; i < images.length; i += 2) {
+    const batch = images.slice(i, i + 2);
+    if (onProgress) {
+      onProgress({ stage: 'analyzing', message: `Sayfa ${i + 1}/${images.length}...`, progress: Math.round((i / images.length) * 100) });
+    }
+    const results = await Promise.all(batch.map((img, idx) => analyzeImage(img, i + idx + 1).catch(() => null)));
+    sayfaSonuclari.push(...results.filter(r => r));
+    batch.forEach(img => { try { fs.unlinkSync(img); } catch (_e) {} });
+  }
+
+  return { success: true, toplam_sayfa: images.length, analiz: mergeSayfalar(sayfaSonuclari), yontem: 'image_analysis' };
+}
+
+/**
+ * İhale analiz prompt'u
+ */
+function getIhaleAnalysisPrompt() {
+  return `Sen bir YEMEK/CATERİNG ihale dökümanı analiz uzmanısın. Bu PDF'i analiz et.
+
+SADECE SPESİFİK bilgileri çıkar: Yemek sayısı, kişi sayısı, gramajlar, menü tipleri, ceza şartları, zorunlu belgeler.
 
 JSON formatında yanıt ver:
 {
-  "tam_metin": "Kısa ve öz ihale özeti (max 500 karakter)",
+  "tam_metin": "Özet (max 500 karakter)",
   "ihale_basligi": "",
   "kurum": "",
   "tarih": "",
   "bedel": "",
   "sure": "",
-  "gunluk_ogun_sayisi": "",
-  "kisi_sayisi": "",
-  "teknik_sartlar": ["SOMUT teknik şart 1", "SOMUT teknik şart 2"],
-  "birim_fiyatlar": [{"kalem": "Ürün adı", "birim": "kg/adet/porsiyon", "miktar": "sayı", "fiyat": "varsa"}],
-  "iletisim": {"telefon": "", "email": "", "adres": ""},
-  "notlar": ["KRİTİK not 1 - örn: Gecikme cezası günlük %1", "KRİTİK not 2"]
-}`,
-          },
-        ],
-      },
-    ],
-  });
+  "teknik_sartlar": [],
+  "birim_fiyatlar": [{"kalem": "", "birim": "", "miktar": ""}],
+  "iletisim": {},
+  "notlar": []
+}`;
+}
 
-  const responseText = response.content[0].text;
-
+/**
+ * Claude yanıtını parse et
+ */
+function parseClaudeResponse(responseText) {
   try {
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
-      return {
-        success: true,
-        analiz: parsed,
-        ham_metin: parsed.tam_metin || '',
-      };
+      return { success: true, analiz: parsed, ham_metin: parsed.tam_metin || '' };
     }
   } catch (_e) {}
-
-  return {
-    success: true,
-    analiz: {
-      tam_metin: responseText.substring(0, 5000),
-      ihale_basligi: '',
-      kurum: '',
-      tarih: '',
-      bedel: '',
-      sure: '',
-      teknik_sartlar: [],
-      birim_fiyatlar: [],
-      iletisim: {},
-      notlar: [],
-    },
-    ham_metin: responseText,
-  };
+  return { success: true, analiz: { tam_metin: responseText.substring(0, 5000), teknik_sartlar: [], birim_fiyatlar: [], notlar: [] }, ham_metin: responseText };
 }
 
 /**

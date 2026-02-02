@@ -6,7 +6,9 @@ import fetch from 'node-fetch';
 import pdfParse from 'pdf-parse';
 import xlsx from 'xlsx';
 import { supabase } from '../supabase.js';
-import { analyzeDocument } from './document-analyzer.js';
+// Yeni Pipeline v5.0 kullan (document-analyzer.js yerine)
+import { chunkText } from './ai-analyzer/pipeline/chunker.js';
+import { analyze } from './ai-analyzer/pipeline/analyzer.js';
 
 const BUCKET_NAME = 'tender-documents';
 
@@ -59,12 +61,17 @@ export async function processDocument(documentId, filePath, originalFilename) {
       const ext = path.extname(originalFilename).toLowerCase();
       extractedText = await extractTextFromFile(filePath, ext);
     }
-    const analysis = await analyzeDocument(extractedText, tempFilePath || filePath || '', document.file_type);
+    // Yeni Pipeline v5.0 ile analiz
+    const chunks = chunkText(extractedText);
+    const analysis = await analyze(chunks);
 
     return {
       text: extractedText,
       ocr: ocrResult,
-      analysis: analysis,
+      analysis: {
+        pipeline_version: '5.0',
+        ...analysis,
+      },
     };
   } finally {
     // Temp dosyayı temizle
@@ -150,16 +157,18 @@ export async function processContentDocument(documentId) {
   if (!document.content_text) {
     throw new Error('Content text boş');
   }
-  const analysis = await analyzeDocument(
-    document.content_text,
-    '', // filePath yok
-    document.content_type || 'text'
-  );
+
+  // Yeni Pipeline v5.0 ile analiz
+  const chunks = chunkText(document.content_text);
+  const analysis = await analyze(chunks);
 
   return {
     text: document.content_text,
     ocr: null,
-    analysis: analysis,
+    analysis: {
+      pipeline_version: '5.0',
+      ...analysis,
+    },
   };
 }
 

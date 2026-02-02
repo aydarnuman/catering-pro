@@ -3,7 +3,8 @@ import path from 'node:path';
 import express from 'express';
 import multer from 'multer';
 import { query } from '../database.js';
-import { analyzeFile, getFileType, SUPPORTED_FORMATS } from '../services/claude.js';
+// Yeni Pipeline v5.0 kullan (claude.js yerine)
+import { runPipeline, getFileType, SUPPORTED_FORMATS } from '../services/ai-analyzer/index.js';
 import { processDocument } from '../services/document.js';
 
 const router = express.Router();
@@ -180,10 +181,14 @@ router.post('/analyze', upload.single('file'), async (req, res) => {
     };
 
     try {
-      // Dosya tipine göre analiz (PDF, görsel, DOCX, Excel, TXT)
-      const sonuc = await analyzeFile(file.path, onProgress);
+      // Yeni Pipeline v5.0 ile analiz
+      const pipelineResult = await runPipeline(file.path, { onProgress });
 
-      // Database'e kaydet
+      if (!pipelineResult.success) {
+        throw new Error(pipelineResult.error || 'Pipeline hatası');
+      }
+
+      // Database'e kaydet (pipeline format)
       await query(
         `
         UPDATE documents 
@@ -194,14 +199,27 @@ router.post('/analyze', upload.single('file'), async (req, res) => {
           processed_at = NOW()
         WHERE id = $3
       `,
-        [sonuc.analiz?.tam_metin || sonuc.ham_metin || '', JSON.stringify(sonuc), document.id]
+        [
+          pipelineResult.extraction?.text || '',
+          JSON.stringify({
+            pipeline_version: '5.0',
+            analysis: pipelineResult.analysis,
+            stats: pipelineResult.stats,
+            chunks: pipelineResult.chunks?.length || 0,
+          }),
+          document.id,
+        ]
       );
 
       // Final sonuç
       res.write(
         `data: ${JSON.stringify({
           stage: 'complete',
-          result: sonuc,
+          result: {
+            success: true,
+            analiz: pipelineResult.analysis,
+            stats: pipelineResult.stats,
+          },
           document_id: document.id,
           file_type: fileType,
         })}\n\n`

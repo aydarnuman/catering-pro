@@ -107,7 +107,7 @@ export const csrfProtection = (req, res, next) => {
     }
 
     // CSRF koruması olmayan endpoint'ler (login, register gibi)
-    const excludedPaths = ['/api/auth/login', '/api/auth/register', '/api/auth/refresh', '/api/auth/logout'];
+    const excludedPaths = ['/api/auth/login', '/api/auth/register', '/api/auth/refresh', '/api/auth/logout', '/api/tender-content/analyze-batch', '/api/tender-tracking/add-from-analysis'];
 
     const isExcluded = excludedPaths.some((path) => req.path.startsWith(path));
 

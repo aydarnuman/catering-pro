@@ -196,20 +196,36 @@ router.post('/documents/:documentId/analyze', async (req, res) => {
 
     sendEvent({ stage: 'analyzing', message: 'AI analiz yapılıyor...', progress: 50 });
 
-    // Gemini ile analiz
-    const { analyzeDocument } = await import('../services/document-analyzer.js');
-    const analysisResult = await analyzeDocument(textContent);
+    // Yeni Pipeline v5.0 ile analiz (document-analyzer.js yerine)
+    const { chunkText } = await import('../services/ai-analyzer/pipeline/chunker.js');
+    const { analyze } = await import('../services/ai-analyzer/pipeline/analyzer.js');
+
+    // Metni chunk'la
+    const chunks = chunkText(textContent);
+
+    // Analiz et
+    const analysisResult = await analyze(chunks, (progress) => {
+      sendEvent({ stage: 'analyzing', message: progress.message || 'Analiz devam ediyor...', progress: 50 + progress.progress * 0.3 });
+    });
 
     sendEvent({ stage: 'saving', message: 'Sonuçlar kaydediliyor...', progress: 80 });
 
-    // Sonucu kaydet
+    // Sonucu kaydet (pipeline format)
     await pool.query(
       `UPDATE documents 
        SET analysis_result = $1, 
            processing_status = 'completed',
            extracted_text = $2
        WHERE id = $3`,
-      [JSON.stringify(analysisResult), textContent, documentId]
+      [
+        JSON.stringify({
+          pipeline_version: '5.0',
+          analysis: analysisResult,
+          chunks: chunks.length,
+        }),
+        textContent,
+        documentId,
+      ]
     );
 
     sendEvent({
@@ -218,6 +234,7 @@ router.post('/documents/:documentId/analyze', async (req, res) => {
       progress: 100,
       result: {
         analiz: analysisResult,
+        pipeline_version: '5.0',
       },
     });
 

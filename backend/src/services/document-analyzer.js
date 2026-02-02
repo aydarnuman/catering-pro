@@ -1,3 +1,11 @@
+/**
+ * @deprecated Bu modül artık kullanılmıyor!
+ * Yeni Pipeline v5.0 kullanın: ai-analyzer/pipeline/
+ *
+ * Bu dosya sadece menu-import.js için geçici olarak korunuyor.
+ * İhale döküman analizi için: import { analyze } from './ai-analyzer/pipeline/analyzer.js'
+ */
+
 import fs from 'node:fs';
 import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenerativeAI } from '@google/generative-ai';
