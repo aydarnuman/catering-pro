@@ -53,10 +53,11 @@ export function DocumentsPanel({ tenderId, onRefresh }: DocumentsPanelProps) {
     try {
       const downloadData = await tendersAPI.getDownloadedDocuments(String(tenderId));
       if (downloadData.success && downloadData.data?.documents) {
-        const docs: Document[] = downloadData.data.documents.flatMap((group: { files: Document[] }) =>
-          group.files.map((file: Document) => ({
-            ...file,
-          }))
+        const docs: Document[] = downloadData.data.documents.flatMap(
+          (group: { files: Document[] }) =>
+            group.files.map((file: Document) => ({
+              ...file,
+            }))
         );
         setDocuments(docs);
       }

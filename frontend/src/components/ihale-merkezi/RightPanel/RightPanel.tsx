@@ -1,13 +1,7 @@
 'use client';
 
 import { Box, ScrollArea, Text } from '@mantine/core';
-import {
-  IconCalculator,
-  IconClock,
-  IconFileText,
-  IconNote,
-  IconUsers,
-} from '@tabler/icons-react';
+import { IconCalculator, IconClock, IconFileText, IconNote, IconUsers } from '@tabler/icons-react';
 import { ContextualNotesSection } from '@/components/notes/ContextualNotesSection';
 import type { IhaleMerkeziState } from '../types';
 import { CalculationsPanel } from './CalculationsPanel';
@@ -23,13 +17,18 @@ interface RightPanelProps {
   mobileActiveTab?: 'tools' | 'notes';
 }
 
-export function RightPanel({ state, onToggleSection, onStateChange: _onStateChange, mobileActiveTab }: RightPanelProps) {
+export function RightPanel({
+  state,
+  onToggleSection,
+  onStateChange: _onStateChange,
+  mobileActiveTab,
+}: RightPanelProps) {
   const { selectedTender, expandedSections } = state;
 
   // Check if tender is SavedTender
   const isSavedTender = selectedTender && 'tender_id' in selectedTender;
   const tenderId = isSavedTender ? selectedTender.tender_id : selectedTender?.id;
-  
+
   // Mobile mode: show only selected tab content
   const isMobile = !!mobileActiveTab;
 

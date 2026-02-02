@@ -249,8 +249,12 @@ export function FloatingAIChat() {
         <Tooltip
           label={
             <Stack gap={2}>
-              <Text size="xs" fw={500}>{info.icon} {info.title}</Text>
-              <Text size="xs" c="dimmed">Tıkla veya ⌘K</Text>
+              <Text size="xs" fw={500}>
+                {info.icon} {info.title}
+              </Text>
+              <Text size="xs" c="dimmed">
+                Tıkla veya ⌘K
+              </Text>
             </Stack>
           }
           position="left"
@@ -277,7 +281,7 @@ export function FloatingAIChat() {
             {/* Tab handle */}
             <Box
               style={{
-                background: isDark 
+                background: isDark
                   ? 'linear-gradient(180deg, rgba(30, 30, 34, 0.95), rgba(20, 21, 23, 0.95))'
                   : 'linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(248, 249, 250, 0.95))',
                 borderRadius: '12px 0 0 12px',
@@ -326,7 +330,7 @@ export function FloatingAIChat() {
                   style={{ borderRadius: '50%' }}
                 />
               </Box>
-              
+
               {/* Vertical text */}
               <Text
                 size="xs"
@@ -737,7 +741,11 @@ export function FloatingAIChat() {
                         size={isMinimized ? 'xs' : 'sm'}
                         fw={600}
                         c={godModeEnabled ? '#e6c530' : 'white'}
-                        style={{ letterSpacing: '0.2px', lineHeight: 1.2, transition: 'color 0.3s' }}
+                        style={{
+                          letterSpacing: '0.2px',
+                          lineHeight: 1.2,
+                          transition: 'color 0.3s',
+                        }}
                         truncate
                       >
                         {godModeEnabled

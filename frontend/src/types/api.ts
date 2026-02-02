@@ -38,7 +38,7 @@ export interface Tender {
   bid_type?: string;
   category_id?: number;
   category_name?: string;
-  raw_data?: any;
+  raw_data?: unknown;
   document_links?: Record<string, string>;
   has_announcement?: boolean;
   has_goods_services?: boolean;
@@ -46,8 +46,38 @@ export interface Tender {
   // Güncelleme bilgileri
   is_updated?: boolean;
   last_update_date?: string;
-  zeyilname_content?: any;
-  correction_notice_content?: any;
+  zeyilname_content?: unknown;
+  correction_notice_content?: unknown;
+
+  // Analysis (optional - only populated when tracked)
+  analysis_summary?: {
+    teknik_sartlar?: Array<string | { text?: string; source?: string; doc_id?: number }>;
+    birim_fiyatlar?: Array<{
+      id?: string | number;
+      kalem?: string;
+      aciklama?: string;
+      text?: string;
+      birim?: string;
+      miktar?: string | number;
+      fiyat?: string | number;
+      tutar?: string | number;
+      source?: string;
+      doc_id?: number;
+    }>;
+    notlar?: Array<
+      string | { text?: string; source?: string; doc_id?: number; verified?: boolean }
+    >;
+    tam_metin?: string;
+    [key: string]: unknown;
+  };
+
+  // Tracking related (optional)
+  yaklasik_maliyet?: number;
+  sinir_deger?: number;
+  bizim_teklif?: number;
+  dokuman_sayisi?: number;
+  teknik_sart_sayisi?: number;
+  birim_fiyat_sayisi?: number;
 }
 
 // Document types
@@ -57,7 +87,7 @@ export interface Document {
   original_filename: string;
   file_size: number;
   mime_type: string;
-  analysis_result?: any;
+  analysis_result?: unknown;
   created_at: string;
 }
 

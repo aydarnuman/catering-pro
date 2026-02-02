@@ -4,10 +4,10 @@ import { Box, Center, Loader } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { LoginStep } from '@/components/auth/steps/LoginStep';
 import { ClientLayout } from '@/components/ClientLayout';
 import { Navbar } from '@/components/Navbar';
 import { useAuth } from '@/context/AuthContext';
-import { LoginStep } from '@/components/auth/steps/LoginStep';
 
 const NO_NAVBAR_PAGES = ['/giris', '/kayit', '/sifremi-unuttum', '/sifre-sifirla'];
 

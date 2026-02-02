@@ -138,7 +138,10 @@ export function Navbar() {
   // Route helpers
   const isActive = (path: string) => pathname === path;
   const isIhaleMerkezi =
-    pathname === '/tenders' || pathname === '/upload' || pathname === '/tracking' || pathname === '/ihale-merkezi';
+    pathname === '/tenders' ||
+    pathname === '/upload' ||
+    pathname === '/tracking' ||
+    pathname === '/ihale-merkezi';
 
   // Finans sayfaları
   const isFinans =

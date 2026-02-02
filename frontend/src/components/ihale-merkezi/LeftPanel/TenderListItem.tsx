@@ -99,16 +99,16 @@ export function TenderListItem({ tender, isSelected, isTracked, onClick }: Tende
 
   // Status for saved tenders
   const status = isSaved ? tender.status : null;
-  
+
   // Check if updated today (for "Güncellendi" badge)
   const isUpdatedToday = (() => {
     // Check is_updated flag from API
     if ('is_updated' in tender && tender.is_updated) return true;
-    
+
     // Or check updated_at date
     const updatedAt = 'updated_at' in tender ? tender.updated_at : null;
     if (!updatedAt) return false;
-    
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const updateDate = new Date(updatedAt as string);
@@ -131,9 +131,7 @@ export function TenderListItem({ tender, isSelected, isTracked, onClick }: Tende
             ? 'var(--mantine-color-orange-4)'
             : 'var(--mantine-color-default-border)',
         borderWidth: isSelected ? 2 : 1,
-        background: isSelected
-          ? 'var(--mantine-color-blue-light)'
-          : 'var(--mantine-color-body)',
+        background: isSelected ? 'var(--mantine-color-blue-light)' : 'var(--mantine-color-body)',
         transition: 'all 0.15s ease',
       }}
       className="tender-list-item"

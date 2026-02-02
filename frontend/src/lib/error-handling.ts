@@ -145,7 +145,9 @@ export function initializeErrorCollector() {
       id: `console_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date().toISOString(),
       type: 'error',
-      message: args.map((arg) => (typeof arg === 'object' ? JSON.stringify(arg) : String(arg))).join(' '),
+      message: args
+        .map((arg) => (typeof arg === 'object' ? JSON.stringify(arg) : String(arg)))
+        .join(' '),
       url: window.location.href,
       userAgent: navigator.userAgent,
     };

@@ -1,12 +1,12 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AuthModalProvider } from '@/components/auth';
 import { AuthProvider } from '@/context/AuthContext';
 import { RealtimeProvider } from '@/context/RealtimeContext';
-import { ErrorBoundary } from './ErrorBoundary';
 import { initializeErrorCollector } from '@/lib/error-handling';
+import { ErrorBoundary } from './ErrorBoundary';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   // Global chunk load error handler + AI Error Collector

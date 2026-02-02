@@ -8,7 +8,6 @@ import {
   Card,
   Center,
   Chip,
-  Collapse,
   CopyButton,
   Group,
   Loader,
@@ -35,13 +34,12 @@ import {
   IconArrowLeft,
   IconBookmark,
   IconBrain,
-  IconBulb,
   IconBuilding,
+  IconBulb,
   IconCalculator,
   IconCalendar,
   IconCheck,
   IconChevronDown,
-  IconChevronUp,
   IconClipboardList,
   IconCloudDownload,
   IconCoin,
@@ -59,7 +57,6 @@ import {
   IconNote,
   IconPlus,
   IconRefresh,
-  IconReportMoney,
   IconScale,
   IconSearch,
   IconSend,
@@ -71,7 +68,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { aiAPI } from '@/lib/api/services/ai';
 import { tendersAPI } from '@/lib/api/services/tenders';
 import type { Tender } from '@/types/api';
-import type { AINote, AnalysisData, IhaleMerkeziState, SavedTender, TeknikSart, TenderStatus } from '../types';
+import type {
+  AINote,
+  AnalysisData,
+  IhaleMerkeziState,
+  SavedTender,
+  TeknikSart,
+  TenderStatus,
+} from '../types';
 import { statusConfig } from '../types';
 
 interface CenterPanelProps {
@@ -88,7 +92,13 @@ function isSavedTender(tender: Tender | SavedTender | null): tender is SavedTend
   return tender !== null && 'tender_id' in tender;
 }
 
-export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshData, isMobile = false }: CenterPanelProps) {
+export function CenterPanel({
+  state,
+  onStateChange,
+  onUpdateStatus,
+  onRefreshData,
+  isMobile = false,
+}: CenterPanelProps) {
   const { selectedTender, activeDetailTab, dilekceType, firmalar, selectedFirmaId } = state;
 
   // Selected firma
@@ -125,11 +135,11 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
 
   // Analiz durumu kontrolü
   const hasDocuments = isSaved && (selectedTender.dokuman_sayisi || 0) > 0;
-  const hasAnalysis = isSaved && (
-    (selectedTender.analiz_edilen_dokuman || 0) > 0 ||
-    (selectedTender.teknik_sart_sayisi || 0) > 0 ||
-    (selectedTender.birim_fiyat_sayisi || 0) > 0
-  );
+  const hasAnalysis =
+    isSaved &&
+    ((selectedTender.analiz_edilen_dokuman || 0) > 0 ||
+      (selectedTender.teknik_sart_sayisi || 0) > 0 ||
+      (selectedTender.birim_fiyat_sayisi || 0) > 0);
 
   // Extract fields
   const title = isSaved ? selectedTender.ihale_basligi : selectedTender.title;
@@ -210,7 +220,9 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
                         durum: selectedTender.status,
                         olusturulma: selectedTender.created_at,
                       };
-                      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                      const blob = new Blob([JSON.stringify(data, null, 2)], {
+                        type: 'application/json',
+                      });
                       const urlObj = URL.createObjectURL(blob);
                       const a = document.createElement('a');
                       a.href = urlObj;
@@ -265,7 +277,9 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
                   }
                   data={firmalar.map((f) => ({
                     value: f.id.toString(),
-                    label: f.kisa_ad || (f.unvan.length > 25 ? `${f.unvan.substring(0, 25)}...` : f.unvan),
+                    label:
+                      f.kisa_ad ||
+                      (f.unvan.length > 25 ? `${f.unvan.substring(0, 25)}...` : f.unvan),
                   }))}
                   leftSection={<IconBuilding size={14} />}
                   clearable
@@ -282,15 +296,30 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
           {/* Summary Cards */}
           {/* Summary Info - Compact Inline */}
           <Group gap="xs" mb="md" wrap="nowrap">
-            <Tooltip label={organization || '-'} multiline maw={300} withArrow disabled={!organization || organization.length < 30}>
-              <Paper p="xs" withBorder radius="md" style={{ overflow: 'hidden', flex: 1, minWidth: 0 }}>
+            <Tooltip
+              label={organization || '-'}
+              multiline
+              maw={300}
+              withArrow
+              disabled={!organization || organization.length < 30}
+            >
+              <Paper
+                p="xs"
+                withBorder
+                radius="md"
+                style={{ overflow: 'hidden', flex: 1, minWidth: 0 }}
+              >
                 <Group gap={6} wrap="nowrap">
                   <ThemeIcon size="sm" variant="light" color="violet" style={{ flexShrink: 0 }}>
                     <IconBuilding size={12} />
                   </ThemeIcon>
                   <Box style={{ minWidth: 0, flex: 1 }}>
-                    <Text size="xs" c="dimmed">Kurum</Text>
-                    <Text size="xs" fw={500} truncate="end">{organization || '-'}</Text>
+                    <Text size="xs" c="dimmed">
+                      Kurum
+                    </Text>
+                    <Text size="xs" fw={500} truncate="end">
+                      {organization || '-'}
+                    </Text>
                   </Box>
                 </Group>
               </Paper>
@@ -301,8 +330,12 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
                   <IconMapPin size={12} />
                 </ThemeIcon>
                 <Box>
-                  <Text size="xs" c="dimmed">Şehir</Text>
-                  <Text size="xs" fw={500}>{city || '-'}</Text>
+                  <Text size="xs" c="dimmed">
+                    Şehir
+                  </Text>
+                  <Text size="xs" fw={500}>
+                    {city || '-'}
+                  </Text>
                 </Box>
               </Group>
             </Paper>
@@ -312,9 +345,18 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
                   <IconCalendar size={12} />
                 </ThemeIcon>
                 <Box>
-                  <Text size="xs" c="dimmed">Son Teklif</Text>
+                  <Text size="xs" c="dimmed">
+                    Son Teklif
+                  </Text>
                   <Text size="xs" fw={500}>
-                    {dateStr ? new Date(dateStr).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}
+                    {dateStr
+                      ? new Date(dateStr).toLocaleDateString('tr-TR', {
+                          day: '2-digit',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : '-'}
                   </Text>
                 </Box>
               </Group>
@@ -382,14 +424,16 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
           {/* Tabs: Özet / Analiz / Dökümanlar / Araçlar / Dilekçe / Teklif */}
           <Tabs
             value={activeDetailTab}
-            onChange={(value) => onStateChange({ activeDetailTab: value as IhaleMerkeziState['activeDetailTab'] })}
+            onChange={(value) =>
+              onStateChange({ activeDetailTab: value as IhaleMerkeziState['activeDetailTab'] })
+            }
           >
             <Tabs.List>
               <Tabs.Tab value="ozet" leftSection={<IconFileText size={14} />}>
                 Özet
               </Tabs.Tab>
-              <Tabs.Tab 
-                value="analiz" 
+              <Tabs.Tab
+                value="analiz"
                 leftSection={<IconBrain size={14} />}
                 disabled={!isSaved || !hasAnalysis}
               >
@@ -397,7 +441,8 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
                   Analiz
                   {hasAnalysis ? (
                     <Badge size="xs" variant="filled" color="violet">
-                      {(selectedTender.teknik_sart_sayisi || 0) + (selectedTender.birim_fiyat_sayisi || 0)}
+                      {(selectedTender.teknik_sart_sayisi || 0) +
+                        (selectedTender.birim_fiyat_sayisi || 0)}
                     </Badge>
                   ) : isSaved ? (
                     <Badge size="xs" variant="light" color="gray">
@@ -406,11 +451,7 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
                   ) : null}
                 </Group>
               </Tabs.Tab>
-              <Tabs.Tab 
-                value="dokumanlar" 
-                leftSection={<IconFile size={14} />}
-                disabled={!isSaved}
-              >
+              <Tabs.Tab value="dokumanlar" leftSection={<IconFile size={14} />} disabled={!isSaved}>
                 <Group gap={4}>
                   Dökümanlar
                   {isSaved && selectedTender.dokuman_sayisi > 0 && (
@@ -420,8 +461,8 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
                   )}
                 </Group>
               </Tabs.Tab>
-              <Tabs.Tab 
-                value="araclar" 
+              <Tabs.Tab
+                value="araclar"
                 leftSection={<IconCalculator size={14} />}
                 disabled={!isSaved}
               >
@@ -445,7 +486,8 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
                     withBorder
                     radius="lg"
                     style={{
-                      background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(99, 102, 241, 0.02))',
+                      background:
+                        'linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(99, 102, 241, 0.02))',
                       borderColor: 'var(--mantine-color-indigo-5)',
                     }}
                   >
@@ -456,8 +498,12 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
                           <IconSparkles size={20} />
                         </ThemeIcon>
                         <Box>
-                          <Text size="md" fw={600}>İhale Analiz Sihirbazı</Text>
-                          <Text size="xs" c="dimmed">Adım adım ihaleyi analiz edin</Text>
+                          <Text size="md" fw={600}>
+                            İhale Analiz Sihirbazı
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            Adım adım ihaleyi analiz edin
+                          </Text>
                         </Box>
                       </Group>
 
@@ -468,28 +514,38 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
                           p="md"
                           radius="md"
                           style={{
-                            background: isSaved 
-                              ? 'rgba(34, 197, 94, 0.1)' 
+                            background: isSaved
+                              ? 'rgba(34, 197, 94, 0.1)'
                               : 'rgba(59, 130, 246, 0.1)',
-                            border: isSaved 
-                              ? '1px solid var(--mantine-color-green-5)' 
+                            border: isSaved
+                              ? '1px solid var(--mantine-color-green-5)'
                               : '1px solid var(--mantine-color-blue-5)',
                           }}
                         >
                           <Group justify="space-between" wrap="nowrap">
                             <Group gap="sm" wrap="nowrap">
-                              <ThemeIcon 
-                                size="md" 
-                                variant={isSaved ? 'filled' : 'light'} 
-                                color={isSaved ? 'green' : 'blue'} 
+                              <ThemeIcon
+                                size="md"
+                                variant={isSaved ? 'filled' : 'light'}
+                                color={isSaved ? 'green' : 'blue'}
                                 radius="xl"
                               >
-                                {isSaved ? <IconCheck size={14} /> : <Text size="xs" fw={700}>1</Text>}
+                                {isSaved ? (
+                                  <IconCheck size={14} />
+                                ) : (
+                                  <Text size="xs" fw={700}>
+                                    1
+                                  </Text>
+                                )}
                               </ThemeIcon>
                               <Box>
-                                <Text size="sm" fw={500}>Takip Listesine Ekle</Text>
+                                <Text size="sm" fw={500}>
+                                  Takip Listesine Ekle
+                                </Text>
                                 <Text size="xs" c="dimmed">
-                                  {isSaved ? 'İhale takip listenizde ✓' : 'İhaleyi kaydedin ve takip edin'}
+                                  {isSaved
+                                    ? 'İhale takip listenizde ✓'
+                                    : 'İhaleyi kaydedin ve takip edin'}
                                 </Text>
                               </Box>
                             </Group>
@@ -519,35 +575,43 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
                           p="md"
                           radius="md"
                           style={{
-                            background: hasDocuments 
-                              ? 'rgba(34, 197, 94, 0.1)' 
-                              : isSaved 
-                                ? 'rgba(251, 191, 36, 0.1)' 
+                            background: hasDocuments
+                              ? 'rgba(34, 197, 94, 0.1)'
+                              : isSaved
+                                ? 'rgba(251, 191, 36, 0.1)'
                                 : 'rgba(100, 100, 100, 0.05)',
-                            border: hasDocuments 
-                              ? '1px solid var(--mantine-color-green-5)' 
-                              : isSaved 
-                                ? '1px solid var(--mantine-color-yellow-5)' 
+                            border: hasDocuments
+                              ? '1px solid var(--mantine-color-green-5)'
+                              : isSaved
+                                ? '1px solid var(--mantine-color-yellow-5)'
                                 : '1px solid var(--mantine-color-gray-6)',
                             opacity: isSaved ? 1 : 0.5,
                           }}
                         >
                           <Group justify="space-between" wrap="nowrap">
                             <Group gap="sm" wrap="nowrap">
-                              <ThemeIcon 
-                                size="md" 
-                                variant={hasDocuments ? 'filled' : 'light'} 
-                                color={hasDocuments ? 'green' : isSaved ? 'yellow' : 'gray'} 
+                              <ThemeIcon
+                                size="md"
+                                variant={hasDocuments ? 'filled' : 'light'}
+                                color={hasDocuments ? 'green' : isSaved ? 'yellow' : 'gray'}
                                 radius="xl"
                               >
-                                {hasDocuments ? <IconCheck size={14} /> : <Text size="xs" fw={700}>2</Text>}
+                                {hasDocuments ? (
+                                  <IconCheck size={14} />
+                                ) : (
+                                  <Text size="xs" fw={700}>
+                                    2
+                                  </Text>
+                                )}
                               </ThemeIcon>
                               <Box>
-                                <Text size="sm" fw={500}>Dökümanları İndir</Text>
+                                <Text size="sm" fw={500}>
+                                  Dökümanları İndir
+                                </Text>
                                 <Text size="xs" c="dimmed">
-                                  {hasDocuments 
-                                    ? `${selectedTender.dokuman_sayisi} döküman indirildi ✓` 
-                                    : 'EKAP\'tan dökümanları otomatik çek'}
+                                  {hasDocuments
+                                    ? `${selectedTender.dokuman_sayisi} döküman indirildi ✓`
+                                    : "EKAP'tan dökümanları otomatik çek"}
                                 </Text>
                               </Box>
                             </Group>
@@ -575,34 +639,42 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
                           p="md"
                           radius="md"
                           style={{
-                            background: hasAnalysis 
-                              ? 'rgba(34, 197, 94, 0.1)' 
-                              : hasDocuments 
-                                ? 'rgba(139, 92, 246, 0.1)' 
+                            background: hasAnalysis
+                              ? 'rgba(34, 197, 94, 0.1)'
+                              : hasDocuments
+                                ? 'rgba(139, 92, 246, 0.1)'
                                 : 'rgba(100, 100, 100, 0.05)',
-                            border: hasAnalysis 
-                              ? '1px solid var(--mantine-color-green-5)' 
-                              : hasDocuments 
-                                ? '1px solid var(--mantine-color-violet-5)' 
+                            border: hasAnalysis
+                              ? '1px solid var(--mantine-color-green-5)'
+                              : hasDocuments
+                                ? '1px solid var(--mantine-color-violet-5)'
                                 : '1px solid var(--mantine-color-gray-6)',
                             opacity: hasDocuments ? 1 : 0.5,
                           }}
                         >
                           <Group justify="space-between" wrap="nowrap">
                             <Group gap="sm" wrap="nowrap">
-                              <ThemeIcon 
-                                size="md" 
-                                variant={hasAnalysis ? 'filled' : 'light'} 
-                                color={hasAnalysis ? 'green' : hasDocuments ? 'violet' : 'gray'} 
+                              <ThemeIcon
+                                size="md"
+                                variant={hasAnalysis ? 'filled' : 'light'}
+                                color={hasAnalysis ? 'green' : hasDocuments ? 'violet' : 'gray'}
                                 radius="xl"
                               >
-                                {hasAnalysis ? <IconCheck size={14} /> : <Text size="xs" fw={700}>3</Text>}
+                                {hasAnalysis ? (
+                                  <IconCheck size={14} />
+                                ) : (
+                                  <Text size="xs" fw={700}>
+                                    3
+                                  </Text>
+                                )}
                               </ThemeIcon>
                               <Box>
-                                <Text size="sm" fw={500}>AI ile Analiz Et</Text>
+                                <Text size="sm" fw={500}>
+                                  AI ile Analiz Et
+                                </Text>
                                 <Text size="xs" c="dimmed">
-                                  {hasAnalysis 
-                                    ? `${(selectedTender.teknik_sart_sayisi || 0) + (selectedTender.birim_fiyat_sayisi || 0)} veri çıkarıldı ✓` 
+                                  {hasAnalysis
+                                    ? `${(selectedTender.teknik_sart_sayisi || 0) + (selectedTender.birim_fiyat_sayisi || 0)} veri çıkarıldı ✓`
                                     : 'Teknik şartlar ve birim fiyatları çıkar'}
                                 </Text>
                               </Box>
@@ -625,7 +697,8 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
                       {/* Alt bilgi */}
                       {!isSaved && (
                         <Text size="xs" c="dimmed" ta="center">
-                          💡 Önce ihaleyi takip listesine ekleyin, sonra dökümanları indirip analiz edebilirsiniz
+                          💡 Önce ihaleyi takip listesine ekleyin, sonra dökümanları indirip analiz
+                          edebilirsiniz
                         </Text>
                       )}
                       {isSaved && !hasDocuments && (
@@ -642,84 +715,94 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
                   </Paper>
                 )}
 
-                  {/* Analiz Özeti - Kompakt Kartlar (sadece analiz varsa) */}
-                  {hasAnalysis && (
-                    <SimpleGrid cols={3} spacing="xs">
-                      <Paper
-                        p="sm"
-                        withBorder
-                        radius="md"
-                        style={{
-                          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05))',
-                          borderColor: 'var(--mantine-color-blue-6)',
-                          cursor: 'pointer',
-                        }}
-                        onClick={() => onStateChange({ activeDetailTab: 'analiz' })}
-                      >
-                        <Group gap="xs">
-                          <ThemeIcon size="lg" variant="light" color="blue" radius="xl">
-                            <IconClipboardList size={18} />
-                          </ThemeIcon>
-                          <Box>
-                            <Text size="xl" fw={700} c="blue">
-                              {selectedTender.teknik_sart_sayisi || 0}
-                            </Text>
-                            <Text size="xs" c="dimmed">Teknik Şart</Text>
-                          </Box>
-                        </Group>
-                      </Paper>
-                      <Paper
-                        p="sm"
-                        withBorder
-                        radius="md"
-                        style={{
-                          background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05))',
-                          borderColor: 'var(--mantine-color-green-6)',
-                          cursor: 'pointer',
-                        }}
-                        onClick={() => onStateChange({ activeDetailTab: 'analiz' })}
-                      >
-                        <Group gap="xs">
-                          <ThemeIcon size="lg" variant="light" color="green" radius="xl">
-                            <IconCurrencyLira size={18} />
-                          </ThemeIcon>
-                          <Box>
-                            <Text size="xl" fw={700} c="green">
-                              {selectedTender.birim_fiyat_sayisi || 0}
-                            </Text>
-                            <Text size="xs" c="dimmed">Birim Fiyat</Text>
-                          </Box>
-                        </Group>
-                      </Paper>
-                      <Paper
-                        p="sm"
-                        withBorder
-                        radius="md"
-                        style={{
-                          background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05))',
-                          borderColor: 'var(--mantine-color-violet-6)',
-                          cursor: 'pointer',
-                        }}
-                        onClick={() => onStateChange({ activeDetailTab: 'dokumanlar' })}
-                      >
-                        <Group gap="xs">
-                          <ThemeIcon size="lg" variant="light" color="violet" radius="xl">
-                            <IconFile size={18} />
-                          </ThemeIcon>
-                          <Box>
-                            <Text size="xl" fw={700} c="violet">
-                              {selectedTender.analiz_edilen_dokuman || 0}/{selectedTender.dokuman_sayisi || 0}
-                            </Text>
-                            <Text size="xs" c="dimmed">Analiz Edildi</Text>
-                          </Box>
-                        </Group>
-                      </Paper>
-                    </SimpleGrid>
-                  )}
+                {/* Analiz Özeti - Kompakt Kartlar (sadece analiz varsa) */}
+                {hasAnalysis && (
+                  <SimpleGrid cols={3} spacing="xs">
+                    <Paper
+                      p="sm"
+                      withBorder
+                      radius="md"
+                      style={{
+                        background:
+                          'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05))',
+                        borderColor: 'var(--mantine-color-blue-6)',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => onStateChange({ activeDetailTab: 'analiz' })}
+                    >
+                      <Group gap="xs">
+                        <ThemeIcon size="lg" variant="light" color="blue" radius="xl">
+                          <IconClipboardList size={18} />
+                        </ThemeIcon>
+                        <Box>
+                          <Text size="xl" fw={700} c="blue">
+                            {selectedTender.teknik_sart_sayisi || 0}
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            Teknik Şart
+                          </Text>
+                        </Box>
+                      </Group>
+                    </Paper>
+                    <Paper
+                      p="sm"
+                      withBorder
+                      radius="md"
+                      style={{
+                        background:
+                          'linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05))',
+                        borderColor: 'var(--mantine-color-green-6)',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => onStateChange({ activeDetailTab: 'analiz' })}
+                    >
+                      <Group gap="xs">
+                        <ThemeIcon size="lg" variant="light" color="green" radius="xl">
+                          <IconCurrencyLira size={18} />
+                        </ThemeIcon>
+                        <Box>
+                          <Text size="xl" fw={700} c="green">
+                            {selectedTender.birim_fiyat_sayisi || 0}
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            Birim Fiyat
+                          </Text>
+                        </Box>
+                      </Group>
+                    </Paper>
+                    <Paper
+                      p="sm"
+                      withBorder
+                      radius="md"
+                      style={{
+                        background:
+                          'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05))',
+                        borderColor: 'var(--mantine-color-violet-6)',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => onStateChange({ activeDetailTab: 'dokumanlar' })}
+                    >
+                      <Group gap="xs">
+                        <ThemeIcon size="lg" variant="light" color="violet" radius="xl">
+                          <IconFile size={18} />
+                        </ThemeIcon>
+                        <Box>
+                          <Text size="xl" fw={700} c="violet">
+                            {selectedTender.analiz_edilen_dokuman || 0}/
+                            {selectedTender.dokuman_sayisi || 0}
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            Analiz Edildi
+                          </Text>
+                        </Box>
+                      </Group>
+                    </Paper>
+                  </SimpleGrid>
+                )}
 
-                  {/* Öne Çıkan Teknik Şartlar (İlk 5) */}
-                  {selectedTender.analysis_summary?.teknik_sartlar &&
-                    selectedTender.analysis_summary.teknik_sartlar.length > 0 && (
+                {/* Öne Çıkan Teknik Şartlar (İlk 5) */}
+                {selectedTender.analysis_summary?.teknik_sartlar &&
+                  selectedTender.analysis_summary.teknik_sartlar.length > 0 && (
                     <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
                       <Group justify="space-between" mb="xs">
                         <Group gap="xs">
@@ -740,23 +823,29 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
                         </Button>
                       </Group>
                       <Stack gap={4}>
-                        {selectedTender.analysis_summary.teknik_sartlar.slice(0, 5).map((sart, idx) => (
-                          <Group key={sart.substring(0, 30)} gap="xs" wrap="nowrap">
-                            <Badge size="xs" variant="filled" color="blue" circle>
-                              {idx + 1}
-                            </Badge>
-                            <Text size="xs" lineClamp={1} style={{ flex: 1 }}>
-                              {sart}
-                            </Text>
-                          </Group>
-                        ))}
+                        {selectedTender.analysis_summary.teknik_sartlar
+                          .slice(0, 5)
+                          .map((sart, idx) => {
+                            const sartText =
+                              typeof sart === 'string' ? sart : sart?.text || String(sart);
+                            return (
+                              <Group key={`ts-${sartText.substring(0, 30)}`} gap="xs" wrap="nowrap">
+                                <Badge size="xs" variant="filled" color="blue" circle>
+                                  {idx + 1}
+                                </Badge>
+                                <Text size="xs" lineClamp={1} style={{ flex: 1 }}>
+                                  {sartText}
+                                </Text>
+                              </Group>
+                            );
+                          })}
                       </Stack>
                     </Paper>
                   )}
 
-                  {/* Öne Çıkan Birim Fiyatlar (İlk 5) */}
-                  {selectedTender.analysis_summary?.birim_fiyatlar &&
-                    selectedTender.analysis_summary.birim_fiyatlar.length > 0 && (
+                {/* Öne Çıkan Birim Fiyatlar (İlk 5) */}
+                {selectedTender.analysis_summary?.birim_fiyatlar &&
+                  selectedTender.analysis_summary.birim_fiyatlar.length > 0 && (
                     <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
                       <Group justify="space-between" mb="xs">
                         <Group gap="xs">
@@ -777,75 +866,84 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
                         </Button>
                       </Group>
                       <Stack gap={4}>
-                        {selectedTender.analysis_summary.birim_fiyatlar.slice(0, 5).map((item, idx) => (
-                          <Group key={item.id || item.kalem || item.aciklama || `bf-${idx}`} justify="space-between" wrap="nowrap">
-                            <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
-                              <Badge size="xs" variant="filled" color="green" circle>
-                                {idx + 1}
-                              </Badge>
-                              <Text size="xs" lineClamp={1} style={{ flex: 1 }}>
-                                {item.kalem || item.aciklama || item.text || 'Bilinmiyor'}
-                              </Text>
-                            </Group>
-                            <Group gap={4}>
-                              {item.birim && (
-                                <Badge size="xs" variant="outline" color="gray">
-                                  {item.birim}
-                                </Badge>
-                              )}
-                              {(item.fiyat || item.tutar) && (
-                                <Badge size="xs" color="green">
-                                  {Number(item.fiyat || item.tutar).toLocaleString('tr-TR')} ₺
-                                </Badge>
-                              )}
-                            </Group>
-                          </Group>
-                        ))}
+                        {selectedTender.analysis_summary.birim_fiyatlar
+                          .slice(0, 5)
+                          .map((item, idx) => {
+                            const itemKey =
+                              item.id ||
+                              item.kalem ||
+                              item.aciklama ||
+                              `bf-${item.text?.substring(0, 20)}`;
+                            return (
+                              <Group key={String(itemKey)} justify="space-between" wrap="nowrap">
+                                <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                                  <Badge size="xs" variant="filled" color="green" circle>
+                                    {idx + 1}
+                                  </Badge>
+                                  <Text size="xs" lineClamp={1} style={{ flex: 1 }}>
+                                    {item.kalem || item.aciklama || item.text || 'Bilinmiyor'}
+                                  </Text>
+                                </Group>
+                                <Group gap={4}>
+                                  {item.birim && (
+                                    <Badge size="xs" variant="outline" color="gray">
+                                      {item.birim}
+                                    </Badge>
+                                  )}
+                                  {(item.fiyat || item.tutar) && (
+                                    <Badge size="xs" color="green">
+                                      {Number(item.fiyat || item.tutar).toLocaleString('tr-TR')} ₺
+                                    </Badge>
+                                  )}
+                                </Group>
+                              </Group>
+                            );
+                          })}
                       </Stack>
                     </Paper>
                   )}
 
-                  {/* Hesaplama özeti */}
-                  {(selectedTender.yaklasik_maliyet ||
-                    selectedTender.sinir_deger ||
-                    selectedTender.bizim_teklif) && (
-                    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
-                      <Text size="sm" fw={600} mb="xs">
-                        Hesaplama Özeti
-                      </Text>
-                      <SimpleGrid cols={3}>
-                        <Box>
-                          <Text size="xs" c="dimmed">
-                            Yaklaşık Maliyet
-                          </Text>
-                          <Text size="sm" fw={600}>
-                            {selectedTender.yaklasik_maliyet?.toLocaleString('tr-TR')} ₺
-                          </Text>
-                        </Box>
-                        <Box>
-                          <Text size="xs" c="dimmed">
-                            Sınır Değer
-                          </Text>
-                          <Text size="sm" fw={600}>
-                            {selectedTender.sinir_deger?.toLocaleString('tr-TR')} ₺
-                          </Text>
-                        </Box>
-                        <Box>
-                          <Text size="xs" c="dimmed">
-                            Bizim Teklif
-                          </Text>
-                          <Text size="sm" fw={600} c="green">
-                            {selectedTender.bizim_teklif?.toLocaleString('tr-TR')} ₺
-                          </Text>
-                        </Box>
-                      </SimpleGrid>
-                    </Paper>
-                  )}
+                {/* Hesaplama özeti */}
+                {(selectedTender.yaklasik_maliyet ||
+                  selectedTender.sinir_deger ||
+                  selectedTender.bizim_teklif) && (
+                  <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+                    <Text size="sm" fw={600} mb="xs">
+                      Hesaplama Özeti
+                    </Text>
+                    <SimpleGrid cols={3}>
+                      <Box>
+                        <Text size="xs" c="dimmed">
+                          Yaklaşık Maliyet
+                        </Text>
+                        <Text size="sm" fw={600}>
+                          {selectedTender.yaklasik_maliyet?.toLocaleString('tr-TR')} ₺
+                        </Text>
+                      </Box>
+                      <Box>
+                        <Text size="xs" c="dimmed">
+                          Sınır Değer
+                        </Text>
+                        <Text size="sm" fw={600}>
+                          {selectedTender.sinir_deger?.toLocaleString('tr-TR')} ₺
+                        </Text>
+                      </Box>
+                      <Box>
+                        <Text size="xs" c="dimmed">
+                          Bizim Teklif
+                        </Text>
+                        <Text size="sm" fw={600} c="green">
+                          {selectedTender.bizim_teklif?.toLocaleString('tr-TR')} ₺
+                        </Text>
+                      </Box>
+                    </SimpleGrid>
+                  </Paper>
+                )}
 
-                  {/* Analiz yoksa mesaj */}
-                  {!selectedTender.analysis_summary?.teknik_sartlar?.length &&
-                    !selectedTender.analysis_summary?.birim_fiyatlar?.length &&
-                    !selectedTender.yaklasik_maliyet && (
+                {/* Analiz yoksa mesaj */}
+                {!selectedTender.analysis_summary?.teknik_sartlar?.length &&
+                  !selectedTender.analysis_summary?.birim_fiyatlar?.length &&
+                  !selectedTender.yaklasik_maliyet && (
                     <Paper p="md" withBorder radius="md" ta="center">
                       <Text size="sm" c="dimmed">
                         Bu ihale için henüz analiz yapılmamış.
@@ -855,15 +953,13 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
                       </Text>
                     </Paper>
                   )}
-                </Stack>
+              </Stack>
             </Tabs.Panel>
 
             <Tabs.Panel value="analiz" pt="md">
               {/* Analiz sekmesi - Teknik Şartlar + Birim Fiyatlar */}
               {isSaved ? (
-                <AnalysisSection 
-                  tender={selectedTender}
-                />
+                <AnalysisSection tender={selectedTender} />
               ) : (
                 <Text size="sm" c="dimmed">
                   Takip edilen ihaleler için kullanılabilir.
@@ -874,10 +970,7 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
             <Tabs.Panel value="dokumanlar" pt="md">
               {/* Dökümanlar sekmesi - Sadece döküman yönetimi */}
               {isSaved ? (
-                <DokumanlarSection 
-                  tenderId={selectedTender.tender_id}
-                  onRefresh={onRefreshData}
-                />
+                <DokumanlarSection tenderId={selectedTender.tender_id} onRefresh={onRefreshData} />
               ) : (
                 <Text size="sm" c="dimmed">
                   Takip edilen ihaleler için kullanılabilir.
@@ -888,10 +981,7 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
             <Tabs.Panel value="araclar" pt="md">
               {/* Hesaplama araçları */}
               {isSaved ? (
-                <AraclarSection 
-                  tender={selectedTender}
-                  onRefresh={onRefreshData}
-                />
+                <AraclarSection tender={selectedTender} onRefresh={onRefreshData} />
               ) : (
                 <Text size="sm" c="dimmed">
                   Takip edilen ihaleler için kullanılabilir.
@@ -975,7 +1065,6 @@ function DilekceTypeCard({
   );
 }
 
-
 // ========== DOKÜMANLAR SEKMESİ ==========
 
 interface DocumentItem {
@@ -998,8 +1087,9 @@ function DokumanlarSection({ tenderId, onRefresh }: { tenderId: number; onRefres
     try {
       const downloadData = await tendersAPI.getDownloadedDocuments(String(tenderId));
       if (downloadData.success && downloadData.data?.documents) {
-        const docs: DocumentItem[] = downloadData.data.documents.flatMap((group: { files: DocumentItem[] }) =>
-          group.files.map((file: DocumentItem) => ({ ...file }))
+        const docs: DocumentItem[] = downloadData.data.documents.flatMap(
+          (group: { files: DocumentItem[] }) =>
+            group.files.map((file: DocumentItem) => ({ ...file }))
         );
         setDocuments(docs);
       }
@@ -1144,10 +1234,20 @@ function DokumanlarSection({ tenderId, onRefresh }: { tenderId: number; onRefres
                         </Badge>
                         <Badge
                           size="xs"
-                          color={doc.processing_status === 'completed' ? 'green' : doc.processing_status === 'failed' ? 'red' : 'gray'}
+                          color={
+                            doc.processing_status === 'completed'
+                              ? 'green'
+                              : doc.processing_status === 'failed'
+                                ? 'red'
+                                : 'gray'
+                          }
                           variant="light"
                         >
-                          {doc.processing_status === 'completed' ? 'Analiz Edildi' : doc.processing_status === 'failed' ? 'Hata' : 'Bekliyor'}
+                          {doc.processing_status === 'completed'
+                            ? 'Analiz Edildi'
+                            : doc.processing_status === 'failed'
+                              ? 'Hata'
+                              : 'Bekliyor'}
                         </Badge>
                       </Group>
                     </Box>
@@ -1203,7 +1303,7 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
   const [birimFiyatArama, setBirimFiyatArama] = useState('');
   const [aiNotArama, setAiNotArama] = useState('');
   const [sadeceZorunluGoster, setSadeceZorunluGoster] = useState(false);
-  
+
   // Detay verisi için state (tam metin vs)
   const [detailedAnalysis, setDetailedAnalysis] = useState<AnalysisData | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -1211,7 +1311,7 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
   // Detay verisini çek (tam metin için)
   const fetchDetails = useCallback(async () => {
     if (!tender.tender_id) return;
-    
+
     setLoadingDetails(true);
     try {
       const response = await tendersAPI.getTrackingDetails(tender.tender_id);
@@ -1238,7 +1338,7 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
 
   // Tüm teknik şartlar
   const allTeknikSartlar = analysisData?.teknik_sartlar || [];
-  
+
   // Zorunlu şartlar
   const zorunluSartlar = allTeknikSartlar.filter((s) =>
     /zorunlu|mecburi|şart|gerekli|mutlaka/i.test(getTeknikSartText(s))
@@ -1248,14 +1348,18 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
   const filteredTeknikSartlar = allTeknikSartlar.filter((sart) => {
     const text = getTeknikSartText(sart);
     const matchesSearch = text.toLowerCase().includes(teknikSartArama.toLowerCase());
-    const matchesZorunlu = !sadeceZorunluGoster || /zorunlu|mecburi|şart|gerekli|mutlaka/i.test(text);
+    const matchesZorunlu =
+      !sadeceZorunluGoster || /zorunlu|mecburi|şart|gerekli|mutlaka/i.test(text);
     return matchesSearch && matchesZorunlu;
   });
 
   // Filtrelenmiş birim fiyatlar
-  const filteredBirimFiyatlar = analysisData?.birim_fiyatlar?.filter((item) =>
-    (item.kalem || item.aciklama || item.text || '').toLowerCase().includes(birimFiyatArama.toLowerCase())
-  ) || [];
+  const filteredBirimFiyatlar =
+    analysisData?.birim_fiyatlar?.filter((item) =>
+      (item.kalem || item.aciklama || item.text || '')
+        .toLowerCase()
+        .includes(birimFiyatArama.toLowerCase())
+    ) || [];
 
   // AI Notları
   const allNotlar = analysisData?.notlar || [];
@@ -1290,45 +1394,55 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
         value={activeAnalysisTab}
         onChange={setActiveAnalysisTab}
         data={[
-          { 
-            value: 'teknik', 
+          {
+            value: 'teknik',
             label: (
               <Group gap={4}>
                 <IconClipboardList size={14} />
                 <span>Teknik Şartlar</span>
-                <Badge size="xs" variant="filled" color="blue">{tender.teknik_sart_sayisi}</Badge>
+                <Badge size="xs" variant="filled" color="blue">
+                  {tender.teknik_sart_sayisi}
+                </Badge>
               </Group>
-            ) 
+            ),
           },
-          { 
-            value: 'birim', 
+          {
+            value: 'birim',
             label: (
               <Group gap={4}>
                 <IconCurrencyLira size={14} />
                 <span>Birim Fiyatlar</span>
-                <Badge size="xs" variant="filled" color="green">{tender.birim_fiyat_sayisi}</Badge>
+                <Badge size="xs" variant="filled" color="green">
+                  {tender.birim_fiyat_sayisi}
+                </Badge>
               </Group>
-            ) 
+            ),
           },
-          ...(allNotlar.length > 0 ? [{ 
-            value: 'notlar', 
-            label: (
-              <Group gap={4}>
-                <IconBulb size={14} />
-                <span>AI Notları</span>
-                <Badge size="xs" variant="filled" color="yellow">{allNotlar.length}</Badge>
-              </Group>
-            ) 
-          }] : []),
-          { 
-            value: 'metin', 
+          ...(allNotlar.length > 0
+            ? [
+                {
+                  value: 'notlar',
+                  label: (
+                    <Group gap={4}>
+                      <IconBulb size={14} />
+                      <span>AI Notları</span>
+                      <Badge size="xs" variant="filled" color="yellow">
+                        {allNotlar.length}
+                      </Badge>
+                    </Group>
+                  ),
+                },
+              ]
+            : []),
+          {
+            value: 'metin',
             label: (
               <Group gap={4}>
                 <IconFileText size={14} />
                 <span>Tam Metin</span>
                 {loadingDetails && <Loader size={10} />}
               </Group>
-            ) 
+            ),
           },
         ]}
         size="xs"
@@ -1365,7 +1479,9 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
               {filteredTeknikSartlar.length === 0 ? (
                 <Paper p="md" withBorder radius="md" ta="center">
                   <Text size="sm" c="dimmed">
-                    {teknikSartArama || sadeceZorunluGoster ? 'Sonuç bulunamadı' : 'Henüz teknik şart yok'}
+                    {teknikSartArama || sadeceZorunluGoster
+                      ? 'Sonuç bulunamadı'
+                      : 'Henüz teknik şart yok'}
                   </Text>
                 </Paper>
               ) : (
@@ -1373,21 +1489,28 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
                   const text = getTeknikSartText(sart);
                   const source = getTeknikSartSource(sart);
                   const isZorunlu = /zorunlu|mecburi|şart|gerekli|mutlaka/i.test(text);
-                  
+
                   return (
                     <Paper
                       key={`ts-${idx}-${text.substring(0, 20)}`}
                       p="xs"
                       withBorder
                       radius="sm"
-                      style={{ 
-                        background: isZorunlu ? 'rgba(239, 68, 68, 0.05)' : 'rgba(59, 130, 246, 0.03)',
+                      style={{
+                        background: isZorunlu
+                          ? 'rgba(239, 68, 68, 0.05)'
+                          : 'rgba(59, 130, 246, 0.03)',
                         borderLeft: isZorunlu ? '3px solid var(--mantine-color-red-5)' : undefined,
                       }}
                     >
                       <Group justify="space-between" wrap="nowrap">
                         <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
-                          <Badge size="xs" variant="filled" color={isZorunlu ? 'red' : 'blue'} circle>
+                          <Badge
+                            size="xs"
+                            variant="filled"
+                            color={isZorunlu ? 'red' : 'blue'}
+                            circle
+                          >
                             {idx + 1}
                           </Badge>
                           <Box style={{ flex: 1, minWidth: 0 }}>
@@ -1402,7 +1525,12 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
                         <CopyButton value={text}>
                           {({ copied, copy }) => (
                             <Tooltip label={copied ? 'Kopyalandı!' : 'Kopyala'}>
-                              <ActionIcon size="xs" variant="subtle" color={copied ? 'green' : 'gray'} onClick={copy}>
+                              <ActionIcon
+                                size="xs"
+                                variant="subtle"
+                                color={copied ? 'green' : 'gray'}
+                                onClick={copy}
+                              >
                                 <IconCopy size={12} />
                               </ActionIcon>
                             </Tooltip>
@@ -1426,9 +1554,15 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
                 {tender.teknik_sart_sayisi} Toplam
               </Badge>
             </Group>
-            <CopyButton value={filteredTeknikSartlar.map(s => getTeknikSartText(s)).join('\n')}>
+            <CopyButton value={filteredTeknikSartlar.map((s) => getTeknikSartText(s)).join('\n')}>
               {({ copied, copy }) => (
-                <Button size="xs" variant="light" color={copied ? 'green' : 'blue'} onClick={copy} leftSection={<IconCopy size={12} />}>
+                <Button
+                  size="xs"
+                  variant="light"
+                  color={copied ? 'green' : 'blue'}
+                  onClick={copy}
+                  leftSection={<IconCopy size={12} />}
+                >
                   {copied ? 'Kopyalandı!' : 'Tümünü Kopyala'}
                 </Button>
               )}
@@ -1478,10 +1612,14 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
                         </Badge>
                       </Table.Td>
                       <Table.Td>
-                        <Text size="xs">{item.kalem || item.aciklama || item.text || 'Bilinmiyor'}</Text>
+                        <Text size="xs">
+                          {item.kalem || item.aciklama || item.text || 'Bilinmiyor'}
+                        </Text>
                       </Table.Td>
                       <Table.Td>
-                        <Text size="xs" ta="center">{item.miktar || '-'}</Text>
+                        <Text size="xs" ta="center">
+                          {item.miktar || '-'}
+                        </Text>
                       </Table.Td>
                       <Table.Td>
                         <Badge size="xs" variant="outline" color="gray">
@@ -1490,14 +1628,23 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
                       </Table.Td>
                       <Table.Td style={{ textAlign: 'right' }}>
                         <Text size="xs" fw={600} c="green">
-                          {(item.fiyat || item.tutar) ? `${Number(item.fiyat || item.tutar).toLocaleString('tr-TR')} ₺` : '-'}
+                          {item.fiyat || item.tutar
+                            ? `${Number(item.fiyat || item.tutar).toLocaleString('tr-TR')} ₺`
+                            : '-'}
                         </Text>
                       </Table.Td>
                       <Table.Td>
-                        <CopyButton value={`${item.kalem || item.aciklama || item.text || ''}\t${item.miktar || ''}\t${item.birim || ''}\t${item.fiyat || item.tutar || ''}`}>
+                        <CopyButton
+                          value={`${item.kalem || item.aciklama || item.text || ''}\t${item.miktar || ''}\t${item.birim || ''}\t${item.fiyat || item.tutar || ''}`}
+                        >
                           {({ copied, copy }) => (
                             <Tooltip label={copied ? 'Kopyalandı!' : 'Kopyala'}>
-                              <ActionIcon size="xs" variant="subtle" color={copied ? 'green' : 'gray'} onClick={copy}>
+                              <ActionIcon
+                                size="xs"
+                                variant="subtle"
+                                color={copied ? 'green' : 'gray'}
+                                onClick={copy}
+                              >
                                 <IconCopy size={12} />
                               </ActionIcon>
                             </Tooltip>
@@ -1514,14 +1661,26 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
           {/* Toplam */}
           <Group justify="space-between">
             <Text size="xs" c="dimmed">
-              {birimFiyatArama 
+              {birimFiyatArama
                 ? `${filteredBirimFiyatlar.length} / ${tender.birim_fiyat_sayisi} sonuç`
-                : `Toplam: ${tender.birim_fiyat_sayisi} birim fiyat`
-              }
+                : `Toplam: ${tender.birim_fiyat_sayisi} birim fiyat`}
             </Text>
-            <CopyButton value={filteredBirimFiyatlar.map(i => `${i.kalem || i.aciklama || i.text || ''}\t${i.miktar || ''}\t${i.birim || ''}\t${i.fiyat || i.tutar || ''}`).join('\n')}>
+            <CopyButton
+              value={filteredBirimFiyatlar
+                .map(
+                  (i) =>
+                    `${i.kalem || i.aciklama || i.text || ''}\t${i.miktar || ''}\t${i.birim || ''}\t${i.fiyat || i.tutar || ''}`
+                )
+                .join('\n')}
+            >
               {({ copied, copy }) => (
-                <Button size="xs" variant="light" color={copied ? 'green' : 'blue'} onClick={copy} leftSection={<IconCopy size={12} />}>
+                <Button
+                  size="xs"
+                  variant="light"
+                  color={copied ? 'green' : 'blue'}
+                  onClick={copy}
+                  leftSection={<IconCopy size={12} />}
+                >
                   {copied ? 'Kopyalandı!' : 'Tümünü Kopyala'}
                 </Button>
               )}
@@ -1555,14 +1714,14 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
                 filteredNotlar.map((not, idx) => {
                   const text = getNoteText(not);
                   const source = getNoteSource(not);
-                  
+
                   return (
                     <Paper
                       key={`note-${idx}-${text.substring(0, 20)}`}
                       p="sm"
                       withBorder
                       radius="sm"
-                      style={{ 
+                      style={{
                         background: 'rgba(234, 179, 8, 0.05)',
                         borderLeft: '3px solid var(--mantine-color-yellow-5)',
                       }}
@@ -1584,7 +1743,12 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
                         <CopyButton value={text}>
                           {({ copied, copy }) => (
                             <Tooltip label={copied ? 'Kopyalandı!' : 'Kopyala'}>
-                              <ActionIcon size="xs" variant="subtle" color={copied ? 'green' : 'gray'} onClick={copy}>
+                              <ActionIcon
+                                size="xs"
+                                variant="subtle"
+                                color={copied ? 'green' : 'gray'}
+                                onClick={copy}
+                              >
                                 <IconCopy size={12} />
                               </ActionIcon>
                             </Tooltip>
@@ -1601,14 +1765,19 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
           {/* Toplam */}
           <Group justify="space-between">
             <Text size="xs" c="dimmed">
-              {aiNotArama 
+              {aiNotArama
                 ? `${filteredNotlar.length} / ${allNotlar.length} sonuç`
-                : `Toplam: ${allNotlar.length} AI notu`
-              }
+                : `Toplam: ${allNotlar.length} AI notu`}
             </Text>
-            <CopyButton value={filteredNotlar.map(n => getNoteText(n)).join('\n\n')}>
+            <CopyButton value={filteredNotlar.map((n) => getNoteText(n)).join('\n\n')}>
               {({ copied, copy }) => (
-                <Button size="xs" variant="light" color={copied ? 'green' : 'yellow'} onClick={copy} leftSection={<IconCopy size={12} />}>
+                <Button
+                  size="xs"
+                  variant="light"
+                  color={copied ? 'green' : 'yellow'}
+                  onClick={copy}
+                  leftSection={<IconCopy size={12} />}
+                >
                   {copied ? 'Kopyalandı!' : 'Tümünü Kopyala'}
                 </Button>
               )}
@@ -1622,13 +1791,15 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
         <Stack gap="xs">
           <Paper p="sm" withBorder radius="md">
             <Group justify="space-between" mb="xs">
-              <Text size="sm" fw={600}>Dökümanlardan Çıkarılan Tam Metin</Text>
+              <Text size="sm" fw={600}>
+                Dökümanlardan Çıkarılan Tam Metin
+              </Text>
               <Group gap="xs">
                 <Tooltip label="Yenile">
-                  <ActionIcon 
-                    size="sm" 
-                    variant="light" 
-                    color="gray" 
+                  <ActionIcon
+                    size="sm"
+                    variant="light"
+                    color="gray"
                     onClick={fetchDetails}
                     loading={loadingDetails}
                   >
@@ -1637,7 +1808,14 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
                 </Tooltip>
                 <CopyButton value={tamMetin}>
                   {({ copied, copy }) => (
-                    <Button size="xs" variant="light" color={copied ? 'green' : 'blue'} onClick={copy} leftSection={<IconCopy size={12} />} disabled={!tamMetin}>
+                    <Button
+                      size="xs"
+                      variant="light"
+                      color={copied ? 'green' : 'blue'}
+                      onClick={copy}
+                      leftSection={<IconCopy size={12} />}
+                      disabled={!tamMetin}
+                    >
                       {copied ? 'Kopyalandı!' : 'Kopyala'}
                     </Button>
                   )}
@@ -1665,7 +1843,12 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
                     <Text size="xs" c="dimmed" ta="center">
                       Dökümanlar analiz edildiğinde burada tam metin görüntülenecek.
                     </Text>
-                    <Button size="xs" variant="light" onClick={fetchDetails} leftSection={<IconRefresh size={12} />}>
+                    <Button
+                      size="xs"
+                      variant="light"
+                      onClick={fetchDetails}
+                      leftSection={<IconRefresh size={12} />}
+                    >
                       Yeniden Dene
                     </Button>
                   </Stack>
@@ -1705,13 +1888,13 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
   const [sinirDeger, setSinirDeger] = useState<number | null>(tender.sinir_deger || null);
   const [bizimTeklif, setBizimTeklif] = useState(tender.bizim_teklif || 0);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  
+
   // Teklif listesi (KİK formülü için)
   const [teklifListesi, setTeklifListesi] = useState<TeklifItem[]>([
     { firma: '', tutar: 0 },
     { firma: '', tutar: 0 },
   ]);
-  
+
   // Maliyet bileşenleri (aşırı düşük için)
   const [maliyetBilesenleri, setMaliyetBilesenleri] = useState<MaliyetBilesenleri>({
     anaCigGirdi: 0,
@@ -1771,7 +1954,7 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
   // KİK Formülü ile Sınır Değer Hesapla
   const hesaplaSinirDeger = () => {
     const gecerliTeklifler = teklifListesi.filter((t) => t.tutar > 0).map((t) => t.tutar);
-    
+
     if (gecerliTeklifler.length < 2) {
       // Basit formül: %85
       if (yaklasikMaliyet) {
@@ -1785,20 +1968,26 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
     const n = gecerliTeklifler.length;
     const toplam = gecerliTeklifler.reduce((a, b) => a + b, 0);
     const ortalama = toplam / n;
-    
+
     // Standart sapma
-    const varyans = gecerliTeklifler.reduce((acc, val) => acc + Math.pow(val - ortalama, 2), 0) / n;
+    const varyans = gecerliTeklifler.reduce((acc, val) => acc + (val - ortalama) ** 2, 0) / n;
     const stdSapma = Math.sqrt(varyans);
-    
+
     // K katsayısı (teklif sayısına göre)
     const kValues: Record<number, number> = {
-      2: 1.5, 3: 1.35, 4: 1.25, 5: 1.18, 6: 1.13, 7: 1.09, 8: 1.06
+      2: 1.5,
+      3: 1.35,
+      4: 1.25,
+      5: 1.18,
+      6: 1.13,
+      7: 1.09,
+      8: 1.06,
     };
     const k = kValues[Math.min(n, 8)] || 1.0;
-    
+
     // Sınır değer = Ortalama - (K * Standart Sapma)
-    const sinir = Math.max(ortalama - (k * stdSapma), ortalama * 0.4);
-    
+    const sinir = Math.max(ortalama - k * stdSapma, ortalama * 0.4);
+
     setHesaplananSinirDeger(sinir);
   };
 
@@ -1806,11 +1995,11 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
   const hesaplaAsiriDusuk = () => {
     const sd = sinirDeger || hesaplananSinirDeger;
     if (!sd || !bizimTeklif) return;
-    
+
     const toplamMaliyet = Object.values(maliyetBilesenleri).reduce((a, b) => a + b, 0);
     const asiriDusukMu = bizimTeklif < sd;
     const farkOran = ((sd - bizimTeklif) / sd) * 100;
-    
+
     let aciklama = '';
     if (asiriDusukMu) {
       if (toplamMaliyet > 0 && toplamMaliyet <= bizimTeklif) {
@@ -1823,7 +2012,7 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
     } else {
       aciklama = 'Teklifiniz sınır değerin üstünde. Aşırı düşük sorgusu riski düşük.';
     }
-    
+
     setAsiriDusukSonuc({
       asiriDusukMu,
       toplamMaliyet,
@@ -1847,10 +2036,10 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
   const hesaplaBedel = () => {
     const ym = yaklasikMaliyet;
     if (!ym) return;
-    
+
     let bedel = 0;
     let aciklama = '';
-    
+
     if (ym <= 1000000) {
       bedel = 12000;
       aciklama = '0 - 1.000.000 ₺ arası';
@@ -1873,7 +2062,7 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
       bedel = 84000;
       aciklama = '100.000.000 ₺ üzeri';
     }
-    
+
     setBedelSonuc({ bedel, aciklama });
   };
 
@@ -1891,7 +2080,9 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
         <Paper p="sm" withBorder radius="md">
           <Group gap="xs" mb="sm">
             <IconCalculator size={16} color="var(--mantine-color-blue-6)" />
-            <Text size="sm" fw={600}>Teklif Verileri</Text>
+            <Text size="sm" fw={600}>
+              Teklif Verileri
+            </Text>
           </Group>
           <SimpleGrid cols={3}>
             <NumberInput
@@ -1900,7 +2091,11 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
               onChange={(val) => setYaklasikMaliyet(Number(val) || 0)}
               thousandSeparator="."
               decimalSeparator=","
-              rightSection={<Text size="xs" c="dimmed">₺</Text>}
+              rightSection={
+                <Text size="xs" c="dimmed">
+                  ₺
+                </Text>
+              }
               size="xs"
             />
             <NumberInput
@@ -1909,7 +2104,11 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
               onChange={(val) => setSinirDeger(val ? Number(val) : null)}
               thousandSeparator="."
               decimalSeparator=","
-              rightSection={<Text size="xs" c="dimmed">₺</Text>}
+              rightSection={
+                <Text size="xs" c="dimmed">
+                  ₺
+                </Text>
+              }
               size="xs"
               placeholder="Hesapla"
             />
@@ -1919,7 +2118,11 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
               onChange={(val) => setBizimTeklif(Number(val) || 0)}
               thousandSeparator="."
               decimalSeparator=","
-              rightSection={<Text size="xs" c="dimmed">₺</Text>}
+              rightSection={
+                <Text size="xs" c="dimmed">
+                  ₺
+                </Text>
+              }
               size="xs"
             />
           </SimpleGrid>
@@ -1930,7 +2133,9 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
           <Group justify="space-between" mb="sm">
             <Group gap="xs">
               <IconMathFunction size={16} color="var(--mantine-color-violet-6)" />
-              <Text size="sm" fw={600}>KİK Sınır Değer Formülü</Text>
+              <Text size="sm" fw={600}>
+                KİK Sınır Değer Formülü
+              </Text>
             </Group>
             <Button
               size="compact-xs"
@@ -1941,7 +2146,7 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
               Teklif Ekle
             </Button>
           </Group>
-          
+
           <Stack gap={4} mb="sm">
             {teklifListesi.map((teklif, index) => (
               <Group key={`teklif-${teklif.firma || 'empty'}-${teklif.tutar}-${index}`} gap={6}>
@@ -1968,7 +2173,11 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
                   decimalSeparator=","
                   style={{ flex: 1 }}
                   size="xs"
-                  rightSection={<Text size="xs" c="dimmed">₺</Text>}
+                  rightSection={
+                    <Text size="xs" c="dimmed">
+                      ₺
+                    </Text>
+                  }
                 />
                 {teklifListesi.length > 2 && (
                   <ActionIcon
@@ -1983,7 +2192,7 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
               </Group>
             ))}
           </Stack>
-          
+
           <Button
             fullWidth
             size="xs"
@@ -1994,15 +2203,24 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
           >
             Sınır Değer Hesapla
           </Button>
-          
+
           {hesaplananSinirDeger && (
             <Paper p="xs" mt="sm" radius="sm" bg="var(--mantine-color-green-light)">
               <Group justify="space-between">
                 <Box>
-                  <Text size="xs" c="dimmed">Hesaplanan Sınır Değer</Text>
-                  <Text size="lg" fw={700} c="green">{hesaplananSinirDeger.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺</Text>
+                  <Text size="xs" c="dimmed">
+                    Hesaplanan Sınır Değer
+                  </Text>
+                  <Text size="lg" fw={700} c="green">
+                    {hesaplananSinirDeger.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺
+                  </Text>
                 </Box>
-                <Button size="xs" variant="filled" color="green" onClick={() => setSinirDeger(Math.round(hesaplananSinirDeger))}>
+                <Button
+                  size="xs"
+                  variant="filled"
+                  color="green"
+                  onClick={() => setSinirDeger(Math.round(hesaplananSinirDeger))}
+                >
                   Uygula
                 </Button>
               </Group>
@@ -2014,41 +2232,136 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
         <Paper p="sm" withBorder radius="md">
           <Group gap="xs" mb="sm">
             <IconAlertTriangle size={16} color="var(--mantine-color-orange-6)" />
-            <Text size="sm" fw={600}>Aşırı Düşük Analizi</Text>
+            <Text size="sm" fw={600}>
+              Aşırı Düşük Analizi
+            </Text>
           </Group>
-          
+
           {sinirDeger && bizimTeklif > 0 && (
-            <Paper p="xs" mb="sm" radius="sm" bg={bizimTeklif < sinirDeger ? 'var(--mantine-color-orange-light)' : 'var(--mantine-color-green-light)'}>
+            <Paper
+              p="xs"
+              mb="sm"
+              radius="sm"
+              bg={
+                bizimTeklif < sinirDeger
+                  ? 'var(--mantine-color-orange-light)'
+                  : 'var(--mantine-color-green-light)'
+              }
+            >
               <Group justify="space-between">
                 <Text fw={600} size="xs" c={bizimTeklif < sinirDeger ? 'orange' : 'green'}>
                   {bizimTeklif < sinirDeger ? '⚠ Açıklama Gerekli' : '✓ Uygun'}
                 </Text>
-                <Text fw={600} size="xs">{Math.abs(sinirDeger - bizimTeklif).toLocaleString('tr-TR')} ₺ fark</Text>
+                <Text fw={600} size="xs">
+                  {Math.abs(sinirDeger - bizimTeklif).toLocaleString('tr-TR')} ₺ fark
+                </Text>
               </Group>
             </Paper>
           )}
-          
-          <Text size="xs" fw={500} mb={6} c="dimmed">Maliyet Bileşenleri</Text>
+
+          <Text size="xs" fw={500} mb={6} c="dimmed">
+            Maliyet Bileşenleri
+          </Text>
           <SimpleGrid cols={2} spacing={6}>
-            <NumberInput label="Ana Çiğ Girdi" value={maliyetBilesenleri.anaCigGirdi || ''} onChange={(val) => setMaliyetBilesenleri((prev) => ({ ...prev, anaCigGirdi: Number(val) || 0 }))} thousandSeparator="." decimalSeparator="," size="xs" />
-            <NumberInput label="Yardımcı Girdi" value={maliyetBilesenleri.yardimciGirdi || ''} onChange={(val) => setMaliyetBilesenleri((prev) => ({ ...prev, yardimciGirdi: Number(val) || 0 }))} thousandSeparator="." decimalSeparator="," size="xs" />
-            <NumberInput label="İşçilik" value={maliyetBilesenleri.iscilik || ''} onChange={(val) => setMaliyetBilesenleri((prev) => ({ ...prev, iscilik: Number(val) || 0 }))} thousandSeparator="." decimalSeparator="," size="xs" />
-            <NumberInput label="Nakliye" value={maliyetBilesenleri.nakliye || ''} onChange={(val) => setMaliyetBilesenleri((prev) => ({ ...prev, nakliye: Number(val) || 0 }))} thousandSeparator="." decimalSeparator="," size="xs" />
-            <NumberInput label="Sözleşme Gideri" value={maliyetBilesenleri.sozlesmeGideri || ''} onChange={(val) => setMaliyetBilesenleri((prev) => ({ ...prev, sozlesmeGideri: Number(val) || 0 }))} thousandSeparator="." decimalSeparator="," size="xs" />
-            <NumberInput label="Genel Gider + Kâr" value={maliyetBilesenleri.genelGider || ''} onChange={(val) => setMaliyetBilesenleri((prev) => ({ ...prev, genelGider: Number(val) || 0 }))} thousandSeparator="." decimalSeparator="," size="xs" />
+            <NumberInput
+              label="Ana Çiğ Girdi"
+              value={maliyetBilesenleri.anaCigGirdi || ''}
+              onChange={(val) =>
+                setMaliyetBilesenleri((prev) => ({ ...prev, anaCigGirdi: Number(val) || 0 }))
+              }
+              thousandSeparator="."
+              decimalSeparator=","
+              size="xs"
+            />
+            <NumberInput
+              label="Yardımcı Girdi"
+              value={maliyetBilesenleri.yardimciGirdi || ''}
+              onChange={(val) =>
+                setMaliyetBilesenleri((prev) => ({ ...prev, yardimciGirdi: Number(val) || 0 }))
+              }
+              thousandSeparator="."
+              decimalSeparator=","
+              size="xs"
+            />
+            <NumberInput
+              label="İşçilik"
+              value={maliyetBilesenleri.iscilik || ''}
+              onChange={(val) =>
+                setMaliyetBilesenleri((prev) => ({ ...prev, iscilik: Number(val) || 0 }))
+              }
+              thousandSeparator="."
+              decimalSeparator=","
+              size="xs"
+            />
+            <NumberInput
+              label="Nakliye"
+              value={maliyetBilesenleri.nakliye || ''}
+              onChange={(val) =>
+                setMaliyetBilesenleri((prev) => ({ ...prev, nakliye: Number(val) || 0 }))
+              }
+              thousandSeparator="."
+              decimalSeparator=","
+              size="xs"
+            />
+            <NumberInput
+              label="Sözleşme Gideri"
+              value={maliyetBilesenleri.sozlesmeGideri || ''}
+              onChange={(val) =>
+                setMaliyetBilesenleri((prev) => ({ ...prev, sozlesmeGideri: Number(val) || 0 }))
+              }
+              thousandSeparator="."
+              decimalSeparator=","
+              size="xs"
+            />
+            <NumberInput
+              label="Genel Gider + Kâr"
+              value={maliyetBilesenleri.genelGider || ''}
+              onChange={(val) =>
+                setMaliyetBilesenleri((prev) => ({ ...prev, genelGider: Number(val) || 0 }))
+              }
+              thousandSeparator="."
+              decimalSeparator=","
+              size="xs"
+            />
           </SimpleGrid>
-          
-          <Button fullWidth mt="sm" size="xs" variant="light" color="orange" leftSection={<IconCalculator size={14} />} onClick={hesaplaAsiriDusuk} disabled={!sinirDeger || bizimTeklif <= 0}>
+
+          <Button
+            fullWidth
+            mt="sm"
+            size="xs"
+            variant="light"
+            color="orange"
+            leftSection={<IconCalculator size={14} />}
+            onClick={hesaplaAsiriDusuk}
+            disabled={!sinirDeger || bizimTeklif <= 0}
+          >
             Analiz Et
           </Button>
-          
+
           {asiriDusukSonuc && (
-            <Paper p="xs" mt="sm" radius="sm" bg={asiriDusukSonuc.asiriDusukMu ? 'var(--mantine-color-orange-light)' : 'var(--mantine-color-green-light)'}>
+            <Paper
+              p="xs"
+              mt="sm"
+              radius="sm"
+              bg={
+                asiriDusukSonuc.asiriDusukMu
+                  ? 'var(--mantine-color-orange-light)'
+                  : 'var(--mantine-color-green-light)'
+              }
+            >
               <Group justify="space-between" mb={4}>
-                <Badge color={asiriDusukSonuc.asiriDusukMu ? 'orange' : 'green'} size="sm">{asiriDusukSonuc.asiriDusukMu ? 'Aşırı Düşük' : 'Normal'}</Badge>
-                {asiriDusukSonuc.toplamMaliyet > 0 && <Text size="xs" fw={600}>Maliyet: {asiriDusukSonuc.toplamMaliyet.toLocaleString('tr-TR')} ₺</Text>}
+                <Badge color={asiriDusukSonuc.asiriDusukMu ? 'orange' : 'green'} size="sm">
+                  {asiriDusukSonuc.asiriDusukMu ? 'Aşırı Düşük' : 'Normal'}
+                </Badge>
+                {asiriDusukSonuc.toplamMaliyet > 0 && (
+                  <Text size="xs" fw={600}>
+                    Maliyet: {asiriDusukSonuc.toplamMaliyet.toLocaleString('tr-TR')} ₺
+                  </Text>
+                )}
               </Group>
-              <Text size="xs" c="dimmed">{asiriDusukSonuc.aciklama}</Text>
+              <Text size="xs" c="dimmed">
+                {asiriDusukSonuc.aciklama}
+              </Text>
             </Paper>
           )}
         </Paper>
@@ -2059,16 +2372,55 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
           <Paper p="sm" withBorder radius="md">
             <Group gap="xs" mb="sm">
               <IconScale size={16} color="var(--mantine-color-blue-6)" />
-              <Text size="sm" fw={600}>Teminat</Text>
+              <Text size="sm" fw={600}>
+                Teminat
+              </Text>
             </Group>
-            <Button fullWidth size="xs" variant="light" color="blue" onClick={hesaplaTeminat} disabled={!yaklasikMaliyet && !bizimTeklif}>
+            <Button
+              fullWidth
+              size="xs"
+              variant="light"
+              color="blue"
+              onClick={hesaplaTeminat}
+              disabled={!yaklasikMaliyet && !bizimTeklif}
+            >
               Hesapla
             </Button>
             {teminatSonuc && (
               <Stack gap={4} mt="sm">
-                <Group justify="space-between"><Text size="xs" c="dimmed">Geçici (%3)</Text><Text size="xs" fw={600}>{teminatSonuc.geciciTeminat.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺</Text></Group>
-                <Group justify="space-between"><Text size="xs" c="dimmed">Kesin (%6)</Text><Text size="xs" fw={600}>{teminatSonuc.kesinTeminat.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺</Text></Group>
-                <Group justify="space-between"><Text size="xs" c="dimmed">Damga V.</Text><Text size="xs" fw={600}>{teminatSonuc.damgaVergisi.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺</Text></Group>
+                <Group justify="space-between">
+                  <Text size="xs" c="dimmed">
+                    Geçici (%3)
+                  </Text>
+                  <Text size="xs" fw={600}>
+                    {teminatSonuc.geciciTeminat.toLocaleString('tr-TR', {
+                      maximumFractionDigits: 0,
+                    })}{' '}
+                    ₺
+                  </Text>
+                </Group>
+                <Group justify="space-between">
+                  <Text size="xs" c="dimmed">
+                    Kesin (%6)
+                  </Text>
+                  <Text size="xs" fw={600}>
+                    {teminatSonuc.kesinTeminat.toLocaleString('tr-TR', {
+                      maximumFractionDigits: 0,
+                    })}{' '}
+                    ₺
+                  </Text>
+                </Group>
+                <Group justify="space-between">
+                  <Text size="xs" c="dimmed">
+                    Damga V.
+                  </Text>
+                  <Text size="xs" fw={600}>
+                    {teminatSonuc.damgaVergisi.toLocaleString('tr-TR', {
+                      maximumFractionDigits: 0,
+                    })}{' '}
+                    ₺
+                  </Text>
+                </Group>
               </Stack>
             )}
           </Paper>
@@ -2077,16 +2429,31 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
           <Paper p="sm" withBorder radius="md">
             <Group gap="xs" mb="sm">
               <IconCoin size={16} color="var(--mantine-color-teal-6)" />
-              <Text size="sm" fw={600}>İtirazen Şikayet</Text>
+              <Text size="sm" fw={600}>
+                İtirazen Şikayet
+              </Text>
             </Group>
-            <Text size="xs" c="dimmed" mb="xs">2026 Tarifeleri</Text>
-            <Button fullWidth size="xs" variant="light" color="teal" onClick={hesaplaBedel} disabled={!yaklasikMaliyet}>
+            <Text size="xs" c="dimmed" mb="xs">
+              2026 Tarifeleri
+            </Text>
+            <Button
+              fullWidth
+              size="xs"
+              variant="light"
+              color="teal"
+              onClick={hesaplaBedel}
+              disabled={!yaklasikMaliyet}
+            >
               Hesapla
             </Button>
             {bedelSonuc && (
               <Paper p="xs" mt="sm" radius="sm" bg="var(--mantine-color-teal-light)">
-                <Text size="lg" fw={700} c="teal">{bedelSonuc.bedel.toLocaleString('tr-TR')} ₺</Text>
-                <Text size="xs" c="dimmed">{bedelSonuc.aciklama}</Text>
+                <Text size="lg" fw={700} c="teal">
+                  {bedelSonuc.bedel.toLocaleString('tr-TR')} ₺
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {bedelSonuc.aciklama}
+                </Text>
               </Paper>
             )}
           </Paper>
@@ -2099,10 +2466,30 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
 // ========== DİLEKÇE SEKMESİ ==========
 
 const dilekceTypes = {
-  asiri_dusuk: { label: 'Aşırı Düşük Savunma', description: 'Aşırı düşük teklif açıklaması', icon: IconFileAnalytics, color: 'orange' },
-  idare_sikayet: { label: 'İdareye Şikayet', description: 'İdareye şikayet başvurusu', icon: IconGavel, color: 'red' },
-  kik_itiraz: { label: 'KİK İtiraz', description: 'Kamu İhale Kurumu itirazı', icon: IconScale, color: 'violet' },
-  aciklama_cevabi: { label: 'Açıklama Cevabı', description: 'Genel açıklama/cevap yazısı', icon: IconNote, color: 'teal' },
+  asiri_dusuk: {
+    label: 'Aşırı Düşük Savunma',
+    description: 'Aşırı düşük teklif açıklaması',
+    icon: IconFileAnalytics,
+    color: 'orange',
+  },
+  idare_sikayet: {
+    label: 'İdareye Şikayet',
+    description: 'İdareye şikayet başvurusu',
+    icon: IconGavel,
+    color: 'red',
+  },
+  kik_itiraz: {
+    label: 'KİK İtiraz',
+    description: 'Kamu İhale Kurumu itirazı',
+    icon: IconScale,
+    color: 'violet',
+  },
+  aciklama_cevabi: {
+    label: 'Açıklama Cevabı',
+    description: 'Genel açıklama/cevap yazısı',
+    icon: IconNote,
+    color: 'teal',
+  },
 };
 
 interface DilekceSectionProps {
@@ -2112,7 +2499,9 @@ interface DilekceSectionProps {
 }
 
 function DilekceSection({ tender, dilekceType, onSelectType }: DilekceSectionProps) {
-  const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+  const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>(
+    []
+  );
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [dilekceContent, setDilekceContent] = useState('');
@@ -2147,24 +2536,31 @@ function DilekceSection({ tender, dilekceType, onSelectType }: DilekceSectionPro
 
 Kullanıcının isteğine göre profesyonel bir ${typeInfo.label} hazırla. Dilekçe formatında, resmi dil kullan.`;
 
-      const response = await aiAPI.chat({
+      const response = await aiAPI.sendAgentMessage({
         message: userMessage,
-        context: systemPrompt,
-        tenderId: tender.tender_id,
+        systemContext: systemPrompt,
+        department: 'İHALE',
       });
 
       if (response.success && response.data?.response) {
         const assistantMessage = response.data.response;
         setMessages((prev) => [...prev, { role: 'assistant', content: assistantMessage }]);
-        
+
         // Eğer dilekçe içeriği oluşturulduysa kaydet
-        if (assistantMessage.includes('SAYIN') || assistantMessage.includes('İDAREYE') || assistantMessage.includes('KAMU İHALE KURUMU')) {
+        if (
+          assistantMessage.includes('SAYIN') ||
+          assistantMessage.includes('İDAREYE') ||
+          assistantMessage.includes('KAMU İHALE KURUMU')
+        ) {
           setDilekceContent(assistantMessage);
         }
       }
     } catch (error) {
       console.error('Dilekçe AI error:', error);
-      setMessages((prev) => [...prev, { role: 'assistant', content: 'Bir hata oluştu. Lütfen tekrar deneyin.' }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: 'Bir hata oluştu. Lütfen tekrar deneyin.' },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -2174,7 +2570,11 @@ Kullanıcının isteğine göre profesyonel bir ${typeInfo.label} hazırla. Dile
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(dilekceContent);
-      notifications.show({ title: 'Kopyalandı', message: 'Dilekçe panoya kopyalandı', color: 'green' });
+      notifications.show({
+        title: 'Kopyalandı',
+        message: 'Dilekçe panoya kopyalandı',
+        color: 'green',
+      });
     } catch {
       // Fallback
     }
@@ -2225,7 +2625,14 @@ Kullanıcının isteğine göre profesyonel bir ${typeInfo.label} hazırla. Dile
       {/* Header */}
       <Group justify="space-between">
         <Group gap="xs">
-          <ActionIcon variant="subtle" onClick={() => { onSelectType(null); setMessages([]); setDilekceContent(''); }}>
+          <ActionIcon
+            variant="subtle"
+            onClick={() => {
+              onSelectType(null);
+              setMessages([]);
+              setDilekceContent('');
+            }}
+          >
             <IconArrowLeft size={16} />
           </ActionIcon>
           <Badge color={selectedType.color} variant="light" size="lg">
@@ -2234,10 +2641,21 @@ Kullanıcının isteğine göre profesyonel bir ${typeInfo.label} hazırla. Dile
         </Group>
         {dilekceContent && (
           <Group gap="xs">
-            <Button size="xs" variant="light" leftSection={<IconCopy size={14} />} onClick={handleCopy}>
+            <Button
+              size="xs"
+              variant="light"
+              leftSection={<IconCopy size={14} />}
+              onClick={handleCopy}
+            >
               Kopyala
             </Button>
-            <Button size="xs" variant="light" color="green" leftSection={<IconFileDownload size={14} />} onClick={handleDownload}>
+            <Button
+              size="xs"
+              variant="light"
+              color="green"
+              leftSection={<IconFileDownload size={14} />}
+              onClick={handleDownload}
+            >
               İndir
             </Button>
           </Group>
@@ -2248,18 +2666,28 @@ Kullanıcının isteğine göre profesyonel bir ${typeInfo.label} hazırla. Dile
       {dilekceContent && !isEditing ? (
         <Paper p="md" withBorder radius="md" style={{ flex: 1, overflow: 'auto' }}>
           <Group justify="space-between" mb="sm">
-            <Text size="sm" fw={600}>Oluşturulan Dilekçe</Text>
-            <Button size="xs" variant="subtle" onClick={() => setIsEditing(true)}>Düzenle</Button>
+            <Text size="sm" fw={600}>
+              Oluşturulan Dilekçe
+            </Text>
+            <Button size="xs" variant="subtle" onClick={() => setIsEditing(true)}>
+              Düzenle
+            </Button>
           </Group>
           <ScrollArea h={300}>
-            <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{dilekceContent}</Text>
+            <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
+              {dilekceContent}
+            </Text>
           </ScrollArea>
         </Paper>
       ) : dilekceContent && isEditing ? (
         <Paper p="md" withBorder radius="md" style={{ flex: 1 }}>
           <Group justify="space-between" mb="sm">
-            <Text size="sm" fw={600}>Dilekçeyi Düzenle</Text>
-            <Button size="xs" variant="filled" color="green" onClick={() => setIsEditing(false)}>Kaydet</Button>
+            <Text size="sm" fw={600}>
+              Dilekçeyi Düzenle
+            </Text>
+            <Button size="xs" variant="filled" color="green" onClick={() => setIsEditing(false)}>
+              Kaydet
+            </Button>
           </Group>
           <Textarea
             value={dilekceContent}
@@ -2276,16 +2704,28 @@ Kullanıcının isteğine göre profesyonel bir ${typeInfo.label} hazırla. Dile
             <Stack gap="xs">
               {messages.length === 0 && (
                 <Paper p="md" withBorder radius="md" ta="center">
-                  <ThemeIcon size="xl" variant="light" color={selectedType.color} radius="xl" mb="sm">
+                  <ThemeIcon
+                    size="xl"
+                    variant="light"
+                    color={selectedType.color}
+                    radius="xl"
+                    mb="sm"
+                  >
                     <selectedType.icon size={24} />
                   </ThemeIcon>
-                  <Text size="sm" fw={600} mb="xs">{selectedType.label}</Text>
+                  <Text size="sm" fw={600} mb="xs">
+                    {selectedType.label}
+                  </Text>
                   <Text size="xs" c="dimmed" mb="md">
                     AI ile {selectedType.label.toLowerCase()} hazırlamak için talimatlarınızı yazın.
                   </Text>
                   <Stack gap={4}>
-                    <Text size="xs" c="dimmed">Örnek: "Bu ihale için aşırı düşük savunma dilekçesi hazırla"</Text>
-                    <Text size="xs" c="dimmed">Örnek: "Sınır değerin altında kaldık, açıklama yaz"</Text>
+                    <Text size="xs" c="dimmed">
+                      Örnek: "Bu ihale için aşırı düşük savunma dilekçesi hazırla"
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Örnek: "Sınır değerin altında kaldık, açıklama yaz"
+                    </Text>
                   </Stack>
                 </Paper>
               )}
@@ -2294,17 +2734,28 @@ Kullanıcının isteğine göre profesyonel bir ${typeInfo.label} hazırla. Dile
                   key={`dilekce-msg-${msg.role}-${idx}`}
                   p="sm"
                   radius="md"
-                  bg={msg.role === 'user' ? 'var(--mantine-color-blue-light)' : 'var(--mantine-color-gray-light)'}
-                  style={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%' }}
+                  bg={
+                    msg.role === 'user'
+                      ? 'var(--mantine-color-blue-light)'
+                      : 'var(--mantine-color-gray-light)'
+                  }
+                  style={{
+                    alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                    maxWidth: '90%',
+                  }}
                 >
-                  <Text size="xs" style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</Text>
+                  <Text size="xs" style={{ whiteSpace: 'pre-wrap' }}>
+                    {msg.content}
+                  </Text>
                 </Paper>
               ))}
               {loading && (
                 <Paper p="sm" radius="md" bg="var(--mantine-color-gray-light)">
                   <Group gap="xs">
                     <Loader size="xs" />
-                    <Text size="xs" c="dimmed">Dilekçe hazırlanıyor...</Text>
+                    <Text size="xs" c="dimmed">
+                      Dilekçe hazırlanıyor...
+                    </Text>
                   </Group>
                 </Paper>
               )}

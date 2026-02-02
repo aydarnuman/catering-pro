@@ -15,7 +15,40 @@ import { CenterPanel } from './CenterPanel/CenterPanel';
 import { LeftPanel } from './LeftPanel/LeftPanel';
 import { AddTenderModal } from './Modals/AddTenderModal';
 import { RightPanel } from './RightPanel/RightPanel';
-import type { IhaleMerkeziState, SavedTender, UpdateStats } from './types';
+import type {
+  AnalysisData,
+  IhaleMerkeziState,
+  SavedTender,
+  TenderStatus,
+  UpdateStats,
+  UserNote,
+} from './types';
+
+// API'den gelen ham takip verisi tipi
+interface RawTrackingData {
+  id: number | string;
+  tender_id: number;
+  ihale_basligi?: string;
+  kurum?: string;
+  tarih?: string;
+  bedel?: number | string;
+  city?: string;
+  external_id?: string;
+  url?: string;
+  status?: string;
+  notes?: string;
+  user_notes?: UserNote[];
+  created_at?: string;
+  dokuman_sayisi?: number;
+  analiz_edilen_dokuman?: number;
+  analysis_summary?: {
+    teknik_sartlar?: unknown[];
+    birim_fiyatlar?: unknown[];
+  };
+  yaklasik_maliyet?: number | string;
+  sinir_deger?: number | string;
+  bizim_teklif?: number | string;
+}
 
 // Lazy load heavy modals
 const TenderMapModal = dynamic(() => import('@/components/TenderMapModal'), {
@@ -46,7 +79,7 @@ const gridBackgroundStyle = {
 
 export function IhaleMerkeziLayout() {
   const searchParams = useSearchParams();
-  
+
   // Mobile detection
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
@@ -117,28 +150,28 @@ export function IhaleMerkeziLayout() {
     try {
       const result = await tendersAPI.getTrackingList();
       if (result.success && result.data) {
-        const formatted: SavedTender[] = result.data.map((t: Record<string, unknown>) => ({
-          id: t.id.toString(),
-          tender_id: t.tender_id,
-          ihale_basligi: t.ihale_basligi || '',
-          kurum: t.kurum || '',
+        const formatted: SavedTender[] = result.data.map((t: RawTrackingData) => ({
+          id: String(t.id),
+          tender_id: Number(t.tender_id),
+          ihale_basligi: String(t.ihale_basligi || ''),
+          kurum: String(t.kurum || ''),
           tarih: t.tarih ? new Date(t.tarih).toLocaleDateString('tr-TR') : '',
           bedel: t.bedel ? `${Number(t.bedel).toLocaleString('tr-TR')} ₺` : '',
           city: t.city,
           external_id: t.external_id,
           url: t.url,
-          status: t.status || 'bekliyor',
-          notes: t.notes || '',
+          status: (t.status || 'bekliyor') as TenderStatus,
+          notes: String(t.notes || ''),
           user_notes: t.user_notes || [],
-          created_at: t.created_at,
-          dokuman_sayisi: t.dokuman_sayisi || 0,
-          analiz_edilen_dokuman: t.analiz_edilen_dokuman || 0,
+          created_at: String(t.created_at || ''),
+          dokuman_sayisi: Number(t.dokuman_sayisi || 0),
+          analiz_edilen_dokuman: Number(t.analiz_edilen_dokuman || 0),
           teknik_sart_sayisi: t.analysis_summary?.teknik_sartlar?.length || 0,
           birim_fiyat_sayisi: t.analysis_summary?.birim_fiyatlar?.length || 0,
-          analysis_summary: t.analysis_summary,
-          yaklasik_maliyet: t.yaklasik_maliyet ? parseFloat(t.yaklasik_maliyet) : undefined,
-          sinir_deger: t.sinir_deger ? parseFloat(t.sinir_deger) : undefined,
-          bizim_teklif: t.bizim_teklif ? parseFloat(t.bizim_teklif) : undefined,
+          analysis_summary: t.analysis_summary as AnalysisData | undefined,
+          yaklasik_maliyet: t.yaklasik_maliyet ? parseFloat(String(t.yaklasik_maliyet)) : undefined,
+          sinir_deger: t.sinir_deger ? parseFloat(String(t.sinir_deger)) : undefined,
+          bizim_teklif: t.bizim_teklif ? parseFloat(String(t.bizim_teklif)) : undefined,
         }));
         setState((prev) => ({ ...prev, trackedTenders: formatted }));
       }
@@ -208,37 +241,39 @@ export function IhaleMerkeziLayout() {
         const url = new URL(window.location.href);
         url.searchParams.set('tender', String(id));
         window.history.replaceState({}, '', url.toString());
-        
+
         // Global AI Asistana context gönder
         const isSaved = 'tender_id' in tender;
-        window.dispatchEvent(new CustomEvent('ai-context-update', {
-          detail: {
-            type: 'tender',
-            id: id,
-            title: isSaved ? tender.ihale_basligi : tender.title,
-            pathname: '/ihale-merkezi',
-            department: 'İHALE',
-            data: {
+        window.dispatchEvent(
+          new CustomEvent('ai-context-update', {
+            detail: {
+              type: 'tender',
+              id: id,
               title: isSaved ? tender.ihale_basligi : tender.title,
-              organization: isSaved ? tender.kurum : tender.organization,
-              city: tender.city,
-              external_id: isSaved ? tender.external_id : tender.external_id,
-              deadline: isSaved ? tender.tarih : tender.deadline,
-              estimated_cost: isSaved ? tender.yaklasik_maliyet : tender.estimated_cost,
-              // Eğer SavedTender ise ek bilgiler
-              ...(isSaved && {
-                dokuman_sayisi: tender.dokuman_sayisi,
-                teknik_sart_sayisi: tender.teknik_sart_sayisi,
-                birim_fiyat_sayisi: tender.birim_fiyat_sayisi,
-                status: tender.status,
-              }),
+              pathname: '/ihale-merkezi',
+              department: 'İHALE',
+              data: {
+                title: isSaved ? tender.ihale_basligi : tender.title,
+                organization: isSaved ? tender.kurum : tender.organization,
+                city: tender.city,
+                external_id: isSaved ? tender.external_id : tender.external_id,
+                deadline: isSaved ? tender.tarih : tender.deadline,
+                estimated_cost: isSaved ? tender.yaklasik_maliyet : tender.estimated_cost,
+                // Eğer SavedTender ise ek bilgiler
+                ...(isSaved && {
+                  dokuman_sayisi: tender.dokuman_sayisi,
+                  teknik_sart_sayisi: tender.teknik_sart_sayisi,
+                  birim_fiyat_sayisi: tender.birim_fiyat_sayisi,
+                  status: tender.status,
+                }),
+              },
             },
-          },
-        }));
-        
+          })
+        );
+
         // On-demand döküman çekme - eğer tracked değilse veya döküman sayısı 0 ise
         const dokumanSayisi = isSaved ? tender.dokuman_sayisi : 0;
-        
+
         if (dokumanSayisi === 0) {
           try {
             // Arka planda dökümanları çek
@@ -253,15 +288,17 @@ export function IhaleMerkeziLayout() {
         const url = new URL(window.location.href);
         url.searchParams.delete('tender');
         window.history.replaceState({}, '', url.toString());
-        
+
         // AI context'i temizle
-        window.dispatchEvent(new CustomEvent('ai-context-update', {
-          detail: {
-            type: 'tender',
-            pathname: '/ihale-merkezi',
-            department: 'İHALE',
-          },
-        }));
+        window.dispatchEvent(
+          new CustomEvent('ai-context-update', {
+            detail: {
+              type: 'tender',
+              pathname: '/ihale-merkezi',
+              department: 'İHALE',
+            },
+          })
+        );
       }
     },
     [updateState]
@@ -280,27 +317,31 @@ export function IhaleMerkeziLayout() {
   }, []);
 
   // Update tender status
-  const updateTenderStatus = useCallback(
-    async (tenderId: string, newStatus: string) => {
-      try {
-        await tendersAPI.updateTracking(Number(tenderId), { status: newStatus });
-        // Update local state
-        setState((prev) => ({
-          ...prev,
-          trackedTenders: prev.trackedTenders.map((t) =>
-            t.id === tenderId ? { ...t, status: newStatus as SavedTender['status'] } : t
-          ),
-          selectedTender:
-            prev.selectedTender && 'id' in prev.selectedTender && prev.selectedTender.id === tenderId
-              ? { ...prev.selectedTender, status: newStatus as SavedTender['status'] }
-              : prev.selectedTender,
-        }));
-      } catch (error) {
-        console.error('Status update error:', error);
-      }
-    },
-    []
-  );
+  const updateTenderStatus = useCallback(async (tenderId: string, newStatus: string) => {
+    try {
+      await tendersAPI.updateTracking(Number(tenderId), { status: newStatus });
+      // Update local state
+      setState((prev) => {
+        const updatedTracked = prev.trackedTenders.map((t) =>
+          t.id === tenderId ? { ...t, status: newStatus as TenderStatus } : t
+        );
+        let updatedSelected: Tender | SavedTender | null = prev.selectedTender;
+        if (
+          prev.selectedTender &&
+          'tender_id' in prev.selectedTender &&
+          (prev.selectedTender as SavedTender).id === tenderId
+        ) {
+          updatedSelected = {
+            ...(prev.selectedTender as SavedTender),
+            status: newStatus as TenderStatus,
+          } as SavedTender;
+        }
+        return { ...prev, trackedTenders: updatedTracked, selectedTender: updatedSelected };
+      });
+    } catch (error) {
+      console.error('Status update error:', error);
+    }
+  }, []);
 
   // ========== RENDER ==========
 
@@ -514,11 +555,7 @@ export function IhaleMerkeziLayout() {
       />
 
       {/* Sag Panel */}
-      <RightPanel
-        state={state}
-        onToggleSection={toggleSection}
-        onStateChange={updateState}
-      />
+      <RightPanel state={state} onToggleSection={toggleSection} onStateChange={updateState} />
 
       {/* Modals */}
       <AddTenderModal

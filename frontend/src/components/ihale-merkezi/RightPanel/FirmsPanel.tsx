@@ -47,7 +47,7 @@ export function FirmsPanel({ tender, onRefresh }: FirmsPanelProps) {
   const [rakipTeklifler, setRakipTeklifler] = useState<RakipTeklif[]>([]);
   const [loading, setLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  
+
   // Yeni firma ekleme modu
   const [yeniFirmaAdi, setYeniFirmaAdi] = useState('');
 
@@ -68,11 +68,15 @@ export function FirmsPanel({ tender, onRefresh }: FirmsPanelProps) {
 
   // İhaleye ait rakip teklifleri yükle
   useEffect(() => {
-    if (tender.hesaplama_verileri?.rakipTeklifler) {
-      setRakipTeklifler(tender.hesaplama_verileri.rakipTeklifler);
-    } else if (tender.hesaplama_verileri?.teklifListesi) {
+    const hesaplamaVerileri = tender.hesaplama_verileri as
+      | { rakipTeklifler?: RakipTeklif[]; teklifListesi?: Array<{ firma: string; tutar: number }> }
+      | undefined;
+
+    if (hesaplamaVerileri?.rakipTeklifler) {
+      setRakipTeklifler(hesaplamaVerileri.rakipTeklifler);
+    } else if (hesaplamaVerileri?.teklifListesi) {
       // Eski format dönüşümü
-      const eskiTeklifler = tender.hesaplama_verileri.teklifListesi as Array<{ firma: string; tutar: number }>;
+      const eskiTeklifler = hesaplamaVerileri.teklifListesi;
       setRakipTeklifler(
         eskiTeklifler
           .filter((t) => t.firma || t.tutar > 0)
@@ -123,9 +127,7 @@ export function FirmsPanel({ tender, onRefresh }: FirmsPanelProps) {
 
   // Rakip güncelle
   const updateRakip = (index: number, field: keyof RakipTeklif, value: string | number) => {
-    setRakipTeklifler((prev) =>
-      prev.map((r, i) => (i === index ? { ...r, [field]: value } : r))
-    );
+    setRakipTeklifler((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
   };
 
   // Rakip sil
@@ -154,7 +156,9 @@ export function FirmsPanel({ tender, onRefresh }: FirmsPanelProps) {
   const bizimTeklif = tender.bizim_teklif || 0;
 
   // Sıralamamız
-  const bizimSira = siraliTeklifler.findIndex((t) => t.teklif_tutari > bizimTeklif) + 1 || siraliTeklifler.length + 1;
+  const bizimSira =
+    siraliTeklifler.findIndex((t) => t.teklif_tutari > bizimTeklif) + 1 ||
+    siraliTeklifler.length + 1;
 
   return (
     <Box p="xs">
@@ -187,7 +191,7 @@ export function FirmsPanel({ tender, onRefresh }: FirmsPanelProps) {
                 leftSection={<IconBuilding size={14} />}
               />
             )}
-            
+
             {/* Manuel firma girişi */}
             <Group gap={6}>
               <TextInput
@@ -238,7 +242,7 @@ export function FirmsPanel({ tender, onRefresh }: FirmsPanelProps) {
                 rakipTeklifler.map((rakip, index) => {
                   const sira = siraliTeklifler.findIndex((t) => t === rakip) + 1;
                   const isEnDusuk = sira === 1 && rakip.teklif_tutari > 0;
-                  
+
                   return (
                     <Paper
                       key={`rakip-${index}`}
@@ -262,7 +266,11 @@ export function FirmsPanel({ tender, onRefresh }: FirmsPanelProps) {
                           radius="xl"
                         >
                           {rakip.teklif_tutari > 0 ? (
-                            isEnDusuk ? <IconTrophy size={12} /> : <Text size="xs">{sira}</Text>
+                            isEnDusuk ? (
+                              <IconTrophy size={12} />
+                            ) : (
+                              <Text size="xs">{sira}</Text>
+                            )
                           ) : (
                             <Text size="xs">-</Text>
                           )}
@@ -312,20 +320,32 @@ export function FirmsPanel({ tender, onRefresh }: FirmsPanelProps) {
           <Paper p="xs" withBorder radius="md" bg="dark.7">
             <Stack gap={4}>
               <Group justify="space-between">
-                <Text size="xs" c="dimmed">En Düşük Teklif:</Text>
+                <Text size="xs" c="dimmed">
+                  En Düşük Teklif:
+                </Text>
                 <Text size="xs" fw={600} c="green">
-                  {Math.min(...rakipTeklifler.filter((r) => r.teklif_tutari > 0).map((r) => r.teklif_tutari)).toLocaleString('tr-TR')} ₺
+                  {Math.min(
+                    ...rakipTeklifler.filter((r) => r.teklif_tutari > 0).map((r) => r.teklif_tutari)
+                  ).toLocaleString('tr-TR')}{' '}
+                  ₺
                 </Text>
               </Group>
               <Group justify="space-between">
-                <Text size="xs" c="dimmed">En Yüksek Teklif:</Text>
+                <Text size="xs" c="dimmed">
+                  En Yüksek Teklif:
+                </Text>
                 <Text size="xs" fw={600} c="red">
-                  {Math.max(...rakipTeklifler.filter((r) => r.teklif_tutari > 0).map((r) => r.teklif_tutari)).toLocaleString('tr-TR')} ₺
+                  {Math.max(
+                    ...rakipTeklifler.filter((r) => r.teklif_tutari > 0).map((r) => r.teklif_tutari)
+                  ).toLocaleString('tr-TR')}{' '}
+                  ₺
                 </Text>
               </Group>
               {bizimTeklif > 0 && (
                 <Group justify="space-between">
-                  <Text size="xs" c="dimmed">Bizim Teklif:</Text>
+                  <Text size="xs" c="dimmed">
+                    Bizim Teklif:
+                  </Text>
                   <Text size="xs" fw={600} c="blue">
                     {bizimTeklif.toLocaleString('tr-TR')} ₺
                   </Text>

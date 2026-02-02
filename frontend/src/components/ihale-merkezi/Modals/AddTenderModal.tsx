@@ -1,15 +1,6 @@
 'use client';
 
-import {
-  Button,
-  Group,
-  Loader,
-  Modal,
-  Paper,
-  Stack,
-  Text,
-  TextInput,
-} from '@mantine/core';
+import { Button, Group, Loader, Modal, Paper, Stack, Text, TextInput } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconLink, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
@@ -78,13 +69,7 @@ export function AddTenderModal({ opened, onClose, onSuccess }: AddTenderModalPro
   };
 
   return (
-    <Modal
-      opened={opened}
-      onClose={onClose}
-      title="URL ile İhale Ekle"
-      centered
-      size="md"
-    >
+    <Modal opened={opened} onClose={onClose} title="URL ile İhale Ekle" centered size="md">
       <Stack gap="md">
         <TextInput
           label="İhale URL'si"
@@ -101,8 +86,8 @@ export function AddTenderModal({ opened, onClose, onSuccess }: AddTenderModalPro
             <strong>Örnek:</strong> https://ihalebul.com/tender/1768253602118
           </Text>
           <Text size="xs" c="dimmed" mt="xs">
-            Bu işlem ihale bilgilerini, döküman linklerini, ihale ilanı ve mal/hizmet
-            listesini otomatik olarak çeker.
+            Bu işlem ihale bilgilerini, döküman linklerini, ihale ilanı ve mal/hizmet listesini
+            otomatik olarak çeker.
           </Text>
         </Paper>
 

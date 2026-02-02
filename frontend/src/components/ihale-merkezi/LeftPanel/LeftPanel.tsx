@@ -56,7 +56,7 @@ export function LeftPanel({
   const [searchInput, setSearchInput] = useState(state.searchQuery);
 
   // Current list based on active tab
-  const currentList = useMemo(() => {
+  const currentList = useMemo((): (Tender | SavedTender)[] => {
     if (state.activeTab === 'tracked') {
       return state.trackedTenders;
     }
@@ -65,7 +65,7 @@ export function LeftPanel({
 
   // Filter list by search and filters
   const filteredList = useMemo(() => {
-    let list = currentList;
+    let list: (Tender | SavedTender)[] = currentList;
 
     // Search filter
     if (searchInput.trim()) {
@@ -87,23 +87,29 @@ export function LeftPanel({
 
     // City filter
     if (state.filters.city?.length) {
-      list = list.filter((tender) => 
-        tender.city && state.filters.city?.includes(tender.city)
-      );
+      list = list.filter((tender) => tender.city && state.filters.city?.includes(tender.city));
     }
 
     // Status filter (date-based)
     if (state.filters.status) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       list = list.filter((tender) => {
-        const dateStr = 'tender_date' in tender ? tender.tender_date : tender.tarih;
+        // SavedTender uses 'tarih', Tender uses 'tender_date' or 'deadline'
+        const dateStr =
+          'tarih' in tender
+            ? tender.tarih
+            : 'tender_date' in tender
+              ? tender.tender_date
+              : tender.deadline;
         if (!dateStr) return state.filters.status === 'dolmus';
-        
+
         const tenderDate = new Date(dateStr);
-        const daysDiff = Math.ceil((tenderDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        
+        const daysDiff = Math.ceil(
+          (tenderDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
         if (state.filters.status === 'guncel') return daysDiff > 3;
         if (state.filters.status === 'yaklasan') return daysDiff >= 0 && daysDiff <= 3;
         if (state.filters.status === 'dolmus') return daysDiff < 0;
@@ -135,7 +141,9 @@ export function LeftPanel({
     state.trackedTenders.forEach((t) => {
       if (t.city) cities.add(t.city);
     });
-    return Array.from(cities).sort().map((city) => ({ value: city, label: city }));
+    return Array.from(cities)
+      .sort()
+      .map((city) => ({ value: city, label: city }));
   }, [state.allTenders, state.trackedTenders]);
 
   // Status options
@@ -356,15 +364,20 @@ export function LeftPanel({
               </Badge>
             </Tooltip>
           </Group>
-          <Tooltip 
-            label={`Tıkla: Yenile | Son: ${stats?.lastUpdate ? new Date(stats.lastUpdate).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '--:--'}`} 
+          <Tooltip
+            label={`Tıkla: Yenile | Son: ${stats?.lastUpdate ? new Date(stats.lastUpdate).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '--:--'}`}
             position="bottom"
           >
             <Badge
               variant="light"
               color="blue"
               size="sm"
-              leftSection={<IconRefresh size={12} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />}
+              leftSection={
+                <IconRefresh
+                  size={12}
+                  style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }}
+                />
+              }
               style={{ cursor: 'pointer', opacity: loading ? 0.7 : 1 }}
               onClick={onRefresh}
             >
@@ -396,7 +409,7 @@ export function LeftPanel({
             value={searchInput}
             onChange={(e) => handleSearch(e.target.value)}
           />
-          
+
           {/* Filters */}
           <Group gap="xs">
             <Select
@@ -406,10 +419,12 @@ export function LeftPanel({
               searchable
               style={{ flex: 1 }}
               value={state.filters.city?.[0] || null}
-              onChange={(value) => onStateChange({ 
-                filters: { ...state.filters, city: value ? [value] : undefined },
-                currentPage: 1 
-              })}
+              onChange={(value) =>
+                onStateChange({
+                  filters: { ...state.filters, city: value ? [value] : undefined },
+                  currentPage: 1,
+                })
+              }
               data={cityOptions}
             />
             <Select
@@ -418,10 +433,12 @@ export function LeftPanel({
               clearable
               style={{ flex: 1 }}
               value={state.filters.status || null}
-              onChange={(value) => onStateChange({ 
-                filters: { ...state.filters, status: value || undefined },
-                currentPage: 1 
-              })}
+              onChange={(value) =>
+                onStateChange({
+                  filters: { ...state.filters, status: value || undefined },
+                  currentPage: 1,
+                })
+              }
               data={statusOptions}
             />
           </Group>
@@ -451,8 +468,7 @@ export function LeftPanel({
                 key={'tender_id' in tender ? tender.id : tender.id}
                 tender={tender}
                 isSelected={
-                  state.selectedTenderId ===
-                  ('tender_id' in tender ? tender.tender_id : tender.id)
+                  state.selectedTenderId === ('tender_id' in tender ? tender.tender_id : tender.id)
                 }
                 isTracked={state.trackedTenders.some(
                   (t) => t.tender_id === ('tender_id' in tender ? tender.tender_id : tender.id)
@@ -477,7 +493,6 @@ export function LeftPanel({
           />
         </Box>
       )}
-
     </Box>
   );
 }

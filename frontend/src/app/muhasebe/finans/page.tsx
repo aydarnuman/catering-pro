@@ -69,10 +69,9 @@ const MutabakatModal = dynamic(
   () => import('@/components/muhasebe/MutabakatModal').then((m) => m.default),
   { ssr: false }
 );
-const UnifiedNotesModal = dynamic(
-  () => import('@/components/notes/UnifiedNotesModal'),
-  { ssr: false }
-);
+const UnifiedNotesModal = dynamic(() => import('@/components/notes/UnifiedNotesModal'), {
+  ssr: false,
+});
 
 // ==================== INTERFACES ====================
 
@@ -587,7 +586,9 @@ export default function FinansMerkeziPage() {
                     >
                       <Group gap="xs">
                         <Text size="sm">📄</Text>
-                        <Text size="sm" fw={500}>Bekleyen Çekler</Text>
+                        <Text size="sm" fw={500}>
+                          Bekleyen Çekler
+                        </Text>
                       </Group>
                       <div style={{ textAlign: 'right' }}>
                         <Text size="sm" fw={600} c="blue.4">
@@ -611,7 +612,9 @@ export default function FinansMerkeziPage() {
                     >
                       <Group gap="xs">
                         <Text size="sm">📋</Text>
-                        <Text size="sm" fw={500}>Bekleyen Senetler</Text>
+                        <Text size="sm" fw={500}>
+                          Bekleyen Senetler
+                        </Text>
                       </Group>
                       <div style={{ textAlign: 'right' }}>
                         <Text size="sm" fw={600} c="grape.4">
@@ -2002,7 +2005,7 @@ export default function FinansMerkeziPage() {
                 </Table>
               </Paper>
 
-              <Button variant="light" onClick={() => (window.location.href = '/muhasebe/personel')}>
+              <Button variant="light" onClick={() => { window.location.href = '/muhasebe/personel'; }}>
                 Personel Sayfasına Git →
               </Button>
             </>
@@ -2247,10 +2250,7 @@ export default function FinansMerkeziPage() {
       />
 
       {/* Notlar & Ajanda Modal */}
-      <UnifiedNotesModal
-        opened={notesModalOpened}
-        onClose={() => setNotesModalOpened(false)}
-      />
+      <UnifiedNotesModal opened={notesModalOpened} onClose={() => setNotesModalOpened(false)} />
     </Container>
   );
 }

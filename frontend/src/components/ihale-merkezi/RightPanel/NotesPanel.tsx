@@ -45,10 +45,10 @@ export function NotesPanel({ trackingId, tenderId: _tenderId }: NotesPanelProps)
       const data = await tendersAPI.getTenderNotes(trackingId);
       if (data.success && data.data) {
         setNotes(
-          data.data.map((n: Record<string, unknown>) => ({
+          data.data.map((n) => ({
             id: String(n.id),
-            text: n.text || n.not || '',
-            color: n.color || 'yellow',
+            text: String(n.text || n.not || ''),
+            color: String(n.color || 'yellow'),
             pinned: Boolean(n.pinned) || false,
             created_at: String(n.created_at),
           }))

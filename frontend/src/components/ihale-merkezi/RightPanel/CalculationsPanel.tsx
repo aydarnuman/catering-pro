@@ -128,7 +128,12 @@ export function CalculationsPanel({ tender }: CalculationsPanelProps) {
 
         {/* Risk Status */}
         {riskStatus && (
-          <Paper p="xs" withBorder radius="md" style={{ borderColor: `var(--mantine-color-${riskStatus.color}-5)` }}>
+          <Paper
+            p="xs"
+            withBorder
+            radius="md"
+            style={{ borderColor: `var(--mantine-color-${riskStatus.color}-5)` }}
+          >
             <Group justify="space-between">
               <Group gap="xs">
                 <ThemeIcon size="sm" color={riskStatus.color} variant="light">
