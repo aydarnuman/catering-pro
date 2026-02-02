@@ -618,7 +618,11 @@ export default function TenderDetailPage() {
         body: JSON.stringify({ documentIds }),
       });
 
-      if (!response.ok) throw new Error('Analiz hatası');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMsg = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+        throw new Error(errorMsg);
+      }
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
