@@ -13,7 +13,6 @@ import {
   useMantineColorScheme,
 } from '@mantine/core';
 import {
-  IconBookmark,
   IconBrandInstagram,
   IconBrandWhatsapp,
   IconBuildingStore,
@@ -22,7 +21,6 @@ import {
   IconChevronRight,
   IconDeviceMobile,
   IconHome,
-  IconList,
   IconLogout,
   IconPackage,
   IconReceipt,
@@ -81,7 +79,6 @@ const allMenuGroups: MenuGroup[] = [
         badge: 'Yeni',
         badgeColor: 'violet',
       },
-      { label: 'İhale Listesi', href: '/tenders', icon: IconList },
       {
         label: 'Yükle & Analiz',
         href: '/upload',
@@ -89,7 +86,6 @@ const allMenuGroups: MenuGroup[] = [
         badge: 'AI',
         badgeColor: 'violet',
       },
-      { label: 'İhale Takibim', href: '/tracking', icon: IconBookmark },
     ],
   },
   {

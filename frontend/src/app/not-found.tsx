@@ -44,7 +44,7 @@ export default function NotFound() {
             leftSection={<IconSearch size={18} />}
             variant="light"
             component={Link}
-            href="/tenders"
+            href="/ihale-merkezi"
             size="md"
           >
             İhaleler
@@ -63,7 +63,7 @@ export default function NotFound() {
             <Button variant="subtle" size="xs" component={Link} href="/muhasebe/menu-planlama">
               Menu Planlama
             </Button>
-            <Button variant="subtle" size="xs" component={Link} href="/tenders">
+            <Button variant="subtle" size="xs" component={Link} href="/ihale-merkezi">
               İhaleler
             </Button>
             <Button variant="subtle" size="xs" component={Link} href="/muhasebe/stok">

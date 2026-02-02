@@ -617,7 +617,7 @@ function HomePageContent() {
                   color="#8B5CF6"
                 />
                 <QuickAction
-                  href="/tenders"
+                  href="/ihale-merkezi?tab=all"
                   icon={IconList}
                   label="İhale Listesi"
                   color="#3B82F6"
@@ -695,7 +695,7 @@ function HomePageContent() {
 
                 <Button
                   component={Link}
-                  href="/tenders"
+                  href="/ihale-merkezi?tab=all"
                   variant="light"
                   color="blue"
                   fullWidth

@@ -5,15 +5,15 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 /**
- * İhale Uzmanı sayfası artık /tracking sayfasına entegre edildi.
- * Bu sayfa otomatik olarak /tracking'e yönlendirir.
+ * İhale Uzmanı sayfası artık /ihale-merkezi sayfasına entegre edildi.
+ * Bu sayfa otomatik olarak İhale Merkezi'ne yönlendirir.
  */
 export default function IhaleUzmaniPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // /tracking sayfasına yönlendir
-    router.replace('/tracking');
+    // /ihale-merkezi sayfasına yönlendir
+    router.replace('/ihale-merkezi?tab=tracked');
   }, [router]);
 
   return (
@@ -21,7 +21,7 @@ export default function IhaleUzmaniPage() {
       <Center h={300}>
         <Stack align="center" gap="md">
           <Loader size="lg" color="violet" />
-          <Text c="dimmed">İhale Takibim sayfasına yönlendiriliyorsunuz...</Text>
+          <Text c="dimmed">İhale Merkezi'ne yönlendiriliyorsunuz...</Text>
         </Stack>
       </Center>
     </Container>

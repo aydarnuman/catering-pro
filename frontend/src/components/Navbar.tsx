@@ -18,7 +18,6 @@ import {
 } from '@mantine/core';
 import { useDisclosure, useHotkeys, useMediaQuery } from '@mantine/hooks';
 import {
-  IconBookmark,
   IconBrandInstagram,
   IconBrandWhatsapp,
   IconBuildingFactory2,
@@ -30,7 +29,6 @@ import {
   IconDeviceMobile,
   IconFolder,
   IconHome,
-  IconList,
   IconLogin,
   IconLogout,
   IconPackage,
@@ -601,16 +599,6 @@ export function Navbar() {
                     </Box>
                   </Menu.Item>
                   <Menu.Divider />
-                  <Menu.Item component={Link} href="/tenders" leftSection={<IconList size={16} />}>
-                    <Group justify="space-between" w="100%">
-                      <Text size="sm">İhale Listesi</Text>
-                      {isActive('/tenders') && (
-                        <Badge size="xs" color="blue">
-                          Aktif
-                        </Badge>
-                      )}
-                    </Group>
-                  </Menu.Item>
                   <Menu.Item
                     component={Link}
                     href="/upload"
@@ -624,14 +612,6 @@ export function Navbar() {
                         AI Analiz
                       </Text>
                     </Box>
-                  </Menu.Item>
-                  <Menu.Divider />
-                  <Menu.Item
-                    component={Link}
-                    href="/tracking"
-                    leftSection={<IconBookmark size={16} color="var(--mantine-color-cyan-6)" />}
-                  >
-                    İhale Takibim
                   </Menu.Item>
                 </Menu.Dropdown>
               </Menu>
