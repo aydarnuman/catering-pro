@@ -737,6 +737,20 @@ router.post('/fetch-documents/:tenderId', async (req, res) => {
             content.correctionNoticeContent ? JSON.stringify(content.correctionNoticeContent) : null,
           ]
         );
+        
+        // Otomatik olarak documents tablosuna da kaydet
+        try {
+          const tenderContentService = (await import('../services/tender-content-service.js')).default;
+          const contentResult = await tenderContentService.createContentDocuments(parseInt(tenderId, 10));
+          console.log(`[FetchDocuments] Content documents created:`, {
+            tenderId,
+            created: contentResult.created?.length || 0,
+            skipped: contentResult.skipped?.length || 0,
+            errors: contentResult.errors?.length || 0,
+          });
+        } catch (contentErr) {
+          console.error(`[FetchDocuments] Content documents error:`, contentErr.message);
+        }
       }
 
       // Log kaydet

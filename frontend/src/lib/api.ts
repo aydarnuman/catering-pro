@@ -17,7 +17,7 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
 // Create axios instance
 export const api = axios.create({
   baseURL: '',
-  timeout: 30000,
+  timeout: 300000, // 5 dakika - uzun işlemler için (scraper, analiz vb.)
   headers: {
     'Content-Type': 'application/json',
     'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -180,7 +180,7 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
 
   const baseUrl = getApiBaseUrlDynamic();
   const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
-  const timeoutMs = 30000;
+  const timeoutMs = 300000; // 5 dakika
   const timeoutSignal = options.signal || AbortSignal.timeout(timeoutMs);
 
   const response = await fetch(fullUrl, {
@@ -199,7 +199,7 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
 export function safeFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const baseUrl = getApiBaseUrlDynamic();
   const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
-  const timeoutMs = 30000;
+  const timeoutMs = 300000; // 5 dakika
   const timeoutSignal = options.signal || AbortSignal.timeout(timeoutMs);
 
   const headers = new Headers(options.headers);
