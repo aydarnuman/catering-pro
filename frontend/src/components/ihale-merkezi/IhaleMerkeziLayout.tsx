@@ -132,6 +132,7 @@ export function IhaleMerkeziLayout() {
         limit: 20,
         search: state.searchQuery || undefined,
         status: 'active',
+        city: state.filters.city?.[0] || undefined,
       });
 
       setState((prev) => ({
@@ -143,7 +144,7 @@ export function IhaleMerkeziLayout() {
     } catch (error) {
       console.error('Tenders fetch error:', error);
     }
-  }, [state.currentPage, state.searchQuery]);
+  }, [state.currentPage, state.searchQuery, state.filters.city]);
 
   // Fetch tracked tenders - returns the list for immediate use
   const fetchTrackedTenders = useCallback(async (): Promise<SavedTender[]> => {

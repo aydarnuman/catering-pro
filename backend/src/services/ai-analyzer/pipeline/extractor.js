@@ -31,7 +31,15 @@ import logger from '../../../utils/logger.js';
  */
 export async function extractZip(zipPath) {
   const extractDir = path.join(path.dirname(zipPath), `extracted_${Date.now()}`);
-  const supportedExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt', '.csv', '.png', '.jpg', '.jpeg'];
+  // Genişletilmiş desteklenen uzantılar
+  const supportedExtensions = [
+    // Dökümanlar
+    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.rtf', '.odt', '.ods', '.odp',
+    // Metin
+    '.txt', '.csv', '.xml', '.json',
+    // Görseller
+    '.png', '.jpg', '.jpeg', '.gif', '.webp', '.tiff', '.tif', '.bmp',
+  ];
 
   try {
     fs.mkdirSync(extractDir, { recursive: true });

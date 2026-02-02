@@ -25,19 +25,20 @@ import { mergeDocumentResults } from './utils/parser.js';
 import { runPipeline, runPipelineBatch, extract, chunk, analyze } from './pipeline/index.js';
 export { runPipeline, runPipelineBatch, extract, chunk, analyze };
 
-// Desteklenen dosya formatları
+// Desteklenen dosya formatları - GENİŞLETİLMİŞ
 export const SUPPORTED_FORMATS = {
   pdf: ['.pdf'],
-  image: ['.png', '.jpg', '.jpeg', '.webp', '.gif'],
-  document: ['.docx', '.doc'],
-  spreadsheet: ['.xlsx', '.xls'],
-  text: ['.txt', '.csv'],
+  image: ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.tiff', '.tif', '.bmp'],
+  document: ['.docx', '.doc', '.rtf', '.odt'],
+  spreadsheet: ['.xlsx', '.xls', '.ods', '.csv'],
+  presentation: ['.pptx', '.ppt', '.odp'],
+  text: ['.txt', '.xml', '.json'],
 };
 
 /**
  * Dosya türünü belirle (uzantıya göre)
  * @param {string} filename - Dosya adı
- * @returns {string} Dosya türü: pdf, image, document, spreadsheet, text, unknown
+ * @returns {string} Dosya türü: pdf, image, document, spreadsheet, presentation, text, unknown
  */
 export function getFileType(filename) {
   const ext = path.extname(filename).toLowerCase();
@@ -46,6 +47,7 @@ export function getFileType(filename) {
   if (SUPPORTED_FORMATS.image.includes(ext)) return 'image';
   if (SUPPORTED_FORMATS.document.includes(ext)) return 'document';
   if (SUPPORTED_FORMATS.spreadsheet.includes(ext)) return 'spreadsheet';
+  if (SUPPORTED_FORMATS.presentation.includes(ext)) return 'presentation';
   if (SUPPORTED_FORMATS.text.includes(ext)) return 'text';
 
   return 'unknown';

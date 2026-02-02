@@ -21,36 +21,78 @@ const execAsync = promisify(exec);
 // Storage bucket name
 const BUCKET_NAME = 'tender-documents';
 
-// Desteklenen dosya uzantıları
+// Desteklenen dosya uzantıları - GENİŞLETİLMİŞ LİSTE
 const SUPPORTED_EXTENSIONS = [
+  // Dökümanlar
   '.pdf',
   '.doc',
   '.docx',
   '.xls',
   '.xlsx',
+  '.ppt',      // PowerPoint
+  '.pptx',     // PowerPoint (yeni)
+  '.rtf',      // Rich Text
+  '.odt',      // OpenDocument Text
+  '.ods',      // OpenDocument Spreadsheet
+  '.odp',      // OpenDocument Presentation
+  // Arşivler
   '.zip',
   '.rar',
+  '.7z',       // 7-Zip
+  // Görseller
   '.jpg',
   '.jpeg',
   '.png',
+  '.gif',
+  '.webp',
+  '.tiff',
+  '.tif',
+  '.bmp',
+  // Metin
   '.txt',
   '.csv',
+  '.xml',
+  '.json',
+  // Teknik dosyalar (sadece sakla, analiz etme)
+  '.dwg',      // AutoCAD - teknik şartnamelerde yaygın
+  '.dxf',      // AutoCAD exchange format
 ];
 
-// Content-Type mapping
+// Content-Type mapping - GENİŞLETİLMİŞ
 const CONTENT_TYPES = {
+  // Dökümanlar
   '.pdf': 'application/pdf',
   '.doc': 'application/msword',
   '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   '.xls': 'application/vnd.ms-excel',
   '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.ppt': 'application/vnd.ms-powerpoint',
+  '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  '.rtf': 'application/rtf',
+  '.odt': 'application/vnd.oasis.opendocument.text',
+  '.ods': 'application/vnd.oasis.opendocument.spreadsheet',
+  '.odp': 'application/vnd.oasis.opendocument.presentation',
+  // Arşivler
   '.zip': 'application/zip',
   '.rar': 'application/x-rar-compressed',
+  '.7z': 'application/x-7z-compressed',
+  // Görseller
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.tiff': 'image/tiff',
+  '.tif': 'image/tiff',
+  '.bmp': 'image/bmp',
+  // Metin
   '.txt': 'text/plain',
   '.csv': 'text/csv',
+  '.xml': 'application/xml',
+  '.json': 'application/json',
+  // Teknik
+  '.dwg': 'application/acad',
+  '.dxf': 'application/dxf',
 };
 
 // Doc type display names
@@ -195,6 +237,17 @@ class DocumentStorageService {
         try {
           const url = typeof docData === 'string' ? docData : docData?.url;
           const name = typeof docData === 'object' ? docData?.name : null;
+          const fileName = typeof docData === 'object' ? docData?.fileName : null;
+          
+          // fileName'den uzantı çıkar (ekap://2026/26DT183631.cetvel.docx -> .docx)
+          let fileExtFromName = null;
+          if (fileName) {
+            const extMatch = fileName.match(/\.(\w+)$/);
+            if (extMatch) {
+              fileExtFromName = `.${extMatch[1].toLowerCase()}`;
+              logger.debug(`fileName'den uzantı: ${fileExtFromName} (${fileName})`);
+            }
+          }
 
           if (!url) {
             logger.warn(`${docType}: URL bulunamadı`);
@@ -213,8 +266,8 @@ class DocumentStorageService {
           // Rate limiting
           await this.sleep(this.downloadDelay);
 
-          // Dökümanı indir
-          const downloadResult = await this.downloadAndStore(tenderId, docType, url, name);
+          // Dökümanı indir (fileExtFromName varsa öncelikli uzantı olarak geç)
+          const downloadResult = await this.downloadAndStore(tenderId, docType, url, name, fileExtFromName);
 
           results.success.push({
             docType,
@@ -262,16 +315,31 @@ class DocumentStorageService {
 
   /**
    * Tek bir dökümanı indir ve depola
+   * @param {string} hintExtension - fileName'den çıkarılan uzantı ipucu (opsiyonel)
    */
-  async downloadAndStore(tenderId, docType, url, displayName = null) {
+  async downloadAndStore(tenderId, docType, url, displayName = null, hintExtension = null) {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'tender-doc-'));
 
     try {
       // 1. Dökümanı indir
       const fileBuffer = await documentDownloadService.downloadDocument(url);
 
-      // 2. Dosya uzantısını belirle - önce içeriğe bak (magic bytes)
-      const extension = this.detectFileType(fileBuffer) || this.getExtensionFromUrl(url) || '.pdf';
+      // 2. Dosya uzantısını belirle - öncelik sırası:
+      //    a) Magic bytes'tan tespit (en güvenilir)
+      //    b) fileName'den gelen ipucu (hintExtension)
+      //    c) URL'den uzantı
+      //    d) Varsayılan .pdf
+      let extension = this.detectFileType(fileBuffer);
+      
+      // Magic bytes null döndü ama hintExtension varsa onu kullan
+      if (!extension && hintExtension) {
+        logger.info(`Magic bytes tanınamadı, fileName uzantısı kullanılıyor: ${hintExtension}`);
+        extension = hintExtension;
+      }
+      
+      // Hala null ise URL'den veya varsayılan
+      extension = extension || this.getExtensionFromUrl(url) || '.pdf';
+      
       const isZip = extension === '.zip' || extension === '.rar';
 
       logger.debug(`Dosya tipi tespit edildi: ${extension} (URL: ${url.substring(0, 50)}...)`);
@@ -284,7 +352,9 @@ class DocumentStorageService {
 
       if (isZip) {
         // ZIP dosyasını aç ve içindekileri yükle
+        console.log(`[DocumentStorage] ZIP tespit edildi, açılıyor: ${url}`);
         uploadResults = await this.extractAndUpload(tenderId, docType, tempFilePath, url);
+        console.log(`[DocumentStorage] ZIP açıldı, ${uploadResults.length} dosya:`, uploadResults.map(r => r.fileName));
       } else {
         // Tek dosyayı yükle
         const result = await this.uploadSingleFile(
@@ -419,7 +489,7 @@ class DocumentStorageService {
             docType,
             buffer,
             '.rar',
-            this.getDisplayName(docType) + '.rar',
+            `${this.getDisplayName(docType)}.rar`,
             sourceUrl
           );
           return [result];
@@ -714,8 +784,8 @@ class DocumentStorageService {
     // admin_spec_2 -> İdari Şartname 2
     for (const [key, value] of Object.entries(DOC_TYPE_NAMES)) {
       if (docType === key) return value;
-      if (docType.startsWith(key + '_')) {
-        const num = docType.replace(key + '_', '');
+      if (docType.startsWith(`${key}_`)) {
+        const num = docType.replace(`${key}_`, '');
         return `${value} ${num}`;
       }
     }
@@ -749,12 +819,41 @@ class DocumentStorageService {
       return '.pdf';
     }
 
-    // ZIP kontrolü (ZIP, DOCX, XLSX hepsi aynı magic bytes)
+    // ZIP kontrolü (ZIP, DOCX, XLSX, PPTX hepsi aynı magic bytes - PK)
     if (buffer[0] === 0x50 && buffer[1] === 0x4b && buffer[2] === 0x03 && buffer[3] === 0x04) {
-      // ZIP içeriğine bakarak DOCX/XLSX mi yoksa gerçek ZIP mi anlamaya çalış
-      // Basit bir kontrol: ZIP header'ı varsa ZIP olarak işle
-      logger.debug('ZIP formatı tespit edildi (magic bytes: PK)');
-      return '.zip';
+      // ZIP içeriğine bakarak DOCX/XLSX/PPTX mi gerçek ZIP mi anla
+      try {
+        const zip = new AdmZip(buffer);
+        const entries = zip.getEntries().map(e => e.entryName);
+        
+        // Office Open XML dosyaları [Content_Types].xml içerir
+        if (entries.includes('[Content_Types].xml')) {
+          // Word, Excel, PowerPoint ayrımı
+          if (entries.some(e => e.startsWith('word/'))) {
+            logger.debug('DOCX tespit edildi (Office Open XML - Word)');
+            return '.docx';
+          }
+          if (entries.some(e => e.startsWith('xl/'))) {
+            logger.debug('XLSX tespit edildi (Office Open XML - Excel)');
+            return '.xlsx';
+          }
+          if (entries.some(e => e.startsWith('ppt/'))) {
+            logger.debug('PPTX tespit edildi (Office Open XML - PowerPoint)');
+            return '.pptx';
+          }
+          // Bilinmeyen Office formatı, docx olarak varsay
+          logger.debug('Office Open XML tespit edildi, docx olarak işleniyor');
+          return '.docx';
+        }
+        
+        // Gerçek ZIP dosyası
+        logger.debug('ZIP formatı tespit edildi (gerçek arşiv)');
+        return '.zip';
+      } catch (e) {
+        // ZIP parse hatası, yine de ZIP olarak işle
+        logger.debug('ZIP parse hatası, ZIP olarak işleniyor:', e.message);
+        return '.zip';
+      }
     }
 
     // RAR kontrolü
@@ -770,6 +869,30 @@ class DocumentStorageService {
     // JPEG kontrolü
     if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
       return '.jpg';
+    }
+
+    // OLE Compound File (DOC, XLS, PPT - eski Office formatları)
+    // Magic bytes: D0 CF 11 E0 A1 B1 1A E1
+    if (buffer[0] === 0xd0 && buffer[1] === 0xcf && buffer[2] === 0x11 && buffer[3] === 0xe0) {
+      logger.debug('OLE Compound File tespit edildi (eski Office formatı)');
+      // İçeriğe bakarak DOC/XLS/PPT ayrımı zor, URL'den uzantıya bakacağız
+      return null; // getExtensionFromUrl'e bırak
+    }
+
+    // GIF kontrolü
+    if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38) {
+      return '.gif';
+    }
+
+    // BMP kontrolü
+    if (buffer[0] === 0x42 && buffer[1] === 0x4d) {
+      return '.bmp';
+    }
+
+    // TIFF kontrolü
+    if ((buffer[0] === 0x49 && buffer[1] === 0x49 && buffer[2] === 0x2a && buffer[3] === 0x00) ||
+        (buffer[0] === 0x4d && buffer[1] === 0x4d && buffer[2] === 0x00 && buffer[3] === 0x2a)) {
+      return '.tiff';
     }
 
     return null;

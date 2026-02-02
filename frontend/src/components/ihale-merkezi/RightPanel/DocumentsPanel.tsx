@@ -2,7 +2,6 @@
 
 import {
   ActionIcon,
-  Badge,
   Box,
   Button,
   Group,
@@ -14,21 +13,25 @@ import {
   ThemeIcon,
   Tooltip,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import {
-  IconBrain,
   IconCheck,
-  IconCloudDownload,
   IconDownload,
   IconFile,
+  IconFileText,
   IconRefresh,
+  IconTrash,
   IconX,
 } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
+import { API_BASE_URL } from '@/lib/config';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { tendersAPI } from '@/lib/api/services/tenders';
+import { DocumentWizardModal } from '../DocumentWizardModal';
 
 interface DocumentsPanelProps {
   tenderId: number;
+  tenderTitle?: string;
   onRefresh?: () => void;
 }
 
@@ -41,11 +44,32 @@ interface Document {
   storage_url?: string;
 }
 
-export function DocumentsPanel({ tenderId, onRefresh }: DocumentsPanelProps) {
+export function DocumentsPanel({ tenderId, tenderTitle, onRefresh }: DocumentsPanelProps) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(false);
-  const [downloading, setDownloading] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
+  
+  // URL state için hooks
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Wizard modal state - URL'den oku
+  const wizardParam = searchParams.get('wizard');
+  const wizardOpen = wizardParam === '1' || wizardParam === 'open';
+
+  // Modal aç/kapa fonksiyonları
+  const openWizard = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('wizard', '1');
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [searchParams, router, pathname]);
+
+  const closeWizard = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('wizard');
+    const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+    router.push(newUrl, { scroll: false });
+  }, [searchParams, router, pathname]);
 
   // Fetch documents
   const fetchDocuments = useCallback(async () => {
@@ -72,70 +96,10 @@ export function DocumentsPanel({ tenderId, onRefresh }: DocumentsPanelProps) {
     fetchDocuments();
   }, [fetchDocuments]);
 
-  // Download documents
-  const handleDownload = async () => {
-    setDownloading(true);
-    try {
-      const result = await tendersAPI.downloadTenderDocuments(String(tenderId));
-      if (result.success) {
-        notifications.show({
-          title: 'İndirme Tamamlandı',
-          message: `${result.data?.totalDownloaded || 0} döküman indirildi`,
-          color: 'green',
-        });
-        fetchDocuments();
-      }
-    } catch {
-      notifications.show({
-        title: 'Hata',
-        message: 'Dökümanlar indirilemedi',
-        color: 'red',
-      });
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  // Analyze documents with AI
-  const handleAnalyze = async () => {
-    setAnalyzing(true);
-    try {
-      const result = await tendersAPI.analyzeDocuments(String(tenderId));
-      if (result.success) {
-        notifications.show({
-          title: 'Analiz Tamamlandı',
-          message: 'Dökümanlar başarıyla analiz edildi',
-          color: 'green',
-        });
-        fetchDocuments();
-        onRefresh?.();
-      }
-    } catch {
-      notifications.show({
-        title: 'Hata',
-        message: 'Dökümanlar analiz edilemedi',
-        color: 'red',
-      });
-    } finally {
-      setAnalyzing(false);
-    }
-  };
-
-  // Get status badge
-  const getStatusBadge = (status: string) => {
-    const statusMap: Record<string, { color: string; label: string }> = {
-      pending: { color: 'gray', label: 'Bekliyor' },
-      processing: { color: 'blue', label: 'İşleniyor' },
-      completed: { color: 'green', label: 'Tamamlandı' },
-      failed: { color: 'red', label: 'Hata' },
-    };
-    const s = statusMap[status] || statusMap.pending;
-    return (
-      <Badge size="xs" color={s.color} variant="light">
-        {s.label}
-      </Badge>
-    );
-  };
+  // Stats
+  const totalDocs = documents.length;
+  const completedDocs = documents.filter(d => d.processing_status === 'completed').length;
+  const pendingDocs = documents.filter(d => d.processing_status === 'pending' || d.processing_status === 'failed').length;
 
   // Get doc type label
   const getDocTypeLabel = (docType: string) => {
@@ -150,106 +114,219 @@ export function DocumentsPanel({ tenderId, onRefresh }: DocumentsPanelProps) {
     return labels[docType] || docType;
   };
 
+  // Reset all documents
+  const handleResetDocuments = async () => {
+    if (documents.length === 0) return;
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tender-content/documents/reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ documentIds: documents.map(d => d.id) }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        notifications.show({
+          title: 'Başarılı',
+          message: `${data.resetCount} döküman sıfırlandı`,
+          color: 'green',
+        });
+        fetchDocuments();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      notifications.show({
+        title: 'Hata',
+        message: error instanceof Error ? error.message : 'Sıfırlama başarısız',
+        color: 'red',
+      });
+    }
+  };
+
+  // Delete all documents
+  const handleDeleteAllDocuments = async () => {
+    if (!confirm('Bu ihaleye ait TÜM dökümanları silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz!')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/tender-content/${tenderId}/documents?deleteFromStorage=true`,
+        {
+          method: 'DELETE',
+          credentials: 'include',
+        }
+      );
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        notifications.show({
+          title: 'Başarılı',
+          message: `${data.deletedCount} döküman silindi`,
+          color: 'green',
+        });
+        fetchDocuments();
+        onRefresh?.();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      notifications.show({
+        title: 'Hata',
+        message: error instanceof Error ? error.message : 'Silme başarısız',
+        color: 'red',
+      });
+    }
+  };
+
   return (
-    <Box p="xs">
-      {/* Actions */}
-      <Stack gap={4} mb="xs">
-        <Group justify="space-between">
+    <>
+      <Box p="xs">
+        {/* Summary & Open Wizard Button */}
+        <Stack gap="xs">
+          {/* Stats */}
+          {!loading && totalDocs > 0 && (
+            <Group justify="space-around" py="xs">
+              <Box ta="center">
+                <Text size="lg" fw={700}>{totalDocs}</Text>
+                <Text size="xs" c="dimmed">Toplam</Text>
+              </Box>
+              <Box ta="center">
+                <Text size="lg" fw={700} c="green">{completedDocs}</Text>
+                <Text size="xs" c="dimmed">Analiz</Text>
+              </Box>
+              <Box ta="center">
+                <Text size="lg" fw={700} c="yellow">{pendingDocs}</Text>
+                <Text size="xs" c="dimmed">Bekliyor</Text>
+              </Box>
+            </Group>
+          )}
+
+          {/* Open Wizard Button */}
           <Button
             size="xs"
-            variant="light"
-            leftSection={<IconCloudDownload size={14} />}
-            onClick={handleDownload}
-            loading={downloading}
+            variant="gradient"
+            style={{ background: 'linear-gradient(135deg, #C9A227 0%, #D4AF37 50%, #E6C65C 100%)', border: 'none' }}
+            leftSection={<IconFileText size={14} />}
+            onClick={openWizard}
+            fullWidth
           >
-            İndir
+            Döküman Yönetimi
           </Button>
-          <Tooltip label="Yenile">
-            <ActionIcon variant="subtle" size="sm" onClick={fetchDocuments} loading={loading}>
-              <IconRefresh size={14} />
-            </ActionIcon>
-          </Tooltip>
-        </Group>
-        <Button
-          size="xs"
-          variant="gradient"
-          gradient={{ from: 'violet', to: 'grape' }}
-          leftSection={<IconBrain size={14} />}
-          onClick={handleAnalyze}
-          loading={analyzing}
-          disabled={documents.length === 0}
-          fullWidth
-        >
-          AI ile Analiz Et
-        </Button>
-      </Stack>
 
-      {/* Documents List */}
-      <ScrollArea.Autosize mah={200}>
-        <Stack gap={4}>
-          {loading ? (
-            <Box ta="center" py="md">
-              <Loader size="sm" />
-            </Box>
-          ) : documents.length === 0 ? (
-            <Text size="xs" c="dimmed" ta="center" py="md">
-              Henüz döküman yok. "İndir" butonuna tıklayın.
-            </Text>
-          ) : (
-            documents.map((doc) => (
-              <Paper key={doc.id} p="xs" withBorder radius="sm">
-                <Group justify="space-between" wrap="nowrap">
-                  <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-                    <ThemeIcon
-                      size="sm"
-                      variant="light"
-                      color={
-                        doc.processing_status === 'completed'
-                          ? 'green'
-                          : doc.processing_status === 'failed'
-                            ? 'red'
-                            : 'gray'
-                      }
-                    >
-                      {doc.processing_status === 'completed' ? (
-                        <IconCheck size={12} />
-                      ) : doc.processing_status === 'failed' ? (
-                        <IconX size={12} />
-                      ) : (
-                        <IconFile size={12} />
-                      )}
-                    </ThemeIcon>
-                    <Box style={{ minWidth: 0, flex: 1 }}>
-                      <Text size="xs" fw={500} truncate>
+          {/* Document Actions */}
+          <Group justify="space-between">
+            <Group gap={4}>
+              <Tooltip label="Dökümanları sıfırla (tekrar analiz için)">
+                <ActionIcon 
+                  variant="light" 
+                  color="orange" 
+                  size="sm" 
+                  onClick={handleResetDocuments}
+                  disabled={totalDocs === 0}
+                >
+                  <IconRefresh size={14} />
+                </ActionIcon>
+              </Tooltip>
+              <Tooltip label="Tüm dökümanları sil">
+                <ActionIcon 
+                  variant="light" 
+                  color="red" 
+                  size="sm" 
+                  onClick={handleDeleteAllDocuments}
+                  disabled={totalDocs === 0}
+                >
+                  <IconTrash size={14} />
+                </ActionIcon>
+              </Tooltip>
+            </Group>
+            <Tooltip label="Yenile">
+              <ActionIcon variant="subtle" size="sm" onClick={fetchDocuments} loading={loading}>
+                <IconRefresh size={14} />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
+        </Stack>
+
+        {/* Quick Document List */}
+        <ScrollArea.Autosize mah={150} mt="xs">
+          <Stack gap={4}>
+            {loading ? (
+              <Box ta="center" py="md">
+                <Loader size="sm" />
+              </Box>
+            ) : documents.length === 0 ? (
+              <Text size="xs" c="dimmed" ta="center" py="sm">
+                Henüz döküman yok
+              </Text>
+            ) : (
+              documents.slice(0, 5).map((doc) => (
+                <Paper key={doc.id} p={6} withBorder radius="sm">
+                  <Group justify="space-between" wrap="nowrap">
+                    <Group gap={6} wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                      <ThemeIcon
+                        size="xs"
+                        variant="light"
+                        color={
+                          doc.processing_status === 'completed'
+                            ? 'green'
+                            : doc.processing_status === 'failed'
+                              ? 'red'
+                              : 'gray'
+                        }
+                      >
+                        {doc.processing_status === 'completed' ? (
+                          <IconCheck size={10} />
+                        ) : doc.processing_status === 'failed' ? (
+                          <IconX size={10} />
+                        ) : (
+                          <IconFile size={10} />
+                        )}
+                      </ThemeIcon>
+                      <Text size="xs" truncate style={{ flex: 1 }}>
                         {doc.original_filename || getDocTypeLabel(doc.doc_type)}
                       </Text>
-                      <Group gap={4}>
-                        <Badge size="xs" variant="dot" color="blue">
-                          {doc.file_type?.toUpperCase() || 'PDF'}
-                        </Badge>
-                        {getStatusBadge(doc.processing_status)}
-                      </Group>
-                    </Box>
-                  </Group>
-                  {doc.storage_url && (
-                    <Tooltip label="İndir">
+                    </Group>
+                    {doc.storage_url && (
                       <ActionIcon
-                        size="sm"
+                        size="xs"
                         variant="subtle"
                         component="a"
                         href={doc.storage_url}
                         target="_blank"
                       >
-                        <IconDownload size={14} />
+                        <IconDownload size={12} />
                       </ActionIcon>
-                    </Tooltip>
-                  )}
-                </Group>
-              </Paper>
-            ))
-          )}
-        </Stack>
-      </ScrollArea.Autosize>
-    </Box>
+                    )}
+                  </Group>
+                </Paper>
+              ))
+            )}
+            {documents.length > 5 && (
+              <Text size="xs" c="dimmed" ta="center">
+                +{documents.length - 5} daha...
+              </Text>
+            )}
+          </Stack>
+        </ScrollArea.Autosize>
+      </Box>
+
+      {/* Wizard Modal */}
+      <DocumentWizardModal
+        opened={wizardOpen}
+        onClose={closeWizard}
+        tenderId={tenderId}
+        tenderTitle={tenderTitle}
+        onComplete={() => {
+          fetchDocuments();
+          onRefresh?.();
+        }}
+      />
+    </>
   );
 }

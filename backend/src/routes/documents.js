@@ -134,6 +134,14 @@ router.post('/analyze', upload.single('file'), async (req, res) => {
     const ext = path.extname(file.originalname).toLowerCase();
     const fileType = getFileType(file.originalname);
 
+    // ZIP/RAR dosyaları doğrudan analiz edilemez
+    if (ext === '.zip' || ext === '.rar') {
+      return res.status(400).json({
+        error: 'ZIP/RAR dosyaları doğrudan analiz edilemez.',
+        message: 'Lütfen arşivi açıp içindeki dosyaları ayrı ayrı yükleyin veya İhale Merkezi üzerinden indirin (otomatik açılır).',
+      });
+    }
+
     if (fileType === 'unknown') {
       return res.status(400).json({
         error: `Desteklenmeyen dosya formatı: ${ext}`,

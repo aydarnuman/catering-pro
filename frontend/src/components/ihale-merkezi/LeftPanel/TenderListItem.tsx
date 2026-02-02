@@ -47,35 +47,35 @@ function getUrgencyBadge(daysRemaining: number | null) {
 
   if (daysRemaining < 0) {
     return (
-      <Badge size="xs" color="gray" variant="light">
+      <Badge size="xs" variant="light" style={{ background: 'rgba(128, 128, 128, 0.1)', color: 'var(--mantine-color-gray-5)' }}>
         Geçmiş
       </Badge>
     );
   }
   if (daysRemaining === 0) {
     return (
-      <Badge size="xs" color="red" variant="filled">
+      <Badge size="xs" variant="light" style={{ background: 'rgba(220, 53, 69, 0.15)', color: '#dc3545', border: '1px solid rgba(220, 53, 69, 0.3)' }}>
         BUGÜN
       </Badge>
     );
   }
   if (daysRemaining === 1) {
     return (
-      <Badge size="xs" color="orange" variant="filled">
+      <Badge size="xs" variant="light" style={{ background: 'rgba(201, 162, 39, 0.15)', color: '#C9A227', border: '1px solid rgba(201, 162, 39, 0.3)' }}>
         YARIN
       </Badge>
     );
   }
   if (daysRemaining <= 3) {
     return (
-      <Badge size="xs" color="yellow" variant="light">
+      <Badge size="xs" variant="light" style={{ background: 'rgba(201, 162, 39, 0.1)', color: '#C9A227' }}>
         {daysRemaining} gün
       </Badge>
     );
   }
   if (daysRemaining <= 7) {
     return (
-      <Badge size="xs" color="lime" variant="light">
+      <Badge size="xs" variant="light" style={{ background: 'rgba(100, 149, 237, 0.1)', color: 'var(--mantine-color-gray-5)' }}>
         {daysRemaining} gün
       </Badge>
     );
@@ -130,12 +130,13 @@ export function TenderListItem({ tender, isSelected, isTracked, onClick, onToggl
       style={{
         cursor: 'pointer',
         borderColor: isSelected
-          ? 'var(--mantine-color-blue-5)'
+          ? 'rgba(100, 149, 237, 0.5)'
           : isUrgent
-            ? 'var(--mantine-color-orange-4)'
+            ? 'rgba(201, 162, 39, 0.4)'
             : 'var(--mantine-color-default-border)',
-        borderWidth: isSelected ? 2 : 1,
-        background: isSelected ? 'var(--mantine-color-blue-light)' : 'var(--mantine-color-body)',
+        borderWidth: isSelected ? 1.5 : 1,
+        background: isSelected ? 'rgba(100, 149, 237, 0.08)' : 'var(--mantine-color-body)',
+        boxShadow: isSelected ? '0 0 12px rgba(100, 149, 237, 0.15)' : 'none',
         transition: 'all 0.15s ease',
       }}
       className="tender-list-item"
@@ -147,7 +148,16 @@ export function TenderListItem({ tender, isSelected, isTracked, onClick, onToggl
             {title || 'İsimsiz İhale'}
           </Text>
           {isUpdatedToday && (
-            <Badge size="xs" color="orange" variant="filled" leftSection={<IconRefresh size={8} />}>
+            <Badge 
+              size="xs" 
+              variant="light" 
+              leftSection={<IconRefresh size={8} />}
+              style={{ 
+                background: 'rgba(201, 162, 39, 0.15)', 
+                color: '#C9A227',
+                border: '1px solid rgba(201, 162, 39, 0.3)'
+              }}
+            >
               Güncellendi
             </Badge>
           )}
@@ -180,7 +190,16 @@ export function TenderListItem({ tender, isSelected, isTracked, onClick, onToggl
       {/* Bottom row: City, Date, Status badges */}
       <Group gap={4} wrap="wrap" mt={4}>
         {city && (
-          <Badge size="xs" variant="light" color="blue" leftSection={<IconMapPin size={8} />}>
+          <Badge 
+            size="xs" 
+            variant="light" 
+            leftSection={<IconMapPin size={8} />}
+            style={{
+              background: 'rgba(100, 149, 237, 0.1)',
+              color: 'var(--mantine-color-gray-5)',
+              border: 'none'
+            }}
+          >
             {city}
           </Badge>
         )}

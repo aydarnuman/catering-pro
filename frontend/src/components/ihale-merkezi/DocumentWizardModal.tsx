@@ -29,6 +29,7 @@ import {
   IconFile,
   IconFileText,
   IconRefresh,
+  IconTrash,
   IconWorld,
   IconX,
 } from '@tabler/icons-react';
@@ -235,11 +236,11 @@ export function DocumentWizardModal({
       } else {
         throw new Error(result.error || 'Bilinmeyen hata');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Download error:', error);
       setStep2Status({ 
         status: 'error', 
-        message: error?.message || 'Dökümanlar indirilemedi' 
+        message: error instanceof Error ? error.message : 'Dökümanlar indirilemedi' 
       });
       
       notifications.show({
@@ -253,6 +254,11 @@ export function DocumentWizardModal({
   // ========== STEP 3: ANALYZE ==========
   
   const handleAnalyze = async () => {
+    console.log('[DocumentWizard] handleAnalyze called');
+    console.log('[DocumentWizard] selectedForAnalysis:', selectedForAnalysis.size, Array.from(selectedForAnalysis));
+    console.log('[DocumentWizard] contentDocs:', contentDocs.length, contentDocs.map(d => ({ id: d.id, status: d.processing_status })));
+    console.log('[DocumentWizard] downloadDocs:', downloadDocs.length, downloadDocs.map(d => ({ id: d.id, status: d.processing_status })));
+    
     // Get pending documents
     const allDocs = [...contentDocs, ...downloadDocs];
     const docsToAnalyze = selectedForAnalysis.size > 0
@@ -271,6 +277,12 @@ export function DocumentWizardModal({
     setStep3Status({ status: 'loading', message: 'Analiz başlatılıyor...' });
     setAnalysisProgress({ current: 0, total: docsToAnalyze.length });
     
+    // Timeout controller (10 dakika - büyük dokümanlar için)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 600000); // 10 dakika
+    
     try {
       const response = await fetch(`${API_BASE_URL}/api/tender-content/analyze-batch`, {
         method: 'POST',
@@ -278,10 +290,13 @@ export function DocumentWizardModal({
           'Content-Type': 'application/json',
         },
         credentials: 'include',
+        signal: controller.signal,
         body: JSON.stringify({
           documentIds: docsToAnalyze.map(d => d.id),
         }),
       });
+      
+      clearTimeout(timeoutId); // Başarılı bağlantı, timeout'u iptal et
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -307,22 +322,29 @@ export function DocumentWizardModal({
           try {
             const data = JSON.parse(line.slice(6));
             
-            if (data.type === 'progress') {
+            // Backend 'stage' kullanıyor
+            if (data.stage === 'processing') {
+              // Her döküman için progress
               setAnalysisProgress({
                 current: data.current || completed,
                 total: data.total || docsToAnalyze.length,
-                currentDoc: data.filename,
+                currentDoc: data.message,
               });
-            } else if (data.type === 'complete') {
-              completed++;
-              setAnalysisProgress(prev => prev ? { ...prev, current: completed } : null);
-            } else if (data.type === 'done') {
+            } else if (data.stage === 'progress') {
+              // Analiz ilerlemesi
+              setAnalysisProgress(prev => prev ? { 
+                ...prev, 
+                currentDoc: data.message || prev.currentDoc 
+              } : null);
+            } else if (data.stage === 'complete' && data.summary) {
+              // Final event - summary ile
+              completed = data.summary.success || 0;
               setStep3Status({ 
                 status: 'success', 
-                message: `${data.successful || completed} döküman analiz edildi` 
+                message: `${completed} döküman analiz edildi` 
               });
-            } else if (data.type === 'error') {
-              console.error('Analysis error:', data.error);
+            } else if (data.stage === 'error') {
+              console.error('Analysis error:', data.message);
             }
           } catch {
             // Ignore parse errors
@@ -342,20 +364,113 @@ export function DocumentWizardModal({
       // Call onComplete
       onComplete?.();
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Analysis error:', error);
+      
+      // Timeout veya abort hatası kontrolü
+      const isAbortError = error instanceof Error && error.name === 'AbortError';
+      const errorMessage = isAbortError 
+        ? 'İşlem zaman aşımına uğradı (10 dakika). Daha az döküman seçip tekrar deneyin.'
+        : (error instanceof Error ? error.message : 'Analiz başarısız');
+      
       setStep3Status({ 
         status: 'error', 
-        message: error?.message || 'Analiz başarısız' 
+        message: errorMessage
       });
       
       notifications.show({
-        title: 'Hata',
-        message: 'Döküman analizi başarısız',
+        title: isAbortError ? 'Zaman Aşımı' : 'Hata',
+        message: errorMessage,
         color: 'red',
       });
     } finally {
+      clearTimeout(timeoutId); // Cleanup timeout
       setAnalysisProgress(null);
+    }
+  };
+
+  // ========== RESET DOCUMENTS ==========
+  
+  const handleResetDocuments = async () => {
+    const allDocs = [...contentDocs, ...downloadDocs];
+    const docsToReset = selectedForAnalysis.size > 0
+      ? allDocs.filter(d => selectedForAnalysis.has(d.id))
+      : allDocs.filter(d => d.processing_status === 'completed' || d.processing_status === 'failed');
+    
+    if (docsToReset.length === 0) {
+      notifications.show({
+        title: 'Uyarı',
+        message: 'Sıfırlanacak döküman bulunamadı',
+        color: 'yellow',
+      });
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tender-content/documents/reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ documentIds: docsToReset.map(d => d.id) }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        notifications.show({
+          title: 'Başarılı',
+          message: `${data.resetCount} döküman sıfırlandı`,
+          color: 'green',
+        });
+        await fetchAllDocuments();
+        setSelectedForAnalysis(new Set());
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      notifications.show({
+        title: 'Hata',
+        message: error instanceof Error ? error.message : 'Sıfırlama başarısız',
+        color: 'red',
+      });
+    }
+  };
+
+  // ========== DELETE ALL DOCUMENTS ==========
+  
+  const handleDeleteAllDocuments = async () => {
+    if (!confirm(`Bu ihaleye ait TÜM dökümanları silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz!`)) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/tender-content/${tenderId}/documents?deleteFromStorage=true`,
+        {
+          method: 'DELETE',
+          credentials: 'include',
+        }
+      );
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        notifications.show({
+          title: 'Başarılı',
+          message: `${data.deletedCount} döküman silindi`,
+          color: 'green',
+        });
+        await fetchAllDocuments();
+        setSelectedForAnalysis(new Set());
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      notifications.show({
+        title: 'Hata',
+        message: error instanceof Error ? error.message : 'Silme başarısız',
+        color: 'red',
+      });
     }
   };
 
@@ -516,6 +631,8 @@ export function DocumentWizardModal({
   const totalDocs = analyzableDocs.length;
   const completedDocs = analyzableDocs.filter(d => d.processing_status === 'completed').length;
   const pendingDocs = analyzableDocs.filter(d => d.processing_status === 'pending' || d.processing_status === 'failed').length;
+
+  // Debug log kaldırıldı - spam yapıyordu
 
   return (
     <>
@@ -769,11 +886,37 @@ export function DocumentWizardModal({
                 <Box>
                   <Group justify="space-between" mb="xs">
                     <Text size="sm" fw={500}>Tüm Dökümanlar ({totalDocs})</Text>
-                    <Tooltip label="Yenile">
-                      <ActionIcon variant="subtle" size="sm" onClick={fetchAllDocuments}>
-                        <IconRefresh size={14} />
-                      </ActionIcon>
-                    </Tooltip>
+                    <Group gap="xs">
+                      <Tooltip label="Seçili veya tamamlanmış dökümanları sıfırla">
+                        <Button
+                          size="compact-xs"
+                          variant="light"
+                          color="orange"
+                          leftSection={<IconRefresh size={12} />}
+                          onClick={handleResetDocuments}
+                          disabled={step3Status.status === 'loading' || totalDocs === 0}
+                        >
+                          Sıfırla
+                        </Button>
+                      </Tooltip>
+                      <Tooltip label="Bu ihaleye ait TÜM dökümanları sil">
+                        <Button
+                          size="compact-xs"
+                          variant="light"
+                          color="red"
+                          leftSection={<IconTrash size={12} />}
+                          onClick={handleDeleteAllDocuments}
+                          disabled={step3Status.status === 'loading' || totalDocs === 0}
+                        >
+                          Tümünü Sil
+                        </Button>
+                      </Tooltip>
+                      <Tooltip label="Yenile">
+                        <ActionIcon variant="subtle" size="sm" onClick={fetchAllDocuments}>
+                          <IconRefresh size={14} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
                   </Group>
                   <ScrollArea.Autosize mah={250}>
                     {renderDocumentList([...contentDocs, ...downloadDocs], true)}

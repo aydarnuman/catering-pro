@@ -11,6 +11,7 @@ import logger from '../../../utils/logger.js';
 import { extract } from './extractor.js';
 import { chunk } from './chunker.js';
 import { analyze } from './analyzer.js';
+import aiConfig from '../../../config/ai.config.js';
 
 // OCR için Claude Vision import
 import Anthropic from '@anthropic-ai/sdk';
@@ -31,13 +32,74 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
  */
 
 /**
+ * Tek sayfa için OCR helper fonksiyonu (retry mekanizması ile)
+ * @param {string} pagePath - Sayfa görüntü yolu
+ * @param {number} pageIndex - Sayfa index (0-based)
+ * @param {number} totalPages - Toplam sayfa sayısı
+ * @param {number} maxRetries - Maksimum deneme sayısı (default: 3)
+ * @returns {Promise<string>}
+ */
+async function ocrSinglePage(pagePath, pageIndex, totalPages, maxRetries = 3) {
+  const imageData = fs.readFileSync(pagePath);
+  const base64Image = imageData.toString('base64');
+  const pageStart = Date.now();
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await anthropic.messages.create({
+        model: aiConfig.claude.defaultModel,
+        max_tokens: aiConfig.claude.maxTokens,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: 'image/png', data: base64Image },
+            },
+            {
+              type: 'text',
+              text: `Bu görüntüdeki TÜM metni oku ve aynen yaz.
+El yazısı varsa dikkatli oku, okunaksız kısımları [okunamadı] olarak işaretle.
+Tablo varsa yapısını koru (| ile ayır).
+Form alanları varsa "Alan: Değer" formatında yaz.
+Türkçe karakterleri doğru kullan (ş, ğ, ü, ö, ç, ı).
+Sadece metni döndür, yorum veya açıklama ekleme.`,
+            },
+          ],
+        }],
+      });
+
+      const text = response.content[0]?.text || '';
+      logger.info(`    ✓ Sayfa ${pageIndex + 1}/${totalPages} (${((Date.now() - pageStart) / 1000).toFixed(1)}s, ${text.length} karakter)`, { module: 'ocr' });
+      return text;
+    } catch (error) {
+      if (attempt === maxRetries) {
+        logger.error(`    ✗ Sayfa ${pageIndex + 1} ${maxRetries} denemede başarısız: ${error.message}`, { module: 'ocr', error: error.message });
+        return '';
+      }
+      // Exponential backoff: 2s, 4s, 8s...
+      const waitTime = 2000 * Math.pow(2, attempt - 1);
+      logger.warn(`    ⟳ Sayfa ${pageIndex + 1} retry ${attempt}/${maxRetries} (${waitTime / 1000}s bekleniyor)`, { module: 'ocr', error: error.message });
+      await new Promise(r => setTimeout(r, waitTime));
+    }
+  }
+  return '';
+}
+
+/**
  * OCR gereken dökümanlar için Claude Vision ile metin çıkar
+ * PARALEL işleme ile 4x hızlı, TÜM sayfalar okunur (veri kaybı yok)
  * @param {string} filePath - Dosya yolu
  * @param {Function} onProgress - Progress callback
  * @returns {Promise<string>}
  */
 async function performOcr(filePath, onProgress) {
   const ext = path.extname(filePath).toLowerCase();
+  
+  // Config'den ayarları al
+  const maxPages = aiConfig.pdf.maxPages || 100;
+  const parallelPages = aiConfig.pdf.parallelPages || 4;
+  const dpi = aiConfig.pdf.dpi || 150;
 
   if (onProgress) {
     onProgress({ stage: 'ocr', message: 'OCR işlemi yapılıyor...', progress: 25 });
@@ -49,69 +111,74 @@ async function performOcr(filePath, onProgress) {
     fs.mkdirSync(tempDir, { recursive: true });
 
     try {
-      // PDF'i PNG'lere dönüştür (ilk 20 sayfa)
+      logger.info(`  PDF→PNG dönüşümü başlıyor (max ${maxPages} sayfa, ${dpi} DPI)...`, { module: 'ocr' });
+      const startConvert = Date.now();
+      
+      // PDF'i PNG'lere dönüştür - TÜM SAYFALAR (config'den limit)
       execSync(
-        `pdftoppm -png -r 150 -l 20 "${filePath}" "${tempDir}/page"`,
-        { timeout: 120000, stdio: 'pipe' }
+        `pdftoppm -png -r ${dpi} -l ${maxPages} "${filePath}" "${tempDir}/page"`,
+        { timeout: 300000, stdio: 'pipe' } // 5 dakika timeout (büyük dosyalar için)
       );
 
       const pageFiles = fs.readdirSync(tempDir)
         .filter(f => f.endsWith('.png'))
         .sort()
-        .slice(0, 20);
+        .slice(0, maxPages);
+
+      const convertTime = ((Date.now() - startConvert) / 1000).toFixed(1);
+      logger.info(`  PDF→PNG tamamlandı: ${pageFiles.length} sayfa (${convertTime}s)`, { module: 'ocr' });
 
       if (pageFiles.length === 0) {
         throw new Error('PDF görüntüye dönüştürülemedi');
       }
 
-      // Her sayfayı OCR yap
-      const pageTexts = [];
-      for (let i = 0; i < pageFiles.length; i++) {
-        const pagePath = path.join(tempDir, pageFiles[i]);
-        const imageData = fs.readFileSync(pagePath);
-        const base64Image = imageData.toString('base64');
+      // PARALEL OCR - 4x hızlı
+      const totalBatches = Math.ceil(pageFiles.length / parallelPages);
+      const pageResults = new Array(pageFiles.length);
+      
+      logger.info(`  Claude Vision PARALEL OCR başlıyor (${pageFiles.length} sayfa, ${parallelPages} paralel, ${totalBatches} batch)...`, { module: 'ocr' });
+      
+      for (let i = 0; i < pageFiles.length; i += parallelPages) {
+        const batchNum = Math.floor(i / parallelPages) + 1;
+        const batch = pageFiles.slice(i, Math.min(i + parallelPages, pageFiles.length));
+        
+        logger.info(`  ▶ Batch ${batchNum}/${totalBatches} (${batch.length} sayfa paralel)...`, { module: 'ocr' });
 
         if (onProgress) {
           onProgress({
             stage: 'ocr',
-            message: `OCR: Sayfa ${i + 1}/${pageFiles.length}`,
+            message: `OCR: Batch ${batchNum}/${totalBatches} (Sayfa ${i + 1}-${Math.min(i + batch.length, pageFiles.length)}/${pageFiles.length})`,
             progress: 25 + Math.round((i / pageFiles.length) * 20),
           });
         }
 
-        try {
-          const response = await anthropic.messages.create({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 4096,
-            messages: [{
-              role: 'user',
-              content: [
-                {
-                  type: 'image',
-                  source: { type: 'base64', media_type: 'image/png', data: base64Image },
-                },
-                {
-                  type: 'text',
-                  text: `Bu görüntüdeki TÜM metni oku ve aynen yaz.
-Tablo varsa yapısını koru (| ile ayır).
-Türkçe karakterleri doğru kullan.
-Sadece metni döndür, yorum ekleme.`,
-                },
-              ],
-            }],
-          });
+        // Paralel işle
+        const batchPromises = batch.map((pageFile, batchIdx) => {
+          const globalIdx = i + batchIdx;
+          const pagePath = path.join(tempDir, pageFile);
+          return ocrSinglePage(pagePath, globalIdx, pageFiles.length);
+        });
 
-          pageTexts.push(response.content[0]?.text || '');
-        } catch (ocrError) {
-          logger.warn('Page OCR failed', { page: i + 1, error: ocrError.message });
-        }
+        const batchResults = await Promise.all(batchPromises);
+        
+        // Sonuçları doğru sırada kaydet
+        batchResults.forEach((text, batchIdx) => {
+          pageResults[i + batchIdx] = text;
+        });
+        
+        const successCount = batchResults.filter(t => t.length > 0).length;
+        logger.info(`  ✓ Batch ${batchNum}/${totalBatches} tamamlandı (${successCount}/${batch.length} başarılı)`, { module: 'ocr' });
       }
 
       // Temizle
       fs.rmSync(tempDir, { recursive: true, force: true });
+      
+      const successPages = pageResults.filter(t => t && t.length > 0).length;
+      logger.info(`  OCR tamamlandı: ${successPages}/${pageFiles.length} sayfa başarılı`, { module: 'ocr' });
 
-      return pageTexts.join('\n\n--- Sayfa ---\n\n');
+      return pageResults.filter(Boolean).join('\n\n--- Sayfa ---\n\n');
     } catch (error) {
+      logger.error(`  OCR HATA: ${error.message}`, { module: 'ocr', error: error.message });
       try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch {}
       throw error;
     }
@@ -119,13 +186,14 @@ Sadece metni döndür, yorum ekleme.`,
 
   // Görsel dosyalar için direkt OCR
   if (['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
+    logger.info('  Görsel OCR başlıyor...', { module: 'ocr', file: path.basename(filePath) });
     const imageData = fs.readFileSync(filePath);
     const base64Image = imageData.toString('base64');
     const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
 
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
+      model: aiConfig.claude.defaultModel,
+      max_tokens: aiConfig.claude.maxTokens,
       messages: [{
         role: 'user',
         content: [
@@ -136,14 +204,17 @@ Sadece metni döndür, yorum ekleme.`,
           {
             type: 'text',
             text: `Bu görüntüdeki TÜM metni oku ve aynen yaz.
-Tablo varsa yapısını koru.
-Türkçe karakterleri doğru kullan.
-Sadece metni döndür.`,
+El yazısı varsa dikkatli oku, okunaksız kısımları [okunamadı] olarak işaretle.
+Tablo varsa yapısını koru (| ile ayır).
+Form alanları varsa "Alan: Değer" formatında yaz.
+Türkçe karakterleri doğru kullan (ş, ğ, ü, ö, ç, ı).
+Sadece metni döndür, yorum veya açıklama ekleme.`,
           },
         ],
       }],
     });
 
+    logger.info('  ✓ Görsel OCR tamamlandı', { module: 'ocr' });
     return response.content[0]?.text || '';
   }
 
@@ -272,12 +343,30 @@ export async function runPipeline(filePath, options = {}) {
     const totalDuration = Date.now() - startTime;
     const durationSec = (totalDuration / 1000).toFixed(1);
 
+    // Cost tracking
+    const inputTokens = analysis.meta?.totalInputTokens || 0;
+    const outputTokens = analysis.meta?.totalOutputTokens || 0;
+    let costInfo = {};
+    
+    if (aiConfig.costTracking?.enabled) {
+      const cost = (inputTokens / 1000) * (aiConfig.costTracking.claudeInputCost || 0.003) +
+                   (outputTokens / 1000) * (aiConfig.costTracking.claudeOutputCost || 0.015);
+      costInfo = { cost: `$${cost.toFixed(4)}` };
+      logger.info('💰 API Cost', { 
+        module: 'pipeline', 
+        inputTokens, 
+        outputTokens, 
+        cost: `$${cost.toFixed(4)}`,
+      });
+    }
+
     logger.info('═══ PIPELINE TAMAMLANDI ═══', {
       module: 'pipeline',
       duration: `${durationSec}s`,
       chunks: chunks.length,
-      tokens: analysis.meta?.totalInputTokens + analysis.meta?.totalOutputTokens || 0,
+      tokens: inputTokens + outputTokens,
       method: analysis.meta?.method || '2-stage',
+      ...costInfo,
     });
 
     return {

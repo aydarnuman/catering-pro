@@ -62,8 +62,8 @@ import {
   IconSend,
   IconSparkles,
   IconTrash,
-  IconX,
 } from '@tabler/icons-react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { aiAPI } from '@/lib/api/services/ai';
 import { tendersAPI } from '@/lib/api/services/tenders';
@@ -77,6 +77,7 @@ import type {
   TenderStatus,
 } from '../types';
 import { statusConfig } from '../types';
+import { DocumentWizardModal } from '../DocumentWizardModal';
 
 interface CenterPanelProps {
   state: IhaleMerkeziState;
@@ -100,6 +101,29 @@ export function CenterPanel({
   isMobile = false,
 }: CenterPanelProps) {
   const { selectedTender, activeDetailTab, dilekceType, firmalar, selectedFirmaId } = state;
+
+  // URL state için hooks
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Document wizard modal state - URL'den oku
+  const wizardParam = searchParams.get('wizard');
+  const documentWizardOpen = wizardParam === '1' || wizardParam === 'open';
+
+  // Modal aç/kapa fonksiyonları - URL'i güncelle
+  const openDocumentWizard = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('wizard', '1');
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [searchParams, router, pathname]);
+
+  const closeDocumentWizard = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('wizard');
+    const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+    router.push(newUrl, { scroll: false });
+  }, [searchParams, router, pathname]);
 
   // Selected firma
   const selectedFirma = firmalar?.find((f) => f.id === selectedFirmaId);
@@ -310,7 +334,7 @@ export function CenterPanel({
                 style={{ overflow: 'hidden', flex: 1, minWidth: 0 }}
               >
                 <Group gap={6} wrap="nowrap">
-                  <ThemeIcon size="sm" variant="light" color="violet" style={{ flexShrink: 0 }}>
+                  <ThemeIcon size="sm" variant="light" color="orange" style={{ flexShrink: 0 }}>
                     <IconBuilding size={12} />
                   </ThemeIcon>
                   <Box style={{ minWidth: 0, flex: 1 }}>
@@ -428,287 +452,138 @@ export function CenterPanel({
               onStateChange({ activeDetailTab: value as IhaleMerkeziState['activeDetailTab'] })
             }
           >
-            <Tabs.List>
+            <Tabs.List grow>
               <Tabs.Tab value="ozet" leftSection={<IconFileText size={14} />}>
                 Özet
               </Tabs.Tab>
-              <Tabs.Tab
-                value="analiz"
-                leftSection={<IconBrain size={14} />}
-                disabled={!isSaved || !hasAnalysis}
-              >
-                <Group gap={4}>
-                  Analiz
-                  {hasAnalysis ? (
-                    <Badge size="xs" variant="filled" color="violet">
-                      {(selectedTender.teknik_sart_sayisi || 0) +
-                        (selectedTender.birim_fiyat_sayisi || 0)}
-                    </Badge>
-                  ) : isSaved ? (
-                    <Badge size="xs" variant="light" color="gray">
-                      Yok
-                    </Badge>
-                  ) : null}
-                </Group>
-              </Tabs.Tab>
-              <Tabs.Tab value="dokumanlar" leftSection={<IconFile size={14} />} disabled={!isSaved}>
-                <Group gap={4}>
-                  Dökümanlar
-                  {isSaved && selectedTender.dokuman_sayisi > 0 && (
-                    <Badge size="xs" variant="light" color="gray">
-                      {selectedTender.dokuman_sayisi}
-                    </Badge>
-                  )}
-                </Group>
-              </Tabs.Tab>
-              <Tabs.Tab
-                value="araclar"
-                leftSection={<IconCalculator size={14} />}
-                disabled={!isSaved}
-              >
-                Araçlar
-              </Tabs.Tab>
-              <Tabs.Tab value="dilekce" leftSection={<IconGavel size={14} />}>
-                Dilekçe
-              </Tabs.Tab>
-              <Tabs.Tab value="teklif" leftSection={<IconFileAnalytics size={14} />}>
-                Teklif
-              </Tabs.Tab>
+              {/* Analiz - sadece döküman varsa göster */}
+              {hasDocuments && (
+                <Tabs.Tab
+                  value="analiz"
+                  leftSection={<IconBrain size={14} />}
+                  disabled={!hasAnalysis}
+                >
+                  <Group gap={4}>
+                    Analiz
+                    {hasAnalysis ? (
+                      <Badge size="xs" variant="filled" color="orange">
+                        {(selectedTender.teknik_sart_sayisi || 0) +
+                          (selectedTender.birim_fiyat_sayisi || 0)}
+                      </Badge>
+                    ) : (
+                      <Badge size="xs" variant="light" color="gray">
+                        Yok
+                      </Badge>
+                    )}
+                  </Group>
+                </Tabs.Tab>
+              )}
+              {/* Dökümanlar - sadece takip ediliyorsa göster */}
+              {isSaved && (
+                <Tabs.Tab value="dokumanlar" leftSection={<IconFile size={14} />}>
+                  <Group gap={4}>
+                    Dökümanlar
+                    {selectedTender.dokuman_sayisi > 0 && (
+                      <Badge size="xs" variant="light" color="gray">
+                        {selectedTender.dokuman_sayisi}
+                      </Badge>
+                    )}
+                  </Group>
+                </Tabs.Tab>
+              )}
+              {/* Araçlar, Dilekçe, Teklif - sadece döküman varsa göster */}
+              {hasDocuments && (
+                <>
+                  <Tabs.Tab value="araclar" leftSection={<IconCalculator size={14} />}>
+                    Araçlar
+                  </Tabs.Tab>
+                  <Tabs.Tab value="dilekce" leftSection={<IconGavel size={14} />}>
+                    Dilekçe
+                  </Tabs.Tab>
+                  <Tabs.Tab value="teklif" leftSection={<IconFileAnalytics size={14} />}>
+                    Teklif
+                  </Tabs.Tab>
+                </>
+              )}
             </Tabs.List>
 
             <Tabs.Panel value="ozet" pt="md">
               {/* Özet içeriği */}
               <Stack gap="md">
-                {/* İhale Başlangıç Rehberi - Adım Adım */}
-                {(!isSaved || !hasAnalysis) && (
+                {/* Takip Edilmemişse - Takip Et Kartı */}
+                {!isSaved && (
                   <Paper
                     p="lg"
                     withBorder
                     radius="lg"
                     style={{
-                      background:
-                        'linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(99, 102, 241, 0.02))',
-                      borderColor: 'var(--mantine-color-indigo-5)',
+                      background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.02))',
+                      borderColor: 'var(--mantine-color-blue-5)',
                     }}
                   >
-                    <Stack gap="lg">
-                      {/* Başlık */}
-                      <Group gap="sm">
-                        <ThemeIcon size="lg" variant="light" color="indigo" radius="xl">
-                          <IconSparkles size={20} />
-                        </ThemeIcon>
-                        <Box>
-                          <Text size="md" fw={600}>
-                            İhale Analiz Sihirbazı
-                          </Text>
-                          <Text size="xs" c="dimmed">
-                            Adım adım ihaleyi analiz edin
-                          </Text>
-                        </Box>
-                      </Group>
-
-                      {/* Adımlar */}
-                      <Stack gap="sm">
-                        {/* Adım 1: Takip Et */}
-                        <Paper
-                          p="md"
-                          radius="md"
-                          style={{
-                            background: isSaved
-                              ? 'rgba(34, 197, 94, 0.1)'
-                              : 'rgba(59, 130, 246, 0.1)',
-                            border: isSaved
-                              ? '1px solid var(--mantine-color-green-5)'
-                              : '1px solid var(--mantine-color-blue-5)',
-                          }}
-                        >
-                          <Group justify="space-between" wrap="nowrap">
-                            <Group gap="sm" wrap="nowrap">
-                              <ThemeIcon
-                                size="md"
-                                variant={isSaved ? 'filled' : 'light'}
-                                color={isSaved ? 'green' : 'blue'}
-                                radius="xl"
-                              >
-                                {isSaved ? (
-                                  <IconCheck size={14} />
-                                ) : (
-                                  <Text size="xs" fw={700}>
-                                    1
-                                  </Text>
-                                )}
-                              </ThemeIcon>
-                              <Box>
-                                <Text size="sm" fw={500}>
-                                  Takip Listesine Ekle
-                                </Text>
-                                <Text size="xs" c="dimmed">
-                                  {isSaved
-                                    ? 'İhale takip listenizde ✓'
-                                    : 'İhaleyi kaydedin ve takip edin'}
-                                </Text>
-                              </Box>
-                            </Group>
-                            {!isSaved && (
-                              <Button
-                                variant="filled"
-                                color="blue"
-                                size="xs"
-                                leftSection={<IconBookmark size={14} />}
-                                onClick={async () => {
-                                  try {
-                                    await tendersAPI.addTracking(selectedTender.id);
-                                    onRefreshData?.();
-                                  } catch (error) {
-                                    console.error('Takibe ekleme hatası:', error);
-                                  }
-                                }}
-                              >
-                                Takip Et
-                              </Button>
-                            )}
-                          </Group>
-                        </Paper>
-
-                        {/* Adım 2: Dökümanları İndir */}
-                        <Paper
-                          p="md"
-                          radius="md"
-                          style={{
-                            background: hasDocuments
-                              ? 'rgba(34, 197, 94, 0.1)'
-                              : isSaved
-                                ? 'rgba(251, 191, 36, 0.1)'
-                                : 'rgba(100, 100, 100, 0.05)',
-                            border: hasDocuments
-                              ? '1px solid var(--mantine-color-green-5)'
-                              : isSaved
-                                ? '1px solid var(--mantine-color-yellow-5)'
-                                : '1px solid var(--mantine-color-gray-6)',
-                            opacity: isSaved ? 1 : 0.5,
-                          }}
-                        >
-                          <Group justify="space-between" wrap="nowrap">
-                            <Group gap="sm" wrap="nowrap">
-                              <ThemeIcon
-                                size="md"
-                                variant={hasDocuments ? 'filled' : 'light'}
-                                color={hasDocuments ? 'green' : isSaved ? 'yellow' : 'gray'}
-                                radius="xl"
-                              >
-                                {hasDocuments ? (
-                                  <IconCheck size={14} />
-                                ) : (
-                                  <Text size="xs" fw={700}>
-                                    2
-                                  </Text>
-                                )}
-                              </ThemeIcon>
-                              <Box>
-                                <Text size="sm" fw={500}>
-                                  Dökümanları İndir
-                                </Text>
-                                <Text size="xs" c="dimmed">
-                                  {hasDocuments
-                                    ? `${selectedTender.dokuman_sayisi} döküman indirildi ✓`
-                                    : "EKAP'tan dökümanları otomatik çek"}
-                                </Text>
-                              </Box>
-                            </Group>
-                            {isSaved && !hasDocuments && (
-                              <Button
-                                variant="filled"
-                                color="yellow"
-                                size="xs"
-                                leftSection={<IconCloudDownload size={14} />}
-                                onClick={() => onStateChange({ activeDetailTab: 'dokumanlar' })}
-                              >
-                                İndir
-                              </Button>
-                            )}
-                            {hasDocuments && !hasAnalysis && (
-                              <Badge variant="light" color="green" size="sm">
-                                {selectedTender.dokuman_sayisi} döküman
-                              </Badge>
-                            )}
-                          </Group>
-                        </Paper>
-
-                        {/* Adım 3: AI ile Analiz Et */}
-                        <Paper
-                          p="md"
-                          radius="md"
-                          style={{
-                            background: hasAnalysis
-                              ? 'rgba(34, 197, 94, 0.1)'
-                              : hasDocuments
-                                ? 'rgba(139, 92, 246, 0.1)'
-                                : 'rgba(100, 100, 100, 0.05)',
-                            border: hasAnalysis
-                              ? '1px solid var(--mantine-color-green-5)'
-                              : hasDocuments
-                                ? '1px solid var(--mantine-color-violet-5)'
-                                : '1px solid var(--mantine-color-gray-6)',
-                            opacity: hasDocuments ? 1 : 0.5,
-                          }}
-                        >
-                          <Group justify="space-between" wrap="nowrap">
-                            <Group gap="sm" wrap="nowrap">
-                              <ThemeIcon
-                                size="md"
-                                variant={hasAnalysis ? 'filled' : 'light'}
-                                color={hasAnalysis ? 'green' : hasDocuments ? 'violet' : 'gray'}
-                                radius="xl"
-                              >
-                                {hasAnalysis ? (
-                                  <IconCheck size={14} />
-                                ) : (
-                                  <Text size="xs" fw={700}>
-                                    3
-                                  </Text>
-                                )}
-                              </ThemeIcon>
-                              <Box>
-                                <Text size="sm" fw={500}>
-                                  AI ile Analiz Et
-                                </Text>
-                                <Text size="xs" c="dimmed">
-                                  {hasAnalysis
-                                    ? `${(selectedTender.teknik_sart_sayisi || 0) + (selectedTender.birim_fiyat_sayisi || 0)} veri çıkarıldı ✓`
-                                    : 'Teknik şartlar ve birim fiyatları çıkar'}
-                                </Text>
-                              </Box>
-                            </Group>
-                            {hasDocuments && !hasAnalysis && (
-                              <Button
-                                variant="filled"
-                                color="violet"
-                                size="xs"
-                                leftSection={<IconBrain size={14} />}
-                                onClick={() => onStateChange({ activeDetailTab: 'dokumanlar' })}
-                              >
-                                Analiz Et
-                              </Button>
-                            )}
-                          </Group>
-                        </Paper>
-                      </Stack>
-
-                      {/* Alt bilgi */}
-                      {!isSaved && (
-                        <Text size="xs" c="dimmed" ta="center">
-                          💡 Önce ihaleyi takip listesine ekleyin, sonra dökümanları indirip analiz
-                          edebilirsiniz
+                    <Stack gap="md" align="center">
+                      <ThemeIcon size={50} variant="light" color="blue" radius="xl">
+                        <IconBookmark size={24} />
+                      </ThemeIcon>
+                      <Box ta="center">
+                        <Text size="md" fw={600}>İhaleyi Takip Et</Text>
+                        <Text size="sm" c="dimmed">
+                          Döküman indirmek ve analiz yapmak için önce ihaleyi takip listesine ekleyin
                         </Text>
-                      )}
-                      {isSaved && !hasDocuments && (
-                        <Text size="xs" c="dimmed" ta="center">
-                          💡 Dökümanlar sekmesinden EKAP dökümanlarını otomatik indirebilirsiniz
+                      </Box>
+                      <Button
+                        variant="filled"
+                        color="blue"
+                        size="md"
+                        leftSection={<IconBookmark size={18} />}
+                        onClick={async () => {
+                          try {
+                            await tendersAPI.addTracking(selectedTender.id);
+                            onRefreshData?.();
+                          } catch (error) {
+                            console.error('Takibe ekleme hatası:', error);
+                          }
+                        }}
+                      >
+                        Takip Listesine Ekle
+                      </Button>
+                    </Stack>
+                  </Paper>
+                )}
+
+                {/* Takip Edilmiş ama Analiz Yok - Döküman Yönetimi Kartı */}
+                {isSaved && !hasAnalysis && (
+                  <Paper
+                    p="lg"
+                    withBorder
+                    radius="lg"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(201, 162, 39, 0.15), rgba(201, 162, 39, 0.03))',
+                      borderColor: '#C9A227',
+                    }}
+                  >
+                    <Stack gap="md" align="center">
+                      <ThemeIcon size={50} variant="light" color="orange" radius="xl">
+                        <IconSparkles size={24} />
+                      </ThemeIcon>
+                      <Box ta="center">
+                        <Text size="md" fw={600}>Döküman ve Analiz</Text>
+                        <Text size="sm" c="dimmed">
+                          Site içeriğini çekin, dökümanları indirin ve AI ile analiz edin
                         </Text>
-                      )}
-                      {hasDocuments && !hasAnalysis && (
-                        <Text size="xs" c="dimmed" ta="center">
-                          💡 AI analizi ile teknik şartnameler ve birim fiyatlar otomatik çıkarılır
+                      </Box>
+                      <Button
+                        variant="gradient"
+                        style={{ background: 'linear-gradient(135deg, #C9A227 0%, #D4AF37 50%, #E6C65C 100%)', border: 'none' }}
+                        size="md"
+                        leftSection={<IconFileText size={18} />}
+                        onClick={openDocumentWizard}
+                      >
+                        Döküman Yönetimi
+                      </Button>
+                      {hasDocuments && (
+                        <Text size="xs" c="dimmed">
+                          {selectedTender.dokuman_sayisi} döküman mevcut, analiz bekliyor
                         </Text>
                       )}
                     </Stack>
@@ -776,18 +651,18 @@ export function CenterPanel({
                       radius="md"
                       style={{
                         background:
-                          'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05))',
-                        borderColor: 'var(--mantine-color-violet-6)',
+                          'linear-gradient(135deg, rgba(201, 162, 39, 0.15), rgba(201, 162, 39, 0.05))',
+                        borderColor: '#C9A227',
                         cursor: 'pointer',
                       }}
                       onClick={() => onStateChange({ activeDetailTab: 'dokumanlar' })}
                     >
                       <Group gap="xs">
-                        <ThemeIcon size="lg" variant="light" color="violet" radius="xl">
+                        <ThemeIcon size="lg" variant="light" color="orange" radius="xl">
                           <IconFile size={18} />
                         </ThemeIcon>
                         <Box>
-                          <Text size="xl" fw={700} c="violet">
+                          <Text size="xl" fw={700} c="orange">
                             {selectedTender.analiz_edilen_dokuman || 0}/
                             {selectedTender.dokuman_sayisi || 0}
                           </Text>
@@ -968,9 +843,15 @@ export function CenterPanel({
             </Tabs.Panel>
 
             <Tabs.Panel value="dokumanlar" pt="md">
-              {/* Dökümanlar sekmesi - Sadece döküman yönetimi */}
+              {/* Dökümanlar sekmesi - Wizard Modal ile döküman yönetimi */}
               {isSaved ? (
-                <DokumanlarSection tenderId={selectedTender.tender_id} onRefresh={onRefreshData} />
+                <DokumanlarSection 
+                  tenderId={selectedTender.tender_id} 
+                  tenderTitle={selectedTender.ihale_basligi}
+                  dokumansayisi={selectedTender.dokuman_sayisi || 0}
+                  analizEdilen={selectedTender.analiz_edilen_dokuman || 0}
+                  onRefresh={onRefreshData} 
+                />
               ) : (
                 <Text size="sm" c="dimmed">
                   Takip edilen ihaleler için kullanılabilir.
@@ -1004,7 +885,7 @@ export function CenterPanel({
               </Text>
               <Button
                 variant="gradient"
-                gradient={{ from: 'violet', to: 'grape' }}
+                style={{ background: 'linear-gradient(135deg, #C9A227 0%, #D4AF37 50%, #E6C65C 100%)', border: 'none' }}
                 leftSection={<IconFileAnalytics size={16} />}
                 onClick={() => onStateChange({ teklifModalOpen: true })}
               >
@@ -1014,6 +895,17 @@ export function CenterPanel({
           </Tabs>
         </Box>
       </ScrollArea>
+
+      {/* Document Wizard Modal - accessible from Özet tab */}
+      {isSaved && (
+        <DocumentWizardModal
+          opened={documentWizardOpen}
+          onClose={closeDocumentWizard}
+          tenderId={selectedTender.tender_id}
+          tenderTitle={selectedTender.ihale_basligi}
+          onComplete={onRefreshData}
+        />
+      )}
     </Box>
   );
 }
@@ -1067,211 +959,116 @@ function DilekceTypeCard({
 
 // ========== DOKÜMANLAR SEKMESİ ==========
 
-interface DocumentItem {
-  id: number;
-  original_filename: string;
-  file_type: string;
-  doc_type: string;
-  processing_status: string;
-  storage_url?: string;
+// ========== DÖKÜMANLAR SEKMESİ (Wizard Modal ile) ==========
+
+interface DokumanlarSectionProps {
+  tenderId: number;
+  tenderTitle?: string;
+  dokumansayisi?: number;
+  analizEdilen?: number;
+  onRefresh?: () => void;
 }
 
-function DokumanlarSection({ tenderId, onRefresh }: { tenderId: number; onRefresh?: () => void }) {
-  const [documents, setDocuments] = useState<DocumentItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [downloading, setDownloading] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
-
-  const fetchDocuments = useCallback(async () => {
-    setLoading(true);
-    try {
-      const downloadData = await tendersAPI.getDownloadedDocuments(String(tenderId));
-      if (downloadData.success && downloadData.data?.documents) {
-        const docs: DocumentItem[] = downloadData.data.documents.flatMap(
-          (group: { files: DocumentItem[] }) =>
-            group.files.map((file: DocumentItem) => ({ ...file }))
-        );
-        setDocuments(docs);
-      }
-    } catch (error) {
-      console.error('Documents fetch error:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [tenderId]);
-
-  useEffect(() => {
-    fetchDocuments();
-  }, [fetchDocuments]);
-
-  const handleDownload = async () => {
-    setDownloading(true);
-    try {
-      const result = await tendersAPI.downloadTenderDocuments(String(tenderId));
-      if (result.success) {
-        notifications.show({
-          title: 'İndirme Tamamlandı',
-          message: `${result.data?.totalDownloaded || 0} döküman indirildi`,
-          color: 'green',
-        });
-        fetchDocuments();
-        onRefresh?.();
-      }
-    } catch {
-      notifications.show({ title: 'Hata', message: 'Dökümanlar indirilemedi', color: 'red' });
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  const handleAnalyze = async () => {
-    setAnalyzing(true);
-    try {
-      const result = await tendersAPI.analyzeDocuments(String(tenderId));
-      if (result.success) {
-        notifications.show({
-          title: 'Analiz Tamamlandı',
-          message: 'Dökümanlar başarıyla analiz edildi',
-          color: 'green',
-        });
-        fetchDocuments();
-        onRefresh?.();
-      }
-    } catch {
-      notifications.show({ title: 'Hata', message: 'Dökümanlar analiz edilemedi', color: 'red' });
-    } finally {
-      setAnalyzing(false);
-    }
-  };
-
-  const getDocTypeLabel = (docType: string) => {
-    const labels: Record<string, string> = {
-      admin_spec: 'İdari Şartname',
-      tech_spec: 'Teknik Şartname',
-      announcement: 'İhale İlanı',
-      goods_services: 'Mal/Hizmet',
-      zeyilname: 'Zeyilname',
-      contract: 'Sözleşme',
-    };
-    return labels[docType] || docType;
-  };
+function DokumanlarSection({ tenderId, tenderTitle, dokumansayisi = 0, analizEdilen = 0, onRefresh }: DokumanlarSectionProps) {
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   return (
-    <Stack gap="md">
-      {/* Aksiyon Butonları */}
-      <Group>
-        <Button
-          size="xs"
-          variant="light"
-          leftSection={<IconCloudDownload size={14} />}
-          onClick={handleDownload}
-          loading={downloading}
-        >
-          Dökümanları İndir
-        </Button>
-        <Button
-          size="xs"
-          variant="gradient"
-          gradient={{ from: 'violet', to: 'grape' }}
-          leftSection={<IconBrain size={14} />}
-          onClick={handleAnalyze}
-          loading={analyzing}
-          disabled={documents.length === 0}
-        >
-          AI ile Analiz Et
-        </Button>
-        <Tooltip label="Yenile">
-          <ActionIcon variant="subtle" size="sm" onClick={fetchDocuments} loading={loading}>
-            <IconRefresh size={14} />
-          </ActionIcon>
-        </Tooltip>
-      </Group>
-
-      {/* Döküman Listesi */}
-      <ScrollArea.Autosize mah={300}>
-        <Stack gap={4}>
-          {loading ? (
-            <Box ta="center" py="md">
-              <Loader size="sm" />
-            </Box>
-          ) : documents.length === 0 ? (
-            <Paper p="md" withBorder radius="md" ta="center">
-              <Text size="sm" c="dimmed">
-                Henüz döküman yok. "Dökümanları İndir" butonuna tıklayın.
+    <>
+      <Stack gap="md">
+        {/* Özet Kartı */}
+        <Paper p="lg" withBorder radius="md" bg="dark.6">
+          <Stack gap="md" align="center">
+            <ThemeIcon size={60} variant="light" color="orange" radius="xl">
+              <IconFile size={30} />
+            </ThemeIcon>
+            
+            <Box ta="center">
+              <Text size="xl" fw={700}>
+                {dokumansayisi > 0 ? `${dokumansayisi} Döküman` : 'Döküman Yok'}
               </Text>
-            </Paper>
-          ) : (
-            documents.map((doc) => (
-              <Paper key={doc.id} p="xs" withBorder radius="sm">
-                <Group justify="space-between" wrap="nowrap">
-                  <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-                    <ThemeIcon
-                      size="sm"
-                      variant="light"
-                      color={
-                        doc.processing_status === 'completed'
-                          ? 'green'
-                          : doc.processing_status === 'failed'
-                            ? 'red'
-                            : 'gray'
-                      }
-                    >
-                      {doc.processing_status === 'completed' ? (
-                        <IconCheck size={12} />
-                      ) : doc.processing_status === 'failed' ? (
-                        <IconX size={12} />
-                      ) : (
-                        <IconFile size={12} />
-                      )}
-                    </ThemeIcon>
-                    <Box style={{ minWidth: 0, flex: 1 }}>
-                      <Text size="xs" fw={500} truncate>
-                        {doc.original_filename || getDocTypeLabel(doc.doc_type)}
-                      </Text>
-                      <Group gap={4}>
-                        <Badge size="xs" variant="dot" color="blue">
-                          {doc.file_type?.toUpperCase() || 'PDF'}
-                        </Badge>
-                        <Badge
-                          size="xs"
-                          color={
-                            doc.processing_status === 'completed'
-                              ? 'green'
-                              : doc.processing_status === 'failed'
-                                ? 'red'
-                                : 'gray'
-                          }
-                          variant="light"
-                        >
-                          {doc.processing_status === 'completed'
-                            ? 'Analiz Edildi'
-                            : doc.processing_status === 'failed'
-                              ? 'Hata'
-                              : 'Bekliyor'}
-                        </Badge>
-                      </Group>
-                    </Box>
-                  </Group>
-                  {doc.storage_url && (
-                    <Tooltip label="İndir">
-                      <ActionIcon
-                        size="sm"
-                        variant="subtle"
-                        component="a"
-                        href={doc.storage_url}
-                        target="_blank"
-                      >
-                        <IconDownload size={14} />
-                      </ActionIcon>
-                    </Tooltip>
-                  )}
+              {dokumansayisi > 0 && (
+                <Text size="sm" c="dimmed">
+                  {analizEdilen > 0 
+                    ? `${analizEdilen} tanesi analiz edildi`
+                    : 'Henüz analiz yapılmamış'}
+                </Text>
+              )}
+            </Box>
+
+            {/* Progress */}
+            {dokumansayisi > 0 && (
+              <Box w="100%" maw={300}>
+                <Group justify="space-between" mb={4}>
+                  <Text size="xs" c="dimmed">Analiz Durumu</Text>
+                  <Text size="xs" c="dimmed">{Math.round((analizEdilen / dokumansayisi) * 100)}%</Text>
                 </Group>
-              </Paper>
-            ))
-          )}
-        </Stack>
-      </ScrollArea.Autosize>
-    </Stack>
+                <Box 
+                  h={8} 
+                  bg="dark.4" 
+                  style={{ borderRadius: 4, overflow: 'hidden' }}
+                >
+                  <Box 
+                    h="100%" 
+                    w={`${(analizEdilen / dokumansayisi) * 100}%`}
+                    bg="green"
+                    style={{ transition: 'width 0.3s ease' }}
+                  />
+                </Box>
+              </Box>
+            )}
+
+            {/* Ana Buton */}
+            <Button
+              size="lg"
+              variant="gradient"
+              style={{ background: 'linear-gradient(135deg, #C9A227 0%, #D4AF37 50%, #E6C65C 100%)', border: 'none' }}
+              leftSection={<IconFileText size={20} />}
+              onClick={() => setWizardOpen(true)}
+              fullWidth
+              maw={300}
+            >
+              Döküman Yönetimi
+            </Button>
+
+            <Text size="xs" c="dimmed" ta="center">
+              Site içeriği çekme, döküman indirme ve AI analizi için tıklayın
+            </Text>
+          </Stack>
+        </Paper>
+
+        {/* Hızlı Bilgi */}
+        {dokumansayisi === 0 && (
+          <Paper p="md" withBorder radius="md">
+            <Stack gap="xs">
+              <Text size="sm" fw={500}>Nasıl Çalışır?</Text>
+              <Stack gap={4}>
+                <Group gap="xs">
+                  <Badge size="sm" circle>1</Badge>
+                  <Text size="xs">Site içeriği çekilir (ilan, mal/hizmet listesi)</Text>
+                </Group>
+                <Group gap="xs">
+                  <Badge size="sm" circle>2</Badge>
+                  <Text size="xs">PDF/ZIP dökümanlar indirilir</Text>
+                </Group>
+                <Group gap="xs">
+                  <Badge size="sm" circle>3</Badge>
+                  <Text size="xs">AI ile analiz edilir (teknik şartlar, birim fiyatlar)</Text>
+                </Group>
+              </Stack>
+            </Stack>
+          </Paper>
+        )}
+      </Stack>
+
+      {/* Wizard Modal */}
+      <DocumentWizardModal
+        opened={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        tenderId={tenderId}
+        tenderTitle={tenderTitle}
+        onComplete={onRefresh}
+      />
+    </>
   );
 }
 
@@ -1426,7 +1223,7 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
                     <Group gap={4}>
                       <IconBulb size={14} />
                       <span>AI Notları</span>
-                      <Badge size="xs" variant="filled" color="yellow">
+                      <Badge size="xs" variant="filled" color="orange">
                         {allNotlar.length}
                       </Badge>
                     </Group>
@@ -1728,7 +1525,7 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
                     >
                       <Group justify="space-between" wrap="nowrap" align="flex-start">
                         <Group gap="xs" style={{ flex: 1, minWidth: 0 }} align="flex-start">
-                          <ThemeIcon size="sm" variant="light" color="yellow" radius="xl">
+                          <ThemeIcon size="sm" variant="light" color="orange" radius="xl">
                             <IconBulb size={12} />
                           </ThemeIcon>
                           <Box style={{ flex: 1, minWidth: 0 }}>
@@ -2132,7 +1929,7 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
         <Paper p="sm" withBorder radius="md">
           <Group justify="space-between" mb="sm">
             <Group gap="xs">
-              <IconMathFunction size={16} color="var(--mantine-color-violet-6)" />
+              <IconMathFunction size={16} color="#C9A227" />
               <Text size="sm" fw={600}>
                 KİK Sınır Değer Formülü
               </Text>
@@ -2197,7 +1994,7 @@ function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?
             fullWidth
             size="xs"
             variant="light"
-            color="violet"
+            color="orange"
             leftSection={<IconCalculator size={14} />}
             onClick={hesaplaSinirDeger}
           >
@@ -2482,7 +2279,7 @@ const dilekceTypes = {
     label: 'KİK İtiraz',
     description: 'Kamu İhale Kurumu itirazı',
     icon: IconScale,
-    color: 'violet',
+    color: 'yellow',
   },
   aciklama_cevabi: {
     label: 'Açıklama Cevabı',

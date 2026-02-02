@@ -103,7 +103,10 @@ export function RightPanel({
             badge={isSavedTender ? selectedTender.dokuman_sayisi : undefined}
           >
             {selectedTender && tenderId ? (
-              <DocumentsPanel tenderId={tenderId} />
+              <DocumentsPanel 
+                tenderId={tenderId} 
+                tenderTitle={isSavedTender ? selectedTender.ihale_basligi : selectedTender?.title}
+              />
             ) : (
               <Box p="xs" ta="center" c="dimmed">
                 <Text size="xs">İhale seçin</Text>

@@ -87,10 +87,10 @@ export function LeftPanel({
       });
     }
 
-    // City filter
-    if (state.filters.city?.length) {
-      list = list.filter((tender) => tender.city && state.filters.city?.includes(tender.city));
-    }
+    // City filter - backend'de yapılıyor, local filter'a gerek yok
+    // if (state.filters.city?.length) {
+    //   list = list.filter((tender) => tender.city && state.filters.city?.includes(tender.city));
+    // }
 
     // Status filter (date-based)
     if (state.filters.status) {

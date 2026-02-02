@@ -274,11 +274,20 @@ export function GenerationToolbar({
           <Group
             justify="space-between"
             p="xs"
+            onClick={onToggle}
             style={{
               borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.03)'}`,
+              cursor: 'pointer',
+              transition: 'background 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
             }}
           >
-            <Text size="xs" c="dimmed" style={{ fontWeight: 500 }}>
+            <Text size="xs" c="dimmed" style={{ fontWeight: 500, marginLeft: 8 }}>
               {new Date().toLocaleDateString('tr-TR', {
                 weekday: 'long',
                 day: 'numeric',
@@ -288,15 +297,18 @@ export function GenerationToolbar({
             </Text>
             <Group gap="sm">
               <RealtimeIndicator />
-              <Tooltip label="Toolbar'ı kapat" position="bottom" withArrow>
+              <Tooltip label={expanded ? 'Toolbar\'ı kapat' : 'Toolbar\'ı aç'} position="bottom" withArrow>
                 <ActionIcon
                   variant="subtle"
                   size="sm"
                   radius="xl"
-                  onClick={onToggle}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggle();
+                  }}
                   style={{ color: 'rgba(255,255,255,0.6)' }}
                 >
-                  <IconChevronDown size={18} />
+                  {expanded ? <IconChevronDown size={18} /> : <IconChevronUp size={18} />}
                 </ActionIcon>
               </Tooltip>
             </Group>
