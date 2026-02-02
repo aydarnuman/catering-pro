@@ -501,7 +501,7 @@ export function CenterPanel({ state, onStateChange, onUpdateStatus, onRefreshDat
                                 leftSection={<IconBookmark size={14} />}
                                 onClick={async () => {
                                   try {
-                                    await tendersAPI.addToTracking({
+                                    await tendersAPI.addTracking({
                                       tender_id: selectedTender.id,
                                       external_id: selectedTender.external_id,
                                       ihale_basligi: selectedTender.title,

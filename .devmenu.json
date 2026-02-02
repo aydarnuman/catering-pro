@@ -216,6 +216,66 @@
       "label": "Tümünü Yeniden Başlat",
       "time": "17:08:05",
       "success": true
+    },
+    {
+      "id": "start-services",
+      "label": "Servisleri Başlat",
+      "time": "22:11:41",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "09:43:55",
+      "success": true
+    },
+    {
+      "id": "backend-restart",
+      "label": "Sadece Backend Yenile",
+      "time": "09:49:35",
+      "success": true
+    },
+    {
+      "id": "backend-restart",
+      "label": "Sadece Backend Yenile",
+      "time": "09:54:10",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "14:51:35",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "14:53:47",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "14:53:51",
+      "success": true
+    },
+    {
+      "id": "clean-fast",
+      "label": "Hızlı Temizlik",
+      "time": "14:57:20",
+      "success": true
+    },
+    {
+      "id": "stop-services",
+      "label": "Servisleri Durdur",
+      "time": "14:57:39",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "14:57:46",
+      "success": true
     }
   ],
   "theme": "dark"
