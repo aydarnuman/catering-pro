@@ -2509,9 +2509,10 @@ function DilekceSection({ tender, dilekceType, onSelectType }: DilekceSectionPro
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll on new messages
-  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll needed when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages.length]);
 
   // AI ile dilekçe oluştur

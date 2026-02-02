@@ -19,11 +19,9 @@ import {
 import {
   IconBuilding,
   IconCurrencyLira,
-  IconPhone,
   IconPlus,
   IconTrash,
   IconTrophy,
-  IconUser,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { firmalarAPI } from '@/lib/api/services/firmalar';
@@ -45,7 +43,6 @@ interface FirmsPanelProps {
 export function FirmsPanel({ tender, onRefresh }: FirmsPanelProps) {
   const [firmalar, setFirmalar] = useState<Firma[]>([]);
   const [rakipTeklifler, setRakipTeklifler] = useState<RakipTeklif[]>([]);
-  const [loading, setLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   // Yeni firma ekleme modu
@@ -240,12 +237,12 @@ export function FirmsPanel({ tender, onRefresh }: FirmsPanelProps) {
                 </Text>
               ) : (
                 rakipTeklifler.map((rakip, index) => {
-                  const sira = siraliTeklifler.findIndex((t) => t === rakip) + 1;
+                  const sira = siraliTeklifler.indexOf(rakip) + 1;
                   const isEnDusuk = sira === 1 && rakip.teklif_tutari > 0;
 
                   return (
                     <Paper
-                      key={`rakip-${index}`}
+                      key={`rakip-${rakip.firma_adi}-${rakip.teklif_tutari}-${index}`}
                       p={8}
                       radius="sm"
                       style={{

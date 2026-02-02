@@ -649,14 +649,14 @@ export function FloatingAIChat() {
             style={{
               ...transitionStyles,
               position: 'fixed',
-              bottom: isMobile && isMounted ? 0 : 80,
+              bottom: isMobile && isMounted ? 0 : 100,
               right: 0,
               left: isMobile && isMounted ? 0 : 'auto',
               top: isMobile && isMounted ? 0 : 'auto',
               zIndex: 9999,
               width: isMobile && isMounted ? '100%' : isMinimized ? 260 : 380,
-              height: isMobile && isMounted ? '100%' : isMinimized ? 'auto' : 'calc(100vh - 160px)',
-              maxHeight: isMobile && isMounted ? '100%' : 'calc(100vh - 160px)',
+              height: isMobile && isMounted ? '100%' : isMinimized ? 'auto' : 520,
+              maxHeight: isMobile && isMounted ? '100%' : 'calc(100vh - 200px)',
               overflow: 'hidden',
               borderRadius: isMobile && isMounted ? 0 : '16px 0 0 16px',
               boxShadow:

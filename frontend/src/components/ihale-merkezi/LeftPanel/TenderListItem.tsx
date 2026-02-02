@@ -1,7 +1,7 @@
 'use client';
 
-import { Badge, Group, Paper, Text, ThemeIcon } from '@mantine/core';
-import { IconBuilding, IconMapPin, IconRefresh, IconStarFilled } from '@tabler/icons-react';
+import { ActionIcon, Badge, Group, Paper, Text, Tooltip } from '@mantine/core';
+import { IconBuilding, IconMapPin, IconRefresh, IconStar, IconStarFilled } from '@tabler/icons-react';
 import type { Tender } from '@/types/api';
 import type { SavedTender } from '../types';
 
@@ -10,6 +10,7 @@ interface TenderListItemProps {
   isSelected: boolean;
   isTracked: boolean;
   onClick: () => void;
+  onToggleTracking?: (tenderId: number, isCurrentlyTracked: boolean) => void;
 }
 
 // Helper to check if tender is SavedTender
@@ -82,8 +83,11 @@ function getUrgencyBadge(daysRemaining: number | null) {
   return null;
 }
 
-export function TenderListItem({ tender, isSelected, isTracked, onClick }: TenderListItemProps) {
+export function TenderListItem({ tender, isSelected, isTracked, onClick, onToggleTracking }: TenderListItemProps) {
   const isSaved = isSavedTender(tender);
+  
+  // Get tender ID for tracking toggle
+  const tenderId = isSaved ? tender.tender_id : tender.id;
 
   // Extract common fields
   const title = isSaved ? tender.ihale_basligi : tender.title;
@@ -148,11 +152,19 @@ export function TenderListItem({ tender, isSelected, isTracked, onClick }: Tende
             </Badge>
           )}
         </Group>
-        {isTracked && (
-          <ThemeIcon size="xs" color="yellow" variant="transparent">
-            <IconStarFilled size={12} />
-          </ThemeIcon>
-        )}
+        <Tooltip label={isTracked ? 'Takipten çıkar' : 'Takibe ekle'} withArrow>
+          <ActionIcon
+            size="xs"
+            variant="transparent"
+            color={isTracked ? 'yellow' : 'gray'}
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent card click
+              onToggleTracking?.(tenderId, isTracked);
+            }}
+          >
+            {isTracked ? <IconStarFilled size={14} /> : <IconStar size={14} />}
+          </ActionIcon>
+        </Tooltip>
       </Group>
 
       {/* Organization */}

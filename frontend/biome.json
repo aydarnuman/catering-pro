@@ -30,7 +30,8 @@
       "complexity": {
         "noForEach": "off",
         "useLiteralKeys": "off",
-        "noExcessiveCognitiveComplexity": "off"
+        "noExcessiveCognitiveComplexity": "off",
+        "useIndexOf": "off"
       },
       "security": {
         "noDangerouslySetInnerHtml": "warn",

@@ -2005,7 +2005,12 @@ export default function FinansMerkeziPage() {
                 </Table>
               </Paper>
 
-              <Button variant="light" onClick={() => { window.location.href = '/muhasebe/personel'; }}>
+              <Button
+                variant="light"
+                onClick={() => {
+                  window.location.href = '/muhasebe/personel';
+                }}
+              >
                 Personel Sayfasına Git →
               </Button>
             </>

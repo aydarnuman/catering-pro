@@ -40,6 +40,7 @@ interface LeftPanelProps {
   onStateChange: (updates: Partial<IhaleMerkeziState>) => void;
   onSelectTender: (tender: Tender | SavedTender | null) => void;
   onRefresh: () => void;
+  onToggleTracking?: (tenderId: number, isCurrentlyTracked: boolean) => void;
   isMobile?: boolean;
 }
 
@@ -51,6 +52,7 @@ export function LeftPanel({
   onStateChange,
   onSelectTender,
   onRefresh,
+  onToggleTracking,
   isMobile = false,
 }: LeftPanelProps) {
   const [searchInput, setSearchInput] = useState(state.searchQuery);
@@ -474,6 +476,7 @@ export function LeftPanel({
                   (t) => t.tender_id === ('tender_id' in tender ? tender.tender_id : tender.id)
                 )}
                 onClick={() => onSelectTender(tender)}
+                onToggleTracking={onToggleTracking}
               />
             ))
           )}

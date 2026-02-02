@@ -276,6 +276,12 @@
       "label": "Tümünü Yeniden Başlat",
       "time": "14:57:46",
       "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "17:16:20",
+      "success": true
     }
   ],
   "theme": "dark"
