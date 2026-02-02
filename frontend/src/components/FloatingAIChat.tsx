@@ -37,6 +37,7 @@ const pathToDepartment: Record<string, string> = {
   '/tenders': 'İHALE',
   '/upload': 'İHALE',
   '/tracking': 'İHALE',
+  '/ihale-merkezi': 'İHALE',
 };
 
 // Department'a göre başlık ve renk
@@ -69,6 +70,7 @@ const pathToContextType: Record<string, PageContext['type']> = {
   '/tenders': 'tender',
   '/tracking': 'tender',
   '/ihale-uzmani': 'tender',
+  '/ihale-merkezi': 'tender',
   '/upload': 'tender',
   '/muhasebe/personel': 'personel',
   '/muhasebe/cariler': 'cari',
@@ -242,6 +244,125 @@ export function FloatingAIChat() {
 
   return (
     <>
+      {/* Edge Trigger - Sağ kenardan açılır */}
+      {!isOpen && (
+        <Tooltip
+          label={
+            <Stack gap={2}>
+              <Text size="xs" fw={500}>{info.icon} {info.title}</Text>
+              <Text size="xs" c="dimmed">Tıkla veya ⌘K</Text>
+            </Stack>
+          }
+          position="left"
+          withArrow
+        >
+          <Box
+            onClick={() => {
+              setIsOpen(true);
+              setIsMinimized(false);
+            }}
+            style={{
+              position: 'fixed',
+              right: 0,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              zIndex: 100,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            {/* Tab handle */}
+            <Box
+              style={{
+                background: isDark 
+                  ? 'linear-gradient(180deg, rgba(30, 30, 34, 0.95), rgba(20, 21, 23, 0.95))'
+                  : 'linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(248, 249, 250, 0.95))',
+                borderRadius: '12px 0 0 12px',
+                padding: '12px 6px',
+                boxShadow: isDark
+                  ? '-4px 0 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255,255,255,0.08)'
+                  : '-4px 0 20px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0,0,0,0.08)',
+                backdropFilter: 'blur(12px)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 8,
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.padding = '12px 10px';
+                e.currentTarget.style.boxShadow = isDark
+                  ? '-6px 0 24px rgba(230, 197, 48, 0.2), 0 0 0 1px rgba(230, 197, 48, 0.3)'
+                  : '-6px 0 24px rgba(230, 197, 48, 0.15), 0 0 0 1px rgba(230, 197, 48, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.padding = '12px 6px';
+                e.currentTarget.style.boxShadow = isDark
+                  ? '-4px 0 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255,255,255,0.08)'
+                  : '-4px 0 20px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0,0,0,0.08)';
+              }}
+            >
+              {/* AI Icon */}
+              <Box
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #e6c530, #ca8a04)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(230, 197, 48, 0.4)',
+                }}
+              >
+                <Image
+                  src="/ai-chef-icon-trimmed.png"
+                  alt="AI"
+                  width={22}
+                  height={22}
+                  style={{ borderRadius: '50%' }}
+                />
+              </Box>
+              
+              {/* Vertical text */}
+              <Text
+                size="xs"
+                fw={600}
+                c={isDark ? 'white' : 'dark'}
+                style={{
+                  writingMode: 'vertical-rl',
+                  textOrientation: 'mixed',
+                  letterSpacing: '1px',
+                  fontSize: 10,
+                }}
+              >
+                AI
+              </Text>
+
+              {/* Alert badge */}
+              {alertCount > 0 && (
+                <Badge
+                  size="xs"
+                  color="red"
+                  variant="filled"
+                  style={{
+                    minWidth: 18,
+                    height: 18,
+                    padding: '0 4px',
+                    fontSize: 9,
+                  }}
+                >
+                  {alertCount > 9 ? '9+' : alertCount}
+                </Badge>
+              )}
+            </Box>
+          </Box>
+        </Tooltip>
+      )}
+
       {/* Floating Button - Ana sayfa dışında göster (tek AI girişi: toolbar) */}
       {showFloatingButton && (
         <Tooltip
@@ -524,16 +645,16 @@ export function FloatingAIChat() {
             style={{
               ...transitionStyles,
               position: 'fixed',
-              bottom: isMobile && isMounted ? 0 : 110,
-              right: isMobile && isMounted ? 0 : 24,
+              bottom: isMobile && isMounted ? 0 : 80,
+              right: 0,
               left: isMobile && isMounted ? 0 : 'auto',
               top: isMobile && isMounted ? 0 : 'auto',
               zIndex: 9999,
-              width: isMobile && isMounted ? '100%' : isMinimized ? 280 : 440,
-              height: isMobile && isMounted ? '100%' : isMinimized ? 'auto' : 580,
-              maxHeight: isMobile && isMounted ? '100%' : 'calc(100vh - 150px)',
+              width: isMobile && isMounted ? '100%' : isMinimized ? 260 : 380,
+              height: isMobile && isMounted ? '100%' : isMinimized ? 'auto' : 'calc(100vh - 160px)',
+              maxHeight: isMobile && isMounted ? '100%' : 'calc(100vh - 160px)',
               overflow: 'hidden',
-              borderRadius: isMobile && isMounted ? 0 : 20,
+              borderRadius: isMobile && isMounted ? 0 : '16px 0 0 16px',
               boxShadow:
                 isMobile && isMounted
                   ? 'none'
