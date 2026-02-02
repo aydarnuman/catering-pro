@@ -50,6 +50,7 @@
     "node": ">=18.0.0"
   },
   "devDependencies": {
-    "concurrently": "^8.2.0"
+    "concurrently": "^8.2.0",
+    "pako": "^2.1.0"
   }
 }

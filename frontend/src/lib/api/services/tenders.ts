@@ -114,6 +114,14 @@ export const tendersAPI = {
   },
 
   /**
+   * İhale takip detayları (tam metin dahil)
+   */
+  async getTrackingDetails(tenderId: number): Promise<ApiResponse<any>> {
+    const response = await api.get(`/api/tender-tracking/${tenderId}/analysis`);
+    return response.data;
+  },
+
+  /**
    * Döküman yükle
    */
   async uploadDocument(file: File, metadata?: Record<string, any>): Promise<ApiResponse<any>> {
@@ -358,6 +366,16 @@ export const tendersAPI = {
    */
   getAnalyzeBatchUrl(): string {
     return `${API_BASE_URL}/api/tender-content/analyze-batch`;
+  },
+
+  /**
+   * İhale dökümanlarını AI ile analiz et
+   */
+  async analyzeDocuments(tenderId: string): Promise<ApiResponse<any>> {
+    const response = await api.post('/api/tender-content/analyze-batch', {
+      tenderId: parseInt(tenderId, 10),
+    });
+    return response.data;
   },
 
   // ========== FIRMALAR ==========

@@ -74,6 +74,13 @@ const allMenuGroups: MenuGroup[] = [
     gradient: 'linear-gradient(135deg, #3B82F6 0%, #6366F1 100%)',
     permission: 'ihale',
     items: [
+      {
+        label: 'İhale Merkezi',
+        href: '/ihale-merkezi',
+        icon: IconSparkles,
+        badge: 'Yeni',
+        badgeColor: 'violet',
+      },
       { label: 'İhale Listesi', href: '/tenders', icon: IconList },
       {
         label: 'Yükle & Analiz',

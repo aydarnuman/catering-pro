@@ -138,7 +138,7 @@ export function Navbar() {
   // Route helpers
   const isActive = (path: string) => pathname === path;
   const isIhaleMerkezi =
-    pathname === '/tenders' || pathname === '/upload' || pathname === '/tracking';
+    pathname === '/tenders' || pathname === '/upload' || pathname === '/tracking' || pathname === '/ihale-merkezi';
 
   // Finans sayfaları
   const isFinans =
@@ -578,6 +578,26 @@ export function Navbar() {
                   </Button>
                 </Menu.Target>
                 <Menu.Dropdown>
+                  <Menu.Item
+                    component={Link}
+                    href="/ihale-merkezi"
+                    leftSection={<IconSparkles size={16} color="var(--mantine-color-violet-6)" />}
+                  >
+                    <Box>
+                      <Group justify="space-between" w="100%">
+                        <Text size="sm" fw={500}>
+                          İhale Merkezi
+                        </Text>
+                        <Badge size="xs" color="violet" variant="light">
+                          Yeni
+                        </Badge>
+                      </Group>
+                      <Text size="xs" c="dimmed">
+                        AI Destekli Yönetim
+                      </Text>
+                    </Box>
+                  </Menu.Item>
+                  <Menu.Divider />
                   <Menu.Item component={Link} href="/tenders" leftSection={<IconList size={16} />}>
                     <Group justify="space-between" w="100%">
                       <Text size="sm">İhale Listesi</Text>
