@@ -40,18 +40,31 @@ export function parsePageAnalysis(responseText) {
   const parsed = parseJsonResponse(responseText);
 
   if (parsed) {
+    const bilgi = parsed.tespit_edilen_bilgiler || {};
     return {
       sayfa_metni: parsed.sayfa_metni || '',
       tespit_edilen_bilgiler: {
-        ihale_basligi: parsed.tespit_edilen_bilgiler?.ihale_basligi || '',
-        kurum: parsed.tespit_edilen_bilgiler?.kurum || '',
-        tarih: parsed.tespit_edilen_bilgiler?.tarih || '',
-        bedel: parsed.tespit_edilen_bilgiler?.bedel || '',
-        sure: parsed.tespit_edilen_bilgiler?.sure || '',
-        teknik_sartlar: parsed.tespit_edilen_bilgiler?.teknik_sartlar || [],
-        birim_fiyatlar: parsed.tespit_edilen_bilgiler?.birim_fiyatlar || [],
-        iletisim: parsed.tespit_edilen_bilgiler?.iletisim || {},
-        notlar: parsed.tespit_edilen_bilgiler?.notlar || [],
+        ihale_basligi: bilgi.ihale_basligi || '',
+        kurum: bilgi.kurum || '',
+        tarih: bilgi.tarih || '',
+        bedel: bilgi.bedel || '',
+        sure: bilgi.sure || '',
+        ikn: bilgi.ikn || '',
+        teknik_sartlar: bilgi.teknik_sartlar || [],
+        birim_fiyatlar: bilgi.birim_fiyatlar || [],
+        iletisim: bilgi.iletisim || {},
+        notlar: bilgi.notlar || [],
+        personel_detaylari: bilgi.personel_detaylari || [],
+        ogun_bilgileri: bilgi.ogun_bilgileri || [],
+        is_yerleri: bilgi.is_yerleri || [],
+        mali_kriterler: bilgi.mali_kriterler || {},
+        ceza_kosullari: bilgi.ceza_kosullari || [],
+        fiyat_farki: bilgi.fiyat_farki || {},
+        gerekli_belgeler: bilgi.gerekli_belgeler || [],
+        teminat_oranlari: bilgi.teminat_oranlari || {},
+        servis_saatleri: bilgi.servis_saatleri || {},
+        sinir_deger_katsayisi: bilgi.sinir_deger_katsayisi || '',
+        benzer_is_tanimi: bilgi.benzer_is_tanimi || '',
       },
     };
   }
@@ -80,12 +93,25 @@ export function parseDocumentAnalysis(responseText, originalText = '') {
       tarih: parsed.tarih || '',
       bedel: parsed.bedel || '',
       sure: parsed.sure || '',
+      ikn: parsed.ikn || '',
       gunluk_ogun_sayisi: parsed.gunluk_ogun_sayisi || '',
       kisi_sayisi: parsed.kisi_sayisi || '',
       teknik_sartlar: parsed.teknik_sartlar || [],
       birim_fiyatlar: parsed.birim_fiyatlar || [],
       iletisim: parsed.iletisim || {},
       notlar: parsed.notlar || [],
+      // Yeni alanlar
+      personel_detaylari: parsed.personel_detaylari || [],
+      ogun_bilgileri: parsed.ogun_bilgileri || [],
+      is_yerleri: parsed.is_yerleri || [],
+      mali_kriterler: parsed.mali_kriterler || {},
+      ceza_kosullari: parsed.ceza_kosullari || [],
+      fiyat_farki: parsed.fiyat_farki || {},
+      gerekli_belgeler: parsed.gerekli_belgeler || [],
+      teminat_oranlari: parsed.teminat_oranlari || {},
+      servis_saatleri: parsed.servis_saatleri || {},
+      sinir_deger_katsayisi: parsed.sinir_deger_katsayisi || '',
+      benzer_is_tanimi: parsed.benzer_is_tanimi || '',
     };
   }
 
@@ -109,10 +135,23 @@ export function mergePageResults(pages) {
     tarih: '',
     bedel: '',
     sure: '',
+    ikn: '',
     teknik_sartlar: [],
     birim_fiyatlar: [],
     iletisim: {},
     notlar: [],
+    // Yeni alanlar
+    personel_detaylari: [],
+    ogun_bilgileri: [],
+    is_yerleri: [],
+    mali_kriterler: {},
+    ceza_kosullari: [],
+    fiyat_farki: {},
+    gerekli_belgeler: [],
+    teminat_oranlari: {},
+    servis_saatleri: {},
+    sinir_deger_katsayisi: '',
+    benzer_is_tanimi: '',
   };
 
   for (const page of pages) {
@@ -126,6 +165,7 @@ export function mergePageResults(pages) {
     // Bilgileri birleştir (boş olmayanları al)
     const bilgi = page.tespit_edilen_bilgiler || {};
 
+    // Temel string alanlar - ilk boş olmayanı al
     if (bilgi.ihale_basligi && !merged.ihale_basligi) {
       merged.ihale_basligi = bilgi.ihale_basligi;
     }
@@ -141,23 +181,64 @@ export function mergePageResults(pages) {
     if (bilgi.sure && !merged.sure) {
       merged.sure = bilgi.sure;
     }
+    if (bilgi.ikn && !merged.ikn) {
+      merged.ikn = bilgi.ikn;
+    }
+    if (bilgi.sinir_deger_katsayisi && !merged.sinir_deger_katsayisi) {
+      merged.sinir_deger_katsayisi = bilgi.sinir_deger_katsayisi;
+    }
+    if (bilgi.benzer_is_tanimi && !merged.benzer_is_tanimi) {
+      merged.benzer_is_tanimi = bilgi.benzer_is_tanimi;
+    }
+
+    // Array alanlar - hepsini birleştir
     if (bilgi.teknik_sartlar?.length) {
       merged.teknik_sartlar.push(...bilgi.teknik_sartlar);
     }
     if (bilgi.birim_fiyatlar?.length) {
       merged.birim_fiyatlar.push(...bilgi.birim_fiyatlar);
     }
-    if (bilgi.iletisim && Object.keys(bilgi.iletisim).length) {
-      merged.iletisim = { ...merged.iletisim, ...bilgi.iletisim };
-    }
     if (bilgi.notlar?.length) {
       merged.notlar.push(...bilgi.notlar);
     }
+    if (bilgi.personel_detaylari?.length) {
+      merged.personel_detaylari.push(...bilgi.personel_detaylari);
+    }
+    if (bilgi.ogun_bilgileri?.length) {
+      merged.ogun_bilgileri.push(...bilgi.ogun_bilgileri);
+    }
+    if (bilgi.is_yerleri?.length) {
+      merged.is_yerleri.push(...bilgi.is_yerleri);
+    }
+    if (bilgi.ceza_kosullari?.length) {
+      merged.ceza_kosullari.push(...bilgi.ceza_kosullari);
+    }
+    if (bilgi.gerekli_belgeler?.length) {
+      merged.gerekli_belgeler.push(...bilgi.gerekli_belgeler);
+    }
+
+    // Object alanlar - merge et
+    if (bilgi.iletisim && Object.keys(bilgi.iletisim).length) {
+      merged.iletisim = { ...merged.iletisim, ...bilgi.iletisim };
+    }
+    if (bilgi.mali_kriterler && Object.keys(bilgi.mali_kriterler).length) {
+      merged.mali_kriterler = { ...merged.mali_kriterler, ...bilgi.mali_kriterler };
+    }
+    if (bilgi.fiyat_farki && Object.keys(bilgi.fiyat_farki).length) {
+      merged.fiyat_farki = { ...merged.fiyat_farki, ...bilgi.fiyat_farki };
+    }
+    if (bilgi.teminat_oranlari && Object.keys(bilgi.teminat_oranlari).length) {
+      merged.teminat_oranlari = { ...merged.teminat_oranlari, ...bilgi.teminat_oranlari };
+    }
+    if (bilgi.servis_saatleri && Object.keys(bilgi.servis_saatleri).length) {
+      merged.servis_saatleri = { ...merged.servis_saatleri, ...bilgi.servis_saatleri };
+    }
   }
 
-  // Duplikeleri temizle
+  // Duplikeleri temizle (string array'ler için)
   merged.teknik_sartlar = [...new Set(merged.teknik_sartlar)];
   merged.notlar = [...new Set(merged.notlar)];
+  merged.is_yerleri = [...new Set(merged.is_yerleri)];
 
   return merged;
 }
@@ -183,11 +264,26 @@ export function mergeDocumentResults(results) {
     tarih: results.find((r) => r.tarih)?.tarih || '',
     bedel: results.find((r) => r.bedel)?.bedel || '',
     sure: results.find((r) => r.sure)?.sure || '',
+    ikn: results.find((r) => r.ikn)?.ikn || '',
     gunluk_ogun_sayisi: results.find((r) => r.gunluk_ogun_sayisi)?.gunluk_ogun_sayisi || '',
     kisi_sayisi: results.find((r) => r.kisi_sayisi)?.kisi_sayisi || '',
+    // Array alanlar - birleştir ve dedupe
     teknik_sartlar: [...new Set(results.flatMap((r) => r.teknik_sartlar || []))],
     birim_fiyatlar: results.flatMap((r) => r.birim_fiyatlar || []),
-    iletisim: Object.assign({}, ...results.map((r) => r.iletisim || {})),
     notlar: [...new Set(results.flatMap((r) => r.notlar || []))],
+    personel_detaylari: results.flatMap((r) => r.personel_detaylari || []),
+    ogun_bilgileri: results.flatMap((r) => r.ogun_bilgileri || []),
+    is_yerleri: [...new Set(results.flatMap((r) => r.is_yerleri || []))],
+    ceza_kosullari: results.flatMap((r) => r.ceza_kosullari || []),
+    gerekli_belgeler: results.flatMap((r) => r.gerekli_belgeler || []),
+    // Object alanlar - merge
+    iletisim: Object.assign({}, ...results.map((r) => r.iletisim || {})),
+    mali_kriterler: Object.assign({}, ...results.map((r) => r.mali_kriterler || {})),
+    fiyat_farki: Object.assign({}, ...results.map((r) => r.fiyat_farki || {})),
+    teminat_oranlari: Object.assign({}, ...results.map((r) => r.teminat_oranlari || {})),
+    servis_saatleri: Object.assign({}, ...results.map((r) => r.servis_saatleri || {})),
+    // String alanlar - ilk boş olmayanı al
+    sinir_deger_katsayisi: results.find((r) => r.sinir_deger_katsayisi)?.sinir_deger_katsayisi || '',
+    benzer_is_tanimi: results.find((r) => r.benzer_is_tanimi)?.benzer_is_tanimi || '',
   };
 }

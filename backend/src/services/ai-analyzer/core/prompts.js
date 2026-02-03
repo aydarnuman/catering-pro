@@ -5,7 +5,7 @@
 /**
  * İhale dökümanı analiz prompt'u
  */
-export const TENDER_ANALYSIS_PROMPT = `Sen bir YEMEK/CATERİNG ihale dökümanı analiz uzmanısın. Bu dökümanı DİKKATLİCE analiz et ve SOMUT bilgileri çıkar.
+export const TENDER_ANALYSIS_PROMPT = `Sen bir YEMEK/CATERİNG ihale dökümanı analiz uzmanısın. Bu dökümanı DİKKATLİCE analiz et ve TÜM SOMUT bilgileri eksiksiz çıkar.
 
 ÖNEMLİ TALİMATLAR:
 1. Aşağıdaki STANDART/GENEL bilgileri ASLA yazma (bunlar tüm ihalelerde aynı):
@@ -26,16 +26,25 @@ export const TENDER_ANALYSIS_PROMPT = `Sen bir YEMEK/CATERİNG ihale dökümanı
    - Günlük/haftalık/aylık YEMEK SAYISI
    - Kaç KİŞİYE yemek verileceği
    - GRAMAJ bilgileri (et, pilav, salata vb. için gram cinsinden)
-   - MENÜ TİPLERİ (kahvaltı, öğle, akşam, ara öğün)
+   - MENÜ TİPLERİ (kahvaltı, öğle, akşam, ara öğün, diyet)
    - GIDA GÜVENLİĞİ gereksinimleri (ISO, HACCP, sertifikalar)
    - KALORİ ihtiyaçları
    - TESLİMAT saatleri ve yerleri
-   - CEZA ŞARTLARI (gecikme, eksik teslimat için TL cinsinden cezalar)
+   - CEZA ŞARTLARI (gecikme, eksik teslimat için TL veya % cinsinden cezalar)
    - ZORUNLU BELGELER listesi
 
-3. teknik_sartlar için: Yemek gramajları, porsiyon boyutları, malzeme kalitesi, saklama koşulları gibi SOMUT teknik detaylar
+3. teknik_sartlar için: Yemek gramajları, porsiyon boyutları, malzeme kalitesi, saklama koşulları, sıcaklık gereksinimleri gibi SOMUT teknik detaylar
 4. notlar için: Sadece İŞ İÇİN KRİTİK bilgiler (cezalar, zorunlu belgeler, özel koşullar)
-5. birim_fiyatlar için: Her kalemi TAM olarak çıkar (kalem adı, birim, miktar)
+5. birim_fiyatlar için: Her kalemi TAM olarak çıkar (kalem adı, birim, miktar, fiyat varsa)
+6. personel_detaylari için: Her pozisyon için adet, ücret oranı (asgari ücretin yüzdesi)
+7. ogun_bilgileri için: Her öğün tipi için toplam miktar (24 aylık veya belirtilen süre)
+8. is_yerleri için: Yemek verilecek tüm lokasyonları listele
+9. mali_kriterler için: Cari oran, öz kaynak oranı, iş deneyimi yüzdesi gibi mali yeterlilik şartları
+10. ceza_kosullari için: Tüm ceza oranlarını ve koşullarını çıkar
+11. fiyat_farki için: Formül ve tüm katsayıları (a1, b1, b2, b3, c vb.)
+12. gerekli_belgeler için: İstenen tüm sertifika, belge ve izinleri listele
+13. teminat_oranlari için: Geçici ve kesin teminat oranlarını çıkar
+14. servis_saatleri için: Kahvaltı, öğle, akşam servis saatlerini çıkar
 
 JSON formatında yanıt ver:
 {
@@ -45,12 +54,24 @@ JSON formatında yanıt ver:
   "tarih": "",
   "bedel": "",
   "sure": "",
+  "ikn": "",
   "gunluk_ogun_sayisi": "",
   "kisi_sayisi": "",
   "teknik_sartlar": ["SOMUT teknik şart 1", "SOMUT teknik şart 2"],
-  "birim_fiyatlar": [{"kalem": "Ürün adı", "birim": "kg/adet/porsiyon", "miktar": "sayı", "fiyat": "varsa"}],
-  "iletisim": {"telefon": "", "email": "", "adres": ""},
-  "notlar": ["KRİTİK not 1 - örn: Gecikme cezası günlük %1", "KRİTİK not 2"]
+  "birim_fiyatlar": [{"kalem": "Ürün adı", "birim": "kg/adet/porsiyon/ay", "miktar": "sayı", "fiyat": "varsa"}],
+  "iletisim": {"telefon": "", "email": "", "adres": "", "yetkili": ""},
+  "notlar": ["KRİTİK not 1", "KRİTİK not 2"],
+  "personel_detaylari": [{"pozisyon": "Aşçı", "adet": 6, "ucret_orani": "%85 fazlası"}],
+  "ogun_bilgileri": [{"tur": "Normal Kahvaltı", "miktar": 805160, "birim": "öğün"}],
+  "is_yerleri": ["Hastane adı 1", "Hastane adı 2"],
+  "mali_kriterler": {"cari_oran": "0.75", "ozkaynak_orani": "0.15", "is_deneyimi": "%20", "ciro_orani": "%20"},
+  "ceza_kosullari": [{"tur": "Genel aykırılık", "oran": "on binde 2", "aciklama": ""}],
+  "fiyat_farki": {"formul": "Pn = (a1 × A1/Ao) + (b1 × B1/Bo) + ...", "katsayilar": {"a1": "0.17", "b1": "0.007", "b3": "0.813"}},
+  "gerekli_belgeler": [{"belge": "TS 13075 Hizmet Yeri Yeterlilik Belgesi", "zorunlu": true, "puan": 0}],
+  "teminat_oranlari": {"gecici": "%3", "kesin": "%6", "ek_kesin": "varsa"},
+  "servis_saatleri": {"kahvalti": "06:00-07:00", "ogle": "12:00-14:00", "aksam": "17:00-19:00"},
+  "sinir_deger_katsayisi": "0.79",
+  "benzer_is_tanimi": "Kamu veya özel sektörde malzeme dahil yemek pişirme hizmeti"
 }`;
 
 /**
@@ -185,12 +206,24 @@ export const EMPTY_ANALYSIS_RESULT = {
   tarih: '',
   bedel: '',
   sure: '',
+  ikn: '',
   gunluk_ogun_sayisi: '',
   kisi_sayisi: '',
   teknik_sartlar: [],
   birim_fiyatlar: [],
   iletisim: {},
   notlar: [],
+  personel_detaylari: [],
+  ogun_bilgileri: [],
+  is_yerleri: [],
+  mali_kriterler: {},
+  ceza_kosullari: [],
+  fiyat_farki: {},
+  gerekli_belgeler: [],
+  teminat_oranlari: {},
+  servis_saatleri: {},
+  sinir_deger_katsayisi: '',
+  benzer_is_tanimi: '',
 };
 
 /**
@@ -204,9 +237,21 @@ export const EMPTY_PAGE_RESULT = {
     tarih: '',
     bedel: '',
     sure: '',
+    ikn: '',
     teknik_sartlar: [],
     birim_fiyatlar: [],
     iletisim: {},
     notlar: [],
+    personel_detaylari: [],
+    ogun_bilgileri: [],
+    is_yerleri: [],
+    mali_kriterler: {},
+    ceza_kosullari: [],
+    fiyat_farki: {},
+    gerekli_belgeler: [],
+    teminat_oranlari: {},
+    servis_saatleri: {},
+    sinir_deger_katsayisi: '',
+    benzer_is_tanimi: '',
   },
 };

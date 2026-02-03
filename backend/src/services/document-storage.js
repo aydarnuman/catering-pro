@@ -126,7 +126,17 @@ class DocumentStorageService {
    * @returns {string} - Belirlenen doc_type
    */
   detectDocTypeFromFileName(fileName, defaultDocType) {
-    const nameLower = fileName.toLowerCase();
+    // Türkçe karakterleri normalize et ve küçük harfe çevir
+    const nameLower = fileName
+      .toLowerCase()
+      .replace(/ş/g, 's')
+      .replace(/ı/g, 'i')
+      .replace(/ğ/g, 'g')
+      .replace(/ü/g, 'u')
+      .replace(/ö/g, 'o')
+      .replace(/ç/g, 'c')
+      .replace(/İ/gi, 'i')
+      .replace(/[_-]/g, ' '); // Alt çizgi ve tire'yi boşluğa çevir
 
     // Zeyilname kontrolü - dosya adında "zeyilname" geçiyorsa
     if (nameLower.includes('zeyilname')) {
@@ -141,17 +151,40 @@ class DocumentStorageService {
     }
 
     // Düzeltme kontrolü
-    if (nameLower.includes('düzeltme') || nameLower.includes('duzeltme')) {
+    if (nameLower.includes('duzeltme')) {
       return 'correction_notice';
     }
 
-    // Birim fiyat cetveli
-    if (
-      nameLower.includes('birim_fiyat') ||
-      nameLower.includes('birim fiyat') ||
-      nameLower.includes('teklif_cetveli')
-    ) {
+    // ÖNCELİK SIRASI ÖNEMLİ!
+    
+    // 1. İlan (en önce - 'ihale ilani', 'sonuc ilani' gibi isimler "hizmet" içerebilir)
+    if (nameLower.includes('ilan') || nameLower.includes('announcement')) {
+      return 'announcement';
+    }
+    
+    // 2. Sözleşme/Tasarı
+    if (nameLower.includes('sozlesme') || nameLower.includes('tasari') || nameLower.includes('contract')) {
+      return 'contract';
+    }
+
+    // 3. Teknik şartname
+    if (nameLower.includes('teknik') || nameLower.includes('tech')) {
+      return 'tech_spec';
+    }
+
+    // 4. İdari şartname
+    if (nameLower.includes('idari') || nameLower.includes('admin')) {
+      return 'admin_spec';
+    }
+
+    // 5. Birim fiyat cetveli
+    if (nameLower.includes('birim') || nameLower.includes('fiyat') || nameLower.includes('cetvel') || nameLower.includes('price')) {
       return 'unit_price';
+    }
+
+    // 6. Mal/Hizmet listesi (en sonda - çok genel kelimeler)
+    if (nameLower.includes('mal ') || nameLower.includes('hizmet ') || nameLower.includes('malzeme') || nameLower.includes('liste')) {
+      return 'item_list';
     }
 
     // Pursantaj
@@ -164,28 +197,13 @@ class DocumentStorageService {
       return 'quantity_survey';
     }
 
-    // Sözleşme
-    if (nameLower.includes('sözleşme') || nameLower.includes('sozlesme')) {
-      return 'contract';
-    }
-
     // Standart formlar
     if (nameLower.includes('form') || nameLower.includes('standart')) {
       return 'standard_forms';
     }
 
-    // Teknik şartname (zeyilname değilse)
-    if (nameLower.includes('teknik') && nameLower.includes('şartname')) {
-      return 'tech_spec';
-    }
-
-    // İdari şartname
-    if (nameLower.includes('idari') && nameLower.includes('şartname')) {
-      return 'admin_spec';
-    }
-
     // Varsayılan tipi döndür
-    return defaultDocType;
+    return defaultDocType || 'other';
   }
 
   /**
@@ -730,8 +748,8 @@ class DocumentStorageService {
         is_extracted, parent_doc_id, processing_status, created_at,
         analysis_result, extracted_text
        FROM documents 
-       WHERE tender_id = $1 AND source_type = 'download'
-       ORDER BY doc_type, is_extracted, created_at`,
+       WHERE tender_id = $1 AND source_type IN ('download', 'content')
+       ORDER BY source_type, doc_type, is_extracted, created_at`,
       [tenderId]
     );
 

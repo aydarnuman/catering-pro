@@ -31,29 +31,37 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
  */
 
 // Aşama 1 promptu - chunk özeti
-const STAGE1_PROMPT = `Bu metin bir ihale dökümanının bir parçasıdır.
+const STAGE1_PROMPT = `Bu metin bir YEMEK/CATERİNG ihale dökümanının bir parçasıdır.
 
 GÖREV: Bu parçadan aşağıdaki bilgileri çıkar. Sadece bu parçada olan bilgileri yaz, tahmin yapma.
 
 JSON formatında döndür:
 {
   "ozet": "Bu parçanın 1-2 cümlelik özeti",
-  "teknik_sartlar": ["Varsa teknik şartlar listesi"],
+  "teknik_sartlar": ["Varsa teknik şartlar - gramajlar, malzeme kalitesi, saklama koşulları"],
   "birim_fiyatlar": [{"kalem": "...", "miktar": "...", "birim": "...", "fiyat": "..."}],
   "tarihler": [{"olay": "...", "tarih": "..."}],
   "miktarlar": [{"kalem": "...", "miktar": "...", "birim": "..."}],
   "onemli_notlar": ["Kritik notlar, uyarılar"],
-  "icerik_tipi": "tablo/teknik/idari/liste/genel"
+  "icerik_tipi": "tablo/teknik/idari/liste/genel",
+  "personel_detaylari": [{"pozisyon": "Aşçı/Garson", "adet": 6, "ucret_orani": "%85 fazlası"}],
+  "ogun_bilgileri": [{"tur": "Kahvaltı/Öğle/Akşam", "miktar": 1000, "birim": "öğün"}],
+  "iletisim": {"telefon": "", "email": "", "adres": "", "yetkili": ""},
+  "mali_kriterler": {"cari_oran": "", "ozkaynak_orani": "", "is_deneyimi": ""},
+  "ceza_kosullari": [{"tur": "", "oran": "", "aciklama": ""}],
+  "gerekli_belgeler": [{"belge": "", "zorunlu": true}],
+  "teminat_oranlari": {"gecici": "", "kesin": ""},
+  "servis_saatleri": {"kahvalti": "", "ogle": "", "aksam": ""}
 }
 
-Boş alanları boş array [] olarak bırak.
+Boş alanları boş array [] veya boş object {} olarak bırak.
 Sadece JSON döndür, başka açıklama ekleme.
 
 DÖKÜMAN PARÇASI:
 `;
 
 // Aşama 2 promptu - birleştirme
-const STAGE2_PROMPT = `Aşağıda bir ihale dökümanının farklı parçalarından çıkarılan analizler var.
+const STAGE2_PROMPT = `Aşağıda bir YEMEK/CATERİNG ihale dökümanının farklı parçalarından çıkarılan analizler var.
 
 GÖREV: Tüm parçaları birleştirerek kapsamlı bir ihale analizi oluştur.
 
@@ -75,7 +83,21 @@ JSON formatında döndür:
   "onemli_notlar": [
     {"not": "Açıklama", "tur": "uyari/bilgi/gereklilik"}
   ],
-  "eksik_bilgiler": ["Dökümanda bulunamayan önemli bilgiler"]
+  "eksik_bilgiler": ["Dökümanda bulunamayan önemli bilgiler"],
+  "personel_detaylari": [
+    {"pozisyon": "Aşçı/Garson/vb", "adet": 6, "ucret_orani": "%85 fazlası"}
+  ],
+  "ogun_bilgileri": [
+    {"tur": "Normal Kahvaltı/Öğle/Akşam/Diyet", "miktar": 805160, "birim": "öğün"}
+  ],
+  "iletisim": {"telefon": "", "email": "", "adres": "", "yetkili": ""},
+  "mali_kriterler": {"cari_oran": "0.75", "ozkaynak_orani": "0.15", "is_deneyimi": "%20"},
+  "ceza_kosullari": [{"tur": "Genel aykırılık", "oran": "on binde 2", "aciklama": ""}],
+  "gerekli_belgeler": [{"belge": "TS 13075 Hizmet Yeri Yeterlilik Belgesi", "zorunlu": true}],
+  "teminat_oranlari": {"gecici": "%3", "kesin": "%6"},
+  "servis_saatleri": {"kahvalti": "06:00-07:00", "ogle": "12:00-14:00", "aksam": "17:00-19:00"},
+  "is_yerleri": ["Hastane/Okul adı 1", "Lokasyon 2"],
+  "fiyat_farki": {"formul": "Pn = a1×(A1/Ao)+b1×(B1/Bo)+...", "katsayilar": {"a1": "0.17", "b1": "0.007"}}
 }
 
 Tekrar eden bilgileri birleştir, çelişkileri belirt.

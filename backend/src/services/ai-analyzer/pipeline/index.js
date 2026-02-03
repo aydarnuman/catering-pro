@@ -7,17 +7,16 @@
  * Layer 3: Analysis - 2 aşamalı AI analizi
  */
 
-import logger from '../../../utils/logger.js';
-import { extract } from './extractor.js';
-import { chunk } from './chunker.js';
-import { analyze } from './analyzer.js';
-import aiConfig from '../../../config/ai.config.js';
-
-// OCR için Claude Vision import
 import Anthropic from '@anthropic-ai/sdk';
-import fs from 'node:fs';
 import { execSync } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
+
+import aiConfig from '../../../config/ai.config.js';
+import logger from '../../../utils/logger.js';
+import { analyze } from './analyzer.js';
+import { chunk } from './chunker.js';
+import { extract } from './extractor.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -43,6 +42,10 @@ async function ocrSinglePage(pagePath, pageIndex, totalPages, maxRetries = 3) {
   const imageData = fs.readFileSync(pagePath);
   const base64Image = imageData.toString('base64');
   const pageStart = Date.now();
+  
+  // Dosya uzantısına göre media type belirle
+  const ext = path.extname(pagePath).toLowerCase();
+  const mediaType = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png';
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -54,7 +57,7 @@ async function ocrSinglePage(pagePath, pageIndex, totalPages, maxRetries = 3) {
           content: [
             {
               type: 'image',
-              source: { type: 'base64', media_type: 'image/png', data: base64Image },
+              source: { type: 'base64', media_type: mediaType, data: base64Image },
             },
             {
               type: 'text',
@@ -78,7 +81,7 @@ Sadece metni döndür, yorum veya açıklama ekleme.`,
         return '';
       }
       // Exponential backoff: 2s, 4s, 8s...
-      const waitTime = 2000 * Math.pow(2, attempt - 1);
+      const waitTime = 2000 * (2 ** (attempt - 1));
       logger.warn(`    ⟳ Sayfa ${pageIndex + 1} retry ${attempt}/${maxRetries} (${waitTime / 1000}s bekleniyor)`, { module: 'ocr', error: error.message });
       await new Promise(r => setTimeout(r, waitTime));
     }
@@ -111,22 +114,22 @@ async function performOcr(filePath, onProgress) {
     fs.mkdirSync(tempDir, { recursive: true });
 
     try {
-      logger.info(`  PDF→PNG dönüşümü başlıyor (max ${maxPages} sayfa, ${dpi} DPI)...`, { module: 'ocr' });
+      logger.info(`  PDF→JPEG dönüşümü başlıyor (max ${maxPages} sayfa, ${dpi} DPI)...`, { module: 'ocr' });
       const startConvert = Date.now();
       
-      // PDF'i PNG'lere dönüştür - TÜM SAYFALAR (config'den limit)
+      // PDF'i JPEG'lere dönüştür - JPEG PNG'den %60-70 daha küçük, OCR için yeterli kalite
       execSync(
-        `pdftoppm -png -r ${dpi} -l ${maxPages} "${filePath}" "${tempDir}/page"`,
+        `pdftoppm -jpeg -jpegopt quality=85 -r ${dpi} -l ${maxPages} "${filePath}" "${tempDir}/page"`,
         { timeout: 300000, stdio: 'pipe' } // 5 dakika timeout (büyük dosyalar için)
       );
 
       const pageFiles = fs.readdirSync(tempDir)
-        .filter(f => f.endsWith('.png'))
+        .filter(f => f.endsWith('.jpg'))
         .sort()
         .slice(0, maxPages);
 
       const convertTime = ((Date.now() - startConvert) / 1000).toFixed(1);
-      logger.info(`  PDF→PNG tamamlandı: ${pageFiles.length} sayfa (${convertTime}s)`, { module: 'ocr' });
+      logger.info(`  PDF→JPEG tamamlandı: ${pageFiles.length} sayfa (${convertTime}s)`, { module: 'ocr' });
 
       if (pageFiles.length === 0) {
         throw new Error('PDF görüntüye dönüştürülemedi');

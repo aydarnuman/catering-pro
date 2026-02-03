@@ -199,32 +199,44 @@ async function extractPDF(filePath) {
 }
 
 /**
- * Gemini Vision ile PDF'den metin çıkar (OCR)
+ * Claude Vision ile PDF'den metin çıkar (OCR)
  */
 async function extractPDFWithVision(_filePath, pdfBuffer) {
-  const { GoogleGenerativeAI } = await import('@google/generative-ai');
+  const Anthropic = (await import('@anthropic-ai/sdk')).default;
 
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   // PDF'i base64'e çevir
   const base64Data = pdfBuffer.toString('base64');
 
-  const result = await model.generateContent([
-    {
-      inlineData: {
-        mimeType: 'application/pdf',
-        data: base64Data,
-      },
-    },
-    `Bu PDF dökümanındaki TÜM metni çıkar. 
+  const response = await anthropic.messages.create({
+    model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514',
+    max_tokens: 8192,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'document',
+            source: {
+              type: 'base64',
+              media_type: 'application/pdf',
+              data: base64Data,
+            },
+          },
+          {
+            type: 'text',
+            text: `Bu PDF dökümanındaki TÜM metni çıkar. 
        Sadece döküman içeriğini döndür, yorum veya açıklama ekleme.
        Tablo varsa düzgün formatla.
        Türkçe karakterleri koru.`,
-  ]);
+          },
+        ],
+      },
+    ],
+  });
 
-  const response = await result.response;
-  return response.text();
+  return response.content[0]?.text || '';
 }
 
 /**

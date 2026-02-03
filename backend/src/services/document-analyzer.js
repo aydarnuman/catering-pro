@@ -4,17 +4,18 @@
  *
  * Bu dosya sadece menu-import.js için geçici olarak korunuyor.
  * İhale döküman analizi için: import { analyze } from './ai-analyzer/pipeline/analyzer.js'
+ * 
+ * Tüm analizler artık Claude ile yapılıyor.
  */
 
 import fs from 'node:fs';
 import Anthropic from '@anthropic-ai/sdk';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
 
 /**
- * Claude Opus ile döküman analizi
+ * Claude ile döküman analizi
  * @param {string} text - Çıkarılmış metin
  * @param {string} filePath - Dosya yolu (kullanılmıyor)
  * @param {string} fileType - Dosya tipi
@@ -117,7 +118,6 @@ export async function analyzeDocument(text, _filePath, _fileType) {
 DÖKÜMAN METNİ:
 ${text.substring(0, 100000)}
 `.trim();
-  const startTime = Date.now();
 
   const response = await anthropic.messages.create({
     model: 'claude-opus-4-20250514',
@@ -130,8 +130,7 @@ ${text.substring(0, 100000)}
     ],
   });
 
-  const _duration = ((Date.now() - startTime) / 1000).toFixed(1);
-  const analysisText = response.content[0].text;
+  const analysisText = response.content[0]?.text || '';
 
   // JSON çıkarmaya çalış
   try {
@@ -169,15 +168,13 @@ ${text.substring(0, 100000)}
 }
 
 /**
- * Gemini Vision ile görsel analiz (PDF rasterize için)
+ * Claude Vision ile görsel analiz
  */
-export async function analyzeImageWithGemini(imagePath) {
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash-exp',
-  });
-
+export async function analyzeImageWithClaude(imagePath) {
   const imageData = await fs.promises.readFile(imagePath);
   const base64Image = imageData.toString('base64');
+  const ext = imagePath.toLowerCase();
+  const mimeType = ext.endsWith('.png') ? 'image/png' : 'image/jpeg';
 
   const prompt = `
 Bu görseldeki metni oku ve ihale bilgilerini çıkar. 
@@ -185,23 +182,36 @@ Bu görseldeki metni oku ve ihale bilgilerini çıkar.
 JSON formatında yanıt ver.
     `.trim();
 
-  const result = await model.generateContent([
-    prompt,
-    {
-      inlineData: {
-        mimeType: 'image/jpeg',
-        data: base64Image,
+  const response = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 4096,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: mimeType,
+              data: base64Image,
+            },
+          },
+          {
+            type: 'text',
+            text: prompt,
+          },
+        ],
       },
-    },
-  ]);
+    ],
+  });
 
-  const response = await result.response;
-  return response.text();
+  return response.content[0]?.text || '';
 }
 
-/**
- * Şehir ismini normalize et (batch)
- */
+// Backward compatibility - eski isimle de export et
+export const analyzeImageWithGemini = analyzeImageWithClaude;
+
 /**
  * Ürün adından ambalaj bilgisi parse et
  * @param {string|string[]} urunAdlari - Ürün adı veya adları
@@ -213,10 +223,6 @@ export async function parseAmbalajWithAI(urunAdlari) {
     if (typeof urunAdlari === 'string') {
       urunAdlari = [urunAdlari];
     }
-
-    const model = genAI.getGenerativeModel({
-      model: process.env.GEMINI_MODEL || 'gemini-2.0-flash-exp',
-    });
 
     const inputText = urunAdlari.map((ad, idx) => `${idx + 1}. ${ad}`).join('\n');
 
@@ -245,9 +251,13 @@ ${inputText}
 
 YANIT (sadece JSON array, başka açıklama yok):`.trim();
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text().trim();
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const text = (response.content[0]?.text || '').trim();
 
     // JSON parse
     try {
@@ -283,10 +293,6 @@ export async function normalizeCity(cityInputs) {
     if (!Array.isArray(cityInputs)) {
       cityInputs = [cityInputs];
     }
-
-    const model = genAI.getGenerativeModel({
-      model: process.env.GEMINI_MODEL || 'gemini-2.0-flash-exp',
-    });
 
     // Batch input hazırla
     const inputText = cityInputs
@@ -399,9 +405,13 @@ ${inputText}
 
 YANIT (her satırda bir şehir):`.trim();
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text().trim();
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const text = (response.content[0]?.text || '').trim();
 
     // Satırlara böl
     const lines = text.split('\n').map((line) => {

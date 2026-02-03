@@ -66,10 +66,11 @@ export async function analyzeTextFile(textPath, onProgress) {
     duration: `${duration}s`,
   });
 
+  // Tüm alanları top-level'da döndür
   return {
     success: true,
     toplam_sayfa: 1,
-    analiz: parsed,
+    ...parsed,
     ham_metin: text,
   };
 }

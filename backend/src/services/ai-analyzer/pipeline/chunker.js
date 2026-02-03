@@ -19,8 +19,17 @@ import logger from '../../../utils/logger.js';
 
 // Token tahmin katsayısı (Türkçe için ~1.5 karakter/token)
 const CHARS_PER_TOKEN = 1.5;
-const MAX_TOKENS_PER_CHUNK = 3500; // Claude için optimum
+const MAX_TOKENS_PER_CHUNK = 6000; // Claude için optimum (artırıldı: 3500 → 6000)
+const MIN_TOKENS_PER_CHUNK = 500; // Minimum chunk boyutu (küçükler birleştirilir)
 const MAX_CHARS_PER_CHUNK = MAX_TOKENS_PER_CHUNK * CHARS_PER_TOKEN;
+
+// OCR sayfa ayırıcı pattern'leri (temizlenecek)
+const PAGE_SEPARATOR_PATTERNS = [
+  /^-{3,}\s*Sayfa\s*-{3,}$/gim,
+  /^-{3,}\s*Page\s*-{3,}$/gim,
+  /^\s*---\s*Sayfa\s*---\s*$/gim,
+  /^\n{3,}/g, // 3+ boş satır → 2 boş satır
+];
 
 /**
  * Metin için tahmini token sayısı
@@ -83,7 +92,16 @@ function isTableRow(line) {
  */
 export function chunkText(text, options = {}) {
   const maxChars = options.maxChars || MAX_CHARS_PER_CHUNK;
-  const lines = text.split('\n');
+  
+  // OCR sayfa ayırıcılarını temizle (veri kaybı yok, sadece ayırıcılar)
+  let cleanedText = text;
+  for (const pattern of PAGE_SEPARATOR_PATTERNS) {
+    cleanedText = cleanedText.replace(pattern, '\n\n');
+  }
+  // Çoklu boş satırları normalize et
+  cleanedText = cleanedText.replace(/\n{4,}/g, '\n\n\n');
+  
+  const lines = cleanedText.split('\n');
   const chunks = [];
 
   let currentChunk = '';
@@ -202,14 +220,78 @@ export function chunkText(text, options = {}) {
     chunks[chunks.length - 1].context.position = 'end';
   }
 
+  // Küçük chunk'ları birleştir (MIN_TOKENS_PER_CHUNK altındakiler)
+  const mergedChunks = mergeSmallChunks(chunks);
+
   logger.info('Text chunked', {
     module: 'chunker',
     totalChars: text.length,
-    chunkCount: chunks.length,
-    avgChunkSize: Math.round(text.length / chunks.length),
+    originalChunks: chunks.length,
+    mergedChunks: mergedChunks.length,
+    avgChunkSize: Math.round(text.length / mergedChunks.length),
   });
 
-  return chunks;
+  return mergedChunks;
+}
+
+/**
+ * Küçük chunk'ları bir sonrakiyle birleştir
+ * @param {Chunk[]} chunks 
+ * @returns {Chunk[]}
+ */
+function mergeSmallChunks(chunks) {
+  if (chunks.length <= 1) return chunks;
+  
+  const merged = [];
+  let buffer = null;
+  
+  for (const chunk of chunks) {
+    if (buffer) {
+      // Buffer'ı mevcut chunk ile birleştir
+      const combinedContent = buffer.content + '\n\n' + chunk.content;
+      const combinedTokens = estimateTokens(combinedContent);
+      
+      if (combinedTokens <= MAX_TOKENS_PER_CHUNK) {
+        // Birleştir
+        buffer = {
+          ...chunk,
+          index: merged.length,
+          content: combinedContent,
+          tokenEstimate: combinedTokens,
+          type: buffer.type === chunk.type ? chunk.type : 'mixed',
+          context: {
+            ...chunk.context,
+            heading: buffer.context.heading || chunk.context.heading,
+            merged: true,
+          },
+        };
+      } else {
+        // Buffer'ı kaydet, yeni buffer başlat
+        buffer.index = merged.length;
+        merged.push(buffer);
+        buffer = chunk.tokenEstimate < MIN_TOKENS_PER_CHUNK ? chunk : null;
+        if (!buffer) {
+          chunk.index = merged.length;
+          merged.push(chunk);
+        }
+      }
+    } else if (chunk.tokenEstimate < MIN_TOKENS_PER_CHUNK) {
+      // Küçük chunk, buffer'a al
+      buffer = chunk;
+    } else {
+      // Normal boyut, direkt ekle
+      chunk.index = merged.length;
+      merged.push(chunk);
+    }
+  }
+  
+  // Kalan buffer'ı ekle
+  if (buffer) {
+    buffer.index = merged.length;
+    merged.push(buffer);
+  }
+  
+  return merged;
 }
 
 /**
