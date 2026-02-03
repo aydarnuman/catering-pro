@@ -133,21 +133,41 @@ Görselden tarihleri ve o tarihlere ait yemekleri çıkar.
 - Sadece yemek isimlerini al
 - JSON formatında döndür`;
 
-  const { GoogleGenerativeAI } = await import('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const Anthropic = (await import('@anthropic-ai/sdk')).default;
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  const result = await model.generateContent([
-    prompt,
-    {
-      inlineData: {
-        mimeType,
-        data: base64,
+  // Image veya PDF için uygun content block oluştur
+  const isImage = mimeType.startsWith('image/');
+  const contentBlock = isImage
+    ? {
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: mimeType,
+          data: base64,
+        },
+      }
+    : {
+        type: 'document',
+        source: {
+          type: 'base64',
+          media_type: mimeType,
+          data: base64,
+        },
+      };
+
+  const result = await anthropic.messages.create({
+    model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514',
+    max_tokens: 4096,
+    messages: [
+      {
+        role: 'user',
+        content: [contentBlock, { type: 'text', text: prompt }],
       },
-    },
-  ]);
+    ],
+  });
 
-  const response = result.response.text();
+  const response = result.content[0]?.text || '';
 
   try {
     const jsonMatch = response.match(/\[[\s\S]*\]/);

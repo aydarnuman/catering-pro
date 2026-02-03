@@ -50,6 +50,8 @@ import {
   IconShoppingCart,
   IconToolsKitchen2,
   IconTrash,
+  IconCalendar,
+  IconFolderOpen,
   IconTrendingDown,
   IconTrendingUp,
   IconX,
@@ -84,6 +86,12 @@ import {
 import { menuPlanlamaAPI, type Recete } from '@/lib/api/services/menu-planlama';
 import { type UrunKarti, urunlerAPI } from '@/lib/api/services/urunler';
 import { formatDate, formatMoney } from '@/lib/formatters';
+
+// Menü Planlama Componentleri
+import { MenuPlanlamaProvider } from './components/MenuPlanlamaContext';
+import { MenuTakvim } from './components/MenuTakvim';
+import { MenuKutuphanesi } from './components/MenuKutuphanesi';
+import { KaydedilenMenuler } from './components/KaydedilenMenuler';
 
 // Ürün adından birim bilgisini parse et (örn: "5 KG*2" -> {unit: "KG", amount: 5, multiplier: 2})
 const parseUnitFromProductName = (
@@ -1245,6 +1253,12 @@ export default function MenuMaliyetPage() {
                 <Tabs.Tab value="fiyatlar" leftSection={<IconChartLine size={16} />}>
                   Fiyatlar
                 </Tabs.Tab>
+                <Tabs.Tab value="takvim" leftSection={<IconCalendar size={16} />}>
+                  Takvim
+                </Tabs.Tab>
+                <Tabs.Tab value="kutuphan" leftSection={<IconFolderOpen size={16} />}>
+                  Kütüphane
+                </Tabs.Tab>
               </Tabs.List>
 
               {/* Tab 1: Yemekler - Mevcut kategori kartları */}
@@ -2181,6 +2195,23 @@ export default function MenuMaliyetPage() {
                     )}
                   </Paper>
                 </Stack>
+              </Tabs.Panel>
+
+              {/* Tab 5: Takvim - Menü Planlama Takvimi */}
+              <Tabs.Panel value="takvim">
+                <MenuPlanlamaProvider>
+                  <MenuTakvim />
+                </MenuPlanlamaProvider>
+              </Tabs.Panel>
+
+              {/* Tab 6: Kütüphane - Menü Kütüphanesi */}
+              <Tabs.Panel value="kutuphan">
+                <MenuPlanlamaProvider>
+                  <Stack gap="md">
+                    <MenuKutuphanesi />
+                    <KaydedilenMenuler />
+                  </Stack>
+                </MenuPlanlamaProvider>
               </Tabs.Panel>
             </Tabs>
           </Box>

@@ -1,12 +1,14 @@
 /**
  * Mükerrer Fatura Tespit Servisi
  * Benzer/aynı faturaları tespit eder ve uyarır
+ * Claude Sonnet ile AI analizi
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Anthropic from '@anthropic-ai/sdk';
 import { query } from '../database.js';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
 
 class DuplicateDetectorService {
   constructor() {
@@ -171,14 +173,10 @@ class DuplicateDetectorService {
   }
 
   /**
-   * AI ile derin analiz
+   * AI ile derin analiz (Claude Sonnet)
    */
   async analyzeWithAI(invoice, suspects) {
     try {
-      const model = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash-exp',
-      });
-
       const prompt = `
 Aşağıdaki faturayı ve şüpheli mükerrer faturaları analiz et:
 
@@ -204,6 +202,7 @@ ${i + 1}. Fatura:
   .join('\n')}
 
 Analiz et ve JSON formatında yanıt ver:
+\`\`\`json
 {
   "isDuplicate": true/false,
   "riskLevel": "high/medium/low",
@@ -220,13 +219,19 @@ Analiz et ve JSON formatında yanıt ver:
     }
   ]
 }
+\`\`\`
 `;
 
-      const result = await model.generateContent(prompt);
-      const response = result.response.text();
+      const response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 2048,
+        messages: [{ role: 'user', content: prompt }],
+      });
+
+      const responseText = response.content[0]?.text || '';
 
       // JSON parse
-      const jsonMatch = response.match(/```json\n([\s\S]*?)\n```/);
+      const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[1]);
       }

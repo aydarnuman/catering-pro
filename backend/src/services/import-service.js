@@ -1,12 +1,12 @@
 /**
- * Import Service - AI Destekli İçe Aktarım Servisi
+ * Import Service - AI Destekli İçe Aktarım Servisi (Claude Sonnet)
  * Her türlü dökümanı okur ve veritabanı şemasına map eder
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Anthropic from '@anthropic-ai/sdk';
 import mammoth from 'mammoth';
 import pdfParse from 'pdf-parse';
 import xlsx from 'xlsx';
@@ -21,8 +21,9 @@ if (!fs.existsSync(TEMP_DIR)) {
   fs.mkdirSync(TEMP_DIR, { recursive: true });
 }
 
-// Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Claude AI
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
 
 /**
  * Desteklenen dosya formatları
@@ -172,6 +173,21 @@ const TABLE_SCHEMAS = {
 };
 
 /**
+ * Claude ile analiz yap (helper)
+ */
+async function analyzeWithClaude(prompt, imageBlock = null) {
+  const content = imageBlock ? [imageBlock, { type: 'text', text: prompt }] : [{ type: 'text', text: prompt }];
+
+  const response = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 8192,
+    messages: [{ role: 'user', content }],
+  });
+
+  return response.content[0]?.text || '';
+}
+
+/**
  * Dosyadan metin çıkar
  */
 async function extractText(filePath, ext) {
@@ -216,8 +232,6 @@ async function extractWord(filePath) {
 
 /**
  * Excel'den yapılandırılmış veri çıkar
- * NOT: Karmaşık Excel dosyaları için (birleştirilmiş hücreler, çok satırlı header'lar)
- * ham veriyi AI'a gönderiyoruz - AI kendi analiz etsin
  */
 async function extractExcel(filePath) {
   const workbook = xlsx.readFile(filePath);
@@ -228,15 +242,14 @@ async function extractExcel(filePath) {
     const json = xlsx.utils.sheet_to_json(sheet, { header: 1 });
 
     if (json.length > 0) {
-      // Karmaşık Excel kontrolü: birleştirilmiş hücreler, çok satırlı header'lar
+      // Karmaşık Excel kontrolü
       const firstRow = json[0] || [];
       const nullCount = firstRow.filter((h) => h === null || h === undefined).length;
       const isComplex =
         nullCount > 3 || json.length < 5 || json[1]?.some((cell) => typeof cell === 'string' && cell.length > 0);
 
       if (isComplex) {
-        // Karmaşık format: HAM VERİYİ AI'a gönder
-        // TÜM satırları al (max 200 satır - büyük dosyalar için)
+        // KARMAŞIK FORMAT: HAM VERİYİ AI'a gönder
         const maxRows = Math.min(json.length, 200);
         const rawRows = json
           .slice(0, maxRows)
@@ -256,7 +269,6 @@ async function extractExcel(filePath) {
           isComplex: true,
           rawData: rawRows,
           totalRows: json.length,
-          // Ayrıca text formatında da gönder (AI için daha kolay)
           textFormat: json
             .slice(0, maxRows)
             .map((row, i) => `Satır ${i}: ${row.filter((c) => c !== null && c !== undefined).join(' | ')}`)
@@ -313,27 +325,28 @@ async function extractCSV(filePath) {
 }
 
 /**
- * Görüntüden OCR ile metin çıkar (Gemini Vision)
+ * Görüntüden OCR ile metin çıkar (Claude Vision)
  */
 async function extractFromImage(filePath) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-
   const imageData = await fs.promises.readFile(filePath);
   const base64Image = imageData.toString('base64');
   const mimeType = filePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
 
-  const result = await model.generateContent([
-    'Bu görseldeki tüm metni oku ve aynen yaz. Tablolar varsa düzgün formatta yaz.',
-    {
-      inlineData: {
-        mimeType,
-        data: base64Image,
-      },
+  const imageBlock = {
+    type: 'image',
+    source: {
+      type: 'base64',
+      media_type: mimeType,
+      data: base64Image,
     },
-  ]);
+  };
 
-  const response = await result.response;
-  return response.text();
+  const text = await analyzeWithClaude(
+    'Bu görseldeki tüm metni oku ve aynen yaz. Tablolar varsa düzgün formatta yaz.',
+    imageBlock
+  );
+
+  return text;
 }
 
 /**
@@ -344,8 +357,6 @@ async function analyzeAndMap(extractedData, targetType) {
   if (!schema) {
     throw new Error(`Geçersiz hedef tip: ${targetType}`);
   }
-
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
   // Yapılandırılmış veri mi?
   const isStructured = typeof extractedData === 'object' && extractedData.type === 'structured';
@@ -361,7 +372,6 @@ async function analyzeAndMap(extractedData, targetType) {
 
     // Karmaşık Excel formatı mı?
     if (firstSheet.isComplex) {
-      // KARMAŞIK FORMAT: Bordro, birleştirilmiş hücreler, çok satırlı header'lar
       prompt = `
 Sen bir UZMAN veri analisti ve döküman tanıma uzmanısın. Aşağıdaki KARMAŞIK Excel/tablo verisini analiz et.
 
@@ -491,9 +501,8 @@ JSON formatında yanıt ver:
 \`\`\`
 `.trim();
   }
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  const text = response.text();
+
+  const text = await analyzeWithClaude(prompt);
 
   // JSON çıkar
   const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
@@ -634,8 +643,6 @@ export async function analyzeMenuDocument(filePath, originalFilename, _options =
   const extractedData = await extractText(filePath, ext);
 
   // 2. AI ile menü analizi
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-
   const textContent =
     typeof extractedData === 'string'
       ? extractedData
@@ -694,9 +701,8 @@ JSON formatında yanıt ver:
 - Besin değerleri yoksa tahmini değer ver
 - Türkçe karakterleri koru
 `.trim();
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  const text = response.text();
+
+  const text = await analyzeWithClaude(prompt);
 
   // JSON çıkar
   let analysisResult;

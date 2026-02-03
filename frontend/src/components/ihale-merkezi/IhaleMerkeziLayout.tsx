@@ -13,6 +13,7 @@ import { tendersAPI } from '@/lib/api/services/tenders';
 import type { Tender, TendersResponse } from '@/types/api';
 import { CenterPanel } from './CenterPanel/CenterPanel';
 import { LeftPanel } from './LeftPanel/LeftPanel';
+import { MevzuatWidget } from './MevzuatWidget';
 import { AddTenderModal } from './Modals/AddTenderModal';
 import { RightPanel } from './RightPanel/RightPanel';
 import type {
@@ -41,10 +42,7 @@ interface RawTrackingData {
   created_at?: string;
   dokuman_sayisi?: number;
   analiz_edilen_dokuman?: number;
-  analysis_summary?: {
-    teknik_sartlar?: unknown[];
-    birim_fiyatlar?: unknown[];
-  };
+  analysis_summary?: AnalysisData;
   yaklasik_maliyet?: number | string;
   sinir_deger?: number | string;
   bizim_teklif?: number | string;
@@ -64,7 +62,7 @@ const TeklifModal = dynamic(() => import('@/components/teklif/TeklifModal'), {
 // CSS variables for panel widths
 const PANEL_WIDTHS = {
   left: 300,
-  right: 340,
+  right: 420,
 };
 
 // Cowork-style grid background CSS
@@ -102,6 +100,7 @@ export function IhaleMerkeziLayout() {
     dilekceType: null,
 
     // Sag panel
+    activeRightTab: 'araclar',
     expandedSections: new Set(['notes']),
     selectedFirmaId: null,
 
@@ -529,6 +528,7 @@ export function IhaleMerkeziLayout() {
             state={state}
             onToggleSection={toggleSection}
             onStateChange={updateState}
+            onRefreshData={() => { fetchTrackedTenders(); fetchAllTenders(); }}
             mobileActiveTab={mobileActiveTab}
           />
         </Drawer>
@@ -614,7 +614,12 @@ export function IhaleMerkeziLayout() {
       />
 
       {/* Sag Panel */}
-      <RightPanel state={state} onToggleSection={toggleSection} onStateChange={updateState} />
+      <RightPanel 
+        state={state} 
+        onToggleSection={toggleSection} 
+        onStateChange={updateState}
+        onRefreshData={() => { fetchTrackedTenders(); fetchAllTenders(); }}
+      />
 
       {/* Modals */}
       <AddTenderModal
@@ -642,6 +647,9 @@ export function IhaleMerkeziLayout() {
           birimFiyatlar={state.selectedTender.analysis_summary?.birim_fiyatlar}
         />
       )}
+
+      {/* Mevzuat & Rehber Widget */}
+      <MevzuatWidget />
     </Box>
   );
 }

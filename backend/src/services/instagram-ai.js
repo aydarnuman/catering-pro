@@ -1,36 +1,72 @@
 import fs from 'node:fs';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Anthropic from '@anthropic-ai/sdk';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
 
 /**
- * Görsel dosyasını Gemini için hazırla
+ * Görsel dosyasını Claude için hazırla
  * @param {string} filePath - Dosya yolu
  * @param {string} mimeType - MIME tipi
- * @returns {object} - Gemini formatında görsel
+ * @returns {object} - Claude formatında görsel
  */
-function fileToGenerativePart(filePath, mimeType) {
+function fileToImageBlock(filePath, mimeType) {
   return {
-    inlineData: {
+    type: 'image',
+    source: {
+      type: 'base64',
+      media_type: mimeType,
       data: Buffer.from(fs.readFileSync(filePath)).toString('base64'),
-      mimeType,
     },
   };
 }
 
 /**
- * Buffer'dan Gemini için görsel hazırla
+ * Buffer'dan Claude için görsel hazırla
  * @param {Buffer} buffer - Görsel buffer
  * @param {string} mimeType - MIME tipi
- * @returns {object} - Gemini formatında görsel
+ * @returns {object} - Claude formatında görsel
  */
-function bufferToGenerativePart(buffer, mimeType) {
+function bufferToImageBlock(buffer, mimeType) {
   return {
-    inlineData: {
+    type: 'image',
+    source: {
+      type: 'base64',
+      media_type: mimeType,
       data: buffer.toString('base64'),
-      mimeType,
     },
   };
+}
+
+/**
+ * Claude ile analiz yap (helper)
+ */
+async function analyzeWithClaude(prompt, imageBlock = null) {
+  const content = imageBlock ? [imageBlock, { type: 'text', text: prompt }] : [{ type: 'text', text: prompt }];
+
+  const response = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 4096,
+    messages: [{ role: 'user', content }],
+  });
+
+  return response.content[0]?.text || '';
+}
+
+/**
+ * JSON parse helper
+ */
+function parseJsonResponse(text) {
+  let jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+  if (!jsonMatch) {
+    jsonMatch = text.match(/\{[\s\S]*\}/);
+  }
+
+  if (jsonMatch) {
+    const jsonStr = jsonMatch[1] || jsonMatch[0];
+    return JSON.parse(jsonStr);
+  }
+  throw new Error('JSON parse hatası');
 }
 
 /**
@@ -42,14 +78,12 @@ function bufferToGenerativePart(buffer, mimeType) {
  */
 export async function generateInstagramCaption(imageData, mimeType, options = {}) {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
     // Görsel verisi hazırla
-    let imagePart;
+    let imageBlock;
     if (Buffer.isBuffer(imageData)) {
-      imagePart = bufferToGenerativePart(imageData, mimeType);
+      imageBlock = bufferToImageBlock(imageData, mimeType);
     } else if (typeof imageData === 'string' && fs.existsSync(imageData)) {
-      imagePart = fileToGenerativePart(imageData, mimeType);
+      imageBlock = fileToImageBlock(imageData, mimeType);
     } else {
       throw new Error('Geçersiz görsel verisi');
     }
@@ -111,29 +145,12 @@ Bu yemek/catering görselini analiz et ve Instagram için mükemmel bir paylaş�
 
 ÖNEMLİ: Sadece JSON formatında yanıt ver, başka açıklama ekleme.`;
 
-    const result = await model.generateContent([prompt, imagePart]);
-    const response = await result.response;
-    const text = response.text();
-
-    // JSON parse
-    let jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
-    if (!jsonMatch) {
-      jsonMatch = text.match(/\{[\s\S]*\}/);
-    }
-
-    if (jsonMatch) {
-      const jsonStr = jsonMatch[1] || jsonMatch[0];
-      const parsed = JSON.parse(jsonStr);
-      return {
-        success: true,
-        ...parsed,
-      };
-    }
+    const text = await analyzeWithClaude(prompt, imageBlock);
+    const parsed = parseJsonResponse(text);
 
     return {
-      success: false,
-      error: 'JSON parse hatası',
-      rawResponse: text,
+      success: true,
+      ...parsed,
     };
   } catch (error) {
     return {
@@ -151,8 +168,6 @@ Bu yemek/catering görselini analiz et ve Instagram için mükemmel bir paylaş�
  */
 export async function generateHashtags(caption, options = {}) {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
     const { count = 12, city = 'ankara', businessType = 'catering' } = options;
 
     const prompt = `Sen bir Instagram hashtag uzmanısın. Aşağıdaki catering/yemek paylaşımı için en etkili hashtagleri öner.
@@ -184,27 +199,12 @@ JSON FORMATI:
 }
 \`\`\``;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-
-    let jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
-    if (!jsonMatch) {
-      jsonMatch = text.match(/\{[\s\S]*\}/);
-    }
-
-    if (jsonMatch) {
-      const jsonStr = jsonMatch[1] || jsonMatch[0];
-      const parsed = JSON.parse(jsonStr);
-      return {
-        success: true,
-        ...parsed,
-      };
-    }
+    const text = await analyzeWithClaude(prompt);
+    const parsed = parseJsonResponse(text);
 
     return {
-      success: false,
-      error: 'JSON parse hatası',
+      success: true,
+      ...parsed,
     };
   } catch (error) {
     return {
@@ -222,8 +222,6 @@ JSON FORMATI:
  */
 export async function analyzeDMAndSuggestReply(message, context = {}) {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
     const {
       businessName = 'Degsan Yemek',
       businessType = 'catering',
@@ -269,27 +267,12 @@ JSON FORMATI:
 }
 \`\`\``;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-
-    let jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
-    if (!jsonMatch) {
-      jsonMatch = text.match(/\{[\s\S]*\}/);
-    }
-
-    if (jsonMatch) {
-      const jsonStr = jsonMatch[1] || jsonMatch[0];
-      const parsed = JSON.parse(jsonStr);
-      return {
-        success: true,
-        ...parsed,
-      };
-    }
+    const text = await analyzeWithClaude(prompt);
+    const parsed = parseJsonResponse(text);
 
     return {
-      success: false,
-      error: 'JSON parse hatası',
+      success: true,
+      ...parsed,
     };
   } catch (error) {
     return {
@@ -307,8 +290,6 @@ JSON FORMATI:
  */
 export async function generateMenuPost(menu, options = {}) {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
     const {
       businessName = 'Degsan Yemek',
       date = new Date().toLocaleDateString('tr-TR'),
@@ -343,27 +324,12 @@ JSON FORMATI:
 }
 \`\`\``;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-
-    let jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
-    if (!jsonMatch) {
-      jsonMatch = text.match(/\{[\s\S]*\}/);
-    }
-
-    if (jsonMatch) {
-      const jsonStr = jsonMatch[1] || jsonMatch[0];
-      const parsed = JSON.parse(jsonStr);
-      return {
-        success: true,
-        ...parsed,
-      };
-    }
+    const text = await analyzeWithClaude(prompt);
+    const parsed = parseJsonResponse(text);
 
     return {
-      success: false,
-      error: 'JSON parse hatası',
+      success: true,
+      ...parsed,
     };
   } catch (error) {
     return {
@@ -381,8 +347,6 @@ JSON FORMATI:
  */
 export async function generateImagePrompt(description, options = {}) {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
     const {
       style = 'professional', // professional, rustic, modern, minimalist
       type = 'food', // food, menu, promo
@@ -419,27 +383,12 @@ JSON FORMATI:
 }
 \`\`\``;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-
-    let jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
-    if (!jsonMatch) {
-      jsonMatch = text.match(/\{[\s\S]*\}/);
-    }
-
-    if (jsonMatch) {
-      const jsonStr = jsonMatch[1] || jsonMatch[0];
-      const parsed = JSON.parse(jsonStr);
-      return {
-        success: true,
-        ...parsed,
-      };
-    }
+    const text = await analyzeWithClaude(prompt);
+    const parsed = parseJsonResponse(text);
 
     return {
-      success: false,
-      error: 'JSON parse hatası',
+      success: true,
+      ...parsed,
     };
   } catch (error) {
     return {
@@ -526,10 +475,6 @@ export async function generateImageWithReplicate(prompt, options = {}) {
       });
       result = await statusResponse.json();
       attempts++;
-
-      // İlerleme logla
-      if (attempts % 5 === 0) {
-      }
     }
 
     if (result.status === 'failed') {
@@ -627,7 +572,7 @@ export async function generateMenuCardTemplate(menu, options = {}) {
           <h2 style="text-align: center; font-size: 32px; margin-bottom: 30px;">Günün Menüsü</h2>
           ${menuItems
             .map(
-              (item, _i) => `
+              (item) => `
             <div style="text-align: center; margin-bottom: 20px;">
               <span style="font-size: 24px;">${item.emoji || '◆'} ${item.name || item}</span>
               ${item.price ? `<span style="display: block; font-size: 18px; color: #8B4513;">${item.price}₺</span>` : ''}

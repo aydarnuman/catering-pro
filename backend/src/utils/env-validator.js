@@ -44,9 +44,6 @@ const OPTIONAL_ENV_VARS = {
     description: 'Server port (default: 3001)',
     default: '3001',
   },
-  GEMINI_API_KEY: {
-    description: 'Google Gemini API key (AI özellikleri için)',
-  },
   CLAUDE_API_KEY: {
     description: 'Anthropic Claude API key (AI asistan için)',
   },

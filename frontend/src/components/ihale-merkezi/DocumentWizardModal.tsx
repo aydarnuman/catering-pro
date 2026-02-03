@@ -7,11 +7,11 @@ import {
   Button,
   Checkbox,
   Divider,
+  FileButton,
   Group,
   Loader,
   Modal,
   Paper,
-  Progress,
   ScrollArea,
   Stack,
   Stepper,
@@ -23,6 +23,7 @@ import { notifications } from '@mantine/notifications';
 import {
   IconBrain,
   IconCheck,
+  IconChevronRight,
   IconCloudDownload,
   IconDownload,
   IconEye,
@@ -30,12 +31,14 @@ import {
   IconFileText,
   IconRefresh,
   IconTrash,
-  IconWorld,
+  IconUpload,
   IconX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
-import { API_BASE_URL } from '@/lib/config';
+
 import { tendersAPI } from '@/lib/api/services/tenders';
+import { API_BASE_URL } from '@/lib/config';
+import { AnalysisProgressPanel } from './AnalysisProgressPanel';
 
 // ========== TYPES ==========
 
@@ -64,6 +67,25 @@ interface StepStatus {
   message?: string;
 }
 
+// Detaylı döküman analiz progress tipi
+export type PipelineStage = 'pending' | 'extraction' | 'ocr' | 'chunking' | 'analysis' | 'completed' | 'error' | 'skipped';
+
+export interface DocumentProgress {
+  id: number;
+  name: string;
+  status: 'pending' | 'processing' | 'completed' | 'error' | 'skipped';
+  stage?: PipelineStage;
+  stageProgress?: number; // 0-100
+  stageMessage?: string;
+  chunks?: { current: number; total: number };
+  error?: string;
+  result?: { 
+    teknikSartlar?: number; 
+    birimFiyatlar?: number;
+    ocrApplied?: boolean;
+  };
+}
+
 // ========== HELPERS ==========
 
 const DOC_TYPE_LABELS: Record<string, string> = {
@@ -78,6 +100,15 @@ const DOC_TYPE_LABELS: Record<string, string> = {
 };
 
 const getDocTypeLabel = (docType: string) => DOC_TYPE_LABELS[docType] || docType;
+
+// Helper: API'den gelen dökümanların özelliklerini al (snake_case veya camelCase)
+type DocWithVariants = DocumentItem & { fileName?: string; filename?: string; fileType?: string };
+const getDocFilename = (doc: DocWithVariants): string => {
+  return doc.original_filename || doc.fileName || doc.filename || '';
+};
+const getDocFileType = (doc: DocWithVariants): string => {
+  return doc.file_type || doc.fileType || '';
+};
 
 const getStatusBadge = (status: string) => {
   const statusMap: Record<string, { color: string; label: string }> = {
@@ -111,17 +142,20 @@ export function DocumentWizardModal({
   const [downloadDocs, setDownloadDocs] = useState<DocumentItem[]>([]);
   const [selectedForAnalysis, setSelectedForAnalysis] = useState<Set<number>>(new Set());
   
-  // Step statuses
-  const [step1Status, setStep1Status] = useState<StepStatus>({ status: 'idle' });
-  const [step2Status, setStep2Status] = useState<StepStatus>({ status: 'idle' });
-  const [step3Status, setStep3Status] = useState<StepStatus>({ status: 'idle' });
+  // Step statuses (2 steps: Download, Analyze)
+  const [step1Status, setStep1Status] = useState<StepStatus>({ status: 'idle' }); // Download
+  const [step2Status, setStep2Status] = useState<StepStatus>({ status: 'idle' }); // Analyze
   
-  // Analysis progress
+  // Analysis progress (basit - backward compat)
   const [analysisProgress, setAnalysisProgress] = useState<{
     current: number;
     total: number;
     currentDoc?: string;
   } | null>(null);
+  
+  // Detaylı döküman bazlı progress
+  const [documentProgress, setDocumentProgress] = useState<Map<number, DocumentProgress>>(new Map());
+  const [analysisStartTime, setAnalysisStartTime] = useState<number | null>(null);
   
   // Preview
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -130,6 +164,20 @@ export function DocumentWizardModal({
   // ========== FETCH ALL DOCUMENTS ==========
   
   const fetchAllDocuments = useCallback(async () => {
+    // ZIP/RAR dosyalarını filtrele (analiz edilemez)
+    const filterArchives = (docs: DocumentItem[]) => {
+      return docs.filter(d => {
+        const ft = getDocFileType(d).toLowerCase();
+        const fn = getDocFilename(d).toLowerCase();
+        // Tüm olası ZIP/RAR formatlarını kontrol et
+        const isArch = ft.includes('zip') || ft.includes('rar') || 
+                       fn.endsWith('.zip') || fn.endsWith('.rar');
+        if (isArch) {
+          console.log('[DocumentWizard] Filtering out archive:', { id: d.id, fn, ft });
+        }
+        return !isArch;
+      });
+    };
     try {
       // Fetch content documents
       const contentResult = await tendersAPI.getTenderContentDocuments(tenderId);
@@ -138,7 +186,10 @@ export function DocumentWizardModal({
         const contentData = Array.isArray(contentResult.data) 
           ? contentResult.data 
           : contentResult.data.documents || [];
-        setContentDocs(contentData.map((d: DocumentItem) => ({ ...d, source_type: 'content' as const })));
+        const mappedContent = contentData.map((d: DocumentItem) => ({ ...d, source_type: 'content' as const }));
+        const filteredContent = filterArchives(mappedContent);
+        console.log('[DocumentWizard] Content docs before filter:', mappedContent.length, 'after:', filteredContent.length);
+        setContentDocs(filteredContent);
       }
       
       // Fetch downloaded documents
@@ -160,7 +211,9 @@ export function DocumentWizardModal({
             }];
           }
         );
-        setDownloadDocs(docs);
+        const filteredDownload = filterArchives(docs);
+        console.log('[DocumentWizard] Download docs before filter:', docs.length, 'after:', filteredDownload.length);
+        setDownloadDocs(filteredDownload);
       }
     } catch (error) {
       console.error('Error fetching documents:', error);
@@ -178,18 +231,19 @@ export function DocumentWizardModal({
   useEffect(() => {
     if (!opened) {
       setActiveStep(0);
-      setStep1Status({ status: 'idle' });
-      setStep2Status({ status: 'idle' });
-      setStep3Status({ status: 'idle' });
+      setStep1Status({ status: 'idle' }); // Download
+      setStep2Status({ status: 'idle' }); // Analyze
       setSelectedForAnalysis(new Set());
       setAnalysisProgress(null);
+      setDocumentProgress(new Map());
+      setAnalysisStartTime(null);
     }
   }, [opened]);
 
-  // ========== STEP 2: DOWNLOAD DOCUMENTS ==========
+  // ========== STEP 1: DOWNLOAD DOCUMENTS ==========
   
   const handleDownloadDocuments = async () => {
-    setStep2Status({ status: 'loading', message: 'Site içerikleri çekiliyor...' });
+    setStep1Status({ status: 'loading', message: 'Site içerikleri çekiliyor...' });
     
     try {
       // 1. Önce scraper ile site içeriklerini çek (ihale ilanı, mal/hizmet listesi)
@@ -213,24 +267,41 @@ export function DocumentWizardModal({
         console.warn('[DocumentWizard] Scraper failed:', scrapeData.error);
       }
       
-      setStep2Status({ status: 'loading', message: 'Dökümanlar indiriliyor...' });
+      setStep1Status({ status: 'loading', message: 'Dökümanlar indiriliyor...' });
       
       // 2. Sonra dökümanları indir
       const result = await tendersAPI.downloadTenderDocuments(tenderId);
       
       if (result.success) {
         const downloadedCount = result.data?.totalDownloaded || 0;
-        setStep2Status({ 
-          status: 'success', 
-          message: `${downloadedCount} döküman indirildi` 
-        });
+        const skippedCount = result.data?.skipped?.length || 0;
+        const successCount = result.data?.success?.length || 0;
         
-        // Refresh documents
+        // Refresh documents first to get accurate count
         await fetchAllDocuments();
+        
+        // Build message
+        let message = '';
+        if (downloadedCount > 0) {
+          message = `${downloadedCount} yeni döküman indirildi`;
+        } else if (skippedCount > 0) {
+          message = `Dökümanlar zaten mevcut (${skippedCount} dosya)`;
+        } else if (successCount > 0) {
+          message = `${successCount} döküman grubu işlendi`;
+        } else {
+          message = 'İşlem tamamlandı';
+        }
+        
+        setStep1Status({ 
+          status: 'success', 
+          message 
+        });
         
         notifications.show({
           title: 'İndirme Tamamlandı',
-          message: `${downloadedCount} döküman başarıyla indirildi`,
+          message: downloadedCount > 0 
+            ? `${downloadedCount} döküman başarıyla indirildi`
+            : 'Dökümanlar zaten mevcut',
           color: 'green',
         });
       } else {
@@ -238,7 +309,7 @@ export function DocumentWizardModal({
       }
     } catch (error: unknown) {
       console.error('Download error:', error);
-      setStep2Status({ 
+      setStep1Status({ 
         status: 'error', 
         message: error instanceof Error ? error.message : 'Dökümanlar indirilemedi' 
       });
@@ -251,19 +322,70 @@ export function DocumentWizardModal({
     }
   };
 
-  // ========== STEP 3: ANALYZE ==========
+  // ========== MANUAL UPLOAD ==========
+  
+  const [uploading, setUploading] = useState(false);
+  
+  const handleManualUpload = async (files: File[]) => {
+    if (!files || files.length === 0) return;
+    
+    setUploading(true);
+    let successCount = 0;
+    let errorCount = 0;
+    
+    for (const file of files) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('tender_id', tenderId.toString());
+        
+        const response = await fetch(`${API_BASE_URL}/api/documents/upload`, {
+          method: 'POST',
+          credentials: 'include',
+          body: formData,
+        });
+        
+        const data = await response.json();
+        
+        if (data.success || data.id) {
+          successCount++;
+        } else {
+          errorCount++;
+          console.error('Upload failed:', file.name, data.error);
+        }
+      } catch (error) {
+        errorCount++;
+        console.error('Upload error:', file.name, error);
+      }
+    }
+    
+    setUploading(false);
+    
+    if (successCount > 0) {
+      notifications.show({
+        title: 'Yükleme Tamamlandı',
+        message: `${successCount} dosya yüklendi${errorCount > 0 ? `, ${errorCount} hata` : ''}`,
+        color: errorCount > 0 ? 'yellow' : 'green',
+      });
+      await fetchAllDocuments();
+    } else {
+      notifications.show({
+        title: 'Hata',
+        message: 'Dosyalar yüklenemedi',
+        color: 'red',
+      });
+    }
+  };
+
+  // ========== STEP 2: ANALYZE ==========
   
   const handleAnalyze = async () => {
     console.log('[DocumentWizard] handleAnalyze called');
-    console.log('[DocumentWizard] selectedForAnalysis:', selectedForAnalysis.size, Array.from(selectedForAnalysis));
-    console.log('[DocumentWizard] contentDocs:', contentDocs.length, contentDocs.map(d => ({ id: d.id, status: d.processing_status })));
-    console.log('[DocumentWizard] downloadDocs:', downloadDocs.length, downloadDocs.map(d => ({ id: d.id, status: d.processing_status })));
     
-    // Get pending documents
-    const allDocs = [...contentDocs, ...downloadDocs];
+    // Get pending documents (sadece indirilen dökümanlar)
     const docsToAnalyze = selectedForAnalysis.size > 0
-      ? allDocs.filter(d => selectedForAnalysis.has(d.id))
-      : allDocs.filter(d => d.processing_status === 'pending' || d.processing_status === 'failed');
+      ? downloadDocs.filter(d => selectedForAnalysis.has(d.id))
+      : downloadDocs.filter(d => d.processing_status === 'pending' || d.processing_status === 'failed');
     
     if (docsToAnalyze.length === 0) {
       notifications.show({
@@ -274,8 +396,21 @@ export function DocumentWizardModal({
       return;
     }
     
-    setStep3Status({ status: 'loading', message: 'Analiz başlatılıyor...' });
+    setStep2Status({ status: 'loading', message: 'Analiz başlatılıyor...' });
     setAnalysisProgress({ current: 0, total: docsToAnalyze.length });
+    setAnalysisStartTime(Date.now());
+    
+    // Initialize document progress map
+    const initialProgress = new Map<number, DocumentProgress>();
+    docsToAnalyze.forEach(doc => {
+      initialProgress.set(doc.id, {
+        id: doc.id,
+        name: getDocFilename(doc) || getDocTypeLabel(doc.doc_type),
+        status: 'pending',
+        stage: 'pending',
+      });
+    });
+    setDocumentProgress(initialProgress);
     
     // Timeout controller (10 dakika - büyük dokümanlar için)
     const controller = new AbortController();
@@ -324,27 +459,138 @@ export function DocumentWizardModal({
             
             // Backend 'stage' kullanıyor
             if (data.stage === 'processing') {
-              // Her döküman için progress
+              // Her döküman için progress - başlangıç
+              completed = data.current || completed;
               setAnalysisProgress({
                 current: data.current || completed,
                 total: data.total || docsToAnalyze.length,
                 currentDoc: data.message,
               });
+              
+              // Detaylı döküman progress güncelle
+              if (data.documentId) {
+                setDocumentProgress(prev => {
+                  const updated = new Map(prev);
+                  const current = updated.get(data.documentId);
+                  if (current) {
+                    updated.set(data.documentId, {
+                      ...current,
+                      status: 'processing',
+                      stage: 'extraction',
+                      stageMessage: 'Döküman okunuyor...',
+                    });
+                  }
+                  return updated;
+                });
+              }
             } else if (data.stage === 'progress') {
-              // Analiz ilerlemesi
+              // Analiz ilerlemesi - detaylı pipeline aşaması
               setAnalysisProgress(prev => prev ? { 
                 ...prev, 
                 currentDoc: data.message || prev.currentDoc 
               } : null);
+              
+              // Detaylı döküman progress güncelle
+              if (data.documentId) {
+                setDocumentProgress(prev => {
+                  const updated = new Map(prev);
+                  const current = updated.get(data.documentId);
+                  if (current) {
+                    // Pipeline stage belirleme
+                    let pipelineStage: PipelineStage = current.stage || 'extraction';
+                    if (data.pipelineStage) {
+                      pipelineStage = data.pipelineStage as PipelineStage;
+                    } else if (data.stage === 'extraction' || data.message?.includes('okunuyor')) {
+                      pipelineStage = 'extraction';
+                    } else if (data.stage === 'ocr' || data.message?.includes('OCR')) {
+                      pipelineStage = 'ocr';
+                    } else if (data.stage === 'chunking' || data.message?.includes('bölüm')) {
+                      pipelineStage = 'chunking';
+                    } else if (data.stage === 'analysis' || data.message?.includes('analiz') || data.message?.includes('Chunk')) {
+                      pipelineStage = 'analysis';
+                    }
+                    
+                    updated.set(data.documentId, {
+                      ...current,
+                      stage: pipelineStage,
+                      stageProgress: data.progress,
+                      stageMessage: data.message,
+                      chunks: data.chunks || current.chunks,
+                    });
+                  }
+                  return updated;
+                });
+              }
+            } else if (data.stage === 'skipped') {
+              // Döküman atlandı (cache)
+              if (data.documentId) {
+                setDocumentProgress(prev => {
+                  const updated = new Map(prev);
+                  const current = updated.get(data.documentId);
+                  if (current) {
+                    updated.set(data.documentId, {
+                      ...current,
+                      status: 'skipped',
+                      stage: 'skipped',
+                      stageMessage: data.message || 'Zaten analiz edilmiş',
+                    });
+                  }
+                  return updated;
+                });
+              }
             } else if (data.stage === 'complete' && data.summary) {
               // Final event - summary ile
               completed = data.summary.success || 0;
-              setStep3Status({ 
+              setStep2Status({ 
                 status: 'success', 
                 message: `${completed} döküman analiz edildi` 
               });
+              
+              // Tüm dökümanları tamamlandı olarak işaretle
+              if (data.results) {
+                setDocumentProgress(prev => {
+                  const updated = new Map(prev);
+                  for (const result of data.results) {
+                    const current = updated.get(result.id);
+                    if (current) {
+                      updated.set(result.id, {
+                        ...current,
+                        status: result.success ? (result.skipped ? 'skipped' : 'completed') : 'error',
+                        stage: result.success ? 'completed' : 'error',
+                        stageMessage: result.success 
+                          ? (result.skipped ? 'Atlandı' : 'Analiz tamamlandı')
+                          : result.error,
+                        error: result.error,
+                        result: result.analysis ? {
+                          teknikSartlar: result.analysis.teknik_sartlar?.length || 0,
+                          birimFiyatlar: result.analysis.birim_fiyatlar?.length || 0,
+                          ocrApplied: result.analysis.meta?.ocrApplied,
+                        } : undefined,
+                      });
+                    }
+                  }
+                  return updated;
+                });
+              }
             } else if (data.stage === 'error') {
               console.error('Analysis error:', data.message);
+              
+              if (data.documentId) {
+                setDocumentProgress(prev => {
+                  const updated = new Map(prev);
+                  const current = updated.get(data.documentId);
+                  if (current) {
+                    updated.set(data.documentId, {
+                      ...current,
+                      status: 'error',
+                      stage: 'error',
+                      stageMessage: data.message,
+                      error: data.message,
+                    });
+                  }
+                  return updated;
+                });
+              }
             }
           } catch {
             // Ignore parse errors
@@ -354,6 +600,19 @@ export function DocumentWizardModal({
       
       // Refresh documents after analysis
       await fetchAllDocuments();
+      
+      // Sync analysis summary to tender tracking
+      try {
+        await fetch(`${API_BASE_URL}/api/tender-tracking/add-from-analysis`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ tender_id: tenderId }),
+        });
+        console.log('[DocumentWizard] Analysis summary synced to tender');
+      } catch (syncError) {
+        console.error('[DocumentWizard] Failed to sync analysis summary:', syncError);
+      }
       
       notifications.show({
         title: 'Analiz Tamamlandı',
@@ -373,7 +632,7 @@ export function DocumentWizardModal({
         ? 'İşlem zaman aşımına uğradı (10 dakika). Daha az döküman seçip tekrar deneyin.'
         : (error instanceof Error ? error.message : 'Analiz başarısız');
       
-      setStep3Status({ 
+      setStep2Status({ 
         status: 'error', 
         message: errorMessage
       });
@@ -386,16 +645,19 @@ export function DocumentWizardModal({
     } finally {
       clearTimeout(timeoutId); // Cleanup timeout
       setAnalysisProgress(null);
+      setAnalysisStartTime(null);
+      // Analiz bitince documentProgress'i temizle - döküman listesi görünsün
+      setDocumentProgress(new Map());
     }
   };
 
   // ========== RESET DOCUMENTS ==========
   
   const handleResetDocuments = async () => {
-    const allDocs = [...contentDocs, ...downloadDocs];
+    // Sadece indirilen dökümanlar
     const docsToReset = selectedForAnalysis.size > 0
-      ? allDocs.filter(d => selectedForAnalysis.has(d.id))
-      : allDocs.filter(d => d.processing_status === 'completed' || d.processing_status === 'failed');
+      ? downloadDocs.filter(d => selectedForAnalysis.has(d.id))
+      : downloadDocs.filter(d => d.processing_status === 'completed' || d.processing_status === 'failed');
     
     if (docsToReset.length === 0) {
       notifications.show({
@@ -480,7 +742,7 @@ export function DocumentWizardModal({
     const content = doc.extracted_text || doc.content_text || '';
     if (content) {
       setPreviewContent({
-        title: doc.original_filename || getDocTypeLabel(doc.doc_type),
+        title: getDocFilename(doc) || getDocTypeLabel(doc.doc_type),
         content,
       });
       setPreviewOpen(true);
@@ -502,13 +764,9 @@ export function DocumentWizardModal({
   };
   
   const selectAllPending = () => {
-    const allDocs = [...contentDocs, ...downloadDocs];
-    const pendingIds = allDocs
-      .filter(d => 
-        (d.processing_status === 'pending' || d.processing_status === 'failed') &&
-        d.file_type !== 'zip' && d.file_type !== '.zip' && 
-        d.file_type !== 'rar' && d.file_type !== '.rar'
-      )
+    // ZIP/RAR zaten fetchAllDocuments'ta filtrelendi, sadece indirilen dökümanlar
+    const pendingIds = downloadDocs
+      .filter(d => d.processing_status === 'pending' || d.processing_status === 'failed')
       .map(d => d.id);
     setSelectedForAnalysis(new Set(pendingIds));
   };
@@ -526,8 +784,8 @@ export function DocumentWizardModal({
     
     return (
       <Stack gap={4}>
-        {docs.map(doc => (
-          <Paper key={doc.id} p="xs" withBorder radius="sm">
+        {docs.map((doc, index) => (
+          <Paper key={`${doc.source_type}-${doc.id}-${index}`} p="xs" withBorder radius="sm">
             <Group justify="space-between" wrap="nowrap">
               <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
                 {showCheckbox && (
@@ -535,11 +793,7 @@ export function DocumentWizardModal({
                     size="xs"
                     checked={selectedForAnalysis.has(doc.id)}
                     onChange={() => toggleDocSelection(doc.id)}
-                    disabled={
-                      doc.processing_status === 'completed' ||
-                      doc.file_type === 'zip' || doc.file_type === '.zip' ||
-                      doc.file_type === 'rar' || doc.file_type === '.rar'
-                    }
+                    disabled={doc.processing_status === 'completed'}
                   />
                 )}
                 <ThemeIcon
@@ -566,12 +820,17 @@ export function DocumentWizardModal({
                   )}
                 </ThemeIcon>
                 <Box style={{ minWidth: 0, flex: 1 }}>
-                  <Text size="xs" fw={500} truncate>
-                    {doc.original_filename || getDocTypeLabel(doc.doc_type)}
-                  </Text>
+                  <Group gap={6} wrap="nowrap">
+                    <Text size="xs" fw={500} truncate style={{ flex: 1 }}>
+                      {getDocFilename(doc) || getDocTypeLabel(doc.doc_type)}
+                    </Text>
+                    {doc.storage_url && (
+                      <IconCheck size={14} style={{ color: 'var(--mantine-color-green-5)', flexShrink: 0, opacity: 0.7 }} />
+                    )}
+                  </Group>
                   <Group gap={4}>
                     <Badge size="xs" variant="dot" color={doc.source_type === 'content' ? 'cyan' : 'blue'}>
-                      {doc.source_type === 'content' ? 'İÇERİK' : doc.file_type?.toUpperCase() || 'PDF'}
+                      {doc.source_type === 'content' ? 'İÇERİK' : getDocFileType(doc).toUpperCase() || 'PDF'}
                     </Badge>
                     {getStatusBadge(doc.processing_status)}
                   </Group>
@@ -620,25 +879,26 @@ export function DocumentWizardModal({
     return 'gray';
   };
 
-  // Counts - ZIP/RAR dosyalarını hariç tut (analiz edilemez)
-  const isArchive = (d: DocumentItem) => 
-    d.file_type === 'zip' || d.file_type === '.zip' || 
-    d.file_type === 'rar' || d.file_type === '.rar';
-  
-  const allDocs = [...contentDocs, ...downloadDocs];
-  const analyzableDocs = allDocs.filter(d => !isArchive(d));
-  
-  const totalDocs = analyzableDocs.length;
-  const completedDocs = analyzableDocs.filter(d => d.processing_status === 'completed').length;
-  const pendingDocs = analyzableDocs.filter(d => d.processing_status === 'pending' || d.processing_status === 'failed').length;
+  // Sadece indirilen dökümanlar (ZIP/RAR zaten fetchAllDocuments'ta filtrelendi)
+  const totalDocs = downloadDocs.length;
+  const completedDocs = downloadDocs.filter(d => d.processing_status === 'completed').length;
+  const pendingDocs = downloadDocs.filter(d => d.processing_status === 'pending' || d.processing_status === 'failed').length;
 
   // Debug log kaldırıldı - spam yapıyordu
 
   return (
     <>
+      <style jsx global>{`
+        @keyframes loadingPulse {
+          0%, 100% { opacity: 0.6; }
+          50% { opacity: 1; }
+        }
+      `}</style>
       <Modal
         opened={opened}
         onClose={onClose}
+        closeOnClickOutside={false}
+        closeOnEscape={false}
         title={
           <Group gap="xs">
             <IconFileText size={20} />
@@ -686,72 +946,13 @@ export function DocumentWizardModal({
             size="sm"
             allowNextStepsSelect={false}
           >
-            {/* Step 1: View Content */}
-            <Stepper.Step
-              label="Site İçeriği"
-              description="İlan ve mal/hizmet listesi"
-              icon={getStepIcon(step1Status, <IconWorld size={18} />)}
-              color={contentDocs.length > 0 ? 'green' : 'gray'}
-              completedIcon={<IconCheck size={18} />}
-            >
-              <Stack gap="md" mt="md">
-                {contentDocs.length > 0 ? (
-                  <>
-                    <Paper p="md" withBorder radius="md" bg="dark.6">
-                      <Group gap="xs">
-                        <ThemeIcon size="lg" variant="light" color="green" radius="xl">
-                          <IconCheck size={18} />
-                        </ThemeIcon>
-                        <Box>
-                          <Text size="sm" fw={500}>{contentDocs.length} Site İçeriği Mevcut</Text>
-                          <Text size="xs" c="dimmed">
-                            İhale ilanı ve mal/hizmet listesi hazır
-                          </Text>
-                        </Box>
-                      </Group>
-                    </Paper>
-
-                    <Box>
-                      <Text size="sm" fw={500} mb="xs">İçerik Dökümanları ({contentDocs.length})</Text>
-                      <ScrollArea.Autosize mah={200}>
-                        {renderDocumentList(contentDocs)}
-                      </ScrollArea.Autosize>
-                    </Box>
-                  </>
-                ) : (
-                  <Paper p="md" withBorder radius="md" bg="dark.6">
-                    <Group gap="xs">
-                      <ThemeIcon size="lg" variant="light" color="yellow" radius="xl">
-                        <IconWorld size={18} />
-                      </ThemeIcon>
-                      <Box>
-                        <Text size="sm" fw={500}>Site İçeriği Yok</Text>
-                        <Text size="xs" c="dimmed">
-                          Dökümanları indirdiğinizde site içerikleri otomatik çekilecek
-                        </Text>
-                      </Box>
-                    </Group>
-                  </Paper>
-                )}
-
-                <Group justify="flex-end">
-                  <Button 
-                    variant="light"
-                    onClick={() => setActiveStep(1)}
-                  >
-                    Sonraki Adım
-                  </Button>
-                </Group>
-              </Stack>
-            </Stepper.Step>
-
-            {/* Step 2: Download Documents */}
+            {/* Step 1: Download Documents */}
             <Stepper.Step
               label="Dökümanları İndir"
               description="PDF ve diğer dosyalar"
-              icon={getStepIcon(step2Status, <IconCloudDownload size={18} />)}
-              color={getStepColor(step2Status)}
-              loading={step2Status.status === 'loading'}
+              icon={getStepIcon(step1Status, <IconCloudDownload size={18} />)}
+              color={getStepColor(step1Status)}
+              loading={step1Status.status === 'loading'}
             >
               <Stack gap="md" mt="md">
                 <Paper p="md" withBorder radius="md">
@@ -763,27 +964,84 @@ export function DocumentWizardModal({
                           Şartnameler, sözleşme ve diğer dosyalar indirilir
                         </Text>
                       </Box>
-                      <Button
-                        size="sm"
-                        variant="light"
-                        leftSection={<IconCloudDownload size={16} />}
-                        onClick={handleDownloadDocuments}
-                        loading={step2Status.status === 'loading'}
-                        disabled={step2Status.status === 'success'}
-                      >
-                        {step2Status.status === 'success' ? 'Tamamlandı' : 'Dökümanları İndir'}
-                      </Button>
+                      <Tooltip label={step1Status.status === 'success' ? 'Tamamlandı' : 'Dökümanları İndir'}>
+                        <ActionIcon
+                          size="lg"
+                          variant={step1Status.status === 'success' ? 'light' : 'default'}
+                          color={step1Status.status === 'success' ? 'green' : undefined}
+                          onClick={handleDownloadDocuments}
+                          loading={step1Status.status === 'loading'}
+                          disabled={step1Status.status === 'success'}
+                          styles={step1Status.status !== 'success' ? {
+                            root: {
+                              border: '1px solid var(--mantine-color-dark-4)',
+                              backgroundColor: 'var(--mantine-color-dark-6)',
+                              '&:hover': {
+                                backgroundColor: 'var(--mantine-color-dark-5)',
+                              },
+                            },
+                          } : undefined}
+                        >
+                          {step1Status.status === 'success' ? <IconCheck size={18} /> : <IconDownload size={18} />}
+                        </ActionIcon>
+                      </Tooltip>
                     </Group>
                     
-                    {step2Status.message && (
-                      <Text 
-                        size="xs" 
-                        c={step2Status.status === 'error' ? 'red' : step2Status.status === 'success' ? 'green' : 'dimmed'}
-                      >
-                        {step2Status.message}
-                      </Text>
+                    {step1Status.message && (
+                      <Group gap={6} align="center">
+                        {step1Status.status === 'loading' && (
+                          <Loader size={12} color="gray" type="dots" />
+                        )}
+                        <Text 
+                          size="xs" 
+                          c={step1Status.status === 'error' ? 'red' : step1Status.status === 'success' ? 'green' : 'dimmed'}
+                          style={step1Status.status === 'loading' ? {
+                            animation: 'loadingPulse 1.5s ease-in-out infinite',
+                          } : undefined}
+                        >
+                          {step1Status.message}
+                        </Text>
+                      </Group>
                     )}
                   </Stack>
+                </Paper>
+
+                {/* Manuel Döküman Yükleme */}
+                <Paper p="md" withBorder radius="md" bg="dark.7">
+                  <Group justify="space-between">
+                    <Box>
+                      <Text size="sm" fw={500}>Manuel Döküman Ekle</Text>
+                      <Text size="xs" c="dimmed">
+                        Kendi dökümanlarınızı yükleyin (PDF, DOC, XLS, vb.)
+                      </Text>
+                    </Box>
+                    <FileButton 
+                      onChange={(files) => files && handleManualUpload(files)}
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.txt,.csv"
+                      multiple
+                    >
+                      {(props) => (
+                        <Button
+                          {...props}
+                          size="sm"
+                          variant="default"
+                          leftSection={<IconUpload size={16} />}
+                          loading={uploading}
+                          styles={{
+                            root: {
+                              border: '1px solid var(--mantine-color-dark-4)',
+                              backgroundColor: 'var(--mantine-color-dark-6)',
+                              '&:hover': {
+                                backgroundColor: 'var(--mantine-color-dark-5)',
+                              },
+                            },
+                          }}
+                        >
+                          Dosya Seç
+                        </Button>
+                      )}
+                    </FileButton>
+                  </Group>
                 </Paper>
 
                 {/* Downloaded Documents */}
@@ -796,28 +1054,37 @@ export function DocumentWizardModal({
                   </Box>
                 )}
 
-                <Group justify="space-between">
-                  <Button variant="subtle" onClick={() => setActiveStep(0)}>
-                    Geri
-                  </Button>
-                  <Button 
-                    variant="light"
-                    onClick={() => setActiveStep(2)}
-                    disabled={step2Status.status === 'loading'}
-                  >
-                    Sonraki Adım
-                  </Button>
+                <Group justify="flex-end">
+                  <Tooltip label="Sonraki Adım">
+                    <ActionIcon 
+                      size="lg"
+                      variant="default"
+                      onClick={() => setActiveStep(1)}
+                      disabled={step1Status.status === 'loading'}
+                      styles={{
+                        root: {
+                          border: '1px solid var(--mantine-color-dark-4)',
+                          backgroundColor: 'var(--mantine-color-dark-6)',
+                          '&:hover': {
+                            backgroundColor: 'var(--mantine-color-dark-5)',
+                          },
+                        },
+                      }}
+                    >
+                      <IconChevronRight size={18} />
+                    </ActionIcon>
+                  </Tooltip>
                 </Group>
               </Stack>
             </Stepper.Step>
 
-            {/* Step 3: Analyze */}
+            {/* Step 2: Analyze */}
             <Stepper.Step
               label="AI Analizi"
               description="Dökümanları analiz et"
-              icon={getStepIcon(step3Status, <IconBrain size={18} />)}
-              color={getStepColor(step3Status)}
-              loading={step3Status.status === 'loading'}
+              icon={getStepIcon(step2Status, <IconBrain size={18} />)}
+              color={getStepColor(step2Status)}
+              loading={step2Status.status === 'loading'}
             >
               <Stack gap="md" mt="md">
                 <Paper p="md" withBorder radius="md">
@@ -844,48 +1111,39 @@ export function DocumentWizardModal({
                           style={{ background: 'linear-gradient(135deg, #C9A227 0%, #D4AF37 50%, #E6C65C 100%)', border: 'none' }}
                           leftSection={<IconBrain size={16} />}
                           onClick={handleAnalyze}
-                          loading={step3Status.status === 'loading'}
+                          loading={step2Status.status === 'loading'}
                           disabled={pendingDocs === 0 && selectedForAnalysis.size === 0}
                         >
-                          {step3Status.status === 'success' ? 'Tamamlandı' : 'Analiz Et'}
+                          {step2Status.status === 'success' ? 'Tamamlandı' : 'Analiz Et'}
                         </Button>
                       </Group>
                     </Group>
                     
-                    {/* Analysis Progress */}
-                    {analysisProgress && (
-                      <Box>
-                        <Group justify="space-between" mb={4}>
-                          <Text size="xs" c="dimmed">
-                            {analysisProgress.currentDoc || 'Analiz ediliyor...'}
-                          </Text>
-                          <Text size="xs" c="dimmed">
-                            {analysisProgress.current}/{analysisProgress.total}
-                          </Text>
-                        </Group>
-                        <Progress
-                          value={(analysisProgress.current / analysisProgress.total) * 100}
-                          size="sm"
-                          animated
-                        />
-                      </Box>
-                    )}
-                    
-                    {step3Status.message && (
+                    {/* Status message */}
+                    {step2Status.message && step2Status.status !== 'loading' && (
                       <Text 
                         size="xs" 
-                        c={step3Status.status === 'error' ? 'red' : step3Status.status === 'success' ? 'green' : 'dimmed'}
+                        c={step2Status.status === 'error' ? 'red' : step2Status.status === 'success' ? 'green' : 'dimmed'}
                       >
-                        {step3Status.message}
+                        {step2Status.message}
                       </Text>
                     )}
                   </Stack>
                 </Paper>
 
-                {/* All Documents with Checkboxes */}
-                <Box>
+                {/* Analysis Progress Panel - Detaylı ilerleme gösterimi */}
+                {(documentProgress.size > 0 || step2Status.status === 'loading') && (
+                  <AnalysisProgressPanel
+                    documentProgress={documentProgress}
+                    analysisProgress={analysisProgress}
+                    startTime={analysisStartTime}
+                  />
+                )}
+
+                {/* All Documents with Checkboxes - Analiz sırasında gizle */}
+                {documentProgress.size === 0 && <Box>
                   <Group justify="space-between" mb="xs">
-                    <Text size="sm" fw={500}>Tüm Dökümanlar ({totalDocs})</Text>
+                    <Text size="sm" fw={500}>Tüm Dökümanlar ({downloadDocs.length})</Text>
                     <Group gap="xs">
                       <Tooltip label="Seçili veya tamamlanmış dökümanları sıfırla">
                         <Button
@@ -894,7 +1152,7 @@ export function DocumentWizardModal({
                           color="orange"
                           leftSection={<IconRefresh size={12} />}
                           onClick={handleResetDocuments}
-                          disabled={step3Status.status === 'loading' || totalDocs === 0}
+                          disabled={step2Status.status === 'loading' || totalDocs === 0}
                         >
                           Sıfırla
                         </Button>
@@ -906,7 +1164,7 @@ export function DocumentWizardModal({
                           color="red"
                           leftSection={<IconTrash size={12} />}
                           onClick={handleDeleteAllDocuments}
-                          disabled={step3Status.status === 'loading' || totalDocs === 0}
+                          disabled={step2Status.status === 'loading' || totalDocs === 0}
                         >
                           Tümünü Sil
                         </Button>
@@ -919,12 +1177,12 @@ export function DocumentWizardModal({
                     </Group>
                   </Group>
                   <ScrollArea.Autosize mah={250}>
-                    {renderDocumentList([...contentDocs, ...downloadDocs], true)}
+                    {renderDocumentList(downloadDocs, true)}
                   </ScrollArea.Autosize>
-                </Box>
+                </Box>}
 
                 <Group justify="space-between">
-                  <Button variant="subtle" onClick={() => setActiveStep(1)}>
+                  <Button variant="subtle" onClick={() => setActiveStep(0)}>
                     Geri
                   </Button>
                   <Button 

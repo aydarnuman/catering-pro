@@ -1,5 +1,5 @@
 /**
- * Firma Belgesi Analiz Servisi
+ * Firma Belgesi Analiz Servisi (Claude Sonnet)
  * Vergi levhası, sicil gazetesi, imza sirküleri vb. belgelerden
  * firma bilgilerini AI ile çıkarır
  *
@@ -8,12 +8,13 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Anthropic from '@anthropic-ai/sdk';
 import mammoth from 'mammoth';
 import pdfParse from 'pdf-parse';
 import xlsx from 'xlsx';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
 
 // Belge tiplerine göre çıkarılacak alanlar
 const BELGE_TIPLERI = {
@@ -174,13 +175,9 @@ async function fileToBase64(filePath) {
 }
 
 /**
- * Metin tabanlı AI analizi (Word, Excel veya PDF metin)
+ * Claude ile analiz yap (text)
  */
 async function analyzeWithText(text, _belgeTipi, belgeConfig) {
-  const model = genAI.getGenerativeModel({
-    model: process.env.GEMINI_MODEL || 'gemini-2.0-flash-exp',
-  });
-
   const prompt = `
 ${belgeConfig.prompt}
 
@@ -214,18 +211,19 @@ BELGE METNİ:
 ${text.slice(0, 15000)}
   `.trim();
 
-  const result = await model.generateContent(prompt);
-  return result.response.text();
+  const response = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 4096,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  return response.content[0]?.text || '';
 }
 
 /**
- * Vision tabanlı AI analizi (PDF görsel veya resim)
+ * Claude Vision ile analiz (görsel/PDF)
  */
 async function analyzeWithVision(filePath, _belgeTipi, belgeConfig, mimeType) {
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash-exp',
-  });
-
   const ext = path.extname(filePath).toLowerCase();
   const base64Data = await fileToBase64(filePath);
 
@@ -273,24 +271,44 @@ Lütfen JSON formatında yanıt ver. Bulamadığın alanları null olarak bırak
 \`\`\`
   `.trim();
 
-  const result = await model.generateContent([
-    visionPrompt,
-    {
-      inlineData: {
-        mimeType: imageMimeType,
-        data: base64Data,
-      },
-    },
-  ]);
+  // PDF için document type, görsel için image type
+  const contentBlock =
+    imageMimeType === 'application/pdf'
+      ? {
+          type: 'document',
+          source: {
+            type: 'base64',
+            media_type: imageMimeType,
+            data: base64Data,
+          },
+        }
+      : {
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: imageMimeType,
+            data: base64Data,
+          },
+        };
 
-  return result.response.text();
+  const response = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 4096,
+    messages: [
+      {
+        role: 'user',
+        content: [contentBlock, { type: 'text', text: visionPrompt }],
+      },
+    ],
+  });
+
+  return response.content[0]?.text || '';
 }
 
 /**
  * Belge tipini otomatik algıla
  */
 async function detectBelgeTipi(filePath, mimeType) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
   const fileCategory = getFileCategory(filePath);
 
   let content;
@@ -308,8 +326,30 @@ async function detectBelgeTipi(filePath, mimeType) {
     };
     const imageMimeType = mimeType || mimeMap[ext] || 'application/pdf';
 
+    const contentBlock =
+      imageMimeType === 'application/pdf'
+        ? {
+            type: 'document',
+            source: {
+              type: 'base64',
+              media_type: imageMimeType,
+              data: base64Data,
+            },
+          }
+        : {
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: imageMimeType,
+              data: base64Data,
+            },
+          };
+
     content = [
-      `Bu belgeye bak ve türünü belirle. Sadece şu tiplerden birini seç:
+      contentBlock,
+      {
+        type: 'text',
+        text: `Bu belgeye bak ve türünü belirle. Sadece şu tiplerden birini seç:
 - vergi_levhasi (Vergi Levhası, VKN belgesi)
 - sicil_gazetesi (Ticaret Sicil Gazetesi)
 - imza_sirküleri (İmza Sirküleri, Noter onaylı imza)
@@ -320,11 +360,6 @@ async function detectBelgeTipi(filePath, mimeType) {
 
 SADECE belge tipinin key değerini yaz, başka bir şey yazma.
 Örnek yanıt: vergi_levhasi`,
-      {
-        inlineData: {
-          mimeType: imageMimeType,
-          data: base64Data,
-        },
       },
     ];
   } else {
@@ -338,7 +373,10 @@ SADECE belge tipinin key değerini yaz, başka bir şey yazma.
       text = await extractTextFromPDF(filePath);
     }
 
-    content = `Bu belge metnine bak ve türünü belirle. Sadece şu tiplerden birini seç:
+    content = [
+      {
+        type: 'text',
+        text: `Bu belge metnine bak ve türünü belirle. Sadece şu tiplerden birini seç:
 - vergi_levhasi (Vergi Levhası, VKN belgesi)
 - sicil_gazetesi (Ticaret Sicil Gazetesi)
 - imza_sirküleri (İmza Sirküleri, Noter onaylı imza)
@@ -350,12 +388,18 @@ SADECE belge tipinin key değerini yaz, başka bir şey yazma.
 SADECE belge tipinin key değerini yaz, başka bir şey yazma.
 
 BELGE METNİ:
-${text.slice(0, 3000)}`;
+${text.slice(0, 3000)}`,
+      },
+    ];
   }
 
-  const result = await model.generateContent(content);
-  const detected = result.response
-    .text()
+  const response = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 100,
+    messages: [{ role: 'user', content }],
+  });
+
+  const detected = (response.content[0]?.text || '')
     .trim()
     .toLowerCase()
     .replace(/[^a-z_]/g, '');
@@ -433,13 +477,13 @@ export async function analyzeFirmaBelgesi(filePath, belgeTipi, mimeType) {
       throw new Error(`Desteklenmeyen dosya formatı: ${path.extname(filePath)}`);
   }
 
-  return parseGeminiResponse(responseText, belgeTipi, fileCategory);
+  return parseClaudeResponse(responseText, belgeTipi, fileCategory);
 }
 
 /**
- * Gemini yanıtını parse et
+ * Claude yanıtını parse et
  */
-function parseGeminiResponse(text, belgeTipi, fileCategory) {
+function parseClaudeResponse(text, belgeTipi, fileCategory) {
   try {
     // JSON bloğunu bul
     const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
