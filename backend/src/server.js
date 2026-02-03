@@ -274,6 +274,7 @@ import maasOdemeRouter from './routes/maas-odeme.js';
 import mailRouter from './routes/mail.js';
 import maliyetAnaliziRouter from './routes/maliyet-analizi.js';
 import menuPlanlamaRouter from './routes/menu-planlama.js';
+import mevzuatRouter from './routes/mevzuat.js';
 import mutabakatRouter from './routes/mutabakat.js';
 // DEPRECATED: Eski not sistemi - unified_notes'a taşındı (2026-01-29)
 // import notlarRouter from './routes/notlar.js';
@@ -348,6 +349,7 @@ app.use('/api/proje-hareketler', projeHareketlerRouter);
 app.use('/api/projeler', projelerRouter);
 app.use('/api/planlama', planlamaRouter);
 app.use('/api/menu-planlama', menuPlanlamaRouter);
+app.use('/api/mevzuat', mevzuatRouter);
 app.use('/api/teklifler', tekliflerRouter);
 // DEPRECATED: Eski not sistemi - unified_notes'a taşındı (2026-01-29)
 // app.use('/api/notlar', notlarRouter);
