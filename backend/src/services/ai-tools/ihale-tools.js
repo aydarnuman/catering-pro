@@ -4,6 +4,8 @@
  */
 
 import { query } from '../../database.js';
+import documentStorageService from '../document-storage.js';
+import logger from '../../utils/logger.js';
 
 const ihaleTools = {
   /**
@@ -539,6 +541,139 @@ const ihaleTools = {
       };
     },
   },
+  /**
+   * İhale dökümanlarını indir ve analiz et
+   * Tek veya çoklu ihale desteği
+   */
+  download_and_analyze_tender: {
+    description: 'İhale dökümanlarını indirir ve AI ile analiz eder. Tek ihale (tender_id) veya çoklu ihale (tender_ids) destekler. İndirme arka planda çalışır.',
+    parameters: {
+      type: 'object',
+      properties: {
+        tender_id: {
+          type: 'number',
+          description: 'Tek ihale ID',
+        },
+        tender_ids: {
+          type: 'array',
+          items: { type: 'number' },
+          description: 'Çoklu ihale ID listesi (örn: [123, 456, 789])',
+        },
+      },
+    },
+    handler: async (params) => {
+      const { tender_id, tender_ids } = params;
+
+      // ID'leri normalize et
+      let ids = [];
+      if (tender_ids && Array.isArray(tender_ids)) {
+        ids = tender_ids;
+      } else if (tender_id) {
+        ids = [tender_id];
+      }
+
+      if (ids.length === 0) {
+        return { success: false, error: 'tender_id veya tender_ids gerekli' };
+      }
+
+      // Maksimum 10 ihale sınırı
+      if (ids.length > 10) {
+        return { success: false, error: 'Maksimum 10 ihale aynı anda indirilebilir' };
+      }
+
+      const results = [];
+      const errors = [];
+
+      for (const id of ids) {
+        try {
+          // 1. İhalenin varlığını kontrol et
+          const tenderResult = await query(
+            'SELECT id, title, external_id, organization_name FROM tenders WHERE id = $1',
+            [id]
+          );
+
+          if (tenderResult.rows.length === 0) {
+            errors.push({ ihale_id: id, error: 'İhale bulunamadı' });
+            continue;
+          }
+
+          const tender = tenderResult.rows[0];
+
+          // 2. Mevcut döküman durumunu kontrol et
+          const existingDocs = await query(
+            `SELECT id, processing_status FROM documents 
+             WHERE tender_id = $1 AND source_type = 'download'`,
+            [id]
+          );
+
+          const analyzedCount = existingDocs.rows.filter(d => d.processing_status === 'completed').length;
+          const queuedCount = existingDocs.rows.filter(d => d.processing_status === 'queued').length;
+          const processingCount = existingDocs.rows.filter(d => d.processing_status === 'processing').length;
+
+          // Zaten analiz edilmişse atla
+          if (analyzedCount > 0 && queuedCount === 0 && processingCount === 0) {
+            results.push({
+              ihale_id: id,
+              baslik: tender.title,
+              status: 'already_analyzed',
+              dokuman_sayisi: analyzedCount,
+            });
+            continue;
+          }
+
+          // Devam eden işlem varsa atla
+          if (queuedCount > 0 || processingCount > 0) {
+            results.push({
+              ihale_id: id,
+              baslik: tender.title,
+              status: 'in_progress',
+              kuyrukta: queuedCount,
+              isleniyor: processingCount,
+            });
+            continue;
+          }
+
+          // 3. Dökümanları indir
+          logger.info(`[AI Tool] Batch indirme: İhale #${id}`, { module: 'ihale-tools', tender_id: id });
+          
+          const downloadResult = await documentStorageService.downloadTenderDocuments(id);
+
+          results.push({
+            ihale_id: id,
+            baslik: tender.title,
+            kurum: tender.organization_name,
+            status: 'download_started',
+            indirilen: downloadResult.downloaded || 0,
+            kuyruga_eklenen: downloadResult.queued || 0,
+          });
+
+        } catch (error) {
+          logger.error(`[AI Tool] Batch indirme hatası: İhale #${id}`, { error: error.message });
+          errors.push({ ihale_id: id, error: error.message });
+        }
+      }
+
+      // Özet oluştur
+      const downloaded = results.filter(r => r.status === 'download_started').length;
+      const alreadyDone = results.filter(r => r.status === 'already_analyzed').length;
+      const inProgress = results.filter(r => r.status === 'in_progress').length;
+
+      return {
+        success: true,
+        ozet: {
+          toplam: ids.length,
+          indirme_basladi: downloaded,
+          zaten_analiz_edilmis: alreadyDone,
+          devam_ediyor: inProgress,
+          hata: errors.length,
+        },
+        sonuclar: results,
+        hatalar: errors.length > 0 ? errors : undefined,
+        message: `${downloaded} ihale için indirme başlatıldı. ${alreadyDone} ihale zaten analiz edilmiş. Sonuçlar için get_ihale_dokumanlari kullanın.`,
+      };
+    },
+  },
+
 };
 
 export default ihaleTools;

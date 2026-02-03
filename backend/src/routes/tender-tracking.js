@@ -79,29 +79,54 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, error: 'tender_id gerekli' });
     }
 
-    // Upsert - varsa güncelle, yoksa ekle
-    const result = await query(
-      `
-      INSERT INTO tender_tracking (tender_id, user_id, status, notes, priority, analysis_summary)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      ON CONFLICT (tender_id, user_id) 
-      DO UPDATE SET 
-        status = COALESCE(EXCLUDED.status, tender_tracking.status),
-        notes = COALESCE(EXCLUDED.notes, tender_tracking.notes),
-        priority = COALESCE(EXCLUDED.priority, tender_tracking.priority),
-        analysis_summary = COALESCE(EXCLUDED.analysis_summary, tender_tracking.analysis_summary),
-        updated_at = NOW()
-      RETURNING *
-    `,
-      [
-        tender_id,
-        user_id || null,
-        status || 'bekliyor',
-        notes || null,
-        priority || 0,
-        analysis_summary ? JSON.stringify(analysis_summary) : null,
-      ]
+    const userIdValue = user_id || null;
+
+    // Önce mevcut kayıt var mı kontrol et (NULL user_id için ON CONFLICT çalışmıyor)
+    const existingCheck = await query(
+      `SELECT id FROM tender_tracking WHERE tender_id = $1 AND (user_id = $2 OR (user_id IS NULL AND $2 IS NULL))`,
+      [tender_id, userIdValue]
     );
+
+    let result;
+    if (existingCheck.rows.length > 0) {
+      // Mevcut kaydı güncelle
+      result = await query(
+        `
+        UPDATE tender_tracking SET
+          status = COALESCE($2, status),
+          notes = COALESCE($3, notes),
+          priority = COALESCE($4, priority),
+          analysis_summary = COALESCE($5, analysis_summary),
+          updated_at = NOW()
+        WHERE id = $1
+        RETURNING *
+      `,
+        [
+          existingCheck.rows[0].id,
+          status || null,
+          notes || null,
+          priority || null,
+          analysis_summary ? JSON.stringify(analysis_summary) : null,
+        ]
+      );
+    } else {
+      // Yeni kayıt oluştur
+      result = await query(
+        `
+        INSERT INTO tender_tracking (tender_id, user_id, status, notes, priority, analysis_summary)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING *
+      `,
+        [
+          tender_id,
+          userIdValue,
+          status || 'bekliyor',
+          notes || null,
+          priority || 0,
+          analysis_summary ? JSON.stringify(analysis_summary) : null,
+        ]
+      );
+    }
 
     res.json({
       success: true,
@@ -132,6 +157,19 @@ router.put('/:id', async (req, res) => {
       hesaplama_verileri,
     } = req.body;
 
+    // Eğer hesaplama_verileri varsa, mevcut veriyle merge et
+    let mergedHesaplamaVerileri = null;
+    if (hesaplama_verileri) {
+      // Önce mevcut veriyi al
+      const currentResult = await query(
+        'SELECT hesaplama_verileri FROM tender_tracking WHERE id = $1',
+        [id]
+      );
+      const currentData = currentResult.rows[0]?.hesaplama_verileri || {};
+      // Merge: mevcut veri + yeni veri (yeni veri öncelikli)
+      mergedHesaplamaVerileri = { ...currentData, ...hesaplama_verileri };
+    }
+
     const result = await query(
       `
       UPDATE tender_tracking 
@@ -158,7 +196,7 @@ router.put('/:id', async (req, res) => {
         yaklasik_maliyet || null,
         sinir_deger || null,
         bizim_teklif || null,
-        hesaplama_verileri ? JSON.stringify(hesaplama_verileri) : null,
+        mergedHesaplamaVerileri ? JSON.stringify(mergedHesaplamaVerileri) : null,
         id,
       ]
     );
@@ -231,6 +269,218 @@ router.post('/:id/notes', async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+/**
+ * Döküman analizinden tespit edilen önerileri getir
+ * GET /api/tender-tracking/:id/suggestions
+ */
+router.get('/:id/suggestions', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Tracking kaydını al
+    const trackingResult = await query(
+      `SELECT tt.*, t.estimated_cost, t.title, t.organization_name
+       FROM tender_tracking tt
+       JOIN tenders t ON t.id = tt.tender_id::integer
+       WHERE tt.id = $1`,
+      [id]
+    );
+
+    if (trackingResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Kayıt bulunamadı' });
+    }
+
+    const tracking = trackingResult.rows[0];
+    const tenderId = tracking.tender_id;
+
+    // Dökümanların analiz sonuçlarını al
+    const docsResult = await query(
+      `SELECT id, original_filename, analysis_result
+       FROM documents
+       WHERE tender_id = $1
+         AND processing_status = 'completed'
+         AND analysis_result IS NOT NULL`,
+      [tenderId]
+    );
+
+    const suggestions = [];
+
+    // Scraper'dan gelen tahmini bedel
+    if (tracking.estimated_cost && !tracking.yaklasik_maliyet) {
+      suggestions.push({
+        key: 'yaklasik_maliyet_scraper',
+        label: 'Yaklaşık Maliyet (Scraper)',
+        value: Number(tracking.estimated_cost),
+        source: 'scraper',
+        fieldName: 'yaklasik_maliyet',
+        type: 'currency',
+      });
+    }
+
+    // Döküman analizlerinden verileri topla
+    let bedel = null;
+    let sure = null;
+    let ogunBilgileri = [];
+    let teknikSartlar = [];
+    let birimFiyatlar = [];
+
+    for (const doc of docsResult.rows) {
+      const analysis = doc.analysis_result;
+      if (!analysis) continue;
+
+      // Bedel (yaklaşık maliyet) - analyzer: tahmini_bedel veya bedel
+      if (!bedel) {
+        const rawBedel = analysis.tahmini_bedel || analysis.bedel;
+        if (rawBedel) {
+          const parsedBedel = parseMoneyValue(rawBedel);
+          if (parsedBedel) {
+            bedel = parsedBedel;
+          }
+        }
+      }
+
+      // İş süresi - analyzer: teslim_suresi veya sure
+      if (!sure) {
+        sure = analysis.teslim_suresi || analysis.sure;
+      }
+
+      // Öğün bilgileri - analyzer: ogun_bilgileri []
+      if (analysis.ogun_bilgileri?.length > 0 && ogunBilgileri.length === 0) {
+        ogunBilgileri = analysis.ogun_bilgileri;
+      }
+
+      // Teknik şartlar - analyzer: teknik_sartlar []
+      if (analysis.teknik_sartlar?.length > 0 && teknikSartlar.length === 0) {
+        teknikSartlar = analysis.teknik_sartlar;
+      }
+
+      // Birim fiyatlar - analyzer: birim_fiyatlar []
+      if (analysis.birim_fiyatlar?.length > 0 && birimFiyatlar.length === 0) {
+        birimFiyatlar = analysis.birim_fiyatlar;
+      }
+    }
+
+    // Bedel önerisi (döküman analizinden)
+    if (bedel && !tracking.yaklasik_maliyet) {
+      suggestions.push({
+        key: 'yaklasik_maliyet_analiz',
+        label: 'Yaklaşık Maliyet',
+        value: bedel,
+        source: 'analiz',
+        fieldName: 'yaklasik_maliyet',
+        type: 'currency',
+      });
+    }
+
+    // Hesaplanmış sınır değer (varsayılan katsayı: 0.85)
+    const yaklasikMaliyet = bedel || tracking.yaklasik_maliyet || tracking.estimated_cost;
+    if (yaklasikMaliyet && !tracking.sinir_deger) {
+      const hesaplananSinirDeger = Math.round(Number(yaklasikMaliyet) * 0.85);
+      suggestions.push({
+        key: 'sinir_deger_hesaplama',
+        label: 'Tahmini Sınır Değer (×0.85)',
+        value: hesaplananSinirDeger,
+        source: 'hesaplama',
+        fieldName: 'sinir_deger',
+        type: 'currency',
+      });
+    }
+
+    // İş süresi önerisi
+    if (sure) {
+      suggestions.push({
+        key: 'is_suresi',
+        label: 'İş Süresi',
+        value: sure,
+        source: 'analiz',
+        fieldName: 'is_suresi',
+        type: 'text',
+      });
+    }
+
+    // Öğün bilgileri önerisi
+    if (ogunBilgileri.length > 0) {
+      // Toplam öğün sayısını hesapla
+      const toplamOgun = ogunBilgileri.reduce((sum, o) => sum + (Number(o.miktar) || 0), 0);
+      if (toplamOgun > 0) {
+        suggestions.push({
+          key: 'toplam_ogun',
+          label: 'Toplam Öğün Sayısı',
+          value: toplamOgun,
+          source: 'analiz',
+          fieldName: 'toplam_ogun_sayisi',
+          type: 'number',
+        });
+      }
+      
+      // Öğün detaylarını da ekle
+      suggestions.push({
+        key: 'ogun_bilgileri',
+        label: 'Öğün Detayları',
+        value: ogunBilgileri.map(o => `${o.tur}: ${o.miktar} ${o.birim || ''}`).join(', '),
+        source: 'analiz',
+        fieldName: 'ogun_bilgileri',
+        type: 'text',
+      });
+    }
+
+    // Teknik şart sayısı
+    if (teknikSartlar.length > 0) {
+      suggestions.push({
+        key: 'teknik_sart_sayisi',
+        label: 'Teknik Şart Sayısı',
+        value: teknikSartlar.length,
+        source: 'analiz',
+        fieldName: 'teknik_sart_sayisi',
+        type: 'number',
+      });
+    }
+
+    // Birim fiyat sayısı
+    if (birimFiyatlar.length > 0) {
+      suggestions.push({
+        key: 'birim_fiyat_sayisi',
+        label: 'Birim Fiyat Kalemi',
+        value: birimFiyatlar.length,
+        source: 'analiz',
+        fieldName: 'birim_fiyat_sayisi',
+        type: 'number',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        trackingId: id,
+        tenderId,
+        suggestions,
+        currentValues: {
+          yaklasik_maliyet: tracking.yaklasik_maliyet,
+          sinir_deger: tracking.sinir_deger,
+          bizim_teklif: tracking.bizim_teklif,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Suggestions error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Para değerini parse et (örn: "15.250.000 TL" -> 15250000)
+function parseMoneyValue(value) {
+  if (!value) return null;
+  if (typeof value === 'number') return value;
+
+  const str = String(value)
+    .replace(/[^\d.,]/g, '') // Sadece rakam, nokta ve virgül
+    .replace(/\./g, '')      // Binlik ayracı kaldır
+    .replace(',', '.');      // Ondalık ayracı düzelt
+
+  const num = parseFloat(str);
+  return isNaN(num) ? null : num;
+}
 
 /**
  * Not sil - Unified Notes sistemine yönlendirildi
@@ -313,18 +563,78 @@ router.post('/add-from-analysis', async (req, res) => {
       [tender_id]
     );
 
-    // Analiz özetini oluştur
+    // Analiz özetini oluştur - TÜM AI çıktı alanlarını içerir
     const analysisSummary = {
+      // Temel bilgiler
+      ozet: null,
+      ihale_turu: null,
+      tahmini_bedel: null,
+      teslim_suresi: null,
+      ikn: null,
+      gunluk_ogun_sayisi: null,
+      kisi_sayisi: null,
+      // Listeler
       teknik_sartlar: [],
       birim_fiyatlar: [],
+      takvim: [],
+      onemli_notlar: [],
+      eksik_bilgiler: [],
       notlar: [],
+      // Yeni detaylı alanlar
+      personel_detaylari: [],
+      ogun_bilgileri: [],
+      is_yerleri: [],
+      ceza_kosullari: [],
+      gerekli_belgeler: [],
+      mali_kriterler: {},
+      fiyat_farki: {},
+      teminat_oranlari: {},
+      servis_saatleri: {},
+      iletisim: {},
+      sinir_deger_katsayisi: null,
+      benzer_is_tanimi: null,
+      // Tam metin (tüm dökümanlardan birleştirilmiş)
+      tam_metin: '',
+      // Meta
       documents_count: analysisResult.rows.length,
+      document_details: [],
     };
 
     for (const doc of analysisResult.rows) {
       if (doc.analysis_result) {
         const analysis =
           typeof doc.analysis_result === 'string' ? JSON.parse(doc.analysis_result) : doc.analysis_result;
+
+        // Döküman detayını kaydet
+        analysisSummary.document_details.push({
+          id: doc.id,
+          filename: doc.original_filename,
+          doc_type: doc.doc_type,
+        });
+
+        // Özet (ilk bulunanı kullan, sonrakileri birleştir)
+        if (analysis.ozet) {
+          if (!analysisSummary.ozet) {
+            analysisSummary.ozet = analysis.ozet;
+          } else if (!analysisSummary.ozet.includes(analysis.ozet)) {
+            analysisSummary.ozet += ' | ' + analysis.ozet;
+          }
+        }
+
+        // İhale türü (ilk bulunan)
+        if (analysis.ihale_turu && !analysisSummary.ihale_turu) {
+          analysisSummary.ihale_turu = analysis.ihale_turu;
+        }
+
+        // Tahmini bedel (ilk bulunan)
+        if (analysis.tahmini_bedel && analysis.tahmini_bedel !== 'Belirtilmemiş' && !analysisSummary.tahmini_bedel) {
+          analysisSummary.tahmini_bedel = analysis.tahmini_bedel;
+        }
+
+        // Teslim süresi (ilk bulunan)
+        if (analysis.teslim_suresi && !analysisSummary.teslim_suresi) {
+          analysisSummary.teslim_suresi = analysis.teslim_suresi;
+        }
 
         // Teknik şartları topla
         if (analysis.teknik_sartlar) {
@@ -342,6 +652,21 @@ router.post('/add-from-analysis', async (req, res) => {
           analysisSummary.birim_fiyatlar.push(...analysis.unit_prices);
         }
 
+        // Takvim bilgilerini topla
+        if (analysis.takvim && Array.isArray(analysis.takvim)) {
+          analysisSummary.takvim.push(...analysis.takvim);
+        }
+
+        // Önemli notları topla
+        if (analysis.onemli_notlar && Array.isArray(analysis.onemli_notlar)) {
+          analysisSummary.onemli_notlar.push(...analysis.onemli_notlar);
+        }
+
+        // Eksik bilgileri topla
+        if (analysis.eksik_bilgiler && Array.isArray(analysis.eksik_bilgiler)) {
+          analysisSummary.eksik_bilgiler.push(...analysis.eksik_bilgiler);
+        }
+
         // Notları topla
         if (analysis.notlar) {
           analysisSummary.notlar.push(...analysis.notlar);
@@ -349,27 +674,420 @@ router.post('/add-from-analysis', async (req, res) => {
         if (analysis.notes) {
           analysisSummary.notlar.push(...analysis.notes);
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        // YENİ ALANLAR - Veri kaybı olmadan tüm bilgileri topla
+        // ═══════════════════════════════════════════════════════════════
+        
+        // IKN (ilk bulunan)
+        if (analysis.ikn && !analysisSummary.ikn) {
+          analysisSummary.ikn = analysis.ikn;
+        }
+        
+        // Günlük öğün sayısı (ilk bulunan)
+        if (analysis.gunluk_ogun_sayisi && !analysisSummary.gunluk_ogun_sayisi) {
+          analysisSummary.gunluk_ogun_sayisi = analysis.gunluk_ogun_sayisi;
+        }
+        
+        // Kişi sayısı (ilk bulunan)
+        if (analysis.kisi_sayisi && !analysisSummary.kisi_sayisi) {
+          analysisSummary.kisi_sayisi = analysis.kisi_sayisi;
+        }
+        
+        // Personel detayları topla
+        if (analysis.personel_detaylari && Array.isArray(analysis.personel_detaylari)) {
+          analysisSummary.personel_detaylari.push(...analysis.personel_detaylari);
+        }
+        
+        // Öğün bilgileri topla
+        if (analysis.ogun_bilgileri && Array.isArray(analysis.ogun_bilgileri)) {
+          analysisSummary.ogun_bilgileri.push(...analysis.ogun_bilgileri);
+        }
+        
+        // İş yerleri topla
+        if (analysis.is_yerleri && Array.isArray(analysis.is_yerleri)) {
+          analysisSummary.is_yerleri.push(...analysis.is_yerleri);
+        }
+        
+        // Ceza koşulları topla
+        if (analysis.ceza_kosullari && Array.isArray(analysis.ceza_kosullari)) {
+          analysisSummary.ceza_kosullari.push(...analysis.ceza_kosullari);
+        }
+        
+        // Gerekli belgeler topla
+        if (analysis.gerekli_belgeler && Array.isArray(analysis.gerekli_belgeler)) {
+          analysisSummary.gerekli_belgeler.push(...analysis.gerekli_belgeler);
+        }
+        
+        // Mali kriterler (merge)
+        if (analysis.mali_kriterler && typeof analysis.mali_kriterler === 'object') {
+          analysisSummary.mali_kriterler = { ...analysisSummary.mali_kriterler, ...analysis.mali_kriterler };
+        }
+        
+        // Fiyat farkı (merge)
+        if (analysis.fiyat_farki && typeof analysis.fiyat_farki === 'object') {
+          // Katsayıları birleştir
+          if (analysis.fiyat_farki.katsayilar) {
+            analysisSummary.fiyat_farki.katsayilar = {
+              ...(analysisSummary.fiyat_farki.katsayilar || {}),
+              ...analysis.fiyat_farki.katsayilar
+            };
+          }
+          // Formül (ilk bulunan)
+          if (analysis.fiyat_farki.formul && !analysisSummary.fiyat_farki.formul) {
+            analysisSummary.fiyat_farki.formul = analysis.fiyat_farki.formul;
+          }
+        }
+        
+        // Teminat oranları (merge)
+        if (analysis.teminat_oranlari && typeof analysis.teminat_oranlari === 'object') {
+          analysisSummary.teminat_oranlari = { ...analysisSummary.teminat_oranlari, ...analysis.teminat_oranlari };
+        }
+        
+        // Servis saatleri (merge)
+        if (analysis.servis_saatleri && typeof analysis.servis_saatleri === 'object') {
+          analysisSummary.servis_saatleri = { ...analysisSummary.servis_saatleri, ...analysis.servis_saatleri };
+        }
+        
+        // İletişim bilgileri (merge)
+        if (analysis.iletisim && typeof analysis.iletisim === 'object') {
+          analysisSummary.iletisim = { ...analysisSummary.iletisim, ...analysis.iletisim };
+        }
+        
+        // Sınır değer katsayısı (ilk bulunan)
+        if (analysis.sinir_deger_katsayisi && !analysisSummary.sinir_deger_katsayisi) {
+          analysisSummary.sinir_deger_katsayisi = analysis.sinir_deger_katsayisi;
+        }
+        
+        // Benzer iş tanımı (ilk bulunan)
+        if (analysis.benzer_is_tanimi && !analysisSummary.benzer_is_tanimi) {
+          analysisSummary.benzer_is_tanimi = analysis.benzer_is_tanimi;
+        }
+
+        // Tam metni topla (her döküman için ayrı başlık ile)
+        // ham_metin = extracted raw text, tam_metin = AI özeti
+        const docText = analysis.ham_metin || analysis.tam_metin || analysis.full_text || analysis.extracted_text;
+        if (docText && docText.trim() && docText.trim().length > 50) {
+          const separator = analysisSummary.tam_metin ? '\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' : '';
+          const header = `📄 ${doc.original_filename}\n[${doc.doc_type || 'Döküman'}]\n\n`;
+          analysisSummary.tam_metin += separator + header + docText.trim();
+        }
       }
     }
 
-    // Takip listesine ekle/güncelle
-    const result = await query(
-      `
-      INSERT INTO tender_tracking (
-        tender_id, user_id, status, analysis_summary, 
-        documents_analyzed, last_analysis_at
-      )
-      VALUES ($1, $2, 'bekliyor', $3, $4, NOW())
-      ON CONFLICT (tender_id, user_id) 
-      DO UPDATE SET 
-        analysis_summary = $3,
-        documents_analyzed = $4,
-        last_analysis_at = NOW(),
-        updated_at = NOW()
-      RETURNING *
-    `,
-      [tender_id, user_id || null, JSON.stringify(analysisSummary), analysisResult.rows.length]
+    // ═══════════════════════════════════════════════════════════════
+    // PROFESYONEL DEDUPE: Veri kaybı olmadan tekrarları temizle
+    // ═══════════════════════════════════════════════════════════════
+    
+    // Normalize fonksiyonu (karşılaştırma için)
+    const normalizeForCompare = (text) => {
+      return (text || '')
+        .toLowerCase()
+        .replace(/İ/gi, 'i').replace(/I/g, 'i').replace(/ı/g, 'i')
+        .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's')
+        .replace(/ö/g, 'o').replace(/ç/g, 'c')
+        .replace(/[^\w\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    };
+    
+    // 1. TAKVİM - Aynı olay adını normalize ederek kontrol et
+    const takvimMap = new Map();
+    analysisSummary.takvim.forEach(item => {
+      const key = normalizeForCompare(item.olay);
+      const existing = takvimMap.get(key);
+      if (!existing) {
+        takvimMap.set(key, item);
+      } else {
+        // Daha detaylı olan veya tarih içeren versiyonu tut
+        if (item.tarih && (!existing.tarih || item.tarih.length > existing.tarih.length)) {
+          takvimMap.set(key, item);
+        }
+      }
+    });
+    analysisSummary.takvim = Array.from(takvimMap.values());
+    
+    // 2. TEKNİK ŞARTLAR - Normalize ederek karşılaştır
+    const teknikMap = new Map();
+    analysisSummary.teknik_sartlar.forEach(item => {
+      const text = typeof item === 'string' ? item : item.madde || '';
+      const key = normalizeForCompare(text);
+      if (key.length < 10) return; // Çok kısa olanları atla
+      
+      const existing = teknikMap.get(key);
+      if (!existing) {
+        teknikMap.set(key, item);
+      } else {
+        // Daha detaylı olanı tut (daha uzun metin veya daha fazla alan)
+        const existingText = typeof existing === 'string' ? existing : existing.madde || '';
+        if (text.length > existingText.length) {
+          teknikMap.set(key, item);
+        }
+      }
+    });
+    analysisSummary.teknik_sartlar = Array.from(teknikMap.values());
+    
+    // 3. BİRİM FİYATLAR - kalem+birim kombinasyonuna göre, farklı miktarları koru
+    const birimMap = new Map();
+    analysisSummary.birim_fiyatlar.forEach(item => {
+      const kalemNorm = normalizeForCompare(item.kalem);
+      const birimNorm = normalizeForCompare(item.birim || '');
+      const miktarStr = String(item.miktar || '').replace(/[^\d]/g, '');
+      
+      // Anahtar: kalem + birim + miktar (farklı miktarlar farklı kalemler)
+      const key = `${kalemNorm}|${birimNorm}|${miktarStr}`;
+      
+      if (!birimMap.has(key)) {
+        birimMap.set(key, item);
+      } else {
+        // Daha detaylı olanı tut (fiyat bilgisi olan)
+        const existing = birimMap.get(key);
+        if (item.birim_fiyat && !existing.birim_fiyat) {
+          birimMap.set(key, item);
+        } else if (item.toplam && !existing.toplam) {
+          birimMap.set(key, item);
+        }
+      }
+    });
+    analysisSummary.birim_fiyatlar = Array.from(birimMap.values());
+    
+    // 4. ÖNEMLİ NOTLAR - Normalize ederek karşılaştır
+    const notlarMap = new Map();
+    analysisSummary.onemli_notlar.forEach(item => {
+      const text = typeof item === 'string' ? item : item.not || '';
+      const key = normalizeForCompare(text);
+      if (key.length < 10) return; // Çok kısa olanları atla
+      
+      if (!notlarMap.has(key)) {
+        notlarMap.set(key, item);
+      } else {
+        // Daha detaylı olanı tut
+        const existing = notlarMap.get(key);
+        const existingText = typeof existing === 'string' ? existing : existing.not || '';
+        if (text.length > existingText.length) {
+          notlarMap.set(key, item);
+        }
+      }
+    });
+    analysisSummary.onemli_notlar = Array.from(notlarMap.values());
+    
+    // 5. EKSİK BİLGİLER - Birebir aynı olanları temizle
+    analysisSummary.eksik_bilgiler = [...new Set(analysisSummary.eksik_bilgiler)];
+    
+    // 6. İŞ YERLERİ - Birebir aynı olanları temizle
+    analysisSummary.is_yerleri = [...new Set(analysisSummary.is_yerleri)];
+    
+    // 7. PERSONEL DETAYLARI - Pozisyona göre dedupe, en detaylıyı tut
+    const personelMap = new Map();
+    analysisSummary.personel_detaylari.forEach(item => {
+      const key = normalizeForCompare(item.pozisyon);
+      const existing = personelMap.get(key);
+      if (!existing) {
+        personelMap.set(key, item);
+      } else if (item.adet && (!existing.adet || item.adet > existing.adet)) {
+        personelMap.set(key, item);
+      }
+    });
+    analysisSummary.personel_detaylari = Array.from(personelMap.values());
+    
+    // 8. ÖĞÜN BİLGİLERİ - Öğün türüne göre dedupe
+    const ogunMap = new Map();
+    analysisSummary.ogun_bilgileri.forEach(item => {
+      const key = normalizeForCompare(item.tur);
+      const existing = ogunMap.get(key);
+      if (!existing) {
+        ogunMap.set(key, item);
+      } else if (item.miktar && (!existing.miktar || item.miktar > existing.miktar)) {
+        ogunMap.set(key, item);
+      }
+    });
+    analysisSummary.ogun_bilgileri = Array.from(ogunMap.values());
+    
+    // 9. CEZA KOŞULLARI - Türe göre dedupe
+    const cezaMap = new Map();
+    analysisSummary.ceza_kosullari.forEach(item => {
+      const key = normalizeForCompare(item.tur);
+      if (!cezaMap.has(key)) {
+        cezaMap.set(key, item);
+      }
+    });
+    analysisSummary.ceza_kosullari = Array.from(cezaMap.values());
+    
+    // 10. GEREKLİ BELGELER - Belge adına göre dedupe
+    const belgeMap = new Map();
+    analysisSummary.gerekli_belgeler.forEach(item => {
+      const key = normalizeForCompare(typeof item === 'string' ? item : item.belge);
+      if (!belgeMap.has(key)) {
+        belgeMap.set(key, item);
+      }
+    });
+    analysisSummary.gerekli_belgeler = Array.from(belgeMap.values());
+    
+    // Türkçe karakterleri normalize et (İ→i, Ş→s, vb.)
+    const normalizeText = (text) => {
+      return (text || '')
+        .toLowerCase()
+        .replace(/İ/gi, 'i')
+        .replace(/I/g, 'ı')
+        .replace(/ı/g, 'i')
+        .replace(/ğ/g, 'g')
+        .replace(/ü/g, 'u')
+        .replace(/ş/g, 's')
+        .replace(/ö/g, 'o')
+        .replace(/ç/g, 'c')
+        .replace(/[^\w\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    };
+    
+    // Bulunan verilere göre "eksik" olmayan bilgileri çıkar
+    // Bu şekilde veri kaybı olmaz, sadece gerçekten bulunanlar filtrelenir
+    const bulunanBilgiler = [];
+    
+    // Takvimde bulunan bilgileri kontrol et
+    if (analysisSummary.takvim && analysisSummary.takvim.length > 0) {
+      analysisSummary.takvim.forEach(t => {
+        const olay = normalizeText(t.olay);
+        if (olay.includes('ihale') && t.tarih) {
+          bulunanBilgiler.push('ihale tarihi', 'ihale tarih', 'basvuru son tarih');
+          // Saat bilgisi varsa onu da ekle
+          if (t.tarih && (t.tarih.includes(':') || olay.includes('saat'))) {
+            bulunanBilgiler.push('saat bilgi', 'ihalenin saat');
+          }
+        }
+        if (olay.includes('teklif') && t.tarih) bulunanBilgiler.push('son teklif', 'teklif verme', 'teklif gecerlilik');
+        if ((olay.includes('basla') || olay.includes('baslangic')) && t.tarih) bulunanBilgiler.push('baslangic tarih', 'baslama tarih', 'isin baslama', 'ise baslama');
+        if (olay.includes('sozlesme') && t.tarih) bulunanBilgiler.push('sozlesme sur', 'sozlesme imza');
+        if (olay.includes('teminat') && t.tarih) bulunanBilgiler.push('teminat', 'kesin teminat');
+        if (olay.includes('teslim') && t.tarih) bulunanBilgiler.push('teslim', 'isyeri teslim');
+      });
+    }
+    
+    // Birim fiyatlarda bulunan bilgileri kontrol et
+    if (analysisSummary.birim_fiyatlar && analysisSummary.birim_fiyatlar.length > 0) {
+      bulunanBilgiler.push('birim fiyat', 'detayli birim fiyat', 'ogun birim fiyat', 'toplam tutar');
+    }
+    
+    // Teknik şartlarda bulunan bilgileri kontrol et
+    if (analysisSummary.teknik_sartlar && analysisSummary.teknik_sartlar.length > 0) {
+      bulunanBilgiler.push('teknik sartname');
+      // Personel, teminat gibi bilgiler teknik şartlarda olabilir
+      analysisSummary.teknik_sartlar.forEach(ts => {
+        const madde = normalizeText(typeof ts === 'string' ? ts : ts.madde);
+        if (madde.includes('personel')) bulunanBilgiler.push('personel', 'personel nitelik');
+        if (madde.includes('teminat')) bulunanBilgiler.push('teminat', 'kesin teminat', 'teminat miktar', 'teminat tutar');
+        if (madde.includes('odeme')) bulunanBilgiler.push('odeme sart', 'odeme kosul');
+        if (madde.includes('ceza')) bulunanBilgiler.push('ceza madde', 'ceza');
+        if (madde.includes('teslim')) bulunanBilgiler.push('teslim yer', 'teslim');
+        if (madde.includes('fiyat fark')) bulunanBilgiler.push('fiyat fark');
+        if (madde.includes('yemek') && madde.includes('sayı')) bulunanBilgiler.push('yemek say', 'gunluk yemek', 'kapasite');
+        if (madde.includes('adres') || madde.includes('isyeri')) bulunanBilgiler.push('isyeri adres', 'calisma kosul');
+      });
+    }
+    
+    // Önemli notlarda bulunan bilgileri kontrol et  
+    if (analysisSummary.onemli_notlar && analysisSummary.onemli_notlar.length > 0) {
+      analysisSummary.onemli_notlar.forEach(n => {
+        const not = normalizeText(typeof n === 'string' ? n : n.not);
+        if (not.includes('bedel') || not.includes('butce')) bulunanBilgiler.push('tahmini bedel', 'tahmini ihale bedel');
+        if (not.includes('komisyon')) bulunanBilgiler.push('komisyon', 'ihale komisyon');
+        if (not.includes('dosya bedel')) bulunanBilgiler.push('dosya bedel', 'ihale dosya');
+        if (not.includes('idare') || not.includes('kurum')) bulunanBilgiler.push('idare', 'kurum', 'iletisim', 'ihaleyi yapan');
+        if (not.includes('usul')) bulunanBilgiler.push('ihale usul', 'acik', 'kapali');
+        if (not.includes('teminat')) bulunanBilgiler.push('teminat', 'kesin teminat', 'teminat miktar', 'teminat tutar');
+        if (not.includes('ceza')) bulunanBilgiler.push('ceza');
+        if (not.includes('teslim')) bulunanBilgiler.push('teslim');
+      });
+    }
+    
+    // Tüm analiz metnini birleştir (daha kapsamlı arama için)
+    const tumMetin = [
+      ...(analysisSummary.takvim || []).map(t => (t.olay || '') + ' ' + (t.tarih || '')),
+      ...(analysisSummary.teknik_sartlar || []).map(t => typeof t === 'string' ? t : t.madde || ''),
+      ...(analysisSummary.onemli_notlar || []).map(n => typeof n === 'string' ? n : n.not || ''),
+      ...(analysisSummary.birim_fiyatlar || []).map(b => (b.kalem || '') + ' ' + (b.miktar || '')),
+      analysisSummary.ozet || ''
+    ].join(' ');
+    const tumMetinNorm = normalizeText(tumMetin);
+    
+    // Eksik bilgi -> aranacak anahtar kelimeler eşleştirmesi
+    const eksikKeywords = {
+      'ihale tarihi': ['ihale tarih', '2026', '2025', '2024'],
+      'basvuru son tarih': ['ihale tarih', 'son tarih', 'teklif tarih'],
+      'ihalenin saat': ['10:00', '11:00', '09:00', 'saat'],
+      'saat bilgi': ['10:00', '11:00', '09:00', 'saat'],
+      'ihaleyi yapan kurum': ['hastane', 'belediye', 'universite', 'mudurlugu', 'baskanligi', 'idare'],
+      'ihaleyi duzenleyen': ['hastane', 'belediye', 'universite', 'mudurlugu', 'idare'],
+      'gunluk yemek': ['gunluk', 'ogun', 'kisi', 'adet', 'porsiyon'],
+      'kapasite': ['gunluk', 'kisi', 'adet', 'kapasite'],
+      'fiyat farki': ['fiyat fark', 'formul', 'katsayi'],
+      'formul detay': ['fiyat fark', 'formul'],
+      'katsayi deger': ['fiyat fark', 'katsayi', 'a1', 'b1']
+    };
+    
+    // Bulunan bilgileri eksik listesinden çıkar
+    analysisSummary.eksik_bilgiler = analysisSummary.eksik_bilgiler.filter(eksik => {
+      const eksikNorm = normalizeText(eksik);
+      
+      // 1. Önce bulunanBilgiler listesinde ara
+      if (bulunanBilgiler.some(bulunan => eksikNorm.includes(bulunan))) {
+        return false; // Bulundu, eksik değil
+      }
+      
+      // 2. Eksik için tanımlı anahtar kelimelerle tüm metinde ara
+      for (const [key, keywords] of Object.entries(eksikKeywords)) {
+        if (eksikNorm.includes(key)) {
+          // Bu eksik için tanımlı anahtar kelimelerden biri metinde var mı?
+          if (keywords.some(kw => tumMetinNorm.includes(kw))) {
+            return false; // Bulundu, eksik değil
+          }
+        }
+      }
+      
+      return true; // Gerçekten eksik
+    });
+
+    // Önce mevcut kayıt var mı kontrol et (NULL user_id için ON CONFLICT çalışmıyor)
+    const existingCheck = await query(
+      `SELECT id FROM tender_tracking WHERE tender_id = $1 AND (user_id = $2 OR (user_id IS NULL AND $2 IS NULL))`,
+      [tender_id, user_id || null]
     );
+
+    // Sayıları hesapla
+    const teknikSartSayisi = analysisSummary.teknik_sartlar?.length || 0;
+    const birimFiyatSayisi = analysisSummary.birim_fiyatlar?.length || 0;
+
+    let result;
+    if (existingCheck.rows.length > 0) {
+      // Mevcut kaydı güncelle
+      result = await query(
+        `
+        UPDATE tender_tracking SET
+          analysis_summary = $2,
+          documents_analyzed = $3,
+          teknik_sart_sayisi = $4,
+          birim_fiyat_sayisi = $5,
+          last_analysis_at = NOW(),
+          updated_at = NOW()
+        WHERE id = $1
+        RETURNING *
+      `,
+        [existingCheck.rows[0].id, JSON.stringify(analysisSummary), analysisResult.rows.length, teknikSartSayisi, birimFiyatSayisi]
+      );
+    } else {
+      // Yeni kayıt oluştur
+      result = await query(
+        `
+        INSERT INTO tender_tracking (
+          tender_id, user_id, status, analysis_summary, 
+          documents_analyzed, teknik_sart_sayisi, birim_fiyat_sayisi, last_analysis_at
+        )
+        VALUES ($1, $2, 'bekliyor', $3, $4, $5, $6, NOW())
+        RETURNING *
+      `,
+        [tender_id, user_id || null, JSON.stringify(analysisSummary), analysisResult.rows.length, teknikSartSayisi, birimFiyatSayisi]
+      );
+    }
 
     res.json({
       success: true,
