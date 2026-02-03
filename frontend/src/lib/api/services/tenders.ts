@@ -90,6 +90,14 @@ export const tendersAPI = {
   },
 
   /**
+   * Döküman analizinden tespit edilen önerileri getir
+   */
+  async getTenderSuggestions(trackingId: number): Promise<ApiResponse<any>> {
+    const response = await api.get(`/api/tender-tracking/${trackingId}/suggestions`);
+    return response.data;
+  },
+
+  /**
    * Takip notunu ekle
    */
   async addTrackingNote(trackingId: number, note: string): Promise<ApiResponse<any>> {

@@ -19,10 +19,8 @@ import {
   IconFile,
   IconFileText,
   IconRefresh,
-  IconTrash,
   IconX,
 } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
 import { API_BASE_URL } from '@/lib/config';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
@@ -114,75 +112,29 @@ export function DocumentsPanel({ tenderId, tenderTitle, onRefresh }: DocumentsPa
     return labels[docType] || docType;
   };
 
-  // Reset all documents
-  const handleResetDocuments = async () => {
-    if (documents.length === 0) return;
+  // Sync analysis summary to tender (silent auto-sync)
+  const handleSyncAnalysis = useCallback(async () => {
+    if (completedDocs === 0) return;
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tender-content/documents/reset`, {
+      await fetch(`${API_BASE_URL}/api/tender-tracking/add-from-analysis`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ documentIds: documents.map(d => d.id) }),
+        body: JSON.stringify({ tender_id: tenderId }),
       });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        notifications.show({
-          title: 'Başarılı',
-          message: `${data.resetCount} döküman sıfırlandı`,
-          color: 'green',
-        });
-        fetchDocuments();
-      } else {
-        throw new Error(data.error);
-      }
+      onRefresh?.();
     } catch (error) {
-      notifications.show({
-        title: 'Hata',
-        message: error instanceof Error ? error.message : 'Sıfırlama başarısız',
-        color: 'red',
-      });
+      console.error('Auto-sync error:', error);
     }
-  };
+  }, [completedDocs, tenderId, onRefresh]);
 
-  // Delete all documents
-  const handleDeleteAllDocuments = async () => {
-    if (!confirm('Bu ihaleye ait TÜM dökümanları silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz!')) {
-      return;
+  // Auto-sync when documents are loaded and there are completed analyses
+  useEffect(() => {
+    if (!loading && completedDocs > 0) {
+      handleSyncAnalysis();
     }
-    
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/tender-content/${tenderId}/documents?deleteFromStorage=true`,
-        {
-          method: 'DELETE',
-          credentials: 'include',
-        }
-      );
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        notifications.show({
-          title: 'Başarılı',
-          message: `${data.deletedCount} döküman silindi`,
-          color: 'green',
-        });
-        fetchDocuments();
-        onRefresh?.();
-      } else {
-        throw new Error(data.error);
-      }
-    } catch (error) {
-      notifications.show({
-        title: 'Hata',
-        message: error instanceof Error ? error.message : 'Silme başarısız',
-        color: 'red',
-      });
-    }
-  };
+  }, [loading, completedDocs, handleSyncAnalysis]);
 
   return (
     <>
@@ -208,45 +160,18 @@ export function DocumentsPanel({ tenderId, tenderTitle, onRefresh }: DocumentsPa
           )}
 
           {/* Open Wizard Button */}
-          <Button
-            size="xs"
-            variant="gradient"
-            style={{ background: 'linear-gradient(135deg, #C9A227 0%, #D4AF37 50%, #E6C65C 100%)', border: 'none' }}
-            leftSection={<IconFileText size={14} />}
-            onClick={openWizard}
-            fullWidth
-          >
-            Döküman Yönetimi
-          </Button>
-
-          {/* Document Actions */}
-          <Group justify="space-between">
-            <Group gap={4}>
-              <Tooltip label="Dökümanları sıfırla (tekrar analiz için)">
-                <ActionIcon 
-                  variant="light" 
-                  color="orange" 
-                  size="sm" 
-                  onClick={handleResetDocuments}
-                  disabled={totalDocs === 0}
-                >
-                  <IconRefresh size={14} />
-                </ActionIcon>
-              </Tooltip>
-              <Tooltip label="Tüm dökümanları sil">
-                <ActionIcon 
-                  variant="light" 
-                  color="red" 
-                  size="sm" 
-                  onClick={handleDeleteAllDocuments}
-                  disabled={totalDocs === 0}
-                >
-                  <IconTrash size={14} />
-                </ActionIcon>
-              </Tooltip>
-            </Group>
+          <Group gap="xs">
+            <Button
+              size="xs"
+              variant="gradient"
+              style={{ background: 'linear-gradient(135deg, #C9A227 0%, #D4AF37 50%, #E6C65C 100%)', border: 'none', flex: 1 }}
+              leftSection={<IconFileText size={14} />}
+              onClick={openWizard}
+            >
+              Döküman Yönetimi
+            </Button>
             <Tooltip label="Yenile">
-              <ActionIcon variant="subtle" size="sm" onClick={fetchDocuments} loading={loading}>
+              <ActionIcon variant="light" size="md" onClick={fetchDocuments} loading={loading}>
                 <IconRefresh size={14} />
               </ActionIcon>
             </Tooltip>

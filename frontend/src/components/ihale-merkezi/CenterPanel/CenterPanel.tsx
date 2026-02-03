@@ -9,10 +9,13 @@ import {
   Center,
   Chip,
   CopyButton,
+  Divider,
   Group,
   Loader,
+  Modal,
   NumberInput,
   Paper,
+  Progress,
   ScrollArea,
   SegmentedControl,
   Select,
@@ -30,6 +33,7 @@ import {
 import { useDebouncedCallback } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
+  IconAlertCircle,
   IconAlertTriangle,
   IconArrowLeft,
   IconBookmark,
@@ -38,46 +42,73 @@ import {
   IconBulb,
   IconCalculator,
   IconCalendar,
+  IconCertificate,
   IconCheck,
   IconChevronDown,
+  IconChevronRight,
   IconClipboardList,
-  IconCloudDownload,
+  IconClock,
   IconCoin,
   IconCopy,
   IconCurrencyLira,
+  IconDatabase,
   IconDownload,
+  IconExclamationMark,
   IconExternalLink,
   IconFile,
+  IconX,
   IconFileAnalytics,
   IconFileDownload,
   IconFileText,
   IconGavel,
+  IconInfoCircle,
   IconMapPin,
   IconMathFunction,
   IconNote,
+  IconPhone,
   IconPlus,
   IconRefresh,
+  IconRotate,
   IconScale,
   IconSearch,
   IconSend,
+  IconSettings,
+  IconShield,
   IconSparkles,
+  IconToolsKitchen2,
   IconTrash,
+  IconUsers,
+  IconWallet,
 } from '@tabler/icons-react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { aiAPI } from '@/lib/api/services/ai';
 import { tendersAPI } from '@/lib/api/services/tenders';
+import { API_BASE_URL } from '@/lib/config';
+import { ContextualNotesSection } from '@/components/notes/ContextualNotesSection';
 import type { Tender } from '@/types/api';
 import type {
   AINote,
   AnalysisData,
+  CezaKosulu,
+  FiyatFarki,
+  GerekliBelge,
   IhaleMerkeziState,
+  IletisimBilgileri,
+  MaliKriterler,
+  OgunBilgisi,
+  OnemliNot,
+  PersonelDetay,
   SavedTender,
+  ServisSaatleri,
+  TakvimItem,
   TeknikSart,
+  TeminatOranlari,
   TenderStatus,
 } from '../types';
 import { statusConfig } from '../types';
 import { DocumentWizardModal } from '../DocumentWizardModal';
+import { detectMissingCriticalData, InlineDataForm } from '../InlineDataForm';
+import { CalculationModal } from '../CalculationModal';
 
 interface CenterPanelProps {
   state: IhaleMerkeziState;
@@ -100,33 +131,177 @@ export function CenterPanel({
   onRefreshData,
   isMobile = false,
 }: CenterPanelProps) {
-  const { selectedTender, activeDetailTab, dilekceType, firmalar, selectedFirmaId } = state;
-
-  // URL state için hooks
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  // Document wizard modal state - URL'den oku
-  const wizardParam = searchParams.get('wizard');
-  const documentWizardOpen = wizardParam === '1' || wizardParam === 'open';
-
-  // Modal aç/kapa fonksiyonları - URL'i güncelle
-  const openDocumentWizard = useCallback(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('wizard', '1');
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [searchParams, router, pathname]);
-
-  const closeDocumentWizard = useCallback(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete('wizard');
-    const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
-    router.push(newUrl, { scroll: false });
-  }, [searchParams, router, pathname]);
+  const { selectedTender, activeDetailTab, firmalar, selectedFirmaId } = state;
 
   // Selected firma
   const selectedFirma = firmalar?.find((f) => f.id === selectedFirmaId);
+
+  // Döküman Ayarları Modal state
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  
+  // Döküman Wizard Modal state (Özet sekmesinden erişim için)
+  const [documentWizardOpen, setDocumentWizardOpen] = useState(false);
+  
+  // Analiz Detay Modalleri
+  const [teknikModalOpen, setTeknikModalOpen] = useState(false);
+  const [birimModalOpen, setBirimModalOpen] = useState(false);
+  const [tamMetinModalOpen, setTamMetinModalOpen] = useState(false);
+  
+  const [docStats, setDocStats] = useState<{
+    total: number;
+    completed: number;
+    pending: number;
+    failed: number;
+    documents: Array<{
+      original_filename: string;
+      doc_type: string;
+      processing_status: string;
+      source_type?: string;
+    }>;
+  } | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+
+  // Döküman istatistiklerini çek
+  const fetchDocStats = useCallback(async () => {
+    if (!selectedTender || !('tender_id' in selectedTender)) return;
+    
+    setSettingsLoading(true);
+    try {
+      const response = await tendersAPI.getDownloadedDocuments(String(selectedTender.tender_id));
+      if (response.success && response.data?.documents) {
+        type DocFile = { original_filename: string; doc_type: string; processing_status: string; file_type?: string; source_type?: string };
+        const allDocs: DocFile[] = response.data.documents
+          .flatMap((g: { files: DocFile[] }) => g.files)
+          .filter((d: DocFile) => !d.original_filename?.toLowerCase().endsWith('.zip') && !d.original_filename?.toLowerCase().endsWith('.rar'));
+        setDocStats({
+          total: allDocs.length,
+          completed: allDocs.filter((d: DocFile) => d.processing_status === 'completed').length,
+          pending: allDocs.filter((d: DocFile) => d.processing_status === 'pending').length,
+          failed: allDocs.filter((d: DocFile) => d.processing_status === 'failed').length,
+          documents: allDocs.map((d: DocFile) => ({
+            original_filename: d.original_filename,
+            doc_type: d.doc_type || 'Bilinmiyor',
+            processing_status: d.processing_status,
+            source_type: d.source_type,
+          })),
+        });
+      }
+    } catch (error) {
+      console.error('Doc stats error:', error);
+    } finally {
+      setSettingsLoading(false);
+    }
+  }, [selectedTender]);
+
+  // Modal açıldığında istatistikleri çek
+  useEffect(() => {
+    if (settingsModalOpen) {
+      fetchDocStats();
+    }
+  }, [settingsModalOpen, fetchDocStats]);
+
+  // Döküman işlemleri
+  const handleSyncAnalysis = async () => {
+    if (!selectedTender || !('tender_id' in selectedTender)) return;
+    setSettingsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tender-tracking/add-from-analysis`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ tender_id: selectedTender.tender_id }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        notifications.show({ title: 'Başarılı', message: 'Analiz özeti güncellendi', color: 'green' });
+        onRefreshData?.();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      notifications.show({ title: 'Hata', message: error instanceof Error ? error.message : 'Senkronizasyon başarısız', color: 'red' });
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleResetDocuments = async () => {
+    if (!selectedTender || !('tender_id' in selectedTender)) return;
+    if (!confirm('Tüm dökümanları sıfırlamak istediğinize emin misiniz?\n\nBu işlem dökümanları tekrar analiz edilebilir hale getirir.')) return;
+    
+    setSettingsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tender-content/documents/reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ tenderId: selectedTender.tender_id }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        notifications.show({ title: 'Başarılı', message: `${data.resetCount} döküman sıfırlandı`, color: 'green' });
+        fetchDocStats();
+        onRefreshData?.();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      notifications.show({ title: 'Hata', message: error instanceof Error ? error.message : 'Sıfırlama başarısız', color: 'red' });
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleClearAnalysis = async () => {
+    if (!selectedTender || !('tender_id' in selectedTender)) return;
+    if (!confirm('Tüm analiz sonuçlarını temizlemek istediğinize emin misiniz?\n\nDökümanlar silinmez, sadece analizler sıfırlanır.')) return;
+    
+    setSettingsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tender-content/${selectedTender.tender_id}/clear-analysis`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (data.success) {
+        notifications.show({ title: 'Başarılı', message: `${data.clearedCount} dökümanın analizi temizlendi`, color: 'green' });
+        fetchDocStats();
+        onRefreshData?.();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      notifications.show({ title: 'Hata', message: error instanceof Error ? error.message : 'Temizleme başarısız', color: 'red' });
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleDeleteAllDocuments = async () => {
+    if (!selectedTender || !('tender_id' in selectedTender)) return;
+    if (!confirm('Bu ihaleye ait TÜM dökümanları silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz!')) return;
+    
+    setSettingsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tender-content/${selectedTender.tender_id}/documents?deleteFromStorage=true`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (data.success) {
+        notifications.show({ title: 'Başarılı', message: `${data.deletedCount} döküman silindi`, color: 'green' });
+        setSettingsModalOpen(false);
+        fetchDocStats();
+        onRefreshData?.();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      notifications.show({ title: 'Hata', message: error instanceof Error ? error.message : 'Silme başarısız', color: 'red' });
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
 
   // No tender selected
   if (!selectedTender) {
@@ -158,7 +333,6 @@ export function CenterPanel({
   const isSaved = isSavedTender(selectedTender);
 
   // Analiz durumu kontrolü
-  const hasDocuments = isSaved && (selectedTender.dokuman_sayisi || 0) > 0;
   const hasAnalysis =
     isSaved &&
     ((selectedTender.analiz_edilen_dokuman || 0) > 0 ||
@@ -176,6 +350,9 @@ export function CenterPanel({
   // Zeyilname ve düzeltme ilanı (sadece SavedTender için)
   const zeyilname = isSaved ? selectedTender.zeyilname_content : null;
   const correction = isSaved ? selectedTender.correction_notice_content : null;
+
+  // Tipli analysis_summary (SavedTender için)
+  const analysisSummary: AnalysisData | undefined = isSaved ? selectedTender.analysis_summary : undefined;
 
   return (
     <Box
@@ -220,44 +397,56 @@ export function CenterPanel({
                 </Button>
               )}
               {isSaved && (
-                <Tooltip label="JSON olarak indir">
-                  <ActionIcon
-                    variant="light"
-                    size="md"
-                    onClick={() => {
-                      const data = {
-                        ihale: {
-                          baslik: selectedTender.ihale_basligi,
-                          kurum: selectedTender.kurum,
-                          tarih: selectedTender.tarih,
-                          sehir: selectedTender.city,
-                          bedel: selectedTender.bedel,
-                          external_id: selectedTender.external_id,
-                          url: selectedTender.url,
-                        },
-                        hesaplamalar: {
-                          yaklasik_maliyet: selectedTender.yaklasik_maliyet,
-                          sinir_deger: selectedTender.sinir_deger,
-                          bizim_teklif: selectedTender.bizim_teklif,
-                        },
-                        analiz: selectedTender.analysis_summary,
-                        durum: selectedTender.status,
-                        olusturulma: selectedTender.created_at,
-                      };
-                      const blob = new Blob([JSON.stringify(data, null, 2)], {
-                        type: 'application/json',
-                      });
-                      const urlObj = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = urlObj;
-                      a.download = `ihale_${selectedTender.external_id || selectedTender.id}_${Date.now()}.json`;
-                      a.click();
-                      URL.revokeObjectURL(urlObj);
-                    }}
-                  >
-                    <IconDownload size={16} />
-                  </ActionIcon>
-                </Tooltip>
+                <>
+                  <Tooltip label="Döküman Ayarları">
+                    <ActionIcon
+                      variant="light"
+                      color="grape"
+                      size="md"
+                      onClick={() => setSettingsModalOpen(true)}
+                    >
+                      <IconSettings size={16} />
+                    </ActionIcon>
+                  </Tooltip>
+                  <Tooltip label="JSON olarak indir">
+                    <ActionIcon
+                      variant="light"
+                      size="md"
+                      onClick={() => {
+                        const data = {
+                          ihale: {
+                            baslik: selectedTender.ihale_basligi,
+                            kurum: selectedTender.kurum,
+                            tarih: selectedTender.tarih,
+                            sehir: selectedTender.city,
+                            bedel: selectedTender.bedel,
+                            external_id: selectedTender.external_id,
+                            url: selectedTender.url,
+                          },
+                          hesaplamalar: {
+                            yaklasik_maliyet: selectedTender.yaklasik_maliyet,
+                            sinir_deger: selectedTender.sinir_deger,
+                            bizim_teklif: selectedTender.bizim_teklif,
+                          },
+                          analiz: selectedTender.analysis_summary,
+                          durum: selectedTender.status,
+                          olusturulma: selectedTender.created_at,
+                        };
+                        const blob = new Blob([JSON.stringify(data, null, 2)], {
+                          type: 'application/json',
+                        });
+                        const urlObj = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = urlObj;
+                        a.download = `ihale_${selectedTender.external_id || selectedTender.id}_${Date.now()}.json`;
+                        a.click();
+                        URL.revokeObjectURL(urlObj);
+                      }}
+                    >
+                      <IconDownload size={16} />
+                    </ActionIcon>
+                  </Tooltip>
+                </>
               )}
             </Group>
           </Group>
@@ -456,28 +645,6 @@ export function CenterPanel({
               <Tabs.Tab value="ozet" leftSection={<IconFileText size={14} />}>
                 Özet
               </Tabs.Tab>
-              {/* Analiz - sadece döküman varsa göster */}
-              {hasDocuments && (
-                <Tabs.Tab
-                  value="analiz"
-                  leftSection={<IconBrain size={14} />}
-                  disabled={!hasAnalysis}
-                >
-                  <Group gap={4}>
-                    Analiz
-                    {hasAnalysis ? (
-                      <Badge size="xs" variant="filled" color="orange">
-                        {(selectedTender.teknik_sart_sayisi || 0) +
-                          (selectedTender.birim_fiyat_sayisi || 0)}
-                      </Badge>
-                    ) : (
-                      <Badge size="xs" variant="light" color="gray">
-                        Yok
-                      </Badge>
-                    )}
-                  </Group>
-                </Tabs.Tab>
-              )}
               {/* Dökümanlar - sadece takip ediliyorsa göster */}
               {isSaved && (
                 <Tabs.Tab value="dokumanlar" leftSection={<IconFile size={14} />}>
@@ -491,19 +658,11 @@ export function CenterPanel({
                   </Group>
                 </Tabs.Tab>
               )}
-              {/* Araçlar, Dilekçe, Teklif - sadece döküman varsa göster */}
-              {hasDocuments && (
-                <>
-                  <Tabs.Tab value="araclar" leftSection={<IconCalculator size={14} />}>
-                    Araçlar
-                  </Tabs.Tab>
-                  <Tabs.Tab value="dilekce" leftSection={<IconGavel size={14} />}>
-                    Dilekçe
-                  </Tabs.Tab>
-                  <Tabs.Tab value="teklif" leftSection={<IconFileAnalytics size={14} />}>
-                    Teklif
-                  </Tabs.Tab>
-                </>
+              {/* Notlar */}
+              {isSaved && (
+                <Tabs.Tab value="notlar" leftSection={<IconNote size={14} />}>
+                  Notlar
+                </Tabs.Tab>
               )}
             </Tabs.List>
 
@@ -551,59 +710,34 @@ export function CenterPanel({
                   </Paper>
                 )}
 
-                {/* Takip Edilmiş ama Analiz Yok - Döküman Yönetimi Kartı */}
+                {/* Takip Edilmiş ama Analiz Yok - Bilgi Mesajı */}
                 {isSaved && !hasAnalysis && (
-                  <Paper
-                    p="lg"
-                    withBorder
-                    radius="lg"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(201, 162, 39, 0.15), rgba(201, 162, 39, 0.03))',
-                      borderColor: '#C9A227',
-                    }}
-                  >
-                    <Stack gap="md" align="center">
-                      <ThemeIcon size={50} variant="light" color="orange" radius="xl">
-                        <IconSparkles size={24} />
+                  <Paper p="sm" withBorder radius="md" bg="dark.7">
+                    <Group gap="xs">
+                      <ThemeIcon size="sm" variant="light" color="yellow" radius="xl">
+                        <IconSparkles size={14} />
                       </ThemeIcon>
-                      <Box ta="center">
-                        <Text size="md" fw={600}>Döküman ve Analiz</Text>
-                        <Text size="sm" c="dimmed">
-                          Site içeriğini çekin, dökümanları indirin ve AI ile analiz edin
-                        </Text>
-                      </Box>
-                      <Button
-                        variant="gradient"
-                        style={{ background: 'linear-gradient(135deg, #C9A227 0%, #D4AF37 50%, #E6C65C 100%)', border: 'none' }}
-                        size="md"
-                        leftSection={<IconFileText size={18} />}
-                        onClick={openDocumentWizard}
-                      >
-                        Döküman Yönetimi
-                      </Button>
-                      {hasDocuments && (
-                        <Text size="xs" c="dimmed">
-                          {selectedTender.dokuman_sayisi} döküman mevcut, analiz bekliyor
-                        </Text>
-                      )}
-                    </Stack>
+                      <Text size="xs" c="dimmed">
+                        Döküman indirme ve AI analizi için <strong>Dökümanlar</strong> sekmesini kullanın
+                      </Text>
+                    </Group>
                   </Paper>
                 )}
 
                 {/* Analiz Özeti - Kompakt Kartlar (sadece analiz varsa) */}
                 {hasAnalysis && (
-                  <SimpleGrid cols={3} spacing="xs">
+                  <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="xs">
+                    {/* Teknik Şartlar */}
                     <Paper
                       p="sm"
                       withBorder
                       radius="md"
                       style={{
-                        background:
-                          'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05))',
+                        background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05))',
                         borderColor: 'var(--mantine-color-blue-6)',
-                        cursor: 'pointer',
+                        cursor: (selectedTender.teknik_sart_sayisi || 0) > 0 ? 'pointer' : 'default',
                       }}
-                      onClick={() => onStateChange({ activeDetailTab: 'analiz' })}
+                      onClick={() => (selectedTender.teknik_sart_sayisi || 0) > 0 && setTeknikModalOpen(true)}
                     >
                       <Group gap="xs">
                         <ThemeIcon size="lg" variant="light" color="blue" radius="xl">
@@ -613,23 +747,22 @@ export function CenterPanel({
                           <Text size="xl" fw={700} c="blue">
                             {selectedTender.teknik_sart_sayisi || 0}
                           </Text>
-                          <Text size="xs" c="dimmed">
-                            Teknik Şart
-                          </Text>
+                          <Text size="xs" c="dimmed">Teknik Şart</Text>
                         </Box>
                       </Group>
                     </Paper>
+                    
+                    {/* Birim Fiyatlar */}
                     <Paper
                       p="sm"
                       withBorder
                       radius="md"
                       style={{
-                        background:
-                          'linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05))',
+                        background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05))',
                         borderColor: 'var(--mantine-color-green-6)',
-                        cursor: 'pointer',
+                        cursor: (selectedTender.birim_fiyat_sayisi || 0) > 0 ? 'pointer' : 'default',
                       }}
-                      onClick={() => onStateChange({ activeDetailTab: 'analiz' })}
+                      onClick={() => (selectedTender.birim_fiyat_sayisi || 0) > 0 && setBirimModalOpen(true)}
                     >
                       <Group gap="xs">
                         <ThemeIcon size="lg" variant="light" color="green" radius="xl">
@@ -639,144 +772,204 @@ export function CenterPanel({
                           <Text size="xl" fw={700} c="green">
                             {selectedTender.birim_fiyat_sayisi || 0}
                           </Text>
-                          <Text size="xs" c="dimmed">
-                            Birim Fiyat
-                          </Text>
+                          <Text size="xs" c="dimmed">Birim Fiyat</Text>
                         </Box>
                       </Group>
                     </Paper>
+                    
+                    {/* Tam Metin */}
                     <Paper
                       p="sm"
                       withBorder
                       radius="md"
                       style={{
-                        background:
-                          'linear-gradient(135deg, rgba(201, 162, 39, 0.15), rgba(201, 162, 39, 0.05))',
-                        borderColor: '#C9A227',
-                        cursor: 'pointer',
+                        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05))',
+                        borderColor: 'var(--mantine-color-violet-6)',
+                        cursor: analysisSummary?.tam_metin ? 'pointer' : 'default',
                       }}
-                      onClick={() => onStateChange({ activeDetailTab: 'dokumanlar' })}
+                      onClick={() => analysisSummary?.tam_metin && setTamMetinModalOpen(true)}
                     >
                       <Group gap="xs">
-                        <ThemeIcon size="lg" variant="light" color="orange" radius="xl">
-                          <IconFile size={18} />
+                        <ThemeIcon size="lg" variant="light" color="violet" radius="xl">
+                          <IconFileText size={18} />
                         </ThemeIcon>
                         <Box>
-                          <Text size="xl" fw={700} c="orange">
-                            {selectedTender.analiz_edilen_dokuman || 0}/
-                            {selectedTender.dokuman_sayisi || 0}
+                          <Text size="xl" fw={700} c="violet">
+                            {analysisSummary?.tam_metin ? '📄' : '-'}
                           </Text>
-                          <Text size="xs" c="dimmed">
-                            Analiz Edildi
-                          </Text>
+                          <Text size="xs" c="dimmed">Tam Metin</Text>
                         </Box>
                       </Group>
                     </Paper>
+                    
+                    {/* Analiz Edildi - Tıklayınca modal açılır */}
+                    <Tooltip label="Döküman Yönetimi">
+                      <Paper
+                        p="sm"
+                        withBorder
+                        radius="md"
+                        style={{
+                          background: 'linear-gradient(135deg, rgba(201, 162, 39, 0.15), rgba(201, 162, 39, 0.05))',
+                          borderColor: '#C9A227',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => setDocumentWizardOpen(true)}
+                      >
+                        <Group gap="xs">
+                          <ThemeIcon size="lg" variant="light" color="orange" radius="xl">
+                            <IconFile size={18} />
+                          </ThemeIcon>
+                          <Box>
+                            <Text size="xl" fw={700} c="orange">
+                              {selectedTender.analiz_edilen_dokuman || 0}/{selectedTender.dokuman_sayisi || 0}
+                            </Text>
+                            <Text size="xs" c="dimmed">Analiz</Text>
+                          </Box>
+                        </Group>
+                      </Paper>
+                    </Tooltip>
                   </SimpleGrid>
                 )}
 
-                {/* Öne Çıkan Teknik Şartlar (İlk 5) */}
-                {selectedTender.analysis_summary?.teknik_sartlar &&
-                  selectedTender.analysis_summary.teknik_sartlar.length > 0 && (
-                    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
-                      <Group justify="space-between" mb="xs">
-                        <Group gap="xs">
-                          <ThemeIcon size="sm" variant="light" color="blue">
-                            <IconClipboardList size={12} />
-                          </ThemeIcon>
-                          <Text size="sm" fw={600}>
-                            Öne Çıkan Teknik Şartlar
-                          </Text>
-                        </Group>
-                        <Button
-                          size="xs"
-                          variant="subtle"
-                          onClick={() => onStateChange({ activeDetailTab: 'analiz' })}
-                          rightSection={<IconChevronDown size={12} />}
-                        >
-                          Tümü ({selectedTender.analysis_summary.teknik_sartlar.length})
-                        </Button>
+                {/* AI Özeti */}
+                {analysisSummary?.ozet && (
+                  <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+                    <Group gap="xs" mb="xs">
+                      <ThemeIcon size="sm" variant="light" color="violet">
+                        <IconBrain size={12} />
+                      </ThemeIcon>
+                      <Text size="sm" fw={600}>AI Özeti</Text>
+                      {analysisSummary.ihale_turu && (
+                        <Badge size="xs" variant="light" color="grape">
+                          {analysisSummary.ihale_turu}
+                        </Badge>
+                      )}
+                    </Group>
+                    <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
+                      {analysisSummary.ozet}
+                    </Text>
+                    {(analysisSummary.teslim_suresi || analysisSummary.tahmini_bedel) && (
+                      <Group gap="md" mt="xs">
+                        {analysisSummary.teslim_suresi && (
+                          <Badge variant="outline" color="blue" size="sm" leftSection={<IconClock size={10} />}>
+                            {analysisSummary.teslim_suresi}
+                          </Badge>
+                        )}
+                        {analysisSummary.tahmini_bedel && 
+                         analysisSummary.tahmini_bedel !== 'Belirtilmemiş' && (
+                          <Badge variant="outline" color="green" size="sm" leftSection={<IconCurrencyLira size={10} />}>
+                            {analysisSummary.tahmini_bedel}
+                          </Badge>
+                        )}
                       </Group>
-                      <Stack gap={4}>
-                        {selectedTender.analysis_summary.teknik_sartlar
-                          .slice(0, 5)
-                          .map((sart, idx) => {
-                            const sartText =
-                              typeof sart === 'string' ? sart : sart?.text || String(sart);
-                            return (
-                              <Group key={`ts-${sartText.substring(0, 30)}`} gap="xs" wrap="nowrap">
-                                <Badge size="xs" variant="filled" color="blue" circle>
-                                  {idx + 1}
-                                </Badge>
-                                <Text size="xs" lineClamp={1} style={{ flex: 1 }}>
-                                  {sartText}
-                                </Text>
-                              </Group>
-                            );
-                          })}
-                      </Stack>
-                    </Paper>
-                  )}
+                    )}
+                  </Paper>
+                )}
 
-                {/* Öne Çıkan Birim Fiyatlar (İlk 5) */}
-                {selectedTender.analysis_summary?.birim_fiyatlar &&
-                  selectedTender.analysis_summary.birim_fiyatlar.length > 0 && (
-                    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
-                      <Group justify="space-between" mb="xs">
-                        <Group gap="xs">
-                          <ThemeIcon size="sm" variant="light" color="green">
-                            <IconCurrencyLira size={12} />
-                          </ThemeIcon>
-                          <Text size="sm" fw={600}>
-                            Öne Çıkan Birim Fiyatlar
-                          </Text>
-                        </Group>
-                        <Button
-                          size="xs"
-                          variant="subtle"
-                          onClick={() => onStateChange({ activeDetailTab: 'analiz' })}
-                          rightSection={<IconChevronDown size={12} />}
-                        >
-                          Tümü ({selectedTender.analysis_summary.birim_fiyatlar.length})
-                        </Button>
-                      </Group>
-                      <Stack gap={4}>
-                        {selectedTender.analysis_summary.birim_fiyatlar
-                          .slice(0, 5)
-                          .map((item, idx) => {
-                            const itemKey =
-                              item.id ||
-                              item.kalem ||
-                              item.aciklama ||
-                              `bf-${item.text?.substring(0, 20)}`;
-                            return (
-                              <Group key={String(itemKey)} justify="space-between" wrap="nowrap">
-                                <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
-                                  <Badge size="xs" variant="filled" color="green" circle>
-                                    {idx + 1}
-                                  </Badge>
-                                  <Text size="xs" lineClamp={1} style={{ flex: 1 }}>
-                                    {item.kalem || item.aciklama || item.text || 'Bilinmiyor'}
-                                  </Text>
-                                </Group>
-                                <Group gap={4}>
-                                  {item.birim && (
-                                    <Badge size="xs" variant="outline" color="gray">
-                                      {item.birim}
-                                    </Badge>
-                                  )}
-                                  {(item.fiyat || item.tutar) && (
-                                    <Badge size="xs" color="green">
-                                      {Number(item.fiyat || item.tutar).toLocaleString('tr-TR')} ₺
-                                    </Badge>
-                                  )}
-                                </Group>
-                              </Group>
-                            );
-                          })}
-                      </Stack>
-                    </Paper>
-                  )}
+                {/* Takvim */}
+                {analysisSummary?.takvim && analysisSummary.takvim.length > 0 && (
+                  <TakvimCard takvim={analysisSummary.takvim} />
+                )}
+
+                {/* Önemli Notlar */}
+                {analysisSummary?.onemli_notlar && analysisSummary.onemli_notlar.length > 0 && (
+                  <OnemliNotlarCard 
+                    notlar={analysisSummary.onemli_notlar as Array<{ not: string; tur?: 'bilgi' | 'uyari' | 'gereklilik' } | string>} 
+                  />
+                )}
+
+                {/* Teknik Şartlar */}
+                {analysisSummary?.teknik_sartlar && analysisSummary.teknik_sartlar.length > 0 && (
+                  <TeknikSartlarCard teknikSartlar={analysisSummary.teknik_sartlar} />
+                )}
+
+                {/* Birim Fiyatlar */}
+                {analysisSummary?.birim_fiyatlar && analysisSummary.birim_fiyatlar.length > 0 && (
+                  <BirimFiyatlarCard birimFiyatlar={analysisSummary.birim_fiyatlar} />
+                )}
+
+                {/* Eksik Bilgiler */}
+                {analysisSummary?.eksik_bilgiler && analysisSummary.eksik_bilgiler.length > 0 && (
+                  <EksikBilgilerCard eksikBilgiler={analysisSummary.eksik_bilgiler} />
+                )}
+
+                {/* ═══════════════════════════════════════════════════════════════ */}
+                {/* YENİ DETAY KARTLARI - Tüm analiz bilgileri */}
+                {/* ═══════════════════════════════════════════════════════════════ */}
+
+                {/* Dashboard Grid - Kritik bilgiler yan yana */}
+                {(analysisSummary?.iletisim && Object.keys(analysisSummary.iletisim).length > 0) ||
+                 (analysisSummary?.servis_saatleri && Object.keys(analysisSummary.servis_saatleri).length > 0) ||
+                 (analysisSummary?.teminat_oranlari && Object.keys(analysisSummary.teminat_oranlari).length > 0) ? (
+                  <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+                    {/* İletişim Bilgileri */}
+                    {analysisSummary?.iletisim && Object.keys(analysisSummary.iletisim).length > 0 && (
+                      <IletisimCard iletisim={analysisSummary.iletisim} />
+                    )}
+                    
+                    {/* Servis Saatleri */}
+                    {analysisSummary?.servis_saatleri && Object.keys(analysisSummary.servis_saatleri).length > 0 && (
+                      <ServisSaatleriCard saatler={analysisSummary.servis_saatleri} />
+                    )}
+                    
+                    {/* Teminat Oranları */}
+                    {analysisSummary?.teminat_oranlari && Object.keys(analysisSummary.teminat_oranlari).length > 0 && (
+                      <TeminatOranlariCard teminat={analysisSummary.teminat_oranlari} />
+                    )}
+                    
+                    {/* Mali Kriterler */}
+                    {analysisSummary?.mali_kriterler && Object.keys(analysisSummary.mali_kriterler).length > 0 && (
+                      <MaliKriterlerCard kriterler={analysisSummary.mali_kriterler} />
+                    )}
+                  </SimpleGrid>
+                ) : null}
+
+                {/* Personel ve Öğün Bilgileri */}
+                {((analysisSummary?.personel_detaylari && analysisSummary.personel_detaylari.length > 0) ||
+                  (analysisSummary?.ogun_bilgileri && analysisSummary.ogun_bilgileri.length > 0)) && (
+                  <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+                    {/* Personel Detayları */}
+                    {analysisSummary?.personel_detaylari && analysisSummary.personel_detaylari.length > 0 && (
+                      <PersonelCard personel={analysisSummary.personel_detaylari} />
+                    )}
+                    
+                    {/* Öğün Bilgileri */}
+                    {analysisSummary?.ogun_bilgileri && analysisSummary.ogun_bilgileri.length > 0 && (
+                      <OgunBilgileriCard ogunler={analysisSummary.ogun_bilgileri} />
+                    )}
+                  </SimpleGrid>
+                )}
+
+                {/* İş Yerleri */}
+                {analysisSummary?.is_yerleri && analysisSummary.is_yerleri.length > 0 && (
+                  <IsYerleriCard yerler={analysisSummary.is_yerleri} />
+                )}
+
+                {/* Ceza Koşulları ve Fiyat Farkı */}
+                {((analysisSummary?.ceza_kosullari && analysisSummary.ceza_kosullari.length > 0) ||
+                  (analysisSummary?.fiyat_farki && (analysisSummary.fiyat_farki.formul || analysisSummary.fiyat_farki.katsayilar))) && (
+                  <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+                    {/* Ceza Koşulları */}
+                    {analysisSummary?.ceza_kosullari && analysisSummary.ceza_kosullari.length > 0 && (
+                      <CezaKosullariCard cezalar={analysisSummary.ceza_kosullari} />
+                    )}
+                    
+                    {/* Fiyat Farkı */}
+                    {analysisSummary?.fiyat_farki && (analysisSummary.fiyat_farki.formul || analysisSummary.fiyat_farki.katsayilar) && (
+                      <FiyatFarkiCard fiyatFarki={analysisSummary.fiyat_farki} />
+                    )}
+                  </SimpleGrid>
+                )}
+
+                {/* Gerekli Belgeler */}
+                {analysisSummary?.gerekli_belgeler && analysisSummary.gerekli_belgeler.length > 0 && (
+                  <GerekliBelgelerCard belgeler={analysisSummary.gerekli_belgeler} />
+                )}
+
+                {/* Benzer İş Tanımı */}
+                {analysisSummary?.benzer_is_tanimi && (
+                  <BenzerIsTanimiCard tanim={analysisSummary.benzer_is_tanimi} />
+                )}
 
                 {/* Hesaplama özeti */}
                 {(selectedTender.yaklasik_maliyet ||
@@ -816,8 +1009,8 @@ export function CenterPanel({
                 )}
 
                 {/* Analiz yoksa mesaj */}
-                {!selectedTender.analysis_summary?.teknik_sartlar?.length &&
-                  !selectedTender.analysis_summary?.birim_fiyatlar?.length &&
+                {!analysisSummary?.teknik_sartlar?.length &&
+                  !analysisSummary?.birim_fiyatlar?.length &&
                   !selectedTender.yaklasik_maliyet && (
                     <Paper p="md" withBorder radius="md" ta="center">
                       <Text size="sm" c="dimmed">
@@ -829,17 +1022,6 @@ export function CenterPanel({
                     </Paper>
                   )}
               </Stack>
-            </Tabs.Panel>
-
-            <Tabs.Panel value="analiz" pt="md">
-              {/* Analiz sekmesi - Teknik Şartlar + Birim Fiyatlar */}
-              {isSaved ? (
-                <AnalysisSection tender={selectedTender} />
-              ) : (
-                <Text size="sm" c="dimmed">
-                  Takip edilen ihaleler için kullanılabilir.
-                </Text>
-              )}
             </Tabs.Panel>
 
             <Tabs.Panel value="dokumanlar" pt="md">
@@ -859,53 +1041,377 @@ export function CenterPanel({
               )}
             </Tabs.Panel>
 
-            <Tabs.Panel value="araclar" pt="md">
-              {/* Hesaplama araçları */}
+            <Tabs.Panel value="notlar" pt="md">
+              {/* Notlar sekmesi */}
               {isSaved ? (
-                <AraclarSection tender={selectedTender} onRefresh={onRefreshData} />
+                <ContextualNotesSection
+                  contextType="tender"
+                  contextId={selectedTender.tender_id}
+                  title=""
+                  compact={false}
+                  showAddButton
+                />
               ) : (
                 <Text size="sm" c="dimmed">
                   Takip edilen ihaleler için kullanılabilir.
                 </Text>
               )}
             </Tabs.Panel>
-
-            <Tabs.Panel value="dilekce" pt="md">
-              <DilekceSection
-                tender={isSaved ? selectedTender : null}
-                dilekceType={dilekceType}
-                onSelectType={(type) => onStateChange({ dilekceType: type })}
-              />
-            </Tabs.Panel>
-
-            <Tabs.Panel value="teklif" pt="md">
-              {/* Teklif cetveli */}
-              <Text size="sm" c="dimmed" mb="md">
-                Detaylı teklif cetveli hazırlamak için butona tıklayın
-              </Text>
-              <Button
-                variant="gradient"
-                style={{ background: 'linear-gradient(135deg, #C9A227 0%, #D4AF37 50%, #E6C65C 100%)', border: 'none' }}
-                leftSection={<IconFileAnalytics size={16} />}
-                onClick={() => onStateChange({ teklifModalOpen: true })}
-              >
-                Teklif Cetveli Hazırla
-              </Button>
-            </Tabs.Panel>
           </Tabs>
         </Box>
       </ScrollArea>
 
-      {/* Document Wizard Modal - accessible from Özet tab */}
+
+      {/* Döküman Ayarları Modal */}
+      <Modal
+        opened={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
+        title={
+          <Group gap="xs">
+            <ThemeIcon variant="light" color="grape" size="sm">
+              <IconDatabase size={14} />
+            </ThemeIcon>
+            <Text fw={600}>Döküman ve Analiz Ayarları</Text>
+          </Group>
+        }
+        size="md"
+      >
+        <Stack gap="md">
+          {/* İstatistikler */}
+          <Paper p="md" withBorder radius="md" bg="dark.7">
+            <Text size="sm" fw={600} mb="sm">Veritabanı Durumu</Text>
+            {settingsLoading && !docStats ? (
+              <Center py="md"><Loader size="sm" /></Center>
+            ) : docStats ? (
+              <Stack gap="xs">
+                <SimpleGrid cols={4}>
+                  <Box ta="center">
+                    <Text size="xl" fw={700}>{docStats.total}</Text>
+                    <Text size="xs" c="dimmed">Toplam</Text>
+                  </Box>
+                  <Box ta="center">
+                    <Text size="xl" fw={700} c="green">{docStats.completed}</Text>
+                    <Text size="xs" c="dimmed">Analiz Edildi</Text>
+                  </Box>
+                  <Box ta="center">
+                    <Text size="xl" fw={700} c="yellow">{docStats.pending}</Text>
+                    <Text size="xs" c="dimmed">Bekliyor</Text>
+                  </Box>
+                  <Box ta="center">
+                    <Text size="xl" fw={700} c="red">{docStats.failed}</Text>
+                    <Text size="xs" c="dimmed">Başarısız</Text>
+                  </Box>
+                </SimpleGrid>
+                {docStats.total > 0 && (
+                  <Progress.Root size="lg" mt="xs">
+                    <Tooltip label={`${docStats.completed} analiz edildi`}>
+                      <Progress.Section value={(docStats.completed / docStats.total) * 100} color="green" />
+                    </Tooltip>
+                    <Tooltip label={`${docStats.pending} bekliyor`}>
+                      <Progress.Section value={(docStats.pending / docStats.total) * 100} color="yellow" />
+                    </Tooltip>
+                    <Tooltip label={`${docStats.failed} başarısız`}>
+                      <Progress.Section value={(docStats.failed / docStats.total) * 100} color="red" />
+                    </Tooltip>
+                  </Progress.Root>
+                )}
+                
+                {/* Döküman Listesi */}
+                {docStats.documents && docStats.documents.length > 0 && (() => {
+                  // Döküman türü çevirisi
+                  const docTypeLabels: Record<string, string> = {
+                    'tech_spec': 'Teknik Şartname',
+                    'admin_spec': 'İdari Şartname',
+                    'contract': 'Sözleşme Tasarısı',
+                    'unit_price': 'Birim Fiyat Cetveli',
+                    'announcement': 'İhale İlanı',
+                    'addendum': 'Zeyilname',
+                    'result': 'Sonuç İlanı',
+                    'item_list': 'Mal/Hizmet Listesi',
+                    'other': 'Diğer Döküman',
+                  };
+                  
+                  const getDocTypeLabel = (docType: string, filename: string) => {
+                    if (docTypeLabels[docType]) return docTypeLabels[docType];
+                    // Dosya adından tahmin et
+                    const lower = (docType || filename || '').toLowerCase();
+                    if (lower.includes('teknik') || lower.includes('tech')) return 'Teknik Şartname';
+                    if (lower.includes('idari') || lower.includes('admin')) return 'İdari Şartname';
+                    if (lower.includes('sözleşme') || lower.includes('contract')) return 'Sözleşme Tasarısı';
+                    if (lower.includes('birim') || lower.includes('fiyat') || lower.includes('price')) return 'Birim Fiyat Cetveli';
+                    if (lower.includes('ilan')) return 'İhale İlanı';
+                    if (lower.includes('zeyil')) return 'Zeyilname';
+                    if (lower.includes('mal') || lower.includes('hizmet') || lower.includes('liste')) return 'Mal/Hizmet Listesi';
+                    return docType || filename?.split('.')[0] || 'Döküman';
+                  };
+                  
+                  return (
+                    <Box mt="sm">
+                      <Text size="xs" fw={600} c="dimmed" mb="xs">Döküman Türleri</Text>
+                      <Stack gap={4}>
+                        {docStats.documents.map((doc) => (
+                          <Group key={`doc-${doc.original_filename}-${doc.doc_type}`} gap="xs" justify="space-between">
+                            <Group gap="xs">
+                              <ThemeIcon 
+                                size="xs" 
+                                variant="light" 
+                                color={doc.processing_status === 'completed' ? 'green' : doc.processing_status === 'pending' ? 'yellow' : 'red'}
+                              >
+                                {doc.processing_status === 'completed' ? <IconCheck size={10} /> : 
+                                 doc.processing_status === 'pending' ? <IconClock size={10} /> : 
+                                 <IconX size={10} />}
+                              </ThemeIcon>
+                              <Tooltip label={doc.original_filename} position="top">
+                              <Group gap={4}>
+                                <Text size="xs" lineClamp={1} maw={160}>
+                                  {getDocTypeLabel(doc.doc_type, doc.original_filename)}
+                                </Text>
+                                {doc.source_type === 'content' && (
+                                  <Badge size="xs" variant="dot" color="blue">web</Badge>
+                                )}
+                              </Group>
+                            </Tooltip>
+                            </Group>
+                            <Badge size="xs" variant="light" color={
+                              doc.processing_status === 'completed' ? 'green' : 
+                              doc.processing_status === 'pending' ? 'yellow' : 'red'
+                            }>
+                              {doc.processing_status === 'completed' ? 'Analiz Edildi' : 
+                               doc.processing_status === 'pending' ? 'Bekliyor' : 'Başarısız'}
+                            </Badge>
+                          </Group>
+                        ))}
+                      </Stack>
+                    </Box>
+                  );
+                })()}
+              </Stack>
+            ) : (
+              <Text size="sm" c="dimmed" ta="center">Henüz döküman yok</Text>
+            )}
+          </Paper>
+
+          <Divider label="İşlemler" labelPosition="center" />
+
+          {/* Senkronizasyon */}
+          <Button
+            variant="light"
+            color="green"
+            leftSection={<IconRotate size={16} />}
+            onClick={handleSyncAnalysis}
+            loading={settingsLoading}
+            disabled={!docStats || docStats.completed === 0}
+            fullWidth
+          >
+            Analiz Özetini Güncelle
+          </Button>
+          <Text size="xs" c="dimmed" mt={-8}>
+            Döküman analizlerini birleştirip ihale özetine kaydet
+          </Text>
+
+          {/* Sıfırla */}
+          <Button
+            variant="light"
+            color="orange"
+            leftSection={<IconRefresh size={16} />}
+            onClick={handleResetDocuments}
+            loading={settingsLoading}
+            disabled={!docStats || docStats.total === 0}
+            fullWidth
+          >
+            Dökümanları Sıfırla
+          </Button>
+          <Text size="xs" c="dimmed" mt={-8}>
+            Tüm dökümanları tekrar analiz edilebilir hale getir
+          </Text>
+
+          {/* Analiz Temizle */}
+          <Button
+            variant="light"
+            color="violet"
+            leftSection={<IconBrain size={16} />}
+            onClick={handleClearAnalysis}
+            loading={settingsLoading}
+            disabled={!docStats || (docStats.completed === 0 && (selectedTender as SavedTender).teknik_sart_sayisi === 0 && (selectedTender as SavedTender).birim_fiyat_sayisi === 0)}
+            fullWidth
+          >
+            Analizleri Temizle
+          </Button>
+          <Text size="xs" c="dimmed" mt={-8}>
+            Dökümanlar kalır, sadece analiz sonuçları silinir
+          </Text>
+
+          <Divider label="Tehlikeli Alan" labelPosition="center" color="red" />
+
+          {/* Tümünü Sil */}
+          <Button
+            variant="light"
+            color="red"
+            leftSection={<IconTrash size={16} />}
+            onClick={handleDeleteAllDocuments}
+            loading={settingsLoading}
+            disabled={!docStats || docStats.total === 0}
+            fullWidth
+          >
+            Tüm Dökümanları Sil
+          </Button>
+          <Text size="xs" c="red" mt={-8}>
+            Bu işlem geri alınamaz! Tüm dökümanlar kalıcı olarak silinir.
+          </Text>
+        </Stack>
+      </Modal>
+
+      {/* Döküman Wizard Modal - Özet sekmesinden erişim için */}
       {isSaved && (
         <DocumentWizardModal
           opened={documentWizardOpen}
-          onClose={closeDocumentWizard}
+          onClose={() => setDocumentWizardOpen(false)}
           tenderId={selectedTender.tender_id}
           tenderTitle={selectedTender.ihale_basligi}
           onComplete={onRefreshData}
         />
       )}
+
+      {/* Teknik Şartlar Modal */}
+      <Modal
+        opened={teknikModalOpen}
+        onClose={() => setTeknikModalOpen(false)}
+        title={
+          <Group gap="xs">
+            <ThemeIcon variant="light" color="blue" size="sm">
+              <IconClipboardList size={14} />
+            </ThemeIcon>
+            <Text fw={600}>Teknik Şartlar ({analysisSummary?.teknik_sartlar?.length || 0})</Text>
+          </Group>
+        }
+        size="lg"
+      >
+        <ScrollArea h={500}>
+          <Stack gap="xs">
+            {analysisSummary?.teknik_sartlar?.map((sart, idx) => {
+              const sartText = getTeknikSartTextFromItem(sart);
+              const sartObj = typeof sart === 'object' && sart !== null ? sart as { onem?: string } : null;
+              const onem = sartObj?.onem;
+              const onemColor = onem === 'kritik' ? 'red' : onem === 'normal' ? 'blue' : 'gray';
+              return (
+                <Paper key={`modal-ts-${sartText.substring(0, 30)}-${idx}`} p="sm" withBorder radius="md">
+                  <Group gap="xs" wrap="nowrap" align="flex-start">
+                    <Badge size="sm" variant="filled" color={onemColor} circle style={{ flexShrink: 0, marginTop: 2 }}>
+                      {idx + 1}
+                    </Badge>
+                    <Box style={{ flex: 1 }}>
+                      <Text size="sm">{sartText}</Text>
+                      {onem && (
+                        <Badge size="xs" variant="light" color={onemColor} mt="xs">
+                          {onem === 'kritik' ? 'Kritik' : 'Normal'}
+                        </Badge>
+                      )}
+                    </Box>
+                    <CopyButton value={sartText}>
+                      {({ copied, copy }) => (
+                        <ActionIcon variant="subtle" size="sm" onClick={copy} color={copied ? 'teal' : 'gray'}>
+                          {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                        </ActionIcon>
+                      )}
+                    </CopyButton>
+                  </Group>
+                </Paper>
+              );
+            })}
+          </Stack>
+        </ScrollArea>
+      </Modal>
+
+      {/* Birim Fiyatlar Modal */}
+      <Modal
+        opened={birimModalOpen}
+        onClose={() => setBirimModalOpen(false)}
+        title={
+          <Group gap="xs">
+            <ThemeIcon variant="light" color="green" size="sm">
+              <IconCurrencyLira size={14} />
+            </ThemeIcon>
+            <Text fw={600}>Birim Fiyatlar ({analysisSummary?.birim_fiyatlar?.length || 0})</Text>
+          </Group>
+        }
+        size="lg"
+      >
+        <ScrollArea h={500}>
+          <Stack gap="xs">
+            {analysisSummary?.birim_fiyatlar?.map((item, idx) => {
+              const itemText = item.kalem || item.aciklama || item.text || 'Bilinmeyen';
+              return (
+                <Paper key={`modal-bf-${itemText.substring(0, 20)}-${idx}`} p="sm" withBorder radius="md">
+                  <Group justify="space-between" wrap="nowrap">
+                    <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                      <Badge size="sm" variant="filled" color="green" circle style={{ flexShrink: 0 }}>
+                        {idx + 1}
+                      </Badge>
+                      <Box style={{ flex: 1 }}>
+                        <Text size="sm">{itemText}</Text>
+                        <Group gap="xs" mt="xs">
+                          {item.birim && <Badge size="xs" variant="outline" color="gray">{item.birim}</Badge>}
+                          {item.miktar && <Badge size="xs" variant="light" color="blue">Miktar: {item.miktar}</Badge>}
+                        </Group>
+                      </Box>
+                    </Group>
+                    <CopyButton value={itemText}>
+                      {({ copied, copy }) => (
+                        <ActionIcon variant="subtle" size="sm" onClick={copy} color={copied ? 'teal' : 'gray'}>
+                          {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                        </ActionIcon>
+                      )}
+                    </CopyButton>
+                  </Group>
+                </Paper>
+              );
+            })}
+          </Stack>
+        </ScrollArea>
+      </Modal>
+
+      {/* Tam Metin Modal */}
+      <Modal
+        opened={tamMetinModalOpen}
+        onClose={() => setTamMetinModalOpen(false)}
+        title={
+          <Group gap="xs">
+            <ThemeIcon variant="light" color="violet" size="sm">
+              <IconFileText size={14} />
+            </ThemeIcon>
+            <Text fw={600}>Dökümanlardan Çıkarılan Tam Metin</Text>
+          </Group>
+        }
+        size="xl"
+        fullScreen
+      >
+        <Stack gap="md" h="100%">
+          <Group justify="flex-end">
+            <CopyButton value={analysisSummary?.tam_metin || ''}>
+              {({ copied, copy }) => (
+                <Button 
+                  variant="light" 
+                  leftSection={copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
+                  color={copied ? 'teal' : 'gray'}
+                  onClick={copy}
+                >
+                  {copied ? 'Kopyalandı!' : 'Tümünü Kopyala'}
+                </Button>
+              )}
+            </CopyButton>
+          </Group>
+          <ScrollArea style={{ flex: 1 }}>
+            <Paper p="md" withBorder radius="md" bg="dark.8">
+              <Text 
+                size="sm" 
+                style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', lineHeight: 1.6 }}
+              >
+                {analysisSummary?.tam_metin || 'Tam metin bulunamadı.'}
+              </Text>
+            </Paper>
+          </ScrollArea>
+        </Stack>
+      </Modal>
     </Box>
   );
 }
@@ -957,6 +1463,678 @@ function DilekceTypeCard({
   );
 }
 
+// ========== ÖZET KARTLARİ (Expandable) ==========
+
+// Teknik şart metnini çıkar
+function getTeknikSartTextFromItem(sart: unknown): string {
+  if (!sart) return '';
+  if (typeof sart === 'string') return sart;
+  if (typeof sart === 'object') {
+    const obj = sart as Record<string, unknown>;
+    return String(obj.madde || obj.text || obj.description || JSON.stringify(sart));
+  }
+  return String(sart);
+}
+
+// Teknik Şartlar Kartı
+function TeknikSartlarCard({ 
+  teknikSartlar, 
+}: { 
+  teknikSartlar: unknown[]; 
+  onViewAll?: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const displayItems = expanded ? teknikSartlar : teknikSartlar.slice(0, 5);
+  const hasMore = teknikSartlar.length > 5;
+
+  return (
+    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+      <Group justify="space-between" mb="xs">
+        <Group gap="xs">
+          <ThemeIcon size="sm" variant="light" color="blue">
+            <IconClipboardList size={12} />
+          </ThemeIcon>
+          <Text size="sm" fw={600}>Teknik Şartlar</Text>
+          <Badge size="xs" variant="light" color="blue">{teknikSartlar.length}</Badge>
+        </Group>
+        {hasMore && (
+          <Button
+            size="xs"
+            variant="subtle"
+            onClick={() => setExpanded(!expanded)}
+            rightSection={expanded ? <IconChevronDown size={12} style={{ transform: 'rotate(180deg)' }} /> : <IconChevronDown size={12} />}
+          >
+            {expanded ? 'Daralt' : `Tümü (${teknikSartlar.length})`}
+          </Button>
+        )}
+      </Group>
+      <ScrollArea.Autosize mah={expanded ? 400 : undefined}>
+        <Stack gap={4}>
+          {displayItems.map((sart, idx) => {
+            const sartText = getTeknikSartTextFromItem(sart);
+            const onem = typeof sart === 'object' && sart !== null ? (sart as Record<string, unknown>).onem : null;
+            const onemColor = onem === 'kritik' ? 'red' : onem === 'normal' ? 'blue' : 'gray';
+            return (
+              <Group key={`ts-${idx}-${sartText.substring(0, 20)}`} gap="xs" wrap="nowrap" align="flex-start">
+                <Badge size="xs" variant="filled" color={onemColor} circle style={{ flexShrink: 0, marginTop: 2 }}>
+                  {idx + 1}
+                </Badge>
+                <Text size="xs" style={{ flex: 1 }} lineClamp={expanded ? undefined : 2}>
+                  {sartText}
+                </Text>
+              </Group>
+            );
+          })}
+        </Stack>
+      </ScrollArea.Autosize>
+    </Paper>
+  );
+}
+
+// Birim Fiyatlar Kartı
+function BirimFiyatlarCard({ 
+  birimFiyatlar, 
+}: { 
+  birimFiyatlar: Array<{ kalem?: string; aciklama?: string; text?: string; birim?: string; miktar?: string | number }>; 
+  onViewAll?: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const displayItems = expanded ? birimFiyatlar : birimFiyatlar.slice(0, 5);
+  const hasMore = birimFiyatlar.length > 5;
+
+  return (
+    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+      <Group justify="space-between" mb="xs">
+        <Group gap="xs">
+          <ThemeIcon size="sm" variant="light" color="green">
+            <IconCurrencyLira size={12} />
+          </ThemeIcon>
+          <Text size="sm" fw={600}>Birim Fiyatlar</Text>
+          <Badge size="xs" variant="light" color="green">{birimFiyatlar.length}</Badge>
+        </Group>
+        {hasMore && (
+          <Button
+            size="xs"
+            variant="subtle"
+            color="green"
+            onClick={() => setExpanded(!expanded)}
+            rightSection={expanded ? <IconChevronDown size={12} style={{ transform: 'rotate(180deg)' }} /> : <IconChevronDown size={12} />}
+          >
+            {expanded ? 'Daralt' : `Tümü (${birimFiyatlar.length})`}
+          </Button>
+        )}
+      </Group>
+      <ScrollArea.Autosize mah={expanded ? 400 : undefined}>
+        <Stack gap={4}>
+          {displayItems.map((item, idx) => {
+            const itemText = item.kalem || item.aciklama || item.text || 'Bilinmeyen';
+            return (
+              <Group key={`bf-${idx}-${itemText.substring(0, 15)}`} justify="space-between" wrap="nowrap">
+                <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                  <Badge size="xs" variant="filled" color="green" circle style={{ flexShrink: 0 }}>
+                    {idx + 1}
+                  </Badge>
+                  <Text size="xs" lineClamp={1} style={{ flex: 1 }}>
+                    {itemText}
+                  </Text>
+                </Group>
+                {item.birim && (
+                  <Badge size="xs" variant="outline" color="gray" style={{ flexShrink: 0 }}>
+                    {item.birim}
+                  </Badge>
+                )}
+              </Group>
+            );
+          })}
+        </Stack>
+      </ScrollArea.Autosize>
+    </Paper>
+  );
+}
+
+// Önemli Notlar Kartı
+function OnemliNotlarCard({ 
+  notlar, 
+}: { 
+  notlar: Array<{ not: string; tur?: 'bilgi' | 'uyari' | 'gereklilik' } | string>; 
+  onViewAll?: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const displayItems = expanded ? notlar : notlar.slice(0, 5);
+  const hasMore = notlar.length > 5;
+
+  return (
+    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+      <Group justify="space-between" mb="xs">
+        <Group gap="xs">
+          <ThemeIcon size="sm" variant="light" color="orange">
+            <IconAlertCircle size={12} />
+          </ThemeIcon>
+          <Text size="sm" fw={600}>Önemli Notlar</Text>
+          <Badge size="xs" variant="light" color="orange">{notlar.length}</Badge>
+        </Group>
+        {hasMore && (
+          <Button
+            size="xs"
+            variant="subtle"
+            color="orange"
+            onClick={() => setExpanded(!expanded)}
+            rightSection={expanded ? <IconChevronDown size={12} style={{ transform: 'rotate(180deg)' }} /> : <IconChevronDown size={12} />}
+          >
+            {expanded ? 'Daralt' : `Tümü (${notlar.length})`}
+          </Button>
+        )}
+      </Group>
+      <ScrollArea.Autosize mah={expanded ? 400 : undefined}>
+        <Stack gap={4}>
+          {displayItems.map((not, idx) => {
+            const notItem = typeof not === 'string' ? { not, tur: 'bilgi' as const } : not;
+            const turColor = notItem.tur === 'uyari' ? 'red' : notItem.tur === 'gereklilik' ? 'blue' : 'gray';
+            const TurIcon = notItem.tur === 'uyari' ? IconAlertTriangle : notItem.tur === 'gereklilik' ? IconExclamationMark : IconInfoCircle;
+            return (
+              <Group key={`not-${idx}-${notItem.not.substring(0, 20)}`} gap="xs" wrap="nowrap" align="flex-start">
+                <ThemeIcon size="xs" variant="light" color={turColor} radius="xl" mt={2} style={{ flexShrink: 0 }}>
+                  <TurIcon size={10} />
+                </ThemeIcon>
+                <Text size="xs" style={{ flex: 1 }}>{notItem.not}</Text>
+              </Group>
+            );
+          })}
+        </Stack>
+      </ScrollArea.Autosize>
+    </Paper>
+  );
+}
+
+// Eksik Bilgiler Kartı
+function EksikBilgilerCard({ 
+  eksikBilgiler, 
+}: { 
+  eksikBilgiler: string[]; 
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const displayItems = expanded ? eksikBilgiler : eksikBilgiler.slice(0, 8);
+  const hasMore = eksikBilgiler.length > 8;
+
+  return (
+    <Paper p="sm" withBorder radius="md" className="glassy-card-nested" 
+      style={{ borderColor: 'var(--mantine-color-yellow-6)', background: 'rgba(234, 179, 8, 0.05)' }}>
+      <Group justify="space-between" mb="xs">
+        <Group gap="xs">
+          <ThemeIcon size="sm" variant="light" color="yellow">
+            <IconAlertTriangle size={12} />
+          </ThemeIcon>
+          <Text size="sm" fw={600}>Eksik Bilgiler</Text>
+          <Badge size="xs" variant="light" color="yellow">{eksikBilgiler.length}</Badge>
+        </Group>
+        {hasMore && (
+          <Button
+            size="xs"
+            variant="subtle"
+            color="yellow"
+            onClick={() => setExpanded(!expanded)}
+            rightSection={expanded ? <IconChevronDown size={12} style={{ transform: 'rotate(180deg)' }} /> : <IconChevronDown size={12} />}
+          >
+            {expanded ? 'Daralt' : `Tümü (${eksikBilgiler.length})`}
+          </Button>
+        )}
+      </Group>
+      <ScrollArea.Autosize mah={expanded ? 300 : undefined}>
+        <Group gap={6}>
+          {displayItems.map((eksik, idx) => (
+            <Badge key={`eksik-${eksik.substring(0, 15)}-${idx}`} size="xs" variant="outline" color="yellow">
+              {eksik}
+            </Badge>
+          ))}
+        </Group>
+      </ScrollArea.Autosize>
+    </Paper>
+  );
+}
+
+// Takvim Kartı
+function TakvimCard({ 
+  takvim, 
+}: { 
+  takvim: Array<{ olay: string; tarih: string; gun?: string }>; 
+  onViewAll?: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const displayItems = expanded ? takvim : takvim.slice(0, 6);
+  const hasMore = takvim.length > 6;
+
+  return (
+    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+      <Group justify="space-between" mb="xs">
+        <Group gap="xs">
+          <ThemeIcon size="sm" variant="light" color="cyan">
+            <IconCalendar size={12} />
+          </ThemeIcon>
+          <Text size="sm" fw={600}>Takvim</Text>
+          <Badge size="xs" variant="light" color="cyan">{takvim.length}</Badge>
+        </Group>
+        {hasMore && (
+          <Button
+            size="xs"
+            variant="subtle"
+            color="cyan"
+            onClick={() => setExpanded(!expanded)}
+            rightSection={expanded ? <IconChevronDown size={12} style={{ transform: 'rotate(180deg)' }} /> : <IconChevronDown size={12} />}
+          >
+            {expanded ? 'Daralt' : `Tümü (${takvim.length})`}
+          </Button>
+        )}
+      </Group>
+      <ScrollArea.Autosize mah={expanded ? 400 : undefined}>
+        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
+          {displayItems.map((item, idx) => (
+            <Group key={`takvim-${item.olay}-${idx}`} gap="xs" wrap="nowrap">
+              <ThemeIcon size="xs" variant="light" color="cyan" radius="xl">
+                <IconClock size={10} />
+              </ThemeIcon>
+              <Box style={{ flex: 1, minWidth: 0 }}>
+                <Text size="xs" fw={500} lineClamp={expanded ? undefined : 1}>{item.olay}</Text>
+                <Text size="xs" c="dimmed">{item.tarih}</Text>
+              </Box>
+            </Group>
+          ))}
+        </SimpleGrid>
+      </ScrollArea.Autosize>
+    </Paper>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// YENİ KARTLAR - Detaylı Analiz Bilgileri
+// ═══════════════════════════════════════════════════════════════
+
+// İletişim Bilgileri Kartı
+function IletisimCard({ iletisim }: { iletisim: IletisimBilgileri }) {
+  const entries = Object.entries(iletisim).filter(([, v]) => v?.trim());
+  if (entries.length === 0) return null;
+
+  const labels: Record<string, string> = {
+    telefon: 'Telefon',
+    email: 'E-posta',
+    adres: 'Adres',
+    yetkili: 'Yetkili',
+  };
+
+  return (
+    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+      <Group gap="xs" mb="xs">
+        <ThemeIcon size="sm" variant="light" color="blue">
+          <IconPhone size={12} />
+        </ThemeIcon>
+        <Text size="sm" fw={600}>İletişim Bilgileri</Text>
+      </Group>
+      <Stack gap={4}>
+        {entries.map(([key, value]) => (
+          <Group key={key} gap="xs" wrap="nowrap">
+            <Text size="xs" c="dimmed" w={70}>{labels[key] || key}:</Text>
+            <Text size="xs" style={{ flex: 1 }}>{value}</Text>
+          </Group>
+        ))}
+      </Stack>
+    </Paper>
+  );
+}
+
+// Personel Detayları Kartı
+function PersonelCard({ personel }: { personel: PersonelDetay[] }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!personel || personel.length === 0) return null;
+
+  const displayItems = expanded ? personel : personel.slice(0, 5);
+  const hasMore = personel.length > 5;
+  const toplamPersonel = personel.reduce((sum, p) => sum + (p.adet || 0), 0);
+
+  return (
+    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+      <Group justify="space-between" mb="xs">
+        <Group gap="xs">
+          <ThemeIcon size="sm" variant="light" color="indigo">
+            <IconUsers size={12} />
+          </ThemeIcon>
+          <Text size="sm" fw={600}>Personel Detayları</Text>
+          <Badge size="xs" variant="light" color="indigo">{toplamPersonel} kişi</Badge>
+        </Group>
+        {hasMore && (
+          <Button size="xs" variant="subtle" color="indigo" onClick={() => setExpanded(!expanded)}
+            rightSection={<IconChevronDown size={12} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} />}>
+            {expanded ? 'Daralt' : `Tümü (${personel.length})`}
+          </Button>
+        )}
+      </Group>
+      <ScrollArea.Autosize mah={expanded ? 300 : undefined}>
+        <Stack gap={4}>
+          {displayItems.map((p) => (
+            <Group key={`personel-${p.pozisyon}-${p.adet}`} justify="space-between" gap="xs">
+              <Text size="xs">{p.pozisyon}</Text>
+              <Group gap="xs">
+                <Badge size="xs" variant="outline" color="indigo">{p.adet} kişi</Badge>
+                {p.ucret_orani && <Badge size="xs" variant="light" color="green">{p.ucret_orani}</Badge>}
+              </Group>
+            </Group>
+          ))}
+        </Stack>
+      </ScrollArea.Autosize>
+    </Paper>
+  );
+}
+
+// Öğün Bilgileri Kartı
+function OgunBilgileriCard({ ogunler }: { ogunler: OgunBilgisi[] }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!ogunler || ogunler.length === 0) return null;
+
+  const displayItems = expanded ? ogunler : ogunler.slice(0, 6);
+  const hasMore = ogunler.length > 6;
+  const toplamOgun = ogunler.reduce((sum, o) => sum + (o.miktar || 0), 0);
+
+  return (
+    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+      <Group justify="space-between" mb="xs">
+        <Group gap="xs">
+          <ThemeIcon size="sm" variant="light" color="orange">
+            <IconToolsKitchen2 size={12} />
+          </ThemeIcon>
+          <Text size="sm" fw={600}>Öğün Bilgileri</Text>
+          <Badge size="xs" variant="light" color="orange">{toplamOgun.toLocaleString('tr-TR')} öğün</Badge>
+        </Group>
+        {hasMore && (
+          <Button size="xs" variant="subtle" color="orange" onClick={() => setExpanded(!expanded)}
+            rightSection={<IconChevronDown size={12} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} />}>
+            {expanded ? 'Daralt' : `Tümü (${ogunler.length})`}
+          </Button>
+        )}
+      </Group>
+      <ScrollArea.Autosize mah={expanded ? 300 : undefined}>
+        <SimpleGrid cols={2} spacing="xs">
+          {displayItems.map((o) => (
+            <Group key={`ogun-${o.tur}-${o.miktar}`} gap="xs" wrap="nowrap">
+              <Box style={{ flex: 1 }}>
+                <Text size="xs" fw={500}>{o.tur}</Text>
+                <Text size="xs" c="dimmed">{o.miktar?.toLocaleString('tr-TR')} {o.birim || 'öğün'}</Text>
+              </Box>
+            </Group>
+          ))}
+        </SimpleGrid>
+      </ScrollArea.Autosize>
+    </Paper>
+  );
+}
+
+// İş Yerleri Kartı
+function IsYerleriCard({ yerler }: { yerler: string[] }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!yerler || yerler.length === 0) return null;
+
+  const displayItems = expanded ? yerler : yerler.slice(0, 4);
+  const hasMore = yerler.length > 4;
+
+  return (
+    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+      <Group justify="space-between" mb="xs">
+        <Group gap="xs">
+          <ThemeIcon size="sm" variant="light" color="teal">
+            <IconMapPin size={12} />
+          </ThemeIcon>
+          <Text size="sm" fw={600}>İş Yerleri</Text>
+          <Badge size="xs" variant="light" color="teal">{yerler.length} yer</Badge>
+        </Group>
+        {hasMore && (
+          <Button size="xs" variant="subtle" color="teal" onClick={() => setExpanded(!expanded)}
+            rightSection={<IconChevronDown size={12} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} />}>
+            {expanded ? 'Daralt' : `Tümü (${yerler.length})`}
+          </Button>
+        )}
+      </Group>
+      <ScrollArea.Autosize mah={expanded ? 250 : undefined}>
+        <Stack gap={4}>
+          {displayItems.map((yer, index) => (
+            <Group key={`yer-${index}-${yer.substring(0, 20)}`} gap="xs" wrap="nowrap">
+              <ThemeIcon size="xs" variant="light" color="teal" radius="xl">
+                <IconBuilding size={10} />
+              </ThemeIcon>
+              <Text size="xs">{yer}</Text>
+            </Group>
+          ))}
+        </Stack>
+      </ScrollArea.Autosize>
+    </Paper>
+  );
+}
+
+// Mali Kriterler Kartı
+function MaliKriterlerCard({ kriterler }: { kriterler: MaliKriterler }) {
+  const entries = Object.entries(kriterler).filter(([, v]) => v?.trim());
+  if (entries.length === 0) return null;
+
+  const labels: Record<string, string> = {
+    cari_oran: 'Cari Oran',
+    ozkaynak_orani: 'Öz Kaynak Oranı',
+    is_deneyimi: 'İş Deneyimi',
+    ciro_orani: 'Ciro Oranı',
+  };
+
+  return (
+    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+      <Group gap="xs" mb="xs">
+        <ThemeIcon size="sm" variant="light" color="grape">
+          <IconWallet size={12} />
+        </ThemeIcon>
+        <Text size="sm" fw={600}>Mali Yeterlilik Kriterleri</Text>
+      </Group>
+      <SimpleGrid cols={2} spacing="xs">
+        {entries.map(([key, value]) => (
+          <Box key={key}>
+            <Text size="xs" c="dimmed">{labels[key] || key}</Text>
+            <Text size="sm" fw={600}>{value}</Text>
+          </Box>
+        ))}
+      </SimpleGrid>
+    </Paper>
+  );
+}
+
+// Ceza Koşulları Kartı
+function CezaKosullariCard({ cezalar }: { cezalar: CezaKosulu[] }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!cezalar || cezalar.length === 0) return null;
+
+  const displayItems = expanded ? cezalar : cezalar.slice(0, 4);
+  const hasMore = cezalar.length > 4;
+
+  return (
+    <Paper p="sm" withBorder radius="md" className="glassy-card-nested"
+      style={{ borderColor: 'var(--mantine-color-red-6)', background: 'rgba(239, 68, 68, 0.05)' }}>
+      <Group justify="space-between" mb="xs">
+        <Group gap="xs">
+          <ThemeIcon size="sm" variant="light" color="red">
+            <IconGavel size={12} />
+          </ThemeIcon>
+          <Text size="sm" fw={600}>Ceza Koşulları</Text>
+          <Badge size="xs" variant="light" color="red">{cezalar.length}</Badge>
+        </Group>
+        {hasMore && (
+          <Button size="xs" variant="subtle" color="red" onClick={() => setExpanded(!expanded)}
+            rightSection={<IconChevronDown size={12} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} />}>
+            {expanded ? 'Daralt' : `Tümü (${cezalar.length})`}
+          </Button>
+        )}
+      </Group>
+      <ScrollArea.Autosize mah={expanded ? 250 : undefined}>
+        <Stack gap={4}>
+          {displayItems.map((c) => (
+            <Group key={`ceza-${c.tur}-${c.oran}`} justify="space-between" gap="xs" wrap="nowrap">
+              <Text size="xs" style={{ flex: 1 }}>{c.tur}</Text>
+              <Badge size="xs" variant="outline" color="red">{c.oran}</Badge>
+            </Group>
+          ))}
+        </Stack>
+      </ScrollArea.Autosize>
+    </Paper>
+  );
+}
+
+// Fiyat Farkı Kartı
+function FiyatFarkiCard({ fiyatFarki }: { fiyatFarki: FiyatFarki }) {
+  if (!fiyatFarki || (!fiyatFarki.formul && !fiyatFarki.katsayilar)) return null;
+
+  const katsayilar = fiyatFarki.katsayilar ? Object.entries(fiyatFarki.katsayilar) : [];
+
+  return (
+    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+      <Group gap="xs" mb="xs">
+        <ThemeIcon size="sm" variant="light" color="pink">
+          <IconMathFunction size={12} />
+        </ThemeIcon>
+        <Text size="sm" fw={600}>Fiyat Farkı</Text>
+      </Group>
+      {fiyatFarki.formul && (
+        <Text size="xs" c="dimmed" mb="xs" style={{ fontFamily: 'monospace' }}>
+          {fiyatFarki.formul}
+        </Text>
+      )}
+      {katsayilar.length > 0 && (
+        <Group gap="xs">
+          {katsayilar.map(([key, value]) => (
+            <Badge key={key} size="xs" variant="outline" color="pink">
+              {key}={value}
+            </Badge>
+          ))}
+        </Group>
+      )}
+    </Paper>
+  );
+}
+
+// Gerekli Belgeler Kartı
+function GerekliBelgelerCard({ belgeler }: { belgeler: GerekliBelge[] }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!belgeler || belgeler.length === 0) return null;
+
+  const displayItems = expanded ? belgeler : belgeler.slice(0, 5);
+  const hasMore = belgeler.length > 5;
+
+  return (
+    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+      <Group justify="space-between" mb="xs">
+        <Group gap="xs">
+          <ThemeIcon size="sm" variant="light" color="lime">
+            <IconCertificate size={12} />
+          </ThemeIcon>
+          <Text size="sm" fw={600}>Gerekli Belgeler</Text>
+          <Badge size="xs" variant="light" color="lime">{belgeler.length}</Badge>
+        </Group>
+        {hasMore && (
+          <Button size="xs" variant="subtle" color="lime" onClick={() => setExpanded(!expanded)}
+            rightSection={<IconChevronDown size={12} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} />}>
+            {expanded ? 'Daralt' : `Tümü (${belgeler.length})`}
+          </Button>
+        )}
+      </Group>
+      <ScrollArea.Autosize mah={expanded ? 300 : undefined}>
+        <Stack gap={4}>
+          {displayItems.map((b) => {
+            const belgeAdi = typeof b === 'string' ? b : b.belge;
+            const zorunlu = typeof b === 'object' ? b.zorunlu : true;
+            const puan = typeof b === 'object' ? (b.puan ?? 0) : 0;
+            return (
+              <Group key={`belge-${belgeAdi.substring(0, 30)}`} gap="xs" wrap="nowrap">
+                <ThemeIcon size="xs" variant={zorunlu ? 'filled' : 'light'} color={zorunlu ? 'lime' : 'gray'} radius="xl">
+                  <IconCheck size={10} />
+                </ThemeIcon>
+                <Text size="xs" style={{ flex: 1 }}>{belgeAdi}</Text>
+                {puan > 0 && <Badge size="xs" variant="light" color="blue">+{puan} puan</Badge>}
+              </Group>
+            );
+          })}
+        </Stack>
+      </ScrollArea.Autosize>
+    </Paper>
+  );
+}
+
+// Teminat Oranları Kartı
+function TeminatOranlariCard({ teminat }: { teminat: TeminatOranlari }) {
+  const entries = Object.entries(teminat).filter(([, v]) => v?.trim());
+  if (entries.length === 0) return null;
+
+  const labels: Record<string, string> = {
+    gecici: 'Geçici Teminat',
+    kesin: 'Kesin Teminat',
+    ek_kesin: 'Ek Kesin Teminat',
+  };
+
+  return (
+    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+      <Group gap="xs" mb="xs">
+        <ThemeIcon size="sm" variant="light" color="violet">
+          <IconShield size={12} />
+        </ThemeIcon>
+        <Text size="sm" fw={600}>Teminat Oranları</Text>
+      </Group>
+      <Group gap="md">
+        {entries.map(([key, value]) => (
+          <Box key={key}>
+            <Text size="xs" c="dimmed">{labels[key] || key}</Text>
+            <Text size="lg" fw={700} c="violet">{value}</Text>
+          </Box>
+        ))}
+      </Group>
+    </Paper>
+  );
+}
+
+// Servis Saatleri Kartı
+function ServisSaatleriCard({ saatler }: { saatler: ServisSaatleri }) {
+  const entries = Object.entries(saatler).filter(([, v]) => v?.trim());
+  if (entries.length === 0) return null;
+
+  const labels: Record<string, string> = {
+    kahvalti: 'Kahvaltı',
+    ogle: 'Öğle',
+    aksam: 'Akşam',
+  };
+
+  return (
+    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+      <Group gap="xs" mb="xs">
+        <ThemeIcon size="sm" variant="light" color="cyan">
+          <IconClock size={12} />
+        </ThemeIcon>
+        <Text size="sm" fw={600}>Servis Saatleri</Text>
+      </Group>
+      <Group gap="md">
+        {entries.map(([key, value]) => (
+          <Badge key={key} size="lg" variant="light" color="cyan" leftSection={<IconClock size={12} />}>
+            {labels[key] || key}: {value}
+          </Badge>
+        ))}
+      </Group>
+    </Paper>
+  );
+}
+
+// Benzer İş Tanımı Kartı
+function BenzerIsTanimiCard({ tanim }: { tanim: string }) {
+  if (!tanim || !tanim.trim()) return null;
+
+  return (
+    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+      <Group gap="xs" mb="xs">
+        <ThemeIcon size="sm" variant="light" color="gray">
+          <IconInfoCircle size={12} />
+        </ThemeIcon>
+        <Text size="sm" fw={600}>Benzer İş Tanımı</Text>
+      </Group>
+      <Text size="xs" c="dimmed" style={{ lineHeight: 1.6 }}>{tanim}</Text>
+    </Paper>
+  );
+}
+
 // ========== DOKÜMANLAR SEKMESİ ==========
 
 // ========== DÖKÜMANLAR SEKMESİ (Wizard Modal ile) ==========
@@ -975,89 +2153,48 @@ function DokumanlarSection({ tenderId, tenderTitle, dokumansayisi = 0, analizEdi
   return (
     <>
       <Stack gap="md">
-        {/* Özet Kartı */}
-        <Paper p="lg" withBorder radius="md" bg="dark.6">
-          <Stack gap="md" align="center">
-            <ThemeIcon size={60} variant="light" color="orange" radius="xl">
-              <IconFile size={30} />
-            </ThemeIcon>
-            
-            <Box ta="center">
-              <Text size="xl" fw={700}>
-                {dokumansayisi > 0 ? `${dokumansayisi} Döküman` : 'Döküman Yok'}
-              </Text>
-              {dokumansayisi > 0 && (
-                <Text size="sm" c="dimmed">
-                  {analizEdilen > 0 
-                    ? `${analizEdilen} tanesi analiz edildi`
-                    : 'Henüz analiz yapılmamış'}
+        {/* Kompakt Özet - Tıklanabilir */}
+        <Paper 
+          p="md" 
+          withBorder 
+          radius="md" 
+          bg="dark.7"
+          style={{ cursor: 'pointer' }}
+          onClick={() => setWizardOpen(true)}
+        >
+          <Group justify="space-between" align="center">
+            <Group gap="md">
+              <ThemeIcon size="lg" variant="light" color="orange" radius="xl">
+                <IconFile size={18} />
+              </ThemeIcon>
+              <Box>
+                <Text size="sm" fw={600}>
+                  {dokumansayisi > 0 ? `${dokumansayisi} Döküman` : 'Döküman Yok'}
                 </Text>
-              )}
-            </Box>
-
-            {/* Progress */}
-            {dokumansayisi > 0 && (
-              <Box w="100%" maw={300}>
-                <Group justify="space-between" mb={4}>
-                  <Text size="xs" c="dimmed">Analiz Durumu</Text>
-                  <Text size="xs" c="dimmed">{Math.round((analizEdilen / dokumansayisi) * 100)}%</Text>
-                </Group>
-                <Box 
-                  h={8} 
-                  bg="dark.4" 
-                  style={{ borderRadius: 4, overflow: 'hidden' }}
-                >
-                  <Box 
-                    h="100%" 
-                    w={`${(analizEdilen / dokumansayisi) * 100}%`}
-                    bg="green"
-                    style={{ transition: 'width 0.3s ease' }}
-                  />
-                </Box>
+                <Text size="xs" c="dimmed">
+                  {dokumansayisi > 0 
+                    ? (analizEdilen > 0 ? `${analizEdilen} analiz edildi` : 'Analiz bekliyor')
+                    : 'Henüz döküman indirilmedi'}
+                </Text>
               </Box>
-            )}
-
-            {/* Ana Buton */}
-            <Button
-              size="lg"
-              variant="gradient"
-              style={{ background: 'linear-gradient(135deg, #C9A227 0%, #D4AF37 50%, #E6C65C 100%)', border: 'none' }}
-              leftSection={<IconFileText size={20} />}
-              onClick={() => setWizardOpen(true)}
-              fullWidth
-              maw={300}
-            >
-              Döküman Yönetimi
-            </Button>
-
-            <Text size="xs" c="dimmed" ta="center">
-              Site içeriği çekme, döküman indirme ve AI analizi için tıklayın
-            </Text>
-          </Stack>
+            </Group>
+            
+            <Group gap="xs">
+              {dokumansayisi > 0 && (
+                <Badge 
+                  size="lg" 
+                  variant="light" 
+                  color={analizEdilen === dokumansayisi ? 'green' : 'yellow'}
+                >
+                  %{Math.round((analizEdilen / dokumansayisi) * 100)}
+                </Badge>
+              )}
+              <ActionIcon variant="subtle" color="gray" size="lg">
+                <IconChevronRight size={18} />
+              </ActionIcon>
+            </Group>
+          </Group>
         </Paper>
-
-        {/* Hızlı Bilgi */}
-        {dokumansayisi === 0 && (
-          <Paper p="md" withBorder radius="md">
-            <Stack gap="xs">
-              <Text size="sm" fw={500}>Nasıl Çalışır?</Text>
-              <Stack gap={4}>
-                <Group gap="xs">
-                  <Badge size="sm" circle>1</Badge>
-                  <Text size="xs">Site içeriği çekilir (ilan, mal/hizmet listesi)</Text>
-                </Group>
-                <Group gap="xs">
-                  <Badge size="sm" circle>2</Badge>
-                  <Text size="xs">PDF/ZIP dökümanlar indirilir</Text>
-                </Group>
-                <Group gap="xs">
-                  <Badge size="sm" circle>3</Badge>
-                  <Text size="xs">AI ile analiz edilir (teknik şartlar, birim fiyatlar)</Text>
-                </Group>
-              </Stack>
-            </Stack>
-          </Paper>
-        )}
       </Stack>
 
       {/* Wizard Modal */}
@@ -1074,27 +2211,36 @@ function DokumanlarSection({ tenderId, tenderTitle, dokumansayisi = 0, analizEdi
 
 // ========== ANALİZ SEKMESİ ==========
 
-// Helper: Teknik şart text'ini al
-function getTeknikSartText(sart: string | TeknikSart): string {
-  return typeof sart === 'string' ? sart : sart.text;
+// Helper: Teknik şart text'ini al (null-safe)
+function getTeknikSartText(sart: string | TeknikSart | null | undefined): string {
+  if (!sart) return '';
+  if (typeof sart === 'string') return sart;
+  if (typeof sart === 'object' && 'text' in sart) return sart.text || '';
+  if (typeof sart === 'object' && 'madde' in sart) return (sart as { madde?: string }).madde || '';
+  return String(sart);
 }
 
-// Helper: Teknik şart kaynak dökümanını al
-function getTeknikSartSource(sart: string | TeknikSart): string | undefined {
-  return typeof sart === 'object' ? sart.source : undefined;
+// Helper: Teknik şart kaynak dökümanını al (null-safe)
+function getTeknikSartSource(sart: string | TeknikSart | null | undefined): string | undefined {
+  if (!sart || typeof sart !== 'object') return undefined;
+  return (sart as TeknikSart).source;
 }
 
-// Helper: Not text'ini al
-function getNoteText(not: string | AINote): string {
-  return typeof not === 'string' ? not : not.text;
+// Helper: Not text'ini al (null-safe)
+function getNoteText(not: string | AINote | null | undefined): string {
+  if (!not) return '';
+  if (typeof not === 'string') return not;
+  if (typeof not === 'object' && 'text' in not) return not.text || '';
+  return String(not);
 }
 
-// Helper: Not kaynak dökümanını al
-function getNoteSource(not: string | AINote): string | undefined {
-  return typeof not === 'object' ? not.source : undefined;
+// Helper: Not kaynak dökümanını al (null-safe)
+function getNoteSource(not: string | AINote | null | undefined): string | undefined {
+  if (!not || typeof not !== 'object') return undefined;
+  return (not as AINote).source;
 }
 
-function AnalysisSection({ tender }: { tender: SavedTender }) {
+export function AnalysisSection({ tender }: { tender: SavedTender }) {
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<string>('teknik');
   const [teknikSartArama, setTeknikSartArama] = useState('');
   const [birimFiyatArama, setBirimFiyatArama] = useState('');
@@ -1167,8 +2313,15 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
   // Tam Metin
   const tamMetin = analysisData?.tam_metin || '';
 
-  // Analiz yoksa mesaj
-  if (!tender.teknik_sart_sayisi && !tender.birim_fiyat_sayisi && !allNotlar.length) {
+  // Analiz yoksa mesaj - hem sayıları hem de analysis_summary içeriğini kontrol et
+  const hasAnyAnalysis = 
+    (tender.teknik_sart_sayisi || 0) > 0 || 
+    (tender.birim_fiyat_sayisi || 0) > 0 || 
+    allTeknikSartlar.length > 0 ||
+    (analysisData?.birim_fiyatlar?.length || 0) > 0 ||
+    allNotlar.length > 0;
+
+  if (!hasAnyAnalysis) {
     return (
       <Paper p="xl" withBorder radius="md" ta="center">
         <ThemeIcon size="xl" variant="light" color="gray" radius="xl" mb="md">
@@ -1215,6 +2368,38 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
               </Group>
             ),
           },
+          ...((analysisData?.takvim?.length || 0) > 0
+            ? [
+                {
+                  value: 'takvim',
+                  label: (
+                    <Group gap={4}>
+                      <IconCalendar size={14} />
+                      <span>Takvim</span>
+                      <Badge size="xs" variant="filled" color="cyan">
+                        {analysisData?.takvim?.length || 0}
+                      </Badge>
+                    </Group>
+                  ),
+                },
+              ]
+            : []),
+          ...((analysisData?.onemli_notlar?.length || 0) > 0
+            ? [
+                {
+                  value: 'onemli',
+                  label: (
+                    <Group gap={4}>
+                      <IconAlertCircle size={14} />
+                      <span>Önemli Notlar</span>
+                      <Badge size="xs" variant="filled" color="orange">
+                        {analysisData?.onemli_notlar?.length || 0}
+                      </Badge>
+                    </Group>
+                  ),
+                },
+              ]
+            : []),
           ...(allNotlar.length > 0
             ? [
                 {
@@ -1223,7 +2408,7 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
                     <Group gap={4}>
                       <IconBulb size={14} />
                       <span>AI Notları</span>
-                      <Badge size="xs" variant="filled" color="orange">
+                      <Badge size="xs" variant="filled" color="violet">
                         {allNotlar.length}
                       </Badge>
                     </Group>
@@ -1486,6 +2671,141 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
         </Stack>
       )}
 
+      {/* Takvim Tab */}
+      {activeAnalysisTab === 'takvim' && (
+        <Stack gap="xs">
+          <ScrollArea h={350}>
+            {analysisData?.takvim && analysisData.takvim.length > 0 ? (
+              <Stack gap="xs">
+                {analysisData.takvim.map((item) => {
+                  const takvimItem = item as TakvimItem;
+                  return (
+                    <Paper
+                      key={`takvim-${takvimItem.olay}-${takvimItem.tarih}`}
+                      p="sm"
+                      withBorder
+                      radius="sm"
+                      style={{
+                        background: 'rgba(6, 182, 212, 0.05)',
+                        borderLeft: '3px solid var(--mantine-color-cyan-5)',
+                      }}
+                    >
+                      <Group justify="space-between" wrap="nowrap">
+                        <Group gap="sm" style={{ flex: 1, minWidth: 0 }}>
+                          <ThemeIcon size="md" variant="light" color="cyan" radius="xl">
+                            <IconCalendar size={14} />
+                          </ThemeIcon>
+                          <Box style={{ flex: 1, minWidth: 0 }}>
+                            <Text size="sm" fw={500}>{takvimItem.olay}</Text>
+                            <Group gap="xs" mt={4}>
+                              <Badge size="sm" variant="filled" color="cyan">
+                                {takvimItem.tarih}
+                              </Badge>
+                              {takvimItem.gun && (
+                                <Badge size="sm" variant="outline" color="cyan">
+                                  {takvimItem.gun} gün
+                                </Badge>
+                              )}
+                            </Group>
+                          </Box>
+                        </Group>
+                        <CopyButton value={`${takvimItem.olay}: ${takvimItem.tarih}`}>
+                          {({ copied, copy }) => (
+                            <Tooltip label={copied ? 'Kopyalandı!' : 'Kopyala'}>
+                              <ActionIcon
+                                size="xs"
+                                variant="subtle"
+                                color={copied ? 'green' : 'gray'}
+                                onClick={copy}
+                              >
+                                <IconCopy size={12} />
+                              </ActionIcon>
+                            </Tooltip>
+                          )}
+                        </CopyButton>
+                      </Group>
+                    </Paper>
+                  );
+                })}
+              </Stack>
+            ) : (
+              <Paper p="md" withBorder radius="md" ta="center">
+                <Text size="sm" c="dimmed">Takvim bilgisi bulunamadı</Text>
+              </Paper>
+            )}
+          </ScrollArea>
+        </Stack>
+      )}
+
+      {/* Önemli Notlar Tab */}
+      {activeAnalysisTab === 'onemli' && (
+        <Stack gap="xs">
+          <ScrollArea h={350}>
+            {analysisData?.onemli_notlar && analysisData.onemli_notlar.length > 0 ? (
+              <Stack gap="xs">
+                {analysisData.onemli_notlar.map((not) => {
+                  const notItem = typeof not === 'string' ? { not, tur: 'bilgi' as const } : not as OnemliNot;
+                  const turColor = notItem.tur === 'uyari' ? 'red' : notItem.tur === 'gereklilik' ? 'blue' : 'gray';
+                  const turLabel = notItem.tur === 'uyari' ? 'Uyarı' : notItem.tur === 'gereklilik' ? 'Gereklilik' : 'Bilgi';
+                  const TurIcon = notItem.tur === 'uyari' ? IconAlertTriangle : notItem.tur === 'gereklilik' ? IconExclamationMark : IconInfoCircle;
+                  
+                  return (
+                    <Paper
+                      key={`onemli-${notItem.not.substring(0, 30)}-${notItem.tur}`}
+                      p="sm"
+                      withBorder
+                      radius="sm"
+                      style={{
+                        background: notItem.tur === 'uyari' 
+                          ? 'rgba(239, 68, 68, 0.05)' 
+                          : notItem.tur === 'gereklilik' 
+                            ? 'rgba(59, 130, 246, 0.05)' 
+                            : 'rgba(107, 114, 128, 0.05)',
+                        borderLeft: `3px solid var(--mantine-color-${turColor}-5)`,
+                      }}
+                    >
+                      <Group justify="space-between" wrap="nowrap" align="flex-start">
+                        <Group gap="sm" style={{ flex: 1, minWidth: 0 }} align="flex-start">
+                          <ThemeIcon size="md" variant="light" color={turColor} radius="xl">
+                            <TurIcon size={14} />
+                          </ThemeIcon>
+                          <Box style={{ flex: 1, minWidth: 0 }}>
+                            <Group gap="xs" mb={4}>
+                              <Badge size="xs" variant="filled" color={turColor}>
+                                {turLabel}
+                              </Badge>
+                            </Group>
+                            <Text size="sm">{notItem.not}</Text>
+                          </Box>
+                        </Group>
+                        <CopyButton value={notItem.not}>
+                          {({ copied, copy }) => (
+                            <Tooltip label={copied ? 'Kopyalandı!' : 'Kopyala'}>
+                              <ActionIcon
+                                size="xs"
+                                variant="subtle"
+                                color={copied ? 'green' : 'gray'}
+                                onClick={copy}
+                              >
+                                <IconCopy size={12} />
+                              </ActionIcon>
+                            </Tooltip>
+                          )}
+                        </CopyButton>
+                      </Group>
+                    </Paper>
+                  );
+                })}
+              </Stack>
+            ) : (
+              <Paper p="md" withBorder radius="md" ta="center">
+                <Text size="sm" c="dimmed">Önemli not bulunamadı</Text>
+              </Paper>
+            )}
+          </ScrollArea>
+        </Stack>
+      )}
+
       {/* AI Notları Tab */}
       {activeAnalysisTab === 'notlar' && (
         <Stack gap="xs">
@@ -1666,600 +2986,184 @@ function AnalysisSection({ tender }: { tender: SavedTender }) {
 
 // ========== ARAÇLAR SEKMESİ ==========
 
-interface TeklifItem {
-  firma: string;
-  tutar: number;
-}
+export function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?: () => void }) {
+  const [calcModalOpen, setCalcModalOpen] = useState(false);
 
-interface MaliyetBilesenleri {
-  anaCigGirdi: number;
-  yardimciGirdi: number;
-  iscilik: number;
-  nakliye: number;
-  sozlesmeGideri: number;
-  genelGider: number;
-}
+  // Mevcut değerler (sadece gösterim için)
+  const yaklasikMaliyet = tender.yaklasik_maliyet || 0;
+  const bizimTeklif = tender.bizim_teklif || 0;
+  const otomatikSinirDeger = yaklasikMaliyet > 0 ? Math.round(yaklasikMaliyet * 0.85) : 0;
 
-function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?: () => void }) {
-  const [yaklasikMaliyet, setYaklasikMaliyet] = useState(tender.yaklasik_maliyet || 0);
-  const [sinirDeger, setSinirDeger] = useState<number | null>(tender.sinir_deger || null);
-  const [bizimTeklif, setBizimTeklif] = useState(tender.bizim_teklif || 0);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  // Tespit edilen veriler
+  const hesaplamaVerileri = (tender as any).hesaplama_verileri || {};
+  const isSuresi = hesaplamaVerileri.is_suresi || tender.analysis_summary?.teslim_suresi || tender.analysis_summary?.sure;
+  const toplamOgun = hesaplamaVerileri.toplam_ogun_sayisi || 
+    (tender.analysis_summary?.ogun_bilgileri?.reduce((sum: number, o: any) => sum + (Number(o.miktar) || 0), 0) || 0);
+  const teknikSartSayisi = hesaplamaVerileri.teknik_sart_sayisi || tender.analysis_summary?.teknik_sartlar?.length || 0;
+  const birimFiyatSayisi = hesaplamaVerileri.birim_fiyat_sayisi || tender.analysis_summary?.birim_fiyatlar?.length || 0;
 
-  // Teklif listesi (KİK formülü için)
-  const [teklifListesi, setTeklifListesi] = useState<TeklifItem[]>([
-    { firma: '', tutar: 0 },
-    { firma: '', tutar: 0 },
-  ]);
+  // Hesaplamalar
+  const ogunBasiMaliyet = yaklasikMaliyet && toplamOgun ? yaklasikMaliyet / toplamOgun : 0;
 
-  // Maliyet bileşenleri (aşırı düşük için)
-  const [maliyetBilesenleri, setMaliyetBilesenleri] = useState<MaliyetBilesenleri>({
-    anaCigGirdi: 0,
-    yardimciGirdi: 0,
-    iscilik: 0,
-    nakliye: 0,
-    sozlesmeGideri: 0,
-    genelGider: 0,
-  });
-
-  // Hesaplama sonuçları
-  const [hesaplananSinirDeger, setHesaplananSinirDeger] = useState<number | null>(null);
-  const [asiriDusukSonuc, setAsiriDusukSonuc] = useState<{
-    asiriDusukMu: boolean;
-    toplamMaliyet: number;
-    farkOran: number;
-    aciklama: string;
-  } | null>(null);
-  const [teminatSonuc, setTeminatSonuc] = useState<{
-    geciciTeminat: number;
-    kesinTeminat: number;
-    damgaVergisi: number;
-  } | null>(null);
-  const [bedelSonuc, setBedelSonuc] = useState<{
-    bedel: number;
-    aciklama: string;
-  } | null>(null);
-
-  // Auto-save
-  const saveData = useDebouncedCallback(async () => {
-    setSaveStatus('saving');
-    try {
-      await tendersAPI.updateTracking(Number(tender.id), {
-        yaklasik_maliyet: yaklasikMaliyet || null,
-        sinir_deger: sinirDeger || null,
-        bizim_teklif: bizimTeklif || null,
-        hesaplama_verileri: {
-          teklifListesi,
-          maliyetBilesenleri,
-        },
-      });
-      setSaveStatus('saved');
-      onRefresh?.();
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    } catch (error) {
-      console.error('Save error:', error);
-      setSaveStatus('idle');
-    }
-  }, 1000);
-
-  useEffect(() => {
-    if (yaklasikMaliyet > 0 || sinirDeger || bizimTeklif > 0) {
-      saveData();
-    }
-  }, [yaklasikMaliyet, sinirDeger, bizimTeklif, saveData]);
-
-  // KİK Formülü ile Sınır Değer Hesapla
-  const hesaplaSinirDeger = () => {
-    const gecerliTeklifler = teklifListesi.filter((t) => t.tutar > 0).map((t) => t.tutar);
-
-    if (gecerliTeklifler.length < 2) {
-      // Basit formül: %85
-      if (yaklasikMaliyet) {
-        const basit = yaklasikMaliyet * 0.85;
-        setHesaplananSinirDeger(basit);
-      }
-      return;
-    }
-
-    // KİK formülü
-    const n = gecerliTeklifler.length;
-    const toplam = gecerliTeklifler.reduce((a, b) => a + b, 0);
-    const ortalama = toplam / n;
-
-    // Standart sapma
-    const varyans = gecerliTeklifler.reduce((acc, val) => acc + (val - ortalama) ** 2, 0) / n;
-    const stdSapma = Math.sqrt(varyans);
-
-    // K katsayısı (teklif sayısına göre)
-    const kValues: Record<number, number> = {
-      2: 1.5,
-      3: 1.35,
-      4: 1.25,
-      5: 1.18,
-      6: 1.13,
-      7: 1.09,
-      8: 1.06,
-    };
-    const k = kValues[Math.min(n, 8)] || 1.0;
-
-    // Sınır değer = Ortalama - (K * Standart Sapma)
-    const sinir = Math.max(ortalama - k * stdSapma, ortalama * 0.4);
-
-    setHesaplananSinirDeger(sinir);
-  };
-
-  // Aşırı düşük analiz (maliyet bileşenleri ile)
-  const hesaplaAsiriDusuk = () => {
-    const sd = sinirDeger || hesaplananSinirDeger;
-    if (!sd || !bizimTeklif) return;
-
-    const toplamMaliyet = Object.values(maliyetBilesenleri).reduce((a, b) => a + b, 0);
-    const asiriDusukMu = bizimTeklif < sd;
-    const farkOran = ((sd - bizimTeklif) / sd) * 100;
-
-    let aciklama = '';
-    if (asiriDusukMu) {
-      if (toplamMaliyet > 0 && toplamMaliyet <= bizimTeklif) {
-        aciklama = `Teklifiniz sınır değerin %${farkOran.toFixed(1)} altında. Maliyet bileşenleriniz (${toplamMaliyet.toLocaleString('tr-TR')} ₺) teklifi karşılıyor.`;
-      } else if (toplamMaliyet > bizimTeklif) {
-        aciklama = `⚠️ DİKKAT: Maliyet bileşenleriniz (${toplamMaliyet.toLocaleString('tr-TR')} ₺) tekliften yüksek! Açıklama kabul edilmeyebilir.`;
-      } else {
-        aciklama = `Teklifiniz sınır değerin %${farkOran.toFixed(1)} altında. Maliyet bileşenlerini girin.`;
-      }
-    } else {
-      aciklama = 'Teklifiniz sınır değerin üstünde. Aşırı düşük sorgusu riski düşük.';
-    }
-
-    setAsiriDusukSonuc({
-      asiriDusukMu,
-      toplamMaliyet,
-      farkOran,
-      aciklama,
-    });
-  };
-
-  // Teminat hesapla
-  const hesaplaTeminat = () => {
-    const tutar = bizimTeklif || yaklasikMaliyet;
-    if (!tutar) return;
-    setTeminatSonuc({
-      geciciTeminat: tutar * 0.03,
-      kesinTeminat: tutar * 0.06,
-      damgaVergisi: tutar * 0.00948,
-    });
-  };
-
-  // İtirazen şikayet bedeli (2026 tarifeleri)
-  const hesaplaBedel = () => {
-    const ym = yaklasikMaliyet;
-    if (!ym) return;
-
-    let bedel = 0;
-    let aciklama = '';
-
-    if (ym <= 1000000) {
-      bedel = 12000;
-      aciklama = '0 - 1.000.000 ₺ arası';
-    } else if (ym <= 5000000) {
-      bedel = 24000;
-      aciklama = '1.000.000 - 5.000.000 ₺ arası';
-    } else if (ym <= 10000000) {
-      bedel = 36000;
-      aciklama = '5.000.000 - 10.000.000 ₺ arası';
-    } else if (ym <= 25000000) {
-      bedel = 48000;
-      aciklama = '10.000.000 - 25.000.000 ₺ arası';
-    } else if (ym <= 50000000) {
-      bedel = 60000;
-      aciklama = '25.000.000 - 50.000.000 ₺ arası';
-    } else if (ym <= 100000000) {
-      bedel = 72000;
-      aciklama = '50.000.000 - 100.000.000 ₺ arası';
-    } else {
-      bedel = 84000;
-      aciklama = '100.000.000 ₺ üzeri';
-    }
-
-    setBedelSonuc({ bedel, aciklama });
-  };
+  // Risk hesaplama
+  const isAsiriDusuk = bizimTeklif > 0 && otomatikSinirDeger > 0 && bizimTeklif < otomatikSinirDeger;
+  const fark = bizimTeklif > 0 && otomatikSinirDeger > 0 ? bizimTeklif - otomatikSinirDeger : 0;
 
   return (
-    <ScrollArea h={450}>
-      <Stack gap="md" pr="xs">
-        {/* Kayıt Durumu */}
-        {saveStatus !== 'idle' && (
-          <Badge size="xs" color={saveStatus === 'saving' ? 'blue' : 'green'} variant="light">
-            {saveStatus === 'saving' ? 'Kaydediliyor...' : 'Kaydedildi'}
-          </Badge>
-        )}
+    <>
+      {/* Hesaplama Modalı */}
+      <CalculationModal
+        opened={calcModalOpen}
+        onClose={() => setCalcModalOpen(false)}
+        tender={tender}
+        onRefresh={onRefresh}
+      />
 
-        {/* Temel Veriler */}
-        <Paper p="sm" withBorder radius="md">
-          <Group gap="xs" mb="sm">
-            <IconCalculator size={16} color="var(--mantine-color-blue-6)" />
-            <Text size="sm" fw={600}>
-              Teklif Verileri
-            </Text>
-          </Group>
-          <SimpleGrid cols={3}>
-            <NumberInput
-              label="Yaklaşık Maliyet"
-              value={yaklasikMaliyet || ''}
-              onChange={(val) => setYaklasikMaliyet(Number(val) || 0)}
-              thousandSeparator="."
-              decimalSeparator=","
-              rightSection={
-                <Text size="xs" c="dimmed">
-                  ₺
-                </Text>
-              }
-              size="xs"
-            />
-            <NumberInput
-              label="Sınır Değer"
-              value={sinirDeger || ''}
-              onChange={(val) => setSinirDeger(val ? Number(val) : null)}
-              thousandSeparator="."
-              decimalSeparator=","
-              rightSection={
-                <Text size="xs" c="dimmed">
-                  ₺
-                </Text>
-              }
-              size="xs"
-              placeholder="Hesapla"
-            />
-            <NumberInput
-              label="Bizim Teklif"
-              value={bizimTeklif || ''}
-              onChange={(val) => setBizimTeklif(Number(val) || 0)}
-              thousandSeparator="."
-              decimalSeparator=","
-              rightSection={
-                <Text size="xs" c="dimmed">
-                  ₺
-                </Text>
-              }
-              size="xs"
-            />
-          </SimpleGrid>
-        </Paper>
-
-        {/* KİK Formülü - Sınır Değer */}
-        <Paper p="sm" withBorder radius="md">
-          <Group justify="space-between" mb="sm">
-            <Group gap="xs">
-              <IconMathFunction size={16} color="#C9A227" />
-              <Text size="sm" fw={600}>
-                KİK Sınır Değer Formülü
-              </Text>
-            </Group>
-            <Button
-              size="compact-xs"
-              variant="subtle"
-              leftSection={<IconPlus size={12} />}
-              onClick={() => setTeklifListesi((prev) => [...prev, { firma: '', tutar: 0 }])}
-            >
-              Teklif Ekle
-            </Button>
-          </Group>
-
-          <Stack gap={4} mb="sm">
-            {teklifListesi.map((teklif, index) => (
-              <Group key={`teklif-${teklif.firma || 'empty'}-${teklif.tutar}-${index}`} gap={6}>
-                <TextInput
-                  placeholder={`Firma ${index + 1}`}
-                  value={teklif.firma}
-                  onChange={(e) =>
-                    setTeklifListesi((prev) =>
-                      prev.map((t, i) => (i === index ? { ...t, firma: e.target.value } : t))
-                    )
-                  }
-                  style={{ flex: 1, maxWidth: 100 }}
-                  size="xs"
-                />
-                <NumberInput
-                  placeholder="Tutar"
-                  value={teklif.tutar || ''}
-                  onChange={(val) =>
-                    setTeklifListesi((prev) =>
-                      prev.map((t, i) => (i === index ? { ...t, tutar: Number(val) || 0 } : t))
-                    )
-                  }
-                  thousandSeparator="."
-                  decimalSeparator=","
-                  style={{ flex: 1 }}
-                  size="xs"
-                  rightSection={
-                    <Text size="xs" c="dimmed">
-                      ₺
-                    </Text>
-                  }
-                />
-                {teklifListesi.length > 2 && (
-                  <ActionIcon
-                    variant="subtle"
-                    color="red"
-                    size="sm"
-                    onClick={() => setTeklifListesi((prev) => prev.filter((_, i) => i !== index))}
-                  >
-                    <IconTrash size={14} />
-                  </ActionIcon>
-                )}
-              </Group>
-            ))}
-          </Stack>
-
-          <Button
-            fullWidth
-            size="xs"
-            variant="light"
-            color="orange"
-            leftSection={<IconCalculator size={14} />}
-            onClick={hesaplaSinirDeger}
-          >
-            Sınır Değer Hesapla
-          </Button>
-
-          {hesaplananSinirDeger && (
-            <Paper p="xs" mt="sm" radius="sm" bg="var(--mantine-color-green-light)">
-              <Group justify="space-between">
-                <Box>
-                  <Text size="xs" c="dimmed">
-                    Hesaplanan Sınır Değer
-                  </Text>
-                  <Text size="lg" fw={700} c="green">
-                    {hesaplananSinirDeger.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺
-                  </Text>
-                </Box>
-                <Button
-                  size="xs"
-                  variant="filled"
-                  color="green"
-                  onClick={() => setSinirDeger(Math.round(hesaplananSinirDeger))}
+      <Stack gap="md">
+        {/* Ana Hesaplama Kartı - Hero */}
+        <Paper 
+          p="lg" 
+          withBorder 
+          radius="md" 
+          bg={
+            yaklasikMaliyet === 0 
+              ? 'dark.6' 
+              : isAsiriDusuk 
+                ? 'rgba(255, 107, 107, 0.08)' 
+                : 'rgba(81, 207, 102, 0.08)'
+          }
+          style={{
+            borderColor: yaklasikMaliyet === 0 
+              ? undefined 
+              : isAsiriDusuk 
+                ? 'var(--mantine-color-red-6)' 
+                : 'var(--mantine-color-green-6)',
+            cursor: 'pointer',
+          }}
+          onClick={() => setCalcModalOpen(true)}
+        >
+          <Group justify="space-between" align="flex-start">
+            <div>
+              <Group gap="xs" mb="xs">
+                <ThemeIcon 
+                  size="lg" 
+                  variant="light" 
+                  color={yaklasikMaliyet === 0 ? 'blue' : isAsiriDusuk ? 'red' : 'green'}
                 >
-                  Uygula
-                </Button>
+                  <IconCalculator size={20} />
+                </ThemeIcon>
+                <div>
+                  <Text size="sm" fw={600}>Teklif Hesaplama</Text>
+                  <Text size="xs" c="dimmed">Sınır değer ve risk analizi</Text>
+                </div>
               </Group>
-            </Paper>
-          )}
-        </Paper>
 
-        {/* Aşırı Düşük Analizi */}
-        <Paper p="sm" withBorder radius="md">
-          <Group gap="xs" mb="sm">
-            <IconAlertTriangle size={16} color="var(--mantine-color-orange-6)" />
-            <Text size="sm" fw={600}>
-              Aşırı Düşük Analizi
-            </Text>
+              {yaklasikMaliyet > 0 ? (
+                <SimpleGrid cols={3} spacing="md" mt="md">
+                  <Box>
+                    <Text size="xs" c="dimmed">Yaklaşık Maliyet</Text>
+                    <Text size="sm" fw={600}>{yaklasikMaliyet.toLocaleString('tr-TR')} ₺</Text>
+                  </Box>
+                  <Box>
+                    <Text size="xs" c="dimmed">Sınır Değer</Text>
+                    <Text size="sm" fw={600} c="blue">{otomatikSinirDeger.toLocaleString('tr-TR')} ₺</Text>
+                  </Box>
+                  <Box>
+                    <Text size="xs" c="dimmed">Bizim Teklif</Text>
+                    <Text size="sm" fw={600} c={isAsiriDusuk ? 'red' : 'green'}>
+                      {bizimTeklif > 0 ? `${bizimTeklif.toLocaleString('tr-TR')} ₺` : '—'}
+                    </Text>
+                  </Box>
+                </SimpleGrid>
+              ) : (
+                <Text size="sm" c="dimmed" mt="xs">
+                  Teklif analizi için tıklayın
+                </Text>
+              )}
+            </div>
+
+            {yaklasikMaliyet > 0 && bizimTeklif > 0 && (
+              <Badge 
+                size="lg" 
+                variant="light" 
+                color={isAsiriDusuk ? 'red' : 'green'}
+                leftSection={isAsiriDusuk ? <IconAlertTriangle size={14} /> : <IconCheck size={14} />}
+              >
+                {isAsiriDusuk ? 'RİSKLİ' : 'UYGUN'}
+              </Badge>
+            )}
           </Group>
 
-          {sinirDeger && bizimTeklif > 0 && (
-            <Paper
-              p="xs"
-              mb="sm"
-              radius="sm"
-              bg={
-                bizimTeklif < sinirDeger
-                  ? 'var(--mantine-color-orange-light)'
-                  : 'var(--mantine-color-green-light)'
-              }
-            >
-              <Group justify="space-between">
-                <Text fw={600} size="xs" c={bizimTeklif < sinirDeger ? 'orange' : 'green'}>
-                  {bizimTeklif < sinirDeger ? '⚠ Açıklama Gerekli' : '✓ Uygun'}
-                </Text>
-                <Text fw={600} size="xs">
-                  {Math.abs(sinirDeger - bizimTeklif).toLocaleString('tr-TR')} ₺ fark
-                </Text>
-              </Group>
-            </Paper>
-          )}
-
-          <Text size="xs" fw={500} mb={6} c="dimmed">
-            Maliyet Bileşenleri
-          </Text>
-          <SimpleGrid cols={2} spacing={6}>
-            <NumberInput
-              label="Ana Çiğ Girdi"
-              value={maliyetBilesenleri.anaCigGirdi || ''}
-              onChange={(val) =>
-                setMaliyetBilesenleri((prev) => ({ ...prev, anaCigGirdi: Number(val) || 0 }))
-              }
-              thousandSeparator="."
-              decimalSeparator=","
-              size="xs"
-            />
-            <NumberInput
-              label="Yardımcı Girdi"
-              value={maliyetBilesenleri.yardimciGirdi || ''}
-              onChange={(val) =>
-                setMaliyetBilesenleri((prev) => ({ ...prev, yardimciGirdi: Number(val) || 0 }))
-              }
-              thousandSeparator="."
-              decimalSeparator=","
-              size="xs"
-            />
-            <NumberInput
-              label="İşçilik"
-              value={maliyetBilesenleri.iscilik || ''}
-              onChange={(val) =>
-                setMaliyetBilesenleri((prev) => ({ ...prev, iscilik: Number(val) || 0 }))
-              }
-              thousandSeparator="."
-              decimalSeparator=","
-              size="xs"
-            />
-            <NumberInput
-              label="Nakliye"
-              value={maliyetBilesenleri.nakliye || ''}
-              onChange={(val) =>
-                setMaliyetBilesenleri((prev) => ({ ...prev, nakliye: Number(val) || 0 }))
-              }
-              thousandSeparator="."
-              decimalSeparator=","
-              size="xs"
-            />
-            <NumberInput
-              label="Sözleşme Gideri"
-              value={maliyetBilesenleri.sozlesmeGideri || ''}
-              onChange={(val) =>
-                setMaliyetBilesenleri((prev) => ({ ...prev, sozlesmeGideri: Number(val) || 0 }))
-              }
-              thousandSeparator="."
-              decimalSeparator=","
-              size="xs"
-            />
-            <NumberInput
-              label="Genel Gider + Kâr"
-              value={maliyetBilesenleri.genelGider || ''}
-              onChange={(val) =>
-                setMaliyetBilesenleri((prev) => ({ ...prev, genelGider: Number(val) || 0 }))
-              }
-              thousandSeparator="."
-              decimalSeparator=","
-              size="xs"
-            />
-          </SimpleGrid>
-
-          <Button
-            fullWidth
-            mt="sm"
-            size="xs"
-            variant="light"
-            color="orange"
-            leftSection={<IconCalculator size={14} />}
-            onClick={hesaplaAsiriDusuk}
-            disabled={!sinirDeger || bizimTeklif <= 0}
-          >
-            Analiz Et
-          </Button>
-
-          {asiriDusukSonuc && (
-            <Paper
-              p="xs"
-              mt="sm"
-              radius="sm"
-              bg={
-                asiriDusukSonuc.asiriDusukMu
-                  ? 'var(--mantine-color-orange-light)'
-                  : 'var(--mantine-color-green-light)'
-              }
-            >
-              <Group justify="space-between" mb={4}>
-                <Badge color={asiriDusukSonuc.asiriDusukMu ? 'orange' : 'green'} size="sm">
-                  {asiriDusukSonuc.asiriDusukMu ? 'Aşırı Düşük' : 'Normal'}
-                </Badge>
-                {asiriDusukSonuc.toplamMaliyet > 0 && (
-                  <Text size="xs" fw={600}>
-                    Maliyet: {asiriDusukSonuc.toplamMaliyet.toLocaleString('tr-TR')} ₺
-                  </Text>
-                )}
-              </Group>
-              <Text size="xs" c="dimmed">
-                {asiriDusukSonuc.aciklama}
+          {yaklasikMaliyet > 0 && bizimTeklif > 0 && (
+            <Group gap="xs" mt="md" pt="md" style={{ borderTop: '1px solid var(--mantine-color-dark-4)' }}>
+              <Text size="xs" c="dimmed">Fark:</Text>
+              <Text size="xs" fw={500} c={fark >= 0 ? 'green' : 'red'}>
+                {fark >= 0 ? '+' : ''}{fark.toLocaleString('tr-TR')} ₺
               </Text>
-            </Paper>
+              {ogunBasiMaliyet > 0 && (
+                <>
+                  <Text size="xs" c="dimmed" ml="md">Öğün Başı:</Text>
+                  <Text size="xs" fw={500} c="blue">{ogunBasiMaliyet.toFixed(2)} ₺</Text>
+                </>
+              )}
+            </Group>
           )}
         </Paper>
 
-        {/* Teminat ve İtirazen Şikayet */}
-        <SimpleGrid cols={2}>
-          {/* Teminat */}
-          <Paper p="sm" withBorder radius="md">
-            <Group gap="xs" mb="sm">
-              <IconScale size={16} color="var(--mantine-color-blue-6)" />
-              <Text size="sm" fw={600}>
-                Teminat
-              </Text>
-            </Group>
-            <Button
-              fullWidth
-              size="xs"
-              variant="light"
-              color="blue"
-              onClick={hesaplaTeminat}
-              disabled={!yaklasikMaliyet && !bizimTeklif}
-            >
-              Hesapla
-            </Button>
-            {teminatSonuc && (
-              <Stack gap={4} mt="sm">
-                <Group justify="space-between">
-                  <Text size="xs" c="dimmed">
-                    Geçici (%3)
-                  </Text>
-                  <Text size="xs" fw={600}>
-                    {teminatSonuc.geciciTeminat.toLocaleString('tr-TR', {
-                      maximumFractionDigits: 0,
-                    })}{' '}
-                    ₺
-                  </Text>
-                </Group>
-                <Group justify="space-between">
-                  <Text size="xs" c="dimmed">
-                    Kesin (%6)
-                  </Text>
-                  <Text size="xs" fw={600}>
-                    {teminatSonuc.kesinTeminat.toLocaleString('tr-TR', {
-                      maximumFractionDigits: 0,
-                    })}{' '}
-                    ₺
-                  </Text>
-                </Group>
-                <Group justify="space-between">
-                  <Text size="xs" c="dimmed">
-                    Damga V.
-                  </Text>
-                  <Text size="xs" fw={600}>
-                    {teminatSonuc.damgaVergisi.toLocaleString('tr-TR', {
-                      maximumFractionDigits: 0,
-                    })}{' '}
-                    ₺
-                  </Text>
-                </Group>
-              </Stack>
-            )}
-          </Paper>
+        {/* Açılır Hesaplama Butonu */}
+        <Button
+          fullWidth
+          size="md"
+          variant="gradient"
+          gradient={{ from: 'blue', to: 'cyan' }}
+          leftSection={<IconCalculator size={18} />}
+          onClick={() => setCalcModalOpen(true)}
+        >
+          Detaylı Hesaplama Aç
+        </Button>
 
-          {/* İtirazen Şikayet Bedeli */}
-          <Paper p="sm" withBorder radius="md">
-            <Group gap="xs" mb="sm">
-              <IconCoin size={16} color="var(--mantine-color-teal-6)" />
-              <Text size="sm" fw={600}>
-                İtirazen Şikayet
-              </Text>
+        {/* Tespit Edilen Veriler - Kompakt */}
+        {(isSuresi || toplamOgun > 0) && (
+          <Paper p="sm" withBorder radius="md" bg="rgba(20, 184, 166, 0.03)">
+            <Group gap="xs" mb="xs">
+              <IconSparkles size={14} color="var(--mantine-color-teal-6)" />
+              <Text size="xs" fw={600} c="teal">Döküman Analizi</Text>
             </Group>
-            <Text size="xs" c="dimmed" mb="xs">
-              2026 Tarifeleri
-            </Text>
-            <Button
-              fullWidth
-              size="xs"
-              variant="light"
-              color="teal"
-              onClick={hesaplaBedel}
-              disabled={!yaklasikMaliyet}
-            >
-              Hesapla
-            </Button>
-            {bedelSonuc && (
-              <Paper p="xs" mt="sm" radius="sm" bg="var(--mantine-color-teal-light)">
-                <Text size="lg" fw={700} c="teal">
-                  {bedelSonuc.bedel.toLocaleString('tr-TR')} ₺
-                </Text>
-                <Text size="xs" c="dimmed">
-                  {bedelSonuc.aciklama}
-                </Text>
-              </Paper>
-            )}
+            <SimpleGrid cols={4} spacing="xs">
+              {isSuresi && (
+                <Box>
+                  <Text size="xs" c="dimmed">Süre</Text>
+                  <Text size="sm" fw={500}>{isSuresi}</Text>
+                </Box>
+              )}
+              {toplamOgun > 0 && (
+                <Box>
+                  <Text size="xs" c="dimmed">Öğün</Text>
+                  <Text size="sm" fw={500}>{(toplamOgun / 1000000).toFixed(1)}M</Text>
+                </Box>
+              )}
+              {teknikSartSayisi > 0 && (
+                <Box>
+                  <Text size="xs" c="dimmed">Şart</Text>
+                  <Text size="sm" fw={500}>{teknikSartSayisi}</Text>
+                </Box>
+              )}
+              {birimFiyatSayisi > 0 && (
+                <Box>
+                  <Text size="xs" c="dimmed">Kalem</Text>
+                  <Text size="sm" fw={500}>{birimFiyatSayisi}</Text>
+                </Box>
+              )}
+            </SimpleGrid>
           </Paper>
-        </SimpleGrid>
+        )}
       </Stack>
-    </ScrollArea>
+    </>
   );
 }
 
+// Eski karmaşık UI kaldırıldı - Yeni CalculationModal kullanılıyor
+const _unusedOldAraclarContent = null; // Placeholder
 // ========== DİLEKÇE SEKMESİ ==========
 
 const dilekceTypes = {
@@ -2295,7 +3199,7 @@ interface DilekceSectionProps {
   onSelectType: (type: string | null) => void;
 }
 
-function DilekceSection({ tender, dilekceType, onSelectType }: DilekceSectionProps) {
+export function DilekceSection({ tender, dilekceType, onSelectType }: DilekceSectionProps) {
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>(
     []
   );
@@ -2303,7 +3207,19 @@ function DilekceSection({ tender, dilekceType, onSelectType }: DilekceSectionPro
   const [loading, setLoading] = useState(false);
   const [dilekceContent, setDilekceContent] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [showDataForm, setShowDataForm] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Eksik kritik verileri tespit et
+  const missingFields = tender ? detectMissingCriticalData({
+    yaklasik_maliyet: tender.yaklasik_maliyet,
+    bizim_teklif: tender.bizim_teklif,
+    sinir_deger: tender.sinir_deger,
+  }) : [];
+  
+  // Sadece zorunlu alanları kontrol et (sinir_deger opsiyonel)
+  const hasCriticalMissing = missingFields.filter(f => f !== 'sinir_deger').length > 0;
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -2313,26 +3229,59 @@ function DilekceSection({ tender, dilekceType, onSelectType }: DilekceSectionPro
   }, [messages.length]);
 
   // AI ile dilekçe oluştur
-  const handleSendMessage = async () => {
-    if (!input.trim() || !tender || !dilekceType) return;
+  const handleSendMessage = async (messageOverride?: string) => {
+    const messageToSend = messageOverride || input.trim();
+    if (!messageToSend || !tender || !dilekceType) return;
 
-    const userMessage = input.trim();
-    setInput('');
+    // Kritik veriler eksikse önce formu göster
+    if (hasCriticalMissing && !messageOverride) {
+      setPendingMessage(messageToSend);
+      setShowDataForm(true);
+      return;
+    }
+
+    const userMessage = messageToSend;
+    if (!messageOverride) setInput('');
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
     setLoading(true);
 
     try {
       const typeInfo = dilekceTypes[dilekceType as keyof typeof dilekceTypes];
+      
+      // Zengin ihale context'i oluştur
+      const analysisData = tender.analysis_summary;
+      const teknikSartlar = analysisData?.teknik_sartlar?.slice(0, 10) || [];
+      const birimFiyatlar = analysisData?.birim_fiyatlar?.slice(0, 10) || [];
+      
       const systemPrompt = `Sen bir kamu ihale uzmanısın. ${typeInfo.label} dilekçesi hazırlamaya yardım ediyorsun.
-İhale bilgileri:
+
+## İHALE BİLGİLERİ
 - Başlık: ${tender.ihale_basligi}
 - Kurum: ${tender.kurum}
 - Tarih: ${tender.tarih}
-- Yaklaşık Maliyet: ${tender.yaklasik_maliyet?.toLocaleString('tr-TR')} ₺
-- Bizim Teklif: ${tender.bizim_teklif?.toLocaleString('tr-TR')} ₺
-- Sınır Değer: ${tender.sinir_deger?.toLocaleString('tr-TR')} ₺
+- Şehir: ${tender.city || '-'}
+- İKN: ${tender.external_id || '-'}
 
-Kullanıcının isteğine göre profesyonel bir ${typeInfo.label} hazırla. Dilekçe formatında, resmi dil kullan.`;
+## MALİ BİLGİLER
+- Yaklaşık Maliyet: ${tender.yaklasik_maliyet ? tender.yaklasik_maliyet.toLocaleString('tr-TR') + ' ₺' : 'Belirtilmemiş'}
+- Bizim Teklif: ${tender.bizim_teklif ? tender.bizim_teklif.toLocaleString('tr-TR') + ' ₺' : 'Belirtilmemiş'}
+- Sınır Değer: ${tender.sinir_deger ? tender.sinir_deger.toLocaleString('tr-TR') + ' ₺' : 'Belirtilmemiş'}
+
+## TEKNİK ŞARTLAR (${teknikSartlar.length} adet)
+${teknikSartlar.map((s, i) => `${i + 1}. ${typeof s === 'string' ? s : s.text}`).join('\n') || 'Teknik şart bilgisi yok'}
+
+## BİRİM FİYATLAR (${birimFiyatlar.length} adet)
+${birimFiyatlar.map((b) => `- ${b.kalem}: ${b.miktar} ${b.birim}`).join('\n') || 'Birim fiyat bilgisi yok'}
+
+## İŞ SÜRESİ VE DETAYLAR
+- İş Süresi: ${analysisData?.sure || '-'}
+- Günlük Öğün: ${analysisData?.gunluk_ogun_sayisi || '-'}
+- Kişi Sayısı: ${analysisData?.kisi_sayisi || '-'}
+
+## TALİMAT
+Kullanıcının isteğine göre profesyonel bir ${typeInfo.label} hazırla. Dilekçe formatında, resmi dil kullan. 
+Yukarıdaki ihale bilgilerini dilekçede uygun şekilde kullan.
+Eğer kritik bir bilgi eksikse (örn: yaklaşık maliyet, bizim teklif) bunu nazikçe belirt.`;
 
       const response = await aiAPI.sendAgentMessage({
         message: userMessage,
@@ -2340,8 +3289,10 @@ Kullanıcının isteğine göre profesyonel bir ${typeInfo.label} hazırla. Dile
         department: 'İHALE',
       });
 
-      if (response.success && response.data?.response) {
-        const assistantMessage = response.data.response;
+      // API doğrudan { success, response } döndürür, data wrapper yok
+      const aiResponse = (response as unknown as { success: boolean; response: string }).response;
+      if (response.success && aiResponse) {
+        const assistantMessage = aiResponse;
         setMessages((prev) => [...prev, { role: 'assistant', content: assistantMessage }]);
 
         // Eğer dilekçe içeriği oluşturulduysa kaydet
@@ -2557,6 +3508,32 @@ Kullanıcının isteğine göre profesyonel bir ${typeInfo.label} hazırla. Dile
                   </Group>
                 </Paper>
               )}
+              
+              {/* Eksik Bilgi Formu */}
+              {showDataForm && tender && missingFields.length > 0 && (
+                <InlineDataForm
+                  tenderId={Number(tender.id)}
+                  missingFields={missingFields}
+                  currentValues={{
+                    yaklasik_maliyet: tender.yaklasik_maliyet,
+                    bizim_teklif: tender.bizim_teklif,
+                    sinir_deger: tender.sinir_deger,
+                  }}
+                  onSaved={() => {
+                    setShowDataForm(false);
+                    // Bekleyen mesajı gönder
+                    if (pendingMessage) {
+                      handleSendMessage(pendingMessage);
+                      setPendingMessage(null);
+                    }
+                  }}
+                  onCancel={() => {
+                    setShowDataForm(false);
+                    setPendingMessage(null);
+                  }}
+                />
+              )}
+              
               <div ref={messagesEndRef} />
             </Stack>
           </ScrollArea>
@@ -2583,7 +3560,7 @@ Kullanıcının isteğine göre profesyonel bir ${typeInfo.label} hazırla. Dile
               size="lg"
               color="blue"
               variant="filled"
-              onClick={handleSendMessage}
+              onClick={() => handleSendMessage()}
               disabled={!input.trim() || loading || !tender}
             >
               <IconSend size={16} />
