@@ -127,18 +127,18 @@ export function SuggestionsTab({ tender, onRefresh, onApplied }: SuggestionsTabP
       const selectedValues = detectedValues.filter((v) => selectedKeys.has(v.key));
       const savedLabels: string[] = [];
       const savedFields: string[] = [];
-      
+
       // Ana alanlar (DB'de direkt kolon olarak var)
       const directFields = ['yaklasik_maliyet', 'sinir_deger', 'bizim_teklif'];
       const updateData: Record<string, unknown> = {};
-      
+
       // Ek veriler hesaplama_verileri JSONB'ye kaydedilecek
       const hesaplamaVerileri: Record<string, unknown> = {};
 
       for (const val of selectedValues) {
         savedLabels.push(val.label);
         savedFields.push(val.fieldName);
-        
+
         if (directFields.includes(val.fieldName)) {
           updateData[val.fieldName] = val.value;
         } else {
@@ -146,7 +146,7 @@ export function SuggestionsTab({ tender, onRefresh, onApplied }: SuggestionsTabP
           hesaplamaVerileri[val.fieldName] = val.value;
         }
       }
-      
+
       // Eğer ek veri varsa hesaplama_verileri'ne ekle
       if (Object.keys(hesaplamaVerileri).length > 0) {
         updateData.hesaplama_verileri = hesaplamaVerileri;
@@ -163,7 +163,7 @@ export function SuggestionsTab({ tender, onRefresh, onApplied }: SuggestionsTabP
       });
 
       onRefresh?.();
-      
+
       // Callback: Hesaplamalar panelini aç
       onApplied?.(savedFields);
     } catch (error) {
@@ -222,7 +222,7 @@ export function SuggestionsTab({ tender, onRefresh, onApplied }: SuggestionsTabP
   const formatValue = (value: string | number | null, type: DetectedValue['type']) => {
     if (value === null || value === undefined) return '-';
     if (type === 'currency') {
-      return Number(value).toLocaleString('tr-TR') + ' ₺';
+      return `${Number(value).toLocaleString('tr-TR')} ₺`;
     }
     return String(value);
   };
@@ -289,9 +289,7 @@ export function SuggestionsTab({ tender, onRefresh, onApplied }: SuggestionsTabP
               borderColor: selectedKeys.has(item.key)
                 ? 'var(--mantine-color-teal-6)'
                 : 'var(--mantine-color-default-border)',
-              background: selectedKeys.has(item.key)
-                ? 'rgba(20, 184, 166, 0.05)'
-                : 'transparent',
+              background: selectedKeys.has(item.key) ? 'rgba(20, 184, 166, 0.05)' : 'transparent',
             }}
           >
             <Group justify="space-between" wrap="nowrap">

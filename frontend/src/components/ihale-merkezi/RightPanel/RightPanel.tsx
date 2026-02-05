@@ -8,11 +8,11 @@ import {
   IconUsers,
   IconWand,
 } from '@tabler/icons-react';
+import { AraclarSection, DilekceSection } from '../CenterPanel/CenterPanel';
 import type { IhaleMerkeziState, SavedTender } from '../types';
 import { CollapsibleSection } from './CollapsibleSection';
 import { FirmsPanel } from './FirmsPanel';
 import { SuggestionsTab } from './SuggestionsTab';
-import { AraclarSection, DilekceSection } from '../CenterPanel/CenterPanel';
 
 interface RightPanelProps {
   state: IhaleMerkeziState;
@@ -55,7 +55,9 @@ export function RightPanel({
         <Box p="xs" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
           <Tabs
             value={activeRightTab}
-            onChange={(value) => onStateChange({ activeRightTab: value as IhaleMerkeziState['activeRightTab'] })}
+            onChange={(value) =>
+              onStateChange({ activeRightTab: value as IhaleMerkeziState['activeRightTab'] })
+            }
             variant="pills"
           >
             <Tabs.List grow>
@@ -118,7 +120,10 @@ export function RightPanel({
                 </Text>
                 <Button
                   variant="gradient"
-                  style={{ background: 'linear-gradient(135deg, #C9A227 0%, #D4AF37 50%, #E6C65C 100%)', border: 'none' }}
+                  style={{
+                    background: 'linear-gradient(135deg, #C9A227 0%, #D4AF37 50%, #E6C65C 100%)',
+                    border: 'none',
+                  }}
                   leftSection={<IconFileAnalytics size={16} />}
                   onClick={() => onStateChange({ teklifModalOpen: true })}
                 >
@@ -152,17 +157,19 @@ export function RightPanel({
         )}
 
         {/* Rakip Teklifler - Araçlar tab'ında */}
-        {(!isMobile || mobileActiveTab === 'tools') && activeRightTab === 'araclar' && isSavedTender && (
-          <CollapsibleSection
-            title="Rakip Teklifler"
-            icon={<IconUsers size={16} />}
-            color="orange"
-            isExpanded={expandedSections.has('firms')}
-            onToggle={() => onToggleSection('firms')}
-          >
-            <FirmsPanel tender={selectedTender as SavedTender} />
-          </CollapsibleSection>
-        )}
+        {(!isMobile || mobileActiveTab === 'tools') &&
+          activeRightTab === 'araclar' &&
+          isSavedTender && (
+            <CollapsibleSection
+              title="Rakip Teklifler"
+              icon={<IconUsers size={16} />}
+              color="orange"
+              isExpanded={expandedSections.has('firms')}
+              onToggle={() => onToggleSection('firms')}
+            >
+              <FirmsPanel tender={selectedTender as SavedTender} />
+            </CollapsibleSection>
+          )}
       </ScrollArea>
     </Box>
   );

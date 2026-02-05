@@ -8,10 +8,10 @@
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import mammoth from 'mammoth';
-import * as XLSX from 'xlsx';
-import pdfParse from 'pdf-parse';
 import { fileTypeFromFile } from 'file-type';
+import mammoth from 'mammoth';
+import pdfParse from 'pdf-parse';
+import * as XLSX from 'xlsx';
 import logger from '../../../utils/logger.js';
 
 /**
@@ -34,11 +34,31 @@ export async function extractZip(zipPath) {
   // Genişletilmiş desteklenen uzantılar
   const supportedExtensions = [
     // Dökümanlar
-    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.rtf', '.odt', '.ods', '.odp',
+    '.pdf',
+    '.doc',
+    '.docx',
+    '.xls',
+    '.xlsx',
+    '.ppt',
+    '.pptx',
+    '.rtf',
+    '.odt',
+    '.ods',
+    '.odp',
     // Metin
-    '.txt', '.csv', '.xml', '.json',
+    '.txt',
+    '.csv',
+    '.xml',
+    '.json',
     // Görseller
-    '.png', '.jpg', '.jpeg', '.gif', '.webp', '.tiff', '.tif', '.bmp',
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.gif',
+    '.webp',
+    '.tiff',
+    '.tif',
+    '.bmp',
   ];
 
   try {
@@ -73,14 +93,102 @@ export async function extractZip(zipPath) {
     logger.info('ZIP extracted', {
       module: 'extractor',
       fileCount: files.length,
-      files: files.map(f => f.name),
+      files: files.map((f) => f.name),
     });
 
     return { extractDir, files };
   } catch (error) {
-    try { fs.rmSync(extractDir, { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(extractDir, { recursive: true, force: true });
+    } catch {}
     throw new Error(`ZIP açılamadı: ${error.message}`);
   }
+}
+
+/**
+ * PDF metin kalitesini değerlendir
+ * Tablo yapısının bozulup bozulmadığını kontrol eder
+ * @param {string} text - Çıkarılan metin
+ * @returns {Object} Kalite metrikleri
+ */
+function assessPdfTextQuality(text) {
+  if (!text || text.length < 100) {
+    return { score: 0, issues: ['insufficient_text'], needsVision: true };
+  }
+
+  const issues = [];
+  let score = 100;
+
+  // 1. Tablo benzeri yapı tespiti (sayılar ve birimler yan yana)
+  // Gramaj tabloları genellikle: "Dana Eti 150 gr" veya "150 gram" içerir
+  const tablePatterns = [/\d+\s*(gr|gram|kg|ml|lt|adet|porsiyon)/gi, /\d+[.,]\d+\s*(TL|₺|lira)/gi, /madde\s*\d+[.:]/gi];
+
+  let tableHints = 0;
+  for (const pattern of tablePatterns) {
+    const matches = text.match(pattern) || [];
+    tableHints += matches.length;
+  }
+
+  // 2. Satır karışıklığı tespiti
+  // pdf-parse tabloları bozduğunda satırlar birbirine girer
+  // Örn: "Dana Eti150grTavuk120gr" gibi boşluksuz birleşimler
+  const mergedPatterns = /[a-zığüşöç]{3,}\d{2,}[a-zığüşöç]{2,}/gi;
+  const mergedMatches = text.match(mergedPatterns) || [];
+
+  if (mergedMatches.length > 5) {
+    issues.push('merged_columns');
+    score -= 30;
+  }
+
+  // 3. Anormal satır uzunluğu dağılımı
+  // Normal metin: satırlar 40-120 karakter arası
+  // Bozuk tablo: çok kısa veya çok uzun satırlar
+  const lines = text.split('\n').filter((l) => l.trim().length > 0);
+  const lineLengths = lines.map((l) => l.length);
+  const avgLength = lineLengths.reduce((a, b) => a + b, 0) / lineLengths.length;
+  const veryShortLines = lineLengths.filter((l) => l < 10).length;
+  const veryLongLines = lineLengths.filter((l) => l > 200).length;
+
+  if (veryShortLines > lines.length * 0.3) {
+    issues.push('fragmented_lines');
+    score -= 20;
+  }
+
+  if (veryLongLines > lines.length * 0.2) {
+    issues.push('merged_lines');
+    score -= 20;
+  }
+
+  // 4. Sayısal değer yoğunluğu (catering şartnamelerinde yüksek olmalı)
+  const numberMatches = text.match(/\d+[.,]?\d*/g) || [];
+  const numberDensity = numberMatches.length / (text.length / 1000);
+
+  // Yüksek sayı yoğunluğu + düşük kalite = muhtemelen bozuk tablo
+  if (numberDensity > 15 && score < 80) {
+    issues.push('possible_corrupted_table');
+    score -= 20;
+  }
+
+  // 5. Tekrarlayan pattern'ler (tablo satırları)
+  // "MADDE" veya sıra numaraları çoksa tablo var demektir
+  const maddeCount = (text.match(/madde\s*\d/gi) || []).length;
+  const siraCount = (text.match(/^\s*\d{1,3}[.)]\s/gm) || []).length;
+
+  const hasTableStructure = tableHints > 10 || maddeCount > 5 || siraCount > 10;
+
+  // Final karar
+  const needsVision = score < 60 || (hasTableStructure && score < 80);
+
+  return {
+    score: Math.max(0, score),
+    issues,
+    hasTableStructure,
+    tableHints,
+    mergedColumns: mergedMatches.length,
+    avgLineLength: Math.round(avgLength),
+    numberDensity: numberDensity.toFixed(2),
+    needsVision,
+  };
 }
 
 /**
@@ -96,6 +204,7 @@ export async function extractPdf(pdfPath) {
   let text = '';
   let pageCount = 0;
   let needsOcr = false;
+  let textQuality = null;
   const tables = [];
 
   try {
@@ -109,12 +218,36 @@ export async function extractPdf(pdfPath) {
 
     if (textDensity < 10 && fileSizeKB > 100) {
       needsOcr = true;
-      logger.info('PDF needs OCR', {
+      logger.info('PDF needs OCR: Low text density (scanned)', {
         module: 'extractor',
         fileSizeKB: Math.round(fileSizeKB),
         textLength: text.length,
         textDensity: textDensity.toFixed(2),
       });
+    }
+
+    // Zero-Loss: Metin kalitesi değerlendirmesi
+    // Tablo yapısı bozulmuş olabilir, Vision'a yönlendir
+    if (!needsOcr && text.length > 500) {
+      textQuality = assessPdfTextQuality(text);
+
+      if (textQuality.needsVision) {
+        needsOcr = true;
+        logger.info('PDF needs Vision: Text quality issues detected', {
+          module: 'extractor',
+          score: textQuality.score,
+          issues: textQuality.issues,
+          hasTableStructure: textQuality.hasTableStructure,
+          tableHints: textQuality.tableHints,
+        });
+      } else if (textQuality.hasTableStructure) {
+        // Tablo var ama kalite yeterli - uyarı log'u
+        logger.info('PDF has table structure, text quality acceptable', {
+          module: 'extractor',
+          score: textQuality.score,
+          tableHints: textQuality.tableHints,
+        });
+      }
     }
   } catch (error) {
     needsOcr = true;
@@ -129,6 +262,7 @@ export async function extractPdf(pdfPath) {
     structured: {
       pageCount,
       tables,
+      textQuality, // Kalite metrikleri de döndür
     },
     metadata: {
       fileName: path.basename(pdfPath),
@@ -167,7 +301,10 @@ export async function extractExcel(excelPath) {
     const columns = headerRow.map((col, idx) => ({
       index: idx,
       name: String(col).trim(),
-      sampleValues: dataRows.slice(0, 3).map(row => row[idx]).filter(v => v !== ''),
+      sampleValues: dataRows
+        .slice(0, 3)
+        .map((row) => row[idx])
+        .filter((v) => v !== ''),
     }));
 
     sheets.push({
@@ -355,11 +492,13 @@ export async function extract(filePath) {
     }
 
     // Temizle
-    try { fs.rmSync(extractDir, { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(extractDir, { recursive: true, force: true });
+    } catch {}
 
     return {
       type: 'zip',
-      text: results.map(r => r.text).join('\n\n---\n\n'),
+      text: results.map((r) => r.text).join('\n\n---\n\n'),
       structured: {
         files: results,
         fileCount: results.length,
@@ -369,7 +508,7 @@ export async function extract(filePath) {
         fileSize: fs.statSync(filePath).size,
         extractionTime: 0,
       },
-      needsOcr: results.some(r => r.needsOcr),
+      needsOcr: results.some((r) => r.needsOcr),
     };
   }
 

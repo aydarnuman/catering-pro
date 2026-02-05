@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  Accordion,
   ActionIcon,
   Badge,
   Box,
@@ -13,36 +12,98 @@ import {
   ThemeIcon,
   Tooltip,
 } from '@mantine/core';
-import {
-  IconCalendarEvent,
-  IconChevronDown,
-  IconClock,
-  IconEdit,
-  IconEye,
-  IconTrash,
-} from '@tabler/icons-react';
-import React from 'react';
+import { IconCalendarEvent, IconEye } from '@tabler/icons-react';
 import { formatMoney } from '@/lib/formatters';
 import { type MenuPlan, useMenuPlanlama } from './MenuPlanlamaContext';
+
+// Kaydedilen Menü Kartı
+const KaydedilenMenuKart = ({ menu }: { menu: MenuPlan }) => {
+  const formatTarih = (tarihStr: string) => {
+    const tarih = new Date(tarihStr);
+    return tarih.toLocaleDateString('tr-TR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  return (
+    <Paper
+      p="sm"
+      radius="md"
+      style={{
+        background: 'var(--mantine-color-dark-7)',
+        border: '1px solid var(--mantine-color-dark-5)',
+      }}
+    >
+      <Group justify="space-between" wrap="nowrap">
+        <Box style={{ flex: 1, minWidth: 0 }}>
+          <Group gap={8} wrap="nowrap">
+            <Badge size="sm" variant="light" color="blue">
+              {formatTarih(menu.baslangic_tarihi)}
+            </Badge>
+            <Text size="sm" truncate fw={500}>
+              {menu.ad}
+            </Text>
+          </Group>
+
+          {menu.ogunler && menu.ogunler.length > 0 && (
+            <Group gap={6} mt={6}>
+              {menu.ogunler.map((ogun) => (
+                <Badge key={ogun.id} size="xs" variant="dot" color="teal">
+                  {ogun.ogun_tipi_adi}: {ogun.yemekler?.length || 0} yemek
+                </Badge>
+              ))}
+            </Group>
+          )}
+        </Box>
+
+        <Group gap={8} wrap="nowrap">
+          <Text size="sm" fw={600} c="teal">
+            {formatMoney(menu.toplam_maliyet || 0)}
+          </Text>
+
+          <Tooltip label="Detay">
+            <ActionIcon variant="subtle" color="gray" size="sm">
+              <IconEye size={14} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      </Group>
+    </Paper>
+  );
+};
 
 export function KaydedilenMenuler() {
   const { kaydedilenMenuler, kaydedilenMenulerLoading } = useMenuPlanlama();
 
   if (kaydedilenMenulerLoading) {
     return (
-      <Paper p="md" radius="md" withBorder mt="md">
-        <Group justify="center" py="md">
+      <Paper p="xl" radius="md" withBorder>
+        <Group justify="center" py="xl">
           <Loader size="sm" />
-          <Text size="sm" c="dimmed">
-            Menüler yükleniyor...
-          </Text>
+          <Text>Menüler yükleniyor...</Text>
         </Group>
       </Paper>
     );
   }
 
   if (kaydedilenMenuler.length === 0) {
-    return null;
+    return (
+      <Paper p="xl" radius="md" withBorder>
+        <Stack align="center" gap="md" py="xl">
+          <ThemeIcon size={60} radius="xl" variant="light" color="gray">
+            <IconCalendarEvent size={30} />
+          </ThemeIcon>
+          <Stack gap={4} align="center">
+            <Text fw={500}>Henüz kaydedilmiş menü yok</Text>
+            <Text size="sm" c="dimmed" ta="center">
+              Planlama &gt; Takvim bölümünden menü oluşturup kaydedin
+            </Text>
+          </Stack>
+        </Stack>
+      </Paper>
+    );
   }
 
   // Menüleri projeye göre grupla
@@ -58,120 +119,38 @@ export function KaydedilenMenuler() {
     {} as Record<string, MenuPlan[]>
   );
 
-  const formatTarih = (tarihStr: string) => {
-    const tarih = new Date(tarihStr);
-    return tarih.toLocaleDateString('tr-TR', {
-      day: '2-digit',
-      month: 'short',
-    });
-  };
-
   return (
-    <Paper
-      p="md"
-      radius="md"
-      withBorder
-      mt="md"
-      style={{
-        background: 'var(--mantine-color-dark-6)',
-        borderColor: 'var(--mantine-color-dark-4)',
-      }}
-    >
-      <Accordion
-        variant="contained"
-        chevron={<IconChevronDown size={16} />}
-        styles={{
-          control: {
-            padding: '8px 12px',
-            background: 'transparent',
-          },
-          content: {
-            padding: '8px 0',
-          },
-          item: {
-            background: 'transparent',
-            border: 'none',
-          },
-        }}
-      >
-        <Accordion.Item value="menuler">
-          <Accordion.Control>
-            <Group gap="xs">
-              <ThemeIcon size="sm" color="violet" variant="light">
-                <IconCalendarEvent size={14} />
-              </ThemeIcon>
-              <Text fw={600} size="sm">
-                Kaydedilen Menüler
-              </Text>
-              <Badge size="xs" variant="light" color="violet">
-                {kaydedilenMenuler.length}
-              </Badge>
-            </Group>
-          </Accordion.Control>
-          <Accordion.Panel>
-            <Stack gap="sm">
-              {Object.entries(menulerByProje).map(([projeName, menuler]) => (
-                <Box key={projeName}>
-                  {/* Proje Başlığı */}
-                  <Text size="xs" c="dimmed" fw={500} mb={4}>
-                    {projeName}
-                  </Text>
+    <Stack gap="md">
+      {Object.entries(menulerByProje).map(([projeName, menuler]) => (
+        <Paper
+          key={projeName}
+          p="md"
+          radius="md"
+          withBorder
+          style={{
+            background: 'var(--mantine-color-dark-6)',
+            borderColor: 'var(--mantine-color-dark-4)',
+          }}
+        >
+          <Group gap="xs" mb="sm">
+            <ThemeIcon size="sm" color="violet" variant="light">
+              <IconCalendarEvent size={14} />
+            </ThemeIcon>
+            <Text size="sm" fw={600}>
+              {projeName}
+            </Text>
+            <Badge size="xs" variant="light" color="violet">
+              {menuler.length} menü
+            </Badge>
+          </Group>
 
-                  {/* Menü Listesi */}
-                  <Stack gap={4}>
-                    {menuler.map((menu) => (
-                      <Paper
-                        key={menu.id}
-                        p="xs"
-                        radius="sm"
-                        style={{
-                          background: 'var(--mantine-color-dark-7)',
-                          border: '1px solid var(--mantine-color-dark-5)',
-                        }}
-                      >
-                        <Group justify="space-between" wrap="nowrap">
-                          <Box style={{ flex: 1, minWidth: 0 }}>
-                            <Group gap={6} wrap="nowrap">
-                              <Badge size="xs" variant="light" color="blue">
-                                {formatTarih(menu.baslangic_tarihi)}
-                              </Badge>
-                              <Text size="xs" truncate fw={500}>
-                                {menu.ad}
-                              </Text>
-                            </Group>
-
-                            {menu.ogunler && menu.ogunler.length > 0 && (
-                              <Group gap={4} mt={4}>
-                                {menu.ogunler.map((ogun) => (
-                                  <Badge key={ogun.id} size="xs" variant="dot" color="teal">
-                                    {ogun.ogun_tipi_adi}: {ogun.yemekler?.length || 0} yemek
-                                  </Badge>
-                                ))}
-                              </Group>
-                            )}
-                          </Box>
-
-                          <Group gap={4} wrap="nowrap">
-                            <Text size="xs" fw={600} c="teal">
-                              {formatMoney(menu.toplam_maliyet || 0)}
-                            </Text>
-
-                            <Tooltip label="Detay">
-                              <ActionIcon variant="subtle" color="gray" size="xs">
-                                <IconEye size={12} />
-                              </ActionIcon>
-                            </Tooltip>
-                          </Group>
-                        </Group>
-                      </Paper>
-                    ))}
-                  </Stack>
-                </Box>
-              ))}
-            </Stack>
-          </Accordion.Panel>
-        </Accordion.Item>
-      </Accordion>
-    </Paper>
+          <Stack gap="xs">
+            {menuler.map((menu) => (
+              <KaydedilenMenuKart key={menu.id} menu={menu} />
+            ))}
+          </Stack>
+        </Paper>
+      ))}
+    </Stack>
   );
 }

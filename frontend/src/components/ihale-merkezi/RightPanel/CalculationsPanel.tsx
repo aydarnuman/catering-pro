@@ -16,8 +16,7 @@ import {
   ThemeIcon,
   Tooltip,
 } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
-import { useDebouncedCallback } from '@mantine/hooks';
+import { useDebouncedCallback, useDisclosure } from '@mantine/hooks';
 import {
   IconAlertTriangle,
   IconCalculator,
@@ -126,16 +125,40 @@ export function CalculationsPanel({ tender }: CalculationsPanelProps) {
   const getRiskStatus = () => {
     if (!sinirDeger || !bizimTeklif) return null;
     const ratio = bizimTeklif / sinirDeger;
-    if (ratio < 0.85) return { color: 'red', label: 'Yüksek Risk - Aşırı Düşük', icon: IconAlertTriangle, percent: Math.round(ratio * 100) };
-    if (ratio < 0.95) return { color: 'orange', label: 'Dikkat', icon: IconAlertTriangle, percent: Math.round(ratio * 100) };
-    if (ratio > 1.05) return { color: 'yellow', label: 'Sınır Üstü', icon: IconInfoCircle, percent: Math.round(ratio * 100) };
-    return { color: 'green', label: 'Uygun Aralık', icon: IconCheck, percent: Math.round(ratio * 100) };
+    if (ratio < 0.85)
+      return {
+        color: 'red',
+        label: 'Yüksek Risk - Aşırı Düşük',
+        icon: IconAlertTriangle,
+        percent: Math.round(ratio * 100),
+      };
+    if (ratio < 0.95)
+      return {
+        color: 'orange',
+        label: 'Dikkat',
+        icon: IconAlertTriangle,
+        percent: Math.round(ratio * 100),
+      };
+    if (ratio > 1.05)
+      return {
+        color: 'yellow',
+        label: 'Sınır Üstü',
+        icon: IconInfoCircle,
+        percent: Math.round(ratio * 100),
+      };
+    return {
+      color: 'green',
+      label: 'Uygun Aralık',
+      icon: IconCheck,
+      percent: Math.round(ratio * 100),
+    };
   };
 
   const riskStatus = getRiskStatus();
 
   // Format money
-  const formatMoney = (val: number) => val.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺';
+  const formatMoney = (val: number) =>
+    `${val.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺`;
   const formatNumber = (val: number) => val.toLocaleString('tr-TR');
 
   return (
@@ -149,7 +172,9 @@ export function CalculationsPanel({ tender }: CalculationsPanelProps) {
                 <ThemeIcon size="sm" variant="light" color="teal">
                   <IconInfoCircle size={14} />
                 </ThemeIcon>
-                <Text size="xs" fw={500}>Tespit Edilen Veriler</Text>
+                <Text size="xs" fw={500}>
+                  Tespit Edilen Veriler
+                </Text>
               </Group>
               {detailsOpened ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
             </Group>
@@ -159,26 +184,42 @@ export function CalculationsPanel({ tender }: CalculationsPanelProps) {
                 <SimpleGrid cols={2} spacing="xs">
                   {detectedData.isSuresi && (
                     <Box>
-                      <Text size="xs" c="dimmed">İş Süresi</Text>
-                      <Text size="sm" fw={500}>{detectedData.isSuresi}</Text>
+                      <Text size="xs" c="dimmed">
+                        İş Süresi
+                      </Text>
+                      <Text size="sm" fw={500}>
+                        {detectedData.isSuresi}
+                      </Text>
                     </Box>
                   )}
                   {detectedData.toplamOgun && (
                     <Box>
-                      <Text size="xs" c="dimmed">Toplam Öğün</Text>
-                      <Text size="sm" fw={500}>{formatNumber(detectedData.toplamOgun)}</Text>
+                      <Text size="xs" c="dimmed">
+                        Toplam Öğün
+                      </Text>
+                      <Text size="sm" fw={500}>
+                        {formatNumber(detectedData.toplamOgun)}
+                      </Text>
                     </Box>
                   )}
                   {detectedData.teknikSartSayisi && (
                     <Box>
-                      <Text size="xs" c="dimmed">Teknik Şart</Text>
-                      <Text size="sm" fw={500}>{detectedData.teknikSartSayisi} adet</Text>
+                      <Text size="xs" c="dimmed">
+                        Teknik Şart
+                      </Text>
+                      <Text size="sm" fw={500}>
+                        {detectedData.teknikSartSayisi} adet
+                      </Text>
                     </Box>
                   )}
                   {detectedData.birimFiyatSayisi && (
                     <Box>
-                      <Text size="xs" c="dimmed">Birim Fiyat</Text>
-                      <Text size="sm" fw={500}>{detectedData.birimFiyatSayisi} kalem</Text>
+                      <Text size="xs" c="dimmed">
+                        Birim Fiyat
+                      </Text>
+                      <Text size="sm" fw={500}>
+                        {detectedData.birimFiyatSayisi} kalem
+                      </Text>
                     </Box>
                   )}
                 </SimpleGrid>
@@ -194,7 +235,9 @@ export function CalculationsPanel({ tender }: CalculationsPanelProps) {
           <ThemeIcon size="sm" variant="light" color="blue">
             <IconCoin size={14} />
           </ThemeIcon>
-          <Text size="xs" fw={500}>Mali Bilgiler</Text>
+          <Text size="xs" fw={500}>
+            Mali Bilgiler
+          </Text>
         </Group>
 
         <NumberInput
@@ -255,7 +298,9 @@ export function CalculationsPanel({ tender }: CalculationsPanelProps) {
               <ThemeIcon size="sm" variant="light" color="violet">
                 <IconCalculator size={14} />
               </ThemeIcon>
-              <Text size="xs" fw={500}>Otomatik Hesaplamalar</Text>
+              <Text size="xs" fw={500}>
+                Otomatik Hesaplamalar
+              </Text>
             </Group>
 
             <Paper p="xs" withBorder radius="sm">
@@ -264,9 +309,13 @@ export function CalculationsPanel({ tender }: CalculationsPanelProps) {
                   <Group justify="space-between">
                     <Group gap={4}>
                       <IconToolsKitchen2 size={12} color="var(--mantine-color-dimmed)" />
-                      <Text size="xs" c="dimmed">Öğün Başı Maliyet</Text>
+                      <Text size="xs" c="dimmed">
+                        Öğün Başı Maliyet
+                      </Text>
                     </Group>
-                    <Text size="xs" fw={500}>{ogunBasiMaliyet.toFixed(2)} ₺/öğün</Text>
+                    <Text size="xs" fw={500}>
+                      {ogunBasiMaliyet.toFixed(2)} ₺/öğün
+                    </Text>
                   </Group>
                 )}
 
@@ -274,9 +323,13 @@ export function CalculationsPanel({ tender }: CalculationsPanelProps) {
                   <Group justify="space-between">
                     <Group gap={4}>
                       <IconToolsKitchen2 size={12} color="var(--mantine-color-dimmed)" />
-                      <Text size="xs" c="dimmed">Öğün Başı Teklifimiz</Text>
+                      <Text size="xs" c="dimmed">
+                        Öğün Başı Teklifimiz
+                      </Text>
                     </Group>
-                    <Text size="xs" fw={500} c="blue">{ogunBasiTeklif.toFixed(2)} ₺/öğün</Text>
+                    <Text size="xs" fw={500} c="blue">
+                      {ogunBasiTeklif.toFixed(2)} ₺/öğün
+                    </Text>
                   </Group>
                 )}
 
@@ -284,9 +337,13 @@ export function CalculationsPanel({ tender }: CalculationsPanelProps) {
                   <Group justify="space-between">
                     <Group gap={4}>
                       <IconClock size={12} color="var(--mantine-color-dimmed)" />
-                      <Text size="xs" c="dimmed">Aylık Maliyet</Text>
+                      <Text size="xs" c="dimmed">
+                        Aylık Maliyet
+                      </Text>
                     </Group>
-                    <Text size="xs" fw={500}>{formatMoney(aylikMaliyet)}</Text>
+                    <Text size="xs" fw={500}>
+                      {formatMoney(aylikMaliyet)}
+                    </Text>
                   </Group>
                 )}
 
@@ -294,9 +351,13 @@ export function CalculationsPanel({ tender }: CalculationsPanelProps) {
                   <Group justify="space-between">
                     <Group gap={4}>
                       <IconToolsKitchen2 size={12} color="var(--mantine-color-dimmed)" />
-                      <Text size="xs" c="dimmed">Günlük Öğün</Text>
+                      <Text size="xs" c="dimmed">
+                        Günlük Öğün
+                      </Text>
                     </Group>
-                    <Text size="xs" fw={500}>~{formatNumber(gunlukOgun)} öğün/gün</Text>
+                    <Text size="xs" fw={500}>
+                      ~{formatNumber(gunlukOgun)} öğün/gün
+                    </Text>
                   </Group>
                 )}
               </Stack>
@@ -338,7 +399,9 @@ export function CalculationsPanel({ tender }: CalculationsPanelProps) {
 
                 <Text size="xs" c="dimmed">
                   {riskStatus.percent < 85 && 'Aşırı düşük teklif açıklaması gerekebilir'}
-                  {riskStatus.percent >= 85 && riskStatus.percent < 95 && 'Sınır değere yakın, dikkatli olun'}
+                  {riskStatus.percent >= 85 &&
+                    riskStatus.percent < 95 &&
+                    'Sınır değere yakın, dikkatli olun'}
                   {riskStatus.percent >= 95 && riskStatus.percent <= 105 && 'Teklif uygun aralıkta'}
                   {riskStatus.percent > 105 && 'Teklif sınır değerin üstünde'}
                 </Text>

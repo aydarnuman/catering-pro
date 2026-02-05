@@ -1,11 +1,16 @@
 /**
  * Layer 2: Smart Chunker - Akıllı Metin Bölümleme
  *
- * Döküman türüne göre optimize edilmiş bölümleme.
- * Tablolar ve başlık-içerik bağlamı korunur.
+ * Zero-Loss Pipeline için optimize edilmiş bölümleme.
+ * P0 Kontrolleri:
+ * - P0-01: Tablo bölünme yasağı
+ * - P0-02: Tablo dipnotu birlikteliği
+ * - P0-03: Başlık-içerik birlikteliği
+ * - P0-05: Karakter kaybı kontrolü
  */
 
 import logger from '../../../utils/logger.js';
+import { createTextHash } from '../controls/p0-checks.js';
 
 /**
  * Chunk yapısı
@@ -15,6 +20,9 @@ import logger from '../../../utils/logger.js';
  * @property {string} type - Chunk türü (text, table, header, mixed)
  * @property {number} tokenEstimate - Tahmini token sayısı
  * @property {Object} context - Bağlam bilgisi (önceki başlık vs.)
+ * @property {number} startPos - Orijinal metindeki başlangıç pozisyonu
+ * @property {number} endPos - Orijinal metindeki bitiş pozisyonu
+ * @property {string} contentHash - İçerik hash'i (P0-05 için)
  */
 
 // Token tahmin katsayısı (Türkçe için ~1.5 karakter/token)
@@ -22,6 +30,7 @@ const CHARS_PER_TOKEN = 1.5;
 const MAX_TOKENS_PER_CHUNK = 6000; // Claude için optimum (artırıldı: 3500 → 6000)
 const MIN_TOKENS_PER_CHUNK = 500; // Minimum chunk boyutu (küçükler birleştirilir)
 const MAX_CHARS_PER_CHUNK = MAX_TOKENS_PER_CHUNK * CHARS_PER_TOKEN;
+const MIN_HEADING_CONTENT_CHARS = 300; // P0-03: Başlıktan sonra minimum karakter
 
 // OCR sayfa ayırıcı pattern'leri (temizlenecek)
 const PAGE_SEPARATOR_PATTERNS = [
@@ -52,7 +61,7 @@ function isHeading(line) {
   // Tipik başlık kalıpları
   const headingPatterns = [
     /^#{1,6}\s/, // Markdown başlıkları
-    /^[A-Z0-9]{1,3}[\.\)]\s/, // 1. 2. A. B. vs.
+    /^[A-Z0-9]{1,3}[.)]\s/, // 1. 2. A. B. vs.
     /^MADDE\s+\d+/i, // MADDE 1
     /^BÖLÜM\s+[IVX\d]+/i, // BÖLÜM I
     /^Madde\s+\d+/i,
@@ -85,14 +94,28 @@ function isTableRow(line) {
 }
 
 /**
- * Metin chunk'larına böl
+ * Metin chunk'larına böl (basit versiyon - structure info olmadan)
  * @param {string} text - Kaynak metin
  * @param {Object} options - Ayarlar
  * @returns {Chunk[]}
  */
 export function chunkText(text, options = {}) {
+  // Structure info yoksa basit chunking yap
+  return chunkTextWithStructure(text, null, options);
+}
+
+/**
+ * Metin chunk'larına böl (Zero-Loss - P0 kontrollü)
+ * @param {string} text - Kaynak metin
+ * @param {Object} structureInfo - Structure detection sonucu (null olabilir)
+ * @param {Object} options - Ayarlar
+ * @returns {Chunk[]}
+ */
+export function chunkTextWithStructure(text, structureInfo = null, options = {}) {
   const maxChars = options.maxChars || MAX_CHARS_PER_CHUNK;
-  
+  const preserveTables = options.preserveTables !== false; // P0-01
+  const preserveHeadingContent = options.preserveHeadingContent !== false; // P0-03
+
   // OCR sayfa ayırıcılarını temizle (veri kaybı yok, sadece ayırıcılar)
   let cleanedText = text;
   for (const pattern of PAGE_SEPARATOR_PATTERNS) {
@@ -100,24 +123,52 @@ export function chunkText(text, options = {}) {
   }
   // Çoklu boş satırları normalize et
   cleanedText = cleanedText.replace(/\n{4,}/g, '\n\n\n');
-  
+
   const lines = cleanedText.split('\n');
   const chunks = [];
 
   let currentChunk = '';
+  let currentChunkStartPos = 0;
   let currentType = 'text';
   let lastHeading = '';
+  let lastHeadingPos = 0;
   let inTable = false;
   let tableContent = '';
+  let tableStartPos = 0;
+  let currentPos = 0;
 
-  const flushChunk = (type = 'text') => {
+  // P0-01: Korunması gereken tablo bölgeleri (structure info'dan)
+  const protectedTableRegions =
+    structureInfo?.tables?.map((t) => ({
+      start: t.startPosition,
+      end: t.endPosition,
+      includeFootnotes: true, // P0-02
+    })) || [];
+
+  // Pozisyonun korunan bölgede olup olmadığını kontrol et
+  const isInProtectedRegion = (pos) => {
+    for (const region of protectedTableRegions) {
+      // P0-02: Dipnot için 500 karakter ek koruma
+      const extendedEnd = region.includeFootnotes ? region.end + 500 : region.end;
+      if (pos >= region.start && pos <= extendedEnd) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const flushChunk = (type = 'text', forcePos = null) => {
     const content = currentChunk.trim();
     if (content.length > 0) {
+      const endPos = forcePos ?? currentPos;
       chunks.push({
         index: chunks.length,
         content,
         type,
         tokenEstimate: estimateTokens(content),
+        startPos: currentChunkStartPos,
+        endPos,
+        contentHash: createTextHash(content),
         context: {
           heading: lastHeading,
           position: chunks.length === 0 ? 'start' : 'middle',
@@ -125,6 +176,7 @@ export function chunkText(text, options = {}) {
       });
     }
     currentChunk = '';
+    currentChunkStartPos = currentPos;
     currentType = 'text';
   };
 
@@ -135,6 +187,9 @@ export function chunkText(text, options = {}) {
         content: tableContent.trim(),
         type: 'table',
         tokenEstimate: estimateTokens(tableContent),
+        startPos: tableStartPos,
+        endPos: currentPos,
+        contentHash: createTextHash(tableContent),
         context: {
           heading: lastHeading,
           position: 'table',
@@ -145,17 +200,30 @@ export function chunkText(text, options = {}) {
     inTable = false;
   };
 
-  for (const line of lines) {
+  for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+    const line = lines[lineIdx];
+    const lineEndPos = currentPos + line.length;
+
     // Başlık kontrolü
     if (isHeading(line)) {
       // Önceki chunk'ı flush et
       if (inTable) flushTable();
-      if (currentChunk.length > maxChars / 2) {
+
+      // P0-03: Başlık-içerik birlikteliği kontrolü
+      // Başlık + MIN_HEADING_CONTENT_CHARS aynı chunk'ta kalmalı
+      const contentAfterHeading = preserveHeadingContent ? MIN_HEADING_CONTENT_CHARS : 0;
+      const neededSpace = line.length + contentAfterHeading;
+
+      if (currentChunk.length > 0 && currentChunk.length + neededSpace > maxChars) {
+        // Mevcut chunk'ı flush et, başlık yeni chunk'ta başlasın
         flushChunk(currentType);
       }
+
       lastHeading = line.trim();
+      lastHeadingPos = currentPos;
       currentChunk += line + '\n';
       currentType = 'header';
+      currentPos = lineEndPos + 1;
       continue;
     }
 
@@ -165,16 +233,22 @@ export function chunkText(text, options = {}) {
         // Tablo başlıyor, önceki text'i flush et
         flushChunk(currentType);
         inTable = true;
+        tableStartPos = currentPos;
         tableContent = lastHeading ? `[Tablo - ${lastHeading}]\n` : '';
       }
       tableContent += line + '\n';
 
-      // Tablo çok büyüdüyse flush et
-      if (tableContent.length > maxChars) {
+      // P0-01: Tablo korunan bölgedeyse BÖLME
+      const inProtected = preserveTables && isInProtectedRegion(currentPos);
+
+      // Tablo çok büyüdüyse ve korunan bölgede DEĞİLSE flush et
+      if (tableContent.length > maxChars && !inProtected) {
         flushTable();
         inTable = true; // Devam eden tablo
+        tableStartPos = currentPos;
         tableContent = '[Tablo devam...]\n';
       }
+      currentPos = lineEndPos + 1;
       continue;
     }
 
@@ -188,32 +262,45 @@ export function chunkText(text, options = {}) {
 
     // Chunk doldu mu?
     if (currentChunk.length > maxChars) {
-      // Paragraf sınırında bölmeye çalış
-      const lastParagraph = currentChunk.lastIndexOf('\n\n');
-      if (lastParagraph > maxChars / 2) {
-        const toFlush = currentChunk.substring(0, lastParagraph);
-        currentChunk = currentChunk.substring(lastParagraph + 2);
+      // P0-01, P0-03: Korunan bölgede bölme yapma
+      const inProtected = isInProtectedRegion(currentPos);
+      const tooCloseToHeading = preserveHeadingContent && currentPos - lastHeadingPos < MIN_HEADING_CONTENT_CHARS;
 
-        chunks.push({
-          index: chunks.length,
-          content: toFlush.trim(),
-          type: currentType,
-          tokenEstimate: estimateTokens(toFlush),
-          context: {
-            heading: lastHeading,
-            position: 'middle',
-          },
-        });
-        currentType = 'text';
-      } else {
-        flushChunk(currentType);
+      if (!inProtected && !tooCloseToHeading) {
+        // Paragraf sınırında bölmeye çalış
+        const lastParagraph = currentChunk.lastIndexOf('\n\n');
+        if (lastParagraph > maxChars / 2) {
+          const toFlush = currentChunk.substring(0, lastParagraph);
+          const splitPos = currentChunkStartPos + lastParagraph;
+          currentChunk = currentChunk.substring(lastParagraph + 2);
+
+          chunks.push({
+            index: chunks.length,
+            content: toFlush.trim(),
+            type: currentType,
+            tokenEstimate: estimateTokens(toFlush),
+            startPos: currentChunkStartPos,
+            endPos: splitPos,
+            contentHash: createTextHash(toFlush),
+            context: {
+              heading: lastHeading,
+              position: 'middle',
+            },
+          });
+          currentChunkStartPos = splitPos + 2;
+          currentType = 'text';
+        } else {
+          flushChunk(currentType);
+        }
       }
+      // Korunan bölgedeyse chunk'ı büyütmeye devam et (P0-01, P0-03 öncelikli)
     }
+    currentPos = lineEndPos + 1;
   }
 
   // Kalan içeriği flush et
   if (inTable) flushTable();
-  flushChunk(currentType);
+  flushChunk(currentType, currentPos);
 
   // Son chunk'ı işaretle
   if (chunks.length > 0) {
@@ -223,12 +310,21 @@ export function chunkText(text, options = {}) {
   // Küçük chunk'ları birleştir (MIN_TOKENS_PER_CHUNK altındakiler)
   const mergedChunks = mergeSmallChunks(chunks);
 
-  logger.info('Text chunked', {
+  // P0-05: Karakter kaybı kontrolü
+  const totalChunkedChars = mergedChunks.reduce((sum, c) => sum + c.content.length, 0);
+  const charDifference = Math.abs(cleanedText.length - totalChunkedChars);
+
+  logger.info('Text chunked (Zero-Loss)', {
     module: 'chunker',
     totalChars: text.length,
+    cleanedChars: cleanedText.length,
+    chunkedChars: totalChunkedChars,
+    charDifference,
     originalChunks: chunks.length,
     mergedChunks: mergedChunks.length,
-    avgChunkSize: Math.round(text.length / mergedChunks.length),
+    avgChunkSize: Math.round(cleanedText.length / Math.max(1, mergedChunks.length)),
+    p0_01_protected_tables: protectedTableRegions.length,
+    p0_05_char_loss: charDifference > 10 ? 'WARNING' : 'OK',
   });
 
   return mergedChunks;
@@ -236,21 +332,29 @@ export function chunkText(text, options = {}) {
 
 /**
  * Küçük chunk'ları bir sonrakiyle birleştir
- * @param {Chunk[]} chunks 
+ * P0-02: Tablo ve hemen sonrasındaki dipnot chunk'ları birleştirilir
+ * @param {Chunk[]} chunks
  * @returns {Chunk[]}
  */
 function mergeSmallChunks(chunks) {
   if (chunks.length <= 1) return chunks;
-  
+
   const merged = [];
   let buffer = null;
-  
-  for (const chunk of chunks) {
+
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    const nextChunk = chunks[i + 1];
+
+    // P0-02: Tablo chunk'ı ve hemen sonraki küçük chunk'ı birleştir (dipnot olabilir)
+    const isTableFollowedBySmall =
+      chunk.type === 'table' && nextChunk && nextChunk.tokenEstimate < MIN_TOKENS_PER_CHUNK;
+
     if (buffer) {
       // Buffer'ı mevcut chunk ile birleştir
       const combinedContent = buffer.content + '\n\n' + chunk.content;
       const combinedTokens = estimateTokens(combinedContent);
-      
+
       if (combinedTokens <= MAX_TOKENS_PER_CHUNK) {
         // Birleştir
         buffer = {
@@ -258,11 +362,15 @@ function mergeSmallChunks(chunks) {
           index: merged.length,
           content: combinedContent,
           tokenEstimate: combinedTokens,
+          startPos: buffer.startPos,
+          endPos: chunk.endPos,
+          contentHash: createTextHash(combinedContent),
           type: buffer.type === chunk.type ? chunk.type : 'mixed',
           context: {
             ...chunk.context,
             heading: buffer.context.heading || chunk.context.heading,
             merged: true,
+            mergedFrom: [buffer.index, chunk.index],
           },
         };
       } else {
@@ -278,19 +386,22 @@ function mergeSmallChunks(chunks) {
     } else if (chunk.tokenEstimate < MIN_TOKENS_PER_CHUNK) {
       // Küçük chunk, buffer'a al
       buffer = chunk;
+    } else if (isTableFollowedBySmall) {
+      // P0-02: Tablo + küçük chunk = buffer'a al (dipnot birleştirmesi için)
+      buffer = chunk;
     } else {
       // Normal boyut, direkt ekle
       chunk.index = merged.length;
       merged.push(chunk);
     }
   }
-  
+
   // Kalan buffer'ı ekle
   if (buffer) {
     buffer.index = merged.length;
     merged.push(buffer);
   }
-  
+
   return merged;
 }
 
@@ -384,9 +495,10 @@ export function chunkExcel(extractionResult) {
 /**
  * Extraction sonucunu chunk'lara böl
  * @param {Object} extractionResult - Extractor'dan gelen sonuç
+ * @param {Object} structureInfo - Structure detection sonucu (opsiyonel)
  * @returns {Chunk[]}
  */
-export function chunk(extractionResult) {
+export function chunk(extractionResult, structureInfo = null) {
   const { type, text, structured } = extractionResult;
 
   // Excel için özel chunking
@@ -398,7 +510,7 @@ export function chunk(extractionResult) {
   if (type === 'zip' && structured?.files) {
     const chunks = [];
     for (const file of structured.files) {
-      const fileChunks = chunk(file);
+      const fileChunks = chunk(file, structureInfo);
       for (const c of fileChunks) {
         c.context.fileName = file.fileName;
         chunks.push(c);
@@ -407,13 +519,36 @@ export function chunk(extractionResult) {
     return chunks;
   }
 
-  // Diğer türler için metin chunking
-  return chunkText(text);
+  // Diğer türler için metin chunking (Zero-Loss)
+  return chunkTextWithStructure(text, structureInfo);
+}
+
+/**
+ * P0-05: Karakter kaybı doğrulaması
+ * @param {string} originalText - Orijinal metin
+ * @param {Chunk[]} chunks - Chunk listesi
+ * @param {number} tolerance - Tolerans (default: 10)
+ * @returns {{ valid: boolean, originalLength: number, chunkedLength: number, difference: number }}
+ */
+export function validateCharacterCount(originalText, chunks, tolerance = 10) {
+  const originalLength = originalText?.length || 0;
+  const chunkedLength = chunks.reduce((sum, c) => sum + (c.content?.length || 0), 0);
+  const difference = Math.abs(originalLength - chunkedLength);
+
+  return {
+    valid: difference <= tolerance,
+    originalLength,
+    chunkedLength,
+    difference,
+    tolerance,
+  };
 }
 
 export default {
   chunk,
   chunkText,
+  chunkTextWithStructure,
   chunkExcel,
   estimateTokens,
+  validateCharacterCount,
 };

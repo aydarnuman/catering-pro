@@ -4,72 +4,6 @@
     {
       "id": "restart-all",
       "label": "Tümünü Yeniden Başlat",
-      "time": "13:18:52",
-      "success": true
-    },
-    {
-      "id": "start-services",
-      "label": "Servisleri Başlat",
-      "time": "13:25:46",
-      "success": true
-    },
-    {
-      "id": "frontend-restart",
-      "label": "Sadece Frontend Yenile",
-      "time": "14:08:06",
-      "success": true
-    },
-    {
-      "id": "backend-restart",
-      "label": "Sadece Backend Yenile",
-      "time": "14:08:20",
-      "success": true
-    },
-    {
-      "id": "start-services",
-      "label": "Servisleri Başlat",
-      "time": "14:48:00",
-      "success": true
-    },
-    {
-      "id": "start-services",
-      "label": "Servisleri Başlat",
-      "time": "14:57:31",
-      "success": true
-    },
-    {
-      "id": "start-services",
-      "label": "Servisleri Başlat",
-      "time": "18:09:43",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "19:16:39",
-      "success": true
-    },
-    {
-      "id": "start-services",
-      "label": "Servisleri Başlat",
-      "time": "10:58:46",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "11:36:39",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "11:50:14",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
       "time": "11:54:45",
       "success": true
     },
@@ -299,6 +233,72 @@
       "id": "restart-all",
       "label": "Tümünü Yeniden Başlat",
       "time": "20:30:19",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "23:46:43",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "23:57:49",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "08:47:14",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "10:27:26",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "10:31:20",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "11:18:17",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "13:29:25",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "13:41:20",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "13:45:11",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "15:13:08",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "23:03:43",
       "success": true
     }
   ],

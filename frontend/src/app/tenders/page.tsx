@@ -17,11 +17,11 @@ function RedirectContent() {
     // URL parametrelerini koru
     const params = new URLSearchParams();
     params.set('tab', 'all');
-    
+
     // Mevcut search parametresini aktar
     const search = searchParams.get('search');
     if (search) params.set('search', search);
-    
+
     router.replace(`/ihale-merkezi?${params.toString()}`);
   }, [router, searchParams]);
 

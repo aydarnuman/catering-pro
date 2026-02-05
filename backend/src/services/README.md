@@ -71,8 +71,8 @@ import { analyzeDocument } from './services/claude.js';
 const result = await analyzeDocument(filePath);
 ```
 
-### document-analysis.js - Döküman Analiz Servisi
-İhale dökümanlarından yapılandırılmış veri çıkarır.
+### ai-analyzer/ - Unified Pipeline (v8.0)
+İhale dökümanlarından yapılandırılmış veri çıkarır. **Tek merkezi sistem** mimarisi kullanır.
 
 ```javascript
 // Çıkarılan veriler
@@ -81,11 +81,20 @@ const result = await analyzeDocument(filePath);
 - Tahmini bedel
 - Teminat bilgileri
 - Şartname maddeleri
-- Gramaj tabloları
+- Gramaj tabloları (ısı değerleri filtreleniyor)
 
-// Kullanım (ES Modules)
-import { analyzeDocument } from './services/document-analyzer.js';
-const result = await analyzeDocument(documentId);
+// Kullanım (ES Modules) - UNIFIED PIPELINE v8.0
+import { analyzeDocument } from './services/ai-analyzer/unified-pipeline.js';
+const result = await analyzeDocument(filePath, {
+  onProgress,
+  enableP0Checks: true,
+  enableConflictDetection: true,
+});
+
+// Unified Pipeline akışı:
+// 1. Azure Custom Model (ihale-catering-v1) → Eğitilmiş model
+// 2. Azure Layout + Claude Semantic → Hibrit analiz
+// 3. Zero-Loss Pipeline → Son fallback (pure Claude)
 ```
 
 ---

@@ -1,0 +1,207 @@
+{
+  "$schema": "https://schema.cognitiveservices.azure.com/formrecognizer/2022-08-31/fields.json",
+  "modelId": "ihale-teknik-sartname",
+  "description": "İhale teknik şartname dökümanları için custom extraction model",
+  "fieldSchema": {
+    "ihale_kayit_no": {
+      "type": "string",
+      "description": "İhale Kayıt Numarası (IKN) - örn: 2026/123456"
+    },
+    "kurum_adi": {
+      "type": "string",
+      "description": "İhaleyi açan kurum/kuruluş adı"
+    },
+    "ihale_adi": {
+      "type": "string",
+      "description": "İhalenin tam adı/konusu"
+    },
+    "ihale_tarihi": {
+      "type": "date",
+      "description": "İhalenin yapılacağı tarih"
+    },
+    "son_teklif_tarihi": {
+      "type": "date",
+      "description": "Son teklif verme tarihi ve saati"
+    },
+    "baslangic_tarihi": {
+      "type": "date",
+      "description": "Sözleşme başlangıç tarihi"
+    },
+    "bitis_tarihi": {
+      "type": "date",
+      "description": "Sözleşme bitiş tarihi"
+    },
+    "sozlesme_suresi": {
+      "type": "string",
+      "description": "Sözleşme süresi (örn: 24 ay, 730 gün)"
+    },
+    "yaklasik_maliyet": {
+      "type": "currency",
+      "description": "Yaklaşık maliyet tutarı"
+    },
+    "teminat_orani": {
+      "type": "number",
+      "description": "Kesin teminat oranı (%)"
+    },
+    "gunluk_ogun_sayisi": {
+      "type": "integer",
+      "description": "Günlük toplam öğün sayısı"
+    },
+    "kisi_sayisi": {
+      "type": "integer",
+      "description": "Hizmet verilecek kişi sayısı"
+    },
+    "personel_tablosu": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "pozisyon": {
+            "type": "string",
+            "description": "Personel pozisyonu/unvanı"
+          },
+          "adet": {
+            "type": "integer",
+            "description": "Bu pozisyondaki personel sayısı"
+          },
+          "nitelik": {
+            "type": "string",
+            "description": "Aranan nitelikler (diploma, sertifika vb.)"
+          }
+        }
+      },
+      "description": "Çalıştırılacak personel listesi"
+    },
+    "gramaj_tablosu": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "malzeme": {
+            "type": "string",
+            "description": "Gıda malzemesi adı"
+          },
+          "gramaj": {
+            "type": "string",
+            "description": "Porsiyon gramajı (örn: 150g, 200gr)"
+          },
+          "birim": {
+            "type": "string",
+            "description": "Birim (g, gr, kg, ml, lt)"
+          },
+          "aciklama": {
+            "type": "string",
+            "description": "Ek açıklama veya özellik"
+          }
+        }
+      },
+      "description": "Gıda malzemeleri gramaj listesi"
+    },
+    "ceza_kosullari": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "madde_no": {
+            "type": "string",
+            "description": "Madde numarası"
+          },
+          "aciklama": {
+            "type": "string",
+            "description": "Ceza açıklaması"
+          },
+          "tutar_veya_oran": {
+            "type": "string",
+            "description": "Ceza tutarı veya oranı"
+          }
+        }
+      },
+      "description": "Ceza koşulları ve yaptırımlar"
+    },
+    "ogun_turleri": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "tur": {
+            "type": "string",
+            "description": "Öğün türü (kahvaltı, öğle, akşam, diyet vb.)"
+          },
+          "miktar": {
+            "type": "integer",
+            "description": "Bu öğünden günlük kaç adet"
+          },
+          "servis_saati": {
+            "type": "string",
+            "description": "Servis saati aralığı"
+          }
+        }
+      },
+      "description": "Öğün türleri ve miktarları"
+    },
+    "teknik_gereksinimler": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Teknik şartname gereksinimleri listesi"
+    },
+    "hijyen_sertifikalari": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "İstenen hijyen/kalite sertifikaları"
+    },
+    "ekipman_listesi": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ekipman": {
+            "type": "string",
+            "description": "Ekipman adı"
+          },
+          "adet": {
+            "type": "integer",
+            "description": "Adet sayısı"
+          },
+          "ozellik": {
+            "type": "string",
+            "description": "Teknik özellikler"
+          }
+        }
+      },
+      "description": "Gerekli ekipman listesi"
+    },
+    "iletisim_bilgileri": {
+      "type": "object",
+      "properties": {
+        "adres": {
+          "type": "string"
+        },
+        "telefon": {
+          "type": "string"
+        },
+        "faks": {
+          "type": "string"
+        },
+        "eposta": {
+          "type": "string"
+        }
+      },
+      "description": "Kurum iletişim bilgileri"
+    }
+  },
+  "trainingNotes": {
+    "minimumDocuments": 5,
+    "recommendedDocuments": 20,
+    "labelingTips": [
+      "Her döküman için TÜM alanları işaretleyin, boş alanları atlayın",
+      "Tablolar için önce başlık satırını, sonra veri satırlarını seçin",
+      "Gramaj değerlerinde sadece sayı ve birimi seçin (örn: '150 g')",
+      "Tarih formatı dd.mm.yyyy veya dd/mm/yyyy olabilir",
+      "Tutarlılık önemli: aynı alan için hep aynı yeri işaretleyin"
+    ]
+  }
+}

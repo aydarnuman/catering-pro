@@ -1,0 +1,63 @@
+{
+  "$schema": "https://westus.api.cognitive.microsoft.com/documentintelligence/2024-11-30/schemas/trainingManifest.json",
+  "modelId": "ihale-catering-v5",
+  "description": "İhale Catering Teknik Şartname - Gelişmiş Öğün ve Personel Tabloları",
+  "version": "5.0",
+  "createdDateTime": "2026-02-05T00:00:00Z",
+  "documentTypes": {
+    "teknik_sartname": {
+      "description": "Yemek ihalesi teknik şartnamesi",
+      "fieldSchema": {
+        "tables": {
+          "ogun_dagilimi": {
+            "type": "table",
+            "description": "Öğün dağılım tablosu",
+            "fields": {
+              "kahvalti_kisi_sayisi": { "type": "number" },
+              "ogle_kisi_sayisi": { "type": "number" },
+              "aksam_kisi_sayisi": { "type": "number" },
+              "gece_kisi_sayisi": { "type": "number" },
+              "toplam_gunluk_ogun": { "type": "number" }
+            }
+          },
+          "personel_tablosu": {
+            "type": "table",
+            "description": "Personel gereksinimleri tablosu",
+            "fields": {
+              "toplam_personel": { "type": "number" },
+              "asci_sayisi": { "type": "number" },
+              "asci_yardimcisi_sayisi": { "type": "number" },
+              "servis_elemani_sayisi": { "type": "number" },
+              "bulasikci_sayisi": { "type": "number" },
+              "diyetisyen_sayisi": { "type": "number" }
+            }
+          },
+          "haftalik_menu": {
+            "type": "table",
+            "description": "Haftalık örnek menü"
+          },
+          "gramaj_tablosu": {
+            "type": "table",
+            "description": "Gramaj/porsiyon tablosu"
+          }
+        },
+        "strings": {
+          "ihale_konusu": { "type": "string" },
+          "ihale_kayit_no": { "type": "string" },
+          "idare_adi": { "type": "string" },
+          "gunluk_toplam_ogun": { "type": "number" },
+          "toplam_personel": { "type": "number" },
+          "sozlesme_suresi": { "type": "string" }
+        }
+      }
+    }
+  },
+  "documents": [],
+  "trainingConfig": {
+    "modelType": "custom-neural",
+    "maxTrainingHours": 2,
+    "splitRatio": 0.8,
+    "features": ["tables", "keyValuePairs", "selectionMarks"]
+  },
+  "notes": "Bu manifest smart-label-v5.mjs tarafından doldurulacak"
+}

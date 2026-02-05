@@ -1,29 +1,32 @@
 /**
  * Document Queue Processor
- * v5.2 - Retry & Streaming Desteği
+ * v9.0 - UNIFIED PIPELINE (TEK MERKEZİ SİSTEM)
  *
  * Kuyruktaki dökümanları otomatik işleme servisi
- * - Local dosyalar (file_path)
- * - Supabase dosyalar (storage_url)
- * - Retry mekanizması (exponential backoff)
- * - Timeout koruması
- * - Büyük dosya streaming
+ *
+ * Pipeline Akışı:
+ *   1. Azure Custom Model (ihale-catering-v1)
+ *   2. Azure Layout + Claude
+ *   3. Claude Zero-Loss (fallback)
+ *
+ * DİĞER PİPELINE DOSYALARINI KULLANMA!
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
-import https from 'node:https';
 import http from 'node:http';
+import https from 'node:https';
+import path from 'node:path';
 import { pool } from '../database.js';
-import { processContentDocument, processDocument } from './document.js';
-import { runPipeline } from './ai-analyzer/pipeline/index.js';
 import logger from '../utils/logger.js';
+
+// v9.0: TEK MERKEZİ SİSTEM
+import { analyzeDocument } from './ai-analyzer/unified-pipeline.js';
 
 // Download ayarları
 const DOWNLOAD_CONFIG = {
   maxRetries: 3,
-  retryDelayMs: 1000,      // İlk retry bekleme süresi
-  timeoutMs: 120000,       // 2 dakika timeout
+  retryDelayMs: 1000, // İlk retry bekleme süresi
+  timeoutMs: 120000, // 2 dakika timeout
   maxRedirects: 5,
   progressLogThreshold: 5 * 1024 * 1024, // 5MB üzeri dosyalarda progress log
 };
@@ -40,7 +43,6 @@ class DocumentQueueProcessor {
     this.maxConcurrent = 2;
     this.processInterval = 30000; // 30 saniye
     this.scheduler = null;
-    this.usePipeline = true; // Yeni pipeline'ı kullan
   }
 
   /**
@@ -51,7 +53,7 @@ class DocumentQueueProcessor {
 
     logger.info('Queue processor started', {
       module: 'queue-processor',
-      usePipeline: this.usePipeline,
+      pipeline: 'unified-v9.0',
       interval: `${this.processInterval / 1000}s`,
     });
 
@@ -128,10 +130,7 @@ class DocumentQueueProcessor {
         documentId: id,
         filename: original_filename,
       });
-      await pool.query(
-        `UPDATE documents SET processing_status = 'skipped', processed_at = NOW() WHERE id = $1`,
-        [id]
-      );
+      await pool.query(`UPDATE documents SET processing_status = 'skipped', processed_at = NOW() WHERE id = $1`, [id]);
       return;
     }
 
@@ -139,7 +138,7 @@ class DocumentQueueProcessor {
 
     // file_path lokal dosya mı yoksa storage_path mi kontrol et
     // Lokal dosyalar "/" ile başlar, storage_path "tenders/" ile başlar
-    const isLocalFile = file_path && file_path.startsWith('/');
+    const isLocalFile = file_path?.startsWith('/');
     const needsDownload = !isLocalFile && storage_url;
 
     logger.info('Document fields', {
@@ -154,7 +153,6 @@ class DocumentQueueProcessor {
       // Status'u processing yap
       await pool.query('UPDATE documents SET processing_status = $1 WHERE id = $2', ['processing', id]);
 
-      let result;
       let actualFilePath = file_path;
 
       // Supabase'den indirme gerekiyorsa (storage_url varsa ve lokal dosya değilse)
@@ -179,24 +177,19 @@ class DocumentQueueProcessor {
         });
       }
 
-      // Source type'a göre farklı işleme
+      // v9.0: UNIFIED PIPELINE - Tüm dosyalar aynı yöntemle
       if (source_type === 'content') {
-        // Content dökümanları için özel işleme (eski yöntem)
-        result = await processContentDocument(id);
-        await this.saveOldResult(id, result);
-      } else if (this.usePipeline && actualFilePath) {
-        // Yeni 3 katmanlı pipeline
-        result = await this.processWithPipeline(id, actualFilePath);
+        await this.processContentWithPipeline(id);
+      } else if (actualFilePath) {
+        await this.processWithPipeline(id, actualFilePath);
       } else {
-        // Eski yöntem (fallback)
-        result = await processDocument(id, actualFilePath, original_filename);
-        await this.saveOldResult(id, result);
+        throw new Error('Dosya yolu veya content bulunamadı');
       }
 
       logger.info('Document processed', {
         module: 'queue-processor',
         documentId: id,
-        method: this.usePipeline ? 'pipeline' : 'legacy',
+        pipeline: 'unified-v9.0',
         fromStorage: !!tempFilePath,
       });
     } catch (error) {
@@ -206,10 +199,7 @@ class DocumentQueueProcessor {
         error: error.message,
       });
 
-      await pool.query(
-        `UPDATE documents SET processing_status = 'failed', processed_at = NOW() WHERE id = $1`,
-        [id]
-      );
+      await pool.query(`UPDATE documents SET processing_status = 'failed', processed_at = NOW() WHERE id = $1`, [id]);
     } finally {
       // Temp dosyayı temizle
       if (tempFilePath && fs.existsSync(tempFilePath)) {
@@ -222,7 +212,7 @@ class DocumentQueueProcessor {
 
   /**
    * Supabase storage'dan dosya indir
-   * v5.2 - Retry, timeout ve streaming desteği
+   * Retry, timeout ve streaming desteği
    */
   async downloadFromStorage(url, filename, docId) {
     const ext = path.extname(filename) || '.tmp';
@@ -244,7 +234,7 @@ class DocumentQueueProcessor {
 
         // Son deneme değilse bekle ve tekrar dene
         if (attempt < DOWNLOAD_CONFIG.maxRetries) {
-          const delay = DOWNLOAD_CONFIG.retryDelayMs * Math.pow(2, attempt - 1);
+          const delay = DOWNLOAD_CONFIG.retryDelayMs * 2 ** (attempt - 1);
           logger.warn('Download failed, retrying...', {
             module: 'queue-processor',
             documentId: docId,
@@ -380,63 +370,72 @@ class DocumentQueueProcessor {
   }
 
   /**
-   * Yeni pipeline ile döküman işle
+   * v9.0: Content dökümanları için text analizi
+   */
+  async processContentWithPipeline(docId) {
+    const { chunkText } = await import('./ai-analyzer/pipeline/chunker.js');
+    const { analyze } = await import('./ai-analyzer/pipeline/analyzer.js');
+
+    const docResult = await pool.query('SELECT content_text FROM documents WHERE id = $1', [docId]);
+
+    if (docResult.rows.length === 0 || !docResult.rows[0].content_text) {
+      throw new Error('Content text bulunamadı');
+    }
+
+    const contentText = docResult.rows[0].content_text;
+    const chunks = chunkText(contentText);
+    const analysis = await analyze(chunks);
+
+    await pool.query(
+      `UPDATE documents SET extracted_text = $1, analysis_result = $2, processing_status = 'completed', processed_at = NOW() WHERE id = $3`,
+      [contentText, JSON.stringify({ pipeline_version: '9.0', provider: 'claude-text', ...analysis }), docId]
+    );
+
+    return { success: true, analysis };
+  }
+
+  /**
+   * v9.0: Dosya tabanlı dökümanlar için Unified Pipeline
    */
   async processWithPipeline(docId, filePath) {
-    const result = await runPipeline(filePath);
+    const startTime = Date.now();
+
+    logger.info('Starting unified pipeline', { module: 'queue-processor', documentId: docId });
+
+    // v9.0: UNIFIED PIPELINE
+    const result = await analyzeDocument(filePath);
+    const elapsed = Date.now() - startTime;
 
     if (!result.success) {
       throw new Error(result.error || 'Pipeline hatası');
     }
 
-    // Sonuçları kaydet
+    const provider = result.meta?.provider_used || 'unified';
+
     await pool.query(
-      `UPDATE documents SET
-        extracted_text = $1,
-        analysis_result = $2,
-        processing_status = 'completed',
-        processed_at = NOW()
-      WHERE id = $3`,
+      `UPDATE documents SET extracted_text = $1, analysis_result = $2, processing_status = 'completed', processed_at = NOW() WHERE id = $3`,
       [
         result.extraction?.text || '',
         JSON.stringify({
-          pipeline_version: '5.0',
+          pipeline_version: '9.0',
+          provider,
           analysis: result.analysis,
           stats: result.stats,
-          chunks: result.chunks?.length || 0,
+          validation: result.validation,
         }),
         docId,
       ]
     );
 
+    logger.info('Pipeline completed', {
+      module: 'queue-processor',
+      documentId: docId,
+      provider,
+      elapsed_ms: elapsed,
+      completeness: result.validation?.completeness_score,
+    });
+
     return result;
-  }
-
-  /**
-   * Eski format sonuçları kaydet
-   */
-  async saveOldResult(docId, result) {
-    if (!result || !result.text || result.text.trim().length === 0) {
-      throw new Error('Döküman metni çıkarılamadı veya boş');
-    }
-
-    if (!result.analysis || typeof result.analysis !== 'object') {
-      await pool.query(
-        `UPDATE documents SET
-          extracted_text = $1, ocr_result = $2, analysis_result = NULL,
-          processing_status = 'completed', processed_at = NOW()
-        WHERE id = $3`,
-        [result.text, JSON.stringify(result.ocr || null), docId]
-      );
-    } else {
-      await pool.query(
-        `UPDATE documents SET
-          extracted_text = $1, ocr_result = $2, analysis_result = $3,
-          processing_status = 'completed', processed_at = NOW()
-        WHERE id = $4`,
-        [result.text, JSON.stringify(result.ocr || null), JSON.stringify(result.analysis), docId]
-      );
-    }
   }
 
   /**
@@ -448,17 +447,6 @@ class DocumentQueueProcessor {
     }
     await this.processQueue();
     return { success: true, message: 'Queue işleme tamamlandı' };
-  }
-
-  /**
-   * Pipeline modunu değiştir
-   */
-  setPipelineMode(enabled) {
-    this.usePipeline = enabled;
-    logger.info('Pipeline mode changed', {
-      module: 'queue-processor',
-      usePipeline: enabled,
-    });
   }
 
   /**
@@ -486,7 +474,7 @@ class DocumentQueueProcessor {
     return {
       ...stats,
       isProcessing: this.isProcessing,
-      usePipeline: this.usePipeline,
+      pipeline: 'unified-v9.0',
       totalInQueue: stats.pending + stats.queued + stats.processing,
     };
   }

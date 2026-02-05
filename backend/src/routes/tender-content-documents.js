@@ -156,37 +156,36 @@ router.post('/queue/process', async (_req, res) => {
 /**
  * Content dökümanı analiz et (streaming)
  * POST /api/tender-content/documents/:documentId/analyze
- * 
- * Pipeline v5.0 kullanır
+ *
+ * v9.0 UNIFIED PIPELINE - TEK MERKEZİ SİSTEM
  */
 router.post('/documents/:documentId/analyze', async (req, res) => {
   const logger = (await import('../utils/logger.js')).default;
-  
+  // v9.0: TEK MERKEZİ SİSTEM - Sadece unified-pipeline kullan!
+  const { analyzeDocument } = await import('../services/ai-analyzer/unified-pipeline.js');
+
   try {
     const { documentId } = req.params;
 
-    logger.info('Single document analyze request', { module: 'tender-content', documentId });
+    logger.info('Single document analyze request (v9.0)', { module: 'tender-content', documentId });
 
     // SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no'); // Nginx buffering'i kapat
+    res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
 
-    // SSE sendEvent with flush for real-time updates
     const sendEvent = (data) => {
       res.write(`data: ${JSON.stringify(data)}\n\n`);
-      if (res.flush) res.flush(); // Express compression middleware için
+      if (res.flush) res.flush();
     };
 
-    // Keepalive ping (her 15 saniye) - bağlantı timeout'unu önle
     const keepalive = setInterval(() => {
       res.write(': keepalive\n\n');
       if (res.flush) res.flush();
     }, 15000);
 
-    // Cleanup on connection close
     res.on('close', () => clearInterval(keepalive));
 
     sendEvent({ stage: 'start', message: 'Analiz başlıyor...' });
@@ -196,99 +195,57 @@ router.post('/documents/:documentId/analyze', async (req, res) => {
     const docResult = await pool.query('SELECT * FROM documents WHERE id = $1', [documentId]);
 
     if (docResult.rows.length === 0) {
-      logger.warn('Document not found', { module: 'tender-content', documentId });
       sendEvent({ stage: 'error', message: 'Döküman bulunamadı' });
       return res.end();
     }
 
     const doc = docResult.rows[0];
 
-    sendEvent({ stage: 'extracting', message: 'Metin çıkarılıyor...', progress: 20 });
-
-    // Content text varsa direkt kullan
-    const textContent = doc.content_text || doc.extracted_text;
-
-    if (!textContent) {
-      logger.warn('Document content empty', { module: 'tender-content', documentId });
-      sendEvent({ stage: 'error', message: 'Döküman içeriği bulunamadı' });
-      return res.end();
-    }
-
-    logger.info('Analyzing content with Pipeline v5.0', { 
-      module: 'tender-content', 
-      documentId, 
-      textLength: textContent.length 
-    });
-
-    sendEvent({ stage: 'analyzing', message: 'AI analiz yapılıyor...', progress: 50 });
-
-    // Pipeline v5.0 ile analiz
-    const { chunkText } = await import('../services/ai-analyzer/pipeline/chunker.js');
-    const { analyze } = await import('../services/ai-analyzer/pipeline/analyzer.js');
-
-    // Metni chunk'la
-    const chunks = chunkText(textContent);
-    
-    logger.info('Text chunked', { module: 'tender-content', documentId, chunkCount: chunks.length });
-
-    // Analiz et
-    const analysisResult = await analyze(chunks, (progress) => {
-      sendEvent({ 
-        stage: 'analyzing', 
-        message: progress.message || 'Analiz devam ediyor...', 
-        progress: 50 + (progress.progress || 0) * 0.3 
+    // Dosya varsa unified-pipeline kullan, content varsa text-based analiz
+    if (doc.file_path || doc.storage_path) {
+      // v9.0: UNIFIED PIPELINE
+      const result = await analyzeDocument(doc.file_path || doc.storage_path, {
+        onProgress: (progress) => sendEvent(progress),
       });
-    });
 
-    sendEvent({ stage: 'saving', message: 'Sonuçlar kaydediliyor...', progress: 80 });
+      await pool.query(
+        `UPDATE documents 
+         SET analysis_result = $1, 
+             processing_status = 'completed',
+             processed_at = NOW()
+         WHERE id = $2`,
+        [JSON.stringify({ pipeline_version: '9.0', ...result }), documentId]
+      );
 
-    // Sonucu kaydet
-    await pool.query(
-      `UPDATE documents 
-       SET analysis_result = $1, 
-           processing_status = 'completed',
-           extracted_text = $2,
-           processed_at = NOW()
-       WHERE id = $3`,
-      [
-        JSON.stringify({
-          pipeline_version: '5.0',
-          ...analysisResult,
-          meta: {
-            ...analysisResult.meta,
-            chunkCount: chunks.length,
-          },
-        }),
-        textContent,
-        documentId,
-      ]
-    );
+      sendEvent({ stage: 'complete', message: 'Analiz tamamlandı', progress: 100, result });
+    } else {
+      // Content text analizi (fallback)
+      const textContent = doc.content_text || doc.extracted_text;
+      if (!textContent) {
+        sendEvent({ stage: 'error', message: 'Döküman içeriği bulunamadı' });
+        return res.end();
+      }
 
-    logger.info('Document analysis completed', { 
-      module: 'tender-content', 
-      documentId, 
-      chunkCount: chunks.length 
-    });
+      const { chunkText } = await import('../services/ai-analyzer/pipeline/chunker.js');
+      const { analyze } = await import('../services/ai-analyzer/pipeline/analyzer.js');
 
-    sendEvent({
-      stage: 'complete',
-      message: 'Analiz tamamlandı',
-      progress: 100,
-      result: {
-        analiz: analysisResult,
-        pipeline_version: '5.0',
-      },
-    });
+      const chunks = chunkText(textContent);
+      const analysisResult = await analyze(chunks, (progress) => {
+        sendEvent({ stage: 'analyzing', message: progress.message, progress: 50 + (progress.progress || 0) * 0.3 });
+      });
+
+      await pool.query(
+        `UPDATE documents 
+         SET analysis_result = $1, processing_status = 'completed', extracted_text = $2, processed_at = NOW()
+         WHERE id = $3`,
+        [JSON.stringify({ pipeline_version: '9.0', ...analysisResult }), textContent, documentId]
+      );
+
+      sendEvent({ stage: 'complete', message: 'Analiz tamamlandı', progress: 100, result: analysisResult });
+    }
 
     res.end();
   } catch (error) {
-    const logger = (await import('../utils/logger.js')).default;
-    logger.error('Single document analyze failed', { 
-      module: 'tender-content', 
-      documentId: req.params?.documentId, 
-      error: error.message 
-    });
-    
     try {
       res.write(`data: ${JSON.stringify({ stage: 'error', message: error.message })}\n\n`);
     } catch {}
@@ -299,359 +256,145 @@ router.post('/documents/:documentId/analyze', async (req, res) => {
 /**
  * Toplu döküman analizi (content + download)
  * POST /api/tender-content/analyze-batch
- * 
- * YENİ Pipeline v5.0 kullanır:
- * - 3 katmanlı mimari (extraction → chunking → analysis)
- * - Claude Vision OCR desteği
- * - 2 aşamalı AI analizi (Haiku → Sonnet)
+ *
+ * v9.0 UNIFIED PIPELINE - TEK MERKEZİ SİSTEM
  */
 router.post('/analyze-batch', async (req, res) => {
   const { pool } = await import('../database.js');
   const logger = (await import('../utils/logger.js')).default;
-  
-  logger.info('Analyze batch request received', { 
-    module: 'tender-content', 
-    documentIds: req.body?.documentIds?.length || 0 
-  });
-  
+  // v9.0: TEK MERKEZİ SİSTEM
+  const { analyzeDocument } = await import('../services/ai-analyzer/unified-pipeline.js');
+  const { downloadFromSupabase } = await import('../services/document.js');
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const os = await import('node:os');
+
+  logger.info('Analyze batch request (v9.0)', { module: 'tender-content', count: req.body?.documentIds?.length || 0 });
+
   try {
     const { documentIds } = req.body;
 
     if (!documentIds || !Array.isArray(documentIds) || documentIds.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'documentIds array gerekli',
-      });
+      return res.status(400).json({ success: false, error: 'documentIds array gerekli' });
     }
 
     // SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no'); // Nginx buffering'i kapat
+    res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
 
-    // SSE sendEvent with flush for real-time updates
     const sendEvent = (data) => {
       res.write(`data: ${JSON.stringify(data)}\n\n`);
-      if (res.flush) res.flush(); // Express compression middleware için
+      if (res.flush) res.flush();
     };
 
-    // Keepalive ping (her 15 saniye) - bağlantı timeout'unu önle
     const keepalive = setInterval(() => {
       res.write(': keepalive\n\n');
       if (res.flush) res.flush();
     }, 15000);
 
-    // Cleanup on connection close
     res.on('close', () => clearInterval(keepalive));
 
-    // YENİ Pipeline v5.0 import
-    const { runPipeline } = await import('../services/ai-analyzer/index.js');
-    const { analyze: analyzeText } = await import('../services/ai-analyzer/pipeline/analyzer.js');
-    const { chunkText } = await import('../services/ai-analyzer/pipeline/chunker.js');
-    const { downloadFromSupabase } = await import('../services/document.js');
-    const fs = await import('node:fs');
-    const path = await import('node:path');
-    const os = await import('node:os');
-
     const results = [];
-    
-    // Paralel işleme ayarları
-    const CONCURRENCY = 2; // Aynı anda max 2 döküman
-    
-    // Tek döküman işleme fonksiyonu
-    const processDocument = async (docId, index) => {
-      try {
-        // Dökümanı al
-        const docResult = await pool.query('SELECT * FROM documents WHERE id = $1', [docId]);
+    const CONCURRENCY = 2;
 
-        if (docResult.rows.length === 0) {
-          return { id: docId, success: false, error: 'Bulunamadı' };
-        }
+    // Tek döküman işleme - v9.0 unified pipeline
+    const processDoc = async (docId, index) => {
+      try {
+        const docResult = await pool.query('SELECT * FROM documents WHERE id = $1', [docId]);
+        if (docResult.rows.length === 0) return { id: docId, success: false, error: 'Bulunamadı' };
 
         const doc = docResult.rows[0];
-        const docName = doc.original_filename || doc.doc_type || `Döküman #${docId}`;
-        
+        const docName = doc.original_filename || `Döküman #${docId}`;
+
         sendEvent({
           stage: 'processing',
           current: index + 1,
           total: documentIds.length,
           documentId: docId,
-          pipelineStage: 'extraction',
           message: `"${docName}" analiz ediliyor...`,
         });
 
-        // ZIP/RAR dosyalarını atla - içindeki dosyalar zaten ayrı yüklendi
+        // ZIP/RAR atla
         const fileExt = (doc.file_type || '').toLowerCase();
-        if (fileExt === 'zip' || fileExt === 'rar' || fileExt === '.zip' || fileExt === '.rar') {
-          logger.info('Skipping archive file', { module: 'tender-content', docId, fileExt });
-          return {
-            id: docId,
-            success: true,
-            skipped: true,
-            reason: 'Arşiv dosyası - içindeki dosyalar ayrı analiz edildi',
-          };
+        if (['zip', 'rar', '.zip', '.rar'].includes(fileExt)) {
+          return { id: docId, success: true, skipped: true, reason: 'Arşiv dosyası' };
         }
 
-        // CACHE CHECK: Zaten analiz edilmiş dokümanları atla
+        // Cache check
         if (doc.processing_status === 'completed' && doc.analysis_result) {
-          logger.info('Skipping already analyzed document (cached)', { module: 'tender-content', docId });
-          sendEvent({
-            stage: 'skipped',
-            documentId: docId,
-            message: 'Zaten analiz edilmiş (cache)',
-          });
-          return {
-            id: docId,
-            success: true,
-            cached: true,
-            reason: 'Zaten analiz edilmiş',
-          };
+          sendEvent({ stage: 'skipped', documentId: docId, message: 'Zaten analiz edilmiş' });
+          return { id: docId, success: true, cached: true };
         }
 
-        let analysisResult;
-        let extractedText = '';
+        let localFilePath = null;
+        let tempDir = null;
 
-        // Content dökümanları için Pipeline text analizi
-        if (doc.source_type === 'content' && (doc.content_text || doc.extracted_text)) {
-          const textContent = doc.content_text || doc.extracted_text;
-          extractedText = textContent;
-          
-          logger.info('Analyzing content document with Pipeline', { 
-            module: 'tender-content', 
-            docId, 
-            textLength: textContent.length 
-          });
-          
-          // Metni chunk'la ve analiz et
-          const chunks = chunkText(textContent);
-          const wordCount = textContent.split(/\s+/).filter(w => w.length > 0).length;
-          const charCount = textContent.length;
-          
-          sendEvent({
-            stage: 'progress',
-            documentId: docId,
-            pipelineStage: 'chunking',
-            message: `${wordCount.toLocaleString('tr-TR')} kelime · ${chunks.length} parça`,
-            progress: 30,
-            stats: { words: wordCount, chars: charCount, chunks: chunks.length },
-          });
-          
-          analysisResult = await analyzeText(chunks, (progress) => {
-            // Progress mesajlarını Türkçeleştir ve pipelineStage ekle
-            let message = progress.message || '';
-            let pipelineStage = 'analysis';
-            
-            if (progress.stage === 'stage1') {
-              message = message.replace('Parça analizi:', 'Parça analizi:');
-              // chunks bilgisi ekle
-              const match = message.match(/(\d+)\/(\d+)/);
-              if (match) {
-                sendEvent({
-                  stage: 'progress',
-                  documentId: docId,
-                  pipelineStage: 'analysis',
-                  message: `AI analizi: Parça ${match[1]}/${match[2]} işleniyor...`,
-                  progress: progress.progress ? 40 + progress.progress * 0.4 : 50,
-                  chunks: { current: parseInt(match[1], 10), total: parseInt(match[2], 10) },
-                });
-                return;
-              }
-            } else if (progress.stage === 'stage2') {
-              message = 'Final sentez yapılıyor...';
-            } else if (progress.stage === 'complete') {
-              message = 'Analiz tamamlandı';
-              pipelineStage = 'completed';
-            }
-            
-            sendEvent({
-              stage: 'progress',
-              documentId: docId,
-              pipelineStage,
-              message,
-              progress: progress.progress,
-            });
-          });
-        }
-        // Download/upload dökümanları için YENİ Pipeline kullan
-        else if (doc.file_path || doc.storage_path) {
+        try {
+          // Dosya hazırla
           const storagePath = doc.storage_path || doc.file_path;
-          let localFilePath;
-          let tempDir = null;
-
-          // Supabase'den indir veya local dosyayı kullan
-          if (storagePath.includes('supabase') || storagePath.startsWith('tenders/')) {
-            tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pipeline-analyze-'));
+          if (storagePath?.includes('supabase') || storagePath?.startsWith('tenders/')) {
+            tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'analyze-'));
             const ext = path.extname(doc.original_filename || '.pdf');
             localFilePath = path.join(tempDir, `document${ext}`);
-
-            logger.info('Downloading from Supabase', { 
-              module: 'tender-content', 
-              docId, 
-              storagePath: `${storagePath.substring(0, 50)}...` 
-            });
-            
             const buffer = await downloadFromSupabase(storagePath);
             fs.writeFileSync(localFilePath, buffer);
           } else {
             localFilePath = storagePath;
           }
 
-          try {
-            logger.info('Running Pipeline v5.0 on document', { 
-              module: 'tender-content', 
-              docId, 
-              filePath: localFilePath 
-            });
-            
-            // YENİ Pipeline v5.0 çalıştır
-            const pipelineResult = await runPipeline(localFilePath, {
-              onProgress: (progress) => {
-                // Progress mesajlarını Türkçeleştir ve pipelineStage belirle
-                let pipelineStage = progress.stage || 'extraction';
-                let message = progress.message || '';
-                
-                // Stage mapping
-                if (pipelineStage === 'extraction') {
-                  message = message || 'Döküman okunuyor...';
-                  // Extraction tamamlandığında text length bilgisi varsa göster
-                  if (progress.textLength) {
-                    const wordCount = Math.round(progress.textLength / 6); // Ortalama kelime uzunluğu
-                    message = `${wordCount.toLocaleString('tr-TR')} kelime okundu`;
-                  }
-                } else if (pipelineStage === 'ocr') {
-                  message = message || 'OCR işlemi yapılıyor...';
-                } else if (pipelineStage === 'chunking') {
-                  // Chunk sayısı ve kelime bilgisi
-                  if (progress.chunkCount && progress.textLength) {
-                    const wordCount = Math.round(progress.textLength / 6);
-                    message = `${wordCount.toLocaleString('tr-TR')} kelime · ${progress.chunkCount} parça`;
-                  } else {
-                    message = message || 'İçerik bölümleniyor...';
-                  }
-                } else if (pipelineStage === 'analysis' || pipelineStage === 'stage1' || pipelineStage === 'stage2') {
-                  pipelineStage = 'analysis';
-                  if (progress.stage === 'stage1') {
-                    const match = (progress.message || '').match(/(\d+)\/(\d+)/);
-                    if (match) {
-                      message = `AI analizi: Parça ${match[1]}/${match[2]} işleniyor...`;
-                      sendEvent({
-                        stage: 'progress',
-                        documentId: docId,
-                        pipelineStage: 'analysis',
-                        message,
-                        progress: progress.progress ? 40 + progress.progress * 0.4 : 50,
-                        chunks: { current: parseInt(match[1], 10), total: parseInt(match[2], 10) },
-                      });
-                      return;
-                    }
-                  } else if (progress.stage === 'stage2') {
-                    message = 'Final sentez yapılıyor...';
-                  }
-                } else if (pipelineStage === 'complete') {
-                  pipelineStage = 'completed';
-                  message = 'Analiz tamamlandı';
-                }
-                
-                sendEvent({
-                  stage: 'progress',
-                  documentId: docId,
-                  pipelineStage,
-                  message,
-                  progress: progress.progress,
-                });
-              },
-            });
+          // v9.0: UNIFIED PIPELINE
+          const result = await analyzeDocument(localFilePath, {
+            onProgress: (progress) => {
+              sendEvent({
+                stage: 'progress',
+                documentId: docId,
+                message: progress.message,
+                progress: progress.progress,
+              });
+            },
+          });
 
-            if (!pipelineResult.success) {
-              throw new Error(pipelineResult.error || 'Pipeline hatası');
-            }
+          if (!result.success) throw new Error(result.error || 'Pipeline hatası');
 
-            analysisResult = pipelineResult.analysis;
-            extractedText = pipelineResult.extraction?.text || '';
-            
-            logger.info('Pipeline completed', { 
-              module: 'tender-content', 
-              docId,
-              chunks: pipelineResult.chunks?.length || 0,
-              ocrApplied: pipelineResult.extraction?.ocrApplied || false,
-            });
-          } finally {
-            // Temp dosyayı temizle
-            if (tempDir) {
-              try {
-                fs.rmSync(tempDir, { recursive: true });
-              } catch (_e) {}
-            }
-          }
-        } else {
-          return { id: docId, success: false, error: 'İçerik bulunamadı' };
+          // Kaydet
+          await pool.query(
+            `UPDATE documents SET analysis_result = $1, extracted_text = COALESCE($2, extracted_text), processing_status = 'completed', processed_at = NOW() WHERE id = $3`,
+            [JSON.stringify({ pipeline_version: '9.0', ...result }), result.extraction?.text || null, docId]
+          );
+
+          return { id: docId, success: true, provider: result.meta?.provider_used };
+        } finally {
+          if (tempDir)
+            try {
+              fs.rmSync(tempDir, { recursive: true });
+            } catch {}
         }
-
-        // Sonucu kaydet
-        await pool.query(
-          `UPDATE documents 
-           SET analysis_result = $1, 
-               extracted_text = COALESCE($2, extracted_text),
-               processing_status = 'completed',
-               processed_at = NOW()
-           WHERE id = $3`,
-          [
-            JSON.stringify({
-              pipeline_version: '5.0',
-              ...analysisResult,
-            }), 
-            extractedText || null,
-            docId
-          ]
-        );
-
-        logger.info('Document analysis saved', { module: 'tender-content', docId });
-        return { id: docId, success: true, analysis: analysisResult };
-      } catch (docError) {
-        logger.error('Document analysis failed', { 
-          module: 'tender-content', 
-          docId, 
-          error: docError.message 
-        });
-
-        // Hata durumunu kaydet
+      } catch (err) {
         await pool.query(`UPDATE documents SET processing_status = 'failed' WHERE id = $1`, [docId]);
-        return { id: docId, success: false, error: docError.message };
+        return { id: docId, success: false, error: err.message };
       }
     };
-    
-    // Paralel işleme: 2'şerli batch'ler halinde işle
+
+    // Paralel işleme
     for (let i = 0; i < documentIds.length; i += CONCURRENCY) {
       const batch = documentIds.slice(i, i + CONCURRENCY);
-      const batchResults = await Promise.all(
-        batch.map((docId, batchIndex) => processDocument(docId, i + batchIndex))
-      );
+      const batchResults = await Promise.all(batch.map((docId, idx) => processDoc(docId, i + idx)));
       results.push(...batchResults);
     }
 
     const summary = {
       total: documentIds.length,
-      success: results.filter((r) => r.success && !r.skipped).length,
-      skipped: results.filter((r) => r.skipped).length,
+      success: results.filter((r) => r.success && !r.skipped && !r.cached).length,
+      skipped: results.filter((r) => r.skipped || r.cached).length,
       failed: results.filter((r) => !r.success).length,
     };
 
-    logger.info('Batch analysis completed', { module: 'tender-content', summary });
-
-    sendEvent({
-      stage: 'complete',
-      message: 'Toplu analiz tamamlandı',
-      results,
-      summary,
-    });
-
+    sendEvent({ stage: 'complete', message: 'Toplu analiz tamamlandı', results, summary });
     res.end();
   } catch (error) {
-    const logger = (await import('../utils/logger.js')).default;
-    logger.error('Batch analysis error', { module: 'tender-content', error: error.message });
-    
     try {
       res.write(`data: ${JSON.stringify({ stage: 'error', message: error.message })}\n\n`);
     } catch {}
@@ -708,7 +451,7 @@ router.post('/documents/reset-failed', async (req, res) => {
  */
 router.post('/documents/reset', async (req, res) => {
   const logger = (await import('../utils/logger.js')).default;
-  
+
   try {
     const { documentIds, tenderId } = req.body;
     const { pool } = await import('../database.js');
@@ -725,7 +468,7 @@ router.post('/documents/reset', async (req, res) => {
          RETURNING id, original_filename`,
         [tenderId]
       );
-    } 
+    }
     // documentIds ile seçili dökümanları sıfırla
     else if (documentIds && Array.isArray(documentIds) && documentIds.length > 0) {
       result = await pool.query(
@@ -743,11 +486,11 @@ router.post('/documents/reset', async (req, res) => {
       });
     }
 
-    logger.info('Documents reset', { 
+    logger.info('Documents reset', {
       module: 'tender-content',
       count: result.rowCount,
       tenderId: tenderId || null,
-      ids: result.rows.map(r => r.id)
+      ids: result.rows.map((r) => r.id),
     });
 
     res.json({
@@ -770,7 +513,7 @@ router.post('/documents/reset', async (req, res) => {
  */
 router.delete('/:tenderId/documents', async (req, res) => {
   const logger = (await import('../utils/logger.js')).default;
-  
+
   try {
     const { tenderId } = req.params;
     const { deleteFromStorage } = req.query; // ?deleteFromStorage=true
@@ -795,40 +538,30 @@ router.delete('/:tenderId/documents', async (req, res) => {
     if (deleteFromStorage === 'true') {
       try {
         const { createClient } = await import('@supabase/supabase-js');
-        const supabase = createClient(
-          process.env.SUPABASE_URL,
-          process.env.SUPABASE_SERVICE_KEY
-        );
+        const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
-        const storagePaths = docsResult.rows
-          .filter(d => d.storage_path)
-          .map(d => d.storage_path);
+        const storagePaths = docsResult.rows.filter((d) => d.storage_path).map((d) => d.storage_path);
 
         if (storagePaths.length > 0) {
-          const { error: storageError } = await supabase.storage
-            .from('documents')
-            .remove(storagePaths);
+          const { error: storageError } = await supabase.storage.from('documents').remove(storagePaths);
 
           if (storageError) {
-            logger.warn('Storage delete partial failure', { 
+            logger.warn('Storage delete partial failure', {
               module: 'tender-content',
-              error: storageError.message 
+              error: storageError.message,
             });
           }
         }
       } catch (storageErr) {
-        logger.warn('Storage delete error', { 
+        logger.warn('Storage delete error', {
           module: 'tender-content',
-          error: storageErr.message 
+          error: storageErr.message,
         });
       }
     }
 
     // Veritabanından sil
-    const deleteResult = await pool.query(
-      `DELETE FROM documents WHERE tender_id = $1 RETURNING id`,
-      [tenderId]
-    );
+    const deleteResult = await pool.query(`DELETE FROM documents WHERE tender_id = $1 RETURNING id`, [tenderId]);
 
     // tender_tracking tablosundaki analiz verilerini temizle
     try {
@@ -843,17 +576,17 @@ router.delete('/:tenderId/documents', async (req, res) => {
         [tenderId]
       );
     } catch (trackErr) {
-      logger.warn('Tender tracking clear failed', { 
+      logger.warn('Tender tracking clear failed', {
         module: 'tender-content',
-        error: trackErr.message 
+        error: trackErr.message,
       });
     }
 
-    logger.info('Documents deleted for tender', { 
+    logger.info('Documents deleted for tender', {
       module: 'tender-content',
       tenderId,
       count: deleteResult.rowCount,
-      fromStorage: deleteFromStorage === 'true'
+      fromStorage: deleteFromStorage === 'true',
     });
 
     res.json({
@@ -876,7 +609,7 @@ router.delete('/:tenderId/documents', async (req, res) => {
  */
 router.post('/:tenderId/clear-analysis', async (req, res) => {
   const logger = (await import('../utils/logger.js')).default;
-  
+
   try {
     const { tenderId } = req.params;
     const { pool } = await import('../database.js');
@@ -896,9 +629,9 @@ router.post('/:tenderId/clear-analysis', async (req, res) => {
       );
       clearedCount = result.rowCount;
     } catch (docErr) {
-      logger.warn('Documents clear failed (may not exist)', { 
+      logger.warn('Documents clear failed (may not exist)', {
         module: 'tender-content',
-        error: docErr.message 
+        error: docErr.message,
       });
     }
 
@@ -915,16 +648,16 @@ router.post('/:tenderId/clear-analysis', async (req, res) => {
         [tenderId]
       );
     } catch (trackErr) {
-      logger.warn('Tender tracking clear failed', { 
+      logger.warn('Tender tracking clear failed', {
         module: 'tender-content',
-        error: trackErr.message 
+        error: trackErr.message,
       });
     }
 
-    logger.info('Analysis cleared for tender', { 
+    logger.info('Analysis cleared for tender', {
       module: 'tender-content',
       tenderId,
-      clearedCount
+      clearedCount,
     });
 
     res.json({
@@ -936,7 +669,7 @@ router.post('/:tenderId/clear-analysis', async (req, res) => {
     logger.error('Clear analysis failed', {
       module: 'tender-content',
       error: error.message,
-      stack: error.stack
+      stack: error.stack,
     });
     res.status(500).json({
       success: false,

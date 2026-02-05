@@ -281,7 +281,9 @@ export function GenerationToolbar({
               transition: 'background 0.15s ease',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)';
+              e.currentTarget.style.background = isDark
+                ? 'rgba(255,255,255,0.03)'
+                : 'rgba(0,0,0,0.02)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = 'transparent';
@@ -297,7 +299,11 @@ export function GenerationToolbar({
             </Text>
             <Group gap="sm">
               <RealtimeIndicator />
-              <Tooltip label={expanded ? 'Toolbar\'ı kapat' : 'Toolbar\'ı aç'} position="bottom" withArrow>
+              <Tooltip
+                label={expanded ? "Toolbar'ı kapat" : "Toolbar'ı aç"}
+                position="bottom"
+                withArrow
+              >
                 <ActionIcon
                   variant="subtle"
                   size="sm"

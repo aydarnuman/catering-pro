@@ -3,8 +3,10 @@ import path from 'node:path';
 import express from 'express';
 import multer from 'multer';
 import { query } from '../database.js';
-// Yeni Pipeline v5.0 kullan (claude.js yerine)
-import { runPipeline, getFileType, SUPPORTED_FORMATS } from '../services/ai-analyzer/index.js';
+// v9.0: UNIFIED PIPELINE - TEK MERKEZİ SİSTEM
+import { getFileType, SUPPORTED_FORMATS } from '../services/ai-analyzer/index.js';
+import { analyzeDocument } from '../services/ai-analyzer/unified-pipeline.js';
+// DİĞER PİPELINE DOSYALARINI KULLANMA!
 import { processDocument } from '../services/document.js';
 
 const router = express.Router();
@@ -138,7 +140,8 @@ router.post('/analyze', upload.single('file'), async (req, res) => {
     if (ext === '.zip' || ext === '.rar') {
       return res.status(400).json({
         error: 'ZIP/RAR dosyaları doğrudan analiz edilemez.',
-        message: 'Lütfen arşivi açıp içindeki dosyaları ayrı ayrı yükleyin veya İhale Merkezi üzerinden indirin (otomatik açılır).',
+        message:
+          'Lütfen arşivi açıp içindeki dosyaları ayrı ayrı yükleyin veya İhale Merkezi üzerinden indirin (otomatik açılır).',
       });
     }
 
@@ -189,8 +192,10 @@ router.post('/analyze', upload.single('file'), async (req, res) => {
     };
 
     try {
-      // Yeni Pipeline v5.0 ile analiz
-      const pipelineResult = await runPipeline(file.path, { onProgress });
+      // v9.0: UNIFIED PIPELINE ile analiz
+      const pipelineResult = await analyzeDocument(file.path, {
+        onProgress,
+      });
 
       if (!pipelineResult.success) {
         throw new Error(pipelineResult.error || 'Pipeline hatası');
@@ -210,10 +215,11 @@ router.post('/analyze', upload.single('file'), async (req, res) => {
         [
           pipelineResult.extraction?.text || '',
           JSON.stringify({
-            pipeline_version: '5.0',
+            pipeline_version: '9.0',
+            provider: pipelineResult.meta?.provider_used || 'unified',
             analysis: pipelineResult.analysis,
             stats: pipelineResult.stats,
-            chunks: pipelineResult.chunks?.length || 0,
+            validation: pipelineResult.validation,
           }),
           document.id,
         ]

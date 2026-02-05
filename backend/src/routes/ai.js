@@ -2150,7 +2150,10 @@ router.post('/analyze-errors', optionalAuth, async (req, res) => {
     // Hataları AI'a gönder
     const errorSummary = errors
       .slice(0, 10) // Maksimum 10 hata
-      .map((e, i) => `${i + 1}. [${e.type}] ${e.message}\n   URL: ${e.url}\n   Zaman: ${e.timestamp}${e.stack ? `\n   Stack: ${e.stack.substring(0, 200)}...` : ''}`)
+      .map(
+        (e, i) =>
+          `${i + 1}. [${e.type}] ${e.message}\n   URL: ${e.url}\n   Zaman: ${e.timestamp}${e.stack ? `\n   Stack: ${e.stack.substring(0, 200)}...` : ''}`
+      )
       .join('\n\n');
 
     const analysisPrompt = `

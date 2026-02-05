@@ -1,7 +1,7 @@
-import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import express from 'express';
 
 const router = express.Router();
 
@@ -45,15 +45,17 @@ router.get('/guncel-degerler', async (_req, res) => {
           mal_hizmet_genel: kikMevzuat?.esik_degerler_2026?.mal_hizmet_alimlari?.genel_butce || 18734124,
           mal_hizmet_diger: kikMevzuat?.esik_degerler_2026?.mal_hizmet_alimlari?.diger_idareler || 31223308,
           yapim_isleri: kikMevzuat?.esik_degerler_2026?.yapim_isleri?.tum_idareler || 686924429,
-          dogrudan_temin_buyuksehir: kikMevzuat?.esik_degerler_2026?.dogrudan_temin_limiti?.buyuksehir_icinde || 1021827,
+          dogrudan_temin_buyuksehir:
+            kikMevzuat?.esik_degerler_2026?.dogrudan_temin_limiti?.buyuksehir_icinde || 1021827,
           dogrudan_temin_diger: kikMevzuat?.esik_degerler_2026?.dogrudan_temin_limiti?.buyuksehir_disinda || 340648,
         },
-        itirazen_sikayet_bedelleri: kikMevzuat?.itirazen_sikayet_bedelleri_2025?.bedeller?.map(b => ({
-          alt: b.yaklasik_maliyet_alt,
-          ust: b.yaklasik_maliyet_ust,
-          bedel: b.bedel,
-          aciklama: b.aciklama,
-        })) || [],
+        itirazen_sikayet_bedelleri:
+          kikMevzuat?.itirazen_sikayet_bedelleri_2025?.bedeller?.map((b) => ({
+            alt: b.yaklasik_maliyet_alt,
+            ust: b.yaklasik_maliyet_ust,
+            bedel: b.bedel,
+            aciklama: b.aciklama,
+          })) || [],
         sgk_oranlari: {
           isci_toplam: sgkOranlari?.prim_oranlari?.isci_paylari?.toplam || 14,
           isveren_toplam: sgkOranlari?.prim_oranlari?.isveren_paylari?.toplam || 20.5,
@@ -62,7 +64,6 @@ router.get('/guncel-degerler', async (_req, res) => {
       },
     });
   } catch (error) {
-    console.error('Mevzuat error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -81,7 +82,8 @@ router.get('/formuller', async (_req, res) => {
         sinir_deger_hizmet: {
           ad: 'Sınır Değer Hesaplama (Hizmet Alımı)',
           formul: 'SD = (YM + T1 + T2 + ... + Tn) / (n + 1) × R',
-          aciklama: "YM: Yaklaşık Maliyet, Tn: Geçerli teklifler (YM'nin %60'ından düşük ve YM'den yüksek olanlar hariç), R: Sınır değer katsayısı",
+          aciklama:
+            "YM: Yaklaşık Maliyet, Tn: Geçerli teklifler (YM'nin %60'ından düşük ve YM'den yüksek olanlar hariç), R: Sınır değer katsayısı",
         },
         asiri_dusuk_yemek: {
           ad: 'Aşırı Düşük Oran (Yemek İhalesi)',
@@ -93,12 +95,12 @@ router.get('/formuller', async (_req, res) => {
         personel_dayali: {
           ad: 'Personel Çalıştırılmasına Dayalı Hizmet',
           formul: 'SD = Kar Hariç Yaklaşık Maliyet',
-          aciklama: 'Personel çalıştırılmasına dayalı hizmet alımlarında sınır değer, kar hariç yaklaşık maliyete eşittir.',
+          aciklama:
+            'Personel çalıştırılmasına dayalı hizmet alımlarında sınır değer, kar hariç yaklaşık maliyete eşittir.',
         },
       },
     });
   } catch (error) {
-    console.error('Formuller error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -121,7 +123,6 @@ router.get('/ozet', async (_req, res) => {
       },
     });
   } catch (error) {
-    console.error('Ozet error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -162,7 +163,6 @@ router.get('/rehber', async (_req, res) => {
       },
     });
   } catch (error) {
-    console.error('Rehber error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

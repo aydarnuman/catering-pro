@@ -812,6 +812,55 @@ router.get('/ogun-tipleri', async (_req, res) => {
   }
 });
 
+// Projeleri listele
+router.get('/projeler', async (_req, res) => {
+  try {
+    const result = await query(`
+      SELECT 
+        p.id,
+        p.ad,
+        p.kod,
+        p.aciklama,
+        p.baslangic_tarihi,
+        p.bitis_tarihi,
+        p.aktif,
+        p.created_at,
+        p.updated_at
+      FROM projeler p
+      WHERE p.aktif = true
+      ORDER BY p.ad
+    `);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Tüm menü planlarını listele (kaydedilen menüler için)
+router.get('/menu-planlari', async (_req, res) => {
+  try {
+    const result = await query(`
+      SELECT 
+        mp.id,
+        mp.proje_id,
+        mp.ad,
+        mp.baslangic_tarihi,
+        mp.bitis_tarihi,
+        mp.durum,
+        mp.notlar,
+        mp.created_at,
+        mp.updated_at,
+        p.ad as proje_adi
+      FROM menu_planlari mp
+      LEFT JOIN projeler p ON p.id = mp.proje_id
+      ORDER BY mp.created_at DESC
+    `);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Proje öğün şablonlarını getir
 router.get('/projeler/:projeId/ogun-sablonlari', async (req, res) => {
   try {

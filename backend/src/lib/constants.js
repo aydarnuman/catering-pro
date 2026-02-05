@@ -214,17 +214,6 @@ export function getDocTypeLabel(docType) {
 }
 
 /**
- * Şehir normalize et
- * @param {string} text
- * @returns {string|null}
- */
-export function normalizeCity(text) {
-  if (!text) return null;
-  const normalized = text.trim().toLocaleLowerCase('tr-TR');
-  return TURKISH_CITIES.find((city) => normalized.includes(city.toLocaleLowerCase('tr-TR'))) || null;
-}
-
-/**
  * URL kodundan doc type al
  * @param {string|number} code
  * @returns {string}

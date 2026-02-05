@@ -1,7 +1,13 @@
 'use client';
 
 import { ActionIcon, Badge, Group, Paper, Text, Tooltip } from '@mantine/core';
-import { IconBuilding, IconMapPin, IconRefresh, IconStar, IconStarFilled } from '@tabler/icons-react';
+import {
+  IconBuilding,
+  IconMapPin,
+  IconRefresh,
+  IconStar,
+  IconStarFilled,
+} from '@tabler/icons-react';
 import type { Tender } from '@/types/api';
 import type { SavedTender } from '../types';
 
@@ -47,35 +53,63 @@ function getUrgencyBadge(daysRemaining: number | null) {
 
   if (daysRemaining < 0) {
     return (
-      <Badge size="xs" variant="light" style={{ background: 'rgba(128, 128, 128, 0.1)', color: 'var(--mantine-color-gray-5)' }}>
+      <Badge
+        size="xs"
+        variant="light"
+        style={{ background: 'rgba(128, 128, 128, 0.1)', color: 'var(--mantine-color-gray-5)' }}
+      >
         Geçmiş
       </Badge>
     );
   }
   if (daysRemaining === 0) {
     return (
-      <Badge size="xs" variant="light" style={{ background: 'rgba(220, 53, 69, 0.15)', color: '#dc3545', border: '1px solid rgba(220, 53, 69, 0.3)' }}>
+      <Badge
+        size="xs"
+        variant="light"
+        style={{
+          background: 'rgba(220, 53, 69, 0.15)',
+          color: '#dc3545',
+          border: '1px solid rgba(220, 53, 69, 0.3)',
+        }}
+      >
         BUGÜN
       </Badge>
     );
   }
   if (daysRemaining === 1) {
     return (
-      <Badge size="xs" variant="light" style={{ background: 'rgba(201, 162, 39, 0.15)', color: '#C9A227', border: '1px solid rgba(201, 162, 39, 0.3)' }}>
+      <Badge
+        size="xs"
+        variant="light"
+        style={{
+          background: 'rgba(201, 162, 39, 0.15)',
+          color: '#C9A227',
+          border: '1px solid rgba(201, 162, 39, 0.3)',
+        }}
+      >
         YARIN
       </Badge>
     );
   }
   if (daysRemaining <= 3) {
     return (
-      <Badge size="xs" variant="light" style={{ background: 'rgba(201, 162, 39, 0.1)', color: '#C9A227' }}>
+      <Badge
+        size="xs"
+        variant="light"
+        style={{ background: 'rgba(201, 162, 39, 0.1)', color: '#C9A227' }}
+      >
         {daysRemaining} gün
       </Badge>
     );
   }
   if (daysRemaining <= 7) {
     return (
-      <Badge size="xs" variant="light" style={{ background: 'rgba(100, 149, 237, 0.1)', color: 'var(--mantine-color-gray-5)' }}>
+      <Badge
+        size="xs"
+        variant="light"
+        style={{ background: 'rgba(100, 149, 237, 0.1)', color: 'var(--mantine-color-gray-5)' }}
+      >
         {daysRemaining} gün
       </Badge>
     );
@@ -83,9 +117,15 @@ function getUrgencyBadge(daysRemaining: number | null) {
   return null;
 }
 
-export function TenderListItem({ tender, isSelected, isTracked, onClick, onToggleTracking }: TenderListItemProps) {
+export function TenderListItem({
+  tender,
+  isSelected,
+  isTracked,
+  onClick,
+  onToggleTracking,
+}: TenderListItemProps) {
   const isSaved = isSavedTender(tender);
-  
+
   // Get tender ID for tracking toggle
   const tenderId = isSaved ? tender.tender_id : tender.id;
 
@@ -148,14 +188,14 @@ export function TenderListItem({ tender, isSelected, isTracked, onClick, onToggl
             {title || 'İsimsiz İhale'}
           </Text>
           {isUpdatedToday && (
-            <Badge 
-              size="xs" 
-              variant="light" 
+            <Badge
+              size="xs"
+              variant="light"
               leftSection={<IconRefresh size={8} />}
-              style={{ 
-                background: 'rgba(201, 162, 39, 0.15)', 
+              style={{
+                background: 'rgba(201, 162, 39, 0.15)',
                 color: '#C9A227',
-                border: '1px solid rgba(201, 162, 39, 0.3)'
+                border: '1px solid rgba(201, 162, 39, 0.3)',
               }}
             >
               Güncellendi
@@ -190,14 +230,14 @@ export function TenderListItem({ tender, isSelected, isTracked, onClick, onToggl
       {/* Bottom row: City, Date, Status badges */}
       <Group gap={4} wrap="wrap" mt={4}>
         {city && (
-          <Badge 
-            size="xs" 
-            variant="light" 
+          <Badge
+            size="xs"
+            variant="light"
             leftSection={<IconMapPin size={8} />}
             style={{
               background: 'rgba(100, 149, 237, 0.1)',
               color: 'var(--mantine-color-gray-5)',
-              border: 'none'
+              border: 'none',
             }}
           >
             {city}

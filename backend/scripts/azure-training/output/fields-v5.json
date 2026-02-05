@@ -1,0 +1,295 @@
+{
+  "version": "v5",
+  "description": "Azure Custom Model Training - Gelişmiş Öğün ve Personel Tabloları",
+  "fields": {
+    "tables": {
+      "ogun_dagilimi": {
+        "fieldType": "table",
+        "description": "Öğün dağılım tablosu - Kahvaltı/Öğle/Akşam kişi sayıları",
+        "isRequired": true,
+        "priority": "critical",
+        "subFields": {
+          "kahvalti_kisi_sayisi": {
+            "fieldType": "number",
+            "description": "Kahvaltı yiyen kişi sayısı"
+          },
+          "ogle_kisi_sayisi": {
+            "fieldType": "number",
+            "description": "Öğle yemeği yiyen kişi sayısı"
+          },
+          "aksam_kisi_sayisi": {
+            "fieldType": "number",
+            "description": "Akşam yemeği yiyen kişi sayısı"
+          },
+          "gece_kisi_sayisi": {
+            "fieldType": "number",
+            "description": "Gece/sahur yiyen kişi sayısı"
+          },
+          "toplam_gunluk_ogun": {
+            "fieldType": "number",
+            "description": "Günlük toplam öğün adedi"
+          }
+        }
+      },
+      "ogun_detay": {
+        "fieldType": "table",
+        "description": "Detaylı öğün tablosu - Birim bazında Normal/Diyet/Refakatçi dağılımı",
+        "isRequired": false,
+        "priority": "high",
+        "subFields": {
+          "birimler": {
+            "fieldType": "array",
+            "itemType": "object",
+            "description": "Birim bazında öğün dağılımı"
+          }
+        }
+      },
+      "personel_tablosu": {
+        "fieldType": "table",
+        "description": "Personel gereksinimleri tablosu - Pozisyon, sayı, nitelik",
+        "isRequired": true,
+        "priority": "critical",
+        "subFields": {
+          "toplam_personel": {
+            "fieldType": "number",
+            "description": "Toplam personel sayısı"
+          },
+          "asci_sayisi": {
+            "fieldType": "number",
+            "description": "Aşçı sayısı"
+          },
+          "asci_yardimcisi_sayisi": {
+            "fieldType": "number",
+            "description": "Aşçı yardımcısı sayısı"
+          },
+          "servis_elemani_sayisi": {
+            "fieldType": "number",
+            "description": "Servis elemanı/garson sayısı"
+          },
+          "bulasikci_sayisi": {
+            "fieldType": "number",
+            "description": "Bulaşıkçı sayısı"
+          },
+          "temizlik_personeli_sayisi": {
+            "fieldType": "number",
+            "description": "Temizlik personeli sayısı"
+          },
+          "diyetisyen_sayisi": {
+            "fieldType": "number",
+            "description": "Diyetisyen sayısı"
+          },
+          "gida_muhendisi_sayisi": {
+            "fieldType": "number",
+            "description": "Gıda mühendisi sayısı"
+          },
+          "personel_detay": {
+            "fieldType": "array",
+            "itemType": "object",
+            "description": "Pozisyon bazında detaylı liste"
+          }
+        }
+      },
+      "haftalik_menu": {
+        "fieldType": "table",
+        "description": "Haftalık örnek menü tablosu",
+        "isRequired": true,
+        "priority": "high",
+        "subFields": {
+          "hafta_no": {
+            "fieldType": "number",
+            "description": "Kaçıncı hafta (1-4)"
+          },
+          "gunler": {
+            "fieldType": "array",
+            "description": "Günlük menü detayları"
+          }
+        }
+      },
+      "gramaj_tablosu": {
+        "fieldType": "table",
+        "description": "Gramaj/porsiyon tablosu",
+        "isRequired": true,
+        "priority": "high"
+      },
+      "birim_fiyat_cetveli": {
+        "fieldType": "table",
+        "description": "Birim fiyat teklif cetveli",
+        "isRequired": false,
+        "priority": "medium"
+      },
+      "malzeme_listesi": {
+        "fieldType": "table",
+        "description": "Hammadde/malzeme listesi",
+        "isRequired": false,
+        "priority": "medium"
+      },
+      "dagitim_noktalari": {
+        "fieldType": "table",
+        "description": "Yemek dağıtım noktaları",
+        "isRequired": false,
+        "priority": "medium"
+      },
+      "ceza_kesintileri": {
+        "fieldType": "table",
+        "description": "Ceza ve kesinti tablosu",
+        "isRequired": false,
+        "priority": "low"
+      }
+    },
+    "strings": {
+      "critical": {
+        "ihale_konusu": {
+          "fieldType": "string",
+          "description": "İhalenin konusu/adı",
+          "isRequired": true
+        },
+        "ihale_kayit_no": {
+          "fieldType": "string",
+          "description": "İKN numarası (2024/123456 formatı)",
+          "pattern": "\\d{4}/\\d+",
+          "isRequired": true
+        },
+        "idare_adi": {
+          "fieldType": "string",
+          "description": "İhaleyi yapan kurum adı",
+          "isRequired": true
+        },
+        "gunluk_toplam_ogun": {
+          "fieldType": "number",
+          "description": "Günlük toplam öğün sayısı",
+          "isRequired": true
+        },
+        "toplam_personel": {
+          "fieldType": "number",
+          "description": "Toplam çalıştırılacak personel",
+          "isRequired": true
+        },
+        "sozlesme_suresi": {
+          "fieldType": "string",
+          "description": "Sözleşme süresi (ör: 24 ay)",
+          "isRequired": true
+        },
+        "hizmet_gun_sayisi": {
+          "fieldType": "number",
+          "description": "Toplam hizmet günü",
+          "isRequired": false
+        },
+        "iscilik_orani": {
+          "fieldType": "percentage",
+          "description": "İşçilik oranı",
+          "isRequired": false
+        }
+      },
+      "ogun_detay": {
+        "kahvalti_kisi_sayisi": {
+          "fieldType": "number",
+          "description": "Kahvaltı yiyen kişi sayısı",
+          "isRequired": false
+        },
+        "ogle_kisi_sayisi": {
+          "fieldType": "number",
+          "description": "Öğle yemeği yiyen kişi sayısı",
+          "isRequired": false
+        },
+        "aksam_kisi_sayisi": {
+          "fieldType": "number",
+          "description": "Akşam yemeği yiyen kişi sayısı",
+          "isRequired": false
+        },
+        "kahvalti_saati": {
+          "fieldType": "string",
+          "description": "Kahvaltı servis saati",
+          "isRequired": false
+        },
+        "ogle_saati": {
+          "fieldType": "string",
+          "description": "Öğle yemeği servis saati",
+          "isRequired": false
+        },
+        "aksam_saati": {
+          "fieldType": "string",
+          "description": "Akşam yemeği servis saati",
+          "isRequired": false
+        }
+      },
+      "important": {
+        "yaklasik_maliyet": {
+          "fieldType": "currency",
+          "description": "Yaklaşık maliyet tutarı",
+          "isRequired": false
+        },
+        "ise_baslama_tarihi": {
+          "fieldType": "date",
+          "description": "İşe başlama tarihi",
+          "isRequired": false
+        },
+        "is_bitis_tarihi": {
+          "fieldType": "date",
+          "description": "İş bitiş tarihi",
+          "isRequired": false
+        },
+        "mutfak_tipi": {
+          "fieldType": "string",
+          "description": "Mutfak tipi (yerinde/taşımalı/merkezi)",
+          "isRequired": false
+        },
+        "servis_tipi": {
+          "fieldType": "string",
+          "description": "Servis tipi (benmari/self servis/tabldot)",
+          "isRequired": false
+        },
+        "et_tipi": {
+          "fieldType": "string",
+          "description": "Et türü (dana/tavuk/karışık)",
+          "isRequired": false
+        }
+      },
+      "boolean": {
+        "kahvalti_var": {
+          "fieldType": "boolean",
+          "description": "Kahvaltı hizmeti var mı?"
+        },
+        "ara_ogun_var": {
+          "fieldType": "boolean",
+          "description": "Ara öğün var mı?"
+        },
+        "gece_yemegi_var": {
+          "fieldType": "boolean",
+          "description": "Gece yemeği var mı?"
+        },
+        "diyet_menu_var": {
+          "fieldType": "boolean",
+          "description": "Diyet menü var mı?"
+        },
+        "ekmek_dahil": {
+          "fieldType": "boolean",
+          "description": "Ekmek dahil mi?"
+        }
+      }
+    }
+  },
+  "labelingGuidelines": {
+    "ogun_dagilimi": [
+      "Tablonun başlığında 'öğün', 'yemek dağılımı', 'kişi sayısı' gibi ifadeler arayın",
+      "Kahvaltı/Öğle/Akşam satırlarını ve karşılık gelen sayıları etiketleyin",
+      "Normal/Diyet/Refakatçi gibi kategoriler varsa bunları da dahil edin",
+      "Toplam satırını mutlaka işaretleyin"
+    ],
+    "personel_tablosu": [
+      "Tablonun başlığında 'personel', 'işçi', 'kadro' gibi ifadeler arayın",
+      "Her pozisyonu (Aşçı, Garson, Bulaşıkçı vb.) ve sayısını etiketleyin",
+      "Nitelik gereksinimleri (Ustalık belgesi, Hijyen sertifikası) varsa bunları da dahil edin",
+      "Toplam personel sayısını mutlaka işaretleyin"
+    ],
+    "haftalik_menu": [
+      "Gün isimleri (Pazartesi-Pazar) ile tanımlayın",
+      "Kaçıncı hafta olduğunu not edin (1. Hafta, 2. Hafta vb.)",
+      "Çorba, Ana Yemek, Pilav, Salata, Tatlı sütunlarını işaretleyin"
+    ],
+    "gramaj_tablosu": [
+      "Yemek adı ve karşılık gelen gram değerlerini etiketleyin",
+      "Çiğ ve pişmiş gramaj ayrımı varsa belirtin",
+      "Porsiyon miktarlarını işaretleyin"
+    ]
+  }
+}

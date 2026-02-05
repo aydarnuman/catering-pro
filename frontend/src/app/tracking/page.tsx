@@ -17,11 +17,11 @@ function RedirectContent() {
     // URL parametrelerini koru
     const params = new URLSearchParams();
     params.set('tab', 'tracked');
-    
+
     // Mevcut tender parametresini aktar
     const tenderId = searchParams.get('tender');
     if (tenderId) params.set('tender', tenderId);
-    
+
     router.replace(`/ihale-merkezi?${params.toString()}`);
   }, [router, searchParams]);
 

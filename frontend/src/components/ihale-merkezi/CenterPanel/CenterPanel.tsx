@@ -56,7 +56,6 @@ import {
   IconExclamationMark,
   IconExternalLink,
   IconFile,
-  IconX,
   IconFileAnalytics,
   IconFileDownload,
   IconFileText,
@@ -79,13 +78,17 @@ import {
   IconTrash,
   IconUsers,
   IconWallet,
+  IconX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ContextualNotesSection } from '@/components/notes/ContextualNotesSection';
 import { aiAPI } from '@/lib/api/services/ai';
 import { tendersAPI } from '@/lib/api/services/tenders';
 import { API_BASE_URL } from '@/lib/config';
-import { ContextualNotesSection } from '@/components/notes/ContextualNotesSection';
 import type { Tender } from '@/types/api';
+import { CalculationModal } from '../CalculationModal';
+import { DocumentWizardModal } from '../DocumentWizardModal';
+import { detectMissingCriticalData, InlineDataForm } from '../InlineDataForm';
 import type {
   AINote,
   AnalysisData,
@@ -106,9 +109,6 @@ import type {
   TenderStatus,
 } from '../types';
 import { statusConfig } from '../types';
-import { DocumentWizardModal } from '../DocumentWizardModal';
-import { detectMissingCriticalData, InlineDataForm } from '../InlineDataForm';
-import { CalculationModal } from '../CalculationModal';
 
 interface CenterPanelProps {
   state: IhaleMerkeziState;
@@ -138,15 +138,16 @@ export function CenterPanel({
 
   // Döküman Ayarları Modal state
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
-  
+
   // Döküman Wizard Modal state (Özet sekmesinden erişim için)
   const [documentWizardOpen, setDocumentWizardOpen] = useState(false);
-  
+
   // Analiz Detay Modalleri
   const [teknikModalOpen, setTeknikModalOpen] = useState(false);
   const [birimModalOpen, setBirimModalOpen] = useState(false);
   const [tamMetinModalOpen, setTamMetinModalOpen] = useState(false);
-  
+  const [sartnameGramajModalOpen, setSartnameGramajModalOpen] = useState(false);
+
   const [docStats, setDocStats] = useState<{
     total: number;
     completed: number;
@@ -164,15 +165,25 @@ export function CenterPanel({
   // Döküman istatistiklerini çek
   const fetchDocStats = useCallback(async () => {
     if (!selectedTender || !('tender_id' in selectedTender)) return;
-    
+
     setSettingsLoading(true);
     try {
       const response = await tendersAPI.getDownloadedDocuments(String(selectedTender.tender_id));
       if (response.success && response.data?.documents) {
-        type DocFile = { original_filename: string; doc_type: string; processing_status: string; file_type?: string; source_type?: string };
+        type DocFile = {
+          original_filename: string;
+          doc_type: string;
+          processing_status: string;
+          file_type?: string;
+          source_type?: string;
+        };
         const allDocs: DocFile[] = response.data.documents
           .flatMap((g: { files: DocFile[] }) => g.files)
-          .filter((d: DocFile) => !d.original_filename?.toLowerCase().endsWith('.zip') && !d.original_filename?.toLowerCase().endsWith('.rar'));
+          .filter(
+            (d: DocFile) =>
+              !d.original_filename?.toLowerCase().endsWith('.zip') &&
+              !d.original_filename?.toLowerCase().endsWith('.rar')
+          );
         setDocStats({
           total: allDocs.length,
           completed: allDocs.filter((d: DocFile) => d.processing_status === 'completed').length,
@@ -213,13 +224,21 @@ export function CenterPanel({
       });
       const data = await response.json();
       if (data.success) {
-        notifications.show({ title: 'Başarılı', message: 'Analiz özeti güncellendi', color: 'green' });
+        notifications.show({
+          title: 'Başarılı',
+          message: 'Analiz özeti güncellendi',
+          color: 'green',
+        });
         onRefreshData?.();
       } else {
         throw new Error(data.error);
       }
     } catch (error) {
-      notifications.show({ title: 'Hata', message: error instanceof Error ? error.message : 'Senkronizasyon başarısız', color: 'red' });
+      notifications.show({
+        title: 'Hata',
+        message: error instanceof Error ? error.message : 'Senkronizasyon başarısız',
+        color: 'red',
+      });
     } finally {
       setSettingsLoading(false);
     }
@@ -227,8 +246,13 @@ export function CenterPanel({
 
   const handleResetDocuments = async () => {
     if (!selectedTender || !('tender_id' in selectedTender)) return;
-    if (!confirm('Tüm dökümanları sıfırlamak istediğinize emin misiniz?\n\nBu işlem dökümanları tekrar analiz edilebilir hale getirir.')) return;
-    
+    if (
+      !confirm(
+        'Tüm dökümanları sıfırlamak istediğinize emin misiniz?\n\nBu işlem dökümanları tekrar analiz edilebilir hale getirir.'
+      )
+    )
+      return;
+
     setSettingsLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/tender-content/documents/reset`, {
@@ -239,14 +263,22 @@ export function CenterPanel({
       });
       const data = await response.json();
       if (data.success) {
-        notifications.show({ title: 'Başarılı', message: `${data.resetCount} döküman sıfırlandı`, color: 'green' });
+        notifications.show({
+          title: 'Başarılı',
+          message: `${data.resetCount} döküman sıfırlandı`,
+          color: 'green',
+        });
         fetchDocStats();
         onRefreshData?.();
       } else {
         throw new Error(data.error);
       }
     } catch (error) {
-      notifications.show({ title: 'Hata', message: error instanceof Error ? error.message : 'Sıfırlama başarısız', color: 'red' });
+      notifications.show({
+        title: 'Hata',
+        message: error instanceof Error ? error.message : 'Sıfırlama başarısız',
+        color: 'red',
+      });
     } finally {
       setSettingsLoading(false);
     }
@@ -254,24 +286,40 @@ export function CenterPanel({
 
   const handleClearAnalysis = async () => {
     if (!selectedTender || !('tender_id' in selectedTender)) return;
-    if (!confirm('Tüm analiz sonuçlarını temizlemek istediğinize emin misiniz?\n\nDökümanlar silinmez, sadece analizler sıfırlanır.')) return;
-    
+    if (
+      !confirm(
+        'Tüm analiz sonuçlarını temizlemek istediğinize emin misiniz?\n\nDökümanlar silinmez, sadece analizler sıfırlanır.'
+      )
+    )
+      return;
+
     setSettingsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tender-content/${selectedTender.tender_id}/clear-analysis`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/tender-content/${selectedTender.tender_id}/clear-analysis`,
+        {
+          method: 'POST',
+          credentials: 'include',
+        }
+      );
       const data = await response.json();
       if (data.success) {
-        notifications.show({ title: 'Başarılı', message: `${data.clearedCount} dökümanın analizi temizlendi`, color: 'green' });
+        notifications.show({
+          title: 'Başarılı',
+          message: `${data.clearedCount} dökümanın analizi temizlendi`,
+          color: 'green',
+        });
         fetchDocStats();
         onRefreshData?.();
       } else {
         throw new Error(data.error);
       }
     } catch (error) {
-      notifications.show({ title: 'Hata', message: error instanceof Error ? error.message : 'Temizleme başarısız', color: 'red' });
+      notifications.show({
+        title: 'Hata',
+        message: error instanceof Error ? error.message : 'Temizleme başarısız',
+        color: 'red',
+      });
     } finally {
       setSettingsLoading(false);
     }
@@ -279,17 +327,29 @@ export function CenterPanel({
 
   const handleDeleteAllDocuments = async () => {
     if (!selectedTender || !('tender_id' in selectedTender)) return;
-    if (!confirm('Bu ihaleye ait TÜM dökümanları silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz!')) return;
-    
+    if (
+      !confirm(
+        'Bu ihaleye ait TÜM dökümanları silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz!'
+      )
+    )
+      return;
+
     setSettingsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tender-content/${selectedTender.tender_id}/documents?deleteFromStorage=true`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/tender-content/${selectedTender.tender_id}/documents?deleteFromStorage=true`,
+        {
+          method: 'DELETE',
+          credentials: 'include',
+        }
+      );
       const data = await response.json();
       if (data.success) {
-        notifications.show({ title: 'Başarılı', message: `${data.deletedCount} döküman silindi`, color: 'green' });
+        notifications.show({
+          title: 'Başarılı',
+          message: `${data.deletedCount} döküman silindi`,
+          color: 'green',
+        });
         setSettingsModalOpen(false);
         fetchDocStats();
         onRefreshData?.();
@@ -297,7 +357,11 @@ export function CenterPanel({
         throw new Error(data.error);
       }
     } catch (error) {
-      notifications.show({ title: 'Hata', message: error instanceof Error ? error.message : 'Silme başarısız', color: 'red' });
+      notifications.show({
+        title: 'Hata',
+        message: error instanceof Error ? error.message : 'Silme başarısız',
+        color: 'red',
+      });
     } finally {
       setSettingsLoading(false);
     }
@@ -352,7 +416,9 @@ export function CenterPanel({
   const correction = isSaved ? selectedTender.correction_notice_content : null;
 
   // Tipli analysis_summary (SavedTender için)
-  const analysisSummary: AnalysisData | undefined = isSaved ? selectedTender.analysis_summary : undefined;
+  const analysisSummary: AnalysisData | undefined = isSaved
+    ? selectedTender.analysis_summary
+    : undefined;
 
   return (
     <Box
@@ -676,7 +742,8 @@ export function CenterPanel({
                     withBorder
                     radius="lg"
                     style={{
-                      background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.02))',
+                      background:
+                        'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.02))',
                       borderColor: 'var(--mantine-color-blue-5)',
                     }}
                   >
@@ -685,9 +752,12 @@ export function CenterPanel({
                         <IconBookmark size={24} />
                       </ThemeIcon>
                       <Box ta="center">
-                        <Text size="md" fw={600}>İhaleyi Takip Et</Text>
+                        <Text size="md" fw={600}>
+                          İhaleyi Takip Et
+                        </Text>
                         <Text size="sm" c="dimmed">
-                          Döküman indirmek ve analiz yapmak için önce ihaleyi takip listesine ekleyin
+                          Döküman indirmek ve analiz yapmak için önce ihaleyi takip listesine
+                          ekleyin
                         </Text>
                       </Box>
                       <Button
@@ -718,7 +788,8 @@ export function CenterPanel({
                         <IconSparkles size={14} />
                       </ThemeIcon>
                       <Text size="xs" c="dimmed">
-                        Döküman indirme ve AI analizi için <strong>Dökümanlar</strong> sekmesini kullanın
+                        Döküman indirme ve AI analizi için <strong>Dökümanlar</strong> sekmesini
+                        kullanın
                       </Text>
                     </Group>
                   </Paper>
@@ -733,11 +804,15 @@ export function CenterPanel({
                       withBorder
                       radius="md"
                       style={{
-                        background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05))',
+                        background:
+                          'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05))',
                         borderColor: 'var(--mantine-color-blue-6)',
-                        cursor: (selectedTender.teknik_sart_sayisi || 0) > 0 ? 'pointer' : 'default',
+                        cursor:
+                          (selectedTender.teknik_sart_sayisi || 0) > 0 ? 'pointer' : 'default',
                       }}
-                      onClick={() => (selectedTender.teknik_sart_sayisi || 0) > 0 && setTeknikModalOpen(true)}
+                      onClick={() =>
+                        (selectedTender.teknik_sart_sayisi || 0) > 0 && setTeknikModalOpen(true)
+                      }
                     >
                       <Group gap="xs">
                         <ThemeIcon size="lg" variant="light" color="blue" radius="xl">
@@ -747,22 +822,28 @@ export function CenterPanel({
                           <Text size="xl" fw={700} c="blue">
                             {selectedTender.teknik_sart_sayisi || 0}
                           </Text>
-                          <Text size="xs" c="dimmed">Teknik Şart</Text>
+                          <Text size="xs" c="dimmed">
+                            Teknik Şart
+                          </Text>
                         </Box>
                       </Group>
                     </Paper>
-                    
+
                     {/* Birim Fiyatlar */}
                     <Paper
                       p="sm"
                       withBorder
                       radius="md"
                       style={{
-                        background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05))',
+                        background:
+                          'linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05))',
                         borderColor: 'var(--mantine-color-green-6)',
-                        cursor: (selectedTender.birim_fiyat_sayisi || 0) > 0 ? 'pointer' : 'default',
+                        cursor:
+                          (selectedTender.birim_fiyat_sayisi || 0) > 0 ? 'pointer' : 'default',
                       }}
-                      onClick={() => (selectedTender.birim_fiyat_sayisi || 0) > 0 && setBirimModalOpen(true)}
+                      onClick={() =>
+                        (selectedTender.birim_fiyat_sayisi || 0) > 0 && setBirimModalOpen(true)
+                      }
                     >
                       <Group gap="xs">
                         <ThemeIcon size="lg" variant="light" color="green" radius="xl">
@@ -772,18 +853,21 @@ export function CenterPanel({
                           <Text size="xl" fw={700} c="green">
                             {selectedTender.birim_fiyat_sayisi || 0}
                           </Text>
-                          <Text size="xs" c="dimmed">Birim Fiyat</Text>
+                          <Text size="xs" c="dimmed">
+                            Birim Fiyat
+                          </Text>
                         </Box>
                       </Group>
                     </Paper>
-                    
+
                     {/* Tam Metin */}
                     <Paper
                       p="sm"
                       withBorder
                       radius="md"
                       style={{
-                        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05))',
+                        background:
+                          'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05))',
                         borderColor: 'var(--mantine-color-violet-6)',
                         cursor: analysisSummary?.tam_metin ? 'pointer' : 'default',
                       }}
@@ -797,11 +881,13 @@ export function CenterPanel({
                           <Text size="xl" fw={700} c="violet">
                             {analysisSummary?.tam_metin ? '📄' : '-'}
                           </Text>
-                          <Text size="xs" c="dimmed">Tam Metin</Text>
+                          <Text size="xs" c="dimmed">
+                            Tam Metin
+                          </Text>
                         </Box>
                       </Group>
                     </Paper>
-                    
+
                     {/* Analiz Edildi - Tıklayınca modal açılır */}
                     <Tooltip label="Döküman Yönetimi">
                       <Paper
@@ -809,7 +895,8 @@ export function CenterPanel({
                         withBorder
                         radius="md"
                         style={{
-                          background: 'linear-gradient(135deg, rgba(201, 162, 39, 0.15), rgba(201, 162, 39, 0.05))',
+                          background:
+                            'linear-gradient(135deg, rgba(201, 162, 39, 0.15), rgba(201, 162, 39, 0.05))',
                           borderColor: '#C9A227',
                           cursor: 'pointer',
                         }}
@@ -821,9 +908,12 @@ export function CenterPanel({
                           </ThemeIcon>
                           <Box>
                             <Text size="xl" fw={700} c="orange">
-                              {selectedTender.analiz_edilen_dokuman || 0}/{selectedTender.dokuman_sayisi || 0}
+                              {selectedTender.analiz_edilen_dokuman || 0}/
+                              {selectedTender.dokuman_sayisi || 0}
                             </Text>
-                            <Text size="xs" c="dimmed">Analiz</Text>
+                            <Text size="xs" c="dimmed">
+                              Analiz
+                            </Text>
                           </Box>
                         </Group>
                       </Paper>
@@ -838,7 +928,9 @@ export function CenterPanel({
                       <ThemeIcon size="sm" variant="light" color="violet">
                         <IconBrain size={12} />
                       </ThemeIcon>
-                      <Text size="sm" fw={600}>AI Özeti</Text>
+                      <Text size="sm" fw={600}>
+                        AI Özeti
+                      </Text>
                       {analysisSummary.ihale_turu && (
                         <Badge size="xs" variant="light" color="grape">
                           {analysisSummary.ihale_turu}
@@ -851,16 +943,26 @@ export function CenterPanel({
                     {(analysisSummary.teslim_suresi || analysisSummary.tahmini_bedel) && (
                       <Group gap="md" mt="xs">
                         {analysisSummary.teslim_suresi && (
-                          <Badge variant="outline" color="blue" size="sm" leftSection={<IconClock size={10} />}>
+                          <Badge
+                            variant="outline"
+                            color="blue"
+                            size="sm"
+                            leftSection={<IconClock size={10} />}
+                          >
                             {analysisSummary.teslim_suresi}
                           </Badge>
                         )}
-                        {analysisSummary.tahmini_bedel && 
-                         analysisSummary.tahmini_bedel !== 'Belirtilmemiş' && (
-                          <Badge variant="outline" color="green" size="sm" leftSection={<IconCurrencyLira size={10} />}>
-                            {analysisSummary.tahmini_bedel}
-                          </Badge>
-                        )}
+                        {analysisSummary.tahmini_bedel &&
+                          analysisSummary.tahmini_bedel !== 'Belirtilmemiş' && (
+                            <Badge
+                              variant="outline"
+                              color="green"
+                              size="sm"
+                              leftSection={<IconCurrencyLira size={10} />}
+                            >
+                              {analysisSummary.tahmini_bedel}
+                            </Badge>
+                          )}
                       </Group>
                     )}
                   </Paper>
@@ -873,8 +975,12 @@ export function CenterPanel({
 
                 {/* Önemli Notlar */}
                 {analysisSummary?.onemli_notlar && analysisSummary.onemli_notlar.length > 0 && (
-                  <OnemliNotlarCard 
-                    notlar={analysisSummary.onemli_notlar as Array<{ not: string; tur?: 'bilgi' | 'uyari' | 'gereklilik' } | string>} 
+                  <OnemliNotlarCard
+                    notlar={
+                      analysisSummary.onemli_notlar as Array<
+                        { not: string; tur?: 'bilgi' | 'uyari' | 'gereklilik' } | string
+                      >
+                    }
                   />
                 )}
 
@@ -899,44 +1005,54 @@ export function CenterPanel({
 
                 {/* Dashboard Grid - Kritik bilgiler yan yana */}
                 {(analysisSummary?.iletisim && Object.keys(analysisSummary.iletisim).length > 0) ||
-                 (analysisSummary?.servis_saatleri && Object.keys(analysisSummary.servis_saatleri).length > 0) ||
-                 (analysisSummary?.teminat_oranlari && Object.keys(analysisSummary.teminat_oranlari).length > 0) ? (
+                (analysisSummary?.servis_saatleri &&
+                  Object.keys(analysisSummary.servis_saatleri).length > 0) ||
+                (analysisSummary?.teminat_oranlari &&
+                  Object.keys(analysisSummary.teminat_oranlari).length > 0) ? (
                   <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
                     {/* İletişim Bilgileri */}
-                    {analysisSummary?.iletisim && Object.keys(analysisSummary.iletisim).length > 0 && (
-                      <IletisimCard iletisim={analysisSummary.iletisim} />
-                    )}
-                    
+                    {analysisSummary?.iletisim &&
+                      Object.keys(analysisSummary.iletisim).length > 0 && (
+                        <IletisimCard iletisim={analysisSummary.iletisim} />
+                      )}
+
                     {/* Servis Saatleri */}
-                    {analysisSummary?.servis_saatleri && Object.keys(analysisSummary.servis_saatleri).length > 0 && (
-                      <ServisSaatleriCard saatler={analysisSummary.servis_saatleri} />
-                    )}
-                    
+                    {analysisSummary?.servis_saatleri &&
+                      Object.keys(analysisSummary.servis_saatleri).length > 0 && (
+                        <ServisSaatleriCard saatler={analysisSummary.servis_saatleri} />
+                      )}
+
                     {/* Teminat Oranları */}
-                    {analysisSummary?.teminat_oranlari && Object.keys(analysisSummary.teminat_oranlari).length > 0 && (
-                      <TeminatOranlariCard teminat={analysisSummary.teminat_oranlari} />
-                    )}
-                    
+                    {analysisSummary?.teminat_oranlari &&
+                      Object.keys(analysisSummary.teminat_oranlari).length > 0 && (
+                        <TeminatOranlariCard teminat={analysisSummary.teminat_oranlari} />
+                      )}
+
                     {/* Mali Kriterler */}
-                    {analysisSummary?.mali_kriterler && Object.keys(analysisSummary.mali_kriterler).length > 0 && (
-                      <MaliKriterlerCard kriterler={analysisSummary.mali_kriterler} />
-                    )}
+                    {analysisSummary?.mali_kriterler &&
+                      Object.keys(analysisSummary.mali_kriterler).length > 0 && (
+                        <MaliKriterlerCard kriterler={analysisSummary.mali_kriterler} />
+                      )}
                   </SimpleGrid>
                 ) : null}
 
                 {/* Personel ve Öğün Bilgileri */}
-                {((analysisSummary?.personel_detaylari && analysisSummary.personel_detaylari.length > 0) ||
-                  (analysisSummary?.ogun_bilgileri && analysisSummary.ogun_bilgileri.length > 0)) && (
+                {((analysisSummary?.personel_detaylari &&
+                  analysisSummary.personel_detaylari.length > 0) ||
+                  (analysisSummary?.ogun_bilgileri &&
+                    analysisSummary.ogun_bilgileri.length > 0)) && (
                   <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
                     {/* Personel Detayları */}
-                    {analysisSummary?.personel_detaylari && analysisSummary.personel_detaylari.length > 0 && (
-                      <PersonelCard personel={analysisSummary.personel_detaylari} />
-                    )}
-                    
+                    {analysisSummary?.personel_detaylari &&
+                      analysisSummary.personel_detaylari.length > 0 && (
+                        <PersonelCard personel={analysisSummary.personel_detaylari} />
+                      )}
+
                     {/* Öğün Bilgileri */}
-                    {analysisSummary?.ogun_bilgileri && analysisSummary.ogun_bilgileri.length > 0 && (
-                      <OgunBilgileriCard ogunler={analysisSummary.ogun_bilgileri} />
-                    )}
+                    {analysisSummary?.ogun_bilgileri &&
+                      analysisSummary.ogun_bilgileri.length > 0 && (
+                        <OgunBilgileriCard ogunler={analysisSummary.ogun_bilgileri} />
+                      )}
                   </SimpleGrid>
                 )}
 
@@ -947,28 +1063,47 @@ export function CenterPanel({
 
                 {/* Ceza Koşulları ve Fiyat Farkı */}
                 {((analysisSummary?.ceza_kosullari && analysisSummary.ceza_kosullari.length > 0) ||
-                  (analysisSummary?.fiyat_farki && (analysisSummary.fiyat_farki.formul || analysisSummary.fiyat_farki.katsayilar))) && (
+                  (analysisSummary?.fiyat_farki &&
+                    (analysisSummary.fiyat_farki.formul ||
+                      analysisSummary.fiyat_farki.katsayilar))) && (
                   <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
                     {/* Ceza Koşulları */}
-                    {analysisSummary?.ceza_kosullari && analysisSummary.ceza_kosullari.length > 0 && (
-                      <CezaKosullariCard cezalar={analysisSummary.ceza_kosullari} />
-                    )}
-                    
+                    {analysisSummary?.ceza_kosullari &&
+                      analysisSummary.ceza_kosullari.length > 0 && (
+                        <CezaKosullariCard cezalar={analysisSummary.ceza_kosullari} />
+                      )}
+
                     {/* Fiyat Farkı */}
-                    {analysisSummary?.fiyat_farki && (analysisSummary.fiyat_farki.formul || analysisSummary.fiyat_farki.katsayilar) && (
-                      <FiyatFarkiCard fiyatFarki={analysisSummary.fiyat_farki} />
-                    )}
+                    {analysisSummary?.fiyat_farki &&
+                      (analysisSummary.fiyat_farki.formul ||
+                        analysisSummary.fiyat_farki.katsayilar) && (
+                        <FiyatFarkiCard fiyatFarki={analysisSummary.fiyat_farki} />
+                      )}
                   </SimpleGrid>
                 )}
 
                 {/* Gerekli Belgeler */}
-                {analysisSummary?.gerekli_belgeler && analysisSummary.gerekli_belgeler.length > 0 && (
-                  <GerekliBelgelerCard belgeler={analysisSummary.gerekli_belgeler} />
-                )}
+                {analysisSummary?.gerekli_belgeler &&
+                  analysisSummary.gerekli_belgeler.length > 0 && (
+                    <GerekliBelgelerCard belgeler={analysisSummary.gerekli_belgeler} />
+                  )}
 
                 {/* Benzer İş Tanımı */}
                 {analysisSummary?.benzer_is_tanimi && (
                   <BenzerIsTanimiCard tanim={analysisSummary.benzer_is_tanimi} />
+                )}
+
+                {/* Şartname/Gramaj Detayları Butonu */}
+                {analysisSummary && (
+                  <Button
+                    variant="light"
+                    color="orange"
+                    leftSection={<IconScale size={16} />}
+                    onClick={() => setSartnameGramajModalOpen(true)}
+                    fullWidth
+                  >
+                    Şartname/Gramaj Detayları
+                  </Button>
                 )}
 
                 {/* Hesaplama özeti */}
@@ -1027,12 +1162,12 @@ export function CenterPanel({
             <Tabs.Panel value="dokumanlar" pt="md">
               {/* Dökümanlar sekmesi - Wizard Modal ile döküman yönetimi */}
               {isSaved ? (
-                <DokumanlarSection 
-                  tenderId={selectedTender.tender_id} 
+                <DokumanlarSection
+                  tenderId={selectedTender.tender_id}
                   tenderTitle={selectedTender.ihale_basligi}
                   dokumansayisi={selectedTender.dokuman_sayisi || 0}
                   analizEdilen={selectedTender.analiz_edilen_dokuman || 0}
-                  onRefresh={onRefreshData} 
+                  onRefresh={onRefreshData}
                 />
               ) : (
                 <Text size="sm" c="dimmed">
@@ -1061,7 +1196,6 @@ export function CenterPanel({
         </Box>
       </ScrollArea>
 
-
       {/* Döküman Ayarları Modal */}
       <Modal
         opened={settingsModalOpen}
@@ -1079,115 +1213,189 @@ export function CenterPanel({
         <Stack gap="md">
           {/* İstatistikler */}
           <Paper p="md" withBorder radius="md" bg="dark.7">
-            <Text size="sm" fw={600} mb="sm">Veritabanı Durumu</Text>
+            <Text size="sm" fw={600} mb="sm">
+              Veritabanı Durumu
+            </Text>
             {settingsLoading && !docStats ? (
-              <Center py="md"><Loader size="sm" /></Center>
+              <Center py="md">
+                <Loader size="sm" />
+              </Center>
             ) : docStats ? (
               <Stack gap="xs">
                 <SimpleGrid cols={4}>
                   <Box ta="center">
-                    <Text size="xl" fw={700}>{docStats.total}</Text>
-                    <Text size="xs" c="dimmed">Toplam</Text>
+                    <Text size="xl" fw={700}>
+                      {docStats.total}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Toplam
+                    </Text>
                   </Box>
                   <Box ta="center">
-                    <Text size="xl" fw={700} c="green">{docStats.completed}</Text>
-                    <Text size="xs" c="dimmed">Analiz Edildi</Text>
+                    <Text size="xl" fw={700} c="green">
+                      {docStats.completed}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Analiz Edildi
+                    </Text>
                   </Box>
                   <Box ta="center">
-                    <Text size="xl" fw={700} c="yellow">{docStats.pending}</Text>
-                    <Text size="xs" c="dimmed">Bekliyor</Text>
+                    <Text size="xl" fw={700} c="yellow">
+                      {docStats.pending}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Bekliyor
+                    </Text>
                   </Box>
                   <Box ta="center">
-                    <Text size="xl" fw={700} c="red">{docStats.failed}</Text>
-                    <Text size="xs" c="dimmed">Başarısız</Text>
+                    <Text size="xl" fw={700} c="red">
+                      {docStats.failed}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Başarısız
+                    </Text>
                   </Box>
                 </SimpleGrid>
                 {docStats.total > 0 && (
                   <Progress.Root size="lg" mt="xs">
                     <Tooltip label={`${docStats.completed} analiz edildi`}>
-                      <Progress.Section value={(docStats.completed / docStats.total) * 100} color="green" />
+                      <Progress.Section
+                        value={(docStats.completed / docStats.total) * 100}
+                        color="green"
+                      />
                     </Tooltip>
                     <Tooltip label={`${docStats.pending} bekliyor`}>
-                      <Progress.Section value={(docStats.pending / docStats.total) * 100} color="yellow" />
+                      <Progress.Section
+                        value={(docStats.pending / docStats.total) * 100}
+                        color="yellow"
+                      />
                     </Tooltip>
                     <Tooltip label={`${docStats.failed} başarısız`}>
-                      <Progress.Section value={(docStats.failed / docStats.total) * 100} color="red" />
+                      <Progress.Section
+                        value={(docStats.failed / docStats.total) * 100}
+                        color="red"
+                      />
                     </Tooltip>
                   </Progress.Root>
                 )}
-                
+
                 {/* Döküman Listesi */}
-                {docStats.documents && docStats.documents.length > 0 && (() => {
-                  // Döküman türü çevirisi
-                  const docTypeLabels: Record<string, string> = {
-                    'tech_spec': 'Teknik Şartname',
-                    'admin_spec': 'İdari Şartname',
-                    'contract': 'Sözleşme Tasarısı',
-                    'unit_price': 'Birim Fiyat Cetveli',
-                    'announcement': 'İhale İlanı',
-                    'addendum': 'Zeyilname',
-                    'result': 'Sonuç İlanı',
-                    'item_list': 'Mal/Hizmet Listesi',
-                    'other': 'Diğer Döküman',
-                  };
-                  
-                  const getDocTypeLabel = (docType: string, filename: string) => {
-                    if (docTypeLabels[docType]) return docTypeLabels[docType];
-                    // Dosya adından tahmin et
-                    const lower = (docType || filename || '').toLowerCase();
-                    if (lower.includes('teknik') || lower.includes('tech')) return 'Teknik Şartname';
-                    if (lower.includes('idari') || lower.includes('admin')) return 'İdari Şartname';
-                    if (lower.includes('sözleşme') || lower.includes('contract')) return 'Sözleşme Tasarısı';
-                    if (lower.includes('birim') || lower.includes('fiyat') || lower.includes('price')) return 'Birim Fiyat Cetveli';
-                    if (lower.includes('ilan')) return 'İhale İlanı';
-                    if (lower.includes('zeyil')) return 'Zeyilname';
-                    if (lower.includes('mal') || lower.includes('hizmet') || lower.includes('liste')) return 'Mal/Hizmet Listesi';
-                    return docType || filename?.split('.')[0] || 'Döküman';
-                  };
-                  
-                  return (
-                    <Box mt="sm">
-                      <Text size="xs" fw={600} c="dimmed" mb="xs">Döküman Türleri</Text>
-                      <Stack gap={4}>
-                        {docStats.documents.map((doc) => (
-                          <Group key={`doc-${doc.original_filename}-${doc.doc_type}`} gap="xs" justify="space-between">
-                            <Group gap="xs">
-                              <ThemeIcon 
-                                size="xs" 
-                                variant="light" 
-                                color={doc.processing_status === 'completed' ? 'green' : doc.processing_status === 'pending' ? 'yellow' : 'red'}
-                              >
-                                {doc.processing_status === 'completed' ? <IconCheck size={10} /> : 
-                                 doc.processing_status === 'pending' ? <IconClock size={10} /> : 
-                                 <IconX size={10} />}
-                              </ThemeIcon>
-                              <Tooltip label={doc.original_filename} position="top">
-                              <Group gap={4}>
-                                <Text size="xs" lineClamp={1} maw={160}>
-                                  {getDocTypeLabel(doc.doc_type, doc.original_filename)}
-                                </Text>
-                                {doc.source_type === 'content' && (
-                                  <Badge size="xs" variant="dot" color="blue">web</Badge>
-                                )}
+                {docStats.documents &&
+                  docStats.documents.length > 0 &&
+                  (() => {
+                    // Döküman türü çevirisi
+                    const docTypeLabels: Record<string, string> = {
+                      tech_spec: 'Teknik Şartname',
+                      admin_spec: 'İdari Şartname',
+                      contract: 'Sözleşme Tasarısı',
+                      unit_price: 'Birim Fiyat Cetveli',
+                      announcement: 'İhale İlanı',
+                      addendum: 'Zeyilname',
+                      result: 'Sonuç İlanı',
+                      item_list: 'Mal/Hizmet Listesi',
+                      other: 'Diğer Döküman',
+                    };
+
+                    const getDocTypeLabel = (docType: string, filename: string) => {
+                      if (docTypeLabels[docType]) return docTypeLabels[docType];
+                      // Dosya adından tahmin et
+                      const lower = (docType || filename || '').toLowerCase();
+                      if (lower.includes('teknik') || lower.includes('tech'))
+                        return 'Teknik Şartname';
+                      if (lower.includes('idari') || lower.includes('admin'))
+                        return 'İdari Şartname';
+                      if (lower.includes('sözleşme') || lower.includes('contract'))
+                        return 'Sözleşme Tasarısı';
+                      if (
+                        lower.includes('birim') ||
+                        lower.includes('fiyat') ||
+                        lower.includes('price')
+                      )
+                        return 'Birim Fiyat Cetveli';
+                      if (lower.includes('ilan')) return 'İhale İlanı';
+                      if (lower.includes('zeyil')) return 'Zeyilname';
+                      if (
+                        lower.includes('mal') ||
+                        lower.includes('hizmet') ||
+                        lower.includes('liste')
+                      )
+                        return 'Mal/Hizmet Listesi';
+                      return docType || filename?.split('.')[0] || 'Döküman';
+                    };
+
+                    return (
+                      <Box mt="sm">
+                        <Text size="xs" fw={600} c="dimmed" mb="xs">
+                          Döküman Türleri
+                        </Text>
+                        <Stack gap={4}>
+                          {docStats.documents.map((doc) => (
+                            <Group
+                              key={`doc-${doc.original_filename}-${doc.doc_type}`}
+                              gap="xs"
+                              justify="space-between"
+                            >
+                              <Group gap="xs">
+                                <ThemeIcon
+                                  size="xs"
+                                  variant="light"
+                                  color={
+                                    doc.processing_status === 'completed'
+                                      ? 'green'
+                                      : doc.processing_status === 'pending'
+                                        ? 'yellow'
+                                        : 'red'
+                                  }
+                                >
+                                  {doc.processing_status === 'completed' ? (
+                                    <IconCheck size={10} />
+                                  ) : doc.processing_status === 'pending' ? (
+                                    <IconClock size={10} />
+                                  ) : (
+                                    <IconX size={10} />
+                                  )}
+                                </ThemeIcon>
+                                <Tooltip label={doc.original_filename} position="top">
+                                  <Group gap={4}>
+                                    <Text size="xs" lineClamp={1} maw={160}>
+                                      {getDocTypeLabel(doc.doc_type, doc.original_filename)}
+                                    </Text>
+                                    {doc.source_type === 'content' && (
+                                      <Badge size="xs" variant="dot" color="blue">
+                                        web
+                                      </Badge>
+                                    )}
+                                  </Group>
+                                </Tooltip>
                               </Group>
-                            </Tooltip>
+                              <Badge
+                                size="xs"
+                                variant="light"
+                                color={
+                                  doc.processing_status === 'completed'
+                                    ? 'green'
+                                    : doc.processing_status === 'pending'
+                                      ? 'yellow'
+                                      : 'red'
+                                }
+                              >
+                                {doc.processing_status === 'completed'
+                                  ? 'Analiz Edildi'
+                                  : doc.processing_status === 'pending'
+                                    ? 'Bekliyor'
+                                    : 'Başarısız'}
+                              </Badge>
                             </Group>
-                            <Badge size="xs" variant="light" color={
-                              doc.processing_status === 'completed' ? 'green' : 
-                              doc.processing_status === 'pending' ? 'yellow' : 'red'
-                            }>
-                              {doc.processing_status === 'completed' ? 'Analiz Edildi' : 
-                               doc.processing_status === 'pending' ? 'Bekliyor' : 'Başarısız'}
-                            </Badge>
-                          </Group>
-                        ))}
-                      </Stack>
-                    </Box>
-                  );
-                })()}
+                          ))}
+                        </Stack>
+                      </Box>
+                    );
+                  })()}
               </Stack>
             ) : (
-              <Text size="sm" c="dimmed" ta="center">Henüz döküman yok</Text>
+              <Text size="sm" c="dimmed" ta="center">
+                Henüz döküman yok
+              </Text>
             )}
           </Paper>
 
@@ -1232,7 +1440,12 @@ export function CenterPanel({
             leftSection={<IconBrain size={16} />}
             onClick={handleClearAnalysis}
             loading={settingsLoading}
-            disabled={!docStats || (docStats.completed === 0 && (selectedTender as SavedTender).teknik_sart_sayisi === 0 && (selectedTender as SavedTender).birim_fiyat_sayisi === 0)}
+            disabled={
+              !docStats ||
+              (docStats.completed === 0 &&
+                (selectedTender as SavedTender).teknik_sart_sayisi === 0 &&
+                (selectedTender as SavedTender).birim_fiyat_sayisi === 0)
+            }
             fullWidth
           >
             Analizleri Temizle
@@ -1290,13 +1503,25 @@ export function CenterPanel({
           <Stack gap="xs">
             {analysisSummary?.teknik_sartlar?.map((sart, idx) => {
               const sartText = getTeknikSartTextFromItem(sart);
-              const sartObj = typeof sart === 'object' && sart !== null ? sart as { onem?: string } : null;
+              const sartObj =
+                typeof sart === 'object' && sart !== null ? (sart as { onem?: string }) : null;
               const onem = sartObj?.onem;
               const onemColor = onem === 'kritik' ? 'red' : onem === 'normal' ? 'blue' : 'gray';
               return (
-                <Paper key={`modal-ts-${sartText.substring(0, 30)}-${idx}`} p="sm" withBorder radius="md">
+                <Paper
+                  key={`modal-ts-${sartText.substring(0, 30)}-${idx}`}
+                  p="sm"
+                  withBorder
+                  radius="md"
+                >
                   <Group gap="xs" wrap="nowrap" align="flex-start">
-                    <Badge size="sm" variant="filled" color={onemColor} circle style={{ flexShrink: 0, marginTop: 2 }}>
+                    <Badge
+                      size="sm"
+                      variant="filled"
+                      color={onemColor}
+                      circle
+                      style={{ flexShrink: 0, marginTop: 2 }}
+                    >
                       {idx + 1}
                     </Badge>
                     <Box style={{ flex: 1 }}>
@@ -1309,7 +1534,12 @@ export function CenterPanel({
                     </Box>
                     <CopyButton value={sartText}>
                       {({ copied, copy }) => (
-                        <ActionIcon variant="subtle" size="sm" onClick={copy} color={copied ? 'teal' : 'gray'}>
+                        <ActionIcon
+                          variant="subtle"
+                          size="sm"
+                          onClick={copy}
+                          color={copied ? 'teal' : 'gray'}
+                        >
                           {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
                         </ActionIcon>
                       )}
@@ -1341,23 +1571,47 @@ export function CenterPanel({
             {analysisSummary?.birim_fiyatlar?.map((item, idx) => {
               const itemText = item.kalem || item.aciklama || item.text || 'Bilinmeyen';
               return (
-                <Paper key={`modal-bf-${itemText.substring(0, 20)}-${idx}`} p="sm" withBorder radius="md">
+                <Paper
+                  key={`modal-bf-${itemText.substring(0, 20)}-${idx}`}
+                  p="sm"
+                  withBorder
+                  radius="md"
+                >
                   <Group justify="space-between" wrap="nowrap">
                     <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
-                      <Badge size="sm" variant="filled" color="green" circle style={{ flexShrink: 0 }}>
+                      <Badge
+                        size="sm"
+                        variant="filled"
+                        color="green"
+                        circle
+                        style={{ flexShrink: 0 }}
+                      >
                         {idx + 1}
                       </Badge>
                       <Box style={{ flex: 1 }}>
                         <Text size="sm">{itemText}</Text>
                         <Group gap="xs" mt="xs">
-                          {item.birim && <Badge size="xs" variant="outline" color="gray">{item.birim}</Badge>}
-                          {item.miktar && <Badge size="xs" variant="light" color="blue">Miktar: {item.miktar}</Badge>}
+                          {item.birim && (
+                            <Badge size="xs" variant="outline" color="gray">
+                              {item.birim}
+                            </Badge>
+                          )}
+                          {item.miktar && (
+                            <Badge size="xs" variant="light" color="blue">
+                              Miktar: {item.miktar}
+                            </Badge>
+                          )}
                         </Group>
                       </Box>
                     </Group>
                     <CopyButton value={itemText}>
                       {({ copied, copy }) => (
-                        <ActionIcon variant="subtle" size="sm" onClick={copy} color={copied ? 'teal' : 'gray'}>
+                        <ActionIcon
+                          variant="subtle"
+                          size="sm"
+                          onClick={copy}
+                          color={copied ? 'teal' : 'gray'}
+                        >
                           {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
                         </ActionIcon>
                       )}
@@ -1389,8 +1643,8 @@ export function CenterPanel({
           <Group justify="flex-end">
             <CopyButton value={analysisSummary?.tam_metin || ''}>
               {({ copied, copy }) => (
-                <Button 
-                  variant="light" 
+                <Button
+                  variant="light"
                   leftSection={copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
                   color={copied ? 'teal' : 'gray'}
                   onClick={copy}
@@ -1402,8 +1656,8 @@ export function CenterPanel({
           </Group>
           <ScrollArea style={{ flex: 1 }}>
             <Paper p="md" withBorder radius="md" bg="dark.8">
-              <Text 
-                size="sm" 
+              <Text
+                size="sm"
                 style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', lineHeight: 1.6 }}
               >
                 {analysisSummary?.tam_metin || 'Tam metin bulunamadı.'}
@@ -1411,6 +1665,230 @@ export function CenterPanel({
             </Paper>
           </ScrollArea>
         </Stack>
+      </Modal>
+
+      {/* Şartname/Gramaj Detayları Modal */}
+      <Modal
+        opened={sartnameGramajModalOpen}
+        onClose={() => setSartnameGramajModalOpen(false)}
+        title={
+          <Group gap="xs">
+            <ThemeIcon variant="light" color="orange" size="sm">
+              <IconScale size={14} />
+            </ThemeIcon>
+            <Text fw={600}>Şartname/Gramaj Detayları</Text>
+          </Group>
+        }
+        size="xl"
+      >
+        <ScrollArea h={500}>
+          <Stack gap="md">
+            {/* Öğün Bilgileri */}
+            {analysisSummary?.ogun_bilgileri && analysisSummary.ogun_bilgileri.length > 0 && (
+              <Paper p="md" withBorder radius="md">
+                <Group gap="xs" mb="md">
+                  <ThemeIcon size="sm" variant="light" color="orange">
+                    <IconToolsKitchen2 size={14} />
+                  </ThemeIcon>
+                  <Text size="sm" fw={600}>
+                    Öğün Bilgileri
+                  </Text>
+                  <Badge size="xs" variant="light" color="orange">
+                    {analysisSummary.ogun_bilgileri.length} öğün
+                  </Badge>
+                </Group>
+                <Table striped highlightOnHover withTableBorder withColumnBorders>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Öğün Türü</Table.Th>
+                      <Table.Th style={{ textAlign: 'right' }}>Miktar</Table.Th>
+                      <Table.Th>Birim</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {analysisSummary.ogun_bilgileri.map((ogun) => (
+                      <Table.Tr key={`modal-ogun-${ogun.tur}-${ogun.miktar}`}>
+                        <Table.Td>
+                          <Text fw={500}>{ogun.tur}</Text>
+                        </Table.Td>
+                        <Table.Td style={{ textAlign: 'right' }}>
+                          <Text fw={600} c="orange">
+                            {ogun.miktar?.toLocaleString('tr-TR') || '-'}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text c="dimmed">{ogun.birim || 'adet'}</Text>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </Table>
+                {(analysisSummary.gunluk_ogun_sayisi || analysisSummary.kisi_sayisi) && (
+                  <Group gap="md" mt="md">
+                    {analysisSummary.gunluk_ogun_sayisi && (
+                      <Badge variant="outline" color="orange" size="md">
+                        Günlük: {analysisSummary.gunluk_ogun_sayisi} öğün
+                      </Badge>
+                    )}
+                    {analysisSummary.kisi_sayisi && (
+                      <Badge variant="outline" color="blue" size="md">
+                        Kişi: {analysisSummary.kisi_sayisi}
+                      </Badge>
+                    )}
+                  </Group>
+                )}
+              </Paper>
+            )}
+
+            {/* Servis Saatleri */}
+            {analysisSummary?.servis_saatleri &&
+              Object.keys(analysisSummary.servis_saatleri).length > 0 && (
+                <Paper p="md" withBorder radius="md">
+                  <Group gap="xs" mb="md">
+                    <ThemeIcon size="sm" variant="light" color="teal">
+                      <IconClock size={14} />
+                    </ThemeIcon>
+                    <Text size="sm" fw={600}>
+                      Servis Saatleri
+                    </Text>
+                  </Group>
+                  <Table striped highlightOnHover withTableBorder>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Öğün</Table.Th>
+                        <Table.Th>Saat Aralığı</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {Object.entries(analysisSummary.servis_saatleri)
+                        .filter(([, val]) => val && val !== 'Belirtilmemiş')
+                        .map(([key, val]) => (
+                          <Table.Tr key={`modal-servis-${key}`}>
+                            <Table.Td>
+                              <Text fw={500} tt="capitalize">
+                                {key.replace(/_/g, ' ')}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Badge variant="light" color="teal" size="lg">
+                                {val}
+                              </Badge>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
+                    </Table.Tbody>
+                  </Table>
+                </Paper>
+              )}
+
+            {/* Personel Gereksinimleri */}
+            {analysisSummary?.personel_detaylari &&
+              analysisSummary.personel_detaylari.length > 0 && (
+                <Paper p="md" withBorder radius="md">
+                  <Group gap="xs" mb="md">
+                    <ThemeIcon size="sm" variant="light" color="indigo">
+                      <IconUsers size={14} />
+                    </ThemeIcon>
+                    <Text size="sm" fw={600}>
+                      Personel Gereksinimleri
+                    </Text>
+                    <Badge size="xs" variant="light" color="indigo">
+                      {analysisSummary.personel_detaylari.reduce(
+                        (sum, p) => sum + (p.adet || 0),
+                        0
+                      )}{' '}
+                      kişi
+                    </Badge>
+                  </Group>
+                  <Table striped highlightOnHover withTableBorder withColumnBorders>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Pozisyon</Table.Th>
+                        <Table.Th style={{ textAlign: 'right' }}>Adet</Table.Th>
+                        <Table.Th>Ücret Oranı</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {analysisSummary.personel_detaylari.map((p) => (
+                        <Table.Tr key={`modal-personel-${p.pozisyon}-${p.adet}`}>
+                          <Table.Td>
+                            <Text fw={500}>{p.pozisyon}</Text>
+                          </Table.Td>
+                          <Table.Td style={{ textAlign: 'right' }}>
+                            <Text fw={600} c="indigo">
+                              {p.adet}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text c="dimmed" size="sm">
+                              {p.ucret_orani || '-'}
+                            </Text>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                </Paper>
+              )}
+
+            {/* Teknik Şartlar */}
+            {analysisSummary?.teknik_sartlar && analysisSummary.teknik_sartlar.length > 0 && (
+              <Paper p="md" withBorder radius="md">
+                <Group gap="xs" mb="md">
+                  <ThemeIcon size="sm" variant="light" color="grape">
+                    <IconClipboardList size={14} />
+                  </ThemeIcon>
+                  <Text size="sm" fw={600}>
+                    Teknik Şartlar & Standartlar
+                  </Text>
+                </Group>
+                <Stack gap="xs">
+                  {analysisSummary.teknik_sartlar.slice(0, 15).map((sart) => {
+                    const sartText =
+                      typeof sart === 'string'
+                        ? sart
+                        : (sart as { madde?: string; aciklama?: string }).madde ||
+                          (sart as { madde?: string; aciklama?: string }).aciklama ||
+                          '';
+                    return (
+                      <Paper
+                        key={`modal-sart-${sartText.substring(0, 50)}`}
+                        p="xs"
+                        withBorder
+                        radius="sm"
+                      >
+                        <Text size="sm">{sartText}</Text>
+                      </Paper>
+                    );
+                  })}
+                  {analysisSummary.teknik_sartlar.length > 15 && (
+                    <Text size="xs" c="dimmed" ta="center">
+                      +{analysisSummary.teknik_sartlar.length - 15} daha fazla teknik şart
+                    </Text>
+                  )}
+                </Stack>
+              </Paper>
+            )}
+
+            {/* Veri Yoksa */}
+            {!analysisSummary?.ogun_bilgileri?.length &&
+              !analysisSummary?.servis_saatleri &&
+              !analysisSummary?.personel_detaylari?.length &&
+              !analysisSummary?.teknik_sartlar?.length && (
+                <Paper p="xl" withBorder radius="md" ta="center">
+                  <ThemeIcon size="xl" variant="light" color="gray" mx="auto" mb="md">
+                    <IconScale size={24} />
+                  </ThemeIcon>
+                  <Text size="sm" c="dimmed">
+                    Bu ihale için şartname/gramaj bilgisi bulunamadı.
+                  </Text>
+                  <Text size="xs" c="dimmed" mt="xs">
+                    Dökümanlar analiz edildikten sonra detaylı bilgiler burada görünecektir.
+                  </Text>
+                </Paper>
+              )}
+          </Stack>
+        </ScrollArea>
       </Modal>
     </Box>
   );
@@ -1477,10 +1955,10 @@ function getTeknikSartTextFromItem(sart: unknown): string {
 }
 
 // Teknik Şartlar Kartı
-function TeknikSartlarCard({ 
-  teknikSartlar, 
-}: { 
-  teknikSartlar: unknown[]; 
+function TeknikSartlarCard({
+  teknikSartlar,
+}: {
+  teknikSartlar: unknown[];
   onViewAll?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -1494,15 +1972,25 @@ function TeknikSartlarCard({
           <ThemeIcon size="sm" variant="light" color="blue">
             <IconClipboardList size={12} />
           </ThemeIcon>
-          <Text size="sm" fw={600}>Teknik Şartlar</Text>
-          <Badge size="xs" variant="light" color="blue">{teknikSartlar.length}</Badge>
+          <Text size="sm" fw={600}>
+            Teknik Şartlar
+          </Text>
+          <Badge size="xs" variant="light" color="blue">
+            {teknikSartlar.length}
+          </Badge>
         </Group>
         {hasMore && (
           <Button
             size="xs"
             variant="subtle"
             onClick={() => setExpanded(!expanded)}
-            rightSection={expanded ? <IconChevronDown size={12} style={{ transform: 'rotate(180deg)' }} /> : <IconChevronDown size={12} />}
+            rightSection={
+              expanded ? (
+                <IconChevronDown size={12} style={{ transform: 'rotate(180deg)' }} />
+              ) : (
+                <IconChevronDown size={12} />
+              )
+            }
           >
             {expanded ? 'Daralt' : `Tümü (${teknikSartlar.length})`}
           </Button>
@@ -1512,11 +2000,25 @@ function TeknikSartlarCard({
         <Stack gap={4}>
           {displayItems.map((sart, idx) => {
             const sartText = getTeknikSartTextFromItem(sart);
-            const onem = typeof sart === 'object' && sart !== null ? (sart as Record<string, unknown>).onem : null;
+            const onem =
+              typeof sart === 'object' && sart !== null
+                ? (sart as Record<string, unknown>).onem
+                : null;
             const onemColor = onem === 'kritik' ? 'red' : onem === 'normal' ? 'blue' : 'gray';
             return (
-              <Group key={`ts-${idx}-${sartText.substring(0, 20)}`} gap="xs" wrap="nowrap" align="flex-start">
-                <Badge size="xs" variant="filled" color={onemColor} circle style={{ flexShrink: 0, marginTop: 2 }}>
+              <Group
+                key={`ts-${idx}-${sartText.substring(0, 20)}`}
+                gap="xs"
+                wrap="nowrap"
+                align="flex-start"
+              >
+                <Badge
+                  size="xs"
+                  variant="filled"
+                  color={onemColor}
+                  circle
+                  style={{ flexShrink: 0, marginTop: 2 }}
+                >
                   {idx + 1}
                 </Badge>
                 <Text size="xs" style={{ flex: 1 }} lineClamp={expanded ? undefined : 2}>
@@ -1532,10 +2034,16 @@ function TeknikSartlarCard({
 }
 
 // Birim Fiyatlar Kartı
-function BirimFiyatlarCard({ 
-  birimFiyatlar, 
-}: { 
-  birimFiyatlar: Array<{ kalem?: string; aciklama?: string; text?: string; birim?: string; miktar?: string | number }>; 
+function BirimFiyatlarCard({
+  birimFiyatlar,
+}: {
+  birimFiyatlar: Array<{
+    kalem?: string;
+    aciklama?: string;
+    text?: string;
+    birim?: string;
+    miktar?: string | number;
+  }>;
   onViewAll?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -1549,8 +2057,12 @@ function BirimFiyatlarCard({
           <ThemeIcon size="sm" variant="light" color="green">
             <IconCurrencyLira size={12} />
           </ThemeIcon>
-          <Text size="sm" fw={600}>Birim Fiyatlar</Text>
-          <Badge size="xs" variant="light" color="green">{birimFiyatlar.length}</Badge>
+          <Text size="sm" fw={600}>
+            Birim Fiyatlar
+          </Text>
+          <Badge size="xs" variant="light" color="green">
+            {birimFiyatlar.length}
+          </Badge>
         </Group>
         {hasMore && (
           <Button
@@ -1558,7 +2070,13 @@ function BirimFiyatlarCard({
             variant="subtle"
             color="green"
             onClick={() => setExpanded(!expanded)}
-            rightSection={expanded ? <IconChevronDown size={12} style={{ transform: 'rotate(180deg)' }} /> : <IconChevronDown size={12} />}
+            rightSection={
+              expanded ? (
+                <IconChevronDown size={12} style={{ transform: 'rotate(180deg)' }} />
+              ) : (
+                <IconChevronDown size={12} />
+              )
+            }
           >
             {expanded ? 'Daralt' : `Tümü (${birimFiyatlar.length})`}
           </Button>
@@ -1569,7 +2087,11 @@ function BirimFiyatlarCard({
           {displayItems.map((item, idx) => {
             const itemText = item.kalem || item.aciklama || item.text || 'Bilinmeyen';
             return (
-              <Group key={`bf-${idx}-${itemText.substring(0, 15)}`} justify="space-between" wrap="nowrap">
+              <Group
+                key={`bf-${idx}-${itemText.substring(0, 15)}`}
+                justify="space-between"
+                wrap="nowrap"
+              >
                 <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
                   <Badge size="xs" variant="filled" color="green" circle style={{ flexShrink: 0 }}>
                     {idx + 1}
@@ -1593,10 +2115,10 @@ function BirimFiyatlarCard({
 }
 
 // Önemli Notlar Kartı
-function OnemliNotlarCard({ 
-  notlar, 
-}: { 
-  notlar: Array<{ not: string; tur?: 'bilgi' | 'uyari' | 'gereklilik' } | string>; 
+function OnemliNotlarCard({
+  notlar,
+}: {
+  notlar: Array<{ not: string; tur?: 'bilgi' | 'uyari' | 'gereklilik' } | string>;
   onViewAll?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -1610,8 +2132,12 @@ function OnemliNotlarCard({
           <ThemeIcon size="sm" variant="light" color="orange">
             <IconAlertCircle size={12} />
           </ThemeIcon>
-          <Text size="sm" fw={600}>Önemli Notlar</Text>
-          <Badge size="xs" variant="light" color="orange">{notlar.length}</Badge>
+          <Text size="sm" fw={600}>
+            Önemli Notlar
+          </Text>
+          <Badge size="xs" variant="light" color="orange">
+            {notlar.length}
+          </Badge>
         </Group>
         {hasMore && (
           <Button
@@ -1619,7 +2145,13 @@ function OnemliNotlarCard({
             variant="subtle"
             color="orange"
             onClick={() => setExpanded(!expanded)}
-            rightSection={expanded ? <IconChevronDown size={12} style={{ transform: 'rotate(180deg)' }} /> : <IconChevronDown size={12} />}
+            rightSection={
+              expanded ? (
+                <IconChevronDown size={12} style={{ transform: 'rotate(180deg)' }} />
+              ) : (
+                <IconChevronDown size={12} />
+              )
+            }
           >
             {expanded ? 'Daralt' : `Tümü (${notlar.length})`}
           </Button>
@@ -1629,14 +2161,34 @@ function OnemliNotlarCard({
         <Stack gap={4}>
           {displayItems.map((not, idx) => {
             const notItem = typeof not === 'string' ? { not, tur: 'bilgi' as const } : not;
-            const turColor = notItem.tur === 'uyari' ? 'red' : notItem.tur === 'gereklilik' ? 'blue' : 'gray';
-            const TurIcon = notItem.tur === 'uyari' ? IconAlertTriangle : notItem.tur === 'gereklilik' ? IconExclamationMark : IconInfoCircle;
+            const turColor =
+              notItem.tur === 'uyari' ? 'red' : notItem.tur === 'gereklilik' ? 'blue' : 'gray';
+            const TurIcon =
+              notItem.tur === 'uyari'
+                ? IconAlertTriangle
+                : notItem.tur === 'gereklilik'
+                  ? IconExclamationMark
+                  : IconInfoCircle;
             return (
-              <Group key={`not-${idx}-${notItem.not.substring(0, 20)}`} gap="xs" wrap="nowrap" align="flex-start">
-                <ThemeIcon size="xs" variant="light" color={turColor} radius="xl" mt={2} style={{ flexShrink: 0 }}>
+              <Group
+                key={`not-${idx}-${notItem.not.substring(0, 20)}`}
+                gap="xs"
+                wrap="nowrap"
+                align="flex-start"
+              >
+                <ThemeIcon
+                  size="xs"
+                  variant="light"
+                  color={turColor}
+                  radius="xl"
+                  mt={2}
+                  style={{ flexShrink: 0 }}
+                >
                   <TurIcon size={10} />
                 </ThemeIcon>
-                <Text size="xs" style={{ flex: 1 }}>{notItem.not}</Text>
+                <Text size="xs" style={{ flex: 1 }}>
+                  {notItem.not}
+                </Text>
               </Group>
             );
           })}
@@ -1647,25 +2199,33 @@ function OnemliNotlarCard({
 }
 
 // Eksik Bilgiler Kartı
-function EksikBilgilerCard({ 
-  eksikBilgiler, 
-}: { 
-  eksikBilgiler: string[]; 
-}) {
+function EksikBilgilerCard({ eksikBilgiler }: { eksikBilgiler: string[] }) {
   const [expanded, setExpanded] = useState(false);
   const displayItems = expanded ? eksikBilgiler : eksikBilgiler.slice(0, 8);
   const hasMore = eksikBilgiler.length > 8;
 
   return (
-    <Paper p="sm" withBorder radius="md" className="glassy-card-nested" 
-      style={{ borderColor: 'var(--mantine-color-yellow-6)', background: 'rgba(234, 179, 8, 0.05)' }}>
+    <Paper
+      p="sm"
+      withBorder
+      radius="md"
+      className="glassy-card-nested"
+      style={{
+        borderColor: 'var(--mantine-color-yellow-6)',
+        background: 'rgba(234, 179, 8, 0.05)',
+      }}
+    >
       <Group justify="space-between" mb="xs">
         <Group gap="xs">
           <ThemeIcon size="sm" variant="light" color="yellow">
             <IconAlertTriangle size={12} />
           </ThemeIcon>
-          <Text size="sm" fw={600}>Eksik Bilgiler</Text>
-          <Badge size="xs" variant="light" color="yellow">{eksikBilgiler.length}</Badge>
+          <Text size="sm" fw={600}>
+            Eksik Bilgiler
+          </Text>
+          <Badge size="xs" variant="light" color="yellow">
+            {eksikBilgiler.length}
+          </Badge>
         </Group>
         {hasMore && (
           <Button
@@ -1673,7 +2233,13 @@ function EksikBilgilerCard({
             variant="subtle"
             color="yellow"
             onClick={() => setExpanded(!expanded)}
-            rightSection={expanded ? <IconChevronDown size={12} style={{ transform: 'rotate(180deg)' }} /> : <IconChevronDown size={12} />}
+            rightSection={
+              expanded ? (
+                <IconChevronDown size={12} style={{ transform: 'rotate(180deg)' }} />
+              ) : (
+                <IconChevronDown size={12} />
+              )
+            }
           >
             {expanded ? 'Daralt' : `Tümü (${eksikBilgiler.length})`}
           </Button>
@@ -1682,7 +2248,12 @@ function EksikBilgilerCard({
       <ScrollArea.Autosize mah={expanded ? 300 : undefined}>
         <Group gap={6}>
           {displayItems.map((eksik, idx) => (
-            <Badge key={`eksik-${eksik.substring(0, 15)}-${idx}`} size="xs" variant="outline" color="yellow">
+            <Badge
+              key={`eksik-${eksik.substring(0, 15)}-${idx}`}
+              size="xs"
+              variant="outline"
+              color="yellow"
+            >
               {eksik}
             </Badge>
           ))}
@@ -1693,10 +2264,10 @@ function EksikBilgilerCard({
 }
 
 // Takvim Kartı
-function TakvimCard({ 
-  takvim, 
-}: { 
-  takvim: Array<{ olay: string; tarih: string; gun?: string }>; 
+function TakvimCard({
+  takvim,
+}: {
+  takvim: Array<{ olay: string; tarih: string; gun?: string }>;
   onViewAll?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -1710,8 +2281,12 @@ function TakvimCard({
           <ThemeIcon size="sm" variant="light" color="cyan">
             <IconCalendar size={12} />
           </ThemeIcon>
-          <Text size="sm" fw={600}>Takvim</Text>
-          <Badge size="xs" variant="light" color="cyan">{takvim.length}</Badge>
+          <Text size="sm" fw={600}>
+            Takvim
+          </Text>
+          <Badge size="xs" variant="light" color="cyan">
+            {takvim.length}
+          </Badge>
         </Group>
         {hasMore && (
           <Button
@@ -1719,7 +2294,13 @@ function TakvimCard({
             variant="subtle"
             color="cyan"
             onClick={() => setExpanded(!expanded)}
-            rightSection={expanded ? <IconChevronDown size={12} style={{ transform: 'rotate(180deg)' }} /> : <IconChevronDown size={12} />}
+            rightSection={
+              expanded ? (
+                <IconChevronDown size={12} style={{ transform: 'rotate(180deg)' }} />
+              ) : (
+                <IconChevronDown size={12} />
+              )
+            }
           >
             {expanded ? 'Daralt' : `Tümü (${takvim.length})`}
           </Button>
@@ -1733,8 +2314,12 @@ function TakvimCard({
                 <IconClock size={10} />
               </ThemeIcon>
               <Box style={{ flex: 1, minWidth: 0 }}>
-                <Text size="xs" fw={500} lineClamp={expanded ? undefined : 1}>{item.olay}</Text>
-                <Text size="xs" c="dimmed">{item.tarih}</Text>
+                <Text size="xs" fw={500} lineClamp={expanded ? undefined : 1}>
+                  {item.olay}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {item.tarih}
+                </Text>
               </Box>
             </Group>
           ))}
@@ -1766,13 +2351,19 @@ function IletisimCard({ iletisim }: { iletisim: IletisimBilgileri }) {
         <ThemeIcon size="sm" variant="light" color="blue">
           <IconPhone size={12} />
         </ThemeIcon>
-        <Text size="sm" fw={600}>İletişim Bilgileri</Text>
+        <Text size="sm" fw={600}>
+          İletişim Bilgileri
+        </Text>
       </Group>
       <Stack gap={4}>
         {entries.map(([key, value]) => (
           <Group key={key} gap="xs" wrap="nowrap">
-            <Text size="xs" c="dimmed" w={70}>{labels[key] || key}:</Text>
-            <Text size="xs" style={{ flex: 1 }}>{value}</Text>
+            <Text size="xs" c="dimmed" w={70}>
+              {labels[key] || key}:
+            </Text>
+            <Text size="xs" style={{ flex: 1 }}>
+              {value}
+            </Text>
           </Group>
         ))}
       </Stack>
@@ -1796,12 +2387,26 @@ function PersonelCard({ personel }: { personel: PersonelDetay[] }) {
           <ThemeIcon size="sm" variant="light" color="indigo">
             <IconUsers size={12} />
           </ThemeIcon>
-          <Text size="sm" fw={600}>Personel Detayları</Text>
-          <Badge size="xs" variant="light" color="indigo">{toplamPersonel} kişi</Badge>
+          <Text size="sm" fw={600}>
+            Personel Detayları
+          </Text>
+          <Badge size="xs" variant="light" color="indigo">
+            {toplamPersonel} kişi
+          </Badge>
         </Group>
         {hasMore && (
-          <Button size="xs" variant="subtle" color="indigo" onClick={() => setExpanded(!expanded)}
-            rightSection={<IconChevronDown size={12} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} />}>
+          <Button
+            size="xs"
+            variant="subtle"
+            color="indigo"
+            onClick={() => setExpanded(!expanded)}
+            rightSection={
+              <IconChevronDown
+                size={12}
+                style={{ transform: expanded ? 'rotate(180deg)' : 'none' }}
+              />
+            }
+          >
             {expanded ? 'Daralt' : `Tümü (${personel.length})`}
           </Button>
         )}
@@ -1812,8 +2417,14 @@ function PersonelCard({ personel }: { personel: PersonelDetay[] }) {
             <Group key={`personel-${p.pozisyon}-${p.adet}`} justify="space-between" gap="xs">
               <Text size="xs">{p.pozisyon}</Text>
               <Group gap="xs">
-                <Badge size="xs" variant="outline" color="indigo">{p.adet} kişi</Badge>
-                {p.ucret_orani && <Badge size="xs" variant="light" color="green">{p.ucret_orani}</Badge>}
+                <Badge size="xs" variant="outline" color="indigo">
+                  {p.adet} kişi
+                </Badge>
+                {p.ucret_orani && (
+                  <Badge size="xs" variant="light" color="green">
+                    {p.ucret_orani}
+                  </Badge>
+                )}
               </Group>
             </Group>
           ))}
@@ -1839,12 +2450,26 @@ function OgunBilgileriCard({ ogunler }: { ogunler: OgunBilgisi[] }) {
           <ThemeIcon size="sm" variant="light" color="orange">
             <IconToolsKitchen2 size={12} />
           </ThemeIcon>
-          <Text size="sm" fw={600}>Öğün Bilgileri</Text>
-          <Badge size="xs" variant="light" color="orange">{toplamOgun.toLocaleString('tr-TR')} öğün</Badge>
+          <Text size="sm" fw={600}>
+            Öğün Bilgileri
+          </Text>
+          <Badge size="xs" variant="light" color="orange">
+            {toplamOgun.toLocaleString('tr-TR')} öğün
+          </Badge>
         </Group>
         {hasMore && (
-          <Button size="xs" variant="subtle" color="orange" onClick={() => setExpanded(!expanded)}
-            rightSection={<IconChevronDown size={12} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} />}>
+          <Button
+            size="xs"
+            variant="subtle"
+            color="orange"
+            onClick={() => setExpanded(!expanded)}
+            rightSection={
+              <IconChevronDown
+                size={12}
+                style={{ transform: expanded ? 'rotate(180deg)' : 'none' }}
+              />
+            }
+          >
             {expanded ? 'Daralt' : `Tümü (${ogunler.length})`}
           </Button>
         )}
@@ -1854,8 +2479,12 @@ function OgunBilgileriCard({ ogunler }: { ogunler: OgunBilgisi[] }) {
           {displayItems.map((o) => (
             <Group key={`ogun-${o.tur}-${o.miktar}`} gap="xs" wrap="nowrap">
               <Box style={{ flex: 1 }}>
-                <Text size="xs" fw={500}>{o.tur}</Text>
-                <Text size="xs" c="dimmed">{o.miktar?.toLocaleString('tr-TR')} {o.birim || 'öğün'}</Text>
+                <Text size="xs" fw={500}>
+                  {o.tur}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {o.miktar?.toLocaleString('tr-TR')} {o.birim || 'öğün'}
+                </Text>
               </Box>
             </Group>
           ))}
@@ -1880,12 +2509,26 @@ function IsYerleriCard({ yerler }: { yerler: string[] }) {
           <ThemeIcon size="sm" variant="light" color="teal">
             <IconMapPin size={12} />
           </ThemeIcon>
-          <Text size="sm" fw={600}>İş Yerleri</Text>
-          <Badge size="xs" variant="light" color="teal">{yerler.length} yer</Badge>
+          <Text size="sm" fw={600}>
+            İş Yerleri
+          </Text>
+          <Badge size="xs" variant="light" color="teal">
+            {yerler.length} yer
+          </Badge>
         </Group>
         {hasMore && (
-          <Button size="xs" variant="subtle" color="teal" onClick={() => setExpanded(!expanded)}
-            rightSection={<IconChevronDown size={12} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} />}>
+          <Button
+            size="xs"
+            variant="subtle"
+            color="teal"
+            onClick={() => setExpanded(!expanded)}
+            rightSection={
+              <IconChevronDown
+                size={12}
+                style={{ transform: expanded ? 'rotate(180deg)' : 'none' }}
+              />
+            }
+          >
             {expanded ? 'Daralt' : `Tümü (${yerler.length})`}
           </Button>
         )}
@@ -1924,13 +2567,19 @@ function MaliKriterlerCard({ kriterler }: { kriterler: MaliKriterler }) {
         <ThemeIcon size="sm" variant="light" color="grape">
           <IconWallet size={12} />
         </ThemeIcon>
-        <Text size="sm" fw={600}>Mali Yeterlilik Kriterleri</Text>
+        <Text size="sm" fw={600}>
+          Mali Yeterlilik Kriterleri
+        </Text>
       </Group>
       <SimpleGrid cols={2} spacing="xs">
         {entries.map(([key, value]) => (
           <Box key={key}>
-            <Text size="xs" c="dimmed">{labels[key] || key}</Text>
-            <Text size="sm" fw={600}>{value}</Text>
+            <Text size="xs" c="dimmed">
+              {labels[key] || key}
+            </Text>
+            <Text size="sm" fw={600}>
+              {value}
+            </Text>
           </Box>
         ))}
       </SimpleGrid>
@@ -1947,19 +2596,38 @@ function CezaKosullariCard({ cezalar }: { cezalar: CezaKosulu[] }) {
   const hasMore = cezalar.length > 4;
 
   return (
-    <Paper p="sm" withBorder radius="md" className="glassy-card-nested"
-      style={{ borderColor: 'var(--mantine-color-red-6)', background: 'rgba(239, 68, 68, 0.05)' }}>
+    <Paper
+      p="sm"
+      withBorder
+      radius="md"
+      className="glassy-card-nested"
+      style={{ borderColor: 'var(--mantine-color-red-6)', background: 'rgba(239, 68, 68, 0.05)' }}
+    >
       <Group justify="space-between" mb="xs">
         <Group gap="xs">
           <ThemeIcon size="sm" variant="light" color="red">
             <IconGavel size={12} />
           </ThemeIcon>
-          <Text size="sm" fw={600}>Ceza Koşulları</Text>
-          <Badge size="xs" variant="light" color="red">{cezalar.length}</Badge>
+          <Text size="sm" fw={600}>
+            Ceza Koşulları
+          </Text>
+          <Badge size="xs" variant="light" color="red">
+            {cezalar.length}
+          </Badge>
         </Group>
         {hasMore && (
-          <Button size="xs" variant="subtle" color="red" onClick={() => setExpanded(!expanded)}
-            rightSection={<IconChevronDown size={12} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} />}>
+          <Button
+            size="xs"
+            variant="subtle"
+            color="red"
+            onClick={() => setExpanded(!expanded)}
+            rightSection={
+              <IconChevronDown
+                size={12}
+                style={{ transform: expanded ? 'rotate(180deg)' : 'none' }}
+              />
+            }
+          >
             {expanded ? 'Daralt' : `Tümü (${cezalar.length})`}
           </Button>
         )}
@@ -1968,8 +2636,12 @@ function CezaKosullariCard({ cezalar }: { cezalar: CezaKosulu[] }) {
         <Stack gap={4}>
           {displayItems.map((c) => (
             <Group key={`ceza-${c.tur}-${c.oran}`} justify="space-between" gap="xs" wrap="nowrap">
-              <Text size="xs" style={{ flex: 1 }}>{c.tur}</Text>
-              <Badge size="xs" variant="outline" color="red">{c.oran}</Badge>
+              <Text size="xs" style={{ flex: 1 }}>
+                {c.tur}
+              </Text>
+              <Badge size="xs" variant="outline" color="red">
+                {c.oran}
+              </Badge>
             </Group>
           ))}
         </Stack>
@@ -1990,7 +2662,9 @@ function FiyatFarkiCard({ fiyatFarki }: { fiyatFarki: FiyatFarki }) {
         <ThemeIcon size="sm" variant="light" color="pink">
           <IconMathFunction size={12} />
         </ThemeIcon>
-        <Text size="sm" fw={600}>Fiyat Farkı</Text>
+        <Text size="sm" fw={600}>
+          Fiyat Farkı
+        </Text>
       </Group>
       {fiyatFarki.formul && (
         <Text size="xs" c="dimmed" mb="xs" style={{ fontFamily: 'monospace' }}>
@@ -2025,12 +2699,26 @@ function GerekliBelgelerCard({ belgeler }: { belgeler: GerekliBelge[] }) {
           <ThemeIcon size="sm" variant="light" color="lime">
             <IconCertificate size={12} />
           </ThemeIcon>
-          <Text size="sm" fw={600}>Gerekli Belgeler</Text>
-          <Badge size="xs" variant="light" color="lime">{belgeler.length}</Badge>
+          <Text size="sm" fw={600}>
+            Gerekli Belgeler
+          </Text>
+          <Badge size="xs" variant="light" color="lime">
+            {belgeler.length}
+          </Badge>
         </Group>
         {hasMore && (
-          <Button size="xs" variant="subtle" color="lime" onClick={() => setExpanded(!expanded)}
-            rightSection={<IconChevronDown size={12} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} />}>
+          <Button
+            size="xs"
+            variant="subtle"
+            color="lime"
+            onClick={() => setExpanded(!expanded)}
+            rightSection={
+              <IconChevronDown
+                size={12}
+                style={{ transform: expanded ? 'rotate(180deg)' : 'none' }}
+              />
+            }
+          >
             {expanded ? 'Daralt' : `Tümü (${belgeler.length})`}
           </Button>
         )}
@@ -2043,11 +2731,22 @@ function GerekliBelgelerCard({ belgeler }: { belgeler: GerekliBelge[] }) {
             const puan = typeof b === 'object' ? (b.puan ?? 0) : 0;
             return (
               <Group key={`belge-${belgeAdi.substring(0, 30)}`} gap="xs" wrap="nowrap">
-                <ThemeIcon size="xs" variant={zorunlu ? 'filled' : 'light'} color={zorunlu ? 'lime' : 'gray'} radius="xl">
+                <ThemeIcon
+                  size="xs"
+                  variant={zorunlu ? 'filled' : 'light'}
+                  color={zorunlu ? 'lime' : 'gray'}
+                  radius="xl"
+                >
                   <IconCheck size={10} />
                 </ThemeIcon>
-                <Text size="xs" style={{ flex: 1 }}>{belgeAdi}</Text>
-                {puan > 0 && <Badge size="xs" variant="light" color="blue">+{puan} puan</Badge>}
+                <Text size="xs" style={{ flex: 1 }}>
+                  {belgeAdi}
+                </Text>
+                {puan > 0 && (
+                  <Badge size="xs" variant="light" color="blue">
+                    +{puan} puan
+                  </Badge>
+                )}
               </Group>
             );
           })}
@@ -2074,13 +2773,19 @@ function TeminatOranlariCard({ teminat }: { teminat: TeminatOranlari }) {
         <ThemeIcon size="sm" variant="light" color="violet">
           <IconShield size={12} />
         </ThemeIcon>
-        <Text size="sm" fw={600}>Teminat Oranları</Text>
+        <Text size="sm" fw={600}>
+          Teminat Oranları
+        </Text>
       </Group>
       <Group gap="md">
         {entries.map(([key, value]) => (
           <Box key={key}>
-            <Text size="xs" c="dimmed">{labels[key] || key}</Text>
-            <Text size="lg" fw={700} c="violet">{value}</Text>
+            <Text size="xs" c="dimmed">
+              {labels[key] || key}
+            </Text>
+            <Text size="lg" fw={700} c="violet">
+              {value}
+            </Text>
           </Box>
         ))}
       </Group>
@@ -2105,11 +2810,19 @@ function ServisSaatleriCard({ saatler }: { saatler: ServisSaatleri }) {
         <ThemeIcon size="sm" variant="light" color="cyan">
           <IconClock size={12} />
         </ThemeIcon>
-        <Text size="sm" fw={600}>Servis Saatleri</Text>
+        <Text size="sm" fw={600}>
+          Servis Saatleri
+        </Text>
       </Group>
       <Group gap="md">
         {entries.map(([key, value]) => (
-          <Badge key={key} size="lg" variant="light" color="cyan" leftSection={<IconClock size={12} />}>
+          <Badge
+            key={key}
+            size="lg"
+            variant="light"
+            color="cyan"
+            leftSection={<IconClock size={12} />}
+          >
             {labels[key] || key}: {value}
           </Badge>
         ))}
@@ -2128,9 +2841,13 @@ function BenzerIsTanimiCard({ tanim }: { tanim: string }) {
         <ThemeIcon size="sm" variant="light" color="gray">
           <IconInfoCircle size={12} />
         </ThemeIcon>
-        <Text size="sm" fw={600}>Benzer İş Tanımı</Text>
+        <Text size="sm" fw={600}>
+          Benzer İş Tanımı
+        </Text>
       </Group>
-      <Text size="xs" c="dimmed" style={{ lineHeight: 1.6 }}>{tanim}</Text>
+      <Text size="xs" c="dimmed" style={{ lineHeight: 1.6 }}>
+        {tanim}
+      </Text>
     </Paper>
   );
 }
@@ -2147,17 +2864,23 @@ interface DokumanlarSectionProps {
   onRefresh?: () => void;
 }
 
-function DokumanlarSection({ tenderId, tenderTitle, dokumansayisi = 0, analizEdilen = 0, onRefresh }: DokumanlarSectionProps) {
+function DokumanlarSection({
+  tenderId,
+  tenderTitle,
+  dokumansayisi = 0,
+  analizEdilen = 0,
+  onRefresh,
+}: DokumanlarSectionProps) {
   const [wizardOpen, setWizardOpen] = useState(false);
 
   return (
     <>
       <Stack gap="md">
         {/* Kompakt Özet - Tıklanabilir */}
-        <Paper 
-          p="md" 
-          withBorder 
-          radius="md" 
+        <Paper
+          p="md"
+          withBorder
+          radius="md"
           bg="dark.7"
           style={{ cursor: 'pointer' }}
           onClick={() => setWizardOpen(true)}
@@ -2172,18 +2895,20 @@ function DokumanlarSection({ tenderId, tenderTitle, dokumansayisi = 0, analizEdi
                   {dokumansayisi > 0 ? `${dokumansayisi} Döküman` : 'Döküman Yok'}
                 </Text>
                 <Text size="xs" c="dimmed">
-                  {dokumansayisi > 0 
-                    ? (analizEdilen > 0 ? `${analizEdilen} analiz edildi` : 'Analiz bekliyor')
+                  {dokumansayisi > 0
+                    ? analizEdilen > 0
+                      ? `${analizEdilen} analiz edildi`
+                      : 'Analiz bekliyor'
                     : 'Henüz döküman indirilmedi'}
                 </Text>
               </Box>
             </Group>
-            
+
             <Group gap="xs">
               {dokumansayisi > 0 && (
-                <Badge 
-                  size="lg" 
-                  variant="light" 
+                <Badge
+                  size="lg"
+                  variant="light"
                   color={analizEdilen === dokumansayisi ? 'green' : 'yellow'}
                 >
                   %{Math.round((analizEdilen / dokumansayisi) * 100)}
@@ -2314,9 +3039,9 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
   const tamMetin = analysisData?.tam_metin || '';
 
   // Analiz yoksa mesaj - hem sayıları hem de analysis_summary içeriğini kontrol et
-  const hasAnyAnalysis = 
-    (tender.teknik_sart_sayisi || 0) > 0 || 
-    (tender.birim_fiyat_sayisi || 0) > 0 || 
+  const hasAnyAnalysis =
+    (tender.teknik_sart_sayisi || 0) > 0 ||
+    (tender.birim_fiyat_sayisi || 0) > 0 ||
     allTeknikSartlar.length > 0 ||
     (analysisData?.birim_fiyatlar?.length || 0) > 0 ||
     allNotlar.length > 0;
@@ -2696,7 +3421,9 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
                             <IconCalendar size={14} />
                           </ThemeIcon>
                           <Box style={{ flex: 1, minWidth: 0 }}>
-                            <Text size="sm" fw={500}>{takvimItem.olay}</Text>
+                            <Text size="sm" fw={500}>
+                              {takvimItem.olay}
+                            </Text>
                             <Group gap="xs" mt={4}>
                               <Badge size="sm" variant="filled" color="cyan">
                                 {takvimItem.tarih}
@@ -2730,7 +3457,9 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
               </Stack>
             ) : (
               <Paper p="md" withBorder radius="md" ta="center">
-                <Text size="sm" c="dimmed">Takvim bilgisi bulunamadı</Text>
+                <Text size="sm" c="dimmed">
+                  Takvim bilgisi bulunamadı
+                </Text>
               </Paper>
             )}
           </ScrollArea>
@@ -2744,11 +3473,27 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
             {analysisData?.onemli_notlar && analysisData.onemli_notlar.length > 0 ? (
               <Stack gap="xs">
                 {analysisData.onemli_notlar.map((not) => {
-                  const notItem = typeof not === 'string' ? { not, tur: 'bilgi' as const } : not as OnemliNot;
-                  const turColor = notItem.tur === 'uyari' ? 'red' : notItem.tur === 'gereklilik' ? 'blue' : 'gray';
-                  const turLabel = notItem.tur === 'uyari' ? 'Uyarı' : notItem.tur === 'gereklilik' ? 'Gereklilik' : 'Bilgi';
-                  const TurIcon = notItem.tur === 'uyari' ? IconAlertTriangle : notItem.tur === 'gereklilik' ? IconExclamationMark : IconInfoCircle;
-                  
+                  const notItem =
+                    typeof not === 'string' ? { not, tur: 'bilgi' as const } : (not as OnemliNot);
+                  const turColor =
+                    notItem.tur === 'uyari'
+                      ? 'red'
+                      : notItem.tur === 'gereklilik'
+                        ? 'blue'
+                        : 'gray';
+                  const turLabel =
+                    notItem.tur === 'uyari'
+                      ? 'Uyarı'
+                      : notItem.tur === 'gereklilik'
+                        ? 'Gereklilik'
+                        : 'Bilgi';
+                  const TurIcon =
+                    notItem.tur === 'uyari'
+                      ? IconAlertTriangle
+                      : notItem.tur === 'gereklilik'
+                        ? IconExclamationMark
+                        : IconInfoCircle;
+
                   return (
                     <Paper
                       key={`onemli-${notItem.not.substring(0, 30)}-${notItem.tur}`}
@@ -2756,11 +3501,12 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
                       withBorder
                       radius="sm"
                       style={{
-                        background: notItem.tur === 'uyari' 
-                          ? 'rgba(239, 68, 68, 0.05)' 
-                          : notItem.tur === 'gereklilik' 
-                            ? 'rgba(59, 130, 246, 0.05)' 
-                            : 'rgba(107, 114, 128, 0.05)',
+                        background:
+                          notItem.tur === 'uyari'
+                            ? 'rgba(239, 68, 68, 0.05)'
+                            : notItem.tur === 'gereklilik'
+                              ? 'rgba(59, 130, 246, 0.05)'
+                              : 'rgba(107, 114, 128, 0.05)',
                         borderLeft: `3px solid var(--mantine-color-${turColor}-5)`,
                       }}
                     >
@@ -2799,7 +3545,9 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
               </Stack>
             ) : (
               <Paper p="md" withBorder radius="md" ta="center">
-                <Text size="sm" c="dimmed">Önemli not bulunamadı</Text>
+                <Text size="sm" c="dimmed">
+                  Önemli not bulunamadı
+                </Text>
               </Paper>
             )}
           </ScrollArea>
@@ -2986,7 +3734,13 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
 
 // ========== ARAÇLAR SEKMESİ ==========
 
-export function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onRefresh?: () => void }) {
+export function AraclarSection({
+  tender,
+  onRefresh,
+}: {
+  tender: SavedTender;
+  onRefresh?: () => void;
+}) {
   const [calcModalOpen, setCalcModalOpen] = useState(false);
 
   // Mevcut değerler (sadece gösterim için)
@@ -2996,17 +3750,28 @@ export function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onR
 
   // Tespit edilen veriler
   const hesaplamaVerileri = (tender as any).hesaplama_verileri || {};
-  const isSuresi = hesaplamaVerileri.is_suresi || tender.analysis_summary?.teslim_suresi || tender.analysis_summary?.sure;
-  const toplamOgun = hesaplamaVerileri.toplam_ogun_sayisi || 
-    (tender.analysis_summary?.ogun_bilgileri?.reduce((sum: number, o: any) => sum + (Number(o.miktar) || 0), 0) || 0);
-  const teknikSartSayisi = hesaplamaVerileri.teknik_sart_sayisi || tender.analysis_summary?.teknik_sartlar?.length || 0;
-  const birimFiyatSayisi = hesaplamaVerileri.birim_fiyat_sayisi || tender.analysis_summary?.birim_fiyatlar?.length || 0;
+  const isSuresi =
+    hesaplamaVerileri.is_suresi ||
+    tender.analysis_summary?.teslim_suresi ||
+    tender.analysis_summary?.sure;
+  const toplamOgun =
+    hesaplamaVerileri.toplam_ogun_sayisi ||
+    tender.analysis_summary?.ogun_bilgileri?.reduce(
+      (sum: number, o: any) => sum + (Number(o.miktar) || 0),
+      0
+    ) ||
+    0;
+  const teknikSartSayisi =
+    hesaplamaVerileri.teknik_sart_sayisi || tender.analysis_summary?.teknik_sartlar?.length || 0;
+  const birimFiyatSayisi =
+    hesaplamaVerileri.birim_fiyat_sayisi || tender.analysis_summary?.birim_fiyatlar?.length || 0;
 
   // Hesaplamalar
   const ogunBasiMaliyet = yaklasikMaliyet && toplamOgun ? yaklasikMaliyet / toplamOgun : 0;
 
   // Risk hesaplama
-  const isAsiriDusuk = bizimTeklif > 0 && otomatikSinirDeger > 0 && bizimTeklif < otomatikSinirDeger;
+  const isAsiriDusuk =
+    bizimTeklif > 0 && otomatikSinirDeger > 0 && bizimTeklif < otomatikSinirDeger;
   const fark = bizimTeklif > 0 && otomatikSinirDeger > 0 ? bizimTeklif - otomatikSinirDeger : 0;
 
   return (
@@ -3021,23 +3786,24 @@ export function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onR
 
       <Stack gap="md">
         {/* Ana Hesaplama Kartı - Hero */}
-        <Paper 
-          p="lg" 
-          withBorder 
-          radius="md" 
+        <Paper
+          p="lg"
+          withBorder
+          radius="md"
           bg={
-            yaklasikMaliyet === 0 
-              ? 'dark.6' 
-              : isAsiriDusuk 
-                ? 'rgba(255, 107, 107, 0.08)' 
+            yaklasikMaliyet === 0
+              ? 'dark.6'
+              : isAsiriDusuk
+                ? 'rgba(255, 107, 107, 0.08)'
                 : 'rgba(81, 207, 102, 0.08)'
           }
           style={{
-            borderColor: yaklasikMaliyet === 0 
-              ? undefined 
-              : isAsiriDusuk 
-                ? 'var(--mantine-color-red-6)' 
-                : 'var(--mantine-color-green-6)',
+            borderColor:
+              yaklasikMaliyet === 0
+                ? undefined
+                : isAsiriDusuk
+                  ? 'var(--mantine-color-red-6)'
+                  : 'var(--mantine-color-green-6)',
             cursor: 'pointer',
           }}
           onClick={() => setCalcModalOpen(true)}
@@ -3045,31 +3811,45 @@ export function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onR
           <Group justify="space-between" align="flex-start">
             <div>
               <Group gap="xs" mb="xs">
-                <ThemeIcon 
-                  size="lg" 
-                  variant="light" 
+                <ThemeIcon
+                  size="lg"
+                  variant="light"
                   color={yaklasikMaliyet === 0 ? 'blue' : isAsiriDusuk ? 'red' : 'green'}
                 >
                   <IconCalculator size={20} />
                 </ThemeIcon>
                 <div>
-                  <Text size="sm" fw={600}>Teklif Hesaplama</Text>
-                  <Text size="xs" c="dimmed">Sınır değer ve risk analizi</Text>
+                  <Text size="sm" fw={600}>
+                    Teklif Hesaplama
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Sınır değer ve risk analizi
+                  </Text>
                 </div>
               </Group>
 
               {yaklasikMaliyet > 0 ? (
                 <SimpleGrid cols={3} spacing="md" mt="md">
                   <Box>
-                    <Text size="xs" c="dimmed">Yaklaşık Maliyet</Text>
-                    <Text size="sm" fw={600}>{yaklasikMaliyet.toLocaleString('tr-TR')} ₺</Text>
+                    <Text size="xs" c="dimmed">
+                      Yaklaşık Maliyet
+                    </Text>
+                    <Text size="sm" fw={600}>
+                      {yaklasikMaliyet.toLocaleString('tr-TR')} ₺
+                    </Text>
                   </Box>
                   <Box>
-                    <Text size="xs" c="dimmed">Sınır Değer</Text>
-                    <Text size="sm" fw={600} c="blue">{otomatikSinirDeger.toLocaleString('tr-TR')} ₺</Text>
+                    <Text size="xs" c="dimmed">
+                      Sınır Değer
+                    </Text>
+                    <Text size="sm" fw={600} c="blue">
+                      {otomatikSinirDeger.toLocaleString('tr-TR')} ₺
+                    </Text>
                   </Box>
                   <Box>
-                    <Text size="xs" c="dimmed">Bizim Teklif</Text>
+                    <Text size="xs" c="dimmed">
+                      Bizim Teklif
+                    </Text>
                     <Text size="sm" fw={600} c={isAsiriDusuk ? 'red' : 'green'}>
                       {bizimTeklif > 0 ? `${bizimTeklif.toLocaleString('tr-TR')} ₺` : '—'}
                     </Text>
@@ -3083,11 +3863,13 @@ export function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onR
             </div>
 
             {yaklasikMaliyet > 0 && bizimTeklif > 0 && (
-              <Badge 
-                size="lg" 
-                variant="light" 
+              <Badge
+                size="lg"
+                variant="light"
                 color={isAsiriDusuk ? 'red' : 'green'}
-                leftSection={isAsiriDusuk ? <IconAlertTriangle size={14} /> : <IconCheck size={14} />}
+                leftSection={
+                  isAsiriDusuk ? <IconAlertTriangle size={14} /> : <IconCheck size={14} />
+                }
               >
                 {isAsiriDusuk ? 'RİSKLİ' : 'UYGUN'}
               </Badge>
@@ -3095,15 +3877,27 @@ export function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onR
           </Group>
 
           {yaklasikMaliyet > 0 && bizimTeklif > 0 && (
-            <Group gap="xs" mt="md" pt="md" style={{ borderTop: '1px solid var(--mantine-color-dark-4)' }}>
-              <Text size="xs" c="dimmed">Fark:</Text>
+            <Group
+              gap="xs"
+              mt="md"
+              pt="md"
+              style={{ borderTop: '1px solid var(--mantine-color-dark-4)' }}
+            >
+              <Text size="xs" c="dimmed">
+                Fark:
+              </Text>
               <Text size="xs" fw={500} c={fark >= 0 ? 'green' : 'red'}>
-                {fark >= 0 ? '+' : ''}{fark.toLocaleString('tr-TR')} ₺
+                {fark >= 0 ? '+' : ''}
+                {fark.toLocaleString('tr-TR')} ₺
               </Text>
               {ogunBasiMaliyet > 0 && (
                 <>
-                  <Text size="xs" c="dimmed" ml="md">Öğün Başı:</Text>
-                  <Text size="xs" fw={500} c="blue">{ogunBasiMaliyet.toFixed(2)} ₺</Text>
+                  <Text size="xs" c="dimmed" ml="md">
+                    Öğün Başı:
+                  </Text>
+                  <Text size="xs" fw={500} c="blue">
+                    {ogunBasiMaliyet.toFixed(2)} ₺
+                  </Text>
                 </>
               )}
             </Group>
@@ -3127,31 +3921,49 @@ export function AraclarSection({ tender, onRefresh }: { tender: SavedTender; onR
           <Paper p="sm" withBorder radius="md" bg="rgba(20, 184, 166, 0.03)">
             <Group gap="xs" mb="xs">
               <IconSparkles size={14} color="var(--mantine-color-teal-6)" />
-              <Text size="xs" fw={600} c="teal">Döküman Analizi</Text>
+              <Text size="xs" fw={600} c="teal">
+                Döküman Analizi
+              </Text>
             </Group>
             <SimpleGrid cols={4} spacing="xs">
               {isSuresi && (
                 <Box>
-                  <Text size="xs" c="dimmed">Süre</Text>
-                  <Text size="sm" fw={500}>{isSuresi}</Text>
+                  <Text size="xs" c="dimmed">
+                    Süre
+                  </Text>
+                  <Text size="sm" fw={500}>
+                    {isSuresi}
+                  </Text>
                 </Box>
               )}
               {toplamOgun > 0 && (
                 <Box>
-                  <Text size="xs" c="dimmed">Öğün</Text>
-                  <Text size="sm" fw={500}>{(toplamOgun / 1000000).toFixed(1)}M</Text>
+                  <Text size="xs" c="dimmed">
+                    Öğün
+                  </Text>
+                  <Text size="sm" fw={500}>
+                    {(toplamOgun / 1000000).toFixed(1)}M
+                  </Text>
                 </Box>
               )}
               {teknikSartSayisi > 0 && (
                 <Box>
-                  <Text size="xs" c="dimmed">Şart</Text>
-                  <Text size="sm" fw={500}>{teknikSartSayisi}</Text>
+                  <Text size="xs" c="dimmed">
+                    Şart
+                  </Text>
+                  <Text size="sm" fw={500}>
+                    {teknikSartSayisi}
+                  </Text>
                 </Box>
               )}
               {birimFiyatSayisi > 0 && (
                 <Box>
-                  <Text size="xs" c="dimmed">Kalem</Text>
-                  <Text size="sm" fw={500}>{birimFiyatSayisi}</Text>
+                  <Text size="xs" c="dimmed">
+                    Kalem
+                  </Text>
+                  <Text size="sm" fw={500}>
+                    {birimFiyatSayisi}
+                  </Text>
                 </Box>
               )}
             </SimpleGrid>
@@ -3212,14 +4024,16 @@ export function DilekceSection({ tender, dilekceType, onSelectType }: DilekceSec
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Eksik kritik verileri tespit et
-  const missingFields = tender ? detectMissingCriticalData({
-    yaklasik_maliyet: tender.yaklasik_maliyet,
-    bizim_teklif: tender.bizim_teklif,
-    sinir_deger: tender.sinir_deger,
-  }) : [];
-  
+  const missingFields = tender
+    ? detectMissingCriticalData({
+        yaklasik_maliyet: tender.yaklasik_maliyet,
+        bizim_teklif: tender.bizim_teklif,
+        sinir_deger: tender.sinir_deger,
+      })
+    : [];
+
   // Sadece zorunlu alanları kontrol et (sinir_deger opsiyonel)
-  const hasCriticalMissing = missingFields.filter(f => f !== 'sinir_deger').length > 0;
+  const hasCriticalMissing = missingFields.filter((f) => f !== 'sinir_deger').length > 0;
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -3247,12 +4061,12 @@ export function DilekceSection({ tender, dilekceType, onSelectType }: DilekceSec
 
     try {
       const typeInfo = dilekceTypes[dilekceType as keyof typeof dilekceTypes];
-      
+
       // Zengin ihale context'i oluştur
       const analysisData = tender.analysis_summary;
       const teknikSartlar = analysisData?.teknik_sartlar?.slice(0, 10) || [];
       const birimFiyatlar = analysisData?.birim_fiyatlar?.slice(0, 10) || [];
-      
+
       const systemPrompt = `Sen bir kamu ihale uzmanısın. ${typeInfo.label} dilekçesi hazırlamaya yardım ediyorsun.
 
 ## İHALE BİLGİLERİ
@@ -3263,9 +4077,9 @@ export function DilekceSection({ tender, dilekceType, onSelectType }: DilekceSec
 - İKN: ${tender.external_id || '-'}
 
 ## MALİ BİLGİLER
-- Yaklaşık Maliyet: ${tender.yaklasik_maliyet ? tender.yaklasik_maliyet.toLocaleString('tr-TR') + ' ₺' : 'Belirtilmemiş'}
-- Bizim Teklif: ${tender.bizim_teklif ? tender.bizim_teklif.toLocaleString('tr-TR') + ' ₺' : 'Belirtilmemiş'}
-- Sınır Değer: ${tender.sinir_deger ? tender.sinir_deger.toLocaleString('tr-TR') + ' ₺' : 'Belirtilmemiş'}
+- Yaklaşık Maliyet: ${tender.yaklasik_maliyet ? `${tender.yaklasik_maliyet.toLocaleString('tr-TR')} ₺` : 'Belirtilmemiş'}
+- Bizim Teklif: ${tender.bizim_teklif ? `${tender.bizim_teklif.toLocaleString('tr-TR')} ₺` : 'Belirtilmemiş'}
+- Sınır Değer: ${tender.sinir_deger ? `${tender.sinir_deger.toLocaleString('tr-TR')} ₺` : 'Belirtilmemiş'}
 
 ## TEKNİK ŞARTLAR (${teknikSartlar.length} adet)
 ${teknikSartlar.map((s, i) => `${i + 1}. ${typeof s === 'string' ? s : s.text}`).join('\n') || 'Teknik şart bilgisi yok'}
@@ -3508,7 +4322,7 @@ Eğer kritik bir bilgi eksikse (örn: yaklaşık maliyet, bizim teklif) bunu naz
                   </Group>
                 </Paper>
               )}
-              
+
               {/* Eksik Bilgi Formu */}
               {showDataForm && tender && missingFields.length > 0 && (
                 <InlineDataForm
@@ -3533,7 +4347,7 @@ Eğer kritik bir bilgi eksikse (örn: yaklaşık maliyet, bizim teklif) bunu naz
                   }}
                 />
               )}
-              
+
               <div ref={messagesEndRef} />
             </Stack>
           </ScrollArea>

@@ -1,0 +1,6 @@
+{
+  "$schema": "https://westus.api.cognitive.microsoft.com/documentintelligence/2024-11-30/schemas/trainingManifest.json",
+  "modelId": "ihale-catering-v1",
+  "description": "İhale Catering Teknik Şartname Custom Model",
+  "documents": []
+}

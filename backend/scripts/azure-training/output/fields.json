@@ -1,0 +1,71 @@
+{
+  "fields": {
+    "ornek_menu_tablosu": {
+      "fieldType": "table",
+      "description": "Örnek menü tablosu (günlük/haftalık yemek listesi)",
+      "isRequired": true
+    },
+    "gramaj_tablosu": {
+      "fieldType": "table",
+      "description": "Gramaj/porsiyon tablosu (malzeme gramları)",
+      "isRequired": true
+    },
+    "personel_tablosu": {
+      "fieldType": "table",
+      "description": "Personel gereksinimleri tablosu",
+      "isRequired": true
+    },
+    "ogun_tablosu": {
+      "fieldType": "table",
+      "description": "Öğün adetleri tablosu (kahvaltı, öğle, akşam)",
+      "isRequired": false
+    },
+    "ceza_tablosu": {
+      "fieldType": "table",
+      "description": "Ceza koşulları tablosu",
+      "isRequired": false
+    },
+    "ihale_konusu": {
+      "fieldType": "string",
+      "description": "İhale konusu/başlığı",
+      "isRequired": true
+    },
+    "kurum_adi": {
+      "fieldType": "string",
+      "description": "İhaleyi yapan kurum adı",
+      "isRequired": true
+    },
+    "sozlesme_suresi": {
+      "fieldType": "string",
+      "description": "Sözleşme süresi (ör: 24 ay)",
+      "isRequired": false
+    },
+    "yaklasik_maliyet": {
+      "fieldType": "currency",
+      "description": "Yaklaşık maliyet tutarı",
+      "isRequired": false
+    },
+    "gunluk_ogun_sayisi": {
+      "fieldType": "number",
+      "description": "Günlük toplam öğün sayısı",
+      "isRequired": false
+    },
+    "toplam_personel_sayisi": {
+      "fieldType": "number",
+      "description": "Toplam çalıştırılacak personel sayısı",
+      "isRequired": false
+    },
+    "kalite_gereksinimleri": {
+      "fieldType": "array",
+      "itemType": "string",
+      "description": "Kalite ve hijyen gereksinimleri listesi",
+      "isRequired": false
+    },
+    "servis_saatleri": {
+      "fieldType": "array",
+      "itemType": "string",
+      "description": "Yemek servis saatleri",
+      "isRequired": false
+    }
+  }
+}

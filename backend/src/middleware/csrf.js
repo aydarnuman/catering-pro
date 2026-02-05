@@ -1,9 +1,9 @@
 /**
  * CSRF Protection Middleware
- * 
+ *
  * NOT: SameSite=Strict cookie ayarı zaten CSRF koruması sağlıyor.
  * Modern tarayıcılarda bu yeterli - ek CSRF token'a gerek yok.
- * 
+ *
  * Cookie ayarları (auth.js):
  * - sameSite: 'strict' (production)
  * - sameSite: 'lax' (development)
@@ -17,7 +17,7 @@ import logger from '../utils/logger.js';
  * CSRF koruması - SameSite cookie ile sağlanıyor
  * Bu middleware artık sadece pass-through
  */
-export const csrfProtection = (req, res, next) => {
+export const csrfProtection = (_req, _res, next) => {
   // SameSite cookie zaten CSRF koruması sağlıyor
   // Ek token kontrolüne gerek yok
   next();
@@ -33,14 +33,14 @@ export function generateCsrfToken() {
 /**
  * CSRF token'ı cookie'ye yaz - Artık kullanılmıyor
  */
-export function setCsrfCookie(res, token) {
+export function setCsrfCookie(_res, _token) {
   // No-op
 }
 
 /**
  * CSRF token doğrula - Artık kullanılmıyor
  */
-export function validateCsrfToken(token) {
+export function validateCsrfToken(_token) {
   return true;
 }
 

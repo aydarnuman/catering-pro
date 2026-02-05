@@ -190,9 +190,6 @@ export const webToolImplementations = {
       if (TAVILY_API_KEY) {
         return await tavilyArama(sorgu, tip, max_sonuc);
       }
-
-      // Tavily yoksa DuckDuckGo'ya fallback (sınırlı sonuçlar)
-      console.warn('[web_arama] Tavily API key yok, DuckDuckGo kullanılıyor (sınırlı sonuçlar)');
       return await duckduckgoArama(sorgu, tip);
     } catch (error) {
       return {
@@ -455,12 +452,13 @@ async function tavilyArama(sorgu, tip, maxSonuc = 5) {
   const data = await response.json();
 
   // Sonuçları düzenle
-  const sonuclar = data.results?.map((r) => ({
-    baslik: r.title,
-    icerik: r.content,
-    url: r.url,
-    skor: r.score,
-  })) || [];
+  const sonuclar =
+    data.results?.map((r) => ({
+      baslik: r.title,
+      icerik: r.content,
+      url: r.url,
+      skor: r.score,
+    })) || [];
 
   return {
     success: true,

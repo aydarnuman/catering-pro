@@ -1,8 +1,124 @@
 /**
  * Parser Utils - JSON parse ve merge helpers
+ *
+ * safeJsonParse: LLM çıktılarını güvenli parse eder (aralık değerleri, markdown temizliği)
  */
 
-import { EMPTY_ANALYSIS_RESULT, EMPTY_PAGE_RESULT } from '../core/prompts.js';
+/**
+ * AI çıktılarını güvenli bir şekilde parse eder.
+ * Yaygın LLM hatalarını (aralık değerleri, yorumlar, markdown) temizler.
+ * @param {string} text - Claude yanıtı
+ * @returns {Object|null} Parse edilmiş JSON veya null
+ */
+export function safeJsonParse(text) {
+  if (!text) return null;
+
+  // 1. Markdown temizliği (```json ... ```)
+  let cleaned = text.replace(/```json\s?|```/g, '').trim();
+
+  // 2. Sadece { ... } veya [ ... ] arasını al (dışarıdaki gevezelikleri at)
+  const firstBrace = cleaned.indexOf('{');
+  const firstBracket = cleaned.indexOf('[');
+
+  let start = -1;
+  let end = -1;
+
+  // Hangi parantez önce geliyorsa ondan başla
+  if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+    start = firstBrace;
+    end = cleaned.lastIndexOf('}') + 1;
+  } else if (firstBracket !== -1) {
+    start = firstBracket;
+    end = cleaned.lastIndexOf(']') + 1;
+  }
+
+  if (start !== -1 && end > start) {
+    cleaned = cleaned.substring(start, end);
+  }
+
+  // 3. KRİTİK: Sayı aralıklarını (55-60) stringe çevir ("55-60")
+  // Claude bazen : 55-60 verir, bu JSON'u kırar. Bunu : "55-60" yaparız.
+  // Örn: "gramaj": 55-60, -> "gramaj": "55-60",
+  cleaned = cleaned.replace(/:\s*(\d+)\s*-\s*(\d+)\s*([,}])/g, ': "$1-$2"$3');
+
+  // 4. Sayı aralıklarını array içinde de düzelt: [55-60] -> ["55-60"]
+  cleaned = cleaned.replace(/\[\s*(\d+)\s*-\s*(\d+)\s*\]/g, '["$1-$2"]');
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    // 5. Kurtarma modu: Sonda kalan virgülleri temizle (Trailing commas)
+    try {
+      cleaned = cleaned.replace(/,\s*([\]}])/g, '$1');
+      return JSON.parse(cleaned);
+    } catch {
+      // 6. Son çare: Tek tırnakları çift tırnağa çevir
+      try {
+        cleaned = cleaned.replace(/'/g, '"');
+        return JSON.parse(cleaned);
+      } catch {
+        // JSON tamir edilemedi, null dön (çağıran fonksiyon hatayı yönetsin)
+        return null;
+      }
+    }
+  }
+}
+
+// Boş analiz sonucu şablonu (core/prompts.js'den taşındı)
+const EMPTY_ANALYSIS_RESULT = {
+  tam_metin: '',
+  ihale_basligi: '',
+  kurum: '',
+  tarih: '',
+  bedel: '',
+  sure: '',
+  ikn: '',
+  gunluk_ogun_sayisi: '',
+  kisi_sayisi: '',
+  teknik_sartlar: [],
+  birim_fiyatlar: [],
+  iletisim: {},
+  notlar: [],
+  personel_detaylari: [],
+  ogun_bilgileri: [],
+  is_yerleri: [],
+  mali_kriterler: {},
+  ceza_kosullari: [],
+  fiyat_farki: {},
+  gerekli_belgeler: [],
+  teminat_oranlari: {},
+  servis_saatleri: {},
+  sinir_deger_katsayisi: '',
+  benzer_is_tanimi: '',
+};
+
+// Boş sayfa sonucu şablonu (core/prompts.js'den taşındı)
+const EMPTY_PAGE_RESULT = {
+  sayfa_metni: '',
+  tespit_edilen_bilgiler: {
+    ihale_basligi: '',
+    kurum: '',
+    tarih: '',
+    bedel: '',
+    sure: '',
+    ikn: '',
+    teknik_sartlar: [],
+    birim_fiyatlar: [],
+    iletisim: {},
+    notlar: [],
+    personel_detaylari: [],
+    ogun_bilgileri: [],
+    is_yerleri: [],
+    mali_kriterler: {},
+    ceza_kosullari: [],
+    fiyat_farki: {},
+    gerekli_belgeler: [],
+    teminat_oranlari: {},
+    servis_saatleri: {},
+    sinir_deger_katsayisi: '',
+    benzer_is_tanimi: '',
+  },
+};
 
 /**
  * AI yanıtından JSON çıkar
@@ -100,7 +216,6 @@ export function parseDocumentAnalysis(responseText, originalText = '') {
       birim_fiyatlar: parsed.birim_fiyatlar || [],
       iletisim: parsed.iletisim || {},
       notlar: parsed.notlar || [],
-      // Yeni alanlar
       personel_detaylari: parsed.personel_detaylari || [],
       ogun_bilgileri: parsed.ogun_bilgileri || [],
       is_yerleri: parsed.is_yerleri || [],
@@ -140,7 +255,6 @@ export function mergePageResults(pages) {
     birim_fiyatlar: [],
     iletisim: {},
     notlar: [],
-    // Yeni alanlar
     personel_detaylari: [],
     ogun_bilgileri: [],
     is_yerleri: [],

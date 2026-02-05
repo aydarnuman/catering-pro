@@ -21,10 +21,10 @@ import {
   IconRefresh,
   IconX,
 } from '@tabler/icons-react';
-import { API_BASE_URL } from '@/lib/config';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { tendersAPI } from '@/lib/api/services/tenders';
+import { API_BASE_URL } from '@/lib/config';
 import { DocumentWizardModal } from '../DocumentWizardModal';
 
 interface DocumentsPanelProps {
@@ -45,7 +45,7 @@ interface Document {
 export function DocumentsPanel({ tenderId, tenderTitle, onRefresh }: DocumentsPanelProps) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(false);
-  
+
   // URL state için hooks
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -96,8 +96,10 @@ export function DocumentsPanel({ tenderId, tenderTitle, onRefresh }: DocumentsPa
 
   // Stats
   const totalDocs = documents.length;
-  const completedDocs = documents.filter(d => d.processing_status === 'completed').length;
-  const pendingDocs = documents.filter(d => d.processing_status === 'pending' || d.processing_status === 'failed').length;
+  const completedDocs = documents.filter((d) => d.processing_status === 'completed').length;
+  const pendingDocs = documents.filter(
+    (d) => d.processing_status === 'pending' || d.processing_status === 'failed'
+  ).length;
 
   // Get doc type label
   const getDocTypeLabel = (docType: string) => {
@@ -115,7 +117,7 @@ export function DocumentsPanel({ tenderId, tenderTitle, onRefresh }: DocumentsPa
   // Sync analysis summary to tender (silent auto-sync)
   const handleSyncAnalysis = useCallback(async () => {
     if (completedDocs === 0) return;
-    
+
     try {
       await fetch(`${API_BASE_URL}/api/tender-tracking/add-from-analysis`, {
         method: 'POST',
@@ -145,16 +147,28 @@ export function DocumentsPanel({ tenderId, tenderTitle, onRefresh }: DocumentsPa
           {!loading && totalDocs > 0 && (
             <Group justify="space-around" py="xs">
               <Box ta="center">
-                <Text size="lg" fw={700}>{totalDocs}</Text>
-                <Text size="xs" c="dimmed">Toplam</Text>
+                <Text size="lg" fw={700}>
+                  {totalDocs}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Toplam
+                </Text>
               </Box>
               <Box ta="center">
-                <Text size="lg" fw={700} c="green">{completedDocs}</Text>
-                <Text size="xs" c="dimmed">Analiz</Text>
+                <Text size="lg" fw={700} c="green">
+                  {completedDocs}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Analiz
+                </Text>
               </Box>
               <Box ta="center">
-                <Text size="lg" fw={700} c="yellow">{pendingDocs}</Text>
-                <Text size="xs" c="dimmed">Bekliyor</Text>
+                <Text size="lg" fw={700} c="yellow">
+                  {pendingDocs}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Bekliyor
+                </Text>
               </Box>
             </Group>
           )}
@@ -164,7 +178,11 @@ export function DocumentsPanel({ tenderId, tenderTitle, onRefresh }: DocumentsPa
             <Button
               size="xs"
               variant="gradient"
-              style={{ background: 'linear-gradient(135deg, #C9A227 0%, #D4AF37 50%, #E6C65C 100%)', border: 'none', flex: 1 }}
+              style={{
+                background: 'linear-gradient(135deg, #C9A227 0%, #D4AF37 50%, #E6C65C 100%)',
+                border: 'none',
+                flex: 1,
+              }}
               leftSection={<IconFileText size={14} />}
               onClick={openWizard}
             >

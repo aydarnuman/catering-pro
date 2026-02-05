@@ -4,8 +4,8 @@
  */
 
 import { query } from '../../database.js';
-import documentStorageService from '../document-storage.js';
 import logger from '../../utils/logger.js';
+import documentStorageService from '../document-storage.js';
 
 const ihaleTools = {
   /**
@@ -546,7 +546,8 @@ const ihaleTools = {
    * Tek veya çoklu ihale desteği
    */
   download_and_analyze_tender: {
-    description: 'İhale dökümanlarını indirir ve AI ile analiz eder. Tek ihale (tender_id) veya çoklu ihale (tender_ids) destekler. İndirme arka planda çalışır.',
+    description:
+      'İhale dökümanlarını indirir ve AI ile analiz eder. Tek ihale (tender_id) veya çoklu ihale (tender_ids) destekler. İndirme arka planda çalışır.',
     parameters: {
       type: 'object',
       properties: {
@@ -606,9 +607,9 @@ const ihaleTools = {
             [id]
           );
 
-          const analyzedCount = existingDocs.rows.filter(d => d.processing_status === 'completed').length;
-          const queuedCount = existingDocs.rows.filter(d => d.processing_status === 'queued').length;
-          const processingCount = existingDocs.rows.filter(d => d.processing_status === 'processing').length;
+          const analyzedCount = existingDocs.rows.filter((d) => d.processing_status === 'completed').length;
+          const queuedCount = existingDocs.rows.filter((d) => d.processing_status === 'queued').length;
+          const processingCount = existingDocs.rows.filter((d) => d.processing_status === 'processing').length;
 
           // Zaten analiz edilmişse atla
           if (analyzedCount > 0 && queuedCount === 0 && processingCount === 0) {
@@ -635,7 +636,7 @@ const ihaleTools = {
 
           // 3. Dökümanları indir
           logger.info(`[AI Tool] Batch indirme: İhale #${id}`, { module: 'ihale-tools', tender_id: id });
-          
+
           const downloadResult = await documentStorageService.downloadTenderDocuments(id);
 
           results.push({
@@ -646,7 +647,6 @@ const ihaleTools = {
             indirilen: downloadResult.downloaded || 0,
             kuyruga_eklenen: downloadResult.queued || 0,
           });
-
         } catch (error) {
           logger.error(`[AI Tool] Batch indirme hatası: İhale #${id}`, { error: error.message });
           errors.push({ ihale_id: id, error: error.message });
@@ -654,9 +654,9 @@ const ihaleTools = {
       }
 
       // Özet oluştur
-      const downloaded = results.filter(r => r.status === 'download_started').length;
-      const alreadyDone = results.filter(r => r.status === 'already_analyzed').length;
-      const inProgress = results.filter(r => r.status === 'in_progress').length;
+      const downloaded = results.filter((r) => r.status === 'download_started').length;
+      const alreadyDone = results.filter((r) => r.status === 'already_analyzed').length;
+      const inProgress = results.filter((r) => r.status === 'in_progress').length;
 
       return {
         success: true,
@@ -673,7 +673,6 @@ const ihaleTools = {
       };
     },
   },
-
 };
 
 export default ihaleTools;

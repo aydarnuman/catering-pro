@@ -46,10 +46,8 @@ export function InlineDataForm({
 
   const handleSave = async () => {
     // Validasyon
-    const criticalMissing = missingFields.filter(
-      (f) => f !== 'sinir_deger' && !values[f]
-    );
-    
+    const criticalMissing = missingFields.filter((f) => f !== 'sinir_deger' && !values[f]);
+
     if (criticalMissing.length > 0) {
       notifications.show({
         title: 'Eksik Bilgi',
@@ -94,7 +92,8 @@ export function InlineDataForm({
       p="md"
       withBorder
       style={{
-        background: 'linear-gradient(135deg, rgba(20, 184, 166, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%)',
+        background:
+          'linear-gradient(135deg, rgba(20, 184, 166, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%)',
         borderColor: 'var(--mantine-color-teal-6)',
         borderWidth: 1,
       }}
@@ -160,7 +159,7 @@ export function detectMissingCriticalData(tender: {
   sinir_deger?: number;
 }): Array<'yaklasik_maliyet' | 'bizim_teklif' | 'sinir_deger'> {
   const missing: Array<'yaklasik_maliyet' | 'bizim_teklif' | 'sinir_deger'> = [];
-  
+
   if (!tender.yaklasik_maliyet) {
     missing.push('yaklasik_maliyet');
   }
@@ -171,6 +170,6 @@ export function detectMissingCriticalData(tender: {
   if (!tender.sinir_deger) {
     missing.push('sinir_deger');
   }
-  
+
   return missing;
 }

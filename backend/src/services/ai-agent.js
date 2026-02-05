@@ -731,7 +731,7 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
         logger.warn(`[AI Agent] 🔥 GOD MODE AKTIF - ${tools.length} tool kullanılabilir`, {
           userId,
           toolCount: tools.length,
-          godModeTools: tools.filter(t => t.name.startsWith('god_')).map(t => t.name)
+          godModeTools: tools.filter((t) => t.name.startsWith('god_')).map((t) => t.name),
         });
       }
 
@@ -783,13 +783,14 @@ Sipariş durumları: talep → onay_bekliyor → onaylandi → siparis_verildi �
             logger.debug(`[AI Agent] Tool çağırılıyor: ${toolUse.name}`, {
               toolName: toolUse.name,
               isGodMode,
-              isGodTool
+              isGodTool,
             });
 
             // God Mode tool'ları için özel execute fonksiyonu kullan
-            const result = isGodTool && isGodMode
-              ? await aiTools.executeGodModeTool(toolUse.name, toolUse.input, userId)
-              : await aiTools.executeTool(toolUse.name, toolUse.input);
+            const result =
+              isGodTool && isGodMode
+                ? await aiTools.executeGodModeTool(toolUse.name, toolUse.input, userId)
+                : await aiTools.executeTool(toolUse.name, toolUse.input);
 
             toolResults.push({
               tool: toolUse.name,

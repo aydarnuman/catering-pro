@@ -1,7 +1,7 @@
-# 📚 Catering Pro - Teknik Dokümantasyon İndeksi
+# Catering Pro - Teknik Dokumantasyon Indeksi
 
-> Son Güncelleme: 27 Ocak 2026  
-> Versiyon: 2.0
+> Son Guncelleme: 5 Subat 2026  
+> Versiyon: 3.0
 
 ---
 
@@ -81,12 +81,30 @@ Bu dosyalara **DOKUNMAYIN** - sistemi bozabilir:
 
 ---
 
-## 🔗 İlgili Dökümanlar
+## Ilgili Dokumanlar
 
-- [CURSOR-PROMPTS.md](../CURSOR-PROMPTS.md) - Cursor talimatları
-- [README-DEV.md](../README-DEV.md) - Geliştirici kılavuzu
-- [REALTIME_SETUP.md](../REALTIME_SETUP.md) - Realtime kurulumu
+- [CURSOR-PROMPTS.md](./CURSOR-PROMPTS.md) - Cursor talimatlari
+- [INTEGRATION_PLAN.md](./INTEGRATION_PLAN.md) - Entegrasyon plani (devam ediyor)
+- [SCRAPER_ENTEGRASYON_TALIMATI.md](./SCRAPER_ENTEGRASYON_TALIMATI.md) - Scraper sistem dokumantasyonu
+- [REALTIME_SETUP.md](./REALTIME_SETUP.md) - Realtime kurulumu
 
 ---
 
-*Bu indeks otomatik olarak oluşturulmuştur.*
+## Arsivlenmis Dokumanlar
+
+Tamamlanmis plan ve raporlar `docs/archive/completed-plans/` klasorunde:
+
+- CALCULATION_MODAL_REVIEW_REPORT.md
+- TAM-TEMIZLIK-RAPORU.md
+- TEK-KAYNAK-DOGRULAMA-RAPORU.md
+- ISLEM_DURUM_RAPORU.md
+- TOOLBAR_ARTLIST_KARSILASTIRMA.md
+- SAYFA_AYRISTIRMA_PLANI.md
+- SUPABASE_MIGRATION_GECIS_PLANI.md
+- REFACTOR_SUMMARY.md
+- MENU_PLANLAMA_REFACTOR.md
+- SCRAPER_ADMIN_PANEL_TALIMATI.md
+
+---
+
+*Son guncelleme: 5 Subat 2026*

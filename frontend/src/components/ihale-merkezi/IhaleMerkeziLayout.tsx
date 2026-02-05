@@ -320,37 +320,41 @@ export function IhaleMerkeziLayout() {
   }, []);
 
   // Toggle tracking (add/remove from tracking list)
-  const toggleTracking = useCallback(async (tenderId: number, isCurrentlyTracked: boolean) => {
-    try {
-      if (isCurrentlyTracked) {
-        // Takipten çıkar
-        const tracked = state.trackedTenders.find(t => t.tender_id === tenderId);
-        if (tracked) {
-          await tendersAPI.removeTracking(Number(tracked.id));
-        }
-      } else {
-        // Takibe ekle
-        await tendersAPI.addTracking(tenderId);
-      }
-      // Refresh tracked list
-      const trackedList = await fetchTrackedTenders();
-      
-      // Update selected tender if it was affected
-      if (state.selectedTender) {
-        const selectedId = 'tender_id' in state.selectedTender 
-          ? state.selectedTender.tender_id 
-          : state.selectedTender.id;
-        if (selectedId === tenderId) {
-          const tracked = trackedList.find(t => t.tender_id === tenderId);
+  const toggleTracking = useCallback(
+    async (tenderId: number, isCurrentlyTracked: boolean) => {
+      try {
+        if (isCurrentlyTracked) {
+          // Takipten çıkar
+          const tracked = state.trackedTenders.find((t) => t.tender_id === tenderId);
           if (tracked) {
-            selectTender(tracked);
+            await tendersAPI.removeTracking(Number(tracked.id));
+          }
+        } else {
+          // Takibe ekle
+          await tendersAPI.addTracking(tenderId);
+        }
+        // Refresh tracked list
+        const trackedList = await fetchTrackedTenders();
+
+        // Update selected tender if it was affected
+        if (state.selectedTender) {
+          const selectedId =
+            'tender_id' in state.selectedTender
+              ? state.selectedTender.tender_id
+              : state.selectedTender.id;
+          if (selectedId === tenderId) {
+            const tracked = trackedList.find((t) => t.tender_id === tenderId);
+            if (tracked) {
+              selectTender(tracked);
+            }
           }
         }
+      } catch (error) {
+        console.error('Toggle tracking error:', error);
       }
-    } catch (error) {
-      console.error('Toggle tracking error:', error);
-    }
-  }, [state.trackedTenders, state.selectedTender, fetchTrackedTenders, selectTender]);
+    },
+    [state.trackedTenders, state.selectedTender, fetchTrackedTenders, selectTender]
+  );
 
   // Update tender status
   const updateTenderStatus = useCallback(async (tenderId: string, newStatus: string) => {
@@ -453,10 +457,11 @@ export function IhaleMerkeziLayout() {
                   const trackedList = await fetchTrackedTenders();
                   // Seçili tender'ı tracked versiyonuyla güncelle
                   if (state.selectedTender) {
-                    const tenderId = 'tender_id' in state.selectedTender 
-                      ? state.selectedTender.tender_id 
-                      : state.selectedTender.id;
-                    const tracked = trackedList.find(t => t.tender_id === tenderId);
+                    const tenderId =
+                      'tender_id' in state.selectedTender
+                        ? state.selectedTender.tender_id
+                        : state.selectedTender.id;
+                    const tracked = trackedList.find((t) => t.tender_id === tenderId);
                     if (tracked) {
                       selectTender(tracked);
                     }
@@ -528,7 +533,10 @@ export function IhaleMerkeziLayout() {
             state={state}
             onToggleSection={toggleSection}
             onStateChange={updateState}
-            onRefreshData={() => { fetchTrackedTenders(); fetchAllTenders(); }}
+            onRefreshData={() => {
+              fetchTrackedTenders();
+              fetchAllTenders();
+            }}
             mobileActiveTab={mobileActiveTab}
           />
         </Drawer>
@@ -602,10 +610,11 @@ export function IhaleMerkeziLayout() {
           const trackedList = await fetchTrackedTenders();
           // Seçili tender'ı tracked versiyonuyla güncelle
           if (state.selectedTender) {
-            const tenderId = 'tender_id' in state.selectedTender 
-              ? state.selectedTender.tender_id 
-              : state.selectedTender.id;
-            const tracked = trackedList.find(t => t.tender_id === tenderId);
+            const tenderId =
+              'tender_id' in state.selectedTender
+                ? state.selectedTender.tender_id
+                : state.selectedTender.id;
+            const tracked = trackedList.find((t) => t.tender_id === tenderId);
             if (tracked) {
               selectTender(tracked);
             }
@@ -614,11 +623,14 @@ export function IhaleMerkeziLayout() {
       />
 
       {/* Sag Panel */}
-      <RightPanel 
-        state={state} 
-        onToggleSection={toggleSection} 
+      <RightPanel
+        state={state}
+        onToggleSection={toggleSection}
         onStateChange={updateState}
-        onRefreshData={() => { fetchTrackedTenders(); fetchAllTenders(); }}
+        onRefreshData={() => {
+          fetchTrackedTenders();
+          fetchAllTenders();
+        }}
       />
 
       {/* Modals */}

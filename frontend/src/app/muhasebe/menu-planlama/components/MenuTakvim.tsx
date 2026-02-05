@@ -2,7 +2,6 @@
 
 import {
   ActionIcon,
-  Badge,
   Box,
   Button,
   Card,
@@ -24,12 +23,13 @@ import {
   Tooltip,
   UnstyledButton,
 } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
 import { useDebouncedValue } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
   IconBuilding,
   IconCalendar,
+  IconChevronLeft,
+  IconChevronRight,
   IconCoffee,
   IconCopy,
   IconDeviceFloppy,
@@ -42,10 +42,10 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import React, { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { API_BASE_URL } from '@/lib/config';
 import { formatMoney } from '@/lib/formatters';
-import { type OgunTipi, type Proje, useMenuPlanlama } from './MenuPlanlamaContext';
+import { useMenuPlanlama } from './MenuPlanlamaContext';
 
 // Types
 type PlanTipi = 'gunluk' | 'haftalik' | '15gunluk' | 'aylik';
@@ -76,9 +76,6 @@ const OGUNLER = [
 const formatTarih = (tarih: Date) => tarih.toISOString().split('T')[0];
 const formatGunAdi = (tarih: Date) => tarih.toLocaleDateString('tr-TR', { weekday: 'short' });
 const formatGunNo = (tarih: Date) => tarih.getDate();
-const formatAyAdi = (tarih: Date) =>
-  tarih.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' });
-
 // Tarih aralığı oluştur
 const getTarihAraligi = (baslangic: Date, tip: PlanTipi): Date[] => {
   const gunSayisi = {
@@ -110,6 +107,8 @@ const HucreKart = ({
   recetelerLoading,
   aramaMetni,
   onAramaChange,
+  seciliKategori,
+  onKategoriChange,
 }: {
   hucre?: TakvimHucre;
   ogun: (typeof OGUNLER)[0];
@@ -122,6 +121,8 @@ const HucreKart = ({
   recetelerLoading: boolean;
   aramaMetni: string;
   onAramaChange: (val: string) => void;
+  seciliKategori: string;
+  onKategoriChange: (kategori: string) => void;
 }) => {
   const yemekSayisi = hucre?.yemekler?.length || 0;
   const toplamFiyat = hucre?.yemekler?.reduce((sum, y) => sum + y.fiyat, 0) || 0;
@@ -133,7 +134,7 @@ const HucreKart = ({
       position="bottom"
       withArrow
       shadow="xl"
-      width={320}
+      width={420}
     >
       <Popover.Target>
         <Card
@@ -212,10 +213,17 @@ const HucreKart = ({
         </Card>
       </Popover.Target>
 
-      <Popover.Dropdown p="sm">
-        <Stack gap="sm">
+      <Popover.Dropdown p={0}>
+        <Box>
           {/* Başlık */}
-          <Group justify="space-between">
+          <Group
+            justify="space-between"
+            p="xs"
+            style={{
+              borderBottom: '1px solid var(--mantine-color-dark-4)',
+              background: 'var(--mantine-color-dark-7)',
+            }}
+          >
             <Group gap="xs">
               <ThemeIcon size="sm" color={ogun.renk} variant="light">
                 {ogun.ikon}
@@ -229,102 +237,175 @@ const HucreKart = ({
             </Text>
           </Group>
 
-          {/* Arama */}
-          <TextInput
-            placeholder="Yemek ara..."
-            size="xs"
-            leftSection={<IconSearch size={14} />}
-            value={aramaMetni}
-            onChange={(e) => onAramaChange(e.currentTarget.value)}
-            rightSection={
-              aramaMetni && (
-                <ActionIcon size="xs" variant="subtle" onClick={() => onAramaChange('')}>
-                  <IconX size={12} />
-                </ActionIcon>
-              )
-            }
-          />
-
-          {/* Yemek Listesi */}
-          <ScrollArea.Autosize mah={200}>
-            {recetelerLoading ? (
-              <Stack align="center" py="md">
-                <Loader size="xs" />
-              </Stack>
-            ) : receteler?.length > 0 ? (
-              <Stack gap={4}>
-                {receteler.slice(0, 15).map((recete: any) => (
+          {/* 3 Kolonlu İçerik */}
+          <Group gap={0} wrap="nowrap" align="stretch">
+            {/* Sol Kolon - Kategoriler */}
+            <Box
+              style={{
+                width: 70,
+                borderRight: '1px solid var(--mantine-color-dark-4)',
+                background: 'var(--mantine-color-dark-7)',
+              }}
+            >
+              <Stack gap={0} p={4}>
+                <Text size="9px" c="dimmed" ta="center" py={4}>
+                  Kategori
+                </Text>
+                {[
+                  { kod: '', ad: 'Tümü' },
+                  { kod: 'corba', ad: 'Çorba' },
+                  { kod: 'ana_yemek', ad: 'Ana' },
+                  { kod: 'pilav_makarna', ad: 'Pilav' },
+                  { kod: 'salata_meze', ad: 'Salata' },
+                  { kod: 'tatli', ad: 'Tatlı' },
+                ].map((kat) => (
                   <UnstyledButton
-                    key={recete.id}
-                    onClick={() => onYemekEkle(recete)}
+                    key={kat.kod}
+                    onClick={() => onKategoriChange?.(kat.kod)}
                     style={{
-                      padding: '6px 8px',
+                      padding: '4px 6px',
                       borderRadius: 4,
-                      transition: 'background 0.1s',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = `var(--mantine-color-${ogun.renk}-light)`;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = '';
+                      fontSize: 10,
+                      background:
+                        seciliKategori === kat.kod
+                          ? `var(--mantine-color-${ogun.renk}-light)`
+                          : 'transparent',
+                      fontWeight: seciliKategori === kat.kod ? 600 : 400,
                     }}
                   >
-                    <Group justify="space-between" wrap="nowrap">
-                      <Text size="xs" lineClamp={1} style={{ flex: 1 }}>
-                        {recete.ad}
-                      </Text>
-                      <Group gap={4} wrap="nowrap">
-                        <Text size="xs" fw={600} c={ogun.renk}>
-                          {formatMoney(recete.tahmini_maliyet || recete.porsiyon_maliyet || 0)}
-                        </Text>
-                        <IconPlus size={12} style={{ opacity: 0.5 }} />
-                      </Group>
-                    </Group>
+                    {kat.ad}
                   </UnstyledButton>
                 ))}
               </Stack>
-            ) : (
-              <Text size="xs" c="dimmed" ta="center" py="md">
-                Sonuç bulunamadı
-              </Text>
-            )}
-          </ScrollArea.Autosize>
+            </Box>
 
-          {/* Eklenen Yemekler */}
-          {yemekSayisi > 0 && (
-            <>
-              <Divider />
-              <Stack gap={4}>
-                <Group justify="space-between">
-                  <Text size="xs" fw={500}>
-                    Eklenenler:
-                  </Text>
-                  <ActionIcon size="xs" color="red" variant="subtle" onClick={onClear}>
-                    <IconTrash size={12} />
-                  </ActionIcon>
-                </Group>
-                {hucre?.yemekler?.map((y, i) => (
-                  <Group key={i} justify="space-between">
-                    <Text size="xs" c="dimmed">
-                      {y.ad}
+            {/* Orta Kolon - Arama ve Liste */}
+            <Box style={{ flex: 1, minWidth: 160 }}>
+              <Box p="xs" style={{ borderBottom: '1px solid var(--mantine-color-dark-5)' }}>
+                <TextInput
+                  placeholder="Ara..."
+                  size="xs"
+                  leftSection={<IconSearch size={12} />}
+                  value={aramaMetni}
+                  onChange={(e) => onAramaChange(e.currentTarget.value)}
+                  rightSection={
+                    aramaMetni && (
+                      <ActionIcon size="xs" variant="subtle" onClick={() => onAramaChange('')}>
+                        <IconX size={10} />
+                      </ActionIcon>
+                    )
+                  }
+                  styles={{ input: { fontSize: 11 } }}
+                />
+              </Box>
+              <ScrollArea.Autosize mah={220}>
+                <Stack gap={0} p={4}>
+                  {recetelerLoading ? (
+                    <Stack align="center" py="md">
+                      <Loader size="xs" />
+                    </Stack>
+                  ) : receteler?.length > 0 ? (
+                    receteler.slice(0, 20).map((recete: any) => (
+                      <UnstyledButton
+                        key={recete.id}
+                        onClick={() => onYemekEkle(recete)}
+                        style={{
+                          padding: '5px 8px',
+                          borderRadius: 4,
+                          transition: 'background 0.1s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = `var(--mantine-color-${ogun.renk}-light)`;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = '';
+                        }}
+                      >
+                        <Group justify="space-between" wrap="nowrap" gap={4}>
+                          <Text size="11px" lineClamp={1} style={{ flex: 1 }}>
+                            {recete.ad}
+                          </Text>
+                          <Group gap={2} wrap="nowrap">
+                            <Text size="10px" fw={600} c={ogun.renk}>
+                              {formatMoney(recete.tahmini_maliyet || recete.porsiyon_maliyet || 0)}
+                            </Text>
+                            <IconPlus size={10} style={{ opacity: 0.5 }} />
+                          </Group>
+                        </Group>
+                      </UnstyledButton>
+                    ))
+                  ) : (
+                    <Text size="xs" c="dimmed" ta="center" py="md">
+                      Sonuç yok
                     </Text>
-                    <Text size="xs" fw={500} c={ogun.renk}>
-                      {formatMoney(y.fiyat)}
+                  )}
+                </Stack>
+              </ScrollArea.Autosize>
+            </Box>
+
+            {/* Sağ Kolon - Seçilenler */}
+            <Box
+              style={{
+                width: 140,
+                borderLeft: '1px solid var(--mantine-color-dark-4)',
+                background: 'var(--mantine-color-dark-7)',
+              }}
+            >
+              <Group
+                justify="space-between"
+                p={6}
+                style={{ borderBottom: '1px solid var(--mantine-color-dark-5)' }}
+              >
+                <Text size="10px" fw={500}>
+                  Seçilenler ({yemekSayisi})
+                </Text>
+                {yemekSayisi > 0 && (
+                  <ActionIcon size="xs" color="red" variant="subtle" onClick={onClear}>
+                    <IconTrash size={10} />
+                  </ActionIcon>
+                )}
+              </Group>
+              <ScrollArea.Autosize mah={180}>
+                <Stack gap={2} p={6}>
+                  {yemekSayisi === 0 ? (
+                    <Text size="10px" c="dimmed" ta="center" py="md">
+                      Henüz seçim yok
+                    </Text>
+                  ) : (
+                    hucre?.yemekler?.map((y, i) => (
+                      <Group key={y.id || i} justify="space-between" wrap="nowrap">
+                        <Text size="10px" c="dimmed" lineClamp={1} style={{ flex: 1 }}>
+                          {y.ad}
+                        </Text>
+                        <Text size="10px" fw={500} c={ogun.renk}>
+                          {formatMoney(y.fiyat)}
+                        </Text>
+                      </Group>
+                    ))
+                  )}
+                </Stack>
+              </ScrollArea.Autosize>
+              {yemekSayisi > 0 && (
+                <Box
+                  p={6}
+                  style={{
+                    borderTop: '1px solid var(--mantine-color-dark-5)',
+                    background: 'var(--mantine-color-dark-6)',
+                  }}
+                >
+                  <Group justify="space-between">
+                    <Text size="10px" fw={600}>
+                      Toplam:
+                    </Text>
+                    <Text size="11px" fw={700} c={ogun.renk}>
+                      {formatMoney(toplamFiyat)}
                     </Text>
                   </Group>
-                ))}
-                <Group justify="space-between" mt={4}>
-                  <Text size="xs" fw={600}>
-                    Toplam:
-                  </Text>
-                  <Text size="xs" fw={700} c={ogun.renk}>
-                    {formatMoney(toplamFiyat)}
-                  </Text>
-                </Group>
-              </Stack>
-            </>
-          )}
-        </Stack>
+                </Box>
+              )}
+            </Box>
+          </Group>
+        </Box>
       </Popover.Dropdown>
     </Popover>
   );
@@ -332,7 +413,7 @@ const HucreKart = ({
 
 export function MenuTakvim() {
   const queryClient = useQueryClient();
-  const { projeler, projelerLoading, ogunTipleri } = useMenuPlanlama();
+  const { projeler } = useMenuPlanlama();
 
   // State
   const [selectedProjeId, setSelectedProjeId] = useState<number | null>(null);
@@ -344,6 +425,7 @@ export function MenuTakvim() {
   // Popover state - hangi hücre açık
   const [aktifHucreKey, setAktifHucreKey] = useState<string | null>(null);
   const [aramaMetni, setAramaMetni] = useState('');
+  const [seciliKategori, setSeciliKategori] = useState('');
   const [debouncedArama] = useDebouncedValue(aramaMetni, 300);
 
   // Öğün tipine göre kategori eşleştirmesi
@@ -362,9 +444,9 @@ export function MenuTakvim() {
   // Aktif öğün kodunu al (popover açıkken)
   const aktifOgunKod = aktifHucreKey?.split('_')[1] || null;
 
-  // Reçeteleri çek - öğün tipine ve aramaya göre filtrelenmiş
+  // Reçeteleri çek - kategori ve aramaya göre filtrelenmiş
   const { data: recetelerData, isLoading: recetelerLoading } = useQuery({
-    queryKey: ['receteler-takvim', debouncedArama, aktifOgunKod],
+    queryKey: ['receteler-takvim', debouncedArama, seciliKategori, aktifOgunKod],
     queryFn: async () => {
       const params = new URLSearchParams();
 
@@ -372,11 +454,15 @@ export function MenuTakvim() {
       if (debouncedArama) {
         params.set('arama', debouncedArama);
       }
-      // Arama yoksa ve öğün tipi varsa kategoriye göre filtrele
-      else if (aktifOgunKod) {
+
+      // Kategori seçilmişse kategori ile filtrele
+      if (seciliKategori) {
+        params.set('kategori', seciliKategori);
+      }
+      // Kategori seçilmemişse ve öğün tipi varsa varsayılan kategorileri kullan
+      else if (aktifOgunKod && !debouncedArama) {
         const kategoriler = getKategorilerByOgun(aktifOgunKod);
         if (kategoriler.length > 0) {
-          // İlk kategori ile başla (API tek kategori destekliyor)
           params.set('kategori', kategoriler[0]);
         }
       }
@@ -404,9 +490,11 @@ export function MenuTakvim() {
     if (aktifHucreKey === key) {
       setAktifHucreKey(null);
       setAramaMetni('');
+      setSeciliKategori('');
     } else {
       setAktifHucreKey(key);
       setAramaMetni('');
+      setSeciliKategori('');
     }
   };
 
@@ -684,14 +772,103 @@ export function MenuTakvim() {
               />
             </Box>
 
-            {/* Başlangıç Tarihi */}
-            <DatePickerInput
-              label="Başlangıç Tarihi"
-              value={baslangicTarihi}
-              onChange={(date) => date && setBaslangicTarihi(date)}
-              locale="tr"
-              leftSection={<IconCalendar size={16} />}
-            />
+            {/* Başlangıç Tarihi - Plan tipine göre atlama */}
+            <Box>
+              <Text size="sm" fw={500} mb={4}>
+                Başlangıç
+              </Text>
+              <Group gap="xs">
+                <Tooltip
+                  label={
+                    planTipi === 'gunluk'
+                      ? '1 gün geri'
+                      : planTipi === 'haftalik'
+                        ? '1 hafta geri'
+                        : planTipi === '15gunluk'
+                          ? '15 gün geri'
+                          : '1 ay geri'
+                  }
+                >
+                  <ActionIcon
+                    variant="light"
+                    color="gray"
+                    onClick={() => {
+                      const yeniTarih = new Date(baslangicTarihi);
+                      const atlamaMiktari =
+                        planTipi === 'gunluk'
+                          ? 1
+                          : planTipi === 'haftalik'
+                            ? 7
+                            : planTipi === '15gunluk'
+                              ? 15
+                              : 30;
+                      yeniTarih.setDate(yeniTarih.getDate() - atlamaMiktari);
+                      setBaslangicTarihi(yeniTarih);
+                    }}
+                  >
+                    <IconChevronLeft size={16} />
+                  </ActionIcon>
+                </Tooltip>
+                <TextInput
+                  value={baslangicTarihi.toISOString().split('T')[0]}
+                  onChange={(e) => {
+                    const yeniTarih = new Date(e.currentTarget.value);
+                    if (!Number.isNaN(yeniTarih.getTime())) {
+                      setBaslangicTarihi(yeniTarih);
+                    }
+                  }}
+                  type="date"
+                  size="sm"
+                  style={{ flex: 1 }}
+                  styles={{
+                    input: {
+                      textAlign: 'center',
+                      fontWeight: 500,
+                    },
+                  }}
+                />
+                <Tooltip
+                  label={
+                    planTipi === 'gunluk'
+                      ? '1 gün ileri'
+                      : planTipi === 'haftalik'
+                        ? '1 hafta ileri'
+                        : planTipi === '15gunluk'
+                          ? '15 gün ileri'
+                          : '1 ay ileri'
+                  }
+                >
+                  <ActionIcon
+                    variant="light"
+                    color="gray"
+                    onClick={() => {
+                      const yeniTarih = new Date(baslangicTarihi);
+                      const atlamaMiktari =
+                        planTipi === 'gunluk'
+                          ? 1
+                          : planTipi === 'haftalik'
+                            ? 7
+                            : planTipi === '15gunluk'
+                              ? 15
+                              : 30;
+                      yeniTarih.setDate(yeniTarih.getDate() + atlamaMiktari);
+                      setBaslangicTarihi(yeniTarih);
+                    }}
+                  >
+                    <IconChevronRight size={16} />
+                  </ActionIcon>
+                </Tooltip>
+                <Tooltip label="Bugün">
+                  <ActionIcon
+                    variant="light"
+                    color="blue"
+                    onClick={() => setBaslangicTarihi(new Date())}
+                  >
+                    <IconCalendar size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              </Group>
+            </Box>
 
             {/* Kişi Sayısı */}
             <NumberInput
@@ -773,6 +950,8 @@ export function MenuTakvim() {
                         recetelerLoading={recetelerLoading}
                         aramaMetni={aramaMetni}
                         onAramaChange={setAramaMetni}
+                        seciliKategori={seciliKategori}
+                        onKategoriChange={setSeciliKategori}
                       />
                     </Box>
                   );

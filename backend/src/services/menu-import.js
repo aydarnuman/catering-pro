@@ -1,7 +1,24 @@
 import fs from 'node:fs';
+import Anthropic from '@anthropic-ai/sdk';
 import pdf from 'pdf-parse/lib/pdf-parse.js';
 import XLSX from 'xlsx';
-import { analyzeDocument } from './document-analyzer.js';
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
+
+/**
+ * Menü PDF'i için özel analiz (document-analyzer.js yerine inline)
+ * @param {string} prompt - Analiz promptu
+ * @returns {Promise<string>}
+ */
+async function analyzeMenuPrompt(prompt) {
+  const response = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 4096,
+    messages: [{ role: 'user', content: prompt }],
+  });
+  return response.content[0]?.text || '';
+}
 
 /**
  * Excel dosyasından menü verilerini parse et
@@ -94,7 +111,7 @@ ${text.substring(0, 8000)}
 - Sadece yemek isimlerini al, gramaj/kalori bilgilerini alma
 - JSON formatında döndür, başka açıklama ekleme`;
 
-  const response = await analyzeDocument(prompt);
+  const response = await analyzeMenuPrompt(prompt);
 
   try {
     // JSON'ı parse et

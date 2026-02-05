@@ -51,6 +51,12 @@ backups/
 
 # Test files
 test-*.js
+test_*_result.json
+*.test-output.*
+
+# Backend temp (explicit)
+backend/temp/*
+!backend/temp/.gitkeep
 
 # Audit logs (hidden files)
 backend/logs/.*-audit.json

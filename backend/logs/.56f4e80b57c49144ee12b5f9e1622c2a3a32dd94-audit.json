@@ -9,6 +9,21 @@
             "date": 1770033440501,
             "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-02-02.log",
             "hash": "3dcae2e1158c3f9d700f958f255dc003138bff292a1d56e6c0ea01a68f176aef"
+        },
+        {
+            "date": 1770094800210,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-02-03.log",
+            "hash": "91d8a59202b1cbeacca141beefe14d1f9a6c6d66b04b9a2c488968c0b8b17379"
+        },
+        {
+            "date": 1770187694575,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-02-04.log",
+            "hash": "69562a590fa09ff7f2182588c7c1b8543f8a4402a3645c33cf0872411b21dd7e"
+        },
+        {
+            "date": 1770295456345,
+            "name": "/Users/numanaydar/Desktop/CATERİNG/backend/logs/exceptions-2026-02-05.log",
+            "hash": "e6097db4c04aa77bbab8d4af3047bfb0b8252ef5051fa4105a184a9ead54e806"
         }
     ],
     "hashType": "sha256"

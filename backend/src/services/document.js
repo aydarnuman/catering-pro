@@ -1,31 +1,26 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import mammoth from 'mammoth';
 import fetch from 'node-fetch';
-import pdfParse from 'pdf-parse';
-import xlsx from 'xlsx';
 import { supabase } from '../supabase.js';
-// Yeni Pipeline v5.0 kullan (document-analyzer.js yerine)
-import { chunkText } from './ai-analyzer/pipeline/chunker.js';
-import { analyze } from './ai-analyzer/pipeline/analyzer.js';
+// v9.0: TEK MERKEZİ SİSTEM - unified-pipeline kullan!
+import { analyzeDocument } from './ai-analyzer/unified-pipeline.js';
 
 const BUCKET_NAME = 'tender-documents';
 
 /**
  * Döküman işleme ana fonksiyonu
+ * v9.0: TEK MERKEZİ SİSTEM - unified-pipeline kullanır
+ *
  * @param {number} documentId - Döküman ID
- * @param {string} filePath - Dosya yolu (opsiyonel, content_text varsa kullanılmaz)
+ * @param {string} filePath - Dosya yolu
  * @param {string} originalFilename - Orijinal dosya adı
  * @returns {Promise<object>} - İşlenmiş veri
  */
 export async function processDocument(documentId, filePath, originalFilename) {
-  let extractedText = '';
-  const ocrResult = null;
   let tempFilePath = null;
 
   try {
-    // Önce döküman bilgilerini DB'den al
     const { pool: dbPool } = await import('../database.js');
     const docResult = await dbPool.query(
       'SELECT content_text, file_type, source_type, storage_path, storage_url FROM documents WHERE id = $1',
@@ -37,49 +32,36 @@ export async function processDocument(documentId, filePath, originalFilename) {
     }
 
     const document = docResult.rows[0];
+    let analysisFilePath = filePath;
 
-    // Content dökümanları için direkt content_text kullan
-    if (document.source_type === 'content' && document.content_text) {
-      extractedText = document.content_text;
-    } else if (document.source_type === 'download' && document.storage_path) {
+    // Storage'dan indirme gerekiyorsa
+    if (document.source_type === 'download' && document.storage_path) {
       const fileBuffer = await downloadFromSupabase(document.storage_path, document.storage_url);
-
-      // Temp dosyaya kaydet
       const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'doc-process-'));
       const ext = path.extname(originalFilename).toLowerCase() || '.pdf';
       tempFilePath = path.join(tempDir, `document${ext}`);
       await fs.promises.writeFile(tempFilePath, fileBuffer);
-
-      // Dosyadan metin çıkar
-      extractedText = await extractTextFromFile(tempFilePath, ext);
-    } else {
-      // Local dosya (upload)
-      if (!filePath || !fs.existsSync(filePath)) {
-        throw new Error(`Dosya bulunamadı: ${filePath}`);
-      }
-
-      const ext = path.extname(originalFilename).toLowerCase();
-      extractedText = await extractTextFromFile(filePath, ext);
+      analysisFilePath = tempFilePath;
     }
-    // Yeni Pipeline v5.0 ile analiz
-    const chunks = chunkText(extractedText);
-    const analysis = await analyze(chunks);
+
+    // v9.0: UNIFIED PIPELINE
+    const result = await analyzeDocument(analysisFilePath);
 
     return {
-      text: extractedText,
-      ocr: ocrResult,
+      text: result.extraction?.text || '',
+      ocr: result.extraction?.ocrApplied ? { applied: true } : null,
       analysis: {
-        pipeline_version: '5.0',
-        ...analysis,
+        pipeline_version: '9.0',
+        provider: result.meta?.provider_used || 'unified',
+        ...result.analysis,
       },
     };
   } finally {
-    // Temp dosyayı temizle
     if (tempFilePath) {
       try {
         const tempDir = path.dirname(tempFilePath);
         await fs.promises.rm(tempDir, { recursive: true });
-      } catch (_e) {}
+      } catch {}
     }
   }
 }
@@ -115,33 +97,17 @@ export async function downloadFromSupabase(storagePath, storageUrl) {
 }
 
 /**
- * Dosyadan metin çıkar
- */
-async function extractTextFromFile(filePath, ext) {
-  switch (ext) {
-    case '.pdf':
-      return await extractPDF(filePath);
-    case '.doc':
-    case '.docx':
-      return await extractWord(filePath);
-    case '.xls':
-    case '.xlsx':
-      return await extractExcel(filePath);
-    case '.txt':
-    case '.csv':
-      return await fs.promises.readFile(filePath, 'utf8');
-    default:
-      throw new Error(`Desteklenmeyen dosya formatı: ${ext}`);
-  }
-}
-
-/**
  * Content dökümanı işleme (sadece DB'deki metin için)
+ * v9.0: Text-only analiz için chunker + analyzer kullanır
+ *
  * @param {number} documentId - Döküman ID
  * @returns {Promise<object>} - İşlenmiş veri
  */
 export async function processContentDocument(documentId) {
   const { pool: dbPool } = await import('../database.js');
+  const { chunkText } = await import('./ai-analyzer/pipeline/chunker.js');
+  const { analyze } = await import('./ai-analyzer/pipeline/analyzer.js');
+
   const docResult = await dbPool.query(
     `SELECT content_text, content_type, original_filename 
        FROM documents WHERE id = $1 AND source_type = 'content'`,
@@ -158,7 +124,7 @@ export async function processContentDocument(documentId) {
     throw new Error('Content text boş');
   }
 
-  // Yeni Pipeline v5.0 ile analiz
+  // Text-based analiz (unified pipeline content için chunker+analyzer kullanır)
   const chunks = chunkText(document.content_text);
   const analysis = await analyze(chunks);
 
@@ -166,99 +132,12 @@ export async function processContentDocument(documentId) {
     text: document.content_text,
     ocr: null,
     analysis: {
-      pipeline_version: '5.0',
+      pipeline_version: '9.0',
+      provider: 'claude-text',
       ...analysis,
     },
   };
 }
 
-/**
- * PDF metin çıkarma
- * Eğer çıkan metin çok kısaysa (taranmış PDF olabilir), Gemini Vision ile OCR dener
- */
-async function extractPDF(filePath) {
-  const dataBuffer = await fs.promises.readFile(filePath);
-  const data = await pdfParse(dataBuffer);
-
-  // Eğer metin çok kısaysa (100 karakterden az), muhtemelen taranmış PDF
-  // Dosya boyutuna göre kontrol et - büyük dosya ama az metin = taranmış
-  const fileSizeKB = dataBuffer.length / 1024;
-  const textLength = data.text?.trim().length || 0;
-
-  if (textLength < 200 && fileSizeKB > 500) {
-    // Gemini Vision ile OCR dene
-    try {
-      const ocrText = await extractPDFWithVision(filePath, dataBuffer);
-      if (ocrText && ocrText.length > textLength) {
-        return ocrText;
-      }
-    } catch (_ocrError) {}
-  }
-
-  return data.text;
-}
-
-/**
- * Claude Vision ile PDF'den metin çıkar (OCR)
- */
-async function extractPDFWithVision(_filePath, pdfBuffer) {
-  const Anthropic = (await import('@anthropic-ai/sdk')).default;
-
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-  // PDF'i base64'e çevir
-  const base64Data = pdfBuffer.toString('base64');
-
-  const response = await anthropic.messages.create({
-    model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514',
-    max_tokens: 8192,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'document',
-            source: {
-              type: 'base64',
-              media_type: 'application/pdf',
-              data: base64Data,
-            },
-          },
-          {
-            type: 'text',
-            text: `Bu PDF dökümanındaki TÜM metni çıkar. 
-       Sadece döküman içeriğini döndür, yorum veya açıklama ekleme.
-       Tablo varsa düzgün formatla.
-       Türkçe karakterleri koru.`,
-          },
-        ],
-      },
-    ],
-  });
-
-  return response.content[0]?.text || '';
-}
-
-/**
- * Word döküman çıkarma
- */
-async function extractWord(filePath) {
-  const result = await mammoth.extractRawText({ path: filePath });
-  return result.value;
-}
-
-/**
- * Excel çıkarma
- */
-async function extractExcel(filePath) {
-  const workbook = xlsx.readFile(filePath);
-  let text = '';
-
-  workbook.SheetNames.forEach((sheetName) => {
-    const sheet = workbook.Sheets[sheetName];
-    const csv = xlsx.utils.sheet_to_csv(sheet);
-    text += `\n=== ${sheetName} ===\n${csv}\n`;
-  });
-
-  return text;
-}
+// NOT: extractPDF, extractWord, extractExcel fonksiyonları
+// unified-pipeline.js'e taşındı. Bu dosya sadece wrapper olarak kullanılıyor.

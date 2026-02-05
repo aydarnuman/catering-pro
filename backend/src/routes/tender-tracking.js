@@ -161,10 +161,7 @@ router.put('/:id', async (req, res) => {
     let mergedHesaplamaVerileri = null;
     if (hesaplama_verileri) {
       // Önce mevcut veriyi al
-      const currentResult = await query(
-        'SELECT hesaplama_verileri FROM tender_tracking WHERE id = $1',
-        [id]
-      );
+      const currentResult = await query('SELECT hesaplama_verileri FROM tender_tracking WHERE id = $1', [id]);
       const currentData = currentResult.rows[0]?.hesaplama_verileri || {};
       // Merge: mevcut veri + yeni veri (yeni veri öncelikli)
       mergedHesaplamaVerileri = { ...currentData, ...hesaplama_verileri };
@@ -413,12 +410,12 @@ router.get('/:id/suggestions', async (req, res) => {
           type: 'number',
         });
       }
-      
+
       // Öğün detaylarını da ekle
       suggestions.push({
         key: 'ogun_bilgileri',
         label: 'Öğün Detayları',
-        value: ogunBilgileri.map(o => `${o.tur}: ${o.miktar} ${o.birim || ''}`).join(', '),
+        value: ogunBilgileri.map((o) => `${o.tur}: ${o.miktar} ${o.birim || ''}`).join(', '),
         source: 'analiz',
         fieldName: 'ogun_bilgileri',
         type: 'text',
@@ -463,7 +460,6 @@ router.get('/:id/suggestions', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Suggestions error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -475,11 +471,11 @@ function parseMoneyValue(value) {
 
   const str = String(value)
     .replace(/[^\d.,]/g, '') // Sadece rakam, nokta ve virgül
-    .replace(/\./g, '')      // Binlik ayracı kaldır
-    .replace(',', '.');      // Ondalık ayracı düzelt
+    .replace(/\./g, '') // Binlik ayracı kaldır
+    .replace(',', '.'); // Ondalık ayracı düzelt
 
   const num = parseFloat(str);
-  return isNaN(num) ? null : num;
+  return Number.isNaN(num) ? null : num;
 }
 
 /**
@@ -564,102 +560,263 @@ router.post('/add-from-analysis', async (req, res) => {
     );
 
     // Analiz özetini oluştur - TÜM AI çıktı alanlarını içerir
+    // v9.0 UNIFIED PIPELINE uyumlu
     const analysisSummary = {
-      // Temel bilgiler
+      // Temel bilgiler (v9: summary.* alanlarından)
       ozet: null,
+      ihale_basligi: null, // v9: summary.title
+      kurum: null, // v9: summary.institution
       ihale_turu: null,
-      tahmini_bedel: null,
-      teslim_suresi: null,
-      ikn: null,
-      gunluk_ogun_sayisi: null,
-      kisi_sayisi: null,
+      tahmini_bedel: null, // v9: summary.estimated_value
+      teslim_suresi: null, // v9: summary.duration
+      ikn: null, // v9: summary.ikn
+      // Catering bilgileri (v9: catering.* alanlarından)
+      gunluk_ogun_sayisi: null, // v9: catering.daily_meals
+      kisi_sayisi: null, // v9: catering.total_persons
+      gramaj: [], // v9: catering.gramaj
+      // Personel bilgileri (v9: personnel.* alanlarından)
+      toplam_personel: null, // v9: personnel.total_count
       // Listeler
       teknik_sartlar: [],
       birim_fiyatlar: [],
-      takvim: [],
+      takvim: [], // v9: dates.all_dates da buraya eklenir
       onemli_notlar: [],
       eksik_bilgiler: [],
       notlar: [],
       // Yeni detaylı alanlar
-      personel_detaylari: [],
-      ogun_bilgileri: [],
+      personel_detaylari: [], // v9: personnel.staff
+      ogun_bilgileri: [], // v9: catering.meals / sample_menus
       is_yerleri: [],
-      ceza_kosullari: [],
-      gerekli_belgeler: [],
+      ceza_kosullari: [], // v9: penalties
+      gerekli_belgeler: [], // v9: required_documents
       mali_kriterler: {},
       fiyat_farki: {},
       teminat_oranlari: {},
       servis_saatleri: {},
-      iletisim: {},
+      iletisim: {}, // v9: contact
       sinir_deger_katsayisi: null,
       benzer_is_tanimi: null,
       // Tam metin (tüm dökümanlardan birleştirilmiş)
       tam_metin: '',
       // Meta
+      pipeline_version: '9.0',
       documents_count: analysisResult.rows.length,
       document_details: [],
     };
 
     for (const doc of analysisResult.rows) {
       if (doc.analysis_result) {
-        const analysis =
+        const rawAnalysis =
           typeof doc.analysis_result === 'string' ? JSON.parse(doc.analysis_result) : doc.analysis_result;
+
+        // ═══════════════════════════════════════════════════════════════
+        // v9.0 UNIFIED PIPELINE MAPPING
+        // Pipeline nested yapısını (summary, catering, personnel, dates)
+        // frontend'in beklediği flat yapıya dönüştür
+        // ═══════════════════════════════════════════════════════════════
+
+        // v9.0 formatında "analysis" içinde nested olabilir
+        const analysis = rawAnalysis.analysis || rawAnalysis;
 
         // Döküman detayını kaydet
         analysisSummary.document_details.push({
           id: doc.id,
           filename: doc.original_filename,
           doc_type: doc.doc_type,
+          pipeline_version: rawAnalysis.pipeline_version || 'unknown',
+          provider: rawAnalysis.provider || rawAnalysis.meta?.provider_used,
         });
 
+        // ═══════════════════════════════════════════════════════════════
+        // SUMMARY MAPPING (v9.0: analysis.summary → flat alanlar)
+        // ═══════════════════════════════════════════════════════════════
+
         // Özet (ilk bulunanı kullan, sonrakileri birleştir)
-        if (analysis.ozet) {
+        const ozet = analysis.ozet || analysis.summary?.description;
+        if (ozet) {
           if (!analysisSummary.ozet) {
-            analysisSummary.ozet = analysis.ozet;
-          } else if (!analysisSummary.ozet.includes(analysis.ozet)) {
-            analysisSummary.ozet += ' | ' + analysis.ozet;
+            analysisSummary.ozet = ozet;
+          } else if (!analysisSummary.ozet.includes(ozet)) {
+            analysisSummary.ozet += ' | ' + ozet;
           }
         }
 
+        // İhale başlığı (v9: summary.title)
+        const ihaleBasligi = analysis.ihale_basligi || analysis.summary?.title;
+        if (ihaleBasligi && !analysisSummary.ihale_basligi) {
+          analysisSummary.ihale_basligi = ihaleBasligi;
+        }
+
+        // Kurum (v9: summary.institution)
+        const kurum = analysis.kurum || analysis.summary?.institution;
+        if (kurum && !analysisSummary.kurum) {
+          analysisSummary.kurum = kurum;
+        }
+
         // İhale türü (ilk bulunan)
-        if (analysis.ihale_turu && !analysisSummary.ihale_turu) {
-          analysisSummary.ihale_turu = analysis.ihale_turu;
+        const ihaleTuru = analysis.ihale_turu || analysis.summary?.tender_type;
+        if (ihaleTuru && !analysisSummary.ihale_turu) {
+          analysisSummary.ihale_turu = ihaleTuru;
         }
 
-        // Tahmini bedel (ilk bulunan)
-        if (analysis.tahmini_bedel && analysis.tahmini_bedel !== 'Belirtilmemiş' && !analysisSummary.tahmini_bedel) {
-          analysisSummary.tahmini_bedel = analysis.tahmini_bedel;
+        // Tahmini bedel (v9: summary.estimated_value veya tahmini_bedel alanı)
+        const tahminiBedel = analysis.tahmini_bedel || analysis.summary?.estimated_value || analysis.summary?.budget;
+        if (tahminiBedel && tahminiBedel !== 'Belirtilmemiş' && !analysisSummary.tahmini_bedel) {
+          analysisSummary.tahmini_bedel = tahminiBedel;
         }
 
-        // Teslim süresi (ilk bulunan)
-        if (analysis.teslim_suresi && !analysisSummary.teslim_suresi) {
-          analysisSummary.teslim_suresi = analysis.teslim_suresi;
+        // Teslim süresi (v9: summary.duration veya dates.duration_days)
+        const teslimSuresi =
+          analysis.teslim_suresi ||
+          analysis.summary?.duration ||
+          (analysis.dates?.duration_days ? `${analysis.dates.duration_days} gün` : null);
+        if (teslimSuresi && !analysisSummary.teslim_suresi) {
+          analysisSummary.teslim_suresi = teslimSuresi;
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        // CATERING MAPPING (v9: analysis.catering → flat alanlar)
+        // ═══════════════════════════════════════════════════════════════
+
+        // Kişi sayısı (v9: catering.total_persons)
+        const kisiSayisi = analysis.kisi_sayisi || analysis.catering?.total_persons || analysis.catering?.person_count;
+        if (kisiSayisi && !analysisSummary.kisi_sayisi) {
+          analysisSummary.kisi_sayisi = kisiSayisi;
+        }
+
+        // Günlük öğün sayısı (v9: catering.daily_meals)
+        const gunlukOgun =
+          analysis.gunluk_ogun_sayisi || analysis.catering?.daily_meals || analysis.catering?.daily_meal_count;
+        if (gunlukOgun && !analysisSummary.gunluk_ogun_sayisi) {
+          analysisSummary.gunluk_ogun_sayisi = gunlukOgun;
+        }
+
+        // Öğün bilgileri (v9: catering.meals veya catering.sample_menus)
+        const ogunBilgileri = analysis.ogun_bilgileri || analysis.catering?.meals || analysis.catering?.sample_menus;
+        if (ogunBilgileri && Array.isArray(ogunBilgileri)) {
+          analysisSummary.ogun_bilgileri.push(...ogunBilgileri);
+        }
+
+        // Gramaj bilgileri (v9: catering.gramaj)
+        const gramaj = analysis.gramaj || analysis.catering?.gramaj;
+        if (gramaj && Array.isArray(gramaj)) {
+          if (!analysisSummary.gramaj) analysisSummary.gramaj = [];
+          analysisSummary.gramaj.push(...gramaj);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // PERSONNEL MAPPING (v9: analysis.personnel → flat alanlar)
+        // ═══════════════════════════════════════════════════════════════
+
+        // Personel detayları (v9: personnel.staff)
+        const personelDetaylari = analysis.personel_detaylari || analysis.personnel?.staff;
+        if (personelDetaylari && Array.isArray(personelDetaylari)) {
+          analysisSummary.personel_detaylari.push(...personelDetaylari);
+        }
+
+        // Toplam personel sayısı (v9: personnel.total_count)
+        const toplamPersonel = analysis.toplam_personel || analysis.personnel?.total_count;
+        if (toplamPersonel && !analysisSummary.toplam_personel) {
+          analysisSummary.toplam_personel = toplamPersonel;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // DATES MAPPING (v9: analysis.dates → takvim)
+        // ═══════════════════════════════════════════════════════════════
+
+        // Başlangıç tarihi
+        const startDate = analysis.dates?.start_date || analysis.baslangic_tarihi;
+        if (startDate && !analysisSummary.takvim.some((t) => t.olay?.includes('Başlangıç'))) {
+          analysisSummary.takvim.push({
+            olay: 'İşe Başlangıç Tarihi',
+            tarih: startDate,
+            source: doc.original_filename,
+          });
+        }
+
+        // Bitiş tarihi
+        const endDate = analysis.dates?.end_date || analysis.bitis_tarihi;
+        if (endDate && !analysisSummary.takvim.some((t) => t.olay?.includes('Bitiş'))) {
+          analysisSummary.takvim.push({ olay: 'Sözleşme Bitiş Tarihi', tarih: endDate, source: doc.original_filename });
+        }
+
+        // İhale tarihi
+        const tenderDate = analysis.dates?.tender_date || analysis.ihale_tarihi;
+        if (tenderDate && !analysisSummary.takvim.some((t) => t.olay?.includes('İhale'))) {
+          analysisSummary.takvim.push({ olay: 'İhale Tarihi', tarih: tenderDate, source: doc.original_filename });
+        }
+
+        // Eski format takvim
+        if (analysis.takvim && Array.isArray(analysis.takvim)) {
+          analysisSummary.takvim.push(...analysis.takvim);
+        }
+
+        // v9: dates.all_dates
+        if (analysis.dates?.all_dates && Array.isArray(analysis.dates.all_dates)) {
+          analysisSummary.takvim.push(
+            ...analysis.dates.all_dates.map((d) => ({
+              olay: d.event || d.olay,
+              tarih: d.date || d.tarih,
+              source: doc.original_filename,
+            }))
+          );
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TECHNICAL REQUIREMENTS & PENALTIES (v9: technical_requirements, penalties)
+        // ═══════════════════════════════════════════════════════════════
 
         // Teknik şartları topla
         if (analysis.teknik_sartlar) {
           analysisSummary.teknik_sartlar.push(...analysis.teknik_sartlar);
         }
-        if (analysis.technical_requirements) {
-          analysisSummary.teknik_sartlar.push(...analysis.technical_requirements);
+        if (analysis.technical_requirements && Array.isArray(analysis.technical_requirements)) {
+          analysisSummary.teknik_sartlar.push(
+            ...analysis.technical_requirements.map((t) =>
+              typeof t === 'string'
+                ? { text: t, source: doc.original_filename }
+                : { ...t, source: doc.original_filename }
+            )
+          );
         }
 
-        // Birim fiyatları topla
+        // Ceza koşulları (v9: penalties)
+        if (analysis.ceza_kosullari && Array.isArray(analysis.ceza_kosullari)) {
+          analysisSummary.ceza_kosullari.push(...analysis.ceza_kosullari);
+        }
+        if (analysis.penalties && Array.isArray(analysis.penalties)) {
+          analysisSummary.ceza_kosullari.push(
+            ...analysis.penalties.map((p) =>
+              typeof p === 'string'
+                ? { text: p, source: doc.original_filename }
+                : { ...p, source: doc.original_filename }
+            )
+          );
+        }
+
+        // Birim fiyatları topla (v9: financial.unit_prices)
         if (analysis.birim_fiyatlar) {
           analysisSummary.birim_fiyatlar.push(...analysis.birim_fiyatlar);
         }
         if (analysis.unit_prices) {
           analysisSummary.birim_fiyatlar.push(...analysis.unit_prices);
         }
-
-        // Takvim bilgilerini topla
-        if (analysis.takvim && Array.isArray(analysis.takvim)) {
-          analysisSummary.takvim.push(...analysis.takvim);
+        if (analysis.financial?.unit_prices && Array.isArray(analysis.financial.unit_prices)) {
+          analysisSummary.birim_fiyatlar.push(...analysis.financial.unit_prices);
         }
 
-        // Önemli notları topla
+        // Önemli notları topla (v9: important_notes)
         if (analysis.onemli_notlar && Array.isArray(analysis.onemli_notlar)) {
           analysisSummary.onemli_notlar.push(...analysis.onemli_notlar);
+        }
+        if (analysis.important_notes && Array.isArray(analysis.important_notes)) {
+          analysisSummary.onemli_notlar.push(
+            ...analysis.important_notes.map((n) =>
+              typeof n === 'string'
+                ? { text: n, source: doc.original_filename }
+                : { ...n, source: doc.original_filename }
+            )
+          );
         }
 
         // Eksik bilgileri topla
@@ -676,61 +833,50 @@ router.post('/add-from-analysis', async (req, res) => {
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // YENİ ALANLAR - Veri kaybı olmadan tüm bilgileri topla
+        // EK ALANLAR - v9.0 ve eski format uyumluluğu
         // ═══════════════════════════════════════════════════════════════
-        
-        // IKN (ilk bulunan)
-        if (analysis.ikn && !analysisSummary.ikn) {
-          analysisSummary.ikn = analysis.ikn;
+
+        // IKN (v9: summary.ikn)
+        const ikn = analysis.ikn || analysis.summary?.ikn;
+        if (ikn && !analysisSummary.ikn) {
+          analysisSummary.ikn = ikn;
         }
-        
-        // Günlük öğün sayısı (ilk bulunan)
-        if (analysis.gunluk_ogun_sayisi && !analysisSummary.gunluk_ogun_sayisi) {
-          analysisSummary.gunluk_ogun_sayisi = analysis.gunluk_ogun_sayisi;
-        }
-        
-        // Kişi sayısı (ilk bulunan)
-        if (analysis.kisi_sayisi && !analysisSummary.kisi_sayisi) {
-          analysisSummary.kisi_sayisi = analysis.kisi_sayisi;
-        }
-        
-        // Personel detayları topla
-        if (analysis.personel_detaylari && Array.isArray(analysis.personel_detaylari)) {
-          analysisSummary.personel_detaylari.push(...analysis.personel_detaylari);
-        }
-        
-        // Öğün bilgileri topla
-        if (analysis.ogun_bilgileri && Array.isArray(analysis.ogun_bilgileri)) {
-          analysisSummary.ogun_bilgileri.push(...analysis.ogun_bilgileri);
-        }
-        
+
         // İş yerleri topla
         if (analysis.is_yerleri && Array.isArray(analysis.is_yerleri)) {
           analysisSummary.is_yerleri.push(...analysis.is_yerleri);
         }
-        
-        // Ceza koşulları topla
-        if (analysis.ceza_kosullari && Array.isArray(analysis.ceza_kosullari)) {
-          analysisSummary.ceza_kosullari.push(...analysis.ceza_kosullari);
-        }
-        
-        // Gerekli belgeler topla
+
+        // Gerekli belgeler topla (v9: required_documents)
         if (analysis.gerekli_belgeler && Array.isArray(analysis.gerekli_belgeler)) {
           analysisSummary.gerekli_belgeler.push(...analysis.gerekli_belgeler);
         }
-        
-        // Mali kriterler (merge)
-        if (analysis.mali_kriterler && typeof analysis.mali_kriterler === 'object') {
-          analysisSummary.mali_kriterler = { ...analysisSummary.mali_kriterler, ...analysis.mali_kriterler };
+        if (analysis.required_documents && Array.isArray(analysis.required_documents)) {
+          analysisSummary.gerekli_belgeler.push(
+            ...analysis.required_documents.map((d) =>
+              typeof d === 'string'
+                ? { text: d, source: doc.original_filename }
+                : { ...d, source: doc.original_filename }
+            )
+          );
         }
-        
+
+        // Mali kriterler (merge - sadece dolu değerleri al)
+        if (analysis.mali_kriterler && typeof analysis.mali_kriterler === 'object') {
+          for (const [key, val] of Object.entries(analysis.mali_kriterler)) {
+            if (val && String(val).trim() !== '' && val !== 'Belirtilmemiş') {
+              analysisSummary.mali_kriterler[key] = val;
+            }
+          }
+        }
+
         // Fiyat farkı (merge)
         if (analysis.fiyat_farki && typeof analysis.fiyat_farki === 'object') {
           // Katsayıları birleştir
           if (analysis.fiyat_farki.katsayilar) {
             analysisSummary.fiyat_farki.katsayilar = {
               ...(analysisSummary.fiyat_farki.katsayilar || {}),
-              ...analysis.fiyat_farki.katsayilar
+              ...analysis.fiyat_farki.katsayilar,
             };
           }
           // Formül (ilk bulunan)
@@ -738,27 +884,41 @@ router.post('/add-from-analysis', async (req, res) => {
             analysisSummary.fiyat_farki.formul = analysis.fiyat_farki.formul;
           }
         }
-        
-        // Teminat oranları (merge)
+
+        // Teminat oranları (merge - sadece dolu değerleri al)
         if (analysis.teminat_oranlari && typeof analysis.teminat_oranlari === 'object') {
-          analysisSummary.teminat_oranlari = { ...analysisSummary.teminat_oranlari, ...analysis.teminat_oranlari };
+          for (const [key, val] of Object.entries(analysis.teminat_oranlari)) {
+            if (val && String(val).trim() !== '' && val !== 'Belirtilmemiş') {
+              analysisSummary.teminat_oranlari[key] = val;
+            }
+          }
         }
-        
-        // Servis saatleri (merge)
+
+        // Servis saatleri (merge - sadece dolu değerleri al)
         if (analysis.servis_saatleri && typeof analysis.servis_saatleri === 'object') {
-          analysisSummary.servis_saatleri = { ...analysisSummary.servis_saatleri, ...analysis.servis_saatleri };
+          for (const [key, val] of Object.entries(analysis.servis_saatleri)) {
+            if (val && String(val).trim() !== '' && val !== 'Belirtilmemiş') {
+              analysisSummary.servis_saatleri[key] = val;
+            }
+          }
         }
-        
-        // İletişim bilgileri (merge)
-        if (analysis.iletisim && typeof analysis.iletisim === 'object') {
-          analysisSummary.iletisim = { ...analysisSummary.iletisim, ...analysis.iletisim };
+
+        // İletişim bilgileri (v9: contact veya iletisim)
+        const iletisim = analysis.iletisim || analysis.contact;
+        if (iletisim && typeof iletisim === 'object') {
+          for (const [key, val] of Object.entries(iletisim)) {
+            // Sadece gerçekten değer varsa al (boş string, null, "Belirtilmemiş" hariç)
+            if (val && val?.trim?.() !== '' && val !== 'Belirtilmemiş') {
+              analysisSummary.iletisim[key] = val;
+            }
+          }
         }
-        
+
         // Sınır değer katsayısı (ilk bulunan)
         if (analysis.sinir_deger_katsayisi && !analysisSummary.sinir_deger_katsayisi) {
           analysisSummary.sinir_deger_katsayisi = analysis.sinir_deger_katsayisi;
         }
-        
+
         // Benzer iş tanımı (ilk bulunan)
         if (analysis.benzer_is_tanimi && !analysisSummary.benzer_is_tanimi) {
           analysisSummary.benzer_is_tanimi = analysis.benzer_is_tanimi;
@@ -767,7 +927,7 @@ router.post('/add-from-analysis', async (req, res) => {
         // Tam metni topla (her döküman için ayrı başlık ile)
         // ham_metin = extracted raw text, tam_metin = AI özeti
         const docText = analysis.ham_metin || analysis.tam_metin || analysis.full_text || analysis.extracted_text;
-        if (docText && docText.trim() && docText.trim().length > 50) {
+        if (docText?.trim() && docText.trim().length > 50) {
           const separator = analysisSummary.tam_metin ? '\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' : '';
           const header = `📄 ${doc.original_filename}\n[${doc.doc_type || 'Döküman'}]\n\n`;
           analysisSummary.tam_metin += separator + header + docText.trim();
@@ -778,22 +938,27 @@ router.post('/add-from-analysis', async (req, res) => {
     // ═══════════════════════════════════════════════════════════════
     // PROFESYONEL DEDUPE: Veri kaybı olmadan tekrarları temizle
     // ═══════════════════════════════════════════════════════════════
-    
+
     // Normalize fonksiyonu (karşılaştırma için)
     const normalizeForCompare = (text) => {
       return (text || '')
         .toLowerCase()
-        .replace(/İ/gi, 'i').replace(/I/g, 'i').replace(/ı/g, 'i')
-        .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's')
-        .replace(/ö/g, 'o').replace(/ç/g, 'c')
+        .replace(/İ/gi, 'i')
+        .replace(/I/g, 'i')
+        .replace(/ı/g, 'i')
+        .replace(/ğ/g, 'g')
+        .replace(/ü/g, 'u')
+        .replace(/ş/g, 's')
+        .replace(/ö/g, 'o')
+        .replace(/ç/g, 'c')
         .replace(/[^\w\s]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
     };
-    
+
     // 1. TAKVİM - Aynı olay adını normalize ederek kontrol et
     const takvimMap = new Map();
-    analysisSummary.takvim.forEach(item => {
+    analysisSummary.takvim.forEach((item) => {
       const key = normalizeForCompare(item.olay);
       const existing = takvimMap.get(key);
       if (!existing) {
@@ -806,14 +971,14 @@ router.post('/add-from-analysis', async (req, res) => {
       }
     });
     analysisSummary.takvim = Array.from(takvimMap.values());
-    
+
     // 2. TEKNİK ŞARTLAR - Normalize ederek karşılaştır
     const teknikMap = new Map();
-    analysisSummary.teknik_sartlar.forEach(item => {
+    analysisSummary.teknik_sartlar.forEach((item) => {
       const text = typeof item === 'string' ? item : item.madde || '';
       const key = normalizeForCompare(text);
       if (key.length < 10) return; // Çok kısa olanları atla
-      
+
       const existing = teknikMap.get(key);
       if (!existing) {
         teknikMap.set(key, item);
@@ -826,17 +991,17 @@ router.post('/add-from-analysis', async (req, res) => {
       }
     });
     analysisSummary.teknik_sartlar = Array.from(teknikMap.values());
-    
+
     // 3. BİRİM FİYATLAR - kalem+birim kombinasyonuna göre, farklı miktarları koru
     const birimMap = new Map();
-    analysisSummary.birim_fiyatlar.forEach(item => {
+    analysisSummary.birim_fiyatlar.forEach((item) => {
       const kalemNorm = normalizeForCompare(item.kalem);
       const birimNorm = normalizeForCompare(item.birim || '');
       const miktarStr = String(item.miktar || '').replace(/[^\d]/g, '');
-      
+
       // Anahtar: kalem + birim + miktar (farklı miktarlar farklı kalemler)
       const key = `${kalemNorm}|${birimNorm}|${miktarStr}`;
-      
+
       if (!birimMap.has(key)) {
         birimMap.set(key, item);
       } else {
@@ -850,14 +1015,14 @@ router.post('/add-from-analysis', async (req, res) => {
       }
     });
     analysisSummary.birim_fiyatlar = Array.from(birimMap.values());
-    
+
     // 4. ÖNEMLİ NOTLAR - Normalize ederek karşılaştır
     const notlarMap = new Map();
-    analysisSummary.onemli_notlar.forEach(item => {
+    analysisSummary.onemli_notlar.forEach((item) => {
       const text = typeof item === 'string' ? item : item.not || '';
       const key = normalizeForCompare(text);
       if (key.length < 10) return; // Çok kısa olanları atla
-      
+
       if (!notlarMap.has(key)) {
         notlarMap.set(key, item);
       } else {
@@ -870,16 +1035,16 @@ router.post('/add-from-analysis', async (req, res) => {
       }
     });
     analysisSummary.onemli_notlar = Array.from(notlarMap.values());
-    
+
     // 5. EKSİK BİLGİLER - Birebir aynı olanları temizle
     analysisSummary.eksik_bilgiler = [...new Set(analysisSummary.eksik_bilgiler)];
-    
+
     // 6. İŞ YERLERİ - Birebir aynı olanları temizle
     analysisSummary.is_yerleri = [...new Set(analysisSummary.is_yerleri)];
-    
+
     // 7. PERSONEL DETAYLARI - Pozisyona göre dedupe, en detaylıyı tut
     const personelMap = new Map();
-    analysisSummary.personel_detaylari.forEach(item => {
+    analysisSummary.personel_detaylari.forEach((item) => {
       const key = normalizeForCompare(item.pozisyon);
       const existing = personelMap.get(key);
       if (!existing) {
@@ -889,10 +1054,10 @@ router.post('/add-from-analysis', async (req, res) => {
       }
     });
     analysisSummary.personel_detaylari = Array.from(personelMap.values());
-    
+
     // 8. ÖĞÜN BİLGİLERİ - Öğün türüne göre dedupe
     const ogunMap = new Map();
-    analysisSummary.ogun_bilgileri.forEach(item => {
+    analysisSummary.ogun_bilgileri.forEach((item) => {
       const key = normalizeForCompare(item.tur);
       const existing = ogunMap.get(key);
       if (!existing) {
@@ -902,27 +1067,27 @@ router.post('/add-from-analysis', async (req, res) => {
       }
     });
     analysisSummary.ogun_bilgileri = Array.from(ogunMap.values());
-    
+
     // 9. CEZA KOŞULLARI - Türe göre dedupe
     const cezaMap = new Map();
-    analysisSummary.ceza_kosullari.forEach(item => {
+    analysisSummary.ceza_kosullari.forEach((item) => {
       const key = normalizeForCompare(item.tur);
       if (!cezaMap.has(key)) {
         cezaMap.set(key, item);
       }
     });
     analysisSummary.ceza_kosullari = Array.from(cezaMap.values());
-    
+
     // 10. GEREKLİ BELGELER - Belge adına göre dedupe
     const belgeMap = new Map();
-    analysisSummary.gerekli_belgeler.forEach(item => {
+    analysisSummary.gerekli_belgeler.forEach((item) => {
       const key = normalizeForCompare(typeof item === 'string' ? item : item.belge);
       if (!belgeMap.has(key)) {
         belgeMap.set(key, item);
       }
     });
     analysisSummary.gerekli_belgeler = Array.from(belgeMap.values());
-    
+
     // Türkçe karakterleri normalize et (İ→i, Ş→s, vb.)
     const normalizeText = (text) => {
       return (text || '')
@@ -939,14 +1104,14 @@ router.post('/add-from-analysis', async (req, res) => {
         .replace(/\s+/g, ' ')
         .trim();
     };
-    
+
     // Bulunan verilere göre "eksik" olmayan bilgileri çıkar
     // Bu şekilde veri kaybı olmaz, sadece gerçekten bulunanlar filtrelenir
     const bulunanBilgiler = [];
-    
+
     // Takvimde bulunan bilgileri kontrol et
     if (analysisSummary.takvim && analysisSummary.takvim.length > 0) {
-      analysisSummary.takvim.forEach(t => {
+      analysisSummary.takvim.forEach((t) => {
         const olay = normalizeText(t.olay);
         if (olay.includes('ihale') && t.tarih) {
           bulunanBilgiler.push('ihale tarihi', 'ihale tarih', 'basvuru son tarih');
@@ -956,60 +1121,66 @@ router.post('/add-from-analysis', async (req, res) => {
           }
         }
         if (olay.includes('teklif') && t.tarih) bulunanBilgiler.push('son teklif', 'teklif verme', 'teklif gecerlilik');
-        if ((olay.includes('basla') || olay.includes('baslangic')) && t.tarih) bulunanBilgiler.push('baslangic tarih', 'baslama tarih', 'isin baslama', 'ise baslama');
+        if ((olay.includes('basla') || olay.includes('baslangic')) && t.tarih)
+          bulunanBilgiler.push('baslangic tarih', 'baslama tarih', 'isin baslama', 'ise baslama');
         if (olay.includes('sozlesme') && t.tarih) bulunanBilgiler.push('sozlesme sur', 'sozlesme imza');
         if (olay.includes('teminat') && t.tarih) bulunanBilgiler.push('teminat', 'kesin teminat');
         if (olay.includes('teslim') && t.tarih) bulunanBilgiler.push('teslim', 'isyeri teslim');
       });
     }
-    
+
     // Birim fiyatlarda bulunan bilgileri kontrol et
     if (analysisSummary.birim_fiyatlar && analysisSummary.birim_fiyatlar.length > 0) {
       bulunanBilgiler.push('birim fiyat', 'detayli birim fiyat', 'ogun birim fiyat', 'toplam tutar');
     }
-    
+
     // Teknik şartlarda bulunan bilgileri kontrol et
     if (analysisSummary.teknik_sartlar && analysisSummary.teknik_sartlar.length > 0) {
       bulunanBilgiler.push('teknik sartname');
       // Personel, teminat gibi bilgiler teknik şartlarda olabilir
-      analysisSummary.teknik_sartlar.forEach(ts => {
+      analysisSummary.teknik_sartlar.forEach((ts) => {
         const madde = normalizeText(typeof ts === 'string' ? ts : ts.madde);
         if (madde.includes('personel')) bulunanBilgiler.push('personel', 'personel nitelik');
-        if (madde.includes('teminat')) bulunanBilgiler.push('teminat', 'kesin teminat', 'teminat miktar', 'teminat tutar');
+        if (madde.includes('teminat'))
+          bulunanBilgiler.push('teminat', 'kesin teminat', 'teminat miktar', 'teminat tutar');
         if (madde.includes('odeme')) bulunanBilgiler.push('odeme sart', 'odeme kosul');
         if (madde.includes('ceza')) bulunanBilgiler.push('ceza madde', 'ceza');
         if (madde.includes('teslim')) bulunanBilgiler.push('teslim yer', 'teslim');
         if (madde.includes('fiyat fark')) bulunanBilgiler.push('fiyat fark');
-        if (madde.includes('yemek') && madde.includes('sayı')) bulunanBilgiler.push('yemek say', 'gunluk yemek', 'kapasite');
+        if (madde.includes('yemek') && madde.includes('sayı'))
+          bulunanBilgiler.push('yemek say', 'gunluk yemek', 'kapasite');
         if (madde.includes('adres') || madde.includes('isyeri')) bulunanBilgiler.push('isyeri adres', 'calisma kosul');
       });
     }
-    
-    // Önemli notlarda bulunan bilgileri kontrol et  
+
+    // Önemli notlarda bulunan bilgileri kontrol et
     if (analysisSummary.onemli_notlar && analysisSummary.onemli_notlar.length > 0) {
-      analysisSummary.onemli_notlar.forEach(n => {
+      analysisSummary.onemli_notlar.forEach((n) => {
         const not = normalizeText(typeof n === 'string' ? n : n.not);
-        if (not.includes('bedel') || not.includes('butce')) bulunanBilgiler.push('tahmini bedel', 'tahmini ihale bedel');
+        if (not.includes('bedel') || not.includes('butce'))
+          bulunanBilgiler.push('tahmini bedel', 'tahmini ihale bedel');
         if (not.includes('komisyon')) bulunanBilgiler.push('komisyon', 'ihale komisyon');
         if (not.includes('dosya bedel')) bulunanBilgiler.push('dosya bedel', 'ihale dosya');
-        if (not.includes('idare') || not.includes('kurum')) bulunanBilgiler.push('idare', 'kurum', 'iletisim', 'ihaleyi yapan');
+        if (not.includes('idare') || not.includes('kurum'))
+          bulunanBilgiler.push('idare', 'kurum', 'iletisim', 'ihaleyi yapan');
         if (not.includes('usul')) bulunanBilgiler.push('ihale usul', 'acik', 'kapali');
-        if (not.includes('teminat')) bulunanBilgiler.push('teminat', 'kesin teminat', 'teminat miktar', 'teminat tutar');
+        if (not.includes('teminat'))
+          bulunanBilgiler.push('teminat', 'kesin teminat', 'teminat miktar', 'teminat tutar');
         if (not.includes('ceza')) bulunanBilgiler.push('ceza');
         if (not.includes('teslim')) bulunanBilgiler.push('teslim');
       });
     }
-    
+
     // Tüm analiz metnini birleştir (daha kapsamlı arama için)
     const tumMetin = [
-      ...(analysisSummary.takvim || []).map(t => (t.olay || '') + ' ' + (t.tarih || '')),
-      ...(analysisSummary.teknik_sartlar || []).map(t => typeof t === 'string' ? t : t.madde || ''),
-      ...(analysisSummary.onemli_notlar || []).map(n => typeof n === 'string' ? n : n.not || ''),
-      ...(analysisSummary.birim_fiyatlar || []).map(b => (b.kalem || '') + ' ' + (b.miktar || '')),
-      analysisSummary.ozet || ''
+      ...(analysisSummary.takvim || []).map((t) => (t.olay || '') + ' ' + (t.tarih || '')),
+      ...(analysisSummary.teknik_sartlar || []).map((t) => (typeof t === 'string' ? t : t.madde || '')),
+      ...(analysisSummary.onemli_notlar || []).map((n) => (typeof n === 'string' ? n : n.not || '')),
+      ...(analysisSummary.birim_fiyatlar || []).map((b) => (b.kalem || '') + ' ' + (b.miktar || '')),
+      analysisSummary.ozet || '',
     ].join(' ');
     const tumMetinNorm = normalizeText(tumMetin);
-    
+
     // Eksik bilgi -> aranacak anahtar kelimeler eşleştirmesi
     const eksikKeywords = {
       'ihale tarihi': ['ihale tarih', '2026', '2025', '2024'],
@@ -1019,31 +1190,31 @@ router.post('/add-from-analysis', async (req, res) => {
       'ihaleyi yapan kurum': ['hastane', 'belediye', 'universite', 'mudurlugu', 'baskanligi', 'idare'],
       'ihaleyi duzenleyen': ['hastane', 'belediye', 'universite', 'mudurlugu', 'idare'],
       'gunluk yemek': ['gunluk', 'ogun', 'kisi', 'adet', 'porsiyon'],
-      'kapasite': ['gunluk', 'kisi', 'adet', 'kapasite'],
+      kapasite: ['gunluk', 'kisi', 'adet', 'kapasite'],
       'fiyat farki': ['fiyat fark', 'formul', 'katsayi'],
       'formul detay': ['fiyat fark', 'formul'],
-      'katsayi deger': ['fiyat fark', 'katsayi', 'a1', 'b1']
+      'katsayi deger': ['fiyat fark', 'katsayi', 'a1', 'b1'],
     };
-    
+
     // Bulunan bilgileri eksik listesinden çıkar
-    analysisSummary.eksik_bilgiler = analysisSummary.eksik_bilgiler.filter(eksik => {
+    analysisSummary.eksik_bilgiler = analysisSummary.eksik_bilgiler.filter((eksik) => {
       const eksikNorm = normalizeText(eksik);
-      
+
       // 1. Önce bulunanBilgiler listesinde ara
-      if (bulunanBilgiler.some(bulunan => eksikNorm.includes(bulunan))) {
+      if (bulunanBilgiler.some((bulunan) => eksikNorm.includes(bulunan))) {
         return false; // Bulundu, eksik değil
       }
-      
+
       // 2. Eksik için tanımlı anahtar kelimelerle tüm metinde ara
       for (const [key, keywords] of Object.entries(eksikKeywords)) {
         if (eksikNorm.includes(key)) {
           // Bu eksik için tanımlı anahtar kelimelerden biri metinde var mı?
-          if (keywords.some(kw => tumMetinNorm.includes(kw))) {
+          if (keywords.some((kw) => tumMetinNorm.includes(kw))) {
             return false; // Bulundu, eksik değil
           }
         }
       }
-      
+
       return true; // Gerçekten eksik
     });
 
@@ -1072,7 +1243,13 @@ router.post('/add-from-analysis', async (req, res) => {
         WHERE id = $1
         RETURNING *
       `,
-        [existingCheck.rows[0].id, JSON.stringify(analysisSummary), analysisResult.rows.length, teknikSartSayisi, birimFiyatSayisi]
+        [
+          existingCheck.rows[0].id,
+          JSON.stringify(analysisSummary),
+          analysisResult.rows.length,
+          teknikSartSayisi,
+          birimFiyatSayisi,
+        ]
       );
     } else {
       // Yeni kayıt oluştur
@@ -1085,7 +1262,14 @@ router.post('/add-from-analysis', async (req, res) => {
         VALUES ($1, $2, 'bekliyor', $3, $4, $5, $6, NOW())
         RETURNING *
       `,
-        [tender_id, user_id || null, JSON.stringify(analysisSummary), analysisResult.rows.length, teknikSartSayisi, birimFiyatSayisi]
+        [
+          tender_id,
+          user_id || null,
+          JSON.stringify(analysisSummary),
+          analysisResult.rows.length,
+          teknikSartSayisi,
+          birimFiyatSayisi,
+        ]
       );
     }
 

@@ -10,7 +10,9 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\"",
+    "prebuild": "./scripts/pre-build-check.sh",
     "build": "npm run build --workspace=frontend",
+    "build:check": "npm run prebuild && npm run build --workspace=frontend",
     "start": "concurrently \"npm run start --workspace=backend\" \"npm run start --workspace=frontend\"",
     "check": "node scripts/audit/menu.js",
     "start:all": "node scripts/start-all.js",

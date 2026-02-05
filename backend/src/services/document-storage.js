@@ -29,16 +29,16 @@ const SUPPORTED_EXTENSIONS = [
   '.docx',
   '.xls',
   '.xlsx',
-  '.ppt',      // PowerPoint
-  '.pptx',     // PowerPoint (yeni)
-  '.rtf',      // Rich Text
-  '.odt',      // OpenDocument Text
-  '.ods',      // OpenDocument Spreadsheet
-  '.odp',      // OpenDocument Presentation
+  '.ppt', // PowerPoint
+  '.pptx', // PowerPoint (yeni)
+  '.rtf', // Rich Text
+  '.odt', // OpenDocument Text
+  '.ods', // OpenDocument Spreadsheet
+  '.odp', // OpenDocument Presentation
   // Arşivler
   '.zip',
   '.rar',
-  '.7z',       // 7-Zip
+  '.7z', // 7-Zip
   // Görseller
   '.jpg',
   '.jpeg',
@@ -54,8 +54,8 @@ const SUPPORTED_EXTENSIONS = [
   '.xml',
   '.json',
   // Teknik dosyalar (sadece sakla, analiz etme)
-  '.dwg',      // AutoCAD - teknik şartnamelerde yaygın
-  '.dxf',      // AutoCAD exchange format
+  '.dwg', // AutoCAD - teknik şartnamelerde yaygın
+  '.dxf', // AutoCAD exchange format
 ];
 
 // Content-Type mapping - GENİŞLETİLMİŞ
@@ -156,12 +156,12 @@ class DocumentStorageService {
     }
 
     // ÖNCELİK SIRASI ÖNEMLİ!
-    
+
     // 1. İlan (en önce - 'ihale ilani', 'sonuc ilani' gibi isimler "hizmet" içerebilir)
     if (nameLower.includes('ilan') || nameLower.includes('announcement')) {
       return 'announcement';
     }
-    
+
     // 2. Sözleşme/Tasarı
     if (nameLower.includes('sozlesme') || nameLower.includes('tasari') || nameLower.includes('contract')) {
       return 'contract';
@@ -178,12 +178,22 @@ class DocumentStorageService {
     }
 
     // 5. Birim fiyat cetveli
-    if (nameLower.includes('birim') || nameLower.includes('fiyat') || nameLower.includes('cetvel') || nameLower.includes('price')) {
+    if (
+      nameLower.includes('birim') ||
+      nameLower.includes('fiyat') ||
+      nameLower.includes('cetvel') ||
+      nameLower.includes('price')
+    ) {
       return 'unit_price';
     }
 
     // 6. Mal/Hizmet listesi (en sonda - çok genel kelimeler)
-    if (nameLower.includes('mal ') || nameLower.includes('hizmet ') || nameLower.includes('malzeme') || nameLower.includes('liste')) {
+    if (
+      nameLower.includes('mal ') ||
+      nameLower.includes('hizmet ') ||
+      nameLower.includes('malzeme') ||
+      nameLower.includes('liste')
+    ) {
       return 'item_list';
     }
 
@@ -256,7 +266,7 @@ class DocumentStorageService {
           const url = typeof docData === 'string' ? docData : docData?.url;
           const name = typeof docData === 'object' ? docData?.name : null;
           const fileName = typeof docData === 'object' ? docData?.fileName : null;
-          
+
           // fileName'den uzantı çıkar (ekap://2026/26DT183631.cetvel.docx -> .docx)
           let fileExtFromName = null;
           if (fileName) {
@@ -348,16 +358,16 @@ class DocumentStorageService {
       //    c) URL'den uzantı
       //    d) Varsayılan .pdf
       let extension = this.detectFileType(fileBuffer);
-      
+
       // Magic bytes null döndü ama hintExtension varsa onu kullan
       if (!extension && hintExtension) {
         logger.info(`Magic bytes tanınamadı, fileName uzantısı kullanılıyor: ${hintExtension}`);
         extension = hintExtension;
       }
-      
+
       // Hala null ise URL'den veya varsayılan
       extension = extension || this.getExtensionFromUrl(url) || '.pdf';
-      
+
       const isZip = extension === '.zip' || extension === '.rar';
 
       logger.debug(`Dosya tipi tespit edildi: ${extension} (URL: ${url.substring(0, 50)}...)`);
@@ -369,10 +379,7 @@ class DocumentStorageService {
       let uploadResults = [];
 
       if (isZip) {
-        // ZIP dosyasını aç ve içindekileri yükle
-        console.log(`[DocumentStorage] ZIP tespit edildi, açılıyor: ${url}`);
         uploadResults = await this.extractAndUpload(tenderId, docType, tempFilePath, url);
-        console.log(`[DocumentStorage] ZIP açıldı, ${uploadResults.length} dosya:`, uploadResults.map(r => r.fileName));
       } else {
         // Tek dosyayı yükle
         const result = await this.uploadSingleFile(
@@ -842,20 +849,20 @@ class DocumentStorageService {
       // ZIP içeriğine bakarak DOCX/XLSX/PPTX mi gerçek ZIP mi anla
       try {
         const zip = new AdmZip(buffer);
-        const entries = zip.getEntries().map(e => e.entryName);
-        
+        const entries = zip.getEntries().map((e) => e.entryName);
+
         // Office Open XML dosyaları [Content_Types].xml içerir
         if (entries.includes('[Content_Types].xml')) {
           // Word, Excel, PowerPoint ayrımı
-          if (entries.some(e => e.startsWith('word/'))) {
+          if (entries.some((e) => e.startsWith('word/'))) {
             logger.debug('DOCX tespit edildi (Office Open XML - Word)');
             return '.docx';
           }
-          if (entries.some(e => e.startsWith('xl/'))) {
+          if (entries.some((e) => e.startsWith('xl/'))) {
             logger.debug('XLSX tespit edildi (Office Open XML - Excel)');
             return '.xlsx';
           }
-          if (entries.some(e => e.startsWith('ppt/'))) {
+          if (entries.some((e) => e.startsWith('ppt/'))) {
             logger.debug('PPTX tespit edildi (Office Open XML - PowerPoint)');
             return '.pptx';
           }
@@ -863,7 +870,7 @@ class DocumentStorageService {
           logger.debug('Office Open XML tespit edildi, docx olarak işleniyor');
           return '.docx';
         }
-        
+
         // Gerçek ZIP dosyası
         logger.debug('ZIP formatı tespit edildi (gerçek arşiv)');
         return '.zip';
@@ -908,8 +915,10 @@ class DocumentStorageService {
     }
 
     // TIFF kontrolü
-    if ((buffer[0] === 0x49 && buffer[1] === 0x49 && buffer[2] === 0x2a && buffer[3] === 0x00) ||
-        (buffer[0] === 0x4d && buffer[1] === 0x4d && buffer[2] === 0x00 && buffer[3] === 0x2a)) {
+    if (
+      (buffer[0] === 0x49 && buffer[1] === 0x49 && buffer[2] === 0x2a && buffer[3] === 0x00) ||
+      (buffer[0] === 0x4d && buffer[1] === 0x4d && buffer[2] === 0x00 && buffer[3] === 0x2a)
+    ) {
       return '.tiff';
     }
 
