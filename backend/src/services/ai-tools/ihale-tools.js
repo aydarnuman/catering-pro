@@ -634,10 +634,10 @@ const ihaleTools = {
             continue;
           }
 
-          // 3. Dökümanları indir
-          logger.info(`[AI Tool] Batch indirme: İhale #${id}`, { module: 'ihale-tools', tender_id: id });
+          // 3. Merkez Scraper ile tüm içerikleri işle
+          logger.info(`[AI Tool] Merkez Scraper: İhale #${id}`, { module: 'ihale-tools', tender_id: id });
 
-          const downloadResult = await documentStorageService.downloadTenderDocuments(id);
+          const downloadResult = await documentStorageService.merkezScraper(id);
 
           results.push({
             ihale_id: id,

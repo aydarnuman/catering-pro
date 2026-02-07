@@ -553,8 +553,8 @@ router.post('/cleanup', async (req, res) => {
       const jobsResult = await query(`
         DELETE FROM scraper_jobs
         WHERE status IN ('completed', 'cancelled')
-        AND completed_at < NOW() - INTERVAL '${days} days'
-      `);
+        AND completed_at < NOW() - INTERVAL '1 day' * $1
+      `, [Number(days) || 7]);
       deletedJobs = jobsResult.rowCount;
     } catch (_e) {
       // Tablo yoksa geç

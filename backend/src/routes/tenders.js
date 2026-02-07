@@ -5,10 +5,37 @@ import logger from '../utils/logger.js';
 
 const router = express.Router();
 
+// ============================================================================
+// YENİ KOLON KONTROLÜ (Migration uygulanmamış olabilir)
+// ============================================================================
+let _optionalColumnsChecked = false;
+let _hasYukleniciColumns = false;
+
+/**
+ * Yüklenici/sözleşme kolonlarının DB'de var olup olmadığını kontrol et.
+ * Bir kez çalışır, sonucu cache'ler. Migration uygulanmamışsa
+ * ihale listesi yine de sorunsuz çalışır.
+ */
+async function checkOptionalColumns() {
+  if (_optionalColumnsChecked) return _hasYukleniciColumns;
+  try {
+    await query(`SELECT yuklenici_adi, sozlesme_bedeli, indirim_orani, sozlesme_tarihi, is_bitis_tarihi FROM tenders LIMIT 0`);
+    _hasYukleniciColumns = true;
+  } catch {
+    _hasYukleniciColumns = false;
+    logger.info('Yüklenici kolonları henüz mevcut değil (migration uygulanmamış olabilir). Fallback modda çalışılıyor.');
+  }
+  _optionalColumnsChecked = true;
+  return _hasYukleniciColumns;
+}
+
 // İhale listesi (pagination + filtreleme)
 router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 20, city, status = 'active', search } = req.query;
+
+    // Yüklenici kolonları var mı kontrol et
+    const hasYukleniciCols = await checkOptionalColumns();
 
     // Süresi dolan ihalelerin status'unu güncelle
     // Tüm süresi dolan ihaleleri expired yap (1 hafta içinde veya daha eski)
@@ -51,6 +78,13 @@ router.get('/', async (req, res) => {
     } else if (status === 'archived') {
       // Arşiv: 1 haftadan fazla geçmiş ihaleler
       whereClause.push(`(tender_date IS NOT NULL AND tender_date < NOW() - INTERVAL '7 days')`);
+    } else if (status === 'completed') {
+      // Sonuçlanan ihaleler (yüklenici bilgisi olan)
+      if (hasYukleniciCols) {
+        whereClause.push(`(status = 'completed' OR yuklenici_adi IS NOT NULL)`);
+      } else {
+        whereClause.push(`status = 'completed'`);
+      }
     } else if (status === 'all') {
       // Tüm ihaleler - filtre yok
     } else {
@@ -88,6 +122,17 @@ router.get('/', async (req, res) => {
       logger.debug('Expired filter total', { total });
     }
 
+    // Yüklenici kolonları (migration uygulanmışsa eklenir)
+    const yukleniciSelectCols = hasYukleniciCols
+      ? `,
+        yuklenici_adi,
+        sozlesme_bedeli,
+        indirim_orani,
+        sozlesme_tarihi,
+        work_start_date,
+        is_bitis_tarihi`
+      : '';
+
     // Veri - Frontend mapping için field'ları düzenleyelim
     const result = await query(
       `SELECT 
@@ -107,6 +152,12 @@ router.get('/', async (req, res) => {
         document_links,
         announcement_content IS NOT NULL as has_announcement,
         goods_services_content IS NOT NULL as has_goods_services,
+        CASE 
+          WHEN goods_services_content IS NOT NULL 
+            AND goods_services_content::text LIKE '[%' 
+          THEN jsonb_array_length(goods_services_content::jsonb) 
+          ELSE NULL 
+        END as goods_services_count,
         (zeyilname_content IS NOT NULL OR document_links::text ILIKE '%zeyilname%') as has_zeyilname,
         correction_notice_content IS NOT NULL as has_correction_notice,
         (is_updated = true OR document_links::text ILIKE '%zeyilname%' OR zeyilname_content IS NOT NULL OR correction_notice_content IS NOT NULL) as is_updated,
@@ -117,7 +168,7 @@ router.get('/', async (req, res) => {
         bid_type,
         category_id,
         category_name,
-        raw_data
+        raw_data${yukleniciSelectCols}
        FROM tenders 
        WHERE ${whereString}
        ORDER BY 
@@ -325,11 +376,11 @@ router.post('/scrape', async (req, res) => {
 
     logger.info('Manuel ihale scrape isteği', { maxPages });
 
-    const result = await tenderScheduler.triggerManualScrape({ maxPages });
+    const result = await tenderScheduler.runListScrape({ pages: maxPages, type: 'manual_trigger' });
 
     res.json({
       success: result.success,
-      message: result.success ? 'Scrape tamamlandı' : 'Scrape başarısız',
+      message: result.success ? 'Scrape tamamlandı' : (result.reason === 'already_running' ? 'Scrape zaten çalışıyor' : 'Scrape başarısız'),
       stats: result.stats,
       error: result.error,
     });

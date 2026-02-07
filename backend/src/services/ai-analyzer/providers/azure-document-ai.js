@@ -35,6 +35,7 @@ function getAzureConfig() {
       layout: 'prebuilt-layout', // Tablo + text extraction
       document: 'prebuilt-document', // Key-value pairs
       invoice: 'prebuilt-invoice', // Fatura analizi
+      contract: 'prebuilt-contract', // Sözleşme analizi - ihale için!
     },
   };
 }

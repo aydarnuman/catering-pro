@@ -6,7 +6,7 @@
  * servislerini birleştirir.
  *
  * Kullanım:
- *   import { downloadTenderDocuments, createContentDocuments } from './services/tender-document';
+ *   import { merkezScraper, createContentDocuments } from './services/tender-document';
  */
 
 // Document Queue Processor
@@ -16,8 +16,11 @@ import documentStorageService from '../document-storage.js';
 // Tender Content Service
 import tenderContentService from '../tender-content-service.js';
 
-// Re-export storage functions
-export const downloadTenderDocuments = (tenderId) => documentStorageService.downloadTenderDocuments(tenderId);
+// Re-export storage functions - MERKEZ SCRAPER (eski downloadTenderDocuments yerine)
+export const merkezScraper = (tenderId) => documentStorageService.merkezScraper(tenderId);
+
+// Geriye uyumluluk alias
+export const downloadTenderDocuments = merkezScraper;
 
 export const downloadAndStore = (tenderId, docType, url, displayName) =>
   documentStorageService.downloadAndStore(tenderId, docType, url, displayName);
@@ -48,8 +51,9 @@ export const processQueue = () => documentQueueProcessor.processQueue();
 
 // Default export - all services combined
 export default {
-  // Storage
-  downloadTenderDocuments,
+  // Merkez Scraper
+  merkezScraper,
+  downloadTenderDocuments, // geriye uyumluluk alias
   downloadAndStore,
   getDownloadedDocuments,
   getSignedUrl,

@@ -10,10 +10,12 @@ import documentStorageService from '../services/document-storage.js';
 const router = express.Router();
 
 /**
- * İhale dökümanlarını Storage'a indir
- * POST /api/tenders/:tenderId/download-documents
+ * MERKEZ SCRAPER: İhale için tüm içerikleri işle (dosya indirme + içerik scrape)
+ * POST /api/tender-docs/:tenderId/merkez-scraper
+ * 
+ * Aynı zamanda eski /download-documents endpoint'i de buraya yönlendirilir (geriye uyumluluk)
  */
-router.post('/:tenderId/download-documents', async (req, res) => {
+async function merkezScraperHandler(req, res) {
   try {
     const { tenderId } = req.params;
 
@@ -27,8 +29,7 @@ router.post('/:tenderId/download-documents', async (req, res) => {
       });
     }
 
-    // ✅ İndirmeden önce failed dökümanları otomatik temizle
-    // Bu sayede yeniden indirme tetiklenecek
+    // İndirmeden önce failed dökümanları otomatik temizle
     const cleanupResult = await pool.query(
       `DELETE FROM documents 
        WHERE tender_id = $1 
@@ -38,17 +39,14 @@ router.post('/:tenderId/download-documents', async (req, res) => {
       [tenderId]
     );
 
-    if (cleanupResult.rowCount > 0) {
-    }
-
-    // Dökümanları indir
-    const result = await documentStorageService.downloadTenderDocuments(parseInt(tenderId, 10));
+    // Merkez Scraper: hem dosya indirme hem içerik scrape
+    const result = await documentStorageService.merkezScraper(parseInt(tenderId, 10));
 
     res.json({
       success: true,
       data: {
         ...result,
-        cleanedUpFailed: cleanupResult.rowCount || 0, // Temizlenen sayısını da döndür
+        cleanedUpFailed: cleanupResult.rowCount || 0,
       },
     });
   } catch (error) {
@@ -57,7 +55,13 @@ router.post('/:tenderId/download-documents', async (req, res) => {
       error: error.message,
     });
   }
-});
+}
+
+// Ana endpoint
+router.post('/:tenderId/merkez-scraper', merkezScraperHandler);
+
+// Geriye uyumluluk - eski endpoint'ler aynı handler'a yönlendirilir
+router.post('/:tenderId/download-documents', merkezScraperHandler);
 
 /**
  * İhale için indirilen dökümanları listele

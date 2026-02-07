@@ -15,6 +15,9 @@ import { pool } from '../database.js';
 import { supabase } from '../supabase.js';
 import logger from '../utils/logger.js';
 import documentDownloadService from './document-download.js';
+import browserManager from '../scraper/browser-manager.js';
+import documentScraper from '../scraper/document-scraper.js';
+import sessionManager from '../scraper/session-manager.js';
 
 const execAsync = promisify(exec);
 
@@ -94,6 +97,28 @@ const CONTENT_TYPES = {
   '.dwg': 'application/acad',
   '.dxf': 'application/dxf',
 };
+
+// ===== BİRLEŞİK DÖKÜMAN İŞLEME SİSTEMİ =====
+// ihalebul.com buton tipleri ve her birinin işleme yöntemi
+// Liste sayfasındaki butonlar: /tender/{id}/{typeCode}
+const BUTTON_TYPE_CONFIG = {
+  announcement:      { code: 2, method: 'content_scrape', targetColumn: 'announcement_content',      format: 'text',       label: 'İhale İlanı' },
+  correction_notice: { code: 3, method: 'content_scrape', targetColumn: 'correction_notice_content', format: 'text',       label: 'Düzeltme İlanı' },
+  goods_list:        { code: 6, method: 'content_scrape', targetColumn: 'goods_services_content',    format: 'json_table', label: 'Malzeme Listesi' },
+  admin_spec:        { code: 7, method: 'download',       targetColumn: null,                        format: 'file',       label: 'İdari Şartname' },
+  tech_spec:         { code: 8, method: 'download',       targetColumn: null,                        format: 'file',       label: 'Teknik Şartname' },
+  zeyilname:         { code: 9, method: 'content_and_download', targetColumn: 'zeyilname_content',  format: 'text',       label: 'Zeyilname' },
+};
+
+// İçerik sayfası URL'si mi kontrol et (/tender/{id}/{typeCode} pattern)
+function isContentPageUrl(url) {
+  return /\/tender\/\d+\/\d+$/.test(url);
+}
+
+// Gerçek download URL'si mi kontrol et
+function isDownloadUrl(url) {
+  return url.includes('/download') || /\.(pdf|doc|docx|xls|xlsx|zip|rar)(\?|$)/i.test(url);
+}
 
 // Doc type display names
 const DOC_TYPE_NAMES = {
@@ -216,27 +241,406 @@ class DocumentStorageService {
     return defaultDocType || 'other';
   }
 
+  // ===== BİRLEŞİK İŞLEME SİSTEMİ =====
+
   /**
-   * Tek bir ihale için tüm dökümanları indir ve depola
-   * @param {number} tenderId - İhale ID
-   * @returns {Object} - İndirme sonuçları
+   * Buton URL'sine session cookie'li GET yaparak HTML içeriği döndürür
+   * @param {string} url - Buton URL'si (/tender/{id}/{typeCode})
+   * @returns {string|null} - HTML string veya null
    */
-  async downloadTenderDocuments(tenderId) {
-    logger.info(`İhale ${tenderId} dökümanları indiriliyor`);
+  async fetchPageHtml(url) {
+    try {
+      const response = await documentDownloadService.downloadDocument(url);
+      const html = response.toString('utf8');
+      // Gerçekten HTML mi kontrol et
+      if (html.includes('<html') || html.includes('<!DOCTYPE') || html.includes('<body')) {
+        return html;
+      }
+      return null;
+    } catch (error) {
+      logger.error('Sayfa HTML çekme hatası', { url, error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * HTML içerikten metin çıkarır (announcement, zeyilname, correction_notice için)
+   * Card-body veya tablo içeriğini text olarak döndürür
+   * @param {string} html - Sayfa HTML'i
+   * @returns {string|null}
+   */
+  scrapeTextFromHtml(html) {
+    try {
+      // Card body içeriğini çek
+      // Pattern: <div class="card-body">...içerik...</div>
+      const cardBodyMatch = html.match(/<div[^>]*class="[^"]*card-body[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/i);
+      if (cardBodyMatch) {
+        return this.stripHtmlTags(cardBodyMatch[1]).trim();
+      }
+
+      // Tablo içeriğini text olarak çek
+      const tableMatch = html.match(/<table[\s\S]*?<\/table>/i);
+      if (tableMatch) {
+        return this.stripHtmlTags(tableMatch[0]).trim();
+      }
+
+      // Body içeriğini al
+      const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+      if (bodyMatch) {
+        const bodyText = this.stripHtmlTags(bodyMatch[1]).trim();
+        // Çok kısa ise (navigasyon menüsü vb.) geçersiz say
+        if (bodyText.length > 100) return bodyText;
+      }
+
+      return null;
+    } catch (error) {
+      logger.error('HTML text çıkarma hatası', { error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * HTML içerikten tablo verisi çıkarır (goods_list / malzeme listesi için)
+   * DataTable satırlarını JSON array olarak döndürür
+   * @param {string} html - Sayfa HTML'i
+   * @returns {Array|null}
+   */
+  scrapeTableFromHtml(html) {
+    try {
+      // Tüm tabloları bul
+      const tableRegex = /<table[\s\S]*?<\/table>/gi;
+      const tables = html.match(tableRegex);
+      if (!tables || tables.length === 0) return null;
+
+      // En büyük tabloyu seç (genelde veri tablosu)
+      let targetTable = tables[0];
+      for (const t of tables) {
+        if (t.length > targetTable.length) targetTable = t;
+      }
+
+      // Header'ları çek
+      const headers = [];
+      const headerRegex = /<th[^>]*>([\s\S]*?)<\/th>/gi;
+      let headerMatch = headerRegex.exec(targetTable);
+      while (headerMatch !== null) {
+        const text = this.stripHtmlTags(headerMatch[1]).trim();
+        if (text === '#') {
+          headers.push('sira');
+        } else if (text) {
+          headers.push(
+            text.toLowerCase()
+              .replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ü/g, 'u')
+              .replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g')
+              .replace(/\s+/g, '_')
+          );
+        }
+        headerMatch = headerRegex.exec(targetTable);
+      }
+
+      // Standart header yoksa varsayılan kullan
+      if (headers.length === 0) {
+        headers.push('sira', 'kalem', 'miktar', 'birim');
+      }
+
+      // Satırları çek
+      const rows = [];
+      const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+      let rowMatch = rowRegex.exec(targetTable);
+      let isFirstRow = true;
+
+      while (rowMatch !== null) {
+        // İlk satır header olabilir, atla
+        if (isFirstRow && rowMatch[1].includes('<th')) {
+          isFirstRow = false;
+          rowMatch = rowRegex.exec(targetTable);
+          continue;
+        }
+        isFirstRow = false;
+
+        const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+        let cellMatch = cellRegex.exec(rowMatch[1]);
+        const row = {};
+        let cellIdx = 0;
+        let hasValidData = false;
+
+        while (cellMatch !== null) {
+          const value = this.stripHtmlTags(cellMatch[1]).trim();
+          const key = headers[cellIdx] || `col_${cellIdx}`;
+
+          if (value && value.length > 0) {
+            row[key] = value;
+            if (key !== 'sira' && value.length > 0) hasValidData = true;
+          }
+          cellIdx++;
+          cellMatch = cellRegex.exec(rowMatch[1]);
+        }
+
+        if (hasValidData && Object.keys(row).length >= 2) {
+          rows.push(row);
+        }
+        rowMatch = rowRegex.exec(targetTable);
+      }
+
+      return rows.length > 0 ? rows : null;
+    } catch (error) {
+      logger.error('HTML tablo çıkarma hatası', { error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * HTML içerikten gerçek download linklerini çıkarır
+   * /download?hash=... pattern'ine uyan linkleri bulur
+   * @param {string} html - Sayfa HTML'i
+   * @returns {Array<{url: string, name: string}>}
+   */
+  extractDownloadLinksFromHtml(html) {
+    const links = [];
+    const seenUrls = new Set();
+
+    // href="..." içeren tüm linkleri bul
+    const linkRegex = /<a[^>]*href=["']([^"']*(?:download|file|\.pdf|\.doc|\.xls|\.zip|\.rar)[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
+    let match = linkRegex.exec(html);
+
+    while (match !== null) {
+      let url = match[1];
+      const text = this.stripHtmlTags(match[2]).trim();
+
+      // Relative URL'yi absolute yap
+      if (url.startsWith('/')) {
+        url = `https://www.ihalebul.com${url}`;
+      }
+
+      // Tekrar kontrolü
+      if (!seenUrls.has(url)) {
+        seenUrls.add(url);
+
+        // Sadece download URL'lerini al
+        if (isDownloadUrl(url)) {
+          links.push({ url, name: text || null });
+        }
+      }
+      match = linkRegex.exec(html);
+    }
+
+    return links;
+  }
+
+  /**
+   * İçerik sayfası URL'sinden gerçek download linkini çözer
+   * Buton URL'sine (/tender/123/8) gidip sayfadaki /download?hash=... linkini bulur
+   * @param {string} contentPageUrl - İçerik sayfası URL'si
+   * @returns {Object|null} - { url, name } veya null
+   */
+  async resolveDownloadUrl(contentPageUrl) {
+    logger.info(`Download link çözümleniyor: ${contentPageUrl}`);
+
+    const html = await this.fetchPageHtml(contentPageUrl);
+    if (!html) {
+      logger.warn(`Sayfa içeriği alınamadı: ${contentPageUrl}`);
+      return null;
+    }
+
+    const downloadLinks = this.extractDownloadLinksFromHtml(html);
+    if (downloadLinks.length === 0) {
+      logger.warn(`Sayfada download linki bulunamadı: ${contentPageUrl}`);
+      return null;
+    }
+
+    // İlk download linkini döndür (genelde tekil dosya)
+    logger.info(`Download link bulundu: ${downloadLinks[0].url} (toplam ${downloadLinks.length} link)`);
+    return downloadLinks[0];
+  }
+
+  /**
+   * İçerik sayfası URL'sinden TÜM download linklerini çözer
+   * resolveDownloadUrl'den farkı: birden fazla link varsa hepsini döndürür
+   * @param {string} contentPageUrl - İçerik sayfası URL'si
+   * @returns {Array<{url: string, name: string}>} - Download linkleri dizisi
+   */
+  async resolveAllDownloadUrls(contentPageUrl) {
+    logger.info(`Tüm download linkler çözümleniyor: ${contentPageUrl}`);
+
+    const html = await this.fetchPageHtml(contentPageUrl);
+    if (!html) {
+      logger.warn(`Sayfa içeriği alınamadı: ${contentPageUrl}`);
+      return [];
+    }
+
+    const downloadLinks = this.extractDownloadLinksFromHtml(html);
+    if (downloadLinks.length === 0) {
+      logger.warn(`Sayfada download linki bulunamadı: ${contentPageUrl}`);
+      return [];
+    }
+
+    logger.info(`${downloadLinks.length} download link bulundu: ${contentPageUrl}`);
+    return downloadLinks;
+  }
+
+  /**
+   * Puppeteer ile Malzeme Listesi (DataTable) çeker
+   * AJAX ile yüklenen DataTable içeriklerini görmek için Puppeteer gerekli
+   * Pagination varsa tüm sayfaları gez
+   * @param {string} url - Mal/Hizmet Listesi sayfası URL'si
+   * @returns {Array|null} - JSON array veya null
+   */
+  async scrapeGoodsListWithPuppeteer(url) {
+    let page = null;
+    try {
+      logger.info(`[PUPPETEER] Malzeme listesi çekiliyor: ${url}`);
+
+      // Browser instance al
+      page = await browserManager.createPage();
+
+      // Session cookie'lerini uygula
+      const session = await sessionManager.loadSession();
+      if (session?.cookies && session.cookies.length > 0) {
+        await sessionManager.applyCookies(page, session.cookies);
+        logger.debug(`[PUPPETEER] ${session.cookies.length} cookie uygulandı`);
+      }
+
+      // Sayfaya git
+      await page.goto(url, {
+        waitUntil: 'networkidle2',
+        timeout: 30000,
+      });
+
+      // DataTable'ın render olmasını bekle
+      try {
+        await page.waitForSelector('table tbody tr', { timeout: 10000 });
+      } catch (_e) {
+        logger.warn(`[PUPPETEER] DataTable bulunamadı, tablo olmayabilir: ${url}`);
+      }
+
+      // DataTable pagination: "Tümünü Göster" veya sayfa boyutunu artır
+      try {
+        await page.evaluate(() => {
+          // DataTable API varsa tüm satırları göster
+          if (typeof jQuery !== 'undefined' && jQuery.fn.dataTable) {
+            const tables = jQuery('table.dataTable');
+            if (tables.length > 0) {
+              const dt = tables.DataTable();
+              dt.page.len(-1).draw(); // Tüm satırları göster
+            }
+          }
+          // Alternatif: select box ile sayfa boyutunu artır
+          const selectEl = document.querySelector('.dataTables_length select, select[name*="length"]');
+          if (selectEl) {
+            // En büyük değeri seç
+            const options = Array.from(selectEl.options);
+            const lastOption = options[options.length - 1];
+            if (lastOption) {
+              selectEl.value = lastOption.value;
+              selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+          }
+        });
+
+        // DataTable yeniden yüklenmesini bekle
+        await this.sleep(2000);
+      } catch (_e) {
+        logger.debug('[PUPPETEER] DataTable pagination ayarlanamadı (normal olabilir)');
+      }
+
+      // document-scraper ile tablo verisini çek
+      const result = await documentScraper.scrapeGoodsServicesList(page);
+
+      if (result && result.length > 0) {
+        logger.info(`[PUPPETEER] Malzeme listesi başarıyla çekildi: ${result.length} satır`);
+      } else {
+        logger.warn(`[PUPPETEER] Malzeme listesi boş veya bulunamadı: ${url}`);
+      }
+
+      return result;
+    } catch (error) {
+      logger.error(`[PUPPETEER] Malzeme listesi çekme hatası`, { url, error: error.message });
+      return null;
+    } finally {
+      // Sayfayı kapat
+      if (page) {
+        try {
+          await page.close();
+        } catch (_e) {}
+      }
+    }
+  }
+
+  /**
+   * Retry mekanizması - Geçici hatalarda otomatik tekrar dene
+   * Exponential backoff ile 2 kez daha dener
+   * @param {Function} fn - Çalıştırılacak async fonksiyon
+   * @param {number} maxRetries - Maksimum tekrar sayısı (varsayılan: 2)
+   * @param {number} baseDelay - Baz bekleme süresi ms (varsayılan: 2000)
+   * @returns {*} - Fonksiyon sonucu
+   */
+  async withRetry(fn, maxRetries = 2, baseDelay = 2000) {
+    let lastError;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error;
+        if (attempt < maxRetries) {
+          const delay = baseDelay * Math.pow(2, attempt); // exponential backoff: 2s, 4s
+          logger.warn(`Retry ${attempt + 1}/${maxRetries}: ${error.message}`, { delay });
+          await this.sleep(delay);
+        }
+      }
+    }
+    throw lastError;
+  }
+
+  /**
+   * HTML tag'lerini temizle
+   */
+  stripHtmlTags(html) {
+    return html
+      .replace(/<script[\s\S]*?<\/script>/gi, '') // Script'leri kaldır
+      .replace(/<style[\s\S]*?<\/style>/gi, '')   // Style'ları kaldır
+      .replace(/<[^>]+>/g, ' ')                    // Tüm tag'leri boşlukla değiştir
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\s+/g, ' ')                        // Fazla boşlukları temizle
+      .trim();
+  }
+
+  /**
+   * MERKEZ SCRAPER: Tek bir ihale için tüm buton içeriklerini işle
+   * Liste sayfasındaki her butonu doğru yöntemle işler:
+   *   - content_scrape: HTML içeriği çekip ilgili kolona kaydet (json_table için Puppeteer)
+   *   - content_and_download: Önce içerik çek, sonra download linkleri de indir (Zeyilname)
+   *   - download: Gerçek dosyayı indirip Supabase'e yükle (tüm download linkler)
+   *
+   * Ek özellikler:
+   *   - Retry mekanizması: Geçici hatalarda 2 kez daha dener
+   *   - Multi-download: Sayfadaki TÜM download linklerini indirir
+   *   - DataTable: Puppeteer ile AJAX tablolarını çeker
+   *
+   * @param {number} tenderId - İhale ID
+   * @returns {Object} - İşleme sonuçları
+   */
+  async merkezScraper(tenderId) {
+    logger.info(`[MERKEZ-SCRAPER] İhale ${tenderId} tüm içerikler işleniyor`);
 
     const results = {
       tenderId,
-      success: [],
+      downloaded: [],      // Dosya olarak indirilen dökümanlar
+      contentScraped: [],   // HTML'den çekilen içerikler
       failed: [],
       skipped: [],
-      totalDownloaded: 0,
-      totalSize: 0,
     };
 
     try {
       // 1. İhale bilgilerini al
       const tenderResult = await pool.query(
-        'SELECT id, title, document_links, external_id FROM tenders WHERE id = $1',
+        `SELECT id, title, document_links, external_id, 
+                announcement_content, goods_services_content, 
+                zeyilname_content, correction_notice_content
+         FROM tenders WHERE id = $1`,
         [tenderId]
       );
 
@@ -248,11 +652,11 @@ class DocumentStorageService {
       const documentLinks = tender.document_links || {};
 
       if (Object.keys(documentLinks).length === 0) {
-        logger.warn(`İhale ${tenderId}: Döküman linki yok`);
-        return { ...results, message: 'Döküman linki bulunamadı' };
+        logger.warn(`İhale ${tenderId}: Buton linki yok`);
+        return { ...results, message: 'Buton linki bulunamadı' };
       }
 
-      // 2. Daha önce indirilmiş dökümanları kontrol et
+      // 2. Daha önce indirilmiş dökümanları kontrol et (download tipler için)
       const existingDocs = await pool.query(
         `SELECT source_url FROM documents 
          WHERE tender_id = $1 AND source_type = 'download'`,
@@ -260,68 +664,283 @@ class DocumentStorageService {
       );
       const downloadedUrls = new Set(existingDocs.rows.map((d) => d.source_url));
 
-      // 3. Her döküman tipi için indir
+      // 3. Her buton tipi için işle
       for (const [docType, docData] of Object.entries(documentLinks)) {
         try {
           const url = typeof docData === 'string' ? docData : docData?.url;
           const name = typeof docData === 'object' ? docData?.name : null;
           const fileName = typeof docData === 'object' ? docData?.fileName : null;
 
-          // fileName'den uzantı çıkar (ekap://2026/26DT183631.cetvel.docx -> .docx)
-          let fileExtFromName = null;
-          if (fileName) {
-            const extMatch = fileName.match(/\.(\w+)$/);
-            if (extMatch) {
-              fileExtFromName = `.${extMatch[1].toLowerCase()}`;
-              logger.debug(`fileName'den uzantı: ${fileExtFromName} (${fileName})`);
-            }
-          }
-
           if (!url) {
             logger.warn(`${docType}: URL bulunamadı`);
             continue;
           }
 
-          // Daha önce indirilmiş mi kontrol et
-          if (downloadedUrls.has(url)) {
-            logger.debug(`${docType}: Zaten indirilmiş`);
-            results.skipped.push({ docType, reason: 'already_downloaded' });
-            continue;
-          }
+          // Config'den işleme yöntemini al
+          const config = BUTTON_TYPE_CONFIG[docType];
+          const method = config?.method || (isDownloadUrl(url) ? 'download' : 'unknown');
 
-          logger.info(`${docType}: İndiriliyor... ${url.substring(0, 50)}...`);
+          logger.info(`[MERKEZ-SCRAPER] ${docType}: method=${method}, url=${url.substring(0, 60)}...`);
 
           // Rate limiting
           await this.sleep(this.downloadDelay);
 
-          // Dökümanı indir (fileExtFromName varsa öncelikli uzantı olarak geç)
-          const downloadResult = await this.downloadAndStore(tenderId, docType, url, name, fileExtFromName);
+          // === İÇERİK SCRAPE ===
+          if (method === 'content_scrape') {
+            // Bu kolonun zaten doluysa atla
+            const targetColumn = config.targetColumn;
+            if (targetColumn && tender[targetColumn]) {
+              logger.debug(`${docType}: ${targetColumn} zaten dolu, atlanıyor`);
+              results.skipped.push({ docType, reason: 'content_already_exists' });
+              continue;
+            }
 
-          results.success.push({
-            docType,
-            ...downloadResult,
-          });
-          results.totalDownloaded += downloadResult.filesCount || 1;
-          results.totalSize += downloadResult.totalSize || 0;
+            let content = null;
+
+            // DataTable (json_table) formatı için Puppeteer kullan
+            if (config.format === 'json_table') {
+              content = await this.withRetry(
+                () => this.scrapeGoodsListWithPuppeteer(url),
+                2, 3000
+              );
+            }
+
+            // Puppeteer başarısız olduysa veya json_table değilse, HTML fetch + regex fallback
+            if (!content) {
+              const html = await this.withRetry(() => this.fetchPageHtml(url), 2, 2000);
+              if (!html) {
+                results.failed.push({ docType, error: 'HTML içerik alınamadı' });
+                continue;
+              }
+
+              if (config.format === 'json_table') {
+                content = this.scrapeTableFromHtml(html); // Regex fallback
+              } else {
+                content = this.scrapeTextFromHtml(html);
+              }
+
+              if (!content) {
+                // İçerik bulunamadıysa, belki bu sayfada download linki vardır?
+                const downloadLinks = this.extractDownloadLinksFromHtml(html);
+                if (downloadLinks.length > 0) {
+                  logger.info(`${docType}: İçerik bulunamadı ama ${downloadLinks.length} download link bulundu, dosya olarak indiriliyor`);
+                  for (const dl of downloadLinks) {
+                    if (downloadedUrls.has(dl.url)) {
+                      results.skipped.push({ docType, reason: 'already_downloaded', url: dl.url });
+                      continue;
+                    }
+                    try {
+                      const downloadResult = await this.withRetry(
+                        () => this.downloadAndStore(tenderId, docType, dl.url, dl.name || name),
+                        2, 2000
+                      );
+                      results.downloaded.push({ docType, ...downloadResult });
+                      downloadedUrls.add(dl.url);
+                    } catch (dlError) {
+                      results.failed.push({ docType, error: dlError.message, url: dl.url });
+                    }
+                  }
+                  continue;
+                }
+
+                results.failed.push({ docType, error: 'İçerik çıkarılamadı' });
+                continue;
+              }
+            }
+
+            // İçeriği tenders tablosuna kaydet
+            if (targetColumn) {
+              const contentValue = typeof content === 'string' ? content : JSON.stringify(content);
+              await pool.query(
+                `UPDATE tenders SET ${targetColumn} = $1, updated_at = NOW() WHERE id = $2`,
+                [contentValue, tenderId]
+              );
+              logger.info(`${docType}: İçerik kaydedildi → ${targetColumn} (${typeof content === 'string' ? content.length + ' chars' : content.length + ' rows'})`);
+            }
+
+            results.contentScraped.push({
+              docType,
+              targetColumn,
+              format: config.format,
+              size: typeof content === 'string' ? content.length : content.length,
+            });
+            continue;
+          }
+
+          // === İÇERİK + DOSYA İNDİRME (Zeyilname vb.) ===
+          if (method === 'content_and_download') {
+            const targetColumn = config?.targetColumn;
+
+            // 1. Önce içeriği çek
+            const html = await this.withRetry(() => this.fetchPageHtml(url), 2, 2000);
+            if (html) {
+              // İçerik zaten doluysa atla ama download'a devam et
+              if (targetColumn && !tender[targetColumn]) {
+                const content = this.scrapeTextFromHtml(html);
+                if (content) {
+                  await pool.query(
+                    `UPDATE tenders SET ${targetColumn} = $1, updated_at = NOW() WHERE id = $2`,
+                    [content, tenderId]
+                  );
+                  logger.info(`${docType}: İçerik kaydedildi → ${targetColumn} (${content.length} chars)`);
+                  results.contentScraped.push({ docType, targetColumn, format: 'text', size: content.length });
+                }
+              } else if (targetColumn && tender[targetColumn]) {
+                logger.debug(`${docType}: ${targetColumn} zaten dolu, sadece download aranıyor`);
+              }
+
+              // 2. Aynı sayfada download link var mı?
+              const downloadLinks = this.extractDownloadLinksFromHtml(html);
+              if (downloadLinks.length > 0) {
+                logger.info(`${docType}: ${downloadLinks.length} download link bulundu, dosyalar indiriliyor`);
+                for (const dl of downloadLinks) {
+                  if (downloadedUrls.has(dl.url)) {
+                    results.skipped.push({ docType, reason: 'already_downloaded', url: dl.url });
+                    continue;
+                  }
+                  try {
+                    const downloadResult = await this.withRetry(
+                      () => this.downloadAndStore(tenderId, docType, dl.url, dl.name || name),
+                      2, 2000
+                    );
+                    results.downloaded.push({ docType, ...downloadResult });
+                    downloadedUrls.add(dl.url);
+                  } catch (dlError) {
+                    results.failed.push({ docType, error: dlError.message, url: dl.url });
+                  }
+                }
+              }
+            } else {
+              results.failed.push({ docType, error: 'HTML içerik alınamadı (content_and_download)' });
+            }
+            continue;
+          }
+
+          // === DOSYA İNDİRME ===
+          if (method === 'download' || isDownloadUrl(url)) {
+            // İçerik sayfası URL'si mi? TÜM download linklerini bul
+            if (isContentPageUrl(url)) {
+              logger.info(`${docType}: İçerik sayfası URL'si, gerçek download linkleri aranıyor...`);
+              const resolvedLinks = await this.resolveAllDownloadUrls(url);
+              if (resolvedLinks.length > 0) {
+                // Tüm download linklerini indir
+                for (const resolved of resolvedLinks) {
+                  if (downloadedUrls.has(resolved.url)) {
+                    results.skipped.push({ docType, reason: 'already_downloaded', url: resolved.url });
+                    continue;
+                  }
+
+                  // fileName'den uzantı çıkar
+                  let fileExtFromName = null;
+                  if (fileName) {
+                    const extMatch = fileName.match(/\.(\w+)$/);
+                    if (extMatch) {
+                      fileExtFromName = `.${extMatch[1].toLowerCase()}`;
+                    }
+                  }
+
+                  try {
+                    const downloadResult = await this.withRetry(
+                      () => this.downloadAndStore(tenderId, docType, resolved.url, resolved.name || name, fileExtFromName),
+                      2, 2000
+                    );
+                    results.downloaded.push({ docType, ...downloadResult });
+                    downloadedUrls.add(resolved.url);
+                  } catch (dlError) {
+                    results.failed.push({ docType, error: dlError.message, url: resolved.url });
+                  }
+                }
+                continue;
+              } else {
+                results.skipped.push({ docType, reason: 'no_download_link_on_page' });
+                continue;
+              }
+            }
+
+            // Daha önce indirilmiş mi?
+            if (downloadedUrls.has(url)) {
+              logger.debug(`${docType}: Zaten indirilmiş`);
+              results.skipped.push({ docType, reason: 'already_downloaded' });
+              continue;
+            }
+
+            // fileName'den uzantı çıkar
+            let fileExtFromName = null;
+            if (fileName) {
+              const extMatch = fileName.match(/\.(\w+)$/);
+              if (extMatch) {
+                fileExtFromName = `.${extMatch[1].toLowerCase()}`;
+              }
+            }
+
+            const downloadResult = await this.withRetry(
+              () => this.downloadAndStore(tenderId, docType, url, name, fileExtFromName),
+              2, 2000
+            );
+            results.downloaded.push({ docType, ...downloadResult });
+            downloadedUrls.add(url);
+            continue;
+          }
+
+          // === BİLİNMEYEN TİP ===
+          // Config'de tanımlı değil ve URL pattern'i de tanınamadı
+          // İçerik sayfası URL'si ise, önce TÜM download linkleri ara, yoksa içerik çek
+          if (isContentPageUrl(url)) {
+            logger.info(`${docType}: Bilinmeyen tip, içerik sayfası URL'si - önce download link aranıyor`);
+            const resolvedLinks = await this.resolveAllDownloadUrls(url);
+            if (resolvedLinks.length > 0) {
+              for (const resolved of resolvedLinks) {
+                if (!downloadedUrls.has(resolved.url)) {
+                  try {
+                    const downloadResult = await this.withRetry(
+                      () => this.downloadAndStore(tenderId, docType, resolved.url, resolved.name || name),
+                      2, 2000
+                    );
+                    results.downloaded.push({ docType, ...downloadResult });
+                    downloadedUrls.add(resolved.url);
+                  } catch (dlError) {
+                    results.failed.push({ docType, error: dlError.message, url: resolved.url });
+                  }
+                }
+              }
+            } else {
+              // Download link yoksa içerik olarak çek
+              const html = await this.withRetry(() => this.fetchPageHtml(url), 2, 2000);
+              if (html) {
+                const textContent = this.scrapeTextFromHtml(html);
+                if (textContent) {
+                  logger.info(`${docType}: Bilinmeyen tip, içerik olarak kaydedildi (${textContent.length} chars)`);
+                  results.contentScraped.push({ docType, format: 'text', size: textContent.length });
+                } else {
+                  results.skipped.push({ docType, reason: 'unknown_type_no_content' });
+                }
+              } else {
+                results.skipped.push({ docType, reason: 'unknown_type_fetch_failed' });
+              }
+            }
+          } else {
+            // Normal URL, download olarak dene
+            if (!downloadedUrls.has(url)) {
+              try {
+                const downloadResult = await this.withRetry(
+                  () => this.downloadAndStore(tenderId, docType, url, name),
+                  2, 2000
+                );
+                results.downloaded.push({ docType, ...downloadResult });
+                downloadedUrls.add(url);
+              } catch (dlError) {
+                results.failed.push({ docType, error: dlError.message });
+              }
+            }
+          }
         } catch (error) {
-          logger.error(`${docType}: İndirme hatası`, { error: error.message, docType, tenderId });
-          results.failed.push({
-            docType,
-            error: error.message,
-          });
+          logger.error(`[MERKEZ-SCRAPER] ${docType}: İşleme hatası`, { error: error.message, tenderId });
+          results.failed.push({ docType, error: error.message });
         }
       }
 
-      logger.info(`İhale ${tenderId} dökümanları tamamlandı`, {
-        success: results.success.length,
-        failed: results.failed.length,
-        skipped: results.skipped.length,
-        totalFiles: results.totalDownloaded,
-        totalSizeMB: (results.totalSize / 1024 / 1024).toFixed(2),
-      });
-
-      // Başarılı indirmelerin Supabase'e kaydedildiğini doğrula
-      if (results.success.length > 0) {
+      // Başarılı indirmelerin doğrulaması
+      if (results.downloaded.length > 0) {
         const verifyResult = await pool.query(
           `SELECT COUNT(*) as count, SUM(file_size) as total_size
            FROM documents 
@@ -330,13 +949,21 @@ class DocumentStorageService {
         );
         const verified = verifyResult.rows[0];
         logger.debug(
-          `Doğrulama: ${verified.count} döküman DB'de pending durumunda (${(verified.total_size / 1024 / 1024).toFixed(2)} MB)`
+          `Doğrulama: ${verified.count} döküman DB'de pending durumunda (${((verified.total_size || 0) / 1024 / 1024).toFixed(2)} MB)`
         );
       }
 
+      // Özet log
+      logger.info(`[MERKEZ-SCRAPER] İhale ${tenderId} tamamlandı`, {
+        downloaded: results.downloaded.length,
+        contentScraped: results.contentScraped.length,
+        failed: results.failed.length,
+        skipped: results.skipped.length,
+      });
+
       return results;
     } catch (error) {
-      logger.error(`İhale ${tenderId} döküman indirme hatası`, { error: error.message, stack: error.stack });
+      logger.error(`[MERKEZ-SCRAPER] İhale ${tenderId} genel hata`, { error: error.message, stack: error.stack });
       throw error;
     }
   }
@@ -351,6 +978,12 @@ class DocumentStorageService {
     try {
       // 1. Dökümanı indir
       const fileBuffer = await documentDownloadService.downloadDocument(url);
+
+      // HTML Guard - İndirilen içerik HTML ise dosya olarak kaydetme
+      const headerStr = fileBuffer.slice(0, 500).toString('utf8').trim().toLowerCase();
+      if (headerStr.startsWith('<!doctype') || headerStr.startsWith('<html') || headerStr.startsWith('<?xml')) {
+        throw new Error(`HTML içerik tespit edildi, gerçek dosya değil (docType: ${docType}, url: ${url.substring(0, 80)})`);
+      }
 
       // 2. Dosya uzantısını belirle - öncelik sırası:
       //    a) Magic bytes'tan tespit (en güvenilir)
