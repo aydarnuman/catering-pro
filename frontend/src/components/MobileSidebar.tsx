@@ -86,6 +86,12 @@ const allMenuGroups: MenuGroup[] = [
         badge: 'AI',
         badgeColor: 'violet',
       },
+      {
+        label: 'Yuklenici Kutuphanesi',
+        href: '/yuklenici-kutuphanesi',
+        icon: IconBuildingStore,
+      },
+      
     ],
   },
   {

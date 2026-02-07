@@ -139,6 +139,7 @@ export function Navbar() {
     pathname === '/tenders' ||
     pathname === '/upload' ||
     pathname === '/tracking' ||
+    pathname === '/ihale-merkezi' ||
     pathname === '/ihale-merkezi';
 
   // Finans sayfaları
@@ -613,6 +614,24 @@ export function Navbar() {
                       </Text>
                     </Box>
                   </Menu.Item>
+                  <Menu.Divider />
+                  <Menu.Item
+                    component={Link}
+                    href="/yuklenici-kutuphanesi"
+                    leftSection={<IconBuildingStore size={16} color="var(--mantine-color-orange-6)" />}
+                  >
+                    <Box>
+                      <Group justify="space-between" w="100%">
+                        <Text size="sm" fw={500}>
+                          Yuklenici Kutuphanesi
+                        </Text>
+                      </Group>
+                      <Text size="xs" c="dimmed">
+                        Rakip Firma Istihbarati
+                      </Text>
+                    </Box>
+                  </Menu.Item>
+                  
                 </Menu.Dropdown>
               </Menu>
             )}
