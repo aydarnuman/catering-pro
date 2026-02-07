@@ -4,7 +4,7 @@
 
 Catering Pro backend servisi, Node.js + Express.js üzerine inşa edilmiş RESTful API'dir. PostgreSQL veritabanı (Supabase) kullanır.
 
-**Son Güncelleme:** Ocak 2026
+**Son Güncelleme:** Şubat 2026
 
 ## 🚀 Başlatma
 
@@ -49,7 +49,7 @@ backend/
 │   │
 │   ├── services/            # İş mantığı (33+ dosya)
 │   │   ├── claude-ai-service.js  # Claude AI entegrasyonu
-│   │   ├── gemini.js             # Gemini AI/OCR
+│   │   ├── ai-analyzer/          # Unified Pipeline v9 (Azure + Claude)
 │   │   ├── document-analysis.js  # Döküman işleme
 │   │   ├── bordro-service.js     # Bordro hesaplama
 │   │   ├── cari-service.js       # Cari işlemler
@@ -70,9 +70,14 @@ backend/
 │   │   └── ... (detay: services/README.md)
 │   │
 │   ├── scraper/             # Web scraping
-│   │   ├── ihalebul.js      # Ana scraper
-│   │   ├── session.js       # Session yönetimi
-│   │   └── parser.js        # HTML parser
+│   │   ├── index.js         # Scraper public API
+│   │   ├── runner.js        # CLI arayüzü
+│   │   ├── list-scraper.js  # İhale listesi tarama
+│   │   ├── document-scraper.js # Döküman içerik çekme
+│   │   ├── browser-manager.js  # Puppeteer singleton
+│   │   ├── login-service.js    # ihalebul.com login
+│   │   ├── session-manager.js  # Cookie yönetimi
+│   │   └── logger.js        # Scraper logger
 │   │
 │   ├── migrations/          # SQL migrations (54 dosya)
 │   │   └── ... (detay: migrations/README.md)
@@ -235,10 +240,10 @@ psql $DATABASE_URL -f src/migrations/XXX_dosya.sql
 - Tool calling (ai-tools registry)
 - Conversation memory
 
-### Gemini AI (gemini.js)
-- Döküman OCR
-- PDF/Word/Excel analizi
-- Yapılandırılmış veri çıkarma
+### Azure Document AI + Unified Pipeline (ai-analyzer/)
+- Azure Document Intelligence (Custom Model + Layout)
+- Claude Semantic analiz
+- PDF/Word/Excel/Image OCR ve yapılandırılmış veri çıkarma
 
 ### AI Tools Registry (ai-tools/)
 - cari-tools: Cari hesap sorguları
@@ -276,8 +281,9 @@ http://localhost:3001/api-docs.json
 DATABASE_URL=postgresql://user:pass@host:5432/db
 
 # AI Services
-GEMINI_API_KEY=xxx
 ANTHROPIC_API_KEY=xxx
+AZURE_DOCUMENT_AI_ENDPOINT=xxx
+AZURE_DOCUMENT_AI_KEY=xxx
 
 # Auth
 JWT_SECRET=xxx

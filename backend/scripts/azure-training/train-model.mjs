@@ -14,7 +14,7 @@
  */
 
 import { DocumentAnalysisClient, AzureKeyCredential, DocumentModelAdministrationClient } from '@azure/ai-form-recognizer';
-import { BlobServiceClient } from '@azure/storage-blob';
+import { BlobServiceClient, StorageSharedKeyCredential, generateAccountSASQueryParameters, AccountSASPermissions, AccountSASResourceTypes, AccountSASServices, SASProtocol } from '@azure/storage-blob';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -32,11 +32,13 @@ const CONFIG = {
   },
   storage: {
     connectionString: 'DefaultEndpointsProtocol=https;AccountName=cateringtr;AccountKey=c1iGE5YMj27VzJpZt4Kj9cRprzIB5j0h1VefqBXt312zcpUW+FC4Bpb/WvQdWfHevFoEoWZgxUmp+ASt+ipGOw==;EndpointSuffix=core.windows.net',
+    accountName: 'cateringtr',
+    accountKey: 'c1iGE5YMj27VzJpZt4Kj9cRprzIB5j0h1VefqBXt312zcpUW+FC4Bpb/WvQdWfHevFoEoWZgxUmp+ASt+ipGOw==',
     container: 'ihale-training',
   },
   model: {
-    id: 'ihale-catering-v2',  // Yeni versiyon
-    description: 'İhale Teknik Şartname analizi için eğitilmiş model',
+    id: 'ihale-catering-v5',  // v5 - Gelişmiş öğün ve personel tabloları
+    description: 'İhale Teknik Şartname - Öğün, Personel, Gramaj, Menü tablolarını otomatik çıkarır',
   },
   documentsDir: path.join(__dirname, 'documents'),
 };
@@ -190,7 +192,7 @@ async function autoLabel(containerClient, docClient, pdfFiles) {
         await uploadLabelFile(containerClient, filename, labels);
       }
       
-    } catch (e) {
+    } catch {
       allLabels[filename] = [];
     }
     
@@ -204,7 +206,7 @@ async function autoLabel(containerClient, docClient, pdfFiles) {
   return allLabels;
 }
 
-function extractLabels(result, filename) {
+function extractLabels(result, _filename) {
   const labels = [];
   const usedFields = new Set();
   
@@ -477,21 +479,106 @@ async function createFieldsJson(containerClient, allLabels) {
 
 async function startTraining(adminClient) {
   log('\nADIM 4: Model eğitimi başlatılıyor...', 'step');
-  
-  const containerUrl = `https://cateringtr.blob.core.windows.net/${CONFIG.storage.container}?sp=rl&st=2024-01-01T00:00:00Z&se=2030-01-01T00:00:00Z&spr=https&sv=2022-11-02&sr=c&sig=placeholder`;
-  
-  // SAS token oluştur - bu kısım Azure Portal'dan alınmalı
-  log('Model eğitimi için Azure Portal kullanılmalı:', 'warn');
-  console.log('');
-  console.log('   1. https://documentintelligence.ai.azure.com/studio adresine git');
-  console.log('   2. "Custom extraction models" seç');
-  console.log('   3. "Create a project" tıkla');
-  console.log('   4. Storage: cateringtr / ihale-training seç');
-  console.log('   5. Etiketleri kontrol et ve "Train" tıkla');
-  console.log('   6. Model ID: ' + CONFIG.model.id);
-  console.log('');
-  
-  return null;
+
+  // Container SAS URL oluştur
+  const sharedKeyCredential = new StorageSharedKeyCredential(
+    CONFIG.storage.accountName,
+    CONFIG.storage.accountKey
+  );
+
+  const sasToken = generateAccountSASQueryParameters({
+    startsOn: new Date(),
+    expiresOn: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 saat
+    services: AccountSASServices.parse('b').toString(),       // blob
+    resourceTypes: AccountSASResourceTypes.parse('sco').toString(), // service, container, object
+    permissions: AccountSASPermissions.parse('rl'),           // read, list
+    protocol: SASProtocol.Https,
+  }, sharedKeyCredential).toString();
+
+  const containerUrl = `https://${CONFIG.storage.accountName}.blob.core.windows.net/${CONFIG.storage.container}?${sasToken}`;
+
+  log(`Container SAS URL oluşturuldu (24 saat geçerli)`);
+  log(`Model ID: ${CONFIG.model.id}`);
+  log(`Build Mode: neural (Custom Neural Model)`);
+
+  // Mevcut modeli kontrol et
+  try {
+    const existing = await adminClient.getDocumentModel(CONFIG.model.id);
+    if (existing) {
+      log(`⚠️  Model "${CONFIG.model.id}" zaten mevcut (oluşturulma: ${existing.createdOn})`, 'warn');
+      log(`   Yeni versiyon oluşturuluyor: ${CONFIG.model.id}-${Date.now()}`, 'warn');
+      CONFIG.model.id = `${CONFIG.model.id}-${Date.now()}`;
+    }
+  } catch (_e) {
+    // Model bulunamadı = iyi, yeni oluşturulacak
+  }
+
+  log(`\n🚀 Eğitim başlatılıyor: ${CONFIG.model.id}...`);
+  log('   Bu işlem 1-2 saat sürebilir. İlerlemeyi takip ediyorum...\n');
+
+  try {
+    const poller = await adminClient.beginBuildDocumentModel(
+      CONFIG.model.id,
+      containerUrl,
+      'neural',
+      {
+        description: CONFIG.model.description,
+        onProgress: (state) => {
+          const pct = state.percentCompleted || 0;
+          process.stdout.write(`\r   ⏳ İlerleme: ${pct}% [${state.status || 'running'}]`);
+        },
+      }
+    );
+
+    log('   Eğitim başlatıldı! Poller ID: ' + (poller.operationId || 'N/A'));
+    log('   Sonuç bekleniyor...\n');
+
+    // Eğitim tamamlanana kadar bekle
+    const model = await poller.pollUntilDone();
+
+    console.log('\n');
+    log('═══════════════════════════════════════════════════════════════', 'success');
+    log('🎉 MODEL EĞİTİMİ TAMAMLANDI!', 'success');
+    log('═══════════════════════════════════════════════════════════════', 'success');
+    console.log('');
+    console.log(`   Model ID:        ${model.modelId}`);
+    console.log(`   Açıklama:        ${model.description || '-'}`);
+    console.log(`   Oluşturulma:     ${model.createdOn}`);
+    console.log(`   API Version:     ${model.apiVersion || '-'}`);
+    console.log(`   Doc Types:       ${Object.keys(model.docTypes || {}).length}`);
+
+    if (model.docTypes) {
+      for (const [typeName, typeInfo] of Object.entries(model.docTypes)) {
+        const fieldCount = Object.keys(typeInfo.fieldSchema || {}).length;
+        console.log(`\n   📋 ${typeName}: ${fieldCount} alan`);
+        if (typeInfo.fieldSchema) {
+          for (const [fieldName, fieldInfo] of Object.entries(typeInfo.fieldSchema)) {
+            console.log(`      - ${fieldName}: ${fieldInfo.type || '?'}`);
+          }
+        }
+      }
+    }
+
+    console.log('\n   💡 Sonraki adım: .env dosyasına ekle:');
+    console.log(`      AZURE_DOCUMENT_AI_MODEL_ID=${model.modelId}`);
+    console.log(`      AZURE_USE_CUSTOM_MODEL=true`);
+
+    return model;
+  } catch (error) {
+    log(`\n❌ Eğitim hatası: ${error.message}`, 'error');
+    if (error.details) {
+      log(`   Detay: ${JSON.stringify(error.details)}`, 'error');
+    }
+
+    // Fallback: Manuel talimatlar
+    console.log('\n   Alternatif: Azure Studio\'da manuel eğitin:');
+    console.log('   1. https://documentintelligence.ai.azure.com/studio');
+    console.log('   2. "Custom extraction models" > "Create new"');
+    console.log('   3. Storage: cateringtr / ihale-training');
+    console.log('   4. Model ID: ' + CONFIG.model.id);
+
+    throw error;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -533,14 +620,18 @@ async function main() {
   // Step 3: Create fields.json
   await createFieldsJson(containerClient, allLabels);
   
-  // Step 4: Training instructions
-  await startTraining(adminClient);
+  // Step 4: Training (otomatik)
+  const trainedModel = await startTraining(adminClient);
   
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   
   console.log('═══════════════════════════════════════════════════════════════════════');
   console.log(`\n⏱️  Toplam süre: ${elapsed}s`);
-  console.log('\n✅ Etiketleme tamamlandı! Şimdi Azure Studio\'da modeli eğitin.\n');
+  if (trainedModel) {
+    console.log(`\n✅ Model eğitimi tamamlandı! Model ID: ${trainedModel.modelId}\n`);
+  } else {
+    console.log('\n⚠️  Model eğitimi manuel olarak tamamlanmalı.\n');
+  }
   
   // Özet istatistikler
   let totalLabels = 0;

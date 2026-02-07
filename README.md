@@ -2,7 +2,7 @@
 
 Hazir yemek sektoru icin kapsamli ERP-benzeri kurumsal is yonetim sistemi. Ihale takibi, muhasebe, IK/bordro, stok, menu planlama ve AI asistan modullerini icerir.
 
-**Son Guncelleme:** Ocak 2026
+**Son Guncelleme:** Subat 2026
 
 ---
 
@@ -11,7 +11,7 @@ Hazir yemek sektoru icin kapsamli ERP-benzeri kurumsal is yonetim sistemi. Ihale
 ### Ihale Yonetimi
 - **Ihale Scraping** - ihalebul.com otomasyonu (Puppeteer)
 - **Dokuman Isleme** - PDF/Word/Excel/CSV + AI analiz
-- **AI Dokuman Analizi** - Claude AI + Gemini Vision
+- **AI Dokuman Analizi** - Azure Document AI + Claude
 - **Ihale Takip Listesi** - Durum, notlar, hatirlaticilar
 - **Teklif Hazirlama** - Teklif olusturma ve maliyet hesaplama
 - **Ihale Sonuclari** - Kazanilan/kaybedilen takibi
@@ -58,7 +58,7 @@ Hazir yemek sektoru icin kapsamli ERP-benzeri kurumsal is yonetim sistemi. Ihale
 ### AI Asistan
 - **Claude AI Chat** - Streaming sohbet
 - **Tool Calling** - Sistem entegrasyonu
-- **Dokuman Analizi** - Gemini Vision + Claude
+- **Dokuman Analizi** - Azure Document AI + Claude
 - **Konusma Hafizasi** - Baglamsal cevaplar
 - **Prompt Builder** - Ozel AI sablon olusturucu
 - **Fatura AI** - Otomatik fatura analizi
@@ -187,7 +187,7 @@ CATERING/
 | Teknoloji | Versiyon | Aciklama |
 |-----------|----------|----------|
 | Claude AI | ^0.71.2 | Chat, analiz & tool calling |
-| Gemini AI | ^0.21.0 | Vision API & OCR |
+| Azure Document AI | @azure/ai-form-recognizer | Dokuman analizi & OCR |
 
 ### Deployment
 
@@ -239,9 +239,9 @@ JWT_EXPIRES_IN=7d
 # Claude AI (AI Asistan)
 CLAUDE_API_KEY=sk-ant-...
 
-# Google Gemini (Dokuman analizi)
-GEMINI_API_KEY=AIza...
-GEMINI_MODEL=gemini-2.0-flash-exp
+# Azure Document AI (Dokuman analizi)
+AZURE_DOCUMENT_AI_ENDPOINT=https://your-resource.cognitiveservices.azure.com/
+AZURE_DOCUMENT_AI_KEY=your-azure-key
 
 # =============================================================================
 # SCRAPER (Opsiyonel - Ihale scraping icin)
@@ -429,10 +429,10 @@ http://localhost:3001/api-docs
 "5000 TL net maas icin brut ne olur?"
 ```
 
-### Gemini AI Dokuman Analizi
+### Azure Document AI + Claude Dokuman Analizi
 
-- PDF/Word/Excel OCR
-- Yapilandirilmis veri cikarma
+- PDF/Word/Excel OCR (Azure Document Intelligence)
+- Yapilandirilmis veri cikarma (Custom Model + Claude Semantic)
 - Gramaj tablosu analizi
 - Sartname parsing
 
@@ -588,8 +588,6 @@ server {
 - [Architecture](docs/ARCHITECTURE.md) - Sistem mimarisi
 - [Deployment](docs/DEPLOYMENT.md) - Production deploy
 - [DigitalOcean](docs/DIGITALOCEAN.md) - Server konfigurasyonu
-- [WhatsApp](docs/WHATSAPP-INTEGRATION.md) - WhatsApp entegrasyonu
-
 ---
 
 ## License

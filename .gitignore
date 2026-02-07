@@ -45,6 +45,7 @@ temp/*
 backend/storage/session.json
 backend/storage/uyumsoft-session.json
 backend/storage/uyumsoft-session-sync.json
+backend/storage/ekap-session.json
 
 # Backups
 backups/
@@ -60,3 +61,12 @@ backend/temp/*
 
 # Audit logs (hidden files)
 backend/logs/.*-audit.json
+
+# Audit script output
+scripts/audit/output/
+
+# OCR training data (large binary)
+backend/eng.traineddata
+
+# Debug screenshots
+backend/scripts/*.png
