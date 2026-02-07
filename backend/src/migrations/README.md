@@ -104,7 +104,7 @@ firmalar             -- Firma tanımları
 
 ### Stok Modülü
 ```sql
-stok_kartlari        -- Ürün/malzeme kartları
+stok_kartlari        -- Ürün/malzeme kartları (legacy, urun_kartlari aktif)
 stok_hareketleri     -- Stok giriş/çıkış
 depolar              -- Depo tanımları
 depo_lokasyonlar     -- Depo içi lokasyonlar

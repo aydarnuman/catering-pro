@@ -3,7 +3,7 @@
 Bu klasör tüm iş mantığı servislerini içerir. Servisler, route'lardan çağrılır ve veritabanı işlemlerini yönetir.
 
 **Toplam Servis Dosyası:** 33 (ai-tools dahil 43)
-**Son Güncelleme:** Ocak 2026
+**Son Güncelleme:** Şubat 2026
 
 ---
 
@@ -20,7 +20,7 @@ services/
 │   ├── piyasa-tools.js    # Piyasa araçları
 │   └── menu-tools.js      # Menü planlama araçları
 ├── claude-ai-service.js   # Claude AI entegrasyonu
-├── gemini.js              # Gemini AI analizi
+├── ai-analyzer/           # Unified Pipeline v9 (Azure + Claude)
 ├── document-analysis.js   # Döküman işleme
 └── [diğer servisler]
 ```
@@ -71,7 +71,7 @@ import { analyzeDocument } from './services/claude.js';
 const result = await analyzeDocument(filePath);
 ```
 
-### ai-analyzer/ - Unified Pipeline (v8.0)
+### ai-analyzer/ - Unified Pipeline (v9.0)
 İhale dökümanlarından yapılandırılmış veri çıkarır. **Tek merkezi sistem** mimarisi kullanır.
 
 ```javascript
@@ -83,7 +83,7 @@ const result = await analyzeDocument(filePath);
 - Şartname maddeleri
 - Gramaj tabloları (ısı değerleri filtreleniyor)
 
-// Kullanım (ES Modules) - UNIFIED PIPELINE v8.0
+// Kullanım (ES Modules) - UNIFIED PIPELINE v9.0
 import { analyzeDocument } from './services/ai-analyzer/unified-pipeline.js';
 const result = await analyzeDocument(filePath, {
   onProgress,
@@ -502,8 +502,8 @@ router.get('/', async (req, res) => {
 | Servis | Bağımlılıklar |
 |--------|---------------|
 | claude-ai-service | @anthropic-ai/sdk, ai-tools |
-| gemini | @google/generative-ai |
-| document-analysis | gemini, pdf-parse, mammoth |
+| ai-analyzer | @azure/ai-form-recognizer, @anthropic-ai/sdk |
+| document-analysis | ai-analyzer, pdf-parse, mammoth |
 | bordro-service | database, personel-service |
 | sync-scheduler | node-cron, uyumsoft-service |
 | logger | winston, winston-daily-rotate-file |

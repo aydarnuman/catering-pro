@@ -5,7 +5,7 @@
 Catering Pro, hazir yemek sektoru icin gelistirilmis kapsamli ERP-benzeri kurumsal is yonetim sistemidir. Ihale takibinden bordro hesaplamaya, stok yonetiminden menu planlamaya kadar tum operasyonel surecleri tek platformda yonetir.
 
 **Hedef Kullanici:** ~10 aktif kullanici
-**Son Guncelleme:** Ocak 2026
+**Son Guncelleme:** Subat 2026
 
 ---
 
@@ -27,6 +27,7 @@ DIGITALOCEAN DROPLET (Ubuntu 22.04)
         |
         +-- SUPABASE (PostgreSQL)
         +-- CLAUDE API (Anthropic)
+        +-- AZURE DOCUMENT AI
 ```
 
 ---
@@ -75,8 +76,7 @@ DIGITALOCEAN DROPLET (Ubuntu 22.04)
 
 ### Services (~36 dosya, ai-tools dahil)
 - claude-ai.js - Claude AI entegrasyonu
-- claude.js - Dokuman analizi (Vision)
-- document-analyzer.js - Dokuman isleme
+- ai-analyzer/ - Unified document analysis pipeline (v9)
 - bordro-template-service.js - Bordro hesaplama
 - sync-scheduler.js - Otomatik sync
 - tender-scheduler.js - Ihale scraper
@@ -131,7 +131,7 @@ DIGITALOCEAN DROPLET (Ubuntu 22.04)
 ### 5. AI Asistan Modulu
 - Claude AI Chat (streaming)
 - Tool calling (sistem entegrasyonu)
-- Dokuman analizi (Gemini)
+- Dokuman analizi (Azure Document AI + Claude)
 - Konusma hafizasi
 
 ### 6. Bildirim Modulu
@@ -144,12 +144,12 @@ DIGITALOCEAN DROPLET (Ubuntu 22.04)
 ## Veritabani
 
 **Platform:** Supabase (PostgreSQL)
-**Migrations:** 72 dosya
+**Migrations:** 93+ dosya (Supabase CLI ile yonetiliyor)
 
 ### Ana Tablolar
 - tenders, documents, tender_tracking
 - cariler, invoices, cari_hareketleri
-- stok_kartlari, depolar, stok_hareketleri
+- urun_kartlari, depolar, urun_hareketleri
 - personeller, bordro, izin_talepleri
 - receteler, menuler, sartnameler
 - notifications, ai_memory, users
@@ -213,7 +213,5 @@ Winston logger ile gunluk log dosyalari:
 ## Gelecek Gelistirmeler
 
 1. e-Fatura - GIB entegrasyonu
-2. Uyumsoft Sync - Tam muhasebe entegrasyonu
-3. Mobile App - React Native
-4. Email Notifications - SMTP
-5. Multi-tenant - Coklu firma destegi
+2. Mobile App - React Native
+3. Email Notifications - SMTP

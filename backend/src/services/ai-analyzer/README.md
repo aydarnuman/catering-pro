@@ -1,8 +1,8 @@
-# AI Analyzer Module v8.0 - Unified Pipeline
+# AI Analyzer Module v9.0 - Unified Pipeline
 
 İhale dökümanlarını otomatik analiz eden **tek merkezi sistem**.
 
-## Unified Pipeline v8.0
+## Unified Pipeline v9.0
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -43,7 +43,7 @@ ai-analyzer/
 
 ## Kullanım
 
-### Ana Fonksiyon - analyzeDocument (v8.0)
+### Ana Fonksiyon - analyzeDocument (v9.0)
 
 ```javascript
 import { analyzeDocument } from './services/ai-analyzer/unified-pipeline.js';

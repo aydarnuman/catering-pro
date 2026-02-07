@@ -135,8 +135,9 @@ JWT_SECRET=random-32-char-string
 API_SECRET_KEY=random-secret
 
 # AI Services
-GEMINI_API_KEY=AIza...
 ANTHROPIC_API_KEY=sk-ant-api03-...
+AZURE_DOCUMENT_AI_ENDPOINT=https://your-resource.cognitiveservices.azure.com/
+AZURE_DOCUMENT_AI_KEY=your-azure-key
 
 # Scraper (ihalebul.com)
 IHALEBUL_USERNAME=xxx

@@ -114,18 +114,30 @@ curl "http://localhost:3001/api/tenders/11231"
 
 ---
 
-## /api/tender-documents
+## /api/tender-docs
 
-Döküman indirme ve yönetimi.
+Merkez Scraper: Döküman indirme + içerik scrape (birleşik sistem).
 
 | Method | Endpoint | Açıklama |
 |--------|----------|----------|
-| POST | `/:tenderId/download-documents` | Dökümanları Storage'a indir |
+| POST | `/:tenderId/merkez-scraper` | **Merkez Scraper** - tüm buton içeriklerini işle |
+| POST | `/:tenderId/download-documents` | Geriye uyumluluk (merkez-scraper'a yönlendirilir) |
 | GET | `/:tenderId/downloaded-documents` | İndirilen dökümanlar |
 | GET | `/:tenderId/download-status` | İndirme durumu |
 | GET | `/documents/:documentId` | Döküman detayı |
 | GET | `/documents/:documentId/url` | İmzalı URL al |
 | POST | `/documents/:documentId/queue` | Analiz kuyruğuna ekle |
+
+### Merkez Scraper Akışı
+
+Her buton tipine göre doğru yöntemi uygular:
+- **content_scrape**: announcement, goods_list, zeyilname, correction_notice → HTML'den içerik çekip tenders tablosuna kaydet
+- **download**: tech_spec, admin_spec → Gerçek download linkini bulup dosya indir, Supabase'e yükle
+
+```bash
+# Merkez Scraper ile tüm içerikleri işle
+curl -X POST http://localhost:3001/api/tender-docs/123/merkez-scraper
+```
 
 ---
 

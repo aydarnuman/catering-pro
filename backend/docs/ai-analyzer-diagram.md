@@ -1,4 +1,4 @@
-# AI Analyzer - Unified Pipeline v8.0 Diyagramı
+# AI Analyzer - Unified Pipeline v9.0 Diyagramı
 
 ## 1. Sistem Mimarisi
 
@@ -20,7 +20,7 @@
                                            │
                                            ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                          UNIFIED PIPELINE v8.0                                   │
+│                          UNIFIED PIPELINE v9.0                                   │
 │                        unified-pipeline.js                                       │
 │  ┌─────────────────────────────────────────────────────────────────────────┐   │
 │  │  ⭐ analyzeDocument(filePath, options)                                   │   │

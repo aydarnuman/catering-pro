@@ -120,7 +120,7 @@ Migration'lar tamamlandıktan sonra:
 - ✅ gelir_giderler - Gelir-gider
 
 **Stok Modülü:**
-- ✅ stok_kartlari - Stok kartları
+- ✅ urun_kartlari - Ürün kartları (eski: stok_kartlari)
 - ✅ depolar - Depolar
 - ✅ stok_hareketleri - Stok hareketleri
 
@@ -153,7 +153,7 @@ Migration'lar tamamlandıktan sonra:
 
 Dashboard → Database → Replication:
 - `cariler` tablosunu aktif edin
-- `stok_kartlari` tablosunu aktif edin
+- `urun_kartlari` tablosunu aktif edin
 - `gelir_giderler` tablosunu aktif edin
 
 ## 🎉 Kurulum Tamamlandı!

@@ -3,7 +3,7 @@
 > Backend: Express.js (ES Modules)  
 > Port: 3001  
 > Base URL: `http://localhost:3001` veya `https://catering-tr.com/api`  
-> Son Güncelleme: 27 Ocak 2026
+> Son Güncelleme: 6 Şubat 2026
 
 ---
 
@@ -544,7 +544,7 @@ Konuşma detayı
 Konuşma sil
 
 ### `POST /api/ai/analyze-document`
-Belge analizi (Gemini Vision)
+Belge analizi (Azure Document AI + Claude)
 
 | Body | Tip | Zorunlu |
 |------|-----|---------|
@@ -672,7 +672,7 @@ const channel = supabase
 - `tender_tracking`
 - `notifications`
 - `invoices`
-- `stok_kartlari`
+- `urun_kartlari`
 
 ---
 

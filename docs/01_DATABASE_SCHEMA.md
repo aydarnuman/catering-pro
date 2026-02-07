@@ -2,7 +2,7 @@
 
 > Platform: PostgreSQL (Supabase)  
 > Migrations: 93 dosya  
-> Son Güncelleme: 27 Ocak 2026
+> Son Güncelleme: 6 Şubat 2026
 
 ---
 
@@ -292,7 +292,7 @@ Fatura kalem detayları (TEK KAYNAK)
 ## 5. Muhasebe - Stok
 
 ### `stok_kartlari`
-Stok kartları
+Stok kartları (Legacy - aktif kullanım `urun_kartlari` tablosuna taşındı)
 
 | Kolon | Tip | Açıklama |
 |-------|-----|----------|
@@ -317,7 +317,7 @@ Stok hareketleri
 | Kolon | Tip | Açıklama |
 |-------|-----|----------|
 | id | SERIAL PK | |
-| stok_id | INTEGER FK | stok_kartlari referansı |
+| stok_id | INTEGER FK | stok_kartlari referansı (legacy) |
 | hareket_tipi | VARCHAR(20) | giris/cikis/transfer/sayim |
 | miktar | DECIMAL(15,3) | Miktar |
 | onceki_miktar | DECIMAL(15,3) | Önceki miktar |
@@ -544,7 +544,7 @@ Tazminat hesaplamaları
 | ad | VARCHAR(200) | Ürün adı |
 | kategori_id | INTEGER FK | urun_kategorileri referansı |
 | varsayilan_birim | VARCHAR(20) | Varsayılan birim |
-| stok_kart_id | INTEGER FK | stok_kartlari referansı |
+| stok_kart_id | INTEGER FK | stok_kartlari referansı (legacy) |
 | manuel_fiyat | DECIMAL(15,2) | Manuel fiyat |
 | fiyat_birimi | VARCHAR(20) | kg/lt/adet |
 | ikon | VARCHAR(10) | Emoji |

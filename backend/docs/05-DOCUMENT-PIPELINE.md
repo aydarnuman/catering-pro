@@ -1,4 +1,4 @@
-# Döküman İşleme Pipeline'ı (v8.0 - Unified Pipeline)
+# Döküman İşleme Pipeline'ı (v9.0 - Unified Pipeline)
 
 **Tek merkezi sistem** - Azure + Claude hibrit mimarisi.
 
