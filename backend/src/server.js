@@ -531,4 +531,26 @@ const startServer = async () => {
 
 startServer();
 
+// ============================================================
+// Temiz Kapatma (Graceful Shutdown)
+// ============================================================
+// PM2 restart veya sunucu kapatma durumunda veritabani baglantilari
+// duzgun sekilde kapatilir. Bu, baglanti sizintisini onler.
+// ============================================================
+
+async function gracefulShutdown(signal) {
+  logger.info(`${signal} sinyali alindi - temiz kapatma baslatiliyor...`);
+  try {
+    const { closePool } = await import('./database.js');
+    await closePool();
+    logger.info('Veritabani baglantilari kapatildi');
+  } catch (err) {
+    logger.error('Kapatma sirasinda hata', { error: err.message });
+  }
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 export default app;

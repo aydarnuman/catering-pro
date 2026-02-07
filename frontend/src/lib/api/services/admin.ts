@@ -285,81 +285,15 @@ export const adminAPI = {
   // ========== YETKİLER ==========
 
   /**
-   * Kullanıcının yetkilerini getir
+   * Kullanicinin yetkilerini getir
+   *
+   * 401 hatalari Axios interceptor tarafindan yonetilir:
+   * - Token refresh dener
+   * - Basarisizsa giris sayfasina yonlendirir
    */
   async getMyPermissions(): Promise<ApiResponse<any>> {
-    try {
-      // Cache busting ile fresh request
-      const response = await api.get('/api/permissions/my', {
-        params: { _t: Date.now() }, // Cache busting
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          Pragma: 'no-cache',
-        },
-      });
-
-      // 200 OK - başarılı
-      if (response.status === 200) {
-        return response.data;
-      }
-
-      // 304 Not Modified - cache'den geliyor, data olabilir veya olmayabilir
-      if (response.status === 304) {
-        // Eğer data varsa kullan, yoksa tekrar dene
-        if (response.data) {
-          return response.data;
-        }
-        // Data yoksa fresh request yap
-        const freshResponse = await api.get('/api/permissions/my', {
-          params: { _t: Date.now() },
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            Pragma: 'no-cache',
-          },
-        });
-        return freshResponse.data;
-      }
-
-      // Diğer durumlar
-      if (response.data) {
-        return response.data;
-      }
-
-      // Data yoksa hata fırlat
-      throw new Error(`Unexpected status: ${response.status}`);
-    } catch (error: any) {
-      // 401 hatası ise tekrar fırlat (token refresh interceptor handle edecek)
-      if (error.response?.status === 401) {
-        console.warn('401 hatası - token refresh deneniyor...');
-        throw error;
-      }
-
-      // 500 hatası - sunucu hatası
-      if (error.response?.status === 500) {
-        console.error('getMyPermissions: Sunucu hatası (500)', error);
-        // Kullanıcıya anlamlı bir hata mesajı ile birlikte fırlat
-        const serverError = new Error(
-          'Yetkiler yüklenirken sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.'
-        ) as Error & { response?: unknown; isAxiosError?: boolean };
-        serverError.response = error.response;
-        serverError.isAxiosError = true;
-        throw serverError;
-      }
-
-      // 503 hatası - servis kullanılamıyor
-      if (error.response?.status === 503) {
-        console.error('getMyPermissions: Servis kullanılamıyor (503)', error);
-        const serviceError = new Error(
-          'Yetkiler servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.'
-        ) as Error & { response?: unknown; isAxiosError?: boolean };
-        serviceError.response = error.response;
-        serviceError.isAxiosError = true;
-        throw serviceError;
-      }
-
-      console.error('getMyPermissions error:', error);
-      throw error;
-    }
+    const response = await api.get('/api/permissions/my');
+    return response.data;
   },
 
   // ========== DÖKÜMAN ANALİZ ==========

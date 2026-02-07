@@ -6,29 +6,57 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['@mantine/core', '@mantine/hooks'],
   },
-  // NOT: NEXT_PUBLIC_API_URL artık kullanılmıyor
-  // config.ts dosyası dinamik olarak hostname'den URL oluşturuyor
-  // Bu sayede build sırasında hardcoded URL'ler oluşmuyor
-  // Production'da standalone output - şimdilik kapalı (npm start ile çalışması için)
-  // ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
+  // NOT: NEXT_PUBLIC_API_URL artik kullanilmiyor
+  // config.ts dosyasi dinamik olarak hostname'den URL olusturuyor
+  // Bu sayede build sirasinda hardcoded URL'ler olusmuyor
+
   // Asset prefix - undefined = relative path (IP veya domain fark etmez)
-  // Sadece belirtilirse kullanılır, yoksa Next.js otomatik relative path kullanır
   ...(process.env.NEXT_PUBLIC_ASSET_PREFIX ? { assetPrefix: process.env.NEXT_PUBLIC_ASSET_PREFIX } : {}),
-  // Build ID'yi git commit hash'inden al (cache sorunlarını önler)
+
+  // Build ID'yi git commit hash'inden al (cache sorunlarini onler)
   generateBuildId: async () => {
     try {
       return execSync('git rev-parse HEAD').toString().trim().substring(0, 7);
     } catch {
-      // Git yoksa timestamp kullan
       return Date.now().toString();
     }
   },
-  // Output file tracing root - workspace root'u belirt (warning'i kaldırmak için)
+
+  // Output file tracing root
   outputFileTracingRoot: path.join(__dirname),
-  // Webpack config - chunk sorunlarını önlemek için
+
+  // ============================================================
+  // Deploy Sonrasi Eski Sayfa Sorunu Cozumu
+  // ============================================================
+  // Next.js Server Action'lari build ID'sine baglidir. Eski bir
+  // tarayici cache'i farkli build ID'si gonderdiginde "Failed to
+  // find Server Action" hatasi olusur. Bu header'lar tarayicinin
+  // her deploy'dan sonra guncel dosyalari almasini saglar.
+  // ============================================================
+  async headers() {
+    return [
+      {
+        // Next.js static assets - uzun sureli cache (dosya adi hash iceriyor)
+        source: '/_next/static/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      {
+        // HTML sayfalari - her zaman sunucudan kontrol et
+        source: '/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Pragma', value: 'no-cache' },
+          { key: 'Expires', value: '0' },
+        ],
+      },
+    ];
+  },
+
+  // Webpack config - chunk sorunlarini onlemek icin
   webpack: (config, { isServer, dev }) => {
     if (dev && !isServer) {
-      // Development'ta chunk sorunlarını önlemek için
       config.optimization = {
         ...config.optimization,
         removeAvailableModules: false,

@@ -1,14 +1,16 @@
 'use client';
 
 /**
- * usePermissions - PostgreSQL Only (Simplified)
- * Supabase session KALDIRILDI - Cookie tabanlı auth
+ * usePermissions - Modul Bazli Yetki Kontrolu
+ *
+ * Cookie tabanli JWT auth ile calisir.
+ * 401 hatalarini Axios interceptor yonetir (token refresh + giris yonlendirmesi).
+ * Bu hook retry yapmaz - Axios interceptor'a guvenilir.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { adminAPI } from '@/lib/api/services/admin';
-import { logger } from '@/lib/logger';
 
 interface Permission {
   module_name: string;
@@ -29,35 +31,22 @@ export function usePermissions() {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Retry sayacı - sonsuz döngüyü önlemek için
-  const retryCount = useRef(0);
-  const maxRetries = 3;
   const hasFetched = useRef(false);
 
   const fetchPermissions = useCallback(async () => {
-    // Auth hala yükleniyorsa bekle
-    if (authLoading) {
-      return;
-    }
+    // Auth hala yukleniyorsa bekle
+    if (authLoading) return;
 
-    // Authenticated değilse API çağrısı yapma
+    // Giris yapilmamissa API cagrisi yapma
     if (!isAuthenticated || !user) {
-      logger.debug('usePermissions: Auth hazır değil', {
-        isAuthenticated,
-        hasUser: !!user,
-      });
       setLoading(false);
       return;
     }
 
-    // Zaten başarılı fetch yapıldıysa tekrar yapma
-    if (hasFetched.current && permissions.length > 0) {
-      return;
-    }
+    // Zaten basarili fetch yapildiysa tekrar yapma
+    if (hasFetched.current) return;
 
     try {
-      logger.debug('usePermissions: Yetkiler yükleniyor');
       const data = await adminAPI.getMyPermissions();
 
       if (data.success) {
@@ -65,70 +54,31 @@ export function usePermissions() {
         setUserType(data.data?.userType || 'user');
         setIsSuperAdmin(data.data?.isSuperAdmin || false);
         hasFetched.current = true;
-        retryCount.current = 0;
-        logger.debug('usePermissions: Yetkiler yüklendi', {
-          permCount: data.data?.permissions?.length,
-          userType: data.data?.userType,
-          isSuperAdmin: data.data?.isSuperAdmin,
-        });
       }
     } catch (err: unknown) {
-      console.error('Permissions fetch error:', err);
-
-      // Type guard for axios error
+      // 401 hatalari Axios interceptor tarafindan yonetilir
+      // (token refresh dener, basarisizsa /giris'e yonlendirir)
+      // Buraya duserse refresh de basarisiz demektir - sadece hatayi goster
       const axiosError = err as { response?: { status?: number }; message?: string };
 
-      // 401 hatası ve retry hakkı varsa tekrar dene
-      if (axiosError.response?.status === 401 && retryCount.current < maxRetries) {
-        retryCount.current++;
-        console.warn(`401 hatası - tekrar deneniyor (${retryCount.current}/${maxRetries})`);
-        setTimeout(() => {
-          fetchPermissions();
-        }, 1000 * retryCount.current); // Her seferinde daha uzun bekle
-        return; // loading'i false yapma, tekrar deneyeceğiz
-      }
-
-      // 500 hatası - sunucu hatası
-      if (axiosError.response?.status === 500) {
-        setError(
-          axiosError.message ||
-            'Yetkiler yüklenirken sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.'
-        );
+      if (axiosError.response?.status === 401) {
+        // Axios interceptor zaten giris sayfasina yonlendirecek
         return;
       }
 
-      // 503 hatası - servis kullanılamıyor
-      if (axiosError.response?.status === 503) {
-        setError(
-          axiosError.message ||
-            'Yetkiler servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.'
-        );
-        return;
-      }
-
-      // Diğer hatalar
-      if (retryCount.current >= maxRetries) {
-        console.error('Max retry sayısına ulaşıldı, yetkiler yüklenemedi');
-        setError('Yetkiler yüklenemedi - lütfen sayfayı yenileyin');
-      } else {
-        setError(axiosError.message || 'Yetkiler yüklenemedi');
-      }
+      console.error('Yetkiler yuklenemedi:', err);
+      setError(axiosError.message || 'Yetkiler yuklenemedi');
     } finally {
       setLoading(false);
     }
-  }, [authLoading, isAuthenticated, user, permissions.length]);
+  }, [authLoading, isAuthenticated, user]);
 
   useEffect(() => {
-    // Auth yükleniyorsa bekle
-    if (authLoading) {
-      return;
-    }
+    if (authLoading) return;
 
-    // Authenticated ise ve henüz fetch yapılmadıysa
     if (isAuthenticated && user && !hasFetched.current) {
       fetchPermissions();
     } else if (!isAuthenticated && !authLoading) {
-      // Auth yüklendi ama authenticated değil
       setLoading(false);
     }
   }, [authLoading, isAuthenticated, user, fetchPermissions]);

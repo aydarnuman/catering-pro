@@ -17,15 +17,14 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
 // Create axios instance
 export const api = axios.create({
   baseURL: '',
-  timeout: 300000, // 5 dakika - uzun işlemler için (scraper, analiz vb.)
+  timeout: 300000, // 5 dakika - uzun islemler icin (scraper, analiz vb.)
   headers: {
     'Content-Type': 'application/json',
-    'Cache-Control': 'no-cache, no-store, must-revalidate',
-    Pragma: 'no-cache',
-    Expires: '0',
   },
-  withCredentials: true, // Cookie'leri otomatik gönder
-  validateStatus: (status) => status < 500,
+  withCredentials: true, // Cookie'leri otomatik gonder
+  // NOT: validateStatus varsayilan (200-299 arasi basarili).
+  // Onceki ayar (status < 500) 401 hatalarinin Axios error handler'a
+  // dusmesini engelliyordu ve token refresh mekanizmasini devre disi birakiyordu.
 });
 
 // Request interceptor - Sadece base URL ayarla
@@ -44,7 +43,24 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-// Response interceptor - 401 hatalarında login'e yönlendir
+// Token yenileme kilidi - ayni anda birden fazla refresh istegi onlenir
+let isRefreshing = false;
+let refreshSubscribers: Array<(success: boolean) => void> = [];
+
+function onRefreshComplete(success: boolean) {
+  for (const callback of refreshSubscribers) {
+    callback(success);
+  }
+  refreshSubscribers = [];
+}
+
+function waitForRefresh(): Promise<boolean> {
+  return new Promise((resolve) => {
+    refreshSubscribers.push(resolve);
+  });
+}
+
+// Response interceptor - 401 hatalarinda token yenile veya giris sayfasina yonlendir
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -54,38 +70,60 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // 401 hatası
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      const url = originalRequest.url || '';
+    // 401 hatasi degilse dokunma
+    if (error.response?.status !== 401) {
+      return Promise.reject(error);
+    }
 
-      // Bu endpoint'lerde 401 bekleniyor, yönlendirme yapma
-      const ignoredEndpoints = ['/api/auth/login', '/api/auth/register', '/api/auth/me'];
-      if (ignoredEndpoints.some((endpoint) => url.includes(endpoint))) {
-        return Promise.reject(error);
+    // Bu endpoint'lerde 401 bekleniyor, yonlendirme yapma
+    const url = originalRequest.url || '';
+    const ignoredEndpoints = ['/api/auth/login', '/api/auth/register', '/api/auth/me'];
+    if (ignoredEndpoints.some((endpoint) => url.includes(endpoint))) {
+      return Promise.reject(error);
+    }
+
+    // Zaten retry edilmis istegi tekrar deneme
+    if (originalRequest._retry) {
+      return Promise.reject(error);
+    }
+    originalRequest._retry = true;
+
+    // Baska bir istek zaten refresh yapiyorsa, onun bitmesini bekle
+    if (isRefreshing) {
+      const success = await waitForRefresh();
+      if (success) {
+        return api(originalRequest);
       }
+      return Promise.reject(error);
+    }
 
-      // Token yenilemeyi dene
-      originalRequest._retry = true;
+    // Token yenileme baslatiliyor
+    isRefreshing = true;
 
-      try {
-        const baseUrl = getApiBaseUrlDynamic();
-        const refreshResponse = await fetch(`${baseUrl}/api/auth/refresh`, {
-          method: 'POST',
-          credentials: 'include',
-        });
+    try {
+      const baseUrl = getApiBaseUrlDynamic();
+      const refreshResponse = await fetch(`${baseUrl}/api/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      });
 
-        if (refreshResponse.ok) {
-          // Token yenilendi, isteği tekrar et
-          return api(originalRequest);
-        }
-      } catch {
-        // Refresh başarısız
+      if (refreshResponse.ok) {
+        isRefreshing = false;
+        onRefreshComplete(true);
+        // Token yenilendi, orijinal istegi tekrar et
+        return api(originalRequest);
       }
+    } catch {
+      // Refresh basarisiz
+    }
 
-      // Login sayfasına yönlendir
-      if (typeof window !== 'undefined' && !window.location.pathname.includes('/giris')) {
-        window.location.href = '/giris';
-      }
+    // Refresh basarisiz - bekleyen tum istekleri bilgilendir
+    isRefreshing = false;
+    onRefreshComplete(false);
+
+    // Giris sayfasina yonlendir
+    if (typeof window !== 'undefined' && !window.location.pathname.includes('/giris')) {
+      window.location.href = '/giris';
     }
 
     return Promise.reject(error);
@@ -154,28 +192,16 @@ export const apiClient = {
 
 export default apiClient;
 
-/** Tarayıcıda csrf-token cookie'sinden token oku (POST/PUT/DELETE için backend CSRF doğrulaması) */
-function getCsrfToken(): string | null {
-  if (typeof document === 'undefined') return null;
-  const match = document.cookie.match(/csrf-token=([^;]+)/);
-  return match ? decodeURIComponent(match[1].trim()) : null;
-}
-
 /**
- * Native fetch için auth wrapper
- * Cookie'ler otomatik gönderiliyor; mutating isteklerde x-csrf-token header eklenir
+ * Native fetch icin auth wrapper
+ * Cookie'ler otomatik gonderiliyor (credentials: 'include')
+ * NOT: CSRF token backend tarafinda kontrol edilmiyor (SameSite cookie yeterli)
  */
 export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const headers = new Headers(options.headers);
 
   if (options.body && !(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
-  }
-
-  const method = (options.method || 'GET').toUpperCase();
-  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
-    const csrf = getCsrfToken();
-    if (csrf) headers.set('x-csrf-token', csrf);
   }
 
   const baseUrl = getApiBaseUrlDynamic();
@@ -186,7 +212,7 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
   const response = await fetch(fullUrl, {
     ...options,
     headers,
-    credentials: 'include', // Cookie'leri gönder
+    credentials: 'include',
     signal: timeoutSignal,
   });
 
