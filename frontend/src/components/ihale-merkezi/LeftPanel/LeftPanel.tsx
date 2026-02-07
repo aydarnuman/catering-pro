@@ -20,6 +20,7 @@ import {
 } from '@mantine/core';
 import {
   IconBookmark,
+  IconLayoutRows,
   IconLink,
   IconList,
   IconMap,
@@ -27,7 +28,7 @@ import {
   IconSearch,
   IconX,
 } from '@tabler/icons-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { Tender } from '@/types/api';
 import type { IhaleMerkeziState, SavedTender } from '../types';
 import { TenderListItem } from './TenderListItem';
@@ -56,6 +57,30 @@ export function LeftPanel({
   isMobile = false,
 }: LeftPanelProps) {
   const [searchInput, setSearchInput] = useState(state.searchQuery);
+  const [expandAll, setExpandAll] = useState(false);
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+
+  // Toggle expand for a single card
+  const toggleExpand = useCallback((tenderId: number) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(tenderId)) {
+        next.delete(tenderId);
+      } else {
+        next.add(tenderId);
+      }
+      return next;
+    });
+  }, []);
+
+  // Check if a card is expanded (individual override OR expandAll)
+  const isCardExpanded = useCallback(
+    (tenderId: number) => {
+      if (expandAll) return !expandedIds.has(tenderId); // expandAll: individual toggle collapses
+      return expandedIds.has(tenderId); // normal: individual toggle expands
+    },
+    [expandAll, expandedIds]
+  );
 
   // Current list based on active tab
   const currentList = useMemo((): (Tender | SavedTender)[] => {
@@ -92,8 +117,8 @@ export function LeftPanel({
     //   list = list.filter((tender) => tender.city && state.filters.city?.includes(tender.city));
     // }
 
-    // Status filter (date-based)
-    if (state.filters.status) {
+    // Status filter (date-based) - "sonuclanan" backend'de filtreleniyor, local'e gerek yok
+    if (state.filters.status && state.filters.status !== 'sonuclanan') {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -153,6 +178,7 @@ export function LeftPanel({
     { value: 'guncel', label: '🟢 Güncel' },
     { value: 'yaklasan', label: '🟡 Yaklaşan' },
     { value: 'dolmus', label: '🔴 Dolmuş' },
+    { value: 'sonuclanan', label: '🏆 Sonuçlanan' },
   ];
 
   // Stats data
@@ -365,6 +391,21 @@ export function LeftPanel({
                 Ekle
               </Badge>
             </Tooltip>
+            <Tooltip label={expandAll ? 'Kartları daralt' : 'Kart detaylarını göster'} position="bottom">
+              <Badge
+                variant={expandAll ? 'filled' : 'light'}
+                color="gray"
+                size="sm"
+                leftSection={<IconLayoutRows size={12} />}
+                style={{ cursor: 'pointer' }}
+                onClick={() => {
+                  setExpandAll(!expandAll);
+                  setExpandedIds(new Set()); // Reset individual overrides
+                }}
+              >
+                Detay
+              </Badge>
+            </Tooltip>
           </Group>
           <Tooltip
             label={`Tıkla: Yenile | Son: ${stats?.lastUpdate ? new Date(stats.lastUpdate).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '--:--'}`}
@@ -435,12 +476,18 @@ export function LeftPanel({
               clearable
               style={{ flex: 1 }}
               value={state.filters.status || null}
-              onChange={(value) =>
+              onChange={(value) => {
+                // "Sonuçlanan" seçildiğinde backend'den completed ihaleleri çek
+                const isCompleted = value === 'sonuclanan';
                 onStateChange({
-                  filters: { ...state.filters, status: value || undefined },
+                  filters: {
+                    ...state.filters,
+                    status: value || undefined,
+                    apiStatus: isCompleted ? 'completed' : undefined,
+                  },
                   currentPage: 1,
-                })
-              }
+                });
+              }}
               data={statusOptions}
             />
           </Group>
@@ -465,20 +512,21 @@ export function LeftPanel({
               </Text>
             </Box>
           ) : (
-            filteredList.map((tender) => (
-              <TenderListItem
-                key={'tender_id' in tender ? tender.id : tender.id}
-                tender={tender}
-                isSelected={
-                  state.selectedTenderId === ('tender_id' in tender ? tender.tender_id : tender.id)
-                }
-                isTracked={state.trackedTenders.some(
-                  (t) => t.tender_id === ('tender_id' in tender ? tender.tender_id : tender.id)
-                )}
-                onClick={() => onSelectTender(tender)}
-                onToggleTracking={onToggleTracking}
-              />
-            ))
+            filteredList.map((tender) => {
+              const tid = 'tender_id' in tender ? tender.tender_id : tender.id;
+              return (
+                <TenderListItem
+                  key={'tender_id' in tender ? tender.id : tender.id}
+                  tender={tender}
+                  isSelected={state.selectedTenderId === tid}
+                  isTracked={state.trackedTenders.some((t) => t.tender_id === tid)}
+                  isExpanded={isCardExpanded(tid)}
+                  onClick={() => onSelectTender(tender)}
+                  onToggleExpand={() => toggleExpand(tid)}
+                  onToggleTracking={onToggleTracking}
+                />
+              );
+            })
           )}
         </Stack>
       </ScrollArea>

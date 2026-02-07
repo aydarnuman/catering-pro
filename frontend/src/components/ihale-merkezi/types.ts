@@ -234,6 +234,7 @@ export const statusConfig: Record<TenderStatus, { color: string; label: string; 
 
 export interface TenderFilters {
   status?: string;
+  apiStatus?: string; // Backend'e giden status: 'active' | 'expired' | 'completed' | 'all'
   city?: string[];
   dateRange?: [Date | null, Date | null];
 }

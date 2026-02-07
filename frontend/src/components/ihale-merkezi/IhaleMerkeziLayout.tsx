@@ -130,7 +130,7 @@ export function IhaleMerkeziLayout() {
         page: state.currentPage,
         limit: 20,
         search: state.searchQuery || undefined,
-        status: 'active',
+        status: state.filters.apiStatus || 'active',
         city: state.filters.city?.[0] || undefined,
       });
 
@@ -143,7 +143,7 @@ export function IhaleMerkeziLayout() {
     } catch (error) {
       console.error('Tenders fetch error:', error);
     }
-  }, [state.currentPage, state.searchQuery, state.filters.city]);
+  }, [state.currentPage, state.searchQuery, state.filters.city, state.filters.apiStatus]);
 
   // Fetch tracked tenders - returns the list for immediate use
   const fetchTrackedTenders = useCallback(async (): Promise<SavedTender[]> => {
