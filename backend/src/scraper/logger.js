@@ -20,8 +20,14 @@ class Logger {
   async log(level, module, message, data = {}) {
     if (LOG_LEVELS[level] < this.level) return;
 
-    const _timestamp = new Date().toISOString();
-    const _emoji = { DEBUG: '🔍', INFO: 'ℹ️', WARN: '⚠️', ERROR: '❌', FATAL: '💀' }[level] || '';
+    const timestamp = new Date().toISOString();
+    const emoji = { DEBUG: '🔍', INFO: 'ℹ️', WARN: '⚠️', ERROR: '❌', FATAL: '💀' }[level] || '';
+
+    // Konsola yaz
+    const logFn = LOG_LEVELS[level] >= LOG_LEVELS.ERROR ? console.error
+      : LOG_LEVELS[level] >= LOG_LEVELS.WARN ? console.warn
+      : console.log;
+    logFn(`${emoji} [${timestamp}] [${level}] [${module}] ${message}`, Object.keys(data).length > 0 ? data : '');
 
     // DB'ye kaydet
     if (LOG_TO_DB && LOG_LEVELS[level] >= LOG_LEVELS.WARN) {

@@ -29,6 +29,13 @@ export default {
 };
 
 // Named exports
-export { browserManager, sessionManager, loginService, logger, scrapeList, documentScraper };
+export {
+  browserManager,
+  sessionManager,
+  loginService,
+  logger,
+  scrapeList,
+  documentScraper,
+};
 
-export const VERSION = '3.0.0';
+export const VERSION = '3.4.0';

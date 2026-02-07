@@ -167,60 +167,6 @@ class LoginService {
   }
 
   /**
-   * Header'daki login butonunu bul
-   */
-  async findLoginButton(page) {
-    const selectors = [
-      // Navbar'daki giriş linki/butonu
-      'a[href*="signin"]',
-      'a[href*="giris"]',
-      'button:has-text("Giriş")',
-      '.navbar button[data-toggle="modal"]',
-      'nav a.dropdown-toggle',
-      '.user-menu',
-      // Fallback: data attribute ile
-      '[data-target*="login"]',
-      '[data-target*="signin"]',
-    ];
-
-    for (const selector of selectors) {
-      try {
-        const element = await page.$(selector);
-        if (element) {
-          return selector;
-        }
-      } catch (_e) {}
-    }
-    return null;
-  }
-
-  /**
-   * Login formunun yüklenmesini bekle
-   */
-  async waitForLoginForm(page) {
-    const formSelectors = [
-      'form input[placeholder*="Kullanıcı"]',
-      'form input[placeholder*="kullanıcı"]',
-      'form input[type="password"]',
-      '.modal.show form',
-      '.modal-dialog form',
-    ];
-
-    for (let i = 0; i < 10; i++) {
-      for (const selector of formSelectors) {
-        try {
-          const element = await page.$(selector);
-          if (element) {
-            return true;
-          }
-        } catch (_e) {}
-      }
-      await this.delay(500);
-    }
-    return true;
-  }
-
-  /**
    * Placeholder veya label ile input bul
    */
   async findInputByPlaceholder(page, placeholders, isPassword = false) {

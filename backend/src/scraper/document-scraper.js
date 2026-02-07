@@ -11,10 +11,6 @@
  */
 
 class DocumentScraper {
-  constructor() {
-    this.retryDelay = 2000;
-    this.maxRetries = 3;
-  }
 
   /**
    * İhale ilanı içeriğini çeker (text olarak)
@@ -260,8 +256,6 @@ class DocumentScraper {
 
       // Düzeltme ilanı içeriğini çek
       const correctionNoticeContent = await this.scrapeCorrectionNotice(page);
-
-      const _docCount = Object.keys(allDocumentLinks).length;
 
       return {
         documentLinks: allDocumentLinks,

@@ -7,6 +7,7 @@
  *   node runner.js --mode=list --pages=5     # Liste tara
  *   node runner.js --mode=full --pages=3     # Liste + dökümanlar
  *   node runner.js --mode=single --url=URL   # Tek ihale ekle
+ *   node runner.js --mode=cleanup --days=7   # Süresi geçmiş ihaleleri temizle
  */
 
 // .env yükle (CLI çalıştırıldığında)
@@ -22,12 +23,13 @@ import loginService from './login-service.js';
 // Argümanları parse et
 function parseArgs() {
   const args = process.argv.slice(2);
-  const parsed = { mode: 'list', pages: 5, url: null };
+  const parsed = { mode: 'list', pages: 5, url: null, days: 7 };
 
   for (const arg of args) {
     if (arg.startsWith('--mode=')) parsed.mode = arg.split('=')[1];
     else if (arg.startsWith('--pages=')) parsed.pages = parseInt(arg.split('=')[1], 10) || 5;
     else if (arg.startsWith('--url=')) parsed.url = arg.split('=')[1];
+    else if (arg.startsWith('--days=')) parsed.days = parseInt(arg.split('=')[1], 10) || 7;
     else if (arg === '--help' || arg === '-h') {
       process.exit(0);
     }
@@ -49,7 +51,7 @@ async function runList(args) {
       onPageComplete: (pageNum) => log.info(`Sayfa ${pageNum} tamamlandı`),
     });
 
-    const _summary = log.end(result.stats);
+    log.end(result.stats);
   } catch (error) {
     log.error('Hata', { error: error.message });
     throw error;
@@ -156,6 +158,97 @@ async function runSingle(args) {
   }
 }
 
+// Süresi geçmiş ihaleleri temizle
+async function runCleanup(args) {
+  const log = logger.createSession('Runner:Cleanup');
+  const days = args.days || 7;
+
+  try {
+    log.info(`Cleanup başlatılıyor: ${days} günden eski expired ihaleler silinecek`);
+
+    // 1. Silinecek ihaleleri bul (expired + ihale tarihi N günden eski)
+    const findResult = await query(
+      `SELECT id, title, tender_date 
+       FROM tenders 
+       WHERE status = 'expired' 
+         AND tender_date < NOW() - INTERVAL '1 day' * $1
+       ORDER BY tender_date ASC`,
+      [days]
+    );
+
+    const toDelete = findResult.rows;
+    log.info(`${toDelete.length} ihale silinecek (${days}+ gün expired)`);
+
+    if (toDelete.length === 0) {
+      log.end({ deleted: 0, message: 'Silinecek ihale yok' });
+      return;
+    }
+
+    const tenderIds = toDelete.map((t) => t.id);
+
+    // 2. İlişkili documents kayıtlarını say
+    const docCountResult = await query(
+      `SELECT COUNT(*) as c FROM documents WHERE tender_id = ANY($1)`,
+      [tenderIds]
+    );
+    const docCount = parseInt(docCountResult.rows[0].c, 10);
+
+    // 3. Supabase Storage'daki dosyaları temizle (storage_path olanlar)
+    let storageDeleted = 0;
+    if (docCount > 0) {
+      try {
+        const { supabase } = await import('../supabase.js');
+        const sb = typeof supabase === 'function' ? supabase : supabase;
+
+        if (sb) {
+          const docsWithStorage = await query(
+            `SELECT storage_path FROM documents 
+             WHERE tender_id = ANY($1) AND storage_path IS NOT NULL`,
+            [tenderIds]
+          );
+
+          // Batch halinde sil (50'şer)
+          const paths = docsWithStorage.rows.map((d) => d.storage_path).filter(Boolean);
+          for (let i = 0; i < paths.length; i += 50) {
+            const batch = paths.slice(i, i + 50);
+            try {
+              await sb.storage.from('tender-documents').remove(batch);
+              storageDeleted += batch.length;
+            } catch (storageErr) {
+              log.warn(`Storage silme hatası (batch ${i}): ${storageErr.message}`);
+            }
+          }
+        }
+      } catch (storageError) {
+        log.warn(`Storage temizleme atlandı: ${storageError.message}`);
+      }
+    }
+
+    // 4. tender_tracking kayıtlarını sil
+    await query(`DELETE FROM tender_tracking WHERE tender_id = ANY($1)`, [tenderIds]);
+
+    // 5. documents kayıtları CASCADE ile silinecek, ama açıkça da silelim
+    const deletedDocs = await query(`DELETE FROM documents WHERE tender_id = ANY($1) RETURNING id`, [tenderIds]);
+
+    // 6. Tenders kayıtlarını sil
+    const deletedTenders = await query(`DELETE FROM tenders WHERE id = ANY($1) RETURNING id`, [tenderIds]);
+
+    const summary = {
+      tendersDeleted: deletedTenders.rowCount,
+      documentsDeleted: deletedDocs.rowCount,
+      storageFilesDeleted: storageDeleted,
+      oldestDate: toDelete[0]?.tender_date,
+      newestDate: toDelete[toDelete.length - 1]?.tender_date,
+    };
+
+    log.info(`Cleanup tamamlandı`, summary);
+    log.end(summary);
+  } catch (error) {
+    log.error('Cleanup hatası', { error: error.message });
+    throw error;
+  }
+}
+
 // Ana fonksiyon
 async function main() {
   const args = parseArgs();
@@ -170,6 +263,9 @@ async function main() {
         break;
       case 'single':
         await runSingle(args);
+        break;
+      case 'cleanup':
+        await runCleanup(args);
         break;
       default:
         process.exit(1);
