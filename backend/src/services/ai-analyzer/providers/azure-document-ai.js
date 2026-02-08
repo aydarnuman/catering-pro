@@ -25,7 +25,7 @@ function getAzureConfig() {
     endpoint: process.env.AZURE_DOCUMENT_AI_ENDPOINT || aiConfig.azure?.endpoint,
     apiKey: process.env.AZURE_DOCUMENT_AI_KEY || aiConfig.azure?.apiKey,
     // Custom model ID (Document Intelligence Studio'da eğitildikten sonra)
-    customModelId: process.env.AZURE_DOCUMENT_AI_MODEL_ID || aiConfig.azure?.customModelId || 'ihale-teknik-sartname',
+    customModelId: process.env.AZURE_DOCUMENT_AI_MODEL_ID || aiConfig.azure?.customModelId || 'ihale-catering-v1',
     // Timeout settings - 100+ sayfa PDF için 10 dakika gerekebilir
     timeout: parseInt(process.env.AZURE_TIMEOUT, 10) || aiConfig.azure?.timeout || 600000, // 10 minutes
     maxRetries: 3,
@@ -971,6 +971,119 @@ export async function checkHealth() {
 }
 
 /**
+ * Azure'daki tüm custom modelleri listele (prebuilt hariç)
+ */
+export async function listCustomModels() {
+  try {
+    if (!isAzureConfigured()) {
+      return { success: false, error: 'Azure yapılandırılmamış' };
+    }
+
+    const url = `${config.endpoint}documentintelligence/documentModels?api-version=2024-11-30`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Ocp-Apim-Subscription-Key': config.apiKey },
+    });
+
+    if (!response.ok) {
+      return { success: false, error: `API ${response.status}` };
+    }
+
+    const data = await response.json();
+    // Sadece custom modelleri filtrele (prebuilt- ile başlamayanlar)
+    const customModels = (data.value || [])
+      .filter((m) => !m.modelId.startsWith('prebuilt-'))
+      .map((m) => ({
+        modelId: m.modelId,
+        description: m.description || '',
+        createdDateTime: m.createdDateTime,
+        apiVersion: m.apiVersion,
+      }));
+
+    return { success: true, models: customModels, total: customModels.length };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Belirli bir modelin detayını getir (accuracy, fieldler, eğitim bilgisi)
+ */
+export async function getModelDetails(modelId) {
+  try {
+    if (!isAzureConfigured()) {
+      return { success: false, error: 'Azure yapılandırılmamış' };
+    }
+
+    const targetModelId = modelId || config.customModelId;
+    const url = `${config.endpoint}documentintelligence/documentModels/${targetModelId}?api-version=2024-11-30`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Ocp-Apim-Subscription-Key': config.apiKey },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return { success: false, error: `Model bulunamadı: ${response.status} - ${errorText.substring(0, 200)}` };
+    }
+
+    const model = await response.json();
+
+    // Field schema'yı daha okunabilir hale getir
+    const fields = model.docTypes
+      ? Object.entries(model.docTypes).map(([docType, schema]) => ({
+          docType,
+          fieldCount: schema.fieldSchema ? Object.keys(schema.fieldSchema).length : 0,
+          fields: schema.fieldSchema
+            ? Object.entries(schema.fieldSchema).map(([name, def]) => ({
+                name,
+                type: def.type || 'unknown',
+                description: def.description || '',
+              }))
+            : [],
+          // Field confidence (eğitimden gelen doğruluk oranları)
+          fieldConfidence: schema.fieldConfidence || {},
+          // Build mode (neural / template)
+          buildMode: schema.buildMode || 'unknown',
+        }))
+      : [];
+
+    return {
+      success: true,
+      model: {
+        modelId: model.modelId,
+        description: model.description || '',
+        createdDateTime: model.createdDateTime,
+        expirationDateTime: model.expirationDateTime,
+        apiVersion: model.apiVersion,
+        docTypes: fields,
+        // Ortalama field confidence (varsa)
+        averageAccuracy: calculateAverageAccuracy(fields),
+        trainingDocumentCount: model.trainingDocumentCount,
+      },
+    };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Ortalama accuracy hesapla
+ */
+function calculateAverageAccuracy(docTypes) {
+  const allConfidences = [];
+  for (const dt of docTypes) {
+    if (dt.fieldConfidence) {
+      for (const conf of Object.values(dt.fieldConfidence)) {
+        if (typeof conf === 'number') allConfidences.push(conf);
+      }
+    }
+  }
+  if (allConfidences.length === 0) return null;
+  return Math.round((allConfidences.reduce((a, b) => a + b, 0) / allConfidences.length) * 100) / 100;
+}
+
+/**
  * Get provider statistics (for monitoring)
  */
 export function getStats() {
@@ -1285,4 +1398,6 @@ export default {
   analyzeIhaleDocument,
   checkHealth,
   getStats,
+  listCustomModels,
+  getModelDetails,
 };

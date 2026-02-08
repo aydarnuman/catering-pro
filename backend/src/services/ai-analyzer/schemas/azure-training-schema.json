@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.cognitiveservices.azure.com/formrecognizer/2022-08-31/fields.json",
-  "modelId": "ihale-teknik-sartname",
+  "modelId": "ihale-catering-v1",
   "description": "İhale teknik şartname dökümanları için custom extraction model",
   "fieldSchema": {
     "ihale_kayit_no": {
