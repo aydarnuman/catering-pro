@@ -255,13 +255,37 @@ export async function analyzeWithLayout(document, options = {}) {
           module: 'azure-doc-ai',
           magic: magic.replace(/[^\x20-\x7E]/g, '?'),
         });
-        // Check if it's a ZIP
+        // Check if it's a ZIP - but NOT Office Open XML (.docx, .xlsx, .pptx)
+        // DOCX/XLSX/PPTX are internally ZIP archives and start with PK magic bytes
         if (documentBuffer[0] === 0x50 && documentBuffer[1] === 0x4b) {
-          return {
-            success: false,
-            provider: 'azure-layout',
-            error: 'File appears to be a ZIP archive, not a PDF',
-          };
+          // Office Open XML dosyaları ZIP tabanlıdır ama geçerli belgelerdir
+          // Hem uzantıya hem ZIP içeriğine bakarak karar ver
+          const fileNameHint = (options?.fileName || '').toLowerCase();
+          const isOfficeXmlByExt = fileNameHint.endsWith('.docx') || fileNameHint.endsWith('.xlsx') || fileNameHint.endsWith('.pptx');
+
+          // ZIP içindeki dosya adlarına bakarak Office Open XML mi kontrol et
+          // Office Open XML [Content_Types].xml veya word/ excel/ ppt/ dizini içerir
+          let isOfficeXmlByContent = false;
+          try {
+            const zipSnippet = documentBuffer.slice(0, 2000).toString('ascii', 0, Math.min(2000, documentBuffer.length));
+            isOfficeXmlByContent = zipSnippet.includes('[Content_Types]') ||
+              zipSnippet.includes('word/') ||
+              zipSnippet.includes('xl/') ||
+              zipSnippet.includes('ppt/');
+          } catch {}
+
+          if (!isOfficeXmlByExt && !isOfficeXmlByContent) {
+            return {
+              success: false,
+              provider: 'azure-layout',
+              error: 'File appears to be a ZIP archive, not a PDF',
+            };
+          }
+          logger.info('Office Open XML dosya tespit edildi (PK magic bytes), ZIP reddi atlanıyor', {
+            module: 'azure-doc-ai',
+            byExt: isOfficeXmlByExt,
+            byContent: isOfficeXmlByContent,
+          });
         }
       }
     }
@@ -555,11 +579,36 @@ export async function analyzeWithCustomModel(document, modelId = null) {
           url: analyzeUrl.substring(0, 80) + '...',
         });
 
+        // Content-Type'ı dosya içeriğine göre belirle (hardcoded application/pdf yerine)
+        let contentType = 'application/octet-stream';
+        if (documentBuffer.length >= 4) {
+          const magic = documentBuffer.slice(0, 4).toString('ascii');
+          if (magic === '%PDF') {
+            contentType = 'application/pdf';
+          } else if (documentBuffer[0] === 0x50 && documentBuffer[1] === 0x4b) {
+            // Office Open XML (DOCX/XLSX/PPTX)
+            contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+          } else if (documentBuffer[0] === 0xFF && documentBuffer[1] === 0xD8) {
+            contentType = 'image/jpeg';
+          } else if (documentBuffer[0] === 0x89 && documentBuffer[1] === 0x50 && documentBuffer[2] === 0x4E && documentBuffer[3] === 0x47) {
+            contentType = 'image/png';
+          } else if (magic === 'RIFF') {
+            contentType = 'image/webp';
+          } else if (magic.startsWith('GIF8')) {
+            contentType = 'image/gif';
+          }
+        }
+
+        logger.info('Azure Custom Model Content-Type belirlenedi', {
+          module: 'azure-doc-ai',
+          contentType,
+        });
+
         const startResponse = await fetch(analyzeUrl, {
           method: 'POST',
           headers: {
             'Ocp-Apim-Subscription-Key': config.apiKey,
-            'Content-Type': 'application/pdf',
+            'Content-Type': contentType,
           },
           body: documentBuffer,
         });
@@ -711,20 +760,26 @@ function extractCustomFieldsFromRest(result) {
 
     for (const [key, field] of Object.entries(doc.fields)) {
       if (field) {
-        fields[key] = {
-          value: field.valueString || field.valueNumber || field.valueDate || field.content || null,
-          confidence: field.confidence || 0,
-          type: field.type || 'string',
-        };
-
-        // Handle arrays
+        // Handle arrays - confidence ve value bilgisini KORU
         if (field.valueArray) {
+          const items = field.valueArray.map((item) => ({
+            value: item.valueString || item.valueObject || item.content,
+            confidence: item.confidence,
+          }));
+          // Array alanlarının value'sunu JSON string olarak sakla
+          // confidence'ı da koru, böylece getField() ve prepareForClaude() çalışır
+          const arrayValueStr = items.map(i => typeof i.value === 'object' ? JSON.stringify(i.value) : i.value).filter(Boolean).join('; ');
           fields[key] = {
-            items: field.valueArray.map((item) => ({
-              value: item.valueString || item.valueObject || item.content,
-              confidence: item.confidence,
-            })),
+            items,
             type: 'array',
+            value: arrayValueStr || null,
+            confidence: field.confidence || 0.8, // Array alanları genelde yüksek güvenilirlik
+          };
+        } else {
+          fields[key] = {
+            value: field.valueString || field.valueNumber || field.valueDate || field.content || null,
+            confidence: field.confidence || 0,
+            type: field.type || 'string',
           };
         }
       }

@@ -34,7 +34,7 @@ export const aiConfig = {
     // Pipeline v5.0 modelleri
     fastModel: process.env.CLAUDE_FAST_MODEL || 'claude-3-haiku-20240307', // Aşama 1: Hızlı chunk analizi
     defaultModel: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514', // Aşama 2: Birleştirme + Genel AI
-    analysisModel: process.env.CLAUDE_ANALYSIS_MODEL || 'claude-opus-4-20250514', // Derin analiz + Vision
+    analysisModel: process.env.CLAUDE_ANALYSIS_MODEL || 'claude-opus-4-6', // Derin analiz + Vision (1M context)
     maxTokens: parseInt(process.env.CLAUDE_MAX_TOKENS || '4096', 10),
     temperature: parseFloat(process.env.CLAUDE_TEMPERATURE || '0.3'),
     timeout: parseInt(process.env.CLAUDE_TIMEOUT || '120000', 10), // 2 dakika
@@ -72,9 +72,9 @@ export const aiConfig = {
     // Claude Sonnet fiyatları ($ per 1K tokens)
     claudeInputCost: 0.003,
     claudeOutputCost: 0.015,
-    // Claude Opus fiyatları (derin analiz için)
-    claudeOpusInputCost: 0.015,
-    claudeOpusOutputCost: 0.075,
+    // Claude Opus 4.6 fiyatları (derin analiz için)
+    claudeOpusInputCost: 0.005,
+    claudeOpusOutputCost: 0.025,
     // Azure Document Intelligence fiyatları ($ per 1000 pages)
     azureLayoutCost: 1.5, // prebuilt-layout
     azureCustomCost: 10.0, // custom model
