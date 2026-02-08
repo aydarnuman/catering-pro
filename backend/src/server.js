@@ -250,6 +250,7 @@ app.get('/health', async (_req, res) => {
 
 import aiRouter from './routes/ai.js';
 import aiMemoryRouter from './routes/ai-memory.js';
+import analysisCorrectionsRouter from './routes/analysis-corrections.js';
 import auditLogsRouter from './routes/audit-logs.js';
 import authRouter from './routes/auth.js';
 import bordroRouter from './routes/bordro.js';
@@ -375,6 +376,7 @@ app.use('/api/contractors', contractorsRouter);
 app.use('/api/system', systemRouter);
 app.use('/api/prompt-builder', promptBuilderRouter);
 app.use('/api/preferences', preferencesRouter);
+app.use('/api/analysis-corrections', analysisCorrectionsRouter);
 
 /**
  * @swagger

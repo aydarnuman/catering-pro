@@ -198,6 +198,15 @@ export default function AdminPage() {
           path: '/admin/prompt-builder',
           stat: null,
         },
+        {
+          id: 'model-egitimi',
+          title: 'Model Eğitimi',
+          description: 'Azure DI model eğitim durumu, düzeltme istatistikleri ve manuel eğitim tetikleme',
+          icon: IconDatabase,
+          color: 'cyan',
+          path: '/admin/model-egitimi',
+          stat: null,
+        },
       ],
     },
   };
