@@ -7,8 +7,8 @@
 
 import express from 'express';
 import { query } from '../database.js';
+import { normalizeAnalyzData } from '../scraper/yuklenici-istihbarat/yuklenici-profil-cek.js';
 import { logAPI, logError } from '../utils/logger.js';
-import { normalizeAnalyzData } from '../scraper/analyze-page-scraper.js';
 
 const router = express.Router();
 
@@ -105,7 +105,7 @@ router.get('/', async (req, res) => {
       paramIndex++;
     }
 
-    const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     // Sıralama güvenliği
     const allowedSorts = [
@@ -229,6 +229,12 @@ router.get('/:id', async (req, res) => {
     }
 
     // Yüklenicinin ihaleleri (yuklenici_ihaleleri tablosundan)
+    const ihalelerCountResult = await query(
+      'SELECT COUNT(*) FROM yuklenici_ihaleleri WHERE yuklenici_id = $1',
+      [id]
+    );
+    const totalIhaleler = parseInt(ihalelerCountResult.rows[0].count, 10);
+
     const ihalelerResult = await query(
       `
       SELECT yi.*, t.url as tender_url, t.document_links
@@ -236,7 +242,7 @@ router.get('/:id', async (req, res) => {
       LEFT JOIN tenders t ON yi.tender_id = t.id
       WHERE yi.yuklenici_id = $1
       ORDER BY yi.sozlesme_tarihi DESC NULLS LAST, yi.created_at DESC
-      LIMIT 100
+      LIMIT 200
     `,
       [id]
     );
@@ -245,8 +251,8 @@ router.get('/:id', async (req, res) => {
     const kazanilanResult = await query(
       `
       SELECT id, external_id, title, city, location, organization_name, 
-             sozlesme_bedeli, indirim_orani, sozlesme_tarihi, 
-             work_start_date, is_bitis_tarihi, status, url, tender_date
+             sozlesme_bedeli, estimated_cost, indirim_orani, sozlesme_tarihi, 
+             work_start_date, is_bitis_tarihi, work_duration, status, url, tender_date
       FROM tenders 
       WHERE yuklenici_id = $1
       ORDER BY tender_date DESC NULLS LAST
@@ -286,6 +292,7 @@ router.get('/:id', async (req, res) => {
         ihaleler: ihalelerResult.rows,
         kazanilanIhaleler: kazanilanResult.rows,
         sehirDagilimi: sehirResult.rows,
+        totalIhaleler,
       },
     });
   } catch (error) {
@@ -432,15 +439,16 @@ router.post('/:id/toggle-istihbarat', async (req, res) => {
       (async () => {
         let page;
         try {
-          const { default: browserManager } = await import('../scraper/browser-manager.js');
-          const { scrapeContractorTenders } = await import('../scraper/contractor-tender-scraper.js');
+          const { default: browserManager } = await import('../scraper/shared/browser.js');
+          const { scrapeContractorTenders } = await import('../scraper/yuklenici-istihbarat/yuklenici-gecmisi-cek.js');
 
           page = await browserManager.createPage();
           scrapeState._activePage = page;
 
           // ── ADIM 1: İhale geçmişi çek ──
           addScrapeLog('Adım 1/4: İhale geçmişi çekiliyor...', 'info');
-          const scrapeResult = await scrapeContractorTenders(page, { id: parseInt(id), unvan: yk.unvan }, {
+          await updateModulDurum(id, 'ihale_gecmisi', 'calisiyor');
+          const scrapeResult = await scrapeContractorTenders(page, { id: parseInt(id, 10), unvan: yk.unvan }, {
             maxPages: 15,
             onPageComplete: (pageNum, tenders, stats) => {
               if (!scrapeState.running) { page.close().catch(() => {}); return; }
@@ -471,27 +479,37 @@ router.post('/:id/toggle-istihbarat', async (req, res) => {
             );
 
             addScrapeLog(`İhale geçmişi: ${scrapeResult.stats.tenders_saved} ihale, ${fesihCount} fesih`, 'success');
+            await updateModulDurum(id, 'ihale_gecmisi', 'tamamlandi', {
+              veri: { ihale_sayisi: scrapeResult.stats.tenders_saved, fesih_sayisi: fesihCount },
+            });
 
             // ── ADIM 2: Analiz verisi çek (yıllık trend, rakipler, şehirler vs.) ──
             addScrapeLog('Adım 2/4: Analiz verisi çekiliyor...', 'info');
+            await updateModulDurum(id, 'profil_analizi', 'calisiyor');
             try {
-              const { scrapeAnalyzePage } = await import('../scraper/analyze-page-scraper.js');
-              const analyzeResult = await scrapeAnalyzePage(page, { id: parseInt(id), unvan: yk.unvan }, {
+              const { scrapeAnalyzePage } = await import('../scraper/yuklenici-istihbarat/yuklenici-profil-cek.js');
+              const analyzeResult = await scrapeAnalyzePage(page, { id: parseInt(id, 10), unvan: yk.unvan }, {
                 onProgress: (msg) => addScrapeLog(`Analiz: ${msg}`, 'info'),
               });
 
               if (analyzeResult.success) {
                 addScrapeLog(`Analiz: ${analyzeResult.stats.sections_scraped} bölüm, ${analyzeResult.stats.total_rows} satır`, 'success');
+                await updateModulDurum(id, 'profil_analizi', 'tamamlandi', {
+                  veri: { bolum: analyzeResult.stats.sections_scraped, satir: analyzeResult.stats.total_rows },
+                });
               } else {
                 addScrapeLog(`Analiz: ${analyzeResult.error || 'veri alınamadı'}`, 'warn');
+                await updateModulDurum(id, 'profil_analizi', 'hata', { hata_mesaji: analyzeResult.error });
               }
             } catch (analyzeError) {
               addScrapeLog(`Analiz hatası: ${analyzeError.message}`, 'warn');
+              await updateModulDurum(id, 'profil_analizi', 'hata', { hata_mesaji: analyzeError.message });
             }
 
             // ── ADIM 3: Katılımcı / teklif detayları (son 10 ihale) ──
             if (scrapeState.running) {
               addScrapeLog('Adım 3/4: Katılımcı detayları çekiliyor...', 'info');
+              await updateModulDurum(id, 'katilimcilar', 'calisiyor');
               try {
                 const recentTenders = await query(
                   `SELECT t.id, t.external_id, t.document_links
@@ -509,26 +527,34 @@ router.post('/:id/toggle-istihbarat', async (req, res) => {
                 );
 
                 if (recentTenders.rows.length > 0) {
-                  const { batchScrapeParticipants } = await import('../scraper/participant-scraper.js');
+                  const { batchScrapeParticipants } = await import('../scraper/yuklenici-istihbarat/ihale-katilimci-cek.js');
                   const partResult = await batchScrapeParticipants(page, recentTenders.rows, {
                     maxTenders: 10,
                     onProgress: (stats) => addScrapeLog(`Katılımcı: ${stats.processed}/${stats.total} ihale (${stats.total_participants} katılımcı)`, 'info'),
                   });
                   addScrapeLog(`Katılımcı: ${partResult.stats.total_participants} katılımcı, ${partResult.stats.new_contractors} yeni firma`, 'success');
+                  await updateModulDurum(id, 'katilimcilar', 'tamamlandi', {
+                    veri: { katilimci: partResult.stats.total_participants, yeni_firma: partResult.stats.new_contractors },
+                  });
                 } else {
                   addScrapeLog('Katılımcı: Uygun ihale bulunamadı (katılımcı linki yok veya zaten çekilmiş)', 'info');
+                  await updateModulDurum(id, 'katilimcilar', 'tamamlandi', {
+                    veri: { mesaj: 'Uygun ihale bulunamadı' },
+                  });
                 }
               } catch (partError) {
                 addScrapeLog(`Katılımcı hatası: ${partError.message}`, 'warn');
+                await updateModulDurum(id, 'katilimcilar', 'hata', { hata_mesaji: partError.message });
               }
             }
 
             // ── ADIM 4: KIK kararları ──
             if (scrapeState.running) {
               addScrapeLog('Adım 4/4: KIK kararları çekiliyor...', 'info');
+              await updateModulDurum(id, 'kik_kararlari', 'calisiyor');
               try {
-                const { scrapeKikDecisions } = await import('../scraper/contractor-tender-scraper.js');
-                const kikResult = await scrapeKikDecisions(page, { id: parseInt(id), unvan: yk.unvan }, {
+                const { scrapeKikDecisions } = await import('../scraper/yuklenici-istihbarat/yuklenici-gecmisi-cek.js');
+                const kikResult = await scrapeKikDecisions(page, { id: parseInt(id, 10), unvan: yk.unvan }, {
                   maxPages: 3,
                   onProgress: (msg) => addScrapeLog(`KIK: ${msg}`, 'info'),
                 });
@@ -548,8 +574,12 @@ router.post('/:id/toggle-istihbarat', async (req, res) => {
                   );
                 }
                 addScrapeLog(`KIK: ${kikResult.stats.tenders_saved} karar bulundu`, 'success');
+                await updateModulDurum(id, 'kik_kararlari', 'tamamlandi', {
+                  veri: { karar_sayisi: kikResult.stats.tenders_saved },
+                });
               } catch (kikError) {
                 addScrapeLog(`KIK hatası: ${kikError.message}`, 'warn');
+                await updateModulDurum(id, 'kik_kararlari', 'hata', { hata_mesaji: kikError.message });
               }
             }
 
@@ -752,8 +782,8 @@ router.post('/scrape', async (req, res) => {
   (async () => {
     let page;
     try {
-      const { default: browserManager } = await import('../scraper/browser-manager.js');
-      const { scrapeContractorList } = await import('../scraper/contractor-list-scraper.js');
+      const { default: browserManager } = await import('../scraper/shared/browser.js');
+      const { scrapeContractorList } = await import('../scraper/yuklenici-istihbarat/yuklenici-listesi-cek.js');
 
       addScrapeLog('Browser açılıyor...');
       page = await browserManager.createPage();
@@ -1251,8 +1281,8 @@ router.post('/scrape/participants', async (req, res) => {
     (async () => {
       let page;
       try {
-        const { default: browserManager } = await import('../scraper/browser-manager.js');
-        const { batchScrapeParticipants } = await import('../scraper/participant-scraper.js');
+        const { default: browserManager } = await import('../scraper/shared/browser.js');
+        const { batchScrapeParticipants } = await import('../scraper/yuklenici-istihbarat/ihale-katilimci-cek.js');
 
         page = await browserManager.createPage();
         scrapeState._activePage = page;
@@ -1315,8 +1345,8 @@ router.post('/scrape/tender-history', async (req, res) => {
   (async () => {
     let page;
     try {
-      const { default: browserManager } = await import('../scraper/browser-manager.js');
-      const { batchScrapeContractorTenders } = await import('../scraper/contractor-tender-scraper.js');
+      const { default: browserManager } = await import('../scraper/shared/browser.js');
+      const { batchScrapeContractorTenders } = await import('../scraper/yuklenici-istihbarat/yuklenici-gecmisi-cek.js');
 
       page = await browserManager.createPage();
       scrapeState._activePage = page;
@@ -1489,8 +1519,8 @@ router.post('/:id/scrape-history', async (req, res) => {
     (async () => {
       let page;
       try {
-        const { default: browserManager } = await import('../scraper/browser-manager.js');
-        const { scrapeContractorTenders } = await import('../scraper/contractor-tender-scraper.js');
+        const { default: browserManager } = await import('../scraper/shared/browser.js');
+        const { scrapeContractorTenders } = await import('../scraper/yuklenici-istihbarat/yuklenici-gecmisi-cek.js');
 
         page = await browserManager.createPage();
         scrapeState._activePage = page;
@@ -1606,8 +1636,8 @@ router.post('/:id/scrape-analyze', async (req, res) => {
     let page;
     (async () => {
       try {
-        const { default: browserManager } = await import('../scraper/browser-manager.js');
-        const { scrapeAnalyzePage } = await import('../scraper/analyze-page-scraper.js');
+        const { default: browserManager } = await import('../scraper/shared/browser.js');
+        const { scrapeAnalyzePage } = await import('../scraper/yuklenici-istihbarat/yuklenici-profil-cek.js');
 
         page = await browserManager.createPage();
         scrapeState._activePage = page;
@@ -1701,5 +1731,675 @@ router.get('/tender/:tenderId/ai-rakip-analiz', async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// İSTİHBARAT MERKEZİ API ENDPOİNTLERİ
+// Her yüklenici için 8 bağımsız istihbarat modülünü yönetir.
+// Mevcut endpoint'lerle ÇAKIŞMAZ, tamamen ek katmandır.
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Geçerli modül adları.
+ * Frontend ve backend aynı listeyi kullanır.
+ */
+const ISTIHBARAT_MODULLERI = [
+  'ihale_gecmisi',    // ihalebul.com — ihale geçmişi scraper
+  'profil_analizi',   // ihalebul.com — analiz sayfası scraper
+  'katilimcilar',     // ihalebul.com — katılımcı bilgileri scraper
+  'kik_kararlari',    // ihalebul.com — KİK kararları scraper
+  'kik_yasaklilar',   // EKAP — yasaklı firma sorgusu
+  'sirket_bilgileri', // MERSİS + Ticaret Sicil Gazetesi
+  'haberler',         // Google News RSS haber taraması
+  'ai_arastirma',     // Claude AI istihbarat raporu
+];
+
+/**
+ * Modül durumunu DB'de günceller (UPSERT).
+ * Tüm modül tetikleme fonksiyonları bunu kullanır.
+ */
+async function updateModulDurum(yukleniciId, modul, durum, extras = {}) {
+  const setClauses = ['durum = $3', 'updated_at = NOW()'];
+  const values = [yukleniciId, modul, durum];
+  let idx = 4;
+
+  if (extras.veri !== undefined) {
+    setClauses.push(`veri = $${idx}`);
+    values.push(JSON.stringify(extras.veri));
+    idx++;
+  }
+  if (extras.hata_mesaji !== undefined) {
+    setClauses.push(`hata_mesaji = $${idx}`);
+    values.push(extras.hata_mesaji);
+    idx++;
+  }
+  if (durum === 'tamamlandi') {
+    setClauses.push('son_guncelleme = NOW()');
+    setClauses.push('hata_mesaji = NULL');
+  }
+
+  await query(
+    `INSERT INTO yuklenici_istihbarat (yuklenici_id, modul, durum, updated_at)
+     VALUES ($1, $2, $3, NOW())
+     ON CONFLICT (yuklenici_id, modul)
+     DO UPDATE SET ${setClauses.join(', ')}`,
+    values
+  );
+}
+
+/**
+ * GET /api/contractors/:id/istihbarat
+ * Bir yüklenicinin TÜM modüllerinin durumunu döner.
+ * Frontend bu endpoint ile modül kartlarını doldurur.
+ *
+ * Yanıt formatı:
+ * {
+ *   success: true,
+ *   data: {
+ *     moduller: [
+ *       { modul: "ihale_gecmisi", durum: "tamamlandi", son_guncelleme: "...", ... },
+ *       { modul: "haberler", durum: "bekliyor", son_guncelleme: null, ... },
+ *       ...
+ *     ]
+ *   }
+ * }
+ */
+router.get('/:id/istihbarat', async (req, res) => {
+  try {
+    const { id } = req.params;
+    logAPI('İstihbarat Merkezi - Tüm Modüller', { yukleniciId: id });
+
+    // DB'deki mevcut kayıtları çek
+    const { rows } = await query(
+      `SELECT modul, durum, son_guncelleme, veri, hata_mesaji, updated_at
+       FROM yuklenici_istihbarat
+       WHERE yuklenici_id = $1
+       ORDER BY modul`,
+      [id]
+    );
+
+    // DB'de kaydı olmayan modüller için varsayılan "bekliyor" durumu oluştur
+    const mevcutMap = new Map(rows.map(r => [r.modul, r]));
+    const moduller = ISTIHBARAT_MODULLERI.map(modul => {
+      if (mevcutMap.has(modul)) {
+        return mevcutMap.get(modul);
+      }
+      return {
+        modul,
+        durum: 'bekliyor',
+        son_guncelleme: null,
+        veri: {},
+        hata_mesaji: null,
+        updated_at: null,
+      };
+    });
+
+    res.json({ success: true, data: { moduller } });
+  } catch (error) {
+    logError('İstihbarat Merkezi - Tüm Modüller', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/contractors/:id/modul/:modul/calistir
+ * Belirli bir istihbarat modülünü tetikler.
+ * Arka planda çalışır, anında { success: true, message: "Başlatıldı" } döner.
+ *
+ * Puppeteer kullanan modüller (ihalebul + EKAP + MERSIS) sıra bekler.
+ * HTTP-only modüller (haberler, ai_arastirma) paralel çalışabilir.
+ */
+router.post('/:id/modul/:modul/calistir', async (req, res) => {
+  try {
+    const { id, modul } = req.params;
+
+    // Geçersiz modül kontrolü
+    if (!ISTIHBARAT_MODULLERI.includes(modul)) {
+      return res.status(400).json({
+        success: false,
+        error: `Geçersiz modül: "${modul}". Geçerli modüller: ${ISTIHBARAT_MODULLERI.join(', ')}`,
+      });
+    }
+
+    // Yüklenici var mı kontrol et
+    const { rows: [yuklenici] } = await query(
+      'SELECT id, unvan FROM yukleniciler WHERE id = $1',
+      [id]
+    );
+    if (!yuklenici) {
+      return res.status(404).json({ success: false, error: 'Yüklenici bulunamadı' });
+    }
+
+    // Zaten çalışıyor mu kontrol et
+    const { rows: [mevcut] } = await query(
+      `SELECT durum FROM yuklenici_istihbarat
+       WHERE yuklenici_id = $1 AND modul = $2`,
+      [id, modul]
+    );
+    if (mevcut?.durum === 'calisiyor') {
+      return res.status(409).json({
+        success: false,
+        error: `"${modul}" modülü zaten çalışıyor. Lütfen bitmesini bekleyin.`,
+      });
+    }
+
+    // Durumu "çalışıyor" yap
+    await updateModulDurum(id, modul, 'calisiyor');
+
+    // Arka planda çalıştır (async IIFE)
+    (async () => {
+      try {
+        await calistirModul(parseInt(id, 10), modul, yuklenici);
+      } catch (err) {
+        logError(`İstihbarat Modül Hata [${modul}]`, err);
+        await updateModulDurum(id, modul, 'hata', {
+          hata_mesaji: err.message || 'Bilinmeyen hata',
+        });
+      }
+    })();
+
+    logAPI('İstihbarat Modül Başlatıldı', { yukleniciId: id, modul });
+    res.json({
+      success: true,
+      message: `"${modul}" modülü başlatıldı`,
+      modul,
+      durum: 'calisiyor',
+    });
+  } catch (error) {
+    logError('İstihbarat Modül Tetikleme', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/contractors/:id/modul/tumunu-calistir
+ * Tüm modülleri sırayla çalıştırır.
+ * ihalebul modülleri ardışık (aynı Puppeteer sayfası),
+ * diğerleri paralel (HTTP çağrıları).
+ */
+router.post('/:id/modul/tumunu-calistir', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { rows: [yuklenici] } = await query(
+      'SELECT id, unvan FROM yukleniciler WHERE id = $1',
+      [id]
+    );
+    if (!yuklenici) {
+      return res.status(404).json({ success: false, error: 'Yüklenici bulunamadı' });
+    }
+
+    // Tüm modülleri "çalışıyor" olarak işaretle
+    for (const modul of ISTIHBARAT_MODULLERI) {
+      await updateModulDurum(id, modul, 'calisiyor');
+    }
+
+    // Arka planda tümünü çalıştır
+    (async () => {
+      const yukId = parseInt(id, 10);
+
+      // 1) ihalebul modülleri sırayla (Puppeteer paylaşımı)
+      const ihalebulModuller = ['ihale_gecmisi', 'profil_analizi', 'katilimcilar', 'kik_kararlari'];
+      for (const modul of ihalebulModuller) {
+        try {
+          await calistirModul(yukId, modul, yuklenici);
+        } catch (err) {
+          logError(`Toplu İstihbarat [${modul}]`, err);
+          await updateModulDurum(id, modul, 'hata', { hata_mesaji: err.message });
+        }
+      }
+
+      // 2) Diğer modüller paralel (HTTP-tabanlı, Puppeteer kullanmayan)
+      const digerModuller = ['kik_yasaklilar', 'sirket_bilgileri', 'haberler', 'ai_arastirma'];
+      await Promise.allSettled(
+        digerModuller.map(async (modul) => {
+          try {
+            await calistirModul(yukId, modul, yuklenici);
+          } catch (err) {
+            logError(`Toplu İstihbarat [${modul}]`, err);
+            await updateModulDurum(id, modul, 'hata', { hata_mesaji: err.message });
+          }
+        })
+      );
+    })();
+
+    logAPI('Tüm Modüller Başlatıldı', { yukleniciId: id });
+    res.json({
+      success: true,
+      message: 'Tüm istihbarat modülleri başlatıldı',
+    });
+  } catch (error) {
+    logError('Toplu İstihbarat Tetikleme', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/contractors/:id/modul/:modul/durum
+ * Belirli bir modülün anlık durumunu sorgular.
+ * Frontend bu endpoint'i polling ile kullanır (modül çalışırken).
+ */
+router.get('/:id/modul/:modul/durum', async (req, res) => {
+  try {
+    const { id, modul } = req.params;
+
+    const { rows: [row] } = await query(
+      `SELECT modul, durum, son_guncelleme, hata_mesaji, updated_at
+       FROM yuklenici_istihbarat
+       WHERE yuklenici_id = $1 AND modul = $2`,
+      [id, modul]
+    );
+
+    res.json({
+      success: true,
+      data: row || { modul, durum: 'bekliyor', son_guncelleme: null },
+    });
+  } catch (error) {
+    logError('İstihbarat Modül Durum', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/contractors/:id/modul/:modul/veri
+ * Belirli bir modülün sakladığı veriyi döner.
+ * ihalebul modülleri için ana tablolardan çeker,
+ * yeni modüller için yuklenici_istihbarat.veri alanından döner.
+ */
+router.get('/:id/modul/:modul/veri', async (req, res) => {
+  try {
+    const { id, modul } = req.params;
+
+    // ihalebul modülleri: veri ana tablolarda, oradan çek
+    if (modul === 'ihale_gecmisi') {
+      const { rows } = await query(
+        `SELECT * FROM yuklenici_ihaleleri
+         WHERE yuklenici_id = $1 AND rol IN ('yuklenici', 'katilimci')
+         ORDER BY sozlesme_tarihi DESC NULLS LAST
+         LIMIT 200`,
+        [id]
+      );
+      return res.json({ success: true, data: { ihaleler: rows, toplam: rows.length } });
+    }
+
+    if (modul === 'profil_analizi') {
+      const { rows: [yk] } = await query(
+        'SELECT analiz_verisi, analiz_scraped_at FROM yukleniciler WHERE id = $1',
+        [id]
+      );
+      return res.json({ success: true, data: { analiz: yk?.analiz_verisi, scraped_at: yk?.analiz_scraped_at } });
+    }
+
+    if (modul === 'katilimcilar') {
+      const { rows } = await query(
+        `SELECT * FROM yuklenici_ihaleleri
+         WHERE yuklenici_id = $1 AND rol = 'katilimci'
+         ORDER BY created_at DESC
+         LIMIT 100`,
+        [id]
+      );
+      return res.json({ success: true, data: { katilimcilar: rows } });
+    }
+
+    if (modul === 'kik_kararlari') {
+      const { rows } = await query(
+        `SELECT * FROM yuklenici_ihaleleri
+         WHERE yuklenici_id = $1 AND rol = 'kik_karari'
+         ORDER BY created_at DESC
+         LIMIT 100`,
+        [id]
+      );
+      return res.json({ success: true, data: { kararlar: rows } });
+    }
+
+    // Yeni modüller: veri JSONB alanından
+    const { rows: [row] } = await query(
+      `SELECT veri, son_guncelleme, durum
+       FROM yuklenici_istihbarat
+       WHERE yuklenici_id = $1 AND modul = $2`,
+      [id, modul]
+    );
+
+    res.json({
+      success: true,
+      data: row ? { ...row.veri, son_guncelleme: row.son_guncelleme } : null,
+    });
+  } catch (error) {
+    logError('İstihbarat Modül Veri', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/contractors/bildirimler
+ * Okunmamış yüklenici bildirimlerini döner (bildirim zili için).
+ * ?limit=20 parametresiyle sayı sınırlanabilir.
+ */
+router.get('/bildirimler/liste', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 20;
+
+    const { rows } = await query(
+      `SELECT yb.*, y.kisa_ad, y.unvan
+       FROM yuklenici_bildirimler yb
+       LEFT JOIN yukleniciler y ON y.id = yb.yuklenici_id
+       ORDER BY yb.created_at DESC
+       LIMIT $1`,
+      [limit]
+    );
+
+    // Okunmamış toplam sayı (badge için)
+    const { rows: [countRow] } = await query(
+      `SELECT COUNT(*) as sayi FROM yuklenici_bildirimler WHERE okundu = false`
+    );
+
+    res.json({
+      success: true,
+      data: {
+        bildirimler: rows,
+        okunmamis_sayisi: parseInt(countRow.sayi, 10),
+      },
+    });
+  } catch (error) {
+    logError('Bildirim Listesi', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PATCH /api/contractors/bildirimler/:bildirimId/oku
+ * Bir bildirimi "okundu" olarak işaretler.
+ */
+router.patch('/bildirimler/:bildirimId/oku', async (req, res) => {
+  try {
+    const { bildirimId } = req.params;
+
+    await query(
+      'UPDATE yuklenici_bildirimler SET okundu = true WHERE id = $1',
+      [bildirimId]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    logError('Bildirim Okundu', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/contractors/bildirimler/tumunu-oku
+ * Tüm bildirimleri okundu olarak işaretler.
+ */
+router.post('/bildirimler/tumunu-oku', async (_req, res) => {
+  try {
+    await query('UPDATE yuklenici_bildirimler SET okundu = true WHERE okundu = false');
+    res.json({ success: true });
+  } catch (error) {
+    logError('Tüm Bildirimler Okundu', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/contractors/:id/fiyat-tahmin
+ * Bir yüklenicinin geçmiş ihalelerine dayalı fiyat tahmini.
+ * Sektör/şehir bazlı indirim ortalamaları ve trend analizi.
+ */
+router.get('/:id/fiyat-tahmin', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Tüm ihalelerdeki indirim oranlarını çek
+    const { rows: ihaleler } = await query(
+      `SELECT indirim_orani, sozlesme_bedeli, yaklasik_maliyet, sehir, sozlesme_tarihi
+       FROM yuklenici_ihaleleri
+       WHERE yuklenici_id = $1
+         AND rol = 'yuklenici'
+         AND indirim_orani IS NOT NULL
+         AND indirim_orani > 0
+       ORDER BY sozlesme_tarihi DESC NULLS LAST`,
+      [id]
+    );
+
+    if (ihaleler.length === 0) {
+      return res.json({
+        success: true,
+        data: { yeterli_veri: false, mesaj: 'Fiyat tahmini için yeterli ihale verisi yok' },
+      });
+    }
+
+    const indirimler = ihaleler.map(i => parseFloat(i.indirim_orani));
+
+    // Temel istatistikler
+    const ortalama = indirimler.reduce((a, b) => a + b, 0) / indirimler.length;
+    const sorted = [...indirimler].sort((a, b) => a - b);
+    const medyan = sorted[Math.floor(sorted.length / 2)];
+    const min = sorted[0];
+    const max = sorted[sorted.length - 1];
+
+    // Trend: son 10 vs önceki ihaleler
+    const son10 = indirimler.slice(0, Math.min(10, indirimler.length));
+    const oncekiler = indirimler.slice(10);
+    const son10Ort = son10.reduce((a, b) => a + b, 0) / son10.length;
+    const oncekiOrt = oncekiler.length > 0
+      ? oncekiler.reduce((a, b) => a + b, 0) / oncekiler.length
+      : son10Ort;
+    const fark = son10Ort - oncekiOrt;
+    let trend = 'sabit';
+    if (fark > 2) trend = 'artiyor';    // İndirim oranı artıyor → daha agresif
+    else if (fark < -2) trend = 'azaliyor'; // İndirim oranı azalıyor → daha tutucu
+
+    // Şehir bazlı ortalamalar
+    const sehirMap = new Map();
+    for (const ihale of ihaleler) {
+      if (!ihale.sehir) continue;
+      if (!sehirMap.has(ihale.sehir)) sehirMap.set(ihale.sehir, []);
+      sehirMap.get(ihale.sehir).push(parseFloat(ihale.indirim_orani));
+    }
+    const sehir_bazli = [...sehirMap.entries()]
+      .map(([sehir, vals]) => ({
+        sehir,
+        ort_indirim: +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2),
+        ihale_sayisi: vals.length,
+      }))
+      .sort((a, b) => b.ihale_sayisi - a.ihale_sayisi)
+      .slice(0, 10);
+
+    res.json({
+      success: true,
+      data: {
+        yeterli_veri: true,
+        toplam_ihale: ihaleler.length,
+        ortalama_indirim: +ortalama.toFixed(2),
+        medyan_indirim: +medyan.toFixed(2),
+        min_indirim: +min.toFixed(2),
+        max_indirim: +max.toFixed(2),
+        trend,
+        trend_detay: {
+          son_10_ort: +son10Ort.toFixed(2),
+          onceki_ort: +oncekiOrt.toFixed(2),
+          fark: +fark.toFixed(2),
+        },
+        sehir_bazli,
+      },
+    });
+  } catch (error) {
+    logError('Fiyat Tahmini', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ─── Modül Çalıştırma Merkezi ─────────────────────────────────────
+// Her modülün arka plan iş mantığını yöneten fonksiyon.
+// Modüle göre doğru scraper/servisi çağırır.
+
+async function calistirModul(yukleniciId, modul, yuklenici) {
+  const startTime = Date.now();
+
+  switch (modul) {
+    // ──────── ihalebul.com Modülleri (mevcut scraper'ları kullanır) ────────
+
+    case 'ihale_gecmisi': {
+      const { default: browserManager } = await import('../scraper/shared/browser.js');
+      const { scrapeContractorTenders } = await import('../scraper/yuklenici-istihbarat/yuklenici-gecmisi-cek.js');
+
+      const page = await browserManager.createPage();
+      try {
+        const result = await scrapeContractorTenders(page, yuklenici, { maxPages: 15 });
+        await updateModulDurum(yukleniciId, modul, 'tamamlandi', {
+          veri: { stats: result.stats, sure_ms: Date.now() - startTime },
+        });
+      } finally {
+        if (page && !page.isClosed()) await page.close().catch(() => {});
+      }
+      break;
+    }
+
+    case 'profil_analizi': {
+      const { default: browserManager } = await import('../scraper/shared/browser.js');
+      const { scrapeAnalyzePage } = await import('../scraper/yuklenici-istihbarat/yuklenici-profil-cek.js');
+
+      const page = await browserManager.createPage();
+      try {
+        const result = await scrapeAnalyzePage(page, yuklenici);
+        if (!result.success) throw new Error(result.error || 'Analiz sayfası çekilemedi');
+        await updateModulDurum(yukleniciId, modul, 'tamamlandi', {
+          veri: { bolum_sayisi: Object.keys(result.data || {}).length, sure_ms: Date.now() - startTime },
+        });
+      } finally {
+        if (page && !page.isClosed()) await page.close().catch(() => {});
+      }
+      break;
+    }
+
+    case 'katilimcilar': {
+      const { default: browserManager } = await import('../scraper/shared/browser.js');
+      const { batchScrapeParticipants } = await import('../scraper/yuklenici-istihbarat/ihale-katilimci-cek.js');
+
+      // Son 10 ihaleyi çek (katılımcı linki olanlar)
+      const { rows: recentTenders } = await query(
+        `SELECT t.id, t.external_id, t.document_links
+         FROM tenders t
+         INNER JOIN yuklenici_ihaleleri yi ON yi.tender_id = t.id
+         WHERE yi.yuklenici_id = $1
+           AND t.document_links IS NOT NULL
+         ORDER BY t.tender_date DESC NULLS LAST
+         LIMIT 10`,
+        [yukleniciId]
+      );
+
+      if (recentTenders.length === 0) {
+        await updateModulDurum(yukleniciId, modul, 'tamamlandi', {
+          veri: { mesaj: 'Katılımcı linki olan ihale bulunamadı', sure_ms: Date.now() - startTime },
+        });
+        break;
+      }
+
+      const page = await browserManager.createPage();
+      try {
+        const result = await batchScrapeParticipants(page, recentTenders, { maxTenders: 10 });
+        await updateModulDurum(yukleniciId, modul, 'tamamlandi', {
+          veri: { stats: result.stats, sure_ms: Date.now() - startTime },
+        });
+      } finally {
+        if (page && !page.isClosed()) await page.close().catch(() => {});
+      }
+      break;
+    }
+
+    case 'kik_kararlari': {
+      const { default: browserManager } = await import('../scraper/shared/browser.js');
+      const { scrapeKikDecisions } = await import('../scraper/yuklenici-istihbarat/yuklenici-gecmisi-cek.js');
+
+      const page = await browserManager.createPage();
+      try {
+        const result = await scrapeKikDecisions(page, yuklenici, { maxPages: 3 });
+        await updateModulDurum(yukleniciId, modul, 'tamamlandi', {
+          veri: { stats: result.stats, sure_ms: Date.now() - startTime },
+        });
+      } finally {
+        if (page && !page.isClosed()) await page.close().catch(() => {});
+      }
+      break;
+    }
+
+    // ──────── Yeni Modüller (Faz 2'de servis dosyaları yazılacak) ────────
+
+    case 'kik_yasaklilar': {
+      // Faz 2.1'de yazılacak: kik-yasakli-sorgula.js
+      try {
+        const { scrapeKikYasakli } = await import('../scraper/yuklenici-istihbarat/kik-yasakli-sorgula.js');
+        const result = await scrapeKikYasakli(yuklenici);
+        await updateModulDurum(yukleniciId, modul, 'tamamlandi', { veri: result });
+      } catch (importErr) {
+        // Modül henüz yazılmadıysa geçici mesaj
+        if (importErr.code === 'ERR_MODULE_NOT_FOUND') {
+          await updateModulDurum(yukleniciId, modul, 'hata', {
+            hata_mesaji: 'Bu modül henüz aktif değil. Yakında eklenecek.',
+          });
+        } else {
+          throw importErr;
+        }
+      }
+      break;
+    }
+
+    case 'sirket_bilgileri': {
+      // Faz 2.2'de yazılacak: sirket-bilgi-cek.js
+      try {
+        const { scrapeSirketBilgileri } = await import('../scraper/yuklenici-istihbarat/sirket-bilgi-cek.js');
+        const result = await scrapeSirketBilgileri(yuklenici);
+        await updateModulDurum(yukleniciId, modul, 'tamamlandi', { veri: result });
+      } catch (importErr) {
+        if (importErr.code === 'ERR_MODULE_NOT_FOUND') {
+          await updateModulDurum(yukleniciId, modul, 'hata', {
+            hata_mesaji: 'Bu modül henüz aktif değil. Yakında eklenecek.',
+          });
+        } else {
+          throw importErr;
+        }
+      }
+      break;
+    }
+
+    case 'haberler': {
+      // Faz 2.3'te yazılacak: haber-ara.js
+      try {
+        const { araHaberler } = await import('../scraper/yuklenici-istihbarat/haber-ara.js');
+        const result = await araHaberler(yuklenici.unvan);
+        await updateModulDurum(yukleniciId, modul, 'tamamlandi', { veri: result });
+      } catch (importErr) {
+        if (importErr.code === 'ERR_MODULE_NOT_FOUND') {
+          await updateModulDurum(yukleniciId, modul, 'hata', {
+            hata_mesaji: 'Bu modül henüz aktif değil. Yakında eklenecek.',
+          });
+        } else {
+          throw importErr;
+        }
+      }
+      break;
+    }
+
+    case 'ai_arastirma': {
+      // Faz 2.4'te yazılacak: yuklenici-ai-arastirma.js
+      try {
+        const { generateIstihbaratRaporu } = await import('../services/yuklenici-ai-arastirma.js');
+        const result = await generateIstihbaratRaporu(yukleniciId);
+        await updateModulDurum(yukleniciId, modul, 'tamamlandi', { veri: result });
+      } catch (importErr) {
+        if (importErr.code === 'ERR_MODULE_NOT_FOUND') {
+          await updateModulDurum(yukleniciId, modul, 'hata', {
+            hata_mesaji: 'Bu modül henüz aktif değil. Yakında eklenecek.',
+          });
+        } else {
+          throw importErr;
+        }
+      }
+      break;
+    }
+
+    default:
+      throw new Error(`Bilinmeyen modül: ${modul}`);
+  }
+}
 
 export default router;

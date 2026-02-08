@@ -31,7 +31,7 @@ await page.setViewport({ width: 1280, height: 800 });
 
 // ── Login (mevcut login service'i kullan) ──
 console.log('🔐 Login...');
-const loginService = (await import('../src/scraper/login-service.js')).default;
+const loginService = (await import('../src/scraper/shared/ihalebul-login.js')).default;
 await loginService.ensureLoggedIn(page);
 console.log('✅ Login OK\n');
 

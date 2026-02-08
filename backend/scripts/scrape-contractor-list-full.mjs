@@ -14,7 +14,7 @@ const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox']
 const page = await browser.newPage();
 await page.setViewport({ width: 1280, height: 800 });
 
-const loginService = (await import('../src/scraper/login-service.js')).default;
+const loginService = (await import('../src/scraper/shared/ihalebul-login.js')).default;
 await loginService.ensureLoggedIn(page);
 console.log('✅ Login OK\n');
 

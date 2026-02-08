@@ -1,8 +1,8 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import browserManager from '../src/scraper/browser-manager.js';
-import { scrapeContractorTenders } from '../src/scraper/contractor-tender-scraper.js';
+import browserManager from '../src/scraper/shared/browser.js';
+import { scrapeContractorTenders } from '../src/scraper/yuklenici-istihbarat/yuklenici-gecmisi-cek.js';
 
 const yuklenici = { 
   id: 5, 
