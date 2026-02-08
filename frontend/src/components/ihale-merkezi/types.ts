@@ -297,6 +297,14 @@ export interface IhaleMerkeziState {
   teklifModalOpen: boolean;
 }
 
+// HITL Düzeltme tipleri
+export interface CorrectionData {
+  field_path: string;
+  old_value: unknown;
+  new_value: unknown;
+  correction_type: 'edit' | 'delete' | 'add';
+}
+
 // Dilekce tipleri
 export const dilekceTypeLabels: Record<string, string> = {
   asiri_dusuk: 'Aşırı Düşük Savunma',

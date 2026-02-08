@@ -441,10 +441,10 @@ export function TenderListItem({
           style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}
           onClick={onClick}
         >
-          {/* EKAP ID */}
+          {/* İhale Kayıt No */}
           {externalId && (
             <Text size="xs" c="dimmed" mb={4}>
-              EKAP: {externalId}
+              İKN: {externalId}
             </Text>
           )}
 

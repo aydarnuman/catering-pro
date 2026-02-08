@@ -30,7 +30,7 @@ import {
   Title,
   Tooltip,
 } from '@mantine/core';
-import { useDebouncedCallback } from '@mantine/hooks';
+// import { useDebouncedCallback } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
   IconAlertCircle,
@@ -52,7 +52,9 @@ import {
   IconCopy,
   IconCurrencyLira,
   IconDatabase,
+  IconDeviceFloppy,
   IconDownload,
+  IconEdit,
   IconExclamationMark,
   IconExternalLink,
   IconFile,
@@ -82,6 +84,7 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ContextualNotesSection } from '@/components/notes/ContextualNotesSection';
+import { useAnalysisCorrections } from '@/hooks/useAnalysisCorrections';
 import { aiAPI } from '@/lib/api/services/ai';
 import { tendersAPI } from '@/lib/api/services/tenders';
 import { API_BASE_URL } from '@/lib/config';
@@ -367,6 +370,36 @@ export function CenterPanel({
     }
   };
 
+  // HITL: Analiz düzeltme sistemi (hooks MUST be before early returns)
+  const isSaved = selectedTender ? isSavedTender(selectedTender) : false;
+  const currentTenderId = selectedTender
+    ? isSaved
+      ? (selectedTender as SavedTender).tender_id
+      : (selectedTender as Tender)?.id ?? null
+    : null;
+  const {
+    correctionCount,
+    isConfirmed,
+    saving: correctionSaving,
+    saveCorrection,
+    confirmAnalysis,
+    getCorrectionForField,
+  } = useAnalysisCorrections(currentTenderId ? Number(currentTenderId) : null);
+
+  // Hangi kartlar edit modunda
+  const [editingCards, setEditingCards] = useState<Set<string>>(new Set());
+  const toggleCardEdit = useCallback((cardName: string) => {
+    setEditingCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(cardName)) {
+        next.delete(cardName);
+      } else {
+        next.add(cardName);
+      }
+      return next;
+    });
+  }, []);
+
   // No tender selected
   if (!selectedTender) {
     return (
@@ -393,8 +426,6 @@ export function CenterPanel({
       </Box>
     );
   }
-
-  const isSaved = isSavedTender(selectedTender);
 
   // Analiz durumu kontrolü
   const hasAnalysis =
@@ -968,6 +999,59 @@ export function CenterPanel({
                   </Paper>
                 )}
 
+                {/* HITL: Düzeltme ve Onay Bar */}
+                {analysisSummary && isSaved && (
+                  <Paper
+                    p="xs"
+                    withBorder
+                    radius="md"
+                    style={{
+                      background: isConfirmed
+                        ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05))'
+                        : correctionCount > 0
+                          ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05))'
+                          : 'transparent',
+                      borderColor: isConfirmed ? 'var(--mantine-color-green-5)' : undefined,
+                    }}
+                  >
+                    <Group justify="space-between">
+                      <Group gap="xs">
+                        {isConfirmed ? (
+                          <Badge variant="filled" color="green" size="sm" leftSection={<IconCheck size={10} />}>
+                            Analiz Onaylandı
+                          </Badge>
+                        ) : (
+                          <>
+                            {correctionCount > 0 && (
+                              <Badge variant="light" color="blue" size="sm" leftSection={<IconEdit size={10} />}>
+                                {correctionCount} düzeltme
+                              </Badge>
+                            )}
+                            <Text size="xs" c="dimmed">
+                              Kartlardaki kalem ikonlarına tıklayarak düzeltme yapabilirsiniz
+                            </Text>
+                          </>
+                        )}
+                      </Group>
+                      {!isConfirmed && (
+                        <Button
+                          size="compact-xs"
+                          variant="light"
+                          color="green"
+                          leftSection={<IconCheck size={12} />}
+                          loading={correctionSaving}
+                          onClick={async () => {
+                            await confirmAnalysis();
+                            onRefreshData?.();
+                          }}
+                        >
+                          Tüm Analiz Doğru
+                        </Button>
+                      )}
+                    </Group>
+                  </Paper>
+                )}
+
                 {/* Takvim */}
                 {analysisSummary?.takvim && analysisSummary.takvim.length > 0 && (
                   <TakvimCard takvim={analysisSummary.takvim} />
@@ -986,12 +1070,30 @@ export function CenterPanel({
 
                 {/* Teknik Şartlar */}
                 {analysisSummary?.teknik_sartlar && analysisSummary.teknik_sartlar.length > 0 && (
-                  <TeknikSartlarCard teknikSartlar={analysisSummary.teknik_sartlar} />
+                  <TeknikSartlarCard
+                    teknikSartlar={analysisSummary.teknik_sartlar}
+                    isEditing={editingCards.has('teknik_sartlar')}
+                    onToggleEdit={() => toggleCardEdit('teknik_sartlar')}
+                    onSave={async (fieldPath, oldValue, newValue) => {
+                      await saveCorrection({ field_path: fieldPath, old_value: oldValue, new_value: newValue });
+                      onRefreshData?.();
+                    }}
+                    isCorrected={!!getCorrectionForField('teknik_sartlar')}
+                  />
                 )}
 
                 {/* Birim Fiyatlar */}
                 {analysisSummary?.birim_fiyatlar && analysisSummary.birim_fiyatlar.length > 0 && (
-                  <BirimFiyatlarCard birimFiyatlar={analysisSummary.birim_fiyatlar} />
+                  <BirimFiyatlarCard
+                    birimFiyatlar={analysisSummary.birim_fiyatlar}
+                    isEditing={editingCards.has('birim_fiyatlar')}
+                    onToggleEdit={() => toggleCardEdit('birim_fiyatlar')}
+                    onSave={async (fieldPath, oldValue, newValue) => {
+                      await saveCorrection({ field_path: fieldPath, old_value: oldValue, new_value: newValue });
+                      onRefreshData?.();
+                    }}
+                    isCorrected={!!getCorrectionForField('birim_fiyatlar')}
+                  />
                 )}
 
                 {/* Eksik Bilgiler */}
@@ -1013,25 +1115,61 @@ export function CenterPanel({
                     {/* İletişim Bilgileri */}
                     {analysisSummary?.iletisim &&
                       Object.keys(analysisSummary.iletisim).length > 0 && (
-                        <IletisimCard iletisim={analysisSummary.iletisim} />
+                        <IletisimCard
+                          iletisim={analysisSummary.iletisim}
+                          isEditing={editingCards.has('iletisim')}
+                          onToggleEdit={() => toggleCardEdit('iletisim')}
+                          onSave={async (fieldPath, oldValue, newValue) => {
+                            await saveCorrection({ field_path: fieldPath, old_value: oldValue, new_value: newValue });
+                            onRefreshData?.();
+                          }}
+                          isCorrected={!!getCorrectionForField('iletisim')}
+                        />
                       )}
 
                     {/* Servis Saatleri */}
                     {analysisSummary?.servis_saatleri &&
                       Object.keys(analysisSummary.servis_saatleri).length > 0 && (
-                        <ServisSaatleriCard saatler={analysisSummary.servis_saatleri} />
+                        <ServisSaatleriCard
+                          saatler={analysisSummary.servis_saatleri}
+                          isEditing={editingCards.has('servis_saatleri')}
+                          onToggleEdit={() => toggleCardEdit('servis_saatleri')}
+                          onSave={async (fieldPath, oldValue, newValue) => {
+                            await saveCorrection({ field_path: fieldPath, old_value: oldValue, new_value: newValue });
+                            onRefreshData?.();
+                          }}
+                          isCorrected={!!getCorrectionForField('servis_saatleri')}
+                        />
                       )}
 
                     {/* Teminat Oranları */}
                     {analysisSummary?.teminat_oranlari &&
                       Object.keys(analysisSummary.teminat_oranlari).length > 0 && (
-                        <TeminatOranlariCard teminat={analysisSummary.teminat_oranlari} />
+                        <TeminatOranlariCard
+                          teminat={analysisSummary.teminat_oranlari}
+                          isEditing={editingCards.has('teminat_oranlari')}
+                          onToggleEdit={() => toggleCardEdit('teminat_oranlari')}
+                          onSave={async (fieldPath, oldValue, newValue) => {
+                            await saveCorrection({ field_path: fieldPath, old_value: oldValue, new_value: newValue });
+                            onRefreshData?.();
+                          }}
+                          isCorrected={!!getCorrectionForField('teminat_oranlari')}
+                        />
                       )}
 
                     {/* Mali Kriterler */}
                     {analysisSummary?.mali_kriterler &&
                       Object.keys(analysisSummary.mali_kriterler).length > 0 && (
-                        <MaliKriterlerCard kriterler={analysisSummary.mali_kriterler} />
+                        <MaliKriterlerCard
+                          kriterler={analysisSummary.mali_kriterler}
+                          isEditing={editingCards.has('mali_kriterler')}
+                          onToggleEdit={() => toggleCardEdit('mali_kriterler')}
+                          onSave={async (fieldPath, oldValue, newValue) => {
+                            await saveCorrection({ field_path: fieldPath, old_value: oldValue, new_value: newValue });
+                            onRefreshData?.();
+                          }}
+                          isCorrected={!!getCorrectionForField('mali_kriterler')}
+                        />
                       )}
                   </SimpleGrid>
                 ) : null}
@@ -1045,7 +1183,16 @@ export function CenterPanel({
                     {/* Personel Detayları */}
                     {analysisSummary?.personel_detaylari &&
                       analysisSummary.personel_detaylari.length > 0 && (
-                        <PersonelCard personel={analysisSummary.personel_detaylari} />
+                        <PersonelCard
+                          personel={analysisSummary.personel_detaylari}
+                          isEditing={editingCards.has('personel_detaylari')}
+                          onToggleEdit={() => toggleCardEdit('personel_detaylari')}
+                          onSave={async (fieldPath, oldValue, newValue) => {
+                            await saveCorrection({ field_path: fieldPath, old_value: oldValue, new_value: newValue });
+                            onRefreshData?.();
+                          }}
+                          isCorrected={!!getCorrectionForField('personel_detaylari')}
+                        />
                       )}
 
                     {/* Öğün Bilgileri */}
@@ -1957,16 +2104,47 @@ function getTeknikSartTextFromItem(sart: unknown): string {
 // Teknik Şartlar Kartı
 function TeknikSartlarCard({
   teknikSartlar,
+  isEditing,
+  onToggleEdit,
+  onSave,
+  isCorrected,
 }: {
   teknikSartlar: unknown[];
   onViewAll?: () => void;
+  isEditing?: boolean;
+  onToggleEdit?: () => void;
+  onSave?: (fieldPath: string, oldValue: unknown, newValue: unknown) => void;
+  isCorrected?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const displayItems = expanded ? teknikSartlar : teknikSartlar.slice(0, 5);
+  const [editItems, setEditItems] = useState<string[]>([]);
+
+  // Edit moduna girildiğinde mevcut değerleri kopyala
+  useEffect(() => {
+    if (isEditing) {
+      setEditItems(teknikSartlar.map((s) => getTeknikSartTextFromItem(s)));
+    }
+  }, [isEditing, teknikSartlar]);
+
+  const displayItems = expanded || isEditing ? teknikSartlar : teknikSartlar.slice(0, 5);
   const hasMore = teknikSartlar.length > 5;
 
+  const handleSave = () => {
+    if (onSave) {
+      const newValue = editItems.filter((s) => s.trim());
+      onSave('teknik_sartlar', teknikSartlar.map((s) => getTeknikSartTextFromItem(s)), newValue);
+    }
+    onToggleEdit?.();
+  };
+
   return (
-    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+    <Paper
+      p="sm"
+      withBorder
+      radius="md"
+      className="glassy-card-nested"
+      style={isCorrected ? { borderColor: 'var(--mantine-color-green-5)' } : undefined}
+    >
       <Group justify="space-between" mb="xs">
         <Group gap="xs">
           <ThemeIcon size="sm" variant="light" color="blue">
@@ -1978,56 +2156,121 @@ function TeknikSartlarCard({
           <Badge size="xs" variant="light" color="blue">
             {teknikSartlar.length}
           </Badge>
+          {isCorrected && (
+            <Badge size="xs" variant="filled" color="green">
+              Düzeltildi
+            </Badge>
+          )}
         </Group>
-        {hasMore && (
+        <Group gap={4}>
+          {onToggleEdit && !isEditing && (
+            <ActionIcon size="xs" variant="subtle" color="gray" onClick={onToggleEdit}>
+              <IconEdit size={12} />
+            </ActionIcon>
+          )}
+          {isEditing ? (
+            <Group gap={4}>
+              <Button size="compact-xs" variant="light" color="gray" onClick={onToggleEdit}>
+                İptal
+              </Button>
+              <Button size="compact-xs" variant="filled" color="green" onClick={handleSave} leftSection={<IconDeviceFloppy size={12} />}>
+                Kaydet
+              </Button>
+            </Group>
+          ) : (
+            hasMore && (
+              <Button
+                size="xs"
+                variant="subtle"
+                onClick={() => setExpanded(!expanded)}
+                rightSection={
+                  expanded ? (
+                    <IconChevronDown size={12} style={{ transform: 'rotate(180deg)' }} />
+                  ) : (
+                    <IconChevronDown size={12} />
+                  )
+                }
+              >
+                {expanded ? 'Daralt' : `Tümü (${teknikSartlar.length})`}
+              </Button>
+            )
+          )}
+        </Group>
+      </Group>
+      <ScrollArea.Autosize mah={expanded || isEditing ? 400 : undefined}>
+        <Stack gap={4}>
+          {isEditing
+            ? editItems.map((text, idx) => (
+                <Group key={`ts-edit-${idx}`} gap="xs" wrap="nowrap" align="flex-start">
+                  <Badge size="xs" variant="filled" color="blue" circle style={{ flexShrink: 0, marginTop: 8 }}>
+                    {idx + 1}
+                  </Badge>
+                  <Textarea
+                    size="xs"
+                    value={text}
+                    onChange={(e) => {
+                      const updated = [...editItems];
+                      updated[idx] = e.target.value;
+                      setEditItems(updated);
+                    }}
+                    autosize
+                    minRows={1}
+                    maxRows={4}
+                    style={{ flex: 1 }}
+                  />
+                  <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    color="red"
+                    onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}
+                    style={{ marginTop: 6 }}
+                  >
+                    <IconTrash size={10} />
+                  </ActionIcon>
+                </Group>
+              ))
+            : displayItems.map((sart, idx) => {
+                const sartText = getTeknikSartTextFromItem(sart);
+                const onem =
+                  typeof sart === 'object' && sart !== null
+                    ? (sart as Record<string, unknown>).onem
+                    : null;
+                const onemColor = onem === 'kritik' ? 'red' : onem === 'normal' ? 'blue' : 'gray';
+                return (
+                  <Group
+                    key={`ts-${idx}-${sartText.substring(0, 20)}`}
+                    gap="xs"
+                    wrap="nowrap"
+                    align="flex-start"
+                  >
+                    <Badge
+                      size="xs"
+                      variant="filled"
+                      color={onemColor}
+                      circle
+                      style={{ flexShrink: 0, marginTop: 2 }}
+                    >
+                      {idx + 1}
+                    </Badge>
+                    <Text size="xs" style={{ flex: 1 }} lineClamp={expanded ? undefined : 2}>
+                      {sartText}
+                    </Text>
+                  </Group>
+                );
+              })}
+        </Stack>
+        {isEditing && (
           <Button
-            size="xs"
-            variant="subtle"
-            onClick={() => setExpanded(!expanded)}
-            rightSection={
-              expanded ? (
-                <IconChevronDown size={12} style={{ transform: 'rotate(180deg)' }} />
-              ) : (
-                <IconChevronDown size={12} />
-              )
-            }
+            size="compact-xs"
+            variant="light"
+            color="blue"
+            mt="xs"
+            leftSection={<IconPlus size={12} />}
+            onClick={() => setEditItems([...editItems, ''])}
           >
-            {expanded ? 'Daralt' : `Tümü (${teknikSartlar.length})`}
+            Yeni Madde Ekle
           </Button>
         )}
-      </Group>
-      <ScrollArea.Autosize mah={expanded ? 400 : undefined}>
-        <Stack gap={4}>
-          {displayItems.map((sart, idx) => {
-            const sartText = getTeknikSartTextFromItem(sart);
-            const onem =
-              typeof sart === 'object' && sart !== null
-                ? (sart as Record<string, unknown>).onem
-                : null;
-            const onemColor = onem === 'kritik' ? 'red' : onem === 'normal' ? 'blue' : 'gray';
-            return (
-              <Group
-                key={`ts-${idx}-${sartText.substring(0, 20)}`}
-                gap="xs"
-                wrap="nowrap"
-                align="flex-start"
-              >
-                <Badge
-                  size="xs"
-                  variant="filled"
-                  color={onemColor}
-                  circle
-                  style={{ flexShrink: 0, marginTop: 2 }}
-                >
-                  {idx + 1}
-                </Badge>
-                <Text size="xs" style={{ flex: 1 }} lineClamp={expanded ? undefined : 2}>
-                  {sartText}
-                </Text>
-              </Group>
-            );
-          })}
-        </Stack>
       </ScrollArea.Autosize>
     </Paper>
   );
@@ -2036,6 +2279,10 @@ function TeknikSartlarCard({
 // Birim Fiyatlar Kartı
 function BirimFiyatlarCard({
   birimFiyatlar,
+  isEditing,
+  onToggleEdit,
+  onSave,
+  isCorrected,
 }: {
   birimFiyatlar: Array<{
     kalem?: string;
@@ -2045,13 +2292,47 @@ function BirimFiyatlarCard({
     miktar?: string | number;
   }>;
   onViewAll?: () => void;
+  isEditing?: boolean;
+  onToggleEdit?: () => void;
+  onSave?: (fieldPath: string, oldValue: unknown, newValue: unknown) => void;
+  isCorrected?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const displayItems = expanded ? birimFiyatlar : birimFiyatlar.slice(0, 5);
+  const [editItems, setEditItems] = useState<Array<{ kalem: string; birim: string; miktar: string }>>([]);
+
+  useEffect(() => {
+    if (isEditing) {
+      setEditItems(
+        birimFiyatlar.map((item) => ({
+          kalem: item.kalem || item.aciklama || item.text || '',
+          birim: item.birim || '',
+          miktar: String(item.miktar || ''),
+        }))
+      );
+    }
+  }, [isEditing, birimFiyatlar]);
+
+  const displayItems = expanded || isEditing ? birimFiyatlar : birimFiyatlar.slice(0, 5);
   const hasMore = birimFiyatlar.length > 5;
 
+  const handleSave = () => {
+    if (onSave) {
+      const newValue = editItems
+        .filter((item) => item.kalem.trim())
+        .map((item) => ({ kalem: item.kalem, birim: item.birim, miktar: item.miktar }));
+      onSave('birim_fiyatlar', birimFiyatlar, newValue);
+    }
+    onToggleEdit?.();
+  };
+
   return (
-    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+    <Paper
+      p="sm"
+      withBorder
+      radius="md"
+      className="glassy-card-nested"
+      style={isCorrected ? { borderColor: 'var(--mantine-color-green-5)' } : undefined}
+    >
       <Group justify="space-between" mb="xs">
         <Group gap="xs">
           <ThemeIcon size="sm" variant="light" color="green">
@@ -2063,52 +2344,120 @@ function BirimFiyatlarCard({
           <Badge size="xs" variant="light" color="green">
             {birimFiyatlar.length}
           </Badge>
+          {isCorrected && (
+            <Badge size="xs" variant="filled" color="green">
+              Düzeltildi
+            </Badge>
+          )}
         </Group>
-        {hasMore && (
-          <Button
-            size="xs"
-            variant="subtle"
-            color="green"
-            onClick={() => setExpanded(!expanded)}
-            rightSection={
-              expanded ? (
-                <IconChevronDown size={12} style={{ transform: 'rotate(180deg)' }} />
-              ) : (
-                <IconChevronDown size={12} />
-              )
-            }
-          >
-            {expanded ? 'Daralt' : `Tümü (${birimFiyatlar.length})`}
-          </Button>
-        )}
-      </Group>
-      <ScrollArea.Autosize mah={expanded ? 400 : undefined}>
-        <Stack gap={4}>
-          {displayItems.map((item, idx) => {
-            const itemText = item.kalem || item.aciklama || item.text || 'Bilinmeyen';
-            return (
-              <Group
-                key={`bf-${idx}-${itemText.substring(0, 15)}`}
-                justify="space-between"
-                wrap="nowrap"
+        <Group gap={4}>
+          {onToggleEdit && !isEditing && (
+            <ActionIcon size="xs" variant="subtle" color="gray" onClick={onToggleEdit}>
+              <IconEdit size={12} />
+            </ActionIcon>
+          )}
+          {isEditing ? (
+            <Group gap={4}>
+              <Button size="compact-xs" variant="light" color="gray" onClick={onToggleEdit}>
+                İptal
+              </Button>
+              <Button size="compact-xs" variant="filled" color="green" onClick={handleSave} leftSection={<IconDeviceFloppy size={12} />}>
+                Kaydet
+              </Button>
+            </Group>
+          ) : (
+            hasMore && (
+              <Button
+                size="xs"
+                variant="subtle"
+                color="green"
+                onClick={() => setExpanded(!expanded)}
+                rightSection={
+                  expanded ? (
+                    <IconChevronDown size={12} style={{ transform: 'rotate(180deg)' }} />
+                  ) : (
+                    <IconChevronDown size={12} />
+                  )
+                }
               >
-                <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
-                  <Badge size="xs" variant="filled" color="green" circle style={{ flexShrink: 0 }}>
+                {expanded ? 'Daralt' : `Tümü (${birimFiyatlar.length})`}
+              </Button>
+            )
+          )}
+        </Group>
+      </Group>
+      <ScrollArea.Autosize mah={expanded || isEditing ? 400 : undefined}>
+        <Stack gap={4}>
+          {isEditing
+            ? editItems.map((item, idx) => (
+                <Group key={`bf-edit-${idx}`} gap="xs" wrap="nowrap">
+                  <Badge size="xs" variant="filled" color="green" circle style={{ flexShrink: 0, marginTop: 8 }}>
                     {idx + 1}
                   </Badge>
-                  <Text size="xs" lineClamp={1} style={{ flex: 1 }}>
-                    {itemText}
-                  </Text>
+                  <TextInput
+                    size="xs"
+                    value={item.kalem}
+                    placeholder="Kalem adı"
+                    onChange={(e) => {
+                      const updated = [...editItems];
+                      updated[idx] = { ...updated[idx], kalem: e.target.value };
+                      setEditItems(updated);
+                    }}
+                    style={{ flex: 1 }}
+                  />
+                  <TextInput
+                    size="xs"
+                    value={item.birim}
+                    placeholder="Birim"
+                    onChange={(e) => {
+                      const updated = [...editItems];
+                      updated[idx] = { ...updated[idx], birim: e.target.value };
+                      setEditItems(updated);
+                    }}
+                    w={80}
+                  />
+                  <ActionIcon size="xs" variant="subtle" color="red" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}>
+                    <IconTrash size={10} />
+                  </ActionIcon>
                 </Group>
-                {item.birim && (
-                  <Badge size="xs" variant="outline" color="gray" style={{ flexShrink: 0 }}>
-                    {item.birim}
-                  </Badge>
-                )}
-              </Group>
-            );
-          })}
+              ))
+            : displayItems.map((item, idx) => {
+                const itemText = item.kalem || item.aciklama || item.text || 'Bilinmeyen';
+                return (
+                  <Group
+                    key={`bf-${idx}-${itemText.substring(0, 15)}`}
+                    justify="space-between"
+                    wrap="nowrap"
+                  >
+                    <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                      <Badge size="xs" variant="filled" color="green" circle style={{ flexShrink: 0 }}>
+                        {idx + 1}
+                      </Badge>
+                      <Text size="xs" lineClamp={1} style={{ flex: 1 }}>
+                        {itemText}
+                      </Text>
+                    </Group>
+                    {item.birim && (
+                      <Badge size="xs" variant="outline" color="gray" style={{ flexShrink: 0 }}>
+                        {item.birim}
+                      </Badge>
+                    )}
+                  </Group>
+                );
+              })}
         </Stack>
+        {isEditing && (
+          <Button
+            size="compact-xs"
+            variant="light"
+            color="green"
+            mt="xs"
+            leftSection={<IconPlus size={12} />}
+            onClick={() => setEditItems([...editItems, { kalem: '', birim: '', miktar: '' }])}
+          >
+            Yeni Kalem Ekle
+          </Button>
+        )}
       </ScrollArea.Autosize>
     </Paper>
   );
@@ -2334,9 +2683,29 @@ function TakvimCard({
 // ═══════════════════════════════════════════════════════════════
 
 // İletişim Bilgileri Kartı
-function IletisimCard({ iletisim }: { iletisim: IletisimBilgileri }) {
+function IletisimCard({
+  iletisim,
+  isEditing,
+  onToggleEdit,
+  onSave,
+  isCorrected,
+}: {
+  iletisim: IletisimBilgileri;
+  isEditing?: boolean;
+  onToggleEdit?: () => void;
+  onSave?: (fieldPath: string, oldValue: unknown, newValue: unknown) => void;
+  isCorrected?: boolean;
+}) {
   const entries = Object.entries(iletisim).filter(([, v]) => v?.trim());
-  if (entries.length === 0) return null;
+  const [editValues, setEditValues] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (isEditing) {
+      setEditValues({ ...iletisim } as Record<string, string>);
+    }
+  }, [isEditing, iletisim]);
+
+  if (entries.length === 0 && !isEditing) return null;
 
   const labels: Record<string, string> = {
     telefon: 'Telefon',
@@ -2345,43 +2714,136 @@ function IletisimCard({ iletisim }: { iletisim: IletisimBilgileri }) {
     yetkili: 'Yetkili',
   };
 
+  const handleSave = () => {
+    if (onSave) {
+      onSave('iletisim', iletisim, editValues);
+    }
+    onToggleEdit?.();
+  };
+
   return (
-    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
-      <Group gap="xs" mb="xs">
-        <ThemeIcon size="sm" variant="light" color="blue">
-          <IconPhone size={12} />
-        </ThemeIcon>
-        <Text size="sm" fw={600}>
-          İletişim Bilgileri
-        </Text>
+    <Paper
+      p="sm"
+      withBorder
+      radius="md"
+      className="glassy-card-nested"
+      style={isCorrected ? { borderColor: 'var(--mantine-color-green-5)' } : undefined}
+    >
+      <Group justify="space-between" mb="xs">
+        <Group gap="xs">
+          <ThemeIcon size="sm" variant="light" color="blue">
+            <IconPhone size={12} />
+          </ThemeIcon>
+          <Text size="sm" fw={600}>
+            İletişim Bilgileri
+          </Text>
+          {isCorrected && (
+            <Badge size="xs" variant="filled" color="green">
+              Düzeltildi
+            </Badge>
+          )}
+        </Group>
+        <Group gap={4}>
+          {onToggleEdit && !isEditing && (
+            <ActionIcon size="xs" variant="subtle" color="gray" onClick={onToggleEdit}>
+              <IconEdit size={12} />
+            </ActionIcon>
+          )}
+          {isEditing && (
+            <Group gap={4}>
+              <Button size="compact-xs" variant="light" color="gray" onClick={onToggleEdit}>
+                İptal
+              </Button>
+              <Button size="compact-xs" variant="filled" color="green" onClick={handleSave} leftSection={<IconDeviceFloppy size={12} />}>
+                Kaydet
+              </Button>
+            </Group>
+          )}
+        </Group>
       </Group>
       <Stack gap={4}>
-        {entries.map(([key, value]) => (
-          <Group key={key} gap="xs" wrap="nowrap">
-            <Text size="xs" c="dimmed" w={70}>
-              {labels[key] || key}:
-            </Text>
-            <Text size="xs" style={{ flex: 1 }}>
-              {value}
-            </Text>
-          </Group>
-        ))}
+        {isEditing
+          ? ['telefon', 'email', 'adres', 'yetkili'].map((key) => (
+              <Group key={key} gap="xs" wrap="nowrap">
+                <Text size="xs" c="dimmed" w={70}>
+                  {labels[key] || key}:
+                </Text>
+                <TextInput
+                  size="xs"
+                  value={editValues[key] || ''}
+                  onChange={(e) => setEditValues({ ...editValues, [key]: e.target.value })}
+                  style={{ flex: 1 }}
+                />
+              </Group>
+            ))
+          : entries.map(([key, value]) => (
+              <Group key={key} gap="xs" wrap="nowrap">
+                <Text size="xs" c="dimmed" w={70}>
+                  {labels[key] || key}:
+                </Text>
+                <Text size="xs" style={{ flex: 1 }}>
+                  {value}
+                </Text>
+              </Group>
+            ))}
       </Stack>
     </Paper>
   );
 }
 
 // Personel Detayları Kartı
-function PersonelCard({ personel }: { personel: PersonelDetay[] }) {
+function PersonelCard({
+  personel,
+  isEditing,
+  onToggleEdit,
+  onSave,
+  isCorrected,
+}: {
+  personel: PersonelDetay[];
+  isEditing?: boolean;
+  onToggleEdit?: () => void;
+  onSave?: (fieldPath: string, oldValue: unknown, newValue: unknown) => void;
+  isCorrected?: boolean;
+}) {
   const [expanded, setExpanded] = useState(false);
+  const [editItems, setEditItems] = useState<Array<{ pozisyon: string; adet: string; ucret_orani: string }>>([]);
+
+  useEffect(() => {
+    if (isEditing) {
+      setEditItems(
+        personel.map((p) => ({
+          pozisyon: p.pozisyon,
+          adet: String(p.adet || 0),
+          ucret_orani: p.ucret_orani || '',
+        }))
+      );
+    }
+  }, [isEditing, personel]);
+
   if (!personel || personel.length === 0) return null;
 
-  const displayItems = expanded ? personel : personel.slice(0, 5);
+  const displayItems = expanded || isEditing ? personel : personel.slice(0, 5);
   const hasMore = personel.length > 5;
   const toplamPersonel = personel.reduce((sum, p) => sum + (p.adet || 0), 0);
 
+  const handleSave = () => {
+    if (onSave) {
+      const newValue = editItems
+        .filter((p) => p.pozisyon.trim())
+        .map((p) => ({ pozisyon: p.pozisyon, adet: Number(p.adet) || 0, ucret_orani: p.ucret_orani || undefined }));
+      onSave('personel_detaylari', personel, newValue);
+    }
+    onToggleEdit?.();
+  };
+
   return (
-    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+    <Paper
+      p="sm"
+      withBorder
+      radius="md"
+      className="glassy-card-nested"
+      style={isCorrected ? { borderColor: 'var(--mantine-color-green-5)' } : undefined}
+    >
       <Group justify="space-between" mb="xs">
         <Group gap="xs">
           <ThemeIcon size="sm" variant="light" color="indigo">
@@ -2393,42 +2855,108 @@ function PersonelCard({ personel }: { personel: PersonelDetay[] }) {
           <Badge size="xs" variant="light" color="indigo">
             {toplamPersonel} kişi
           </Badge>
+          {isCorrected && (
+            <Badge size="xs" variant="filled" color="green">
+              Düzeltildi
+            </Badge>
+          )}
         </Group>
-        {hasMore && (
+        <Group gap={4}>
+          {onToggleEdit && !isEditing && (
+            <ActionIcon size="xs" variant="subtle" color="gray" onClick={onToggleEdit}>
+              <IconEdit size={12} />
+            </ActionIcon>
+          )}
+          {isEditing ? (
+            <Group gap={4}>
+              <Button size="compact-xs" variant="light" color="gray" onClick={onToggleEdit}>
+                İptal
+              </Button>
+              <Button size="compact-xs" variant="filled" color="green" onClick={handleSave} leftSection={<IconDeviceFloppy size={12} />}>
+                Kaydet
+              </Button>
+            </Group>
+          ) : (
+            hasMore && (
+              <Button
+                size="xs"
+                variant="subtle"
+                color="indigo"
+                onClick={() => setExpanded(!expanded)}
+                rightSection={
+                  <IconChevronDown
+                    size={12}
+                    style={{ transform: expanded ? 'rotate(180deg)' : 'none' }}
+                  />
+                }
+              >
+                {expanded ? 'Daralt' : `Tümü (${personel.length})`}
+              </Button>
+            )
+          )}
+        </Group>
+      </Group>
+      <ScrollArea.Autosize mah={expanded || isEditing ? 300 : undefined}>
+        <Stack gap={4}>
+          {isEditing
+            ? editItems.map((p, idx) => (
+                <Group key={`personel-edit-${idx}`} gap="xs" wrap="nowrap">
+                  <TextInput
+                    size="xs"
+                    value={p.pozisyon}
+                    placeholder="Pozisyon"
+                    onChange={(e) => {
+                      const updated = [...editItems];
+                      updated[idx] = { ...updated[idx], pozisyon: e.target.value };
+                      setEditItems(updated);
+                    }}
+                    style={{ flex: 1 }}
+                  />
+                  <NumberInput
+                    size="xs"
+                    value={Number(p.adet) || 0}
+                    min={0}
+                    onChange={(val) => {
+                      const updated = [...editItems];
+                      updated[idx] = { ...updated[idx], adet: String(val) };
+                      setEditItems(updated);
+                    }}
+                    w={70}
+                    suffix=" kişi"
+                  />
+                  <ActionIcon size="xs" variant="subtle" color="red" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}>
+                    <IconTrash size={10} />
+                  </ActionIcon>
+                </Group>
+              ))
+            : displayItems.map((p) => (
+                <Group key={`personel-${p.pozisyon}-${p.adet}`} justify="space-between" gap="xs">
+                  <Text size="xs">{p.pozisyon}</Text>
+                  <Group gap="xs">
+                    <Badge size="xs" variant="outline" color="indigo">
+                      {p.adet} kişi
+                    </Badge>
+                    {p.ucret_orani && (
+                      <Badge size="xs" variant="light" color="green">
+                        {p.ucret_orani}
+                      </Badge>
+                    )}
+                  </Group>
+                </Group>
+              ))}
+        </Stack>
+        {isEditing && (
           <Button
-            size="xs"
-            variant="subtle"
+            size="compact-xs"
+            variant="light"
             color="indigo"
-            onClick={() => setExpanded(!expanded)}
-            rightSection={
-              <IconChevronDown
-                size={12}
-                style={{ transform: expanded ? 'rotate(180deg)' : 'none' }}
-              />
-            }
+            mt="xs"
+            leftSection={<IconPlus size={12} />}
+            onClick={() => setEditItems([...editItems, { pozisyon: '', adet: '1', ucret_orani: '' }])}
           >
-            {expanded ? 'Daralt' : `Tümü (${personel.length})`}
+            Yeni Pozisyon Ekle
           </Button>
         )}
-      </Group>
-      <ScrollArea.Autosize mah={expanded ? 300 : undefined}>
-        <Stack gap={4}>
-          {displayItems.map((p) => (
-            <Group key={`personel-${p.pozisyon}-${p.adet}`} justify="space-between" gap="xs">
-              <Text size="xs">{p.pozisyon}</Text>
-              <Group gap="xs">
-                <Badge size="xs" variant="outline" color="indigo">
-                  {p.adet} kişi
-                </Badge>
-                {p.ucret_orani && (
-                  <Badge size="xs" variant="light" color="green">
-                    {p.ucret_orani}
-                  </Badge>
-                )}
-              </Group>
-            </Group>
-          ))}
-        </Stack>
       </ScrollArea.Autosize>
     </Paper>
   );
@@ -2550,9 +3078,29 @@ function IsYerleriCard({ yerler }: { yerler: string[] }) {
 }
 
 // Mali Kriterler Kartı
-function MaliKriterlerCard({ kriterler }: { kriterler: MaliKriterler }) {
+function MaliKriterlerCard({
+  kriterler,
+  isEditing,
+  onToggleEdit,
+  onSave,
+  isCorrected,
+}: {
+  kriterler: MaliKriterler;
+  isEditing?: boolean;
+  onToggleEdit?: () => void;
+  onSave?: (fieldPath: string, oldValue: unknown, newValue: unknown) => void;
+  isCorrected?: boolean;
+}) {
   const entries = Object.entries(kriterler).filter(([, v]) => v?.trim());
-  if (entries.length === 0) return null;
+  const [editValues, setEditValues] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (isEditing) {
+      setEditValues({ ...kriterler } as Record<string, string>);
+    }
+  }, [isEditing, kriterler]);
+
+  if (entries.length === 0 && !isEditing) return null;
 
   const labels: Record<string, string> = {
     cari_oran: 'Cari Oran',
@@ -2561,28 +3109,83 @@ function MaliKriterlerCard({ kriterler }: { kriterler: MaliKriterler }) {
     ciro_orani: 'Ciro Oranı',
   };
 
+  const handleSave = () => {
+    if (onSave) {
+      onSave('mali_kriterler', kriterler, editValues);
+    }
+    onToggleEdit?.();
+  };
+
   return (
-    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
-      <Group gap="xs" mb="xs">
-        <ThemeIcon size="sm" variant="light" color="grape">
-          <IconWallet size={12} />
-        </ThemeIcon>
-        <Text size="sm" fw={600}>
-          Mali Yeterlilik Kriterleri
-        </Text>
+    <Paper
+      p="sm"
+      withBorder
+      radius="md"
+      className="glassy-card-nested"
+      style={isCorrected ? { borderColor: 'var(--mantine-color-green-5)' } : undefined}
+    >
+      <Group justify="space-between" mb="xs">
+        <Group gap="xs">
+          <ThemeIcon size="sm" variant="light" color="grape">
+            <IconWallet size={12} />
+          </ThemeIcon>
+          <Text size="sm" fw={600}>
+            Mali Yeterlilik Kriterleri
+          </Text>
+          {isCorrected && (
+            <Badge size="xs" variant="filled" color="green">
+              Düzeltildi
+            </Badge>
+          )}
+        </Group>
+        <Group gap={4}>
+          {onToggleEdit && !isEditing && (
+            <ActionIcon size="xs" variant="subtle" color="gray" onClick={onToggleEdit}>
+              <IconEdit size={12} />
+            </ActionIcon>
+          )}
+          {isEditing && (
+            <Group gap={4}>
+              <Button size="compact-xs" variant="light" color="gray" onClick={onToggleEdit}>
+                İptal
+              </Button>
+              <Button size="compact-xs" variant="filled" color="green" onClick={handleSave} leftSection={<IconDeviceFloppy size={12} />}>
+                Kaydet
+              </Button>
+            </Group>
+          )}
+        </Group>
       </Group>
-      <SimpleGrid cols={2} spacing="xs">
-        {entries.map(([key, value]) => (
-          <Box key={key}>
-            <Text size="xs" c="dimmed">
-              {labels[key] || key}
-            </Text>
-            <Text size="sm" fw={600}>
-              {value}
-            </Text>
-          </Box>
-        ))}
-      </SimpleGrid>
+      {isEditing ? (
+        <Stack gap="xs">
+          {['cari_oran', 'ozkaynak_orani', 'is_deneyimi', 'ciro_orani'].map((key) => (
+            <Group key={key} gap="xs">
+              <Text size="xs" w={100} c="dimmed">
+                {labels[key]}:
+              </Text>
+              <TextInput
+                size="xs"
+                value={editValues[key] || ''}
+                onChange={(e) => setEditValues({ ...editValues, [key]: e.target.value })}
+                style={{ flex: 1 }}
+              />
+            </Group>
+          ))}
+        </Stack>
+      ) : (
+        <SimpleGrid cols={2} spacing="xs">
+          {entries.map(([key, value]) => (
+            <Box key={key}>
+              <Text size="xs" c="dimmed">
+                {labels[key] || key}
+              </Text>
+              <Text size="sm" fw={600}>
+                {value}
+              </Text>
+            </Box>
+          ))}
+        </SimpleGrid>
+      )}
     </Paper>
   );
 }
@@ -2757,9 +3360,29 @@ function GerekliBelgelerCard({ belgeler }: { belgeler: GerekliBelge[] }) {
 }
 
 // Teminat Oranları Kartı
-function TeminatOranlariCard({ teminat }: { teminat: TeminatOranlari }) {
+function TeminatOranlariCard({
+  teminat,
+  isEditing,
+  onToggleEdit,
+  onSave,
+  isCorrected,
+}: {
+  teminat: TeminatOranlari;
+  isEditing?: boolean;
+  onToggleEdit?: () => void;
+  onSave?: (fieldPath: string, oldValue: unknown, newValue: unknown) => void;
+  isCorrected?: boolean;
+}) {
   const entries = Object.entries(teminat).filter(([, v]) => v?.trim());
-  if (entries.length === 0) return null;
+  const [editValues, setEditValues] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (isEditing) {
+      setEditValues({ ...teminat } as Record<string, string>);
+    }
+  }, [isEditing, teminat]);
+
+  if (entries.length === 0 && !isEditing) return null;
 
   const labels: Record<string, string> = {
     gecici: 'Geçici Teminat',
@@ -2767,36 +3390,112 @@ function TeminatOranlariCard({ teminat }: { teminat: TeminatOranlari }) {
     ek_kesin: 'Ek Kesin Teminat',
   };
 
+  const handleSave = () => {
+    if (onSave) {
+      onSave('teminat_oranlari', teminat, editValues);
+    }
+    onToggleEdit?.();
+  };
+
   return (
-    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
-      <Group gap="xs" mb="xs">
-        <ThemeIcon size="sm" variant="light" color="violet">
-          <IconShield size={12} />
-        </ThemeIcon>
-        <Text size="sm" fw={600}>
-          Teminat Oranları
-        </Text>
+    <Paper
+      p="sm"
+      withBorder
+      radius="md"
+      className="glassy-card-nested"
+      style={isCorrected ? { borderColor: 'var(--mantine-color-green-5)' } : undefined}
+    >
+      <Group justify="space-between" mb="xs">
+        <Group gap="xs">
+          <ThemeIcon size="sm" variant="light" color="violet">
+            <IconShield size={12} />
+          </ThemeIcon>
+          <Text size="sm" fw={600}>
+            Teminat Oranları
+          </Text>
+          {isCorrected && (
+            <Badge size="xs" variant="filled" color="green">
+              Düzeltildi
+            </Badge>
+          )}
+        </Group>
+        <Group gap={4}>
+          {onToggleEdit && !isEditing && (
+            <ActionIcon size="xs" variant="subtle" color="gray" onClick={onToggleEdit}>
+              <IconEdit size={12} />
+            </ActionIcon>
+          )}
+          {isEditing && (
+            <Group gap={4}>
+              <Button size="compact-xs" variant="light" color="gray" onClick={onToggleEdit}>
+                İptal
+              </Button>
+              <Button size="compact-xs" variant="filled" color="green" onClick={handleSave} leftSection={<IconDeviceFloppy size={12} />}>
+                Kaydet
+              </Button>
+            </Group>
+          )}
+        </Group>
       </Group>
-      <Group gap="md">
-        {entries.map(([key, value]) => (
-          <Box key={key}>
-            <Text size="xs" c="dimmed">
-              {labels[key] || key}
-            </Text>
-            <Text size="lg" fw={700} c="violet">
-              {value}
-            </Text>
-          </Box>
-        ))}
-      </Group>
+      {isEditing ? (
+        <Stack gap="xs">
+          {['gecici', 'kesin', 'ek_kesin'].map((key) => (
+            <Group key={key} gap="xs">
+              <Text size="xs" w={100} c="dimmed">
+                {labels[key]}:
+              </Text>
+              <TextInput
+                size="xs"
+                value={editValues[key] || ''}
+                placeholder="ör: %3"
+                onChange={(e) => setEditValues({ ...editValues, [key]: e.target.value })}
+                style={{ flex: 1 }}
+              />
+            </Group>
+          ))}
+        </Stack>
+      ) : (
+        <Group gap="md">
+          {entries.map(([key, value]) => (
+            <Box key={key}>
+              <Text size="xs" c="dimmed">
+                {labels[key] || key}
+              </Text>
+              <Text size="lg" fw={700} c="violet">
+                {value}
+              </Text>
+            </Box>
+          ))}
+        </Group>
+      )}
     </Paper>
   );
 }
 
 // Servis Saatleri Kartı
-function ServisSaatleriCard({ saatler }: { saatler: ServisSaatleri }) {
+function ServisSaatleriCard({
+  saatler,
+  isEditing,
+  onToggleEdit,
+  onSave,
+  isCorrected,
+}: {
+  saatler: ServisSaatleri;
+  isEditing?: boolean;
+  onToggleEdit?: () => void;
+  onSave?: (fieldPath: string, oldValue: unknown, newValue: unknown) => void;
+  isCorrected?: boolean;
+}) {
   const entries = Object.entries(saatler).filter(([, v]) => v?.trim());
-  if (entries.length === 0) return null;
+  const [editValues, setEditValues] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (isEditing) {
+      setEditValues({ ...saatler } as Record<string, string>);
+    }
+  }, [isEditing, saatler]);
+
+  if (entries.length === 0 && !isEditing) return null;
 
   const labels: Record<string, string> = {
     kahvalti: 'Kahvaltı',
@@ -2804,29 +3503,85 @@ function ServisSaatleriCard({ saatler }: { saatler: ServisSaatleri }) {
     aksam: 'Akşam',
   };
 
+  const handleSave = () => {
+    if (onSave) {
+      onSave('servis_saatleri', saatler, editValues);
+    }
+    onToggleEdit?.();
+  };
+
   return (
-    <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
-      <Group gap="xs" mb="xs">
-        <ThemeIcon size="sm" variant="light" color="cyan">
-          <IconClock size={12} />
-        </ThemeIcon>
-        <Text size="sm" fw={600}>
-          Servis Saatleri
-        </Text>
+    <Paper
+      p="sm"
+      withBorder
+      radius="md"
+      className="glassy-card-nested"
+      style={isCorrected ? { borderColor: 'var(--mantine-color-green-5)' } : undefined}
+    >
+      <Group justify="space-between" mb="xs">
+        <Group gap="xs">
+          <ThemeIcon size="sm" variant="light" color="cyan">
+            <IconClock size={12} />
+          </ThemeIcon>
+          <Text size="sm" fw={600}>
+            Servis Saatleri
+          </Text>
+          {isCorrected && (
+            <Badge size="xs" variant="filled" color="green">
+              Düzeltildi
+            </Badge>
+          )}
+        </Group>
+        <Group gap={4}>
+          {onToggleEdit && !isEditing && (
+            <ActionIcon size="xs" variant="subtle" color="gray" onClick={onToggleEdit}>
+              <IconEdit size={12} />
+            </ActionIcon>
+          )}
+          {isEditing && (
+            <Group gap={4}>
+              <Button size="compact-xs" variant="light" color="gray" onClick={onToggleEdit}>
+                İptal
+              </Button>
+              <Button size="compact-xs" variant="filled" color="green" onClick={handleSave} leftSection={<IconDeviceFloppy size={12} />}>
+                Kaydet
+              </Button>
+            </Group>
+          )}
+        </Group>
       </Group>
-      <Group gap="md">
-        {entries.map(([key, value]) => (
-          <Badge
-            key={key}
-            size="lg"
-            variant="light"
-            color="cyan"
-            leftSection={<IconClock size={12} />}
-          >
-            {labels[key] || key}: {value}
-          </Badge>
-        ))}
-      </Group>
+      {isEditing ? (
+        <Stack gap="xs">
+          {['kahvalti', 'ogle', 'aksam'].map((key) => (
+            <Group key={key} gap="xs">
+              <Text size="xs" w={70} c="dimmed">
+                {labels[key] || key}:
+              </Text>
+              <TextInput
+                size="xs"
+                value={editValues[key] || ''}
+                placeholder="ör: 07:00 - 09:00"
+                onChange={(e) => setEditValues({ ...editValues, [key]: e.target.value })}
+                style={{ flex: 1 }}
+              />
+            </Group>
+          ))}
+        </Stack>
+      ) : (
+        <Group gap="md">
+          {entries.map(([key, value]) => (
+            <Badge
+              key={key}
+              size="lg"
+              variant="light"
+              color="cyan"
+              leftSection={<IconClock size={12} />}
+            >
+              {labels[key] || key}: {value}
+            </Badge>
+          ))}
+        </Group>
+      )}
     </Paper>
   );
 }

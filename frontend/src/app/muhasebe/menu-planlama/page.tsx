@@ -197,7 +197,7 @@ const FiyatBadge = ({
           size="xs"
           variant="light"
           color={piyasaGuncel ? 'teal' : 'orange'}
-          leftSection={<Text size="10px">📊</Text>}
+          leftSection={<Text size="10px">🏪</Text>}
         >
           ₺{piyasa.toFixed(2)}
         </Badge>

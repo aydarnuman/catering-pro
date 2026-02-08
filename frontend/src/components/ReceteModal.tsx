@@ -188,6 +188,45 @@ interface PiyasaUrun {
   birim: string;
 }
 
+// API response helper tipleri
+interface ApiResponse<T = unknown> {
+  success: boolean;
+  data: T;
+  error?: string;
+}
+
+interface StokKartItem {
+  id: number;
+  ad: string;
+  son_alis_fiyat: string;
+  birim: string;
+  durum: string;
+}
+
+interface MaliyetAnaliziData {
+  recete: Recete;
+  malzemeler: Malzeme[];
+  maliyet: {
+    sistem: number;
+    piyasa: number;
+    fark: number;
+  };
+}
+
+interface AiSonuc {
+  recete_id: number;
+  malzemeler: AiMalzeme[];
+}
+
+interface AiMalzeme {
+  malzeme_adi: string;
+  onerilen_urun_adi?: string;
+  urun_kart_id?: number;
+  kategori?: string;
+  miktar: number;
+  birim?: string;
+}
+
 interface Props {
   opened: boolean;
   onClose: () => void;
@@ -276,13 +315,14 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
             .trim();
         };
 
-        const uniqueMap = new Map<string, any>();
+        const uniqueMap = new Map<string, Recete>();
 
-        result.data.forEach((recete: any) => {
+        (result.data as Recete[]).forEach((recete) => {
           const key = normalizeKey(recete.ad || '');
           if (key && key.length > 0) {
             // Eğer key varsa, yoksa veya yeni ID daha büyükse ekle
-            if (!uniqueMap.has(key) || recete.id > uniqueMap.get(key).id) {
+            const existing = uniqueMap.get(key);
+            if (!existing || recete.id > existing.id) {
               uniqueMap.set(key, recete);
             }
           }
@@ -326,13 +366,14 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
             .trim();
         };
 
-        const uniqueMap = new Map<string, any>();
+        const uniqueMap = new Map<string, StokKartItem>();
 
-        result.data.forEach((s: any) => {
+        (result.data as StokKartItem[]).forEach((s) => {
           const key = normalizeKey(s.ad || '');
           if (key && key.length > 0) {
             // Eğer key varsa, yoksa veya yeni ID daha büyükse ekle
-            if (!uniqueMap.has(key) || s.id > uniqueMap.get(key).id) {
+            const existing = uniqueMap.get(key);
+            if (!existing || s.id > existing.id) {
               uniqueMap.set(key, s);
             }
           }
@@ -343,7 +384,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
         );
 
         setPiyasaUrunleri(
-          uniqueList.map((s: any) => ({
+          uniqueList.map((s) => ({
             id: s.id,
             stok_kart_id: s.id,
             urun_adi: s.ad,
@@ -373,14 +414,14 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
   const fetchReceteDetay = async (id: number) => {
     setDetayLoading(true);
     try {
-      // Maliyet analizi endpoint'ini kullan - piyasa fiyatlarını içerir
-      const result = (await menuPlanlamaAPI.getMaliyetAnalizi(id)) as any;
+      // Maliyet analizi endpoint'ini kullan - raf fiyatlarını içerir
+      const result = (await menuPlanlamaAPI.getMaliyetAnalizi(id)) as ApiResponse<MaliyetAnaliziData>;
 
       if (result.success) {
         // Malzeme maliyetlerini hesapla
         // Son fiyat = (fatura + piyasa) / 2 veya mevcut olan
         const malzemelerWithCost =
-          (result.data?.malzemeler || []).map((m: any) => {
+          (result.data?.malzemeler || []).map((m: Malzeme) => {
             const faturaFiyat = m.sistem_fiyat || 0;
             const piyasaFiyat = m.piyasa_fiyat || 0;
             // Son fiyat: her ikisi varsa ortalama, yoksa mevcut olan
@@ -404,7 +445,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
 
         // Toplam maliyetleri hesapla
         const toplamPiyasa = malzemelerWithCost.reduce(
-          (sum: number, m: any) => sum + (m.maliyet || 0),
+          (sum: number, m: Malzeme & { maliyet?: number }) => sum + (m.maliyet || 0),
           0
         );
 
@@ -412,14 +453,14 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
           ...result.data,
           malzemeler: malzemelerWithCost,
           toplam_piyasa_maliyet: toplamPiyasa,
-        } as any);
-        setEditingRecete(result.data as any);
+        } as unknown as ReceteDetay);
+        setEditingRecete(result.data as unknown as ReceteDetay);
       } else {
         // Fallback: normal endpoint
-        const fallbackResult = (await menuPlanlamaAPI.getRecete(id)) as any;
+        const fallbackResult = (await menuPlanlamaAPI.getRecete(id)) as ApiResponse<ReceteDetay>;
         if (fallbackResult.success) {
-          setSelectedRecete(fallbackResult.data as any);
-          setEditingRecete(fallbackResult.data as any);
+          setSelectedRecete(fallbackResult.data as ReceteDetay);
+          setEditingRecete(fallbackResult.data as ReceteDetay);
         }
       }
     } catch (_error) {
@@ -449,7 +490,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
     if (!editingRecete || !selectedRecete) return;
 
     try {
-      const result = await menuPlanlamaAPI.updateRecete(selectedRecete.id, editingRecete as any);
+      const result = await menuPlanlamaAPI.updateRecete(selectedRecete.id, editingRecete as unknown as Parameters<typeof menuPlanlamaAPI.updateRecete>[1]);
 
       if (result.success) {
         notifications.show({
@@ -463,10 +504,10 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
       } else {
         throw new Error(result.error);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       notifications.show({
         title: 'Hata',
-        message: error.message || 'Güncelleme başarısız',
+        message: error instanceof Error ? error.message : 'Güncelleme başarısız',
         color: 'red',
       });
     }
@@ -556,10 +597,10 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
       } else {
         throw new Error(result.error);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       notifications.show({
         title: 'Hata',
-        message: error.message || 'Malzeme eklenemedi',
+        message: error instanceof Error ? error.message : 'Malzeme eklenemedi',
         color: 'red',
       });
     } finally {
@@ -647,7 +688,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
             } else {
               basarisiz++;
             }
-          } catch (error: any) {
+          } catch (error: unknown) {
             console.error(`Malzeme ekleme hatası (${mal.malzeme_adi}):`, error);
             basarisiz++;
           }
@@ -666,10 +707,10 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
       } else {
         throw new Error('AI malzeme önerisi alınamadı');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       notifications.show({
         title: 'Hata',
-        message: error.message || 'AI malzeme önerisi başarısız',
+        message: error instanceof Error ? error.message : 'AI malzeme önerisi başarısız',
         color: 'red',
       });
     } finally {
@@ -783,7 +824,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
 
         // Her reçetenin sonucunu işle (paralel)
         await Promise.all(
-          result.data.sonuclar.map(async (sonuc: any) => {
+          result.data.sonuclar.map(async (sonuc: AiSonuc) => {
             try {
               if (!sonuc.malzemeler || sonuc.malzemeler.length === 0) {
                 batchBasarisiz++;
@@ -792,7 +833,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
 
               // Malzemeleri paralel ekle
               await Promise.all(
-                sonuc.malzemeler.map(async (mal: any) => {
+                sonuc.malzemeler.map(async (mal: AiMalzeme) => {
                   try {
                     let urunKartId = mal.urun_kart_id;
 
@@ -879,7 +920,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
         color: basarisiz === 0 ? 'green' : 'yellow',
         autoClose: 5000,
       });
-    } catch (_error: any) {
+    } catch (_error: unknown) {
       // Timeout veya abort hatası
       notifications.show({
         title: '⚠️ İşlem Durdu',
@@ -943,10 +984,10 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
       } else {
         throw new Error(result.error);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       notifications.show({
         title: 'Hata',
-        message: error.message || 'Güncelleme başarısız',
+        message: error instanceof Error ? error.message : 'Güncelleme başarısız',
         color: 'red',
       });
     }
@@ -1002,7 +1043,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
           .replace(/\s+/g, '-')
           .replace(/[^a-z0-9-]/g, '');
 
-      const result = await menuPlanlamaAPI.createRecete({ ...yeniRecete, kod } as any);
+      const result = await menuPlanlamaAPI.createRecete({ ...yeniRecete, kod } as Partial<Recete>);
 
       if (result.success) {
         notifications.show({
@@ -1027,10 +1068,10 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
       } else {
         throw new Error(result.error);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       notifications.show({
         title: 'Hata',
-        message: error.message || 'Reçete oluşturulamadı',
+        message: error instanceof Error ? error.message : 'Reçete oluşturulamadı',
         color: 'red',
       });
     }
@@ -1125,7 +1166,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                 : 'Reçete Yönetimi'}
             </Text>
             <Text size="xs" c="dimmed">
-              Piyasa fiyatlarıyla entegre
+              Raf fiyatlarıyla entegre
             </Text>
           </Box>
         </Group>
@@ -1330,7 +1371,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
               }}
             >
               <Text size="xs" c="dimmed" ta="center">
-                {receteler.length} reçete · Piyasa fiyatlarıyla
+                {receteler.length} reçete · Raf fiyatlarıyla
               </Text>
             </Box>
           </Box>
@@ -1478,7 +1519,7 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                                 <Box>
                                   <Text fw={600}>1 Porsiyon Maliyet</Text>
                                   <Text size="xs" c="dimmed">
-                                    Piyasa fiyatlarıyla hesaplandı
+                                    Raf fiyatlarıyla hesaplandı
                                   </Text>
                                 </Box>
                               </Group>
@@ -1570,8 +1611,8 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                           <Stack gap={4}>
                             {getMaliyetBreakdown()
                               .slice(0, 5)
-                              .map((item, i) => (
-                                <Group key={i} gap="xs" wrap="nowrap">
+                              .map((item) => (
+                                <Group key={item.ad} gap="xs" wrap="nowrap">
                                   <Box
                                     w={10}
                                     h={10}
@@ -1603,10 +1644,10 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                       <Alert
                         color="yellow"
                         icon={<IconAlertCircle size={16} />}
-                        title="Eksik Piyasa Fiyatı"
+                        title="Eksik Raf Fiyatı"
                       >
                         <Text size="sm">
-                          {eksikFiyatlar.length} malzemenin piyasa fiyatı yok:{' '}
+                          {eksikFiyatlar.length} malzemenin raf fiyatı yok:{' '}
                           {eksikFiyatlar.map((m) => m.malzeme_adi).join(', ')}
                         </Text>
                       </Alert>
@@ -1716,10 +1757,9 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                                       <NumberInput
                                         value={editingMalzemeData?.miktar || 0}
                                         onChange={(val) =>
-                                          setEditingMalzemeData((prev) => ({
-                                            ...prev!,
-                                            miktar: Number(val) || 0,
-                                          }))
+                                          setEditingMalzemeData((prev) =>
+                                            prev ? { ...prev, miktar: Number(val) || 0 } : prev
+                                          )
                                         }
                                         size="sm"
                                         min={0}
@@ -1730,10 +1770,9 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                                       <Select
                                         value={editingMalzemeData?.birim || 'gr'}
                                         onChange={(val) =>
-                                          setEditingMalzemeData((prev) => ({
-                                            ...prev!,
-                                            birim: val || 'gr',
-                                          }))
+                                          setEditingMalzemeData((prev) =>
+                                            prev ? { ...prev, birim: val || 'gr' } : prev
+                                          )
                                         }
                                         data={BIRIMLER}
                                         size="sm"
@@ -1746,10 +1785,11 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
                                         <NumberInput
                                           value={editingMalzemeData?.birim_fiyat || ''}
                                           onChange={(val) =>
-                                            setEditingMalzemeData((prev) => ({
-                                              ...prev!,
-                                              birim_fiyat: Number(val) || null,
-                                            }))
+                                            setEditingMalzemeData((prev) =>
+                                              prev
+                                                ? { ...prev, birim_fiyat: Number(val) || null }
+                                                : prev
+                                            )
                                           }
                                           size="sm"
                                           min={0}

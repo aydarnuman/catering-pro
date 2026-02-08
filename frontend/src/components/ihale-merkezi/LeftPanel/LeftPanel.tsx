@@ -379,7 +379,7 @@ export function LeftPanel({
                 Harita
               </Badge>
             </Tooltip>
-            <Tooltip label="EKAP URL'si ile yeni ihale ekle" position="bottom">
+            <Tooltip label="ihalebul.com URL'si ile yeni ihale ekle" position="bottom">
               <Badge
                 variant="light"
                 color="teal"

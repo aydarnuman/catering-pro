@@ -1046,7 +1046,7 @@ export function DocumentWizardModal({
                     <Group justify="space-between">
                       <Box>
                         <Text size="sm" fw={500}>
-                          EKAP Dökümanlarını İndir
+                          İhale Dökümanlarını İndir
                         </Text>
                         <Text size="xs" c="dimmed">
                           Şartnameler, sözleşme ve diğer dosyalar indirilir
