@@ -70,3 +70,13 @@ backend/eng.traineddata
 
 # Debug screenshots
 backend/scripts/*.png
+
+# Azure training documents & output (large binary files)
+backend/scripts/azure-training/documents/
+backend/scripts/azure-training/augmented/
+backend/scripts/azure-training/extracted-pages/
+backend/scripts/azure-training/screenshots/
+backend/scripts/azure-training/temp-pdfs/
+
+# Cursor IDE
+.cursor/

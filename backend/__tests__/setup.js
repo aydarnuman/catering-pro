@@ -1,5 +1,5 @@
 /**
- * Jest Test Setup
+ * Vitest Test Setup
  * Tüm testlerden önce çalışır
  */
 
@@ -18,22 +18,22 @@ if (!process.env.DATABASE_URL) {
   dotenv.config({ path: path.join(__dirname, '../.env') });
 }
 
-// Test utilities
-global.testUtils = {
+// Test utilities (globalThis üzerinden)
+globalThis.testUtils = {
   // Para formatı kontrolü
   isValidMoney: (value) => {
-    return typeof value === 'number' && !isNaN(value) && isFinite(value);
+    return typeof value === 'number' && !Number.isNaN(value) && Number.isFinite(value);
   },
-  
+
   // Tarih formatı kontrolü
   isValidDate: (dateString) => {
     const date = new Date(dateString);
-    return date instanceof Date && !isNaN(date);
+    return date instanceof Date && !Number.isNaN(date.getTime());
   },
-  
+
   // Yuvarlama helper (2 decimal)
   round2: (num) => Math.round(num * 100) / 100,
-  
+
   // Test data generators
   generatePersonel: (overrides = {}) => ({
     tc_kimlik: '12345678901',
@@ -44,17 +44,17 @@ global.testUtils = {
     medeni_durum: 'bekar',
     es_calisiyor_mu: false,
     cocuk_sayisi: 0,
-    ...overrides
+    ...overrides,
   }),
-  
+
   generateCari: (overrides = {}) => ({
     tip: 'musteri',
     unvan: 'Test Şirketi',
     vergi_no: '1234567890',
     telefon: '0312 123 45 67',
     il: 'Ankara',
-    ...overrides
-  })
+    ...overrides,
+  }),
 };
 
-console.log('🧪 Test ortamı hazır');
+console.log('🧪 Test ortamı hazır (Vitest)');
