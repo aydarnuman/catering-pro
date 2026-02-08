@@ -78,5 +78,8 @@ backend/scripts/azure-training/extracted-pages/
 backend/scripts/azure-training/screenshots/
 backend/scripts/azure-training/temp-pdfs/
 
+# Temp analysis output
+temp-analysis/
+
 # Cursor IDE
 .cursor/
