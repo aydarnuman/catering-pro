@@ -23,8 +23,8 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { query } from '../database.js';
-import { syncPendingCorrections, getCorrectionStats } from './correction-blob-sync.js';
 import logger from '../utils/logger.js';
+import { getCorrectionStats, syncPendingCorrections } from './correction-blob-sync.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,8 +52,8 @@ let currentTraining = null;
 export async function checkRetrainThreshold() {
   try {
     const stats = await getCorrectionStats();
-    const pendingCount = parseInt(stats.pending_training) || 0;
-    const pendingSync = parseInt(stats.pending_sync) || 0;
+    const pendingCount = parseInt(stats.pending_training, 10) || 0;
+    const pendingSync = parseInt(stats.pending_sync, 10) || 0;
 
     return {
       shouldRetrain: pendingCount >= RETRAIN_THRESHOLD,
@@ -63,9 +63,10 @@ export async function checkRetrainThreshold() {
       isTraining: trainingLock,
       currentTraining,
       stats,
-      message: pendingCount >= RETRAIN_THRESHOLD
-        ? `Eşik aşıldı: ${pendingCount}/${RETRAIN_THRESHOLD} düzeltme bekliyor. Eğitim tetiklenebilir.`
-        : `Eşik altında: ${pendingCount}/${RETRAIN_THRESHOLD} düzeltme bekliyor.`,
+      message:
+        pendingCount >= RETRAIN_THRESHOLD
+          ? `Eşik aşıldı: ${pendingCount}/${RETRAIN_THRESHOLD} düzeltme bekliyor. Eğitim tetiklenebilir.`
+          : `Eşik altında: ${pendingCount}/${RETRAIN_THRESHOLD} düzeltme bekliyor.`,
     };
   } catch (error) {
     logger.error('Retrain threshold kontrolü başarısız', { error: error.message });
@@ -157,7 +158,7 @@ export async function triggerManualTraining(options = {}) {
       `SELECT id FROM analysis_corrections
        WHERE used_in_training = false AND blob_synced = true`
     );
-    const pendingIds = pendingResult.rows.map(r => r.id);
+    const pendingIds = pendingResult.rows.map((r) => r.id);
 
     if (pendingIds.length === 0) {
       trainingLock = false;
@@ -249,17 +250,23 @@ function runBuildDataset(modelId) {
       const text = data.toString();
       stdout += text;
       // Her satırı logla (gerçek zamanlı izleme)
-      text.split('\n').filter(l => l.trim()).forEach(line => {
-        logger.info(`[Retrain:stdout] ${line}`);
-      });
+      text
+        .split('\n')
+        .filter((l) => l.trim())
+        .forEach((line) => {
+          logger.info(`[Retrain:stdout] ${line}`);
+        });
     });
 
     child.stderr.on('data', (data) => {
       const text = data.toString();
       stderr += text;
-      text.split('\n').filter(l => l.trim()).forEach(line => {
-        logger.warn(`[Retrain:stderr] ${line}`);
-      });
+      text
+        .split('\n')
+        .filter((l) => l.trim())
+        .forEach((line) => {
+          logger.warn(`[Retrain:stderr] ${line}`);
+        });
     });
 
     child.on('close', (code) => {

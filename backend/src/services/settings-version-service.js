@@ -6,7 +6,7 @@
 import { query } from '../database.js';
 import logger from '../utils/logger.js';
 
-class SettingsVersionService {
+const SettingsVersionService = {
   /**
    * Ayar değişikliğini versiyon geçmişine kaydet
    * @param {string} settingKey - Ayar anahtarı
@@ -15,7 +15,7 @@ class SettingsVersionService {
    * @param {string} changeNote - Değişiklik notu (opsiyonel)
    * @returns {Promise<number>} - Versiyon numarası
    */
-  static async saveVersion(settingKey, settingValue, changedBy, changeNote = null) {
+  async saveVersion(settingKey, settingValue, changedBy, changeNote = null) {
     try {
       const result = await query('SELECT save_setting_version($1, $2, $3, $4) as version', [
         settingKey,
@@ -28,7 +28,7 @@ class SettingsVersionService {
       logger.error('Save setting version error', { error: error.message, settingKey });
       throw error;
     }
-  }
+  },
 
   /**
    * Birden fazla ayar değişikliğini versiyon geçmişine kaydet
@@ -37,7 +37,7 @@ class SettingsVersionService {
    * @param {string} changeNote - Değişiklik notu (opsiyonel)
    * @returns {Promise<Object>} - {settingKey: version} objesi
    */
-  static async saveVersions(settings, changedBy, changeNote = null) {
+  async saveVersions(settings, changedBy, changeNote = null) {
     const versions = {};
 
     for (const [key, value] of Object.entries(settings)) {
@@ -50,7 +50,7 @@ class SettingsVersionService {
     }
 
     return versions;
-  }
+  },
 
   /**
    * Belirli bir ayarın versiyon geçmişini getir
@@ -58,7 +58,7 @@ class SettingsVersionService {
    * @param {number} limit - Maksimum kayıt sayısı
    * @returns {Promise<Array>} - Versiyon geçmişi
    */
-  static async getHistory(settingKey, limit = 50) {
+  async getHistory(settingKey, limit = 50) {
     try {
       const result = await query('SELECT * FROM get_setting_history($1, $2)', [settingKey, limit]);
       return result.rows;
@@ -66,14 +66,14 @@ class SettingsVersionService {
       logger.error('Get setting history error', { error: error.message, settingKey });
       return [];
     }
-  }
+  },
 
   /**
    * Tüm ayarların versiyon geçmişini getir
    * @param {number} limit - Maksimum kayıt sayısı
    * @returns {Promise<Array>} - Tüm versiyon geçmişi
    */
-  static async getAllHistory(limit = 100) {
+  async getAllHistory(limit = 100) {
     try {
       const result = await query('SELECT * FROM get_all_settings_history($1)', [limit]);
       return result.rows;
@@ -81,7 +81,7 @@ class SettingsVersionService {
       logger.error('Get all settings history error', { error: error.message });
       return [];
     }
-  }
+  },
 
   /**
    * Belirli bir versiyonu getir
@@ -89,7 +89,7 @@ class SettingsVersionService {
    * @param {number} version - Versiyon numarası
    * @returns {Promise<Object|null>} - Versiyon bilgisi
    */
-  static async getVersion(settingKey, version) {
+  async getVersion(settingKey, version) {
     try {
       const result = await query('SELECT * FROM get_setting_version($1, $2)', [settingKey, version]);
       return result.rows[0] || null;
@@ -97,7 +97,7 @@ class SettingsVersionService {
       logger.error('Get setting version error', { error: error.message, settingKey, version });
       return null;
     }
-  }
+  },
 
   /**
    * Versiyona geri dön (ayarı eski değerine geri yükle)
@@ -106,7 +106,7 @@ class SettingsVersionService {
    * @param {number} restoredBy - Geri yükleyen kullanıcı ID
    * @returns {Promise<boolean>} - Başarılı mı?
    */
-  static async restoreVersion(settingKey, version, restoredBy) {
+  async restoreVersion(settingKey, version, restoredBy) {
     try {
       // Versiyonu getir
       const versionData = await SettingsVersionService.getVersion(settingKey, version);
@@ -137,13 +137,13 @@ class SettingsVersionService {
       logger.error('Restore setting version error', { error: error.message, settingKey, version });
       throw error;
     }
-  }
+  },
 
   /**
    * Eski versiyonları temizle
    * @returns {Promise<void>}
    */
-  static async cleanupOldVersions() {
+  async cleanupOldVersions() {
     try {
       await query('SELECT cleanup_old_settings_history()');
       logger.info('Old settings history cleaned up');
@@ -151,7 +151,7 @@ class SettingsVersionService {
       logger.error('Cleanup old versions error', { error: error.message });
       throw error;
     }
-  }
-}
+  },
+};
 
 export default SettingsVersionService;

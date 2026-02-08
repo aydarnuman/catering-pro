@@ -1,9 +1,13 @@
 import express from 'express';
 import { query, transaction } from '../database.js';
 import { authenticate } from '../middleware/auth.js';
-import { syncCorrectionToBlob, syncPendingCorrections, getCorrectionStats } from '../services/correction-blob-sync.js';
-import { checkRetrainThreshold, triggerManualTraining, getModelVersionInfo } from '../services/auto-retrain.js';
-import { listCustomModels, getModelDetails, checkHealth as azureHealthCheck } from '../services/ai-analyzer/providers/azure-document-ai.js';
+import {
+  checkHealth as azureHealthCheck,
+  getModelDetails,
+  listCustomModels,
+} from '../services/ai-analyzer/providers/azure-document-ai.js';
+import { checkRetrainThreshold, getModelVersionInfo, triggerManualTraining } from '../services/auto-retrain.js';
+import { getCorrectionStats, syncCorrectionToBlob, syncPendingCorrections } from '../services/correction-blob-sync.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
@@ -36,7 +40,7 @@ router.get('/:tenderId', authenticate, async (req, res) => {
 // GET /api/analysis-corrections/stats/summary
 // Eğitim için bekleyen düzeltme istatistikleri
 // ═══════════════════════════════════════════════════════════════
-router.get('/stats/summary', authenticate, async (req, res) => {
+router.get('/stats/summary', authenticate, async (_req, res) => {
   try {
     const result = await query(
       `SELECT
@@ -350,7 +354,7 @@ router.delete('/:id', authenticate, async (req, res) => {
 // POST /api/analysis-corrections/sync
 // Bekleyen düzeltmeleri Azure Blob'a sync et
 // ═══════════════════════════════════════════════════════════════
-router.post('/sync', authenticate, async (req, res) => {
+router.post('/sync', authenticate, async (_req, res) => {
   try {
     const result = await syncPendingCorrections();
     res.json({ success: true, data: result });
@@ -364,7 +368,7 @@ router.post('/sync', authenticate, async (req, res) => {
 // GET /api/analysis-corrections/stats/training
 // Eğitim pipeline'ı için düzeltme istatistikleri
 // ═══════════════════════════════════════════════════════════════
-router.get('/stats/training', authenticate, async (req, res) => {
+router.get('/stats/training', authenticate, async (_req, res) => {
   try {
     const stats = await getCorrectionStats();
     res.json({ success: true, data: stats });
@@ -378,12 +382,9 @@ router.get('/stats/training', authenticate, async (req, res) => {
 // GET /api/analysis-corrections/retrain/status
 // Eğitim durumunu kontrol et: eşik, bekleyen düzeltmeler, model bilgisi
 // ═══════════════════════════════════════════════════════════════
-router.get('/retrain/status', authenticate, async (req, res) => {
+router.get('/retrain/status', authenticate, async (_req, res) => {
   try {
-    const [threshold, modelInfo] = await Promise.all([
-      checkRetrainThreshold(),
-      getModelVersionInfo(),
-    ]);
+    const [threshold, modelInfo] = await Promise.all([checkRetrainThreshold(), getModelVersionInfo()]);
 
     res.json({
       success: true,

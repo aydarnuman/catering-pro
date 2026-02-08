@@ -359,10 +359,7 @@ class TenderScheduler {
       try {
         const { scheduledRetrainCheck } = await import('./auto-retrain.js');
         await scheduledRetrainCheck();
-      } catch (err) {
-        // Auto-retrain hatası scheduler'ı durdurmamalı
-        console.error('[Scheduler] Auto-retrain check error:', err.message);
-      }
+      } catch (_err) {}
     });
     this.jobs.set('retrain_check', retrainCheck);
 

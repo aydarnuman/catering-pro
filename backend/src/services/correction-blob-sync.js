@@ -1,9 +1,9 @@
 /**
  * Correction Blob Sync Service
- * 
+ *
  * Kullanıcı düzeltmelerini Azure Blob Storage'a labels.json olarak yazar.
  * Bu dosyalar model eğitimi pipeline'ı tarafından tüketilir.
- * 
+ *
  * Her düzeltme kaydı, ilgili dökümanın blob'undaki labels.json dosyasını günceller.
  */
 
@@ -60,10 +60,7 @@ export async function syncCorrectionToBlob(correctionId) {
     if (!correction.original_filename) {
       logger.warn('Düzeltme için döküman bulunamadı, blob sync atlanıyor', { correctionId });
       // Yine de synced olarak işaretle
-      await query(
-        'UPDATE analysis_corrections SET blob_synced = true WHERE id = $1',
-        [correctionId]
-      );
+      await query('UPDATE analysis_corrections SET blob_synced = true WHERE id = $1', [correctionId]);
       return true;
     }
 
@@ -108,12 +105,9 @@ export async function syncCorrectionToBlob(correctionId) {
     });
 
     // DB'de synced olarak işaretle
-    await query(
-      'UPDATE analysis_corrections SET blob_synced = true WHERE id = $1',
-      [correctionId]
-    );
+    await query('UPDATE analysis_corrections SET blob_synced = true WHERE id = $1', [correctionId]);
 
-    logger.info('Düzeltme Azure Blob\'a yazıldı', {
+    logger.info("Düzeltme Azure Blob'a yazıldı", {
       correctionId,
       blobName,
       fieldPath,

@@ -5,7 +5,7 @@
 
 import { pool } from '../database.js';
 
-class PermissionService {
+const PermissionService = {
   /**
    * Kullanıcının belirli bir modüldeki yetkisini kontrol et
    * @param {number} userId
@@ -13,7 +13,7 @@ class PermissionService {
    * @param {string} action - view, create, edit, delete, export
    * @returns {boolean}
    */
-  static async check(userId, moduleName, action) {
+  async check(userId, moduleName, action) {
     try {
       // Veritabanı fonksiyonunu çağır
       const result = await pool.query('SELECT check_user_permission($1, $2, $3) as has_permission', [
@@ -25,12 +25,12 @@ class PermissionService {
     } catch (_error) {
       return false;
     }
-  }
+  },
 
   /**
    * Kullanıcının tüm yetkilerini getir
    */
-  static async getUserPermissions(userId) {
+  async getUserPermissions(userId) {
     try {
       const result = await pool.query(
         `SELECT 
@@ -53,34 +53,34 @@ class PermissionService {
     } catch (_error) {
       return [];
     }
-  }
+  },
 
   /**
    * Kullanıcı tipini kontrol et
    */
-  static async getUserType(userId) {
+  async getUserType(userId) {
     try {
       const result = await pool.query('SELECT user_type FROM users WHERE id = $1 AND is_active = true', [userId]);
       return result.rows[0]?.user_type || 'user';
     } catch (_error) {
       return 'user';
     }
-  }
+  },
 
   /**
    * Super admin mi kontrol et
    */
-  static async isSuperAdmin(userId) {
+  async isSuperAdmin(userId) {
     const userType = await PermissionService.getUserType(userId);
     return userType === 'super_admin';
-  }
+  },
 
   /**
    * Kullanıcının yetkilerini güncelle
    * @param {number} userId
    * @param {Array} permissions - [{module_name, can_view, can_create, can_edit, can_delete, can_export}]
    */
-  static async updateUserPermissions(userId, permissions) {
+  async updateUserPermissions(userId, permissions) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -123,64 +123,64 @@ class PermissionService {
     } finally {
       client.release();
     }
-  }
+  },
 
   /**
    * Şablon uygula
    */
-  static async applyTemplate(userId, templateName) {
+  async applyTemplate(userId, templateName) {
     const result = await pool.query('SELECT apply_permission_template($1, $2) as count', [userId, templateName]);
     return result.rows[0]?.count || 0;
-  }
+  },
 
   /**
    * Kullanıcı tipini güncelle
    */
-  static async updateUserType(userId, userType) {
+  async updateUserType(userId, userType) {
     await pool.query('UPDATE users SET user_type = $1 WHERE id = $2', [userType, userId]);
     return true;
-  }
+  },
 
   /**
    * Tüm modülleri getir
    */
-  static async getModules() {
+  async getModules() {
     try {
       const result = await pool.query('SELECT * FROM modules WHERE is_active = true ORDER BY sort_order');
       return result.rows;
     } catch (_error) {
       return [];
     }
-  }
+  },
 
   /**
    * Tüm şablonları getir
    */
-  static async getTemplates() {
+  async getTemplates() {
     try {
       const result = await pool.query('SELECT * FROM permission_templates ORDER BY is_system DESC, name');
       return result.rows;
     } catch (_error) {
       return [];
     }
-  }
+  },
 
   /**
    * Belirli bir şablonu getir
    */
-  static async getTemplate(id) {
+  async getTemplate(id) {
     try {
       const result = await pool.query('SELECT * FROM permission_templates WHERE id = $1', [id]);
       return result.rows[0] || null;
     } catch (_error) {
       return null;
     }
-  }
+  },
 
   /**
    * Yeni şablon oluştur
    */
-  static async createTemplate({ name, display_name, description, permissions }) {
+  async createTemplate({ name, display_name, description, permissions }) {
     const result = await pool.query(
       `INSERT INTO permission_templates (name, display_name, description, permissions, is_system)
          VALUES ($1, $2, $3, $4, false)
@@ -188,12 +188,12 @@ class PermissionService {
       [name, display_name, description, JSON.stringify(permissions)]
     );
     return result.rows[0];
-  }
+  },
 
   /**
    * Şablonu güncelle
    */
-  static async updateTemplate(id, { display_name, description, permissions }) {
+  async updateTemplate(id, { display_name, description, permissions }) {
     const updates = [];
     const values = [];
     let paramCount = 1;
@@ -227,32 +227,32 @@ class PermissionService {
     );
 
     return result.rows[0] || null;
-  }
+  },
 
   /**
    * Şablonu sil
    */
-  static async deleteTemplate(id) {
+  async deleteTemplate(id) {
     await pool.query('DELETE FROM permission_templates WHERE id = $1 AND is_system = false', [id]);
     return true;
-  }
+  },
 
   /**
    * Yetki özeti (tüm kullanıcılar için)
    */
-  static async getAllUsersPermissions() {
+  async getAllUsersPermissions() {
     try {
       const result = await pool.query('SELECT * FROM user_permissions_summary ORDER BY user_name');
       return result.rows;
     } catch (_error) {
       return [];
     }
-  }
+  },
 
   /**
    * Kullanıcının erişebileceği modülleri getir (sidebar için)
    */
-  static async getAccessibleModules(userId) {
+  async getAccessibleModules(userId) {
     try {
       // Kullanıcı tipini kontrol et
       const userType = await PermissionService.getUserType(userId);
@@ -275,7 +275,7 @@ class PermissionService {
     } catch (_error) {
       return [];
     }
-  }
-}
+  },
+};
 
 export default PermissionService;

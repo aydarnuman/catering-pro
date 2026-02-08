@@ -23,10 +23,18 @@ class Logger {
     const timestamp = new Date().toISOString();
     const emoji = { DEBUG: '🔍', INFO: 'ℹ️', WARN: '⚠️', ERROR: '❌', FATAL: '💀' }[level] || '';
 
-    // Konsola yaz
-    const logFn = LOG_LEVELS[level] >= LOG_LEVELS.ERROR ? console.error
-      : LOG_LEVELS[level] >= LOG_LEVELS.WARN ? console.warn
-      : console.log;
+    // Konsola yaz — bu bir logger implementasyonu, console kullanımı beklenen davranış
+    let logFn;
+    if (LOG_LEVELS[level] >= LOG_LEVELS.ERROR) {
+      // biome-ignore lint/suspicious/noConsole: Logger implementation requires direct console access
+      logFn = console.error;
+    } else if (LOG_LEVELS[level] >= LOG_LEVELS.WARN) {
+      // biome-ignore lint/suspicious/noConsole: Logger implementation requires direct console access
+      logFn = console.warn;
+    } else {
+      // biome-ignore lint/suspicious/noConsole: Logger implementation requires direct console access
+      logFn = console.log;
+    }
     logFn(`${emoji} [${timestamp}] [${level}] [${module}] ${message}`, Object.keys(data).length > 0 ? data : '');
 
     // DB'ye kaydet

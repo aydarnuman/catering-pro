@@ -15,10 +15,10 @@ import '../../env-loader.js';
 
 import { query } from '../../database.js';
 import browserManager from '../shared/browser.js';
+import loginService from '../shared/ihalebul-login.js';
+import logger from '../shared/scraper-logger.js';
 import documentScraper from './ihale-icerik-cek.js';
 import { scrapeList } from './ihale-listesi-cek.js';
-import logger from '../shared/scraper-logger.js';
-import loginService from '../shared/ihalebul-login.js';
 
 // Argümanları parse et
 function parseArgs() {
@@ -187,10 +187,7 @@ async function runCleanup(args) {
     const tenderIds = toDelete.map((t) => t.id);
 
     // 2. İlişkili documents kayıtlarını say
-    const docCountResult = await query(
-      `SELECT COUNT(*) as c FROM documents WHERE tender_id = ANY($1)`,
-      [tenderIds]
-    );
+    const docCountResult = await query(`SELECT COUNT(*) as c FROM documents WHERE tender_id = ANY($1)`, [tenderIds]);
     const docCount = parseInt(docCountResult.rows[0].c, 10);
 
     // 3. Supabase Storage'daki dosyaları temizle (storage_path olanlar)

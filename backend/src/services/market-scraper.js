@@ -40,7 +40,7 @@ async function fetchCamgozPrices(searchTerm) {
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; CateringPro/1.0)',
-        'Accept': 'text/html',
+        Accept: 'text/html',
       },
       signal: AbortSignal.timeout(15000), // 15s timeout
     });
@@ -97,25 +97,75 @@ function isRelevantProduct(searchTerm, productName) {
   // GIDA DIŞI kategoriler
   const nonFoodCategories = [
     // Temizlik
-    'deterjan', 'temizlik', 'matik', 'çamaşır', 'bulaşık', 'yumuşatıcı',
-    'çamaşır suyu', 'toz deterjan', 'sıvı deterjan',
+    'deterjan',
+    'temizlik',
+    'matik',
+    'çamaşır',
+    'bulaşık',
+    'yumuşatıcı',
+    'çamaşır suyu',
+    'toz deterjan',
+    'sıvı deterjan',
     // Kişisel bakım
-    'şampuan', 'losyon', 'parfüm', 'deodorant', 'kolonya', 'duş jeli',
-    'saç kremi', 'cilt bakım',
+    'şampuan',
+    'losyon',
+    'parfüm',
+    'deodorant',
+    'kolonya',
+    'duş jeli',
+    'saç kremi',
+    'cilt bakım',
     // Bebek (gıda dışı)
-    'bebek bezi', 'ıslak havlu', 'bebek havlusu', 'ıslak mendil',
+    'bebek bezi',
+    'ıslak havlu',
+    'bebek havlusu',
+    'ıslak mendil',
     // Kağıt/Ambalaj
-    'tuvalet kağıdı', 'peçete', 'mendil', 'çöp torbası', 'poşet',
-    'folyo', 'streç', 'buzdolabı poşet', 'kese kağıdı',
+    'tuvalet kağıdı',
+    'peçete',
+    'mendil',
+    'çöp torbası',
+    'poşet',
+    'folyo',
+    'streç',
+    'buzdolabı poşet',
+    'kese kağıdı',
     // Mutfak araç/gereç
-    'silikon', 'demlik', 'süzgeç', 'bardak', 'tabak', 'çatal', 'kaşık',
-    'bıçak', 'tencere', 'tava', 'kevgir', 'rende', 'doğrama tahtası',
-    'spatula', 'servis', 'tepsi', 'kavanoz', 'saklama kabı',
+    'silikon',
+    'demlik',
+    'süzgeç',
+    'bardak',
+    'tabak',
+    'çatal',
+    'kaşık',
+    'bıçak',
+    'tencere',
+    'tava',
+    'kevgir',
+    'rende',
+    'doğrama tahtası',
+    'spatula',
+    'servis',
+    'tepsi',
+    'kavanoz',
+    'saklama kabı',
     // Hayvan maması
-    'köpek maması', 'kedi maması', 'pet food',
+    'köpek maması',
+    'kedi maması',
+    'pet food',
     // Diğer
-    'oyuncak', 'kitap', 'dergi', 'kırtasiye', 'elektronik', 'mum',
-    'dekoratif', 'figür', 'süs', 'aksesuar', 'marker', 'kalem',
+    'oyuncak',
+    'kitap',
+    'dergi',
+    'kırtasiye',
+    'elektronik',
+    'mum',
+    'dekoratif',
+    'figür',
+    'süs',
+    'aksesuar',
+    'marker',
+    'kalem',
   ];
 
   for (const cat of nonFoodCategories) {
@@ -302,8 +352,13 @@ export async function closeBrowser() {
  */
 export function getAvailableMarkets() {
   return [
-    { key: 'camgoz', name: 'Camgöz API', active: true, type: 'api',
-      note: '45+ market: A101, Migros, CarrefourSA, ŞOK, Bizim Toptan, Macro Center, Mopaş, Hakmar, Gürmar ve daha fazlası' },
+    {
+      key: 'camgoz',
+      name: 'Camgöz API',
+      active: true,
+      type: 'api',
+      note: '45+ market: A101, Migros, CarrefourSA, ŞOK, Bizim Toptan, Macro Center, Mopaş, Hakmar, Gürmar ve daha fazlası',
+    },
   ];
 }
 

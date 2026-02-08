@@ -11,7 +11,6 @@
  */
 
 class DocumentScraper {
-
   /**
    * İhale ilanı içeriğini çeker (text olarak)
    */

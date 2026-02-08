@@ -1,6 +1,6 @@
 import fetch from 'node-fetch';
-import sessionManager from '../scraper/shared/ihalebul-cookie.js';
 import browserManager from '../scraper/shared/browser.js';
+import sessionManager from '../scraper/shared/ihalebul-cookie.js';
 import loginService from '../scraper/shared/ihalebul-login.js';
 import logger from '../utils/logger.js';
 
@@ -80,7 +80,8 @@ class DocumentDownloadService {
       const contentType = response.headers.get('content-type') || '';
       if (contentType.includes('text/html') && buffer.length < 50000) {
         const htmlSnippet = buffer.toString('utf8').substring(0, 1000).toLowerCase();
-        const isLoginPage = htmlSnippet.includes('giriş') ||
+        const isLoginPage =
+          htmlSnippet.includes('giriş') ||
           htmlSnippet.includes('login') ||
           htmlSnippet.includes('signin') ||
           htmlSnippet.includes('kullanıcı adı') ||

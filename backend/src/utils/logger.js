@@ -103,24 +103,40 @@ if (process.env.NODE_ENV !== 'production') {
   );
 }
 
+// Polling endpoint'leri — her birkaç saniyede çağrılıyor, loglama gereksiz
+const QUIET_PATTERNS = [
+  '/api/contractors/bildirimler/liste',
+  '/api/notifications/unread-count',
+  '/api/invoices/stats',
+  '/istihbarat',       // polling status endpoint
+];
+
 // HTTP request logger middleware
 export const httpLogger = (req, res, next) => {
   const start = Date.now();
 
   res.on('finish', () => {
     const duration = Date.now() - start;
+    const url = req.originalUrl;
+    const status = res.statusCode;
+
+    // 304 Not Modified + polling endpoint → loglama (gürültü azaltma)
+    const isQuiet = status === 304 ||
+      (req.method === 'GET' && QUIET_PATTERNS.some(p => url.includes(p)));
+    if (isQuiet && status < 400) return;
+
     const logData = {
       method: req.method,
-      url: req.originalUrl,
-      status: res.statusCode,
+      url,
+      status,
       duration: `${duration}ms`,
       ip: req.ip || req.connection.remoteAddress,
     };
 
     // 4xx ve 5xx hataları warn/error olarak logla
-    if (res.statusCode >= 500) {
+    if (status >= 500) {
       logger.error('HTTP Request', logData);
-    } else if (res.statusCode >= 400) {
+    } else if (status >= 400) {
       logger.warn('HTTP Request', logData);
     } else {
       logger.info('HTTP Request', logData);

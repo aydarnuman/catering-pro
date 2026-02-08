@@ -12,12 +12,12 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import AdmZip from 'adm-zip';
 import { pool } from '../database.js';
+import documentScraper from '../scraper/ihale-tarama/ihale-icerik-cek.js';
+import browserManager from '../scraper/shared/browser.js';
+import sessionManager from '../scraper/shared/ihalebul-cookie.js';
 import { supabase } from '../supabase.js';
 import logger from '../utils/logger.js';
 import documentDownloadService from './document-download.js';
-import browserManager from '../scraper/shared/browser.js';
-import documentScraper from '../scraper/ihale-tarama/ihale-icerik-cek.js';
-import sessionManager from '../scraper/shared/ihalebul-cookie.js';
 
 const execAsync = promisify(exec);
 
@@ -102,12 +102,36 @@ const CONTENT_TYPES = {
 // ihalebul.com buton tipleri ve her birinin işleme yöntemi
 // Liste sayfasındaki butonlar: /tender/{id}/{typeCode}
 const BUTTON_TYPE_CONFIG = {
-  announcement:      { code: 2, method: 'content_scrape', targetColumn: 'announcement_content',      format: 'text',       label: 'İhale İlanı' },
-  correction_notice: { code: 3, method: 'content_scrape', targetColumn: 'correction_notice_content', format: 'text',       label: 'Düzeltme İlanı' },
-  goods_list:        { code: 6, method: 'content_scrape', targetColumn: 'goods_services_content',    format: 'json_table', label: 'Malzeme Listesi' },
-  admin_spec:        { code: 7, method: 'download',       targetColumn: null,                        format: 'file',       label: 'İdari Şartname' },
-  tech_spec:         { code: 8, method: 'download',       targetColumn: null,                        format: 'file',       label: 'Teknik Şartname' },
-  zeyilname:         { code: 9, method: 'content_and_download', targetColumn: 'zeyilname_content',  format: 'text',       label: 'Zeyilname' },
+  announcement: {
+    code: 2,
+    method: 'content_scrape',
+    targetColumn: 'announcement_content',
+    format: 'text',
+    label: 'İhale İlanı',
+  },
+  correction_notice: {
+    code: 3,
+    method: 'content_scrape',
+    targetColumn: 'correction_notice_content',
+    format: 'text',
+    label: 'Düzeltme İlanı',
+  },
+  goods_list: {
+    code: 6,
+    method: 'content_scrape',
+    targetColumn: 'goods_services_content',
+    format: 'json_table',
+    label: 'Malzeme Listesi',
+  },
+  admin_spec: { code: 7, method: 'download', targetColumn: null, format: 'file', label: 'İdari Şartname' },
+  tech_spec: { code: 8, method: 'download', targetColumn: null, format: 'file', label: 'Teknik Şartname' },
+  zeyilname: {
+    code: 9,
+    method: 'content_and_download',
+    targetColumn: 'zeyilname_content',
+    format: 'text',
+    label: 'Zeyilname',
+  },
 };
 
 // İçerik sayfası URL'si mi kontrol et (/tender/{id}/{typeCode} pattern)
@@ -328,9 +352,14 @@ class DocumentStorageService {
           headers.push('sira');
         } else if (text) {
           headers.push(
-            text.toLowerCase()
-              .replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ü/g, 'u')
-              .replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g')
+            text
+              .toLowerCase()
+              .replace(/ı/g, 'i')
+              .replace(/ö/g, 'o')
+              .replace(/ü/g, 'u')
+              .replace(/ş/g, 's')
+              .replace(/ç/g, 'c')
+              .replace(/ğ/g, 'g')
               .replace(/\s+/g, '_')
           );
         }
@@ -399,7 +428,8 @@ class DocumentStorageService {
     const seenUrls = new Set();
 
     // href="..." içeren tüm linkleri bul
-    const linkRegex = /<a[^>]*href=["']([^"']*(?:download|file|\.pdf|\.doc|\.xls|\.zip|\.rar)[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
+    const linkRegex =
+      /<a[^>]*href=["']([^"']*(?:download|file|\.pdf|\.doc|\.xls|\.zip|\.rar)[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
     let match = linkRegex.exec(html);
 
     while (match !== null) {
@@ -581,7 +611,7 @@ class DocumentStorageService {
       } catch (error) {
         lastError = error;
         if (attempt < maxRetries) {
-          const delay = baseDelay * Math.pow(2, attempt); // exponential backoff: 2s, 4s
+          const delay = baseDelay * 2 ** attempt; // exponential backoff: 2s, 4s
           logger.warn(`Retry ${attempt + 1}/${maxRetries}: ${error.message}`, { delay });
           await this.sleep(delay);
         }
@@ -596,15 +626,15 @@ class DocumentStorageService {
   stripHtmlTags(html) {
     return html
       .replace(/<script[\s\S]*?<\/script>/gi, '') // Script'leri kaldır
-      .replace(/<style[\s\S]*?<\/style>/gi, '')   // Style'ları kaldır
-      .replace(/<[^>]+>/g, ' ')                    // Tüm tag'leri boşlukla değiştir
+      .replace(/<style[\s\S]*?<\/style>/gi, '') // Style'ları kaldır
+      .replace(/<[^>]+>/g, ' ') // Tüm tag'leri boşlukla değiştir
       .replace(/&nbsp;/g, ' ')
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'")
-      .replace(/\s+/g, ' ')                        // Fazla boşlukları temizle
+      .replace(/\s+/g, ' ') // Fazla boşlukları temizle
       .trim();
   }
 
@@ -623,13 +653,14 @@ class DocumentStorageService {
    * @param {number} tenderId - İhale ID
    * @returns {Object} - İşleme sonuçları
    */
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Central scraper orchestrates multiple download/scrape strategies with retry logic
   async merkezScraper(tenderId) {
     logger.info(`[MERKEZ-SCRAPER] İhale ${tenderId} tüm içerikler işleniyor`);
 
     const results = {
       tenderId,
-      downloaded: [],      // Dosya olarak indirilen dökümanlar
-      contentScraped: [],   // HTML'den çekilen içerikler
+      downloaded: [], // Dosya olarak indirilen dökümanlar
+      contentScraped: [], // HTML'den çekilen içerikler
       failed: [],
       skipped: [],
     };
@@ -699,10 +730,7 @@ class DocumentStorageService {
 
             // DataTable (json_table) formatı için Puppeteer kullan
             if (config.format === 'json_table') {
-              content = await this.withRetry(
-                () => this.scrapeGoodsListWithPuppeteer(url),
-                2, 3000
-              );
+              content = await this.withRetry(() => this.scrapeGoodsListWithPuppeteer(url), 2, 3000);
             }
 
             // Puppeteer başarısız olduysa veya json_table değilse, HTML fetch + regex fallback
@@ -723,7 +751,9 @@ class DocumentStorageService {
                 // İçerik bulunamadıysa, belki bu sayfada download linki vardır?
                 const downloadLinks = this.extractDownloadLinksFromHtml(html);
                 if (downloadLinks.length > 0) {
-                  logger.info(`${docType}: İçerik bulunamadı ama ${downloadLinks.length} download link bulundu, dosya olarak indiriliyor`);
+                  logger.info(
+                    `${docType}: İçerik bulunamadı ama ${downloadLinks.length} download link bulundu, dosya olarak indiriliyor`
+                  );
                   for (const dl of downloadLinks) {
                     if (downloadedUrls.has(dl.url)) {
                       results.skipped.push({ docType, reason: 'already_downloaded', url: dl.url });
@@ -732,7 +762,8 @@ class DocumentStorageService {
                     try {
                       const downloadResult = await this.withRetry(
                         () => this.downloadAndStore(tenderId, docType, dl.url, dl.name || name),
-                        2, 2000
+                        2,
+                        2000
                       );
                       results.downloaded.push({ docType, ...downloadResult });
                       downloadedUrls.add(dl.url);
@@ -751,11 +782,13 @@ class DocumentStorageService {
             // İçeriği tenders tablosuna kaydet
             if (targetColumn) {
               const contentValue = typeof content === 'string' ? content : JSON.stringify(content);
-              await pool.query(
-                `UPDATE tenders SET ${targetColumn} = $1, updated_at = NOW() WHERE id = $2`,
-                [contentValue, tenderId]
+              await pool.query(`UPDATE tenders SET ${targetColumn} = $1, updated_at = NOW() WHERE id = $2`, [
+                contentValue,
+                tenderId,
+              ]);
+              logger.info(
+                `${docType}: İçerik kaydedildi → ${targetColumn} (${typeof content === 'string' ? content.length + ' chars' : content.length + ' rows'})`
               );
-              logger.info(`${docType}: İçerik kaydedildi → ${targetColumn} (${typeof content === 'string' ? content.length + ' chars' : content.length + ' rows'})`);
             }
 
             results.contentScraped.push({
@@ -778,10 +811,10 @@ class DocumentStorageService {
               if (targetColumn && !tender[targetColumn]) {
                 const content = this.scrapeTextFromHtml(html);
                 if (content) {
-                  await pool.query(
-                    `UPDATE tenders SET ${targetColumn} = $1, updated_at = NOW() WHERE id = $2`,
-                    [content, tenderId]
-                  );
+                  await pool.query(`UPDATE tenders SET ${targetColumn} = $1, updated_at = NOW() WHERE id = $2`, [
+                    content,
+                    tenderId,
+                  ]);
                   logger.info(`${docType}: İçerik kaydedildi → ${targetColumn} (${content.length} chars)`);
                   results.contentScraped.push({ docType, targetColumn, format: 'text', size: content.length });
                 }
@@ -801,7 +834,8 @@ class DocumentStorageService {
                   try {
                     const downloadResult = await this.withRetry(
                       () => this.downloadAndStore(tenderId, docType, dl.url, dl.name || name),
-                      2, 2000
+                      2,
+                      2000
                     );
                     results.downloaded.push({ docType, ...downloadResult });
                     downloadedUrls.add(dl.url);
@@ -841,8 +875,10 @@ class DocumentStorageService {
 
                   try {
                     const downloadResult = await this.withRetry(
-                      () => this.downloadAndStore(tenderId, docType, resolved.url, resolved.name || name, fileExtFromName),
-                      2, 2000
+                      () =>
+                        this.downloadAndStore(tenderId, docType, resolved.url, resolved.name || name, fileExtFromName),
+                      2,
+                      2000
                     );
                     results.downloaded.push({ docType, ...downloadResult });
                     downloadedUrls.add(resolved.url);
@@ -875,7 +911,8 @@ class DocumentStorageService {
 
             const downloadResult = await this.withRetry(
               () => this.downloadAndStore(tenderId, docType, url, name, fileExtFromName),
-              2, 2000
+              2,
+              2000
             );
             results.downloaded.push({ docType, ...downloadResult });
             downloadedUrls.add(url);
@@ -894,7 +931,8 @@ class DocumentStorageService {
                   try {
                     const downloadResult = await this.withRetry(
                       () => this.downloadAndStore(tenderId, docType, resolved.url, resolved.name || name),
-                      2, 2000
+                      2,
+                      2000
                     );
                     results.downloaded.push({ docType, ...downloadResult });
                     downloadedUrls.add(resolved.url);
@@ -924,7 +962,8 @@ class DocumentStorageService {
               try {
                 const downloadResult = await this.withRetry(
                   () => this.downloadAndStore(tenderId, docType, url, name),
-                  2, 2000
+                  2,
+                  2000
                 );
                 results.downloaded.push({ docType, ...downloadResult });
                 downloadedUrls.add(url);
@@ -982,7 +1021,9 @@ class DocumentStorageService {
       // HTML Guard - İndirilen içerik HTML ise dosya olarak kaydetme
       const headerStr = fileBuffer.slice(0, 500).toString('utf8').trim().toLowerCase();
       if (headerStr.startsWith('<!doctype') || headerStr.startsWith('<html') || headerStr.startsWith('<?xml')) {
-        throw new Error(`HTML içerik tespit edildi, gerçek dosya değil (docType: ${docType}, url: ${url.substring(0, 80)})`);
+        throw new Error(
+          `HTML içerik tespit edildi, gerçek dosya değil (docType: ${docType}, url: ${url.substring(0, 80)})`
+        );
       }
 
       // 2. Dosya uzantısını belirle - öncelik sırası:

@@ -6,6 +6,22 @@ import logger from './utils/logger.js';
 const { Pool } = pg;
 
 // ============================================================
+// Timestamp Timezone Fix
+// ============================================================
+// Supabase PostgreSQL "timestamp without time zone" kolonlarini
+// dondurur. pg driver'i bunlari Node.js'in yerel saati (UTC+3)
+// olarak yorumlar, bu da 3 saatlik kaymaya neden olur.
+// Bu fix, tum "timestamp without time zone" degerlerini UTC
+// olarak parse eder — Supabase'in varsayilan timezone'u UTC'dir.
+// ============================================================
+const TIMESTAMP_WITHOUT_TZ_OID = 1114;
+pg.types.setTypeParser(TIMESTAMP_WITHOUT_TZ_OID, (val) => {
+  if (val === null) return null;
+  // Sonuna '+00' ekleyerek UTC olarak parse et
+  return new Date(`${val}+00`);
+});
+
+// ============================================================
 // PostgreSQL Baglanti Havuzu (Connection Pool)
 // ============================================================
 // Supabase uzerinde barindirilan PostgreSQL veritabanina baglanir.
@@ -15,8 +31,8 @@ const { Pool } = pg;
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  max: 20,                      // Ayni anda en fazla 20 baglanti
-  idleTimeoutMillis: 30000,     // 30 saniye bos kalan baglanti kapatilir
+  max: 20, // Ayni anda en fazla 20 baglanti
+  idleTimeoutMillis: 30000, // 30 saniye bos kalan baglanti kapatilir
   connectionTimeoutMillis: 5000, // 5 saniye icerisinde baglanamaz ise hata
 });
 
@@ -104,7 +120,9 @@ export async function query(text, params) {
     const duration = Date.now() - start;
 
     // Baglanti hatalarini ozel olarak logla
-    const isConnectionError = ['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'EPIPE', '57P01', '57P03'].includes(error.code);
+    const isConnectionError = ['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'EPIPE', '57P01', '57P03'].includes(
+      error.code
+    );
 
     if (isConnectionError) {
       logger.error('Veritabani baglanti hatasi - sorgu basarisiz', {

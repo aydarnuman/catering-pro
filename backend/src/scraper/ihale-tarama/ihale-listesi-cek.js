@@ -6,8 +6,8 @@
  */
 
 import { query } from '../../database.js';
-import documentScraper from './ihale-icerik-cek.js';
 import loginService from '../shared/ihalebul-login.js';
+import documentScraper from './ihale-icerik-cek.js';
 
 const CATEGORY_URL = 'https://www.ihalebul.com/tenders/search?workcategory_in=15';
 const PAGE_DELAY = 2000;
@@ -57,10 +57,8 @@ export async function scrapeList(page, options = {}) {
     if (maskedCount > tenders.length * 0.3) {
       maskedRetryCount++;
       if (maskedRetryCount > MAX_MASKED_RETRIES) {
-        console.error(`[ListScraper] Sayfa ${currentPage}: ${MAX_MASKED_RETRIES} re-login denemesinden sonra hâlâ maskelenmiş veri var, atlanıyor`);
         break;
       }
-      console.warn(`[ListScraper] Sayfa ${currentPage}: Maskelenmiş veri tespit edildi, re-login deneniyor (${maskedRetryCount}/${MAX_MASKED_RETRIES})`);
       await loginService.forceRelogin(page);
       continue;
     }
@@ -154,18 +152,33 @@ async function extractTenders(page) {
         let ihaleUsulu = null;
         const kaynaklar = ['Ekap', 'Gazete', 'İstihbarat', 'Özel Sektör'];
         for (const k of kaynaklar) {
-          if (text.includes(k)) { kaynakTuru = k; break; }
+          if (text.includes(k)) {
+            kaynakTuru = k;
+            break;
+          }
         }
         const usuller = ['Açık ihale usulü', 'Belli istekliler arasında', 'Pazarlık usulü', 'Doğrudan temin'];
         for (const u of usuller) {
-          if (text.includes(u)) { ihaleUsulu = u; break; }
+          if (text.includes(u)) {
+            ihaleUsulu = u;
+            break;
+          }
         }
 
         // Şehir ve İlçe - .text-dark-emphasis elementlerinden kaynak türlerini filtrele
-        const nonLocationTexts = ['Ekap', 'Gazete', 'İstihbarat', 'Özel Sektör', 'Açık ihale', 'Belli istekliler', 'Pazarlık', 'Doğrudan'];
+        const nonLocationTexts = [
+          'Ekap',
+          'Gazete',
+          'İstihbarat',
+          'Özel Sektör',
+          'Açık ihale',
+          'Belli istekliler',
+          'Pazarlık',
+          'Doğrudan',
+        ];
         const locationDivs = Array.from(card.querySelectorAll('.text-dark-emphasis.fw-medium.text-nowrap'))
-          .map(d => d.textContent.trim())
-          .filter(t => t.length > 0 && t.length <= 30 && !nonLocationTexts.some(nl => t.includes(nl)));
+          .map((d) => d.textContent.trim())
+          .filter((t) => t.length > 0 && t.length <= 30 && !nonLocationTexts.some((nl) => t.includes(nl)));
 
         let sehir = null;
         let ilce = null;

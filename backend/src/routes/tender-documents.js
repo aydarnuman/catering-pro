@@ -12,7 +12,7 @@ const router = express.Router();
 /**
  * MERKEZ SCRAPER: İhale için tüm içerikleri işle (dosya indirme + içerik scrape)
  * POST /api/tender-docs/:tenderId/merkez-scraper
- * 
+ *
  * Aynı zamanda eski /download-documents endpoint'i de buraya yönlendirilir (geriye uyumluluk)
  */
 async function merkezScraperHandler(req, res) {

@@ -19,11 +19,15 @@ let _hasYukleniciColumns = false;
 async function checkOptionalColumns() {
   if (_optionalColumnsChecked) return _hasYukleniciColumns;
   try {
-    await query(`SELECT yuklenici_adi, sozlesme_bedeli, indirim_orani, sozlesme_tarihi, is_bitis_tarihi FROM tenders LIMIT 0`);
+    await query(
+      `SELECT yuklenici_adi, sozlesme_bedeli, indirim_orani, sozlesme_tarihi, is_bitis_tarihi FROM tenders LIMIT 0`
+    );
     _hasYukleniciColumns = true;
   } catch {
     _hasYukleniciColumns = false;
-    logger.info('Yüklenici kolonları henüz mevcut değil (migration uygulanmamış olabilir). Fallback modda çalışılıyor.');
+    logger.info(
+      'Yüklenici kolonları henüz mevcut değil (migration uygulanmamış olabilir). Fallback modda çalışılıyor.'
+    );
   }
   _optionalColumnsChecked = true;
   return _hasYukleniciColumns;
@@ -380,7 +384,11 @@ router.post('/scrape', async (req, res) => {
 
     res.json({
       success: result.success,
-      message: result.success ? 'Scrape tamamlandı' : (result.reason === 'already_running' ? 'Scrape zaten çalışıyor' : 'Scrape başarısız'),
+      message: result.success
+        ? 'Scrape tamamlandı'
+        : result.reason === 'already_running'
+          ? 'Scrape zaten çalışıyor'
+          : 'Scrape başarısız',
       stats: result.stats,
       error: result.error,
     });

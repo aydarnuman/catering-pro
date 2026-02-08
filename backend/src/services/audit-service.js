@@ -5,7 +5,7 @@
 
 import { pool } from '../database.js';
 
-class AuditService {
+const AuditService = {
   /**
    * İşlem kaydı oluştur
    * @param {Object} params
@@ -21,7 +21,7 @@ class AuditService {
    * @param {string} [params.requestPath] - API endpoint
    * @param {string} [params.description] - Okunabilir açıklama
    */
-  static async log(params) {
+  async log(params) {
     try {
       const {
         userId,
@@ -88,12 +88,12 @@ class AuditService {
       // Audit hataları uygulamayı durdurmamamalı
       return null;
     }
-  }
+  },
 
   /**
    * Değişiklikleri hesapla
    */
-  static calculateChanges(oldData, newData) {
+  calculateChanges(oldData, newData) {
     const changes = {};
     const allKeys = new Set([...Object.keys(oldData || {}), ...Object.keys(newData || {})]);
 
@@ -113,12 +113,12 @@ class AuditService {
     }
 
     return Object.keys(changes).length > 0 ? changes : null;
-  }
+  },
 
   /**
    * Okunabilir açıklama oluştur
    */
-  static generateDescription(action, entityType, entityName, userName) {
+  generateDescription(action, entityType, entityName, userName) {
     const entityNames = {
       user: 'kullanıcı',
       invoice: 'fatura',
@@ -155,12 +155,12 @@ class AuditService {
     if (action === 'logout') return `${user} sistemden çıkış yaptı`;
 
     return `${user} ${name} ${entity} kaydını ${actionText}`;
-  }
+  },
 
   /**
    * Logları getir (sayfalama ve filtreleme ile)
    */
-  static async getLogs(options = {}) {
+  async getLogs(options = {}) {
     const {
       page = 1,
       limit = 50,
@@ -239,20 +239,20 @@ class AuditService {
         totalPages: Math.ceil(total / limit),
       },
     };
-  }
+  },
 
   /**
    * Tek bir log detayını getir
    */
-  static async getLogById(id) {
+  async getLogById(id) {
     const result = await pool.query('SELECT * FROM audit_logs WHERE id = $1', [id]);
     return result.rows[0] || null;
-  }
+  },
 
   /**
    * Kullanıcının son işlemlerini getir
    */
-  static async getUserActivity(userId, limit = 10) {
+  async getUserActivity(userId, limit = 10) {
     const result = await pool.query(
       `SELECT action, entity_type, entity_name, description, created_at
        FROM audit_logs
@@ -262,12 +262,12 @@ class AuditService {
       [userId, limit]
     );
     return result.rows;
-  }
+  },
 
   /**
    * İstatistikler
    */
-  static async getStats(days = 7) {
+  async getStats(days = 7) {
     const result = await pool.query(`
       SELECT 
         action,
@@ -280,7 +280,7 @@ class AuditService {
       ORDER BY date DESC
     `);
     return result.rows;
-  }
-}
+  },
+};
 
 export default AuditService;
