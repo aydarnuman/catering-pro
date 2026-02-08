@@ -175,6 +175,7 @@ export interface YukleniciDetay {
   ihaleler: YukleniciIhale[];
   kazanilanIhaleler: KazanilanIhale[];
   sehirDagilimi: { sehir: string; ihale_sayisi: string; toplam_bedel: string }[];
+  totalIhaleler?: number;
 }
 
 export interface YukleniciIhale {
@@ -219,6 +220,150 @@ export interface YukleniciKarsilastirma {
     sehir: string;
     katilimcilar: { yuklenici_id: number; unvan: string; sozlesme_bedeli: number }[];
   }[];
+}
+
+// ─── İstihbarat Merkezi Tipleri ─────────────────────────────────
+
+/** Geçerli modül adları */
+export type IstihbaratModulAdi =
+  | 'ihale_gecmisi'
+  | 'profil_analizi'
+  | 'katilimcilar'
+  | 'kik_kararlari'
+  | 'kik_yasaklilar'
+  | 'sirket_bilgileri'
+  | 'haberler'
+  | 'ai_arastirma';
+
+/** Modül çalışma durumları */
+export type ModulDurum = 'bekliyor' | 'calisiyor' | 'tamamlandi' | 'hata';
+
+/** Tek bir istihbarat modülünün durumu */
+export interface IstihbaratModul {
+  modul: IstihbaratModulAdi;
+  durum: ModulDurum;
+  son_guncelleme: string | null;
+  veri: Record<string, unknown>;
+  hata_mesaji: string | null;
+  updated_at: string | null;
+}
+
+/** Modül gösterim bilgileri (UI tarafı) */
+export interface ModulMeta {
+  ad: IstihbaratModulAdi;
+  baslik: string;      // Türkçe başlık
+  aciklama: string;    // Kısa açıklama
+  ikon: string;        // Tabler icon adı
+  renk: string;        // Mantine renk kodu
+  kaynak: string;      // Veri kaynağı (ihalebul.com, EKAP, Google vb.)
+  puppeteer: boolean;  // Puppeteer gerektiriyor mu
+}
+
+/** KİK Yasaklı sorgu sonucu */
+export interface KikYasakliVeri {
+  yasakli_mi: boolean;
+  sonuclar: {
+    firma_adi: string;
+    yasaklama_tarihi: string;
+    yasaklama_suresi: string;
+    yasaklama_nedeni: string;
+    bitis_tarihi: string;
+  }[];
+  tum_sonuc_sayisi: number;
+  sorgulama_tarihi: string;
+  kaynak: string;
+  not?: string;
+}
+
+/** Şirket bilgileri (MERSİS + Ticaret Sicil) */
+export interface SirketBilgiVeri {
+  mersis: Record<string, string> & { basarili: boolean; not?: string };
+  ticaret_sicil: {
+    basarili: boolean;
+    ilanlar: {
+      ilan_tarihi: string;
+      ilan_turu: string;
+      ozet: string;
+      link: string;
+    }[];
+    toplam: number;
+    not?: string;
+  };
+  sorgulama_tarihi: string;
+  kaynaklar: string[];
+}
+
+/** Haber arama sonucu */
+export interface HaberVeri {
+  haberler: {
+    baslik: string;
+    link: string;
+    tarih: string | null;
+    tarih_okunur: string;
+    kaynak: string;
+    ozet: string;
+  }[];
+  toplam: number;
+  arama_metni: string;
+  sorgulama_tarihi: string;
+  kaynak: string;
+}
+
+/** AI istihbarat raporu */
+export interface AiRaporVeri {
+  rapor: {
+    genel_degerlendirme: string;
+    guclu_yonler: string[];
+    zayif_yonler: string[];
+    firsatlar: string[];
+    tehditler: string[];
+    rekabet_stratejisi: string;
+    fiyat_analizi: string;
+    tavsiyeler: string[];
+    risk_seviyesi: 'düşük' | 'orta' | 'yüksek';
+  };
+  ham_metin: string;
+  olusturulma_tarihi: string;
+  model: string;
+  sure_ms: number;
+  veri_kaynagi_ozeti: Record<string, unknown>;
+}
+
+/** Fiyat tahmini sonucu */
+export interface FiyatTahminVeri {
+  yeterli_veri: boolean;
+  mesaj?: string;
+  toplam_ihale?: number;
+  ortalama_indirim?: number;
+  medyan_indirim?: number;
+  min_indirim?: number;
+  max_indirim?: number;
+  trend?: 'artiyor' | 'azaliyor' | 'sabit';
+  trend_detay?: {
+    son_10_ort: number;
+    onceki_ort: number;
+    fark: number;
+  };
+  sehir_bazli?: {
+    sehir: string;
+    ort_indirim: number;
+    ihale_sayisi: number;
+  }[];
+}
+
+/** Yüklenici bildirimi */
+export interface YukleniciBildirim {
+  id: number;
+  yuklenici_id: number;
+  tip: string;
+  baslik: string;
+  icerik: string | null;
+  meta: Record<string, unknown>;
+  okundu: boolean;
+  created_at: string;
+  // JOIN alanları
+  kisa_ad?: string;
+  unvan?: string;
 }
 
 // ─── Yardımcı Fonksiyonlar ──────────────────────────────────────
