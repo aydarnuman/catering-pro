@@ -6,7 +6,7 @@
  * session dosyası zaten storage/ altında saklanır.
  */
 
-import { describe, test, expect, beforeEach, afterAll } from 'vitest';
+import { afterAll, beforeEach, describe, expect, test } from 'vitest';
 import sessionManager from '../shared/ihalebul-cookie.js';
 
 // ==================== SETUP ====================

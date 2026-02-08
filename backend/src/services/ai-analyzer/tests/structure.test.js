@@ -3,14 +3,14 @@
  * Layer 1: Rule-based yapı tespiti
  */
 
-import { describe, test, expect } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import {
-  detectHeadings,
-  detectTables,
-  detectLists,
   detectFootnotes,
+  detectHeadings,
+  detectLists,
   detectReferences,
   detectStructure,
+  detectTables,
   findContainingStructure,
   findNearestHeading,
   resolveReferences,

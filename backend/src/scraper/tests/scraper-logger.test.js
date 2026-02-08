@@ -5,7 +5,7 @@
  * Not: DB loglama (LOG_TO_DB) bu testlerde kapalıdır.
  */
 
-import { describe, test, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 // LOG_TO_DB'yi kapalı tutmak için env ayarla
 process.env.LOG_TO_DB = 'false';
@@ -38,12 +38,12 @@ describe('ScraperLogger', () => {
       scraperLogger.setLevel('INFO');
     });
 
-    test('geçersiz seviye INFO\'ya döner', () => {
+    test("geçersiz seviye INFO'ya döner", () => {
       scraperLogger.setLevel('INVALID');
       expect(scraperLogger.level).toBe(1); // INFO
     });
 
-    test('null seviye INFO\'ya döner', () => {
+    test("null seviye INFO'ya döner", () => {
       scraperLogger.setLevel(null);
       expect(scraperLogger.level).toBe(1);
     });
@@ -135,7 +135,7 @@ describe('ScraperLogger', () => {
     });
 
     test('session.end() süre döner', async () => {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const _consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       const session = scraperLogger.createSession('test-scraper');
 
       // Kısa bekle

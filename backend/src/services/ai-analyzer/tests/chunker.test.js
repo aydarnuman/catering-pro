@@ -3,8 +3,8 @@
  * Layer 2: Smart Text Chunking
  */
 
-import { describe, test, expect } from 'vitest';
-import { chunkText, chunkTextWithStructure, chunkExcel, chunk, validateCharacterCount } from '../pipeline/chunker.js';
+import { describe, expect, test } from 'vitest';
+import { chunk, chunkExcel, chunkText, chunkTextWithStructure, validateCharacterCount } from '../pipeline/chunker.js';
 import { detectStructure } from '../pipeline/structure.js';
 
 // ==================== TEST VERİLERİ ====================
@@ -37,7 +37,7 @@ const LONG_TEXT = Array(50)
     (_, i) =>
       `MADDE ${i + 1} - BÖLÜM ${i + 1}\nBu bölümün içeriği detaylı bir şekilde burada yer almaktadır. ` +
       `Yüklenici bu bölümde belirtilen tüm şartlara uymak zorundadır. ` +
-      `Aksi halde cezai yaptırımlar uygulanacaktır.\n`,
+      `Aksi halde cezai yaptırımlar uygulanacaktır.\n`
   )
   .join('\n');
 
@@ -125,7 +125,7 @@ describe('chunkTextWithStructure', () => {
 
     // Tablo olan chunk
     const tableChunks = chunks.filter(
-      (c) => c.content.includes('Sabah') && c.content.includes('Öğle') && c.content.includes('Akşam'),
+      (c) => c.content.includes('Sabah') && c.content.includes('Öğle') && c.content.includes('Akşam')
     );
     expect(tableChunks.length).toBeGreaterThanOrEqual(1);
   });

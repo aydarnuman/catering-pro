@@ -3,7 +3,7 @@
  * Layer 5: Çelişki tespiti
  */
 
-import { describe, test, expect } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import { detectConflicts, generateConflictReport } from '../pipeline/conflict.js';
 
 // ==================== TEST VERİLERİ ====================
@@ -68,7 +68,7 @@ describe('detectConflicts', () => {
     expect(Array.isArray(conflicts)).toBe(true);
 
     // Aynı baslangic tarihi → çelişki yok
-    const dateConflicts = conflicts.filter((c) => c.field && c.field.startsWith('dates.baslangic'));
+    const dateConflicts = conflicts.filter((c) => c.field?.startsWith('dates.baslangic'));
     expect(dateConflicts.length).toBe(0);
   });
 
@@ -90,7 +90,7 @@ describe('detectConflicts', () => {
 
   test('tutarlarda çelişki tespit edilir', () => {
     const conflicts = detectConflicts(CONFLICT_RESULTS);
-    const amountConflict = conflicts.find((c) => c.field && c.field.startsWith('amounts'));
+    const amountConflict = conflicts.find((c) => c.field?.startsWith('amounts'));
     expect(amountConflict).toBeDefined();
   });
 

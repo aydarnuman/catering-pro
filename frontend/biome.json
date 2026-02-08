@@ -31,7 +31,8 @@
         "noForEach": "off",
         "useLiteralKeys": "off",
         "noExcessiveCognitiveComplexity": "off",
-        "useIndexOf": "off"
+        "useIndexOf": "off",
+        "noImportantStyles": "off"
       },
       "security": {
         "noDangerouslySetInnerHtml": "warn",
@@ -57,6 +58,11 @@
   "json": {
     "formatter": {
       "enabled": true
+    }
+  },
+  "css": {
+    "linter": {
+      "enabled": false
     }
   },
   "files": {

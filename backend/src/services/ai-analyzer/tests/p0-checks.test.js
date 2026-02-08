@@ -3,20 +3,19 @@
  * Kritik kalite kontrolleri
  */
 
-import { describe, test, expect } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import {
-  checkTableIntegrity,
-  checkTableFootnoteConnection,
-  checkHeadingContentUnity,
-  checkNumericValueIntegrity,
   checkCharacterLoss,
-  ensureValidJson,
-  checkNullVsEmpty,
-  checkNoNewInformation,
   checkConflictPreservation,
+  checkHeadingContentUnity,
+  checkNoNewInformation,
+  checkNullVsEmpty,
   checkSourceTraceability,
-  runAllP0Checks,
+  checkTableFootnoteConnection,
+  checkTableIntegrity,
   createTextHash,
+  ensureValidJson,
+  runAllP0Checks,
 } from '../controls/p0-checks.js';
 
 // ==================== TEST VERİLERİ ====================
@@ -50,7 +49,7 @@ describe('P0-01: checkTableIntegrity', () => {
     expect(result.passed).toBe(true);
   });
 
-  test('tablo 2 chunk\'a bölünmüş → passed: false', () => {
+  test("tablo 2 chunk'a bölünmüş → passed: false", () => {
     const result = checkTableIntegrity(splitChunks, structureWithTable);
     expect(result.code).toBe('P0-01');
     expect(result.passed).toBe(false);

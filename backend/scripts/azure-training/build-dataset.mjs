@@ -226,7 +226,6 @@ async function streamPdfToBlob(pdfUrl, blobName) {
   const resp = await fetch(pdfUrl);
   if (!resp.ok) throw new Error(`PDF indirilemedi (${resp.status}): ${pdfUrl}`);
   
-  const contentLength = parseInt(resp.headers.get('content-length') || '0');
   const blockClient = container.getBlockBlobClient(blobName);
   
   // Body'yi buffer'a çevir ve yükle
@@ -437,7 +436,7 @@ JSON formatı (SADECE JSON döndür):
     const result = JSON.parse(match[0]);
     return result.fields || [];
   } catch {
-    let json = match[0].replace(/,\s*([}\]])/g, '$1');
+    const json = match[0].replace(/,\s*([}\]])/g, '$1');
     try { return JSON.parse(json).fields || []; } catch { return []; }
   }
 }
@@ -446,7 +445,7 @@ JSON formatı (SADECE JSON döndür):
  * Dokümanı chunk'lara böl, her chunk'ı Claude'a gönder, sonuçları birleştir.
  * Sayfa limiti YOK - 1000 sayfa bile olsa tamamı işlenir.
  */
-async function labelDocument(pdfName, analyzeResult) {
+async function labelDocument(_pdfName, analyzeResult) {
   const pages = analyzeResult.pages || [];
   const tables = analyzeResult.tables || [];
   const totalPages = pages.length;
@@ -950,7 +949,6 @@ async function processLocalPdfs(localFolder, { dryRun, clean, doTrain, modelId, 
   // PARALEL İŞLEME - Concurrency limiter
   // ═══════════════════════════════════════════════════════════════════
   const CONCURRENCY = 3;
-  let activeCount = 0;
   let completedCount = 0;
 
   async function processOnePdf(pdfFile, index) {
@@ -958,7 +956,7 @@ async function processLocalPdfs(localFolder, { dryRun, clean, doTrain, modelId, 
     
     try {
       // 1. Lokal PDF'i blob'a yükle
-      const { size } = await uploadLocalPdfToBlob(pdfFile.localPath, pdfFile.name);
+      await uploadLocalPdfToBlob(pdfFile.localPath, pdfFile.name);
 
       // 2. SAS URL oluştur ve Layout API ile OCR
       const sasUrl = generateBlobSasUrl(pdfFile.name);
@@ -972,7 +970,6 @@ async function processLocalPdfs(localFolder, { dryRun, clean, doTrain, modelId, 
       }
       
       const pageCount = analyzeResult.pages?.length || 0;
-      const tableCount = analyzeResult.tables?.length || 0;
       
       if (pageCount === 0) {
         errors++;

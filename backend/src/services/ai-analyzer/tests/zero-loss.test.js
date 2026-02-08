@@ -12,7 +12,7 @@
  * - Tamlık skoru hesaplama
  */
 
-import { describe, test, expect } from 'vitest';
+import { describe, expect, test } from 'vitest';
 
 import {
   checkHeadingContentUnity,
@@ -119,11 +119,11 @@ describe('Structure Detection', () => {
     expect(headings.length).toBeGreaterThanOrEqual(2);
 
     // MADDE tespiti (text = capture group, fullText = tam satır)
-    const madde = headings.find((h) => h.type === 'madde' || (h.fullText && h.fullText.includes('MADDE 1')));
+    const madde = headings.find((h) => h.type === 'madde' || h.fullText?.includes('MADDE 1'));
     expect(madde).toBeDefined();
 
     // BÖLÜM tespiti
-    const bolum = headings.find((h) => h.type === 'bolum' || (h.fullText && h.fullText.includes('BÖLÜM')));
+    const bolum = headings.find((h) => h.type === 'bolum' || h.fullText?.includes('BÖLÜM'));
     expect(bolum).toBeDefined();
   });
 
@@ -252,12 +252,8 @@ describe('Conflict Detection', () => {
       chunk_id: 'chunk_1',
       chunkIndex: 1,
       extractedData: {
-        dates: [
-          { value: '15.06.2025', type: 'baslangic', context: 'Chunk 1', confidence: 0.9 },
-        ],
-        amounts: [
-          { value: '1.000.000,00', type: 'yaklasik_maliyet', context: 'Chunk 1', confidence: 0.8 },
-        ],
+        dates: [{ value: '15.06.2025', type: 'baslangic', context: 'Chunk 1', confidence: 0.9 }],
+        amounts: [{ value: '1.000.000,00', type: 'yaklasik_maliyet', context: 'Chunk 1', confidence: 0.8 }],
       },
     },
   ];
@@ -268,16 +264,14 @@ describe('Conflict Detection', () => {
     expect(Array.isArray(conflicts)).toBe(true);
 
     // Aynı tip (baslangic) farklı değer → field = "dates.baslangic"
-    const dateConflict = conflicts.find((c) => c.field && c.field.startsWith('dates'));
+    const dateConflict = conflicts.find((c) => c.field?.startsWith('dates'));
     expect(dateConflict).toBeDefined();
   });
 
   test('detectConflicts - aynı değerleri çelişki saymaz', () => {
     const conflicts = detectConflicts(chunkResults);
     // yaklasik_maliyet her iki chunk'ta aynı değer → çelişki olmamalı
-    const amountConflicts = conflicts.filter(
-      (c) => c.field && c.field.startsWith('amounts'),
-    );
+    const amountConflicts = conflicts.filter((c) => c.field?.startsWith('amounts'));
     expect(amountConflicts.length).toBe(0);
   });
 });

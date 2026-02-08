@@ -3,8 +3,8 @@
  * Layer 7: Schema Validation & Completeness
  */
 
-import { describe, test, expect } from 'vitest';
-import { calculateCompleteness, validateSchema, checkDataQuality, quickValidate } from '../pipeline/validator.js';
+import { describe, expect, test } from 'vitest';
+import { calculateCompleteness, checkDataQuality, quickValidate, validateSchema } from '../pipeline/validator.js';
 
 // ==================== TEST VERİLERİ ====================
 
