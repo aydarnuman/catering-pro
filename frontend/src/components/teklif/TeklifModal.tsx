@@ -254,7 +254,7 @@ export default function TeklifModal({
 
   // Generic maliyet detay güncelleme
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic nested path update
-  const updateMaliyetDetay = useCallback((kalem: MaliyetKalemKey, path: string, value: string | number | boolean) => {
+  const updateMaliyetDetay = useCallback((kalem: MaliyetKalemKey, path: string, value: string | number | boolean | any[]) => {
     setTeklifData((prev) => {
       const yeniDetay = JSON.parse(JSON.stringify(prev.maliyet_detay));
       const keys = path.split('.');
@@ -1310,7 +1310,7 @@ export default function TeklifModal({
             <Text size="sm" fw={500}>
               Risk Kategorileri
             </Text>
-            {detay.kategoriler.map((kat) => (
+            {detay.kategoriler.map((kat, idx) => (
               <Paper key={kat.ad} withBorder p="xs">
                 <Group justify="space-between">
                   <Checkbox
@@ -1821,7 +1821,7 @@ export default function TeklifModal({
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {teklifData.birim_fiyat_cetveli.map((kalem) => (
+                {teklifData.birim_fiyat_cetveli.map((kalem, idx) => (
                   <Table.Tr key={`cetvel-${kalem.sira}`}>
                     <Table.Td>{kalem.sira}</Table.Td>
                     <Table.Td>
