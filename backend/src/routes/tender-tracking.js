@@ -536,6 +536,7 @@ router.delete('/:id', async (req, res) => {
  * Analiz sonrası otomatik takip listesine ekle
  * POST /api/tender-tracking/add-from-analysis
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Multi-step analysis aggregation requires sequential data processing
 router.post('/add-from-analysis', async (req, res) => {
   try {
     const { tender_id, user_id } = req.body;
@@ -574,6 +575,27 @@ router.post('/add-from-analysis', async (req, res) => {
       gunluk_ogun_sayisi: null, // v9: catering.daily_meals
       kisi_sayisi: null, // v9: catering.total_persons
       gramaj: [], // v9: catering.gramaj
+      // ═══ Azure v5 Catering-Spesifik Alanlar ═══
+      kahvalti_kisi_sayisi: null,
+      ogle_kisi_sayisi: null,
+      aksam_kisi_sayisi: null,
+      diyet_kisi_sayisi: null,
+      hizmet_gun_sayisi: null,
+      mutfak_tipi: null,
+      servis_tipi: null,
+      et_tipi: null,
+      yemek_cesit_sayisi: null,
+      yemek_pisirilecek_yer: null,
+      iscilik_orani: null,
+      dagitim_saatleri: null,
+      kalite_standartlari: null,
+      gida_guvenligi_belgeleri: null,
+      dagitim_noktalari: null,
+      ekipman_listesi: null,
+      malzeme_listesi: null,
+      ogun_dagilimi: null,
+      birim_fiyat_cetveli: null,
+      menu_tablosu: null,
       // Personel bilgileri (v9: personnel.* alanlarından)
       toplam_personel: null, // v9: personnel.total_count
       // Listeler
@@ -702,6 +724,38 @@ router.post('/add-from-analysis', async (req, res) => {
         if (gramaj && Array.isArray(gramaj)) {
           if (!analysisSummary.gramaj) analysisSummary.gramaj = [];
           analysisSummary.gramaj.push(...gramaj);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // AZURE v5 CATERİNG-SPESİFİK ALANLAR
+        // ═══════════════════════════════════════════════════════════════
+        const cateringFieldMap = {
+          kahvalti_kisi_sayisi: analysis.catering?.breakfast_persons,
+          ogle_kisi_sayisi: analysis.catering?.lunch_persons,
+          aksam_kisi_sayisi: analysis.catering?.dinner_persons,
+          diyet_kisi_sayisi: analysis.catering?.diet_persons,
+          hizmet_gun_sayisi: analysis.catering?.service_days,
+          mutfak_tipi: analysis.catering?.kitchen_type,
+          servis_tipi: analysis.catering?.service_type,
+          et_tipi: analysis.catering?.meat_type,
+          yemek_cesit_sayisi: analysis.catering?.meal_variety,
+          yemek_pisirilecek_yer: analysis.catering?.cooking_location,
+          iscilik_orani: analysis.catering?.labor_rate,
+          dagitim_saatleri: analysis.catering?.delivery_hours,
+          kalite_standartlari: analysis.catering?.quality_standards,
+          gida_guvenligi_belgeleri: analysis.catering?.food_safety_docs,
+          dagitim_noktalari: analysis.catering?.distribution_points,
+          ekipman_listesi: analysis.catering?.equipment_list,
+          malzeme_listesi: analysis.catering?.material_list,
+          ogun_dagilimi: analysis.catering?.meal_distribution,
+          birim_fiyat_cetveli: analysis.catering?.unit_price_table,
+          menu_tablosu: analysis.catering?.menu_table,
+        };
+
+        for (const [key, val] of Object.entries(cateringFieldMap)) {
+          if (val && !analysisSummary[key]) {
+            analysisSummary[key] = val;
+          }
         }
 
         // ═══════════════════════════════════════════════════════════════

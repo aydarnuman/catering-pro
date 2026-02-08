@@ -372,10 +372,12 @@ export function CenterPanel({
 
   // HITL: Analiz düzeltme sistemi (hooks MUST be before early returns)
   const isSaved = selectedTender ? isSavedTender(selectedTender) : false;
+  // TypeScript can't narrow union from stored boolean — create typed reference
+  const savedTender: SavedTender | null = isSaved ? (selectedTender as SavedTender) : null;
   const currentTenderId = selectedTender
     ? isSaved
       ? (selectedTender as SavedTender).tender_id
-      : (selectedTender as Tender)?.id ?? null
+      : ((selectedTender as Tender)?.id ?? null)
     : null;
   const {
     correctionCount,
@@ -430,25 +432,25 @@ export function CenterPanel({
   // Analiz durumu kontrolü
   const hasAnalysis =
     isSaved &&
-    ((selectedTender.analiz_edilen_dokuman || 0) > 0 ||
-      (selectedTender.teknik_sart_sayisi || 0) > 0 ||
-      (selectedTender.birim_fiyat_sayisi || 0) > 0);
+    ((savedTender?.analiz_edilen_dokuman || 0) > 0 ||
+      (savedTender?.teknik_sart_sayisi || 0) > 0 ||
+      (savedTender?.birim_fiyat_sayisi || 0) > 0);
 
   // Extract fields
-  const title = isSaved ? selectedTender.ihale_basligi : selectedTender.title;
-  const organization = isSaved ? selectedTender.kurum : selectedTender.organization;
+  const title = isSaved ? savedTender!.ihale_basligi : (selectedTender as Tender).title;
+  const organization = isSaved ? savedTender!.kurum : (selectedTender as Tender).organization;
   const city = selectedTender.city;
-  const dateStr = isSaved ? selectedTender.tarih : selectedTender.deadline;
-  const externalId = isSaved ? selectedTender.external_id : selectedTender.external_id;
-  const url = isSaved ? selectedTender.url : selectedTender.url;
+  const dateStr = isSaved ? savedTender!.tarih : (selectedTender as Tender).deadline;
+  const externalId = isSaved ? savedTender?.external_id : selectedTender.external_id;
+  const url = isSaved ? savedTender?.url : selectedTender.url;
 
   // Zeyilname ve düzeltme ilanı (sadece SavedTender için)
-  const zeyilname = isSaved ? selectedTender.zeyilname_content : null;
-  const correction = isSaved ? selectedTender.correction_notice_content : null;
+  const zeyilname = isSaved ? savedTender?.zeyilname_content : null;
+  const correction = isSaved ? savedTender?.correction_notice_content : null;
 
   // Tipli analysis_summary (SavedTender için)
   const analysisSummary: AnalysisData | undefined = isSaved
-    ? selectedTender.analysis_summary
+    ? savedTender?.analysis_summary
     : undefined;
 
   return (
@@ -510,24 +512,25 @@ export function CenterPanel({
                       variant="light"
                       size="md"
                       onClick={() => {
+                        const st = savedTender!;
                         const data = {
                           ihale: {
-                            baslik: selectedTender.ihale_basligi,
-                            kurum: selectedTender.kurum,
-                            tarih: selectedTender.tarih,
-                            sehir: selectedTender.city,
-                            bedel: selectedTender.bedel,
-                            external_id: selectedTender.external_id,
-                            url: selectedTender.url,
+                            baslik: st.ihale_basligi,
+                            kurum: st.kurum,
+                            tarih: st.tarih,
+                            sehir: st.city,
+                            bedel: st.bedel,
+                            external_id: st.external_id,
+                            url: st.url,
                           },
                           hesaplamalar: {
-                            yaklasik_maliyet: selectedTender.yaklasik_maliyet,
-                            sinir_deger: selectedTender.sinir_deger,
-                            bizim_teklif: selectedTender.bizim_teklif,
+                            yaklasik_maliyet: st.yaklasik_maliyet,
+                            sinir_deger: st.sinir_deger,
+                            bizim_teklif: st.bizim_teklif,
                           },
-                          analiz: selectedTender.analysis_summary,
-                          durum: selectedTender.status,
-                          olusturulma: selectedTender.created_at,
+                          analiz: st.analysis_summary,
+                          durum: st.status,
+                          olusturulma: st.created_at,
                         };
                         const blob = new Blob([JSON.stringify(data, null, 2)], {
                           type: 'application/json',
@@ -535,7 +538,7 @@ export function CenterPanel({
                         const urlObj = URL.createObjectURL(blob);
                         const a = document.createElement('a');
                         a.href = urlObj;
-                        a.download = `ihale_${selectedTender.external_id || selectedTender.id}_${Date.now()}.json`;
+                        a.download = `ihale_${st.external_id || st.id}_${Date.now()}.json`;
                         a.click();
                         URL.revokeObjectURL(urlObj);
                       }}
@@ -555,10 +558,10 @@ export function CenterPanel({
                 size="xs"
                 w={140}
                 placeholder="Durum"
-                value={selectedTender.status}
+                value={savedTender!.status}
                 onChange={(value) => {
                   if (value && onUpdateStatus) {
-                    onUpdateStatus(selectedTender.id, value);
+                    onUpdateStatus(savedTender!.id, value);
                   }
                 }}
                 data={Object.entries(statusConfig).map(([key, val]) => ({
@@ -747,9 +750,9 @@ export function CenterPanel({
                 <Tabs.Tab value="dokumanlar" leftSection={<IconFile size={14} />}>
                   <Group gap={4}>
                     Dökümanlar
-                    {selectedTender.dokuman_sayisi > 0 && (
+                    {(savedTender?.dokuman_sayisi ?? 0) > 0 && (
                       <Badge size="xs" variant="light" color="gray">
-                        {selectedTender.dokuman_sayisi}
+                        {savedTender!.dokuman_sayisi}
                       </Badge>
                     )}
                   </Group>
@@ -798,7 +801,7 @@ export function CenterPanel({
                         leftSection={<IconBookmark size={18} />}
                         onClick={async () => {
                           try {
-                            await tendersAPI.addTracking(selectedTender.id);
+                            await tendersAPI.addTracking(Number(selectedTender.id));
                             onRefreshData?.();
                           } catch (error) {
                             console.error('Takibe ekleme hatası:', error);
@@ -939,8 +942,8 @@ export function CenterPanel({
                           </ThemeIcon>
                           <Box>
                             <Text size="xl" fw={700} c="orange">
-                              {selectedTender.analiz_edilen_dokuman || 0}/
-                              {selectedTender.dokuman_sayisi || 0}
+                              {savedTender?.analiz_edilen_dokuman || 0}/
+                              {savedTender?.dokuman_sayisi || 0}
                             </Text>
                             <Text size="xs" c="dimmed">
                               Analiz
@@ -1017,13 +1020,23 @@ export function CenterPanel({
                     <Group justify="space-between">
                       <Group gap="xs">
                         {isConfirmed ? (
-                          <Badge variant="filled" color="green" size="sm" leftSection={<IconCheck size={10} />}>
+                          <Badge
+                            variant="filled"
+                            color="green"
+                            size="sm"
+                            leftSection={<IconCheck size={10} />}
+                          >
                             Analiz Onaylandı
                           </Badge>
                         ) : (
                           <>
                             {correctionCount > 0 && (
-                              <Badge variant="light" color="blue" size="sm" leftSection={<IconEdit size={10} />}>
+                              <Badge
+                                variant="light"
+                                color="blue"
+                                size="sm"
+                                leftSection={<IconEdit size={10} />}
+                              >
                                 {correctionCount} düzeltme
                               </Badge>
                             )}
@@ -1075,7 +1088,11 @@ export function CenterPanel({
                     isEditing={editingCards.has('teknik_sartlar')}
                     onToggleEdit={() => toggleCardEdit('teknik_sartlar')}
                     onSave={async (fieldPath, oldValue, newValue) => {
-                      await saveCorrection({ field_path: fieldPath, old_value: oldValue, new_value: newValue });
+                      await saveCorrection({
+                        field_path: fieldPath,
+                        old_value: oldValue,
+                        new_value: newValue,
+                      });
                       onRefreshData?.();
                     }}
                     isCorrected={!!getCorrectionForField('teknik_sartlar')}
@@ -1089,7 +1106,11 @@ export function CenterPanel({
                     isEditing={editingCards.has('birim_fiyatlar')}
                     onToggleEdit={() => toggleCardEdit('birim_fiyatlar')}
                     onSave={async (fieldPath, oldValue, newValue) => {
-                      await saveCorrection({ field_path: fieldPath, old_value: oldValue, new_value: newValue });
+                      await saveCorrection({
+                        field_path: fieldPath,
+                        old_value: oldValue,
+                        new_value: newValue,
+                      });
                       onRefreshData?.();
                     }}
                     isCorrected={!!getCorrectionForField('birim_fiyatlar')}
@@ -1120,7 +1141,11 @@ export function CenterPanel({
                           isEditing={editingCards.has('iletisim')}
                           onToggleEdit={() => toggleCardEdit('iletisim')}
                           onSave={async (fieldPath, oldValue, newValue) => {
-                            await saveCorrection({ field_path: fieldPath, old_value: oldValue, new_value: newValue });
+                            await saveCorrection({
+                              field_path: fieldPath,
+                              old_value: oldValue,
+                              new_value: newValue,
+                            });
                             onRefreshData?.();
                           }}
                           isCorrected={!!getCorrectionForField('iletisim')}
@@ -1135,7 +1160,11 @@ export function CenterPanel({
                           isEditing={editingCards.has('servis_saatleri')}
                           onToggleEdit={() => toggleCardEdit('servis_saatleri')}
                           onSave={async (fieldPath, oldValue, newValue) => {
-                            await saveCorrection({ field_path: fieldPath, old_value: oldValue, new_value: newValue });
+                            await saveCorrection({
+                              field_path: fieldPath,
+                              old_value: oldValue,
+                              new_value: newValue,
+                            });
                             onRefreshData?.();
                           }}
                           isCorrected={!!getCorrectionForField('servis_saatleri')}
@@ -1150,7 +1179,11 @@ export function CenterPanel({
                           isEditing={editingCards.has('teminat_oranlari')}
                           onToggleEdit={() => toggleCardEdit('teminat_oranlari')}
                           onSave={async (fieldPath, oldValue, newValue) => {
-                            await saveCorrection({ field_path: fieldPath, old_value: oldValue, new_value: newValue });
+                            await saveCorrection({
+                              field_path: fieldPath,
+                              old_value: oldValue,
+                              new_value: newValue,
+                            });
                             onRefreshData?.();
                           }}
                           isCorrected={!!getCorrectionForField('teminat_oranlari')}
@@ -1165,7 +1198,11 @@ export function CenterPanel({
                           isEditing={editingCards.has('mali_kriterler')}
                           onToggleEdit={() => toggleCardEdit('mali_kriterler')}
                           onSave={async (fieldPath, oldValue, newValue) => {
-                            await saveCorrection({ field_path: fieldPath, old_value: oldValue, new_value: newValue });
+                            await saveCorrection({
+                              field_path: fieldPath,
+                              old_value: oldValue,
+                              new_value: newValue,
+                            });
                             onRefreshData?.();
                           }}
                           isCorrected={!!getCorrectionForField('mali_kriterler')}
@@ -1188,7 +1225,11 @@ export function CenterPanel({
                           isEditing={editingCards.has('personel_detaylari')}
                           onToggleEdit={() => toggleCardEdit('personel_detaylari')}
                           onSave={async (fieldPath, oldValue, newValue) => {
-                            await saveCorrection({ field_path: fieldPath, old_value: oldValue, new_value: newValue });
+                            await saveCorrection({
+                              field_path: fieldPath,
+                              old_value: oldValue,
+                              new_value: newValue,
+                            });
                             onRefreshData?.();
                           }}
                           isCorrected={!!getCorrectionForField('personel_detaylari')}
@@ -1202,6 +1243,9 @@ export function CenterPanel({
                       )}
                   </SimpleGrid>
                 )}
+
+                {/* ═══ CATERING DETAY KARTLARI (Azure v5) ═══ */}
+                <CateringDetayKartlari analysisSummary={analysisSummary} />
 
                 {/* İş Yerleri */}
                 {analysisSummary?.is_yerleri && analysisSummary.is_yerleri.length > 0 && (
@@ -1310,10 +1354,10 @@ export function CenterPanel({
               {/* Dökümanlar sekmesi - Wizard Modal ile döküman yönetimi */}
               {isSaved ? (
                 <DokumanlarSection
-                  tenderId={selectedTender.tender_id}
-                  tenderTitle={selectedTender.ihale_basligi}
-                  dokumansayisi={selectedTender.dokuman_sayisi || 0}
-                  analizEdilen={selectedTender.analiz_edilen_dokuman || 0}
+                  tenderId={savedTender!.tender_id}
+                  tenderTitle={savedTender!.ihale_basligi}
+                  dokumansayisi={savedTender?.dokuman_sayisi || 0}
+                  analizEdilen={savedTender?.analiz_edilen_dokuman || 0}
                   onRefresh={onRefreshData}
                 />
               ) : (
@@ -1328,7 +1372,7 @@ export function CenterPanel({
               {isSaved ? (
                 <ContextualNotesSection
                   contextType="tender"
-                  contextId={selectedTender.tender_id}
+                  contextId={savedTender!.tender_id}
                   title=""
                   compact={false}
                   showAddButton
@@ -1626,8 +1670,8 @@ export function CenterPanel({
         <DocumentWizardModal
           opened={documentWizardOpen}
           onClose={() => setDocumentWizardOpen(false)}
-          tenderId={selectedTender.tender_id}
-          tenderTitle={selectedTender.ihale_basligi}
+          tenderId={savedTender!.tender_id}
+          tenderTitle={savedTender!.ihale_basligi}
           onComplete={onRefreshData}
         />
       )}
@@ -2132,7 +2176,11 @@ function TeknikSartlarCard({
   const handleSave = () => {
     if (onSave) {
       const newValue = editItems.filter((s) => s.trim());
-      onSave('teknik_sartlar', teknikSartlar.map((s) => getTeknikSartTextFromItem(s)), newValue);
+      onSave(
+        'teknik_sartlar',
+        teknikSartlar.map((s) => getTeknikSartTextFromItem(s)),
+        newValue
+      );
     }
     onToggleEdit?.();
   };
@@ -2173,7 +2221,13 @@ function TeknikSartlarCard({
               <Button size="compact-xs" variant="light" color="gray" onClick={onToggleEdit}>
                 İptal
               </Button>
-              <Button size="compact-xs" variant="filled" color="green" onClick={handleSave} leftSection={<IconDeviceFloppy size={12} />}>
+              <Button
+                size="compact-xs"
+                variant="filled"
+                color="green"
+                onClick={handleSave}
+                leftSection={<IconDeviceFloppy size={12} />}
+              >
                 Kaydet
               </Button>
             </Group>
@@ -2202,7 +2256,13 @@ function TeknikSartlarCard({
           {isEditing
             ? editItems.map((text, idx) => (
                 <Group key={`ts-edit-${idx}`} gap="xs" wrap="nowrap" align="flex-start">
-                  <Badge size="xs" variant="filled" color="blue" circle style={{ flexShrink: 0, marginTop: 8 }}>
+                  <Badge
+                    size="xs"
+                    variant="filled"
+                    color="blue"
+                    circle
+                    style={{ flexShrink: 0, marginTop: 8 }}
+                  >
                     {idx + 1}
                   </Badge>
                   <Textarea
@@ -2298,7 +2358,9 @@ function BirimFiyatlarCard({
   isCorrected?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [editItems, setEditItems] = useState<Array<{ kalem: string; birim: string; miktar: string }>>([]);
+  const [editItems, setEditItems] = useState<
+    Array<{ kalem: string; birim: string; miktar: string }>
+  >([]);
 
   useEffect(() => {
     if (isEditing) {
@@ -2361,7 +2423,13 @@ function BirimFiyatlarCard({
               <Button size="compact-xs" variant="light" color="gray" onClick={onToggleEdit}>
                 İptal
               </Button>
-              <Button size="compact-xs" variant="filled" color="green" onClick={handleSave} leftSection={<IconDeviceFloppy size={12} />}>
+              <Button
+                size="compact-xs"
+                variant="filled"
+                color="green"
+                onClick={handleSave}
+                leftSection={<IconDeviceFloppy size={12} />}
+              >
                 Kaydet
               </Button>
             </Group>
@@ -2391,7 +2459,13 @@ function BirimFiyatlarCard({
           {isEditing
             ? editItems.map((item, idx) => (
                 <Group key={`bf-edit-${idx}`} gap="xs" wrap="nowrap">
-                  <Badge size="xs" variant="filled" color="green" circle style={{ flexShrink: 0, marginTop: 8 }}>
+                  <Badge
+                    size="xs"
+                    variant="filled"
+                    color="green"
+                    circle
+                    style={{ flexShrink: 0, marginTop: 8 }}
+                  >
                     {idx + 1}
                   </Badge>
                   <TextInput
@@ -2416,7 +2490,12 @@ function BirimFiyatlarCard({
                     }}
                     w={80}
                   />
-                  <ActionIcon size="xs" variant="subtle" color="red" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}>
+                  <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    color="red"
+                    onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}
+                  >
                     <IconTrash size={10} />
                   </ActionIcon>
                 </Group>
@@ -2430,7 +2509,13 @@ function BirimFiyatlarCard({
                     wrap="nowrap"
                   >
                     <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
-                      <Badge size="xs" variant="filled" color="green" circle style={{ flexShrink: 0 }}>
+                      <Badge
+                        size="xs"
+                        variant="filled"
+                        color="green"
+                        circle
+                        style={{ flexShrink: 0 }}
+                      >
                         {idx + 1}
                       </Badge>
                       <Text size="xs" lineClamp={1} style={{ flex: 1 }}>
@@ -2754,7 +2839,13 @@ function IletisimCard({
               <Button size="compact-xs" variant="light" color="gray" onClick={onToggleEdit}>
                 İptal
               </Button>
-              <Button size="compact-xs" variant="filled" color="green" onClick={handleSave} leftSection={<IconDeviceFloppy size={12} />}>
+              <Button
+                size="compact-xs"
+                variant="filled"
+                color="green"
+                onClick={handleSave}
+                leftSection={<IconDeviceFloppy size={12} />}
+              >
                 Kaydet
               </Button>
             </Group>
@@ -2806,7 +2897,9 @@ function PersonelCard({
   isCorrected?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [editItems, setEditItems] = useState<Array<{ pozisyon: string; adet: string; ucret_orani: string }>>([]);
+  const [editItems, setEditItems] = useState<
+    Array<{ pozisyon: string; adet: string; ucret_orani: string }>
+  >([]);
 
   useEffect(() => {
     if (isEditing) {
@@ -2830,7 +2923,11 @@ function PersonelCard({
     if (onSave) {
       const newValue = editItems
         .filter((p) => p.pozisyon.trim())
-        .map((p) => ({ pozisyon: p.pozisyon, adet: Number(p.adet) || 0, ucret_orani: p.ucret_orani || undefined }));
+        .map((p) => ({
+          pozisyon: p.pozisyon,
+          adet: Number(p.adet) || 0,
+          ucret_orani: p.ucret_orani || undefined,
+        }));
       onSave('personel_detaylari', personel, newValue);
     }
     onToggleEdit?.();
@@ -2872,7 +2969,13 @@ function PersonelCard({
               <Button size="compact-xs" variant="light" color="gray" onClick={onToggleEdit}>
                 İptal
               </Button>
-              <Button size="compact-xs" variant="filled" color="green" onClick={handleSave} leftSection={<IconDeviceFloppy size={12} />}>
+              <Button
+                size="compact-xs"
+                variant="filled"
+                color="green"
+                onClick={handleSave}
+                leftSection={<IconDeviceFloppy size={12} />}
+              >
                 Kaydet
               </Button>
             </Group>
@@ -2924,7 +3027,12 @@ function PersonelCard({
                     w={70}
                     suffix=" kişi"
                   />
-                  <ActionIcon size="xs" variant="subtle" color="red" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}>
+                  <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    color="red"
+                    onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}
+                  >
                     <IconTrash size={10} />
                   </ActionIcon>
                 </Group>
@@ -2952,7 +3060,9 @@ function PersonelCard({
             color="indigo"
             mt="xs"
             leftSection={<IconPlus size={12} />}
-            onClick={() => setEditItems([...editItems, { pozisyon: '', adet: '1', ucret_orani: '' }])}
+            onClick={() =>
+              setEditItems([...editItems, { pozisyon: '', adet: '1', ucret_orani: '' }])
+            }
           >
             Yeni Pozisyon Ekle
           </Button>
@@ -3019,6 +3129,197 @@ function OgunBilgileriCard({ ogunler }: { ogunler: OgunBilgisi[] }) {
         </SimpleGrid>
       </ScrollArea.Autosize>
     </Paper>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CATERİNG DETAY KARTLARI (Azure v5 - Kategorize)
+// ═══════════════════════════════════════════════════════════════
+
+function CateringInfoRow({ label, value, icon }: { label: string; value: string | null | undefined; icon?: React.ReactNode }) {
+  if (!value) return null;
+  return (
+    <Group gap="xs" wrap="nowrap" py={3}>
+      {icon && (
+        <ThemeIcon size="xs" variant="light" color="gray" radius="xl">
+          {icon}
+        </ThemeIcon>
+      )}
+      <Text size="xs" c="dimmed" style={{ minWidth: 100 }}>
+        {label}
+      </Text>
+      <Text size="xs" fw={500} style={{ flex: 1 }}>
+        {value}
+      </Text>
+    </Group>
+  );
+}
+
+function CateringDetayKartlari({ analysisSummary }: { analysisSummary?: AnalysisData | null }) {
+  if (!analysisSummary) return null;
+
+  const {
+    kahvalti_kisi_sayisi,
+    ogle_kisi_sayisi,
+    aksam_kisi_sayisi,
+    diyet_kisi_sayisi,
+    hizmet_gun_sayisi,
+    mutfak_tipi,
+    servis_tipi,
+    et_tipi,
+    yemek_cesit_sayisi,
+    yemek_pisirilecek_yer,
+    iscilik_orani,
+    dagitim_saatleri,
+    dagitim_noktalari,
+    ekipman_listesi,
+    kalite_standartlari,
+    gida_guvenligi_belgeleri,
+    malzeme_listesi,
+    ogun_dagilimi,
+    birim_fiyat_cetveli,
+    menu_tablosu,
+  } = analysisSummary;
+
+  // Kategori 1: Kişi Dağılımı
+  const kisiFields = [kahvalti_kisi_sayisi, ogle_kisi_sayisi, aksam_kisi_sayisi, diyet_kisi_sayisi];
+  const hasKisiDagilimi = kisiFields.some(Boolean);
+
+  // Kategori 2: Hizmet & Mutfak
+  const hizmetFields = [mutfak_tipi, servis_tipi, et_tipi, yemek_pisirilecek_yer, yemek_cesit_sayisi, hizmet_gun_sayisi];
+  const hasHizmetMutfak = hizmetFields.some(Boolean);
+
+  // Kategori 3: Lojistik & Dağıtım
+  const lojistikFields = [dagitim_saatleri, dagitim_noktalari, ekipman_listesi];
+  const hasLojistik = lojistikFields.some(Boolean);
+
+  // Kategori 4: Kalite & Belgeler
+  const kaliteFields = [kalite_standartlari, gida_guvenligi_belgeleri, iscilik_orani];
+  const hasKalite = kaliteFields.some(Boolean);
+
+  // Kategori 5: Menü & Fiyat
+  const menuFields = [menu_tablosu, malzeme_listesi, birim_fiyat_cetveli, ogun_dagilimi];
+  const hasMenuFiyat = menuFields.some(Boolean);
+
+  // Hiçbir kategori dolmamışsa gösterme
+  if (!hasKisiDagilimi && !hasHizmetMutfak && !hasLojistik && !hasKalite && !hasMenuFiyat) return null;
+
+  return (
+    <>
+      {/* Üst Sıra: Kişi Dağılımı + Hizmet & Mutfak */}
+      {(hasKisiDagilimi || hasHizmetMutfak) && (
+        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+          {/* Kişi Dağılımı */}
+          {hasKisiDagilimi && (
+            <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+              <Group gap="xs" mb="xs">
+                <ThemeIcon size="sm" variant="light" color="blue">
+                  <IconUsers size={12} />
+                </ThemeIcon>
+                <Text size="sm" fw={600}>
+                  Kişi Dağılımı
+                </Text>
+              </Group>
+              <Stack gap={0}>
+                <CateringInfoRow label="Kahvaltı" value={kahvalti_kisi_sayisi} />
+                <CateringInfoRow label="Öğle" value={ogle_kisi_sayisi} />
+                <CateringInfoRow label="Akşam" value={aksam_kisi_sayisi} />
+                <CateringInfoRow label="Diyet" value={diyet_kisi_sayisi} />
+              </Stack>
+            </Paper>
+          )}
+
+          {/* Hizmet & Mutfak */}
+          {hasHizmetMutfak && (
+            <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+              <Group gap="xs" mb="xs">
+                <ThemeIcon size="sm" variant="light" color="orange">
+                  <IconToolsKitchen2 size={12} />
+                </ThemeIcon>
+                <Text size="sm" fw={600}>
+                  Hizmet & Mutfak
+                </Text>
+              </Group>
+              <Stack gap={0}>
+                <CateringInfoRow label="Mutfak Tipi" value={mutfak_tipi} />
+                <CateringInfoRow label="Servis Tipi" value={servis_tipi} />
+                <CateringInfoRow label="Et Tipi" value={et_tipi} />
+                <CateringInfoRow label="Pişirme Yeri" value={yemek_pisirilecek_yer} />
+                <CateringInfoRow label="Çeşit Sayısı" value={yemek_cesit_sayisi} />
+                <CateringInfoRow label="Hizmet Günü" value={hizmet_gun_sayisi} />
+              </Stack>
+            </Paper>
+          )}
+        </SimpleGrid>
+      )}
+
+      {/* Orta Sıra: Lojistik + Kalite */}
+      {(hasLojistik || hasKalite) && (
+        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+          {/* Lojistik & Dağıtım */}
+          {hasLojistik && (
+            <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+              <Group gap="xs" mb="xs">
+                <ThemeIcon size="sm" variant="light" color="teal">
+                  <IconMapPin size={12} />
+                </ThemeIcon>
+                <Text size="sm" fw={600}>
+                  Lojistik & Dağıtım
+                </Text>
+              </Group>
+              <Stack gap={0}>
+                <CateringInfoRow label="Dağıtım Saati" value={dagitim_saatleri} />
+                <CateringInfoRow label="Dağıtım Noktaları" value={dagitim_noktalari} />
+                <CateringInfoRow label="Ekipman" value={ekipman_listesi} />
+              </Stack>
+            </Paper>
+          )}
+
+          {/* Kalite & Belgeler */}
+          {hasKalite && (
+            <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+              <Group gap="xs" mb="xs">
+                <ThemeIcon size="sm" variant="light" color="green">
+                  <IconCertificate size={12} />
+                </ThemeIcon>
+                <Text size="sm" fw={600}>
+                  Kalite & Belgeler
+                </Text>
+              </Group>
+              <Stack gap={0}>
+                <CateringInfoRow label="Kalite Std." value={kalite_standartlari} />
+                <CateringInfoRow label="Gıda Güv." value={gida_guvenligi_belgeleri} />
+                <CateringInfoRow label="İşçilik Oranı" value={iscilik_orani} />
+              </Stack>
+            </Paper>
+          )}
+        </SimpleGrid>
+      )}
+
+      {/* Alt Sıra: Menü & Fiyat (tam genişlik) */}
+      {hasMenuFiyat && (
+        <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
+          <Group gap="xs" mb="xs">
+            <ThemeIcon size="sm" variant="light" color="violet">
+              <IconClipboardList size={12} />
+            </ThemeIcon>
+            <Text size="sm" fw={600}>
+              Menü & Fiyat Bilgileri
+            </Text>
+          </Group>
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
+            <Stack gap={0}>
+              <CateringInfoRow label="Öğün Dağılımı" value={ogun_dagilimi} />
+              <CateringInfoRow label="Malzeme Listesi" value={malzeme_listesi} />
+            </Stack>
+            <Stack gap={0}>
+              <CateringInfoRow label="Birim Fiyat" value={birim_fiyat_cetveli} />
+              <CateringInfoRow label="Menü Tablosu" value={menu_tablosu} />
+            </Stack>
+          </SimpleGrid>
+        </Paper>
+      )}
+    </>
   );
 }
 
@@ -3149,7 +3450,13 @@ function MaliKriterlerCard({
               <Button size="compact-xs" variant="light" color="gray" onClick={onToggleEdit}>
                 İptal
               </Button>
-              <Button size="compact-xs" variant="filled" color="green" onClick={handleSave} leftSection={<IconDeviceFloppy size={12} />}>
+              <Button
+                size="compact-xs"
+                variant="filled"
+                color="green"
+                onClick={handleSave}
+                leftSection={<IconDeviceFloppy size={12} />}
+              >
                 Kaydet
               </Button>
             </Group>
@@ -3430,7 +3737,13 @@ function TeminatOranlariCard({
               <Button size="compact-xs" variant="light" color="gray" onClick={onToggleEdit}>
                 İptal
               </Button>
-              <Button size="compact-xs" variant="filled" color="green" onClick={handleSave} leftSection={<IconDeviceFloppy size={12} />}>
+              <Button
+                size="compact-xs"
+                variant="filled"
+                color="green"
+                onClick={handleSave}
+                leftSection={<IconDeviceFloppy size={12} />}
+              >
                 Kaydet
               </Button>
             </Group>
@@ -3543,7 +3856,13 @@ function ServisSaatleriCard({
               <Button size="compact-xs" variant="light" color="gray" onClick={onToggleEdit}>
                 İptal
               </Button>
-              <Button size="compact-xs" variant="filled" color="green" onClick={handleSave} leftSection={<IconDeviceFloppy size={12} />}>
+              <Button
+                size="compact-xs"
+                variant="filled"
+                color="green"
+                onClick={handleSave}
+                leftSection={<IconDeviceFloppy size={12} />}
+              >
                 Kaydet
               </Button>
             </Group>

@@ -391,7 +391,10 @@ export function LeftPanel({
                 Ekle
               </Badge>
             </Tooltip>
-            <Tooltip label={expandAll ? 'Kartları daralt' : 'Kart detaylarını göster'} position="bottom">
+            <Tooltip
+              label={expandAll ? 'Kartları daralt' : 'Kart detaylarını göster'}
+              position="bottom"
+            >
               <Badge
                 variant={expandAll ? 'filled' : 'light'}
                 color="gray"

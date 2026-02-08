@@ -151,6 +151,27 @@ export interface AnalysisData {
   teslim_suresi?: string | null;
   gunluk_ogun_sayisi?: string;
   kisi_sayisi?: string;
+  // Azure v5 Catering-Spesifik Alanlar
+  kahvalti_kisi_sayisi?: string | null;
+  ogle_kisi_sayisi?: string | null;
+  aksam_kisi_sayisi?: string | null;
+  diyet_kisi_sayisi?: string | null;
+  hizmet_gun_sayisi?: string | null;
+  mutfak_tipi?: string | null;
+  servis_tipi?: string | null;
+  et_tipi?: string | null;
+  yemek_cesit_sayisi?: string | null;
+  yemek_pisirilecek_yer?: string | null;
+  iscilik_orani?: string | null;
+  dagitim_saatleri?: string | null;
+  kalite_standartlari?: string | null;
+  gida_guvenligi_belgeleri?: string | null;
+  dagitim_noktalari?: string | null;
+  ekipman_listesi?: string | null;
+  malzeme_listesi?: string | null;
+  ogun_dagilimi?: string | null;
+  birim_fiyat_cetveli?: string | null;
+  menu_tablosu?: string | null;
   // Listeler
   teknik_sartlar?: (string | TeknikSart)[];
   birim_fiyatlar?: BirimFiyat[];

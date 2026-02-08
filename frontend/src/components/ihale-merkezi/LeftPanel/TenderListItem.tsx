@@ -1,6 +1,16 @@
 'use client';
 
-import { ActionIcon, Badge, Box, Button, Collapse, Group, Paper, Text, Tooltip } from '@mantine/core';
+import {
+  ActionIcon,
+  Badge,
+  Box,
+  Button,
+  Collapse,
+  Group,
+  Paper,
+  Text,
+  Tooltip,
+} from '@mantine/core';
 import {
   IconBuilding,
   IconCalendar,
@@ -142,14 +152,22 @@ function getUrgencyBadge(daysRemaining: number | null) {
 }
 
 // Document button config
-const DOC_BUTTON_CONFIG: Record<string, { label: string; shortLabel: string; icon: typeof IconFileText; color: string }> = {
+const DOC_BUTTON_CONFIG: Record<
+  string,
+  { label: string; shortLabel: string; icon: typeof IconFileText; color: string }
+> = {
   goods_list: { label: 'Malzeme Listesi', shortLabel: 'M', icon: IconList, color: 'teal' },
   announcement: { label: 'İhale İlanı', shortLabel: 'İ', icon: IconFileText, color: 'teal' },
   admin_spec: { label: 'İdari Şartname', shortLabel: 'İd', icon: IconFileText, color: 'teal' },
   tech_spec: { label: 'Teknik Şartname', shortLabel: 'T', icon: IconFileText, color: 'teal' },
   zeyilname: { label: 'Zeyilname', shortLabel: 'Z', icon: IconFileText, color: 'orange' },
   correction_notice: { label: 'Düzeltme İlanı', shortLabel: 'D', icon: IconFileText, color: 'red' },
-  probable_participants: { label: 'Muhtemel Katılımcılar', shortLabel: 'K', icon: IconUsers, color: 'teal' },
+  probable_participants: {
+    label: 'Muhtemel Katılımcılar',
+    shortLabel: 'K',
+    icon: IconUsers,
+    color: 'teal',
+  },
   tender_document: { label: 'İhale Dokümanı', shortLabel: 'Do', icon: IconDownload, color: 'blue' },
   result_announcement: { label: 'Sonuç İlanı', shortLabel: 'Sİ', icon: IconTrophy, color: 'green' },
   contract_list: { label: 'Sözleşme Listesi', shortLabel: 'SL', icon: IconGavel, color: 'grape' },
@@ -196,8 +214,11 @@ function formatDateTime(dateStr: string | undefined): string {
   try {
     const d = new Date(dateStr);
     if (Number.isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
-      ' ' + d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+    return (
+      d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
+      ' ' +
+      d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+    );
   } catch {
     return dateStr;
   }
@@ -264,33 +285,36 @@ export function TenderListItem({
   // Document buttons from document_links
   const docButtons = useMemo(() => {
     const links = (!isSaved ? tender.document_links : null) || {};
-    return DOC_BUTTON_ORDER
-      .filter((key) => key in links)
-      .map((key) => {
-        const linkData = links[key];
-        const config = DOC_BUTTON_CONFIG[key] || { label: key, shortLabel: '?', icon: IconFileText, color: 'gray' };
-        const name = typeof linkData === 'object' && linkData !== null ? linkData.name : config.label;
+    return DOC_BUTTON_ORDER.filter((key) => key in links).map((key) => {
+      const linkData = links[key];
+      const config = DOC_BUTTON_CONFIG[key] || {
+        label: key,
+        shortLabel: '?',
+        icon: IconFileText,
+        color: 'gray',
+      };
+      const name = typeof linkData === 'object' && linkData !== null ? linkData.name : config.label;
 
-        // For goods_list, try to get count
-        let count: number | null = null;
-        if (key === 'goods_list') {
-          count = goodsServicesCount ?? parseGoodsCount(name || '');
-        }
+      // For goods_list, try to get count
+      let count: number | null = null;
+      if (key === 'goods_list') {
+        count = goodsServicesCount ?? parseGoodsCount(name || '');
+      }
 
-        // Always use config.label for clean display, append count for goods_list
-        const displayLabel = count !== null ? `${config.label} (${count})` : config.label;
+      // Always use config.label for clean display, append count for goods_list
+      const displayLabel = count !== null ? `${config.label} (${count})` : config.label;
 
-        const url = typeof linkData === 'object' && linkData !== null ? linkData.url : null;
+      const url = typeof linkData === 'object' && linkData !== null ? linkData.url : null;
 
-        return {
-          key,
-          label: displayLabel,
-          shortLabel: count !== null ? `${config.shortLabel}${count}` : config.shortLabel,
-          icon: config.icon,
-          color: config.color,
-          url,
-        };
-      });
+      return {
+        key,
+        label: displayLabel,
+        shortLabel: count !== null ? `${config.shortLabel}${count}` : config.shortLabel,
+        icon: config.icon,
+        color: config.color,
+        url,
+      };
+    });
   }, [isSaved, tender, goodsServicesCount]);
 
   return (
@@ -460,19 +484,22 @@ export function TenderListItem({
             )}
             {dateStr && (
               <Group gap={4} wrap="nowrap">
-                <IconCalendar size={11} color={isUrgent ? '#C9A227' : 'var(--mantine-color-gray-5)'} />
+                <IconCalendar
+                  size={11}
+                  color={isUrgent ? '#C9A227' : 'var(--mantine-color-gray-5)'}
+                />
                 <Text size="xs" c={isUrgent ? 'yellow.6' : 'dimmed'} fw={isUrgent ? 600 : 400}>
                   Teklif: {formatDateTime(dateStr)}
                 </Text>
               </Group>
             )}
             {daysRemaining !== null && daysRemaining >= 0 && (
-              <Badge
-                size="xs"
-                variant="light"
-                color={daysRemaining <= 3 ? 'red' : 'gray'}
-              >
-                {daysRemaining === 0 ? 'Bugün' : daysRemaining === 1 ? 'Yarın' : `${daysRemaining} gün kaldı`}
+              <Badge size="xs" variant="light" color={daysRemaining <= 3 ? 'red' : 'gray'}>
+                {daysRemaining === 0
+                  ? 'Bugün'
+                  : daysRemaining === 1
+                    ? 'Yarın'
+                    : `${daysRemaining} gün kaldı`}
               </Badge>
             )}
           </Group>
@@ -509,12 +536,7 @@ export function TenderListItem({
             >
               <Group gap={4} wrap="nowrap" mb={4}>
                 <IconTrophy size={12} color="#28a745" style={{ flexShrink: 0 }} />
-                <Text
-                  size="xs"
-                  fw={600}
-                  c="green.7"
-                  lineClamp={1}
-                >
+                <Text size="xs" fw={600} c="green.7" lineClamp={1}>
                   {yukleniciAdi}
                 </Text>
               </Group>
@@ -523,7 +545,10 @@ export function TenderListItem({
                   <Group gap={3} wrap="nowrap">
                     <IconCurrencyLira size={11} color="var(--mantine-color-gray-6)" />
                     <Text size="xs" c="dimmed">
-                      Sözleşme: <Text span fw={600} c="green.7">₺{Number(sozlesmeBedeli).toLocaleString('tr-TR')}</Text>
+                      Sözleşme:{' '}
+                      <Text span fw={600} c="green.7">
+                        ₺{Number(sozlesmeBedeli).toLocaleString('tr-TR')}
+                      </Text>
                     </Text>
                   </Group>
                 )}
