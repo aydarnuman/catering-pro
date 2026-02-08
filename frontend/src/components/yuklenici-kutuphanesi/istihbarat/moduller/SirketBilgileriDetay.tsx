@@ -12,7 +12,8 @@ interface Props {
 }
 
 export function SirketBilgileriDetay({ veri }: Props) {
-  if (!veri) return <Text c="dimmed">Veri bulunamadı. Modülü çalıştırarak veri toplayabilirsiniz.</Text>;
+  if (!veri)
+    return <Text c="dimmed">Veri bulunamadı. Modülü çalıştırarak veri toplayabilirsiniz.</Text>;
 
   const mersis = veri.mersis as Record<string, unknown> | undefined;
   const ticaretSicil = veri.ticaret_sicil as Record<string, unknown> | undefined;
@@ -23,8 +24,12 @@ export function SirketBilgileriDetay({ veri }: Props) {
       {/* MERSİS Bilgileri */}
       <div>
         <Group gap="xs" mb="xs">
-          <Badge variant="filled" color="teal" size="sm">MERSİS</Badge>
-          <Text size="xs" c="dimmed">Merkezi Sicil Kayıt Sistemi</Text>
+          <Badge variant="filled" color="teal" size="sm">
+            MERSİS
+          </Badge>
+          <Text size="xs" c="dimmed">
+            Merkezi Sicil Kayıt Sistemi
+          </Text>
         </Group>
 
         {mersis?.basarili ? (
@@ -37,10 +42,11 @@ export function SirketBilgileriDetay({ veri }: Props) {
                     <Text size="xs" c="dimmed" style={{ textTransform: 'capitalize' }}>
                       {key.replace(/_/g, ' ')}
                     </Text>
-                    <Text size="xs" fw={500}>{String(value)}</Text>
+                    <Text size="xs" fw={500}>
+                      {String(value)}
+                    </Text>
                   </Group>
-                ))
-              }
+                ))}
             </Stack>
           </Card>
         ) : (
@@ -55,8 +61,12 @@ export function SirketBilgileriDetay({ veri }: Props) {
       {/* Ticaret Sicil Gazetesi */}
       <div>
         <Group gap="xs" mb="xs">
-          <Badge variant="filled" color="blue" size="sm">Ticaret Sicil</Badge>
-          <Text size="xs" c="dimmed">Ticaret Sicil Gazetesi İlanları</Text>
+          <Badge variant="filled" color="blue" size="sm">
+            Ticaret Sicil
+          </Badge>
+          <Text size="xs" c="dimmed">
+            Ticaret Sicil Gazetesi İlanları
+          </Text>
         </Group>
 
         {ticaretSicil?.basarili && (ticaretSicil.ilanlar as unknown[])?.length > 0 ? (
@@ -64,10 +74,20 @@ export function SirketBilgileriDetay({ veri }: Props) {
             {(ticaretSicil.ilanlar as Array<Record<string, string>>).map((ilan, idx) => (
               <Paper key={`ilan-${idx}`} withBorder p="xs" radius="sm">
                 <Group justify="space-between" mb={2}>
-                  {ilan.ilan_tarihi && <Badge size="xs" variant="light">{ilan.ilan_tarihi}</Badge>}
-                  {ilan.ilan_turu && <Badge size="xs" variant="light" color="grape">{ilan.ilan_turu}</Badge>}
+                  {ilan.ilan_tarihi && (
+                    <Badge size="xs" variant="light">
+                      {ilan.ilan_tarihi}
+                    </Badge>
+                  )}
+                  {ilan.ilan_turu && (
+                    <Badge size="xs" variant="light" color="grape">
+                      {ilan.ilan_turu}
+                    </Badge>
+                  )}
                 </Group>
-                <Text size="xs" lineClamp={3}>{ilan.ozet}</Text>
+                <Text size="xs" lineClamp={3}>
+                  {ilan.ozet}
+                </Text>
               </Paper>
             ))}
           </Stack>

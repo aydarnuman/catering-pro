@@ -18,7 +18,11 @@ export function KatilimcilarDetay({ veri }: Props) {
   const katilimcilar = (veri.katilimcilar as Array<Record<string, unknown>>) || [];
 
   if (katilimcilar.length === 0) {
-    return <Text c="dimmed">Katılımcı verisi henüz yok. Modülü çalıştırarak veri toplayabilirsiniz.</Text>;
+    return (
+      <Text c="dimmed">
+        Katılımcı verisi henüz yok. Modülü çalıştırarak veri toplayabilirsiniz.
+      </Text>
+    );
   }
 
   return (
@@ -35,12 +39,20 @@ export function KatilimcilarDetay({ veri }: Props) {
                 {(k.ihale_basligi as string) || (k.ihale_adi as string) || 'İhale'}
               </Text>
               <Group gap={4} mt={2}>
-                {k.sehir && <Badge size="xs" variant="light">{k.sehir as string}</Badge>}
-                <Badge size="xs" variant="light" color="cyan">Katılımcı</Badge>
+                {!!k.sehir && (
+                  <Badge size="xs" variant="light">
+                    {String(k.sehir)}
+                  </Badge>
+                )}
+                <Badge size="xs" variant="light" color="cyan">
+                  Katılımcı
+                </Badge>
               </Group>
             </div>
-            {k.sozlesme_bedeli && (
-              <Text size="xs" fw={600} c="orange">{formatCurrency(k.sozlesme_bedeli as number)}</Text>
+            {!!k.sozlesme_bedeli && (
+              <Text size="xs" fw={600} c="orange">
+                {String(formatCurrency(k.sozlesme_bedeli as number))}
+              </Text>
             )}
           </Group>
         </Paper>

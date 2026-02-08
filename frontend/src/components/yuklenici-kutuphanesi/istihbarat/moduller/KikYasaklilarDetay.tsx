@@ -5,7 +5,7 @@
  * EKAP yasaklı firma sorgu sonucu.
  */
 
-import { Alert, Badge, Paper, Stack, Text, ThemeIcon, Group } from '@mantine/core';
+import { Alert, Badge, Group, Paper, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconShieldCheck, IconShieldOff } from '@tabler/icons-react';
 
 interface Props {
@@ -13,7 +13,8 @@ interface Props {
 }
 
 export function KikYasaklilarDetay({ veri }: Props) {
-  if (!veri) return <Text c="dimmed">Veri bulunamadı. Modülü çalıştırarak sorgu yapabilirsiniz.</Text>;
+  if (!veri)
+    return <Text c="dimmed">Veri bulunamadı. Modülü çalıştırarak sorgu yapabilirsiniz.</Text>;
 
   const yasakliMi = veri.yasakli_mi as boolean;
   const sonuclar = (veri.sonuclar as Array<Record<string, string>>) || [];
@@ -35,7 +36,9 @@ export function KikYasaklilarDetay({ veri }: Props) {
       </Alert>
 
       {not && (
-        <Text size="xs" c="dimmed">{not}</Text>
+        <Text size="xs" c="dimmed">
+          {not}
+        </Text>
       )}
 
       {/* Yasaklı kayıtları */}
@@ -47,12 +50,26 @@ export function KikYasaklilarDetay({ veri }: Props) {
           <Stack gap="xs">
             {sonuclar.map((s, idx) => (
               <Paper key={`yasak-${idx}`} withBorder p="xs" radius="sm">
-                <Text size="xs" fw={600}>{s.firma_adi}</Text>
+                <Text size="xs" fw={600}>
+                  {s.firma_adi}
+                </Text>
                 <Group gap={4} mt={4}>
-                  {s.yasaklama_tarihi && <Badge size="xs" variant="light" color="red">Tarih: {s.yasaklama_tarihi}</Badge>}
-                  {s.yasaklama_suresi && <Badge size="xs" variant="light" color="orange">Süre: {s.yasaklama_suresi}</Badge>}
+                  {s.yasaklama_tarihi && (
+                    <Badge size="xs" variant="light" color="red">
+                      Tarih: {s.yasaklama_tarihi}
+                    </Badge>
+                  )}
+                  {s.yasaklama_suresi && (
+                    <Badge size="xs" variant="light" color="orange">
+                      Süre: {s.yasaklama_suresi}
+                    </Badge>
+                  )}
                 </Group>
-                {s.yasaklama_nedeni && <Text size="xs" c="dimmed" mt={2}>{s.yasaklama_nedeni}</Text>}
+                {s.yasaklama_nedeni && (
+                  <Text size="xs" c="dimmed" mt={2}>
+                    {s.yasaklama_nedeni}
+                  </Text>
+                )}
               </Paper>
             ))}
           </Stack>

@@ -24,10 +24,12 @@ export function StatMiniCard({
       p="xs"
       radius="md"
       className="yk-stat-card"
-      style={{
-        '--card-bg': 'transparent',
-        borderColor: gold ? 'var(--yk-gold-glow)' : undefined,
-      } as React.CSSProperties}
+      style={
+        {
+          '--card-bg': 'transparent',
+          borderColor: gold ? 'var(--yk-gold-glow)' : undefined,
+        } as React.CSSProperties
+      }
     >
       <Group gap={6} mb={2}>
         {icon && (
@@ -36,15 +38,24 @@ export function StatMiniCard({
             variant="light"
             color={gold ? 'yellow' : color}
             radius="sm"
-            style={gold ? {
-              background: 'var(--yk-gold-dim)',
-              color: 'var(--yk-gold)',
-            } : undefined}
+            style={
+              gold
+                ? {
+                    background: 'var(--yk-gold-dim)',
+                    color: 'var(--yk-gold)',
+                  }
+                : undefined
+            }
           >
             {icon}
           </ThemeIcon>
         )}
-        <Text size="xs" c="dimmed" lineClamp={1} style={{ letterSpacing: '0.02em', textTransform: 'uppercase', fontSize: 10 }}>
+        <Text
+          size="xs"
+          c="dimmed"
+          lineClamp={1}
+          style={{ letterSpacing: '0.02em', textTransform: 'uppercase', fontSize: 10 }}
+        >
           {label}
         </Text>
       </Group>
@@ -56,7 +67,11 @@ export function StatMiniCard({
       >
         {value ?? '-'}
       </Text>
-      {sub && <Text size="xs" c="dimmed" lineClamp={1}>{sub}</Text>}
+      {sub && (
+        <Text size="xs" c="dimmed" lineClamp={1}>
+          {sub}
+        </Text>
+      )}
     </Card>
   );
 }

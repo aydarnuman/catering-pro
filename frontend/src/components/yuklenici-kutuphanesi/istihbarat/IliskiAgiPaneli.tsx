@@ -78,11 +78,17 @@ interface GraphEdge {
 /** Firma adını max 28 karaktere kısalt */
 function truncate(str: string, max = 28): string {
   if (str.length <= max) return str;
-  return str.slice(0, max - 1) + '…';
+  return `${str.slice(0, max - 1)}…`;
 }
 
 /** Değer aralığını belirli min-max'a map'le */
-function mapRange(value: number, inMin: number, inMax: number, outMin: number, outMax: number): number {
+function mapRange(
+  value: number,
+  inMin: number,
+  inMax: number,
+  outMin: number,
+  outMax: number
+): number {
   if (inMax === inMin) return (outMin + outMax) / 2;
   return outMin + ((value - inMin) / (inMax - inMin)) * (outMax - outMin);
 }
@@ -102,7 +108,7 @@ const NODE_MAX_R = 28;
 function buildGraph(
   ortaklar: OrtakGirisim[],
   rakipler: Rakip[],
-  merkezAdi: string,
+  merkezAdi: string
 ): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
@@ -176,7 +182,15 @@ function buildGraph(
 
 /* ─── Tooltip Component ─── */
 
-function GraphTooltip({ node, mouseX, mouseY }: { node: GraphNode; mouseX: number; mouseY: number }) {
+function GraphTooltip({
+  node,
+  mouseX,
+  mouseY,
+}: {
+  node: GraphNode;
+  mouseX: number;
+  mouseY: number;
+}) {
   const left = Math.min(mouseX + 12, GRAPH_WIDTH - 230);
   const top = mouseY > GRAPH_HEIGHT - 130 ? mouseY - 110 : mouseY + 12;
 
@@ -204,8 +218,12 @@ function GraphTooltip({ node, mouseX, mouseY }: { node: GraphNode; mouseX: numbe
         {node.type === 'partner' && (
           <>
             <div style={{ color: '#a5d8ff' }}>Toplam ortaklik: {partnerCount} ihale</div>
-            {(node.devamEden ?? 0) > 0 && <div style={{ color: '#74c0fc' }}>Devam eden: {node.devamEden}</div>}
-            {(node.tamamlanan ?? 0) > 0 && <div style={{ color: '#69db7c' }}>Tamamlanan: {node.tamamlanan}</div>}
+            {(node.devamEden ?? 0) > 0 && (
+              <div style={{ color: '#74c0fc' }}>Devam eden: {node.devamEden}</div>
+            )}
+            {(node.tamamlanan ?? 0) > 0 && (
+              <div style={{ color: '#69db7c' }}>Tamamlanan: {node.tamamlanan}</div>
+            )}
           </>
         )}
         {node.type === 'rakip' && node.ihaleSayisi && (
@@ -223,7 +241,11 @@ function GraphTooltip({ node, mouseX, mouseY }: { node: GraphNode; mouseX: numbe
 
 /* ─── Ana Network SVG ─── */
 
-function NetworkGraph({ ortaklar, rakipler, merkezAdi }: {
+function NetworkGraph({
+  ortaklar,
+  rakipler,
+  merkezAdi,
+}: {
   ortaklar: OrtakGirisim[];
   rakipler: Rakip[];
   merkezAdi: string;
@@ -236,7 +258,7 @@ function NetworkGraph({ ortaklar, rakipler, merkezAdi }: {
 
   const { nodes, edges } = useMemo(
     () => buildGraph(limitedOrtaklar, limitedRakipler, merkezAdi),
-    [limitedOrtaklar, limitedRakipler, merkezAdi],
+    [limitedOrtaklar, limitedRakipler, merkezAdi]
   );
 
   const [hovered, setHovered] = useState<string | null>(null);
@@ -271,8 +293,8 @@ function NetworkGraph({ ortaklar, rakipler, merkezAdi }: {
   };
 
   // Zoom helpers
-  const zoomIn = () => setZoom(z => Math.min(z + 0.2, 2.5));
-  const zoomOut = () => setZoom(z => Math.max(z - 0.2, 0.4));
+  const zoomIn = () => setZoom((z) => Math.min(z + 0.2, 2.5));
+  const zoomOut = () => setZoom((z) => Math.max(z - 0.2, 0.4));
   const zoomReset = () => setZoom(1);
 
   // Visible viewBox based on zoom
@@ -300,9 +322,62 @@ function NetworkGraph({ ortaklar, rakipler, merkezAdi }: {
           zIndex: 5,
         }}
       >
-        <button type="button" onClick={zoomIn} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid rgba(201,168,76,0.2)', background: 'rgba(15,16,21,0.9)', color: '#C9A84C', cursor: 'pointer', fontSize: 16, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
-        <button type="button" onClick={zoomOut} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid rgba(201,168,76,0.2)', background: 'rgba(15,16,21,0.9)', color: '#C9A84C', cursor: 'pointer', fontSize: 16, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
-        <button type="button" onClick={zoomReset} style={{ height: 28, borderRadius: 6, border: '1px solid rgba(201,168,76,0.2)', background: 'rgba(15,16,21,0.9)', color: '#C9A84C', cursor: 'pointer', fontSize: 10, padding: '0 8px' }}>Reset</button>
+        <button
+          type="button"
+          onClick={zoomIn}
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 6,
+            border: '1px solid rgba(201,168,76,0.2)',
+            background: 'rgba(15,16,21,0.9)',
+            color: '#C9A84C',
+            cursor: 'pointer',
+            fontSize: 16,
+            lineHeight: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          +
+        </button>
+        <button
+          type="button"
+          onClick={zoomOut}
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 6,
+            border: '1px solid rgba(201,168,76,0.2)',
+            background: 'rgba(15,16,21,0.9)',
+            color: '#C9A84C',
+            cursor: 'pointer',
+            fontSize: 16,
+            lineHeight: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          −
+        </button>
+        <button
+          type="button"
+          onClick={zoomReset}
+          style={{
+            height: 28,
+            borderRadius: 6,
+            border: '1px solid rgba(201,168,76,0.2)',
+            background: 'rgba(15,16,21,0.9)',
+            color: '#C9A84C',
+            cursor: 'pointer',
+            fontSize: 10,
+            padding: '0 8px',
+          }}
+        >
+          Reset
+        </button>
       </Group>
 
       {/* Legend overlay — premium */}
@@ -335,12 +410,22 @@ function NetworkGraph({ ortaklar, rakipler, merkezAdi }: {
           <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fa5252' }} />
           <span>Rakip ({rakipler.length})</span>
         </div>
-        <div style={{ fontSize: 10, color: 'rgba(201,168,76,0.4)', marginTop: 2 }}>Node = sozlesme tutari</div>
+        <div style={{ fontSize: 10, color: 'rgba(201,168,76,0.4)', marginTop: 2 }}>
+          Node = sozlesme tutari
+        </div>
       </div>
 
       {/* Show all toggle */}
       {totalNodes > 50 && (
-        <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', zIndex: 5 }}>
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 8,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 5,
+          }}
+        >
           <button
             type="button"
             onClick={() => setShowAll(!showAll)}
@@ -364,13 +449,13 @@ function NetworkGraph({ ortaklar, rakipler, merkezAdi }: {
         ref={svgRef}
         viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
         width="100%"
-        height="auto"
         role="img"
         aria-label="Iliski agi grafigi"
         style={{
           maxHeight: 520,
           borderRadius: 12,
-          background: 'radial-gradient(ellipse at center, rgba(201,168,76,0.03) 0%, rgba(15,16,21,0.95) 70%)',
+          background:
+            'radial-gradient(ellipse at center, rgba(201,168,76,0.03) 0%, rgba(15,16,21,0.95) 70%)',
           border: '1px solid var(--yk-border)',
           cursor: 'default',
         }}
@@ -381,26 +466,45 @@ function NetworkGraph({ ortaklar, rakipler, merkezAdi }: {
         <defs>
           <filter id="glow-blue" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="8" result="blur" />
-            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
           </filter>
           <filter id="glow-green" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="4" result="blur" />
-            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
           </filter>
           <filter id="glow-red" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="4" result="blur" />
-            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
           </filter>
         </defs>
 
         {/* Orbit çemberleri — gold hint */}
         <circle
-          cx={CENTER_X} cy={CENTER_Y} r={PARTNER_ORBIT}
-          fill="none" stroke="rgba(201,168,76,0.06)" strokeWidth={1} strokeDasharray="4 6"
+          cx={CENTER_X}
+          cy={CENTER_Y}
+          r={PARTNER_ORBIT}
+          fill="none"
+          stroke="rgba(201,168,76,0.06)"
+          strokeWidth={1}
+          strokeDasharray="4 6"
         />
         <circle
-          cx={CENTER_X} cy={CENTER_Y} r={RAKIP_ORBIT}
-          fill="none" stroke="rgba(201,168,76,0.04)" strokeWidth={1} strokeDasharray="4 6"
+          cx={CENTER_X}
+          cy={CENTER_Y}
+          r={RAKIP_ORBIT}
+          fill="none"
+          stroke="rgba(201,168,76,0.04)"
+          strokeWidth={1}
+          strokeDasharray="4 6"
         />
 
         {/* Edges */}
@@ -410,18 +514,18 @@ function NetworkGraph({ ortaklar, rakipler, merkezAdi }: {
           if (!src || !tgt) return null;
           const isHighlighted = hovered === edge.source || hovered === edge.target;
           const tgtNode = nodeMap.get(edge.target);
-          const edgeColor = tgtNode?.type === 'partner'
-            ? 'rgba(64,192,87,0.35)'
-            : 'rgba(250,82,82,0.25)';
-          const edgeColorHi = tgtNode?.type === 'partner'
-            ? 'rgba(64,192,87,0.7)'
-            : 'rgba(250,82,82,0.6)';
+          const edgeColor =
+            tgtNode?.type === 'partner' ? 'rgba(64,192,87,0.35)' : 'rgba(250,82,82,0.25)';
+          const edgeColorHi =
+            tgtNode?.type === 'partner' ? 'rgba(64,192,87,0.7)' : 'rgba(250,82,82,0.6)';
 
           return (
             <line
               key={`${edge.source}-${edge.target}`}
-              x1={src.x} y1={src.y}
-              x2={tgt.x} y2={tgt.y}
+              x1={src.x}
+              y1={src.y}
+              x2={tgt.x}
+              y2={tgt.y}
               stroke={isHighlighted ? edgeColorHi : edgeColor}
               strokeWidth={isHighlighted ? edge.weight + 1 : edge.weight}
               style={{ transition: 'all 0.2s ease' }}
@@ -433,10 +537,16 @@ function NetworkGraph({ ortaklar, rakipler, merkezAdi }: {
         {nodes.map((node) => {
           const c = colors[node.type];
           const isHov = hovered === node.id;
-          const isConnected = hovered === 'center' || hovered === node.id
-            || (node.id === 'center' && hovered !== null);
+          const isConnected =
+            hovered === 'center' ||
+            hovered === node.id ||
+            (node.id === 'center' && hovered !== null);
           const dimmed = hovered !== null && !isHov && !isConnected;
-          const filterMap = { center: 'url(#glow-blue)', partner: 'url(#glow-green)', rakip: 'url(#glow-red)' };
+          const filterMap = {
+            center: 'url(#glow-blue)',
+            partner: 'url(#glow-green)',
+            rakip: 'url(#glow-red)',
+          };
 
           return (
             // biome-ignore lint/a11y/useSemanticElements: SVG <g> cannot be replaced with <button>
@@ -458,7 +568,8 @@ function NetworkGraph({ ortaklar, rakipler, merkezAdi }: {
               {/* Glow ring (hover) */}
               {isHov && (
                 <circle
-                  cx={node.x} cy={node.y}
+                  cx={node.x}
+                  cy={node.y}
                   r={node.radius + 6}
                   fill="none"
                   stroke={c.glow}
@@ -469,7 +580,8 @@ function NetworkGraph({ ortaklar, rakipler, merkezAdi }: {
 
               {/* Ana daire */}
               <circle
-                cx={node.x} cy={node.y}
+                cx={node.x}
+                cy={node.y}
                 r={isHov ? node.radius + 2 : node.radius}
                 fill={c.fill}
                 stroke={c.stroke}
@@ -480,7 +592,8 @@ function NetworkGraph({ ortaklar, rakipler, merkezAdi }: {
               {/* İkon / etiket */}
               {node.type === 'center' ? (
                 <text
-                  x={node.x} y={node.y + 1}
+                  x={node.x}
+                  y={node.y + 1}
                   textAnchor="middle"
                   dominantBaseline="central"
                   fill="white"
@@ -494,7 +607,8 @@ function NetworkGraph({ ortaklar, rakipler, merkezAdi }: {
                 <>
                   {/* Node içi rakam (ihale sayısı veya toplam) */}
                   <text
-                    x={node.x} y={node.y + 1}
+                    x={node.x}
+                    y={node.y + 1}
                     textAnchor="middle"
                     dominantBaseline="central"
                     fill="white"
@@ -502,7 +616,9 @@ function NetworkGraph({ ortaklar, rakipler, merkezAdi }: {
                     fontWeight={600}
                     style={{ pointerEvents: 'none' }}
                   >
-                    {node.type === 'rakip' ? node.ihaleSayisi : (node.devamEden ?? 0) + (node.tamamlanan ?? 0)}
+                    {node.type === 'rakip'
+                      ? node.ihaleSayisi
+                      : (node.devamEden ?? 0) + (node.tamamlanan ?? 0)}
                   </text>
                   {/* Dis etiket (firma adi) — sadece buyuk node'larda veya hover'da */}
                   {shouldShowLabel(node) && (
@@ -526,7 +642,8 @@ function NetworkGraph({ ortaklar, rakipler, merkezAdi }: {
 
         {/* Merkez etiket (firma adı alt) */}
         <text
-          x={CENTER_X} y={CENTER_Y + CENTER_RADIUS + 16}
+          x={CENTER_X}
+          y={CENTER_Y + CENTER_RADIUS + 16}
           textAnchor="middle"
           fill="rgba(255,255,255,0.9)"
           fontSize={11}
@@ -549,10 +666,7 @@ function NetworkGraph({ ortaklar, rakipler, merkezAdi }: {
 
 /* ─── Liste Görünümü (eski hali) ─── */
 
-function ListeGorunumu({ ortaklar, rakipler }: {
-  ortaklar: OrtakGirisim[];
-  rakipler: Rakip[];
-}) {
+function ListeGorunumu({ ortaklar, rakipler }: { ortaklar: OrtakGirisim[]; rakipler: Rakip[] }) {
   return (
     <Stack gap="md">
       {ortaklar.length > 0 && (
@@ -563,12 +677,24 @@ function ListeGorunumu({ ortaklar, rakipler }: {
           <Stack gap={4}>
             {ortaklar.map((og) => (
               <Group key={og.partner_adi} justify="space-between" wrap="nowrap">
-                <Text size="xs" lineClamp={1} style={{ flex: 1 }}>{og.partner_adi}</Text>
+                <Text size="xs" lineClamp={1} style={{ flex: 1 }}>
+                  {og.partner_adi}
+                </Text>
                 <Group gap={6} wrap="nowrap">
-                  {og.devam_eden > 0 && <Badge size="xs" variant="light" color="blue">{og.devam_eden} devam</Badge>}
-                  {og.tamamlanan > 0 && <Badge size="xs" variant="light" color="green">{og.tamamlanan} tamam</Badge>}
+                  {og.devam_eden > 0 && (
+                    <Badge size="xs" variant="light" color="blue">
+                      {og.devam_eden} devam
+                    </Badge>
+                  )}
+                  {og.tamamlanan > 0 && (
+                    <Badge size="xs" variant="light" color="green">
+                      {og.tamamlanan} tamam
+                    </Badge>
+                  )}
                   {og.toplam_sozlesme > 0 && (
-                    <Text size="xs" c="orange">{formatCurrency(og.toplam_sozlesme)}</Text>
+                    <Text size="xs" c="orange">
+                      {formatCurrency(og.toplam_sozlesme)}
+                    </Text>
                   )}
                 </Group>
               </Group>
@@ -585,10 +711,18 @@ function ListeGorunumu({ ortaklar, rakipler }: {
           <Stack gap={4}>
             {rakipler.slice(0, 15).map((r) => (
               <Group key={r.rakip_adi} justify="space-between" wrap="nowrap">
-                <Text size="xs" lineClamp={1} style={{ flex: 1 }}>{r.rakip_adi}</Text>
+                <Text size="xs" lineClamp={1} style={{ flex: 1 }}>
+                  {r.rakip_adi}
+                </Text>
                 <Group gap={6} wrap="nowrap">
-                  <Badge size="xs" variant="light">{r.ihale_sayisi} ihale</Badge>
-                  {r.toplam_sozlesme > 0 && <Text size="xs" c="orange">{formatCurrency(r.toplam_sozlesme)}</Text>}
+                  <Badge size="xs" variant="light">
+                    {r.ihale_sayisi} ihale
+                  </Badge>
+                  {r.toplam_sozlesme > 0 && (
+                    <Text size="xs" c="orange">
+                      {formatCurrency(r.toplam_sozlesme)}
+                    </Text>
+                  )}
                 </Group>
               </Group>
             ))}
@@ -627,7 +761,12 @@ export function IliskiAgiPaneli({ yukleniciId, yukleniciAdi }: Props) {
     fetchAnaliz();
   }, [fetchAnaliz]);
 
-  if (yukleniyor) return <Center py="xl"><Loader size="md" /></Center>;
+  if (yukleniyor)
+    return (
+      <Center py="xl">
+        <Loader size="md" />
+      </Center>
+    );
 
   const ortakGirisimler = (analiz?.ortak_girisimler as OrtakGirisim[]) || [];
   const rakipler = (analiz?.rakipler as Rakip[]) || [];
@@ -635,7 +774,8 @@ export function IliskiAgiPaneli({ yukleniciId, yukleniciAdi }: Props) {
   if (ortakGirisimler.length === 0 && rakipler.length === 0) {
     return (
       <Alert icon={<IconInfoCircle size={16} />} color="gray" variant="light" title="Veri Yetersiz">
-        İlişki ağı için yeterli ortak girişim veya rakip verisi bulunamadı. Önce &quot;Profil Analizi&quot; modülünü çalıştırın.
+        İlişki ağı için yeterli ortak girişim veya rakip verisi bulunamadı. Önce &quot;Profil
+        Analizi&quot; modülünü çalıştırın.
       </Alert>
     );
   }
@@ -660,11 +800,7 @@ export function IliskiAgiPaneli({ yukleniciId, yukleniciAdi }: Props) {
       {/* İçerik */}
       <Paper radius="md" p={0} style={{ overflow: 'hidden' }}>
         {gorunum === 'grafik' ? (
-          <NetworkGraph
-            ortaklar={ortakGirisimler}
-            rakipler={rakipler}
-            merkezAdi={merkezAdi}
-          />
+          <NetworkGraph ortaklar={ortakGirisimler} rakipler={rakipler} merkezAdi={merkezAdi} />
         ) : (
           <Box p="md">
             <ListeGorunumu ortaklar={ortakGirisimler} rakipler={rakipler} />

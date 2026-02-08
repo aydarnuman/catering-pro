@@ -54,7 +54,11 @@ export function BildirimListesi() {
   const [acik, setAcik] = useState(false);
 
   const mFetch = useCallback((url: string, opts?: RequestInit) => {
-    return fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json' }, ...opts });
+    return fetch(url, {
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      ...opts,
+    });
   }, []);
 
   const fetchBildirimler = useCallback(async () => {
@@ -76,8 +80,8 @@ export function BildirimListesi() {
   const okunduIsaretle = async (bildirimId: number) => {
     try {
       await mFetch(getApiUrl(`/contractors/bildirimler/${bildirimId}/oku`), { method: 'PATCH' });
-      setBildirimler(prev => prev.map(b => b.id === bildirimId ? { ...b, okundu: true } : b));
-      setOkunmamisSayisi(prev => Math.max(0, prev - 1));
+      setBildirimler((prev) => prev.map((b) => (b.id === bildirimId ? { ...b, okundu: true } : b)));
+      setOkunmamisSayisi((prev) => Math.max(0, prev - 1));
     } catch (err) {
       console.error('Okundu işaretleme hatası:', err);
     }
@@ -86,7 +90,7 @@ export function BildirimListesi() {
   const tumunuOkunduYap = async () => {
     try {
       await mFetch(getApiUrl('/contractors/bildirimler/tumunu-oku'), { method: 'POST' });
-      setBildirimler(prev => prev.map(b => ({ ...b, okundu: true })));
+      setBildirimler((prev) => prev.map((b) => ({ ...b, okundu: true })));
       setOkunmamisSayisi(0);
     } catch (err) {
       console.error('Toplu okundu hatası:', err);
@@ -137,10 +141,21 @@ export function BildirimListesi() {
 
       <Popover.Dropdown p={0}>
         {/* Başlık */}
-        <Group justify="space-between" p="sm" style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
-          <Text size="sm" fw={700}>Yüklenici Bildirimleri</Text>
+        <Group
+          justify="space-between"
+          p="sm"
+          style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}
+        >
+          <Text size="sm" fw={700}>
+            Yüklenici Bildirimleri
+          </Text>
           {okunmamisSayisi > 0 && (
-            <Button size="xs" variant="subtle" onClick={tumunuOkunduYap} leftSection={<IconCheck size={12} />}>
+            <Button
+              size="xs"
+              variant="subtle"
+              onClick={tumunuOkunduYap}
+              leftSection={<IconCheck size={12} />}
+            >
               Tümünü oku
             </Button>
           )}
@@ -149,12 +164,16 @@ export function BildirimListesi() {
         {/* Bildirim Listesi */}
         <ScrollArea h={350} scrollbarSize={6}>
           {yukleniyor ? (
-            <Center py="xl"><Loader size="sm" /></Center>
+            <Center py="xl">
+              <Loader size="sm" />
+            </Center>
           ) : bildirimler.length === 0 ? (
             <Center py="xl">
               <Stack align="center" gap="xs">
                 <IconBell size={32} color="gray" />
-                <Text size="sm" c="dimmed">Henüz bildirim yok</Text>
+                <Text size="sm" c="dimmed">
+                  Henüz bildirim yok
+                </Text>
               </Stack>
             </Center>
           ) : (
@@ -171,7 +190,9 @@ export function BildirimListesi() {
                       borderBottom: '1px solid var(--mantine-color-gray-2)',
                       cursor: b.okundu ? undefined : 'pointer',
                     }}
-                    onClick={() => { if (!b.okundu) okunduIsaretle(b.id); }}
+                    onClick={() => {
+                      if (!b.okundu) okunduIsaretle(b.id);
+                    }}
                   >
                     <Group gap="xs" wrap="nowrap">
                       <ThemeIcon size="sm" variant="light" color={gorsel.renk} radius="xl">
@@ -179,11 +200,25 @@ export function BildirimListesi() {
                       </ThemeIcon>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <Group gap={4} mb={2}>
-                          <Text size="xs" fw={600} lineClamp={1}>{b.baslik}</Text>
-                          {!b.okundu && <Badge size="xs" variant="filled" color="blue">Yeni</Badge>}
+                          <Text size="xs" fw={600} lineClamp={1}>
+                            {b.baslik}
+                          </Text>
+                          {!b.okundu && (
+                            <Badge size="xs" variant="filled" color="blue">
+                              Yeni
+                            </Badge>
+                          )}
                         </Group>
-                        {b.kisa_ad && <Text size="xs" c="dimmed">{b.kisa_ad || b.unvan}</Text>}
-                        {b.icerik && <Text size="xs" c="dimmed" lineClamp={2}>{b.icerik}</Text>}
+                        {b.kisa_ad && (
+                          <Text size="xs" c="dimmed">
+                            {b.kisa_ad || b.unvan}
+                          </Text>
+                        )}
+                        {b.icerik && (
+                          <Text size="xs" c="dimmed" lineClamp={2}>
+                            {b.icerik}
+                          </Text>
+                        )}
                         <Text size="xs" c="dimmed" mt={2}>
                           {new Date(b.created_at).toLocaleString('tr-TR')}
                         </Text>

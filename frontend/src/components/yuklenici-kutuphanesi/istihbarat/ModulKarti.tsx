@@ -63,13 +63,22 @@ interface ModulKartiProps {
   animationDelay?: number;
 }
 
-export function ModulKarti({ meta, durum, onCalistir, onDetayAc, secili, animationDelay = 0 }: ModulKartiProps) {
+export function ModulKarti({
+  meta,
+  durum,
+  onCalistir,
+  onDetayAc,
+  secili,
+  animationDelay = 0,
+}: ModulKartiProps) {
   const calisiyor = durum.durum === 'calisiyor';
   const tamamlandi = durum.durum === 'tamamlandi';
 
   // Son guncelleme zamanini okunabilir formata cevir
-  const sonGuncelleme = durum.son_guncelleme
-    ? formatZaman(durum.son_guncelleme)
+  // updated_at her durum degisikliginde guncellenir (calisiyor/tamamlandi/hata)
+  const zamanKaynagi = durum.updated_at || durum.son_guncelleme;
+  const sonGuncelleme = zamanKaynagi
+    ? formatZaman(zamanKaynagi)
     : 'Henuz calistirilmadi';
 
   const durumClass = DURUM_CLASS_MAP[durum.durum] || 'modul-kart-bekliyor';
@@ -110,8 +119,12 @@ export function ModulKarti({ meta, durum, onCalistir, onDetayAc, secili, animati
             {IKON_MAP[meta.ikon] || <IconFileText size={20} />}
           </ThemeIcon>
           <div>
-            <Text size="sm" fw={600} lineClamp={1} style={{ color: 'var(--yk-text-primary)' }}>{meta.baslik}</Text>
-            <Text size="xs" c="dimmed" lineClamp={1}>{meta.kaynak}</Text>
+            <Text size="sm" fw={600} lineClamp={1} style={{ color: 'var(--yk-text-primary)' }}>
+              {meta.baslik}
+            </Text>
+            <Text size="xs" c="dimmed" lineClamp={1}>
+              {meta.kaynak}
+            </Text>
           </div>
         </Group>
 
@@ -121,11 +134,13 @@ export function ModulKarti({ meta, durum, onCalistir, onDetayAc, secili, animati
           color={getDurumRenk(durum.durum)}
           style={{
             flexShrink: 0,
-            ...(calisiyor ? {
-              background: 'var(--yk-gold-dim)',
-              color: 'var(--yk-gold)',
-              border: '1px solid var(--yk-border)',
-            } : {}),
+            ...(calisiyor
+              ? {
+                  background: 'var(--yk-gold-dim)',
+                  color: 'var(--yk-gold)',
+                  border: '1px solid var(--yk-border)',
+                }
+              : {}),
           }}
         >
           {calisiyor ? <Loader size={8} color="var(--yk-gold)" mr={4} /> : null}
@@ -134,25 +149,35 @@ export function ModulKarti({ meta, durum, onCalistir, onDetayAc, secili, animati
       </Group>
 
       {/* Calisiyor durumunda progress bar — gold */}
-      {calisiyor && (
-        <Progress size="xs" value={100} animated color="yellow" mb={4} />
-      )}
+      {calisiyor && <Progress size="xs" value={100} animated color="yellow" mb={4} />}
 
       {/* Alt: Son guncelleme + Calistir butonu */}
       <Group justify="space-between" mt={4}>
         <Text size="xs" c="dimmed">
           {durum.durum === 'hata' ? (
-            <Text span c="red" size="xs">{durum.hata_mesaji?.substring(0, 40) || 'Hata olustu'}</Text>
+            <Text span c="red" size="xs">
+              {durum.hata_mesaji?.substring(0, 40) || 'Hata olustu'}
+            </Text>
           ) : (
             sonGuncelleme
           )}
         </Text>
 
-        <Tooltip label={calisiyor ? 'Calisiyor, bekleyin...' : durum.son_guncelleme ? 'Yeniden calistir' : 'Baslat'}>
+        <Tooltip
+          label={
+            calisiyor
+              ? 'Calisiyor, bekleyin...'
+              : durum.son_guncelleme
+                ? 'Yeniden calistir'
+                : 'Baslat'
+          }
+        >
           <Button
             size="compact-xs"
             loading={calisiyor}
-            leftSection={durum.son_guncelleme ? <IconRefresh size={12} /> : <IconPlayerPlay size={12} />}
+            leftSection={
+              durum.son_guncelleme ? <IconRefresh size={12} /> : <IconPlayerPlay size={12} />
+            }
             onClick={(e) => {
               e.stopPropagation();
               if (!calisiyor) onCalistir();

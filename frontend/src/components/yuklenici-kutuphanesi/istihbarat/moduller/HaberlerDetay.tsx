@@ -12,8 +12,16 @@ interface Props {
   veri: Record<string, unknown> | null;
 }
 
+/** HTML taglerini temizle (Google News RSS'ten gelen özet HTML içerir) */
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+}
+
 export function HaberlerDetay({ veri }: Props) {
-  if (!veri) return <Text c="dimmed">Veri bulunamadı. Modülü çalıştırarak haber taraması yapabilirsiniz.</Text>;
+  if (!veri)
+    return (
+      <Text c="dimmed">Veri bulunamadı. Modülü çalıştırarak haber taraması yapabilirsiniz.</Text>
+    );
 
   const haberler = (veri.haberler as Array<Record<string, unknown>>) || [];
   const toplam = (veri.toplam as number) || haberler.length;
@@ -24,11 +32,11 @@ export function HaberlerDetay({ veri }: Props) {
     return (
       <Stack gap="sm">
         <Text c="dimmed">
-          {aramaMetni
-            ? `"${aramaMetni}" araması için haber bulunamadı.`
-            : 'Haber bulunamadı.'}
+          {aramaMetni ? `"${aramaMetni}" araması için haber bulunamadı.` : 'Haber bulunamadı.'}
         </Text>
-        <Text size="xs" c="dimmed">Bu firma hakkında güncel haber kaynağı yok olabilir.</Text>
+        <Text size="xs" c="dimmed">
+          Bu firma hakkında güncel haber kaynağı yok olabilir.
+        </Text>
       </Stack>
     );
   }
@@ -37,11 +45,16 @@ export function HaberlerDetay({ veri }: Props) {
     <Stack gap="xs">
       <Text size="sm" c="dimmed" mb="xs">
         {toplam} haber bulundu
-        {aramaMetni && <Text span size="xs"> — &quot;{aramaMetni}&quot;</Text>}
+        {aramaMetni && (
+          <Text span size="xs">
+            {' '}
+            — &quot;{aramaMetni}&quot;
+          </Text>
+        )}
       </Text>
 
-      {haberler.map((haber, idx) => (
-        <Paper key={`haber-${idx}`} withBorder p="sm" radius="sm">
+      {haberler.map((haber) => (
+        <Paper key={`haber-${String(haber.link || haber.baslik)}`} withBorder p="sm" radius="sm">
           <Group justify="space-between" wrap="nowrap" mb={4}>
             <Text size="sm" fw={600} lineClamp={2} style={{ flex: 1 }}>
               {haber.link ? (
@@ -50,18 +63,28 @@ export function HaberlerDetay({ veri }: Props) {
                   <IconExternalLink size={12} style={{ marginLeft: 4, verticalAlign: 'middle' }} />
                 </Anchor>
               ) : (
-                haber.baslik as string
+                (haber.baslik as string)
               )}
             </Text>
           </Group>
 
-          {haber.ozet && (
-            <Text size="xs" c="dimmed" lineClamp={2} mb={4}>{haber.ozet as string}</Text>
+          {!!haber.ozet && (
+            <Text size="xs" c="dimmed" lineClamp={2} mb={4}>
+              {stripHtml(String(haber.ozet))}
+            </Text>
           )}
 
           <Group gap={8}>
-            {haber.kaynak && <Badge size="xs" variant="light" color="violet">{haber.kaynak as string}</Badge>}
-            {haber.tarih_okunur && <Text size="xs" c="dimmed">{haber.tarih_okunur as string}</Text>}
+            {!!haber.kaynak && (
+              <Badge size="xs" variant="light" color="violet">
+                {String(haber.kaynak)}
+              </Badge>
+            )}
+            {!!haber.tarih_okunur && (
+              <Text size="xs" c="dimmed">
+                {String(haber.tarih_okunur)}
+              </Text>
+            )}
           </Group>
         </Paper>
       ))}

@@ -33,29 +33,26 @@ import {
   IconChevronUp,
   IconDatabase,
   IconExternalLink,
-  IconEye,
   IconFilterOff,
   IconLoader,
   IconRefresh,
   IconSearch,
   IconSelector,
-  IconSpy,
   IconUsers,
   IconX,
 } from '@tabler/icons-react';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getApiUrl } from '@/lib/config';
-import type { Yuklenici, StatsData, ScrapeStatus, SortField } from '@/types/yuklenici';
-import { formatCurrency } from '@/types/yuklenici';
-import { DashboardStats, ProfilModal } from '@/components/yuklenici-kutuphanesi';
+import { DashboardStats, YukleniciModal } from '@/components/yuklenici-kutuphanesi';
 import { BildirimListesi } from '@/components/yuklenici-kutuphanesi/istihbarat/BildirimListesi';
+import { getApiUrl } from '@/lib/config';
+import type { ScrapeStatus, SortField, StatsData, Yuklenici } from '@/types/yuklenici';
+import { formatCurrency } from '@/types/yuklenici';
 
 // ─── Kazanma orani renk helper ────────────────────────────────
 function getKazanmaColor(oran: number): string {
-  if (oran >= 50) return 'green';
-  if (oran >= 30) return 'yellow.7';
-  return 'red';
+  if (oran >= 50) return 'var(--yk-gold)';
+  return 'dimmed';
 }
 
 // ─── Ana Sayfa ──────────────────────────────────────────────────
@@ -92,7 +89,11 @@ export default function YukleniciKutuphanesiPage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const mFetch = useCallback((url: string, opts?: RequestInit) => {
-    return fetch(url, { credentials: 'include' as RequestCredentials, headers: { 'Content-Type': 'application/json' }, ...opts });
+    return fetch(url, {
+      credentials: 'include' as RequestCredentials,
+      headers: { 'Content-Type': 'application/json' },
+      ...opts,
+    });
   }, []);
 
   // Cleanup polling on unmount
@@ -129,7 +130,16 @@ export default function YukleniciKutuphanesiPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, sortField, sortDir, debouncedSearch, takipteFilter, filterSehir, filterEtiketler, mFetch]);
+  }, [
+    page,
+    sortField,
+    sortDir,
+    debouncedSearch,
+    takipteFilter,
+    filterSehir,
+    filterEtiketler,
+    mFetch,
+  ]);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -153,10 +163,12 @@ export default function YukleniciKutuphanesiPage() {
       if (sehirRes.ok) {
         const sehirJson = await sehirRes.json();
         if (sehirJson.success && Array.isArray(sehirJson.data)) {
-          setSehirOptions(sehirJson.data.map((s: { sehir: string; count?: number }) => ({
-            value: s.sehir,
-            label: `${s.sehir}${s.count ? ` (${s.count})` : ''}`,
-          })));
+          setSehirOptions(
+            sehirJson.data.map((s: { sehir: string; count?: number }) => ({
+              value: s.sehir,
+              label: `${s.sehir}${s.count ? ` (${s.count})` : ''}`,
+            }))
+          );
         }
       }
 
@@ -171,9 +183,15 @@ export default function YukleniciKutuphanesiPage() {
     }
   }, [mFetch]);
 
-  useEffect(() => { fetchYukleniciler(); }, [fetchYukleniciler]);
-  useEffect(() => { fetchStats(); }, [fetchStats]);
-  useEffect(() => { fetchMeta(); }, [fetchMeta]);
+  useEffect(() => {
+    fetchYukleniciler();
+  }, [fetchYukleniciler]);
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+  useEffect(() => {
+    fetchMeta();
+  }, [fetchMeta]);
 
   // Sort toggle
   const toggleSort = (field: SortField) => {
@@ -196,7 +214,9 @@ export default function YukleniciKutuphanesiPage() {
     try {
       await mFetch(getApiUrl(`/contractors/${id}/toggle-follow`), { method: 'POST' });
       fetchYukleniciler();
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   };
 
   // Istihbarat toggle
@@ -204,7 +224,9 @@ export default function YukleniciKutuphanesiPage() {
     try {
       await mFetch(getApiUrl(`/contractors/${id}/toggle-istihbarat`), { method: 'POST' });
       fetchYukleniciler();
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   };
 
   // Scrape baslat
@@ -213,7 +235,11 @@ export default function YukleniciKutuphanesiPage() {
       const res = await mFetch(getApiUrl('/contractors/scrape'), { method: 'POST' });
       const json = await res.json();
       if (json.success) {
-        notifications.show({ title: 'Tarama Basladi', message: 'ihalebul.com\'dan yukleniciler cekiliyor...', color: 'blue' });
+        notifications.show({
+          title: 'Tarama Basladi',
+          message: "ihalebul.com'dan yukleniciler cekiliyor...",
+          color: 'blue',
+        });
         pollRef.current = setInterval(async () => {
           try {
             const statusRes = await mFetch(getApiUrl('/contractors/scrape/status'));
@@ -225,12 +251,22 @@ export default function YukleniciKutuphanesiPage() {
               setScrapeStatus(null);
               fetchYukleniciler();
               fetchStats();
-              notifications.show({ title: 'Tamamlandi', message: 'Yuklenici listesi guncellendi', color: 'green' });
+              notifications.show({
+                title: 'Tamamlandi',
+                message: 'Yuklenici listesi guncellendi',
+                color: 'green',
+              });
             }
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
         }, 2000);
       } else {
-        notifications.show({ title: 'Uyari', message: json.error || 'Baslatilamadi', color: 'orange' });
+        notifications.show({
+          title: 'Uyari',
+          message: json.error || 'Baslatilamadi',
+          color: 'orange',
+        });
       }
     } catch (err) {
       console.error('Scrape error:', err);
@@ -261,24 +297,40 @@ export default function YukleniciKutuphanesiPage() {
   };
 
   // Skeleton satir render
-  const SKELETON_KEYS = ['s1','s2','s3','s4','s5','s6','s7','s8'];
+  const SKELETON_KEYS = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8'];
   const renderSkeletonRows = () =>
     SKELETON_KEYS.map((k) => (
       <Table.Tr key={k}>
-        <Table.Td><Skeleton height={14} width={20} /></Table.Td>
+        <Table.Td>
+          <Skeleton height={14} width={20} />
+        </Table.Td>
         <Table.Td>
           <Stack gap={4}>
             <Skeleton height={14} width={200 + Math.random() * 100} />
             <Skeleton height={10} width={120} />
           </Stack>
         </Table.Td>
-        <Table.Td><Skeleton height={14} width={40} /></Table.Td>
-        <Table.Td><Skeleton height={14} width={40} /></Table.Td>
-        <Table.Td><Skeleton height={14} width={80} /></Table.Td>
-        <Table.Td><Skeleton height={14} width={50} /></Table.Td>
-        <Table.Td><Skeleton height={14} width={60} /></Table.Td>
-        <Table.Td><Skeleton height={14} width={70} /></Table.Td>
-        <Table.Td><Skeleton height={14} width={90} /></Table.Td>
+        <Table.Td>
+          <Skeleton height={14} width={40} />
+        </Table.Td>
+        <Table.Td>
+          <Skeleton height={14} width={40} />
+        </Table.Td>
+        <Table.Td>
+          <Skeleton height={14} width={80} />
+        </Table.Td>
+        <Table.Td>
+          <Skeleton height={14} width={50} />
+        </Table.Td>
+        <Table.Td>
+          <Skeleton height={14} width={60} />
+        </Table.Td>
+        <Table.Td>
+          <Skeleton height={14} width={70} />
+        </Table.Td>
+        <Table.Td>
+          <Skeleton height={14} width={90} />
+        </Table.Td>
       </Table.Tr>
     ));
 
@@ -288,11 +340,17 @@ export default function YukleniciKutuphanesiPage() {
       <Group justify="space-between" mb="lg">
         <div>
           <Group gap="sm" align="center">
-            <div style={{
-              width: 36, height: 36, borderRadius: 10,
-              background: 'linear-gradient(135deg, var(--yk-gold), var(--yk-gold-light))',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: 'linear-gradient(135deg, var(--yk-gold), var(--yk-gold-light))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
               <IconUsers size={20} color="#000" />
             </div>
             <div>
@@ -300,7 +358,11 @@ export default function YukleniciKutuphanesiPage() {
                 Yuklenici Kutuphanesi
               </Title>
               <Text size="sm" c="dimmed" style={{ letterSpacing: '0.01em' }}>
-                Rakip firma istihbarat merkezi – <Text span style={{ color: 'var(--yk-gold)' }} fw={600}>{totalYuklenici}</Text> yuklenici kayitli
+                Rakip firma istihbarat merkezi –{' '}
+                <Text span style={{ color: 'var(--yk-gold)' }} fw={600}>
+                  {totalYuklenici}
+                </Text>{' '}
+                yuklenici kayitli
               </Text>
             </div>
           </Group>
@@ -324,7 +386,10 @@ export default function YukleniciKutuphanesiPage() {
           <Button
             leftSection={<IconRefresh size={16} />}
             variant="light"
-            onClick={() => { fetchYukleniciler(); fetchStats(); }}
+            onClick={() => {
+              fetchYukleniciler();
+              fetchStats();
+            }}
             style={{
               background: 'var(--yk-gold-dim)',
               color: 'var(--yk-gold)',
@@ -342,13 +407,26 @@ export default function YukleniciKutuphanesiPage() {
           <Group justify="space-between" mb={4}>
             <Group gap="xs">
               <IconLoader size={16} className="animate-spin" />
-              <Text size="sm" fw={600}>Tarama devam ediyor...</Text>
+              <Text size="sm" fw={600}>
+                Tarama devam ediyor...
+              </Text>
             </Group>
-            <Badge variant="light">{scrapeStatus.progress.current}/{scrapeStatus.progress.total}</Badge>
+            <Badge variant="light">
+              {scrapeStatus.progress.current}/{scrapeStatus.progress.total}
+            </Badge>
           </Group>
-          <Progress value={scrapeStatus.progress.total > 0 ? (scrapeStatus.progress.current / scrapeStatus.progress.total) * 100 : 0} size="sm" />
+          <Progress
+            value={
+              scrapeStatus.progress.total > 0
+                ? (scrapeStatus.progress.current / scrapeStatus.progress.total) * 100
+                : 0
+            }
+            size="sm"
+          />
           {scrapeStatus.lastLog.length > 0 && (
-            <Text size="xs" c="dimmed" mt={4}>{scrapeStatus.lastLog[scrapeStatus.lastLog.length - 1].message}</Text>
+            <Text size="xs" c="dimmed" mt={4}>
+              {scrapeStatus.lastLog[scrapeStatus.lastLog.length - 1].message}
+            </Text>
           )}
         </Paper>
       )}
@@ -362,13 +440,26 @@ export default function YukleniciKutuphanesiPage() {
           <TextInput
             placeholder="Yuklenici ara..."
             leftSection={<IconSearch size={16} style={{ color: 'var(--yk-gold)' }} />}
-            rightSection={search ? (
-              <ActionIcon size="xs" variant="subtle" onClick={() => { setSearch(''); setPage(1); }} aria-label="Aramayi temizle">
-                <IconX size={12} />
-              </ActionIcon>
-            ) : undefined}
+            rightSection={
+              search ? (
+                <ActionIcon
+                  size="xs"
+                  variant="subtle"
+                  onClick={() => {
+                    setSearch('');
+                    setPage(1);
+                  }}
+                  aria-label="Aramayi temizle"
+                >
+                  <IconX size={12} />
+                </ActionIcon>
+              ) : undefined
+            }
             value={search}
-            onChange={(e) => { setSearch(e.currentTarget.value); setPage(1); }}
+            onChange={(e) => {
+              setSearch(e.currentTarget.value);
+              setPage(1);
+            }}
             style={{ flex: 1 }}
             styles={{
               input: {
@@ -385,7 +476,10 @@ export default function YukleniciKutuphanesiPage() {
               placeholder="Sehir filtrele"
               data={sehirOptions}
               value={filterSehir}
-              onChange={(v) => { setFilterSehir(v); setPage(1); }}
+              onChange={(v) => {
+                setFilterSehir(v);
+                setPage(1);
+              }}
               clearable
               searchable
               w={200}
@@ -402,7 +496,10 @@ export default function YukleniciKutuphanesiPage() {
               placeholder="Etiket"
               data={etiketOptions}
               value={filterEtiketler}
-              onChange={(v) => { setFilterEtiketler(v); setPage(1); }}
+              onChange={(v) => {
+                setFilterEtiketler(v);
+                setPage(1);
+              }}
               clearable
               w={200}
               styles={{
@@ -419,10 +516,22 @@ export default function YukleniciKutuphanesiPage() {
           <Button
             variant={takipteFilter ? 'filled' : 'light'}
             leftSection={<IconBookmark size={16} />}
-            onClick={() => { setTakipteFilter(!takipteFilter); setPage(1); }}
-            style={takipteFilter
-              ? { background: 'linear-gradient(135deg, var(--yk-gold), #B8963F)', color: '#000', border: 'none' }
-              : { background: 'var(--yk-gold-dim)', color: 'var(--yk-gold)', border: '1px solid var(--yk-border)' }
+            onClick={() => {
+              setTakipteFilter(!takipteFilter);
+              setPage(1);
+            }}
+            style={
+              takipteFilter
+                ? {
+                    background: 'linear-gradient(135deg, var(--yk-gold), #B8963F)',
+                    color: '#000',
+                    border: 'none',
+                  }
+                : {
+                    background: 'var(--yk-gold-dim)',
+                    color: 'var(--yk-gold)',
+                    border: '1px solid var(--yk-border)',
+                  }
             }
           >
             Takipte
@@ -430,10 +539,7 @@ export default function YukleniciKutuphanesiPage() {
 
           {activeFilterCount > 0 && (
             <>
-              <Badge
-                size="lg"
-                className="yk-badge-gold"
-              >
+              <Badge size="lg" className="yk-badge-gold">
                 {activeFilterCount} filtre
               </Badge>
               <Tooltip label="Tum filtreleri temizle">
@@ -441,7 +547,11 @@ export default function YukleniciKutuphanesiPage() {
                   variant="light"
                   onClick={clearAllFilters}
                   aria-label="Filtreleri temizle"
-                  style={{ background: 'var(--yk-surface-glass)', border: '1px solid var(--yk-border-subtle)', color: 'var(--yk-text-secondary)' }}
+                  style={{
+                    background: 'var(--yk-surface-glass)',
+                    border: '1px solid var(--yk-border-subtle)',
+                    color: 'var(--yk-text-secondary)',
+                  }}
                 >
                   <IconFilterOff size={16} />
                 </ActionIcon>
@@ -457,8 +567,27 @@ export default function YukleniciKutuphanesiPage() {
           <Table highlightOnHover>
             <Table.Thead style={{ borderBottom: '1px solid var(--yk-border)' }}>
               <Table.Tr>
-                <Table.Th w={40} style={{ color: 'var(--yk-text-secondary)', fontSize: 11, letterSpacing: '0.03em', textTransform: 'uppercase' }}>#</Table.Th>
-                <Table.Th style={{ color: 'var(--yk-text-secondary)', fontSize: 11, letterSpacing: '0.03em', textTransform: 'uppercase' }}>Yuklenici</Table.Th>
+                <Table.Th
+                  w={40}
+                  style={{
+                    color: 'var(--yk-text-secondary)',
+                    fontSize: 11,
+                    letterSpacing: '0.03em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  #
+                </Table.Th>
+                <Table.Th
+                  style={{
+                    color: 'var(--yk-text-secondary)',
+                    fontSize: 11,
+                    letterSpacing: '0.03em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Yuklenici
+                </Table.Th>
                 {[
                   { field: 'katildigi_ihale_sayisi' as SortField, label: 'Katildigi' },
                   { field: 'tamamlanan_is_sayisi' as SortField, label: 'Tamamlanan' },
@@ -468,66 +597,135 @@ export default function YukleniciKutuphanesiPage() {
                   <Table.Th
                     key={field}
                     style={{
-                      cursor: 'pointer', userSelect: 'none',
+                      cursor: 'pointer',
+                      userSelect: 'none',
                       color: sortField === field ? 'var(--yk-gold)' : 'var(--yk-text-secondary)',
-                      fontSize: 11, letterSpacing: '0.03em', textTransform: 'uppercase',
+                      fontSize: 11,
+                      letterSpacing: '0.03em',
+                      textTransform: 'uppercase',
                     }}
                     onClick={() => toggleSort(field)}
-                    aria-sort={sortField === field ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    aria-sort={
+                      sortField === field
+                        ? sortDir === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                    }
                   >
-                    <Group gap={4} wrap="nowrap">{label} <SortIcon field={field} /></Group>
+                    <Group gap={4} wrap="nowrap">
+                      {label} <SortIcon field={field} />
+                    </Group>
                   </Table.Th>
                 ))}
-                <Table.Th style={{ color: 'var(--yk-text-secondary)', fontSize: 11, letterSpacing: '0.03em', textTransform: 'uppercase' }}>Durum</Table.Th>
                 <Table.Th
                   style={{
-                    cursor: 'pointer', userSelect: 'none',
+                    color: 'var(--yk-text-secondary)',
+                    fontSize: 11,
+                    letterSpacing: '0.03em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Durum
+                </Table.Th>
+                <Table.Th
+                  style={{
+                    cursor: 'pointer',
+                    userSelect: 'none',
                     color: sortField === 'puan' ? 'var(--yk-gold)' : 'var(--yk-text-secondary)',
-                    fontSize: 11, letterSpacing: '0.03em', textTransform: 'uppercase',
+                    fontSize: 11,
+                    letterSpacing: '0.03em',
+                    textTransform: 'uppercase',
                   }}
                   onClick={() => toggleSort('puan')}
-                  aria-sort={sortField === 'puan' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  aria-sort={
+                    sortField === 'puan' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'
+                  }
                 >
-                  <Group gap={4} wrap="nowrap">Puan <SortIcon field="puan" /></Group>
+                  <Group gap={4} wrap="nowrap">
+                    Puan <SortIcon field="puan" />
+                  </Group>
                 </Table.Th>
-                <Table.Th style={{ color: 'var(--yk-text-secondary)', fontSize: 11, letterSpacing: '0.03em', textTransform: 'uppercase' }}>Islemler</Table.Th>
+                <Table.Th
+                  style={{
+                    color: 'var(--yk-text-secondary)',
+                    fontSize: 11,
+                    letterSpacing: '0.03em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Islemler
+                </Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {loading ? renderSkeletonRows() : yukleniciler.length === 0 ? (
-                <Table.Tr><Table.Td colSpan={9}>
-                  <Stack align="center" py={56} gap="sm">
-                    <div style={{
-                      width: 64, height: 64, borderRadius: 16,
-                      background: 'var(--yk-gold-dim)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <IconUsers size={32} style={{ color: 'var(--yk-gold)', opacity: 0.6 }} stroke={1.5} />
-                    </div>
-                    <Text size="lg" fw={500} c="dimmed">Yuklenici bulunamadi</Text>
-                    <Text size="sm" c="dimmed">
-                      {debouncedSearch || takipteFilter || filterSehir || filterEtiketler.length > 0
-                        ? 'Farkli filtrelerle tekrar deneyin'
-                        : 'ihalebul.com\'dan yuklenici verisi cekin'}
-                    </Text>
-                    {!debouncedSearch && !takipteFilter && !filterSehir && filterEtiketler.length === 0 && (
-                      <Button
-                        size="sm"
-                        leftSection={<IconDatabase size={16} />}
-                        onClick={startScrape}
-                        mt="xs"
-                        style={{ background: 'linear-gradient(135deg, var(--yk-gold), #B8963F)', color: '#000', border: 'none' }}
+              {loading ? (
+                renderSkeletonRows()
+              ) : yukleniciler.length === 0 ? (
+                <Table.Tr>
+                  <Table.Td colSpan={9}>
+                    <Stack align="center" py={56} gap="sm">
+                      <div
+                        style={{
+                          width: 64,
+                          height: 64,
+                          borderRadius: 16,
+                          background: 'var(--yk-gold-dim)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
                       >
-                        ihalebul.com&apos;dan Cek
-                      </Button>
-                    )}
-                    {activeFilterCount > 0 && (
-                      <Button size="sm" variant="subtle" leftSection={<IconFilterOff size={16} />} onClick={clearAllFilters} mt="xs" style={{ color: 'var(--yk-gold)' }}>
-                        Filtreleri Temizle
-                      </Button>
-                    )}
-                  </Stack>
-                </Table.Td></Table.Tr>
+                        <IconUsers
+                          size={32}
+                          style={{ color: 'var(--yk-gold)', opacity: 0.6 }}
+                          stroke={1.5}
+                        />
+                      </div>
+                      <Text size="lg" fw={500} c="dimmed">
+                        Yuklenici bulunamadi
+                      </Text>
+                      <Text size="sm" c="dimmed">
+                        {debouncedSearch ||
+                        takipteFilter ||
+                        filterSehir ||
+                        filterEtiketler.length > 0
+                          ? 'Farkli filtrelerle tekrar deneyin'
+                          : "ihalebul.com'dan yuklenici verisi cekin"}
+                      </Text>
+                      {!debouncedSearch &&
+                        !takipteFilter &&
+                        !filterSehir &&
+                        filterEtiketler.length === 0 && (
+                          <Button
+                            size="sm"
+                            leftSection={<IconDatabase size={16} />}
+                            onClick={startScrape}
+                            mt="xs"
+                            style={{
+                              background: 'linear-gradient(135deg, var(--yk-gold), #B8963F)',
+                              color: '#000',
+                              border: 'none',
+                            }}
+                          >
+                            ihalebul.com&apos;dan Cek
+                          </Button>
+                        )}
+                      {activeFilterCount > 0 && (
+                        <Button
+                          size="sm"
+                          variant="subtle"
+                          leftSection={<IconFilterOff size={16} />}
+                          onClick={clearAllFilters}
+                          mt="xs"
+                          style={{ color: 'var(--yk-gold)' }}
+                        >
+                          Filtreleri Temizle
+                        </Button>
+                      )}
+                    </Stack>
+                  </Table.Td>
+                </Table.Tr>
               ) : (
                 yukleniciler.map((yk, idx) => {
                   const kazanmaOrani = Number(yk.kazanma_orani || 0);
@@ -541,44 +739,80 @@ export default function YukleniciKutuphanesiPage() {
                       }}
                       onClick={() => openDetail(yk.id)}
                       tabIndex={0}
-                      onKeyDown={(e) => { if (e.key === 'Enter') openDetail(yk.id); }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') openDetail(yk.id);
+                      }}
                     >
                       <Table.Td>{(page - 1) * 20 + idx + 1}</Table.Td>
                       <Table.Td>
                         <div>
-                          <Text size="sm" fw={600} lineClamp={1}>{yk.kisa_ad || yk.unvan}</Text>
-                          {yk.kisa_ad && <Text size="xs" c="dimmed" lineClamp={1}>{yk.unvan}</Text>}
+                          <Text size="sm" fw={600} lineClamp={1}>
+                            {yk.kisa_ad || yk.unvan}
+                          </Text>
+                          {yk.kisa_ad && (
+                            <Text size="xs" c="dimmed" lineClamp={1}>
+                              {yk.unvan}
+                            </Text>
+                          )}
                           <Group gap={4} mt={2}>
-                            {yk.takipte && <Badge size="xs" color="blue" variant="filled">Takipte</Badge>}
-                            {yk.istihbarat_takibi && <Badge size="xs" color="red" variant="filled">Istihbarat</Badge>}
-                            {yk.etiketler?.slice(0, 2).map((e) => (
-                              <Badge key={`tag-${yk.id}-${e}`} size="xs" variant="light">{e}</Badge>
-                            ))}
+                            {yk.takipte && (
+                              <Badge
+                                size="xs"
+                                variant="outline"
+                                style={{
+                                  borderColor: 'var(--yk-border)',
+                                  color: 'var(--yk-text-secondary)',
+                                }}
+                              >
+                                Takipte
+                              </Badge>
+                            )}
+                            {yk.istihbarat_takibi && (
+                              <Badge
+                                size="xs"
+                                variant="outline"
+                                style={{
+                                  borderColor: 'var(--yk-border)',
+                                  color: 'var(--yk-text-secondary)',
+                                }}
+                              >
+                                Istihbarat
+                              </Badge>
+                            )}
                           </Group>
                         </div>
                       </Table.Td>
                       <Table.Td>{yk.katildigi_ihale_sayisi}</Table.Td>
                       <Table.Td>{yk.tamamlanan_is_sayisi}</Table.Td>
                       <Table.Td>
-                        <Text size="sm" fw={600} style={{ color: 'var(--yk-gold)' }}>{formatCurrency(yk.toplam_sozlesme_bedeli)}</Text>
+                        <Text size="sm" fw={600} style={{ color: 'var(--yk-gold)' }}>
+                          {formatCurrency(yk.toplam_sozlesme_bedeli)}
+                        </Text>
                       </Table.Td>
                       <Table.Td>
-                        <Text size="sm" fw={500} c={getKazanmaColor(kazanmaOrani)}>
+                        <Text
+                          size="sm"
+                          fw={500}
+                          style={{ color: getKazanmaColor(kazanmaOrani) }}
+                        >
                           %{kazanmaOrani.toFixed(1)}
                         </Text>
                       </Table.Td>
                       <Table.Td>
-                        <Group gap={4}>
-                          {yk.devam_eden_is_sayisi > 0 && (
-                            <Badge size="xs" color="blue">{yk.devam_eden_is_sayisi} aktif</Badge>
-                          )}
-                          {(yk.fesih_sayisi || 0) > 0 && (
-                            <Badge size="xs" color="red">{yk.fesih_sayisi} fesih</Badge>
-                          )}
-                          {yk.devam_eden_is_sayisi === 0 && !(yk.fesih_sayisi || 0) && (
-                            <Text size="xs" c="dimmed">—</Text>
-                          )}
-                        </Group>
+                        {yk.devam_eden_is_sayisi > 0 || (yk.fesih_sayisi || 0) > 0 ? (
+                          <Text size="xs" c="dimmed">
+                            {yk.devam_eden_is_sayisi > 0 &&
+                              `${yk.devam_eden_is_sayisi} aktif`}
+                            {yk.devam_eden_is_sayisi > 0 && (yk.fesih_sayisi || 0) > 0 &&
+                              ' · '}
+                            {(yk.fesih_sayisi || 0) > 0 &&
+                              `${yk.fesih_sayisi} fesih`}
+                          </Text>
+                        ) : (
+                          <Text size="xs" c="dimmed">
+                            —
+                          </Text>
+                        )}
                       </Table.Td>
                       <Table.Td onClick={(e) => e.stopPropagation()}>
                         <Rating
@@ -591,31 +825,43 @@ export default function YukleniciKutuphanesiPage() {
                                 body: JSON.stringify({ puan: val }),
                               });
                               fetchYukleniciler();
-                            } catch { /* ignore */ }
+                            } catch {
+                              /* ignore */
+                            }
                           }}
                         />
                       </Table.Td>
                       <Table.Td onClick={(e) => e.stopPropagation()}>
-                        <Group gap={4}>
-                          <Tooltip label="Detay">
-                            <ActionIcon size="sm" variant="light" onClick={() => openDetail(yk.id)} aria-label="Detay gor">
-                              <IconEye size={14} />
-                            </ActionIcon>
-                          </Tooltip>
+                        <Group gap={6}>
                           <Tooltip label={yk.takipte ? 'Takipten cikar' : 'Takibe al'}>
-                            <ActionIcon size="sm" variant={yk.takipte ? 'filled' : 'light'} color="blue" onClick={() => handleTakipToggle(yk.id)} aria-label={yk.takipte ? 'Takipten cikar' : 'Takibe al'}>
-                              {yk.takipte ? <IconBookmarkFilled size={14} /> : <IconBookmark size={14} />}
-                            </ActionIcon>
-                          </Tooltip>
-                          <Tooltip label="Istihbarat">
-                            <ActionIcon size="sm" variant={yk.istihbarat_takibi ? 'filled' : 'light'} color="red" onClick={() => handleIstihbaratToggle(yk.id)} aria-label="Istihbarat toggle">
-                              <IconSpy size={14} />
+                            <ActionIcon
+                              size="sm"
+                              variant="subtle"
+                              onClick={() => handleTakipToggle(yk.id)}
+                              aria-label={yk.takipte ? 'Takipten cikar' : 'Takibe al'}
+                              style={{
+                                color: yk.takipte
+                                  ? 'var(--yk-gold)'
+                                  : 'var(--yk-text-secondary)',
+                              }}
+                            >
+                              {yk.takipte ? (
+                                <IconBookmarkFilled size={16} />
+                              ) : (
+                                <IconBookmark size={16} />
+                              )}
                             </ActionIcon>
                           </Tooltip>
                           {yk.ihalebul_url && (
                             <Tooltip label="ihalebul.com">
-                              <ActionIcon size="sm" variant="light" color="gray" onClick={() => window.open(yk.ihalebul_url ?? '', '_blank')} aria-label="ihalebul.com'da ac">
-                                <IconExternalLink size={14} />
+                              <ActionIcon
+                                size="sm"
+                                variant="subtle"
+                                onClick={() => window.open(yk.ihalebul_url ?? '', '_blank')}
+                                aria-label="ihalebul.com'da ac"
+                                style={{ color: 'var(--yk-text-secondary)' }}
+                              >
+                                <IconExternalLink size={16} />
                               </ActionIcon>
                             </Tooltip>
                           )}
@@ -657,7 +903,7 @@ export default function YukleniciKutuphanesiPage() {
         aria-labelledby="yuklenici-modal-title"
       >
         {selectedId && (
-          <ProfilModal
+          <YukleniciModal
             id={selectedId}
             onClose={closeModal}
             isDark={isDark}

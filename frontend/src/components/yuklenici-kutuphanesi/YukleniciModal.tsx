@@ -54,7 +54,7 @@ function formatZaman(isoStr: string | null | undefined): string {
   return new Date(isoStr).toLocaleDateString('tr-TR');
 }
 
-export function ProfilModal({
+export function YukleniciModal({
   id,
   onClose,
   isDark,

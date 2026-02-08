@@ -13,7 +13,7 @@ import {
   ThemeIcon,
 } from '@mantine/core';
 import { IconCalendar, IconMapPin, IconSearch, IconSpy } from '@tabler/icons-react';
-import type { YukleniciIhale, KazanilanIhale } from '@/types/yuklenici';
+import type { KazanilanIhale, YukleniciIhale } from '@/types/yuklenici';
 import { formatCurrency } from '@/types/yuklenici';
 
 export function IhaleGecmisiTab({
@@ -48,9 +48,12 @@ export function IhaleGecmisiTab({
           <IconSpy size={32} />
         </ThemeIcon>
         <div style={{ textAlign: 'center' }}>
-          <Text fw={600} size="md" mb={4}>Ihale gecmisi henuz cekilmedi</Text>
+          <Text fw={600} size="md" mb={4}>
+            Ihale gecmisi henuz cekilmedi
+          </Text>
           <Text size="sm" c="dimmed" maw={400}>
-            Yuklenici detay sayfasindaki istihbarat butonuna (casus ikonu) basarak ihale gecmisi, analiz verisi ve katilimci bilgilerini otomatik olarak cekin.
+            Yuklenici detay sayfasindaki istihbarat butonuna (casus ikonu) basarak ihale gecmisi,
+            analiz verisi ve katilimci bilgilerini otomatik olarak cekin.
           </Text>
         </div>
       </Stack>
@@ -59,9 +62,15 @@ export function IhaleGecmisiTab({
 
   // Sehir listesini olustur (her iki kaynaktan)
   const sehirSet = new Set<string>();
-  ihaleler.forEach((i) => { if (i.sehir) sehirSet.add(i.sehir); });
-  kazanilanIhaleler.forEach((i) => { if (i.city) sehirSet.add(i.city); });
-  const sehirOptions = Array.from(sehirSet).sort().map((s) => ({ value: s, label: s }));
+  ihaleler.forEach((i) => {
+    if (i.sehir) sehirSet.add(i.sehir);
+  });
+  kazanilanIhaleler.forEach((i) => {
+    if (i.city) sehirSet.add(i.city);
+  });
+  const sehirOptions = Array.from(sehirSet)
+    .sort()
+    .map((s) => ({ value: s, label: s }));
 
   // Yil listesini olustur
   const yilSet = new Set<string>();
@@ -74,22 +83,38 @@ export function IhaleGecmisiTab({
     const tarih = i.sozlesme_tarihi || i.tender_date;
     if (tarih) yilSet.add(new Date(tarih).getFullYear().toString());
   });
-  const yilOptions = Array.from(yilSet).sort((a, b) => Number(b) - Number(a)).map((y) => ({ value: y, label: y }));
+  const yilOptions = Array.from(yilSet)
+    .sort((a, b) => Number(b) - Number(a))
+    .map((y) => ({ value: y, label: y }));
 
   // Durum listesini veriden olustur
   const durumGroupMap: Record<string, string> = {
-    tamamlandi: 'tamamlandi', completed: 'tamamlandi', sonuclandi: 'tamamlandi',
-    devam: 'devam', devam_ediyor: 'devam', active: 'devam',
-    iptal: 'iptal', cancelled: 'iptal',
+    tamamlandi: 'tamamlandi',
+    completed: 'tamamlandi',
+    sonuclandi: 'tamamlandi',
+    devam: 'devam',
+    devam_ediyor: 'devam',
+    active: 'devam',
+    iptal: 'iptal',
+    cancelled: 'iptal',
     bilinmiyor: 'bilinmiyor',
   };
   const durumGroupLabels: Record<string, string> = {
-    tamamlandi: 'Tamamlandi', devam: 'Devam Ediyor', iptal: 'Iptal', bilinmiyor: 'Bilinmiyor',
+    tamamlandi: 'Tamamlandi',
+    devam: 'Devam Ediyor',
+    iptal: 'Iptal',
+    bilinmiyor: 'Bilinmiyor',
   };
   const durumLabelMap: Record<string, string> = {
-    tamamlandi: 'Tamamlandi', devam: 'Devam Ediyor', devam_ediyor: 'Devam Ediyor',
-    iptal: 'Iptal', bilinmiyor: 'Bilinmiyor', completed: 'Tamamlandi', active: 'Aktif',
-    sonuclandi: 'Sonuclandi', cancelled: 'Iptal',
+    tamamlandi: 'Tamamlandi',
+    devam: 'Devam Ediyor',
+    devam_ediyor: 'Devam Ediyor',
+    iptal: 'Iptal',
+    bilinmiyor: 'Bilinmiyor',
+    completed: 'Tamamlandi',
+    active: 'Aktif',
+    sonuclandi: 'Sonuclandi',
+    cancelled: 'Iptal',
   };
 
   const durumCountMap = new Map<string, number>();
@@ -120,7 +145,7 @@ export function IhaleGecmisiTab({
   const filteredIhaleler = ihaleler.filter((i) => {
     if (filtreSehir && i.sehir !== filtreSehir) return false;
     if (effectiveDurum) {
-      const iDurum = i.durum ? (durumGroupMap[i.durum] || i.durum) : '';
+      const iDurum = i.durum ? durumGroupMap[i.durum] || i.durum : '';
       if (iDurum !== effectiveDurum) return false;
     }
     if (filtreYil && i.sozlesme_tarihi && !i.sozlesme_tarihi.startsWith(filtreYil)) return false;
@@ -135,7 +160,7 @@ export function IhaleGecmisiTab({
   const filteredKazanilanIhaleler = kazanilanIhaleler.filter((i) => {
     if (filtreSehir && i.city !== filtreSehir) return false;
     if (effectiveDurum) {
-      const iDurum = i.status ? (durumGroupMap[i.status] || i.status) : '';
+      const iDurum = i.status ? durumGroupMap[i.status] || i.status : '';
       if (iDurum !== effectiveDurum) return false;
     }
     if (filtreYil) {
@@ -143,7 +168,11 @@ export function IhaleGecmisiTab({
       if (tarih && !tarih.startsWith(filtreYil)) return false;
     }
     if (lowerSearch) {
-      if (!i.title.toLowerCase().includes(lowerSearch) && !i.organization_name.toLowerCase().includes(lowerSearch)) return false;
+      if (
+        !i.title.toLowerCase().includes(lowerSearch) &&
+        !i.organization_name.toLowerCase().includes(lowerSearch)
+      )
+        return false;
     }
     return true;
   });
@@ -173,7 +202,9 @@ export function IhaleGecmisiTab({
             </Button>
           )}
         </Group>
-        <Text size="xs" c="dimmed">Istihbarat butonuyla guncellenir</Text>
+        <Text size="xs" c="dimmed">
+          Istihbarat butonuyla guncellenir
+        </Text>
       </Group>
 
       {/* Filtreler */}
@@ -220,33 +251,59 @@ export function IhaleGecmisiTab({
             <Paper key={`ib-${ihale.id}`} withBorder p="sm" radius="sm">
               <Group justify="space-between" wrap="nowrap">
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <Text size="sm" fw={600} lineClamp={1}>{ihale.ihale_basligi || ''}</Text>
+                  <Text size="sm" fw={600} lineClamp={1}>
+                    {ihale.ihale_basligi || ''}
+                  </Text>
                   <Group gap="xs" mt={4}>
-                    {ihale.sehir && <Badge size="xs" variant="light" color="blue">{ihale.sehir}</Badge>}
-                    {ihale.kurum_adi && <Text size="xs" c="dimmed" lineClamp={1}>{ihale.kurum_adi}</Text>}
+                    {ihale.sehir && (
+                      <Badge size="xs" variant="light" color="blue">
+                        {ihale.sehir}
+                      </Badge>
+                    )}
+                    {ihale.kurum_adi && (
+                      <Text size="xs" c="dimmed" lineClamp={1}>
+                        {ihale.kurum_adi}
+                      </Text>
+                    )}
                     {ihale.durum && (
                       <Badge
                         size="xs"
                         variant="light"
-                        color={ihale.durum === 'tamamlandi' ? 'green' : ihale.durum === 'devam' ? 'blue' : ihale.durum === 'iptal' ? 'red' : 'gray'}
+                        color={
+                          ihale.durum === 'tamamlandi'
+                            ? 'green'
+                            : ihale.durum === 'devam'
+                              ? 'blue'
+                              : ihale.durum === 'iptal'
+                                ? 'red'
+                                : 'gray'
+                        }
                       >
                         {ihale.durum.replace('_', ' ')}
                       </Badge>
                     )}
                     {ihale.fesih_durumu && ihale.fesih_durumu !== 'Yok' && (
-                      <Badge size="xs" variant="filled" color="red">Fesih</Badge>
+                      <Badge size="xs" variant="filled" color="red">
+                        Fesih
+                      </Badge>
                     )}
                   </Group>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   {ihale.sozlesme_bedeli > 0 && (
-                    <Text size="sm" fw={600} c="orange">{formatCurrency(ihale.sozlesme_bedeli)}</Text>
+                    <Text size="sm" fw={600} c="orange">
+                      {formatCurrency(ihale.sozlesme_bedeli)}
+                    </Text>
                   )}
                   {ihale.indirim_orani > 0 && (
-                    <Text size="xs" c="green">%{Number(ihale.indirim_orani).toFixed(1)} indirim</Text>
+                    <Text size="xs" c="green">
+                      %{Number(ihale.indirim_orani).toFixed(1)} indirim
+                    </Text>
                   )}
                   {ihale.sozlesme_tarihi && (
-                    <Text size="xs" c="dimmed">{new Date(ihale.sozlesme_tarihi).toLocaleDateString('tr-TR')}</Text>
+                    <Text size="xs" c="dimmed">
+                      {new Date(ihale.sozlesme_tarihi).toLocaleDateString('tr-TR')}
+                    </Text>
                   )}
                 </div>
               </Group>
@@ -259,30 +316,53 @@ export function IhaleGecmisiTab({
               withBorder
               p="sm"
               radius="sm"
-              style={{ cursor: ihale.url ? 'pointer' : undefined, borderLeft: '3px solid var(--mantine-color-green-6)' }}
-              onClick={() => { if (ihale.url) window.open(ihale.url, '_blank'); }}
+              style={{
+                cursor: ihale.url ? 'pointer' : undefined,
+                borderLeft: '3px solid var(--mantine-color-green-6)',
+              }}
+              onClick={() => {
+                if (ihale.url) window.open(ihale.url, '_blank');
+              }}
             >
               <Group justify="space-between" wrap="nowrap">
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <Group gap={4}>
-                    <Text size="sm" fw={600} lineClamp={1}>{ihale.title}</Text>
-                    <Badge size="xs" variant="filled" color="green">Kazanildi</Badge>
+                    <Text size="sm" fw={600} lineClamp={1}>
+                      {ihale.title}
+                    </Text>
+                    <Badge size="xs" variant="filled" color="green">
+                      Kazanildi
+                    </Badge>
                   </Group>
                   <Group gap="xs" mt={4}>
-                    {ihale.city && <Badge size="xs" variant="light" color="blue">{ihale.city}</Badge>}
-                    {ihale.organization_name && <Text size="xs" c="dimmed" lineClamp={1}>{ihale.organization_name}</Text>}
+                    {ihale.city && (
+                      <Badge size="xs" variant="light" color="blue">
+                        {ihale.city}
+                      </Badge>
+                    )}
+                    {ihale.organization_name && (
+                      <Text size="xs" c="dimmed" lineClamp={1}>
+                        {ihale.organization_name}
+                      </Text>
+                    )}
                   </Group>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   {ihale.sozlesme_bedeli && (
-                    <Text size="sm" fw={600} c="orange">{formatCurrency(ihale.sozlesme_bedeli)}</Text>
+                    <Text size="sm" fw={600} c="orange">
+                      {formatCurrency(ihale.sozlesme_bedeli)}
+                    </Text>
                   )}
                   {ihale.indirim_orani && (
-                    <Text size="xs" c="green">%{Number(ihale.indirim_orani).toFixed(1)} indirim</Text>
+                    <Text size="xs" c="green">
+                      %{Number(ihale.indirim_orani).toFixed(1)} indirim
+                    </Text>
                   )}
                   {(ihale.sozlesme_tarihi || ihale.tender_date) && (
                     <Text size="xs" c="dimmed">
-                      {new Date(ihale.sozlesme_tarihi || ihale.tender_date).toLocaleDateString('tr-TR')}
+                      {new Date(ihale.sozlesme_tarihi || ihale.tender_date).toLocaleDateString(
+                        'tr-TR'
+                      )}
                     </Text>
                   )}
                 </div>
@@ -293,7 +373,9 @@ export function IhaleGecmisiTab({
           {totalFiltered === 0 && hasActiveFilter && (
             <Stack align="center" py="lg" gap="xs">
               <IconSearch size={32} opacity={0.3} />
-              <Text c="dimmed" size="sm">Filtrelere uyan ihale bulunamadi</Text>
+              <Text c="dimmed" size="sm">
+                Filtrelere uyan ihale bulunamadi
+              </Text>
               <Button size="xs" variant="light" color="gray" onClick={clearFilters}>
                 Filtreleri Temizle
               </Button>

@@ -9,21 +9,10 @@
  * Alt: Floating Dock Bar — 8 modul ikonu yan yana, hover'da buyur
  */
 
-import {
-  Box,
-  Button,
-  Divider,
-  Drawer,
-  Group,
-  Modal,
-  Paper,
-  Text,
-  ThemeIcon,
-} from '@mantine/core';
+import { Box, Button, Divider, Drawer, Group, Modal, Paper, Text, ThemeIcon } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
-  IconAlertTriangle,
   IconArrowsExchange,
   IconChartLine,
   IconLink,
@@ -34,31 +23,39 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getApiUrl } from '@/lib/config';
-import type { IstihbaratModul, IstihbaratModulAdi, Yuklenici } from '@/types/yuklenici';
-import { ModulDetay } from './ModulDetay';
-import { MODUL_LISTESI } from './modul-meta';
-import { IstihbaratDock } from './IstihbaratDock';
-import { KarsilastirmaPaneli } from './KarsilastirmaPaneli';
+import type { DockGrupAdi, IstihbaratModul, IstihbaratModulAdi, Yuklenici } from '@/types/yuklenici';
+import { YukleniciIletisimBilgileri } from '../FirmaBilgileri';
+// RiskNotlarTab kaldırıldı — risk verileri Hukuki Durum modülünde, notlar YapiskanNotlar'da
+import { BolgeselHaritaPaneli } from './BolgeselHaritaPaneli';
 import { FiyatTahminPaneli } from './FiyatTahminPaneli';
 import { IliskiAgiPaneli } from './IliskiAgiPaneli';
-import { BolgeselHaritaPaneli } from './BolgeselHaritaPaneli';
+import { IstihbaratDock } from './IstihbaratDock';
+import { KarsilastirmaPaneli } from './KarsilastirmaPaneli';
+import { ModulDetay } from './ModulDetay';
+import { DOCK_GRUPLARI, getGrupDurum, MODUL_LISTESI } from './modul-meta';
 import { PdfRaporButonu } from './PdfRaporButonu';
-import { RiskNotlarTab } from '../RiskNotlarTab';
 
 interface IstihbaratMerkeziProps {
   yukleniciId: number;
   yukleniciAdi?: string;
   isDark: boolean;
   yuklenici?: Yuklenici;
+  onYukleniciUpdate?: (updated: Partial<Yuklenici>) => void;
 }
 
-export function IstihbaratMerkezi({ yukleniciId, yukleniciAdi, isDark, yuklenici }: IstihbaratMerkeziProps) {
-  // Tum modullerin durumu
+export function IstihbaratMerkezi({
+  yukleniciId,
+  yukleniciAdi,
+  isDark,
+  yuklenici,
+  onYukleniciUpdate,
+}: IstihbaratMerkeziProps) {
+  // Tum modullerin durumu (backend 8 modul)
   const [moduller, setModuller] = useState<IstihbaratModul[]>([]);
   const [, setYukleniyor] = useState(true);
 
-  // Secili modul (detay paneli icin)
-  const [seciliModul, setSeciliModul] = useState<IstihbaratModulAdi | null>(null);
+  // Secili dock grubu — varsayılan: Şirket Kimliği
+  const [seciliGrup, setSeciliGrup] = useState<DockGrupAdi | null>('sirket_bilgileri');
 
   // Polling ref — calisan moduller icin
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -66,7 +63,11 @@ export function IstihbaratMerkezi({ yukleniciId, yukleniciAdi, isDark, yuklenici
   // ─── API Cagrilari ────────────────────────────────────────────
 
   const mFetch = useCallback((url: string, opts?: RequestInit) => {
-    return fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json' }, ...opts });
+    return fetch(url, {
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      ...opts,
+    });
   }, []);
 
   /** Tum modullerin durumunu cek */
@@ -96,7 +97,9 @@ export function IstihbaratMerkezi({ yukleniciId, yukleniciAdi, isDark, yuklenici
         if (json.success) {
           setModuller(json.data.moduller);
 
-          const calisan = json.data.moduller.filter((m: IstihbaratModul) => m.durum === 'calisiyor');
+          const calisan = json.data.moduller.filter(
+            (m: IstihbaratModul) => m.durum === 'calisiyor'
+          );
           if (calisan.length === 0 && pollRef.current) {
             clearInterval(pollRef.current);
             pollRef.current = null;
@@ -108,27 +111,53 @@ export function IstihbaratMerkezi({ yukleniciId, yukleniciAdi, isDark, yuklenici
     }, 3000);
   }, [yukleniciId, mFetch]);
 
-  /** Tek bir modulu calistir */
-  const calistirModul = useCallback(async (modul: IstihbaratModulAdi) => {
-    try {
-      const res = await mFetch(getApiUrl(`/contractors/${yukleniciId}/modul/${modul}/calistir`), {
-        method: 'POST',
-      });
-      const json = await res.json();
-      if (json.success) {
-        notifications.show({ title: 'Baslatildi', message: json.message, color: 'blue' });
-        setModuller(prev => prev.map(m =>
-          m.modul === modul ? { ...m, durum: 'calisiyor' } : m
-        ));
-        startPolling();
-      } else {
-        notifications.show({ title: 'Hata', message: json.error, color: 'red' });
+  /** Tek bir backend modülü çalıştır */
+  const calistirModul = useCallback(
+    async (modul: IstihbaratModulAdi) => {
+      try {
+        const res = await mFetch(getApiUrl(`/contractors/${yukleniciId}/modul/${modul}/calistir`), {
+          method: 'POST',
+        });
+        const json = await res.json();
+        if (json.success) {
+          setModuller((prev) =>
+            prev.map((m) => (m.modul === modul ? { ...m, durum: 'calisiyor' } : m))
+          );
+          startPolling();
+        } else {
+          notifications.show({ title: 'Hata', message: json.error, color: 'red' });
+        }
+      } catch (err) {
+        console.error('Modul calistirma hatasi:', err);
+        notifications.show({
+          title: 'Baglanti Hatasi',
+          message: 'Sunucuya baglanilmadi',
+          color: 'red',
+        });
       }
-    } catch (err) {
-      console.error('Modul calistirma hatasi:', err);
-      notifications.show({ title: 'Baglanti Hatasi', message: 'Sunucuya baglanilmadi', color: 'red' });
-    }
-  }, [yukleniciId, mFetch, startPolling]);
+    },
+    [yukleniciId, mFetch, startPolling]
+  );
+
+  /** Dock grubunun tüm alt modüllerini çalıştır */
+  const calistirGrup = useCallback(
+    async (grupAdi: DockGrupAdi) => {
+      const grup = DOCK_GRUPLARI.find((g) => g.ad === grupAdi);
+      if (!grup) return;
+
+      notifications.show({
+        title: 'Başlatıldı',
+        message: `${grup.baslik} modülleri çalışmaya başladı`,
+        color: 'blue',
+      });
+
+      // Grubun alt modüllerini sırayla başlat
+      for (const modulAdi of grup.moduller) {
+        await calistirModul(modulAdi);
+      }
+    },
+    [calistirModul]
+  );
 
   /** Tum modulleri calistir */
   const tumunuCalistir = useCallback(async () => {
@@ -138,8 +167,12 @@ export function IstihbaratMerkezi({ yukleniciId, yukleniciAdi, isDark, yuklenici
       });
       const json = await res.json();
       if (json.success) {
-        notifications.show({ title: 'Tumu Baslatildi', message: 'Tum istihbarat modulleri calismaya basladi', color: 'blue' });
-        setModuller(prev => prev.map(m => ({ ...m, durum: 'calisiyor' as const })));
+        notifications.show({
+          title: 'Tumu Baslatildi',
+          message: 'Tum istihbarat modulleri calismaya basladi',
+          color: 'blue',
+        });
+        setModuller((prev) => prev.map((m) => ({ ...m, durum: 'calisiyor' as const })));
         startPolling();
       }
     } catch (err) {
@@ -163,7 +196,7 @@ export function IstihbaratMerkezi({ yukleniciId, yukleniciAdi, isDark, yuklenici
   }, [fetchModuller]);
 
   useEffect(() => {
-    const calisanVar = moduller.some(m => m.durum === 'calisiyor');
+    const calisanVar = moduller.some((m) => m.durum === 'calisiyor');
     if (calisanVar && !pollRef.current) {
       startPolling();
     }
@@ -171,45 +204,67 @@ export function IstihbaratMerkezi({ yukleniciId, yukleniciAdi, isDark, yuklenici
 
   // ─── Ek Panel State'leri ─────────────────────────────────────
 
-  const [karsilastirmaAcik, { open: openKarsilastirma, close: closeKarsilastirma }] = useDisclosure(false);
+  const [karsilastirmaAcik, { open: openKarsilastirma, close: closeKarsilastirma }] =
+    useDisclosure(false);
   const [fiyatAcik, { open: openFiyat, close: closeFiyat }] = useDisclosure(false);
   const [iliskiAcik, { open: openIliski, close: closeIliski }] = useDisclosure(false);
   const [haritaAcik, { open: openHarita, close: closeHarita }] = useDisclosure(false);
-  const [riskAcik, { open: openRisk, close: closeRisk }] = useDisclosure(false);
+  // riskAcik kaldırıldı
 
   // ─── Render ──────────────────────────────────────────────────
 
-  const seciliDurum = seciliModul
-    ? moduller.find(m => m.modul === seciliModul)
-    : null;
+  // Secili grubun birlesik durumu
+  const seciliGrupDurum = seciliGrup ? getGrupDurum(seciliGrup, moduller) : null;
 
-  const tamamlananSayisi = moduller.filter(m => m.durum === 'tamamlandi').length;
-  const calisanSayisi = moduller.filter(m => m.durum === 'calisiyor').length;
+  const tamamlananSayisi = moduller.filter((m) => m.durum === 'tamamlandi').length;
+  const calisanSayisi = moduller.filter((m) => m.durum === 'calisiyor').length;
 
   return (
-    <Box style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+    <Box style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 220px)' }}>
       {/* ─── Baslik + Arac Cubugu ──────────────────────────────── */}
       <Box px="md" pt="md" pb={0} style={{ flexShrink: 0 }}>
         {/* Baslik Satiri — Premium */}
         <Group justify="space-between" mb="md">
           <div>
-            <Text fw={700} size="lg" style={{ color: 'var(--yk-gold)', letterSpacing: '0.02em' }}>Istihbarat Merkezi</Text>
+            <Text fw={700} size="lg" style={{ color: 'var(--yk-gold)', letterSpacing: '0.02em' }}>
+              Istihbarat Merkezi
+            </Text>
             <Text size="xs" c="dimmed">
-              <Text span style={{ color: 'var(--yk-gold)' }} fw={600}>{tamamlananSayisi}</Text>/{MODUL_LISTESI.length} modul tamamlandi
-              {calisanSayisi > 0 && <Text span style={{ color: 'var(--yk-gold-light)' }}> — {calisanSayisi} modul calisiyor</Text>}
+              <Text span style={{ color: 'var(--yk-gold)' }} fw={600}>
+                {tamamlananSayisi}
+              </Text>
+              /{MODUL_LISTESI.length} kaynak tamamlandi
+              {calisanSayisi > 0 && (
+                <Text span style={{ color: 'var(--yk-gold-light)' }}>
+                  {' '}
+                  — {calisanSayisi} modul calisiyor
+                </Text>
+              )}
             </Text>
           </div>
           <Button
             size="sm"
-            leftSection={calisanSayisi > 0 ? <IconRefresh size={16} /> : <IconPlayerPlay size={16} />}
+            leftSection={
+              calisanSayisi > 0 ? <IconRefresh size={16} /> : <IconPlayerPlay size={16} />
+            }
             loading={calisanSayisi > 0}
             onClick={openConfirm}
             disabled={calisanSayisi > 0}
             style={{
-              background: 'linear-gradient(135deg, var(--yk-gold), #B8963F)',
-              color: '#000',
-              border: 'none',
+              background: 'transparent',
+              color: 'var(--yk-gold)',
+              border: '1.5px solid var(--yk-gold)',
               fontWeight: 600,
+              transition: 'all 0.2s ease',
+              boxShadow: '0 0 8px rgba(201, 168, 76, 0.15)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(201, 168, 76, 0.08)';
+              e.currentTarget.style.boxShadow = '0 0 14px rgba(201, 168, 76, 0.3)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.boxShadow = '0 0 8px rgba(201, 168, 76, 0.15)';
             }}
           >
             {calisanSayisi > 0 ? 'Calisiyor...' : 'Tumunu Baslat'}
@@ -219,7 +274,11 @@ export function IstihbaratMerkezi({ yukleniciId, yukleniciAdi, isDark, yuklenici
         {/* Arac Cubugu — Premium dark toolbar */}
         <Group gap="xs" mb="md">
           {[
-            { label: 'Karsilastir', icon: <IconArrowsExchange size={14} />, onClick: openKarsilastirma },
+            {
+              label: 'Karsilastir',
+              icon: <IconArrowsExchange size={14} />,
+              onClick: openKarsilastirma,
+            },
             { label: 'Fiyat Tahmini', icon: <IconChartLine size={14} />, onClick: openFiyat },
             { label: 'Iliski Agi', icon: <IconLink size={14} />, onClick: openIliski },
             { label: 'Bolgesel Harita', icon: <IconMap size={14} />, onClick: openHarita },
@@ -238,24 +297,12 @@ export function IstihbaratMerkezi({ yukleniciId, yukleniciAdi, isDark, yuklenici
               {btn.label}
             </Button>
           ))}
-          {yuklenici && (
-            <Button
-              size="xs"
-              leftSection={<IconAlertTriangle size={14} />}
-              onClick={openRisk}
-              style={{
-                background: 'var(--yk-surface-glass)',
-                color: 'var(--yk-text-secondary)',
-                border: '1px solid var(--yk-border-subtle)',
-              }}
-            >
-              Risk / Notlar
-            </Button>
-          )}
-
           <Divider orientation="vertical" style={{ borderColor: 'var(--yk-border-subtle)' }} />
 
-          <PdfRaporButonu yukleniciId={yukleniciId} yukleniciAdi={yukleniciAdi || `Yuklenici #${yukleniciId}`} />
+          <PdfRaporButonu
+            yukleniciId={yukleniciId}
+            yukleniciAdi={yukleniciAdi || `Yuklenici #${yukleniciId}`}
+          />
         </Group>
 
         <Divider style={{ borderColor: 'var(--yk-border)' }} />
@@ -271,21 +318,31 @@ export function IstihbaratMerkezi({ yukleniciId, yukleniciAdi, isDark, yuklenici
           minHeight: 0,
         }}
       >
-        {seciliModul && seciliDurum ? (
+        {/* ─── Sticky İletişim Bilgileri — Şirket Kimliği seçiliyken ─── */}
+        {seciliGrup === 'sirket_bilgileri' && yuklenici && onYukleniciUpdate && (
+          <Box
+            mb="md"
+            style={{
+              position: 'sticky',
+              top: 0,
+              zIndex: 5,
+            }}
+          >
+            <YukleniciIletisimBilgileri yuklenici={yuklenici} onUpdate={onYukleniciUpdate} />
+          </Box>
+        )}
+
+        {seciliGrup && seciliGrupDurum ? (
           <Paper
             withBorder
             radius="md"
             p="md"
             bg={isDark ? 'dark.7' : 'gray.0'}
             className="yk-dock-content-enter"
-            key={seciliModul}
+            key={seciliGrup}
             style={{ minHeight: 300 }}
           >
-            <ModulDetay
-              yukleniciId={yukleniciId}
-              modul={seciliModul}
-              durum={seciliDurum.durum}
-            />
+            <ModulDetay yukleniciId={yukleniciId} grup={seciliGrup} durum={seciliGrupDurum} />
           </Paper>
         ) : (
           /* ─── Premium Placeholder ──────────────────────────── */
@@ -308,26 +365,42 @@ export function IstihbaratMerkezi({ yukleniciId, yukleniciAdi, isDark, yuklenici
         )}
       </Box>
 
-      {/* ─── Floating Dock ─────────────────────────────────────── */}
+      {/* ─── Floating Dock (5 grup) ────────────────────────────── */}
       <IstihbaratDock
-        modulListesi={MODUL_LISTESI}
+        grupListesi={DOCK_GRUPLARI}
         moduller={moduller}
-        seciliModul={seciliModul}
-        onModulSec={(modul) => setSeciliModul(seciliModul === modul ? null : modul)}
-        onCalistir={calistirModul}
+        seciliGrup={seciliGrup}
+        onGrupSec={(grup) => setSeciliGrup(seciliGrup === grup ? null : grup)}
+        onGrupCalistir={calistirGrup}
       />
 
       {/* ─── Ek Panel Modalleri ─────────────────────────────────── */}
 
-      <Modal opened={karsilastirmaAcik} onClose={closeKarsilastirma} title="Yuklenici Karsilastirma" size="xl">
+      <Modal
+        opened={karsilastirmaAcik}
+        onClose={closeKarsilastirma}
+        title="Yuklenici Karsilastirma"
+        size="xl"
+      >
         <KarsilastirmaPaneli yukleniciId={yukleniciId} />
       </Modal>
 
-      <Drawer opened={fiyatAcik} onClose={closeFiyat} title="Fiyat Tahmin Analizi" position="right" size="md">
+      <Drawer
+        opened={fiyatAcik}
+        onClose={closeFiyat}
+        title="Fiyat Tahmin Analizi"
+        position="right"
+        size="md"
+      >
         <FiyatTahminPaneli yukleniciId={yukleniciId} />
       </Drawer>
 
-      <Modal opened={iliskiAcik} onClose={closeIliski} title="Iliski Agi — Ortak Girisim & Rakipler" size="xl">
+      <Modal
+        opened={iliskiAcik}
+        onClose={closeIliski}
+        title="Iliski Agi — Ortak Girisim & Rakipler"
+        size="xl"
+      >
         <IliskiAgiPaneli yukleniciId={yukleniciId} yukleniciAdi={yukleniciAdi} />
       </Modal>
 
@@ -335,21 +408,33 @@ export function IstihbaratMerkezi({ yukleniciId, yukleniciAdi, isDark, yuklenici
         <BolgeselHaritaPaneli yukleniciId={yukleniciId} />
       </Modal>
 
-      {yuklenici && (
-        <Drawer opened={riskAcik} onClose={closeRisk} title="Risk Analizi & Notlar" position="right" size="lg">
-          <RiskNotlarTab yuklenici={yuklenici} isDark={isDark} initialNotlar={yuklenici.notlar || ''} />
-        </Drawer>
-      )}
+      {/* RiskNotlarTab Drawer kaldırıldı — veriler Hukuki Durum + YapiskanNotlar'da */}
 
       {/* Tumunu Baslat Confirmation */}
-      <Modal opened={confirmAcik} onClose={closeConfirm} title="Tum Modulleri Baslat" size="sm" centered>
+      <Modal
+        opened={confirmAcik}
+        onClose={closeConfirm}
+        title="Tum Modulleri Baslat"
+        size="sm"
+        centered
+      >
         <Text size="sm" mb="md">
-          {MODUL_LISTESI.length} istihbarat modulu sirayla calistirilacak.
-          Bu islem birkac dakika surebilir. Devam etmek istiyor musunuz?
+          {MODUL_LISTESI.length} istihbarat kaynagi sirayla calistirilacak. Bu islem birkac dakika
+          surebilir. Devam etmek istiyor musunuz?
         </Text>
         <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={closeConfirm}>Iptal</Button>
-          <Button color="blue" onClick={() => { closeConfirm(); tumunuCalistir(); }}>Evet, Baslat</Button>
+          <Button variant="default" onClick={closeConfirm}>
+            Iptal
+          </Button>
+          <Button
+            color="blue"
+            onClick={() => {
+              closeConfirm();
+              tumunuCalistir();
+            }}
+          >
+            Evet, Baslat
+          </Button>
         </Group>
       </Modal>
     </Box>

@@ -20,8 +20,25 @@ import type { Yuklenici } from '@/types/yuklenici';
 import { formatCurrency } from '@/types/yuklenici';
 
 interface RiskData {
-  fesihler: Array<{ ihale_basligi: string; kurum_adi: string; sehir: string; sozlesme_bedeli: number; sozlesme_tarihi: string; fesih_durumu: string; ikn: string }>;
-  kikKararlari: Array<{ ihale_basligi: string; kurum_adi: string; sehir: string; sozlesme_bedeli: number; sozlesme_tarihi: string; durum: string; ikn: string; tender_url?: string }>;
+  fesihler: Array<{
+    ihale_basligi: string;
+    kurum_adi: string;
+    sehir: string;
+    sozlesme_bedeli: number;
+    sozlesme_tarihi: string;
+    fesih_durumu: string;
+    ikn: string;
+  }>;
+  kikKararlari: Array<{
+    ihale_basligi: string;
+    kurum_adi: string;
+    sehir: string;
+    sozlesme_bedeli: number;
+    sozlesme_tarihi: string;
+    durum: string;
+    ikn: string;
+    tender_url?: string;
+  }>;
   riskNotlari: Array<{ id: number; content: string; created_at: string }>;
 }
 
@@ -40,7 +57,11 @@ export function RiskNotlarTab({
   const [riskLoading, setRiskLoading] = useState(false);
 
   const mFetch = useCallback((url: string, opts?: RequestInit) => {
-    return fetch(url, { credentials: 'include' as RequestCredentials, headers: { 'Content-Type': 'application/json' }, ...opts });
+    return fetch(url, {
+      credentials: 'include' as RequestCredentials,
+      headers: { 'Content-Type': 'application/json' },
+      ...opts,
+    });
   }, []);
 
   const fetchRiskData = useCallback(async () => {
@@ -85,36 +106,52 @@ export function RiskNotlarTab({
         <Card withBorder radius="sm">
           <Group gap="xs" mb="xs">
             <IconAlertTriangle size={16} color="var(--mantine-color-red-6)" />
-            <Text size="sm" fw={600}>Fesih / Tasfiye</Text>
+            <Text size="sm" fw={600}>
+              Fesih / Tasfiye
+            </Text>
           </Group>
           {(yk.fesih_sayisi || 0) > 0 ? (
-            <Badge color="red" variant="light" size="lg">{yk.fesih_sayisi} fesih kaydi</Badge>
+            <Badge color="red" variant="light" size="lg">
+              {yk.fesih_sayisi} fesih kaydi
+            </Badge>
           ) : (
-            <Text size="sm" c="green">Fesih kaydi bulunmuyor</Text>
+            <Text size="sm" c="green">
+              Fesih kaydi bulunmuyor
+            </Text>
           )}
         </Card>
 
         <Card withBorder radius="sm">
           <Group gap="xs" mb="xs">
             <IconShieldCheck size={16} color="var(--mantine-color-orange-6)" />
-            <Text size="sm" fw={600}>KIK Sikayet</Text>
+            <Text size="sm" fw={600}>
+              KIK Sikayet
+            </Text>
           </Group>
           {(yk.kik_sikayet_sayisi || 0) > 0 ? (
-            <Badge color="orange" variant="light" size="lg">{yk.kik_sikayet_sayisi} sikayet kaydi</Badge>
+            <Badge color="orange" variant="light" size="lg">
+              {yk.kik_sikayet_sayisi} sikayet kaydi
+            </Badge>
           ) : (
-            <Text size="sm" c="dimmed">Sikayet verisi henuz yok</Text>
+            <Text size="sm" c="dimmed">
+              Sikayet verisi henuz yok
+            </Text>
           )}
         </Card>
 
         <Card withBorder radius="sm" bg={yk.risk_notu ? (isDark ? 'dark.6' : 'red.0') : undefined}>
           <Group gap="xs" mb="xs">
             <IconFileAlert size={16} color="var(--mantine-color-grape-6)" />
-            <Text size="sm" fw={600}>Risk Notu</Text>
+            <Text size="sm" fw={600}>
+              Risk Notu
+            </Text>
           </Group>
           {yk.risk_notu ? (
             <Text size="sm">{yk.risk_notu}</Text>
           ) : (
-            <Text size="sm" c="dimmed">Risk notu girilmemis</Text>
+            <Text size="sm" c="dimmed">
+              Risk notu girilmemis
+            </Text>
           )}
         </Card>
       </div>
@@ -124,39 +161,69 @@ export function RiskNotlarTab({
         <Card withBorder radius="sm">
           <Group gap="xs" mb="sm">
             <IconAlertTriangle size={16} color="var(--mantine-color-red-6)" />
-            <Text size="sm" fw={600}>Fesih Detaylari ({riskData?.fesihler.length || '...'})</Text>
+            <Text size="sm" fw={600}>
+              Fesih Detaylari ({riskData?.fesihler.length || '...'})
+            </Text>
             {riskLoading && <Loader size="xs" />}
           </Group>
           {riskData && riskData.fesihler.length > 0 ? (
             <Stack gap={6}>
               {riskData.fesihler.map((f, idx) => (
-                <Paper key={`fesih-${idx}-${f.ikn || ''}`} withBorder p="sm" radius="sm" bg={isDark ? 'dark.7' : 'red.0'}>
+                <Paper
+                  key={`fesih-${idx}-${f.ikn || ''}`}
+                  withBorder
+                  p="sm"
+                  radius="sm"
+                  bg={isDark ? 'dark.7' : 'red.0'}
+                >
                   <Group justify="space-between" wrap="nowrap">
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <Text size="sm" fw={600} lineClamp={1}>{f.ihale_basligi}</Text>
+                      <Text size="sm" fw={600} lineClamp={1}>
+                        {f.ihale_basligi}
+                      </Text>
                       <Group gap="xs" mt={4}>
-                        {f.sehir && <Badge size="xs" variant="light" color="blue">{f.sehir}</Badge>}
-                        {f.kurum_adi && <Text size="xs" c="dimmed" lineClamp={1}>{f.kurum_adi}</Text>}
+                        {f.sehir && (
+                          <Badge size="xs" variant="light" color="blue">
+                            {f.sehir}
+                          </Badge>
+                        )}
+                        {f.kurum_adi && (
+                          <Text size="xs" c="dimmed" lineClamp={1}>
+                            {f.kurum_adi}
+                          </Text>
+                        )}
                       </Group>
                       {f.fesih_durumu && f.fesih_durumu !== 'Var' && (
-                        <Text size="xs" c="red" mt={4}>Durum: {f.fesih_durumu}</Text>
+                        <Text size="xs" c="red" mt={4}>
+                          Durum: {f.fesih_durumu}
+                        </Text>
                       )}
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       {f.sozlesme_bedeli && (
-                        <Text size="sm" fw={600} c="orange">{formatCurrency(f.sozlesme_bedeli)}</Text>
+                        <Text size="sm" fw={600} c="orange">
+                          {formatCurrency(f.sozlesme_bedeli)}
+                        </Text>
                       )}
                       {f.sozlesme_tarihi && (
-                        <Text size="xs" c="dimmed">{new Date(f.sozlesme_tarihi).toLocaleDateString('tr-TR')}</Text>
+                        <Text size="xs" c="dimmed">
+                          {new Date(f.sozlesme_tarihi).toLocaleDateString('tr-TR')}
+                        </Text>
                       )}
-                      {f.ikn && <Text size="xs" c="dimmed">IKN: {f.ikn}</Text>}
+                      {f.ikn && (
+                        <Text size="xs" c="dimmed">
+                          IKN: {f.ikn}
+                        </Text>
+                      )}
                     </div>
                   </Group>
                 </Paper>
               ))}
             </Stack>
           ) : riskData && riskData.fesihler.length === 0 ? (
-            <Text size="sm" c="dimmed">Fesih detay bilgisi bulunamadi</Text>
+            <Text size="sm" c="dimmed">
+              Fesih detay bilgisi bulunamadi
+            </Text>
           ) : null}
         </Card>
       )}
@@ -166,37 +233,69 @@ export function RiskNotlarTab({
         <Card withBorder radius="sm">
           <Group gap="xs" mb="sm">
             <IconShieldCheck size={16} color="var(--mantine-color-orange-6)" />
-            <Text size="sm" fw={600}>KIK Karar Detaylari ({riskData?.kikKararlari.length || '...'})</Text>
+            <Text size="sm" fw={600}>
+              KIK Karar Detaylari ({riskData?.kikKararlari.length || '...'})
+            </Text>
             {riskLoading && <Loader size="xs" />}
           </Group>
           {riskData && riskData.kikKararlari.length > 0 ? (
             <Stack gap={6}>
               {riskData.kikKararlari.map((k, idx) => (
-                <Paper key={`kik-${idx}-${k.ikn || ''}`} withBorder p="sm" radius="sm" bg={isDark ? 'dark.7' : 'orange.0'}>
+                <Paper
+                  key={`kik-${idx}-${k.ikn || ''}`}
+                  withBorder
+                  p="sm"
+                  radius="sm"
+                  bg={isDark ? 'dark.7' : 'orange.0'}
+                >
                   <Group justify="space-between" wrap="nowrap">
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <Text size="sm" fw={600} lineClamp={1}>{k.ihale_basligi}</Text>
+                      <Text size="sm" fw={600} lineClamp={1}>
+                        {k.ihale_basligi}
+                      </Text>
                       <Group gap="xs" mt={4}>
-                        {k.sehir && <Badge size="xs" variant="light" color="blue">{k.sehir}</Badge>}
-                        {k.kurum_adi && <Text size="xs" c="dimmed" lineClamp={1}>{k.kurum_adi}</Text>}
+                        {k.sehir && (
+                          <Badge size="xs" variant="light" color="blue">
+                            {k.sehir}
+                          </Badge>
+                        )}
+                        {k.kurum_adi && (
+                          <Text size="xs" c="dimmed" lineClamp={1}>
+                            {k.kurum_adi}
+                          </Text>
+                        )}
                       </Group>
-                      {k.durum && <Badge size="xs" variant="light" color="orange" mt={4}>{k.durum}</Badge>}
+                      {k.durum && (
+                        <Badge size="xs" variant="light" color="orange" mt={4}>
+                          {k.durum}
+                        </Badge>
+                      )}
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       {k.sozlesme_bedeli && (
-                        <Text size="sm" fw={600} c="orange">{formatCurrency(k.sozlesme_bedeli)}</Text>
+                        <Text size="sm" fw={600} c="orange">
+                          {formatCurrency(k.sozlesme_bedeli)}
+                        </Text>
                       )}
                       {k.sozlesme_tarihi && (
-                        <Text size="xs" c="dimmed">{new Date(k.sozlesme_tarihi).toLocaleDateString('tr-TR')}</Text>
+                        <Text size="xs" c="dimmed">
+                          {new Date(k.sozlesme_tarihi).toLocaleDateString('tr-TR')}
+                        </Text>
                       )}
-                      {k.ikn && <Text size="xs" c="dimmed">IKN: {k.ikn}</Text>}
+                      {k.ikn && (
+                        <Text size="xs" c="dimmed">
+                          IKN: {k.ikn}
+                        </Text>
+                      )}
                     </div>
                   </Group>
                 </Paper>
               ))}
             </Stack>
           ) : riskData && riskData.kikKararlari.length === 0 ? (
-            <Text size="sm" c="dimmed">KIK karar detayi bulunamadi</Text>
+            <Text size="sm" c="dimmed">
+              KIK karar detayi bulunamadi
+            </Text>
           ) : null}
         </Card>
       )}
@@ -205,7 +304,9 @@ export function RiskNotlarTab({
 
       {/* Notlar */}
       <div>
-        <Text size="sm" fw={600} mb="xs">Notlar</Text>
+        <Text size="sm" fw={600} mb="xs">
+          Notlar
+        </Text>
         <Textarea
           value={notlar}
           onChange={(e) => setNotlar(e.currentTarget.value)}

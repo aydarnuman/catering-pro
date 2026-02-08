@@ -8,7 +8,19 @@
  * ihale bazlı rakip analizi tetiklenebilir.
  */
 
-import { Alert, Badge, Button, Center, Group, Loader, Modal, Paper, ScrollArea, Stack, Text } from '@mantine/core';
+import {
+  Alert,
+  Badge,
+  Button,
+  Center,
+  Group,
+  Loader,
+  Modal,
+  Paper,
+  ScrollArea,
+  Stack,
+  Text,
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconRobot, IconUsers } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
@@ -24,26 +36,29 @@ export function IhaleGecmisiDetay({ veri }: Props) {
   const [rakipYukleniyor, setRakipYukleniyor] = useState(false);
   const [modalAcik, { open: openModal, close: closeModal }] = useDisclosure(false);
 
-  const fetchRakipAnaliz = useCallback(async (tenderId: number) => {
-    setRakipYukleniyor(true);
-    setRakipAnaliz(null);
-    openModal();
-    try {
-      const res = await fetch(getApiUrl(`/contractors/tender/${tenderId}/ai-rakip-analiz`), {
-        credentials: 'include',
-      });
-      const json = await res.json();
-      if (json.success) {
-        setRakipAnaliz(json.data);
-      } else {
-        setRakipAnaliz({ hata: json.error || 'Analiz yapılamadı' });
+  const fetchRakipAnaliz = useCallback(
+    async (tenderId: number) => {
+      setRakipYukleniyor(true);
+      setRakipAnaliz(null);
+      openModal();
+      try {
+        const res = await fetch(getApiUrl(`/contractors/tender/${tenderId}/ai-rakip-analiz`), {
+          credentials: 'include',
+        });
+        const json = await res.json();
+        if (json.success) {
+          setRakipAnaliz(json.data);
+        } else {
+          setRakipAnaliz({ hata: json.error || 'Analiz yapılamadı' });
+        }
+      } catch (err) {
+        setRakipAnaliz({ hata: err instanceof Error ? err.message : 'Bağlantı hatası' });
+      } finally {
+        setRakipYukleniyor(false);
       }
-    } catch (err) {
-      setRakipAnaliz({ hata: err instanceof Error ? err.message : 'Bağlantı hatası' });
-    } finally {
-      setRakipYukleniyor(false);
-    }
-  }, [openModal]);
+    },
+    [openModal]
+  );
 
   if (!veri) return <Text c="dimmed">Veri bulunamadı.</Text>;
 
@@ -51,7 +66,11 @@ export function IhaleGecmisiDetay({ veri }: Props) {
   const toplam = (veri.toplam as number) || ihaleler.length;
 
   if (ihaleler.length === 0) {
-    return <Text c="dimmed">İhale geçmişi verisi henüz yok. Modülü çalıştırarak veri toplayabilirsiniz.</Text>;
+    return (
+      <Text c="dimmed">
+        İhale geçmişi verisi henüz yok. Modülü çalıştırarak veri toplayabilirsiniz.
+      </Text>
+    );
   }
 
   return (
@@ -62,30 +81,86 @@ export function IhaleGecmisiDetay({ veri }: Props) {
         </Text>
 
         {ihaleler.slice(0, 30).map((ihale) => (
-          <Paper key={`ihale-${ihale.tender_id || ihale.ihale_basligi || Math.random()}`} withBorder p="xs" radius="sm">
+          <Paper
+            key={`ihale-${ihale.tender_id || ihale.ihale_basligi || Math.random()}`}
+            withBorder
+            p="xs"
+            radius="sm"
+          >
             <Group justify="space-between" wrap="nowrap">
               <div style={{ flex: 1, minWidth: 0 }}>
                 <Text size="xs" fw={600} lineClamp={1}>
-                  {(ihale.ihale_basligi as string) || (ihale.ihale_adi as string) || 'İsimsiz İhale'}
+                  {(ihale.ihale_basligi as string) ||
+                    (ihale.ihale_adi as string) ||
+                    'İsimsiz İhale'}
                 </Text>
                 <Group gap={4} mt={2}>
-                  {ihale.kurum_adi && <Text size="xs" c="dimmed" lineClamp={1}>{ihale.kurum_adi as string}</Text>}
-                  {ihale.sehir && <Badge size="xs" variant="light" color="blue">{ihale.sehir as string}</Badge>}
-                  {ihale.rol && <Badge size="xs" variant="light" color={ihale.rol === 'yuklenici' ? 'green' : 'gray'}>{ihale.rol as string}</Badge>}
-                  {ihale.durum && <Badge size="xs" variant="light" color={ihale.durum === 'tamamlandi' ? 'teal' : ihale.durum === 'iptal' ? 'red' : 'blue'}>{ihale.durum as string}</Badge>}
+                  {!!ihale.kurum_adi && (
+                    <Text size="xs" c="dimmed" lineClamp={1}>
+                      {String(ihale.kurum_adi)}
+                    </Text>
+                  )}
+                  {!!ihale.sehir && (
+                    <Badge size="xs" variant="light" color="blue">
+                      {String(ihale.sehir)}
+                    </Badge>
+                  )}
+                  {!!ihale.rol && (
+                    <Badge
+                      size="xs"
+                      variant="light"
+                      color={ihale.rol === 'yuklenici' ? 'green' : 'gray'}
+                    >
+                      {String(ihale.rol)}
+                    </Badge>
+                  )}
+                  {!!ihale.durum && (
+                    <Badge
+                      size="xs"
+                      variant="light"
+                      color={
+                        ihale.durum === 'tamamlandi'
+                          ? 'teal'
+                          : ihale.durum === 'iptal'
+                            ? 'red'
+                            : 'blue'
+                      }
+                    >
+                      {String(ihale.durum)}
+                    </Badge>
+                  )}
                 </Group>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                {ihale.sozlesme_bedeli && (
-                  <Text size="xs" fw={600} c="orange">{formatCurrency(ihale.sozlesme_bedeli as number)}</Text>
+                {!!ihale.sozlesme_bedeli && (
+                  <Text size="xs" fw={600} c="orange">
+                    {String(formatCurrency(ihale.sozlesme_bedeli as number))}
+                  </Text>
                 )}
-                {ihale.indirim_orani && (
-                  <Text size="xs" c="teal">%{Number(ihale.indirim_orani).toFixed(1)} indirim</Text>
+                {!!ihale.yaklasik_maliyet && (
+                  <Text size="xs" c="dimmed">
+                    YM: {String(formatCurrency(ihale.yaklasik_maliyet as number))}
+                  </Text>
                 )}
-                {ihale.sozlesme_tarihi && (
-                  <Text size="xs" c="dimmed">{new Date(ihale.sozlesme_tarihi as string).toLocaleDateString('tr-TR')}</Text>
+                {!!ihale.indirim_orani && (
+                  <Text size="xs" c="teal">
+                    %{Number(ihale.indirim_orani).toFixed(1)} indirim
+                  </Text>
                 )}
-                {ihale.tender_id && (
+                {(!!ihale.toplam_teklif_sayisi || !!ihale.gecerli_teklif_sayisi) && (
+                  <Text size="xs" c="dimmed">
+                    {String(ihale.gecerli_teklif_sayisi || ihale.toplam_teklif_sayisi)} teklif
+                  </Text>
+                )}
+                {!!ihale.fesih_durumu && ihale.fesih_durumu !== 'yok' && (
+                  <Badge size="xs" variant="filled" color="red">Fesih: {String(ihale.fesih_durumu)}</Badge>
+                )}
+                {!!ihale.sozlesme_tarihi && (
+                  <Text size="xs" c="dimmed">
+                    {new Date(ihale.sozlesme_tarihi as string).toLocaleDateString('tr-TR')}
+                  </Text>
+                )}
+                {!!ihale.tender_id && (
                   <Button
                     size="compact-xs"
                     variant="subtle"
@@ -106,7 +181,9 @@ export function IhaleGecmisiDetay({ veri }: Props) {
         ))}
 
         {ihaleler.length > 30 && (
-          <Text size="xs" c="dimmed" ta="center">+{ihaleler.length - 30} daha...</Text>
+          <Text size="xs" c="dimmed" ta="center">
+            +{ihaleler.length - 30} daha...
+          </Text>
         )}
       </Stack>
 
@@ -126,33 +203,57 @@ export function IhaleGecmisiDetay({ veri }: Props) {
           <Center py="xl">
             <Stack align="center" gap="xs">
               <Loader size="md" />
-              <Text size="sm" c="dimmed">AI analiz yapıyor...</Text>
+              <Text size="sm" c="dimmed">
+                AI analiz yapıyor...
+              </Text>
             </Stack>
           </Center>
         ) : rakipAnaliz?.hata ? (
-          <Alert color="red" title="Hata">{String(rakipAnaliz.hata)}</Alert>
+          <Alert color="red" title="Hata">
+            {String(rakipAnaliz.hata)}
+          </Alert>
         ) : rakipAnaliz ? (
           <ScrollArea mah={500}>
             <Stack gap="sm">
-              {rakipAnaliz.katilimcilar && (
+              {!!rakipAnaliz.katilimcilar && (
                 <div>
-                  <Text size="sm" fw={600} mb="xs">Katılımcılar</Text>
+                  <Text size="sm" fw={600} mb="xs">
+                    Katılımcılar
+                  </Text>
                   {(rakipAnaliz.katilimcilar as Array<Record<string, unknown>>).map((k) => (
-                    <Paper key={`rk-${k.yuklenici_id || k.unvan}`} withBorder p="xs" mb={4} radius="sm">
+                    <Paper
+                      key={`rk-${k.yuklenici_id || k.unvan}`}
+                      withBorder
+                      p="xs"
+                      mb={4}
+                      radius="sm"
+                    >
                       <Group justify="space-between">
-                        <Text size="xs" fw={500}>{k.unvan as string}</Text>
+                        <Text size="xs" fw={500}>
+                          {k.unvan as string}
+                        </Text>
                         <Group gap={4}>
-                          {k.sozlesme_bedeli && <Text size="xs" c="orange">{formatCurrency(k.sozlesme_bedeli as number)}</Text>}
-                          {k.indirim_orani && <Text size="xs" c="teal">%{Number(k.indirim_orani).toFixed(1)}</Text>}
+                          {!!k.sozlesme_bedeli && (
+                            <Text size="xs" c="orange">
+                              {formatCurrency(k.sozlesme_bedeli as number)}
+                            </Text>
+                          )}
+                          {!!k.indirim_orani && (
+                            <Text size="xs" c="teal">
+                              %{Number(k.indirim_orani).toFixed(1)}
+                            </Text>
+                          )}
                         </Group>
                       </Group>
                     </Paper>
                   ))}
                 </div>
               )}
-              {rakipAnaliz.aiAnaliz && (
+              {!!rakipAnaliz.aiAnaliz && (
                 <div>
-                  <Text size="sm" fw={600} mb="xs">AI Değerlendirmesi</Text>
+                  <Text size="sm" fw={600} mb="xs">
+                    AI Değerlendirmesi
+                  </Text>
                   <Paper withBorder p="sm" radius="sm" bg="gray.0">
                     <Text size="xs" style={{ whiteSpace: 'pre-wrap' }}>
                       {String(rakipAnaliz.aiAnaliz)}
@@ -160,13 +261,17 @@ export function IhaleGecmisiDetay({ veri }: Props) {
                   </Paper>
                 </div>
               )}
-              {rakipAnaliz.bolgeselRakipler && (
+              {!!rakipAnaliz.bolgeselRakipler && (
                 <div>
-                  <Text size="sm" fw={600} mb="xs">Bölgesel Rakipler</Text>
+                  <Text size="sm" fw={600} mb="xs">
+                    Bölgesel Rakipler
+                  </Text>
                   {(rakipAnaliz.bolgeselRakipler as Array<Record<string, unknown>>).map((r) => (
                     <Group key={`br-${r.yuklenici_id || r.unvan}`} justify="space-between" mb={2}>
                       <Text size="xs">{r.unvan as string}</Text>
-                      <Badge size="xs" variant="light">{r.ihale_sayisi as number} ihale</Badge>
+                      <Badge size="xs" variant="light">
+                        {r.ihale_sayisi as number} ihale
+                      </Badge>
                     </Group>
                   ))}
                 </div>

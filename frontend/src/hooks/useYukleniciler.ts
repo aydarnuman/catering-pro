@@ -5,9 +5,15 @@
  * Tüm API çağrıları ve cache yönetimi
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getApiUrl } from '@/lib/config';
-import type { Yuklenici, StatsData, ScrapeStatus, YukleniciDetay, SortField } from '@/types/yuklenici';
+import type {
+  ScrapeStatus,
+  SortField,
+  StatsData,
+  Yuklenici,
+  YukleniciDetay,
+} from '@/types/yuklenici';
 
 // ─── Fetch Helper ───────────────────────────────────────────────
 

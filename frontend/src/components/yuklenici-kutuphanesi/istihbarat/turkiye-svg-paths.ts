@@ -118,5 +118,5 @@ export function normalizeIlAdi(ad: string): string {
  */
 export function bulIl(sehirAdi: string): IlNokta | undefined {
   const normalized = normalizeIlAdi(sehirAdi);
-  return TURKIYE_ILLERI.find(il => normalizeIlAdi(il.ad) === normalized);
+  return TURKIYE_ILLERI.find((il) => normalizeIlAdi(il.ad) === normalized);
 }

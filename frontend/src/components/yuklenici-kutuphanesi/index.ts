@@ -1,7 +1,7 @@
-export { DashboardStats } from './DashboardStats';
-export { ProfilModal } from './ProfilModal';
 export { AnalyzTabContent } from './AnalyzTabContent';
+export { DashboardStats } from './DashboardStats';
 export { IhaleGecmisiTab } from './IhaleGecmisiTab';
+export { BildirimListesi, IstihbaratMerkezi } from './istihbarat';
 export { RiskNotlarTab } from './RiskNotlarTab';
 export { StatMiniCard } from './StatMiniCard';
-export { IstihbaratMerkezi, BildirimListesi } from './istihbarat';
+export { YukleniciModal } from './YukleniciModal';

@@ -32,9 +32,30 @@ export interface Yuklenici {
   updated_at: string;
   bizim_db_ihale_sayisi?: number;
   aktif_ihale_sayisi?: number;
+  // Firma bilgileri (manuel giriş)
+  telefon?: string | null;
+  email?: string | null;
+  adres?: string | null;
+  yetkili_kisi?: string | null;
+  vergi_no?: string | null;
+  web_sitesi?: string | null;
+  sektor?: string | null;
+  firma_notu?: string | null;
   // Analiz sayfası verileri
   analiz_verisi?: AnalyzData | null;
   analiz_scraped_at?: string | null;
+}
+
+// ─── Yapışkan Not Tipi ──────────────────────────────────────────
+
+export interface YukleniciNot {
+  id: number;
+  yuklenici_id: number;
+  icerik: string;
+  renk: 'yellow' | 'blue' | 'green' | 'pink' | 'orange' | 'purple';
+  olusturan: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // ─── Analiz Verisi (ihalebul.com /analyze sayfasından) ──────────
@@ -224,7 +245,7 @@ export interface YukleniciKarsilastirma {
 
 // ─── İstihbarat Merkezi Tipleri ─────────────────────────────────
 
-/** Geçerli modül adları */
+/** Backend modül adları (scraper birimleri — 8 adet) */
 export type IstihbaratModulAdi =
   | 'ihale_gecmisi'
   | 'profil_analizi'
@@ -234,6 +255,14 @@ export type IstihbaratModulAdi =
   | 'sirket_bilgileri'
   | 'haberler'
   | 'ai_arastirma';
+
+/** Dock'ta gösterilen grup adları (5 adet) */
+export type DockGrupAdi =
+  | 'ihale_performansi'   // ihale_gecmisi + profil_analizi + katilimcilar
+  | 'hukuki_durum'        // kik_kararlari + kik_yasaklilar
+  | 'sirket_bilgileri'    // tekil
+  | 'haberler'            // tekil
+  | 'ai_arastirma';       // tekil
 
 /** Modül çalışma durumları */
 export type ModulDurum = 'bekliyor' | 'calisiyor' | 'tamamlandi' | 'hata';
@@ -248,15 +277,27 @@ export interface IstihbaratModul {
   updated_at: string | null;
 }
 
-/** Modül gösterim bilgileri (UI tarafı) */
+/** Dock grubu gösterim bilgileri (UI tarafı — 5 adet) */
+export interface DockGrupMeta {
+  ad: DockGrupAdi;
+  baslik: string;
+  aciklama: string;
+  ikon: string;
+  renk: string;
+  kaynak: string;
+  /** Bu grubun kapsadığı backend modül adları */
+  moduller: IstihbaratModulAdi[];
+}
+
+/** Modül gösterim bilgileri (UI tarafı) — geriye uyumluluk */
 export interface ModulMeta {
   ad: IstihbaratModulAdi;
-  baslik: string;      // Türkçe başlık
-  aciklama: string;    // Kısa açıklama
-  ikon: string;        // Tabler icon adı
-  renk: string;        // Mantine renk kodu
-  kaynak: string;      // Veri kaynağı (ihalebul.com, EKAP, Google vb.)
-  puppeteer: boolean;  // Puppeteer gerektiriyor mu
+  baslik: string;
+  aciklama: string;
+  ikon: string;
+  renk: string;
+  kaynak: string;
+  puppeteer: boolean;
 }
 
 /** KİK Yasaklı sorgu sonucu */
@@ -309,18 +350,29 @@ export interface HaberVeri {
   kaynak: string;
 }
 
-/** AI istihbarat raporu */
+/** AI istihbarat raporu (Opus 4.6 — İstihbarat Briefing) */
 export interface AiRaporVeri {
   rapor: {
-    genel_degerlendirme: string;
-    guclu_yonler: string[];
-    zayif_yonler: string[];
-    firsatlar: string[];
-    tehditler: string[];
-    rekabet_stratejisi: string;
-    fiyat_analizi: string;
-    tavsiyeler: string[];
-    risk_seviyesi: 'düşük' | 'orta' | 'yüksek';
+    // Yeni format (Opus 4.6)
+    ozet_profil?: string;
+    tehlike_seviyesi?: 'düşük' | 'orta' | 'yüksek' | 'çok yüksek';
+    tehlike_gerekce?: string;
+    faaliyet_alani?: string;
+    ihale_davranisi?: string;
+    risk_sinyalleri?: string;
+    rakip_agi?: string;
+    stratejik_tavsiyeler?: string[];
+    tam_metin?: string;
+    // Eski format (geriye uyumluluk)
+    genel_degerlendirme?: string;
+    guclu_yonler?: string[];
+    zayif_yonler?: string[];
+    firsatlar?: string[];
+    tehditler?: string[];
+    rekabet_stratejisi?: string;
+    fiyat_analizi?: string;
+    tavsiyeler?: string[];
+    risk_seviyesi?: 'düşük' | 'orta' | 'yüksek';
   };
   ham_metin: string;
   olusturulma_tarihi: string;
