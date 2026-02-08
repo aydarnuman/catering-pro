@@ -50,9 +50,7 @@ export async function batchScrapeParticipants(page, tenders, options = {}) {
     try {
       // document_links'ten participants URL'sini al
       const docLinks =
-        typeof tender.document_links === 'string'
-          ? JSON.parse(tender.document_links)
-          : tender.document_links;
+        typeof tender.document_links === 'string' ? JSON.parse(tender.document_links) : tender.document_links;
 
       const participantsUrl = docLinks?.probable_participants?.url;
       if (!participantsUrl) {
@@ -127,9 +125,7 @@ async function extractParticipants(page) {
 
           // Sıra numarası varsa firma adı 2. hücrede, yoksa 1. hücrede
           const sira = isFirstCellIndex ? parseInt(firstCellText, 10) : rowIndex + 1;
-          const firmaAdi = isFirstCellIndex && cells.length >= 2
-            ? cells[1]?.textContent.trim()
-            : firstCellText;
+          const firmaAdi = isFirstCellIndex && cells.length >= 2 ? cells[1]?.textContent.trim() : firstCellText;
 
           if (!firmaAdi || firmaAdi.includes('***') || firmaAdi.length < 3) return;
 
@@ -159,7 +155,10 @@ async function extractParticipants(page) {
 
         // Liste öğesinden (tablo değilse)
         // Satırdaki ilk anlamlı metin firma adı
-        const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+        const lines = text
+          .split('\n')
+          .map((l) => l.trim())
+          .filter(Boolean);
         if (lines.length > 0) {
           const firmaAdi = lines[0].replace(/\s+/g, ' ').trim();
           if (firmaAdi.length >= 5 && !firmaAdi.includes('***')) {

@@ -395,8 +395,14 @@ async function extractTendersFromPage(page) {
 
         // Şehir
         const nonLocationTexts = [
-          'Ekap', 'Gazete', 'İstihbarat', 'Özel Sektör',
-          'Açık ihale', 'Belli istekliler', 'Pazarlık', 'Doğrudan',
+          'Ekap',
+          'Gazete',
+          'İstihbarat',
+          'Özel Sektör',
+          'Açık ihale',
+          'Belli istekliler',
+          'Pazarlık',
+          'Doğrudan',
         ];
         const locationDivs = Array.from(card.querySelectorAll('.text-dark-emphasis.fw-medium.text-nowrap'))
           .map((d) => d.textContent.trim())
@@ -405,9 +411,7 @@ async function extractTendersFromPage(page) {
 
         // Sözleşme bedeli
         const bedelMatch = text.match(/Sözleşme bedeli:\s*₺?([\d.,]+)/i);
-        const sozlesmeBedeli = bedelMatch
-          ? parseFloat(bedelMatch[1].replace(/\./g, '').replace(',', '.'))
-          : null;
+        const sozlesmeBedeli = bedelMatch ? parseFloat(bedelMatch[1].replace(/\./g, '').replace(',', '.')) : null;
 
         // İndirim oranı
         const indirimMatch = text.match(/%\s*([\d.,]+)/);
@@ -421,7 +425,8 @@ async function extractTendersFromPage(page) {
         const tamamlandi = text.includes('Tamamlandı');
 
         // Devam ediyor mu?
-        const devamEdiyor = text.includes('Devam Ediyor') || text.includes('Sözleşme Devam') || text.includes('İş Devam');
+        const devamEdiyor =
+          text.includes('Devam Ediyor') || text.includes('Sözleşme Devam') || text.includes('İş Devam');
 
         // İptal mi?
         const iptalEdildi = text.includes('İptal') || text.includes('İptal Edildi');
@@ -505,7 +510,7 @@ async function saveTenderHistory(yukleniciId, tender, rol = 'yuklenici') {
   if (tender.tamamlandi) durum = 'tamamlandi';
   if (tender.iptalEdildi) durum = 'iptal';
   if (tender.fesih && tender.fesih.toLowerCase() !== 'yok') durum = 'iptal';
-  
+
   // Sözleşme bedeli varsa ama ne tamamlanmış ne devam eden olarak işaretlenmemişse:
   // büyük ihtimalle tamamlanmıştır (ihalebul'da bazı kartlarda durum text'i yok olabiliyor)
   if (durum === 'bilinmiyor' && tender.sozlesmeBedeli) {
@@ -513,21 +518,21 @@ async function saveTenderHistory(yukleniciId, tender, rol = 'yuklenici') {
   }
 
   const params = [
-    yukleniciId,       // $1
-    tenderId,          // $2
-    tender.baslik,     // $3
-    tender.kurum,      // $4
-    tender.sehir,      // $5
+    yukleniciId, // $1
+    tenderId, // $2
+    tender.baslik, // $3
+    tender.kurum, // $4
+    tender.sehir, // $5
     tender.sozlesmeBedeli, // $6
-    sozlesmeTarihi,    // $7
-    tender.indirimOrani,   // $8
-    durum,             // $9
-    tender.fesih || null,  // $10
-    tender.ikn,        // $11
-    rol,               // $12
+    sozlesmeTarihi, // $7
+    tender.indirimOrani, // $8
+    durum, // $9
+    tender.fesih || null, // $10
+    tender.ikn, // $11
+    rol, // $12
     tender.yaklasikMaliyet || null, // $13
-    isBaslangic,       // $14
-    isBitis,           // $15
+    isBaslangic, // $14
+    isBitis, // $15
   ];
 
   if (tenderId) {
@@ -590,10 +595,18 @@ async function saveTenderHistory(yukleniciId, tender, rol = 'yuklenici') {
           is_bitis = COALESCE($12, is_bitis)
         WHERE id = $13`,
         [
-          tender.baslik, tender.kurum, tender.sehir,
-          tender.sozlesmeBedeli, sozlesmeTarihi, tender.indirimOrani,
-          durum, tender.fesih || null, tender.ikn,
-          tender.yaklasikMaliyet || null, isBaslangic, isBitis,
+          tender.baslik,
+          tender.kurum,
+          tender.sehir,
+          tender.sozlesmeBedeli,
+          sozlesmeTarihi,
+          tender.indirimOrani,
+          durum,
+          tender.fesih || null,
+          tender.ikn,
+          tender.yaklasikMaliyet || null,
+          isBaslangic,
+          isBitis,
           existing.id,
         ]
       );

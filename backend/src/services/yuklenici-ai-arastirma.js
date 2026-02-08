@@ -1,59 +1,42 @@
 /**
  * Yüklenici AI İstihbarat Raporu Servisi
  * ────────────────────────────────────────
- * Bir yüklenicinin tüm mevcut verilerini (ihale geçmişi, analiz, katılımcılar,
- * KİK kararları) toplayarak Claude AI'dan kapsamlı bir istihbarat raporu oluşturur.
+ * Claude Opus 4.6 ile kapsamlı firma istihbarat raporu üretir.
  *
- * Bu modül:
- *   - Veritabanından yüklenici verilerini toplar
- *   - Verileri yapılandırılmış bir prompt'a dönüştürür
- *   - Claude AI'dan detaylı analiz raporu ister
- *   - Sonucu yapılandırılmış JSON olarak döner
+ * Diğer tüm istihbarat modüllerinin çıktılarını (ihale geçmişi, haberler,
+ * KİK yasaklılar, şirket bilgileri, profil analizi, katılımcılar) birleştirerek
+ * tek bir derinlemesine istihbarat değerlendirmesi oluşturur.
  *
- * Dönen veri formatı:
- * {
- *   rapor: {
- *     genel_degerlendirme: string,
- *     guclü_yonler: string[],
- *     zayif_yonler: string[],
- *     firsatlar: string[],
- *     tehditler: string[],
- *     rekabet_stratejisi: string,
- *     fiyat_analizi: string,
- *     tavsiyeler: string[],
- *     risk_seviyesi: "düşük" | "orta" | "yüksek"
- *   },
- *   olusturulma_tarihi: ISO string,
- *   model: string,
- *   veri_kaynagi_ozeti: { ... }
- * }
+ * Kullanım senaryosu:
+ *   "Bu firma ile aynı ihaleye giriyoruz. Ne bilmeliyiz?"
  */
 
 import Anthropic from '@anthropic-ai/sdk';
 import { query } from '../database.js';
-import logger from '../utils/logger.js';
+import { logAPI, logError } from '../utils/logger.js';
 
 const MODULE_NAME = 'AI-Istihbarat';
+const MODEL = 'claude-opus-4-6';
 
-// AI istemcisi (Claude)
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
 /**
  * Yüklenici istihbarat raporu oluşturur.
- * @param {number} yukleniciId - Yüklenici ID
- * @returns {Object} AI tarafından oluşturulan istihbarat raporu
+ * Tüm modül verilerini toplayıp Opus 4.6'ya gönderir.
  */
 export async function generateIstihbaratRaporu(yukleniciId) {
   const startTime = Date.now();
-  logger.logAPI(MODULE_NAME, { yukleniciId, action: 'rapor_olustur' });
+  logAPI(MODULE_NAME, 'rapor_olustur', { yukleniciId, model: MODEL });
 
   try {
-    // ─── 1. Verileri topla ───────────────────────────────────────
+    // ─── 1. Tüm verileri topla ─────────────────────────────────
 
     // Yüklenici temel bilgileri
-    const { rows: [yuklenici] } = await query(
+    const {
+      rows: [yuklenici],
+    } = await query(
       `SELECT id, unvan, kisa_ad, katildigi_ihale_sayisi, kazanma_orani,
               toplam_sozlesme_bedeli, ortalama_indirim_orani, aktif_sehirler,
               fesih_sayisi, kik_sikayet_sayisi, risk_notu, analiz_verisi,
@@ -66,8 +49,8 @@ export async function generateIstihbaratRaporu(yukleniciId) {
 
     // Son 50 ihalesi
     const { rows: ihaleler } = await query(
-      `SELECT ihale_adi, idare, sehir, durum, rol, sozlesme_bedeli,
-              indirim_orani, sozlesme_tarihi
+      `SELECT ihale_basligi AS ihale_adi, kurum_adi AS idare, sehir, durum, rol,
+              sozlesme_bedeli, indirim_orani, sozlesme_tarihi
        FROM yuklenici_ihaleleri
        WHERE yuklenici_id = $1
        ORDER BY sozlesme_tarihi DESC NULLS LAST
@@ -75,7 +58,7 @@ export async function generateIstihbaratRaporu(yukleniciId) {
       [yukleniciId]
     );
 
-    // Katılımcı verisi (hangi firmayla sık karşılaşıyor)
+    // Rakipler (ortak ihale sayısına göre)
     const { rows: rakipler } = await query(
       `SELECT y.unvan, COUNT(*) as ortak_ihale_sayisi
        FROM yuklenici_ihaleleri yi1
@@ -91,194 +74,327 @@ export async function generateIstihbaratRaporu(yukleniciId) {
 
     // KIK kararları
     const { rows: kikKararlar } = await query(
-      `SELECT ihale_adi, durum, created_at
+      `SELECT ihale_basligi AS ihale_adi, durum, created_at
        FROM yuklenici_ihaleleri
        WHERE yuklenici_id = $1 AND rol = 'kik_karari'
-       ORDER BY created_at DESC LIMIT 10`,
+       ORDER BY created_at DESC LIMIT 20`,
       [yukleniciId]
     );
 
-    // ─── 2. AI Prompt oluştur ────────────────────────────────────
+    // ─── 2. Diğer modüllerin verilerini çek ───────────────────
 
-    const veriOzeti = {
-      ihaleSayisi: ihaleler.length,
-      rakipSayisi: rakipler.length,
-      kikKararSayisi: kikKararlar.length,
-      analizMevcut: !!yuklenici.analiz_verisi,
-    };
+    const { rows: modulVerileri } = await query(
+      `SELECT modul, veri, hata_mesaji, durum
+       FROM yuklenici_istihbarat
+       WHERE yuklenici_id = $1 AND durum = 'tamamlandi' AND veri IS NOT NULL`,
+      [yukleniciId]
+    );
 
-    const prompt = buildPrompt(yuklenici, ihaleler, rakipler, kikKararlar);
+    const modulMap = {};
+    for (const m of modulVerileri) {
+      modulMap[m.modul] = m.veri;
+    }
 
-    // ─── 3. Claude AI'dan rapor iste ─────────────────────────────
+    // ─── 3. İstihbarat prompt'unu oluştur ─────────────────────
+
+    const prompt = buildPrompt(yuklenici, ihaleler, rakipler, kikKararlar, modulMap);
+
+    // ─── 4. Claude Opus 4.6'dan rapor iste ────────────────────
 
     const response = await client.messages.create({
-      model: 'claude-3-haiku-20240307',
-      max_tokens: 4096,
+      model: MODEL,
+      max_tokens: 8192,
       messages: [{ role: 'user', content: prompt }],
     });
 
     const aiText = response.content[0]?.text || '';
 
-    // ─── 4. Yanıtı yapılandır ───────────────────────────────────
+    // ─── 5. Sonucu yapılandır ─────────────────────────────────
 
     const rapor = parseAiResponse(aiText);
 
     const result = {
       rapor,
-      ham_metin: aiText, // Debug ve UI gösterimi için
+      ham_metin: aiText,
       olusturulma_tarihi: new Date().toISOString(),
-      model: 'claude-3-haiku-20240307',
+      model: MODEL,
       sure_ms: Date.now() - startTime,
-      veri_kaynagi_ozeti: veriOzeti,
+      veri_kaynagi_ozeti: {
+        ihaleSayisi: ihaleler.length,
+        rakipSayisi: rakipler.length,
+        kikKararSayisi: kikKararlar.length,
+        modulVerisi: Object.keys(modulMap),
+      },
     };
 
-    logger.logAPI(MODULE_NAME, { yukleniciId, basarili: true, sure_ms: result.sure_ms });
+    logAPI(MODULE_NAME, 'rapor_tamamlandi', {
+      yukleniciId,
+      basarili: true,
+      sure_ms: result.sure_ms,
+      model: MODEL,
+    });
     return result;
   } catch (error) {
-    logger.logError(MODULE_NAME, error);
+    logError(MODULE_NAME, error);
     throw error;
   }
 }
 
-/**
- * AI prompt'unu oluşturur.
- * Tüm veriyi okunabilir şekilde yapılandırır.
- */
-function buildPrompt(yuklenici, ihaleler, rakipler, kikKararlar) {
-  const formatBedel = (val) => {
-    if (!val) return 'Bilinmiyor';
-    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(val);
+// ═══════════════════════════════════════════════════════════════
+// Prompt Builder
+// ═══════════════════════════════════════════════════════════════
+
+function buildPrompt(yuklenici, ihaleler, rakipler, kikKararlar, modulMap) {
+  const fmt = (val) => {
+    if (!val) return '-';
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'TRY',
+      maximumFractionDigits: 0,
+    }).format(val);
   };
 
-  let prompt = `Sen bir kamu ihale istihbarat uzmanısın. Aşağıdaki verileri analiz ederek kapsamlı bir yüklenici istihbarat raporu hazırla.
+  // ── Sistem talimatı ──
+  let prompt = `Sen bir kamu ihale istihbarat analistisin. Yemek/catering sektöründe faaliyet gösteren bir firmanın rakip analizini yapıyorsun.
 
-RAPORU TÜRKÇE OLARAK VE AŞAĞIDAKİ BÖLÜMLERLE OLUŞTUR:
+GÖREV: Aşağıdaki ham verileri analiz ederek, bu firmayla AYNI İHALEYE GİRECEK bir catering şirketinin karar vericisine sunulacak kısa ve vurucu bir İSTİHBARAT BRİFİNGİ hazırla.
 
-1. GENEL DEĞERLENDİRME (2-3 paragraf)
-2. GÜÇLÜ YÖNLER (madde madde)
-3. ZAYIF YÖNLER (madde madde)
-4. FIRSATLAR (madde madde)
-5. TEHDİTLER (madde madde)
-6. REKABET STRATEJİSİ (1-2 paragraf)
-7. FİYAT ANALİZİ (indirim oranları ve teklif davranışı)
-8. TAVSİYELER (bu firmayla rekabet etmek için öneriler)
-9. RİSK SEVİYESİ (düşük/orta/yüksek ve nedeni)
+ÖNEMLİ KURALLAR:
+- Bu bir SWOT analizi DEĞİL. Bu bir istihbarat dosyasıdır.
+- Genel/jenerik ifadeler YASAK. Sadece verideki somut rakamları ve bulguları kullan.
+- Her tespitin yanına kaynak veriyi belirt (örn: "23 fesih — sektör ortalamasının 4 katı").
+- Firmanın gerçek davranış kalıplarını ortaya koy: nerede agresif, nerede zayıf?
+- Raporu okuyan kişi 2 dakikada firmanın profilini kavrayabilmeli.
 
-═══ FİRMA BİLGİLERİ ═══
-Ünvan: ${yuklenici.unvan}
-Katıldığı İhale Sayısı: ${yuklenici.katildigi_ihale_sayisi || 'Bilinmiyor'}
-Kazanma Oranı: ${yuklenici.kazanma_orani ? `%${yuklenici.kazanma_orani}` : 'Bilinmiyor'}
-Toplam Sözleşme Bedeli: ${formatBedel(yuklenici.toplam_sozlesme_bedeli)}
-Ortalama İndirim Oranı: ${yuklenici.ortalama_indirim_orani ? `%${yuklenici.ortalama_indirim_orani}` : 'Bilinmiyor'}
-Aktif Şehirler: ${JSON.stringify(yuklenici.aktif_sehirler || [])}
-Fesih Sayısı: ${yuklenici.fesih_sayisi || 0}
-KİK Şikayet Sayısı: ${yuklenici.kik_sikayet_sayisi || 0}
-Son İhale Tarihi: ${yuklenici.son_ihale_tarihi || 'Bilinmiyor'}
-Etiketler: ${(yuklenici.etiketler || []).join(', ') || 'Yok'}
-Risk Notu: ${yuklenici.risk_notu || 'Belirtilmemiş'}`;
+RAPOR FORMATI (bu başlıkları kullan):
 
-  // İhale geçmişi
+## ÖZET PROFIL
+(1-2 cümle: Firma kim, ne yapıyor, ne kadar büyük)
+
+## TEHLİKE SEVİYESİ: [DÜŞÜK / ORTA / YÜKSEK / ÇOK YÜKSEK]
+(1 cümle gerekçe)
+
+## FAALİYET ALANI
+- Aktif olduğu şehirler ve bölgeler
+- Uzmanlaştığı ihale türleri
+- İş hacmi ve büyüme trendi
+
+## İHALE DAVRANIŞI
+- Ortalama indirim oranı ve fiyatlama stratejisi
+- Kazanma oranı ve başarı kalıbı
+- En çok hangi kurumlara/şehirlere teklif veriyor
+- Agresif mi, muhafazakar mı?
+
+## RİSK SİNYALLERİ
+- Fesih geçmişi (sayı + yorum)
+- KİK şikayetleri ve kararlar
+- Yasaklı durumu
+- Haberlerdeki olumsuz bilgiler (varsa)
+- Şirket kayıt durumu (MERSİS / Ticaret Sicil)
+
+## RAKİP AĞIR
+- En sık karşılaşılan rakipleri
+- Hangi firmalara karşı kazanıyor/kaybediyor
+
+## STRATEJİK TAVSİYELER
+(Bu firmayla aynı ihaleye girerken dikkat edilecek 3-5 somut öneri)
+`;
+
+  // ── Firma bilgileri ──
+  prompt += `
+═══════════════════════════════════════
+FİRMA: ${yuklenici.unvan}
+${yuklenici.kisa_ad ? `Kısa Ad: ${yuklenici.kisa_ad}` : ''}
+═══════════════════════════════════════
+
+İHALE İSTATİSTİKLERİ:
+  Katıldığı ihale: ${yuklenici.katildigi_ihale_sayisi || '?'}
+  Kazanma oranı: ${yuklenici.kazanma_orani ? `%${yuklenici.kazanma_orani}` : '?'}
+  Toplam sözleşme: ${fmt(yuklenici.toplam_sozlesme_bedeli)}
+  Ort. indirim: ${yuklenici.ortalama_indirim_orani ? `%${yuklenici.ortalama_indirim_orani}` : '?'}
+  Son ihale: ${yuklenici.son_ihale_tarihi || '?'}
+
+RİSK GÖSTERGELERİ:
+  Fesih sayısı: ${yuklenici.fesih_sayisi || 0}
+  KİK şikayet: ${yuklenici.kik_sikayet_sayisi || 0}
+  Risk notu: ${yuklenici.risk_notu || 'belirtilmemiş'}
+
+COĞRAFİ DAĞILIM:
+  ${JSON.stringify(yuklenici.aktif_sehirler || [], null, 0)}
+
+ETİKETLER: ${(yuklenici.etiketler || []).join(', ') || '-'}
+`;
+
+  // ── İhale geçmişi ──
   if (ihaleler.length > 0) {
-    prompt += `\n\n═══ SON İHALELER (${ihaleler.length} adet) ═══\n`;
-    for (const ih of ihaleler.slice(0, 20)) {
-      prompt += `- ${ih.ihale_adi || 'İsimsiz'} | ${ih.idare || ''} | ${ih.sehir || ''} | ${ih.durum || ''} | ${ih.rol} | İndirim: ${ih.indirim_orani ? `%${ih.indirim_orani}` : '-'} | Bedel: ${formatBedel(ih.sozlesme_bedeli)} | Tarih: ${ih.sozlesme_tarihi || '-'}\n`;
+    prompt += `\n═══ SON İHALELER (${ihaleler.length} adet) ═══\n`;
+    for (const ih of ihaleler.slice(0, 25)) {
+      const parts = [
+        ih.ihale_adi || '?',
+        ih.idare || '',
+        ih.sehir || '',
+        ih.durum || '',
+        ih.rol,
+        ih.indirim_orani ? `indirim:%${ih.indirim_orani}` : '',
+        ih.sozlesme_bedeli ? `bedel:${fmt(ih.sozlesme_bedeli)}` : '',
+        ih.sozlesme_tarihi || '',
+      ].filter(Boolean);
+      prompt += `• ${parts.join(' | ')}\n`;
     }
   }
 
-  // Rakipler
+  // ── Rakipler ──
   if (rakipler.length > 0) {
     prompt += `\n═══ EN SIK KARŞILAŞILAN RAKİPLER ═══\n`;
     for (const r of rakipler) {
-      prompt += `- ${r.unvan}: ${r.ortak_ihale_sayisi} ortak ihale\n`;
+      prompt += `• ${r.unvan}: ${r.ortak_ihale_sayisi} ortak ihale\n`;
     }
   }
 
-  // KİK kararları
+  // ── KİK kararları ──
   if (kikKararlar.length > 0) {
     prompt += `\n═══ KİK KARARLARI (${kikKararlar.length} adet) ═══\n`;
     for (const k of kikKararlar) {
-      prompt += `- ${k.ihale_adi || 'İsimsiz'} | Durum: ${k.durum || '-'}\n`;
+      prompt += `• ${k.ihale_adi || '?'} | ${k.durum || '-'}\n`;
     }
   }
 
-  // Analiz verisi
+  // ── Diğer modül verileri ──
+
+  // Haberler
+  if (modulMap.haberler) {
+    const haberler = modulMap.haberler;
+    if (haberler.haberler && haberler.haberler.length > 0) {
+      prompt += `\n═══ BASINDA ÇIKAN HABERLER (${haberler.toplam || haberler.haberler.length} adet) ═══\n`;
+      for (const h of haberler.haberler.slice(0, 10)) {
+        prompt += `• [${h.tarih_okunur || '?'}] ${h.baslik} (${h.kaynak || '?'})\n`;
+      }
+    }
+  }
+
+  // KİK Yasaklılar
+  if (modulMap.kik_yasaklilar) {
+    const yas = modulMap.kik_yasaklilar;
+    prompt += `\n═══ KİK YASAKLI DURUMU ═══\n`;
+    prompt += `Yasaklı mı: ${yas.yasakli_mi ? 'EVET ⚠️' : 'Hayır'}\n`;
+    if (yas.sonuclar && yas.sonuclar.length > 0) {
+      for (const s of yas.sonuclar) {
+        prompt += `• ${JSON.stringify(s)}\n`;
+      }
+    }
+  }
+
+  // Şirket bilgileri
+  if (modulMap.sirket_bilgileri) {
+    const sb = modulMap.sirket_bilgileri;
+    prompt += `\n═══ ŞİRKET KAYIT BİLGİLERİ ═══\n`;
+    if (sb.mersis) {
+      prompt += `MERSİS: ${sb.mersis.basarili ? 'Kayıt bulundu' : 'Kayıt bulunamadı / Erişim hatası'}\n`;
+      if (sb.mersis.bilgiler) prompt += `  ${JSON.stringify(sb.mersis.bilgiler)}\n`;
+    }
+    if (sb.ticaret_sicil) {
+      prompt += `Ticaret Sicil: ${sb.ticaret_sicil.basarili ? 'Kayıt bulundu' : 'Erişim hatası'}\n`;
+      if (sb.ticaret_sicil.ilanlar?.length > 0) {
+        for (const ilan of sb.ticaret_sicil.ilanlar.slice(0, 5)) {
+          prompt += `  • ${JSON.stringify(ilan)}\n`;
+        }
+      }
+    }
+  }
+
+  // Profil analizi
+  if (modulMap.profil_analizi) {
+    const profil = modulMap.profil_analizi;
+    if (profil.bolum_sayisi) {
+      prompt += `\n═══ İHALEBUL.COM PROFİL ANALİZİ ═══\n`;
+      prompt += `${profil.bolum_sayisi} bölüm veri mevcut\n`;
+    }
+  }
+
+  // ihalebul.com analiz verisi (yukleniciler tablosundan)
   if (yuklenici.analiz_verisi?.ozet) {
-    prompt += `\n═══ İHALEBUL.COM ANALİZ ÖZETİ ═══\n`;
+    prompt += `\n═══ İHALEBUL.COM İSTATİSTİK ÖZETİ ═══\n`;
     prompt += JSON.stringify(yuklenici.analiz_verisi.ozet, null, 2);
   }
 
   return prompt;
 }
 
-/**
- * AI yanıtını yapılandırılmış nesneye dönüştürür.
- * Bölüm başlıklarını arayarak parse eder.
- */
+// ═══════════════════════════════════════════════════════════════
+// Response Parser
+// ═══════════════════════════════════════════════════════════════
+
 function parseAiResponse(text) {
   const rapor = {
-    genel_degerlendirme: '',
-    guclu_yonler: [],
-    zayif_yonler: [],
-    firsatlar: [],
-    tehditler: [],
-    rekabet_stratejisi: '',
-    fiyat_analizi: '',
-    tavsiyeler: [],
-    risk_seviyesi: 'orta', // varsayılan
+    ozet_profil: '',
+    tehlike_seviyesi: 'orta',
+    tehlike_gerekce: '',
+    faaliyet_alani: '',
+    ihale_davranisi: '',
+    risk_sinyalleri: '',
+    rakip_agi: '',
+    stratejik_tavsiyeler: [],
+    tam_metin: text,
   };
 
   try {
-    // Bölümleri regex ile ayır
-    const sections = text.split(/\d+\.\s+/);
+    // ## veya # başlıklarıyla bölümlere ayır (--- ayırıcıları da temizle)
+    const sections = text.split(/^#{1,3}\s+/m).filter(Boolean);
 
     for (const section of sections) {
-      const lower = section.toLowerCase();
+      const firstLine = section.split('\n')[0].trim();
+      const lower = firstLine.toLowerCase().replace(/[*_#`]/g, '');
+      // Başlık satırını kaldırarak içeriği al, --- ayırıcılarını da temizle
+      const content = section
+        .replace(/^[^\n]*\n/, '')
+        .replace(/^---+\s*/gm, '')
+        .trim();
 
-      if (lower.includes('genel değerlendirme') || lower.includes('genel degerlendirme')) {
-        rapor.genel_degerlendirme = cleanSection(section);
-      } else if (lower.includes('güçlü') || lower.includes('guclu')) {
-        rapor.guclu_yonler = extractBullets(section);
-      } else if (lower.includes('zayıf') || lower.includes('zayif')) {
-        rapor.zayif_yonler = extractBullets(section);
-      } else if (lower.includes('fırsat') || lower.includes('firsat')) {
-        rapor.firsatlar = extractBullets(section);
-      } else if (lower.includes('tehdit')) {
-        rapor.tehditler = extractBullets(section);
-      } else if (lower.includes('rekabet')) {
-        rapor.rekabet_stratejisi = cleanSection(section);
-      } else if (lower.includes('fiyat')) {
-        rapor.fiyat_analizi = cleanSection(section);
-      } else if (lower.includes('tavsiye') || lower.includes('öneri')) {
-        rapor.tavsiyeler = extractBullets(section);
-      } else if (lower.includes('risk')) {
-        rapor.risk_seviyesi = extractRiskLevel(section);
+      if (lower.includes('özet profil') || lower.includes('ozet profil')) {
+        rapor.ozet_profil = content;
+      } else if (lower.includes('tehlike')) {
+        if (lower.includes('çok yüksek') || lower.includes('cok yuksek')) {
+          rapor.tehlike_seviyesi = 'çok yüksek';
+        } else if (lower.includes('yüksek') || lower.includes('yuksek')) {
+          rapor.tehlike_seviyesi = 'yüksek';
+        } else if (lower.includes('düşük') || lower.includes('dusuk')) {
+          rapor.tehlike_seviyesi = 'düşük';
+        } else {
+          rapor.tehlike_seviyesi = 'orta';
+        }
+        rapor.tehlike_gerekce = content;
+      } else if (lower.includes('faaliyet')) {
+        rapor.faaliyet_alani = content;
+      } else if (lower.includes('ihale davranı') || lower.includes('ihale davranis')) {
+        rapor.ihale_davranisi = content;
+      } else if (lower.includes('risk sinyal') || lower.includes('risk gösterge')) {
+        rapor.risk_sinyalleri = content;
+      } else if (lower.includes('rakip') || lower.includes('rekabet')) {
+        rapor.rakip_agi = content;
+      } else if (lower.includes('stratejik') || lower.includes('tavsiye') || lower.includes('öneri')) {
+        rapor.stratejik_tavsiyeler = extractBullets(content);
+        // Tavsiye alanında metin de olabilir
+        if (rapor.stratejik_tavsiyeler.length === 0 && content.length > 0) {
+          rapor.stratejik_tavsiyeler = [content];
+        }
       }
     }
   } catch {
-    // Parse hatası olursa ham metni genel değerlendirme olarak kullan
-    rapor.genel_degerlendirme = text;
+    rapor.ozet_profil = text;
   }
 
   return rapor;
 }
 
-function cleanSection(text) {
-  return text
-    .replace(/^[^:]*:\s*/m, '') // Başlık satırını temizle
-    .trim();
-}
-
 function extractBullets(text) {
-  const lines = text.split('\n');
-  return lines
-    .filter(l => l.trim().startsWith('-') || l.trim().startsWith('•') || l.trim().match(/^\d+\./))
-    .map(l => l.replace(/^[-•]\s*/, '').replace(/^\d+\.\s*/, '').trim())
-    .filter(l => l.length > 0);
-}
-
-function extractRiskLevel(text) {
-  const lower = text.toLowerCase();
-  if (lower.includes('yüksek') || lower.includes('yuksek')) return 'yüksek';
-  if (lower.includes('düşük') || lower.includes('dusuk')) return 'düşük';
-  return 'orta';
+  return text
+    .split('\n')
+    .filter((l) => l.trim().match(/^[-•*\d]/))
+    .map((l) =>
+      l
+        .replace(/^[-•*]\s*/, '')
+        .replace(/^\d+[.)]\s*/, '')
+        .trim()
+    )
+    .filter((l) => l.length > 0);
 }

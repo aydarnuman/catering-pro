@@ -43,8 +43,9 @@ export async function araHaberler(firmaAdi, options = {}) {
     // RSS feed'i çek
     const response = await fetch(rssUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        'Accept': 'application/rss+xml, application/xml, text/xml',
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        Accept: 'application/rss+xml, application/xml, text/xml',
         'Accept-Language': 'tr-TR,tr;q=0.9',
       },
       signal: AbortSignal.timeout(15000), // 15 saniye timeout
@@ -88,9 +89,9 @@ function parseRssItems(xml, maxSonuc) {
 
   // <item> bloklarını bul
   const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-  let match;
+  let match = itemRegex.exec(xml);
 
-  while ((match = itemRegex.exec(xml)) !== null && haberler.length < maxSonuc) {
+  while (match !== null && haberler.length < maxSonuc) {
     const itemXml = match[1];
 
     const baslik = extractTag(itemXml, 'title');
@@ -99,21 +100,26 @@ function parseRssItems(xml, maxSonuc) {
     const description = extractTag(itemXml, 'description');
     const source = extractTag(itemXml, 'source');
 
-    if (!baslik) continue;
+    if (baslik) {
+      // HTML etiketlerini temizle
+      const temizOzet = description
+        ? description
+            .replace(/<[^>]*>/g, '')
+            .trim()
+            .substring(0, 300)
+        : '';
 
-    // HTML etiketlerini temizle
-    const temizOzet = description
-      ? description.replace(/<[^>]*>/g, '').trim().substring(0, 300)
-      : '';
+      haberler.push({
+        baslik: decodeHtmlEntities(baslik),
+        link: link || '',
+        tarih: pubDate ? new Date(pubDate).toISOString() : null,
+        tarih_okunur: pubDate ? formatTarih(pubDate) : '',
+        kaynak: source ? decodeHtmlEntities(source) : '',
+        ozet: decodeHtmlEntities(temizOzet),
+      });
+    }
 
-    haberler.push({
-      baslik: decodeHtmlEntities(baslik),
-      link: link || '',
-      tarih: pubDate ? new Date(pubDate).toISOString() : null,
-      tarih_okunur: pubDate ? formatTarih(pubDate) : '',
-      kaynak: source ? decodeHtmlEntities(source) : '',
-      ozet: decodeHtmlEntities(temizOzet),
-    });
+    match = itemRegex.exec(xml);
   }
 
   return haberler;

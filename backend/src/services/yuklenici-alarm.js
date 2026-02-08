@@ -36,7 +36,9 @@ export async function checkAlarms(yukleniciId, eskiVeri = null, yeniVeri = null)
   try {
     // Eğer eski veri verilmemişse, DB'deki son durumu çek
     if (!eskiVeri) {
-      const { rows: [yk] } = await query(
+      const {
+        rows: [yk],
+      } = await query(
         `SELECT katildigi_ihale_sayisi, kazanma_orani, ortalama_indirim_orani,
                 aktif_sehirler, fesih_sayisi, kik_sikayet_sayisi, toplam_sozlesme_bedeli
          FROM yukleniciler WHERE id = $1`,
@@ -64,7 +66,7 @@ export async function checkAlarms(yukleniciId, eskiVeri = null, yeniVeri = null)
     // ─── Yeni Şehir ─────────────────────────────────────────────
     const eskiSehirler = new Set(eskiVeri.aktif_sehirler || []);
     const yeniSehirler = yeniVeri.aktif_sehirler || [];
-    const yeniEklenenSehirler = yeniSehirler.filter(s => !eskiSehirler.has(s));
+    const yeniEklenenSehirler = yeniSehirler.filter((s) => !eskiSehirler.has(s));
 
     if (yeniEklenenSehirler.length > 0) {
       bildirimler.push({
@@ -130,7 +132,7 @@ export async function checkAlarms(yukleniciId, eskiVeri = null, yeniVeri = null)
       logAPI(MODULE_NAME, {
         yukleniciId,
         bildirimSayisi: bildirimler.length,
-        tipler: bildirimler.map(b => b.tip),
+        tipler: bildirimler.map((b) => b.tip),
       });
     }
 

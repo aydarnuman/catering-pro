@@ -178,9 +178,7 @@ async function extractContractorsFromPage(page) {
 
         // Sözleşme bedeli
         const bedelMatch = text.match(/Sözleşme bedeli:\s*₺?([\d.,]+)/i);
-        const sozlesmeBedeli = bedelMatch
-          ? parseFloat(bedelMatch[1].replace(/\./g, '').replace(',', '.'))
-          : null;
+        const sozlesmeBedeli = bedelMatch ? parseFloat(bedelMatch[1].replace(/\./g, '').replace(',', '.')) : null;
 
         // İndirim oranı
         const indirimMatch = text.match(/%\s*([\d.,]+)/);
@@ -227,7 +225,8 @@ async function extractContractorsFromPage(page) {
 
         // Durum tespiti
         const tamamlandi = text.includes('Tamamlandı');
-        const devamEdiyor = text.includes('Devam Ediyor') || text.includes('Sözleşme Devam') || text.includes('İş Devam');
+        const devamEdiyor =
+          text.includes('Devam Ediyor') || text.includes('Sözleşme Devam') || text.includes('İş Devam');
         const iptalEdildi = text.includes('İptal');
 
         // Yaklaşık maliyet
@@ -361,10 +360,9 @@ async function saveTenderRecords(pageContractors) {
 
     try {
       // Yüklenici ID bul
-      const ykResult = await query(
-        'SELECT id FROM yukleniciler WHERE unvan = $1',
-        [c.yukleniciAdi.replace(/\s+/g, ' ').trim()]
-      );
+      const ykResult = await query('SELECT id FROM yukleniciler WHERE unvan = $1', [
+        c.yukleniciAdi.replace(/\s+/g, ' ').trim(),
+      ]);
       if (ykResult.rows.length === 0) continue;
       const yukleniciId = ykResult.rows[0].id;
 
@@ -420,19 +418,30 @@ async function saveTenderRecords(pageContractors) {
             is_bitis = COALESCE(EXCLUDED.is_bitis, yuklenici_ihaleleri.is_bitis)
         `,
           [
-            yukleniciId, tenderId, c.ihaleBasligi, c.kurum, c.sehir,
-            c.sozlesmeBedeli, sozlesmeTarihi, c.indirimOrani,
-            durum, c.fesih || null, c.ikn,
-            c.yaklasikMaliyet || null, isBaslangic, isBitis,
+            yukleniciId,
+            tenderId,
+            c.ihaleBasligi,
+            c.kurum,
+            c.sehir,
+            c.sozlesmeBedeli,
+            sozlesmeTarihi,
+            c.indirimOrani,
+            durum,
+            c.fesih || null,
+            c.ikn,
+            c.yaklasikMaliyet || null,
+            isBaslangic,
+            isBitis,
           ]
         );
       } else {
         // tender_id yoksa IKN ile duplicate kontrolü yap
         const existing = c.ikn
-          ? await query(
-              'SELECT id FROM yuklenici_ihaleleri WHERE yuklenici_id = $1 AND ikn = $2 AND rol = $3',
-              [yukleniciId, c.ikn, 'yuklenici']
-            )
+          ? await query('SELECT id FROM yuklenici_ihaleleri WHERE yuklenici_id = $1 AND ikn = $2 AND rol = $3', [
+              yukleniciId,
+              c.ikn,
+              'yuklenici',
+            ])
           : { rows: [] };
 
         if (existing.rows.length === 0) {
@@ -445,10 +454,19 @@ async function saveTenderRecords(pageContractors) {
             ) VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, 'yuklenici', $8, $9, $10, $11, $12, $13)
           `,
             [
-              yukleniciId, c.ihaleBasligi, c.kurum, c.sehir,
-              c.sozlesmeBedeli, sozlesmeTarihi, c.indirimOrani,
-              durum, c.fesih || null, c.ikn,
-              c.yaklasikMaliyet || null, isBaslangic, isBitis,
+              yukleniciId,
+              c.ihaleBasligi,
+              c.kurum,
+              c.sehir,
+              c.sozlesmeBedeli,
+              sozlesmeTarihi,
+              c.indirimOrani,
+              durum,
+              c.fesih || null,
+              c.ikn,
+              c.yaklasikMaliyet || null,
+              isBaslangic,
+              isBitis,
             ]
           );
         }

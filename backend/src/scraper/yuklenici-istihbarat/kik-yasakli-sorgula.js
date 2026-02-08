@@ -64,7 +64,7 @@ export async function scrapeKikYasakli(yuklenici) {
       await araButton.click();
       await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 }).catch(() => {});
       // Bazı sayfalar AJAX kullanır, kısa bir bekleme ekle
-      await new Promise(r => setTimeout(r, 2000));
+      await new Promise((r) => setTimeout(r, 2000));
     }
 
     // Sonuçları oku
@@ -90,9 +90,8 @@ export async function scrapeKikYasakli(yuklenici) {
 
     // Firma adı eşleşmesini kontrol et (kısmi eşleşme)
     const normalizedUnvan = yuklenici.unvan.toLowerCase().replace(/\s+/g, ' ').trim();
-    const eslesen = sonuclar.filter(s =>
-      s.firma_adi.toLowerCase().includes(normalizedUnvan) ||
-      normalizedUnvan.includes(s.firma_adi.toLowerCase())
+    const eslesen = sonuclar.filter(
+      (s) => s.firma_adi.toLowerCase().includes(normalizedUnvan) || normalizedUnvan.includes(s.firma_adi.toLowerCase())
     );
 
     const result = {
@@ -106,7 +105,7 @@ export async function scrapeKikYasakli(yuklenici) {
     session.info(
       eslesen.length > 0
         ? `DİKKAT: "${yuklenici.unvan}" yasaklılar listesinde BULUNDU! (${eslesen.length} kayıt)`
-        : `"${yuklenici.unvan}" yasaklılar listesinde bulunamadı (${sonuclar.length} genel sonuç)`,
+        : `"${yuklenici.unvan}" yasaklılar listesinde bulunamadı (${sonuclar.length} genel sonuç)`
     );
 
     return session.end(result);

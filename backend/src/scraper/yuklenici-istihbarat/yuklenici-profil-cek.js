@@ -242,10 +242,10 @@ export async function scrapeAnalyzePage(page, yuklenici, options = {}) {
 
     // DB'ye kaydet
     progress('Veriler kaydediliyor...');
-    
+
     // Analiz verisinden devam_eden_is_sayisi çıkar
     const devamEdenSayisi = data.ozet?.devam_eden?.sayi ?? data.ozet?.aktif_ihale ?? null;
-    
+
     const veriKaynagi = JSON.stringify([{ kaynak: 'analiz_sayfasi', tarih: new Date().toISOString() }]);
 
     if (devamEdenSayisi !== null) {
@@ -422,7 +422,7 @@ function normalizeAnalyzData(data) {
       if (o[key] && typeof o[key] === 'object') {
         if (o[key].bedel !== undefined) {
           o[key].tutar = parseBedel(o[key].bedel);
-          delete o[key].bedel;
+          o[key].bedel = undefined;
         }
       }
     }
@@ -430,7 +430,7 @@ function normalizeAnalyzData(data) {
     // is_bitirme → is_bitirme_5yil
     if (o.is_bitirme && !o.is_bitirme_5yil) {
       o.is_bitirme_5yil = o.is_bitirme;
-      delete o.is_bitirme;
+      o.is_bitirme = undefined;
     }
 
     // ortalama_tenzilat (number) → ort_tenzilat { yuzde, tutar }
@@ -439,23 +439,23 @@ function normalizeAnalyzData(data) {
         yuzde: typeof o.ortalama_tenzilat === 'number' ? o.ortalama_tenzilat : parseFloat(o.ortalama_tenzilat) || 0,
         tutar: null,
       };
-      delete o.ortalama_tenzilat;
+      o.ortalama_tenzilat = undefined;
     }
 
     // ortalama_sozlesme_suresi_gun → ort_sozlesme_suresi_gun
     if (o.ortalama_sozlesme_suresi_gun !== undefined && o.ort_sozlesme_suresi_gun === undefined) {
       o.ort_sozlesme_suresi_gun = o.ortalama_sozlesme_suresi_gun;
-      delete o.ortalama_sozlesme_suresi_gun;
+      o.ortalama_sozlesme_suresi_gun = undefined;
     }
 
     // ilk/son_sozlesme_tarihi → ilk/son_sozlesme
     if (o.ilk_sozlesme_tarihi !== undefined && o.ilk_sozlesme === undefined) {
       o.ilk_sozlesme = o.ilk_sozlesme_tarihi;
-      delete o.ilk_sozlesme_tarihi;
+      o.ilk_sozlesme_tarihi = undefined;
     }
     if (o.son_sozlesme_tarihi !== undefined && o.son_sozlesme === undefined) {
       o.son_sozlesme = o.son_sozlesme_tarihi;
-      delete o.son_sozlesme_tarihi;
+      o.son_sozlesme_tarihi = undefined;
     }
   }
 
@@ -473,39 +473,45 @@ function normalizeAnalyzData(data) {
 
   const tableKeys = [
     'yillik_trend',
-    'rakipler', 'sehirler', 'idareler', 'sektorler',
-    'ihale_usulleri', 'ihale_turleri', 'teklif_turleri',
-    'yukleniciler_listesi', 'ortak_girisimler',
+    'rakipler',
+    'sehirler',
+    'idareler',
+    'sektorler',
+    'ihale_usulleri',
+    'ihale_turleri',
+    'teklif_turleri',
+    'yukleniciler_listesi',
+    'ortak_girisimler',
   ];
 
   // ── Tablo kolon isimlerini frontend TS tipleriyle eşleştir ──
   // extractTable() "auto" modunda Türkçe header → snake_case üretir,
   // ama frontend kısa isimler bekler (ör. guncel_ihale → guncel).
   const globalColumnRename = {
-    'guncel_ihale': 'guncel',
-    'gecmis_ihale': 'gecmis',
-    'gecmis_ihaleler': 'gecmis',
-    'toplam_sozlesme_bedeli': 'toplam_sozlesme',
-    'tenzilat': 'tenzilat_yuzde',
-    'tenzilat_tutari': 'tenzilat_tutar',
-    'ortalama_katilimci': 'ort_katilimci',
-    'ort_katilimci_sayisi': 'ort_katilimci',
-    'ortalama_gecerli_teklif': 'ort_gecerli_teklif',
-    'gecerli_teklif': 'ort_gecerli_teklif',
-    'ort_gecerli_teklif_sayisi': 'ort_gecerli_teklif',
-    'yillik_ortalama_bedeli': 'yillik_ortalama',
+    guncel_ihale: 'guncel',
+    gecmis_ihale: 'gecmis',
+    gecmis_ihaleler: 'gecmis',
+    toplam_sozlesme_bedeli: 'toplam_sozlesme',
+    tenzilat: 'tenzilat_yuzde',
+    tenzilat_tutari: 'tenzilat_tutar',
+    ortalama_katilimci: 'ort_katilimci',
+    ort_katilimci_sayisi: 'ort_katilimci',
+    ortalama_gecerli_teklif: 'ort_gecerli_teklif',
+    gecerli_teklif: 'ort_gecerli_teklif',
+    ort_gecerli_teklif_sayisi: 'ort_gecerli_teklif',
+    yillik_ortalama_bedeli: 'yillik_ortalama',
   };
 
   // İlk sütun: section'a göre beklenen alan adı (auto-detect farklı isim üretebilir)
   const sectionFirstCol = {
-    'idareler': 'idare_adi',
-    'rakipler': 'rakip_adi',
-    'ortak_girisimler': 'partner_adi',
-    'sehirler': 'sehir',
-    'ihale_usulleri': 'ad',
-    'ihale_turleri': 'ad',
-    'teklif_turleri': 'ad',
-    'yillik_trend': 'yil',
+    idareler: 'idare_adi',
+    rakipler: 'rakip_adi',
+    ortak_girisimler: 'partner_adi',
+    sehirler: 'sehir',
+    ihale_usulleri: 'ad',
+    ihale_turleri: 'ad',
+    teklif_turleri: 'ad',
+    yillik_trend: 'yil',
   };
 
   for (const key of tableKeys) {
@@ -623,7 +629,10 @@ async function extractTable(page, keywords, columnNames) {
             el = el.nextElementSibling || el.parentElement;
             if (!el) break;
             const t = el.tagName === 'TABLE' ? el : el.querySelector('table');
-            if (t) { table = t; break; }
+            if (t) {
+              table = t;
+              break;
+            }
           }
           if (table) break;
         }
@@ -679,7 +688,10 @@ async function extractTable(page, keywords, columnNames) {
 
               // Sayısal değerleri temizle (ilk sütun genelde isim, diğerleri sayısal)
               if (i > 0) {
-                const numStr = value.replace(/[₺%\s]/g, '').replace(/\./g, '').replace(',', '.');
+                const numStr = value
+                  .replace(/[₺%\s]/g, '')
+                  .replace(/\./g, '')
+                  .replace(',', '.');
                 const num = parseFloat(numStr);
                 if (!Number.isNaN(num) && /^[\d.,₺%\s+-]+$/.test(value)) {
                   value = num;

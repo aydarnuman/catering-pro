@@ -123,10 +123,7 @@ router.get('/', async (req, res) => {
     const safeOrder = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
     // Toplam sayı
-    const countResult = await query(
-      `SELECT COUNT(*) FROM yukleniciler y ${whereClause}`,
-      params
-    );
+    const countResult = await query(`SELECT COUNT(*) FROM yukleniciler y ${whereClause}`, params);
     const total = parseInt(countResult.rows[0].count, 10);
 
     // Yüklenici listesi + aktif ihale sayısı
@@ -178,13 +175,13 @@ router.get('/stats', async (_req, res) => {
       FROM yukleniciler
     `);
 
-    // Top 10 sözleşme bedeline göre
-    const top10 = await query(`
+    // Top 25 sözleşme bedeline göre
+    const top25 = await query(`
       SELECT id, unvan, kisa_ad, toplam_sozlesme_bedeli, kazanma_orani, 
              katildigi_ihale_sayisi, tamamlanan_is_sayisi, devam_eden_is_sayisi, puan, takipte
       FROM yukleniciler
       ORDER BY toplam_sozlesme_bedeli DESC NULLS LAST
-      LIMIT 10
+      LIMIT 25
     `);
 
     // Şehir dağılımı (yuklenici_ihaleleri'nden)
@@ -201,7 +198,7 @@ router.get('/stats', async (_req, res) => {
       success: true,
       data: {
         genel: result.rows[0],
-        top10: top10.rows,
+        top10: top25.rows,
         sehirDagilimi: sehirDagilimi.rows,
       },
     });
@@ -229,10 +226,7 @@ router.get('/:id', async (req, res) => {
     }
 
     // Yüklenicinin ihaleleri (yuklenici_ihaleleri tablosundan)
-    const ihalelerCountResult = await query(
-      'SELECT COUNT(*) FROM yuklenici_ihaleleri WHERE yuklenici_id = $1',
-      [id]
-    );
+    const ihalelerCountResult = await query('SELECT COUNT(*) FROM yuklenici_ihaleleri WHERE yuklenici_id = $1', [id]);
     const totalIhaleler = parseInt(ihalelerCountResult.rows[0].count, 10);
 
     const ihalelerResult = await query(
@@ -311,36 +305,36 @@ router.get('/:id', async (req, res) => {
 router.patch('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { puan, notlar, etiketler, kisa_ad } = req.body;
+
+    // Güncellenebilir alanlar (whitelist)
+    const EDITABLE_FIELDS = [
+      'puan', 'notlar', 'etiketler', 'kisa_ad',
+      // Firma bilgileri (manuel giriş)
+      'telefon', 'email', 'adres', 'yetkili_kisi', 'vergi_no', 'web_sitesi', 'sektor', 'firma_notu',
+    ];
 
     const updates = [];
     const params = [];
     let paramIndex = 1;
 
-    if (puan !== undefined) {
-      updates.push(`puan = $${paramIndex}`);
-      params.push(Math.min(5, Math.max(0, parseInt(puan, 10))));
-      paramIndex++;
-    }
-    if (notlar !== undefined) {
-      updates.push(`notlar = $${paramIndex}`);
-      params.push(notlar);
-      paramIndex++;
-    }
-    if (etiketler !== undefined) {
-      updates.push(`etiketler = $${paramIndex}`);
-      params.push(etiketler);
-      paramIndex++;
-    }
-    if (kisa_ad !== undefined) {
-      updates.push(`kisa_ad = $${paramIndex}`);
-      params.push(kisa_ad);
-      paramIndex++;
+    for (const field of EDITABLE_FIELDS) {
+      if (req.body[field] !== undefined) {
+        if (field === 'puan') {
+          updates.push(`puan = $${paramIndex}`);
+          params.push(Math.min(5, Math.max(0, parseInt(req.body.puan, 10))));
+        } else {
+          updates.push(`${field} = $${paramIndex}`);
+          params.push(req.body[field]);
+        }
+        paramIndex++;
+      }
     }
 
     if (updates.length === 0) {
       return res.status(400).json({ success: false, error: 'Güncellenecek alan yok' });
     }
+
+    updates.push(`updated_at = NOW()`);
 
     params.push(id);
     const result = await query(
@@ -356,6 +350,122 @@ router.patch('/:id', async (req, res) => {
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     logError('Yüklenici Güncelle', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// YAPIŞKAN NOTLAR (Sticker Notes) CRUD
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/contractors/:id/notlar
+ * Yükleniciye ait tüm yapışkan notları döner.
+ */
+router.get('/:id/notlar', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await query(
+      `SELECT * FROM yuklenici_notlar WHERE yuklenici_id = $1 ORDER BY created_at DESC`,
+      [id]
+    );
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    logError('Yapışkan Notlar Listele', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/contractors/:id/notlar
+ * Yeni yapışkan not ekler.
+ */
+router.post('/:id/notlar', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { icerik, renk = 'yellow', olusturan } = req.body;
+
+    if (!icerik || !icerik.trim()) {
+      return res.status(400).json({ success: false, error: 'Not içeriği boş olamaz' });
+    }
+
+    const { rows } = await query(
+      `INSERT INTO yuklenici_notlar (yuklenici_id, icerik, renk, olusturan)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [id, icerik.trim(), renk, olusturan || null]
+    );
+
+    logAPI('Yapışkan Not Eklendi', { yukleniciId: id, notId: rows[0].id });
+    res.json({ success: true, data: rows[0] });
+  } catch (error) {
+    logError('Yapışkan Not Ekle', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PATCH /api/contractors/:id/notlar/:notId
+ * Yapışkan notu günceller.
+ */
+router.patch('/:id/notlar/:notId', async (req, res) => {
+  try {
+    const { notId } = req.params;
+    const { icerik, renk } = req.body;
+
+    const updates = [];
+    const params = [];
+    let idx = 1;
+
+    if (icerik !== undefined) {
+      updates.push(`icerik = $${idx}`);
+      params.push(icerik.trim());
+      idx++;
+    }
+    if (renk !== undefined) {
+      updates.push(`renk = $${idx}`);
+      params.push(renk);
+      idx++;
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ success: false, error: 'Güncellenecek alan yok' });
+    }
+
+    updates.push(`updated_at = NOW()`);
+    params.push(notId);
+
+    const { rows, rowCount } = await query(
+      `UPDATE yuklenici_notlar SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
+      params
+    );
+
+    if (rowCount === 0) {
+      return res.status(404).json({ success: false, error: 'Not bulunamadı' });
+    }
+
+    res.json({ success: true, data: rows[0] });
+  } catch (error) {
+    logError('Yapışkan Not Güncelle', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/contractors/:id/notlar/:notId
+ * Yapışkan notu siler.
+ */
+router.delete('/:id/notlar/:notId', async (req, res) => {
+  try {
+    const { notId } = req.params;
+    const { rowCount } = await query(`DELETE FROM yuklenici_notlar WHERE id = $1`, [notId]);
+
+    if (rowCount === 0) {
+      return res.status(404).json({ success: false, error: 'Not bulunamadı' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    logError('Yapışkan Not Sil', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -448,22 +558,29 @@ router.post('/:id/toggle-istihbarat', async (req, res) => {
           // ── ADIM 1: İhale geçmişi çek ──
           addScrapeLog('Adım 1/4: İhale geçmişi çekiliyor...', 'info');
           await updateModulDurum(id, 'ihale_gecmisi', 'calisiyor');
-          const scrapeResult = await scrapeContractorTenders(page, { id: parseInt(id, 10), unvan: yk.unvan }, {
-            maxPages: 15,
-            onPageComplete: (pageNum, tenders, stats) => {
-              if (!scrapeState.running) { page.close().catch(() => {}); return; }
-              updateScrapeState({
-                progress: {
-                  current: pageNum,
-                  total: 15,
-                  newCount: stats.tenders_saved,
-                  updated: 0,
-                  errors: stats.errors,
-                },
-              });
-              addScrapeLog(`Sayfa ${pageNum}: ${tenders.length} ihale (toplam ${stats.tenders_saved})`, 'info');
-            },
-          });
+          const scrapeResult = await scrapeContractorTenders(
+            page,
+            { id: parseInt(id, 10), unvan: yk.unvan },
+            {
+              maxPages: 15,
+              onPageComplete: (pageNum, tenders, stats) => {
+                if (!scrapeState.running) {
+                  page.close().catch(() => {});
+                  return;
+                }
+                updateScrapeState({
+                  progress: {
+                    current: pageNum,
+                    total: 15,
+                    newCount: stats.tenders_saved,
+                    updated: 0,
+                    errors: stats.errors,
+                  },
+                });
+                addScrapeLog(`Sayfa ${pageNum}: ${tenders.length} ihale (toplam ${stats.tenders_saved})`, 'info');
+              },
+            }
+          );
 
           if (scrapeState.running) {
             // Fesih sayısını güncelle
@@ -473,10 +590,7 @@ router.post('/:id/toggle-istihbarat', async (req, res) => {
               [id]
             );
             const fesihCount = parseInt(fesihResult.rows[0].cnt, 10);
-            await query(
-              'UPDATE yukleniciler SET fesih_sayisi = $1 WHERE id = $2',
-              [fesihCount, id]
-            );
+            await query('UPDATE yukleniciler SET fesih_sayisi = $1 WHERE id = $2', [fesihCount, id]);
 
             addScrapeLog(`İhale geçmişi: ${scrapeResult.stats.tenders_saved} ihale, ${fesihCount} fesih`, 'success');
             await updateModulDurum(id, 'ihale_gecmisi', 'tamamlandi', {
@@ -488,12 +602,19 @@ router.post('/:id/toggle-istihbarat', async (req, res) => {
             await updateModulDurum(id, 'profil_analizi', 'calisiyor');
             try {
               const { scrapeAnalyzePage } = await import('../scraper/yuklenici-istihbarat/yuklenici-profil-cek.js');
-              const analyzeResult = await scrapeAnalyzePage(page, { id: parseInt(id, 10), unvan: yk.unvan }, {
-                onProgress: (msg) => addScrapeLog(`Analiz: ${msg}`, 'info'),
-              });
+              const analyzeResult = await scrapeAnalyzePage(
+                page,
+                { id: parseInt(id, 10), unvan: yk.unvan },
+                {
+                  onProgress: (msg) => addScrapeLog(`Analiz: ${msg}`, 'info'),
+                }
+              );
 
               if (analyzeResult.success) {
-                addScrapeLog(`Analiz: ${analyzeResult.stats.sections_scraped} bölüm, ${analyzeResult.stats.total_rows} satır`, 'success');
+                addScrapeLog(
+                  `Analiz: ${analyzeResult.stats.sections_scraped} bölüm, ${analyzeResult.stats.total_rows} satır`,
+                  'success'
+                );
                 await updateModulDurum(id, 'profil_analizi', 'tamamlandi', {
                   veri: { bolum: analyzeResult.stats.sections_scraped, satir: analyzeResult.stats.total_rows },
                 });
@@ -527,14 +648,26 @@ router.post('/:id/toggle-istihbarat', async (req, res) => {
                 );
 
                 if (recentTenders.rows.length > 0) {
-                  const { batchScrapeParticipants } = await import('../scraper/yuklenici-istihbarat/ihale-katilimci-cek.js');
+                  const { batchScrapeParticipants } = await import(
+                    '../scraper/yuklenici-istihbarat/ihale-katilimci-cek.js'
+                  );
                   const partResult = await batchScrapeParticipants(page, recentTenders.rows, {
                     maxTenders: 10,
-                    onProgress: (stats) => addScrapeLog(`Katılımcı: ${stats.processed}/${stats.total} ihale (${stats.total_participants} katılımcı)`, 'info'),
+                    onProgress: (stats) =>
+                      addScrapeLog(
+                        `Katılımcı: ${stats.processed}/${stats.total} ihale (${stats.total_participants} katılımcı)`,
+                        'info'
+                      ),
                   });
-                  addScrapeLog(`Katılımcı: ${partResult.stats.total_participants} katılımcı, ${partResult.stats.new_contractors} yeni firma`, 'success');
+                  addScrapeLog(
+                    `Katılımcı: ${partResult.stats.total_participants} katılımcı, ${partResult.stats.new_contractors} yeni firma`,
+                    'success'
+                  );
                   await updateModulDurum(id, 'katilimcilar', 'tamamlandi', {
-                    veri: { katilimci: partResult.stats.total_participants, yeni_firma: partResult.stats.new_contractors },
+                    veri: {
+                      katilimci: partResult.stats.total_participants,
+                      yeni_firma: partResult.stats.new_contractors,
+                    },
                   });
                 } else {
                   addScrapeLog('Katılımcı: Uygun ihale bulunamadı (katılımcı linki yok veya zaten çekilmiş)', 'info');
@@ -554,10 +687,14 @@ router.post('/:id/toggle-istihbarat', async (req, res) => {
               await updateModulDurum(id, 'kik_kararlari', 'calisiyor');
               try {
                 const { scrapeKikDecisions } = await import('../scraper/yuklenici-istihbarat/yuklenici-gecmisi-cek.js');
-                const kikResult = await scrapeKikDecisions(page, { id: parseInt(id, 10), unvan: yk.unvan }, {
-                  maxPages: 3,
-                  onProgress: (msg) => addScrapeLog(`KIK: ${msg}`, 'info'),
-                });
+                const kikResult = await scrapeKikDecisions(
+                  page,
+                  { id: parseInt(id, 10), unvan: yk.unvan },
+                  {
+                    maxPages: 3,
+                    onProgress: (msg) => addScrapeLog(`KIK: ${msg}`, 'info'),
+                  }
+                );
 
                 // KIK şikayet sayısını güncelle + analiz_verisi.ozet'e enjekte et
                 if (kikResult.stats.tenders_saved > 0) {
@@ -584,7 +721,13 @@ router.post('/:id/toggle-istihbarat', async (req, res) => {
             }
 
             updateScrapeState({
-              progress: { current: 1, total: 1, newCount: scrapeResult.stats.tenders_saved, updated: 0, errors: scrapeResult.stats.errors },
+              progress: {
+                current: 1,
+                total: 1,
+                newCount: scrapeResult.stats.tenders_saved,
+                updated: 0,
+                errors: scrapeResult.stats.errors,
+              },
             });
             addScrapeLog(`Tamamlandı: ${scrapeResult.stats.tenders_saved} ihale, ${fesihCount} fesih`, 'success');
             logAPI('İstihbarat Scrape', { yukleniciId: id, ...scrapeResult.stats, fesihCount });
@@ -650,10 +793,7 @@ router.get('/:id/tenders', async (req, res) => {
 
     const whereClause = conditions.join(' AND ');
 
-    const countResult = await query(
-      `SELECT COUNT(*) FROM tenders t WHERE ${whereClause}`,
-      params
-    );
+    const countResult = await query(`SELECT COUNT(*) FROM tenders t WHERE ${whereClause}`, params);
 
     const result = await query(
       `
@@ -811,7 +951,10 @@ router.post('/scrape', async (req, res) => {
       });
 
       if (scrapeState.running) {
-        addScrapeLog(`Tamamlandı: ${result.stats.contractors_found} bulundu, ${result.stats.contractors_new} yeni`, 'success');
+        addScrapeLog(
+          `Tamamlandı: ${result.stats.contractors_found} bulundu, ${result.stats.contractors_new} yeni`,
+          'success'
+        );
         logAPI('Yüklenici Scrape', result.stats);
       }
     } catch (error) {
@@ -928,7 +1071,8 @@ router.get('/analytics/pazar', async (req, res) => {
     const { sehir } = req.query;
 
     // Şehir bazlı yüklenici yoğunluğu
-    const sehirYogunluk = await query(`
+    const sehirYogunluk = await query(
+      `
       SELECT 
         t.city as sehir,
         COUNT(DISTINCT t.yuklenici_id) as yuklenici_sayisi,
@@ -943,7 +1087,9 @@ router.get('/analytics/pazar', async (req, res) => {
       GROUP BY t.city
       ORDER BY yuklenici_sayisi DESC
       LIMIT 30
-    `, sehir ? [sehir] : []);
+    `,
+      sehir ? [sehir] : []
+    );
 
     // Yıllık trend (son 3 yıl)
     const yillikTrend = await query(`
@@ -1005,11 +1151,7 @@ router.get('/analytics/fiyat-tahmini', async (req, res) => {
   try {
     const { sehir, sure } = req.query;
 
-    const conditions = [
-      't.sozlesme_bedeli IS NOT NULL',
-      't.sozlesme_bedeli > 0',
-      "t.status = 'completed'",
-    ];
+    const conditions = ['t.sozlesme_bedeli IS NOT NULL', 't.sozlesme_bedeli > 0', "t.status = 'completed'"];
     const params = [];
     let paramIndex = 1;
 
@@ -1021,7 +1163,8 @@ router.get('/analytics/fiyat-tahmini', async (req, res) => {
 
     const whereClause = conditions.join(' AND ');
 
-    const result = await query(`
+    const result = await query(
+      `
       SELECT 
         COUNT(*) as veri_sayisi,
         AVG(t.sozlesme_bedeli) as ortalama_bedel,
@@ -1034,17 +1177,22 @@ router.get('/analytics/fiyat-tahmini', async (req, res) => {
         STDDEV(t.sozlesme_bedeli) as standart_sapma
       FROM tenders t
       WHERE ${whereClause}
-    `, params);
+    `,
+      params
+    );
 
     // Son 5 benzer ihale
-    const benzerIhaleler = await query(`
+    const benzerIhaleler = await query(
+      `
       SELECT t.title, t.city, t.sozlesme_bedeli, t.indirim_orani, 
              t.sozlesme_tarihi, t.yuklenici_adi, t.work_duration
       FROM tenders t
       WHERE ${whereClause}
       ORDER BY t.sozlesme_tarihi DESC NULLS LAST
       LIMIT 10
-    `, params);
+    `,
+      params
+    );
 
     res.json({
       success: true,
@@ -1082,17 +1230,17 @@ router.get('/karsilastir', async (req, res) => {
       return res.status(400).json({ success: false, error: 'ids parametresi gerekli (ör: ?ids=1,2,3)' });
     }
 
-    const idList = String(ids).split(',').map((id) => parseInt(id.trim(), 10)).filter((id) => !Number.isNaN(id));
+    const idList = String(ids)
+      .split(',')
+      .map((id) => parseInt(id.trim(), 10))
+      .filter((id) => !Number.isNaN(id));
     if (idList.length < 2 || idList.length > 5) {
       return res.status(400).json({ success: false, error: '2-5 arası yüklenici ID gerekli' });
     }
 
     // Yüklenici bilgileri
     const placeholders = idList.map((_, i) => `$${i + 1}`).join(',');
-    const yuklenicilerResult = await query(
-      `SELECT * FROM yukleniciler WHERE id IN (${placeholders})`,
-      idList
-    );
+    const yuklenicilerResult = await query(`SELECT * FROM yukleniciler WHERE id IN (${placeholders})`, idList);
 
     if (yuklenicilerResult.rows.length < 2) {
       return res.status(404).json({ success: false, error: 'Yeterli yüklenici bulunamadı' });
@@ -1159,16 +1307,24 @@ router.get('/karsilastir', async (req, res) => {
         sehirDagilimi,
         karsilastirma: {
           toplamSozlesme: yuklenicilerResult.rows.map((y) => ({
-            id: y.id, unvan: y.unvan, deger: y.toplam_sozlesme_bedeli,
+            id: y.id,
+            unvan: y.unvan,
+            deger: y.toplam_sozlesme_bedeli,
           })),
           kazanmaOrani: yuklenicilerResult.rows.map((y) => ({
-            id: y.id, unvan: y.unvan, deger: y.kazanma_orani,
+            id: y.id,
+            unvan: y.unvan,
+            deger: y.kazanma_orani,
           })),
           ihaleSayisi: yuklenicilerResult.rows.map((y) => ({
-            id: y.id, unvan: y.unvan, deger: y.katildigi_ihale_sayisi,
+            id: y.id,
+            unvan: y.unvan,
+            deger: y.katildigi_ihale_sayisi,
           })),
           ortIndirim: yuklenicilerResult.rows.map((y) => ({
-            id: y.id, unvan: y.unvan, deger: y.ortalama_indirim_orani,
+            id: y.id,
+            unvan: y.unvan,
+            deger: y.ortalama_indirim_orani,
           })),
         },
       },
@@ -1190,7 +1346,8 @@ router.get('/en-aktif', async (req, res) => {
   try {
     const { gun = 30, limit: maxLimit = 10 } = req.query;
 
-    const result = await query(`
+    const result = await query(
+      `
       SELECT 
         y.id, y.unvan, y.kisa_ad, y.toplam_sozlesme_bedeli, y.kazanma_orani, y.puan, y.takipte,
         COUNT(yi.id) as son_donem_ihale_sayisi,
@@ -1201,7 +1358,9 @@ router.get('/en-aktif', async (req, res) => {
       GROUP BY y.id
       ORDER BY son_donem_ihale_sayisi DESC
       LIMIT $2
-    `, [parseInt(String(gun), 10), parseInt(String(maxLimit), 10)]);
+    `,
+      [parseInt(String(gun), 10), parseInt(String(maxLimit), 10)]
+    );
 
     res.json({ success: true, data: result.rows });
   } catch (error) {
@@ -1254,7 +1413,8 @@ router.post('/scrape/participants', async (req, res) => {
   try {
     const { maxTenders = 20 } = req.body;
 
-    const tendersResult = await query(`
+    const tendersResult = await query(
+      `
       SELECT t.id, t.external_id, t.document_links
       FROM tenders t
       WHERE t.document_links ? 'probable_participants'
@@ -1263,7 +1423,9 @@ router.post('/scrape/participants', async (req, res) => {
         )
       ORDER BY t.tender_date DESC NULLS LAST
       LIMIT $1
-    `, [maxTenders]);
+    `,
+      [maxTenders]
+    );
 
     if (tendersResult.rows.length === 0) {
       return res.json({ success: true, message: 'Scrape edilecek ihale bulunamadı', stats: { total: 0 } });
@@ -1290,11 +1452,23 @@ router.post('/scrape/participants', async (req, res) => {
         const result = await batchScrapeParticipants(page, tendersResult.rows, {
           maxTenders,
           onProgress: (stats) => {
-            if (!scrapeState.running) { page.close().catch(() => {}); return; }
+            if (!scrapeState.running) {
+              page.close().catch(() => {});
+              return;
+            }
             updateScrapeState({
-              progress: { current: stats.processed, total: stats.total, newCount: stats.participants_found, updated: 0, errors: stats.errors },
+              progress: {
+                current: stats.processed,
+                total: stats.total,
+                newCount: stats.participants_found,
+                updated: 0,
+                errors: stats.errors,
+              },
             });
-            addScrapeLog(`${stats.processed}/${stats.total} ihale islendi (${stats.participants_found} katilimci)`, 'info');
+            addScrapeLog(
+              `${stats.processed}/${stats.total} ihale islendi (${stats.participants_found} katilimci)`,
+              'info'
+            );
           },
         });
         if (scrapeState.running) {
@@ -1355,11 +1529,23 @@ router.post('/scrape/tender-history', async (req, res) => {
         maxContractors,
         maxPagesPerContractor,
         onProgress: (batchStats) => {
-          if (!scrapeState.running) { page.close().catch(() => {}); return; }
+          if (!scrapeState.running) {
+            page.close().catch(() => {});
+            return;
+          }
           updateScrapeState({
-            progress: { current: batchStats.processed, total: batchStats.total, newCount: batchStats.total_tenders, updated: 0, errors: 0 },
+            progress: {
+              current: batchStats.processed,
+              total: batchStats.total,
+              newCount: batchStats.total_tenders,
+              updated: 0,
+              errors: 0,
+            },
           });
-          addScrapeLog(`${batchStats.processed}/${batchStats.total} yuklenici islendi (${batchStats.total_tenders} ihale)`, 'info');
+          addScrapeLog(
+            `${batchStats.processed}/${batchStats.total} yuklenici islendi (${batchStats.total_tenders} ihale)`,
+            'info'
+          );
         },
       });
       if (scrapeState.running) {
@@ -1465,10 +1651,10 @@ router.patch('/:id/risk', async (req, res) => {
     const { id } = req.params;
     const { risk_notu } = req.body;
 
-    const result = await query(
-      'UPDATE yukleniciler SET risk_notu = $1 WHERE id = $2 RETURNING id, unvan, risk_notu',
-      [risk_notu, id]
-    );
+    const result = await query('UPDATE yukleniciler SET risk_notu = $1 WHERE id = $2 RETURNING id, unvan, risk_notu', [
+      risk_notu,
+      id,
+    ]);
 
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, error: 'Yüklenici bulunamadı' });
@@ -1528,7 +1714,10 @@ router.post('/:id/scrape-history', async (req, res) => {
         const result = await scrapeContractorTenders(page, yuklenici, {
           maxPages,
           onPageComplete: (pageNum, tenders, stats) => {
-            if (!scrapeState.running) { page.close().catch(() => {}); return; }
+            if (!scrapeState.running) {
+              page.close().catch(() => {});
+              return;
+            }
             updateScrapeState({
               progress: {
                 current: 0,
@@ -1538,15 +1727,27 @@ router.post('/:id/scrape-history', async (req, res) => {
                 errors: stats.errors,
               },
             });
-            addScrapeLog(`Sayfa ${pageNum}: ${tenders.length} ihale bulundu (toplam ${stats.tenders_saved} kaydedildi)`, 'info');
+            addScrapeLog(
+              `Sayfa ${pageNum}: ${tenders.length} ihale bulundu (toplam ${stats.tenders_saved} kaydedildi)`,
+              'info'
+            );
           },
         });
 
         if (scrapeState.running) {
           updateScrapeState({
-            progress: { current: 1, total: 1, newCount: result.stats.tenders_saved, updated: 0, errors: result.stats.errors },
+            progress: {
+              current: 1,
+              total: 1,
+              newCount: result.stats.tenders_saved,
+              updated: 0,
+              errors: result.stats.errors,
+            },
           });
-          addScrapeLog(`Tamamlandı: ${result.stats.tenders_saved} ihale kaydedildi (${result.stats.pages_scraped} sayfa tarandı)`, 'success');
+          addScrapeLog(
+            `Tamamlandı: ${result.stats.tenders_saved} ihale kaydedildi (${result.stats.pages_scraped} sayfa tarandı)`,
+            'success'
+          );
           logAPI('Single Contractor Tender Scrape', { yukleniciId: id, ...result.stats });
         }
       } catch (error) {
@@ -1653,7 +1854,13 @@ router.post('/:id/scrape-analyze', async (req, res) => {
         if (scrapeState.running) {
           if (result.success) {
             updateScrapeState({
-              progress: { current: 1, total: 1, newCount: result.stats.total_rows, updated: 0, errors: result.stats.errors.length },
+              progress: {
+                current: 1,
+                total: 1,
+                newCount: result.stats.total_rows,
+                updated: 0,
+                errors: result.stats.errors.length,
+              },
             });
             addScrapeLog(
               `Tamamlandı: ${result.stats.sections_scraped} bölüm, ${result.stats.total_rows} satır veri çekildi`,
@@ -1743,14 +1950,14 @@ router.get('/tender/:tenderId/ai-rakip-analiz', async (req, res) => {
  * Frontend ve backend aynı listeyi kullanır.
  */
 const ISTIHBARAT_MODULLERI = [
-  'ihale_gecmisi',    // ihalebul.com — ihale geçmişi scraper
-  'profil_analizi',   // ihalebul.com — analiz sayfası scraper
-  'katilimcilar',     // ihalebul.com — katılımcı bilgileri scraper
-  'kik_kararlari',    // ihalebul.com — KİK kararları scraper
-  'kik_yasaklilar',   // EKAP — yasaklı firma sorgusu
+  'ihale_gecmisi', // ihalebul.com — ihale geçmişi scraper
+  'profil_analizi', // ihalebul.com — analiz sayfası scraper
+  'katilimcilar', // ihalebul.com — katılımcı bilgileri scraper
+  'kik_kararlari', // ihalebul.com — KİK kararları scraper
+  'kik_yasaklilar', // EKAP — yasaklı firma sorgusu
   'sirket_bilgileri', // MERSİS + Ticaret Sicil Gazetesi
-  'haberler',         // Google News RSS haber taraması
-  'ai_arastirma',     // Claude AI istihbarat raporu
+  'haberler', // Google News RSS haber taraması
+  'ai_arastirma', // Claude AI istihbarat raporu
 ];
 
 /**
@@ -1771,10 +1978,12 @@ async function updateModulDurum(yukleniciId, modul, durum, extras = {}) {
     setClauses.push(`hata_mesaji = $${idx}`);
     values.push(extras.hata_mesaji);
     idx++;
+  } else if (durum === 'tamamlandi' || durum === 'calisiyor') {
+    // Yeni çalışma başladığında veya tamamlandığında eski hatayı temizle
+    setClauses.push('hata_mesaji = NULL');
   }
   if (durum === 'tamamlandi') {
     setClauses.push('son_guncelleme = NOW()');
-    setClauses.push('hata_mesaji = NULL');
   }
 
   await query(
@@ -1806,7 +2015,7 @@ async function updateModulDurum(yukleniciId, modul, durum, extras = {}) {
 router.get('/:id/istihbarat', async (req, res) => {
   try {
     const { id } = req.params;
-    logAPI('İstihbarat Merkezi - Tüm Modüller', { yukleniciId: id });
+    // Polling endpoint — loglama kapalı (her 3 saniyede çağrılıyor, spam yapıyor)
 
     // DB'deki mevcut kayıtları çek
     const { rows } = await query(
@@ -1818,8 +2027,8 @@ router.get('/:id/istihbarat', async (req, res) => {
     );
 
     // DB'de kaydı olmayan modüller için varsayılan "bekliyor" durumu oluştur
-    const mevcutMap = new Map(rows.map(r => [r.modul, r]));
-    const moduller = ISTIHBARAT_MODULLERI.map(modul => {
+    const mevcutMap = new Map(rows.map((r) => [r.modul, r]));
+    const moduller = ISTIHBARAT_MODULLERI.map((modul) => {
       if (mevcutMap.has(modul)) {
         return mevcutMap.get(modul);
       }
@@ -1861,43 +2070,54 @@ router.post('/:id/modul/:modul/calistir', async (req, res) => {
     }
 
     // Yüklenici var mı kontrol et
-    const { rows: [yuklenici] } = await query(
-      'SELECT id, unvan FROM yukleniciler WHERE id = $1',
-      [id]
-    );
+    const {
+      rows: [yuklenici],
+    } = await query('SELECT id, unvan FROM yukleniciler WHERE id = $1', [id]);
     if (!yuklenici) {
       return res.status(404).json({ success: false, error: 'Yüklenici bulunamadı' });
     }
 
-    // Zaten çalışıyor mu kontrol et
-    const { rows: [mevcut] } = await query(
-      `SELECT durum FROM yuklenici_istihbarat
+    // Zaten çalışıyor mu kontrol et (10 dk'dan eski "calisiyor" durumları stale kabul edilir)
+    const {
+      rows: [mevcut],
+    } = await query(
+      `SELECT durum, updated_at FROM yuklenici_istihbarat
        WHERE yuklenici_id = $1 AND modul = $2`,
       [id, modul]
     );
     if (mevcut?.durum === 'calisiyor') {
-      return res.status(409).json({
-        success: false,
-        error: `"${modul}" modülü zaten çalışıyor. Lütfen bitmesini bekleyin.`,
-      });
+      const ageMinutes = (Date.now() - new Date(mevcut.updated_at).getTime()) / 60000;
+      if (ageMinutes < 10) {
+        return res.status(409).json({
+          success: false,
+          error: `"${modul}" modülü zaten çalışıyor (${Math.round(ageMinutes)} dk). Lütfen bitmesini bekleyin.`,
+        });
+      }
+      // 10+ dakikadır takılmış, yeniden çalıştırılabilir
+      logAPI('İstihbarat Stale Reset', { modul, ageMinutes: Math.round(ageMinutes) });
     }
 
     // Durumu "çalışıyor" yap
     await updateModulDurum(id, modul, 'calisiyor');
 
     // Arka planda çalıştır (async IIFE)
+    const t0 = Date.now();
     (async () => {
+      console.log(`  🔎 [İSTİHBARAT] yk=${id} ⏳ ${modul} başladı`);
       try {
         await calistirModul(parseInt(id, 10), modul, yuklenici);
+        const sure = ((Date.now() - t0) / 1000).toFixed(1);
+        console.log(`  🔎 [İSTİHBARAT] yk=${id} ✅ ${modul} tamamlandı (${sure}s)`);
       } catch (err) {
-        logError(`İstihbarat Modül Hata [${modul}]`, err);
+        const sure = ((Date.now() - t0) / 1000).toFixed(1);
+        console.log(`  🔎 [İSTİHBARAT] yk=${id} ❌ ${modul} hata (${sure}s): ${err.message}`);
         await updateModulDurum(id, modul, 'hata', {
           hata_mesaji: err.message || 'Bilinmeyen hata',
         });
       }
     })();
 
-    logAPI('İstihbarat Modül Başlatıldı', { yukleniciId: id, modul });
+    logAPI('İstihbarat', `${modul} başlatıldı`, { yukleniciId: id });
     res.json({
       success: true,
       message: `"${modul}" modülü başlatıldı`,
@@ -1920,49 +2140,72 @@ router.post('/:id/modul/tumunu-calistir', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { rows: [yuklenici] } = await query(
-      'SELECT id, unvan FROM yukleniciler WHERE id = $1',
-      [id]
-    );
+    const {
+      rows: [yuklenici],
+    } = await query('SELECT id, unvan FROM yukleniciler WHERE id = $1', [id]);
     if (!yuklenici) {
       return res.status(404).json({ success: false, error: 'Yüklenici bulunamadı' });
     }
+
+    // Önce takılmış modülleri resetle (10+ dk "calisiyor" olanlar)
+    await query(
+      `UPDATE yuklenici_istihbarat
+       SET durum = CASE
+         WHEN veri IS NOT NULL AND veri != '{}'::jsonb THEN 'tamamlandi'
+         WHEN hata_mesaji IS NOT NULL THEN 'hata'
+         ELSE 'bekliyor'
+       END, updated_at = NOW()
+       WHERE yuklenici_id = $1 AND durum = 'calisiyor'
+         AND updated_at < NOW() - INTERVAL '10 minutes'`,
+      [id]
+    );
 
     // Tüm modülleri "çalışıyor" olarak işaretle
     for (const modul of ISTIHBARAT_MODULLERI) {
       await updateModulDurum(id, modul, 'calisiyor');
     }
 
-    // Arka planda tümünü çalıştır
-    (async () => {
-      const yukId = parseInt(id, 10);
+    // ─── Modül timeout helper ─────────────────────────────────────
+    const MODUL_TIMEOUT_MS = 5 * 60 * 1000; // 5 dakika per modül
 
-      // 1) ihalebul modülleri sırayla (Puppeteer paylaşımı)
-      const ihalebulModuller = ['ihale_gecmisi', 'profil_analizi', 'katilimcilar', 'kik_kararlari'];
-      for (const modul of ihalebulModuller) {
+    function withTimeout(promise, modulAdi, timeoutMs = MODUL_TIMEOUT_MS) {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`${modulAdi} zaman aşımına uğradı (${timeoutMs / 1000}s)`)), timeoutMs)
+        ),
+      ]);
+    }
+
+    // Arka planda TÜM modülleri paralel çalıştır
+    // Her modül bağımsız: biri takılırsa diğerleri etkilenmez
+    const yukId = parseInt(id, 10);
+    const istihbaratLog = (msg) => console.log(`  🔎 [İSTİHBARAT] yk=${yukId} ${msg}`);
+
+    istihbaratLog(`▶ 8 modül paralel başlatılıyor (${yuklenici.unvan})`);
+
+    Promise.allSettled(
+      ISTIHBARAT_MODULLERI.map(async (modul) => {
+        const t0 = Date.now();
         try {
-          await calistirModul(yukId, modul, yuklenici);
+          istihbaratLog(`  ⏳ ${modul} başladı`);
+          await withTimeout(calistirModul(yukId, modul, yuklenici), modul);
+          const sure = ((Date.now() - t0) / 1000).toFixed(1);
+          istihbaratLog(`  ✅ ${modul} tamamlandı (${sure}s)`);
         } catch (err) {
-          logError(`Toplu İstihbarat [${modul}]`, err);
-          await updateModulDurum(id, modul, 'hata', { hata_mesaji: err.message });
+          const sure = ((Date.now() - t0) / 1000).toFixed(1);
+          istihbaratLog(`  ❌ ${modul} hata (${sure}s): ${err.message}`);
+          await updateModulDurum(id, modul, 'hata', { hata_mesaji: err.message })
+            .catch(e => console.error(`  🔎 [İSTİHBARAT] updateModulDurum hata:`, e.message));
         }
-      }
+      })
+    ).then((results) => {
+      const ok = results.filter(r => r.status === 'fulfilled').length;
+      const fail = results.filter(r => r.status === 'rejected').length;
+      istihbaratLog(`■ Tamamlandı: ${ok} başarılı, ${fail} hatalı`);
+    });
 
-      // 2) Diğer modüller paralel (HTTP-tabanlı, Puppeteer kullanmayan)
-      const digerModuller = ['kik_yasaklilar', 'sirket_bilgileri', 'haberler', 'ai_arastirma'];
-      await Promise.allSettled(
-        digerModuller.map(async (modul) => {
-          try {
-            await calistirModul(yukId, modul, yuklenici);
-          } catch (err) {
-            logError(`Toplu İstihbarat [${modul}]`, err);
-            await updateModulDurum(id, modul, 'hata', { hata_mesaji: err.message });
-          }
-        })
-      );
-    })();
-
-    logAPI('Tüm Modüller Başlatıldı', { yukleniciId: id });
+    logAPI('İstihbarat', 'Tüm Modüller Başlatıldı', { yukleniciId: id, modul_sayisi: 8 });
     res.json({
       success: true,
       message: 'Tüm istihbarat modülleri başlatıldı',
@@ -1982,7 +2225,9 @@ router.get('/:id/modul/:modul/durum', async (req, res) => {
   try {
     const { id, modul } = req.params;
 
-    const { rows: [row] } = await query(
+    const {
+      rows: [row],
+    } = await query(
       `SELECT modul, durum, son_guncelleme, hata_mesaji, updated_at
        FROM yuklenici_istihbarat
        WHERE yuklenici_id = $1 AND modul = $2`,
@@ -2022,11 +2267,17 @@ router.get('/:id/modul/:modul/veri', async (req, res) => {
     }
 
     if (modul === 'profil_analizi') {
-      const { rows: [yk] } = await query(
-        'SELECT analiz_verisi, analiz_scraped_at FROM yukleniciler WHERE id = $1',
-        [id]
-      );
-      return res.json({ success: true, data: { analiz: yk?.analiz_verisi, scraped_at: yk?.analiz_scraped_at } });
+      const {
+        rows: [yk],
+      } = await query('SELECT analiz_verisi, analiz_scraped_at, aktif_sehirler FROM yukleniciler WHERE id = $1', [id]);
+      return res.json({
+        success: true,
+        data: {
+          analiz: yk?.analiz_verisi,
+          scraped_at: yk?.analiz_scraped_at,
+          aktif_sehirler: yk?.aktif_sehirler || [],
+        },
+      });
     }
 
     if (modul === 'katilimcilar') {
@@ -2052,7 +2303,9 @@ router.get('/:id/modul/:modul/veri', async (req, res) => {
     }
 
     // Yeni modüller: veri JSONB alanından
-    const { rows: [row] } = await query(
+    const {
+      rows: [row],
+    } = await query(
       `SELECT veri, son_guncelleme, durum
        FROM yuklenici_istihbarat
        WHERE yuklenici_id = $1 AND modul = $2`,
@@ -2088,9 +2341,9 @@ router.get('/bildirimler/liste', async (req, res) => {
     );
 
     // Okunmamış toplam sayı (badge için)
-    const { rows: [countRow] } = await query(
-      `SELECT COUNT(*) as sayi FROM yuklenici_bildirimler WHERE okundu = false`
-    );
+    const {
+      rows: [countRow],
+    } = await query(`SELECT COUNT(*) as sayi FROM yuklenici_bildirimler WHERE okundu = false`);
 
     res.json({
       success: true,
@@ -2113,10 +2366,7 @@ router.patch('/bildirimler/:bildirimId/oku', async (req, res) => {
   try {
     const { bildirimId } = req.params;
 
-    await query(
-      'UPDATE yuklenici_bildirimler SET okundu = true WHERE id = $1',
-      [bildirimId]
-    );
+    await query('UPDATE yuklenici_bildirimler SET okundu = true WHERE id = $1', [bildirimId]);
 
     res.json({ success: true });
   } catch (error) {
@@ -2167,7 +2417,7 @@ router.get('/:id/fiyat-tahmin', async (req, res) => {
       });
     }
 
-    const indirimler = ihaleler.map(i => parseFloat(i.indirim_orani));
+    const indirimler = ihaleler.map((i) => parseFloat(i.indirim_orani));
 
     // Temel istatistikler
     const ortalama = indirimler.reduce((a, b) => a + b, 0) / indirimler.length;
@@ -2180,12 +2430,11 @@ router.get('/:id/fiyat-tahmin', async (req, res) => {
     const son10 = indirimler.slice(0, Math.min(10, indirimler.length));
     const oncekiler = indirimler.slice(10);
     const son10Ort = son10.reduce((a, b) => a + b, 0) / son10.length;
-    const oncekiOrt = oncekiler.length > 0
-      ? oncekiler.reduce((a, b) => a + b, 0) / oncekiler.length
-      : son10Ort;
+    const oncekiOrt = oncekiler.length > 0 ? oncekiler.reduce((a, b) => a + b, 0) / oncekiler.length : son10Ort;
     const fark = son10Ort - oncekiOrt;
     let trend = 'sabit';
-    if (fark > 2) trend = 'artiyor';    // İndirim oranı artıyor → daha agresif
+    if (fark > 2)
+      trend = 'artiyor'; // İndirim oranı artıyor → daha agresif
     else if (fark < -2) trend = 'azaliyor'; // İndirim oranı azalıyor → daha tutucu
 
     // Şehir bazlı ortalamalar
@@ -2244,7 +2493,13 @@ async function calistirModul(yukleniciId, modul, yuklenici) {
 
       const page = await browserManager.createPage();
       try {
-        const result = await scrapeContractorTenders(page, yuklenici, { maxPages: 15 });
+        // İstihbarat için 5 sayfa/faz yeterli (15 çok uzun sürüyor)
+        const result = await scrapeContractorTenders(page, yuklenici, {
+          maxPages: 5,
+          onPageComplete: (pageNum, tenders, s) => {
+            console.log(`  🔎 [İSTİHBARAT] yk=${yukleniciId} ihale_gecmisi: sayfa ${pageNum} — ${tenders.length} ihale (toplam: ${s.tenders_found})`);
+          },
+        });
         await updateModulDurum(yukleniciId, modul, 'tamamlandi', {
           veri: { stats: result.stats, sure_ms: Date.now() - startTime },
         });
@@ -2312,7 +2567,12 @@ async function calistirModul(yukleniciId, modul, yuklenici) {
 
       const page = await browserManager.createPage();
       try {
-        const result = await scrapeKikDecisions(page, yuklenici, { maxPages: 3 });
+        const result = await scrapeKikDecisions(page, yuklenici, {
+          maxPages: 3,
+          onProgress: (info) => {
+            console.log(`  🔎 [İSTİHBARAT] yk=${yukleniciId} kik_kararlari: ${info}`);
+          },
+        });
         await updateModulDurum(yukleniciId, modul, 'tamamlandi', {
           veri: { stats: result.stats, sure_ms: Date.now() - startTime },
         });

@@ -51,7 +51,7 @@ async function scrapeMersis(page, firmaAdi) {
     if (araBtn) {
       await araBtn.click();
       await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 }).catch(() => {});
-      await new Promise(r => setTimeout(r, 2000));
+      await new Promise((r) => setTimeout(r, 2000));
     }
 
     // Sonuçları oku
@@ -111,7 +111,7 @@ async function scrapeTicaretSicil(page, firmaAdi) {
     if (araBtn) {
       await araBtn.click();
       await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 }).catch(() => {});
-      await new Promise(r => setTimeout(r, 2000));
+      await new Promise((r) => setTimeout(r, 2000));
     }
 
     // İlanları oku
