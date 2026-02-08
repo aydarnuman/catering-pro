@@ -22,6 +22,7 @@ import {
   IconMarkdown,
   IconStrikethrough,
 } from '@tabler/icons-react';
+import DOMPurify from 'dompurify';
 import { useCallback, useRef, useState } from 'react';
 import type { CreateNoteDTO, NoteColor, NoteContentFormat, NotePriority } from '@/types/notes';
 import { NoteColorPicker } from './NoteColorPicker';
@@ -86,15 +87,15 @@ function MarkdownPreview({ content }: { content: string }) {
     .replace(/^- (.*)$/gm, '<li>$1</li>')
     .replace(/\n/g, '<br/>');
 
+  const sanitizedPreview = DOMPurify.sanitize(
+    rendered || '<em style="color:gray">Onizleme...</em>'
+  );
+  // biome-ignore lint/security/noDangerouslySetInnerHtml: Content is sanitized with DOMPurify
+  const previewHtml = <span dangerouslySetInnerHTML={{ __html: sanitizedPreview }} />;
+
   return (
     <Paper p="xs" withBorder style={{ minHeight: 60 }}>
-      <Text size="sm">
-        <span
-          dangerouslySetInnerHTML={{
-            __html: rendered || '<em style="color:gray">Onizleme...</em>',
-          }}
-        />
-      </Text>
+      <Text size="sm">{previewHtml}</Text>
     </Paper>
   );
 }

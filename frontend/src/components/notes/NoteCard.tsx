@@ -27,6 +27,7 @@ import {
 } from '@tabler/icons-react';
 import { format, formatDistanceToNow, isPast, isToday, isTomorrow } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import DOMPurify from 'dompurify';
 import { useState } from 'react';
 import { NOTE_COLORS, type NoteColor, PRIORITY_LABELS, type UnifiedNote } from '@/types/notes';
 import { NoteColorPicker } from './NoteColorPicker';
@@ -79,7 +80,8 @@ function renderContent(content: string, format: string): React.ReactNode {
     .replace(/~~(.*?)~~/g, '<del>$1</del>')
     .replace(/`(.*?)`/g, '<code>$1</code>');
 
-  return <span dangerouslySetInnerHTML={{ __html: rendered }} />;
+  // biome-ignore lint/security/noDangerouslySetInnerHtml: Content is sanitized with DOMPurify
+  return <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(rendered) }} />;
 }
 
 export function NoteCard({

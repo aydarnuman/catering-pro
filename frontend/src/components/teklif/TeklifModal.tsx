@@ -83,7 +83,7 @@ interface TeklifModalProps {
   ihaleBedeli?: number;
   ihaleId?: number;
   ihaleKayitNo?: string;
-  birimFiyatlar?: Array<{ kalem: string; birim: string; miktar: number }>;
+  birimFiyatlar?: Array<{ kalem?: string; birim?: string; miktar?: number | string }>;
 }
 
 type ViewMode = 'maliyet' | 'cetvel';
@@ -92,7 +92,6 @@ export default function TeklifModal({
   opened,
   onClose,
   ihaleBasligi,
-  ihaleBedeli,
   ihaleId,
   ihaleKayitNo,
   birimFiyatlar,
@@ -139,9 +138,9 @@ export default function TeklifModal({
       if (birimFiyatlar && birimFiyatlar.length > 0) {
         const cetvel: CetvelKalemi[] = birimFiyatlar.map((item, idx) => ({
           sira: idx + 1,
-          isKalemi: item.kalem,
-          birim: item.birim,
-          miktar: item.miktar,
+          isKalemi: item.kalem || '',
+          birim: item.birim || 'Adet',
+          miktar: typeof item.miktar === 'number' ? item.miktar : Number(item.miktar) || 0,
           birimFiyat: 0,
           tutar: 0,
         }));
@@ -242,10 +241,10 @@ export default function TeklifModal({
       } else {
         throw new Error(data.error);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       notifications.show({
         title: 'Hata',
-        message: error.message || 'Teklif kaydedilemedi',
+        message: (error instanceof Error ? error.message : null) || 'Teklif kaydedilemedi',
         color: 'red',
       });
     } finally {
@@ -254,14 +253,15 @@ export default function TeklifModal({
   };
 
   // Generic maliyet detay güncelleme
-  const updateMaliyetDetay = useCallback((kalem: MaliyetKalemKey, path: string, value: any) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic nested path update
+  const updateMaliyetDetay = useCallback((kalem: MaliyetKalemKey, path: string, value: string | number | boolean) => {
     setTeklifData((prev) => {
       const yeniDetay = JSON.parse(JSON.stringify(prev.maliyet_detay));
       const keys = path.split('.');
-      let obj: any = yeniDetay[kalem].detay;
+      let obj: Record<string, unknown> = yeniDetay[kalem].detay;
 
       for (let i = 0; i < keys.length - 1; i++) {
-        obj = obj[keys[i]];
+        obj = obj[keys[i]] as Record<string, unknown>;
       }
       obj[keys[keys.length - 1]] = value;
 
@@ -312,7 +312,7 @@ export default function TeklifModal({
                 ? ogun.kisiSayisi * ogun.gunSayisi * ogun.kisiBasiMaliyet
                 : 0;
               return (
-                <Table.Tr key={idx} style={{ opacity: ogun.aktif ? 1 : 0.5 }}>
+                <Table.Tr key={ogun.ad} style={{ opacity: ogun.aktif ? 1 : 0.5 }}>
                   <Table.Td>
                     <Checkbox
                       checked={ogun.aktif}
@@ -437,7 +437,7 @@ export default function TeklifModal({
           Personel Listesi
         </Text>
         {detay.pozisyonlar.map((poz, idx) => (
-          <Paper key={idx} withBorder p="xs">
+          <Paper key={`poz-${poz.pozisyon}-${idx}`} withBorder p="xs">
             <Group align="end">
               <Select
                 label="Pozisyon"
@@ -583,7 +583,7 @@ export default function TeklifModal({
           Araç Listesi
         </Text>
         {detay.araclar.map((arac, idx) => (
-          <Paper key={idx} withBorder p="xs">
+          <Paper key={`arac-${arac.tip}-${idx}`} withBorder p="xs">
             <Group align="end" wrap="nowrap">
               <Select
                 label="Araç Tipi"
@@ -767,7 +767,7 @@ export default function TeklifModal({
             {detay.kalemler.map((kalem, idx) => {
               const kalemToplam = detay.gunlukKisi * detay.gunSayisi * kalem.miktar;
               return (
-                <Table.Tr key={idx}>
+                <Table.Tr key={`malz-${kalem.ad}-${idx}`}>
                   <Table.Td>
                     <TextInput
                       variant="unstyled"
@@ -887,7 +887,7 @@ export default function TeklifModal({
           Ekipman Listesi
         </Text>
         {detay.ekipmanlar.map((ekp, idx) => (
-          <Paper key={idx} withBorder p="xs">
+          <Paper key={`ekp-${ekp.ad}-${idx}`} withBorder p="xs">
             <Group align="end">
               <Select
                 label="Ekipman"
@@ -1055,7 +1055,7 @@ export default function TeklifModal({
           Gider Kalemleri (Aylık)
         </Text>
         {detay.kalemler.map((kalem, idx) => (
-          <Group key={idx}>
+          <Group key={`gider-${kalem.ad}-${idx}`}>
             <TextInput
               value={kalem.ad}
               onChange={(e) => {
@@ -1150,7 +1150,7 @@ export default function TeklifModal({
           {kategoriAciklamalari[kategoriKey]}
         </Text>
         {detay[kategoriKey].map((item, idx) => (
-          <Group key={idx} mb="xs">
+          <Group key={`${kategoriKey}-${item.ad}-${idx}`} mb="xs">
             <TextInput
               size="xs"
               value={item.ad}
@@ -1310,8 +1310,8 @@ export default function TeklifModal({
             <Text size="sm" fw={500}>
               Risk Kategorileri
             </Text>
-            {detay.kategoriler.map((kat, idx) => (
-              <Paper key={idx} withBorder p="xs">
+            {detay.kategoriler.map((kat) => (
+              <Paper key={kat.ad} withBorder p="xs">
                 <Group justify="space-between">
                   <Checkbox
                     label={kat.ad}
@@ -1821,8 +1821,8 @@ export default function TeklifModal({
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {teklifData.birim_fiyat_cetveli.map((kalem, idx) => (
-                  <Table.Tr key={idx}>
+                {teklifData.birim_fiyat_cetveli.map((kalem) => (
+                  <Table.Tr key={`cetvel-${kalem.sira}`}>
                     <Table.Td>{kalem.sira}</Table.Td>
                     <Table.Td>
                       <TextInput

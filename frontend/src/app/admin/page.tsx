@@ -201,7 +201,8 @@ export default function AdminPage() {
         {
           id: 'model-egitimi',
           title: 'Model Eğitimi',
-          description: 'Azure DI model eğitim durumu, düzeltme istatistikleri ve manuel eğitim tetikleme',
+          description:
+            'Azure DI model eğitim durumu, düzeltme istatistikleri ve manuel eğitim tetikleme',
           icon: IconDatabase,
           color: 'cyan',
           path: '/admin/model-egitimi',

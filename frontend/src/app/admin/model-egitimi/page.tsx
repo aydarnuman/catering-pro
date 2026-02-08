@@ -16,8 +16,8 @@ import {
   Stack,
   Text,
   ThemeIcon,
-  Title,
   Timeline,
+  Title,
   Tooltip,
 } from '@mantine/core';
 import {
@@ -134,7 +134,9 @@ export default function ModelEgitimiPage() {
         // Aktif modelin detayini al
         const activeId = statusRes.data.data?.model?.activeModelId;
         if (activeId) {
-          const detailRes = await api.get(`/api/analysis-corrections/azure/models/${activeId}`).catch(() => null);
+          const detailRes = await api
+            .get(`/api/analysis-corrections/azure/models/${activeId}`)
+            .catch(() => null);
           if (detailRes?.data?.success) {
             setActiveModelDetail(detailRes.data.data.model);
           }
@@ -156,7 +158,11 @@ export default function ModelEgitimiPage() {
   }, [fetchStatus]);
 
   const handleTriggerTraining = async () => {
-    if (!confirm('Model eğitimini başlatmak istediğinize emin misiniz? Bu işlem 10-30 dakika sürebilir.')) {
+    if (
+      !confirm(
+        'Model eğitimini başlatmak istediğinize emin misiniz? Bu işlem 10-30 dakika sürebilir.'
+      )
+    ) {
       return;
     }
     setTraining(true);
@@ -185,10 +191,10 @@ export default function ModelEgitimiPage() {
     }
   };
 
-  const pendingCount = parseInt(status?.stats?.pending_training || '0');
-  const totalCount = parseInt(status?.stats?.total || '0');
-  const trainedCount = parseInt(status?.model?.trained_corrections || '0');
-  const pendingSyncCount = parseInt(status?.stats?.pending_sync || '0');
+  const pendingCount = parseInt(status?.stats?.pending_training || '0', 10);
+  const totalCount = parseInt(status?.stats?.total || '0', 10);
+  const trainedCount = parseInt(status?.model?.trained_corrections || '0', 10);
+  const pendingSyncCount = parseInt(status?.stats?.pending_sync || '0', 10);
   const threshold = status?.threshold || 50;
   const thresholdProgress = Math.min((pendingCount / threshold) * 100, 100);
 
@@ -235,11 +241,17 @@ export default function ModelEgitimiPage() {
 
         {/* Eğitim devam ediyorsa uyarı */}
         {status?.isTraining && status.currentTraining && (
-          <Alert icon={<Loader size={20} />} title="Egitim Devam Ediyor" color="blue" variant="light">
+          <Alert
+            icon={<Loader size={20} />}
+            title="Egitim Devam Ediyor"
+            color="blue"
+            variant="light"
+          >
             <Text size="sm">
-              Model <strong>{status.currentTraining.modelId}</strong> egitiliyor...
-              Durum: {status.currentTraining.status}
-              {status.currentTraining.correctionCount && ` (${status.currentTraining.correctionCount} duzeltme)`}
+              Model <strong>{status.currentTraining.modelId}</strong> egitiliyor... Durum:{' '}
+              {status.currentTraining.status}
+              {status.currentTraining.correctionCount &&
+                ` (${status.currentTraining.correctionCount} duzeltme)`}
             </Text>
             <Text size="xs" c="dimmed" mt={4}>
               Baslangic: {new Date(status.currentTraining.startedAt).toLocaleString('tr-TR')}
@@ -260,8 +272,8 @@ export default function ModelEgitimiPage() {
             {trainResult.success ? (
               <Text size="sm">
                 Model <strong>{trainResult.modelId}</strong> basariyla egitildi.{' '}
-                {trainResult.correctionCount} duzeltme islendi.{' '}
-                Sure: {((trainResult.elapsed || 0) / 1000).toFixed(0)} saniye.
+                {trainResult.correctionCount} duzeltme islendi. Sure:{' '}
+                {((trainResult.elapsed || 0) / 1000).toFixed(0)} saniye.
               </Text>
             ) : (
               <Text size="sm">{trainResult.error}</Text>
@@ -272,19 +284,25 @@ export default function ModelEgitimiPage() {
         {/* İstatistik kartları */}
         {loading ? (
           <SimpleGrid cols={{ base: 2, sm: 4 }}>
-            {[1, 2, 3, 4].map(i => <Card key={i} padding="lg" radius="md" className="stat-card" h={120} />)}
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i} padding="lg" radius="md" className="stat-card" h={120} />
+            ))}
           </SimpleGrid>
         ) : (
           <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
             {/* Toplam Düzeltme */}
             <Card padding="lg" radius="md" className="stat-card">
               <Group justify="space-between" mb="xs">
-                <Text size="sm" c="dimmed">Toplam Duzeltme</Text>
+                <Text size="sm" c="dimmed">
+                  Toplam Duzeltme
+                </Text>
                 <ThemeIcon variant="light" color="blue" size="sm" radius="xl">
                   <IconFileText size={14} />
                 </ThemeIcon>
               </Group>
-              <Text fw={700} size="xl">{totalCount}</Text>
+              <Text fw={700} size="xl">
+                {totalCount}
+              </Text>
               <Text size="xs" c="dimmed" mt={4}>
                 {status?.stats?.tenders || 0} ihale, {status?.stats?.documents || 0} dokuman
               </Text>
@@ -293,7 +311,9 @@ export default function ModelEgitimiPage() {
             {/* Eğitim Bekleyen */}
             <Card padding="lg" radius="md" className="stat-card">
               <Group justify="space-between" mb="xs">
-                <Text size="sm" c="dimmed">Egitim Bekleyen</Text>
+                <Text size="sm" c="dimmed">
+                  Egitim Bekleyen
+                </Text>
                 <ThemeIcon
                   variant="light"
                   color={pendingCount >= threshold ? 'orange' : 'gray'}
@@ -320,12 +340,16 @@ export default function ModelEgitimiPage() {
             {/* Eğitilmiş */}
             <Card padding="lg" radius="md" className="stat-card">
               <Group justify="space-between" mb="xs">
-                <Text size="sm" c="dimmed">Egitimde Kullanilan</Text>
+                <Text size="sm" c="dimmed">
+                  Egitimde Kullanilan
+                </Text>
                 <ThemeIcon variant="light" color="green" size="sm" radius="xl">
                   <IconCheck size={14} />
                 </ThemeIcon>
               </Group>
-              <Text fw={700} size="xl" c="green">{trainedCount}</Text>
+              <Text fw={700} size="xl" c="green">
+                {trainedCount}
+              </Text>
               {status?.model?.last_training_date && (
                 <Text size="xs" c="dimmed" mt={4}>
                   Son: {new Date(status.model.last_training_date).toLocaleDateString('tr-TR')}
@@ -336,7 +360,9 @@ export default function ModelEgitimiPage() {
             {/* Blob Sync */}
             <Card padding="lg" radius="md" className="stat-card">
               <Group justify="space-between" mb="xs">
-                <Text size="sm" c="dimmed">Blob Sync</Text>
+                <Text size="sm" c="dimmed">
+                  Blob Sync
+                </Text>
                 <ThemeIcon
                   variant="light"
                   color={pendingSyncCount > 0 ? 'yellow' : 'green'}
@@ -348,7 +374,9 @@ export default function ModelEgitimiPage() {
               </Group>
               <Text fw={700} size="xl">
                 {pendingSyncCount > 0 ? (
-                  <span style={{ color: 'var(--mantine-color-yellow-6)' }}>{pendingSyncCount} bekliyor</span>
+                  <span style={{ color: 'var(--mantine-color-yellow-6)' }}>
+                    {pendingSyncCount} bekliyor
+                  </span>
                 ) : (
                   <span style={{ color: 'var(--mantine-color-green-6)' }}>Guncel</span>
                 )}
@@ -422,7 +450,9 @@ export default function ModelEgitimiPage() {
                 fullWidth
                 variant="gradient"
                 gradient={{ from: 'cyan', to: 'blue' }}
-                leftSection={training ? <Loader size={18} color="white" /> : <IconPlayerPlay size={18} />}
+                leftSection={
+                  training ? <Loader size={18} color="white" /> : <IconPlayerPlay size={18} />
+                }
                 onClick={handleTriggerTraining}
                 disabled={training || (status?.isTraining ?? false) || pendingCount === 0}
               >
@@ -444,10 +474,7 @@ export default function ModelEgitimiPage() {
             </Title>
 
             <Timeline active={-1} bulletSize={28} lineWidth={2}>
-              <Timeline.Item
-                bullet={<IconFileText size={14} />}
-                title="Kullanici Duzeltmesi"
-              >
+              <Timeline.Item bullet={<IconFileText size={14} />} title="Kullanici Duzeltmesi">
                 <Text size="sm" c="dimmed">
                   Kullanici analiz sonuclarini duzenler, kaydeder
                 </Text>
@@ -456,10 +483,7 @@ export default function ModelEgitimiPage() {
                 </Badge>
               </Timeline.Item>
 
-              <Timeline.Item
-                bullet={<IconCloudUpload size={14} />}
-                title="Azure Blob Sync"
-              >
+              <Timeline.Item bullet={<IconCloudUpload size={14} />} title="Azure Blob Sync">
                 <Text size="sm" c="dimmed">
                   Duzeltmeler otomatik olarak labels.json dosyalarina yazilir
                 </Text>
@@ -473,10 +497,7 @@ export default function ModelEgitimiPage() {
                 </Badge>
               </Timeline.Item>
 
-              <Timeline.Item
-                bullet={<IconDatabase size={14} />}
-                title="Esik Kontrolu"
-              >
+              <Timeline.Item bullet={<IconDatabase size={14} />} title="Esik Kontrolu">
                 <Text size="sm" c="dimmed">
                   {threshold} duzeltme biriktikce admin bilgilendirilir
                 </Text>
@@ -490,27 +511,16 @@ export default function ModelEgitimiPage() {
                 </Badge>
               </Timeline.Item>
 
-              <Timeline.Item
-                bullet={<IconRocket size={14} />}
-                title="Model Egitimi"
-              >
+              <Timeline.Item bullet={<IconRocket size={14} />} title="Model Egitimi">
                 <Text size="sm" c="dimmed">
                   Admin tetikler, build-dataset.mjs Azure DI API ile egitir
                 </Text>
-                <Badge
-                  size="xs"
-                  variant="light"
-                  color="cyan"
-                  mt={4}
-                >
+                <Badge size="xs" variant="light" color="cyan" mt={4}>
                   {status?.model?.activeModelId || 'ihale-catering-v1'}
                 </Badge>
               </Timeline.Item>
 
-              <Timeline.Item
-                bullet={<IconBrain size={14} />}
-                title="Yeni Model Aktif"
-              >
+              <Timeline.Item bullet={<IconBrain size={14} />} title="Yeni Model Aktif">
                 <Text size="sm" c="dimmed">
                   Yeni model devreye girer, sonraki analizlerde kullanilir
                 </Text>
@@ -521,7 +531,9 @@ export default function ModelEgitimiPage() {
             {status?.model && (
               <Paper p="sm" mt="md" withBorder radius="md" bg="var(--mantine-color-dark-7)">
                 <Group justify="space-between">
-                  <Text size="sm" fw={500}>Aktif Model</Text>
+                  <Text size="sm" fw={500}>
+                    Aktif Model
+                  </Text>
                   <Badge color="cyan" variant="filled">
                     {status.model.activeModelId}
                   </Badge>
@@ -546,8 +558,12 @@ export default function ModelEgitimiPage() {
               <IconCloud size={20} />
             </ThemeIcon>
             <div>
-              <Text fw={600} size="lg">Azure Document Intelligence</Text>
-              <Text size="xs" c="dimmed">Servis durumu ve model detayları</Text>
+              <Text fw={600} size="lg">
+                Azure Document Intelligence
+              </Text>
+              <Text size="xs" c="dimmed">
+                Servis durumu ve model detayları
+              </Text>
             </div>
           </Group>
 
@@ -556,7 +572,9 @@ export default function ModelEgitimiPage() {
             <Paper p="sm" withBorder radius="md">
               <Group gap="xs" mb="xs">
                 <IconHeartbeat size={16} />
-                <Text size="sm" fw={500}>Servis Durumu</Text>
+                <Text size="sm" fw={500}>
+                  Servis Durumu
+                </Text>
               </Group>
               {azureHealth ? (
                 <Stack gap={4}>
@@ -579,11 +597,15 @@ export default function ModelEgitimiPage() {
                     </>
                   )}
                   {azureHealth.error && (
-                    <Text size="xs" c="red">{azureHealth.error}</Text>
+                    <Text size="xs" c="red">
+                      {azureHealth.error}
+                    </Text>
                   )}
                 </Stack>
               ) : (
-                <Text size="xs" c="dimmed">Yükleniyor...</Text>
+                <Text size="xs" c="dimmed">
+                  Yükleniyor...
+                </Text>
               )}
             </Paper>
 
@@ -591,7 +613,9 @@ export default function ModelEgitimiPage() {
             <Paper p="sm" withBorder radius="md">
               <Group gap="xs" mb="xs">
                 <IconBrain size={16} />
-                <Text size="sm" fw={500}>Aktif Model</Text>
+                <Text size="sm" fw={500}>
+                  Aktif Model
+                </Text>
               </Group>
               {activeModelDetail ? (
                 <Stack gap={4}>
@@ -599,7 +623,8 @@ export default function ModelEgitimiPage() {
                     {activeModelDetail.modelId}
                   </Badge>
                   <Text size="xs" c="dimmed">
-                    Oluşturma: {new Date(activeModelDetail.createdDateTime).toLocaleDateString('tr-TR')}
+                    Oluşturma:{' '}
+                    {new Date(activeModelDetail.createdDateTime).toLocaleDateString('tr-TR')}
                   </Text>
                   {activeModelDetail.trainingDocumentCount != null && (
                     <Text size="xs" c="dimmed">
@@ -608,10 +633,18 @@ export default function ModelEgitimiPage() {
                   )}
                   {activeModelDetail.averageAccuracy != null && (
                     <Group gap={4} mt={2}>
-                      <Text size="xs" fw={500}>Ortalama Doğruluk:</Text>
+                      <Text size="xs" fw={500}>
+                        Ortalama Doğruluk:
+                      </Text>
                       <Badge
                         size="sm"
-                        color={activeModelDetail.averageAccuracy >= 0.8 ? 'green' : activeModelDetail.averageAccuracy >= 0.6 ? 'yellow' : 'red'}
+                        color={
+                          activeModelDetail.averageAccuracy >= 0.8
+                            ? 'green'
+                            : activeModelDetail.averageAccuracy >= 0.6
+                              ? 'yellow'
+                              : 'red'
+                        }
                       >
                         %{(activeModelDetail.averageAccuracy * 100).toFixed(1)}
                       </Badge>
@@ -619,7 +652,8 @@ export default function ModelEgitimiPage() {
                   )}
                   {activeModelDetail.expirationDateTime && (
                     <Text size="xs" c="orange">
-                      Son kullanma: {new Date(activeModelDetail.expirationDateTime).toLocaleDateString('tr-TR')}
+                      Son kullanma:{' '}
+                      {new Date(activeModelDetail.expirationDateTime).toLocaleDateString('tr-TR')}
                     </Text>
                   )}
                 </Stack>
@@ -634,15 +668,23 @@ export default function ModelEgitimiPage() {
             <Paper p="sm" withBorder radius="md">
               <Group gap="xs" mb="xs">
                 <IconDatabase size={16} />
-                <Text size="sm" fw={500}>Tüm Custom Modeller</Text>
+                <Text size="sm" fw={500}>
+                  Tüm Custom Modeller
+                </Text>
               </Group>
               {azureModels ? (
                 <Stack gap={4}>
                   {azureModels.models.length === 0 ? (
-                    <Text size="xs" c="dimmed">Henüz model yok</Text>
+                    <Text size="xs" c="dimmed">
+                      Henüz model yok
+                    </Text>
                   ) : (
                     azureModels.models
-                      .sort((a, b) => new Date(b.createdDateTime).getTime() - new Date(a.createdDateTime).getTime())
+                      .sort(
+                        (a, b) =>
+                          new Date(b.createdDateTime).getTime() -
+                          new Date(a.createdDateTime).getTime()
+                      )
                       .slice(0, 5)
                       .map((m) => (
                         <Group key={m.modelId} justify="space-between" gap={4}>
@@ -662,7 +704,9 @@ export default function ModelEgitimiPage() {
                   )}
                 </Stack>
               ) : (
-                <Text size="xs" c="dimmed">Yükleniyor...</Text>
+                <Text size="xs" c="dimmed">
+                  Yükleniyor...
+                </Text>
               )}
             </Paper>
           </SimpleGrid>
@@ -670,42 +714,46 @@ export default function ModelEgitimiPage() {
           {/* Field Accuracy Tablosu (aktif model) */}
           {activeModelDetail?.docTypes?.[0]?.fieldConfidence &&
             Object.keys(activeModelDetail.docTypes[0].fieldConfidence).length > 0 && (
-            <Paper p="sm" mt="md" withBorder radius="md">
-              <Group gap="xs" mb="sm">
-                <IconTable size={16} />
-                <Text size="sm" fw={500}>Alan Doğruluk Oranları</Text>
-                <Badge size="xs" variant="light" color="cyan">
-                  {activeModelDetail.docTypes[0].buildMode}
-                </Badge>
-              </Group>
-              <Stack gap={6}>
-                {Object.entries(activeModelDetail.docTypes[0].fieldConfidence)
-                  .sort(([, a], [, b]) => (b as number) - (a as number))
-                  .map(([field, confidence]) => (
-                    <div key={field}>
-                      <Group justify="space-between" mb={2}>
-                        <Text size="xs" fw={500}>{field}</Text>
-                        <Text size="xs" c="dimmed">
-                          %{((confidence as number) * 100).toFixed(1)}
-                        </Text>
-                      </Group>
-                      <Progress
-                        value={(confidence as number) * 100}
-                        size="sm"
-                        color={
-                          (confidence as number) >= 0.9
-                            ? 'green'
-                            : (confidence as number) >= 0.7
-                              ? 'yellow'
-                              : 'red'
-                        }
-                        radius="xl"
-                      />
-                    </div>
-                  ))}
-              </Stack>
-            </Paper>
-          )}
+              <Paper p="sm" mt="md" withBorder radius="md">
+                <Group gap="xs" mb="sm">
+                  <IconTable size={16} />
+                  <Text size="sm" fw={500}>
+                    Alan Doğruluk Oranları
+                  </Text>
+                  <Badge size="xs" variant="light" color="cyan">
+                    {activeModelDetail.docTypes[0].buildMode}
+                  </Badge>
+                </Group>
+                <Stack gap={6}>
+                  {Object.entries(activeModelDetail.docTypes[0].fieldConfidence)
+                    .sort(([, a], [, b]) => (b as number) - (a as number))
+                    .map(([field, confidence]) => (
+                      <div key={field}>
+                        <Group justify="space-between" mb={2}>
+                          <Text size="xs" fw={500}>
+                            {field}
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            %{((confidence as number) * 100).toFixed(1)}
+                          </Text>
+                        </Group>
+                        <Progress
+                          value={(confidence as number) * 100}
+                          size="sm"
+                          color={
+                            (confidence as number) >= 0.9
+                              ? 'green'
+                              : (confidence as number) >= 0.7
+                                ? 'yellow'
+                                : 'red'
+                          }
+                          radius="xl"
+                        />
+                      </div>
+                    ))}
+                </Stack>
+              </Paper>
+            )}
         </Paper>
       </Stack>
     </Container>

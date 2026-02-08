@@ -64,6 +64,7 @@ import {
   IconTrash,
   IconX,
 } from '@tabler/icons-react';
+import DOMPurify from 'dompurify';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { notesAPI } from '@/lib/api/services/notes';
 import { tendersAPI } from '@/lib/api/services/tenders';
@@ -163,7 +164,8 @@ const formatMarkdown = (text: string): React.ReactNode => {
     '<a href="$2" target="_blank" rel="noopener" style="color:#1976d2">$1</a>'
   );
 
-  return <span dangerouslySetInnerHTML={{ __html: formatted }} />;
+  // biome-ignore lint/security/noDangerouslySetInnerHtml: Content is sanitized with DOMPurify
+  return <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(formatted) }} />;
 };
 
 // Sortable Note Card Component

@@ -618,7 +618,9 @@ export function Navbar() {
                   <Menu.Item
                     component={Link}
                     href="/yuklenici-kutuphanesi"
-                    leftSection={<IconBuildingStore size={16} color="var(--mantine-color-orange-6)" />}
+                    leftSection={
+                      <IconBuildingStore size={16} color="var(--mantine-color-orange-6)" />
+                    }
                   >
                     <Box>
                       <Group justify="space-between" w="100%">
@@ -631,7 +633,6 @@ export function Navbar() {
                       </Text>
                     </Box>
                   </Menu.Item>
-                  
                 </Menu.Dropdown>
               </Menu>
             )}

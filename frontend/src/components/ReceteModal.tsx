@@ -415,7 +415,9 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
     setDetayLoading(true);
     try {
       // Maliyet analizi endpoint'ini kullan - raf fiyatlarını içerir
-      const result = (await menuPlanlamaAPI.getMaliyetAnalizi(id)) as ApiResponse<MaliyetAnaliziData>;
+      const result = (await menuPlanlamaAPI.getMaliyetAnalizi(
+        id
+      )) as ApiResponse<MaliyetAnaliziData>;
 
       if (result.success) {
         // Malzeme maliyetlerini hesapla
@@ -490,7 +492,10 @@ export default function ReceteModal({ opened, onClose, onReceteSelect }: Props) 
     if (!editingRecete || !selectedRecete) return;
 
     try {
-      const result = await menuPlanlamaAPI.updateRecete(selectedRecete.id, editingRecete as unknown as Parameters<typeof menuPlanlamaAPI.updateRecete>[1]);
+      const result = await menuPlanlamaAPI.updateRecete(
+        selectedRecete.id,
+        editingRecete as unknown as Parameters<typeof menuPlanlamaAPI.updateRecete>[1]
+      );
 
       if (result.success) {
         notifications.show({

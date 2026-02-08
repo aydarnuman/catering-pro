@@ -1,8 +1,8 @@
 'use client';
 
+import { notifications } from '@mantine/notifications';
 import { useCallback, useEffect, useState } from 'react';
 import { getApiUrl } from '@/lib/config';
-import { notifications } from '@mantine/notifications';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -194,30 +194,27 @@ export function useAnalysisCorrections(tenderId: number | null, documentId?: num
   }, [tenderId, documentId]);
 
   // Düzeltmeyi geri al
-  const undoCorrection = useCallback(
-    async (correctionId: number): Promise<boolean> => {
-      try {
-        const res = await fetch(getApiUrl(`/analysis-corrections/${correctionId}`), {
-          method: 'DELETE',
-          credentials: 'include',
+  const undoCorrection = useCallback(async (correctionId: number): Promise<boolean> => {
+    try {
+      const res = await fetch(getApiUrl(`/analysis-corrections/${correctionId}`), {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const json = await res.json();
+      if (json.success) {
+        setCorrections((prev) => prev.filter((c) => c.id !== correctionId));
+        notifications.show({
+          title: 'Geri Alındı',
+          message: 'Düzeltme geri alındı',
+          color: 'blue',
         });
-        const json = await res.json();
-        if (json.success) {
-          setCorrections((prev) => prev.filter((c) => c.id !== correctionId));
-          notifications.show({
-            title: 'Geri Alındı',
-            message: 'Düzeltme geri alındı',
-            color: 'blue',
-          });
-          return true;
-        }
-        return false;
-      } catch {
-        return false;
+        return true;
       }
-    },
-    []
-  );
+      return false;
+    } catch {
+      return false;
+    }
+  }, []);
 
   // Belirli bir alan için düzeltme var mı?
   const getCorrectionForField = useCallback(

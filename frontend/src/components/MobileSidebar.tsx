@@ -91,7 +91,6 @@ const allMenuGroups: MenuGroup[] = [
         href: '/yuklenici-kutuphanesi',
         icon: IconBuildingStore,
       },
-      
     ],
   },
   {
