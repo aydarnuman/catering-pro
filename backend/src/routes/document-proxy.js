@@ -255,7 +255,7 @@ router.post('/scrape/:tenderId', async (req, res) => {
     logger.info(`On-demand scraping: İhale ${tenderId}`);
 
     // Dynamic import to avoid circular dependency
-    const { default: documentScraper } = await import('../scraper/document-scraper.js');
+    const { default: documentScraper } = await import('../scraper/ihale-tarama/ihale-icerik-cek.js');
 
     // Sadece bu ihale için döküman çek
     const result2 = await documentScraper.updateDocumentLinks([tender], 1);

@@ -41,7 +41,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Runner.js yolu
-const RUNNER_PATH = path.join(__dirname, '../scraper/runner.js');
+const RUNNER_PATH = path.join(__dirname, '../scraper/ihale-tarama/ihale-tarama-cli.js');
 
 class TenderScheduler {
   constructor() {
@@ -352,6 +352,20 @@ class TenderScheduler {
     });
     this.jobs.set('cleanup', cleanup);
 
+    // ========== HITL AUTO-RETRAIN ==========
+
+    // Gece 02:00 - Düzeltme eşik kontrolü ve otomatik eğitim tetikleme
+    const retrainCheck = cron.schedule('0 2 * * *', async () => {
+      try {
+        const { scheduledRetrainCheck } = await import('./auto-retrain.js');
+        await scheduledRetrainCheck();
+      } catch (err) {
+        // Auto-retrain hatası scheduler'ı durdurmamalı
+        console.error('[Scheduler] Auto-retrain check error:', err.message);
+      }
+    });
+    this.jobs.set('retrain_check', retrainCheck);
+
     // ========== STARTUP ==========
 
     // Sunucu başladığında 30 saniye bekle, sonra kontrol et
@@ -536,6 +550,7 @@ class TenderScheduler {
         list: ['08:00', '14:00', '19:00'],
         docs: ['09:00', '15:00'],
         cleanup: ['03:00'],
+        retrain_check: ['02:00'],
       },
     };
   }

@@ -1,6 +1,16 @@
+/**
+ * SUPABASE CLIENT - SADECE REALTIME ICIN
+ *
+ * Bu client Auth icin KULLANILMIYOR.
+ * Kimlik dogrulama: Custom JWT + bcrypt + HttpOnly Cookie
+ * Auth dosyalari: context/AuthContext.tsx, middleware.ts
+ *
+ * Bu client sadece Supabase Realtime subscription icin kullanilir.
+ * Kullanim yerleri: RealtimeContext.tsx, useRealtimeSubscription.ts
+ */
 import { createBrowserClient } from '@supabase/ssr';
 
-// Supabase URL ve Anon Key kontrolü
+// Supabase URL ve Anon Key kontrolü (sadece Realtime icin)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -16,7 +26,7 @@ export function createClient() {
   // Build sırasında uyarı ver ama hata verme
   if (!supabaseUrl || !supabaseAnonKey) {
     if (typeof window !== 'undefined') {
-      console.warn('[Supabase] Environment variables not set. Auth will not work.');
+      console.warn('[Supabase] Environment variables not set. Realtime will not work.');
     }
   }
 

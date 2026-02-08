@@ -13,8 +13,8 @@ import path from 'node:path';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
-import browserManager from '../src/scraper/browser-manager.js';
-import loginService from '../src/scraper/login-service.js';
+import browserManager from '../src/scraper/shared/browser.js';
+import loginService from '../src/scraper/shared/ihalebul-login.js';
 
 const ANALYZE_URL = 'https://www.ihalebul.com/analyze?workcategory_in=15&contractortitle_in=FLORYA+YEMEK+T%C4%B0CARET+ANON%C4%B0M+%C5%9E%C4%B0RKET%C4%B0';
 

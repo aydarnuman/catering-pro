@@ -199,7 +199,7 @@ class ClaudeAIService {
           name: 'Catering Pro',
           description: 'AI Destekli İhale ve Muhasebe Yönetim Sistemi',
           modules: [
-            '🏢 İhale Merkezi - İhale listesi, AI analiz, döküman yönetimi, EKAP entegrasyonu',
+            '🏢 İhale Merkezi - İhale listesi, AI analiz, döküman yönetimi, ihalebul.com entegrasyonu',
             '💰 Muhasebe - Fatura yönetimi, e-fatura entegrasyonu, mali raporlar',
             '🤖 AI Asistan - Claude AI ile akıllı analiz ve soru-cevap sistemi',
             '⚙️ Ayarlar - Sistem konfigürasyonu ve AI prompt yönetimi',
@@ -208,7 +208,7 @@ class ClaudeAIService {
             'Frontend: Next.js 14, React 18, Mantine UI 7',
             'Backend: Node.js, Express.js, PostgreSQL',
             'AI: Claude 3 Haiku (Anthropic API)',
-            'Scraping: Puppeteer (EKAP), Uyumsoft SOAP API',
+            'Scraping: Puppeteer (ihalebul.com), Uyumsoft SOAP API',
             'Styling: Mantine UI, CSS Modules',
           ],
           features: [

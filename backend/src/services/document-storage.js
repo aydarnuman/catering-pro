@@ -15,9 +15,9 @@ import { pool } from '../database.js';
 import { supabase } from '../supabase.js';
 import logger from '../utils/logger.js';
 import documentDownloadService from './document-download.js';
-import browserManager from '../scraper/browser-manager.js';
-import documentScraper from '../scraper/document-scraper.js';
-import sessionManager from '../scraper/session-manager.js';
+import browserManager from '../scraper/shared/browser.js';
+import documentScraper from '../scraper/ihale-tarama/ihale-icerik-cek.js';
+import sessionManager from '../scraper/shared/ihalebul-cookie.js';
 
 const execAsync = promisify(exec);
 

@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
-import sessionManager from '../scraper/session-manager.js';
-import browserManager from '../scraper/browser-manager.js';
-import loginService from '../scraper/login-service.js';
+import sessionManager from '../scraper/shared/ihalebul-cookie.js';
+import browserManager from '../scraper/shared/browser.js';
+import loginService from '../scraper/shared/ihalebul-login.js';
 import logger from '../utils/logger.js';
 
 /**

@@ -1,218 +1,91 @@
 /**
- * Market Fiyat Servisi - Puppeteer ile Gerçek Scraping
- * Migros, ŞOK, Trendyol - Gerçek Fiyatlar
+ * Market Fiyat Servisi - Camgöz API
+ * camgoz.net üzerinden 45+ Türkiye marketi fiyat karşılaştırma
+ * Puppeteer gerektirmez - hafif HTTP + HTML parse
  */
 
-import puppeteer from 'puppeteer';
+import * as cheerio from 'cheerio';
 
-// Browser instance (singleton)
-let browser = null;
+// ─── CAMGÖZ API ──────────────────────────────────────────
 
 /**
- * Browser başlat
+ * Türkçe fiyat formatını parse et
+ * "39,5" → 39.5 | "249.90" → 249.90 | "1.249,90" → 1249.90
  */
-async function initBrowser() {
-  if (!browser) {
-    browser = await puppeteer.launch({
-      headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-    });
+function parseTurkishPrice(text) {
+  if (!text) return null;
+  const cleaned = text.trim();
+  // "1.249,90" → 1249.90
+  if (cleaned.includes(',') && cleaned.includes('.')) {
+    return parseFloat(cleaned.replace(/\./g, '').replace(',', '.'));
   }
-  return browser;
+  // "39,5" → 39.5
+  if (cleaned.includes(',')) {
+    return parseFloat(cleaned.replace(',', '.'));
+  }
+  // "249.90" → 249.90
+  return parseFloat(cleaned);
 }
 
 /**
- * Browser kapat
+ * Camgöz API'den fiyat çek (45+ market)
+ * camgoz.net /search-product endpoint'i - HTML parse
  */
-export async function closeBrowser() {
-  if (browser) {
-    await browser.close();
-    browser = null;
-  }
-}
-
-/**
- * Migros'tan fiyat çek
- */
-async function scrapeMigros(searchTerm) {
+async function fetchCamgozPrices(searchTerm) {
   const results = [];
-  let page = null;
 
   try {
-    const b = await initBrowser();
-    page = await b.newPage();
+    const url = `https://camgoz.net/search-product?value=${encodeURIComponent(searchTerm)}`;
 
-    await page.goto(`https://www.migros.com.tr/arama?q=${encodeURIComponent(searchTerm)}`, {
-      waitUntil: 'networkidle',
-      timeout: 30000,
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; CateringPro/1.0)',
+        'Accept': 'text/html',
+      },
+      signal: AbortSignal.timeout(15000), // 15s timeout
     });
 
-    const data = await page.evaluate(() => {
-      const items = [];
-      document.querySelectorAll('.mdc-card, .product-card, [class*="product"]').forEach((card) => {
-        const nameEl = card.querySelector('.product-name, h5, [class*="name"]');
-        const priceEl = card.querySelector('.amount, [class*="price"]');
+    if (!response.ok) return results;
 
-        if (nameEl && priceEl) {
-          const priceText = priceEl.textContent || '';
-          const match = priceText.match(/(\d+[.,]\d+)/);
-          if (match) {
-            items.push({
-              name: nameEl.textContent?.trim() || '',
-              price: parseFloat(match[1].replace(',', '.')),
-            });
-          }
+    const html = await response.text();
+    const $ = cheerio.load(html);
+
+    $('tr.table-light').each((_i, row) => {
+      const $row = $(row);
+      const urunAdi = $row.find('td[data-label="Ürün"]').text().trim();
+      if (!urunAdi) return;
+
+      const barkod = $row.find('td[data-label="Barkod"] a').text().trim();
+
+      // Sonraki tr.price-details'den market fiyatlarını al
+      const $priceRow = $row.next('tr.price-details');
+
+      $priceRow.find('.border.p-2.rounded').each((_j, priceBox) => {
+        const $box = $(priceBox);
+        const marketAdi = $box.find('.fw-semibold').text().trim();
+        const marketFiyatText = $box.find('.fw-bold').text().trim();
+        const fiyatMatch = marketFiyatText.match(/[\d.,]+/);
+        const fiyat = fiyatMatch ? parseTurkishPrice(fiyatMatch[0]) : null;
+
+        if (marketAdi && fiyat && fiyat >= 1 && fiyat <= 50000) {
+          results.push({
+            market: marketAdi,
+            urun: urunAdi,
+            fiyat,
+            birim: 'adet',
+            barkod: barkod || undefined,
+          });
         }
       });
-      return items;
-    });
-
-    data.forEach((item) => {
-      if (item.price >= 5 && item.price <= 10000 && item.name) {
-        results.push({
-          market: 'Migros',
-          urun: item.name,
-          fiyat: item.price,
-          birim: 'adet',
-        });
-      }
     });
   } catch (_error) {
-  } finally {
-    if (page) await page.close();
+    // Camgöz erişilemezse sessizce boş dön
   }
 
   return results;
 }
 
-/**
- * ŞOK Market'ten fiyat çek
- */
-async function scrapeSok(searchTerm) {
-  const results = [];
-  let page = null;
-
-  try {
-    const b = await initBrowser();
-    page = await b.newPage();
-
-    await page.goto(`https://www.sokmarket.com.tr/arama?q=${encodeURIComponent(searchTerm)}`, {
-      waitUntil: 'networkidle',
-      timeout: 30000,
-    });
-
-    // ŞOK yapısı: CProductCard-module_productCardWrapper__*
-    const data = await page.evaluate(() => {
-      const items = [];
-
-      // Ürün kartlarını bul
-      document.querySelectorAll('[class*="CProductCard-module_productCardWrapper"]').forEach((card) => {
-        const text = card.innerText;
-        const lines = text.split('\n').filter((l) => l.trim());
-
-        if (lines.length >= 2) {
-          const name = lines[0];
-          // Fiyat satırını bul (₺ içeren)
-          const priceLine = lines.find((l) => l.includes('₺'));
-          if (priceLine) {
-            const priceMatch = priceLine.match(/(\d+[.,]\d{2})/);
-            if (priceMatch) {
-              items.push({
-                name: name,
-                price: parseFloat(priceMatch[1].replace(',', '.')),
-              });
-            }
-          }
-        }
-      });
-
-      return items;
-    });
-
-    data.forEach((item) => {
-      if (item.price >= 5 && item.price <= 10000 && item.name) {
-        results.push({
-          market: 'ŞOK',
-          urun: item.name,
-          fiyat: item.price,
-          birim: 'adet',
-        });
-      }
-    });
-  } catch (_error) {
-  } finally {
-    if (page) await page.close();
-  }
-
-  return results;
-}
-
-/**
- * Trendyol'dan fiyat çek
- */
-async function scrapeTrendyol(searchTerm) {
-  const results = [];
-  let page = null;
-
-  try {
-    const b = await initBrowser();
-    page = await b.newPage();
-
-    // User-Agent ekle
-    await page.setExtraHTTPHeaders({
-      'User-Agent':
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    });
-
-    await page.goto(`https://www.trendyol.com/sr?q=${encodeURIComponent(searchTerm)}`, {
-      waitUntil: 'networkidle',
-      timeout: 30000,
-    });
-
-    const data = await page.evaluate(() => {
-      const items = [];
-
-      // Trendyol ürün kartları
-      document.querySelectorAll('.p-card-wrppr, [class*="product-card"]').forEach((card) => {
-        const nameEl = card.querySelector('.prdct-desc-cntnr-name, [class*="product-name"], span[class*="name"]');
-        const priceEl = card.querySelector('.prc-box-dscntd, .prc-box-sllng, [class*="price"]');
-
-        if (nameEl && priceEl) {
-          const priceText = priceEl.textContent || '';
-          // Virgül veya nokta formatını kabul et
-          const match = priceText.match(/(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})/);
-          if (match) {
-            // Türk formatını temizle: 601,79 veya 1.234,56
-            const priceStr = match[1].replace(/\./g, '').replace(',', '.');
-            items.push({
-              name: nameEl.textContent?.trim() || '',
-              price: parseFloat(priceStr),
-            });
-          }
-        }
-      });
-
-      return items;
-    });
-
-    data.forEach((item) => {
-      if (item.price >= 5 && item.price <= 50000 && item.name) {
-        results.push({
-          market: 'Trendyol',
-          urun: item.name,
-          fiyat: item.price,
-          birim: 'adet',
-        });
-      }
-    });
-  } catch (_error) {
-  } finally {
-    if (page) await page.close();
-  }
-
-  return results;
-}
+// ─── FİLTRELEME ──────────────────────────────────────────
 
 /**
  * Alakasız ürünleri filtrele (GIDA DIŞI)
@@ -221,139 +94,74 @@ function isRelevantProduct(searchTerm, productName) {
   const search = searchTerm.toLowerCase();
   const product = productName.toLowerCase();
 
-  // GIDA DIŞI kategoriler - bunlar kesinlikle filtrelenmeli
+  // GIDA DIŞI kategoriler
   const nonFoodCategories = [
     // Temizlik
-    'deterjan',
-    'temizlik',
-    'matik',
-    'çamaşır',
-    'bulaşık',
-    'yumuşatıcı',
-    'çamaşır suyu',
-    'toz deterjan',
-    'sıvı deterjan',
+    'deterjan', 'temizlik', 'matik', 'çamaşır', 'bulaşık', 'yumuşatıcı',
+    'çamaşır suyu', 'toz deterjan', 'sıvı deterjan',
     // Kişisel bakım
-    'şampuan',
-    'krem',
-    'losyon',
-    'parfüm',
-    'deodorant',
-    'sabun',
-    'kolonya',
-    'duş jeli',
-    'saç kremi',
-    'cilt bakım',
+    'şampuan', 'losyon', 'parfüm', 'deodorant', 'kolonya', 'duş jeli',
+    'saç kremi', 'cilt bakım',
     // Bebek (gıda dışı)
-    'bebek bezi',
-    'ıslak havlu',
-    'bebek havlusu',
-    'ıslak mendil',
+    'bebek bezi', 'ıslak havlu', 'bebek havlusu', 'ıslak mendil',
     // Kağıt/Ambalaj
-    'tuvalet kağıdı',
-    'peçete',
-    'mendil',
-    'çöp torbası',
-    'poşet',
-    'folyo',
-    'streç',
-    'buzdolabı poşet',
-    'kese kağıdı',
-    // Mutfak araç/gereç (gıda değil)
-    'silikon',
-    'demlik',
-    'süzgeç',
-    'bardak',
-    'tabak',
-    'çatal',
-    'kaşık',
-    'bıçak',
-    'tencere',
-    'tava',
-    'kevgir',
-    'rende',
-    'doğrama tahtası',
-    'spatula',
-    'servis',
-    'tepsi',
-    'kavanoz',
-    'saklama kabı',
+    'tuvalet kağıdı', 'peçete', 'mendil', 'çöp torbası', 'poşet',
+    'folyo', 'streç', 'buzdolabı poşet', 'kese kağıdı',
+    // Mutfak araç/gereç
+    'silikon', 'demlik', 'süzgeç', 'bardak', 'tabak', 'çatal', 'kaşık',
+    'bıçak', 'tencere', 'tava', 'kevgir', 'rende', 'doğrama tahtası',
+    'spatula', 'servis', 'tepsi', 'kavanoz', 'saklama kabı',
+    // Hayvan maması
+    'köpek maması', 'kedi maması', 'pet food',
     // Diğer
-    'oyuncak',
-    'kitap',
-    'dergi',
-    'kırtasiye',
-    'elektronik',
-    'mum',
-    'dekoratif',
-    'figür',
-    'süs',
-    'aksesuar',
+    'oyuncak', 'kitap', 'dergi', 'kırtasiye', 'elektronik', 'mum',
+    'dekoratif', 'figür', 'süs', 'aksesuar', 'marker', 'kalem',
   ];
 
-  // Ürün gıda dışı kategoride mi?
   for (const cat of nonFoodCategories) {
     if (product.includes(cat) && !search.includes(cat)) {
       return false;
     }
   }
 
-  // Özel durumlar: "havlu" kelimesi geçiyorsa ve gıda araması değilse
-  if (product.includes('havlu') && !search.includes('havlu')) {
-    return false;
-  }
+  // Özel durumlar
+  if (product.includes('havlu') && !search.includes('havlu')) return false;
+  if (product.includes('kokulu') && !search.includes('kokulu')) return false;
 
-  // "kokulu" ile biten ürünler genelde gıda değil (limon kokulu vs.)
-  if (product.includes('kokulu') && !search.includes('kokulu')) {
-    return false;
-  }
-
-  // Gıda takviyesi / vitamin ürünleri
+  // Gıda takviyesi / vitamin
   const supplementKeywords = ['omega', 'vitamin', 'balance oil', 'takviye', 'kapsül', 'tablet'];
   for (const kw of supplementKeywords) {
-    if (product.includes(kw) && !search.includes(kw)) {
-      return false;
-    }
+    if (product.includes(kw) && !search.includes(kw)) return false;
   }
 
-  // "Kür" ürünleri (sarımsak kürü, limon kürü vs.) - bunlar genelde sağlık ürünü
-  if (product.includes('kür') && !search.includes('kür')) {
-    return false;
-  }
+  // "Kür" ürünleri
+  if (product.includes('kür') && !search.includes('kür')) return false;
 
-  // Ürün adında arama terimi + farklı bir gıda varsa (limon tuzu, limon suyu vs.)
-  // Sadece ana ürünü istiyorsak bunları da filtrelemeliyiz
-  const searchMainWord = search.split(/\s+/)[0]; // ilk kelime (örn: "limon")
+  // Bileşik isimler (limon tuzu, limon suyu vs.)
+  const searchMainWord = search.split(/\s+/)[0];
   const otherFoods = ['tuzu', 'suyu', 'sosu', 'aroması', 'özü', 'yağı'];
 
-  // Eğer arama sadece ana ürün ise (örn: "limon" veya "limon kg")
-  // ve üründe "limon tuzu", "limon suyu" gibi bileşik isim varsa
   if (searchMainWord.length >= 3) {
     for (const food of otherFoods) {
-      // Arama: "limon" veya "limon kg" gibi basit bir şey
-      // Ürün: "limon tuzu", "limon suyu" gibi bileşik
       if (product.includes(searchMainWord) && product.includes(food) && !search.includes(food.replace('u', ''))) {
         return false;
       }
     }
   }
 
-  // Arama teriminin ana kelimelerini çıkar (kg, g, lt gibi birimleri hariç tut)
+  // Arama kelimelerinden en az %40'ı eşleşmeli
   const searchWords = search
     .replace(/\d+\s*(kg|gr|g|lt|l|ml|adet)/gi, '')
     .split(/\s+/)
     .filter((w) => w.length >= 2);
 
-  // Arama kelimelerinden en az birinin üründe olması lazım
   const matchedWords = searchWords.filter((word) => product.includes(word));
-
-  // En az yarısı eşleşmeli
-  if (matchedWords.length < searchWords.length * 0.4) {
-    return false;
-  }
+  if (matchedWords.length < searchWords.length * 0.4) return false;
 
   return true;
 }
+
+// ─── BİRİM FİYAT ────────────────────────────────────────
 
 /**
  * Birim fiyat hesapla (kg/L standardizasyonu)
@@ -361,17 +169,11 @@ function isRelevantProduct(searchTerm, productName) {
 function calculateUnitPrice(price, productName) {
   const lowerName = (productName || '').toLowerCase();
 
-  // Miktar pattern'leri (öncelik sırasına göre)
   const patterns = [
-    // "25 kg", "5 kilo", "1.5 kg"
     { pattern: /(\d+[.,]?\d*)\s*(kg|kilo)\b/i, unit: 'kg', divideBy: 1 },
-    // "500 gr", "1000 g"
     { pattern: /(\d+[.,]?\d*)\s*(gr|g)\b/i, unit: 'kg', divideBy: 1000 },
-    // "1 lt", "2 litre", "5 L"
     { pattern: /(\d+[.,]?\d*)\s*(lt|l|litre)\b/i, unit: 'L', divideBy: 1 },
-    // "200 ml"
     { pattern: /(\d+[.,]?\d*)\s*(ml)\b/i, unit: 'L', divideBy: 1000 },
-    // "x5", "x 10", "5'li", "10lu", "5 adet"
     { pattern: /x\s*(\d+)\b/i, unit: 'adet', divideBy: 1 },
     { pattern: /(\d+)\s*['']?\s*(li|lu|lı|lü)\b/i, unit: 'adet', divideBy: 1 },
     { pattern: /(\d+)\s*(adet)/i, unit: 'adet', divideBy: 1 },
@@ -380,40 +182,25 @@ function calculateUnitPrice(price, productName) {
   for (const { pattern, unit, divideBy } of patterns) {
     const match = lowerName.match(pattern);
     if (match) {
-      // x5 formatında amount farklı index'te
-      const amountStr = match[1];
-      const amount = parseFloat(amountStr.replace(',', '.'));
-
+      const amount = parseFloat(match[1].replace(',', '.'));
       if (Number.isNaN(amount) || amount <= 0) continue;
 
-      // Gram/ml için 1000'e böl, diğerleri için doğrudan böl
       const normalizedAmount = divideBy === 1000 ? amount / 1000 : amount;
       const unitPrice = Math.round((price / normalizedAmount) * 100) / 100;
-
       return { unitPrice, perUnit: unit };
     }
   }
 
-  // Varsayılan: tek birim (1 kg veya 1 adet varsay)
   return { unitPrice: price, perUnit: 'adet' };
 }
 
+// ─── ANA FONKSİYONLAR ───────────────────────────────────
+
 /**
- * Ana arama fonksiyonu
+ * Ana arama fonksiyonu - Camgöz API
  */
 export async function searchMarketPrices(searchTerm) {
-  const allResults = [];
-
-  // Paralel scraping - tüm marketler
-  const scrapers = [scrapeMigros(searchTerm), scrapeSok(searchTerm), scrapeTrendyol(searchTerm)];
-
-  const results = await Promise.allSettled(scrapers);
-
-  results.forEach((result) => {
-    if (result.status === 'fulfilled' && result.value) {
-      allResults.push(...result.value);
-    }
-  });
+  const allResults = await fetchCamgozPrices(searchTerm);
 
   // Alakasız ürünleri filtrele
   const filteredResults = allResults.filter((r) => isRelevantProduct(searchTerm, r.urun));
@@ -436,6 +223,7 @@ export async function searchMarketPrices(searchTerm) {
       fiyat: r.fiyat,
       birimFiyat: unitPrice,
       birimTipi: perUnit,
+      barkod: r.barkod,
     };
   });
 
@@ -453,13 +241,12 @@ export async function searchMarketPrices(searchTerm) {
     }
   }
 
-  // En yaygın birim tipini bul (kg veya L tercih et, adet son seçenek)
+  // En yaygın birim tipini bul (kg > L > diğer > adet)
   const unitCounts = {};
   uniqueFiyatlar.forEach((f) => {
     unitCounts[f.birimTipi] = (unitCounts[f.birimTipi] || 0) + 1;
   });
 
-  // Öncelik: kg > L > diğer > adet
   let dominantUnit = 'adet';
   if (unitCounts['kg'] >= 3) dominantUnit = 'kg';
   else if (unitCounts['L'] >= 3) dominantUnit = 'L';
@@ -470,18 +257,16 @@ export async function searchMarketPrices(searchTerm) {
     }
   }
 
-  // Aynı birim tipindeki ürünleri filtrele
+  // İstatistikler
   const sameUnitFiyatlar = uniqueFiyatlar.filter((f) => f.birimTipi === dominantUnit);
   const statsBase = sameUnitFiyatlar.length >= 3 ? sameUnitFiyatlar : uniqueFiyatlar;
-
-  // Fiyatları sırala
   const sortedPrices = statsBase.map((f) => f.birimFiyat).sort((a, b) => a - b);
 
-  // En düşük 5 fiyatın ortalaması (ekonomik fiyat)
+  // Ekonomik ortalama (en ucuz 5)
   const ekonomikFiyatlar = sortedPrices.slice(0, Math.min(5, sortedPrices.length));
   const ekonomikOrtalama = ekonomikFiyatlar.reduce((a, b) => a + b, 0) / ekonomikFiyatlar.length;
 
-  // Medyan (orta değer)
+  // Medyan
   const medyan = sortedPrices[Math.floor(sortedPrices.length / 2)];
 
   return {
@@ -491,9 +276,9 @@ export async function searchMarketPrices(searchTerm) {
     fiyatlar: uniqueFiyatlar.slice(0, 25),
     min: sortedPrices[0],
     max: sortedPrices[sortedPrices.length - 1],
-    ortalama: Math.round(ekonomikOrtalama * 100) / 100, // Ekonomik ortalama göster
-    medyan: medyan,
-    kaynak: 'playwright_scraping',
+    ortalama: Math.round(ekonomikOrtalama * 100) / 100,
+    medyan,
+    kaynak: 'camgoz',
     toplam_sonuc: uniqueFiyatlar.length,
   };
 }
@@ -506,16 +291,19 @@ export async function quickSearch(productName) {
 }
 
 /**
+ * Browser kapat - artık gerekli değil ama geriye uyumluluk için bırakıldı
+ */
+export async function closeBrowser() {
+  // Puppeteer kaldırıldı, bu fonksiyon artık no-op
+}
+
+/**
  * Mevcut market listesi
  */
 export function getAvailableMarkets() {
   return [
-    { key: 'migros', name: 'Migros', active: true, type: 'market' },
-    { key: 'sok', name: 'ŞOK', active: true, type: 'market' },
-    { key: 'trendyol', name: 'Trendyol', active: true, type: 'marketplace' },
-    { key: 'a101', name: 'A101', active: false, type: 'market', note: 'CloudFront koruması' },
-    { key: 'getir', name: 'Getir', active: false, type: 'delivery', note: 'CloudFront koruması' },
-    { key: 'carrefour', name: 'CarrefourSA', active: false, type: 'market', note: 'Cloudflare koruması' },
+    { key: 'camgoz', name: 'Camgöz API', active: true, type: 'api',
+      note: '45+ market: A101, Migros, CarrefourSA, ŞOK, Bizim Toptan, Macro Center, Mopaş, Hakmar, Gürmar ve daha fazlası' },
   ];
 }
 

@@ -170,7 +170,7 @@ async function main() {
     version: '1.0',
     created_at: new Date().toISOString(),
     document_count: downloadedDocs.length,
-    model_id: 'ihale-teknik-sartname',
+    model_id: process.env.AZURE_DOCUMENT_AI_MODEL_ID || 'ihale-catering-v1',
     documents: downloadedDocs.map(doc => ({
       filename: doc.localFilename,
       original_filename: doc.original_filename,
