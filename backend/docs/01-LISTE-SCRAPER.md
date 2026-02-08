@@ -1,7 +1,7 @@
 # Liste Scraper Sistemi
 
 > **Versiyon:** 1.0.0
-> **Son Güncelleme:** 2026-02-02
+> **Son Güncelleme:** 2026-02-07
 > **Durum:** ✅ Çalışıyor
 
 ---
@@ -23,14 +23,22 @@ Liste Scraper, ihalebul.com'dan **Hazır Yemek - Lokantacılık (Kategori 15)** 
 
 ```
 src/scraper/
-├── runner.js           # CLI - Ana giriş noktası
-├── list-scraper.js     # Liste tarama mantığı
-├── browser-manager.js  # Puppeteer instance yönetimi
-├── login-service.js    # ihalebul.com authentication
-├── session-manager.js  # Cookie/session saklama
-├── logger.js           # Console + DB loglama
-├── document-scraper.js # Döküman içerik çekme (ayrı modül)
-└── index.js            # Export'lar
+├── index.js                          # Ana barrel export (v4.0)
+├── shared/                           # Ortak altyapı
+│   ├── browser.js                    # Puppeteer singleton
+│   ├── ihalebul-login.js             # ihalebul.com login
+│   ├── ihalebul-cookie.js            # Cookie/session saklama
+│   └── scraper-logger.js             # Console + DB loglama
+├── ihale-tarama/                     # İhale tarama işçileri
+│   ├── ihale-listesi-cek.js          # Liste tarama mantığı
+│   ├── ihale-icerik-cek.js           # Döküman içerik çekme
+│   └── ihale-tarama-cli.js           # CLI giriş noktası
+├── yuklenici-istihbarat/             # Yüklenici istihbarat işçileri
+│   ├── yuklenici-listesi-cek.js      # Firma listesi çekme
+│   ├── yuklenici-gecmisi-cek.js      # İhale geçmişi + KIK kararları
+│   ├── yuklenici-profil-cek.js       # Analiz profili çekme
+│   └── ihale-katilimci-cek.js        # Katılımcı bilgisi çekme
+└── uyumsoft/                         # e-Fatura sistemi
 ```
 
 ---
@@ -41,13 +49,13 @@ src/scraper/
 
 ```bash
 # Sadece liste çek (döküman içeriği OLMADAN)
-node src/scraper/runner.js --mode=list --pages=5
+node src/scraper/ihale-tarama/ihale-tarama-cli.js --mode=list --pages=5
 
 # Liste + Döküman içerikleri (YAVAŞ)
-node src/scraper/runner.js --mode=full --pages=3
+node src/scraper/ihale-tarama/ihale-tarama-cli.js --mode=full --pages=3
 
 # Tek ihale URL ile ekle
-node src/scraper/runner.js --mode=single --url="https://ihalebul.com/tender/123456"
+node src/scraper/ihale-tarama/ihale-tarama-cli.js --mode=single --url="https://ihalebul.com/tender/123456"
 ```
 
 ### Parametreler
@@ -62,7 +70,7 @@ node src/scraper/runner.js --mode=single --url="https://ihalebul.com/tender/1234
 
 ## Bileşen Detayları
 
-### 1. Runner (`runner.js`)
+### 1. Runner (`ihale-tarama/ihale-tarama-cli.js`)
 
 CLI giriş noktası. Argümanları parse eder ve ilgili fonksiyonu çağırır.
 
@@ -71,7 +79,7 @@ CLI giriş noktası. Argümanları parse eder ve ilgili fonksiyonu çağırır.
 main() → parseArgs() → runList() / runFull() / runSingle()
 ```
 
-### 2. List Scraper (`list-scraper.js`)
+### 2. List Scraper (`ihale-tarama/ihale-listesi-cek.js`)
 
 Ana tarama mantığı.
 
@@ -103,7 +111,7 @@ const CATEGORY_URL = 'https://www.ihalebul.com/tenders/search?workcategory_in=15
 const PAGE_DELAY = 2000; // Sayfalar arası bekleme (ms)
 ```
 
-### 3. Browser Manager (`browser-manager.js`)
+### 3. Browser Manager (`shared/browser.js`)
 
 Puppeteer instance yönetimi (Singleton pattern).
 
@@ -119,7 +127,7 @@ const page = await browserManager.createPage();
 await browserManager.close();
 ```
 
-### 4. Login Service (`login-service.js`)
+### 4. Login Service (`shared/ihalebul-login.js`)
 
 ihalebul.com authentication yönetimi.
 
@@ -149,7 +157,7 @@ IHALEBUL_PASSWORD=sifre
 - `***` içeren maskelenmiş veri → Login değil
 - "Çıkış" veya "logout" butonu → Login
 
-### 5. Session Manager (`session-manager.js`)
+### 5. Session Manager (`shared/ihalebul-cookie.js`)
 
 Cookie'leri dosyada saklar.
 
@@ -172,7 +180,7 @@ Cookie'leri dosyada saklar.
 SESSION_TTL_HOURS=8  # Session geçerlilik süresi
 ```
 
-### 6. Logger (`logger.js`)
+### 6. Logger (`shared/scraper-logger.js`)
 
 Console ve opsiyonel DB loglama.
 
@@ -337,7 +345,7 @@ export PUPPETEER_EXECUTABLE_PATH=/path/to/chrome
 ## Örnek Çıktı
 
 ```
-$ node src/scraper/runner.js --mode=list --pages=2
+$ node src/scraper/ihale-tarama/ihale-tarama-cli.js --mode=list --pages=2
 
 08:45:12 ✅ [Runner:List] Session başladı
 08:45:15 ✅ [Login] Session yüklendi

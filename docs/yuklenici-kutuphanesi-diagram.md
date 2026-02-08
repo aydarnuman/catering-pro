@@ -139,15 +139,16 @@ frontend/src/app/yuklenici-kutuphanesi/page.tsx
        │  GET /scrape/status                       ▼
        │◄──────────────────────        ┌──────────────────────┐
        │                               │  Puppeteer Scraper   │
-       │                               │  ├── login-service   │
-       │  progress bar update          │  ├── list-scraper    │
-       │◄──────────────────────        │  ├── participant-    │
-       │                               │  │   scraper         │
-       │  tamamlandi                   │  ├── contractor-     │
-       │◄──────────────────────        │  │   tender-scraper  │
-       │                               │  └── analyze-page-   │
-       ▼                               │      scraper         │
-  fetchYukleniciler()                  └──────────────────────┘
+       │                               │  shared/             │
+       │  progress bar update          │  ├── ihalebul-login  │
+       │◄──────────────────────        │  ├── browser         │
+       │                               │  yuklenici-          │
+       │  tamamlandi                   │  istihbarat/         │
+       │◄──────────────────────        │  ├── listesi-cek     │
+       │                               │  ├── gecmisi-cek     │
+       ▼                               │  ├── profil-cek      │
+  fetchYukleniciler()                  │  └── katilimci-cek   │
+  fetchStats()                         └──────────────────────┘
   fetchStats()                              │
                                             ▼
                                        ihalebul.com

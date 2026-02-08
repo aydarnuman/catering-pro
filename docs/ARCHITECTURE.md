@@ -159,10 +159,13 @@ DIGITALOCEAN DROPLET (Ubuntu 22.04)
 ## Guvenlik
 
 ### Authentication
-- JWT token based
-- Custom AuthContext (frontend)
+- JWT token based (custom, Supabase Auth kullanılmıyor)
+- Custom AuthContext (frontend) + auth middleware (backend)
 - bcrypt password hashing
-- localStorage token storage
+- HttpOnly cookie token storage (access_token + refresh_token)
+- Session limiti: max 3 eşzamanlı oturum
+- Modül bazlı RBAC (super_admin, admin, user)
+- Rate limiting + hesap kilitleme (5 başarısız deneme)
 
 ### Data Protection
 - Parameterized SQL queries

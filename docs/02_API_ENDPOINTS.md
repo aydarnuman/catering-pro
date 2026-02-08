@@ -116,6 +116,8 @@ Kullanıcıya yetki ata
 
 ## 2. İhale Yönetimi
 
+> **Detaylı ihale API referansı:** [`backend/docs/04-API-ROUTES.md`](../backend/docs/04-API-ROUTES.md)
+
 ### `GET /api/tenders`
 İhale listesi
 

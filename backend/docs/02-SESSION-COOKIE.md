@@ -1,7 +1,7 @@
 # Session & Cookie Yönetimi
 
 > **Versiyon:** 1.0.0
-> **Son Güncelleme:** 2026-02-02
+> **Son Güncelleme:** 2026-02-07
 > **Durum:** ✅ Çalışıyor
 
 ---
@@ -27,9 +27,9 @@ ihalebul.com'a her seferinde login olmak yerine, session cookie'leri dosyada sak
 
 ```
 ihale-motoru/
-├── src/scraper/
-│   ├── session-manager.js   # Cookie saklama/yükleme
-│   └── login-service.js     # Authentication mantığı
+├── src/scraper/shared/
+│   ├── ihalebul-cookie.js   # Cookie saklama/yükleme
+│   └── ihalebul-login.js    # Authentication mantığı
 └── storage/
     └── session.json         # Saklanan session verisi
 ```

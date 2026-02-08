@@ -117,7 +117,7 @@ CATERING/
 │       ├── hooks/               # Custom hooks
 │       └── lib/                 # Utilities + API services
 │           ├── api/services/    # Moduler API katmani
-│           └── supabase/        # Supabase client config
+│           └── supabase/        # Supabase client (sadece Realtime)
 │
 ├── supabase/                    # Supabase migrations
 │   └── migrations/              # SQL migrations (102 dosya)
@@ -155,8 +155,8 @@ CATERING/
 | Node.js | ES Modules | Runtime |
 | Express.js | ^4.18.2 | Web framework |
 | PostgreSQL | 16 | Veritabani (Supabase hosted) |
-| Supabase | ^2.89.0 | Database + Auth + Realtime |
-| JWT + bcrypt | ^9.0.2 | Authentication |
+| Supabase | ^2.89.0 | Database (PostgreSQL hosting) + Realtime |
+| JWT + bcrypt | ^9.0.2 | Custom Authentication (PostgreSQL + Cookie) |
 | Puppeteer | ^22.15.0 | Web scraping |
 | Winston | ^3.11.0 | Logging |
 | Helmet | ^8.1.0 | Security headers |
@@ -197,7 +197,7 @@ CATERING/
 | Cloudflare | DNS, CDN, SSL |
 | PM2 | Process manager |
 | Nginx | Reverse proxy |
-| Supabase | Database & Auth hosting |
+| Supabase | Database hosting (PostgreSQL) |
 | Docker | Container orchestration |
 
 ---
@@ -266,15 +266,16 @@ PORT=3001
 **Frontend (`frontend/.env.local`):**
 
 ```env
-# Supabase (Public keys - guvenli)
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-
 # API URL (Opsiyonel - varsayilan localhost:3001)
 NEXT_PUBLIC_API_URL=http://localhost:3001
+
+# Supabase (Sadece Realtime ozellikleri icin - Auth KULLANILMIYOR)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+NEXT_PUBLIC_ENABLE_REALTIME=true
 ```
 
-> **Not:** Auth sistemi Custom AuthContext + JWT kullanmaktadir.
+> **Auth Sistemi:** Supabase Auth KULLANILMIYOR. Kimlik dogrulama tamamen Custom JWT + bcrypt + PostgreSQL + HttpOnly Cookie ile yapilir. Detay: `backend/src/middleware/auth.js` ve `backend/src/routes/auth.js`.
 
 ### 3. Bagimliliklari Yukle
 

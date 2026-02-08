@@ -1,4 +1,14 @@
-# 🚀 SUPABASE KURULUM REHBERİ
+# SUPABASE KURULUM REHBERİ
+
+> **DIKKAT - AUTH BOLUMU GECERSIZ (Subat 2026)**
+>
+> Bu dokumandaki **Bolum 5** (`@supabase/auth-helpers-nextjs`) ve **Bolum 7** (Email Auth, Magic Link)
+> artik gecersizdir. Supabase Auth bu projede **KULLANILMIYOR**.
+>
+> Kimlik dogrulama tamamen **Custom JWT + bcrypt + PostgreSQL + HttpOnly Cookie** ile yapilir.
+> Auth detaylari icin: `backend/src/middleware/auth.js` ve `backend/src/routes/auth.js`
+>
+> Bu dokuman sadece Supabase **veritabani kurulumu** ve **migration** islemleri icin gecerlidir.
 
 ## 1. Supabase Hesabı Oluşturma
 
@@ -88,17 +98,19 @@ supabase db push
 
 ## 5. NPM Paketlerini Kurma
 
+> **NOT:** `@supabase/auth-helpers-nextjs` artik kullanilmiyor. Auth custom JWT ile yapiliyor.
+
 ### Frontend (Next.js):
 ```bash
 cd frontend
-npm install @supabase/supabase-js @supabase/auth-helpers-nextjs
-npm install @tanstack/react-query zustand
+npm install @supabase/supabase-js   # Sadece Realtime icin
+npm install @tanstack/react-query
 ```
 
 ### Backend (Express):
 ```bash
 cd backend
-npm install @supabase/supabase-js
+npm install @supabase/supabase-js   # Sadece DB client icin
 ```
 
 ## 6. Test Etme
@@ -139,15 +151,19 @@ Migration'lar tamamlandıktan sonra:
 - ✅ notifications - Bildirimler
 - ✅ ai_memory - AI hafızası
 
-## 7. Güvenlik Ayarları
+## 7. Guvenlik Ayarlari
 
-1. Authentication → Settings:
-   - Email Auth'u aktif edin
-   - Magic Link'i aktif edin
+> **GECERSIZ BOLUM:** Asagidaki Supabase Auth ayarlari artik KULLANILMIYOR.
+> Auth tamamen custom JWT + bcrypt + PostgreSQL ile yapiliyor.
+> Bu bolumu atlayabilirsiniz.
+
+~~1. Authentication → Settings:~~
+   ~~- Email Auth'u aktif edin~~
+   ~~- Magic Link'i aktif edin~~
    
-2. Authentication → URL Configuration:
-   - Site URL: `http://localhost:3000`
-   - Redirect URLs: `http://localhost:3000/*`
+~~2. Authentication → URL Configuration:~~
+   ~~- Site URL: `http://localhost:3000`~~
+   ~~- Redirect URLs: `http://localhost:3000/*`~~
 
 ## 8. Realtime Özellikleri (Opsiyonel)
 

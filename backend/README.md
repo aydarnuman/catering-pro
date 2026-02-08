@@ -69,15 +69,23 @@ backend/
 │   │   │   └── menu-tools.js
 │   │   └── ... (detay: services/README.md)
 │   │
-│   ├── scraper/             # Web scraping
-│   │   ├── index.js         # Scraper public API
-│   │   ├── runner.js        # CLI arayüzü
-│   │   ├── list-scraper.js  # İhale listesi tarama
-│   │   ├── document-scraper.js # Döküman içerik çekme
-│   │   ├── browser-manager.js  # Puppeteer singleton
-│   │   ├── login-service.js    # ihalebul.com login
-│   │   ├── session-manager.js  # Cookie yönetimi
-│   │   └── logger.js        # Scraper logger
+│   ├── scraper/             # Web scraping (v4.0 modüler yapı)
+│   │   ├── index.js         # Ana barrel export
+│   │   ├── shared/          # Ortak altyapı
+│   │   │   ├── browser.js         # Puppeteer singleton
+│   │   │   ├── ihalebul-login.js  # ihalebul.com login
+│   │   │   ├── ihalebul-cookie.js # Cookie yönetimi
+│   │   │   └── scraper-logger.js  # DB loglama
+│   │   ├── ihale-tarama/    # İhale tarama işçileri
+│   │   │   ├── ihale-listesi-cek.js   # Liste tarama
+│   │   │   ├── ihale-icerik-cek.js    # Döküman içerik çekme
+│   │   │   └── ihale-tarama-cli.js    # CLI runner
+│   │   ├── yuklenici-istihbarat/  # Yüklenici istihbarat
+│   │   │   ├── yuklenici-listesi-cek.js  # Firma listesi
+│   │   │   ├── yuklenici-gecmisi-cek.js  # İhale geçmişi
+│   │   │   ├── yuklenici-profil-cek.js   # Profil analizi
+│   │   │   └── ihale-katilimci-cek.js    # Katılımcılar
+│   │   └── uyumsoft/        # e-Fatura sistemi
 │   │
 │   ├── migrations/          # SQL migrations (54 dosya)
 │   │   └── ... (detay: migrations/README.md)

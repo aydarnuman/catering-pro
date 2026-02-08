@@ -7,9 +7,9 @@
 ## 📁 Dosya Yapısı
 
 ```
-src/scraper/
-├── document-scraper.js   # Ana scraper class
-└── runner.js             # CLI (--mode=full, --mode=single)
+src/scraper/ihale-tarama/
+├── ihale-icerik-cek.js     # Ana scraper class (eski: document-scraper.js)
+└── ihale-tarama-cli.js     # CLI (--mode=full, --mode=single) (eski: runner.js)
 ```
 
 ---
@@ -33,7 +33,7 @@ src/scraper/
 ```bash
 npm run scrape:list -- --pages 1 --with-documents
 # veya
-node src/scraper/runner.js --mode=full --pages=1
+node src/scraper/ihale-tarama/ihale-tarama-cli.js --mode=full --pages=1
 ```
 
 ```
@@ -61,7 +61,7 @@ DocumentScraper: İhale 2/20 detay çekiliyor...
 ### Senaryo: Single Mode (Tek İhale)
 
 ```bash
-node src/scraper/runner.js --mode=single --url=https://www.ihalebul.com/tender/123456
+node src/scraper/ihale-tarama/ihale-tarama-cli.js --mode=single --url=https://www.ihalebul.com/tender/123456
 ```
 
 ```
@@ -204,13 +204,13 @@ correction_notice_content TEXT      -- Düzeltme ilanı
 npm run scrape:list -- --pages 5
 
 # Liste + Dökümanlar (yeni ihaleler için)
-node src/scraper/runner.js --mode=full --pages=5
+node src/scraper/ihale-tarama/ihale-tarama-cli.js --mode=full --pages=5
 
 # DB'deki dökümansız ihalelere döküman çek
-node src/scraper/runner.js --mode=docs --limit=10
+node src/scraper/ihale-tarama/ihale-tarama-cli.js --mode=docs --limit=10
 
 # Tek ihale detay çek
-node src/scraper/runner.js --mode=single --url=https://www.ihalebul.com/tender/123456
+node src/scraper/ihale-tarama/ihale-tarama-cli.js --mode=single --url=https://www.ihalebul.com/tender/123456
 ```
 
 ---
@@ -220,7 +220,7 @@ node src/scraper/runner.js --mode=single --url=https://www.ihalebul.com/tender/1
 **Kullanım:** Daha önce `--mode=list` ile çekilmiş ama dökümanları olmayan ihaleler için.
 
 ```bash
-node src/scraper/runner.js --mode=docs --limit=5
+node src/scraper/ihale-tarama/ihale-tarama-cli.js --mode=docs --limit=5
 ```
 
 ```

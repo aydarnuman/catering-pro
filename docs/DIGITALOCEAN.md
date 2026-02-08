@@ -432,7 +432,7 @@ PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Scraper test
 cd /root/catering-pro/backend
-node -e "import('./src/scraper/browser-manager.js').then(m => m.default.getBrowser().then(() => console.log('OK')))"
+node -e "import('./src/scraper/shared/browser.js').then(m => m.default.getBrowser().then(() => console.log('OK')))"
 ```
 
 ### Session Dosyası

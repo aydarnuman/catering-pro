@@ -1,7 +1,7 @@
 # Catering Pro - Teknik Dokumantasyon Indeksi
 
-> Son Guncelleme: 6 Subat 2026  
-> Versiyon: 4.0
+> Son Guncelleme: 7 Subat 2026  
+> Versiyon: 4.1
 
 ---
 
@@ -17,6 +17,7 @@
 | 05 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Genel sistem mimarisi | Aktif |
 | 06 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Deployment kılavuzu | Aktif |
 | 07 | [DIGITALOCEAN.md](./DIGITALOCEAN.md) | Sunucu yönetimi | Aktif |
+| 08 | [05_MUHASEBE_FINANSAL_MODULLER.md](./05_MUHASEBE_FINANSAL_MODULLER.md) | Muhasebe, Fatura & Finansal Modüller (126 dosya analizi) | Aktif |
 
 ---
 
@@ -24,11 +25,10 @@
 
 | Döküman | Açıklama |
 |---------|----------|
-| [UNIFIED_PIPELINE_v9.md](./UNIFIED_PIPELINE_v9.md) | Aktif doküman analiz pipeline'ı |
 | [AZURE_DOCUMENT_AI_SETUP.md](./AZURE_DOCUMENT_AI_SETUP.md) | Azure Document AI kurulumu |
-| [SCRAPER_ENTEGRASYON_TALIMATI.md](./SCRAPER_ENTEGRASYON_TALIMATI.md) | İhale scraper sistemi |
 | [REALTIME_SETUP.md](./REALTIME_SETUP.md) | Supabase Realtime kurulumu |
-| [supabase-setup.md](./supabase-setup.md) | Supabase genel kurulum |
+| [supabase-setup.md](./supabase-setup.md) | Supabase DB kurulumu (Auth bölümü geçersiz) |
+| [yuklenici-kutuphanesi-diagram.md](./yuklenici-kutuphanesi-diagram.md) | Yüklenici kütüphanesi frontend diagramı |
 
 ---
 
@@ -41,8 +41,8 @@
 | [02-SESSION-COOKIE.md](../backend/docs/02-SESSION-COOKIE.md) | Session yönetimi |
 | [03-DOCUMENT-SCRAPER.md](../backend/docs/03-DOCUMENT-SCRAPER.md) | Doküman scraper |
 | [04-API-ROUTES.md](../backend/docs/04-API-ROUTES.md) | API route yapısı |
-| [05-DOCUMENT-PIPELINE.md](../backend/docs/05-DOCUMENT-PIPELINE.md) | Doküman işleme pipeline'ı |
-| [ai-analyzer-diagram.md](../backend/docs/ai-analyzer-diagram.md) | AI analiz akış diyagramı |
+| [05-DOCUMENT-PIPELINE.md](../backend/docs/05-DOCUMENT-PIPELINE.md) | Döküman analiz pipeline'ı v9.0 (kanonik referans) |
+| [06-YUKLENICI-ISTIHBARAT.md](../backend/docs/06-YUKLENICI-ISTIHBARAT.md) | Yüklenici istihbarat modülü |
 
 ---
 
@@ -73,9 +73,10 @@ CATERİNG/
 |--------|-----------|------|
 | Frontend | Next.js 15, Mantine UI 7.17, React Query | :3000 |
 | Backend | Express.js, ES Modules | :3001 |
-| Database | PostgreSQL (Supabase) | - |
+| Database | PostgreSQL (Supabase hosted) | - |
+| Auth | Custom JWT + bcrypt + HttpOnly Cookie (Supabase Auth KULLANILMIYOR) | - |
 | AI | Claude API, Azure Document AI | - |
 
 ---
 
-*Son guncelleme: 6 Subat 2026*
+*Son guncelleme: 7 Subat 2026*

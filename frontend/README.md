@@ -432,82 +432,53 @@ export default function CariForm({ opened, onClose, onSuccess, initialData }: Pr
 
 ---
 
-## 🔐 Authentication
+## Authentication (Custom JWT + PostgreSQL)
 
-### AuthContext Kullanımı
-```tsx
-// context/AuthContext.tsx
-'use client';
+> **Supabase Auth KULLANILMIYOR.** Auth tamamen custom JWT + bcrypt + HttpOnly cookie tabanli.
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { API_BASE_URL } from '@/lib/config';
+### Auth Mimarisi
 
-interface User {
-  id: number;
-  username: string;
-  role: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  loading: boolean;
-  login: (username: string, password: string) => Promise<boolean>;
-  logout: () => void;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    // Token kontrolü
-    setLoading(false);
-  };
-
-  const login = async (username: string, password: string): Promise<boolean> => {
-    // Login işlemi
-    return true;
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('token');
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
-  return context;
-};
+```
+Frontend                          Backend
+--------                          -------
+AuthContext.tsx (state)       -->  POST /api/auth/login (bcrypt + JWT)
+middleware.ts (route guard)  -->  Cookie: access_token (24 saat)
+AuthGuard.tsx (component)    -->  Cookie: refresh_token (30 gun)
+AdminGuard.tsx (admin)       -->  authenticate middleware (JWT verify)
+usePermissions.ts (RBAC)     -->  requirePermission middleware
 ```
 
-### Korumalı Route
+### AuthContext Kullanimi
 ```tsx
-'use client';
-
 import { useAuth } from '@/context/AuthContext';
-import { redirect } from 'next/navigation';
 
-export default function ProtectedPage() {
-  const { user, loading } = useAuth();
+function MyComponent() {
+  const { user, isAuthenticated, isAdmin, isSuperAdmin, login, logout } = useAuth();
 
-  if (loading) return <div>Yükleniyor...</div>;
-  if (!user) redirect('/login');
+  // Login
+  const result = await login('email@example.com', 'password');
+  if (result.success) { /* basarili */ }
 
-  return <div>Korumalı içerik</div>;
+  // User bilgisi
+  // user.id, user.email, user.name, user.role, user.user_type
+}
+```
+
+### Route Korumasi (3 Katman)
+
+1. **middleware.ts** - Server-side: `access_token` cookie varligini kontrol eder, yoksa `/giris`'e yonlendirir
+2. **AuthGuard** - Client-side: Auth olmayan kullaniciya login modal acar
+3. **AdminGuard** - Client-side: Admin olmayan kullaniciya "Erisim Reddedildi" gosterir
+
+### Yetki Kontrolu
+```tsx
+import { usePermissions } from '@/hooks/usePermissions';
+
+function MyPage() {
+  const { can, canView, canCreate, canEdit, canDelete, isSuperAdmin } = usePermissions();
+
+  if (!canView('fatura')) return <div>Yetkiniz yok</div>;
+  if (can('stok', 'create')) { /* stok olusturabilir */ }
 }
 ```
 
@@ -570,14 +541,20 @@ export default function ProtectedPage() {
 
 ---
 
-## 🔧 Environment Variables
+## Environment Variables
 
 ```env
 # .env.local
 NEXT_PUBLIC_API_URL=http://localhost:3001  # Optional - config.ts otomatik belirler
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your-secret-key
+
+# Supabase (Sadece Realtime icin - Auth KULLANILMIYOR)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+NEXT_PUBLIC_ENABLE_REALTIME=true
 ```
+
+> **Not:** NextAuth (NEXTAUTH_URL, NEXTAUTH_SECRET) bu projede kullanilmiyor.
+> Auth sistemi custom JWT + HttpOnly cookie tabanlidir. Detay: `src/context/AuthContext.tsx`
 
 ---
 

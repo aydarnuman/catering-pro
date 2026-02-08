@@ -66,7 +66,47 @@ cd frontend && npm run dev
 
 - Frontend: 3000
 - Backend: 3001
-- Database: Supabase (cloud)
+- Database: PostgreSQL (Supabase hosted)
+
+## Auth Sistemi (Custom JWT + PostgreSQL)
+
+Supabase Auth **kullanılmıyor**. Kimlik doğrulama tamamen custom:
+
+- **Backend**: `backend/src/middleware/auth.js` - JWT doğrulama middleware
+- **Backend**: `backend/src/routes/auth.js` - Login, register, refresh, session endpoint'leri
+- **Yöntem**: bcrypt şifreleme + JWT access token (24 saat) + refresh token (30 gün)
+- **Token taşıma**: HttpOnly cookie (access_token, refresh_token)
+- **Session**: `user_sessions` tablosu, max 3 eşzamanlı oturum
+- **Roller**: super_admin, admin, user
+- **Yetki**: Modül bazlı RBAC (`modules` + `user_permissions` tabloları)
+- **Güvenlik**: Rate limiting, IP whitelist/blacklist, hesap kilitleme (5 başarısız deneme)
+- **Frontend**: `AuthContext.tsx` (state), `middleware.ts` (route koruma), `AuthGuard.tsx` / `AdminGuard.tsx`
+- **Permission**: `usePermissions` hook + `requirePermission()` backend middleware
+
+### Önemli Auth Dosyaları
+```
+backend/src/middleware/auth.js          # JWT doğrulama, requireAdmin, requirePermission
+backend/src/routes/auth.js              # Login/logout/refresh/session yönetimi
+backend/src/services/session-service.js # Oturum yönetimi (3 session limiti)
+backend/src/services/login-attempt-service.js # Brute-force koruması
+backend/src/services/permission-service.js    # RBAC motoru
+frontend/src/context/AuthContext.tsx     # Auth state yönetimi
+frontend/src/middleware.ts              # Route koruması (cookie kontrolü)
+frontend/src/hooks/usePermissions.ts    # Modül bazlı yetki kontrolü
+```
+
+## MUTLAK KURAL: Test Etmeden Degisiklik Yapma
+
+Projenin herhangi bir yerinde (backend, frontend, veritabani, dis servisler, altyapi, ML/egitim) degisiklik onermeden veya kod degistirmeden ONCE mevcut sistemin CALISIP CALISMADIGINI test et. Detaylar: `.cursor/rules/test-before-change.mdc`
+
+Zorunlu adimlar (her degisiklik oncesi):
+1. Env variable'lari kontrol et (var mi + dogru mu)
+2. Dis servislere baglanti testi yap
+3. Mevcut testleri calistir (`npx vitest run`)
+4. Gercek veriyle canli test yap (endpoint'e istek at, sayfayi ac, query calistir)
+5. Fallback/feature flag aktif mi anla
+6. Sonuclari raporla, SONRA plan olustur
+7. Sadece kod okuyarak varsayim yapma - calisan sistemi gercekten test et
 
 ## Commit Kuralları
 

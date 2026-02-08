@@ -131,25 +131,31 @@ Navbar'da bağlantı durumu:
 
 ---
 
-## 🔒 Güvenlik Notları
+## Guvenlik Notlari
 
-### Production İçin RLS Politikaları
-Şu anki setup **tüm kullanıcılara okuma izni** veriyor (geçici).
+### Production Icin RLS Politikalari
+Su anki setup **tum kullanicilara okuma izni** veriyor (gecici).
 
-Production'da her tablo için kullanıcı bazlı politikalar ekle:
+> **ONEMLI:** Bu proje Supabase Auth **kullanmiyor**. Kimlik dogrulama Custom JWT + PostgreSQL
+> ile yapilir. Bu nedenle `auth.uid()` fonksiyonu **calismaz**.
+> RLS politikalari Supabase service_role key ile bypass edilir veya
+> anon key ile sadece Realtime subscription icin kullanilir.
+
+Production'da her tablo icin kullanici bazli politikalar ekle:
 
 ```sql
--- Örnek: Sadece giriş yapmış kullanıcılar görebilsin
-DROP POLICY IF EXISTS "Faturalar herkese açık" ON invoices;
+-- Ornek: Service role key erisimine izin ver (backend kullanimi)
+-- Backend zaten service_role key kullanir, bu nedenle RLS'i bypass eder.
 
-CREATE POLICY "Faturalar sadece auth" ON invoices
-  FOR SELECT
-  USING (auth.uid() IS NOT NULL);
+-- Ornek: Anon key ile sadece okuma (Realtime subscription icin)
+DROP POLICY IF EXISTS "Faturalar herkese acik" ON invoices;
 
--- Örnek: Sadece kendi kayıtlarını görebilsin
-CREATE POLICY "Cariler sadece owner" ON cariler
+CREATE POLICY "Faturalar realtime okuma" ON invoices
   FOR SELECT
-  USING (auth.uid() = created_by);
+  USING (true);  -- Anon key Realtime icin okuma izni
+
+-- NOT: Gercek yetki kontrolu backend JWT middleware tarafindan yapilir.
+-- Supabase RLS burada sadece Realtime subscription icin gereklidir.
 ```
 
 ### Realtime Limitleri

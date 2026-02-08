@@ -2,12 +2,6 @@
   "favorites": {},
   "history": [
     {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "15:47:26",
-      "success": true
-    },
-    {
       "id": "db-status",
       "label": "Database Durumu",
       "time": "15:54:04",
@@ -299,6 +293,12 @@
       "id": "logs",
       "label": "Canlı Loglar",
       "time": "23:55:55",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "15:07:07",
       "success": true
     }
   ],
