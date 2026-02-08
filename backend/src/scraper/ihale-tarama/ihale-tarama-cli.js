@@ -1,24 +1,24 @@
 #!/usr/bin/env node
 
 /**
- * Scraper Runner - Basit CLI
+ * İhale Tarama CLI - Basit Komut Satırı Aracı
  *
  * Kullanım:
- *   node runner.js --mode=list --pages=5     # Liste tara
- *   node runner.js --mode=full --pages=3     # Liste + dökümanlar
- *   node runner.js --mode=single --url=URL   # Tek ihale ekle
- *   node runner.js --mode=cleanup --days=7   # Süresi geçmiş ihaleleri temizle
+ *   node ihale-tarama-cli.js --mode=list --pages=5     # Liste tara
+ *   node ihale-tarama-cli.js --mode=full --pages=3     # Liste + dökümanlar
+ *   node ihale-tarama-cli.js --mode=single --url=URL   # Tek ihale ekle
+ *   node ihale-tarama-cli.js --mode=cleanup --days=7   # Süresi geçmiş ihaleleri temizle
  */
 
 // .env yükle (CLI çalıştırıldığında)
-import '../env-loader.js';
+import '../../env-loader.js';
 
-import { query } from '../database.js';
-import browserManager from './browser-manager.js';
-import documentScraper from './document-scraper.js';
-import { scrapeList } from './list-scraper.js';
-import logger from './logger.js';
-import loginService from './login-service.js';
+import { query } from '../../database.js';
+import browserManager from '../shared/browser.js';
+import documentScraper from './ihale-icerik-cek.js';
+import { scrapeList } from './ihale-listesi-cek.js';
+import logger from '../shared/scraper-logger.js';
+import loginService from '../shared/ihalebul-login.js';
 
 // Argümanları parse et
 function parseArgs() {
@@ -197,7 +197,7 @@ async function runCleanup(args) {
     let storageDeleted = 0;
     if (docCount > 0) {
       try {
-        const { supabase } = await import('../supabase.js');
+        const { supabase } = await import('../../supabase.js');
         const sb = typeof supabase === 'function' ? supabase : supabase;
 
         if (sb) {

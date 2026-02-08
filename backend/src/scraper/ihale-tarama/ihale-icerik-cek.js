@@ -1,7 +1,7 @@
 /**
- * Document Scraper - İhale Döküman ve İçerik Çekici
+ * İhale İçerik Çekici - İhale Döküman ve İçerik Scraper
  *
- * İhale detay sayfasından çeker:
+ * ihalebul.com ihale detay sayfasından çeker:
  * - Döküman linkleri (download URL'leri)
  * - İhale ilanı içeriği (TEXT)
  * - Mal/Hizmet listesi (JSON tablo)

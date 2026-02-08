@@ -1,13 +1,13 @@
 /**
- * List Scraper - İhale Listesi Tarayıcı
+ * İhale Listesi Çekici - İhale Listesi Tarayıcı
  *
  * ihalebul.com kategori 15 (Hazır Yemek) sayfalarını tarar
  * ve ihaleleri veritabanına kaydeder.
  */
 
-import { query } from '../database.js';
-import documentScraper from './document-scraper.js';
-import loginService from './login-service.js';
+import { query } from '../../database.js';
+import documentScraper from './ihale-icerik-cek.js';
+import loginService from '../shared/ihalebul-login.js';
 
 const CATEGORY_URL = 'https://www.ihalebul.com/tenders/search?workcategory_in=15';
 const PAGE_DELAY = 2000;

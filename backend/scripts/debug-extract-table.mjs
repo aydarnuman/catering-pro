@@ -2,7 +2,7 @@
  * Debug: extractTable fonksiyonunu doğrudan test et
  */
 import puppeteer from 'puppeteer';
-import loginService from '../src/scraper/login-service.js';
+import loginService from '../src/scraper/shared/ihalebul-login.js';
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 

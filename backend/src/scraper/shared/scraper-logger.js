@@ -1,9 +1,9 @@
 /**
- * Logger - Basit Loglama
+ * Scraper Logger - Basit Loglama
  * Console + Opsiyonel DB loglama
  */
 
-import { query } from '../database.js';
+import { query } from '../../database.js';
 
 const LOG_LEVELS = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3, FATAL: 4 };
 const LOG_TO_DB = process.env.LOG_TO_DB === 'true';

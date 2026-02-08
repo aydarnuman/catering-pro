@@ -12,8 +12,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 // Dynamic imports - dotenv yüklendikten sonra database.js Pool oluşturulsun
-const { default: browserManager } = await import('../src/scraper/browser-manager.js');
-const { scrapeAnalyzePage } = await import('../src/scraper/analyze-page-scraper.js');
+const { default: browserManager } = await import('../src/scraper/shared/browser.js');
+const { scrapeAnalyzePage } = await import('../src/scraper/yuklenici-istihbarat/yuklenici-profil-cek.js');
 
 async function main() {
   let page;

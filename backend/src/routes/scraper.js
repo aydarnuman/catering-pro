@@ -384,7 +384,7 @@ router.post('/trigger', async (req, res) => {
     const actualMode = modeMap[mode] || 'list';
 
     // Runner'ı başlat
-    const scraperPath = path.join(__dirname, '../scraper/runner.js');
+    const scraperPath = path.join(__dirname, '../scraper/ihale-tarama/ihale-tarama-cli.js');
 
     // Parametreleri oluştur
     const args = [`--mode=${actualMode}`];
@@ -701,9 +701,9 @@ router.post('/fetch-documents/:tenderId', async (req, res) => {
         : 0;
 
     // DocumentScraper ve browserManager'ı dinamik import et
-    const browserManager = (await import('../scraper/browser-manager.js')).default;
-    const documentScraper = (await import('../scraper/document-scraper.js')).default;
-    const loginService = (await import('../scraper/login-service.js')).default;
+    const browserManager = (await import('../scraper/shared/browser.js')).default;
+    const documentScraper = (await import('../scraper/ihale-tarama/ihale-icerik-cek.js')).default;
+    const loginService = (await import('../scraper/shared/ihalebul-login.js')).default;
 
     let page = null;
 
@@ -839,9 +839,9 @@ router.post('/add-tender', async (req, res) => {
 
   try {
     // Modülleri import et
-    const browserManager = (await import('../scraper/browser-manager.js')).default;
-    const documentScraper = (await import('../scraper/document-scraper.js')).default;
-    const loginService = (await import('../scraper/login-service.js')).default;
+    const browserManager = (await import('../scraper/shared/browser.js')).default;
+    const documentScraper = (await import('../scraper/ihale-tarama/ihale-icerik-cek.js')).default;
+    const loginService = (await import('../scraper/shared/ihalebul-login.js')).default;
 
     // Browser başlat ve login
     page = await browserManager.createPage();
@@ -1033,9 +1033,9 @@ router.post('/update-tracked', async (_req, res) => {
       });
     }
 
-    const browserManager = (await import('../scraper/browser-manager.js')).default;
-    const documentScraper = (await import('../scraper/document-scraper.js')).default;
-    const loginService = (await import('../scraper/login-service.js')).default;
+    const browserManager = (await import('../scraper/shared/browser.js')).default;
+    const documentScraper = (await import('../scraper/ihale-tarama/ihale-icerik-cek.js')).default;
+    const loginService = (await import('../scraper/shared/ihalebul-login.js')).default;
 
     let page = null;
     let updatedCount = 0;

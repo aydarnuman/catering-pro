@@ -1,5 +1,5 @@
 /**
- * Session Manager - Cookie Saklama
+ * ihalebul.com Cookie Manager - Session/Cookie Saklama
  * Login session'ını dosyada saklar
  */
 
@@ -8,7 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SESSION_FILE = path.join(__dirname, '../../storage/session.json');
+const SESSION_FILE = path.join(__dirname, '../../../storage/session.json');
 
 class SessionManager {
   constructor() {

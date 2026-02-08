@@ -1,11 +1,11 @@
 /**
- * Login Service - ihalebul.com Authentication
+ * ihalebul.com Login Service - Authentication
  * Session yönetimi ve login işlemleri
  *
  * NOT: ihalebul.com login formu modal olarak açılıyor, ayrı sayfa yok
  */
 
-import sessionManager from './session-manager.js';
+import sessionManager from './ihalebul-cookie.js';
 
 const HOME_URL = 'https://www.ihalebul.com/';
 const TEST_URL = 'https://www.ihalebul.com/tenders/search?workcategory_in=15';
