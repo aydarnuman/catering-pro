@@ -793,24 +793,45 @@ export const piyasaToolImplementations = {
         oneri = 'Fiyatınız piyasa ortalamasında.';
       }
 
-      // Geçmişe kaydet
-      await query(
-        `
-        INSERT INTO piyasa_fiyat_gecmisi 
-        (stok_kart_id, urun_adi, sistem_fiyat, piyasa_fiyat_min, piyasa_fiyat_max, piyasa_fiyat_ort, kaynaklar, ai_oneri)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      `,
-        [
-          stok_kart_id,
-          urun_adi,
-          sistemFiyat,
-          piyasaData.min,
-          piyasaData.max,
-          piyasaData.ortalama,
-          JSON.stringify(piyasaData.fiyatlar),
-          oneri,
-        ]
-      ).catch(() => {});
+      // Geçmişe kaydet - bireysel market sonuçları (en ucuz 10 tanesi)
+      const now = new Date().toISOString();
+      const topKaynaklar = piyasaData.fiyatlar.slice(0, 10);
+      for (const kaynak of topKaynaklar) {
+        // Ürün adından marka ve ambalaj bilgisi çıkar
+        const urunAdiParts = (kaynak.urun || urun_adi).trim();
+        const ambalajMatch = urunAdiParts.match(/(\d+[,.]?\d*)\s*(kg|kilo|gr|gram|g|lt|litre|l|ml|cl)\b/i);
+        let ambalajMiktar = null;
+        if (ambalajMatch) {
+          let miktar = parseFloat(ambalajMatch[1].replace(',', '.'));
+          const birimTipi = ambalajMatch[2].toLowerCase();
+          if (['gr', 'gram', 'g'].includes(birimTipi)) miktar = miktar / 1000;
+          if (['ml'].includes(birimTipi)) miktar = miktar / 1000;
+          if (['cl'].includes(birimTipi)) miktar = miktar / 100;
+          ambalajMiktar = miktar;
+        }
+
+        // Marka: ürün adının ilk kelimesi (büyük harfle başlıyorsa marka kabul et)
+        const words = urunAdiParts.split(/\s+/);
+        const parsedMarka = (words.length > 1 && /^[A-ZÇĞIİÖŞÜ]/.test(words[0])) ? words[0] : null;
+
+        await query(
+          `INSERT INTO piyasa_fiyat_gecmisi 
+           (urun_kart_id, stok_kart_id, urun_adi, market_adi, marka, piyasa_fiyat_ort, birim_fiyat, ambalaj_miktar, kaynaklar, ai_oneri, arastirma_tarihi)
+           VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [
+            stok_kart_id,
+            kaynak.urun || urun_adi,
+            `${kaynak.market || 'Piyasa'}`,
+            parsedMarka,
+            kaynak.fiyat || 0,
+            kaynak.birimFiyat || kaynak.fiyat || 0,
+            ambalajMiktar,
+            JSON.stringify({ barkod: kaynak.barkod, birimTipi: kaynak.birimTipi }),
+            oneri,
+            now,
+          ]
+        ).catch(() => {});
+      }
 
       return {
         success: true,

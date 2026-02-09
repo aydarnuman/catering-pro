@@ -75,6 +75,24 @@ export interface GuncelFiyat {
   son_fiyat_tarihi: string | null;
   ortalama_fiyat: number | null;
   fatura_sayisi: number;
+  fiyat_kaynagi?: 'fatura' | 'gecmis' | 'manuel' | null;
+  raf_fiyat?: number | null;
+  raf_fiyat_tarihi?: string | null;
+}
+
+export interface RafFiyatSonuc {
+  id: number;
+  urun_kart_id: number;
+  urun_adi: string;
+  piyasa_fiyat_min: number | null;
+  piyasa_fiyat_max: number | null;
+  piyasa_fiyat_ort: number | null;
+  birim_fiyat: number | null;
+  kaynaklar: Record<string, unknown>[] | null;
+  arastirma_tarihi: string | null;
+  market_adi: string | null;
+  marka: string | null;
+  ambalaj_miktar: string | null;
 }
 
 export interface FiyatGecmisi {
@@ -154,6 +172,9 @@ export interface MaliyetOzetItem {
   son_alis_tarihi: string | null;
   toplam_alinan_miktar: number;
   toplam_harcama: number;
+  fiyat_kaynagi?: 'fatura' | 'gecmis' | 'manuel' | null;
+  raf_fiyat?: number | null;
+  raf_fiyat_tarihi?: string | null;
 }
 
 export interface FiyatGecmisiItem {
@@ -467,8 +488,67 @@ export const faturaKalemleriAPI = {
       son_alis_tarihi: f.son_fiyat_tarihi ?? null,
       toplam_alinan_miktar: 0,
       toplam_harcama: 0,
+      fiyat_kaynagi: f.fiyat_kaynagi ?? null,
+      raf_fiyat: f.raf_fiyat ?? null,
+      raf_fiyat_tarihi: f.raf_fiyat_tarihi ?? null,
     }));
     return { success: true, data };
+  },
+
+  /** Raf fiyatı (piyasa) araştırma sonuçları */
+  async getRafFiyat(urunId: number | string): Promise<RafFiyatSonuc[]> {
+    const res = await api.get<{ success: boolean; data: RafFiyatSonuc[]; error?: string }>(
+      `${BASE_URL}/fiyatlar/${urunId}/raf-fiyat`
+    );
+    return unwrap(res);
+  },
+
+  /** Raf fiyatı araştır (Camgöz.net'ten canlı arama tetikle) */
+  async rafFiyatArastir(
+    urunAdi: string,
+    stokKartId?: number
+  ): Promise<{
+    success: boolean;
+    urun: string;
+    piyasa?: { min: number; max: number; ortalama: number; kaynaklar: unknown[] };
+    karsilastirma?: { fark_yuzde: number; durum: string };
+    oneri?: string;
+    error?: string;
+  }> {
+    const res = await api.post<{
+      success: boolean;
+      urun: string;
+      piyasa?: { min: number; max: number; ortalama: number; kaynaklar: unknown[] };
+      karsilastirma?: { fark_yuzde: number; durum: string };
+      oneri?: string;
+      error?: string;
+      // Backend bazen { success, data: {...} } formatında da dönebilir
+      data?: {
+        success: boolean;
+        urun: string;
+        piyasa?: { min: number; max: number; ortalama: number; kaynaklar: unknown[] };
+        karsilastirma?: { fark_yuzde: number; durum: string };
+        oneri?: string;
+      };
+    }>('/api/planlama/piyasa/hizli-arastir', {
+      urun_adi: urunAdi,
+      stok_kart_id: stokKartId,
+    });
+    const d = res.data;
+    // Backend iki farklı formatta dönebilir:
+    // 1) { success, urun, piyasa, ... } (doğrudan)
+    // 2) { success, data: { success, urun, piyasa, ... } } (sarmalı)
+    const result = d?.data?.piyasa ? d.data : d;
+    if (result?.success && result?.piyasa) {
+      return result as {
+        success: boolean;
+        urun: string;
+        piyasa: { min: number; max: number; ortalama: number; kaynaklar: unknown[] };
+        karsilastirma?: { fark_yuzde: number; durum: string };
+        oneri?: string;
+      };
+    }
+    return { success: false, urun: urunAdi, error: (d as { error?: string })?.error || 'Araştırma başarısız' };
   },
 
   /** Rapor: fiyat geçmişi – getFiyatGecmisi alias */

@@ -904,6 +904,53 @@ router.get('/fiyatlar/tedarikci-karsilastirma', async (req, res) => {
   }
 });
 
+// ==================== RAF FİYATI (PİYASA) ====================
+
+/**
+ * GET /fiyatlar/:urunId/raf-fiyat
+ * Ürünün son raf fiyatı araştırma sonuçları (Camgöz.net)
+ */
+router.get('/fiyatlar/:urunId/raf-fiyat', async (req, res) => {
+  try {
+    const { urunId } = req.params;
+
+    // Aynı isimli farklı urun_kartlari kayıtları olabiliyor (ör: id=71 ve id=4778 ikisi de "Ayçiçek Yağı")
+    // piyasa_fiyat_gecmisi eski id'ye bağlı olabilir, bu yüzden isim eşleşmesi de yapıyoruz
+    const result = await query(
+      `
+      SELECT 
+        pfg.id,
+        pfg.urun_kart_id,
+        pfg.stok_kart_id,
+        pfg.urun_adi,
+        pfg.piyasa_fiyat_min,
+        pfg.piyasa_fiyat_max,
+        pfg.piyasa_fiyat_ort,
+        pfg.birim_fiyat,
+        pfg.kaynaklar,
+        pfg.arastirma_tarihi,
+        pfg.market_adi,
+        pfg.marka,
+        pfg.ambalaj_miktar
+      FROM piyasa_fiyat_gecmisi pfg
+      WHERE pfg.urun_kart_id = $1
+         OR pfg.stok_kart_id = $1
+         OR pfg.urun_kart_id IN (
+           SELECT uk2.id FROM urun_kartlari uk2
+           WHERE LOWER(uk2.ad) = (SELECT LOWER(ad) FROM urun_kartlari WHERE id = $1)
+         )
+      ORDER BY pfg.arastirma_tarihi DESC NULLS LAST
+      LIMIT 20
+    `,
+      [urunId]
+    );
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ==================== DEBUG ====================
 
 /**
