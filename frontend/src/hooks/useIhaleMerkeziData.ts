@@ -49,7 +49,7 @@ function formatTrackedTender(t: RawTrackingData): SavedTender {
     tender_id: Number(t.tender_id),
     ihale_basligi: String(t.ihale_basligi || ''),
     kurum: String(t.kurum || ''),
-    tarih: t.tarih ? new Date(t.tarih).toLocaleDateString('tr-TR') : '',
+    tarih: t.tarih || '',
     bedel: t.bedel ? `${Number(t.bedel).toLocaleString('tr-TR')} ₺` : '',
     city: t.city,
     external_id: t.external_id,

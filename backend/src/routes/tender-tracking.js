@@ -536,7 +536,6 @@ router.delete('/:id', async (req, res) => {
  * Analiz sonrası otomatik takip listesine ekle
  * POST /api/tender-tracking/add-from-analysis
  */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Multi-step analysis aggregation requires sequential data processing
 router.post('/add-from-analysis', async (req, res) => {
   try {
     const { tender_id, user_id } = req.body;
@@ -659,7 +658,7 @@ router.post('/add-from-analysis', async (req, res) => {
           if (!analysisSummary.ozet) {
             analysisSummary.ozet = ozet;
           } else if (!analysisSummary.ozet.includes(ozet)) {
-            analysisSummary.ozet += ' | ' + ozet;
+            analysisSummary.ozet += ` | ${ozet}`;
           }
         }
 
@@ -1142,6 +1141,173 @@ router.post('/add-from-analysis', async (req, res) => {
     });
     analysisSummary.gerekli_belgeler = Array.from(belgeMap.values());
 
+    // ═══════════════════════════════════════════════════════════════
+    // POST-PROCESSING KONSOLİDASYON
+    // Ham veri tablolarda zaten var → doğru yapısal alanlara yönlendir
+    // ═══════════════════════════════════════════════════════════════
+
+    // 1. ÖĞÜN TABLOLARINDAN LOKASYON + TOPLAM ÖĞÜN ÇIKARMA
+    if (analysisSummary.ogun_bilgileri && analysisSummary.ogun_bilgileri.length > 0) {
+      for (const tablo of analysisSummary.ogun_bilgileri) {
+        // Sadece tablo formatındaki verileri işle (rows + headers olan)
+        if (!tablo.rows || !tablo.headers) continue;
+
+        const headersNorm = tablo.headers.map((h) => normalizeForCompare(h));
+
+        // Bu bir öğün dağılım tablosu mu? (kolonlarda kahvaltı, yemek, öğün, diyet vs.)
+        const ogunKeywords = ['kahvalti', 'yemek', 'ogun', 'diyet', 'ara ogun', 'rejim'];
+        const isOgunTablosu = headersNorm.some((h) => ogunKeywords.some((kw) => h.includes(kw)));
+        if (!isOgunTablosu) continue;
+
+        for (const row of tablo.rows) {
+          if (!row || row.length === 0) continue;
+          const firstCol = String(row[0] || '').trim();
+          const firstColNorm = normalizeForCompare(firstCol);
+
+          // TOPLAM satırından toplam öğün sayısını çıkar
+          if (firstColNorm === 'toplam') {
+            // Son kolon genelde TOPLAM kolonu, ya da headers'ta "toplam" olan kolon
+            const toplamIdx = headersNorm.indexOf('toplam');
+            const toplamVal = toplamIdx >= 0 ? row[toplamIdx] : row[row.length - 1];
+            const toplamSayi = parseInt(String(toplamVal || '').replace(/[^\d]/g, ''), 10);
+
+            if (toplamSayi && !analysisSummary.toplam_ogun_sayisi) {
+              analysisSummary.toplam_ogun_sayisi = toplamSayi;
+            }
+            continue; // TOPLAM satırını lokasyon olarak ekleme
+          }
+
+          // İlk kolondan lokasyon isimlerini çıkar → is_yerleri'ne ekle
+          if (firstCol.length > 3 && !firstCol.match(/^\d+$/)) {
+            const zatenVar = analysisSummary.is_yerleri.some(
+              (iy) => normalizeForCompare(typeof iy === 'string' ? iy : iy.isim || iy.ad || '') === firstColNorm
+            );
+            if (!zatenVar) {
+              analysisSummary.is_yerleri.push(firstCol);
+            }
+          }
+        }
+      }
+    }
+
+    // 2. İLETİŞİM ADRESİNDEN LOKASYONLARI ÇIKAR (is_yerleri hâlâ boşsa)
+    if (analysisSummary.iletisim?.adres && analysisSummary.is_yerleri.length === 0) {
+      const adres = analysisSummary.iletisim.adres;
+      const parcalar = adres
+        .split(',')
+        .map((p) => p.trim())
+        .filter((p) => p.length > 5);
+
+      const lokasyonKeywords = [
+        'hastane',
+        'adsm',
+        'trsm',
+        'poliklinik',
+        'mudurlugu',
+        'baskanligi',
+        'universitesi',
+        'ek hizmet',
+        'eah',
+        'dante',
+        'badem',
+        'semt poliklinigi',
+      ];
+
+      for (const parca of parcalar) {
+        const parcaNorm = normalizeForCompare(parca);
+        const isLokasyon = lokasyonKeywords.some((kw) => parcaNorm.includes(kw));
+        if (isLokasyon) {
+          const zatenVar = analysisSummary.is_yerleri.some(
+            (iy) => normalizeForCompare(typeof iy === 'string' ? iy : iy.isim || iy.ad || '') === parcaNorm
+          );
+          if (!zatenVar) {
+            analysisSummary.is_yerleri.push(parca);
+          }
+        }
+      }
+    }
+
+    // 3. PERSONEL DETAYLARINDAN → TOPLAM ÇIKAR + LOKASYON GİRİŞLERİNİ TEMİZLE
+    if (analysisSummary.personel_detaylari && analysisSummary.personel_detaylari.length > 0) {
+      const temizPersonel = [];
+
+      // is_yerleri'ndeki lokasyon isimlerini normalize set'e al (karşılaştırma için)
+      const lokasyonNormSet = new Set(
+        analysisSummary.is_yerleri.map((iy) => normalizeForCompare(typeof iy === 'string' ? iy : iy.isim || iy.ad || ''))
+      );
+
+      const lokasyonIpuclari = [
+        'hastane',
+        'eah',
+        'adsm',
+        'trsm',
+        'mudurlugu',
+        'baskanligi',
+        'universitesi',
+        'poliklinik',
+        'ek hizmet',
+      ];
+
+      for (const p of analysisSummary.personel_detaylari) {
+        const pozNorm = normalizeForCompare(p.pozisyon || '');
+
+        // TOPLAM satırından toplam personel sayısını çıkar
+        if (pozNorm === 'toplam') {
+          const toplamAdet = parseInt(String(p.adet || '').replace(/[^\d]/g, ''), 10);
+          if (toplamAdet && !analysisSummary.toplam_personel) {
+            analysisSummary.toplam_personel = toplamAdet;
+          }
+          if (toplamAdet) {
+            analysisSummary.personel_sayisi = toplamAdet;
+          }
+          continue; // TOPLAM'ı personel listesinde tutma
+        }
+
+        // Lokasyon isimlerini personel listesinden çıkar
+        // İpuçları: hastane, EAH, ADSM, müdürlük + adet=1 veya adet yok
+        const isLokasyonKeyword = lokasyonIpuclari.some((kw) => pozNorm.includes(kw));
+        const isLokasyonFromTable = lokasyonNormSet.has(pozNorm);
+
+        if ((isLokasyonKeyword || isLokasyonFromTable) && (p.adet === 1 || p.adet === '1' || !p.adet)) {
+          // Lokasyonu is_yerleri'ne ekle (zaten yoksa)
+          if (!lokasyonNormSet.has(pozNorm)) {
+            analysisSummary.is_yerleri.push(p.pozisyon);
+            lokasyonNormSet.add(pozNorm);
+          }
+          continue; // Lokasyonu personel listesinde tutma
+        }
+
+        temizPersonel.push(p);
+      }
+
+      analysisSummary.personel_detaylari = temizPersonel;
+    }
+
+    // 4. KİŞİ SAYISI HESAPLAMA
+    if (!analysisSummary.kisi_sayisi || analysisSummary.kisi_sayisi === 'Belirtilmemiş') {
+      const kahvalti = parseInt(String(analysisSummary.kahvalti_kisi_sayisi || '0').replace(/[^\d]/g, ''), 10);
+      const ogle = parseInt(String(analysisSummary.ogle_kisi_sayisi || '0').replace(/[^\d]/g, ''), 10);
+      const aksam = parseInt(String(analysisSummary.aksam_kisi_sayisi || '0').replace(/[^\d]/g, ''), 10);
+
+      if (kahvalti || ogle || aksam) {
+        analysisSummary.kisi_sayisi = Math.max(kahvalti, ogle, aksam);
+      }
+    }
+
+    // 5. GÜNLÜK ÖĞÜN SAYISI (toplam öğün / hizmet gün sayısından)
+    if (!analysisSummary.gunluk_ogun_sayisi || analysisSummary.gunluk_ogun_sayisi === 'Belirtilmemiş') {
+      if (analysisSummary.toplam_ogun_sayisi && analysisSummary.hizmet_gun_sayisi) {
+        const toplamOgun = parseInt(String(analysisSummary.toplam_ogun_sayisi).replace(/[^\d]/g, ''), 10);
+        const gunSayisi = parseInt(String(analysisSummary.hizmet_gun_sayisi).replace(/[^\d]/g, ''), 10);
+        if (toplamOgun && gunSayisi) {
+          analysisSummary.gunluk_ogun_sayisi = Math.round(toplamOgun / gunSayisi);
+        }
+      }
+    }
+
+    // 6. İŞ YERLERİ SON TEMİZLİK (konsolidasyon sonrası tekrar dedupe)
+    analysisSummary.is_yerleri = [...new Set(analysisSummary.is_yerleri)];
+
     // Türkçe karakterleri normalize et (İ→i, Ş→s, vb.)
     const normalizeText = (text) => {
       return (text || '')
@@ -1162,6 +1328,41 @@ router.post('/add-from-analysis', async (req, res) => {
     // Bulunan verilere göre "eksik" olmayan bilgileri çıkar
     // Bu şekilde veri kaybı olmaz, sadece gerçekten bulunanlar filtrelenir
     const bulunanBilgiler = [];
+
+    // ─── Yapısal veri alanlarını doğrudan kontrol et ───
+    if (analysisSummary.ogun_bilgileri && analysisSummary.ogun_bilgileri.length > 0) {
+      bulunanBilgiler.push('gunluk ogun say', 'ogun say', 'ogun bilgi', 'gunluk yemek', 'kapasite');
+    }
+    if (analysisSummary.gunluk_ogun_sayisi) {
+      bulunanBilgiler.push('gunluk ogun say', 'ogun say');
+    }
+    if (analysisSummary.kisi_sayisi) {
+      bulunanBilgiler.push('kisi say', 'toplam kisi');
+    }
+    if (analysisSummary.kahvalti_kisi_sayisi || analysisSummary.ogle_kisi_sayisi || analysisSummary.aksam_kisi_sayisi) {
+      bulunanBilgiler.push('kisi say', 'toplam kisi');
+    }
+    if (analysisSummary.is_yerleri && analysisSummary.is_yerleri.length > 0) {
+      bulunanBilgiler.push('is yer', 'lokasyon', 'isyeri adres', 'calisma kosul', 'teslim yer');
+    }
+    if (analysisSummary.personel_detaylari && analysisSummary.personel_detaylari.length > 0) {
+      bulunanBilgiler.push('personel detay', 'personel', 'personel nitelik', 'personel say');
+    }
+    if (analysisSummary.personel_sayisi) {
+      bulunanBilgiler.push('personel say', 'personel');
+    }
+    if (analysisSummary.iletisim && Object.keys(analysisSummary.iletisim).length > 0) {
+      bulunanBilgiler.push('iletisim bilgi', 'iletisim', 'telefon', 'email', 'adres', 'yetkili');
+    }
+    if (analysisSummary.servis_saatleri && Object.keys(analysisSummary.servis_saatleri).length > 0) {
+      bulunanBilgiler.push('servis saat', 'dagitim saat', 'yemek saat');
+    }
+    if (analysisSummary.mali_kriterler && Object.keys(analysisSummary.mali_kriterler).length > 0) {
+      bulunanBilgiler.push('mali kriter', 'mali yeterli', 'cari oran', 'ozkaynak', 'ciro');
+    }
+    if (analysisSummary.gerekli_belgeler && analysisSummary.gerekli_belgeler.length > 0) {
+      bulunanBilgiler.push('gerekli belge', 'belge liste', 'istenen belge');
+    }
 
     // Takvimde bulunan bilgileri kontrol et
     if (analysisSummary.takvim && analysisSummary.takvim.length > 0) {
@@ -1227,10 +1428,10 @@ router.post('/add-from-analysis', async (req, res) => {
 
     // Tüm analiz metnini birleştir (daha kapsamlı arama için)
     const tumMetin = [
-      ...(analysisSummary.takvim || []).map((t) => (t.olay || '') + ' ' + (t.tarih || '')),
+      ...(analysisSummary.takvim || []).map((t) => `${t.olay || ''} ${t.tarih || ''}`),
       ...(analysisSummary.teknik_sartlar || []).map((t) => (typeof t === 'string' ? t : t.madde || '')),
       ...(analysisSummary.onemli_notlar || []).map((n) => (typeof n === 'string' ? n : n.not || '')),
-      ...(analysisSummary.birim_fiyatlar || []).map((b) => (b.kalem || '') + ' ' + (b.miktar || '')),
+      ...(analysisSummary.birim_fiyatlar || []).map((b) => `${b.kalem || ''} ${b.miktar || ''}`),
       analysisSummary.ozet || '',
     ].join(' ');
     const tumMetinNorm = normalizeText(tumMetin);
@@ -1248,6 +1449,19 @@ router.post('/add-from-analysis', async (req, res) => {
       'fiyat farki': ['fiyat fark', 'formul', 'katsayi'],
       'formul detay': ['fiyat fark', 'formul'],
       'katsayi deger': ['fiyat fark', 'katsayi', 'a1', 'b1'],
+      // Yapısal alan eşleştirmeleri
+      'gunluk ogun': ['ogun bilgi', 'ogun say', 'gunluk ogun'],
+      'ogun say': ['ogun bilgi', 'ogun say', 'gunluk ogun'],
+      'kisi say': ['kisi say', 'toplam kisi'],
+      'is yer': ['is yer', 'lokasyon', 'isyeri adres'],
+      lokasyon: ['lokasyon', 'is yer', 'isyeri adres'],
+      'personel detay': ['personel detay', 'personel say', 'personel nitelik'],
+      personel: ['personel detay', 'personel say', 'personel'],
+      iletisim: ['iletisim bilgi', 'iletisim', 'telefon', 'email'],
+      'servis saat': ['servis saat', 'dagitim saat', 'yemek saat'],
+      'mali kriter': ['mali kriter', 'mali yeterli', 'cari oran'],
+      'gerekli belge': ['gerekli belge', 'belge liste', 'istenen belge'],
+      'belge liste': ['gerekli belge', 'belge liste'],
     };
 
     // Bulunan bilgileri eksik listesinden çıkar

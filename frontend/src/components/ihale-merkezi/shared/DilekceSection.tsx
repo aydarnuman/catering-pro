@@ -28,6 +28,7 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
 import { aiAPI } from '@/lib/api/services/ai';
+import { formatDate } from '@/lib/formatters';
 import { detectMissingCriticalData, InlineDataForm } from '../InlineDataForm';
 import type { SavedTender } from '../types';
 
@@ -172,7 +173,7 @@ export function DilekceSection({ tender, dilekceType, onSelectType }: DilekceSec
 ## İHALE BİLGİLERİ
 - Başlık: ${tender.ihale_basligi}
 - Kurum: ${tender.kurum}
-- Tarih: ${tender.tarih}
+- Tarih: ${formatDate(tender.tarih, 'datetime')}
 - Şehir: ${tender.city || '-'}
 - İKN: ${tender.external_id || '-'}
 

@@ -2,6 +2,7 @@ import express from 'express';
 import { query } from '../database.js';
 import aiAgent from '../services/ai-agent.js';
 import { parseWithRegex, smartParse } from '../services/ambalajParser.js';
+import piyasaSyncScheduler from '../services/piyasa-sync-scheduler.js';
 
 const router = express.Router();
 
@@ -348,7 +349,7 @@ router.post('/piyasa/hizli-arastir', async (req, res) => {
 // Detaylı piyasa araştırması - sonuçları kullanıcıya göster
 router.post('/piyasa/detayli-arastir', async (req, res) => {
   try {
-    const { urun_adi, stok_kart_id: _stok_kart_id2, ana_urun_id: _ana_urun_id } = req.body;
+    const { urun_adi, stok_kart_id, ana_urun_id: _ana_urun_id } = req.body;
 
     if (!urun_adi) {
       return res.status(400).json({ success: false, error: 'Ürün adı zorunludur' });
@@ -1505,6 +1506,53 @@ router.get('/stok-karti/ambalaj-ozet', async (_req, res) => {
     res.json({
       success: true,
       data: result.rows[0],
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =============================================
+// PİYASA SYNC SCHEDULER (Manuel tetikleme + Durum)
+// =============================================
+
+// Piyasa sync durumunu getir
+router.get('/piyasa/sync/durum', async (req, res) => {
+  try {
+    // Son sync loglarını da getir
+    const logs = await query(`
+      SELECT status, started_at, finished_at, details
+      FROM sync_logs
+      WHERE sync_type = 'piyasa_sync'
+      ORDER BY started_at DESC
+      LIMIT 5
+    `);
+
+    res.json({
+      success: true,
+      data: {
+        ...piyasaSyncScheduler.getStatus(),
+        recentLogs: logs.rows,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Piyasa sync'i manuel tetikle
+router.post('/piyasa/sync/tetikle', async (req, res) => {
+  try {
+    if (piyasaSyncScheduler.isRunning) {
+      return res.json({ success: false, message: 'Senkronizasyon zaten çalışıyor' });
+    }
+
+    // Async olarak başlat, hemen cevap dön
+    piyasaSyncScheduler.runSync({ trigger: 'manual' });
+
+    res.json({
+      success: true,
+      message: 'Piyasa fiyat senkronizasyonu başlatıldı',
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });

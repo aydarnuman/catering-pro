@@ -42,6 +42,8 @@ interface IhaleMerkeziContextValue {
   toggleSection: (sectionId: string) => void;
   toggleTracking: (tenderId: number, isCurrentlyTracked: boolean) => void;
   updateTenderStatus: (tenderId: string, newStatus: string) => void;
+  /** Toggle left panel collapsed state */
+  toggleLeftPanel: () => void;
   /** Refresh all data */
   refreshAll: () => void;
   /** Refresh tracked tenders and return fresh list */
@@ -66,6 +68,7 @@ export function IhaleMerkeziProvider({ children }: { children: React.ReactNode }
     filters: {} as IhaleMerkeziState['filters'],
     currentPage: 1,
     showStats: false as IhaleMerkeziState['showStats'],
+    leftPanelCollapsed: false,
 
     // Orta panel
     detailExpanded: !!searchParams.get('tender'),
@@ -74,7 +77,7 @@ export function IhaleMerkeziProvider({ children }: { children: React.ReactNode }
     dilekceType: null as string | null,
 
     // Sag panel
-    activeRightTab: 'araclar' as IhaleMerkeziState['activeRightTab'],
+    activeRightTab: 'kontrol' as IhaleMerkeziState['activeRightTab'],
     expandedSections: new Set(['notes']),
     selectedFirmaId: null as number | null,
 
@@ -145,6 +148,8 @@ export function IhaleMerkeziProvider({ children }: { children: React.ReactNode }
       selectedTender: tender,
       selectedTenderId: tender ? ('tender_id' in tender ? tender.tender_id : tender.id) : null,
       detailExpanded: !!tender,
+      // Auto-collapse left panel when a tender is selected
+      leftPanelCollapsed: !!tender,
     }));
 
     // Update URL
@@ -206,6 +211,13 @@ export function IhaleMerkeziProvider({ children }: { children: React.ReactNode }
         })
       );
     }
+  }, []);
+
+  const toggleLeftPanel = useCallback(() => {
+    setUiState((prev) => ({
+      ...prev,
+      leftPanelCollapsed: !prev.leftPanelCollapsed,
+    }));
   }, []);
 
   const toggleSection = useCallback((sectionId: string) => {
@@ -320,6 +332,7 @@ export function IhaleMerkeziProvider({ children }: { children: React.ReactNode }
     toggleSection,
     toggleTracking,
     updateTenderStatus,
+    toggleLeftPanel,
     refreshAll,
     refreshTracked,
     refreshAndUpdateSelected,

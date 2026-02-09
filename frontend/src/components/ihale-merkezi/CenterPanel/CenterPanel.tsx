@@ -22,7 +22,6 @@ import {
   IconCalendar,
   IconDownload,
   IconExternalLink,
-  IconFile,
   IconFileText,
   IconMapPin,
   IconNote,
@@ -32,12 +31,12 @@ import {
 import { useCallback, useState } from 'react';
 import { ContextualNotesSection } from '@/components/notes/ContextualNotesSection';
 import { useAnalysisCorrections } from '@/hooks/useAnalysisCorrections';
+import { formatDate } from '@/lib/formatters';
 import type { Tender } from '@/types/api';
 import { DocumentWizardModal } from '../DocumentWizardModal';
 import type { AnalysisData, IhaleMerkeziState, SavedTender, TenderStatus } from '../types';
 import { statusConfig } from '../types';
 import { BirimFiyatlarModal, TamMetinModal, TeknikSartlarModal } from './DetailModals';
-import { DokumanlarSection } from './DokumanlarSection';
 import { OzetTabPanel } from './OzetTabPanel';
 import { SartnameGramajModal } from './SartnameGramajModal';
 import { SettingsModal } from './SettingsModal';
@@ -373,14 +372,7 @@ export function CenterPanel({
                     Son Teklif
                   </Text>
                   <Text size="xs" fw={500}>
-                    {dateStr
-                      ? new Date(dateStr).toLocaleDateString('tr-TR', {
-                          day: '2-digit',
-                          month: 'short',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })
-                      : '-'}
+                    {formatDate(dateStr, 'datetime')}
                   </Text>
                 </Box>
               </Group>
@@ -456,19 +448,7 @@ export function CenterPanel({
               <Tabs.Tab value="ozet" leftSection={<IconFileText size={14} />}>
                 Özet
               </Tabs.Tab>
-              {/* Dökümanlar - sadece takip ediliyorsa göster */}
-              {isSaved && (
-                <Tabs.Tab value="dokumanlar" leftSection={<IconFile size={14} />}>
-                  <Group gap={4}>
-                    Dökümanlar
-                    {(savedTender?.dokuman_sayisi ?? 0) > 0 && (
-                      <Badge size="xs" variant="light" color="gray">
-                        {savedTender?.dokuman_sayisi}
-                      </Badge>
-                    )}
-                  </Group>
-                </Tabs.Tab>
-              )}
+              {/* Dökümanlar tab kaldırıldı - ayarlar modalından erişilebilir */}
               {/* Notlar */}
               {isSaved && (
                 <Tabs.Tab value="notlar" leftSection={<IconNote size={14} />}>
@@ -501,22 +481,7 @@ export function CenterPanel({
               />
             </Tabs.Panel>
 
-            <Tabs.Panel value="dokumanlar" pt="md">
-              {/* Dökümanlar sekmesi - Wizard Modal ile döküman yönetimi */}
-              {isSaved ? (
-                <DokumanlarSection
-                  tenderId={savedTender?.tender_id ?? 0}
-                  tenderTitle={savedTender?.ihale_basligi ?? ''}
-                  dokumansayisi={savedTender?.dokuman_sayisi || 0}
-                  analizEdilen={savedTender?.analiz_edilen_dokuman || 0}
-                  onRefresh={onRefreshData}
-                />
-              ) : (
-                <Text size="sm" c="dimmed">
-                  Takip edilen ihaleler için kullanılabilir.
-                </Text>
-              )}
-            </Tabs.Panel>
+            {/* Dökümanlar panel kaldırıldı - ayarlar modalından erişilebilir */}
 
             <Tabs.Panel value="notlar" pt="md">
               {/* Notlar sekmesi */}

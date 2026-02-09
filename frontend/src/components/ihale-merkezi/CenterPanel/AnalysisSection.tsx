@@ -305,7 +305,12 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
                 filteredTeknikSartlar.map((sart, idx) => {
                   const text = getTeknikSartText(sart);
                   const source = getTeknikSartSource(sart);
-                  const isZorunlu = /zorunlu|mecburi|şart|gerekli|mutlaka/i.test(text);
+                  const onem =
+                    typeof sart === 'object' && sart !== null && 'onem' in sart
+                      ? (sart as { onem?: string }).onem
+                      : undefined;
+                  const isZorunlu =
+                    onem === 'kritik' || /zorunlu|mecburi|şart|gerekli|mutlaka/i.test(text);
 
                   return (
                     <Paper
@@ -331,7 +336,19 @@ export function AnalysisSection({ tender }: { tender: SavedTender }) {
                             {idx + 1}
                           </Badge>
                           <Box style={{ flex: 1, minWidth: 0 }}>
-                            <Text size="xs">{text}</Text>
+                            <Group gap={4} wrap="nowrap">
+                              <Text size="xs" style={{ flex: 1 }}>{text}</Text>
+                              {onem && (
+                                <Badge
+                                  size="xs"
+                                  variant="light"
+                                  color={onem === 'kritik' ? 'red' : onem === 'normal' ? 'blue' : 'gray'}
+                                  style={{ flexShrink: 0 }}
+                                >
+                                  {onem === 'kritik' ? 'Kritik' : onem === 'normal' ? 'Normal' : onem}
+                                </Badge>
+                              )}
+                            </Group>
                             {source && (
                               <Text size="xs" c="dimmed" fs="italic">
                                 Kaynak: {source}

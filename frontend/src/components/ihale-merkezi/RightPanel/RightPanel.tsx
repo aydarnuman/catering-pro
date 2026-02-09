@@ -2,7 +2,7 @@
 
 import { Box, Button, ScrollArea, Tabs, Text, ThemeIcon } from '@mantine/core';
 import {
-  IconFileAnalytics,
+  IconChecklist,
   IconGavel,
   IconSparkles,
   IconUsers,
@@ -10,10 +10,10 @@ import {
 } from '@tabler/icons-react';
 import { AraclarSection } from '../shared/AraclarSection';
 import { DilekceSection } from '../shared/DilekceSection';
+import { KontrolSection } from '../shared/KontrolSection';
 import type { IhaleMerkeziState, SavedTender } from '../types';
 import { CollapsibleSection } from './CollapsibleSection';
 import { FirmsPanel } from './FirmsPanel';
-import { SuggestionsTab } from './SuggestionsTab';
 
 interface RightPanelProps {
   state: IhaleMerkeziState;
@@ -60,35 +60,38 @@ export function RightPanel({
               onStateChange({ activeRightTab: value as IhaleMerkeziState['activeRightTab'] })
             }
             variant="pills"
+            styles={{
+              tab: { fontSize: 'var(--mantine-font-size-xs)', padding: '6px 10px' },
+            }}
           >
             <Tabs.List grow>
               <Tabs.Tab
+                value="kontrol"
+                leftSection={<IconChecklist size={13} />}
+                disabled={!isSavedTender}
+              >
+                Kontrol
+              </Tabs.Tab>
+              <Tabs.Tab
                 value="araclar"
-                leftSection={<IconWand size={14} />}
+                leftSection={<IconWand size={13} />}
                 disabled={!isSavedTender}
               >
                 Araçlar
               </Tabs.Tab>
               <Tabs.Tab
                 value="dilekce"
-                leftSection={<IconGavel size={14} />}
+                leftSection={<IconGavel size={13} />}
                 disabled={!isSavedTender}
               >
                 Dilekçe
               </Tabs.Tab>
               <Tabs.Tab
                 value="teklif"
-                leftSection={<IconFileAnalytics size={14} />}
+                leftSection={<IconSparkles size={13} />}
                 disabled={!isSavedTender}
               >
                 Teklif
-              </Tabs.Tab>
-              <Tabs.Tab
-                value="tespit"
-                leftSection={<IconSparkles size={14} />}
-                disabled={!isSavedTender}
-              >
-                Tespit
               </Tabs.Tab>
             </Tabs.List>
           </Tabs>
@@ -112,37 +115,98 @@ export function RightPanel({
             )}
 
             {activeRightTab === 'teklif' && (
-              <Box ta="center" py="lg">
-                <ThemeIcon size="xl" variant="light" color="yellow" radius="xl" mb="md">
-                  <IconFileAnalytics size={28} />
-                </ThemeIcon>
-                <Text size="sm" c="dimmed" mb="md">
-                  Detaylı teklif cetveli hazırlamak için butona tıklayın
-                </Text>
-                <Button
-                  variant="gradient"
+              <Box
+                ta="center"
+                py="xl"
+                px="md"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 16,
+                }}
+              >
+                {/* Animated glow icon */}
+                <Box
                   style={{
-                    background: 'linear-gradient(135deg, #C9A227 0%, #D4AF37 50%, #E6C65C 100%)',
-                    border: 'none',
+                    position: 'relative',
+                    width: 72,
+                    height: 72,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}
-                  leftSection={<IconFileAnalytics size={16} />}
-                  onClick={() => onStateChange({ teklifModalOpen: true })}
                 >
-                  Teklif Cetveli Hazırla
+                  <Box
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      borderRadius: '50%',
+                      background:
+                        'radial-gradient(circle, rgba(20, 184, 166, 0.25) 0%, transparent 70%)',
+                      animation: 'teklif-pulse 2.5s ease-in-out infinite',
+                    }}
+                  />
+                  <ThemeIcon
+                    size={56}
+                    variant="gradient"
+                    gradient={{ from: 'teal', to: 'cyan', deg: 135 }}
+                    radius="xl"
+                    style={{
+                      boxShadow: '0 0 24px rgba(20, 184, 166, 0.3)',
+                    }}
+                  >
+                    <IconSparkles size={28} />
+                  </ThemeIcon>
+                </Box>
+
+                <div>
+                  <Text size="md" fw={700} mb={4}>
+                    Teklif Merkezi
+                  </Text>
+                  <Text size="xs" c="dimmed" maw={260} style={{ lineHeight: 1.5 }}>
+                    AI tespit edilen verileri görüntüleyin, maliyet hesaplayın ve teklif cetveli oluşturun
+                  </Text>
+                </div>
+
+                <Button
+                  size="lg"
+                  variant="gradient"
+                  gradient={{ from: 'teal', to: 'cyan', deg: 135 }}
+                  leftSection={<IconSparkles size={18} />}
+                  fullWidth
+                  maw={280}
+                  onClick={() => onStateChange({ teklifModalOpen: true })}
+                  style={{
+                    boxShadow: '0 4px 20px rgba(20, 184, 166, 0.25)',
+                    transition: 'all 0.2s ease',
+                  }}
+                  styles={{
+                    root: {
+                      '&:hover': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 6px 28px rgba(20, 184, 166, 0.35)',
+                      },
+                    },
+                  }}
+                >
+                  Teklif Merkezi Aç
                 </Button>
+
+                <style>{`
+                  @keyframes teklif-pulse {
+                    0%, 100% { transform: scale(1); opacity: 0.6; }
+                    50% { transform: scale(1.15); opacity: 1; }
+                  }
+                `}</style>
               </Box>
             )}
 
-            {activeRightTab === 'tespit' && (
-              <SuggestionsTab
+            {activeRightTab === 'kontrol' && (
+              <KontrolSection
                 tender={selectedTender as SavedTender}
-                onRefresh={onRefreshData}
-                onApplied={() => {
-                  // Hesaplamalar bölümünü aç
-                  if (!expandedSections.has('calculations')) {
-                    onToggleSection('calculations');
-                  }
-                }}
+                firmalar={state.firmalar}
+                selectedFirmaId={state.selectedFirmaId}
               />
             )}
           </Box>
@@ -152,7 +216,7 @@ export function RightPanel({
         {(!isMobile || mobileActiveTab === 'tools') && !isSavedTender && (
           <Box ta="center" py="xl" px="md">
             <Text size="sm" c="dimmed">
-              Araçları kullanmak için takip edilen bir ihale seçin
+              Takip edilen bir ihale seçin
             </Text>
           </Box>
         )}

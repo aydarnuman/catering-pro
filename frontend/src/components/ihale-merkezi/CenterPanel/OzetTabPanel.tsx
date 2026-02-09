@@ -6,6 +6,7 @@ import {
   Button,
   Group,
   Paper,
+  SegmentedControl,
   SimpleGrid,
   Stack,
   Text,
@@ -15,6 +16,7 @@ import {
 import {
   IconBookmark,
   IconBrain,
+  IconBuildingBank,
   IconCheck,
   IconClipboardList,
   IconClock,
@@ -22,9 +24,15 @@ import {
   IconEdit,
   IconFile,
   IconFileText,
+  IconFolder,
+  IconHash,
   IconScale,
+  IconSettings,
   IconSparkles,
+  IconToolsKitchen2,
+  IconUsers,
 } from '@tabler/icons-react';
+import { useMemo, useState } from 'react';
 import { tendersAPI } from '@/lib/api/services/tenders';
 import type { Tender } from '@/types/api';
 import type { AnalysisData, SavedTender } from '../types';
@@ -47,6 +55,9 @@ import {
   TeknikSartlarCard,
   TeminatOranlariCard,
 } from './OzetCards';
+
+// ─── Category Types ────────────────────────────────────────────
+type CategoryTab = 'tumu' | 'operasyonel' | 'mali' | 'teknik' | 'belgeler';
 
 interface OzetTabPanelProps {
   selectedTender: Tender | SavedTender;
@@ -76,6 +87,119 @@ interface OzetTabPanelProps {
   onOpenDocumentWizard: () => void;
 }
 
+/**
+ * Eksik bilgiler listesinden, aslında mevcut olan alanları filtrele.
+ * AI bazen bir alanı hem çıkarır hem de eksik diye işaretler.
+ */
+function filterEksikBilgiler(eksikBilgiler: string[], summary: AnalysisData): string[] {
+  // Normalize: küçük harf, türkçe i/ı düzelt, alfanumerik olmayan kaldır
+  const normalize = (s: string) =>
+    s
+      .replace(/İ/g, 'i')
+      .replace(/I/g, 'ı')
+      .toLowerCase()
+      .replace(/[^a-zçğıöşü0-9]/g, '');
+
+  // Alan -> varlık kontrolü eşleştirmesi
+  const fieldChecks: Array<{ keywords: string[]; check: () => boolean }> = [
+    {
+      keywords: ['iletişim', 'iletisim', 'telefon', 'eposta', 'e-posta', 'adres'],
+      check: () => {
+        const c = summary.iletisim;
+        return !!(c && (c.telefon || c.email || c.adres || c.yetkili));
+      },
+    },
+    {
+      keywords: ['servis saat', 'servis_saat', 'öğün saat', 'yemek saat'],
+      check: () => {
+        const s = summary.servis_saatleri;
+        return !!(s && Object.keys(s).length > 0);
+      },
+    },
+    {
+      keywords: ['personel', 'aşçı', 'asci', 'diyetisyen', 'gıda mühendis', 'gida muhendis', 'personel detay'],
+      check: () => {
+        const p = summary.personel_detaylari;
+        return !!(p && Array.isArray(p) && p.length > 0);
+      },
+    },
+    {
+      keywords: ['kişi sayı', 'kisi sayi', 'günlük öğün', 'gunluk ogun', 'öğün sayı', 'ogun sayi'],
+      check: () => {
+        const o = summary.ogun_bilgileri;
+        return !!(o && Array.isArray(o) && o.length > 0);
+      },
+    },
+    {
+      keywords: ['iş yeri', 'is yeri', 'lokasyon', 'teslim yer'],
+      check: () => {
+        const iy = summary.is_yerleri;
+        return !!(iy && Array.isArray(iy) && iy.length > 0);
+      },
+    },
+    {
+      keywords: ['mali kriter', 'mali yeterli', 'bilanço', 'bilanco', 'ciro'],
+      check: () => {
+        const mk = summary.mali_kriterler;
+        return !!(mk && (mk.cari_oran || mk.ozkaynak_orani || mk.is_deneyimi || mk.ciro_orani));
+      },
+    },
+    {
+      keywords: ['gerekli belge', 'belgeler listesi', 'istenen belge'],
+      check: () => {
+        const gb = summary.gerekli_belgeler;
+        return !!(gb && Array.isArray(gb) && gb.length > 0);
+      },
+    },
+    {
+      keywords: ['teminat', 'geçici teminat', 'kesin teminat'],
+      check: () => {
+        const t = summary.teminat_oranlari;
+        return !!(t && (t.gecici || t.kesin || t.ek_kesin));
+      },
+    },
+    {
+      keywords: ['birim fiyat'],
+      check: () => {
+        const bf = summary.birim_fiyatlar;
+        return !!(bf && Array.isArray(bf) && bf.length > 0);
+      },
+    },
+    {
+      keywords: ['teknik şart', 'teknik sart'],
+      check: () => {
+        const ts = summary.teknik_sartlar;
+        return !!(ts && Array.isArray(ts) && ts.length > 0);
+      },
+    },
+    {
+      keywords: ['ceza', 'ceza koşul', 'ceza kosul'],
+      check: () => {
+        const ck = summary.ceza_kosullari;
+        return !!(ck && Array.isArray(ck) && ck.length > 0);
+      },
+    },
+    {
+      keywords: ['fiyat fark', 'fiyat_fark'],
+      check: () => {
+        const ff = summary.fiyat_farki;
+        return !!(ff && (ff.formul || ff.katsayilar));
+      },
+    },
+  ];
+
+  return eksikBilgiler.filter((item) => {
+    const normalizedItem = normalize(item);
+    for (const fc of fieldChecks) {
+      const matches = fc.keywords.some((kw) => normalizedItem.includes(normalize(kw)));
+      if (matches && fc.check()) {
+        return false; // Alan mevcut, eksik listesinden çıkar
+      }
+    }
+    return true; // Eşleşme yok veya alan gerçekten eksik
+  });
+}
+
 export function OzetTabPanel({
   selectedTender,
   savedTender,
@@ -97,8 +221,73 @@ export function OzetTabPanel({
   onOpenSartnameModal,
   onOpenDocumentWizard,
 }: OzetTabPanelProps) {
+  const [activeCategory, setActiveCategory] = useState<CategoryTab>('tumu');
+
+  // ─── Count cards per category ──────────────────────────────────
+  const categoryCounts = useMemo(() => {
+    if (!analysisSummary) return { operasyonel: 0, mali: 0, teknik: 0, belgeler: 0 };
+
+    let operasyonel = 0;
+    let mali = 0;
+    let teknik = 0;
+    let belgeler = 0;
+
+    // Operasyonel
+    if (analysisSummary.takvim?.length) operasyonel++;
+    if (analysisSummary.servis_saatleri && Object.keys(analysisSummary.servis_saatleri).length > 0) operasyonel++;
+    if (analysisSummary.personel_detaylari?.length) operasyonel++;
+    if (analysisSummary.ogun_bilgileri?.length) operasyonel++;
+    if (analysisSummary.is_yerleri?.length) operasyonel++;
+    // CateringDetayKartlari check
+    if (
+      analysisSummary.kahvalti_kisi_sayisi || analysisSummary.ogle_kisi_sayisi ||
+      analysisSummary.aksam_kisi_sayisi || analysisSummary.mutfak_tipi ||
+      analysisSummary.dagitim_saatleri || analysisSummary.kalite_standartlari ||
+      analysisSummary.ogun_dagilimi
+    ) operasyonel++;
+
+    // Mali & Hukuki
+    if (analysisSummary.birim_fiyatlar?.length) mali++;
+    if (analysisSummary.teminat_oranlari && Object.keys(analysisSummary.teminat_oranlari).length > 0) mali++;
+    if (analysisSummary.mali_kriterler && Object.keys(analysisSummary.mali_kriterler).length > 0) mali++;
+    if (analysisSummary.fiyat_farki && (analysisSummary.fiyat_farki.formul || analysisSummary.fiyat_farki.katsayilar)) mali++;
+    if (analysisSummary.ceza_kosullari?.length) mali++;
+
+    // Teknik
+    if (analysisSummary.teknik_sartlar?.length) teknik++;
+    if (analysisSummary.benzer_is_tanimi) teknik++;
+    if (analysisSummary.onemli_notlar?.length) teknik++;
+
+    // Belgeler & İletişim
+    if (analysisSummary.gerekli_belgeler?.length) belgeler++;
+    if (analysisSummary.iletisim && Object.keys(analysisSummary.iletisim).length > 0) belgeler++;
+    if (analysisSummary.eksik_bilgiler?.length) {
+      const filtered = filterEksikBilgiler(analysisSummary.eksik_bilgiler, analysisSummary);
+      if (filtered.length > 0) belgeler++;
+    }
+
+    return { operasyonel, mali, teknik, belgeler };
+  }, [analysisSummary]);
+
+  // ─── Helper: Should show category tab ──────────────────────────
+  const showCategory = (cat: CategoryTab) => activeCategory === 'tumu' || activeCategory === cat;
+
+  // ─── Shared card render helpers ────────────────────────────────
+  const makeSaveHandler = (_fieldName: string) => async (fieldPath: string, oldValue: unknown, newValue: unknown) => {
+    await saveCorrection({
+      field_path: fieldPath,
+      old_value: oldValue,
+      new_value: newValue,
+    });
+    onRefreshData?.();
+  };
+
   return (
-    <Stack gap="md">
+    <Stack gap="md" style={{ maxWidth: 820, margin: '0 auto', width: '100%' }}>
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* PINNED SECTION - Always visible above tabs                    */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+
       {/* Takip Edilmemişse - Takip Et Kartı */}
       {!isSaved && (
         <Paper
@@ -323,6 +512,60 @@ export function OzetTabPanel({
         </Paper>
       )}
 
+      {/* Temel Bilgiler Mini-Grid */}
+      {analysisSummary &&
+        (analysisSummary.ikn ||
+          analysisSummary.kisi_sayisi ||
+          analysisSummary.gunluk_ogun_sayisi ||
+          analysisSummary.toplam_ogun_sayisi ||
+          analysisSummary.toplam_personel ||
+          analysisSummary.sinir_deger_katsayisi) && (
+          <Group gap="xs" wrap="wrap">
+            {analysisSummary.ikn && (
+              <Badge variant="light" color="gray" size="sm" leftSection={<IconHash size={10} />}>
+                IKN: {analysisSummary.ikn}
+              </Badge>
+            )}
+            {analysisSummary.kisi_sayisi &&
+              analysisSummary.kisi_sayisi !== 'Belirtilmemiş' && (
+                <Badge variant="light" color="blue" size="sm" leftSection={<IconUsers size={10} />}>
+                  {analysisSummary.kisi_sayisi} kişi
+                </Badge>
+              )}
+            {analysisSummary.toplam_personel && (
+              <Badge variant="light" color="indigo" size="sm" leftSection={<IconUsers size={10} />}>
+                {Number(analysisSummary.toplam_personel).toLocaleString('tr-TR')} personel
+              </Badge>
+            )}
+            {analysisSummary.gunluk_ogun_sayisi &&
+              analysisSummary.gunluk_ogun_sayisi !== 'Belirtilmemiş' && (
+                <Badge
+                  variant="light"
+                  color="orange"
+                  size="sm"
+                  leftSection={<IconToolsKitchen2 size={10} />}
+                >
+                  Günlük {Number(analysisSummary.gunluk_ogun_sayisi).toLocaleString('tr-TR')} öğün
+                </Badge>
+              )}
+            {analysisSummary.toplam_ogun_sayisi && (
+              <Badge
+                variant="light"
+                color="orange"
+                size="sm"
+                leftSection={<IconToolsKitchen2 size={10} />}
+              >
+                Toplam {Number(analysisSummary.toplam_ogun_sayisi).toLocaleString('tr-TR')} öğün
+              </Badge>
+            )}
+            {analysisSummary.sinir_deger_katsayisi && (
+              <Badge variant="light" color="violet" size="sm" leftSection={<IconScale size={10} />}>
+                Sınır Değer Kts: {analysisSummary.sinir_deger_katsayisi}
+              </Badge>
+            )}
+          </Group>
+        )}
+
       {/* HITL: Düzeltme ve Onay Bar */}
       {analysisSummary && isSaved && (
         <Paper
@@ -386,229 +629,6 @@ export function OzetTabPanel({
         </Paper>
       )}
 
-      {/* Takvim */}
-      {analysisSummary?.takvim && analysisSummary.takvim.length > 0 && (
-        <TakvimCard takvim={analysisSummary.takvim} />
-      )}
-
-      {/* Önemli Notlar */}
-      {analysisSummary?.onemli_notlar && analysisSummary.onemli_notlar.length > 0 && (
-        <OnemliNotlarCard
-          notlar={
-            analysisSummary.onemli_notlar as Array<
-              { not: string; tur?: 'bilgi' | 'uyari' | 'gereklilik' } | string
-            >
-          }
-        />
-      )}
-
-      {/* Teknik Şartlar */}
-      {analysisSummary?.teknik_sartlar && analysisSummary.teknik_sartlar.length > 0 && (
-        <TeknikSartlarCard
-          teknikSartlar={analysisSummary.teknik_sartlar}
-          isEditing={editingCards.has('teknik_sartlar')}
-          onToggleEdit={() => toggleCardEdit('teknik_sartlar')}
-          onSave={async (fieldPath, oldValue, newValue) => {
-            await saveCorrection({
-              field_path: fieldPath,
-              old_value: oldValue,
-              new_value: newValue,
-            });
-            onRefreshData?.();
-          }}
-          isCorrected={!!getCorrectionForField('teknik_sartlar')}
-        />
-      )}
-
-      {/* Birim Fiyatlar */}
-      {analysisSummary?.birim_fiyatlar && analysisSummary.birim_fiyatlar.length > 0 && (
-        <BirimFiyatlarCard
-          birimFiyatlar={analysisSummary.birim_fiyatlar}
-          isEditing={editingCards.has('birim_fiyatlar')}
-          onToggleEdit={() => toggleCardEdit('birim_fiyatlar')}
-          onSave={async (fieldPath, oldValue, newValue) => {
-            await saveCorrection({
-              field_path: fieldPath,
-              old_value: oldValue,
-              new_value: newValue,
-            });
-            onRefreshData?.();
-          }}
-          isCorrected={!!getCorrectionForField('birim_fiyatlar')}
-        />
-      )}
-
-      {/* Eksik Bilgiler */}
-      {analysisSummary?.eksik_bilgiler && analysisSummary.eksik_bilgiler.length > 0 && (
-        <EksikBilgilerCard eksikBilgiler={analysisSummary.eksik_bilgiler} />
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* YENİ DETAY KARTLARI - Tüm analiz bilgileri */}
-      {/* ═══════════════════════════════════════════════════════════════ */}
-
-      {/* Dashboard Grid - Kritik bilgiler yan yana */}
-      {(analysisSummary?.iletisim && Object.keys(analysisSummary.iletisim).length > 0) ||
-      (analysisSummary?.servis_saatleri &&
-        Object.keys(analysisSummary.servis_saatleri).length > 0) ||
-      (analysisSummary?.teminat_oranlari &&
-        Object.keys(analysisSummary.teminat_oranlari).length > 0) ? (
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-          {/* İletişim Bilgileri */}
-          {analysisSummary?.iletisim && Object.keys(analysisSummary.iletisim).length > 0 && (
-            <IletisimCard
-              iletisim={analysisSummary.iletisim}
-              isEditing={editingCards.has('iletisim')}
-              onToggleEdit={() => toggleCardEdit('iletisim')}
-              onSave={async (fieldPath, oldValue, newValue) => {
-                await saveCorrection({
-                  field_path: fieldPath,
-                  old_value: oldValue,
-                  new_value: newValue,
-                });
-                onRefreshData?.();
-              }}
-              isCorrected={!!getCorrectionForField('iletisim')}
-            />
-          )}
-
-          {/* Servis Saatleri */}
-          {analysisSummary?.servis_saatleri &&
-            Object.keys(analysisSummary.servis_saatleri).length > 0 && (
-              <ServisSaatleriCard
-                saatler={analysisSummary.servis_saatleri}
-                isEditing={editingCards.has('servis_saatleri')}
-                onToggleEdit={() => toggleCardEdit('servis_saatleri')}
-                onSave={async (fieldPath, oldValue, newValue) => {
-                  await saveCorrection({
-                    field_path: fieldPath,
-                    old_value: oldValue,
-                    new_value: newValue,
-                  });
-                  onRefreshData?.();
-                }}
-                isCorrected={!!getCorrectionForField('servis_saatleri')}
-              />
-            )}
-
-          {/* Teminat Oranları */}
-          {analysisSummary?.teminat_oranlari &&
-            Object.keys(analysisSummary.teminat_oranlari).length > 0 && (
-              <TeminatOranlariCard
-                teminat={analysisSummary.teminat_oranlari}
-                isEditing={editingCards.has('teminat_oranlari')}
-                onToggleEdit={() => toggleCardEdit('teminat_oranlari')}
-                onSave={async (fieldPath, oldValue, newValue) => {
-                  await saveCorrection({
-                    field_path: fieldPath,
-                    old_value: oldValue,
-                    new_value: newValue,
-                  });
-                  onRefreshData?.();
-                }}
-                isCorrected={!!getCorrectionForField('teminat_oranlari')}
-              />
-            )}
-
-          {/* Mali Kriterler */}
-          {analysisSummary?.mali_kriterler &&
-            Object.keys(analysisSummary.mali_kriterler).length > 0 && (
-              <MaliKriterlerCard
-                kriterler={analysisSummary.mali_kriterler}
-                isEditing={editingCards.has('mali_kriterler')}
-                onToggleEdit={() => toggleCardEdit('mali_kriterler')}
-                onSave={async (fieldPath, oldValue, newValue) => {
-                  await saveCorrection({
-                    field_path: fieldPath,
-                    old_value: oldValue,
-                    new_value: newValue,
-                  });
-                  onRefreshData?.();
-                }}
-                isCorrected={!!getCorrectionForField('mali_kriterler')}
-              />
-            )}
-        </SimpleGrid>
-      ) : null}
-
-      {/* Personel ve Öğün Bilgileri */}
-      {((analysisSummary?.personel_detaylari && analysisSummary.personel_detaylari.length > 0) ||
-        (analysisSummary?.ogun_bilgileri && analysisSummary.ogun_bilgileri.length > 0)) && (
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-          {/* Personel Detayları */}
-          {analysisSummary?.personel_detaylari && analysisSummary.personel_detaylari.length > 0 && (
-            <PersonelCard
-              personel={analysisSummary.personel_detaylari}
-              isEditing={editingCards.has('personel_detaylari')}
-              onToggleEdit={() => toggleCardEdit('personel_detaylari')}
-              onSave={async (fieldPath, oldValue, newValue) => {
-                await saveCorrection({
-                  field_path: fieldPath,
-                  old_value: oldValue,
-                  new_value: newValue,
-                });
-                onRefreshData?.();
-              }}
-              isCorrected={!!getCorrectionForField('personel_detaylari')}
-            />
-          )}
-
-          {/* Öğün Bilgileri */}
-          {analysisSummary?.ogun_bilgileri && analysisSummary.ogun_bilgileri.length > 0 && (
-            <OgunBilgileriCard ogunler={analysisSummary.ogun_bilgileri} />
-          )}
-        </SimpleGrid>
-      )}
-
-      {/* ═══ CATERING DETAY KARTLARI (Azure v5) ═══ */}
-      <CateringDetayKartlari analysisSummary={analysisSummary} />
-
-      {/* İş Yerleri */}
-      {analysisSummary?.is_yerleri && analysisSummary.is_yerleri.length > 0 && (
-        <IsYerleriCard yerler={analysisSummary.is_yerleri} />
-      )}
-
-      {/* Ceza Koşulları ve Fiyat Farkı */}
-      {((analysisSummary?.ceza_kosullari && analysisSummary.ceza_kosullari.length > 0) ||
-        (analysisSummary?.fiyat_farki &&
-          (analysisSummary.fiyat_farki.formul || analysisSummary.fiyat_farki.katsayilar))) && (
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-          {/* Ceza Koşulları */}
-          {analysisSummary?.ceza_kosullari && analysisSummary.ceza_kosullari.length > 0 && (
-            <CezaKosullariCard cezalar={analysisSummary.ceza_kosullari} />
-          )}
-
-          {/* Fiyat Farkı */}
-          {analysisSummary?.fiyat_farki &&
-            (analysisSummary.fiyat_farki.formul || analysisSummary.fiyat_farki.katsayilar) && (
-              <FiyatFarkiCard fiyatFarki={analysisSummary.fiyat_farki} />
-            )}
-        </SimpleGrid>
-      )}
-
-      {/* Gerekli Belgeler */}
-      {analysisSummary?.gerekli_belgeler && analysisSummary.gerekli_belgeler.length > 0 && (
-        <GerekliBelgelerCard belgeler={analysisSummary.gerekli_belgeler} />
-      )}
-
-      {/* Benzer İş Tanımı */}
-      {analysisSummary?.benzer_is_tanimi && (
-        <BenzerIsTanimiCard tanim={analysisSummary.benzer_is_tanimi} />
-      )}
-
-      {/* Şartname/Gramaj Detayları Butonu */}
-      {analysisSummary && (
-        <Button
-          variant="light"
-          color="orange"
-          leftSection={<IconScale size={16} />}
-          onClick={onOpenSartnameModal}
-          fullWidth
-        >
-          Şartname/Gramaj Detayları
-        </Button>
-      )}
-
       {/* Hesaplama özeti */}
       {(selectedTender.yaklasik_maliyet ||
         selectedTender.sinir_deger ||
@@ -644,6 +664,286 @@ export function OzetTabPanel({
             </Box>
           </SimpleGrid>
         </Paper>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* CATEGORY TABS - Only shown when analysis exists               */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+
+      {hasAnalysis && (
+        <Box
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
+            background: 'rgba(24, 24, 27, 0.95)',
+            backdropFilter: 'blur(8px)',
+            marginLeft: -12,
+            marginRight: -12,
+            paddingLeft: 12,
+            paddingRight: 12,
+            paddingTop: 4,
+            paddingBottom: 8,
+          }}
+        >
+          <SegmentedControl
+            value={activeCategory}
+            onChange={(val) => setActiveCategory(val as CategoryTab)}
+            fullWidth
+            size="xs"
+            data={[
+              { label: 'Tümü', value: 'tumu' },
+              {
+                label: `Operasyonel${categoryCounts.operasyonel > 0 ? ` (${categoryCounts.operasyonel})` : ''}`,
+                value: 'operasyonel',
+              },
+              {
+                label: `Mali${categoryCounts.mali > 0 ? ` (${categoryCounts.mali})` : ''}`,
+                value: 'mali',
+              },
+              {
+                label: `Teknik${categoryCounts.teknik > 0 ? ` (${categoryCounts.teknik})` : ''}`,
+                value: 'teknik',
+              },
+              {
+                label: `Belgeler${categoryCounts.belgeler > 0 ? ` (${categoryCounts.belgeler})` : ''}`,
+                value: 'belgeler',
+              },
+            ]}
+            styles={{
+              root: {
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid var(--mantine-color-default-border)',
+                borderRadius: 8,
+              },
+              label: {
+                fontSize: 11,
+                fontWeight: 500,
+                padding: '4px 6px',
+              },
+            }}
+          />
+        </Box>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* CATEGORIZED CARDS                                             */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+
+      {/* ─── OPERASYONEL ──────────────────────────────────────────── */}
+      {showCategory('operasyonel') && (
+        <>
+          {/* Takvim */}
+          {analysisSummary?.takvim && analysisSummary.takvim.length > 0 && (
+            <TakvimCard takvim={analysisSummary.takvim} />
+          )}
+
+          {/* Servis Saatleri */}
+          {analysisSummary?.servis_saatleri &&
+            Object.keys(analysisSummary.servis_saatleri).length > 0 && (
+              <ServisSaatleriCard
+                saatler={analysisSummary.servis_saatleri}
+                isEditing={editingCards.has('servis_saatleri')}
+                onToggleEdit={() => toggleCardEdit('servis_saatleri')}
+                onSave={makeSaveHandler('servis_saatleri')}
+                isCorrected={!!getCorrectionForField('servis_saatleri')}
+              />
+            )}
+
+          {/* Personel Detayları */}
+          {analysisSummary?.personel_detaylari && analysisSummary.personel_detaylari.length > 0 && (
+            <PersonelCard
+              personel={analysisSummary.personel_detaylari}
+              isEditing={editingCards.has('personel_detaylari')}
+              onToggleEdit={() => toggleCardEdit('personel_detaylari')}
+              onSave={makeSaveHandler('personel_detaylari')}
+              isCorrected={!!getCorrectionForField('personel_detaylari')}
+            />
+          )}
+
+          {/* Öğün Bilgileri */}
+          {analysisSummary?.ogun_bilgileri && analysisSummary.ogun_bilgileri.length > 0 && (
+            <OgunBilgileriCard
+              ogunler={analysisSummary.ogun_bilgileri}
+              toplamOgunSayisi={analysisSummary.toplam_ogun_sayisi}
+            />
+          )}
+
+          {/* Catering Detay Kartları (Azure v5) */}
+          <CateringDetayKartlari analysisSummary={analysisSummary} />
+
+          {/* İş Yerleri */}
+          {analysisSummary?.is_yerleri && analysisSummary.is_yerleri.length > 0 && (
+            <IsYerleriCard yerler={analysisSummary.is_yerleri} />
+          )}
+
+          {/* Empty state for Operasyonel */}
+          {activeCategory === 'operasyonel' && categoryCounts.operasyonel === 0 && (
+            <Paper p="md" withBorder radius="md" ta="center">
+              <ThemeIcon size="lg" variant="light" color="gray" radius="xl" mx="auto" mb="xs">
+                <IconSettings size={18} />
+              </ThemeIcon>
+              <Text size="sm" c="dimmed">Bu kategoride henüz veri yok.</Text>
+            </Paper>
+          )}
+        </>
+      )}
+
+      {/* ─── MALİ & HUKUKİ ────────────────────────────────────────── */}
+      {showCategory('mali') && (
+        <>
+          {/* Birim Fiyatlar */}
+          {analysisSummary?.birim_fiyatlar && analysisSummary.birim_fiyatlar.length > 0 && (
+            <BirimFiyatlarCard
+              birimFiyatlar={analysisSummary.birim_fiyatlar}
+              isEditing={editingCards.has('birim_fiyatlar')}
+              onToggleEdit={() => toggleCardEdit('birim_fiyatlar')}
+              onSave={makeSaveHandler('birim_fiyatlar')}
+              isCorrected={!!getCorrectionForField('birim_fiyatlar')}
+            />
+          )}
+
+          {/* Teminat Oranları */}
+          {analysisSummary?.teminat_oranlari &&
+            Object.keys(analysisSummary.teminat_oranlari).length > 0 && (
+              <TeminatOranlariCard
+                teminat={analysisSummary.teminat_oranlari}
+                isEditing={editingCards.has('teminat_oranlari')}
+                onToggleEdit={() => toggleCardEdit('teminat_oranlari')}
+                onSave={makeSaveHandler('teminat_oranlari')}
+                isCorrected={!!getCorrectionForField('teminat_oranlari')}
+              />
+            )}
+
+          {/* Mali Kriterler */}
+          {analysisSummary?.mali_kriterler &&
+            Object.keys(analysisSummary.mali_kriterler).length > 0 && (
+              <MaliKriterlerCard
+                kriterler={analysisSummary.mali_kriterler}
+                isEditing={editingCards.has('mali_kriterler')}
+                onToggleEdit={() => toggleCardEdit('mali_kriterler')}
+                onSave={makeSaveHandler('mali_kriterler')}
+                isCorrected={!!getCorrectionForField('mali_kriterler')}
+              />
+            )}
+
+          {/* Fiyat Farkı */}
+          {analysisSummary?.fiyat_farki &&
+            (analysisSummary.fiyat_farki.formul || analysisSummary.fiyat_farki.katsayilar) && (
+              <FiyatFarkiCard fiyatFarki={analysisSummary.fiyat_farki} />
+            )}
+
+          {/* Ceza Koşulları */}
+          {analysisSummary?.ceza_kosullari && analysisSummary.ceza_kosullari.length > 0 && (
+            <CezaKosullariCard cezalar={analysisSummary.ceza_kosullari} />
+          )}
+
+          {/* Empty state for Mali */}
+          {activeCategory === 'mali' && categoryCounts.mali === 0 && (
+            <Paper p="md" withBorder radius="md" ta="center">
+              <ThemeIcon size="lg" variant="light" color="gray" radius="xl" mx="auto" mb="xs">
+                <IconBuildingBank size={18} />
+              </ThemeIcon>
+              <Text size="sm" c="dimmed">Bu kategoride henüz veri yok.</Text>
+            </Paper>
+          )}
+        </>
+      )}
+
+      {/* ─── TEKNİK ──────────────────────────────────────────────── */}
+      {showCategory('teknik') && (
+        <>
+          {/* Teknik Şartlar */}
+          {analysisSummary?.teknik_sartlar && analysisSummary.teknik_sartlar.length > 0 && (
+            <TeknikSartlarCard
+              teknikSartlar={analysisSummary.teknik_sartlar}
+              isEditing={editingCards.has('teknik_sartlar')}
+              onToggleEdit={() => toggleCardEdit('teknik_sartlar')}
+              onSave={makeSaveHandler('teknik_sartlar')}
+              isCorrected={!!getCorrectionForField('teknik_sartlar')}
+            />
+          )}
+
+          {/* Benzer İş Tanımı */}
+          {analysisSummary?.benzer_is_tanimi && (
+            <BenzerIsTanimiCard tanim={analysisSummary.benzer_is_tanimi} />
+          )}
+
+          {/* Önemli Notlar */}
+          {analysisSummary?.onemli_notlar && analysisSummary.onemli_notlar.length > 0 && (
+            <OnemliNotlarCard
+              notlar={
+                analysisSummary.onemli_notlar as Array<
+                  { not: string; tur?: 'bilgi' | 'uyari' | 'gereklilik' } | string
+                >
+              }
+            />
+          )}
+
+          {/* Empty state for Teknik */}
+          {activeCategory === 'teknik' && categoryCounts.teknik === 0 && (
+            <Paper p="md" withBorder radius="md" ta="center">
+              <ThemeIcon size="lg" variant="light" color="gray" radius="xl" mx="auto" mb="xs">
+                <IconClipboardList size={18} />
+              </ThemeIcon>
+              <Text size="sm" c="dimmed">Bu kategoride henüz veri yok.</Text>
+            </Paper>
+          )}
+        </>
+      )}
+
+      {/* ─── BELGELER & İLETİŞİM ─────────────────────────────────── */}
+      {showCategory('belgeler') && (
+        <>
+          {/* Gerekli Belgeler */}
+          {analysisSummary?.gerekli_belgeler && analysisSummary.gerekli_belgeler.length > 0 && (
+            <GerekliBelgelerCard belgeler={analysisSummary.gerekli_belgeler} />
+          )}
+
+          {/* İletişim Bilgileri */}
+          {analysisSummary?.iletisim && Object.keys(analysisSummary.iletisim).length > 0 && (
+            <IletisimCard
+              iletisim={analysisSummary.iletisim}
+              isEditing={editingCards.has('iletisim')}
+              onToggleEdit={() => toggleCardEdit('iletisim')}
+              onSave={makeSaveHandler('iletisim')}
+              isCorrected={!!getCorrectionForField('iletisim')}
+            />
+          )}
+
+          {/* Eksik Bilgiler */}
+          {analysisSummary?.eksik_bilgiler && analysisSummary.eksik_bilgiler.length > 0 && (() => {
+            const filtered = filterEksikBilgiler(analysisSummary.eksik_bilgiler, analysisSummary);
+            return filtered.length > 0 ? <EksikBilgilerCard eksikBilgiler={filtered} /> : null;
+          })()}
+
+          {/* Empty state for Belgeler */}
+          {activeCategory === 'belgeler' && categoryCounts.belgeler === 0 && (
+            <Paper p="md" withBorder radius="md" ta="center">
+              <ThemeIcon size="lg" variant="light" color="gray" radius="xl" mx="auto" mb="xs">
+                <IconFolder size={18} />
+              </ThemeIcon>
+              <Text size="sm" c="dimmed">Bu kategoride henüz veri yok.</Text>
+            </Paper>
+          )}
+        </>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BOTTOM SECTION - Always visible below tabs                    */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+
+      {/* Şartname/Gramaj Detayları Butonu */}
+      {analysisSummary && (
+        <Button
+          variant="light"
+          color="orange"
+          leftSection={<IconScale size={16} />}
+          onClick={onOpenSartnameModal}
+          fullWidth
+        >
+          Şartname/Gramaj Detayları
+        </Button>
       )}
 
       {/* Analiz yoksa mesaj */}

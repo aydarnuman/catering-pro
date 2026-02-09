@@ -2,6 +2,7 @@
 
 import {
   Badge,
+  Button,
   Group,
   Modal,
   Paper,
@@ -12,13 +13,17 @@ import {
   ThemeIcon,
 } from '@mantine/core';
 import {
+  IconChevronDown,
+  IconChevronUp,
   IconClipboardList,
   IconClock,
   IconScale,
   IconToolsKitchen2,
   IconUsers,
 } from '@tabler/icons-react';
+import { useState } from 'react';
 import type { AnalysisData } from '../types';
+import { isRealPersonelPosition } from './OzetCards';
 
 interface SartnameGramajModalProps {
   opened: boolean;
@@ -27,6 +32,8 @@ interface SartnameGramajModalProps {
 }
 
 export function SartnameGramajModal({ opened, onClose, analysisData }: SartnameGramajModalProps) {
+  const [teknikExpanded, setTeknikExpanded] = useState(false);
+
   return (
     <Modal
       opened={opened}
@@ -142,88 +149,150 @@ export function SartnameGramajModal({ opened, onClose, analysisData }: SartnameG
             )}
 
           {/* Personel Gereksinimleri */}
-          {analysisData?.personel_detaylari && analysisData.personel_detaylari.length > 0 && (
-            <Paper p="md" withBorder radius="md">
-              <Group gap="xs" mb="md">
-                <ThemeIcon size="sm" variant="light" color="indigo">
-                  <IconUsers size={14} />
-                </ThemeIcon>
-                <Text size="sm" fw={600}>
-                  Personel Gereksinimleri
-                </Text>
-                <Badge size="xs" variant="light" color="indigo">
-                  {analysisData.personel_detaylari.reduce((sum, p) => sum + (p.adet || 0), 0)} kişi
-                </Badge>
-              </Group>
-              <Table striped highlightOnHover withTableBorder withColumnBorders>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Pozisyon</Table.Th>
-                    <Table.Th style={{ textAlign: 'right' }}>Adet</Table.Th>
-                    <Table.Th>Ücret Oranı</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {analysisData.personel_detaylari.map((p) => (
-                    <Table.Tr key={`modal-personel-${p.pozisyon}-${p.adet}`}>
-                      <Table.Td>
-                        <Text fw={500}>{p.pozisyon}</Text>
-                      </Table.Td>
-                      <Table.Td style={{ textAlign: 'right' }}>
-                        <Text fw={600} c="indigo">
-                          {p.adet}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text c="dimmed" size="sm">
-                          {p.ucret_orani || '-'}
-                        </Text>
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </Paper>
-          )}
+          {analysisData?.personel_detaylari &&
+            analysisData.personel_detaylari.length > 0 &&
+            (() => {
+              const realPersonel = analysisData.personel_detaylari.filter((p) =>
+                isRealPersonelPosition(p.pozisyon)
+              );
+              const locations = analysisData.personel_detaylari.filter(
+                (p) => !isRealPersonelPosition(p.pozisyon)
+              );
+              if (realPersonel.length === 0) return null;
+              return (
+                <Paper p="md" withBorder radius="md">
+                  <Group gap="xs" mb="md">
+                    <ThemeIcon size="sm" variant="light" color="indigo">
+                      <IconUsers size={14} />
+                    </ThemeIcon>
+                    <Text size="sm" fw={600}>
+                      Personel Gereksinimleri
+                    </Text>
+                    <Badge size="xs" variant="light" color="indigo">
+                      {realPersonel.reduce((sum, p) => sum + (p.adet || 0), 0)} kişi
+                    </Badge>
+                  </Group>
+                  <Table striped highlightOnHover withTableBorder withColumnBorders>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Pozisyon</Table.Th>
+                        <Table.Th style={{ textAlign: 'right' }}>Adet</Table.Th>
+                        <Table.Th>Ücret Oranı</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {realPersonel.map((p) => (
+                        <Table.Tr key={`modal-personel-${p.pozisyon}-${p.adet}`}>
+                          <Table.Td>
+                            <Text fw={500}>{p.pozisyon}</Text>
+                          </Table.Td>
+                          <Table.Td style={{ textAlign: 'right' }}>
+                            <Text fw={600} c="indigo">
+                              {p.adet}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text c="dimmed" size="sm">
+                              {p.ucret_orani || '-'}
+                            </Text>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                  {/* Lokasyonlar ayrı göster */}
+                  {locations.length > 0 && (
+                    <>
+                      <Text size="xs" fw={600} c="dimmed" mt="md" mb="xs">
+                        Hizmet Lokasyonları ({locations.length})
+                      </Text>
+                      <Stack gap={4}>
+                        {locations.map((loc) => (
+                          <Group key={`modal-loc-${loc.pozisyon}`} gap="xs">
+                            <Text size="xs" c="dimmed">
+                              •
+                            </Text>
+                            <Text size="xs">{loc.pozisyon}</Text>
+                            {loc.adet > 0 && (
+                              <Badge size="xs" variant="light" color="gray">
+                                {loc.adet} kişi
+                              </Badge>
+                            )}
+                          </Group>
+                        ))}
+                      </Stack>
+                    </>
+                  )}
+                </Paper>
+              );
+            })()}
 
           {/* Teknik Şartlar */}
-          {analysisData?.teknik_sartlar && analysisData.teknik_sartlar.length > 0 && (
-            <Paper p="md" withBorder radius="md">
-              <Group gap="xs" mb="md">
-                <ThemeIcon size="sm" variant="light" color="grape">
-                  <IconClipboardList size={14} />
-                </ThemeIcon>
-                <Text size="sm" fw={600}>
-                  Teknik Şartlar & Standartlar
-                </Text>
-              </Group>
-              <Stack gap="xs">
-                {analysisData.teknik_sartlar.slice(0, 15).map((sart) => {
-                  const sartText =
-                    typeof sart === 'string'
-                      ? sart
-                      : (sart as { madde?: string; aciklama?: string }).madde ||
-                        (sart as { madde?: string; aciklama?: string }).aciklama ||
-                        '';
-                  return (
-                    <Paper
-                      key={`modal-sart-${sartText.substring(0, 50)}`}
-                      p="xs"
-                      withBorder
-                      radius="sm"
-                    >
-                      <Text size="sm">{sartText}</Text>
-                    </Paper>
-                  );
-                })}
-                {analysisData.teknik_sartlar.length > 15 && (
-                  <Text size="xs" c="dimmed" ta="center">
-                    +{analysisData.teknik_sartlar.length - 15} daha fazla teknik şart
-                  </Text>
-                )}
-              </Stack>
-            </Paper>
-          )}
+          {analysisData?.teknik_sartlar &&
+            analysisData.teknik_sartlar.length > 0 &&
+            (() => {
+              const INITIAL_COUNT = 15;
+              const allItems = analysisData.teknik_sartlar;
+              const displayItems = teknikExpanded ? allItems : allItems.slice(0, INITIAL_COUNT);
+              const hasMore = allItems.length > INITIAL_COUNT;
+              const remaining = allItems.length - INITIAL_COUNT;
+
+              return (
+                <Paper p="md" withBorder radius="md">
+                  <Group gap="xs" mb="md" justify="space-between">
+                    <Group gap="xs">
+                      <ThemeIcon size="sm" variant="light" color="grape">
+                        <IconClipboardList size={14} />
+                      </ThemeIcon>
+                      <Text size="sm" fw={600}>
+                        Teknik Şartlar & Standartlar
+                      </Text>
+                      <Badge size="xs" variant="light" color="grape">
+                        {allItems.length}
+                      </Badge>
+                    </Group>
+                  </Group>
+                  <Stack gap="xs">
+                    {displayItems.map((sart, idx) => {
+                      const sartText =
+                        typeof sart === 'string'
+                          ? sart
+                          : (sart as { madde?: string; aciklama?: string }).madde ||
+                            (sart as { madde?: string; aciklama?: string }).aciklama ||
+                            '';
+                      return (
+                        <Paper
+                          key={`modal-sart-${idx}-${sartText.substring(0, 30)}`}
+                          p="xs"
+                          withBorder
+                          radius="sm"
+                        >
+                          <Text size="sm">{sartText}</Text>
+                        </Paper>
+                      );
+                    })}
+                    {hasMore && (
+                      <Button
+                        variant="subtle"
+                        color="grape"
+                        size="xs"
+                        fullWidth
+                        onClick={() => setTeknikExpanded(!teknikExpanded)}
+                        rightSection={
+                          teknikExpanded ? (
+                            <IconChevronUp size={14} />
+                          ) : (
+                            <IconChevronDown size={14} />
+                          )
+                        }
+                      >
+                        {teknikExpanded ? 'Daralt' : `+${remaining} daha fazla teknik şart göster`}
+                      </Button>
+                    )}
+                  </Stack>
+                </Paper>
+              );
+            })()}
 
           {/* Veri Yoksa */}
           {!analysisData?.ogun_bilgileri?.length &&

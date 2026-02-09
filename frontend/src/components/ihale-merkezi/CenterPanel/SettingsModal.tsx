@@ -23,6 +23,7 @@ import {
   IconCheck,
   IconClock,
   IconDatabase,
+  IconFileUpload,
   IconRefresh,
   IconRotate,
   IconTrash,
@@ -31,6 +32,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { tendersAPI } from '@/lib/api/services/tenders';
 import { API_BASE_URL } from '@/lib/config';
+import { DocumentWizardModal } from '../DocumentWizardModal';
 import type { SavedTender } from '../types';
 
 interface DocStats {
@@ -56,6 +58,7 @@ interface SettingsModalProps {
 export function SettingsModal({ opened, onClose, tender, onRefresh }: SettingsModalProps) {
   const [docStats, setDocStats] = useState<DocStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   // Döküman istatistiklerini çek
   const fetchDocStats = useCallback(async () => {
@@ -443,6 +446,21 @@ export function SettingsModal({ opened, onClose, tender, onRefresh }: SettingsMo
           )}
         </Paper>
 
+        {/* Döküman Yönetimi Butonu */}
+        <Button
+          variant="gradient"
+          gradient={{ from: 'orange', to: 'yellow' }}
+          leftSection={<IconFileUpload size={16} />}
+          onClick={() => setWizardOpen(true)}
+          fullWidth
+          size="md"
+        >
+          Döküman Yönetimi
+        </Button>
+        <Text size="xs" c="dimmed" mt={-8}>
+          Döküman indirme, yükleme ve analiz işlemleri
+        </Text>
+
         <Divider label="İşlemler" labelPosition="center" />
 
         {/* Senkronizasyon */}
@@ -516,6 +534,18 @@ export function SettingsModal({ opened, onClose, tender, onRefresh }: SettingsMo
           Bu işlem geri alınamaz! Tüm dökümanlar kalıcı olarak silinir.
         </Text>
       </Stack>
+
+      {/* Döküman Wizard Modal */}
+      <DocumentWizardModal
+        opened={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        tenderId={tender.tender_id}
+        tenderTitle={tender.ihale_basligi}
+        onComplete={() => {
+          fetchDocStats();
+          onRefresh?.();
+        }}
+      />
     </Modal>
   );
 }

@@ -18,14 +18,15 @@ const TenderMapModal = dynamic(() => import('@/components/TenderMapModal'), {
   loading: () => null,
 });
 
-const TeklifModal = dynamic(() => import('@/components/teklif/TeklifModal'), {
-  ssr: false,
-  loading: () => null,
-});
+const TeklifMerkeziModal = dynamic(
+  () => import('./TeklifMerkezi/TeklifMerkeziModal').then((m) => ({ default: m.TeklifMerkeziModal })),
+  { ssr: false, loading: () => null }
+);
 
 // CSS variables for panel widths
 const PANEL_WIDTHS = {
   left: 300,
+  leftCollapsed: 50,
   right: 420,
 };
 
@@ -61,6 +62,7 @@ function IhaleMerkeziLayoutInner() {
     selectTender,
     toggleSection,
     toggleTracking,
+    toggleLeftPanel,
     updateTenderStatus,
     refreshAll,
     refreshTracked,
@@ -224,12 +226,11 @@ function IhaleMerkeziLayoutInner() {
         />
 
         {state.selectedTender && 'tender_id' in state.selectedTender && (
-          <TeklifModal
+          <TeklifMerkeziModal
             opened={state.teklifModalOpen}
             onClose={() => updateState({ teklifModalOpen: false })}
-            ihaleBasligi={state.selectedTender.ihale_basligi || 'İsimsiz İhale'}
-            ihaleBedeli={state.selectedTender.yaklasik_maliyet}
-            birimFiyatlar={state.selectedTender.analysis_summary?.birim_fiyatlar}
+            tender={state.selectedTender as import('./types').SavedTender}
+            onRefresh={refreshAll}
           />
         )}
       </Box>
@@ -237,15 +238,18 @@ function IhaleMerkeziLayoutInner() {
   }
 
   // ========== DESKTOP LAYOUT ==========
+  const leftWidth = state.leftPanelCollapsed ? PANEL_WIDTHS.leftCollapsed : PANEL_WIDTHS.left;
+
   return (
     <Box
       style={{
         display: 'grid',
-        gridTemplateColumns: `${PANEL_WIDTHS.left}px 1fr ${PANEL_WIDTHS.right}px`,
+        gridTemplateColumns: `${leftWidth}px 1fr ${PANEL_WIDTHS.right}px`,
         height: 'calc(100vh - 60px)', // Navbar height
         overflow: 'hidden',
         gap: 0,
         background: 'var(--mantine-color-dark-9)',
+        transition: 'grid-template-columns 0.3s ease',
         ...gridBackgroundStyle,
       }}
     >
@@ -259,6 +263,8 @@ function IhaleMerkeziLayoutInner() {
         onSelectTender={selectTender}
         onRefresh={refreshAll}
         onToggleTracking={toggleTracking}
+        collapsed={state.leftPanelCollapsed}
+        onToggleCollapse={toggleLeftPanel}
       />
 
       {/* Orta Panel */}
@@ -294,12 +300,11 @@ function IhaleMerkeziLayoutInner() {
       />
 
       {state.selectedTender && 'tender_id' in state.selectedTender && (
-        <TeklifModal
+        <TeklifMerkeziModal
           opened={state.teklifModalOpen}
           onClose={() => updateState({ teklifModalOpen: false })}
-          ihaleBasligi={state.selectedTender.ihale_basligi || 'İsimsiz İhale'}
-          ihaleBedeli={state.selectedTender.yaklasik_maliyet}
-          birimFiyatlar={state.selectedTender.analysis_summary?.birim_fiyatlar}
+          tender={state.selectedTender as import('./types').SavedTender}
+          onRefresh={() => { refreshAll(); refreshAndUpdateSelected(); }}
         />
       )}
 

@@ -62,11 +62,17 @@ export interface PersonelDetay {
   ucret_orani?: string;
 }
 
-// Öğün bilgisi
+// Öğün bilgisi (flat format veya tablo format)
 export interface OgunBilgisi {
-  tur: string;
-  miktar: number;
+  tur?: string;
+  miktar?: number;
   birim?: string;
+  // Tablo format (Azure'dan gelen)
+  rows?: string[][];
+  headers?: string[];
+  index?: number;
+  rowCount?: number;
+  columnCount?: number;
 }
 
 // Ceza koşulu
@@ -191,6 +197,10 @@ export interface AnalysisData {
   servis_saatleri?: ServisSaatleri;
   sinir_deger_katsayisi?: string;
   benzer_is_tanimi?: string;
+  // Konsolidasyon alanları
+  toplam_ogun_sayisi?: number;
+  toplam_personel?: number;
+  personel_sayisi?: number;
   // Ek bilgiler
   tam_metin?: string;
   iletisim?: IletisimBilgileri;
@@ -293,15 +303,16 @@ export interface IhaleMerkeziState {
   filters: TenderFilters;
   currentPage: number;
   showStats: 'new' | 'updated' | false;
+  leftPanelCollapsed: boolean;
 
   // Orta panel
   detailExpanded: boolean;
   aiChatExpanded: boolean;
-  activeDetailTab: 'ozet' | 'dokumanlar' | 'notlar';
+  activeDetailTab: 'ozet' | 'notlar';
   dilekceType: string | null;
 
   // Sag panel
-  activeRightTab: 'dilekce' | 'teklif' | 'araclar' | 'tespit';
+  activeRightTab: 'dilekce' | 'teklif' | 'araclar' | 'kontrol';
   expandedSections: Set<string>;
   selectedFirmaId: number | null;
 

@@ -20,6 +20,8 @@ import {
 } from '@mantine/core';
 import {
   IconBookmark,
+  IconChevronLeft,
+  IconChevronRight,
   IconLayoutRows,
   IconLink,
   IconList,
@@ -43,6 +45,8 @@ interface LeftPanelProps {
   onRefresh: () => void;
   onToggleTracking?: (tenderId: number, isCurrentlyTracked: boolean) => void;
   isMobile?: boolean;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export function LeftPanel({
@@ -55,6 +59,8 @@ export function LeftPanel({
   onRefresh,
   onToggleTracking,
   isMobile = false,
+  collapsed = false,
+  onToggleCollapse,
 }: LeftPanelProps) {
   const [searchInput, setSearchInput] = useState(state.searchQuery);
   const [expandAll, setExpandAll] = useState(false);
@@ -184,6 +190,90 @@ export function LeftPanel({
   // Stats data
   const stats = state.statsData;
 
+  // ========== COLLAPSED VIEW ==========
+  if (collapsed && !isMobile) {
+    const trackedCount = state.trackedTenders.length;
+    return (
+      <Box
+        style={{
+          borderRight: '1px solid var(--mantine-color-default-border)',
+          height: '100%',
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          overflow: 'hidden',
+          background: 'rgba(24, 24, 27, 0.85)',
+          backdropFilter: 'blur(8px)',
+          width: 50,
+          paddingTop: 8,
+          gap: 8,
+        }}
+      >
+        {/* Toggle expand button */}
+        <Tooltip label="Paneli Aç" position="right" withArrow>
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="lg"
+            onClick={onToggleCollapse}
+            style={{ borderRadius: 8 }}
+          >
+            <IconChevronRight size={18} />
+          </ActionIcon>
+        </Tooltip>
+
+        {/* Search icon */}
+        <Tooltip label="Ara" position="right" withArrow>
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="lg"
+            onClick={() => {
+              onToggleCollapse?.();
+            }}
+            style={{ borderRadius: 8 }}
+          >
+            <IconSearch size={16} />
+          </ActionIcon>
+        </Tooltip>
+
+        {/* Tracked count badge */}
+        {trackedCount > 0 && (
+          <Tooltip label={`${trackedCount} takip edilen`} position="right" withArrow>
+            <Badge
+              size="lg"
+              variant="filled"
+              color="blue"
+              circle
+              style={{ cursor: 'pointer' }}
+              onClick={() => {
+                onToggleCollapse?.();
+                onStateChange({ activeTab: 'tracked' });
+              }}
+            >
+              {trackedCount}
+            </Badge>
+          </Tooltip>
+        )}
+
+        {/* Refresh icon */}
+        <Tooltip label="Yenile" position="right" withArrow>
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="lg"
+            onClick={onRefresh}
+            style={{ borderRadius: 8 }}
+          >
+            <IconRefresh size={16} />
+          </ActionIcon>
+        </Tooltip>
+      </Box>
+    );
+  }
+
+  // ========== EXPANDED VIEW ==========
   return (
     <Box
       style={{
@@ -197,6 +287,29 @@ export function LeftPanel({
         backdropFilter: 'blur(8px)',
       }}
     >
+      {/* Collapse button (shown when panel is open) */}
+      {!isMobile && onToggleCollapse && (
+        <Box
+          p={4}
+          style={{
+            borderBottom: '1px solid var(--mantine-color-default-border)',
+            display: 'flex',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <Tooltip label="Paneli Kapat" position="left" withArrow>
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              size="sm"
+              onClick={onToggleCollapse}
+            >
+              <IconChevronLeft size={14} />
+            </ActionIcon>
+          </Tooltip>
+        </Box>
+      )}
+
       {/* Header - Stats */}
       {stats && (
         <Box p="xs" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>

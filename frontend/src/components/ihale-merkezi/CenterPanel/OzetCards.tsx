@@ -11,6 +11,7 @@ import {
   ScrollArea,
   SimpleGrid,
   Stack,
+  Table,
   Text,
   Textarea,
   TextInput,
@@ -56,6 +57,39 @@ import type {
   ServisSaatleri,
   TeminatOranlari,
 } from '../types';
+
+// ========== YARDIMCI FONKSİYONLAR ==========
+
+/** Gerçek personel pozisyonu mu, yoksa iş yeri/lokasyon mu ayırt et */
+export function isRealPersonelPosition(pozisyon: string): boolean {
+  if (!pozisyon) return false;
+  const lower = pozisyon.toLowerCase();
+  const personelKeywords = [
+    'aşçı', 'asci', 'aşçıbaşı', 'ascibaşi', 'aşçı başı',
+    'garson', 'bulaşıkçı', 'bulasikci', 'temizlik', 'şoför', 'sofor',
+    'diyetisyen', 'gıda mühendis', 'gida muhendis', 'gıda teknik', 'gida teknik',
+    'kasap', 'fırıncı', 'firinci', 'pastacı', 'pastaci',
+    'müdür', 'mudur', 'sorumlu', 'yardımcı', 'yardimci',
+    'kalfa', 'usta', 'çamaşırcı', 'camasirci',
+    'toplam', 'personel', 'işçi', 'isci', 'eleman',
+    'diyet aşçı', 'diyet asci', 'kumanyacı', 'kumanyaci',
+    'depocu', 'ambar',
+  ];
+  const locationKeywords = [
+    'hastane', 'hospital', 'eah', 'üniversite', 'universite', 'okul', 'lise',
+    'ilkokul', 'ortaokul', 'fakülte', 'fakulte', 'enstitü', 'enstitu',
+    'müdürlüğü', 'mudurlugu', 'başkanlığı', 'baskanligi',
+    'merkez', 'bina', 'lojman', 'kışla', 'kisla', 'karakol',
+    'cezaevi', 'tesis', 'kampüs', 'kampus', 'şube', 'sube',
+    'ilçe', 'ilce', 'il ', 'prof.', 'prof ', 'dr.', 'şehit',
+    'fizik tedavi', 'rehabilitasyon', 'devlet', 'eğitim ve araştırma',
+    'acil durum', 'sağlık', 'saglik', 'poliklinik', 'dispanser',
+    'adsm', 'asm', 'tsm', 'trsm',
+  ];
+  if (locationKeywords.some(kw => lower.includes(kw))) return false;
+  if (personelKeywords.some(kw => lower.includes(kw))) return true;
+  return true;
+}
 
 // ========== ÖZET KARTLARİ (Expandable) ==========
 
@@ -276,6 +310,8 @@ export function BirimFiyatlarCard({
     text?: string;
     birim?: string;
     miktar?: string | number;
+    fiyat?: string | number;
+    tutar?: string | number;
   }>;
   onViewAll?: () => void;
   isEditing?: boolean;
@@ -432,26 +468,34 @@ export function BirimFiyatlarCard({
                 return (
                   <Group
                     key={`bf-${idx}-${itemText.substring(0, 15)}`}
-                    justify="space-between"
+                    gap="xs"
                     wrap="nowrap"
                   >
-                    <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
-                      <Badge
-                        size="xs"
-                        variant="filled"
-                        color="green"
-                        circle
-                        style={{ flexShrink: 0 }}
-                      >
-                        {idx + 1}
+                    <Badge
+                      size="xs"
+                      variant="filled"
+                      color="green"
+                      circle
+                      style={{ flexShrink: 0 }}
+                    >
+                      {idx + 1}
+                    </Badge>
+                    <Text size="xs" lineClamp={1} style={{ flex: 1, minWidth: 0 }}>
+                      {itemText}
+                    </Text>
+                    {item.miktar && (
+                      <Badge size="xs" variant="light" color="blue" style={{ flexShrink: 0 }}>
+                        {item.miktar} {item.birim || ''}
                       </Badge>
-                      <Text size="xs" lineClamp={1} style={{ flex: 1 }}>
-                        {itemText}
-                      </Text>
-                    </Group>
-                    {item.birim && (
+                    )}
+                    {!item.miktar && item.birim && (
                       <Badge size="xs" variant="outline" color="gray" style={{ flexShrink: 0 }}>
                         {item.birim}
+                      </Badge>
+                    )}
+                    {(item.fiyat || item.tutar) && (
+                      <Badge size="xs" variant="light" color="green" style={{ flexShrink: 0 }}>
+                        {Number(item.fiyat || item.tutar).toLocaleString('tr-TR')} ₺
                       </Badge>
                     )}
                   </Group>
@@ -678,9 +722,16 @@ export function TakvimCard({
                 <Text size="xs" fw={500} lineClamp={expanded ? undefined : 1}>
                   {item.olay}
                 </Text>
-                <Text size="xs" c="dimmed">
-                  {item.tarih}
-                </Text>
+                <Group gap={4}>
+                  <Text size="xs" c="dimmed">
+                    {item.tarih}
+                  </Text>
+                  {item.gun && (
+                    <Badge size="xs" variant="outline" color="cyan">
+                      {item.gun} gün
+                    </Badge>
+                  )}
+                </Group>
               </Box>
             </Group>
           ))}
@@ -842,9 +893,13 @@ export function PersonelCard({
 
   if (!personel || personel.length === 0) return null;
 
-  const displayItems = expanded || isEditing ? personel : personel.slice(0, 5);
-  const hasMore = personel.length > 5;
-  const toplamPersonel = personel.reduce((sum, p) => sum + (p.adet || 0), 0);
+  // Lokasyonları filtrele, sadece gerçek personel pozisyonlarını göster
+  const realPersonel = personel.filter(p => isRealPersonelPosition(p.pozisyon));
+  if (realPersonel.length === 0) return null;
+
+  const displayItems = expanded || isEditing ? realPersonel : realPersonel.slice(0, 5);
+  const hasMore = realPersonel.length > 5;
+  const toplamPersonel = realPersonel.reduce((sum, p) => sum + (p.adet || 0), 0);
 
   const handleSave = () => {
     if (onSave) {
@@ -920,7 +975,7 @@ export function PersonelCard({
                   />
                 }
               >
-                {expanded ? 'Daralt' : `Tümü (${personel.length})`}
+                {expanded ? 'Daralt' : `Tümü (${realPersonel.length})`}
               </Button>
             )
           )}
@@ -954,6 +1009,17 @@ export function PersonelCard({
                     }}
                     w={70}
                     suffix=" kişi"
+                  />
+                  <TextInput
+                    size="xs"
+                    value={p.ucret_orani}
+                    placeholder="Ücret oranı"
+                    onChange={(e) => {
+                      const updated = [...editItems];
+                      updated[idx] = { ...updated[idx], ucret_orani: e.target.value };
+                      setEditItems(updated);
+                    }}
+                    w={90}
                   />
                   <ActionIcon
                     size="xs"
@@ -1001,13 +1067,27 @@ export function PersonelCard({
 }
 
 // Öğün Bilgileri Kartı
-export function OgunBilgileriCard({ ogunler }: { ogunler: OgunBilgisi[] }) {
+export function OgunBilgileriCard({
+  ogunler,
+  toplamOgunSayisi,
+}: {
+  ogunler: OgunBilgisi[];
+  toplamOgunSayisi?: number;
+}) {
   const [expanded, setExpanded] = useState(false);
   if (!ogunler || ogunler.length === 0) return null;
 
-  const displayItems = expanded ? ogunler : ogunler.slice(0, 6);
-  const hasMore = ogunler.length > 6;
-  const toplamOgun = ogunler.reduce((sum, o) => sum + (o.miktar || 0), 0);
+  // Tablo formatı olan öğünleri tespit et
+  const tabloOgunler = ogunler.filter((o) => o.rows && o.headers);
+  const flatOgunler = ogunler.filter((o) => o.tur);
+
+  // Toplam hesapla - flat format veya props'tan gelen
+  const toplamOgun =
+    toplamOgunSayisi ||
+    flatOgunler.reduce((sum, o) => sum + (o.miktar || 0), 0);
+
+  // Badge metni
+  const badgeText = toplamOgun > 0 ? `${toplamOgun.toLocaleString('tr-TR')} öğün` : `${ogunler.length} tablo`;
 
   return (
     <Paper p="sm" withBorder radius="md" className="glassy-card-nested">
@@ -1020,10 +1100,10 @@ export function OgunBilgileriCard({ ogunler }: { ogunler: OgunBilgisi[] }) {
             Öğün Bilgileri
           </Text>
           <Badge size="xs" variant="light" color="orange">
-            {toplamOgun.toLocaleString('tr-TR')} öğün
+            {badgeText}
           </Badge>
         </Group>
-        {hasMore && (
+        {(tabloOgunler.length > 0 || flatOgunler.length > 6) && (
           <Button
             size="xs"
             variant="subtle"
@@ -1036,26 +1116,102 @@ export function OgunBilgileriCard({ ogunler }: { ogunler: OgunBilgisi[] }) {
               />
             }
           >
-            {expanded ? 'Daralt' : `Tümü (${ogunler.length})`}
+            {expanded ? 'Daralt' : 'Detay'}
           </Button>
         )}
       </Group>
-      <ScrollArea.Autosize mah={expanded ? 300 : undefined}>
-        <SimpleGrid cols={2} spacing="xs">
-          {displayItems.map((o) => (
-            <Group key={`ogun-${o.tur}-${o.miktar}`} gap="xs" wrap="nowrap">
-              <Box style={{ flex: 1 }}>
-                <Text size="xs" fw={500}>
-                  {o.tur}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  {o.miktar?.toLocaleString('tr-TR')} {o.birim || 'öğün'}
-                </Text>
-              </Box>
-            </Group>
-          ))}
-        </SimpleGrid>
-      </ScrollArea.Autosize>
+
+      {/* Tablo formatı - Azure'dan gelen öğün dağılım tabloları */}
+      {tabloOgunler.length > 0 && (
+        <ScrollArea.Autosize mah={expanded ? 400 : 200}>
+          <Stack gap="xs">
+            {tabloOgunler.map((tablo, tIdx) => {
+              const headers = tablo.headers || [];
+              const rows = tablo.rows || [];
+              const displayRows = expanded ? rows : rows.slice(0, 5);
+              const hasMoreRows = rows.length > 5 && !expanded;
+
+              return (
+                <Box key={`tablo-${tablo.index ?? tIdx}`}>
+                  <ScrollArea type="auto">
+                    <Table
+                      striped
+                      highlightOnHover
+                      withTableBorder
+                      withColumnBorders
+                      fz="xs"
+                      styles={{
+                        th: { padding: '4px 6px', fontSize: '10px', whiteSpace: 'nowrap' },
+                        td: { padding: '3px 6px', fontSize: '10px' },
+                      }}
+                    >
+                      <Table.Thead>
+                        <Table.Tr>
+                          {headers.map((h, hIdx) => (
+                            <Table.Th
+                              key={`th-${tIdx}-${hIdx}`}
+                              style={hIdx === 0 ? { minWidth: 120 } : { textAlign: 'right', minWidth: 60 }}
+                            >
+                              {h.replace(/\n.*$/g, '')}
+                            </Table.Th>
+                          ))}
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {displayRows.map((row, rIdx) => {
+                          const firstCol = String(row[0] || '').trim();
+                          const isToplam = firstCol.toUpperCase() === 'TOPLAM';
+                          return (
+                            <Table.Tr key={`tr-${tIdx}-${rIdx}`} fw={isToplam ? 700 : undefined}>
+                              {row.map((cell, cIdx) => (
+                                <Table.Td
+                                  key={`td-${tIdx}-${rIdx}-${cIdx}`}
+                                  style={cIdx === 0 ? undefined : { textAlign: 'right' }}
+                                  fw={isToplam ? 700 : undefined}
+                                >
+                                  {String(cell || '')
+                                    .replace(/\n:unselected:/g, '')
+                                    .replace(/:unselected:/g, '')
+                                    .trim()}
+                                </Table.Td>
+                              ))}
+                            </Table.Tr>
+                          );
+                        })}
+                      </Table.Tbody>
+                    </Table>
+                  </ScrollArea>
+                  {hasMoreRows && (
+                    <Text size="xs" c="dimmed" ta="center" mt={4}>
+                      +{rows.length - 5} satır daha...
+                    </Text>
+                  )}
+                </Box>
+              );
+            })}
+          </Stack>
+        </ScrollArea.Autosize>
+      )}
+
+      {/* Flat format - basit öğün listesi */}
+      {flatOgunler.length > 0 && (
+        <ScrollArea.Autosize mah={expanded ? 300 : undefined}>
+          <SimpleGrid cols={2} spacing="xs">
+            {(expanded ? flatOgunler : flatOgunler.slice(0, 6)).map((o) => (
+              <Group key={`ogun-${o.tur}-${o.miktar}`} gap="xs" wrap="nowrap">
+                <Box style={{ flex: 1 }}>
+                  <Text size="xs" fw={500}>
+                    {o.tur}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {o.miktar?.toLocaleString('tr-TR')} {o.birim || 'öğün'}
+                  </Text>
+                </Box>
+              </Group>
+            ))}
+          </SimpleGrid>
+        </ScrollArea.Autosize>
+      )}
     </Paper>
   );
 }
@@ -1473,14 +1629,21 @@ export function CezaKosullariCard({ cezalar }: { cezalar: CezaKosulu[] }) {
       <ScrollArea.Autosize mah={expanded ? 250 : undefined}>
         <Stack gap={4}>
           {displayItems.map((c) => (
-            <Group key={`ceza-${c.tur}-${c.oran}`} justify="space-between" gap="xs" wrap="nowrap">
-              <Text size="xs" style={{ flex: 1 }}>
-                {c.tur}
-              </Text>
-              <Badge size="xs" variant="outline" color="red">
-                {c.oran}
-              </Badge>
-            </Group>
+            <Box key={`ceza-${c.tur}-${c.oran}`}>
+              <Group justify="space-between" gap="xs" wrap="nowrap">
+                <Text size="xs" style={{ flex: 1 }}>
+                  {c.tur}
+                </Text>
+                <Badge size="xs" variant="outline" color="red">
+                  {c.oran}
+                </Badge>
+              </Group>
+              {c.aciklama && (
+                <Text size="xs" c="dimmed" mt={2} lineClamp={2}>
+                  {c.aciklama}
+                </Text>
+              )}
+            </Box>
           ))}
         </Stack>
       </ScrollArea.Autosize>
