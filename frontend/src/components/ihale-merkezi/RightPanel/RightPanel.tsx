@@ -8,7 +8,8 @@ import {
   IconUsers,
   IconWand,
 } from '@tabler/icons-react';
-import { AraclarSection, DilekceSection } from '../CenterPanel/CenterPanel';
+import { AraclarSection } from '../shared/AraclarSection';
+import { DilekceSection } from '../shared/DilekceSection';
 import type { IhaleMerkeziState, SavedTender } from '../types';
 import { CollapsibleSection } from './CollapsibleSection';
 import { FirmsPanel } from './FirmsPanel';

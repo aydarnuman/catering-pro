@@ -41,6 +41,17 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { tendersAPI } from '@/lib/api/services/tenders';
+import {
+  type ActiveTool,
+  hesaplaBasitSinirDeger,
+  hesaplaKikSinirDegerFormul,
+  hesaplaRiskAnalizi,
+  hesaplaTeminatlar,
+  IHALE_KATSAYILARI,
+  type IhaleTuru,
+  parseIsSuresiAy,
+  type TeklifItem,
+} from './calculation-utils';
 import type { SavedTender } from './types';
 
 interface CalculationModalProps {
@@ -49,31 +60,6 @@ interface CalculationModalProps {
   tender: SavedTender;
   onRefresh?: () => void;
 }
-
-interface TeklifItem {
-  firma: string;
-  tutar: number;
-}
-
-type ActiveTool = 'temel' | 'sinir' | 'asiri' | 'teminat';
-
-// İhale türleri için R ve N katsayıları (KİK 2025-2026)
-type IhaleTuru = 'hizmet' | 'yapim_ustyapi' | 'yapim_altyapi';
-
-const IHALE_KATSAYILARI: Record<IhaleTuru, { katsayi: number; aciklama: string }> = {
-  hizmet: {
-    katsayi: 0.9, // R katsayısı - KİK tarafından yıllık güncellenir
-    aciklama: 'Hizmet Alımı (R=0.90)',
-  },
-  yapim_ustyapi: {
-    katsayi: 1.0, // N katsayısı - B,C,D,E grupları
-    aciklama: 'Yapım İşi - Üstyapı (N=1.00)',
-  },
-  yapim_altyapi: {
-    katsayi: 1.2, // N katsayısı - A grubu
-    aciklama: 'Yapım İşi - Altyapı (N=1.20)',
-  },
-};
 
 export function CalculationModal({ opened, onClose, tender, onRefresh }: CalculationModalProps) {
   const [activeTool, setActiveTool] = useState<ActiveTool>('temel');
@@ -175,24 +161,10 @@ export function CalculationModal({ opened, onClose, tender, onRefresh }: Calcula
   const birimFiyatSayisi =
     hesaplamaVerileri.birim_fiyat_sayisi || analysisSummary?.birim_fiyatlar?.length || 0;
 
-  // İş süresini ay olarak parse et
-  const parseIsSuresiAy = (sure: string | undefined): number => {
-    if (!sure) return 0;
-    const match = sure.match(/(\d+)/);
-    if (match) {
-      const num = parseInt(match[1], 10);
-      if (sure.toLowerCase().includes('yıl') || sure.toLowerCase().includes('yil')) {
-        return num * 12;
-      }
-      return num;
-    }
-    return 0;
-  };
-
   const isSuresiAy = parseIsSuresiAy(isSuresi);
 
   // Otomatik hesaplamalar
-  const basitSinirDeger = yaklasikMaliyet > 0 ? Math.round(yaklasikMaliyet * 0.85) : 0;
+  const basitSinirDeger = hesaplaBasitSinirDeger(yaklasikMaliyet);
   const aktifSinirDeger = kikSinirDeger || basitSinirDeger;
   const ogunBasiMaliyet = yaklasikMaliyet && toplamOgun ? yaklasikMaliyet / toplamOgun : 0;
   const ogunBasiTeklif = bizimTeklif && toplamOgun ? bizimTeklif / toplamOgun : 0;
@@ -200,16 +172,10 @@ export function CalculationModal({ opened, onClose, tender, onRefresh }: Calcula
   const gunlukOgun = toplamOgun && isSuresiAy ? Math.round(toplamOgun / (isSuresiAy * 30)) : 0;
 
   // Risk analizi
-  const isAsiriDusuk = bizimTeklif > 0 && aktifSinirDeger > 0 && bizimTeklif < aktifSinirDeger;
-  const fark = bizimTeklif > 0 && aktifSinirDeger > 0 ? bizimTeklif - aktifSinirDeger : 0;
-  const farkYuzde =
-    aktifSinirDeger > 0 && bizimTeklif > 0
-      ? ((bizimTeklif - aktifSinirDeger) / aktifSinirDeger) * 100
-      : 0;
+  const { isAsiriDusuk, fark, farkYuzde } = hesaplaRiskAnalizi(bizimTeklif, aktifSinirDeger);
 
   // Teminat hesaplamaları
-  const geciciTeminat = bizimTeklif > 0 ? bizimTeklif * 0.03 : 0;
-  const kesinTeminat = bizimTeklif > 0 ? bizimTeklif * 0.06 : 0;
+  const { geciciTeminat, kesinTeminat } = hesaplaTeminatlar(bizimTeklif);
 
   // Toplam maliyet (aşırı düşük için)
   const toplamMaliyet = Object.values(maliyetler).reduce((a, b) => a + b, 0);
@@ -217,56 +183,35 @@ export function CalculationModal({ opened, onClose, tender, onRefresh }: Calcula
     bizimTeklif > 0 && toplamMaliyet > 0 ? ((bizimTeklif - toplamMaliyet) / bizimTeklif) * 100 : 0;
 
   // KİK Formülü ile sınır değer hesapla
-  // Güncel Mevzuat: SD = ((YM + ∑Tn) / (n+1)) × R (veya N yapım işlerinde)
   const hesaplaKikSinirDeger = () => {
-    const gecerliTeklifler = teklifListesi.filter((t) => t.tutar > 0).map((t) => t.tutar);
+    const sonuc = hesaplaKikSinirDegerFormul(teklifListesi, yaklasikMaliyet, ihaleTuru);
 
-    if (gecerliTeklifler.length < 3) {
-      notifications.show({
-        title: 'Yetersiz Veri',
-        message: 'En az 3 geçerli teklif girmelisiniz',
-        color: 'yellow',
-      });
+    if (!sonuc) {
+      const gecerliTeklifler = teklifListesi.filter((t) => t.tutar > 0);
+      if (gecerliTeklifler.length < 3) {
+        notifications.show({
+          title: 'Yetersiz Veri',
+          message: 'En az 3 geçerli teklif girmelisiniz',
+          color: 'yellow',
+        });
+      } else {
+        notifications.show({
+          title: 'Yaklaşık Maliyet Gerekli',
+          message: 'Önce Temel Hesaplama sekmesinde yaklaşık maliyeti girin',
+          color: 'yellow',
+        });
+      }
       return;
     }
 
-    if (yaklasikMaliyet <= 0) {
-      notifications.show({
-        title: 'Yaklaşık Maliyet Gerekli',
-        message: 'Önce Temel Hesaplama sekmesinde yaklaşık maliyeti girin',
-        color: 'yellow',
-      });
-      return;
-    }
-
-    const n = gecerliTeklifler.length;
-    const toplam = gecerliTeklifler.reduce((a, b) => a + b, 0);
-
-    // Geçerli teklifler: YM'nin %60'ından düşük ve YM'den yüksek olanlar hariç
-    const gecerliTekliflerFiltreli = gecerliTeklifler.filter(
-      (t) => t >= yaklasikMaliyet * 0.6 && t <= yaklasikMaliyet
-    );
-
-    const nFiltreli = gecerliTekliflerFiltreli.length;
-    const toplamFiltreli = gecerliTekliflerFiltreli.reduce((a, b) => a + b, 0);
-
-    // Katsayıyı al (R veya N)
-    const katsayi = IHALE_KATSAYILARI[ihaleTuru].katsayi;
-
-    // KİK Formülü: SD = ((YM + ∑Tn) / (n+1)) × R
-    // n = geçerli teklif sayısı, R/N = katsayı
-    const sinir = ((yaklasikMaliyet + toplamFiltreli) / (nFiltreli + 1)) * katsayi;
-
-    // Alt sınır: YM'nin %40'ından düşük olamaz
-    const sonuc = Math.max(Math.round(sinir), Math.round(yaklasikMaliyet * 0.4));
-    setKikSinirDeger(sonuc);
+    setKikSinirDeger(sonuc.sinirDeger);
 
     const filtreUyarisi =
-      n !== nFiltreli ? ` (${n - nFiltreli} teklif YM kriterleri dışında kaldı)` : '';
+      sonuc.elenenSayisi > 0 ? ` (${sonuc.elenenSayisi} teklif YM kriterleri dışında kaldı)` : '';
 
     notifications.show({
       title: 'Sınır Değer Hesaplandı',
-      message: `${nFiltreli} geçerli teklif, ${IHALE_KATSAYILARI[ihaleTuru].aciklama}${filtreUyarisi}`,
+      message: `${sonuc.gecerliSayisi} geçerli teklif, ${IHALE_KATSAYILARI[ihaleTuru].aciklama}${filtreUyarisi}`,
       color: 'green',
     });
   };
