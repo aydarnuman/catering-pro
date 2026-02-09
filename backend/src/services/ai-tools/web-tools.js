@@ -10,6 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isTavilyConfigured, tavilyExtract, tavilyResearch } from '../tavily-service.js';
 
 // Tavily API Key (ücretsiz: https://tavily.com)
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY || '';
@@ -118,6 +119,55 @@ export const webToolDefinitions = [
       required: ['arama_tipi', 'anahtar_kelimeler'],
     },
   },
+  {
+    name: 'sayfa_oku',
+    description:
+      'Belirli bir web sayfasının içeriğini okur/çeker (Tavily Extract). Arama sonuçlarından bir sayfa detayını görmek, rakip menü fiyatlarını incelemek veya mevzuat sayfasının tam metnini almak için kullanılır.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        url: {
+          type: 'string',
+          description: "Okunacak web sayfasının URL'si. Tam URL olmalı (https://...)",
+        },
+        ozet_istegi: {
+          type: 'string',
+          description:
+            'Sayfa içeriğinden ne tür bilgi çıkarılması isteniyor (opsiyonel). Örn: "fiyat bilgileri", "menü kalemleri", "mevzuat değişiklikleri"',
+        },
+      },
+      required: ['url'],
+    },
+  },
+  {
+    name: 'derin_arastirma',
+    description:
+      'Bir konu hakkında kapsamlı derin araştırma yapar. Birden fazla kaynak tarar, bilgileri birleştirir ve detaylı rapor üretir. Basit sorular için web_arama yeterlidir - bunu SADECE kapsamlı analiz gerektiren konular için kullanın. Örn: "2026 gıda maliyeti trendi analizi", "catering sektörü ihale fiyat karşılaştırması", "yeni gıda mevzuatı etki analizi".',
+    input_schema: {
+      type: 'object',
+      properties: {
+        konu: {
+          type: 'string',
+          description: 'Araştırılacak ana konu. Detaylı ve spesifik olmalı.',
+        },
+        alt_sorular: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Konuyla ilgili araştırılacak alt sorular (opsiyonel, max 3). Daha kapsamlı sonuç üretir.',
+        },
+        odak_siteleri: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Araştırmanın odaklanacağı domain listesi (opsiyonel). Örn: ["kik.gov.tr", "mevzuat.gov.tr"]',
+        },
+        son_gun: {
+          type: 'number',
+          description: 'Sadece son N gün içindeki sonuçları getir (opsiyonel). Örn: 30 = son 1 ay',
+        },
+      },
+      required: ['konu'],
+    },
+  },
 ];
 
 // Tool implementasyonları
@@ -139,8 +189,8 @@ export const webToolImplementations = {
           ozet: {
             asgari_ucret_brut: asgari?.['2026']?.ocak_haziran?.brut,
             asgari_ucret_net: asgari?.['2026']?.ocak_haziran?.net_ele_gecen,
-            sgk_isci_toplam: sgk?.prim_oranlari?.isci_paylari?.toplam + '%',
-            sgk_isveren_toplam: sgk?.prim_oranlari?.isveren_paylari?.toplam + '%',
+            sgk_isci_toplam: `${sgk?.prim_oranlari?.isci_paylari?.toplam}%`,
+            sgk_isveren_toplam: `${sgk?.prim_oranlari?.isveren_paylari?.toplam}%`,
             kidem_tavani: isKanunu?.kidem_tazminati?.tavan_2026_ocak,
             dogrudan_temin_limiti: kik?.esik_degerler_2026?.dogrudan_temin_limiti?.buyuksehir_icinde,
           },
@@ -343,6 +393,107 @@ export const webToolImplementations = {
         yerel_emsaller: yerelEmsaller,
         uyari: 'Web araması yapılamadı, yerel bilgi bankasından sonuçlar gösteriliyor.',
         basvuru_linki: 'https://ekk.kik.gov.tr/EKAP/',
+      };
+    }
+  },
+
+  // ─── SAYFA OKU (Tavily Extract) ────────────────────────
+  sayfa_oku: async ({ url, ozet_istegi }) => {
+    try {
+      if (!isTavilyConfigured()) {
+        return {
+          success: false,
+          error: 'Tavily API key ayarlanmamış. TAVILY_API_KEY environment variable ekleyin.',
+        };
+      }
+
+      if (!url || !url.startsWith('http')) {
+        return {
+          success: false,
+          error: 'Geçerli bir URL giriniz (https://... ile başlamalı)',
+        };
+      }
+
+      const result = await tavilyExtract([url]);
+
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+
+      if (!result.results || result.results.length === 0) {
+        return {
+          success: false,
+          error: `Sayfa içeriği çekilemedi: ${url}`,
+          basarisiz_url: result.failedUrls,
+        };
+      }
+
+      const content = result.results[0].rawContent || '';
+
+      // İçerik çok uzunsa kısalt (Claude context limiti)
+      const maxLen = 8000;
+      const truncated = content.length > maxLen;
+      const finalContent = truncated ? `${content.substring(0, maxLen)}\n\n... [içerik kısaltıldı]` : content;
+
+      return {
+        success: true,
+        kaynak: 'tavily_extract',
+        url,
+        icerik_uzunlugu: content.length,
+        kisaltildi: truncated,
+        icerik: finalContent,
+        ...(ozet_istegi && {
+          ozet_istegi,
+          not: `Kullanıcı şunu istiyor: "${ozet_istegi}". İçerikten bu bilgiyi çıkar.`,
+        }),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Sayfa okuma hatası: ${error.message}`,
+      };
+    }
+  },
+
+  // ─── DERİN ARAŞTIRMA (Tavily Research) ─────────────────
+  derin_arastirma: async ({ konu, alt_sorular, odak_siteleri, son_gun }) => {
+    try {
+      if (!isTavilyConfigured()) {
+        return {
+          success: false,
+          error: 'Tavily API key ayarlanmamış. TAVILY_API_KEY environment variable ekleyin.',
+        };
+      }
+
+      const result = await tavilyResearch(konu, {
+        subQueries: alt_sorular || [],
+        focusDomains: odak_siteleri || [],
+        days: son_gun,
+      });
+
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+
+      return {
+        success: true,
+        kaynak: 'tavily_research',
+        konu: result.topic,
+        ozet: result.summary,
+        kaynak_sayisi: result.totalSources,
+        kaynaklar: result.sources?.map((s) => ({
+          baslik: s.title,
+          url: s.url,
+          alinti: s.excerpt,
+          skor: s.score,
+        })),
+        alt_sorular_kullanildi: result.subQueriesUsed,
+        uyari: `${result.totalSources} kaynak tarandı. Bilgiler web'den alınmıştır, resmi kaynakları doğrulayın.`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Derin araştırma hatası: ${error.message}`,
       };
     }
   },
