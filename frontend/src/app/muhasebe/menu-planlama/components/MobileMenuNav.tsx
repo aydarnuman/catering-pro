@@ -1,7 +1,14 @@
 'use client';
 
 import { Box, Group, Text, ThemeIcon, UnstyledButton } from '@mantine/core';
-import { SIDEBAR_ITEMS, type SidebarCategory } from './MenuSidebar';
+import { IconBook2, IconCalendar, IconChartLine } from '@tabler/icons-react';
+import type { SidebarCategory } from './types';
+
+const MOBILE_NAV_ITEMS: { id: SidebarCategory; label: string; icon: React.ReactNode }[] = [
+  { id: 'planlama', label: 'Planlama', icon: <IconCalendar size={20} /> },
+  { id: 'katalog', label: 'Katalog', icon: <IconBook2 size={20} /> },
+  { id: 'analiz', label: 'Analiz', icon: <IconChartLine size={20} /> },
+];
 
 interface MobileMenuNavProps {
   activeCategory: SidebarCategory;
@@ -23,7 +30,7 @@ export function MobileMenuNav({ activeCategory, onCategoryChange }: MobileMenuNa
       }}
     >
       <Group justify="space-around" gap={0}>
-        {SIDEBAR_ITEMS.map((item) => {
+        {MOBILE_NAV_ITEMS.map((item) => {
           const isActive = activeCategory === item.id;
           return (
             <UnstyledButton

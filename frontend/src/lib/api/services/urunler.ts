@@ -123,4 +123,18 @@ export const urunlerAPI = {
     const response = await api.patch(`/api/urunler/${urunKartId}/fiyat`, data);
     return response.data;
   },
+
+  /**
+   * Aktif fiyat kaynağını değiştir (FATURA / PIYASA / MANUEL)
+   */
+  async aktifFiyatSec(
+    urunKartId: number,
+    data: {
+      fiyat_tipi: 'FATURA' | 'PIYASA' | 'MANUEL';
+      fiyat?: number;
+    }
+  ): Promise<ApiResponse<any>> {
+    const response = await api.patch(`/api/urunler/${urunKartId}/aktif-fiyat-sec`, data);
+    return response.data;
+  },
 };

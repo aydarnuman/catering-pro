@@ -15,6 +15,7 @@ import {
   Stack,
   Text,
   TextInput,
+  ThemeIcon,
   UnstyledButton,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
@@ -22,9 +23,14 @@ import { notifications } from '@mantine/notifications';
 import {
   IconAlertCircle,
   IconChartLine,
+  IconCoin,
+  IconCoinOff,
+  IconFileInvoice,
   IconInfoCircle,
   IconPackages,
+  IconReceipt,
   IconSearch,
+  IconShoppingCart,
   IconTrendingDown,
   IconTrendingUp,
   IconX,
@@ -38,22 +44,23 @@ import {
   AreaChart,
   Bar,
   BarChart,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   XAxis,
   YAxis,
 } from 'recharts';
 import {
   type FiyatGecmisiItem,
   faturaKalemleriAPI,
-  type MaliyetOzetItem,
   type PriceHistoryData,
 } from '@/lib/api/services/fatura-kalemleri';
-import type { FiyatListeUrun, SeciliUrunDetayType } from './types';
-import { getCategoryColor } from './utils';
+import {
+  type UrunKartiFiyat,
+  menuPlanlamaAPI,
+} from '@/lib/api/services/menu-planlama';
+import type { SeciliUrunDetayType } from './types';
 
 interface FiyatlarTabProps {
   seciliFiyatUrunId: number | null;
@@ -65,6 +72,30 @@ interface FiyatlarTabProps {
   isActive: boolean;
 }
 
+// Fiyat kaynağı bilgisi
+function getFiyatKaynagi(urun: UrunKartiFiyat): {
+  label: string;
+  color: string;
+  icon: typeof IconCoin;
+} {
+  const tipi = urun.aktif_fiyat_tipi?.toUpperCase();
+  if (tipi === 'FATURA') return { label: 'Fatura', color: 'green', icon: IconFileInvoice };
+  if (tipi === 'PIYASA') return { label: 'Piyasa', color: 'orange', icon: IconShoppingCart };
+  if (tipi === 'MANUEL') return { label: 'Manuel', color: 'blue', icon: IconCoin };
+  if (tipi === 'VARSAYILAN') return { label: 'Manuel', color: 'blue', icon: IconCoin };
+  if (tipi === 'SOZLESME') return { label: 'Sözleşme', color: 'cyan', icon: IconReceipt };
+  if (urun.aktif_fiyat && Number(urun.aktif_fiyat) > 0)
+    return { label: 'Varsayılan', color: 'grape', icon: IconCoin };
+  if (urun.piyasa_fiyati && Number(urun.piyasa_fiyati) > 0)
+    return { label: 'Piyasa', color: 'orange', icon: IconShoppingCart };
+  if (urun.son_alis_fiyati && Number(urun.son_alis_fiyati) > 0)
+    return { label: 'Fatura', color: 'green', icon: IconFileInvoice };
+  if (urun.manuel_fiyat && Number(urun.manuel_fiyat) > 0)
+    return { label: 'Manuel', color: 'blue', icon: IconCoin };
+  return { label: 'Fiyat Yok', color: 'red', icon: IconCoinOff };
+}
+
+
 export function FiyatlarTab({
   seciliFiyatUrunId,
   seciliFiyatUrunAd,
@@ -74,57 +105,41 @@ export function FiyatlarTab({
   isMobile,
   isActive,
 }: FiyatlarTabProps) {
-  // Local state
   const [timeRange, setTimeRange] = useState<'3m' | '6m' | '1y' | 'all'>('6m');
   const [chartType, setChartType] = useState<'line' | 'bar' | 'area'>('line');
   const [fiyatArama, setFiyatArama] = useState('');
   const [debouncedFiyatArama] = useDebouncedValue(fiyatArama, 300);
-  const [sadecegida, setSadeceGida] = useState<boolean>(true);
+  const [seciliKategori, setSeciliKategori] = useState<string>('tumu');
+  const [siralama, setSiralama] = useState<'ad' | 'fiyat-azalan' | 'fiyat-artan'>('ad');
 
-  // React Query: Maliyet özeti – Single Source (fatura_kalemleri)
+  // ── Ürün kartları (fiyatlarıyla birlikte) ──────────────────
   const {
-    data: topUrunler = [],
-    isLoading: fiyatLoading,
-    error: topUrunlerError,
-  } = useQuery<FiyatListeUrun[]>({
-    queryKey: ['maliyet-ozet', 'fiyatlar'],
-    queryFn: async (): Promise<FiyatListeUrun[]> => {
-      const res = await faturaKalemleriAPI.getMaliyetOzet();
+    data: urunKartlari = [],
+    isLoading,
+    error: urunlerError,
+  } = useQuery<UrunKartiFiyat[]>({
+    queryKey: ['urun-kartlari-fiyatlar'],
+    queryFn: async (): Promise<UrunKartiFiyat[]> => {
+      const res = await menuPlanlamaAPI.getUrunKartlari({ aktif: 'true' });
       if (!res.success || !Array.isArray(res.data)) return [];
-      return (res.data as MaliyetOzetItem[]).map((m) => ({
-        ...m,
-        product_name: m.urun_ad,
-        category: m.kategori_ad ?? 'Genel',
-        urun_id: m.urun_id,
-        avg_unit_price: Number(m.ortalama_fiyat) || 0,
-        min_unit_price: Number(m.min_fiyat) || 0,
-        max_unit_price: Number(m.max_fiyat) || 0,
-        total_amount: Number(m.toplam_harcama) || 0,
-        invoice_count: Number(m.fatura_kalem_sayisi) || 0,
-        total_quantity: Number(m.toplam_alinan_miktar) || 0,
-        is_food: true,
-        clean_product_name: m.urun_ad,
-        standard_unit: 'ADET',
-        price_per_unit: Number(m.ortalama_fiyat) || 0,
-      }));
+      return res.data;
     },
     staleTime: 5 * 60 * 1000,
     enabled: isActive,
     retry: 2,
   });
 
-  // Error handling for top ürünler
   useEffect(() => {
-    if (topUrunlerError) {
+    if (urunlerError) {
       notifications.show({
         title: 'Hata',
-        message: 'En çok alınan ürünler yüklenemedi',
+        message: 'Ürün fiyatları yüklenemedi',
         color: 'red',
       });
     }
-  }, [topUrunlerError]);
+  }, [urunlerError]);
 
-  // React Query: Fiyat trendi – Single Source (fatura_kalemleri, urunId ile)
+  // ── Fiyat trendi grafiği ────────────
   const {
     data: fiyatTrendi = [],
     isLoading: trendLoading,
@@ -138,7 +153,6 @@ export function FiyatlarTab({
         500
       )) as FiyatGecmisiItem[];
       if (rows.length === 0) return [];
-      // Aylık grupla (PriceHistoryData formatına dönüştür)
       const byMonth = new Map<string, { sum: number; cnt: number; qty: number; amount: number }>();
       for (const r of rows) {
         const d = r.fatura_tarihi ? format(parseISO(r.fatura_tarihi), 'yyyy-MM') : '';
@@ -168,18 +182,13 @@ export function FiyatlarTab({
     retry: 2,
   });
 
-  // Error handling for fiyat trendi
   useEffect(() => {
     if (trendError) {
-      notifications.show({
-        title: 'Hata',
-        message: 'Fiyat trendi yüklenemedi',
-        color: 'red',
-      });
+      notifications.show({ title: 'Hata', message: 'Fiyat trendi yüklenemedi', color: 'red' });
     }
   }, [trendError]);
 
-  // Fiyat trendi için formatlanmış data (memoized)
+  // ── Memoized türetilmiş veriler ────────────────────────────
   const chartData = useMemo(() => {
     return fiyatTrendi.map((item) => {
       try {
@@ -199,10 +208,8 @@ export function FiyatlarTab({
     });
   }, [fiyatTrendi]);
 
-  // Fiyat trendi istatistikleri (memoized)
   const fiyatIstatistikleri = useMemo(() => {
     if (fiyatTrendi.length === 0) return null;
-
     const prices = fiyatTrendi.map((d) => d.avg_price);
     const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
     const minPrice = Math.min(...prices);
@@ -210,27 +217,164 @@ export function FiyatlarTab({
     const firstPrice = fiyatTrendi[0]?.avg_price || 0;
     const lastPrice = fiyatTrendi[fiyatTrendi.length - 1]?.avg_price || 0;
     const changePercent = firstPrice > 0 ? ((lastPrice - firstPrice) / firstPrice) * 100 : 0;
-
     return {
       avgPrice,
       minPrice,
       maxPrice,
       changePercent,
-      trend:
-        changePercent > 0 ? 'increasing' : changePercent < 0 ? 'decreasing' : ('stable' as const),
+      trend: changePercent > 0 ? 'increasing' : changePercent < 0 ? 'decreasing' : ('stable' as const),
     };
   }, [fiyatTrendi]);
 
+  // Kategoriler
+  const kategoriler = useMemo(() => {
+    const katMap = new Map<string, { ad: string; sayi: number }>();
+    for (const u of urunKartlari) {
+      const katAd = u.kategori_adi || 'Diğer';
+      const mevcut = katMap.get(katAd) || { ad: katAd, sayi: 0 };
+      mevcut.sayi += 1;
+      katMap.set(katAd, mevcut);
+    }
+    return Array.from(katMap.values()).sort((a, b) => b.sayi - a.sayi);
+  }, [urunKartlari]);
+
+  // Filtrelenmiş ürünler
+  const filtrelenmisUrunler = useMemo(() => {
+    let sonuc = [...urunKartlari];
+    if (seciliKategori !== 'tumu') {
+      sonuc = sonuc.filter((u) => (u.kategori_adi || 'Diğer') === seciliKategori);
+    }
+    if (debouncedFiyatArama) {
+      const ara = debouncedFiyatArama.toLowerCase();
+      sonuc = sonuc.filter(
+        (u) =>
+          u.ad.toLowerCase().includes(ara) ||
+          (u.kod || '').toLowerCase().includes(ara) ||
+          (u.kategori_adi || '').toLowerCase().includes(ara)
+      );
+    }
+    sonuc.sort((a, b) => {
+      if (siralama === 'fiyat-azalan') {
+        return (Number(b.guncel_fiyat) || 0) - (Number(a.guncel_fiyat) || 0);
+      }
+      if (siralama === 'fiyat-artan') {
+        return (Number(a.guncel_fiyat) || 0) - (Number(b.guncel_fiyat) || 0);
+      }
+      return a.ad.localeCompare(b.ad, 'tr');
+    });
+    return sonuc;
+  }, [urunKartlari, seciliKategori, debouncedFiyatArama, siralama]);
+
+  // Genel istatistikler
+  const genelIstatistikler = useMemo(() => {
+    const toplam = urunKartlari.length;
+    const fiyatli = urunKartlari.filter((u) => Number(u.guncel_fiyat) > 0).length;
+    const fiyatsiz = toplam - fiyatli;
+    const piyasali = urunKartlari.filter((u) => u.piyasa_fiyati).length;
+    const yuzde = toplam > 0 ? Math.round((fiyatli / toplam) * 100) : 0;
+    return { toplam, fiyatli, fiyatsiz, piyasali, yuzde };
+  }, [urunKartlari]);
+
   return (
     <Stack gap="md">
-      {/* Fiyat Trendi Grafiği - Geliştirilmiş */}
+      {/* ── Özet İstatistikler ─────────────────────────── */}
+      {!isLoading && !urunlerError && (
+        <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
+          <Box
+            p="sm"
+            style={{
+              borderRadius: 'var(--mantine-radius-md)',
+              background: 'var(--mantine-color-dark-6)',
+            }}
+          >
+            <Text size="xs" c="dimmed" fw={500}>
+              Toplam Ürün
+            </Text>
+            <Text size="xl" fw={700} mt={2}>
+              {genelIstatistikler.toplam}
+            </Text>
+          </Box>
+          <Box
+            p="sm"
+            style={{
+              borderRadius: 'var(--mantine-radius-md)',
+              background: 'var(--mantine-color-dark-6)',
+            }}
+          >
+            <Text size="xs" c="dimmed" fw={500}>
+              Fiyatı Var
+            </Text>
+            <Group gap={6} align="baseline" mt={2}>
+              <Text size="xl" fw={700} c="green">
+                {genelIstatistikler.fiyatli}
+              </Text>
+              <Text size="xs" c="dimmed">
+                %{genelIstatistikler.yuzde}
+              </Text>
+            </Group>
+          </Box>
+          <Box
+            p="sm"
+            style={{
+              borderRadius: 'var(--mantine-radius-md)',
+              background: 'var(--mantine-color-dark-6)',
+            }}
+          >
+            <Text size="xs" c="dimmed" fw={500}>
+              Fiyatı Yok
+            </Text>
+            <Text size="xl" fw={700} c="red" mt={2}>
+              {genelIstatistikler.fiyatsiz}
+            </Text>
+          </Box>
+          <Box
+            p="sm"
+            style={{
+              borderRadius: 'var(--mantine-radius-md)',
+              background: 'var(--mantine-color-dark-6)',
+            }}
+          >
+            <Text size="xs" c="dimmed" fw={500}>
+              Piyasa Verisi
+            </Text>
+            <Text size="xl" fw={700} c="grape" mt={2}>
+              {genelIstatistikler.piyasali}
+            </Text>
+          </Box>
+        </SimpleGrid>
+      )}
+
+      {/* ── Fiyat Trendi Grafiği ─────────────────────────── */}
       {seciliFiyatUrunAd && (
-        <Paper p="md" withBorder radius="lg">
+        <Box
+          p="md"
+          style={{
+            borderRadius: 'var(--mantine-radius-lg)',
+            background: 'var(--mantine-color-dark-6)',
+          }}
+        >
           <Group justify="space-between" mb="md" wrap="wrap">
             <Group gap="sm">
               <Text fw={600} size="sm">
-                📈 {seciliFiyatUrunAd} - Fiyat Trendi
+                {seciliFiyatUrunAd}
               </Text>
+              {fiyatIstatistikleri && (
+                <Badge
+                  size="sm"
+                  variant="light"
+                  color={fiyatIstatistikleri.changePercent > 0 ? 'red' : 'green'}
+                  leftSection={
+                    fiyatIstatistikleri.changePercent > 0 ? (
+                      <IconTrendingUp size={12} />
+                    ) : (
+                      <IconTrendingDown size={12} />
+                    )
+                  }
+                >
+                  {fiyatIstatistikleri.changePercent > 0 ? '+' : ''}
+                  {fiyatIstatistikleri.changePercent.toFixed(1)}%
+                </Badge>
+              )}
             </Group>
             <Group gap="xs">
               <SegmentedControl
@@ -243,6 +387,9 @@ export function FiyatlarTab({
                   { label: '1 Yıl', value: '1y' },
                   { label: 'Tümü', value: 'all' },
                 ]}
+                styles={{
+                  root: { background: 'var(--mantine-color-dark-7)' },
+                }}
               />
               <SegmentedControl
                 size="xs"
@@ -253,462 +400,387 @@ export function FiyatlarTab({
                   { label: 'Sütun', value: 'bar' },
                   { label: 'Alan', value: 'area' },
                 ]}
+                styles={{
+                  root: { background: 'var(--mantine-color-dark-7)' },
+                }}
               />
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                size="sm"
-                onClick={onClearSelection}
-              >
+              <ActionIcon variant="subtle" color="gray" size="sm" onClick={onClearSelection}>
                 <IconX size={14} />
               </ActionIcon>
             </Group>
           </Group>
 
-          {/* İstatistikler Kartı */}
           {fiyatIstatistikleri && (
             <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="xs" mb="md">
-              <Paper p="sm" withBorder radius="md" ta="center">
-                <Text size="xs" c="dimmed">
-                  Ortalama
-                </Text>
-                <Text fw={600} size="sm">
-                  ₺{fiyatIstatistikleri.avgPrice.toFixed(2)}
-                </Text>
-              </Paper>
-              <Paper p="sm" withBorder radius="md" ta="center" bg="green.0">
-                <Text size="xs" c="dimmed">
-                  Min
-                </Text>
-                <Text fw={600} size="sm" c="green">
-                  ₺{fiyatIstatistikleri.minPrice.toFixed(2)}
-                </Text>
-              </Paper>
-              <Paper p="sm" withBorder radius="md" ta="center" bg="red.0">
-                <Text size="xs" c="dimmed">
-                  Max
-                </Text>
-                <Text fw={600} size="sm" c="red">
-                  ₺{fiyatIstatistikleri.maxPrice.toFixed(2)}
-                </Text>
-              </Paper>
-              <Paper
-                p="sm"
-                withBorder
-                radius="md"
-                ta="center"
-                bg={fiyatIstatistikleri.changePercent > 0 ? 'red.0' : 'green.0'}
-              >
-                <Text size="xs" c="dimmed">
-                  Değişim
-                </Text>
-                <Group gap={4} justify="center">
-                  {fiyatIstatistikleri.trend === 'increasing' ? (
-                    <IconTrendingUp size={14} color="var(--mantine-color-red-6)" />
-                  ) : (
-                    <IconTrendingDown
-                      size={14}
-                      color="var(--mantine-color-green-6)"
-                    />
-                  )}
-                  <Text
-                    fw={600}
-                    size="sm"
-                    c={fiyatIstatistikleri.changePercent > 0 ? 'red' : 'green'}
-                  >
-                    {fiyatIstatistikleri.changePercent > 0 ? '+' : ''}
-                    {fiyatIstatistikleri.changePercent.toFixed(1)}%
+              {[
+                { label: 'Ortalama', value: fiyatIstatistikleri.avgPrice, color: 'dimmed' },
+                { label: 'Minimum', value: fiyatIstatistikleri.minPrice, color: 'green' },
+                { label: 'Maksimum', value: fiyatIstatistikleri.maxPrice, color: 'red' },
+                { label: 'Son Fiyat', value: fiyatTrendi[fiyatTrendi.length - 1]?.avg_price || 0, color: 'grape' },
+              ].map((stat) => (
+                <Box
+                  key={stat.label}
+                  p="xs"
+                  style={{
+                    borderRadius: 'var(--mantine-radius-sm)',
+                    background: 'var(--mantine-color-dark-7)',
+                  }}
+                >
+                  <Text size="xs" c="dimmed">
+                    {stat.label}
                   </Text>
-                </Group>
-              </Paper>
+                  <Text fw={600} size="sm" c={stat.color}>
+                    ₺{stat.value.toFixed(2)}
+                  </Text>
+                </Box>
+              ))}
             </SimpleGrid>
           )}
 
-          {/* Grafik */}
           {trendLoading ? (
-            <Skeleton height={isMobile ? 200 : 300} radius="md" />
+            <Skeleton height={isMobile ? 200 : 280} radius="md" />
           ) : trendError ? (
             <Alert color="red" title="Hata" icon={<IconAlertCircle />}>
-              Fiyat trendi yüklenemedi:{' '}
-              {trendError instanceof Error ? trendError.message : 'Bilinmeyen hata'}
+              Fiyat trendi yüklenemedi
             </Alert>
           ) : chartData.length === 0 ? (
             <Center py="xl">
               <Stack align="center" gap="sm">
-                <IconChartLine size={48} color="var(--mantine-color-gray-5)" />
-                <Text c="dimmed" ta="center">
-                  Bu ürün için henüz fiyat geçmişi bulunmuyor
+                <ThemeIcon size="xl" variant="light" color="gray" radius="xl">
+                  <IconChartLine size={24} />
+                </ThemeIcon>
+                <Text c="dimmed" ta="center" size="sm">
+                  Fiyat geçmişi bulunmuyor
                 </Text>
               </Stack>
             </Center>
           ) : (
-            <Box h={isMobile ? 200 : 300}>
+            <Box h={isMobile ? 200 : 280}>
               <ResponsiveContainer width="100%" height="100%">
                 {chartType === 'line' ? (
                   <LineChart data={chartData}>
-                    <XAxis
-                      dataKey="month"
-                      tick={{ fontSize: 10 }}
-                      tickFormatter={(val) => {
-                        try {
-                          return format(parseISO(val), 'MMM', { locale: tr });
-                        } catch {
-                          return val;
-                        }
-                      }}
-                    />
-                    <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload as PriceHistoryData & {
-                            monthLabel: string;
-                          };
-                          return (
-                            <Paper p="sm" shadow="md" withBorder>
-                              <Text fw={600} mb="xs">
-                                {data.monthLabel}
-                              </Text>
-                              <Stack gap={4}>
-                                <Group justify="space-between" gap="xl">
-                                  <Text size="xs">Ortalama:</Text>
-                                  <Text size="xs" fw={600}>
-                                    ₺{data.avg_price.toFixed(2)}
-                                  </Text>
-                                </Group>
-                                <Group justify="space-between" gap="xl">
-                                  <Text size="xs">Min:</Text>
-                                  <Text size="xs" c="green">
-                                    ₺{(data.min_price ?? 0).toFixed(2)}
-                                  </Text>
-                                </Group>
-                                <Group justify="space-between" gap="xl">
-                                  <Text size="xs">Max:</Text>
-                                  <Text size="xs" c="red">
-                                    ₺{(data.max_price ?? 0).toFixed(2)}
-                                  </Text>
-                                </Group>
-                                <Group justify="space-between" gap="xl">
-                                  <Text size="xs">İşlem:</Text>
-                                  <Text size="xs">{data.transaction_count} adet</Text>
-                                </Group>
-                              </Stack>
-                            </Paper>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="avg_price"
-                      stroke="var(--mantine-color-grape-6)"
-                      strokeWidth={2}
-                      dot={{ fill: 'var(--mantine-color-grape-6)', r: 4 }}
-                      name="Ortalama"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="min_price"
-                      stroke="var(--mantine-color-green-6)"
-                      strokeWidth={1.5}
-                      strokeDasharray="5 5"
-                      dot={false}
-                      name="Min"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="max_price"
-                      stroke="var(--mantine-color-red-6)"
-                      strokeWidth={1.5}
-                      strokeDasharray="5 5"
-                      dot={false}
-                      name="Max"
-                    />
-                    <Legend />
+                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--mantine-color-dimmed)' }} tickLine={false} axisLine={false} tickFormatter={(val) => { try { return format(parseISO(val), 'MMM', { locale: tr }); } catch { return val; } }} />
+                    <YAxis tick={{ fontSize: 10, fill: 'var(--mantine-color-dimmed)' }} tickLine={false} axisLine={false} />
+                    <RechartsTooltip content={({ active, payload }) => {
+                      if (active && payload?.length) {
+                        const data = payload[0].payload as PriceHistoryData & { monthLabel: string };
+                        return (
+                          <Paper p="xs" shadow="md" withBorder radius="sm">
+                            <Text fw={600} size="xs">{data.monthLabel}</Text>
+                            <Text size="xs" c="grape">₺{data.avg_price.toFixed(2)}</Text>
+                            <Text size="xs" c="dimmed">{data.transaction_count} işlem</Text>
+                          </Paper>
+                        );
+                      }
+                      return null;
+                    }} />
+                    <Line type="monotone" dataKey="avg_price" stroke="var(--mantine-color-grape-5)" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: 'var(--mantine-color-grape-5)' }} />
                   </LineChart>
                 ) : chartType === 'bar' ? (
                   <BarChart data={chartData}>
-                    <XAxis
-                      dataKey="month"
-                      tick={{ fontSize: 10 }}
-                      tickFormatter={(val) => {
-                        try {
-                          return format(parseISO(val), 'MMM', { locale: tr });
-                        } catch {
-                          return val;
-                        }
-                      }}
-                    />
-                    <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload as PriceHistoryData & {
-                            monthLabel: string;
-                          };
-                          return (
-                            <Paper p="sm" shadow="md" withBorder>
-                              <Text fw={600} mb="xs">
-                                {data.monthLabel}
-                              </Text>
-                              <Text size="xs">
-                                Ortalama: ₺{data.avg_price.toFixed(2)}
-                              </Text>
-                            </Paper>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Bar
-                      dataKey="avg_price"
-                      fill="var(--mantine-color-grape-6)"
-                      name="Ortalama Fiyat"
-                    />
+                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--mantine-color-dimmed)' }} tickLine={false} axisLine={false} tickFormatter={(val) => { try { return format(parseISO(val), 'MMM', { locale: tr }); } catch { return val; } }} />
+                    <YAxis tick={{ fontSize: 10, fill: 'var(--mantine-color-dimmed)' }} tickLine={false} axisLine={false} />
+                    <RechartsTooltip content={({ active, payload }) => {
+                      if (active && payload?.length) {
+                        const data = payload[0].payload as PriceHistoryData & { monthLabel: string };
+                        return (<Paper p="xs" shadow="md" withBorder radius="sm"><Text fw={600} size="xs">{data.monthLabel}</Text><Text size="xs" c="grape">₺{data.avg_price.toFixed(2)}</Text></Paper>);
+                      }
+                      return null;
+                    }} />
+                    <Bar dataKey="avg_price" fill="var(--mantine-color-grape-5)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 ) : (
                   <AreaChart data={chartData}>
-                    <XAxis
-                      dataKey="month"
-                      tick={{ fontSize: 10 }}
-                      tickFormatter={(val) => {
-                        try {
-                          return format(parseISO(val), 'MMM', { locale: tr });
-                        } catch {
-                          return val;
-                        }
-                      }}
-                    />
-                    <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload as PriceHistoryData & {
-                            monthLabel: string;
-                          };
-                          return (
-                            <Paper p="sm" shadow="md" withBorder>
-                              <Text fw={600} mb="xs">
-                                {data.monthLabel}
-                              </Text>
-                              <Text size="xs">
-                                Ortalama: ₺{data.avg_price.toFixed(2)}
-                              </Text>
-                            </Paper>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="avg_price"
-                      stroke="var(--mantine-color-grape-6)"
-                      fill="var(--mantine-color-grape-1)"
-                      name="Ortalama Fiyat"
-                    />
+                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--mantine-color-dimmed)' }} tickLine={false} axisLine={false} tickFormatter={(val) => { try { return format(parseISO(val), 'MMM', { locale: tr }); } catch { return val; } }} />
+                    <YAxis tick={{ fontSize: 10, fill: 'var(--mantine-color-dimmed)' }} tickLine={false} axisLine={false} />
+                    <RechartsTooltip content={({ active, payload }) => {
+                      if (active && payload?.length) {
+                        const data = payload[0].payload as PriceHistoryData & { monthLabel: string };
+                        return (<Paper p="xs" shadow="md" withBorder radius="sm"><Text fw={600} size="xs">{data.monthLabel}</Text><Text size="xs" c="grape">₺{data.avg_price.toFixed(2)}</Text></Paper>);
+                      }
+                      return null;
+                    }} />
+                    <Area type="monotone" dataKey="avg_price" stroke="var(--mantine-color-grape-5)" fill="rgba(145, 71, 255, 0.15)" />
                   </AreaChart>
                 )}
               </ResponsiveContainer>
             </Box>
           )}
-        </Paper>
+        </Box>
       )}
 
-      {/* Top Ürünler - Geliştirilmiş */}
-      <Paper p="md" withBorder radius="lg">
-        <Stack gap="md">
-          <Group justify="space-between" wrap="wrap">
-            <Text fw={600} size="sm">
-              📦 Ürün Fiyatları (Son 3 Ay)
-            </Text>
-            {topUrunlerError && (
-              <Badge color="red" variant="light" size="sm">
-                Hata
-              </Badge>
-            )}
-          </Group>
+      {/* ── Ürün Listesi ──────────────────────────────────── */}
+      <Box>
+        {/* Kontroller */}
+        <Group justify="space-between" mb="md" wrap="wrap">
+          <Text fw={500} size="md" c="dimmed">
+            Ürün Fiyatları
+          </Text>
+          <Text size="xs" c="dimmed">
+            {filtrelenmisUrunler.length} / {urunKartlari.length}
+          </Text>
+        </Group>
 
-          {/* Arama Kutusu */}
-          <TextInput
-            placeholder="Ürün ara..."
-            leftSection={<IconSearch size={16} />}
-            value={fiyatArama}
-            onChange={(e) => setFiyatArama(e.currentTarget.value)}
-            size="sm"
-          />
+        {/* Arama */}
+        <TextInput
+          placeholder="Ara..."
+          leftSection={<IconSearch size={14} stroke={1.5} />}
+          value={fiyatArama}
+          onChange={(e) => setFiyatArama(e.currentTarget.value)}
+          mb="md"
+          size="sm"
+          radius="md"
+          styles={{
+            input: {
+              background: 'var(--mantine-color-dark-6)',
+              border: 'none',
+            },
+          }}
+          rightSection={
+            fiyatArama ? (
+              <ActionIcon size="xs" variant="subtle" onClick={() => setFiyatArama('')}>
+                <IconX size={12} />
+              </ActionIcon>
+            ) : null
+          }
+        />
 
-          {/* Gıda/Tümü Toggle ve Sonuç Sayısı */}
-          {!fiyatLoading && !topUrunlerError && (
-            <Stack gap="xs">
-              <SegmentedControl
+        {/* Kategori pills - minimal */}
+        <ScrollArea scrollbarSize={0} offsetScrollbars={false} mb="md">
+          <Group gap={8} wrap="nowrap">
+            <UnstyledButton
+              onClick={() => setSeciliKategori('tumu')}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 20,
+                background: seciliKategori === 'tumu' ? 'var(--mantine-color-dark-4)' : 'transparent',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <Text
                 size="xs"
-                value={sadecegida ? 'gida' : 'tumu'}
-                onChange={(value) => setSadeceGida(value === 'gida')}
-                data={[
-                  { label: '🍎 Gıda', value: 'gida' },
-                  { label: '📦 Tümü', value: 'tumu' },
-                ]}
-              />
-              <Group justify="space-between" wrap="wrap">
-                <Text size="xs" c="dimmed">
-                  {(() => {
-                    const filtered = topUrunler.filter((u) => {
-                      if (sadecegida && u.is_food === false) return false;
-                      if (!debouncedFiyatArama) return true;
-                      const searchLower = debouncedFiyatArama.toLowerCase();
-                      const productName = (
-                        u.clean_product_name || u.product_name
-                      ).toLowerCase();
-                      const category = (u.category || '').toLowerCase();
-                      return (
-                        productName.includes(searchLower) ||
-                        category.includes(searchLower)
-                      );
-                    });
-                    const gidaSayisi = topUrunler.filter(
-                      (u) => u.is_food !== false
-                    ).length;
-                    const gidaDisSayisi = topUrunler.filter(
-                      (u) => u.is_food === false
-                    ).length;
-                    return `${filtered.length} ürün gösteriliyor (${gidaSayisi} gıda, ${gidaDisSayisi} diğer)`;
-                  })()}
-                </Text>
-              </Group>
-            </Stack>
-          )}
-        </Stack>
+                fw={seciliKategori === 'tumu' ? 500 : 400}
+                c={seciliKategori === 'tumu' ? 'white' : 'dimmed'}
+              >
+                Tümü
+              </Text>
+            </UnstyledButton>
+            {kategoriler.slice(0, 12).map((kat) => {
+              const isKatActive = seciliKategori === kat.ad;
+              return (
+                <UnstyledButton
+                  key={kat.ad}
+                  onClick={() => setSeciliKategori(isKatActive ? 'tumu' : kat.ad)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 20,
+                    background: isKatActive ? 'var(--mantine-color-dark-4)' : 'transparent',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <Text
+                    size="xs"
+                    fw={isKatActive ? 500 : 400}
+                    c={isKatActive ? 'white' : 'dimmed'}
+                  >
+                    {kat.ad}
+                  </Text>
+                </UnstyledButton>
+              );
+            })}
+          </Group>
+        </ScrollArea>
 
-        {fiyatLoading ? (
-          <Stack gap="xs" mt="md">
-            <Skeleton height={50} radius="md" />
-            <Skeleton height={50} radius="md" />
-            <Skeleton height={50} radius="md" />
-            <Skeleton height={50} radius="md" />
-            <Skeleton height={50} radius="md" />
+        {/* Sıralama - minimal */}
+        <SegmentedControl
+          size="xs"
+          value={siralama}
+          onChange={(val) => setSiralama(val as typeof siralama)}
+          data={[
+            { label: 'A-Z', value: 'ad' },
+            { label: 'Fiyat ↓', value: 'fiyat-azalan' },
+            { label: 'Fiyat ↑', value: 'fiyat-artan' },
+          ]}
+          mb="md"
+          styles={{
+            root: { background: 'var(--mantine-color-dark-6)' },
+          }}
+        />
+
+        {/* Ürün listesi */}
+        {isLoading ? (
+          <Stack gap="xs">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <Skeleton key={`skel-${n}`} height={56} radius="md" />
+            ))}
           </Stack>
-        ) : topUrunlerError ? (
-          <Alert color="red" title="Hata" icon={<IconAlertCircle />} mt="md">
+        ) : urunlerError ? (
+          <Alert color="red" title="Hata" icon={<IconAlertCircle />}>
             Ürün fiyatları yüklenemedi
           </Alert>
         ) : (
-          <ScrollArea h={400} mt="md">
-            <Stack gap="xs">
-              {topUrunler
-                .filter((urun) => {
-                  if (sadecegida && urun.is_food === false) return false;
-                  if (!debouncedFiyatArama) return true;
-                  const searchLower = debouncedFiyatArama.toLowerCase();
-                  const productName = (
-                    urun.clean_product_name || urun.product_name
-                  ).toLowerCase();
-                  const category = (urun.category || '').toLowerCase();
-                  return (
-                    productName.includes(searchLower) ||
-                    category.includes(searchLower)
-                  );
-                })
-                .map((urun, index) => {
-                  const isSelected = seciliFiyatUrunId === urun.urun_id;
-                  const displayName = urun.clean_product_name || urun.product_name;
-                  const standardUnit = urun.standard_unit || 'ADET';
-                  const pricePerUnit =
-                    urun.price_per_unit || urun.avg_unit_price || 0;
-                  const categoryColor = getCategoryColor(urun.category ?? undefined);
+          <ScrollArea h={isMobile ? 400 : 480} offsetScrollbars>
+            <Stack gap={2}>
+              {filtrelenmisUrunler.map((urun) => {
+                const isSelected = seciliFiyatUrunId === urun.id;
+                const fiyat = Number(urun.guncel_fiyat) || 0;
+                const piyasaFiyat = Number(urun.piyasa_fiyati) || 0;
+                const birim = urun.varsayilan_birim || 'adet';
+                const kaynak = getFiyatKaynagi(urun);
+                const receteSayisi = Number(urun.recete_sayisi) || 0;
 
-                  return (
-                    <Paper
-                      key={`${urun.product_name}-${index}`}
-                      p="xs"
-                      withBorder
-                      radius="md"
+                return (
+                  <UnstyledButton
+                    key={urun.id}
+                    onClick={() => onFiyatTrendiSec(urun.id, urun.ad)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: '10px 12px',
+                      borderRadius: 'var(--mantine-radius-md)',
+                      background: isSelected
+                        ? 'var(--mantine-color-dark-5)'
+                        : 'transparent',
+                      borderLeft: isSelected
+                        ? '3px solid var(--mantine-color-grape-5)'
+                        : '3px solid transparent',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.background = 'var(--mantine-color-dark-6)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.background = 'transparent';
+                      }
+                    }}
+                  >
+                    {/* Kategori ikonu */}
+                    <ThemeIcon size="sm" variant="light" color="gray" radius="xl" style={{ flexShrink: 0 }}>
+                      <IconPackages size={12} />
+                    </ThemeIcon>
+
+                    {/* Ürün bilgisi */}
+                    <Box style={{ flex: 1, minWidth: 0 }}>
+                      <Text size="sm" fw={500} lineClamp={1}>
+                        {urun.ad}
+                      </Text>
+                      <Group gap={6} mt={2}>
+                        <Text size="xs" c="dimmed">
+                          {urun.kategori_adi || 'Genel'}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          ·
+                        </Text>
+                        <Text size="xs" c={kaynak.color}>
+                          {kaynak.label}
+                        </Text>
+                        {receteSayisi > 0 && (
+                          <>
+                            <Text size="xs" c="dimmed">
+                              ·
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              {receteSayisi} reçete
+                            </Text>
+                          </>
+                        )}
+                      </Group>
+                    </Box>
+
+                    {/* Fiyat */}
+                    <Box ta="right" style={{ flexShrink: 0, minWidth: 80 }}>
+                      {fiyat > 0 ? (
+                        <>
+                          <Text size="sm" fw={700} style={{ fontVariantNumeric: 'tabular-nums' }}>
+                            ₺{fiyat.toFixed(2)}
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            /{birim}
+                          </Text>
+                        </>
+                      ) : (
+                        <Text size="xs" c="red.5" fw={500}>
+                          Fiyat yok
+                        </Text>
+                      )}
+                      {piyasaFiyat > 0 && fiyat > 0 && (
+                        <Text size="xs" c={piyasaFiyat > fiyat ? 'green' : 'orange'}>
+                          {piyasaFiyat > fiyat ? '↓' : '↑'} ₺{piyasaFiyat.toFixed(2)}
+                        </Text>
+                      )}
+                    </Box>
+
+                    {/* Detay butonu - div olarak render (UnstyledButton icinde button olamaz) */}
+                    <Box
+                      component="div"
+                      role="button"
+                      tabIndex={-1}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onUrunDetayAc({
+                          product_name: urun.ad,
+                          category: urun.kategori_adi,
+                          urun_id: urun.id,
+                          avg_unit_price: fiyat,
+                          min_unit_price: fiyat,
+                          max_unit_price: fiyat,
+                          total_amount: 0,
+                          total_quantity: 0,
+                          invoice_count: 0,
+                          clean_product_name: urun.ad,
+                          standard_unit: birim,
+                          price_per_unit: fiyat,
+                          aktif_fiyat_tipi: urun.aktif_fiyat_tipi,
+                          manuel_fiyat: urun.manuel_fiyat,
+                          son_alis_fiyati: urun.son_alis_fiyati,
+                          urun_ad: urun.ad,
+                          urun_kod: urun.kod || '',
+                          kategori_id: urun.kategori_id,
+                          kategori_ad: urun.kategori_adi,
+                          ortalama_fiyat: fiyat,
+                          min_fiyat: fiyat,
+                          max_fiyat: fiyat,
+                          son_fiyat: fiyat || null,
+                          son_alis_tarihi: null,
+                          toplam_harcama: 0,
+                          fatura_kalem_sayisi: 0,
+                          toplam_alinan_miktar: 0,
+                        } as unknown as SeciliUrunDetayType);
+                      }}
                       style={{
-                        border: `1px solid ${isSelected ? 'var(--mantine-color-grape-5)' : 'var(--mantine-color-default-border)'}`,
-                        background: isSelected
-                          ? 'var(--mantine-color-grape-light)'
-                          : undefined,
-                        transition: 'all 0.15s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 28,
+                        height: 28,
+                        borderRadius: 'var(--mantine-radius-sm)',
                         cursor: 'pointer',
+                        color: 'var(--mantine-color-gray-5)',
+                        flexShrink: 0,
                       }}
                     >
-                      <Group justify="space-between" wrap="nowrap" gap="xs">
-                        <UnstyledButton
-                          onClick={() =>
-                            onFiyatTrendiSec(urun.urun_id, urun.product_name)
-                          }
-                          style={{ flex: 1, minWidth: 0 }}
-                        >
-                          <Group
-                            gap="xs"
-                            wrap="nowrap"
-                            style={{ flex: 1, minWidth: 0 }}
-                          >
-                            <Text
-                              size="xs"
-                              c="dimmed"
-                              fw={500}
-                              style={{ minWidth: 20 }}
-                            >
-                              {index + 1}.
-                            </Text>
-                            <Box style={{ flex: 1, minWidth: 0 }}>
-                              <Text size="sm" fw={500} lineClamp={1}>
-                                {displayName}
-                              </Text>
-                              <Group gap={8} mt={2}>
-                                <Text size="xs" c={categoryColor}>
-                                  {urun.category || 'Genel'}
-                                </Text>
-                                <Text size="xs" c="dimmed">
-                                  |
-                                </Text>
-                                <Text size="xs" fw={600} c="grape">
-                                  ₺{pricePerUnit.toFixed(2)}/
-                                  {standardUnit.toLowerCase()}
-                                </Text>
-                              </Group>
-                            </Box>
-                          </Group>
-                        </UnstyledButton>
-                        <ActionIcon
-                          variant="subtle"
-                          color="gray"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onUrunDetayAc(urun);
-                          }}
-                          title="Detaylı Analiz"
-                        >
-                          <IconInfoCircle size={16} />
-                        </ActionIcon>
-                      </Group>
-                    </Paper>
-                  );
-                })}
-              {topUrunler.filter((urun) => {
-                if (sadecegida && urun.is_food === false) return false;
-                if (!debouncedFiyatArama) return true;
-                const searchLower = debouncedFiyatArama.toLowerCase();
-                const productName = (
-                  urun.clean_product_name || urun.product_name
-                ).toLowerCase();
-                const category = (urun.category || '').toLowerCase();
-                return (
-                  productName.includes(searchLower) || category.includes(searchLower)
+                      <IconInfoCircle size={15} />
+                    </Box>
+                  </UnstyledButton>
                 );
-              }).length === 0 && (
+              })}
+
+              {filtrelenmisUrunler.length === 0 && (
                 <Center py="xl">
-                  <Stack align="center" gap="md">
-                    <IconPackages size={40} color="var(--mantine-color-gray-5)" />
+                  <Stack align="center" gap="sm">
+                    <ThemeIcon size="xl" variant="light" color="gray" radius="xl">
+                      <IconPackages size={24} />
+                    </ThemeIcon>
                     <Text size="sm" c="dimmed" ta="center">
                       {debouncedFiyatArama
                         ? 'Arama sonucu bulunamadı'
-                        : sadecegida
-                          ? 'Gıda ürünü bulunamadı'
-                          : 'Henüz fatura kalemi yok'}
+                        : seciliKategori !== 'tumu'
+                          ? 'Bu kategoride ürün yok'
+                          : 'Henüz ürün kartı oluşturulmamış'}
                     </Text>
                   </Stack>
                 </Center>
@@ -716,7 +788,7 @@ export function FiyatlarTab({
             </Stack>
           </ScrollArea>
         )}
-      </Paper>
+      </Box>
     </Stack>
   );
 }

@@ -1,32 +1,22 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActionIcon,
   Badge,
   Box,
   Button,
   Group,
-  Paper,
   Progress,
   Skeleton,
   Stack,
   Text,
+  ThemeIcon,
   Tooltip,
 } from '@mantine/core';
-import {
-  IconChevronDown,
-  IconCircleCheck,
-  IconClock,
-  IconRefresh,
-  IconSearch,
-  IconShoppingCart,
-  IconTag,
-  IconTrendingDown,
-  IconTrendingUp,
-} from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
+import { IconChevronDown, IconRefresh, IconSearch, IconShoppingCart } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { faturaKalemleriAPI, type RafFiyatSonuc } from '@/lib/api/services/fatura-kalemleri';
 
 // ─── TYPES ────────────────────────────────────────────────
@@ -48,14 +38,6 @@ function gunFarki(tarih: string | null | undefined): number {
   return Math.floor((Date.now() - new Date(tarih).getTime()) / (1000 * 60 * 60 * 24));
 }
 
-/** Güncellik rengi ve ikonu */
-function guncellikBilgisi(tarih: string | null | undefined) {
-  const gun = gunFarki(tarih);
-  if (gun <= 7) return { renk: 'green', ikon: IconCircleCheck, etiket: `${gun}g` };
-  if (gun <= 30) return { renk: 'yellow', ikon: IconClock, etiket: `${gun}g` };
-  return { renk: 'red', ikon: IconClock, etiket: `${gun}g` };
-}
-
 /** "3 gün önce" şeklinde relative date */
 function relativeDate(tarih: string | null | undefined): string {
   const gun = gunFarki(tarih);
@@ -70,20 +52,88 @@ function relativeDate(tarih: string | null | undefined): string {
 function parseBirimTipi(rf: RafFiyatSonuc): string {
   try {
     const k = rf.kaynaklar as unknown;
-    if (k && typeof k === 'object' && !Array.isArray(k) && 'birimTipi' in (k as Record<string, unknown>)) {
+    if (
+      k &&
+      typeof k === 'object' &&
+      !Array.isArray(k) &&
+      'birimTipi' in (k as Record<string, unknown>)
+    ) {
       return (k as Record<string, string>).birimTipi || 'kg';
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return 'kg';
 }
 
-/** Ambalaj bilgisini okunabilir formata dönüştür (0.2 → "200gr", 1 → "1 kg") */
-function formatAmbalaj(miktar: string | null | undefined): string | null {
+/** Kaynak tipini kaynaklar JSON'dan parse et */
+function parseKaynakTip(rf: RafFiyatSonuc): 'market' | 'toptanci_hal' | 'web_arama' {
+  try {
+    const k = rf.kaynaklar as unknown;
+    if (
+      k &&
+      typeof k === 'object' &&
+      !Array.isArray(k) &&
+      'kaynakTip' in (k as Record<string, unknown>)
+    ) {
+      const tip = (k as Record<string, string>).kaynakTip;
+      if (tip === 'toptanci_hal' || tip === 'web_arama') return tip;
+    }
+  } catch {
+    /* ignore */
+  }
+  return 'market';
+}
+
+/** Kaynak tipi label ve renk */
+function kaynakTipLabel(tip: 'market' | 'toptanci_hal' | 'web_arama'): {
+  label: string;
+  color: string;
+} {
+  switch (tip) {
+    case 'toptanci_hal':
+      return { label: 'Hal.gov.tr (Toptancı)', color: 'teal' };
+    case 'web_arama':
+      return { label: 'Web Arama (Tahmini)', color: 'yellow' };
+    default:
+      return { label: 'Market (Camgöz)', color: 'orange' };
+  }
+}
+
+/** Ambalaj bilgisini okunabilir formata dönüştür */
+function formatAmbalaj(
+  miktar: string | number | null | undefined,
+  birimTipi: string
+): string | null {
   if (!miktar) return null;
   const n = Number(miktar);
   if (!n || n <= 0) return null;
-  if (n >= 1) return `${n} kg`;
-  return `${Math.round(n * 1000)}gr`;
+  const birim = birimTipi === 'L' ? 'L' : 'kg';
+  if (n >= 1) return `${n}${birim}`;
+  if (birim === 'kg') return `${Math.round(n * 1000)}gr`;
+  return `${Math.round(n * 1000)}ml`;
+}
+
+/** Ürün adından marka kısmını çıkar */
+function temizUrunAdi(
+  urunAdi: string | null | undefined,
+  marka: string | null | undefined
+): string {
+  if (!urunAdi) return 'Ürün';
+  if (!marka) return urunAdi;
+  // Marka adını baştan temizle
+  const markaRegex = new RegExp(`^${marka.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*`, 'i');
+  return urunAdi.replace(markaRegex, '').trim() || urunAdi;
+}
+
+// Marka bazlı gruplama tipi
+interface MarkaGrubu {
+  marka: string;
+  urunler: RafFiyatSonuc[];
+  minFiyat: number;
+  maxFiyat: number;
+  ortFiyat: number;
+  marketSayisi: number;
 }
 
 // ─── COMPONENT ────────────────────────────────────────────
@@ -113,8 +163,8 @@ export function PiyasaFiyatlariSection({
 
       if (res.success && res.piyasa) {
         notifications.show({
-          title: 'Güncellendi',
-          message: `${res.piyasa.kaynaklar?.length || 0} sonuç bulundu`,
+          title: 'Piyasa Güncellendi',
+          message: `${res.piyasa.kaynaklar?.length || 0} market fiyatı bulundu`,
           color: 'green',
         });
       } else {
@@ -136,9 +186,7 @@ export function PiyasaFiyatlariSection({
   }, [productName, urunId, aramaLoading, queryClient]);
 
   // ─── Otomatik araştırma ───────────────────────────────
-  // Modal açıldığında: veri yoksa veya 7+ gün eskiyse otomatik tetikle
   useEffect(() => {
-    // Ürün değişince ref'i reset et
     if (urunId !== lastSearchedUrunId.current) {
       autoSearchTriggered.current = false;
       lastSearchedUrunId.current = urunId;
@@ -154,7 +202,6 @@ export function PiyasaFiyatlariSection({
     const eskiMi = !enYeniTarih || gunFarki(enYeniTarih) > 7;
 
     if (eskiMi) {
-      // 500ms debounce - hızlı modal açıp kapamayı engelle
       const timer = setTimeout(() => {
         if (autoSearchTriggered.current) return;
         autoSearchTriggered.current = true;
@@ -162,7 +209,15 @@ export function PiyasaFiyatlariSection({
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [modalOpened, productName, urunId, rafFiyatLoading, aramaLoading, rafFiyatlar, handlePiyasaArastir]);
+  }, [
+    modalOpened,
+    productName,
+    urunId,
+    rafFiyatLoading,
+    aramaLoading,
+    rafFiyatlar,
+    handlePiyasaArastir,
+  ]);
 
   // ─── Hesaplamalar ─────────────────────────────────────
   const birimFiyatlar = rafFiyatlar
@@ -171,9 +226,7 @@ export function PiyasaFiyatlariSection({
   const minFiyat = birimFiyatlar.length > 0 ? Math.min(...birimFiyatlar) : 0;
   const maxFiyat = birimFiyatlar.length > 0 ? Math.max(...birimFiyatlar) : 0;
   const ortFiyat =
-    birimFiyatlar.length > 0
-      ? birimFiyatlar.reduce((a, b) => a + b, 0) / birimFiyatlar.length
-      : 0;
+    birimFiyatlar.length > 0 ? birimFiyatlar.reduce((a, b) => a + b, 0) / birimFiyatlar.length : 0;
   const enYeniTarih = rafFiyatlar[0]?.arastirma_tarihi;
   const birimTipi = rafFiyatlar.length > 0 ? parseBirimTipi(rafFiyatlar[0]) : 'kg';
 
@@ -186,9 +239,46 @@ export function PiyasaFiyatlariSection({
         Number(b.birim_fiyat || b.piyasa_fiyat_ort || 0)
     );
 
-  const SHOW_LIMIT = 5;
+  // Marka bazlı gruplama
+  const markaGruplari: MarkaGrubu[] = (() => {
+    const grupMap = new Map<string, RafFiyatSonuc[]>();
+    for (const rf of sirali) {
+      const marka = rf.marka || 'Diğer';
+      const existing = grupMap.get(marka);
+      if (existing) {
+        existing.push(rf);
+      } else {
+        grupMap.set(marka, [rf]);
+      }
+    }
+    return Array.from(grupMap.entries())
+      .map(([marka, urunler]) => {
+        const fiyatlar = urunler
+          .map((u) => Number(u.birim_fiyat || u.piyasa_fiyat_ort || 0))
+          .filter((f) => f > 0);
+        return {
+          marka,
+          urunler,
+          minFiyat: fiyatlar.length > 0 ? Math.min(...fiyatlar) : 0,
+          maxFiyat: fiyatlar.length > 0 ? Math.max(...fiyatlar) : 0,
+          ortFiyat: fiyatlar.length > 0 ? fiyatlar.reduce((a, b) => a + b, 0) / fiyatlar.length : 0,
+          marketSayisi: new Set(urunler.map((u) => u.market_adi).filter(Boolean)).size,
+        };
+      })
+      .sort((a, b) => a.minFiyat - b.minFiyat);
+  })();
+
+  const SHOW_LIMIT = 8;
   const goruntulenecek = expanded ? sirali : sirali.slice(0, SHOW_LIMIT);
   const kalanSayi = sirali.length - SHOW_LIMIT;
+
+  // Benzersiz market sayısı
+  const benzersizMarketler = new Set(sirali.map((r) => r.market_adi).filter(Boolean));
+
+  // Kaynak tipleri (hangi veri kaynaklarından geldiğini göstermek için)
+  const kaynakTipleri = [...new Set(sirali.map((r) => parseKaynakTip(r)))] as Array<
+    'market' | 'toptanci_hal' | 'web_arama'
+  >;
 
   // ─── Loading state ────────────────────────────────────
   if (rafFiyatLoading) {
@@ -198,18 +288,22 @@ export function PiyasaFiyatlariSection({
   // ─── Veri yok → araştırma butonu ─────────────────────
   if (rafFiyatlar.length === 0 && !aramaLoading) {
     return (
-      <Paper p="md" withBorder radius="md">
+      <Box
+        p="md"
+        style={{
+          borderRadius: 'var(--mantine-radius-md)',
+          background: 'var(--mantine-color-dark-7)',
+          border: '1px solid var(--mantine-color-dark-4)',
+        }}
+      >
         <Group gap="xs" mb="sm">
-          <IconShoppingCart size={18} color="var(--mantine-color-dimmed)" />
+          <IconShoppingCart size={16} color="var(--mantine-color-dimmed)" />
           <Text fw={600} size="sm">
             Piyasa Fiyatları
           </Text>
         </Group>
         <Text size="xs" c="dimmed" mb="sm">
           Bu ürün için henüz piyasa fiyatı yok.
-          {aramaLoading
-            ? ' Araştırılıyor...'
-            : ' Camgöz.net üzerinden güncel fiyatlar çekilebilir.'}
         </Text>
         <Button
           variant="light"
@@ -222,22 +316,29 @@ export function PiyasaFiyatlariSection({
         >
           Piyasa Fiyatını Araştır
         </Button>
-      </Paper>
+      </Box>
     );
   }
 
-  // ─── Araştırma devam ediyor (veri var ama yenileniyor) ─
+  // ─── Araştırma devam ediyor ─────────────────────────
   if (aramaLoading && rafFiyatlar.length === 0) {
     return (
-      <Paper p="md" withBorder radius="md" bg="orange.0">
+      <Box
+        p="md"
+        style={{
+          borderRadius: 'var(--mantine-radius-md)',
+          background: 'var(--mantine-color-dark-7)',
+          border: '1px solid var(--mantine-color-dark-4)',
+        }}
+      >
         <Group gap="xs" mb="sm">
-          <IconShoppingCart size={18} color="var(--mantine-color-orange-7)" />
+          <IconShoppingCart size={16} color="var(--mantine-color-dimmed)" />
           <Text fw={600} size="sm">
             Piyasa Fiyatları
           </Text>
-          <Badge size="xs" variant="light" color="orange">
+          <Text size="xs" c="dimmed">
             Araştırılıyor...
-          </Badge>
+          </Text>
         </Group>
         <Stack gap="xs">
           <Skeleton height={16} width="70%" />
@@ -245,7 +346,7 @@ export function PiyasaFiyatlariSection({
           <Skeleton height={30} />
           <Skeleton height={30} />
         </Stack>
-      </Paper>
+      </Box>
     );
   }
 
@@ -257,17 +358,26 @@ export function PiyasaFiyatlariSection({
 
   // ─── Ana render ───────────────────────────────────────
   return (
-    <Paper p="md" withBorder radius="md" bg="orange.0">
-      {/* Header */}
+    <Box
+      p="md"
+      style={{
+        borderRadius: 'var(--mantine-radius-md)',
+        background: 'var(--mantine-color-dark-7)',
+        border: '1px solid var(--mantine-color-dark-4)',
+      }}
+    >
+      {/* ── Header ── */}
       <Group gap="xs" mb="sm" justify="space-between">
         <Group gap="xs">
-          <IconShoppingCart size={18} color="var(--mantine-color-orange-7)" />
+          <ThemeIcon size="sm" variant="light" color="orange" radius="xl">
+            <IconShoppingCart size={14} />
+          </ThemeIcon>
           <Text fw={600} size="sm">
             Piyasa Fiyatları
           </Text>
-          <Badge size="xs" variant="light" color="orange">
-            {sirali.length} sonuç
-          </Badge>
+          <Text size="xs" c="dimmed">
+            {sirali.length} fiyat · {benzersizMarketler.size} market
+          </Text>
         </Group>
         <Group gap={6}>
           {enYeniTarih && (
@@ -275,110 +385,167 @@ export function PiyasaFiyatlariSection({
               {relativeDate(enYeniTarih)}
             </Text>
           )}
-          <ActionIcon
-            variant="subtle"
-            color="orange"
-            size="sm"
-            loading={aramaLoading}
-            title="Piyasa fiyatlarını yenile"
-            onClick={() => {
-              autoSearchTriggered.current = true;
-              handlePiyasaArastir();
-            }}
-          >
-            <IconRefresh size={14} />
-          </ActionIcon>
+          <Tooltip label="Fiyatları yenile">
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              size="sm"
+              loading={aramaLoading}
+              onClick={() => {
+                autoSearchTriggered.current = true;
+                handlePiyasaArastir();
+              }}
+            >
+              <IconRefresh size={14} />
+            </ActionIcon>
+          </Tooltip>
         </Group>
       </Group>
 
-      {/* Karşılaştırma Barı */}
+      {/* ── Fatura vs Piyasa Karşılaştırma ── */}
       {fark !== null && (
-        <Paper p="xs" mb="sm" withBorder radius="sm" bg={fark < 0 ? 'green.0' : fark > 0 ? 'red.0' : 'gray.0'}>
+        <Box
+          p="sm"
+          mb="sm"
+          style={{
+            borderRadius: 'var(--mantine-radius-sm)',
+            background: 'var(--mantine-color-dark-6)',
+          }}
+        >
           <Group gap="xs" justify="space-between" wrap="nowrap">
-            <Group gap={6} wrap="nowrap">
-              {fark < 0 ? (
-                <IconTrendingDown size={16} color="var(--mantine-color-green-7)" />
-              ) : fark > 0 ? (
-                <IconTrendingUp size={16} color="var(--mantine-color-red-7)" />
-              ) : (
-                <IconTag size={16} />
-              )}
-              <Text size="xs" fw={500}>
-                Faturanız:{' '}
-                <Text span fw={700}>
-                  ₺{faturaFiyat.toFixed(2)}/{birimTipi}
+            <Box>
+              <Text size="xs" c="dimmed" lh={1}>
+                Fatura Fiyatı
+              </Text>
+              <Text size="sm" fw={700}>
+                ₺{faturaFiyat.toFixed(2)}
+                <Text span size="xs" fw={400} c="dimmed">
+                  /{birimTipi}
                 </Text>
               </Text>
-            </Group>
-            <Text size="xs" fw={700} c={fark < 0 ? 'green.7' : fark > 0 ? 'red.7' : 'gray.7'}>
-              {fark > 0 ? '+' : ''}
-              {fark.toFixed(1)}% {fark < 0 ? 'daha uygun' : fark > 0 ? 'daha pahalı' : 'ortalamada'}
-            </Text>
+            </Box>
+            <Box ta="center">
+              <Badge
+                size="md"
+                variant="light"
+                color={fark < -5 ? 'green' : fark > 5 ? 'red' : 'gray'}
+                radius="sm"
+              >
+                {fark > 0 ? '+' : ''}
+                {fark.toFixed(0)}%
+              </Badge>
+            </Box>
+            <Box ta="right">
+              <Text size="xs" c="dimmed" lh={1}>
+                Piyasa Ort.
+              </Text>
+              <Text size="sm" fw={700} c="orange">
+                ₺{ortFiyat.toFixed(2)}
+                <Text span size="xs" fw={400} c="dimmed">
+                  /{birimTipi}
+                </Text>
+              </Text>
+            </Box>
           </Group>
-          {/* Mini progress bar - fatura vs piyasa */}
-          <Progress.Root size="sm" mt={6} radius="xl">
+          <Progress.Root size={4} mt={8} radius="xl">
             <Progress.Section
-              value={Math.min(100, ortFiyat > 0 ? (Math.min(faturaFiyat, ortFiyat) / Math.max(faturaFiyat, ortFiyat)) * 100 : 50)}
-              color={fark < 0 ? 'green' : 'red'}
+              value={Math.min(
+                100,
+                ortFiyat > 0
+                  ? (Math.min(faturaFiyat, ortFiyat) / Math.max(faturaFiyat, ortFiyat)) * 100
+                  : 50
+              )}
+              color={fark < -5 ? 'green' : fark > 5 ? 'red' : 'gray'}
             />
           </Progress.Root>
-        </Paper>
+        </Box>
       )}
 
-      {/* Özet: Min / Ort / Max */}
-      <Group gap="xs" mb="sm" justify="space-between">
-        <Text size="xs" c="dimmed">
-          <Text span fw={700} c="green.7">
+      {/* ── Özet: Min / Ort / Max ── */}
+      <Box
+        p="xs"
+        mb="sm"
+        style={{
+          borderRadius: 'var(--mantine-radius-sm)',
+          background: 'var(--mantine-color-dark-6)',
+        }}
+      >
+        <Group gap="xs" justify="space-between">
+          <Text size="xs" fw={600} c="green" style={{ fontVariantNumeric: 'tabular-nums' }}>
             ₺{minFiyat.toFixed(2)}
           </Text>
-          {' ~ '}
-          <Text span fw={600} c="dimmed">
+          <Text size="xs" fw={500} c="dimmed" style={{ fontVariantNumeric: 'tabular-nums' }}>
             ₺{ortFiyat.toFixed(2)}
           </Text>
-          {' ~ '}
-          <Text span fw={700} c="red.7">
+          <Text size="xs" fw={600} c="red" style={{ fontVariantNumeric: 'tabular-nums' }}>
             ₺{maxFiyat.toFixed(2)}
           </Text>
-          <Text span c="dimmed">
-            {' '}
-            /{birimTipi}
-          </Text>
+        </Group>
+        <Progress.Root size={3} mt={4} radius="xl">
+          <Progress.Section value={33} color="green.8" />
+          <Progress.Section value={34} color="dark.3" />
+          <Progress.Section value={33} color="red.8" />
+        </Progress.Root>
+        <Text size="xs" c="dimmed" ta="center" mt={2}>
+          {birimTipi} basina fiyat araligi
         </Text>
-      </Group>
+      </Box>
 
-      {/* Ürün Listesi - Düz, birim fiyata göre sıralı */}
-      <Stack gap={4}>
+      {/* ── Marka özet şeridi ── */}
+      {markaGruplari.length > 1 && (
+        <Group gap={4} mb="sm" style={{ flexWrap: 'wrap' }}>
+          {markaGruplari.slice(0, 6).map((g) => (
+            <Tooltip
+              key={g.marka}
+              label={`${g.marka}: ₺${g.minFiyat.toFixed(0)}${g.minFiyat !== g.maxFiyat ? ` - ₺${g.maxFiyat.toFixed(0)}` : ''}/${birimTipi} (${g.urunler.length} sonuç)`}
+            >
+              <Badge
+                size="xs"
+                variant="light"
+                color="gray"
+                radius="sm"
+                style={{ cursor: 'default' }}
+              >
+                {g.marka} ₺{g.ortFiyat.toFixed(0)}
+              </Badge>
+            </Tooltip>
+          ))}
+        </Group>
+      )}
+
+      {/* ── Ürün Listesi ── */}
+      <Stack gap={2}>
         {goruntulenecek.map((rf) => {
           const fiyat = Number(rf.birim_fiyat || rf.piyasa_fiyat_ort || 0);
           const paketFiyat = Number(rf.piyasa_fiyat_ort || rf.birim_fiyat || 0);
           const isMin = fiyat > 0 && fiyat === minFiyat && birimFiyatlar.length > 1;
           const isMax = fiyat > 0 && fiyat === maxFiyat && birimFiyatlar.length > 1;
-          const guncBilgi = guncellikBilgisi(rf.arastirma_tarihi);
-          const GuncIkon = guncBilgi.ikon;
-          const ambalaj = formatAmbalaj(rf.ambalaj_miktar);
+          const ambalaj = formatAmbalaj(rf.ambalaj_miktar, birimTipi);
+          const cleanName = temizUrunAdi(rf.urun_adi, rf.marka);
+          const rfKaynakTip = parseKaynakTip(rf);
 
           return (
-            <Paper
+            <Box
               key={rf.id}
-              p="xs"
-              withBorder
-              radius="sm"
-              bg={isMin ? 'green.0' : isMax ? 'red.0' : 'white'}
-              style={
-                isMin
-                  ? { borderColor: 'var(--mantine-color-green-4)' }
+              px="xs"
+              py={6}
+              style={{
+                borderRadius: 'var(--mantine-radius-sm)',
+                background: 'var(--mantine-color-dark-6)',
+                borderLeft: isMin
+                  ? '3px solid var(--mantine-color-green-6)'
                   : isMax
-                    ? { borderColor: 'var(--mantine-color-red-4)' }
-                    : undefined
-              }
+                    ? '3px solid var(--mantine-color-red-6)'
+                    : '3px solid transparent',
+              }}
             >
-              <Group justify="space-between" wrap="nowrap" gap="xs">
-                {/* Sol: Birim fiyat (büyük) */}
+              <Group justify="space-between" wrap="nowrap" gap={6}>
+                {/* Sol: Birim fiyat */}
                 <Text
                   size="sm"
                   fw={700}
-                  c={isMin ? 'green.7' : isMax ? 'red.7' : 'orange.7'}
-                  style={{ minWidth: 80, fontVariantNumeric: 'tabular-nums' }}
+                  c={isMin ? 'green' : isMax ? 'red' : undefined}
+                  style={{ minWidth: 72, fontVariantNumeric: 'tabular-nums' }}
                 >
                   ₺{fiyat.toFixed(2)}
                   <Text span size="xs" fw={400} c="dimmed">
@@ -389,53 +556,48 @@ export function PiyasaFiyatlariSection({
                 {/* Orta: Ürün bilgisi */}
                 <Box style={{ flex: 1, minWidth: 0 }}>
                   <Group gap={4} wrap="nowrap">
-                    {rf.marka && (
-                      <Badge size="xs" variant="filled" color="dark" radius="sm" style={{ flexShrink: 0 }}>
+                    {rf.marka && rf.marka !== 'Diğer' && (
+                      <Text size="xs" c="dimmed" fw={500} style={{ flexShrink: 0 }}>
                         {rf.marka}
-                      </Badge>
+                      </Text>
                     )}
                     <Text size="xs" lineClamp={1} style={{ flex: 1 }}>
-                      {rf.marka
-                        ? (rf.urun_adi || '').replace(new RegExp(`^${rf.marka}\\s*`, 'i'), '')
-                        : rf.urun_adi || 'Ürün'}
+                      {cleanName}
                     </Text>
                   </Group>
-                  <Group gap={4} mt={2}>
-                    <Badge size="xs" variant="light" color="blue" radius="sm">
-                      {rf.market_adi || 'Piyasa'}
-                    </Badge>
-                    {ambalaj && (
-                      <Badge size="xs" variant="outline" color="gray" radius="sm">
-                        {ambalaj}
-                      </Badge>
+                  <Group gap={4} mt={1} wrap="nowrap">
+                    {rf.market_adi && rf.market_adi !== 'Piyasa' && (
+                      <Text size="xs" c="dimmed" lineClamp={1}>
+                        {rf.market_adi}
+                        {ambalaj ? ` · ${ambalaj}` : ''}
+                        {paketFiyat > 0 && paketFiyat !== fiyat
+                          ? ` · Paket ₺${paketFiyat.toFixed(2)}`
+                          : ''}
+                      </Text>
                     )}
-                    {paketFiyat > 0 && paketFiyat !== fiyat && (
-                      <Tooltip label={`Paket fiyatı: ₺${paketFiyat.toFixed(2)}`}>
-                        <Text size="xs" c="dimmed" style={{ cursor: 'help' }}>
-                          Paket: ₺{paketFiyat.toFixed(2)}
-                        </Text>
-                      </Tooltip>
+                    {rfKaynakTip !== 'market' && (
+                      <Badge
+                        size="xs"
+                        variant="light"
+                        color={rfKaynakTip === 'toptanci_hal' ? 'teal' : 'yellow'}
+                        style={{ flexShrink: 0 }}
+                      >
+                        {rfKaynakTip === 'toptanci_hal' ? 'Hal' : 'Web'}
+                      </Badge>
                     )}
                   </Group>
                 </Box>
-
-                {/* Sağ: Güncellik */}
-                <Tooltip label={`Araştırma: ${relativeDate(rf.arastirma_tarihi)}`}>
-                  <Box>
-                    <GuncIkon size={14} color={`var(--mantine-color-${guncBilgi.renk}-6)`} />
-                  </Box>
-                </Tooltip>
               </Group>
-            </Paper>
+            </Box>
           );
         })}
       </Stack>
 
-      {/* Daha fazla göster */}
+      {/* ── Daha fazla göster ── */}
       {kalanSayi > 0 && (
         <Button
           variant="subtle"
-          color="orange"
+          color="gray"
           size="xs"
           fullWidth
           mt={4}
@@ -453,6 +615,23 @@ export function PiyasaFiyatlariSection({
           {expanded ? 'Daha az göster' : `${kalanSayi} sonuç daha`}
         </Button>
       )}
-    </Paper>
+
+      {/* ── Kaynak bilgisi ── */}
+      <Group gap={4} justify="center" mt="xs">
+        {kaynakTipleri.map((tip) => {
+          const { label, color } = kaynakTipLabel(tip);
+          return (
+            <Badge key={tip} size="xs" variant="dot" color={color}>
+              {label}
+            </Badge>
+          );
+        })}
+        {benzersizMarketler.size > 0 && (
+          <Text size="xs" c="dimmed">
+            · {benzersizMarketler.size} kaynak
+          </Text>
+        )}
+      </Group>
+    </Box>
   );
 }

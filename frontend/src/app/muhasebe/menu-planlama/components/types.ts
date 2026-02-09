@@ -1,5 +1,9 @@
 import type { MaliyetOzetItem } from '@/lib/api/services/fatura-kalemleri';
 
+// ─── Navigasyon Tipleri ───────────────────────────────────────────
+
+export type SidebarCategory = 'planlama' | 'katalog' | 'analiz';
+
 // ─── Reçete / Yemek Tipleri ───────────────────────────────────────
 
 export interface ReceteYemek {
@@ -167,25 +171,14 @@ export type SeciliUrunDetayType = MaliyetOzetItem & {
   standard_unit?: string;
   price_per_unit?: number;
   fiyat_kaynagi?: 'fatura' | 'gecmis' | 'manuel' | null;
+  /** urun_kartlari.aktif_fiyat_tipi: FATURA | MANUEL | VARSAYILAN | PIYASA | null */
+  aktif_fiyat_tipi?: string | null;
+  /** urun_kartlari.manuel_fiyat */
+  manuel_fiyat?: number | null;
+  /** urun_kartlari.son_alis_fiyati (fatura fiyatı) */
+  son_alis_fiyati?: number | null;
   raf_fiyat?: number | null;
   raf_fiyat_tarihi?: string | null;
-};
-
-// React Query: Maliyet özeti – Single Source (fatura_kalemleri)
-export type FiyatListeUrun = MaliyetOzetItem & {
-  product_name: string;
-  category: string | null;
-  urun_id: number;
-  avg_unit_price: number;
-  min_unit_price: number;
-  max_unit_price: number;
-  total_amount: number;
-  invoice_count: number;
-  total_quantity: number;
-  is_food?: boolean;
-  clean_product_name?: string;
-  standard_unit?: string;
-  price_per_unit?: number;
 };
 
 // Son işlemler tablosu satır tipi

@@ -1,0 +1,12 @@
+.tab {
+  border-bottom: 2px solid transparent;
+  padding-block: 12px;
+  color: var(--mantine-color-dimmed);
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.tab[data-active] {
+  border-bottom-color: var(--mantine-color-blue-5);
+  color: var(--mantine-color-white);
+}

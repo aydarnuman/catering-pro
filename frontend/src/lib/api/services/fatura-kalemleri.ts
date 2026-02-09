@@ -83,16 +83,19 @@ export interface GuncelFiyat {
 export interface RafFiyatSonuc {
   id: number;
   urun_kart_id: number;
+  stok_kart_id: number | null;
   urun_adi: string;
   piyasa_fiyat_min: number | null;
   piyasa_fiyat_max: number | null;
   piyasa_fiyat_ort: number | null;
   birim_fiyat: number | null;
-  kaynaklar: Record<string, unknown>[] | null;
+  kaynaklar: Record<string, unknown> | null;
   arastirma_tarihi: string | null;
   market_adi: string | null;
   marka: string | null;
   ambalaj_miktar: string | null;
+  eslestirme_skoru: number | null;
+  arama_terimi: string | null;
 }
 
 export interface FiyatGecmisi {

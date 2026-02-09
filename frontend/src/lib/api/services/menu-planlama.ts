@@ -6,6 +6,34 @@
 import { api } from '@/lib/api';
 import type { ApiResponse } from '../types';
 
+// AI malzeme önerisi response tipleri
+export interface AiMalzemeItem {
+  malzeme_adi: string;
+  miktar: number;
+  birim?: string;
+  urun_kart_id?: number;
+  onerilen_urun_adi?: string;
+  kategori?: string;
+}
+
+export interface AiMalzemeOneriData {
+  malzemeler: AiMalzemeItem[];
+}
+
+export interface AiBatchSonuc {
+  recete_id: number;
+  malzemeler: AiMalzemeItem[];
+}
+
+export interface AiBatchOneriData {
+  sonuclar: AiBatchSonuc[];
+}
+
+export interface CreatedUrunKarti {
+  id: number;
+  ad: string;
+}
+
 // Reçete
 export interface Recete {
   id: number;
@@ -58,6 +86,51 @@ export interface ReceteKategori {
   aciklama?: string;
 }
 
+// Ürün Kartı Fiyat Bilgisi (analiz sayfası için)
+export interface UrunKartiFiyat {
+  id: number;
+  ad: string;
+  kod: string | null;
+  kategori_id: number | null;
+  kategori_adi: string | null;
+  varsayilan_birim: string;
+  fiyat_birimi: string | null;
+  aktif_fiyat: number | null;
+  aktif_fiyat_tipi: string | null;
+  son_alis_fiyati: number | null;
+  manuel_fiyat: number | null;
+  guncel_fiyat: number | null;
+  son_fiyat_guncelleme: string | null;
+  piyasa_fiyati: number | null;
+  piyasa_fiyat_tarihi: string | null;
+  aktif: boolean;
+  recete_sayisi: number;
+}
+
+// Piyasa Sync Durumu
+export interface PiyasaSyncDurum {
+  isRunning: boolean;
+  stats: {
+    totalRuns: number;
+    successfulRuns: number;
+    failedRuns: number;
+    lastRunAt: string | null;
+    lastError: string | null;
+    totalProductsUpdated: number;
+  };
+  config: {
+    schedules: string[];
+    maxProductsPerRun: number;
+    delayBetweenRequests: number;
+  };
+  recentLogs: Array<{
+    status: string;
+    started_at: string;
+    finished_at: string;
+    details: string;
+  }>;
+}
+
 // Menu Planlama API
 export const menuPlanlamaAPI = {
   /**
@@ -99,7 +172,7 @@ export const menuPlanlamaAPI = {
   /**
    * Reçete sil
    */
-  async deleteRecete(id: number): Promise<ApiResponse<any>> {
+  async deleteRecete(id: number): Promise<ApiResponse<unknown>> {
     const response = await api.delete(`/api/menu-planlama/receteler/${id}`);
     return response.data;
   },
@@ -131,7 +204,7 @@ export const menuPlanlamaAPI = {
   /**
    * Malzeme sil
    */
-  async deleteMalzeme(malzemeId: number): Promise<ApiResponse<any>> {
+  async deleteMalzeme(malzemeId: number): Promise<ApiResponse<unknown>> {
     const response = await api.delete(`/api/menu-planlama/malzemeler/${malzemeId}`);
     return response.data;
   },
@@ -140,7 +213,7 @@ export const menuPlanlamaAPI = {
    * Reçete maliyet analizi getir
    * Backend BackendMaliyetAnaliziResponse döndürüyor
    */
-  async getMaliyetAnalizi(receteId: number): Promise<ApiResponse<any>> {
+  async getMaliyetAnalizi(receteId: number): Promise<ApiResponse<unknown>> {
     const response = await api.get(`/api/maliyet-analizi/receteler/${receteId}/maliyet`);
     return response.data;
   },
@@ -161,7 +234,7 @@ export const menuPlanlamaAPI = {
   /**
    * AI malzeme önerisi
    */
-  async getAiMalzemeOneri(receteId: number, prompt: string): Promise<ApiResponse<any>> {
+  async getAiMalzemeOneri(receteId: number, prompt: string): Promise<ApiResponse<AiMalzemeOneriData>> {
     const response = await api.post(`/api/menu-planlama/receteler/${receteId}/ai-malzeme-oneri`, {
       prompt,
     });
@@ -171,10 +244,22 @@ export const menuPlanlamaAPI = {
   /**
    * Toplu AI malzeme önerisi
    */
-  async batchAiMalzemeOneri(receteIds: number[]): Promise<ApiResponse<any>> {
+  async batchAiMalzemeOneri(receteIds: number[]): Promise<ApiResponse<AiBatchOneriData>> {
     const response = await api.post('/api/menu-planlama/receteler/batch-ai-malzeme-oneri', {
       recete_ids: receteIds,
     });
+    return response.data;
+  },
+
+  /**
+   * Ürün kartlarını listele (fiyatlarıyla birlikte)
+   */
+  async getUrunKartlari(params?: {
+    kategori_id?: number;
+    arama?: string;
+    aktif?: string;
+  }): Promise<ApiResponse<UrunKartiFiyat[]>> {
+    const response = await api.get('/api/menu-planlama/urun-kartlari', { params });
     return response.data;
   },
 
@@ -186,8 +271,24 @@ export const menuPlanlamaAPI = {
     kategori_id?: number;
     varsayilan_birim?: string;
     fiyat_birimi?: string;
-  }): Promise<ApiResponse<any>> {
+  }): Promise<ApiResponse<CreatedUrunKarti>> {
     const response = await api.post('/api/menu-planlama/urun-kartlari', data);
+    return response.data;
+  },
+
+  /**
+   * Piyasa fiyat senkronizasyon durumunu getir
+   */
+  async getPiyasaSyncDurum(): Promise<ApiResponse<PiyasaSyncDurum>> {
+    const response = await api.get('/api/planlama/piyasa/sync/durum');
+    return response.data;
+  },
+
+  /**
+   * Piyasa fiyat senkronizasyonunu manuel tetikle
+   */
+  async tetiklePiyasaSync(): Promise<ApiResponse<{ message: string }>> {
+    const response = await api.post('/api/planlama/piyasa/sync/tetikle');
     return response.data;
   },
 };

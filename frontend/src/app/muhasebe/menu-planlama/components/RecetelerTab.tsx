@@ -27,7 +27,6 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { menuPlanlamaAPI, type Recete } from '@/lib/api/services/menu-planlama';
-import { API_BASE_URL } from '@/lib/config';
 import type { KategoriInfo } from './types';
 
 interface RecetelerTabProps {
@@ -54,14 +53,13 @@ export function RecetelerTab({
   const [hizliReceteLoading, setHizliReceteLoading] = useState(false);
 
   // Reçete kategorilerini API'den çek
-  const { data: receteKategorileriAPI = [] } = useQuery<
-    Array<{ id: number; kod: string; ad: string; ikon: string; sira: number }>
-  >({
+  type KategoriApiItem = { id: number; kod: string; ad: string; ikon: string; sira: number };
+  const { data: receteKategorileriAPI = [] } = useQuery<KategoriApiItem[]>({
     queryKey: ['recete-kategorileri-api'],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE_URL}/api/menu-planlama/kategoriler`);
-      const data = await res.json();
-      return data.success ? data.data : [];
+    queryFn: async (): Promise<KategoriApiItem[]> => {
+      const res = await menuPlanlamaAPI.getKategoriler();
+      if (!res.success || !Array.isArray(res.data)) return [];
+      return res.data as unknown as KategoriApiItem[];
     },
     staleTime: 60000,
   });
@@ -139,20 +137,15 @@ export function RecetelerTab({
     setHizliReceteLoading(true);
     try {
       // 1. Önce reçeteyi oluştur
-      const createRes = await fetch(`${API_BASE_URL}/api/menu-planlama/receteler`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ad: hizliReceteAdi.trim(),
-          kategori_id: hizliReceteKategoriId ? parseInt(hizliReceteKategoriId, 10) : null,
-          porsiyon_miktar: 1,
-          ai_olusturuldu: true,
-        }),
+      const createData = await menuPlanlamaAPI.createRecete({
+        ad: hizliReceteAdi.trim(),
+        kategori_id: hizliReceteKategoriId ? parseInt(hizliReceteKategoriId, 10) : undefined,
+        porsiyon_miktar: 1,
+        ai_olusturuldu: true,
       });
-      const createData = await createRes.json();
 
-      if (!createData.success) {
-        throw new Error(createData.error || 'Reçete oluşturulamadı');
+      if (!createData.success || !createData.data) {
+        throw new Error('Reçete oluşturulamadı');
       }
 
       const yeniReceteId = createData.data.id;
@@ -166,29 +159,18 @@ export function RecetelerTab({
         autoClose: false,
       });
 
-      const aiRes = await fetch(
-        `${API_BASE_URL}/api/menu-planlama/receteler/${yeniReceteId}/ai-malzeme-oneri`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-      const aiData = await aiRes.json();
+      const aiData = await menuPlanlamaAPI.getAiMalzemeOneri(yeniReceteId, hizliReceteAdi.trim());
 
       notifications.hide('ai-loading');
 
       if (aiData.success && aiData.data?.malzemeler?.length > 0) {
         // 3. AI önerdiği malzemeleri ekle
         for (const malzeme of aiData.data.malzemeler) {
-          await fetch(`${API_BASE_URL}/api/menu-planlama/receteler/${yeniReceteId}/malzemeler`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              malzeme_adi: malzeme.malzeme_adi,
-              miktar: malzeme.miktar,
-              birim: malzeme.birim || 'gr',
-              urun_kart_id: malzeme.urun_kart_id || null,
-            }),
+          await menuPlanlamaAPI.saveMalzeme(yeniReceteId, {
+            urun_adi: malzeme.malzeme_adi,
+            miktar: malzeme.miktar,
+            birim: malzeme.birim || 'gr',
+            urun_kart_id: malzeme.urun_kart_id || undefined,
           });
         }
 
