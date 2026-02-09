@@ -142,7 +142,7 @@ export function usePermissions() {
 
 // Modül adı -> Route eşleştirmesi
 export const MODULE_ROUTES: Record<string, string[]> = {
-  ihale: ['/tenders', '/upload', '/tracking', '/ihale-uzmani'],
+  ihale: ['/tenders', '/upload', '/tracking', '/ihale-merkezi', '/ihale-uzmani'],
   fatura: ['/muhasebe/faturalar'],
   cari: ['/muhasebe/cariler'],
   stok: ['/muhasebe/stok'],

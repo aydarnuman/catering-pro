@@ -355,7 +355,7 @@ export default function YukleniciKutuphanesiPage() {
             </div>
             <div>
               <Title order={2} style={{ letterSpacing: '-0.01em' }}>
-                Yuklenici Kutuphanesi
+                İhale İstihbarat
               </Title>
               <Text size="sm" c="dimmed" style={{ letterSpacing: '0.01em' }}>
                 Rakip firma istihbarat merkezi –{' '}

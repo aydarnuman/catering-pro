@@ -625,7 +625,7 @@ export function Navbar() {
                     <Box>
                       <Group justify="space-between" w="100%">
                         <Text size="sm" fw={500}>
-                          Yuklenici Kutuphanesi
+                          İhale İstihbarat
                         </Text>
                       </Group>
                       <Text size="xs" c="dimmed">

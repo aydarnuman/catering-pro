@@ -87,7 +87,7 @@ const allMenuGroups: MenuGroup[] = [
         badgeColor: 'violet',
       },
       {
-        label: 'Yuklenici Kutuphanesi',
+        label: 'İhale İstihbarat',
         href: '/yuklenici-kutuphanesi',
         icon: IconBuildingStore,
       },
