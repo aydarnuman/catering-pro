@@ -931,16 +931,18 @@ router.get('/fiyatlar/:urunId/raf-fiyat', async (req, res) => {
         pfg.arastirma_tarihi,
         pfg.market_adi,
         pfg.marka,
-        pfg.ambalaj_miktar
+        pfg.ambalaj_miktar,
+        pfg.eslestirme_skoru,
+        pfg.arama_terimi
       FROM piyasa_fiyat_gecmisi pfg
-      WHERE pfg.urun_kart_id = $1
-         OR pfg.stok_kart_id = $1
+      WHERE pfg.stok_kart_id = $1
+         OR pfg.urun_kart_id = $1
          OR pfg.urun_kart_id IN (
            SELECT uk2.id FROM urun_kartlari uk2
            WHERE LOWER(uk2.ad) = (SELECT LOWER(ad) FROM urun_kartlari WHERE id = $1)
          )
-      ORDER BY pfg.arastirma_tarihi DESC NULLS LAST
-      LIMIT 20
+      ORDER BY pfg.arastirma_tarihi DESC NULLS LAST, pfg.birim_fiyat ASC NULLS LAST
+      LIMIT 30
     `,
       [urunId]
     );

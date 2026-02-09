@@ -314,6 +314,7 @@ import scheduler from './services/sync-scheduler.js';
 // import { runMigrations } from './utils/migration-runner.js';
 // Yeni migration oluşturma: supabase migration new <isim>
 // Migration uygulama: supabase db push
+import piyasaSyncScheduler from './services/piyasa-sync-scheduler.js';
 import systemMonitor from './services/system-monitor.js';
 import tenderScheduler from './services/tender-scheduler.js';
 
@@ -522,6 +523,9 @@ const startServer = async () => {
 
       logger.info('🔔 Reminder notification scheduler başlatılıyor...');
       reminderNotificationScheduler.start();
+
+      logger.info('🛒 Piyasa fiyat sync scheduler başlatılıyor...');
+      piyasaSyncScheduler.start();
 
       logger.info('📡 System monitor hazır');
     });

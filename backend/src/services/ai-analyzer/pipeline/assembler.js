@@ -263,7 +263,11 @@ function assemblePersonnel(chunkResults) {
     const chunkId = chunkResult.chunk_id || chunkResult.chunkIndex;
 
     // Personel
-    const personnel = data.personnel || data.personel_detaylari || [];
+    let personnel = data.personnel || data.personel_detaylari || [];
+    // personnel bazen object olabilir ({staff: [...]}), array'e dönüştür
+    if (personnel && !Array.isArray(personnel)) {
+      personnel = personnel.staff || [];
+    }
     for (const p of personnel) {
       result.staff.push({
         ...p,

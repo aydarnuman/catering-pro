@@ -758,6 +758,98 @@ router.patch('/:id/fiyat', async (req, res) => {
   }
 });
 
+/**
+ * PATCH /api/urunler/:id/aktif-fiyat-sec
+ * Aktif fiyat kaynağını değiştir (FATURA / PIYASA / MANUEL)
+ * Body: { fiyat_tipi: 'FATURA' | 'PIYASA' | 'MANUEL', fiyat?: number }
+ */
+router.patch('/:id/aktif-fiyat-sec', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fiyat_tipi, fiyat } = req.body;
+
+    if (!fiyat_tipi || !['FATURA', 'PIYASA', 'MANUEL'].includes(fiyat_tipi.toUpperCase())) {
+      return res.status(400).json({ success: false, error: 'fiyat_tipi FATURA, PIYASA veya MANUEL olmalı' });
+    }
+
+    // Ürünü getir
+    const urunCheck = await query('SELECT * FROM urun_kartlari WHERE id = $1', [id]);
+    if (urunCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Ürün bulunamadı' });
+    }
+
+    const urun = urunCheck.rows[0];
+    const tipi = fiyat_tipi.toUpperCase();
+    let yeniFiyat = null;
+
+    if (tipi === 'FATURA') {
+      yeniFiyat = urun.son_alis_fiyati;
+      if (!yeniFiyat || yeniFiyat <= 0) {
+        return res.status(400).json({ success: false, error: 'Bu ürün için fatura fiyatı bulunamadı' });
+      }
+    } else if (tipi === 'PIYASA') {
+      // piyasa_fiyat_gecmisi tablosundan son ortalama fiyatı al
+      const piyasaRes = await query(
+        `SELECT COALESCE(piyasa_fiyat_ort, birim_fiyat) as fiyat
+         FROM piyasa_fiyat_gecmisi 
+         WHERE urun_kart_id = $1 OR stok_kart_id IN (
+           SELECT id FROM stok_kartlari WHERE urun_kart_id = $1
+         )
+         ORDER BY arastirma_tarihi DESC NULLS LAST
+         LIMIT 1`,
+        [id]
+      );
+      yeniFiyat = piyasaRes.rows[0]?.fiyat;
+      if (!yeniFiyat || Number(yeniFiyat) <= 0) {
+        return res.status(400).json({ success: false, error: 'Bu ürün için piyasa fiyatı bulunamadı' });
+      }
+      yeniFiyat = Number(yeniFiyat);
+    } else if (tipi === 'MANUEL') {
+      yeniFiyat = fiyat || urun.manuel_fiyat;
+      if (!yeniFiyat || yeniFiyat <= 0) {
+        return res.status(400).json({ success: false, error: 'Manuel fiyat giriniz' });
+      }
+      // Manuel fiyatı da kaydet
+      await query('UPDATE urun_kartlari SET manuel_fiyat = $1 WHERE id = $2', [yeniFiyat, id]);
+    }
+
+    // aktif_fiyat ve aktif_fiyat_tipi güncelle
+    const result = await query(
+      `UPDATE urun_kartlari 
+       SET aktif_fiyat = $1, 
+           aktif_fiyat_tipi = $2,
+           updated_at = NOW()
+       WHERE id = $3 
+       RETURNING *`,
+      [yeniFiyat, tipi, id]
+    );
+
+    // Fiyat geçmişine kaydet
+    await query(
+      `INSERT INTO urun_fiyat_gecmisi (urun_kart_id, fiyat, kaynak, aciklama, tarih)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [id, yeniFiyat, tipi.toLowerCase(), `Aktif fiyat kaynağı ${tipi} olarak değiştirildi`]
+    );
+
+    logger.info(`Aktif fiyat kaynağı değişti: ${urun.ad} | ${tipi} → ₺${yeniFiyat}`, {
+      urunId: id,
+      urunAdi: urun.ad,
+      eskiTipi: urun.aktif_fiyat_tipi,
+      yeniTipi: tipi,
+      yeniFiyat,
+    });
+
+    res.json({
+      success: true,
+      data: result.rows[0],
+      message: `${urun.ad} aktif fiyatı ${tipi} olarak güncellendi: ₺${yeniFiyat}`,
+    });
+  } catch (error) {
+    logger.error('Aktif fiyat kaynak değiştirme hatası', { error: error.message, stack: error.stack });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // =============================================
 // ÜRÜN KATEGORİLERİ
 // =============================================

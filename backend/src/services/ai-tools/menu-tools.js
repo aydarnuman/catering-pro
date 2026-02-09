@@ -385,12 +385,18 @@ export const menuToolImplementations = {
         `
         SELECT 
           rm.*,
-          sk.son_alis_fiyat as sistem_fiyat,
-          (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi 
-           WHERE stok_kart_id = rm.stok_kart_id 
-           ORDER BY arastirma_tarihi DESC LIMIT 1) as piyasa_fiyat
+          COALESCE(urk.aktif_fiyat, urk.son_alis_fiyati, 0) as sistem_fiyat,
+          COALESCE(
+            (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi 
+             WHERE (urun_kart_id = rm.urun_kart_id AND rm.urun_kart_id IS NOT NULL)
+               OR (stok_kart_id = rm.stok_kart_id AND rm.stok_kart_id IS NOT NULL)
+             ORDER BY arastirma_tarihi DESC LIMIT 1),
+            (SELECT piyasa_fiyat_ort FROM piyasa_fiyat_gecmisi 
+             WHERE LOWER(urun_adi) LIKE '%' || LOWER(rm.malzeme_adi) || '%'
+             ORDER BY arastirma_tarihi DESC LIMIT 1)
+          ) as piyasa_fiyat
         FROM recete_malzemeler rm
-        LEFT JOIN stok_kartlari sk ON sk.id = rm.stok_kart_id
+        LEFT JOIN urun_kartlari urk ON urk.id = rm.urun_kart_id
         WHERE rm.recete_id = $1
         ORDER BY rm.sira
       `,
@@ -657,9 +663,9 @@ export const menuToolImplementations = {
 
       const malzemeResult = await query(
         `
-        SELECT rm.*, sk.ad as stok_adi
+        SELECT rm.*, urk.ad as stok_adi
         FROM recete_malzemeler rm
-        LEFT JOIN stok_kartlari sk ON sk.id = rm.stok_kart_id
+        LEFT JOIN urun_kartlari urk ON urk.id = rm.urun_kart_id
         WHERE rm.recete_id = $1
         ORDER BY rm.toplam_fiyat DESC NULLS LAST
       `,

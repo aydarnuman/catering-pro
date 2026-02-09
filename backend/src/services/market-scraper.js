@@ -1,7 +1,7 @@
 /**
- * Market Fiyat Servisi - Camgöz API
+ * Market Fiyat Servisi - Camgöz API v2
  * camgoz.net üzerinden 45+ Türkiye marketi fiyat karşılaştırma
- * Puppeteer gerektirmez - hafif HTTP + HTML parse
+ * Gelişmiş: Çoklu arama, akıllı alaka filtreleme, marka ayrıştırma
  */
 
 import * as cheerio from 'cheerio';
@@ -15,21 +15,160 @@ import * as cheerio from 'cheerio';
 function parseTurkishPrice(text) {
   if (!text) return null;
   const cleaned = text.trim();
-  // "1.249,90" → 1249.90
   if (cleaned.includes(',') && cleaned.includes('.')) {
     return parseFloat(cleaned.replace(/\./g, '').replace(',', '.'));
   }
-  // "39,5" → 39.5
   if (cleaned.includes(',')) {
     return parseFloat(cleaned.replace(',', '.'));
   }
-  // "249.90" → 249.90
   return parseFloat(cleaned);
+}
+
+// ─── BİLİNEN MARKALAR ───────────────────────────────────
+
+const KNOWN_BRANDS = new Set([
+  // Süt / Peynir
+  'pınar', 'sütaş', 'eker', 'muratbey', 'tahsildaroğlu', 'bahçıvan', 'ülker',
+  'danone', 'içim', 'mis', 'torku', 'tukaş', 'sek', 'president', 'milka',
+  // Yağ
+  'komili', 'kristal', 'yudum', 'orkide', 'luna', 'becel', 'altınbaşak',
+  // Bakliyat / Tahıl
+  'yayla', 'duru', 'reis', 'nuh\'un ankara', 'barilla', 'arbella', 'filiz',
+  // Et / Tavuk / Sucuk
+  'banvit', 'pınar', 'namet', 'mudurnu', 'beşler', 'polonez', 'cumhuriyet',
+  // Konserve / Salça
+  'tat', 'tamek', 'penguen', 'öncü', 'sera', 'doğanay',
+  // Genel FMCG
+  'heinz', 'knorr', 'calve', 'bizim', 'nescafe', 'nestle', 'lipton', 'doğadan',
+  'burcu', 'kemal kükrer', 'dalan', 'doğuş', 'çaykur', 'ofçay', 'beta',
+  // Baharat / Sos
+  'bağdat', 'arifoğlu', 'ana bahçe',
+  // Market markaları
+  'chef\'s basket', 'a101', 'şok', 'bim', 'migros', 'file', 'happy valley',
+  // Şeker / Un
+  'balküpü', 'billur', 'sinangil', 'söke', 'ulusoy',
+  // Zeytin / Zeytinyağı
+  'tariş', 'marmarabirlik', 'gemlik', 'kırlangıç', 'madra',
+]);
+
+/**
+ * Ürün adından marka, ürün ismi ve ambalaj bilgisini ayrıştır
+ */
+function parseProductName(productName) {
+  const original = (productName || '').trim();
+  const lower = original.toLowerCase();
+
+  // Ambalaj pattern'i
+  const ambalajMatch = lower.match(/(\d+[.,]?\d*)\s*(kg|kilo|gr|gram|g|lt|litre|l|ml|cl|adet|ad)\b/i);
+  let ambalajMiktar = null;
+  let ambalajBirim = null;
+  let ambalajText = '';
+
+  if (ambalajMatch) {
+    ambalajText = ambalajMatch[0];
+    const miktar = parseFloat(ambalajMatch[1].replace(',', '.'));
+    const birimRaw = ambalajMatch[2].toLowerCase();
+
+    if (['gr', 'gram', 'g'].includes(birimRaw)) {
+      ambalajMiktar = miktar / 1000;
+      ambalajBirim = 'kg';
+    } else if (['ml'].includes(birimRaw)) {
+      ambalajMiktar = miktar / 1000;
+      ambalajBirim = 'L';
+    } else if (['cl'].includes(birimRaw)) {
+      ambalajMiktar = miktar / 100;
+      ambalajBirim = 'L';
+    } else if (['kg', 'kilo'].includes(birimRaw)) {
+      ambalajMiktar = miktar;
+      ambalajBirim = 'kg';
+    } else if (['lt', 'litre', 'l'].includes(birimRaw)) {
+      ambalajMiktar = miktar;
+      ambalajBirim = 'L';
+    } else {
+      ambalajMiktar = miktar;
+      ambalajBirim = 'adet';
+    }
+  }
+
+  // Çoklu paket pattern (x4, x6, 4'lü, 6'lı)
+  const multiPackMatch = lower.match(/[x×]\s*(\d+)|(\d+)\s*['']?\s*(lı|li|lu|lü|adet)\b/i);
+  let multiPackCount = null;
+  if (multiPackMatch) {
+    multiPackCount = parseInt(multiPackMatch[1] || multiPackMatch[2], 10);
+  }
+
+  // Marka tespiti - kelimeleri kontrol et
+  const words = original.split(/\s+/);
+  let marka = null;
+  let markaEndIdx = 0;
+
+  // 1) İlk 1-2 kelimeyi bilinen markalarla kontrol et
+  for (let len = Math.min(3, words.length); len >= 1; len--) {
+    const candidate = words.slice(0, len).join(' ').toLowerCase();
+    if (KNOWN_BRANDS.has(candidate)) {
+      marka = words.slice(0, len).join(' ');
+      markaEndIdx = len;
+      break;
+    }
+  }
+
+  // 2) Bilinen marka bulunamazsa, büyük harfle başlayan ilk kelime + ürün adında 2+ kelime varsa
+  if (!marka && words.length >= 2) {
+    const firstWord = words[0];
+    // Büyük harfle başlıyor ve sayı içermiyor
+    if (/^[A-ZÇĞIİÖŞÜ]/.test(firstWord) && !/\d/.test(firstWord)) {
+      // Ürün kelimesi değilse marka kabul et
+      const foodKeywords = [
+        // Sebzeler
+        'domates', 'biber', 'soğan', 'patates', 'salatalık', 'patlıcan', 'kabak',
+        'havuç', 'marul', 'ıspanak', 'lahana', 'turp', 'enginar', 'kereviz',
+        // Meyveler
+        'elma', 'portakal', 'muz', 'üzüm', 'limon', 'kayısı', 'erik', 'kiraz',
+        // Temel gıda
+        'pirinç', 'bulgur', 'makarna', 'un', 'şeker', 'tuz',
+        'süt', 'yoğurt', 'peynir', 'tereyağı', 'ayçiçek', 'zeytinyağı',
+        'tavuk', 'dana', 'kuzu', 'kıyma', 'nohut', 'mercimek', 'fasulye',
+        // Türler/varyantlar
+        'sızma', 'riviera', 'baldo', 'osmancık', 'basmati',
+        'spagetti', 'burgu', 'penne', 'erişte',
+        // Renkler (ürün tanımlayıcı olarak: kırmızı mercimek, yeşil mercimek vb.)
+        'kırmızı', 'yeşil', 'sarı', 'beyaz', 'siyah', 'kahverengi', 'mor',
+        // Boyut/durum tanımlayıcıları
+        'kuru', 'taze', 'dondurulmuş', 'konserve', 'organik', 'yerli', 'ithal',
+        'kaymaksız', 'yarım', 'tam', 'yağlı', 'yağsız', 'light',
+        'ince', 'kalın', 'küçük', 'büyük', 'orta', 'jumbo', 'ekstra',
+        'çiğ', 'haşlanmış', 'közlenmiş', 'kurutulmuş', 'tütsülenmiş',
+      ];
+      if (!foodKeywords.includes(firstWord.toLowerCase())) {
+        marka = firstWord;
+        markaEndIdx = 1;
+      }
+    }
+  }
+
+  // Ürün adını markasız hale getir
+  const urunAdiParts = marka ? words.slice(markaEndIdx) : words;
+  // Ambalajı da çıkar
+  const urunAdi = urunAdiParts.join(' ')
+    .replace(/\d+[.,]?\d*\s*(kg|kilo|gr|gram|g|lt|litre|l|ml|cl|adet|ad)\b/gi, '')
+    .replace(/[x×]\s*\d+/gi, '')
+    .replace(/\d+\s*['']?\s*(lı|li|lu|lü)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return {
+    original,
+    marka,
+    urunAdi: urunAdi || original,
+    ambalajMiktar,
+    ambalajBirim,
+    ambalajText,
+    multiPackCount,
+  };
 }
 
 /**
  * Camgöz API'den fiyat çek (45+ market)
- * camgoz.net /search-product endpoint'i - HTML parse
  */
 async function fetchCamgozPrices(searchTerm) {
   const results = [];
@@ -39,10 +178,10 @@ async function fetchCamgozPrices(searchTerm) {
 
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; CateringPro/1.0)',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         Accept: 'text/html',
       },
-      signal: AbortSignal.timeout(15000), // 15s timeout
+      signal: AbortSignal.timeout(15000),
     });
 
     if (!response.ok) return results;
@@ -56,8 +195,8 @@ async function fetchCamgozPrices(searchTerm) {
       if (!urunAdi) return;
 
       const barkod = $row.find('td[data-label="Barkod"] a').text().trim();
+      const parsed = parseProductName(urunAdi);
 
-      // Sonraki tr.price-details'den market fiyatlarını al
       const $priceRow = $row.next('tr.price-details');
 
       $priceRow.find('.border.p-2.rounded').each((_j, priceBox) => {
@@ -74,6 +213,10 @@ async function fetchCamgozPrices(searchTerm) {
             fiyat,
             birim: 'adet',
             barkod: barkod || undefined,
+            marka: parsed.marka,
+            urunAdiTemiz: parsed.urunAdi,
+            ambalajMiktar: parsed.ambalajMiktar,
+            ambalajBirim: parsed.ambalajBirim,
           });
         }
       });
@@ -85,205 +228,275 @@ async function fetchCamgozPrices(searchTerm) {
   return results;
 }
 
-// ─── FİLTRELEME ──────────────────────────────────────────
+// ─── FİLTRELEME (v2 - SKORLAMA BAZLI) ───────────────────
+
+// Gıda dışı anahtar kelimeler
+const NON_FOOD_KEYWORDS = new Set([
+  'deterjan', 'temizlik', 'matik', 'çamaşır', 'bulaşık', 'yumuşatıcı',
+  'şampuan', 'losyon', 'parfüm', 'deodorant', 'kolonya', 'duş jeli', 'saç kremi',
+  'bebek bezi', 'ıslak havlu', 'ıslak mendil',
+  'tuvalet kağıdı', 'peçete', 'çöp torbası', 'poşet', 'folyo', 'streç',
+  'silikon', 'demlik', 'süzgeç', 'bardak', 'tabak', 'çatal', 'kaşık', 'bıçak',
+  'tencere', 'tava', 'kevgir', 'rende', 'spatula', 'tepsi', 'kavanoz', 'saklama kabı',
+  'köpek maması', 'kedi maması', 'pet food',
+  'oyuncak', 'kitap', 'dergi', 'kırtasiye', 'elektronik', 'mum', 'dekoratif',
+  'omega', 'vitamin', 'takviye', 'kapsül', 'tablet', 'balance oil', 'kür',
+  // Mutfak aletleri / eşyaları
+  'aparat', 'önleyici', 'kaynatma', 'taşırmaz', 'cam', 'termos', 'matara',
+  'mandal', 'askı', 'paspas', 'fırça', 'sünger', 'bez', 'eldiven',
+  // Kişisel bakım
+  'sabun', 'el kremi', 'diş macunu', 'diş fırçası', 'ağız bakım',
+]);
 
 /**
- * Alakasız ürünleri filtrele (GIDA DIŞI)
+ * Alaka skoru hesapla (0-100)
+ * 0 = alakasız, 100 = mükemmel eşleşme
  */
-function isRelevantProduct(searchTerm, productName) {
-  const search = searchTerm.toLowerCase();
-  const product = productName.toLowerCase();
+/**
+ * Ürün adında kelime tam olarak (bağımsız) geçiyor mu?
+ * "süt" → "Pınar Süt 1L" ✓ ama "Sütlü Çikolata" ✗
+ */
+function hasWholeWord(text, word) {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[\\s\\-/,.()])${escaped}([\\s\\-/,.()]|$)`, 'i').test(text);
+}
 
-  // GIDA DIŞI kategoriler
-  const nonFoodCategories = [
-    // Temizlik
-    'deterjan',
-    'temizlik',
-    'matik',
-    'çamaşır',
-    'bulaşık',
-    'yumuşatıcı',
-    'çamaşır suyu',
-    'toz deterjan',
-    'sıvı deterjan',
-    // Kişisel bakım
-    'şampuan',
-    'losyon',
-    'parfüm',
-    'deodorant',
-    'kolonya',
-    'duş jeli',
-    'saç kremi',
-    'cilt bakım',
-    // Bebek (gıda dışı)
-    'bebek bezi',
-    'ıslak havlu',
-    'bebek havlusu',
-    'ıslak mendil',
-    // Kağıt/Ambalaj
-    'tuvalet kağıdı',
-    'peçete',
-    'mendil',
-    'çöp torbası',
-    'poşet',
-    'folyo',
-    'streç',
-    'buzdolabı poşet',
-    'kese kağıdı',
-    // Mutfak araç/gereç
-    'silikon',
-    'demlik',
-    'süzgeç',
-    'bardak',
-    'tabak',
-    'çatal',
-    'kaşık',
-    'bıçak',
-    'tencere',
-    'tava',
-    'kevgir',
-    'rende',
-    'doğrama tahtası',
-    'spatula',
-    'servis',
-    'tepsi',
-    'kavanoz',
-    'saklama kabı',
-    // Hayvan maması
-    'köpek maması',
-    'kedi maması',
-    'pet food',
-    // Diğer
-    'oyuncak',
-    'kitap',
-    'dergi',
-    'kırtasiye',
-    'elektronik',
-    'mum',
-    'dekoratif',
-    'figür',
-    'süs',
-    'aksesuar',
-    'marker',
-    'kalem',
-  ];
+/**
+ * Türkçe kelime eşleşme skoru
+ * Tam kelime > Gramer eki (yağ→yağı) > Türetme eki (süt→sütlü) > Eşleşme yok
+ */
+function wordMatchScore(product, word) {
+  // 1. Tam kelime eşleşmesi
+  if (hasWholeWord(product, word)) return 1.0;
 
-  for (const cat of nonFoodCategories) {
-    if (product.includes(cat) && !search.includes(cat)) {
-      return false;
+  // 2. Ürün kelimelerinde prefix kontrolü (Türkçe ek sistemi)
+  const productWords = product.split(/[\s\-/,.()+]+/).filter((w) => w.length >= 2);
+  for (const pw of productWords) {
+    if (pw.startsWith(word) && pw.length > word.length) {
+      const suffix = pw.slice(word.length);
+      // Türetme ekleri (sütlü, yağlı vb.) → düşük skor (farklı ürün)
+      if (/^l[ıiuü]/i.test(suffix)) return 0.25;
+      // Gramer ekleri (yağı, peyniri, unu) → yüksek skor (aynı ürün)
+      if (suffix.length <= 2) return 0.9;
+      if (suffix.length <= 4) return 0.7;
     }
   }
 
-  // Özel durumlar
-  if (product.includes('havlu') && !search.includes('havlu')) return false;
-  if (product.includes('kokulu') && !search.includes('kokulu')) return false;
-
-  // Gıda takviyesi / vitamin
-  const supplementKeywords = ['omega', 'vitamin', 'balance oil', 'takviye', 'kapsül', 'tablet'];
-  for (const kw of supplementKeywords) {
-    if (product.includes(kw) && !search.includes(kw)) return false;
+  // 3. Uzun kelimelerde kök eşleşmesi
+  if (word.length >= 5) {
+    const stem = word.slice(0, word.length - 2);
+    for (const pw of productWords) {
+      if (pw.startsWith(stem)) return 0.5;
+    }
   }
 
-  // "Kür" ürünleri
-  if (product.includes('kür') && !search.includes('kür')) return false;
+  return 0;
+}
 
-  // Bileşik isimler (limon tuzu, limon suyu vs.)
-  const searchMainWord = search.split(/\s+/)[0];
-  const otherFoods = ['tuzu', 'suyu', 'sosu', 'aroması', 'özü', 'yağı'];
+function calculateRelevanceScore(searchTerm, productName) {
+  const search = searchTerm.toLowerCase().replace(/\d+\s*(kg|gr|g|lt|l|ml|adet)/gi, '').trim();
+  const product = productName.toLowerCase();
 
-  if (searchMainWord.length >= 3) {
-    for (const food of otherFoods) {
-      if (product.includes(searchMainWord) && product.includes(food) && !search.includes(food.replace('u', ''))) {
-        return false;
+  // 1. Gıda dışı kontrol (hemen eleme)
+  for (const kw of NON_FOOD_KEYWORDS) {
+    if (product.includes(kw) && !search.includes(kw)) return 0;
+  }
+
+  // Özel durumlar
+  if (product.includes('havlu') && !search.includes('havlu')) return 0;
+  if (product.includes('kokulu') && !search.includes('kokulu')) return 0;
+
+  // 2. Arama kelimelerini çıkar
+  const searchWords = search.split(/\s+/).filter((w) => w.length >= 2);
+  if (searchWords.length === 0) return 50; // Çok kısa arama
+
+  // 3. Kelime eşleşmesi (gelişmiş: kelime sınırı + Türkçe ek sistemi)
+  let matchedCount = 0;
+  let totalWeight = 0;
+
+  for (let i = 0; i < searchWords.length; i++) {
+    const word = searchWords[i];
+    const weight = i === 0 ? 3 : 1; // İlk kelime (ana ürün) daha ağırlıklı
+    totalWeight += weight;
+
+    const score = wordMatchScore(product, word);
+    matchedCount += weight * score;
+  }
+
+  const baseScore = (matchedCount / totalWeight) * 100;
+
+  // 4. Bileşik isim cezası (limon aramasında limon tuzu, limon sosu çıkmasın)
+  // Ama "yağ" aramasında "Ayçiçek Yağı" cezalanmamalı (ana ürünün kendisi)
+  const suffixes = ['tuzu', 'suyu', 'sosu', 'aroması', 'özü', 'yağı', 'sirkesi'];
+  const mainWord = searchWords[0];
+  if (mainWord && mainWord.length >= 3) {
+    for (const suffix of suffixes) {
+      // Suffix'in kökü arama kelimesiyse ceza verme (yağ → yağı, su → suyu)
+      const suffixRoot = suffix.replace(/[ıiuüsş]+$/g, '');
+      if (mainWord === suffixRoot || mainWord.startsWith(suffixRoot) || suffixRoot.startsWith(mainWord)) {
+        continue; // Ana ürün zaten bu kategori
+      }
+      if (product.includes(mainWord) && product.includes(suffix) && !search.includes(suffix.replace(/[uü]$/, ''))) {
+        return Math.min(baseScore, 20); // Düşük skor
       }
     }
   }
 
-  // Arama kelimelerinden en az %40'ı eşleşmeli
-  const searchWords = search
-    .replace(/\d+\s*(kg|gr|g|lt|l|ml|adet)/gi, '')
-    .split(/\s+/)
-    .filter((w) => w.length >= 2);
-
-  const matchedWords = searchWords.filter((word) => product.includes(word));
-  if (matchedWords.length < searchWords.length * 0.4) return false;
-
-  return true;
+  return Math.round(baseScore);
 }
 
-// ─── BİRİM FİYAT ────────────────────────────────────────
+/**
+ * Alakasız ürünleri filtrele (skor bazlı)
+ * @exports - piyasa-tools ve test'ler tarafından kullanılabilir
+ */
+export function isRelevantProduct(searchTerm, productName, minScore = 50) {
+  return calculateRelevanceScore(searchTerm, productName) >= minScore;
+}
+
+// ─── BİRİM FİYAT (v2) ──────────────────────────────────
 
 /**
  * Birim fiyat hesapla (kg/L standardizasyonu)
+ * Gelişmiş: Çoklu paket, compound birim desteği
  */
-function calculateUnitPrice(price, productName) {
+function calculateUnitPrice(price, productName, targetUnit = null) {
   const lowerName = (productName || '').toLowerCase();
 
+  // Çoklu paket kontrolü (örn: "6x200ml", "4'lü 500g")
+  const multiMatch = lowerName.match(/(\d+)\s*[x×]\s*(\d+[.,]?\d*)\s*(kg|kilo|gr|gram|g|lt|litre|l|ml|cl)/i);
+  if (multiMatch) {
+    const count = parseInt(multiMatch[1], 10);
+    let amount = parseFloat(multiMatch[2].replace(',', '.'));
+    const birim = multiMatch[3].toLowerCase();
+
+    if (['gr', 'gram', 'g'].includes(birim)) amount = amount / 1000;
+    else if (['ml'].includes(birim)) amount = amount / 1000;
+    else if (['cl'].includes(birim)) amount = amount / 100;
+
+    const totalAmount = count * amount;
+    const unit = ['lt', 'litre', 'l', 'ml', 'cl'].includes(birim) ? 'L' : 'kg';
+    const unitPrice = Math.round((price / totalAmount) * 100) / 100;
+
+    return { unitPrice, perUnit: unit, ambalajMiktar: totalAmount };
+  }
+
+  // Tek birim pattern'leri
   const patterns = [
-    { pattern: /(\d+[.,]?\d*)\s*(kg|kilo)\b/i, unit: 'kg', divideBy: 1 },
-    { pattern: /(\d+[.,]?\d*)\s*(gr|g)\b/i, unit: 'kg', divideBy: 1000 },
-    { pattern: /(\d+[.,]?\d*)\s*(lt|l|litre)\b/i, unit: 'L', divideBy: 1 },
-    { pattern: /(\d+[.,]?\d*)\s*(ml)\b/i, unit: 'L', divideBy: 1000 },
-    { pattern: /x\s*(\d+)\b/i, unit: 'adet', divideBy: 1 },
-    { pattern: /(\d+)\s*['']?\s*(li|lu|lı|lü)\b/i, unit: 'adet', divideBy: 1 },
-    { pattern: /(\d+)\s*(adet)/i, unit: 'adet', divideBy: 1 },
+    { pattern: /(\d+[.,]?\d*)\s*(kg|kilo)\b/i, unit: 'kg', divisor: 1 },
+    { pattern: /(\d+[.,]?\d*)\s*(gr|gram|g)\b/i, unit: 'kg', divisor: 1000 },
+    { pattern: /(\d+[.,]?\d*)\s*(lt|litre|l)\b/i, unit: 'L', divisor: 1 },
+    { pattern: /(\d+[.,]?\d*)\s*(ml)\b/i, unit: 'L', divisor: 1000 },
+    { pattern: /(\d+[.,]?\d*)\s*(cl)\b/i, unit: 'L', divisor: 100 },
+    { pattern: /(\d+)\s*['']?\s*(lı|li|lu|lü)\b/i, unit: 'adet', divisor: 1 },
+    { pattern: /[x×]\s*(\d+)\b/i, unit: 'adet', divisor: 1 },
+    { pattern: /(\d+)\s*(adet)/i, unit: 'adet', divisor: 1 },
   ];
 
-  for (const { pattern, unit, divideBy } of patterns) {
+  for (const { pattern, unit, divisor } of patterns) {
     const match = lowerName.match(pattern);
     if (match) {
-      const amount = parseFloat(match[1].replace(',', '.'));
-      if (Number.isNaN(amount) || amount <= 0) continue;
+      const rawAmount = parseFloat(match[1].replace(',', '.'));
+      if (Number.isNaN(rawAmount) || rawAmount <= 0) continue;
 
-      const normalizedAmount = divideBy === 1000 ? amount / 1000 : amount;
+      const normalizedAmount = divisor > 1 ? rawAmount / divisor : rawAmount;
       const unitPrice = Math.round((price / normalizedAmount) * 100) / 100;
-      return { unitPrice, perUnit: unit };
+      return { unitPrice, perUnit: unit, ambalajMiktar: normalizedAmount };
     }
   }
 
-  return { unitPrice: price, perUnit: 'adet' };
+  // Hedef birim varsa, ona göre varsay
+  if (targetUnit === 'kg' || targetUnit === 'L') {
+    return { unitPrice: price, perUnit: targetUnit, ambalajMiktar: null };
+  }
+
+  return { unitPrice: price, perUnit: 'adet', ambalajMiktar: null };
+}
+
+// ─── ÇOKLU ARAMA ────────────────────────────────────────
+
+/**
+ * Birden fazla arama terimiyle Camgöz'de ara, sonuçları birleştir
+ * @param {string[]} searchTerms - Aranacak terimler listesi
+ * @param {object} options - { targetUnit, minRelevance }
+ */
+async function multiSearch(searchTerms, options = {}) {
+  const { targetUnit = null, minRelevance = 50 } = options;
+
+  // Paralel arama
+  const searchPromises = searchTerms.map((term) => fetchCamgozPrices(term));
+  const allSearchResults = await Promise.all(searchPromises);
+
+  // Tüm sonuçları birleştir
+  const combined = [];
+  const seenProducts = new Set();
+
+  for (let i = 0; i < allSearchResults.length; i++) {
+    const results = allSearchResults[i];
+    const term = searchTerms[i];
+
+    for (const r of results) {
+      // Alaka kontrolü
+      const score = calculateRelevanceScore(term, r.urun);
+      if (score < minRelevance) continue;
+
+      // Deduplikasyon: aynı market + aynı ürün + aynı fiyat
+      const dedupKey = `${r.market}|${r.urun}|${r.fiyat}`;
+      if (seenProducts.has(dedupKey)) continue;
+      seenProducts.add(dedupKey);
+
+      const { unitPrice, perUnit, ambalajMiktar } = calculateUnitPrice(r.fiyat, r.urun, targetUnit);
+
+      combined.push({
+        market: r.market,
+        urun: r.urun,
+        fiyat: r.fiyat,
+        birimFiyat: unitPrice,
+        birimTipi: perUnit,
+        barkod: r.barkod,
+        marka: r.marka,
+        urunAdiTemiz: r.urunAdiTemiz,
+        ambalajMiktar: ambalajMiktar || r.ambalajMiktar,
+        aramaTermi: term,
+        alakaSkor: score,
+      });
+    }
+  }
+
+  return combined;
 }
 
 // ─── ANA FONKSİYONLAR ───────────────────────────────────
 
 /**
- * Ana arama fonksiyonu - Camgöz API
+ * Ana arama fonksiyonu - Camgöz API (v2: çoklu arama destekli)
+ * @param {string|string[]} searchTermInput - Tek terim veya terimler dizisi
+ * @param {object} options - { targetUnit }
  */
-export async function searchMarketPrices(searchTerm) {
-  const allResults = await fetchCamgozPrices(searchTerm);
+export async function searchMarketPrices(searchTermInput, options = {}) {
+  const { targetUnit = null } = options;
 
-  // Alakasız ürünleri filtrele
-  const filteredResults = allResults.filter((r) => isRelevantProduct(searchTerm, r.urun));
+  // Tekil string'i diziye çevir
+  const searchTerms = Array.isArray(searchTermInput) ? searchTermInput : [searchTermInput];
 
-  if (filteredResults.length === 0) {
+  // Çoklu arama
+  const allResults = await multiSearch(searchTerms, { targetUnit, minRelevance: 45 });
+
+  if (allResults.length === 0) {
     return {
       success: false,
-      urun: searchTerm,
-      error: `"${searchTerm}" için fiyat bulunamadı`,
+      urun: searchTerms[0],
+      error: `"${searchTerms.join(', ')}" için fiyat bulunamadı`,
       fiyatlar: [],
     };
   }
 
-  // Birim fiyatları hesapla
-  const fiyatlar = filteredResults.map((r) => {
-    const { unitPrice, perUnit } = calculateUnitPrice(r.fiyat, r.urun);
-    return {
-      market: r.market,
-      urun: r.urun,
-      fiyat: r.fiyat,
-      birimFiyat: unitPrice,
-      birimTipi: perUnit,
-      barkod: r.barkod,
-    };
-  });
-
   // Birim fiyata göre sırala
-  fiyatlar.sort((a, b) => a.birimFiyat - b.birimFiyat);
+  allResults.sort((a, b) => a.birimFiyat - b.birimFiyat);
 
-  // Tekrar edenleri kaldır
+  // Tekrar edenleri kaldır (market + fiyat bazında)
   const uniqueFiyatlar = [];
   const seen = new Set();
-  for (const f of fiyatlar) {
+  for (const f of allResults) {
     const key = `${f.market}-${f.fiyat}`;
     if (!seen.has(key)) {
       seen.add(key);
@@ -291,19 +504,22 @@ export async function searchMarketPrices(searchTerm) {
     }
   }
 
-  // En yaygın birim tipini bul (kg > L > diğer > adet)
+  // En yaygın birim tipini bul
   const unitCounts = {};
   uniqueFiyatlar.forEach((f) => {
     unitCounts[f.birimTipi] = (unitCounts[f.birimTipi] || 0) + 1;
   });
 
-  let dominantUnit = 'adet';
-  if (unitCounts['kg'] >= 3) dominantUnit = 'kg';
-  else if (unitCounts['L'] >= 3) dominantUnit = 'L';
-  else {
-    const nonAdetUnits = Object.entries(unitCounts).filter(([k]) => k !== 'adet');
-    if (nonAdetUnits.length > 0) {
-      dominantUnit = nonAdetUnits.sort((a, b) => b[1] - a[1])[0][0];
+  // Hedef birim varsa onu kullan
+  let dominantUnit = targetUnit || 'adet';
+  if (!targetUnit) {
+    if (unitCounts['kg'] >= 2) dominantUnit = 'kg';
+    else if (unitCounts['L'] >= 2) dominantUnit = 'L';
+    else {
+      const nonAdetUnits = Object.entries(unitCounts).filter(([k]) => k !== 'adet');
+      if (nonAdetUnits.length > 0) {
+        dominantUnit = nonAdetUnits.sort((a, b) => b[1] - a[1])[0][0];
+      }
     }
   }
 
@@ -312,32 +528,67 @@ export async function searchMarketPrices(searchTerm) {
   const statsBase = sameUnitFiyatlar.length >= 3 ? sameUnitFiyatlar : uniqueFiyatlar;
   const sortedPrices = statsBase.map((f) => f.birimFiyat).sort((a, b) => a - b);
 
-  // Ekonomik ortalama (en ucuz 5)
-  const ekonomikFiyatlar = sortedPrices.slice(0, Math.min(5, sortedPrices.length));
+  // Outlier temizle: IQR yöntemiyle aşırı ucuz/pahalı fiyatları çıkar
+  let cleanPrices = sortedPrices;
+  if (sortedPrices.length >= 5) {
+    const q1 = sortedPrices[Math.floor(sortedPrices.length * 0.25)];
+    const q3 = sortedPrices[Math.floor(sortedPrices.length * 0.75)];
+    const iqr = q3 - q1;
+    const lowerBound = q1 - 1.5 * iqr;
+    const upperBound = q3 + 1.5 * iqr;
+    cleanPrices = sortedPrices.filter((p) => p >= lowerBound && p <= upperBound);
+    if (cleanPrices.length < 3) cleanPrices = sortedPrices; // Yeterli veri kalmazsa geri al
+  }
+
+  // Ek kontrol: Medyandan aşırı uzak aykırı değerleri çıkar
+  // (IQR, verinin çok dağınık olduğu durumlarda yetersiz kalır)
+  if (cleanPrices.length >= 4) {
+    const medianPrice = cleanPrices[Math.floor(cleanPrices.length / 2)];
+    const minThreshold = medianPrice * 0.2; // Medyanın %20'sinden ucuzları çıkar
+    const maxThreshold = medianPrice * 3.0; // Medyanın 3 katından pahalıları çıkar
+    const afterMedianFilter = cleanPrices.filter((p) => p >= minThreshold && p <= maxThreshold);
+    if (afterMedianFilter.length >= 3) {
+      cleanPrices = afterMedianFilter;
+    }
+  }
+
+  // Ekonomik ortalama (en ucuz 5 — outlier temiz)
+  const ekonomikFiyatlar = cleanPrices.slice(0, Math.min(5, cleanPrices.length));
   const ekonomikOrtalama = ekonomikFiyatlar.reduce((a, b) => a + b, 0) / ekonomikFiyatlar.length;
 
   // Medyan
-  const medyan = sortedPrices[Math.floor(sortedPrices.length / 2)];
+  const medyan = cleanPrices[Math.floor(cleanPrices.length / 2)];
+
+  // Marka bazlı gruplama
+  const markaGruplari = {};
+  for (const f of uniqueFiyatlar) {
+    const key = f.marka || 'Diğer';
+    if (!markaGruplari[key]) markaGruplari[key] = [];
+    markaGruplari[key].push(f);
+  }
 
   return {
     success: true,
-    urun: searchTerm,
+    urun: searchTerms[0],
+    aramaTermleri: searchTerms,
     birim: dominantUnit,
-    fiyatlar: uniqueFiyatlar.slice(0, 25),
-    min: sortedPrices[0],
-    max: sortedPrices[sortedPrices.length - 1],
+    fiyatlar: uniqueFiyatlar.slice(0, 30),
+    min: cleanPrices[0],
+    max: cleanPrices[cleanPrices.length - 1],
     ortalama: Math.round(ekonomikOrtalama * 100) / 100,
     medyan,
     kaynak: 'camgoz',
     toplam_sonuc: uniqueFiyatlar.length,
+    markalar: Object.keys(markaGruplari).filter((m) => m !== 'Diğer'),
+    marka_gruplari: markaGruplari,
   };
 }
 
 /**
  * Hızlı arama (alias)
  */
-export async function quickSearch(productName) {
-  return searchMarketPrices(productName);
+export async function quickSearch(productName, options = {}) {
+  return searchMarketPrices(productName, options);
 }
 
 /**
@@ -362,4 +613,7 @@ export function getAvailableMarkets() {
   ];
 }
 
-export default { searchMarketPrices, quickSearch, getAvailableMarkets, closeBrowser };
+// Yardımcı fonksiyonları dışa aç (test + piyasa-tools kullanımı için)
+export { parseProductName, calculateRelevanceScore, calculateUnitPrice };
+
+export default { searchMarketPrices, quickSearch, getAvailableMarkets, closeBrowser, parseProductName, calculateRelevanceScore, calculateUnitPrice };

@@ -171,18 +171,21 @@ function hesaplaCalismaSuresi(iseGiris, cikisTarihi) {
  * Kıdem tazminatı tavanını getir
  */
 async function getKidemTavani(tarih) {
+  const d = new Date(tarih);
+  const yil = d.getFullYear();
+  const donem = (d.getMonth() + 1) <= 6 ? 1 : 2;
+
   const sql = `
-    SELECT tavan_tutari 
-    FROM kidem_tavan 
-    WHERE $1 BETWEEN gecerlilik_baslangic AND COALESCE(gecerlilik_bitis, '2099-12-31')
-    ORDER BY gecerlilik_baslangic DESC
+    SELECT tavan_tutar 
+    FROM kidem_tazminati_tavan 
+    WHERE yil = $1 AND donem = $2
     LIMIT 1
   `;
 
-  const result = await query(sql, [tarih]);
+  const result = await query(sql, [yil, donem]);
 
   if (result.rows.length > 0) {
-    return parseFloat(result.rows[0].tavan_tutari);
+    return parseFloat(result.rows[0].tavan_tutar);
   }
 
   // Varsayılan: 2025 ilk yarı tavanı

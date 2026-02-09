@@ -182,8 +182,9 @@ export function findRelevantChunks(chunks, fieldConfig) {
   const sources = fieldConfig.sources || [];
 
   for (const chunk of chunks) {
-    const chunkContext = (chunk.context || '').toLowerCase();
-    const chunkContent = (chunk.content || '').toLowerCase();
+    const rawContext = chunk.context;
+    const chunkContext = (typeof rawContext === 'string' ? rawContext : JSON.stringify(rawContext || '')).toLowerCase();
+    const chunkContent = (typeof chunk.content === 'string' ? chunk.content : '').toLowerCase();
 
     // Source eşleşmesi
     if (sources.some((s) => chunkContext.includes(s) || chunkContent.includes(s))) {

@@ -1,158 +1,110 @@
 /**
- * Piyasa Fiyat Araştırma Tools
- * Playwright ile gerçek market fiyatları + AI Öneri Sistemi
+ * Piyasa Fiyat Araştırma Tools v2
+ * Akıllı çoklu arama + DB varyant sistemi entegrasyonu
  */
 
 import { query } from '../../database.js';
 import claudeAI from '../claude-ai.js';
-import { searchMarketPrices } from '../market-scraper.js';
+import { searchHalPrices } from '../hal-scraper.js';
+import { parseProductName, searchMarketPrices } from '../market-scraper.js';
+import { toptanFiyatAra } from '../tavily-service.js';
 
-// Genel kategoriler ve alt ürünleri
+// ─── ÜRÜN KATEGORİLERİ (SADECE ÖNERİ İÇİN) ────────────
+
 const PRODUCT_CATEGORIES = {
   makarna: {
     kategori: 'Makarna',
-    oneriler: [
-      'spagetti makarna 500g',
-      'burgu makarna 500g',
-      'penne makarna 500g',
-      'erişte 500g',
-      'lazanya makarna 500g',
-    ],
+    oneriler: ['spagetti makarna 500g', 'burgu makarna 500g', 'penne makarna 500g', 'erişte 500g'],
     mesaj: 'Makarna türünü ve gramajını belirtin',
   },
   pirinç: {
     kategori: 'Pirinç',
-    oneriler: [
-      'baldo pirinç 1kg',
-      'osmancık pirinç 1kg',
-      'basmati pirinç 1kg',
-      'kırık pirinç 1kg',
-      'jasmine pirinç 1kg',
-    ],
+    oneriler: ['baldo pirinç 1kg', 'osmancık pirinç 1kg', 'basmati pirinç 1kg'],
     mesaj: 'Pirinç çeşidini ve miktarını belirtin',
   },
   yağ: {
     kategori: 'Yağ',
-    oneriler: ['ayçiçek yağı 5lt', 'zeytinyağı 1lt', 'mısır yağı 5lt', 'tereyağı 500g', 'margarin 250g'],
+    oneriler: ['ayçiçek yağı 5lt', 'zeytinyağı 1lt', 'mısır yağı 5lt', 'tereyağı 500g'],
     mesaj: 'Yağ türünü ve miktarını belirtin',
   },
   et: {
     kategori: 'Et',
-    oneriler: ['dana kıyma 1kg', 'kuzu pirzola 1kg', 'dana but 1kg', 'kuzu kuşbaşı 1kg', 'dana antrikot 1kg'],
+    oneriler: ['dana kıyma 1kg', 'kuzu pirzola 1kg', 'dana but 1kg', 'kuzu kuşbaşı 1kg'],
     mesaj: 'Et türünü belirtin',
   },
   tavuk: {
     kategori: 'Tavuk',
-    oneriler: ['tavuk but 1kg', 'tavuk göğüs 1kg', 'bütün tavuk 1kg', 'tavuk kanat 1kg', 'tavuk pirzola 1kg'],
+    oneriler: ['tavuk but 1kg', 'tavuk göğüs 1kg', 'bütün tavuk 1kg'],
     mesaj: 'Tavuk parçasını belirtin',
   },
   süt: {
     kategori: 'Süt Ürünleri',
-    oneriler: ['günlük süt 1lt', 'uht süt 1lt', 'yoğurt 1kg', 'beyaz peynir 1kg', 'kaşar peynir 500g'],
+    oneriler: ['günlük süt 1lt', 'uht süt 1lt', 'yoğurt 1kg', 'beyaz peynir 1kg'],
     mesaj: 'Süt ürünü türünü belirtin',
   },
   sebze: {
     kategori: 'Sebze',
-    oneriler: ['domates 1kg', 'biber 1kg', 'soğan 1kg', 'patates 1kg', 'salatalık 1kg'],
+    oneriler: ['domates 1kg', 'biber 1kg', 'soğan 1kg', 'patates 1kg'],
     mesaj: 'Sebze türünü belirtin',
   },
   meyve: {
     kategori: 'Meyve',
-    oneriler: ['elma 1kg', 'portakal 1kg', 'muz 1kg', 'üzüm 1kg', 'karpuz 1kg'],
+    oneriler: ['elma 1kg', 'portakal 1kg', 'muz 1kg', 'üzüm 1kg'],
     mesaj: 'Meyve türünü belirtin',
   },
   un: {
     kategori: 'Un',
-    oneriler: ['buğday unu 5kg', 'tam buğday unu 2kg', 'ekmeklik un 5kg', 'mısır unu 1kg'],
-    mesaj: 'Un türünü ve miktarını belirtin',
+    oneriler: ['buğday unu 5kg', 'tam buğday unu 2kg', 'ekmeklik un 5kg'],
+    mesaj: 'Un türünü belirtin',
   },
   şeker: {
     kategori: 'Şeker',
-    oneriler: ['toz şeker 5kg', 'küp şeker 1kg', 'esmer şeker 1kg', 'pudra şekeri 500g'],
-    mesaj: 'Şeker türünü ve miktarını belirtin',
+    oneriler: ['toz şeker 5kg', 'küp şeker 1kg', 'esmer şeker 1kg'],
+    mesaj: 'Şeker türünü belirtin',
   },
-  // Bakliyat
-  fasulye: {
-    kategori: 'Bakliyat',
-    oneriler: ['kuru fasulye dermason 1kg', 'kuru fasulye şeker 1kg', 'barbunya 1kg', 'börülce 1kg'],
-    mesaj: 'Fasulye çeşidini ve miktarını belirtin',
-  },
+  fasulye: { kategori: 'Bakliyat', oneriler: ['kuru fasulye 1kg', 'barbunya 1kg'], mesaj: 'Fasulye çeşidini belirtin' },
   'kuru fasulye': {
     kategori: 'Bakliyat',
-    oneriler: [
-      'kuru fasulye dermason 1kg',
-      'kuru fasulye şeker 1kg',
-      'kuru fasulye ispir 1kg',
-      'kuru fasulye çalı 1kg',
-    ],
-    mesaj: 'Fasulye çeşidini belirtin (dermason, şeker, ispir)',
-  },
-  fasul: {
-    kategori: 'Bakliyat',
-    oneriler: ['kuru fasulye dermason 1kg', 'kuru fasulye şeker 1kg', 'barbunya 1kg'],
+    oneriler: ['kuru fasulye dermason 1kg', 'kuru fasulye şeker 1kg'],
     mesaj: 'Fasulye çeşidini belirtin',
   },
-  nohut: {
-    kategori: 'Bakliyat',
-    oneriler: ['nohut 1kg', 'nohut koçbaşı 1kg', 'nohut yerli 1kg', 'leblebi 500g'],
-    mesaj: 'Nohut çeşidini ve miktarını belirtin',
-  },
+  nohut: { kategori: 'Bakliyat', oneriler: ['nohut 1kg', 'nohut koçbaşı 1kg'], mesaj: 'Nohut çeşidini belirtin' },
   mercimek: {
     kategori: 'Bakliyat',
-    oneriler: ['kırmızı mercimek 1kg', 'yeşil mercimek 1kg', 'sarı mercimek 1kg'],
+    oneriler: ['kırmızı mercimek 1kg', 'yeşil mercimek 1kg'],
     mesaj: 'Mercimek rengini belirtin',
   },
   bulgur: {
     kategori: 'Bakliyat',
-    oneriler: ['bulgur pilavlık 1kg', 'bulgur köftelik 1kg', 'bulgur ince 1kg'],
+    oneriler: ['pilavlık bulgur 1kg', 'köftelik bulgur 1kg'],
     mesaj: 'Bulgur türünü belirtin',
   },
-  // Diğer gıdalar
   peynir: {
     kategori: 'Süt Ürünleri',
-    oneriler: ['beyaz peynir 1kg', 'kaşar peynir 500g', 'tulum peyniri 500g', 'lor peyniri 500g', 'hellim 250g'],
+    oneriler: ['beyaz peynir 1kg', 'kaşar peynir 500g'],
     mesaj: 'Peynir türünü belirtin',
   },
-  yoğurt: {
-    kategori: 'Süt Ürünleri',
-    oneriler: ['yoğurt 1kg', 'süzme yoğurt 1kg', 'mevsim yoğurt 500g'],
-    mesaj: 'Yoğurt türünü belirtin',
-  },
+  yoğurt: { kategori: 'Süt Ürünleri', oneriler: ['yoğurt 1kg', 'süzme yoğurt 1kg'], mesaj: 'Yoğurt türünü belirtin' },
   salça: {
     kategori: 'Konserve',
-    oneriler: ['domates salçası 700g', 'biber salçası 700g', 'karışık salça 700g'],
+    oneriler: ['domates salçası 700g', 'biber salçası 700g'],
     mesaj: 'Salça türünü belirtin',
   },
   zeytinyağı: {
     kategori: 'Yağ',
-    oneriler: ['sızma zeytinyağı 1lt', 'riviera zeytinyağı 1lt', 'natürel zeytinyağı 2lt'],
+    oneriler: ['sızma zeytinyağı 1lt', 'riviera zeytinyağı 1lt'],
     mesaj: 'Zeytinyağı türünü belirtin',
   },
-  tereyağı: {
-    kategori: 'Yağ',
-    oneriler: ['tereyağı 500g', 'tereyağı 250g', 'tuzsuz tereyağı 500g'],
-    mesaj: 'Tereyağı miktarını belirtin',
-  },
-  kıyma: {
-    kategori: 'Et',
-    oneriler: ['dana kıyma 1kg', 'kuzu kıyma 1kg', 'karışık kıyma 1kg', 'yağsız dana kıyma 1kg'],
-    mesaj: 'Kıyma türünü belirtin',
-  },
-  balık: {
-    kategori: 'Balık',
-    oneriler: ['levrek 1kg', 'çipura 1kg', 'hamsi 1kg', 'somon 1kg', 'palamut 1kg'],
-    mesaj: 'Balık türünü belirtin',
-  },
-  tuz: {
-    kategori: 'Baharat',
-    oneriler: ['sofra tuzu 1kg', 'deniz tuzu 500g', 'himalaya tuzu 500g', 'iyotlu tuz 750g'],
-    mesaj: 'Tuz türünü belirtin',
-  },
+  tereyağı: { kategori: 'Yağ', oneriler: ['tereyağı 500g', 'tereyağı 250g'], mesaj: 'Tereyağı miktarını belirtin' },
+  kıyma: { kategori: 'Et', oneriler: ['dana kıyma 1kg', 'kuzu kıyma 1kg'], mesaj: 'Kıyma türünü belirtin' },
+  balık: { kategori: 'Balık', oneriler: ['levrek 1kg', 'çipura 1kg', 'somon 1kg'], mesaj: 'Balık türünü belirtin' },
+  tuz: { kategori: 'Baharat', oneriler: ['sofra tuzu 1kg', 'deniz tuzu 500g'], mesaj: 'Tuz türünü belirtin' },
 };
 
-// Ürün kategorisine göre varsayılan birim mapping
-const CATEGORY_DEFAULT_UNITS = {
-  // Litre ile satılanlar
+// ─── BİRİM TESPİT TABLOSU ──────────────────────────────
+
+const UNIT_MAP = {
+  // Litre
   süt: 'lt',
   ayran: 'lt',
   su: 'lt',
@@ -169,26 +121,12 @@ const CATEGORY_DEFAULT_UNITS = {
   'mısır yağı': 'lt',
   'fındık yağı': 'lt',
   'sıvı yağ': 'lt',
-
-  // Adet ile satılanlar
+  // Adet
   yumurta: 'adet',
   ekmek: 'adet',
   pide: 'adet',
   simit: 'adet',
-  poğaça: 'adet',
-  börek: 'adet',
-  limon: 'adet',
-  portakal: 'adet',
-  muz: 'adet',
-  elma: 'adet',
-  armut: 'adet',
-  karpuz: 'adet',
-  kavun: 'adet',
-  ananas: 'adet',
-  lahana: 'adet',
-  marul: 'adet',
-
-  // Kg ile satılanlar (default)
+  // Kg (default çoğu gıda)
   et: 'kg',
   kıyma: 'kg',
   tavuk: 'kg',
@@ -229,89 +167,87 @@ const CATEGORY_DEFAULT_UNITS = {
   'antep fıstığı': 'kg',
 };
 
-// Ürün adı → Market arama terimi dönüşümü
-const PRODUCT_SEARCH_TERMS = {
-  su: 'içme suyu',
-  tuz: 'sofra tuzu',
-  un: 'buğday unu',
-  şeker: 'toz şeker',
-  pirinç: 'baldo pirinç',
-  bulgur: 'pilavlık bulgur',
-  makarna: 'spagetti makarna',
-  yağ: 'ayçiçek yağı',
-  süt: 'günlük süt',
-  yoğurt: 'kaymaksız yoğurt',
-  peynir: 'beyaz peynir',
-  et: 'dana kıyma',
-  tavuk: 'tavuk göğüs',
-  mercimek: 'kırmızı mercimek',
-  fasulye: 'kuru fasulye',
-  nohut: 'nohut',
-  salça: 'domates salçası',
-  tereyağı: 'tereyağı',
-  margarin: 'margarin',
-  zeytinyağı: 'sızma zeytinyağı',
-};
+// ─── AKILLI ÜRÜN NORMALİZASYONU (v2) ───────────────────
 
 /**
  * Akıllı ürün adı normalize etme
+ * DB'den stok kartı bilgisi kullanarak doğru arama terimi oluşturur
+ *
  * @param {string} urunAdi - Ham ürün adı
- * @param {string} birim - Malzeme birimi (gr, kg, ml, lt, adet)
- * @returns {object} - {normalizedName, searchTerm, defaultUnit}
+ * @param {object} stokBilgi - {birim, kategori, ana_urun_adi, ambalaj_miktari}
+ * @returns {object} - {searchTerms[], defaultUnit, normalizedName}
  */
-const normalizeProductName = (urunAdi, birim = null) => {
+const normalizeProductName = (urunAdi, stokBilgi = {}) => {
   const lower = urunAdi.toLowerCase().trim();
+  const { birim = null, ana_urun_adi = null } = stokBilgi;
 
-  // Zaten gramaj/miktar içeriyor mu?
+  // 1. Zaten gramaj/miktar içeriyor mu?
   const hasQty = /\d+\s*(kg|gr|g|lt|l|ml|litre|adet)/i.test(lower);
 
-  if (hasQty) {
-    // Gramaj varsa direkt kullan
-    return {
-      normalizedName: urunAdi,
-      searchTerm: urunAdi,
-      defaultUnit: null,
-    };
-  }
-
-  // Ürün adı için arama terimi bul
-  const searchTerm = PRODUCT_SEARCH_TERMS[lower] || urunAdi;
-
-  // Varsayılan birim belirle
-  let defaultUnit = 'kg'; // Fallback
-
-  // Önce tam eşleşme ara
-  if (CATEGORY_DEFAULT_UNITS[lower]) {
-    defaultUnit = CATEGORY_DEFAULT_UNITS[lower];
+  // 2. Birimi belirle
+  let defaultUnit = 'kg';
+  if (birim) {
+    const birimLower = birim.toLowerCase();
+    if (['ml', 'lt', 'l', 'litre'].includes(birimLower)) defaultUnit = 'lt';
+    else if (['gr', 'g', 'kg', 'kgm'].includes(birimLower)) defaultUnit = 'kg';
+    else if (birimLower === 'adet' || birimLower === 'c62') defaultUnit = 'adet';
   } else {
-    // Kısmi eşleşme ara (örn: "kaymaksız yoğurt" → "yoğurt" kategorisi)
-    for (const [keyword, unit] of Object.entries(CATEGORY_DEFAULT_UNITS)) {
-      if (lower.includes(keyword)) {
-        defaultUnit = unit;
-        break;
+    // UNIT_MAP'ten belirle
+    if (UNIT_MAP[lower]) {
+      defaultUnit = UNIT_MAP[lower];
+    } else {
+      for (const [keyword, unit] of Object.entries(UNIT_MAP)) {
+        if (lower.includes(keyword)) {
+          defaultUnit = unit;
+          break;
+        }
       }
     }
   }
 
-  // Birim parametresi varsa ona göre düzelt
-  if (birim) {
-    const birimLower = birim.toLowerCase();
-    if (['ml', 'lt', 'l', 'litre'].includes(birimLower)) {
-      defaultUnit = 'lt';
-    } else if (['gr', 'g', 'kg'].includes(birimLower)) {
-      defaultUnit = 'kg';
-    } else if (birimLower === 'adet') {
-      defaultUnit = 'adet';
+  // 3. Çoklu arama terimleri oluştur
+  const searchTerms = [];
+
+  if (hasQty) {
+    // Gramaj varsa doğrudan kullan
+    searchTerms.push(urunAdi);
+
+    // Gramajsız versiyonunu da ekle (daha fazla sonuç için)
+    const withoutQty = lower.replace(/\d+[.,]?\d*\s*(kg|gr|g|lt|l|ml|litre|adet)\b/gi, '').trim();
+    if (withoutQty.length >= 2 && withoutQty !== lower) {
+      searchTerms.push(withoutQty);
+    }
+  } else {
+    // Gramaj yoksa: ürün adı + birim ekle
+    const quantity = defaultUnit === 'adet' ? '' : ` 1${defaultUnit}`;
+
+    // Orijinal ürün adı ile ara
+    searchTerms.push(`${urunAdi}${quantity}`);
+
+    // Kısa ürün adı ile de ara (marka çıkarılmış)
+    const parsed = parseProductName(urunAdi);
+    if (parsed.marka && parsed.urunAdi !== urunAdi) {
+      searchTerms.push(`${parsed.urunAdi}${quantity}`);
+    }
+
+    // Ana ürün adı varsa (varyant sistemi) onu da ekle
+    if (ana_urun_adi && ana_urun_adi.toLowerCase() !== lower) {
+      searchTerms.push(`${ana_urun_adi}${quantity}`);
+    }
+
+    // Sadece sade ürün adı ile de ara (gramajsız)
+    if (searchTerms.length === 1) {
+      searchTerms.push(urunAdi);
     }
   }
 
-  // Arama terimi oluştur
-  const quantity = defaultUnit === 'adet' ? '1 adet' : `1${defaultUnit}`;
-  const finalSearchTerm = `${searchTerm} ${quantity}`;
+  // Tekrarları kaldır
+  const uniqueTerms = [...new Set(searchTerms.map((t) => t.trim()).filter((t) => t.length >= 2))];
 
   return {
     normalizedName: urunAdi,
-    searchTerm: finalSearchTerm,
+    searchTerms: uniqueTerms,
+    searchTerm: uniqueTerms[0], // Geriye uyumluluk
     defaultUnit,
   };
 };
@@ -740,36 +676,224 @@ export const piyasaToolImplementations = {
     try {
       let sistemFiyat = null;
       let urunBilgi = null;
+      let stokBilgi = {};
 
-      // Stok kartından bilgi al
-      let stokBirim = null;
-      if (stok_kart_id) {
+      // Frontend urun_kartlari.id'yi stok_kart_id olarak gönderiyor
+      // Gerçek stok_kart_id'yi urun_kartlari üzerinden bulalım
+      const inputId = stok_kart_id;
+      let urunKartId = null;
+      let realStokKartId = null;
+
+      let cachedSearchTerm = null;
+
+      if (inputId) {
+        // Önce urun_kartlari'da ara (frontend genellikle urun_kartlari.id gönderir)
+        const urunKartResult = await query(
+          `SELECT uk.id, uk.ad, uk.stok_kart_id, uk.birim, uk.son_alis_fiyati, uk.piyasa_arama_terimi
+           FROM urun_kartlari uk WHERE uk.id = $1`,
+          [inputId]
+        ).catch(() => ({ rows: [] }));
+
+        if (urunKartResult.rows.length > 0) {
+          urunKartId = urunKartResult.rows[0].id;
+          realStokKartId = urunKartResult.rows[0].stok_kart_id || null;
+          stokBilgi.birim = urunKartResult.rows[0].birim;
+          if (urunKartResult.rows[0].son_alis_fiyati) {
+            sistemFiyat = urunKartResult.rows[0].son_alis_fiyati;
+          }
+          // urun_kartlari.piyasa_arama_terimi varsa kullan
+          if (urunKartResult.rows[0].piyasa_arama_terimi) {
+            cachedSearchTerm = urunKartResult.rows[0].piyasa_arama_terimi;
+          }
+        }
+      }
+      // Stok kartından detaylı bilgi al (sadece gerçek stok_kart_id varsa)
+      // NOT: realStokKartId olmadan inputId ile stok_kartlari aramak
+      // yanlış ürün eşleşmesine neden olabilir (farklı ID namespace'ler)
+      if (realStokKartId) {
         const result = await query(
           `
-          SELECT sk.id, sk.ad, sk.son_alis_fiyat, 
-                 k.ad as kategori, b.kisa_ad as birim
+          SELECT sk.id, sk.ad, sk.son_alis_fiyat, sk.ambalaj_miktari,
+                 sk.ana_urun_id, sk.piyasa_arama_terimi,
+                 ana.ad as ana_urun_adi,
+                 k.ad as kategori, b.kisa_ad as birim_kisa
           FROM stok_kartlari sk
+          LEFT JOIN stok_kartlari ana ON ana.id = sk.ana_urun_id
           LEFT JOIN stok_kategoriler k ON k.id = sk.kategori_id
           LEFT JOIN birimler b ON b.id = sk.ana_birim_id
           WHERE sk.id = $1
         `,
-          [stok_kart_id]
-        );
+          [realStokKartId]
+        ).catch(() => ({ rows: [] }));
 
         if (result.rows.length > 0) {
           urunBilgi = result.rows[0];
-          sistemFiyat = urunBilgi.son_alis_fiyat;
-          stokBirim = urunBilgi.birim;
+          if (urunBilgi.son_alis_fiyat) sistemFiyat = urunBilgi.son_alis_fiyat;
+          // stok_kartlari.piyasa_arama_terimi sadece urun_kartlari'nda yoksa kullan
+          if (!cachedSearchTerm && urunBilgi.piyasa_arama_terimi) {
+            cachedSearchTerm = urunBilgi.piyasa_arama_terimi;
+          }
+          stokBilgi = {
+            birim: urunBilgi.birim_kisa || stokBilgi.birim,
+            ana_urun_adi: urunBilgi.ana_urun_adi,
+            ambalaj_miktari: urunBilgi.ambalaj_miktari,
+          };
         }
       }
 
-      // Ürün adını normalize et (akıllı birim belirleme)
-      const normalized = normalizeProductName(urun_adi, stokBirim);
-      const aramaTermi = normalized.searchTerm;
+      // Ürün adını normalize et (akıllı çoklu arama terimleri oluştur)
+      const normalized = normalizeProductName(urun_adi, stokBilgi);
 
-      // ScrapingBee ile piyasa fiyatlarını araştır
-      const piyasaData = await searchMarketPrices(aramaTermi);
+      // Cache'lenmiş arama terimi varsa, onu da terimlerin başına ekle
+      if (cachedSearchTerm) {
+        normalized.searchTerms.unshift(cachedSearchTerm);
+        normalized.searchTerms = [...new Set(normalized.searchTerms)];
+      }
 
+      // Hedef birim: stok kartından veya normalizasyondan
+      const targetUnit = normalized.defaultUnit === 'lt' ? 'L' : normalized.defaultUnit === 'kg' ? 'kg' : null;
+
+      // ─── 3 KATMANLI FİYAT ARAMA ─────────────────────────
+      // Katman 1: Camgöz (paketli market ürünleri)
+      // Katman 2: hal.gov.tr (taze meyve-sebze toptancı hal fiyatları)
+      // Katman 3: Tavily web arama (son çare)
+
+      let piyasaData = await searchMarketPrices(normalized.searchTerms, { targetUnit });
+      let kaynakTip = 'market'; // camgoz
+
+      // Katman 2: Camgöz'de bulunamadıysa hal.gov.tr'de ara
+      if (!piyasaData.success || (piyasaData.fiyatlar && piyasaData.fiyatlar.length === 0)) {
+        try {
+          const halResult = await searchHalPrices(urun_adi);
+          if (halResult.success && halResult.fiyatlar && halResult.fiyatlar.length > 0) {
+            piyasaData = {
+              success: true,
+              urun: urun_adi,
+              aramaTermleri: [urun_adi],
+              birim: halResult.birim === 'Adet' ? 'adet' : 'kg',
+              fiyatlar: halResult.fiyatlar,
+              min: halResult.min,
+              max: halResult.max,
+              ortalama: halResult.ortalama,
+              medyan: halResult.ortalama,
+              kaynak: 'hal.gov.tr',
+              toplam_sonuc: halResult.toplam_sonuc,
+              markalar: halResult.sonuclar?.map((s) => s.urunCinsi).filter((v, i, a) => a.indexOf(v) === i) || [],
+              marka_gruplari: {},
+            };
+            kaynakTip = 'toptanci_hal';
+          }
+        } catch (halErr) {
+          console.warn(`[Piyasa] Hal fallback hatası: ${halErr.message}`);
+        }
+      }
+
+      // Katman 3: Toptan site araması (toptangida, trendyol, migros vb.)
+      if (!piyasaData.success || (piyasaData.fiyatlar && piyasaData.fiyatlar.length === 0)) {
+        try {
+          const searchName = cachedSearchTerm || urun_adi;
+          const toptanResult = await toptanFiyatAra(searchName);
+          if (toptanResult.success && toptanResult.fiyatlar?.length > 0) {
+            piyasaData = {
+              success: true,
+              urun: urun_adi,
+              aramaTermleri: [searchName],
+              birim: 'kg',
+              fiyatlar: toptanResult.fiyatlar.map((f, i) => ({
+                market: f.baslik || `Toptan #${i + 1}`,
+                urun: `${urun_adi} (toptan site)`,
+                fiyat: f.fiyat,
+                birimFiyat: f.fiyat,
+                birimTipi: 'kg',
+                marka: '',
+                urunAdiTemiz: urun_adi,
+                ambalajMiktar: 1,
+                aramaTermi: searchName,
+                alakaSkor: 75,
+              })),
+              min: toptanResult.min,
+              max: toptanResult.max,
+              ortalama: toptanResult.ortalama,
+              medyan: toptanResult.ortalama,
+              kaynak: 'toptan_site',
+              toplam_sonuc: toptanResult.kaynakSayisi,
+              markalar: [],
+              marka_gruplari: {},
+            };
+            kaynakTip = 'toptan_site';
+          }
+        } catch (toptanErr) {
+          console.warn(`[Piyasa] Toptan site fallback hatası: ${toptanErr.message}`);
+        }
+      }
+
+      // Katman 4: Genel web araması (son çare)
+      if (!piyasaData.success || (piyasaData.fiyatlar && piyasaData.fiyatlar.length === 0)) {
+        try {
+          const tavilyKey = process.env.TAVILY_API_KEY;
+          if (tavilyKey) {
+            const webQuery = `${urun_adi} güncel fiyat TL kg 2026`;
+            const webRes = await fetch('https://api.tavily.com/search', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                api_key: tavilyKey,
+                query: webQuery,
+                search_depth: 'basic',
+                include_answer: true,
+                max_results: 5,
+              }),
+              signal: AbortSignal.timeout(10000),
+            });
+
+            if (webRes.ok) {
+              const webData = await webRes.json();
+              const aiAnswer = webData.answer || '';
+              const priceMatches = aiAnswer.match(/(\d+[.,]?\d*)\s*(TL|₺|lira)/gi) || [];
+              const prices = priceMatches
+                .map((m) => parseFloat(m.replace(/[^\d.,]/g, '').replace(',', '.')))
+                .filter((p) => p > 0 && p < 50000);
+
+              if (prices.length > 0) {
+                prices.sort((a, b) => a - b);
+                const avg = Math.round((prices.reduce((s, p) => s + p, 0) / prices.length) * 100) / 100;
+
+                piyasaData = {
+                  success: true,
+                  urun: urun_adi,
+                  aramaTermleri: [webQuery],
+                  birim: 'kg',
+                  fiyatlar: prices.map((p, i) => ({
+                    market: `Web Arama #${i + 1}`,
+                    urun: `${urun_adi} (web araması)`,
+                    fiyat: p,
+                    birimFiyat: p,
+                    birimTipi: 'kg',
+                    marka: '',
+                    urunAdiTemiz: urun_adi,
+                    ambalajMiktar: 1,
+                    aramaTermi: webQuery,
+                    alakaSkor: 70,
+                  })),
+                  min: prices[0],
+                  max: prices[prices.length - 1],
+                  ortalama: avg,
+                  medyan: prices[Math.floor(prices.length / 2)],
+                  kaynak: 'tavily_web',
+                  toplam_sonuc: prices.length,
+                  markalar: [],
+                  marka_gruplari: {},
+                };
+                kaynakTip = 'web_arama';
+              }
+            }
+          }
+        } catch (webErr) {
+          console.warn(`[Piyasa] Web arama fallback hatası: ${webErr.message}`);
+        }
+      }
+
+      // Hala bulunamadıysa hata dön
       if (!piyasaData.success) {
         return piyasaData;
       }
@@ -793,57 +917,92 @@ export const piyasaToolImplementations = {
         oneri = 'Fiyatınız piyasa ortalamasında.';
       }
 
-      // Geçmişe kaydet - bireysel market sonuçları (en ucuz 10 tanesi)
-      const now = new Date().toISOString();
-      const topKaynaklar = piyasaData.fiyatlar.slice(0, 10);
-      for (const kaynak of topKaynaklar) {
-        // Ürün adından marka ve ambalaj bilgisi çıkar
-        const urunAdiParts = (kaynak.urun || urun_adi).trim();
-        const ambalajMatch = urunAdiParts.match(/(\d+[,.]?\d*)\s*(kg|kilo|gr|gram|g|lt|litre|l|ml|cl)\b/i);
-        let ambalajMiktar = null;
-        if (ambalajMatch) {
-          let miktar = parseFloat(ambalajMatch[1].replace(',', '.'));
-          const birimTipi = ambalajMatch[2].toLowerCase();
-          if (['gr', 'gram', 'g'].includes(birimTipi)) miktar = miktar / 1000;
-          if (['ml'].includes(birimTipi)) miktar = miktar / 1000;
-          if (['cl'].includes(birimTipi)) miktar = miktar / 100;
-          ambalajMiktar = miktar;
+      // Eski kayıtları temizle (aynı ürün için yeni veriler gelecek)
+      // urun_kart_id VEYA stok_kart_id ile eşleşen eski kayıtları sil
+      if (urunKartId || realStokKartId) {
+        const delConditions = [];
+        const delParams = [];
+        if (urunKartId) {
+          delParams.push(urunKartId);
+          delConditions.push(`urun_kart_id = $${delParams.length}`);
         }
+        if (realStokKartId) {
+          delParams.push(realStokKartId);
+          delConditions.push(`stok_kart_id = $${delParams.length}`);
+        }
+        await query(`DELETE FROM piyasa_fiyat_gecmisi WHERE ${delConditions.join(' OR ')}`, delParams).catch(() => {});
+      }
 
-        // Marka: ürün adının ilk kelimesi (büyük harfle başlıyorsa marka kabul et)
-        const words = urunAdiParts.split(/\s+/);
-        const parsedMarka = (words.length > 1 && /^[A-ZÇĞIİÖŞÜ]/.test(words[0])) ? words[0] : null;
+      // Geçmişe kaydet - outlier'ları hariç tut, gelişmiş marka ayrıştırma ile
+      const now = new Date().toISOString();
+      const cleanMin = piyasaData.min || 0;
+      const cleanMax = piyasaData.max || Infinity;
+      const topKaynaklar = piyasaData.fiyatlar
+        .filter((f) => f.birimFiyat >= cleanMin * 0.8 && f.birimFiyat <= cleanMax * 1.2)
+        .slice(0, 20);
+      let savedCount = 0;
+      for (const kaynak of topKaynaklar) {
+        // parseProductName ile gelişmiş ayrıştırma
+        const parsed = parseProductName(kaynak.urun || urun_adi);
 
-        await query(
-          `INSERT INTO piyasa_fiyat_gecmisi 
-           (urun_kart_id, stok_kart_id, urun_adi, market_adi, marka, piyasa_fiyat_ort, birim_fiyat, ambalaj_miktar, kaynaklar, ai_oneri, arastirma_tarihi)
-           VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-          [
-            stok_kart_id,
-            kaynak.urun || urun_adi,
-            `${kaynak.market || 'Piyasa'}`,
-            parsedMarka,
-            kaynak.fiyat || 0,
-            kaynak.birimFiyat || kaynak.fiyat || 0,
-            ambalajMiktar,
-            JSON.stringify({ barkod: kaynak.barkod, birimTipi: kaynak.birimTipi }),
-            oneri,
-            now,
-          ]
-        ).catch(() => {});
+        try {
+          await query(
+            `INSERT INTO piyasa_fiyat_gecmisi 
+             (urun_kart_id, stok_kart_id, urun_adi, market_adi, marka, piyasa_fiyat_ort, birim_fiyat, ambalaj_miktar, kaynaklar, ai_oneri, arastirma_tarihi, eslestirme_skoru, arama_terimi)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+            [
+              urunKartId || null,
+              realStokKartId || null,
+              kaynak.urun || urun_adi,
+              kaynak.market || 'Piyasa',
+              parsed.marka || kaynak.marka,
+              kaynak.fiyat || 0,
+              kaynak.birimFiyat || kaynak.fiyat || 0,
+              parsed.ambalajMiktar || kaynak.ambalajMiktar,
+              JSON.stringify({
+                barkod: kaynak.barkod,
+                birimTipi: kaynak.birimTipi,
+                kaynakTip: kaynakTip,
+              }),
+              oneri,
+              now,
+              kaynak.alakaSkor || null,
+              kaynak.aramaTermi || null,
+            ]
+          );
+          savedCount++;
+        } catch (saveErr) {
+          console.warn(`[Piyasa] Kayıt hatası: ${saveErr.message}`);
+        }
+      }
+
+      // Başarılı araştırmayı cache'le (gelecek aramalarda kullanılsın)
+      if (realStokKartId && !cachedSearchTerm && piyasaData.toplam_sonuc >= 3) {
+        // En iyi sonuç veren arama terimini bul
+        const bestTerm = normalized.searchTerms[0];
+        await query(`UPDATE stok_kartlari SET piyasa_arama_terimi = $1 WHERE id = $2`, [
+          bestTerm,
+          realStokKartId,
+        ]).catch(() => {});
       }
 
       return {
         success: true,
         urun: urun_adi,
-        stok_kart_id,
+        stok_kart_id: realStokKartId,
+        urun_kart_id: urunKartId,
+        kaydedilen: savedCount,
         sistem_fiyat: sistemFiyat,
-        birim: urunBilgi?.birim || piyasaData.birim,
+        birim: stokBilgi.birim || piyasaData.birim,
+        arama_terimleri: normalized.searchTerms,
+        kaynak_tip: kaynakTip, // 'market' | 'toptanci_hal' | 'web_arama'
         piyasa: {
           min: piyasaData.min,
           max: piyasaData.max,
           ortalama: piyasaData.ortalama,
+          medyan: piyasaData.medyan,
           kaynaklar: piyasaData.fiyatlar,
+          markalar: piyasaData.markalar || [],
         },
         karsilastirma: {
           fark_yuzde: farkYuzde,
