@@ -2,18 +2,6 @@
   "favorites": {},
   "history": [
     {
-      "id": "backend-restart",
-      "label": "Sadece Backend Yenile",
-      "time": "09:49:35",
-      "success": true
-    },
-    {
-      "id": "backend-restart",
-      "label": "Sadece Backend Yenile",
-      "time": "09:54:10",
-      "success": true
-    },
-    {
       "id": "restart-all",
       "label": "Tümünü Yeniden Başlat",
       "time": "14:51:35",
@@ -299,6 +287,18 @@
       "id": "restart-all",
       "label": "Tümünü Yeniden Başlat",
       "time": "19:25:24",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "21:33:16",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "11:51:23",
       "success": true
     }
   ],
