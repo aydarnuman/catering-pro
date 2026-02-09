@@ -128,7 +128,31 @@ async function fillMissingFields(analysis, chunks, missingFields, _onProgress) {
  */
 
 /**
- * Tek sayfa için OCR helper fonksiyonu (retry mekanizması ile)
+ * Tesseract.js ile lokal OCR fallback
+ * Claude Vision başarısız olursa bu fonksiyon devreye girer.
+ * @param {string} pagePath - Sayfa görüntü yolu
+ * @param {number} pageIndex - Sayfa index (0-based)
+ * @returns {Promise<string>}
+ */
+async function ocrWithTesseract(pagePath, pageIndex) {
+  try {
+    const { createWorker } = await import('tesseract.js');
+    const worker = await createWorker('tur+eng'); // Türkçe + İngilizce
+
+    const { data } = await worker.recognize(pagePath);
+    await worker.terminate();
+
+    const text = data.text || '';
+    logger.info(`    ✓ Tesseract fallback sayfa ${pageIndex + 1} (${text.length} karakter)`, { module: 'ocr-tesseract' });
+    return text;
+  } catch (err) {
+    logger.warn(`    ✗ Tesseract fallback başarısız sayfa ${pageIndex + 1}: ${err.message}`, { module: 'ocr-tesseract' });
+    return '';
+  }
+}
+
+/**
+ * Tek sayfa için OCR helper fonksiyonu (retry mekanizması + Tesseract fallback)
  * @param {string} pagePath - Sayfa görüntü yolu
  * @param {number} pageIndex - Sayfa index (0-based)
  * @param {number} totalPages - Toplam sayfa sayısı
@@ -179,11 +203,12 @@ Sadece metni döndür, yorum veya açıklama ekleme.`,
       return text;
     } catch (error) {
       if (attempt === maxRetries) {
-        logger.error(`    ✗ Sayfa ${pageIndex + 1} ${maxRetries} denemede başarısız: ${error.message}`, {
+        logger.error(`    ✗ Sayfa ${pageIndex + 1} Claude Vision ${maxRetries} denemede başarısız, Tesseract fallback deneniyor...`, {
           module: 'ocr',
           error: error.message,
         });
-        return '';
+        // Tesseract.js lokal OCR fallback
+        return ocrWithTesseract(pagePath, pageIndex);
       }
       // Exponential backoff: 2s, 4s, 8s...
       const waitTime = 2000 * 2 ** (attempt - 1);
@@ -210,7 +235,8 @@ async function performOcr(filePath, onProgress) {
   // Config'den ayarları al
   const maxPages = aiConfig.pdf.maxPages || 100;
   const parallelPages = aiConfig.pdf.parallelPages || 4;
-  const dpi = aiConfig.pdf.dpi || 150;
+  const dpi = aiConfig.pdf.dpi || 250;
+  const jpegQuality = aiConfig.pdf.jpegQuality || 85;
 
   if (onProgress) {
     onProgress({ stage: 'ocr', message: 'OCR işlemi yapılıyor...', progress: 25 });
@@ -227,7 +253,7 @@ async function performOcr(filePath, onProgress) {
 
       // PDF'i JPEG'lere dönüştür - JPEG PNG'den %60-70 daha küçük, OCR için yeterli kalite
       execSync(
-        `pdftoppm -jpeg -jpegopt quality=85 -r ${dpi} -l ${maxPages} "${filePath}" "${tempDir}/page"`,
+        `pdftoppm -jpeg -jpegopt quality=${jpegQuality} -r ${dpi} -l ${maxPages} "${filePath}" "${tempDir}/page"`,
         { timeout: 300000, stdio: 'pipe' } // 5 dakika timeout (büyük dosyalar için)
       );
 

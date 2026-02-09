@@ -45,7 +45,7 @@ export const aiConfig = {
     maxPages: parseInt(process.env.AI_PDF_MAX_PAGES || '100', 10),
     parallelPages: parseInt(process.env.AI_PDF_PARALLEL_PAGES || '12', 10), // 8→12 paralel sayfa (API limitleri izin verirse)
     pagesPerBatch: parseInt(process.env.AI_PDF_PAGES_PER_BATCH || '2', 10), // 2 sayfa tek API çağrısında
-    dpi: parseInt(process.env.AI_PDF_DPI || '120', 10), // 150→120 daha hızlı dönüşüm (text için yeterli)
+    dpi: parseInt(process.env.AI_PDF_DPI || '250', 10), // 120→250 OCR kalitesi için (gramaj tabloları, küçük punto rakamlar)
     imageFormat: process.env.AI_PDF_IMAGE_FORMAT || 'png',
     jpegQuality: parseInt(process.env.AI_PDF_JPEG_QUALITY || '75', 10), // JPEG sıkıştırma kalitesi
   },

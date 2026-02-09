@@ -16,9 +16,8 @@ console.log('║           ihale_dokumani_2026-91672                            
 console.log('╚══════════════════════════════════════════════════════════════════════╝');
 console.log('');
 
-// Load modules
-const { runHybridPipeline } = await import('./src/services/ai-analyzer/pipeline/hybrid-pipeline.js');
-const { runZeroLossPipeline } = await import('./src/services/ai-analyzer/pipeline/index.js');
+// Load modules - v9.0: UNIFIED PIPELINE (hybrid-pipeline artık kullanılmıyor)
+const { analyzeDocument } = await import('./src/services/ai-analyzer/unified-pipeline.js');
 
 const TENDER_DIR = '/Users/numanaydar/Desktop/ihale_dokumani_2026-91672';
 
@@ -64,17 +63,10 @@ for (const file of files) {
   let result;
   
   try {
-    if (file.type === '.pdf') {
-      // Use hybrid pipeline for PDF
-      result = await runHybridPipeline(file.path, {
-        onProgress: (p) => console.log(`   [${p.progress}%] ${p.message}`),
-      });
-    } else {
-      // Use Claude pipeline for Word docs
-      result = await runZeroLossPipeline(file.path, {
-        onProgress: (p) => console.log(`   [${p.progress}%] ${p.message}`),
-      });
-    }
+    // v9.0: Tüm dosya tipleri unified pipeline üzerinden
+    result = await analyzeDocument(file.path, {
+      onProgress: (p) => console.log(`   [${p.progress}%] ${p.message}`),
+    });
     
     result.file = file.name;
     result.duration = Date.now() - fileStart;

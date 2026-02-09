@@ -302,6 +302,31 @@ router.get('/', async (req, res) => {
   }
 });
 
+// SSE: Kuyruk işleme progress stream'i
+// Frontend bu endpoint'e EventSource ile bağlanır, queue processor event'lerini alır
+router.get('/queue/progress', async (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no', // Nginx buffering'i devre dışı bırak
+  });
+
+  // Heartbeat: bağlantı canlı kalsın
+  const heartbeat = setInterval(() => {
+    res.write(': heartbeat\n\n');
+  }, 30000);
+
+  // Queue processor'a SSE client olarak kayıt ol
+  const { default: queueProcessor } = await import('../services/document-queue-processor.js');
+  queueProcessor.addSSEClient(res);
+
+  // Bağlantı kesilince temizle
+  req.on('close', () => {
+    clearInterval(heartbeat);
+  });
+});
+
 // Döküman detayı
 router.get('/:id', async (req, res) => {
   try {

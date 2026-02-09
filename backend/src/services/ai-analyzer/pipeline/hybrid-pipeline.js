@@ -1,15 +1,13 @@
 /**
- * Hybrid Pipeline - Azure Document Intelligence + Claude Semantic Analysis
- *
- * Hibrit yaklaşım:
- * 1. Azure Document Intelligence: Tablo extraction, OCR, yapısal veri
- * 2. Claude: Semantic analiz, alan eşleştirme, conflict detection
- *
- * Avantajları:
- * - Azure'un %99+ tablo doğruluğu
- * - Claude'un semantic anlama yeteneği
- * - Maliyet optimizasyonu (%47 tasarruf)
- * - Fallback mekanizması
+ * @deprecated v9.0'dan itibaren kullanılmıyor!
+ * 
+ * unified-pipeline.js aynı işlevselliği içerir:
+ *   import { analyzeDocument } from './unified-pipeline.js';
+ * 
+ * Bu dosya geriye uyumluluk için korunuyor ama yeni kodda KULLANILMAMALI.
+ * Tüm Azure+Claude hibrit mantığı unified-pipeline.js'e taşındı.
+ * 
+ * Eski: Hybrid Pipeline - Azure Document Intelligence + Claude Semantic Analysis
  */
 
 import fs from 'node:fs';

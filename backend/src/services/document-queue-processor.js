@@ -12,11 +12,13 @@
  * DİĞER PİPELINE DOSYALARINI KULLANMA!
  */
 
+import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
 import path from 'node:path';
 import { pool } from '../database.js';
+import aiConfig from '../config/ai.config.js';
 import logger from '../utils/logger.js';
 
 // v9.0: TEK MERKEZİ SİSTEM
@@ -24,8 +26,8 @@ import { analyzeDocument } from './ai-analyzer/unified-pipeline.js';
 
 // Download ayarları
 const DOWNLOAD_CONFIG = {
-  maxRetries: 3,
-  retryDelayMs: 1000, // İlk retry bekleme süresi
+  maxRetries: aiConfig.queue.maxRetries || 3,
+  retryDelayMs: aiConfig.queue.retryDelay || 1000, // İlk retry bekleme süresi
   timeoutMs: 120000, // 2 dakika timeout
   maxRedirects: 5,
   progressLogThreshold: 5 * 1024 * 1024, // 5MB üzeri dosyalarda progress log
@@ -37,31 +39,126 @@ if (!fs.existsSync(TEMP_DIR)) {
   fs.mkdirSync(TEMP_DIR, { recursive: true });
 }
 
-class DocumentQueueProcessor {
+class DocumentQueueProcessor extends EventEmitter {
   constructor() {
+    super();
     this.isProcessing = false;
-    this.maxConcurrent = 2;
-    this.processInterval = 30000; // 30 saniye
+    // Config'den oku (artık hardcoded değil)
+    this.maxConcurrent = aiConfig.queue.maxConcurrent || 4;
+    this.processInterval = aiConfig.queue.processInterval || 10000; // 10 saniye
     this.scheduler = null;
+    this.pgClient = null; // LISTEN/NOTIFY için
+    this._consecutiveEmptyPolls = 0; // Boş poll sayacı (adaptive interval)
+    this._sseClients = new Set(); // SSE bağlı istemciler
+  }
+
+  /**
+   * SSE client kaydet (frontend progress takibi için)
+   * @param {import('express').Response} res - SSE response
+   */
+  addSSEClient(res) {
+    this._sseClients.add(res);
+    res.on('close', () => this._sseClients.delete(res));
+    
+    // Bağlantıda mevcut kuyruk durumunu gönder
+    this.getQueueStatus().then((status) => {
+      this._sendSSE(res, 'queue_status', status);
+    }).catch(() => {});
+  }
+
+  /**
+   * Tüm SSE istemcilere event gönder
+   */
+  _broadcastSSE(event, data) {
+    for (const client of this._sseClients) {
+      this._sendSSE(client, event, data);
+    }
+  }
+
+  /**
+   * Tek bir SSE istemciye event gönder
+   */
+  _sendSSE(res, event, data) {
+    try {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    } catch {
+      this._sseClients.delete(res);
+    }
   }
 
   /**
    * Queue processor'ı başlat
+   * LISTEN/NOTIFY ile event-driven + polling fallback
    */
-  start() {
+  async start() {
     if (this.scheduler) return;
 
     logger.info('Queue processor started', {
       module: 'queue-processor',
       pipeline: 'unified-v9.0',
+      maxConcurrent: this.maxConcurrent,
       interval: `${this.processInterval / 1000}s`,
+      mode: 'listen-notify + polling-fallback',
     });
 
+    // 1. LISTEN/NOTIFY başlat (event-driven - birincil mekanizma)
+    await this._startListenNotify();
+
+    // 2. Polling fallback (LISTEN/NOTIFY kaçırırsa diye)
+    // Adaptive interval: Boş poll artarsa yavaşla, iş gelince hızlan
     this.scheduler = setInterval(async () => {
       if (!this.isProcessing) {
         await this.processQueue();
       }
     }, this.processInterval);
+
+    // 3. İlk başlatmada mevcut kuyruğu kontrol et
+    if (!this.isProcessing) {
+      await this.processQueue();
+    }
+  }
+
+  /**
+   * PostgreSQL LISTEN/NOTIFY - Yeni doküman kuyruğa eklenince anında tetikle
+   */
+  async _startListenNotify() {
+    try {
+      // Ayrı bir connection al (LISTEN için dedicated olmalı)
+      this.pgClient = await pool.connect();
+
+      this.pgClient.on('notification', async (msg) => {
+        if (msg.channel === 'document_queued') {
+          logger.info('NOTIFY received: document_queued', {
+            module: 'queue-processor',
+            payload: msg.payload,
+          });
+          this._consecutiveEmptyPolls = 0; // Reset adaptive counter
+
+          // Hemen işle
+          if (!this.isProcessing) {
+            await this.processQueue();
+          }
+        }
+      });
+
+      this.pgClient.on('error', (err) => {
+        logger.error('LISTEN connection error, reconnecting...', {
+          module: 'queue-processor',
+          error: err.message,
+        });
+        // Reconnect after delay
+        setTimeout(() => this._startListenNotify(), 5000);
+      });
+
+      await this.pgClient.query('LISTEN document_queued');
+      logger.info('LISTEN/NOTIFY active on channel: document_queued', { module: 'queue-processor' });
+    } catch (err) {
+      logger.warn('LISTEN/NOTIFY setup failed, polling-only mode', {
+        module: 'queue-processor',
+        error: err.message,
+      });
+      // Polling yedek olarak çalışır, kritik değil
+    }
   }
 
   /**
@@ -71,8 +168,18 @@ class DocumentQueueProcessor {
     if (this.scheduler) {
       clearInterval(this.scheduler);
       this.scheduler = null;
-      logger.info('Queue processor stopped', { module: 'queue-processor' });
     }
+
+    // LISTEN connection'ı kapat
+    if (this.pgClient) {
+      try {
+        this.pgClient.query('UNLISTEN document_queued').catch(() => {});
+        this.pgClient.release();
+      } catch {}
+      this.pgClient = null;
+    }
+
+    logger.info('Queue processor stopped', { module: 'queue-processor' });
   }
 
   /**
@@ -153,6 +260,15 @@ class DocumentQueueProcessor {
       // Status'u processing yap
       await pool.query('UPDATE documents SET processing_status = $1 WHERE id = $2', ['processing', id]);
 
+      // SSE: İşleme başladı bildirimi
+      this._broadcastSSE('document_processing', {
+        documentId: id,
+        filename: original_filename,
+        status: 'processing',
+        stage: 'download',
+        message: `${original_filename} işleniyor...`,
+      });
+
       let actualFilePath = file_path;
 
       // Supabase'den indirme gerekiyorsa (storage_url varsa ve lokal dosya değilse)
@@ -192,6 +308,14 @@ class DocumentQueueProcessor {
         pipeline: 'unified-v9.0',
         fromStorage: !!tempFilePath,
       });
+
+      // SSE: İşleme tamamlandı bildirimi
+      this._broadcastSSE('document_complete', {
+        documentId: id,
+        filename: original_filename,
+        status: 'completed',
+        message: `${original_filename} analizi tamamlandı`,
+      });
     } catch (error) {
       logger.error('Document processing failed', {
         module: 'queue-processor',
@@ -200,6 +324,15 @@ class DocumentQueueProcessor {
       });
 
       await pool.query(`UPDATE documents SET processing_status = 'failed', processed_at = NOW() WHERE id = $1`, [id]);
+
+      // SSE: Hata bildirimi
+      this._broadcastSSE('document_error', {
+        documentId: id,
+        filename: original_filename,
+        status: 'failed',
+        error: error.message,
+        message: `${original_filename} analizi başarısız`,
+      });
     } finally {
       // Temp dosyayı temizle
       if (tempFilePath && fs.existsSync(tempFilePath)) {
@@ -396,6 +529,7 @@ class DocumentQueueProcessor {
 
   /**
    * v9.0: Dosya tabanlı dökümanlar için Unified Pipeline
+   * + Analiz versiyonlama desteği
    */
   async processWithPipeline(docId, filePath) {
     const startTime = Date.now();
@@ -411,17 +545,34 @@ class DocumentQueueProcessor {
     }
 
     const provider = result.meta?.provider_used || 'unified';
+    const analysisPayload = {
+      pipeline_version: '9.0',
+      provider,
+      analysis: result.analysis,
+      stats: result.stats,
+      validation: result.validation,
+    };
 
+    // Versiyonlama: Önceki analizi history'ye kaydet, yeni sonucu yaz
     await pool.query(
-      `UPDATE documents SET extracted_text = $1, analysis_result = $2, processing_status = 'completed', processed_at = NOW() WHERE id = $3`,
+      `UPDATE documents SET 
+        extracted_text = $1, 
+        analysis_result = $2, 
+        processing_status = 'completed', 
+        processed_at = NOW(),
+        analysis_version = COALESCE(analysis_version, 0) + 1,
+        analysis_history = COALESCE(analysis_history, '[]'::jsonb) || $3::jsonb
+       WHERE id = $4`,
       [
         result.extraction?.text || '',
+        JSON.stringify(analysisPayload),
         JSON.stringify({
-          pipeline_version: '9.0',
+          version: Date.now(),
           provider,
-          analysis: result.analysis,
-          stats: result.stats,
-          validation: result.validation,
+          timestamp: new Date().toISOString(),
+          completeness: result.validation?.completeness_score || 0,
+          duration_ms: elapsed,
+          pipeline_version: '9.0',
         }),
         docId,
       ]
