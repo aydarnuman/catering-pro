@@ -3,6 +3,7 @@
 import {
   Accordion,
   ActionIcon,
+  Anchor,
   Badge,
   Box,
   Button,
@@ -13,6 +14,7 @@ import {
   Loader,
   Paper,
   ScrollArea,
+  Skeleton,
   Stack,
   Text,
   TextInput,
@@ -25,12 +27,17 @@ import {
   IconCalculator,
   IconCheck,
   IconCopy,
+  IconExternalLink,
   IconGavel,
   IconInfoCircle,
+  IconLeaf,
+  IconRefresh,
   IconScale,
   IconSearch,
+  IconTrendingUp,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
+import { getApiUrl } from '@/lib/config';
 
 interface GuncelDegerler {
   asgari_ucret?: {
@@ -61,11 +68,42 @@ interface Formula {
   ornek?: string;
 }
 
+// ─── Gündem types ───────────────────────────────────────
+
+interface GundemHaber {
+  baslik: string;
+  url: string;
+}
+
+interface GundemKonu {
+  konu: string;
+  baslik: string;
+  ozet?: string;
+  haberler: GundemHaber[];
+}
+
+interface GundemResponse {
+  success: boolean;
+  konular: GundemKonu[];
+  guncelleme?: string;
+  kaynak?: string;
+}
+
+const KONU_META: Record<string, { icon: React.ReactNode; color: string }> = {
+  kik_ihale: { icon: <IconGavel size={14} />, color: 'orange' },
+  gida_mevzuat: { icon: <IconLeaf size={14} />, color: 'green' },
+  gida_fiyat_trend: { icon: <IconTrendingUp size={14} />, color: 'blue' },
+};
+
 export function MevzuatWidget() {
   const [opened, { open, close }] = useDisclosure(false);
   const [loading, setLoading] = useState(false);
   const [guncelDegerler, setGuncelDegerler] = useState<GuncelDegerler | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Canlı gündem state
+  const [gundem, setGundem] = useState<GundemResponse | null>(null);
+  const [gundemLoading, setGundemLoading] = useState(false);
 
   // Mevzuat verilerini yükle
   const fetchMevzuatData = useCallback(async () => {
@@ -107,11 +145,30 @@ export function MevzuatWidget() {
     }
   }, []);
 
+  // Canlı gündem fetch
+  const fetchGundem = useCallback(async (refresh = false) => {
+    setGundemLoading(true);
+    try {
+      const url = getApiUrl(`/api/mevzuat/gundem${refresh ? '?refresh=1' : ''}`);
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) return;
+      const json: GundemResponse = await res.json();
+      if (json.success) setGundem(json);
+    } catch {
+      // sessizce devam
+    } finally {
+      setGundemLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (opened && !guncelDegerler) {
       fetchMevzuatData();
     }
-  }, [opened, guncelDegerler, fetchMevzuatData]);
+    if (opened && !gundem) {
+      fetchGundem();
+    }
+  }, [opened, guncelDegerler, fetchMevzuatData, gundem, fetchGundem]);
 
   // Formüller
   const formuller: Formula[] = [
@@ -229,7 +286,111 @@ export function MevzuatWidget() {
                 <Loader size="sm" />
               </Box>
             ) : (
-              <Accordion variant="separated" defaultValue="guncel">
+              <Accordion variant="separated" defaultValue="canli-gundem">
+                {/* Canlı Sektör Gündemi */}
+                <Accordion.Item value="canli-gundem">
+                  <Accordion.Control
+                    icon={<IconTrendingUp size={18} color="var(--mantine-color-blue-6)" />}
+                  >
+                    <Group gap="xs">
+                      Canlı Sektör Gündemi
+                      {gundem && gundem.konular.length > 0 && (
+                        <Badge size="xs" variant="light" color="blue">
+                          {gundem.konular.reduce((s, k) => s + k.haberler.length, 0)}
+                        </Badge>
+                      )}
+                    </Group>
+                  </Accordion.Control>
+                  <Accordion.Panel>
+                    {gundemLoading && !gundem ? (
+                      <Stack gap="xs">
+                        <Skeleton height={50} radius="sm" />
+                        <Skeleton height={50} radius="sm" />
+                        <Skeleton height={50} radius="sm" />
+                      </Stack>
+                    ) : gundem && gundem.konular.length > 0 ? (
+                      <Stack gap="sm">
+                        {gundem.konular.map((konu) => {
+                          const meta = KONU_META[konu.konu] || {
+                            icon: <IconTrendingUp size={14} />,
+                            color: 'gray',
+                          };
+                          return (
+                            <Paper key={konu.konu} p="xs" withBorder radius="sm">
+                              <Group gap="xs" mb={4}>
+                                <ThemeIcon size="sm" variant="light" color={meta.color} radius="xl">
+                                  {meta.icon}
+                                </ThemeIcon>
+                                <Text size="xs" fw={600}>
+                                  {konu.baslik}
+                                </Text>
+                              </Group>
+
+                              {konu.ozet && (
+                                <Text size="xs" c="dimmed" mb="xs" lineClamp={2}>
+                                  {konu.ozet}
+                                </Text>
+                              )}
+
+                              <Stack gap={3}>
+                                {konu.haberler.slice(0, 3).map((haber, idx) => (
+                                  <Anchor
+                                    key={`mw-${konu.konu}-${idx}`}
+                                    href={haber.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    underline="hover"
+                                    size="xs"
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'flex-start',
+                                      gap: 4,
+                                    }}
+                                  >
+                                    <IconExternalLink
+                                      size={11}
+                                      style={{ flexShrink: 0, marginTop: 2 }}
+                                    />
+                                    <Text size="xs" lineClamp={2} inherit>
+                                      {haber.baslik}
+                                    </Text>
+                                  </Anchor>
+                                ))}
+                              </Stack>
+                            </Paper>
+                          );
+                        })}
+
+                        {/* Yenile butonu */}
+                        <Group justify="flex-end">
+                          <Tooltip label="Güncel verileri yenile">
+                            <ActionIcon
+                              size="xs"
+                              variant="subtle"
+                              loading={gundemLoading}
+                              onClick={() => {
+                                setGundem(null);
+                                fetchGundem(true);
+                              }}
+                            >
+                              <IconRefresh size={14} />
+                            </ActionIcon>
+                          </Tooltip>
+                          {gundem.guncelleme && (
+                            <Text size="xs" c="dimmed">
+                              {gundem.kaynak === 'cache' ? 'Önbellekten' : 'Canlı'}
+                            </Text>
+                          )}
+                        </Group>
+                      </Stack>
+                    ) : (
+                      <Text size="xs" c="dimmed">
+                        Canlı haber takibi pasif veya veri alınamadı
+                      </Text>
+                    )}
+                  </Accordion.Panel>
+                </Accordion.Item>
+
                 {/* Güncel Değerler */}
                 <Accordion.Item value="guncel">
                   <Accordion.Control
@@ -396,20 +557,67 @@ export function MevzuatWidget() {
                   <Accordion.Panel>
                     <Stack gap="sm">
                       <Text size="xs" c="dimmed">
-                        Emsal karar aramak için AI asistanı kullanın veya KİK web sitesini ziyaret
-                        edin.
+                        KİK Emsal Karar Arama Motoru ile yemek ihalesi, hizmet alımı ve catering
+                        konularında emsal kararları arayabilirsiniz.
                       </Text>
-                      <Button
-                        variant="light"
-                        color="red"
-                        size="xs"
-                        leftSection={<IconGavel size={14} />}
-                        component="a"
-                        href="https://ekk.kik.gov.tr/EKAP/"
-                        target="_blank"
-                      >
-                        KİK Karar Arama
-                      </Button>
+                      <Group gap="xs">
+                        <Button
+                          variant="light"
+                          color="red"
+                          size="xs"
+                          leftSection={<IconGavel size={14} />}
+                          component="a"
+                          href="https://ekk.kik.gov.tr/EKAP/"
+                          target="_blank"
+                        >
+                          KİK Karar Arama
+                        </Button>
+                        <Button
+                          variant="light"
+                          color="orange"
+                          size="xs"
+                          leftSection={<IconSearch size={14} />}
+                          component="a"
+                          href="https://www.ihale.gov.tr/Kararlar.html"
+                          target="_blank"
+                        >
+                          KİK Kurul Kararları
+                        </Button>
+                      </Group>
+
+                      {/* KIK ile ilgili canlı haberler */}
+                      {gundem?.konular
+                        .filter((k) => k.konu === 'kik_ihale')
+                        .map((konu) => (
+                          <Box key="kik-live">
+                            <Divider my="xs" label="Son KİK Duyuruları" labelPosition="center" />
+                            <Stack gap={3}>
+                              {konu.haberler.slice(0, 3).map((h) => (
+                                <Anchor
+                                  key={`emsal-${h.url}`}
+                                  href={h.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  underline="hover"
+                                  size="xs"
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    gap: 4,
+                                  }}
+                                >
+                                  <IconExternalLink
+                                    size={11}
+                                    style={{ flexShrink: 0, marginTop: 2 }}
+                                  />
+                                  <Text size="xs" lineClamp={2} inherit>
+                                    {h.baslik}
+                                  </Text>
+                                </Anchor>
+                              ))}
+                            </Stack>
+                          </Box>
+                        ))}
                     </Stack>
                   </Accordion.Panel>
                 </Accordion.Item>

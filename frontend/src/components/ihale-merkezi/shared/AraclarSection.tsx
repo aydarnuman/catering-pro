@@ -1,252 +1,238 @@
 'use client';
 
-import { Badge, Box, Button, Group, Paper, SimpleGrid, Stack, Text, ThemeIcon } from '@mantine/core';
 import {
-  IconAlertTriangle,
-  IconCalculator,
-  IconCheck,
+  Anchor,
+  Box,
+  Badge,
+  Group,
+  Paper,
+  SimpleGrid,
+  Skeleton,
+  Stack,
+  Text,
+  ThemeIcon,
+  Tooltip,
+} from '@mantine/core';
+import {
+  IconExternalLink,
+  IconGavel,
+  IconLeaf,
   IconSparkles,
+  IconTrendingUp,
 } from '@tabler/icons-react';
-import { useState } from 'react';
-import { CalculationModal } from '../CalculationModal';
+import { useCallback, useEffect, useState } from 'react';
+import { getApiUrl } from '@/lib/config';
 import type { SavedTender } from '../types';
+
+// ─── Gündem mini types ──────────────────────────────────
+
+interface GundemHaber {
+  baslik: string;
+  url: string;
+}
+
+interface GundemKonu {
+  konu: string;
+  baslik: string;
+  ozet?: string;
+  haberler: GundemHaber[];
+}
+
+interface GundemData {
+  success: boolean;
+  konular: GundemKonu[];
+}
+
+const KONU_ICON: Record<string, { icon: React.ReactNode; color: string }> = {
+  kik_ihale: { icon: <IconGavel size={12} />, color: 'orange' },
+  gida_mevzuat: { icon: <IconLeaf size={12} />, color: 'green' },
+  gida_fiyat_trend: { icon: <IconTrendingUp size={12} />, color: 'blue' },
+};
 
 export function AraclarSection({
   tender,
-  onRefresh,
 }: {
   tender: SavedTender;
   onRefresh?: () => void;
 }) {
-  const [calcModalOpen, setCalcModalOpen] = useState(false);
-
-  // Mevcut değerler (sadece gösterim için)
-  const yaklasikMaliyet = tender.yaklasik_maliyet || 0;
-  const bizimTeklif = tender.bizim_teklif || 0;
-  const otomatikSinirDeger = yaklasikMaliyet > 0 ? Math.round(yaklasikMaliyet * 0.85) : 0;
-
   // Tespit edilen veriler
-  const hesaplamaVerileri = (tender as any).hesaplama_verileri || {};
-  const isSuresi =
+  const hesaplamaVerileri = ((tender as unknown as Record<string, unknown>).hesaplama_verileri || {}) as Record<string, unknown>;
+  const isSuresi = (
     hesaplamaVerileri.is_suresi ||
     tender.analysis_summary?.teslim_suresi ||
-    tender.analysis_summary?.sure;
-  const toplamOgun =
+    tender.analysis_summary?.sure
+  ) as string | undefined;
+  const toplamOgun = Number(
     hesaplamaVerileri.toplam_ogun_sayisi ||
+    tender.analysis_summary?.toplam_ogun_sayisi ||
     tender.analysis_summary?.ogun_bilgileri?.reduce(
-      (sum: number, o: any) => sum + (Number(o.miktar) || 0),
+      (sum: number, o: { miktar?: number | string }) => sum + (Number(o.miktar) || 0),
       0
     ) ||
-    0;
-  const teknikSartSayisi =
-    hesaplamaVerileri.teknik_sart_sayisi || tender.analysis_summary?.teknik_sartlar?.length || 0;
-  const birimFiyatSayisi =
-    hesaplamaVerileri.birim_fiyat_sayisi || tender.analysis_summary?.birim_fiyatlar?.length || 0;
+    0
+  );
+  const teknikSartSayisi = Number(
+    hesaplamaVerileri.teknik_sart_sayisi || tender.analysis_summary?.teknik_sartlar?.length || 0
+  );
+  const birimFiyatSayisi = Number(
+    hesaplamaVerileri.birim_fiyat_sayisi || tender.analysis_summary?.birim_fiyatlar?.length || 0
+  );
 
-  // Hesaplamalar
-  const ogunBasiMaliyet = yaklasikMaliyet && toplamOgun ? yaklasikMaliyet / toplamOgun : 0;
+  // ─── Gündem verisi ──────────────────────────────────────
 
-  // Risk hesaplama
-  const isAsiriDusuk =
-    bizimTeklif > 0 && otomatikSinirDeger > 0 && bizimTeklif < otomatikSinirDeger;
-  const fark = bizimTeklif > 0 && otomatikSinirDeger > 0 ? bizimTeklif - otomatikSinirDeger : 0;
+  const [gundem, setGundem] = useState<GundemData | null>(null);
+  const [gundemLoading, setGundemLoading] = useState(false);
+
+  const fetchGundem = useCallback(async () => {
+    setGundemLoading(true);
+    try {
+      const res = await fetch(getApiUrl('/api/mevzuat/gundem'), { credentials: 'include' });
+      if (!res.ok) return;
+      const json: GundemData = await res.json();
+      if (json.success) setGundem(json);
+    } catch {
+      // sessizce devam
+    } finally {
+      setGundemLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchGundem();
+  }, [fetchGundem]);
 
   return (
-    <>
-      {/* Hesaplama Modalı */}
-      <CalculationModal
-        opened={calcModalOpen}
-        onClose={() => setCalcModalOpen(false)}
-        tender={tender}
-        onRefresh={onRefresh}
-      />
-
-      <Stack gap="md">
-        {/* Ana Hesaplama Kartı - Hero */}
-        <Paper
-          p="lg"
-          withBorder
-          radius="md"
-          bg={
-            yaklasikMaliyet === 0
-              ? 'dark.6'
-              : isAsiriDusuk
-                ? 'rgba(255, 107, 107, 0.08)'
-                : 'rgba(81, 207, 102, 0.08)'
-          }
-          style={{
-            borderColor:
-              yaklasikMaliyet === 0
-                ? undefined
-                : isAsiriDusuk
-                  ? 'var(--mantine-color-red-6)'
-                  : 'var(--mantine-color-green-6)',
-            cursor: 'pointer',
-          }}
-          onClick={() => setCalcModalOpen(true)}
-        >
-          <Group justify="space-between" align="flex-start">
-            <div>
-              <Group gap="xs" mb="xs">
-                <ThemeIcon
-                  size="lg"
-                  variant="light"
-                  color={yaklasikMaliyet === 0 ? 'blue' : isAsiriDusuk ? 'red' : 'green'}
-                >
-                  <IconCalculator size={20} />
-                </ThemeIcon>
-                <div>
-                  <Text size="sm" fw={600}>
-                    Teklif Hesaplama
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    Sınır değer ve risk analizi
-                  </Text>
-                </div>
-              </Group>
-
-              {yaklasikMaliyet > 0 ? (
-                <SimpleGrid cols={3} spacing="md" mt="md">
-                  <Box>
-                    <Text size="xs" c="dimmed">
-                      Yaklaşık Maliyet
-                    </Text>
-                    <Text size="sm" fw={600}>
-                      {yaklasikMaliyet.toLocaleString('tr-TR')} ₺
-                    </Text>
-                  </Box>
-                  <Box>
-                    <Text size="xs" c="dimmed">
-                      Sınır Değer
-                    </Text>
-                    <Text size="sm" fw={600} c="blue">
-                      {otomatikSinirDeger.toLocaleString('tr-TR')} ₺
-                    </Text>
-                  </Box>
-                  <Box>
-                    <Text size="xs" c="dimmed">
-                      Bizim Teklif
-                    </Text>
-                    <Text size="sm" fw={600} c={isAsiriDusuk ? 'red' : 'green'}>
-                      {bizimTeklif > 0 ? `${bizimTeklif.toLocaleString('tr-TR')} ₺` : '—'}
-                    </Text>
-                  </Box>
-                </SimpleGrid>
-              ) : (
-                <Text size="sm" c="dimmed" mt="xs">
-                  Teklif analizi için tıklayın
-                </Text>
-              )}
-            </div>
-
-            {yaklasikMaliyet > 0 && bizimTeklif > 0 && (
-              <Badge
-                size="lg"
-                variant="light"
-                color={isAsiriDusuk ? 'red' : 'green'}
-                leftSection={
-                  isAsiriDusuk ? <IconAlertTriangle size={14} /> : <IconCheck size={14} />
-                }
-              >
-                {isAsiriDusuk ? 'RİSKLİ' : 'UYGUN'}
-              </Badge>
-            )}
+    <Stack gap="md">
+      {/* Döküman Analizi - Kompakt Özet */}
+      {(isSuresi || toplamOgun > 0) && (
+        <Paper p="sm" withBorder radius="md" bg="rgba(20, 184, 166, 0.03)">
+          <Group gap="xs" mb="xs">
+            <IconSparkles size={14} color="var(--mantine-color-teal-6)" />
+            <Text size="xs" fw={600} c="teal">
+              Döküman Analizi
+            </Text>
           </Group>
-
-          {yaklasikMaliyet > 0 && bizimTeklif > 0 && (
-            <Group
-              gap="xs"
-              mt="md"
-              pt="md"
-              style={{ borderTop: '1px solid var(--mantine-color-dark-4)' }}
-            >
-              <Text size="xs" c="dimmed">
-                Fark:
-              </Text>
-              <Text size="xs" fw={500} c={fark >= 0 ? 'green' : 'red'}>
-                {fark >= 0 ? '+' : ''}
-                {fark.toLocaleString('tr-TR')} ₺
-              </Text>
-              {ogunBasiMaliyet > 0 && (
-                <>
-                  <Text size="xs" c="dimmed" ml="md">
-                    Öğün Başı:
-                  </Text>
-                  <Text size="xs" fw={500} c="blue">
-                    {ogunBasiMaliyet.toFixed(2)} ₺
-                  </Text>
-                </>
-              )}
-            </Group>
-          )}
+          <SimpleGrid cols={4} spacing="xs">
+            {isSuresi && (
+              <Box>
+                <Text size="xs" c="dimmed">
+                  Süre
+                </Text>
+                <Text size="sm" fw={500}>
+                  {isSuresi}
+                </Text>
+              </Box>
+            )}
+            {toplamOgun > 0 && (
+              <Box>
+                <Text size="xs" c="dimmed">
+                  Öğün
+                </Text>
+                <Text size="sm" fw={500}>
+                  {(toplamOgun / 1000000).toFixed(1)}M
+                </Text>
+              </Box>
+            )}
+            {teknikSartSayisi > 0 && (
+              <Box>
+                <Text size="xs" c="dimmed">
+                  Şart
+                </Text>
+                <Text size="sm" fw={500}>
+                  {teknikSartSayisi}
+                </Text>
+              </Box>
+            )}
+            {birimFiyatSayisi > 0 && (
+              <Box>
+                <Text size="xs" c="dimmed">
+                  Kalem
+                </Text>
+                <Text size="sm" fw={500}>
+                  {birimFiyatSayisi}
+                </Text>
+              </Box>
+            )}
+          </SimpleGrid>
         </Paper>
+      )}
 
-        {/* Açılır Hesaplama Butonu */}
-        <Button
-          fullWidth
-          size="md"
-          variant="gradient"
-          gradient={{ from: 'blue', to: 'cyan' }}
-          leftSection={<IconCalculator size={18} />}
-          onClick={() => setCalcModalOpen(true)}
-        >
-          Detaylı Hesaplama Aç
-        </Button>
+      {/* Piyasa & Mevzuat — Canlı Gündem */}
+      <Paper p="sm" withBorder radius="md" bg="rgba(59, 130, 246, 0.03)">
+        <Group gap="xs" mb="xs">
+          <IconGavel size={14} color="var(--mantine-color-orange-6)" />
+          <Text size="xs" fw={600} c="orange">
+            Piyasa & Mevzuat
+          </Text>
+        </Group>
 
-        {/* Tespit Edilen Veriler - Kompakt */}
-        {(isSuresi || toplamOgun > 0) && (
-          <Paper p="sm" withBorder radius="md" bg="rgba(20, 184, 166, 0.03)">
-            <Group gap="xs" mb="xs">
-              <IconSparkles size={14} color="var(--mantine-color-teal-6)" />
-              <Text size="xs" fw={600} c="teal">
-                Döküman Analizi
-              </Text>
-            </Group>
-            <SimpleGrid cols={4} spacing="xs">
-              {isSuresi && (
-                <Box>
-                  <Text size="xs" c="dimmed">
-                    Süre
-                  </Text>
-                  <Text size="sm" fw={500}>
-                    {isSuresi}
-                  </Text>
+        {gundemLoading && !gundem ? (
+          <Stack gap="xs">
+            <Skeleton height={40} radius="sm" />
+            <Skeleton height={40} radius="sm" />
+          </Stack>
+        ) : gundem && gundem.konular.length > 0 ? (
+          <Stack gap="xs">
+            {gundem.konular.map((konu) => {
+              const meta = KONU_ICON[konu.konu] || { icon: <IconTrendingUp size={12} />, color: 'gray' };
+              return (
+                <Box key={konu.konu}>
+                  <Group gap={4} mb={2}>
+                    <ThemeIcon size="xs" variant="light" color={meta.color} radius="xl">
+                      {meta.icon}
+                    </ThemeIcon>
+                    <Text size="xs" fw={600}>
+                      {konu.baslik}
+                    </Text>
+                    <Badge size="xs" variant="dot" color={meta.color}>
+                      {konu.haberler.length}
+                    </Badge>
+                  </Group>
+
+                  {/* İlk 2 haber */}
+                  <Stack gap={2} ml="md">
+                    {konu.haberler.slice(0, 2).map((haber, idx) => (
+                      <Anchor
+                        key={`${konu.konu}-${idx}`}
+                        href={haber.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        underline="hover"
+                        size="xs"
+                        style={{ display: 'flex', alignItems: 'flex-start', gap: 3 }}
+                      >
+                        <IconExternalLink size={10} style={{ flexShrink: 0, marginTop: 3 }} />
+                        <Text size="xs" lineClamp={1} inherit>
+                          {haber.baslik}
+                        </Text>
+                      </Anchor>
+                    ))}
+                  </Stack>
                 </Box>
-              )}
-              {toplamOgun > 0 && (
-                <Box>
-                  <Text size="xs" c="dimmed">
-                    Öğün
-                  </Text>
-                  <Text size="sm" fw={500}>
-                    {(toplamOgun / 1000000).toFixed(1)}M
-                  </Text>
-                </Box>
-              )}
-              {teknikSartSayisi > 0 && (
-                <Box>
-                  <Text size="xs" c="dimmed">
-                    Şart
-                  </Text>
-                  <Text size="sm" fw={500}>
-                    {teknikSartSayisi}
-                  </Text>
-                </Box>
-              )}
-              {birimFiyatSayisi > 0 && (
-                <Box>
-                  <Text size="xs" c="dimmed">
-                    Kalem
-                  </Text>
-                  <Text size="sm" fw={500}>
-                    {birimFiyatSayisi}
-                  </Text>
-                </Box>
-              )}
-            </SimpleGrid>
-          </Paper>
+              );
+            })}
+          </Stack>
+        ) : (
+          <Text size="xs" c="dimmed">
+            Gündem verisi yüklenemedi
+          </Text>
         )}
-      </Stack>
-    </>
+
+        {/* KIK link */}
+        <Group gap="xs" mt="xs" pt="xs" style={{ borderTop: '1px solid var(--mantine-color-dark-5)' }}>
+          <Tooltip label="KİK Karar Arama Motoru" position="top">
+            <Anchor
+              href="https://ekk.kik.gov.tr/EKAP/"
+              target="_blank"
+              size="xs"
+              style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+            >
+              <IconGavel size={12} />
+              KİK Emsal Ara
+            </Anchor>
+          </Tooltip>
+        </Group>
+      </Paper>
+    </Stack>
   );
 }

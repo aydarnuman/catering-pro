@@ -3,6 +3,7 @@
 import {
   ActionIcon,
   Badge,
+  Box,
   Button,
   Container,
   Divider,
@@ -43,7 +44,7 @@ import {
 } from '@tabler/icons-react';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { DashboardStats, YukleniciModal } from '@/components/yuklenici-kutuphanesi';
+import { DashboardStats, SektorGundemiPanel, YukleniciModal } from '@/components/yuklenici-kutuphanesi';
 import { BildirimListesi } from '@/components/yuklenici-kutuphanesi/istihbarat/BildirimListesi';
 import { getApiUrl } from '@/lib/config';
 import type { ScrapeStatus, SortField, StatsData, Yuklenici } from '@/types/yuklenici';
@@ -433,6 +434,11 @@ export default function YukleniciKutuphanesiPage() {
 
       {/* Dashboard Stats */}
       {stats && <DashboardStats stats={stats} onOpenDetail={openDetail} />}
+
+      {/* Sektör Gündemi — Canlı haberler */}
+      <Box mb="md">
+        <SektorGundemiPanel />
+      </Box>
 
       {/* Search + Filters — Premium dark */}
       <Paper p="md" mb="md" className="yk-filter-bar" radius="md">
