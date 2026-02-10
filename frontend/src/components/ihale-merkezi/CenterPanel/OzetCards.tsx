@@ -214,7 +214,6 @@ export function TeknikSartlarCard({
         <Stack gap={4}>
           {isEditing
             ? editItems.map((text, idx) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: edit items are ephemeral text strings without stable IDs
                 <Group key={`ts-edit-${idx}`} gap="xs" wrap="nowrap" align="flex-start">
                   <Badge
                     size="xs"
@@ -420,7 +419,6 @@ export function BirimFiyatlarCard({
         <Stack gap={4}>
           {isEditing
             ? editItems.map((item, idx) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: edit items are ephemeral objects without stable IDs
                 <Group key={`bf-edit-${idx}`} gap="xs" wrap="nowrap">
                   <Badge
                     size="xs"
@@ -985,7 +983,6 @@ export function PersonelCard({
         <Stack gap={4}>
           {isEditing
             ? editItems.map((p, idx) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: edit items are ephemeral objects without stable IDs
                 <Group key={`personel-edit-${idx}`} gap="xs" wrap="nowrap">
                   <TextInput
                     size="xs"
@@ -1149,7 +1146,6 @@ export function OgunBilgileriCard({
                         <Table.Tr>
                           {headers.map((h, hIdx) => (
                             <Table.Th
-                              // biome-ignore lint/suspicious/noArrayIndexKey: Tablo başlıkları tekrar edebilir
                               key={`th-${tIdx}-${hIdx}`}
                               style={hIdx === 0 ? { minWidth: 120 } : { textAlign: 'right', minWidth: 60 }}
                             >
@@ -1164,13 +1160,11 @@ export function OgunBilgileriCard({
                           const isToplam = firstCol.toUpperCase() === 'TOPLAM';
                           return (
                             <Table.Tr
-                              // biome-ignore lint/suspicious/noArrayIndexKey: Tablo satırları benzersiz ID içermez
                               key={`tr-${tIdx}-${rIdx}`}
                               fw={isToplam ? 700 : undefined}
                             >
                               {row.map((cell, cIdx) => (
                                 <Table.Td
-                                  // biome-ignore lint/suspicious/noArrayIndexKey: Tablo hücreleri benzersiz ID içermez
                                   key={`td-${tIdx}-${rIdx}-${cIdx}`}
                                   style={cIdx === 0 ? undefined : { textAlign: 'right' }}
                                   fw={isToplam ? 700 : undefined}
@@ -1498,6 +1492,9 @@ export function MaliKriterlerCard({
     ozkaynak_orani: 'Öz Kaynak Oranı',
     is_deneyimi: 'İş Deneyimi',
     ciro_orani: 'Ciro Oranı',
+    banka_borc_orani: 'Banka Borcu / Özkaynak',
+    toplam_ciro_orani: 'Toplam Ciro Gereksinimi',
+    hizmet_ciro_orani: 'Hizmet Cirosu Gereksinimi',
   };
 
   const handleSave = () => {

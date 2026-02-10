@@ -64,8 +64,8 @@ async function analyzeChunk(chunk, extractionType = 'full') {
     const prompt = extractionType === 'full' ? STAGE1_PROMPT : getPrompt(extractionType);
 
     const response = await anthropic.messages.create({
-      model: aiConfig.claude.fastModel, // Haiku
-      max_tokens: 2048,
+      model: aiConfig.claude.fastModel, // v9.1: Opus 4.6 (eski: Haiku)
+      max_tokens: aiConfig.claude.maxTokens || 8192,
       messages: [
         {
           role: 'user',

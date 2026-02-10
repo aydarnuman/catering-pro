@@ -31,13 +31,13 @@ const REQUIRED_CONFIG_FIELDS = {
 export const aiConfig = {
   // Claude (Anthropic) ayarları - TÜM AI ANALİZİ İÇİN
   claude: {
-    // Pipeline v5.0 modelleri
-    fastModel: process.env.CLAUDE_FAST_MODEL || 'claude-3-haiku-20240307', // Aşama 1: Hızlı chunk analizi
-    defaultModel: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514', // Aşama 2: Birleştirme + Genel AI
+    // Pipeline v9.1 modelleri - Tüm aşamalar Opus 4.6 (ihale analizi için doğruluk kritik)
+    fastModel: process.env.CLAUDE_FAST_MODEL || 'claude-opus-4-6', // Aşama 1: Chunk analizi (eski: haiku-20240307)
+    defaultModel: process.env.CLAUDE_MODEL || 'claude-opus-4-6', // Aşama 2: Birleştirme + Genel AI (eski: sonnet-4)
     analysisModel: process.env.CLAUDE_ANALYSIS_MODEL || 'claude-opus-4-6', // Derin analiz + Vision (1M context)
-    maxTokens: parseInt(process.env.CLAUDE_MAX_TOKENS || '4096', 10),
-    temperature: parseFloat(process.env.CLAUDE_TEMPERATURE || '0.3'),
-    timeout: parseInt(process.env.CLAUDE_TIMEOUT || '120000', 10), // 2 dakika
+    maxTokens: parseInt(process.env.CLAUDE_MAX_TOKENS || '8192', 10), // 4096→8192 (genişletilmiş prompt çıktısı için)
+    temperature: parseFloat(process.env.CLAUDE_TEMPERATURE || '0.2'), // 0.3→0.2 (daha deterministic, sayısal doğruluk)
+    timeout: parseInt(process.env.CLAUDE_TIMEOUT || '180000', 10), // 2dk→3dk (Opus daha yavaş ama daha doğru)
   },
 
   // PDF işleme ayarları
@@ -69,10 +69,9 @@ export const aiConfig = {
   // Cost tracking
   costTracking: {
     enabled: process.env.AI_COST_TRACKING !== 'false',
-    // Claude Sonnet fiyatları ($ per 1K tokens)
-    claudeInputCost: 0.003,
-    claudeOutputCost: 0.015,
-    // Claude Opus 4.6 fiyatları (derin analiz için)
+    // Claude Opus 4.6 fiyatları ($ per 1K tokens) - v9.1: tüm aşamalar Opus
+    claudeInputCost: 0.005,
+    claudeOutputCost: 0.025,
     claudeOpusInputCost: 0.005,
     claudeOpusOutputCost: 0.025,
     // Azure Document Intelligence fiyatları ($ per 1000 pages)

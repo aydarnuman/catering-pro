@@ -1,5 +1,6 @@
 import express from 'express';
 import { query } from '../database.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -546,6 +547,7 @@ router.delete('/:id', async (req, res) => {
  * Analiz sonrası otomatik takip listesine ekle
  * POST /api/tender-tracking/add-from-analysis
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: karmaşık iş akışı, refactor planlanıyor
 router.post('/add-from-analysis', async (req, res) => {
   try {
     const { tender_id, user_id } = req.body;
@@ -894,18 +896,135 @@ router.post('/add-from-analysis', async (req, res) => {
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // EK ALANLAR - v9.0 ve eski format uyumluluğu
+        // EK ALANLAR - v9.0, v9.1 doc-type prompt ve eski format uyumluluğu
         // ═══════════════════════════════════════════════════════════════
 
-        // IKN (v9: summary.ikn)
-        const ikn = analysis.ikn || analysis.summary?.ikn;
+        // IKN (v9: summary.ikn, v9.1: temel_bilgiler.ikn)
+        const ikn = analysis.ikn || analysis.summary?.ikn || analysis.temel_bilgiler?.ikn;
         if (ikn && !analysisSummary.ikn) {
           analysisSummary.ikn = ikn;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // v9.1 DOC-TYPE PROMPT MAPPING (yeni prompt çıktı yapıları)
+        // ═══════════════════════════════════════════════════════════════
+
+        // Mali yeterlilik (v9.1 ilan/idari prompt: mali_yeterlilik)
+        if (analysis.mali_yeterlilik && typeof analysis.mali_yeterlilik === 'object') {
+          const my = analysis.mali_yeterlilik;
+          const placeholders = ['bulunamadı', 'belirtilmemiş', 'bilinmiyor', ''];
+          const isReal = (v) => v && !placeholders.includes(String(v).trim().toLowerCase());
+
+          if (isReal(my.cari_oran)) analysisSummary.mali_kriterler.cari_oran = my.cari_oran;
+          if (isReal(my.ozkaynak_orani)) analysisSummary.mali_kriterler.ozkaynak_orani = my.ozkaynak_orani;
+          if (isReal(my.banka_borc_orani)) analysisSummary.mali_kriterler.banka_borc_orani = my.banka_borc_orani;
+          if (isReal(my.toplam_ciro_orani)) analysisSummary.mali_kriterler.toplam_ciro_orani = my.toplam_ciro_orani;
+          if (isReal(my.hizmet_ciro_orani)) analysisSummary.mali_kriterler.hizmet_ciro_orani = my.hizmet_ciro_orani;
+        }
+
+        // İş deneyimi (v9.1: mesleki_yeterlilik veya is_deneyimi)
+        if (analysis.mesleki_yeterlilik) {
+          const my = analysis.mesleki_yeterlilik;
+          if (my.is_deneyimi_orani && !analysisSummary.mali_kriterler.is_deneyimi) {
+            analysisSummary.mali_kriterler.is_deneyimi = `${my.is_deneyimi_orani}${my.is_deneyimi_sure ? `, son ${my.is_deneyimi_sure} yıl` : ''}`;
+          }
+          if (my.benzer_is_tanimi && !analysisSummary.benzer_is_tanimi) {
+            analysisSummary.benzer_is_tanimi = my.benzer_is_tanimi;
+          }
+          if (my.kapasite_gereksinimi && !analysisSummary.kapasite_gereksinimi) {
+            analysisSummary.kapasite_gereksinimi = my.kapasite_gereksinimi;
+          }
+          // Gerekli belgeler
+          if (my.gerekli_belgeler && Array.isArray(my.gerekli_belgeler)) {
+            analysisSummary.gerekli_belgeler.push(
+              ...my.gerekli_belgeler.map((b) => typeof b === 'string' ? { belge: b, zorunlu: true, source: doc.original_filename } : { ...b, source: doc.original_filename })
+            );
+          }
+        }
+
+        // Sınır değer katsayısı (v9.1: sinir_deger.katsayi_R)
+        if (analysis.sinir_deger?.katsayi_R && !analysisSummary.sinir_deger_katsayisi) {
+          const sd = analysis.sinir_deger;
+          analysisSummary.sinir_deger_katsayisi = sd.tur ? `${sd.katsayi_R} (${sd.tur})` : sd.katsayi_R;
+        }
+
+        // Teminat (v9.1: teminat.gecici_teminat / kesin_teminat)
+        if (analysis.teminat) {
+          if (analysis.teminat.gecici_teminat && !analysisSummary.teminat_oranlari.gecici) {
+            analysisSummary.teminat_oranlari.gecici = analysis.teminat.gecici_teminat;
+          }
+          if (analysis.teminat.kesin_teminat && !analysisSummary.teminat_oranlari.kesin) {
+            analysisSummary.teminat_oranlari.kesin = analysis.teminat.kesin_teminat;
+          }
+        }
+
+        // Tarihler (v9.1: tarihler.ihale_tarihi vb.)
+        if (analysis.tarihler) {
+          const t = analysis.tarihler;
+          if (t.ihale_tarihi && !analysisSummary.takvim.some((tk) => tk.olay?.includes('İhale'))) {
+            analysisSummary.takvim.push({ olay: 'İhale Tarihi', tarih: t.ihale_tarihi + (t.ihale_saati ? ` ${t.ihale_saati}` : ''), source: doc.original_filename });
+          }
+          if (t.ise_baslama && !analysisSummary.takvim.some((tk) => tk.olay?.includes('Başlangıç') || tk.olay?.includes('başlama'))) {
+            analysisSummary.takvim.push({ olay: 'İşe Başlama', tarih: t.ise_baslama, source: doc.original_filename });
+          }
+          if (t.is_bitis && !analysisSummary.takvim.some((tk) => tk.olay?.includes('Bitiş') || tk.olay?.includes('bitis'))) {
+            analysisSummary.takvim.push({ olay: 'İş Bitiş', tarih: t.is_bitis, source: doc.original_filename });
+          }
+          if (t.sure && !analysisSummary.teslim_suresi) {
+            analysisSummary.teslim_suresi = t.sure;
+          }
+          if (t.teklif_gecerlilik) {
+            analysisSummary.takvim.push({ olay: 'Teklif Geçerlilik', tarih: `${t.teklif_gecerlilik} gün`, source: doc.original_filename });
+          }
+        }
+
+        // İhale türü (v9.1: temel_bilgiler.teklif_turu / ihale_usulu)
+        if (analysis.temel_bilgiler) {
+          if (analysis.temel_bilgiler.teklif_turu && !analysisSummary.teklif_turu) {
+            analysisSummary.teklif_turu = analysis.temel_bilgiler.teklif_turu;
+          }
+          if (analysis.temel_bilgiler.ihale_usulu && !analysisSummary.ihale_usulu) {
+            analysisSummary.ihale_usulu = analysis.temel_bilgiler.ihale_usulu;
+          }
+          if (!analysisSummary.ihale_turu) {
+            analysisSummary.ihale_turu = 'hizmet';
+          }
+        }
+
+        // Sözleşme tasarısı alanları (v9.1: ceza_kosullari, odeme_kosullari, fiyat_farki, is_artisi)
+        if (analysis.ceza_kosullari && Array.isArray(analysis.ceza_kosullari)) {
+          analysisSummary.ceza_kosullari.push(
+            ...analysis.ceza_kosullari.map((c) => ({ ...c, source: doc.original_filename }))
+          );
+        }
+        if (analysis.odeme_kosullari && !analysisSummary.odeme_kosullari) {
+          analysisSummary.odeme_kosullari = analysis.odeme_kosullari;
+        }
+        if (analysis.fiyat_farki && typeof analysis.fiyat_farki === 'object' && analysis.fiyat_farki.uygulanacak_mi) {
+          analysisSummary.fiyat_farki = { ...(analysisSummary.fiyat_farki || {}), ...analysis.fiyat_farki };
+        }
+        if (analysis.is_artisi && !analysisSummary.is_artisi) {
+          analysisSummary.is_artisi = analysis.is_artisi;
+        }
+        if (analysis.operasyonel_kurallar) {
+          if (!analysisSummary.operasyonel_kurallar) analysisSummary.operasyonel_kurallar = {};
+          Object.assign(analysisSummary.operasyonel_kurallar, analysis.operasyonel_kurallar);
+        }
+
+        // Miktarlar / kalemler (v9.1: miktarlar.kalemler → birim_fiyatlar)
+        if (analysis.miktarlar?.kalemler && Array.isArray(analysis.miktarlar.kalemler)) {
+          analysisSummary.birim_fiyatlar.push(
+            ...analysis.miktarlar.kalemler.map((k) => ({ ...k, source: doc.original_filename }))
+          );
         }
 
         // İş yerleri topla
         if (analysis.is_yerleri && Array.isArray(analysis.is_yerleri)) {
           analysisSummary.is_yerleri.push(...analysis.is_yerleri);
+        }
+        // v9.1: servis_bilgileri.is_yerleri
+        if (analysis.servis_bilgileri?.is_yerleri && Array.isArray(analysis.servis_bilgileri.is_yerleri)) {
+          analysisSummary.is_yerleri.push(...analysis.servis_bilgileri.is_yerleri);
         }
 
         // Gerekli belgeler topla (v9: required_documents)
@@ -922,11 +1041,21 @@ router.post('/add-from-analysis', async (req, res) => {
           );
         }
 
-        // Mali kriterler (merge - sadece dolu değerleri al)
+        // Mali kriterler (merge - placeholder değerleri filtrele)
         if (analysis.mali_kriterler && typeof analysis.mali_kriterler === 'object') {
+          const placeholderValues = ['bulunamadı', 'belirtilmemiş', 'bilinmiyor', 'yok', 'mevcut değil', 'istenen tutar', 'hesaplanacak'];
           for (const [key, val] of Object.entries(analysis.mali_kriterler)) {
-            if (val && String(val).trim() !== '' && val !== 'Belirtilmemiş') {
-              analysisSummary.mali_kriterler[key] = val;
+            if (val && String(val).trim() !== '') {
+              const valLower = String(val).trim().toLowerCase();
+              const isPlaceholder = placeholderValues.some((p) => valLower === p || valLower.includes(p));
+              // Placeholder değer mevcut gerçek değeri EZMEMELİ
+              if (!isPlaceholder) {
+                analysisSummary.mali_kriterler[key] = val;
+              } else if (!analysisSummary.mali_kriterler[key] || placeholderValues.some((p) => String(analysisSummary.mali_kriterler[key]).toLowerCase().includes(p))) {
+                // Mevcut değer de placeholder ise veya boşsa, placeholder'ı al (hiç yoktan iyidir)
+                analysisSummary.mali_kriterler[key] = val;
+              }
+              // Aksi halde: mevcut gerçek değer korunur, placeholder ezilmez
             }
           }
         }
@@ -946,31 +1075,54 @@ router.post('/add-from-analysis', async (req, res) => {
           }
         }
 
-        // Teminat oranları (merge - sadece dolu değerleri al)
+        // Teminat oranları (merge - placeholder korumalı)
         if (analysis.teminat_oranlari && typeof analysis.teminat_oranlari === 'object') {
+          const placeholderValues = ['bulunamadı', 'belirtilmemiş', 'bilinmiyor', 'sözleşmede belirtilecek', 'rakam ve yazıyla', 'hesaplanacak'];
           for (const [key, val] of Object.entries(analysis.teminat_oranlari)) {
-            if (val && String(val).trim() !== '' && val !== 'Belirtilmemiş') {
-              analysisSummary.teminat_oranlari[key] = val;
+            if (val && String(val).trim() !== '') {
+              const valLower = String(val).trim().toLowerCase();
+              const isPlaceholder = placeholderValues.some((p) => valLower === p || valLower.includes(p));
+              if (!isPlaceholder) {
+                analysisSummary.teminat_oranlari[key] = val;
+              } else if (!analysisSummary.teminat_oranlari[key] || placeholderValues.some((p) => String(analysisSummary.teminat_oranlari[key]).toLowerCase().includes(p))) {
+                analysisSummary.teminat_oranlari[key] = val;
+              }
             }
           }
         }
 
-        // Servis saatleri (merge - sadece dolu değerleri al)
+        // Servis saatleri (merge - placeholder korumalı)
         if (analysis.servis_saatleri && typeof analysis.servis_saatleri === 'object') {
+          const placeholderValues = ['belirtilmemiş', 'bilinmiyor'];
           for (const [key, val] of Object.entries(analysis.servis_saatleri)) {
-            if (val && String(val).trim() !== '' && val !== 'Belirtilmemiş') {
-              analysisSummary.servis_saatleri[key] = val;
+            if (val && String(val).trim() !== '') {
+              const valLower = String(val).trim().toLowerCase();
+              const isPlaceholder = placeholderValues.some((p) => valLower === p);
+              if (!isPlaceholder) {
+                analysisSummary.servis_saatleri[key] = val;
+              } else if (!analysisSummary.servis_saatleri[key]) {
+                analysisSummary.servis_saatleri[key] = val;
+              }
             }
           }
         }
 
-        // İletişim bilgileri (v9: contact veya iletisim)
+        // İletişim bilgileri (v9: contact veya iletisim) - placeholder korumalı
         const iletisim = analysis.iletisim || analysis.contact;
         if (iletisim && typeof iletisim === 'object') {
+          const iletisimPlaceholders = ['0xxx xxx xx xx', 'email@domain.com', 'xxx@domain.com', 'tam adres', 'ad soyad', 'belirtilmemiş', 'bilinmiyor', '[telefon]', '[email]', '[adres]'];
           for (const [key, val] of Object.entries(iletisim)) {
-            // Sadece gerçekten değer varsa al (boş string, null, "Belirtilmemiş" hariç)
-            if (val && val?.trim?.() !== '' && val !== 'Belirtilmemiş') {
-              analysisSummary.iletisim[key] = val;
+            if (val && val?.trim?.() !== '') {
+              const valLower = String(val).trim().toLowerCase();
+              const isPlaceholder = iletisimPlaceholders.some((p) => valLower === p);
+              if (!isPlaceholder) {
+                // Gerçek değer - mevcut placeholder'ı ezer
+                analysisSummary.iletisim[key] = val;
+              } else if (!analysisSummary.iletisim[key] || iletisimPlaceholders.some((p) => String(analysisSummary.iletisim[key]).toLowerCase() === p)) {
+                // Mevcut de placeholder veya boşsa, yeni placeholder'ı al
+                analysisSummary.iletisim[key] = val;
+              }
+              // Aksi halde: mevcut gerçek değer korunur
             }
           }
         }
@@ -2288,7 +2440,7 @@ router.get('/:tenderId/rakip-analizi', async (req, res) => {
           }
         }
       } catch (tavilyErr) {
-        console.warn('Tavily rakip araması başarısız:', tavilyErr.message);
+        logger.warn('Tavily rakip araması başarısız:', tavilyErr.message);
       }
     }
 
@@ -2317,7 +2469,7 @@ router.get('/:tenderId/rakip-analizi', async (req, res) => {
 
     res.json(responseData);
   } catch (error) {
-    console.error('Rakip analizi hatası:', error);
+    logger.error('Rakip analizi hatası:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

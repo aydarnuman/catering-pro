@@ -143,13 +143,13 @@ export const CATERING_TERMINOLOGY = {
 
 export const ENHANCED_STAGE1_PROMPT = `Bu metin bir YEMEK/CATERİNG ihale dökümanının bir parçasıdır.
 
-## CATERİNG TERMİNOLOJİSİ - BU TERİMLERE DİKKAT ET:
+## CATERİNG TERMİNOLOJİSİ:
 
-**Öğün Türleri:** kahvaltı, öğle, akşam, ara öğün, gece, diyet, rejim-1/2, kumanya
+**Öğün:** kahvaltı, öğle, akşam, ara öğün, gece, diyet, rejim-1/2, kumanya
 **Personel:** aşçı, aşçıbaşı, garson, diyetisyen, gıda mühendisi, bulaşıkçı, temizlikçi, şoför
 **Kalite:** ISO 22000, HACCP, TS 8985, TS 13075, hijyen belgesi
 **Servis:** tabldot, self servis, taşımalı, yerinde pişirme, benmari, termobox
-**Maliyet:** çiğ girdi, işçilik, genel gider, sözleşme gideri, KDV
+**Mali:** çiğ girdi, işçilik, genel gider, cari oran, özkaynak oranı, sınır değer katsayısı (R)
 
 ## GÖREV: Bu parçadan aşağıdaki bilgileri çıkar.
 
@@ -159,7 +159,7 @@ JSON formatında döndür:
   "icerik_tipi": "tablo/teknik/idari/liste/genel/sozlesme/birim_fiyat",
   
   "teknik_sartlar": [
-    {"madde": "Teknik şart açıklaması", "kategori": "gramaj/hijyen/ekipman/saklama/servis"}
+    {"madde": "Teknik şart veya gereksinim açıklaması", "kategori": "gramaj/hijyen/ekipman/saklama/servis/personel/kalite/kapasite/belge/genel"}
   ],
   
   "birim_fiyatlar": [
@@ -167,11 +167,11 @@ JSON formatında döndür:
   ],
   
   "tarihler": [
-    {"olay": "İhale/başlangıç/bitiş/teslim", "tarih": "GG.AA.YYYY", "sure_gun": "sayı"}
+    {"olay": "İhale/başlangıç/bitiş/teslim/son başvuru", "tarih": "GG.AA.YYYY", "sure_gun": "sayı"}
   ],
   
   "personel_detaylari": [
-    {"pozisyon": "Aşçı/Garson/Diyetisyen", "adet": 6, "ucret_orani": "%85 fazlası", "nitelik": "Deneyim/sertifika"}
+    {"pozisyon": "Aşçı/Garson/Diyetisyen", "adet": 6, "ucret_orani": "%85 fazlası", "nitelik": "Gereken deneyim/sertifika"}
   ],
   
   "ogun_bilgileri": [
@@ -183,22 +183,24 @@ JSON formatında döndür:
   ],
   
   "iletisim": {
-    "telefon": "0xxx xxx xx xx", 
-    "faks": "numara", 
-    "email": "email@domain.com", 
-    "adres": "Tam adres", 
-    "yetkili": "Ad Soyad"
+    "telefon": "",
+    "faks": "",
+    "email": "",
+    "adres": "",
+    "yetkili": ""
   },
   
   "mali_kriterler": {
-    "cari_oran": "oran değeri", 
-    "ozkaynak_orani": "oran değeri", 
-    "is_deneyimi": "oran veya tutar",
-    "banka_referans": "tutar"
+    "cari_oran": "",
+    "ozkaynak_orani": "",
+    "is_deneyimi": "",
+    "banka_borc_orani": "",
+    "toplam_ciro_orani": "",
+    "hizmet_ciro_orani": ""
   },
   
   "ceza_kosullari": [
-    {"tur": "gecikme/ozel_aykirilik/agir_aykirilik", "oran": "%", "aciklama": "Detay", "limit": "max %30 gibi"}
+    {"tur": "gecikme/ozel_aykirilik/agir_aykirilik/sozlesme_feshi", "oran": "binde 5 / %1 vb.", "baz": "sözleşme bedeli/günlük bedel", "aciklama": "Detay", "limit": "max %30 gibi"}
   ],
   
   "gerekli_belgeler": [
@@ -206,46 +208,68 @@ JSON formatında döndür:
   ],
   
   "teminat_oranlari": {
-    "gecici": "% değeri", 
-    "kesin": "% değeri", 
-    "ek_kesin": "% değeri"
+    "gecici": "",
+    "kesin": "",
+    "ek_kesin": ""
   },
   
   "servis_saatleri": {
-    "kahvalti": "06:30-08:30", 
-    "ogle": "11:30-13:30", 
-    "aksam": "17:30-19:30",
-    "ara_ogun": "saat aralığı"
+    "kahvalti": "",
+    "ogle": "",
+    "aksam": "",
+    "ara_ogun": ""
   },
   
   "onemli_notlar": [
     {"not": "Önemli bilgi", "tur": "uyari/gereklilik/bilgi/kisitlama"}
   ],
   
-  "kalite_sertifikalari": ["ISO 22000", "HACCP", "TS 8985"]
+  "kalite_sertifikalari": [],
+
+  "sinir_deger_katsayisi": "",
+  "benzer_is_tanimi": "",
+  "kapasite_gereksinimi": "",
+  "teklif_turu": "",
+  "ihale_usulu": "",
+  
+  "fiyat_farki": {
+    "uygulanacak_mi": "",
+    "formul": "",
+    "aciklama": ""
+  },
+  
+  "odeme_kosullari": {
+    "hakedis_suresi": "",
+    "odeme_suresi": "",
+    "avans": ""
+  },
+  
+  "is_artisi": {
+    "oran": "",
+    "kosullar": ""
+  }
 }
 
 ## KURALLAR:
 1. **KRİTİK ALANLAR** - Metinde varsa MUTLAKA doldur:
-   - iletisim (idari şartnamelerde her zaman var)
-   - teminat_oranlari (zorunlu bilgi)
-   - servis_saatleri (teknik şartnamelerde)
-   - mali_kriterler (yeterlilik kriterleri)
+   - iletisim: Telefon numarasını AYNEN yaz (rakamları değiştirme)
+   - teminat_oranlari: Yüzde değerlerini yaz
+   - mali_kriterler: Cari oran, özkaynak, banka borcu, ciro oranlarını SAYI olarak yaz
+   - sinir_deger_katsayisi: "Sınır Değer Katsayısı (R)" aranmalı - teklif stratejisi için kritik
+   - ceza_kosullari: Oran, baz ve üst limit bilgilerini mutlaka yaz
 
-2. **GRAMAJ BİLGİLERİ** - Tablolarda dikkatli ara:
-   - Çiğ ve pişmiş gramaj farkı önemli
-   - "gr", "g", "gram" birimlerine dikkat
+2. **PLACEHOLDER KULLANMA:**
+   - Metinde olmayan bilgiler için boş string "" kullan
+   - "Belirtilmemiş", "0xxx xxx xx xx", "email@domain.com" gibi placeholder YAZMA
+   - Array alanları: bulunamadıysa boş array [] kullan
 
-3. **PERSONEL** - Ücret oranlarını yüzde olarak yaz:
-   - "asgari ücretin %85 fazlası" → ucret_orani: "%85 fazlası"
+3. **GRAMAJ:** Çiğ ve pişmiş gramaj farkı önemli
+4. **PERSONEL:** Ücret oranlarını yüzde olarak yaz
+5. **ÖĞÜN:** Toplam/günlük/aylık farkını belirt
+6. **BENZER İŞ:** Tanımı aynen kopyala, kısaltma
+7. **KAPASİTE:** Günlük üretim kapasitesini yaz (varsa)
 
-4. **ÖĞÜN MİKTARLARI** - Toplam/günlük/aylık farkını belirt
-
-5. Bulunamayan alanlar için:
-   - Object alanları: {} veya "Belirtilmemiş"
-   - Array alanları: []
-   
-6. Sadece JSON döndür, başka açıklama ekleme.
+8. Sadece JSON döndür, başka açıklama ekleme.
 
 ## DÖKÜMAN PARÇASI:
 `;
@@ -310,32 +334,51 @@ JSON formatında döndür:
   },
   
   "mali_kriterler": {
-    "is_deneyimi": "Oran/tutar",
-    "ozkaynak_orani": "Oran",
-    "cari_oran": "Oran"
+    "cari_oran": "Minimum değer",
+    "ozkaynak_orani": "Minimum değer",
+    "is_deneyimi": "Oran ve süre",
+    "banka_borc_orani": "Üst limit",
+    "toplam_ciro_orani": "Yüzde",
+    "hizmet_ciro_orani": "Yüzde"
   },
   
   "ceza_kosullari": [
-    {"tur": "Ceza türü", "oran": "%", "aciklama": "Detay"}
+    {"tur": "gecikme/ozel_aykirilik/agir_aykirilik/sozlesme_feshi", "oran": "binde 5 / %1", "baz": "sözleşme bedeli", "aciklama": "Detay", "limit": "max %30"}
   ],
   
   "gerekli_belgeler": [
-    {"belge": "Belge adı", "zorunlu": true}
+    {"belge": "Belge adı", "zorunlu": true, "aciklama": "Detay"}
   ],
   
   "onemli_notlar": [
-    {"not": "Önemli bilgi", "tur": "uyari/gereklilik/bilgi"}
+    {"not": "Önemli bilgi", "tur": "uyari/gereklilik/bilgi/kisitlama"}
   ],
   
   "eksik_bilgiler": ["Dökümanda bulunamayan kritik bilgiler listesi"],
   
   "fiyat_farki": {
-    "formul": "Fiyat farkı formülü varsa",
-    "katsayilar": {"a1": "", "a2": "", "b1": "", "b2": ""}
+    "uygulanacak_mi": "evet/hayır",
+    "formul": "Formül varsa",
+    "katsayilar": {"a1": "", "a2": "", "b1": "", "b2": ""},
+    "aciklama": "Detay"
   },
   
-  "benzer_is_tanimi": "Benzer iş tanımı varsa",
-  "sinir_deger_katsayisi": "R değeri varsa"
+  "odeme_kosullari": {
+    "hakedis_suresi": "gün",
+    "odeme_suresi": "gün",
+    "avans": "var/yok"
+  },
+  
+  "is_artisi": {
+    "oran": "Maksimum oran",
+    "kosullar": "Koşullar"
+  },
+  
+  "benzer_is_tanimi": "Benzer iş tanımı - aynen kopyala",
+  "sinir_deger_katsayisi": "R değeri ve türü (örn: 0,79 Malzemeli Yemek)",
+  "kapasite_gereksinimi": "Günlük üretim kapasitesi",
+  "teklif_turu": "birim_fiyat/goturu_bedel",
+  "ihale_usulu": "Açık ihale/Pazarlık"
 }
 
 ## BİRLEŞTİRME KURALLARI:

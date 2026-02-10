@@ -503,28 +503,71 @@ class DocumentQueueProcessor extends EventEmitter {
   }
 
   /**
-   * v9.0: Content dökümanları için text analizi
+   * v9.1: Content dökümanları için doküman tipine özel analiz
    */
   async processContentWithPipeline(docId) {
     const { chunkText } = await import('./ai-analyzer/pipeline/chunker.js');
     const { analyze } = await import('./ai-analyzer/pipeline/analyzer.js');
+    const { detectDocType, getDocTypePrompt } = await import('./ai-analyzer/prompts/doc-type/index.js');
+    const { safeJsonParse } = await import('./ai-analyzer/utils/parser.js');
+    const Anthropic = (await import('@anthropic-ai/sdk')).default;
+    const { aiConfig } = await import('../config/ai.config.js');
 
-    const docResult = await pool.query('SELECT content_text FROM documents WHERE id = $1', [docId]);
+    const docResult = await pool.query(
+      'SELECT content_text, content_type, doc_type, filename, original_filename, storage_path FROM documents WHERE id = $1',
+      [docId]
+    );
 
     if (docResult.rows.length === 0 || !docResult.rows[0].content_text) {
       throw new Error('Content text bulunamadı');
     }
 
-    const contentText = docResult.rows[0].content_text;
-    const chunks = chunkText(contentText);
-    const analysis = await analyze(chunks);
+    const doc = docResult.rows[0];
+    const contentText = doc.content_text;
+
+    // v9.1: Doküman tipini tespit et ve özel prompt kullan
+    const docType = detectDocType(doc);
+    const docTypePrompt = docType ? getDocTypePrompt(docType) : null;
+
+    let analysis;
+    let provider = 'claude-text';
+
+    if (docTypePrompt) {
+      // Doküman tipine özel tek-geçiş analiz (daha kaliteli)
+      logger.info(`Content doc-type detected: ${docType}, using specialized prompt`, {
+        module: 'queue-processor',
+        documentId: docId,
+        docType,
+      });
+
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const response = await anthropic.messages.create({
+        model: aiConfig.claude.defaultModel, // Sonnet - content doc'lar kısa, kalite önemli
+        max_tokens: 8192,
+        messages: [{ role: 'user', content: docTypePrompt.prompt + contentText }],
+      });
+
+      const responseText = response.content[0]?.text || '{}';
+      analysis = safeJsonParse(responseText) || {};
+      analysis.meta = {
+        method: 'doc-type-specialized',
+        docType,
+        inputTokens: response.usage?.input_tokens || 0,
+        outputTokens: response.usage?.output_tokens || 0,
+      };
+      provider = `claude-text-${docType}`;
+    } else {
+      // Genel analiz (eski yöntem - chunk + merge)
+      const chunks = chunkText(contentText);
+      analysis = await analyze(chunks);
+    }
 
     await pool.query(
       `UPDATE documents SET extracted_text = $1, analysis_result = $2, processing_status = 'completed', processed_at = NOW() WHERE id = $3`,
-      [contentText, JSON.stringify({ pipeline_version: '9.0', provider: 'claude-text', ...analysis }), docId]
+      [contentText, JSON.stringify({ pipeline_version: '9.1', provider, ...analysis }), docId]
     );
 
-    return { success: true, analysis };
+    return { success: true, analysis, docType };
   }
 
   /**

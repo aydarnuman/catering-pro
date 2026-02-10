@@ -333,19 +333,65 @@ router.post('/analyze-batch', async (req, res) => {
         let tempDir = null;
 
         try {
-          // Dosya hazırla
+          // v9.1: Content dokümanları için özel yol
+          if (doc.source_type === 'content' && doc.content_text) {
+            sendEvent({ stage: 'progress', documentId: docId, message: 'Content doküman analiz ediliyor...', progress: 30 });
+
+            const { detectDocType, getDocTypePrompt } = await import('../services/ai-analyzer/prompts/doc-type/index.js');
+            const { safeJsonParse } = await import('../services/ai-analyzer/utils/parser.js');
+            const Anthropic = (await import('@anthropic-ai/sdk')).default;
+            const { aiConfig } = await import('../config/ai.config.js');
+
+            const docType = detectDocType(doc);
+            const docTypePrompt = docType ? getDocTypePrompt(docType) : null;
+
+            let analysis;
+            let provider = 'claude-text';
+
+            if (docTypePrompt) {
+              sendEvent({ stage: 'progress', documentId: docId, message: `${docType} tipinde özel analiz...`, progress: 50 });
+              const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+              const response = await anthropic.messages.create({
+                model: aiConfig.claude.defaultModel,
+                max_tokens: 8192,
+                messages: [{ role: 'user', content: docTypePrompt.prompt + doc.content_text }],
+              });
+              analysis = safeJsonParse(response.content[0]?.text || '{}') || {};
+              analysis.meta = { method: 'doc-type-specialized', docType, inputTokens: response.usage?.input_tokens || 0, outputTokens: response.usage?.output_tokens || 0 };
+              provider = `claude-text-${docType}`;
+            } else {
+              // Genel analiz fallback
+              const { chunkText } = await import('../services/ai-analyzer/pipeline/chunker.js');
+              const { analyze: analyzeChunks } = await import('../services/ai-analyzer/pipeline/analyzer.js');
+              const chunks = chunkText(doc.content_text);
+              analysis = await analyzeChunks(chunks);
+            }
+
+            sendEvent({ stage: 'progress', documentId: docId, message: 'Analiz tamamlandı', progress: 100 });
+
+            await pool.query(
+              `UPDATE documents SET analysis_result = $1, extracted_text = COALESCE($2, extracted_text), processing_status = 'completed', processed_at = NOW() WHERE id = $3`,
+              [JSON.stringify({ pipeline_version: '9.1', provider, ...analysis }), doc.content_text, docId]
+            );
+
+            return { id: docId, success: true, provider };
+          }
+
+          // Dosya tabanlı dokümanlar - Supabase'den indir
           const storagePath = doc.storage_path || doc.file_path;
+          const fileExt = path.extname(doc.original_filename || doc.filename || '.pdf');
           if (storagePath?.includes('supabase') || storagePath?.startsWith('tenders/')) {
             tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'analyze-'));
-            const ext = path.extname(doc.original_filename || '.pdf');
-            localFilePath = path.join(tempDir, `document${ext}`);
+            localFilePath = path.join(tempDir, `document${fileExt}`);
             const buffer = await downloadFromSupabase(storagePath);
             fs.writeFileSync(localFilePath, buffer);
           } else {
             localFilePath = storagePath;
           }
 
-          // v9.0: UNIFIED PIPELINE
+          // TÜM dosya tabanlı dokümanlar → UNIFIED PIPELINE
+          // PDF: Azure Custom Model + Claude Enhancement
+          // DOC/DOCX/XLSX: Yerel extract + Zero-Loss Pipeline (chunker → Haiku → Sonnet)
           const result = await analyzeDocument(localFilePath, {
             onProgress: (progress) => {
               sendEvent({
@@ -362,7 +408,7 @@ router.post('/analyze-batch', async (req, res) => {
           // Kaydet
           await pool.query(
             `UPDATE documents SET analysis_result = $1, extracted_text = COALESCE($2, extracted_text), processing_status = 'completed', processed_at = NOW() WHERE id = $3`,
-            [JSON.stringify({ pipeline_version: '9.0', ...result }), result.extraction?.text || null, docId]
+            [JSON.stringify({ pipeline_version: '9.1', ...result }), result.extraction?.text || null, docId]
           );
 
           return { id: docId, success: true, provider: result.meta?.provider_used };

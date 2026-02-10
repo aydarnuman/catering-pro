@@ -89,12 +89,62 @@ JSON formatında döndür:
 };
 
 /**
+ * Bilinen placeholder değerler - prompt template örnekleri ve belirsiz cevaplar
+ * Bu değerler gerçek veri olarak KABUL EDİLMEZ
+ */
+const KNOWN_PLACEHOLDERS = [
+  // Prompt template örnekleri (AI'ın kopyaladığı sahte veriler)
+  '0xxx xxx xx xx',
+  'email@domain.com',
+  'xxx@domain.com',
+  'Tam adres',
+  'Ad Soyad',
+  'Deneyim/sertifika',
+  // AI'ın "bulamadım" cevapları
+  'bulunamadı',
+  'Bulunamadı',
+  'Belirtilmemiş',
+  'belirtilmemiş',
+  'Bilinmiyor',
+  'bilinmiyor',
+  'Mevcut değil',
+  'Yok',
+  // Belirsiz/template cevaplar
+  'Sözleşmede belirtilecek tutar',
+  'Sözleşmede belirtilecek',
+  'istenen tutar',
+  'Hesaplanacak',
+  'Teklif edilecek',
+  'Rakam ve yazıyla',
+  'rakam ve yazıyla',
+];
+
+/**
+ * Bir değerin placeholder olup olmadığını kontrol et
+ * @param {*} value - Kontrol edilecek değer
+ * @returns {boolean} Placeholder ise true
+ */
+export function isPlaceholder(value) {
+  if (value === null || value === undefined) return true;
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  if (trimmed === '') return true;
+  return KNOWN_PLACEHOLDERS.some((p) => trimmed.toLowerCase() === p.toLowerCase());
+}
+
+/**
  * Object'in gerçekten dolu olup olmadığını kontrol et
- * Boş string, null, undefined değerlerini boş sayar
+ * Boş string, null, undefined ve bilinen placeholder değerlerini boş sayar
  */
 function hasContent(value) {
   if (value === null || value === undefined) return false;
-  if (typeof value === 'string') return value.trim() !== '' && value !== 'Belirtilmemiş';
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed === '') return false;
+    // Bilinen placeholder'ları boş say
+    if (KNOWN_PLACEHOLDERS.some((p) => trimmed.toLowerCase() === p.toLowerCase())) return false;
+    return true;
+  }
   if (Array.isArray(value)) return value.length > 0;
   if (typeof value === 'object') {
     return Object.values(value).some((v) => hasContent(v));

@@ -95,6 +95,9 @@ export interface MaliKriterler {
   ozkaynak_orani?: string;
   is_deneyimi?: string;
   ciro_orani?: string;
+  banka_borc_orani?: string;
+  toplam_ciro_orani?: string;
+  hizmet_ciro_orani?: string;
   [key: string]: string | undefined;
 }
 
@@ -197,6 +200,29 @@ export interface AnalysisData {
   servis_saatleri?: ServisSaatleri;
   sinir_deger_katsayisi?: string;
   benzer_is_tanimi?: string;
+  // v9.1 Yeni alanlar
+  kapasite_gereksinimi?: string;
+  teklif_turu?: string;
+  ihale_usulu?: string;
+  odeme_kosullari?: {
+    odeme_yeri?: string;
+    hakedis_suresi?: string;
+    odeme_suresi?: string;
+    avans?: string;
+    odeme_periyodu?: string;
+  };
+  is_artisi?: {
+    oran?: string;
+    kosullar?: string;
+    is_eksilisi?: string;
+  };
+  operasyonel_kurallar?: {
+    alt_yuklenici?: string;
+    personel_kurallari?: string[];
+    yemek_kurallari?: string[];
+    muayene_kabul?: string;
+    denetim?: string;
+  };
   // Konsolidasyon alanları
   toplam_ogun_sayisi?: number;
   toplam_personel?: number;
