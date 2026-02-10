@@ -245,8 +245,9 @@ export interface YukleniciKarsilastirma {
 
 // ─── İstihbarat Merkezi Tipleri ─────────────────────────────────
 
-/** Backend modül adları (scraper birimleri — 8 adet) */
+/** Backend modül adları (scraper birimleri — 9 adet) */
 export type IstihbaratModulAdi =
+  | 'veri_havuzu'
   | 'ihale_gecmisi'
   | 'profil_analizi'
   | 'katilimcilar'

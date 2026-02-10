@@ -5,13 +5,25 @@
  * MERSİS ve Ticaret Sicil Gazetesi verileri.
  */
 
-import { Badge, Card, Divider, Group, Paper, Stack, Text } from '@mantine/core';
+import { Anchor, Badge, Card, Divider, Group, Paper, Stack, Text, ThemeIcon, Title } from '@mantine/core';
+import { IconExternalLink, IconWorld } from '@tabler/icons-react';
+import type { HavuzVeri } from '../ModulDetay';
 
 interface Props {
   veri: Record<string, unknown> | null;
+  /** Veri havuzundan zenginleştirilmiş web istihbaratı */
+  havuzVeri?: HavuzVeri | null;
 }
 
-export function SirketBilgileriDetay({ veri }: Props) {
+function getDomain(url: string): string {
+  try {
+    return new URL(url).hostname.replace('www.', '');
+  } catch {
+    return url;
+  }
+}
+
+export function SirketBilgileriDetay({ veri, havuzVeri }: Props) {
   if (!veri)
     return <Text c="dimmed">Veri bulunamadı. Modülü çalıştırarak veri toplayabilirsiniz.</Text>;
 
@@ -71,8 +83,8 @@ export function SirketBilgileriDetay({ veri }: Props) {
 
         {ticaretSicil?.basarili && (ticaretSicil.ilanlar as unknown[])?.length > 0 ? (
           <Stack gap="xs">
-            {(ticaretSicil.ilanlar as Array<Record<string, string>>).map((ilan, idx) => (
-              <Paper key={`ilan-${idx}`} withBorder p="xs" radius="sm">
+            {(ticaretSicil.ilanlar as Array<Record<string, string>>).map((ilan) => (
+              <Paper key={ilan.ilan_tarihi + ilan.ilan_turu + (ilan.ozet?.slice(0, 30) || '')} withBorder p="xs" radius="sm">
                 <Group justify="space-between" mb={2}>
                   {ilan.ilan_tarihi && (
                     <Badge size="xs" variant="light">
@@ -98,9 +110,53 @@ export function SirketBilgileriDetay({ veri }: Props) {
         )}
       </div>
 
+      {/* Veri Havuzundan ek sicil bulguları */}
+      {havuzVeri?.web_istihbarat?.sicil_sonuclari && havuzVeri.web_istihbarat.sicil_sonuclari.length > 0 && (
+        <>
+          <Divider />
+          <div>
+            <Group gap="xs" mb="xs">
+              <ThemeIcon size="sm" variant="light" color="indigo">
+                <IconWorld size={12} />
+              </ThemeIcon>
+              <Title order={6}>Web Sicil Bulguları ({havuzVeri.web_istihbarat.sicil_sonuclari.length})</Title>
+              <Badge size="xs" variant="light" color="indigo">Veri Havuzu</Badge>
+            </Group>
+
+            <Stack gap="xs">
+              {havuzVeri.web_istihbarat.sicil_sonuclari.map((item) => (
+                <Paper key={item.url || item.title} withBorder p="sm" radius="sm">
+                  <Group justify="space-between" wrap="nowrap" mb={4}>
+                    <Text size="sm" fw={600} lineClamp={2} style={{ flex: 1 }}>
+                      {item.url ? (
+                        <Anchor href={item.url} target="_blank" underline="hover" c="inherit">
+                          {item.title || 'Sicil kaynağı'}
+                          <IconExternalLink size={12} style={{ marginLeft: 4, verticalAlign: 'middle' }} />
+                        </Anchor>
+                      ) : (
+                        item.title || 'Sicil kaynağı'
+                      )}
+                    </Text>
+                  </Group>
+                  {item.content && (
+                    <Text size="xs" c="dimmed" lineClamp={3} mb={4}>{item.content}</Text>
+                  )}
+                  <Badge size="xs" variant="outline" color="gray">{getDomain(item.url)}</Badge>
+                </Paper>
+              ))}
+            </Stack>
+          </div>
+        </>
+      )}
+
       {sorgulamaTarihi && (
         <Text size="xs" c="dimmed" ta="right">
           Son sorgulama: {new Date(sorgulamaTarihi).toLocaleString('tr-TR')}
+        </Text>
+      )}
+      {havuzVeri?.meta?.toplama_tarihi && (
+        <Text size="xs" c="dimmed" ta="right">
+          Veri havuzu: {new Date(havuzVeri.meta.toplama_tarihi).toLocaleString('tr-TR')}
         </Text>
       )}
     </Stack>

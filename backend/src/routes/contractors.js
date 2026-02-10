@@ -1950,6 +1950,7 @@ router.get('/tender/:tenderId/ai-rakip-analiz', async (req, res) => {
  * Frontend ve backend aynı listeyi kullanır.
  */
 const ISTIHBARAT_MODULLERI = [
+  'veri_havuzu', // Merkez veri havuzu — Tavily + çapraz kontrol (İLK çalışır)
   'ihale_gecmisi', // ihalebul.com — ihale geçmişi scraper
   'profil_analizi', // ihalebul.com — analiz sayfası scraper
   'katilimcilar', // ihalebul.com — katılımcı bilgileri scraper
@@ -2182,30 +2183,67 @@ router.post('/:id/modul/tumunu-calistir', async (req, res) => {
     const yukId = parseInt(id, 10);
     const istihbaratLog = (msg) => console.log(`  🔎 [İSTİHBARAT] yk=${yukId} ${msg}`);
 
-    istihbaratLog(`▶ 8 modül paralel başlatılıyor (${yuklenici.unvan})`);
+    // Sıralama: veri_havuzu İLK → diğerleri PARALEL → ai_arastirma SON
+    const havuzModul = 'veri_havuzu';
+    const aiModul = 'ai_arastirma';
+    const ortaModuller = ISTIHBARAT_MODULLERI.filter(m => m !== havuzModul && m !== aiModul);
 
-    Promise.allSettled(
-      ISTIHBARAT_MODULLERI.map(async (modul) => {
-        const t0 = Date.now();
-        try {
-          istihbaratLog(`  ⏳ ${modul} başladı`);
-          await withTimeout(calistirModul(yukId, modul, yuklenici), modul);
-          const sure = ((Date.now() - t0) / 1000).toFixed(1);
-          istihbaratLog(`  ✅ ${modul} tamamlandı (${sure}s)`);
-        } catch (err) {
-          const sure = ((Date.now() - t0) / 1000).toFixed(1);
-          istihbaratLog(`  ❌ ${modul} hata (${sure}s): ${err.message}`);
-          await updateModulDurum(id, modul, 'hata', { hata_mesaji: err.message })
-            .catch(e => console.error(`  🔎 [İSTİHBARAT] updateModulDurum hata:`, e.message));
-        }
-      })
-    ).then((results) => {
-      const ok = results.filter(r => r.status === 'fulfilled').length;
-      const fail = results.filter(r => r.status === 'rejected').length;
-      istihbaratLog(`■ Tamamlandı: ${ok} başarılı, ${fail} hatalı`);
-    });
+    istihbaratLog(`▶ ${ISTIHBARAT_MODULLERI.length} modül sıralı başlatılıyor (${yuklenici.unvan})`);
+    istihbaratLog(`  Sıra: veri_havuzu → ${ortaModuller.length} paralel → ai_arastirma`);
 
-    logAPI('İstihbarat', 'Tüm Modüller Başlatıldı', { yukleniciId: id, modul_sayisi: 8 });
+    (async () => {
+      let okCount = 0;
+      let failCount = 0;
+
+      // ─── Faz 1: Veri Havuzu (İLK — Tavily + çapraz kontrol) ───
+      const t0havuz = Date.now();
+      try {
+        istihbaratLog(`  ⏳ ${havuzModul} başladı (Faz 1)`);
+        await withTimeout(calistirModul(yukId, havuzModul, yuklenici), havuzModul);
+        istihbaratLog(`  ✅ ${havuzModul} tamamlandı (${((Date.now() - t0havuz) / 1000).toFixed(1)}s)`);
+        okCount++;
+      } catch (err) {
+        istihbaratLog(`  ❌ ${havuzModul} hata (${((Date.now() - t0havuz) / 1000).toFixed(1)}s): ${err.message}`);
+        await updateModulDurum(id, havuzModul, 'hata', { hata_mesaji: err.message }).catch(() => {});
+        failCount++;
+        // Havuz hata verse de diğer modüller devam edebilir
+      }
+
+      // ─── Faz 2: Diğer modüller PARALEL ────────────────────────
+      const ortaResults = await Promise.allSettled(
+        ortaModuller.map(async (modul) => {
+          const t0 = Date.now();
+          try {
+            istihbaratLog(`  ⏳ ${modul} başladı (Faz 2)`);
+            await withTimeout(calistirModul(yukId, modul, yuklenici), modul);
+            istihbaratLog(`  ✅ ${modul} tamamlandı (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
+          } catch (err) {
+            istihbaratLog(`  ❌ ${modul} hata (${((Date.now() - t0) / 1000).toFixed(1)}s): ${err.message}`);
+            await updateModulDurum(id, modul, 'hata', { hata_mesaji: err.message }).catch(() => {});
+            throw err; // allSettled yakalar
+          }
+        })
+      );
+      okCount += ortaResults.filter(r => r.status === 'fulfilled').length;
+      failCount += ortaResults.filter(r => r.status === 'rejected').length;
+
+      // ─── Faz 3: AI İstihbarat (SON — tüm veriyi okur) ─────────
+      const t0ai = Date.now();
+      try {
+        istihbaratLog(`  ⏳ ${aiModul} başladı (Faz 3 — tüm veriyi sentezleyecek)`);
+        await withTimeout(calistirModul(yukId, aiModul, yuklenici), aiModul, 8 * 60 * 1000); // AI için 8 dk
+        istihbaratLog(`  ✅ ${aiModul} tamamlandı (${((Date.now() - t0ai) / 1000).toFixed(1)}s)`);
+        okCount++;
+      } catch (err) {
+        istihbaratLog(`  ❌ ${aiModul} hata (${((Date.now() - t0ai) / 1000).toFixed(1)}s): ${err.message}`);
+        await updateModulDurum(id, aiModul, 'hata', { hata_mesaji: err.message }).catch(() => {});
+        failCount++;
+      }
+
+      istihbaratLog(`■ Tamamlandı: ${okCount} başarılı, ${failCount} hatalı`);
+    })();
+
+    logAPI('İstihbarat', 'Tüm Modüller Başlatıldı', { yukleniciId: id, modul_sayisi: ISTIHBARAT_MODULLERI.length });
     res.json({
       success: true,
       message: 'Tüm istihbarat modülleri başlatıldı',
@@ -2477,6 +2515,115 @@ router.get('/:id/fiyat-tahmin', async (req, res) => {
   }
 });
 
+// ─── Derin Analiz (Tavily Research) ─────────────────────────────────
+/**
+ * POST /api/contractors/:id/derin-analiz
+ * Tavily Research ile kapsamlı firma araştırması.
+ * Birden fazla alt sorgu ile paralel arama yapar, sonuçları birleştirir.
+ * Premium özellik — her çağrı ~5-8 Tavily kredisi harcar.
+ */
+router.post('/:id/derin-analiz', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { rows: [yuklenici] } = await query(
+      'SELECT id, unvan, kisa_ad FROM yukleniciler WHERE id = $1',
+      [id]
+    );
+    if (!yuklenici) {
+      return res.status(404).json({ success: false, error: 'Yüklenici bulunamadı' });
+    }
+
+    const { tavilyResearch, isTavilyConfigured } = await import('../services/tavily-service.js');
+    if (!isTavilyConfigured()) {
+      return res.status(400).json({ success: false, error: 'Tavily API yapılandırılmamış' });
+    }
+
+    const kisaAd = (yuklenici.kisa_ad || yuklenici.unvan).split(/\s+/).slice(0, 3).join(' ');
+
+    // Alt sorgular: farklı açılardan firma istihbaratı
+    const subQueries = [
+      `"${kisaAd}" ihale sözleşme kamu`,
+      `"${kisaAd}" KİK karar şikayet`,
+      `"${kisaAd}" yemek catering gıda hizmet`,
+    ];
+
+    logAPI('Derin Analiz', `Başlatılıyor: ${yuklenici.unvan}`, { yukleniciId: id });
+
+    const result = await tavilyResearch(`"${kisaAd}" yüklenici ihale analiz`, {
+      subQueries,
+      maxSources: 10,
+      days: 365,
+    });
+
+    if (!result.success) {
+      return res.status(500).json({ success: false, error: result.error });
+    }
+
+    // Sonucu DB'ye kaydet (istihbarat modülüne)
+    await query(
+      `INSERT INTO yuklenici_istihbarat (yuklenici_id, modul, durum, veri, son_guncelleme, updated_at)
+       VALUES ($1, 'derin_analiz', 'tamamlandi', $2, NOW(), NOW())
+       ON CONFLICT (yuklenici_id, modul)
+       DO UPDATE SET durum = 'tamamlandi', veri = $2, son_guncelleme = NOW(), updated_at = NOW(), hata_mesaji = NULL`,
+      [id, JSON.stringify({
+        ozet: result.summary,
+        kaynaklar: result.sources,
+        kaynak_sayisi: result.totalSources,
+        alt_sorgular: result.subQueriesUsed,
+        olusturma_tarihi: new Date().toISOString(),
+      })]
+    );
+
+    logAPI('Derin Analiz', `Tamamlandı: ${result.totalSources} kaynak`, { yukleniciId: id });
+
+    res.json({
+      success: true,
+      data: {
+        ozet: result.summary,
+        kaynaklar: result.sources,
+        kaynak_sayisi: result.totalSources,
+        alt_sorgular: result.subQueriesUsed,
+      },
+    });
+  } catch (error) {
+    logError('Derin Analiz', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/contractors/:id/derin-analiz
+ * Son derin analiz sonucunu döner (cache).
+ */
+router.get('/:id/derin-analiz', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { rows: [row] } = await query(
+      `SELECT veri, son_guncelleme, durum
+       FROM yuklenici_istihbarat
+       WHERE yuklenici_id = $1 AND modul = 'derin_analiz'`,
+      [id]
+    );
+
+    if (!row || !row.veri) {
+      return res.json({ success: true, data: null });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...row.veri,
+        son_guncelleme: row.son_guncelleme,
+      },
+    });
+  } catch (error) {
+    logError('Derin Analiz Getir', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ─── Modül Çalıştırma Merkezi ─────────────────────────────────────
 // Her modülün arka plan iş mantığını yöneten fonksiyon.
 // Modüle göre doğru scraper/servisi çağırır.
@@ -2485,6 +2632,15 @@ async function calistirModul(yukleniciId, modul, yuklenici) {
   const startTime = Date.now();
 
   switch (modul) {
+    // ──────── Merkez Veri Havuzu (Tavily + çapraz kontrol) ─────────
+
+    case 'veri_havuzu': {
+      const { collectVeriHavuzu } = await import('../services/yuklenici-veri-havuzu.js');
+      const result = await collectVeriHavuzu(yukleniciId, { force: true });
+      await updateModulDurum(yukleniciId, modul, 'tamamlandi', { veri: result });
+      break;
+    }
+
     // ──────── ihalebul.com Modülleri (mevcut scraper'ları kullanır) ────────
 
     case 'ihale_gecmisi': {

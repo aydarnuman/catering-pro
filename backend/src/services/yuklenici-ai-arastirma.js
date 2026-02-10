@@ -14,6 +14,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { query } from '../database.js';
 import { logAPI, logError } from '../utils/logger.js';
+import { getCachedHavuz } from './yuklenici-veri-havuzu.js';
 
 const MODULE_NAME = 'AI-Istihbarat';
 const MODEL = 'claude-opus-4-6';
@@ -31,9 +32,7 @@ export async function generateIstihbaratRaporu(yukleniciId) {
   logAPI(MODULE_NAME, 'rapor_olustur', { yukleniciId, model: MODEL });
 
   try {
-    // ─── 1. Tüm verileri topla ─────────────────────────────────
-
-    // Yüklenici temel bilgileri
+    // ─── 1. Yüklenici temel bilgileri (önce bu — Tavily'ye unvan lazım) ──
     const {
       rows: [yuklenici],
     } = await query(
@@ -47,69 +46,120 @@ export async function generateIstihbaratRaporu(yukleniciId) {
 
     if (!yuklenici) throw new Error('Yüklenici bulunamadı');
 
-    // Son 50 ihalesi
-    const { rows: ihaleler } = await query(
-      `SELECT ihale_basligi AS ihale_adi, kurum_adi AS idare, sehir, durum, rol,
-              sozlesme_bedeli, indirim_orani, sozlesme_tarihi
-       FROM yuklenici_ihaleleri
-       WHERE yuklenici_id = $1
-       ORDER BY sozlesme_tarihi DESC NULLS LAST
-       LIMIT 50`,
-      [yukleniciId]
-    );
+    // ─── 2. HER ŞEYİ PARALEL BAŞLAT (DB + Havuz okuma) ────────
+    const dbStartTime = Date.now();
 
-    // Rakipler (ortak ihale sayısına göre)
-    const { rows: rakipler } = await query(
-      `SELECT y.unvan, COUNT(*) as ortak_ihale_sayisi
-       FROM yuklenici_ihaleleri yi1
-       JOIN yuklenici_ihaleleri yi2 ON yi1.tender_id = yi2.tender_id
-         AND yi1.yuklenici_id != yi2.yuklenici_id
-       JOIN yukleniciler y ON y.id = yi2.yuklenici_id
-       WHERE yi1.yuklenici_id = $1
-       GROUP BY y.unvan
-       ORDER BY ortak_ihale_sayisi DESC
-       LIMIT 10`,
-      [yukleniciId]
-    );
+    // Tüm DB sorguları + veri havuzu okuma aynı anda
+    const [ihaleResult, rakipResult, kikResult, modulResult, havuzVeri] = await Promise.all([
+      // DB: İhaleler
+      query(
+        `SELECT ihale_basligi AS ihale_adi, kurum_adi AS idare, sehir, ilce, durum, rol,
+                sozlesme_bedeli, yaklasik_maliyet, indirim_orani, sozlesme_tarihi,
+                is_baslangic, is_bitis, is_suresi, ihale_niteligi,
+                toplam_teklif_sayisi, gecerli_teklif_sayisi,
+                en_yuksek_teklif, en_dusuk_teklif,
+                fesih_durumu, kisim_adi, veri_kaynagi
+         FROM yuklenici_ihaleleri
+         WHERE yuklenici_id = $1
+         ORDER BY sozlesme_tarihi DESC NULLS LAST
+         LIMIT 200`,
+        [yukleniciId]
+      ),
+      // DB: Rakipler
+      query(
+        `SELECT y.unvan, COUNT(*) as ortak_ihale_sayisi
+         FROM yuklenici_ihaleleri yi1
+         JOIN yuklenici_ihaleleri yi2 ON yi1.tender_id = yi2.tender_id
+           AND yi1.yuklenici_id != yi2.yuklenici_id
+         JOIN yukleniciler y ON y.id = yi2.yuklenici_id
+         WHERE yi1.yuklenici_id = $1
+         GROUP BY y.unvan
+         ORDER BY ortak_ihale_sayisi DESC
+         LIMIT 30`,
+        [yukleniciId]
+      ),
+      // DB: KİK kararları
+      query(
+        `SELECT ihale_basligi AS ihale_adi, kurum_adi AS idare, sehir, durum,
+                sozlesme_bedeli, sozlesme_tarihi, created_at
+         FROM yuklenici_ihaleleri
+         WHERE yuklenici_id = $1 AND rol = 'kik_karari'
+         ORDER BY created_at DESC LIMIT 50`,
+        [yukleniciId]
+      ),
+      // DB: Modül verileri (veri_havuzu dahil)
+      query(
+        `SELECT modul, veri, hata_mesaji, durum
+         FROM yuklenici_istihbarat
+         WHERE yuklenici_id = $1 AND durum = 'tamamlandi' AND veri IS NOT NULL`,
+        [yukleniciId]
+      ),
+      // Veri Havuzu: persist edilmiş web istihbarat verisi
+      getCachedHavuz(yukleniciId).catch(() => null),
+    ]);
 
-    // KIK kararları
-    const { rows: kikKararlar } = await query(
-      `SELECT ihale_basligi AS ihale_adi, durum, created_at
-       FROM yuklenici_ihaleleri
-       WHERE yuklenici_id = $1 AND rol = 'kik_karari'
-       ORDER BY created_at DESC LIMIT 20`,
-      [yukleniciId]
-    );
-
-    // ─── 2. Diğer modüllerin verilerini çek ───────────────────
-
-    const { rows: modulVerileri } = await query(
-      `SELECT modul, veri, hata_mesaji, durum
-       FROM yuklenici_istihbarat
-       WHERE yuklenici_id = $1 AND durum = 'tamamlandi' AND veri IS NOT NULL`,
-      [yukleniciId]
-    );
+    const ihaleler = ihaleResult.rows;
+    const rakipler = rakipResult.rows;
+    const kikKararlar = kikResult.rows;
 
     const modulMap = {};
-    for (const m of modulVerileri) {
+    for (const m of modulResult.rows) {
       modulMap[m.modul] = m.veri;
     }
 
-    // ─── 3. İstihbarat prompt'unu oluştur ─────────────────────
+    // Web istihbaratını havuzdan oku — eski format'a dönüştür (prompt uyumu)
+    let webIstihbarat = null;
+    if (havuzVeri?.web_istihbarat) {
+      const wi = havuzVeri.web_istihbarat;
+      webIstihbarat = {
+        webSonuclari: wi.ihale_sonuclari || [],
+        aiOzet: wi.ai_ozet || null,
+        kikKararMetinleri: wi.kik_sonuclari || [],
+        haberSonuclari: wi.haber_sonuclari || [],
+        haberOzet: wi.haber_ozet || null,
+        sicilSonuclari: wi.sicil_sonuclari || [],
+        tamMetinler: havuzVeri.tam_metinler || [],
+      };
+      logAPI(MODULE_NAME, 'havuz_verisi_okundu', {
+        yukleniciId,
+        toplam_sonuc: havuzVeri.meta?.sonuc_toplam || 0,
+        tam_metin: havuzVeri.meta?.tam_metin_sayisi || 0,
+      });
+    } else {
+      logAPI(MODULE_NAME, 'havuz_verisi_yok', { yukleniciId, mesaj: 'veri_havuzu çalışmamış veya süresi dolmuş' });
+    }
 
-    const prompt = buildPrompt(yuklenici, ihaleler, rakipler, kikKararlar, modulMap);
+    logAPI(MODULE_NAME, 'veri_toplama_suresi', {
+      yukleniciId,
+      sure_ms: Date.now() - dbStartTime,
+      havuzdan: !!webIstihbarat,
+    });
 
-    // ─── 4. Claude Opus 4.6'dan rapor iste ────────────────────
+    // ─── 4. İstihbarat prompt'unu oluştur ─────────────────────
+
+    // Çapraz kontrol verisini havuzdan al (varsa)
+    const caprazKontrol = havuzVeri?.capraz_kontrol || null;
+
+    const prompt = buildPrompt(yuklenici, ihaleler, rakipler, kikKararlar, modulMap, webIstihbarat, caprazKontrol);
+
+    // ─── 5. Claude Opus 4.6'dan rapor iste ────────────────────
+
+    // Prompt boyutunu logla
+    logAPI(MODULE_NAME, 'prompt_boyutu', {
+      yukleniciId,
+      karakter: prompt.length,
+      tahminiToken: Math.round(prompt.length / 3),
+    });
 
     const response = await client.messages.create({
       model: MODEL,
-      max_tokens: 8192,
+      max_tokens: 16384,
       messages: [{ role: 'user', content: prompt }],
     });
 
     const aiText = response.content[0]?.text || '';
 
-    // ─── 5. Sonucu yapılandır ─────────────────────────────────
+    // ─── 6. Sonucu yapılandır ─────────────────────────────────
 
     const rapor = parseAiResponse(aiText);
 
@@ -124,6 +174,18 @@ export async function generateIstihbaratRaporu(yukleniciId) {
         rakipSayisi: rakipler.length,
         kikKararSayisi: kikKararlar.length,
         modulVerisi: Object.keys(modulMap),
+        havuzdan: !!webIstihbarat,
+        tavilyWebSonuc: webIstihbarat?.webSonuclari?.length || 0,
+        tavilyKikSonuc: webIstihbarat?.kikKararMetinleri?.length || 0,
+        tavilyHaberSonuc: webIstihbarat?.haberSonuclari?.length || 0,
+        tavilySicilSonuc: webIstihbarat?.sicilSonuclari?.length || 0,
+        tavilyTamMetin: webIstihbarat?.tamMetinler?.length || 0,
+        caprazKontrol: {
+          coopetition: caprazKontrol?.coopetition?.length || 0,
+          rakipEslesmeler: caprazKontrol?.rakip_ihale_eslesmeler?.length || 0,
+        },
+        promptKarakter: prompt.length,
+        promptTahminiToken: Math.round(prompt.length / 3),
       },
     };
 
@@ -144,7 +206,7 @@ export async function generateIstihbaratRaporu(yukleniciId) {
 // Prompt Builder
 // ═══════════════════════════════════════════════════════════════
 
-function buildPrompt(yuklenici, ihaleler, rakipler, kikKararlar, modulMap) {
+function buildPrompt(yuklenici, ihaleler, rakipler, kikKararlar, modulMap, webIstihbarat, caprazKontrol) {
   const fmt = (val) => {
     if (!val) return '-';
     return new Intl.NumberFormat('tr-TR', {
@@ -165,6 +227,8 @@ GÖREV: Aşağıdaki ham verileri analiz ederek, bu firmayla AYNI İHALEYE GİRE
 - Her tespitin yanına kaynak veriyi belirt (örn: "23 fesih — sektör ortalamasının 4 katı").
 - Firmanın gerçek davranış kalıplarını ortaya koy: nerede agresif, nerede zayıf?
 - Raporu okuyan kişi 2 dakikada firmanın profilini kavrayabilmeli.
+- Aşağıda BİRDEN FAZLA veri kaynağı var: veritabanı, ihalebul.com profili, Tavily web araması, derin araştırma, KİK kararları, haberler. Aynı konu hakkında FARKLI kaynaklardan gelen veriyi ÇAPRAZ DOĞRULA ve SENTEZLEYEREk kullan. Tek bir kaynağa bağımlı kalma.
+- Bir bilginin HANGİ KAYNAKTAN geldiğini parantez içinde belirt (örn: "(ihalebul.com)" veya "(Tavily web)" veya "(DB)").
 
 RAPOR FORMATI (bu başlıkları kullan):
 
@@ -192,82 +256,91 @@ RAPOR FORMATI (bu başlıkları kullan):
 - Haberlerdeki olumsuz bilgiler (varsa)
 - Şirket kayıt durumu (MERSİS / Ticaret Sicil)
 
-## RAKİP AĞIR
-- En sık karşılaşılan rakipleri
-- Hangi firmalara karşı kazanıyor/kaybediyor
+## RAKİP AĞI VE ORTAK GİRİŞİMLER
+- En sık karşılaşılan rakipler, portföy büyüklükleri ve bu firma ile güç karşılaştırması
+- Hangi firmalara karşı kazanıyor/kaybediyor (tüm kaynaklardan sentezle)
+- İş ortaklığı kurduğu firmalar, ortak girişim sözleşmeleri, hangi ihalelerde birlikte hareket ettiği
+- ÖNEMLİ: Aynı firma hem rakip listesinde hem ortak girişim/birlikte hareket listesinde varsa bu "coopetition" kalıbını AYRI olarak analiz et. "Bazen rakip bazen ortak" ilişkisi istihbarat açısından çok kritiktir — hangi koşullarda ortak oluyorlar, hangi koşullarda rakip?
 
 ## STRATEJİK TAVSİYELER
-(Bu firmayla aynı ihaleye girerken dikkat edilecek 3-5 somut öneri)
+(Bu firmayla aynı ihaleye girerken dikkat edilecek 5-7 somut öneri)
 `;
 
-  // ── Firma bilgileri ──
-  prompt += `
-═══════════════════════════════════════
-FİRMA: ${yuklenici.unvan}
-${yuklenici.kisa_ad ? `Kısa Ad: ${yuklenici.kisa_ad}` : ''}
-═══════════════════════════════════════
-
-İHALE İSTATİSTİKLERİ:
-  Katıldığı ihale: ${yuklenici.katildigi_ihale_sayisi || '?'}
-  Kazanma oranı: ${yuklenici.kazanma_orani ? `%${yuklenici.kazanma_orani}` : '?'}
-  Toplam sözleşme: ${fmt(yuklenici.toplam_sozlesme_bedeli)}
-  Ort. indirim: ${yuklenici.ortalama_indirim_orani ? `%${yuklenici.ortalama_indirim_orani}` : '?'}
-  Son ihale: ${yuklenici.son_ihale_tarihi || '?'}
-
-RİSK GÖSTERGELERİ:
-  Fesih sayısı: ${yuklenici.fesih_sayisi || 0}
-  KİK şikayet: ${yuklenici.kik_sikayet_sayisi || 0}
-  Risk notu: ${yuklenici.risk_notu || 'belirtilmemiş'}
-
-COĞRAFİ DAĞILIM:
-  ${JSON.stringify(yuklenici.aktif_sehirler || [], null, 0)}
-
-ETİKETLER: ${(yuklenici.etiketler || []).join(', ') || '-'}
+  // ── Firma bilgileri (kompakt TSV-benzeri format) ──
+  prompt += `\n═══ FİRMA: ${yuklenici.unvan}${yuklenici.kisa_ad ? ` (${yuklenici.kisa_ad})` : ''} ═══
+ihale:${yuklenici.katildigi_ihale_sayisi || '?'} | kazanma:%${yuklenici.kazanma_orani || '?'} | sözleşme:${fmt(yuklenici.toplam_sozlesme_bedeli)} | indirim:%${yuklenici.ortalama_indirim_orani || '?'} | son:${yuklenici.son_ihale_tarihi || '?'}
+fesih:${yuklenici.fesih_sayisi || 0} | kik_şikayet:${yuklenici.kik_sikayet_sayisi || 0} | risk:${yuklenici.risk_notu || '-'}
+şehirler:${(yuklenici.aktif_sehirler || []).join(',')} | etiketler:${(yuklenici.etiketler || []).join(',') || '-'}
 `;
 
-  // ── İhale geçmişi ──
+  // ── İhale geçmişi (kompakt TSV — aynı veri, %30 daha az token) ──
   if (ihaleler.length > 0) {
-    prompt += `\n═══ SON İHALELER (${ihaleler.length} adet) ═══\n`;
-    for (const ih of ihaleler.slice(0, 25)) {
-      const parts = [
-        ih.ihale_adi || '?',
-        ih.idare || '',
-        ih.sehir || '',
-        ih.durum || '',
-        ih.rol,
-        ih.indirim_orani ? `indirim:%${ih.indirim_orani}` : '',
-        ih.sozlesme_bedeli ? `bedel:${fmt(ih.sozlesme_bedeli)}` : '',
-        ih.sozlesme_tarihi || '',
-      ].filter(Boolean);
-      prompt += `• ${parts.join(' | ')}\n`;
+    prompt += `\n═══ İHALELER (${ihaleler.length}) ═══\n`;
+    // Sadece dolu alanları | ile birleştir — boşlukları atla
+    for (const ih of ihaleler) {
+      const p = [];
+      if (ih.ihale_adi) p.push(ih.ihale_adi);
+      if (ih.idare) p.push(ih.idare);
+      if (ih.sehir) p.push(ih.ilce ? `${ih.sehir}/${ih.ilce}` : ih.sehir);
+      if (ih.durum) p.push(ih.durum);
+      if (ih.rol) p.push(ih.rol);
+      if (ih.ihale_niteligi) p.push(ih.ihale_niteligi);
+      if (ih.indirim_orani) p.push(`i:%${ih.indirim_orani}`);
+      if (ih.sozlesme_bedeli) p.push(`b:${fmt(ih.sozlesme_bedeli)}`);
+      if (ih.yaklasik_maliyet) p.push(`y:${fmt(ih.yaklasik_maliyet)}`);
+      if (ih.toplam_teklif_sayisi) p.push(`t:${ih.toplam_teklif_sayisi}`);
+      if (ih.gecerli_teklif_sayisi) p.push(`g:${ih.gecerli_teklif_sayisi}`);
+      if (ih.en_yuksek_teklif) p.push(`mx:${fmt(ih.en_yuksek_teklif)}`);
+      if (ih.en_dusuk_teklif) p.push(`mn:${fmt(ih.en_dusuk_teklif)}`);
+      if (ih.is_suresi) p.push(ih.is_suresi);
+      if (ih.fesih_durumu) p.push(`FESİH:${ih.fesih_durumu}`);
+      if (ih.kisim_adi) p.push(ih.kisim_adi);
+      if (ih.sozlesme_tarihi) p.push(ih.sozlesme_tarihi);
+      if (ih.veri_kaynagi) p.push(`[${ih.veri_kaynagi}]`);
+      prompt += `${p.join('|')}\n`;
     }
   }
 
-  // ── Rakipler ──
+  // ── Rakipler (DB cross-join) ──
   if (rakipler.length > 0) {
-    prompt += `\n═══ EN SIK KARŞILAŞILAN RAKİPLER ═══\n`;
+    prompt += `\n═══ RAKİP VERİSİ (Veritabanı Cross-Join) ═══\n`;
     for (const r of rakipler) {
       prompt += `• ${r.unvan}: ${r.ortak_ihale_sayisi} ortak ihale\n`;
     }
   }
 
-  // ── KİK kararları ──
+  // ── KİK kararları (tüm detaylarıyla) ──
   if (kikKararlar.length > 0) {
     prompt += `\n═══ KİK KARARLARI (${kikKararlar.length} adet) ═══\n`;
     for (const k of kikKararlar) {
-      prompt += `• ${k.ihale_adi || '?'} | ${k.durum || '-'}\n`;
+      const parts = [
+        k.ihale_adi || '?',
+        k.idare || '',
+        k.sehir || '',
+        k.durum || '-',
+        k.sozlesme_bedeli ? `bedel:${fmt(k.sozlesme_bedeli)}` : '',
+        k.sozlesme_tarihi || k.created_at || '',
+      ].filter(Boolean);
+      prompt += `• ${parts.join(' | ')}\n`;
     }
   }
 
   // ── Diğer modül verileri ──
 
-  // Haberler
+  // Haberler (TÜM haberler + içerik varsa ekle)
   if (modulMap.haberler) {
     const haberler = modulMap.haberler;
     if (haberler.haberler && haberler.haberler.length > 0) {
       prompt += `\n═══ BASINDA ÇIKAN HABERLER (${haberler.toplam || haberler.haberler.length} adet) ═══\n`;
-      for (const h of haberler.haberler.slice(0, 10)) {
-        prompt += `• [${h.tarih_okunur || '?'}] ${h.baslik} (${h.kaynak || '?'})\n`;
+      for (const h of haberler.haberler) {
+        prompt += `• [${h.tarih_okunur || '?'}] ${h.baslik} (${h.kaynak || '?'})`;
+        if (h.kaynak_tipi) prompt += ` [${h.kaynak_tipi}]`;
+        if (h.skor) prompt += ` güven:%${(h.skor * 100).toFixed(0)}`;
+        prompt += '\n';
+        if (h.ozet && h.ozet.length > 50) {
+          prompt += `  Özet: ${h.ozet.substring(0, 1000)}\n`;
+        }
+        if (h.link) prompt += `  URL: ${h.link}\n`;
       }
     }
   }
@@ -279,12 +352,12 @@ ETİKETLER: ${(yuklenici.etiketler || []).join(', ') || '-'}
     prompt += `Yasaklı mı: ${yas.yasakli_mi ? 'EVET ⚠️' : 'Hayır'}\n`;
     if (yas.sonuclar && yas.sonuclar.length > 0) {
       for (const s of yas.sonuclar) {
-        prompt += `• ${JSON.stringify(s)}\n`;
+        prompt += `• ${JSON.stringify(s).replace(/"/g, '')}\n`;
       }
     }
   }
 
-  // Şirket bilgileri
+  // Şirket bilgileri (TÜM ilanlar — kısıtlama yok)
   if (modulMap.sirket_bilgileri) {
     const sb = modulMap.sirket_bilgileri;
     prompt += `\n═══ ŞİRKET KAYIT BİLGİLERİ ═══\n`;
@@ -295,26 +368,222 @@ ETİKETLER: ${(yuklenici.etiketler || []).join(', ') || '-'}
     if (sb.ticaret_sicil) {
       prompt += `Ticaret Sicil: ${sb.ticaret_sicil.basarili ? 'Kayıt bulundu' : 'Erişim hatası'}\n`;
       if (sb.ticaret_sicil.ilanlar?.length > 0) {
-        for (const ilan of sb.ticaret_sicil.ilanlar.slice(0, 5)) {
-          prompt += `  • ${JSON.stringify(ilan)}\n`;
+        prompt += `Ticaret Sicil İlanları (${sb.ticaret_sicil.ilanlar.length} adet):\n`;
+        for (const ilan of sb.ticaret_sicil.ilanlar) {
+          prompt += `  • ${JSON.stringify(ilan).replace(/"/g, '')}\n`;
         }
       }
     }
   }
 
-  // Profil analizi
+  // Profil analizi (kompakt JSON — indent yok)
   if (modulMap.profil_analizi) {
     const profil = modulMap.profil_analizi;
-    if (profil.bolum_sayisi) {
-      prompt += `\n═══ İHALEBUL.COM PROFİL ANALİZİ ═══\n`;
-      prompt += `${profil.bolum_sayisi} bölüm veri mevcut\n`;
+    prompt += `\n═══ İHALEBUL.COM PROFİL ANALİZİ ═══\n`;
+    prompt += `${JSON.stringify(profil)}\n`;
+  }
+
+  // ihalebul.com analiz verisi — YAPILANDIRILMIŞ şekilde sun
+  if (yuklenici.analiz_verisi) {
+    const av = yuklenici.analiz_verisi;
+
+    // Özet istatistikler (kompakt)
+    if (av.ozet) {
+      prompt += `\n═══ İHALEBUL.COM İSTATİSTİK ÖZETİ ═══\n`;
+      prompt += `${JSON.stringify(av.ozet)}\n`;
+    }
+
+    // RAKİPLER — ayrı ve açık bölüm
+    if (av.rakipler?.length > 0) {
+      prompt += `\n═══ RAKİP ANALİZİ — İHALEBUL.COM VERİSİ (${av.rakipler.length} rakip) ═══\n`;
+      prompt += `Bu firmalar Degsan ile aynı ihalelere katılmış firmalardır:\n`;
+      for (const r of av.rakipler) {
+        const kisa = r.rakip_adi.split(/\s+/).slice(0, 4).join(' ');
+        prompt += `• ${kisa}: ${r.ihale_sayisi} ortak ihale, toplam sözleşme: ${fmt(r.toplam_sozlesme)}\n`;
+      }
+    }
+
+    // ORTAK GİRİŞİMLER — ayrı ve açık bölüm
+    if (av.ortak_girisimler?.length > 0) {
+      prompt += `\n═══ ORTAK GİRİŞİMLER (İŞ ORTAKLIĞI) — İHALEBUL.COM VERİSİ ═══\n`;
+      prompt += `Bu firma şu ortaklarla iş ortaklığı kurarak ihale kazanmış:\n`;
+      for (const og of av.ortak_girisimler) {
+        const kisa = og.partner_adi.split(/\s+/).slice(0, 4).join(' ');
+        prompt += `• Partner: ${kisa}\n`;
+        prompt += `  Devam eden: ${og.devam_eden} | Tamamlanan: ${og.tamamlanan} | Toplam sözleşme: ${fmt(og.toplam_sozlesme)}\n`;
+      }
+    } else {
+      prompt += `\n═══ ORTAK GİRİŞİMLER ═══\nOrtak girişim kaydı bulunmuyor.\n`;
+    }
+
+    // Yükleniciler listesi (iş ortaklığı dahil tüm taraflar)
+    if (av.yukleniciler_listesi?.length > 0) {
+      prompt += `\n═══ YÜKLENİCİ TARAFLARI ═══\n`;
+      for (const yk of av.yukleniciler_listesi) {
+        const kisa = yk.yuklenici_adi.split(/\s+/).slice(0, 4).join(' ');
+        prompt += `• ${kisa}: devam=${yk.devam_eden}, tamamlanan=${yk.tamamlanan}, toplam=${fmt(yk.toplam_sozlesme)}\n`;
+      }
+    }
+
+    // ── ÇAPRAZ KONTROL: Veri havuzundan gelen coopetition ve eşleşme verisi ──
+    if (caprazKontrol?.coopetition?.length > 0) {
+      prompt += `\n═══ ⚠️ ÇAPRAZ KONTROL: HEM RAKİP HEM ORTAK FİRMALAR ═══\n`;
+      prompt += `Aşağıdaki firmalar hem rakip olarak karşılaşılmış hem de iş ortaklığı kurulmuş — bu "coopetition" (bazen rakip, bazen ortak) kalıbıdır. Bu ilişkilerin dinamiğini derinlemesine analiz et:\n`;
+      for (const k of caprazKontrol.coopetition) {
+        prompt += `• ${k.firma}\n`;
+        prompt += `  RAKİP olarak: ${k.rakip_ihale_sayisi} ortak ihale, ${fmt(k.rakip_sozlesme)} portföy\n`;
+        prompt += `  ORTAK olarak: devam=${k.ortak_devam_eden || 0}, tamam=${k.ortak_tamamlanan || 0}, ${fmt(k.ortak_sozlesme)} sözleşme\n`;
+      }
+    } else if (av.rakipler?.length > 0 && av.ortak_girisimler?.length > 0) {
+      // Fallback: havuz yoksa eski inline çapraz kontrol
+      const kesisim = [];
+      for (const r of av.rakipler) {
+        const rKisa = r.rakip_adi.toLowerCase().split(/\s+/).slice(0, 3).join(' ');
+        for (const o of av.ortak_girisimler) {
+          const oKisa = o.partner_adi.toLowerCase().split(/\s+/).slice(0, 3).join(' ');
+          if (r.rakip_adi.toLowerCase() === o.partner_adi.toLowerCase() || rKisa === oKisa) {
+            kesisim.push({
+              firma: r.rakip_adi.split(/\s+/).slice(0, 4).join(' '),
+              rakipOlarakIhale: r.ihale_sayisi,
+              rakipSozlesme: r.toplam_sozlesme,
+              ortakSozlesme: o.toplam_sozlesme,
+            });
+          }
+        }
+      }
+      if (kesisim.length > 0) {
+        prompt += `\n═══ ⚠️ ÇAPRAZ KONTROL: HEM RAKİP HEM ORTAK FİRMALAR ═══\n`;
+        for (const k of kesisim) {
+          prompt += `• ${k.firma}: RAKİP ${k.rakipOlarakIhale} ihale ${fmt(k.rakipSozlesme)} | ORTAK ${fmt(k.ortakSozlesme)}\n`;
+        }
+      }
+    }
+
+    if (caprazKontrol?.rakip_ihale_eslesmeler?.length > 0) {
+      prompt += `\n═══ RAKİP İSİMLERİNİN İHALE METİNLERİNDE GEÇTİĞİ YERLER ═══\n`;
+      for (const re of caprazKontrol.rakip_ihale_eslesmeler) {
+        prompt += `• ${re.rakip} → ${re.ihaleler.join('; ')}\n`;
+      }
+    }
+
+    // İdareler
+    if (av.idareler?.length > 0) {
+      prompt += `\n═══ EN ÇOK ÇALIŞILAN İDARELER (${av.idareler.length} idare) ═══\n`;
+      for (const idare of av.idareler) {
+        prompt += `• ${idare.idare_adi || idare.ad}: ${idare.ihale_sayisi || idare.sayi || '?'} ihale, ${fmt(idare.toplam_sozlesme || idare.tutar)}\n`;
+      }
+    }
+
+    // Şehirler
+    if (av.sehirler?.length > 0) {
+      prompt += `\n═══ ŞEHİR BAZLI DAĞILIM (${av.sehirler.length} şehir) ═══\n`;
+      for (const s of av.sehirler) {
+        prompt += `• ${s.sehir || s.ad}: ${s.ihale_sayisi || s.sayi || '?'} ihale, ${fmt(s.toplam_sozlesme || s.tutar)}\n`;
+      }
+    }
+
+    // Sektörler
+    if (av.sektorler?.length > 0) {
+      prompt += `\n═══ SEKTÖR DAĞILIMI ═══\n`;
+      for (const sk of av.sektorler) {
+        prompt += `• ${sk.sektor_adi || sk.ad}: ${sk.ihale_sayisi || sk.sayi || '?'} ihale, ${fmt(sk.toplam_sozlesme || sk.tutar)}\n`;
+      }
+    }
+
+    // Yıllık trend
+    if (av.yillik_trend?.length > 0) {
+      prompt += `\n═══ YILLIK İHALE TRENDİ ═══\n`;
+      for (const yt of av.yillik_trend) {
+        prompt += `• ${yt.yil}: ${yt.ihale_sayisi || yt.sayi || '?'} ihale, ${fmt(yt.toplam_sozlesme || yt.tutar)}\n`;
+      }
+    }
+
+    // İhale türleri
+    if (av.ihale_turleri?.length > 0) {
+      prompt += `\n═══ İHALE TÜRLERİ ═══\n`;
+      for (const it of av.ihale_turleri) {
+        prompt += `• ${it.ad || it.tur}: ${it.gecmis || it.sayi || '?'} geçmiş, ${it.guncel || 0} güncel, ${fmt(it.toplam_sozlesme)}\n`;
+      }
+    }
+
+    // İhale usulleri
+    if (av.ihale_usulleri?.length > 0) {
+      prompt += `\n═══ İHALE USULLERİ ═══\n`;
+      for (const iu of av.ihale_usulleri) {
+        prompt += `• ${iu.ad || iu.usul}: ${iu.gecmis || iu.sayi || '?'} geçmiş, ${fmt(iu.toplam_sozlesme)}\n`;
+      }
+    }
+
+    // Teklif türleri
+    if (av.teklif_turleri?.length > 0) {
+      prompt += `\n═══ TEKLİF TÜRLERİ ═══\n`;
+      for (const tt of av.teklif_turleri) {
+        prompt += `• ${tt.ad || tt.tur}: ${tt.gecmis || tt.sayi || '?'} geçmiş, ${fmt(tt.toplam_sozlesme)}\n`;
+      }
     }
   }
 
-  // ihalebul.com analiz verisi (yukleniciler tablosundan)
-  if (yuklenici.analiz_verisi?.ozet) {
-    prompt += `\n═══ İHALEBUL.COM İSTATİSTİK ÖZETİ ═══\n`;
-    prompt += JSON.stringify(yuklenici.analiz_verisi.ozet, null, 2);
+  // ── Web istihbaratı (kompakt — URL yerine domain, gereksiz boşluklar yok) ──
+  if (webIstihbarat) {
+    const getDomain = (url) => { try { return new URL(url).hostname.replace('www.', ''); } catch { return url; } };
+
+    if (webIstihbarat.aiOzet) {
+      prompt += `\n═══ WEB ÖZETİ (Tavily AI) ═══\n${webIstihbarat.aiOzet}\n`;
+    }
+
+    // Tüm web sonuçlarını tek blokta göster (daha az section header)
+    const allWebResults = [
+      ...(webIstihbarat.webSonuclari || []).map(r => ({ ...r, tip: 'ihale' })),
+      ...(webIstihbarat.kikKararMetinleri || []).map(r => ({ ...r, tip: 'kik' })),
+      ...(webIstihbarat.haberSonuclari || []).map(r => ({ ...r, tip: 'haber' })),
+      ...(webIstihbarat.sicilSonuclari || []).map(r => ({ ...r, tip: 'sicil' })),
+    ];
+
+    if (allWebResults.length > 0) {
+      prompt += `\n═══ WEB SONUÇLARI (${allWebResults.length}) ═══\n`;
+      if (webIstihbarat.haberOzet) prompt += `Haber özeti: ${webIstihbarat.haberOzet}\n`;
+      for (const r of allWebResults) {
+        prompt += `[${r.tip}] ${r.title || '-'} (${getDomain(r.url)})`;
+        if (r.content) prompt += ` — ${r.content}`;
+        prompt += '\n';
+      }
+    }
+
+    // Tam metinler — bunlar büyük, ama veri kaybetmemeliyiz
+    if (webIstihbarat.tamMetinler?.length > 0) {
+      prompt += `\n═══ TAM METİNLER (${webIstihbarat.tamMetinler.length}) ═══\n`;
+      for (const t of webIstihbarat.tamMetinler) {
+        prompt += `--- ${getDomain(t.url)} ---\n${t.metin}\n`;
+      }
+    }
+  }
+
+  // ── Derin Analiz (kompakt — URL yerine domain) ──
+  if (modulMap.derin_analiz) {
+    const da = modulMap.derin_analiz;
+    const getDomain2 = (url) => { try { return new URL(url).hostname.replace('www.', ''); } catch { return ''; } };
+    prompt += `\n═══ DERİN ARAŞTIRMA (${da.kaynak_sayisi || '?'} kaynak) ═══\n`;
+    if (da.ozet) prompt += `${da.ozet}\n`;
+    if (da.kaynaklar?.length > 0) {
+      for (const k of da.kaynaklar) {
+        prompt += `[${getDomain2(k.url)}] ${k.title || '-'}`;
+        if (k.score) prompt += ` g:%${(k.score * 100).toFixed(0)}`;
+        if (k.excerpt) prompt += ` — ${k.excerpt}`;
+        prompt += '\n';
+      }
+    }
+    if (da.alt_sorgular?.length > 0) prompt += `stratejiler: ${da.alt_sorgular.join('|')}\n`;
+  }
+
+  // ── Haber tam içerikleri ──
+  if (modulMap.haberler?.haberler) {
+    const derinIcerikli = modulMap.haberler.haberler.filter((h) => h.tam_icerik);
+    if (derinIcerikli.length > 0) {
+      prompt += `\n═══ HABER TAM İÇERİKLERİ (${derinIcerikli.length}) ═══\n`;
+      for (const h of derinIcerikli) {
+        prompt += `--- ${h.baslik || '-'} (${h.kaynak || '?'}) ---\n${h.tam_icerik}\n`;
+      }
+    }
   }
 
   return prompt;

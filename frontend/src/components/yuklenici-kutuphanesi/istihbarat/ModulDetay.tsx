@@ -28,46 +28,86 @@ interface ModulDetayProps {
   durum: ModulDurum;
 }
 
+/** Veri havuzundan zenginleştirilmiş ek veri (Tavily + çapraz kontrol) */
+export interface HavuzVeri {
+  web_istihbarat: {
+    ihale_sonuclari?: Array<{ url: string; title: string; content: string }>;
+    kik_sonuclari?: Array<{ url: string; title: string; content: string }>;
+    haber_sonuclari?: Array<{ url: string; title: string; content: string }>;
+    sicil_sonuclari?: Array<{ url: string; title: string; content: string }>;
+    ai_ozet?: string;
+    haber_ozet?: string;
+  } | null;
+  tam_metinler?: Array<{ url: string; domain: string; metin: string }>;
+  capraz_kontrol?: {
+    coopetition?: Array<{ firma: string; rakip_ihale_sayisi: number; rakip_sozlesme: number; ortak_sozlesme: number }>;
+    rakip_ihale_eslesmeler?: Array<{ rakip: string; ihaleler: string[] }>;
+  };
+  meta?: {
+    toplama_tarihi: string;
+    sonuc_toplam: number;
+    sure_ms: number;
+  };
+}
+
+/** Gruplar için veri_havuzu'ndan zenginleştirme gerekli mi? */
+const HAVUZ_ZENGINLESTIR: DockGrupAdi[] = ['ihale_performansi', 'hukuki_durum', 'haberler', 'sirket_bilgileri'];
+
 export function ModulDetay({ yukleniciId, grup, durum }: ModulDetayProps) {
   // Çoklu modül verisi: { ihale_gecmisi: {...}, profil_analizi: {...}, ... }
   const [veriler, setVeriler] = useState<Record<string, Record<string, unknown> | null>>({});
+  const [havuzVeri, setHavuzVeri] = useState<HavuzVeri | null>(null);
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState<string | null>(null);
 
   const meta = getDockGrupMeta(grup);
   const altModuller = meta?.moduller ?? [];
 
-  /** Grubun tüm alt modüllerinin verisini paralel çek */
+  /** Grubun tüm alt modüllerinin verisini paralel çek + veri_havuzu zenginleştirmesi */
   const fetchVeriler = useCallback(async () => {
     if (altModuller.length === 0) return;
     setYukleniyor(true);
     setHata(null);
     try {
-      const results = await Promise.all(
-        altModuller.map(async (modulAdi: IstihbaratModulAdi) => {
-          try {
-            const res = await fetch(
-              getApiUrl(`/contractors/${yukleniciId}/modul/${modulAdi}/veri`),
-              { credentials: 'include' }
-            );
-            const json = await res.json();
-            return { modul: modulAdi, veri: json.success ? json.data : null };
-          } catch {
-            return { modul: modulAdi, veri: null };
-          }
-        })
-      );
+      // Alt modül verileri
+      const modulPromises = altModuller.map(async (modulAdi: IstihbaratModulAdi) => {
+        try {
+          const res = await fetch(
+            getApiUrl(`/contractors/${yukleniciId}/modul/${modulAdi}/veri`),
+            { credentials: 'include' }
+          );
+          const json = await res.json();
+          return { modul: modulAdi, veri: json.success ? json.data : null };
+        } catch {
+          return { modul: modulAdi, veri: null };
+        }
+      });
+
+      // Havuz verisi (zenginleştirme gereken gruplar için paralel çek)
+      const havuzPromise = HAVUZ_ZENGINLESTIR.includes(grup)
+        ? fetch(
+            getApiUrl(`/contractors/${yukleniciId}/modul/veri_havuzu/veri`),
+            { credentials: 'include' }
+          )
+            .then((r) => r.json())
+            .then((json) => (json.success ? json.data : null))
+            .catch(() => null)
+        : Promise.resolve(null);
+
+      const [results, hv] = await Promise.all([Promise.all(modulPromises), havuzPromise]);
+
       const map: Record<string, Record<string, unknown> | null> = {};
       for (const r of results) {
         map[r.modul] = r.veri;
       }
       setVeriler(map);
+      setHavuzVeri(hv as HavuzVeri | null);
     } catch (err) {
       setHata(err instanceof Error ? err.message : 'Bağlantı hatası');
     } finally {
       setYukleniyor(false);
     }
-  }, [yukleniciId, altModuller]);
+  }, [yukleniciId, altModuller, grup]);
 
   // Grup veya durum değiştiğinde veriyi çek
   useEffect(() => {
@@ -132,7 +172,7 @@ export function ModulDetay({ yukleniciId, grup, durum }: ModulDetayProps) {
   return (
     <Box>
       <Title order={5} mb="md">{meta?.baslik || grup}</Title>
-      {renderGrupPaneli(grup, veriler)}
+      {renderGrupPaneli(grup, veriler, yukleniciId, havuzVeri)}
     </Box>
   );
 }
@@ -140,19 +180,21 @@ export function ModulDetay({ yukleniciId, grup, durum }: ModulDetayProps) {
 /** Grup adına göre doğru birleşik paneli seçer */
 function renderGrupPaneli(
   grup: DockGrupAdi,
-  veriler: Record<string, Record<string, unknown> | null>
+  veriler: Record<string, Record<string, unknown> | null>,
+  yukleniciId: number,
+  havuzVeri: HavuzVeri | null
 ) {
   switch (grup) {
     case 'ihale_performansi':
-      return <IhalePerformansiDetay veriler={veriler} />;
+      return <IhalePerformansiDetay veriler={veriler} havuzVeri={havuzVeri} />;
     case 'hukuki_durum':
-      return <HukukiDurumDetay veriler={veriler} />;
+      return <HukukiDurumDetay veriler={veriler} havuzVeri={havuzVeri} />;
     case 'sirket_bilgileri':
-      return <SirketBilgileriDetay veri={veriler.sirket_bilgileri ?? null} />;
+      return <SirketBilgileriDetay veri={veriler.sirket_bilgileri ?? null} havuzVeri={havuzVeri} />;
     case 'haberler':
-      return <HaberlerDetay veri={veriler.haberler ?? null} />;
+      return <HaberlerDetay veri={veriler.haberler ?? null} havuzVeri={havuzVeri} />;
     case 'ai_arastirma':
-      return <AiRaporDetay veri={veriler.ai_arastirma ?? null} />;
+      return <AiRaporDetay veri={veriler.ai_arastirma ?? null} yukleniciId={yukleniciId} />;
     default:
       return <Text c="dimmed">Bu grup için detay paneli henüz hazır değil.</Text>;
   }

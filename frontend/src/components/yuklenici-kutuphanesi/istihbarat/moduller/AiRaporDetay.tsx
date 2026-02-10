@@ -3,35 +3,117 @@
 /**
  * AI İstihbarat Raporu Detay Paneli
  * Claude Opus 4.6 tarafından oluşturulan firma istihbarat briefing'i.
+ * + Tavily Research ile Derin Analiz özelliği.
  */
 
 import {
+  Accordion,
   Alert,
+  Anchor,
   Badge,
+  Button,
   Card,
   Divider,
   Group,
   List,
+  Loader,
   Stack,
   Text,
   ThemeIcon,
   TypographyStylesProvider,
 } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import {
   IconAlertTriangle,
   IconBulb,
+  IconExternalLink,
   IconMapPin,
   IconReportAnalytics,
+  IconSearch,
   IconSpyOff,
   IconUsers,
 } from '@tabler/icons-react';
+import { useCallback, useEffect, useState } from 'react';
 import Markdown from 'react-markdown';
+import { getApiUrl } from '@/lib/config';
 
 interface Props {
   veri: Record<string, unknown> | null;
+  yukleniciId?: number;
 }
 
-export function AiRaporDetay({ veri }: Props) {
+// ── Derin Analiz Tipi ──
+interface DerinAnalizData {
+  ozet: string;
+  kaynaklar: Array<{ title: string; url: string; excerpt: string; score: number }>;
+  kaynak_sayisi: number;
+  alt_sorgular: string[];
+  olusturma_tarihi?: string;
+  son_guncelleme?: string;
+}
+
+export function AiRaporDetay({ veri, yukleniciId }: Props) {
+  // ── Derin Analiz State ──
+  const [derinAnaliz, setDerinAnaliz] = useState<DerinAnalizData | null>(null);
+  const [derinYukleniyor, setDerinYukleniyor] = useState(false);
+  const [derinCalistiriliyor, setDerinCalistiriliyor] = useState(false);
+
+  /** Cache'lenmiş derin analiz sonucunu çek */
+  const fetchDerinAnaliz = useCallback(async () => {
+    if (!yukleniciId) return;
+    setDerinYukleniyor(true);
+    try {
+      const res = await fetch(getApiUrl(`/contractors/${yukleniciId}/derin-analiz`), {
+        credentials: 'include',
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        setDerinAnaliz(json.data as DerinAnalizData);
+      }
+    } catch {
+      // Sessiz geç
+    } finally {
+      setDerinYukleniyor(false);
+    }
+  }, [yukleniciId]);
+
+  /** Derin analiz çalıştır */
+  const calistirDerinAnaliz = useCallback(async () => {
+    if (!yukleniciId) return;
+    setDerinCalistiriliyor(true);
+    try {
+      const res = await fetch(getApiUrl(`/contractors/${yukleniciId}/derin-analiz`), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const json = await res.json();
+      if (json.success) {
+        setDerinAnaliz(json.data as DerinAnalizData);
+        notifications.show({
+          title: 'Derin Analiz Tamamlandı',
+          message: `${json.data.kaynak_sayisi} kaynaktan bilgi toplandı`,
+          color: 'teal',
+        });
+      } else {
+        notifications.show({ title: 'Hata', message: json.error, color: 'red' });
+      }
+    } catch (err) {
+      notifications.show({
+        title: 'Bağlantı Hatası',
+        message: err instanceof Error ? err.message : 'Sunucuya bağlanılamadı',
+        color: 'red',
+      });
+    } finally {
+      setDerinCalistiriliyor(false);
+    }
+  }, [yukleniciId]);
+
+  // İlk yüklemede cache kontrol et
+  useEffect(() => {
+    fetchDerinAnaliz();
+  }, [fetchDerinAnaliz]);
+
   if (!veri)
     return (
       <Text c="dimmed">Veri bulunamadı. Modülü çalıştırarak AI raporu oluşturabilirsiniz.</Text>
@@ -209,6 +291,16 @@ export function AiRaporDetay({ veri }: Props) {
           Oluşturulma: {new Date(olusturmaTarihi).toLocaleString('tr-TR')}
         </Text>
       )}
+
+      {/* ── Derin Analiz (Tavily Research) ── */}
+      {yukleniciId && (
+        <DerinAnalizPanel
+          data={derinAnaliz}
+          yukleniyor={derinYukleniyor}
+          calistiriliyor={derinCalistiriliyor}
+          onCalistir={calistirDerinAnaliz}
+        />
+      )}
     </Stack>
   );
 }
@@ -302,6 +394,141 @@ function SWOTKart({
           <List.Item key={`${baslik}-${m.slice(0, 30)}`}>{m}</List.Item>
         ))}
       </List>
+    </Card>
+  );
+}
+
+// ── Derin Analiz Paneli ──
+function DerinAnalizPanel({
+  data,
+  yukleniyor,
+  calistiriliyor,
+  onCalistir,
+}: {
+  data: DerinAnalizData | null;
+  yukleniyor: boolean;
+  calistiriliyor: boolean;
+  onCalistir: () => void;
+}) {
+  return (
+    <Card withBorder radius="md" p="md" mt="md" style={{ borderColor: 'var(--mantine-color-teal-3)' }}>
+      <Group justify="space-between" mb="sm">
+        <Group gap="xs">
+          <ThemeIcon size="sm" variant="light" color="teal">
+            <IconSearch size={14} />
+          </ThemeIcon>
+          <Text size="sm" fw={700} c="teal.7">
+            Derin Web Analizi
+          </Text>
+          <Badge size="xs" variant="light" color="teal">
+            Tavily Research
+          </Badge>
+        </Group>
+        <Button
+          size="xs"
+          variant="light"
+          color="teal"
+          leftSection={calistiriliyor ? <Loader size={12} /> : <IconSearch size={14} />}
+          loading={calistiriliyor}
+          onClick={onCalistir}
+          disabled={calistiriliyor}
+        >
+          {data ? 'Yenile' : 'Analiz Başlat'}
+        </Button>
+      </Group>
+
+      {yukleniyor && !data && (
+        <Group gap="xs" py="sm">
+          <Loader size="xs" />
+          <Text size="xs" c="dimmed">Önceki analiz sonuçları yükleniyor...</Text>
+        </Group>
+      )}
+
+      {calistiriliyor && (
+        <Alert variant="light" color="teal" p="xs" mb="sm">
+          <Group gap="xs">
+            <Loader size="xs" color="teal" />
+            <Text size="xs">Çoklu kaynak taranıyor... Bu işlem 15-30 saniye sürebilir.</Text>
+          </Group>
+        </Alert>
+      )}
+
+      {!data && !yukleniyor && !calistiriliyor && (
+        <Text size="xs" c="dimmed">
+          Birden fazla arama stratejisi ile kapsamlı web araştırması yapar.
+          Her çalıştırmada ~5-8 Tavily kredisi harcanır.
+        </Text>
+      )}
+
+      {data && (
+        <Stack gap="sm">
+          {/* AI Özet */}
+          {data.ozet && (
+            <Alert variant="light" color="teal" title="Araştırma Özeti" p="xs">
+              <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
+                {data.ozet}
+              </Text>
+            </Alert>
+          )}
+
+          {/* Kaynaklar */}
+          {data.kaynaklar && data.kaynaklar.length > 0 && (
+            <Accordion variant="separated" radius="sm" defaultValue={null}>
+              <Accordion.Item value="kaynaklar">
+                <Accordion.Control>
+                  <Group gap="xs">
+                    <Text size="sm" fw={600}>Kaynaklar</Text>
+                    <Badge size="xs" variant="light" color="gray">
+                      {data.kaynaklar.length} sayfa
+                    </Badge>
+                  </Group>
+                </Accordion.Control>
+                <Accordion.Panel>
+                  <Stack gap="xs">
+                    {data.kaynaklar.map((k) => {
+                      const kaynakKey = k.url || k.title || String(Math.random());
+                      return (
+                        <Card key={kaynakKey} withBorder p="xs" radius="sm">
+                          <Text size="xs" fw={600} lineClamp={1}>
+                            <Anchor href={k.url} target="_blank" underline="hover" c="inherit">
+                              {k.title}
+                              <IconExternalLink size={10} style={{ marginLeft: 4 }} />
+                            </Anchor>
+                          </Text>
+                          {k.excerpt && (
+                            <Text size="xs" c="dimmed" lineClamp={2} mt={2}>
+                              {k.excerpt}
+                            </Text>
+                          )}
+                          {k.score > 0 && (
+                            <Badge size="xs" variant="dot" color="teal" mt={4}>
+                              Skor: {(k.score * 100).toFixed(0)}%
+                            </Badge>
+                          )}
+                        </Card>
+                      );
+                    })}
+                  </Stack>
+                </Accordion.Panel>
+              </Accordion.Item>
+            </Accordion>
+          )}
+
+          {/* Meta bilgi */}
+          <Group gap="xs">
+            {data.alt_sorgular?.length > 0 && (
+              <Text size="xs" c="dimmed">
+                {data.alt_sorgular.length + 1} farklı arama stratejisi
+              </Text>
+            )}
+            {(data.olusturma_tarihi || data.son_guncelleme) && (
+              <Text size="xs" c="dimmed">
+                Son: {new Date(data.son_guncelleme || data.olusturma_tarihi || '').toLocaleString('tr-TR')}
+              </Text>
+            )}
+          </Group>
+        </Stack>
+      )}
     </Card>
   );
 }

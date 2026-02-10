@@ -61,6 +61,7 @@ export const DOCK_GRUPLARI: DockGrupMeta[] = [
 // ─── Eski 8'li liste (geriye uyumluluk — backend API'leriyle eşleşir) ───
 
 export const MODUL_LISTESI: ModulMeta[] = [
+  { ad: 'veri_havuzu', baslik: 'Veri Havuzu', aciklama: 'Merkez web istihbarat verisi — Tavily aramaları ve çapraz kontrol', ikon: 'IconDatabase', renk: 'indigo', kaynak: 'Tavily + DB', puppeteer: false },
   { ad: 'ihale_gecmisi', baslik: 'İhale Geçmişi', aciklama: 'ihalebul.com üzerinden ihale geçmişi ve sözleşme bilgileri', ikon: 'IconFileText', renk: 'blue', kaynak: 'ihalebul.com', puppeteer: true },
   { ad: 'profil_analizi', baslik: 'Profil Analizi', aciklama: 'Yıllık trendler, rakipler, şehirler ve sektör dağılımı', ikon: 'IconChartPie', renk: 'grape', kaynak: 'ihalebul.com', puppeteer: true },
   { ad: 'katilimcilar', baslik: 'Katılımcılar', aciklama: 'İhalelerde yarışan diğer firmalar ve teklif detayları', ikon: 'IconUsers', renk: 'cyan', kaynak: 'ihalebul.com', puppeteer: true },
