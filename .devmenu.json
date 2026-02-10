@@ -4,30 +4,6 @@
     {
       "id": "restart-all",
       "label": "Tümünü Yeniden Başlat",
-      "time": "14:57:46",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "17:16:20",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "17:22:11",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
-      "time": "18:59:53",
-      "success": true
-    },
-    {
-      "id": "restart-all",
-      "label": "Tümünü Yeniden Başlat",
       "time": "19:30:05",
       "success": true
     },
@@ -299,6 +275,30 @@
       "id": "restart-all",
       "label": "Tümünü Yeniden Başlat",
       "time": "19:17:40",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "19:52:15",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "20:28:27",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "20:54:09",
+      "success": true
+    },
+    {
+      "id": "restart-all",
+      "label": "Tümünü Yeniden Başlat",
+      "time": "12:16:48",
       "success": true
     }
   ],

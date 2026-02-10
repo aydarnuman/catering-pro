@@ -156,7 +156,7 @@ app.get('/api-docs.json', (_req, res) => {
 
 // Root – API bilgisi ve linkler (404 yerine anlamlı yanıt)
 app.get('/', (req, res) => {
-  const base = req.protocol + '://' + (req.get('host') || `localhost:${PORT}`);
+  const base = `${req.protocol}://${req.get('host') || `localhost:${PORT}`}`;
   res.json({
     name: 'Catering Pro API',
     version: '1.0.0',
@@ -289,9 +289,11 @@ import preferencesRouter from './routes/preferences.js';
 import projeHareketlerRouter from './routes/proje-hareketler.js';
 import projelerRouter from './routes/projeler.js';
 import promptBuilderRouter from './routes/prompt-builder.js';
+import reportsRouter from './routes/reports.js';
 import satinAlmaRouter from './routes/satin-alma.js';
 import scraperRouter from './routes/scraper.js';
 import searchRouter from './routes/search.js';
+import sektorGundemRouter from './routes/sektor-gundem.js';
 import socialRouter from './routes/social.js';
 import stokRouter from './routes/stok.js';
 import syncRouter from './routes/sync.js';
@@ -308,13 +310,13 @@ import tendersRouter from './routes/tenders.js';
 import urunlerRouter from './routes/urunler.js';
 import uyumsoftRouter from './routes/uyumsoft.js';
 import documentQueueProcessor from './services/document-queue-processor.js';
-import reminderNotificationScheduler from './services/reminder-notification-scheduler.js';
-import scheduler from './services/sync-scheduler.js';
 // Migration'lar artık Supabase CLI ile yönetiliyor
 // import { runMigrations } from './utils/migration-runner.js';
 // Yeni migration oluşturma: supabase migration new <isim>
 // Migration uygulama: supabase db push
 import piyasaSyncScheduler from './services/piyasa-sync-scheduler.js';
+import reminderNotificationScheduler from './services/reminder-notification-scheduler.js';
+import scheduler from './services/sync-scheduler.js';
 import systemMonitor from './services/system-monitor.js';
 import tenderScheduler from './services/tender-scheduler.js';
 
@@ -342,6 +344,7 @@ app.use('/api/personel', personelRouter);
 app.use('/api/bordro', bordroRouter);
 app.use('/api/izin', izinRouter);
 app.use('/api/export', exportRouter);
+app.use('/api/reports', reportsRouter);
 app.use('/api/import', importRouter);
 app.use('/api/demirbas', demirbasRouter);
 app.use('/api/kasa-banka', kasaBankaRouter);
@@ -353,6 +356,7 @@ app.use('/api/projeler', projelerRouter);
 app.use('/api/planlama', planlamaRouter);
 app.use('/api/menu-planlama', menuPlanlamaRouter);
 app.use('/api/mevzuat', mevzuatRouter);
+app.use('/api/sektor-gundem', sektorGundemRouter);
 app.use('/api/teklifler', tekliflerRouter);
 // DEPRECATED: Eski not sistemi - unified_notes'a taşındı (2026-01-29)
 // app.use('/api/notlar', notlarRouter);
@@ -378,6 +382,12 @@ app.use('/api/system', systemRouter);
 app.use('/api/prompt-builder', promptBuilderRouter);
 app.use('/api/preferences', preferencesRouter);
 app.use('/api/analysis-corrections', analysisCorrectionsRouter);
+
+// --- Rapor Merkezi Generator'ları Kaydet ---
+import('./services/report-generators/ihale-reports.js').catch(() => {});
+import('./services/report-generators/finans-reports.js').catch(() => {});
+import('./services/report-generators/operasyon-reports.js').catch(() => {});
+import('./services/report-generators/admin-reports.js').catch(() => {});
 
 /**
  * @swagger
