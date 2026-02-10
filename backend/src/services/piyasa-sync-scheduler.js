@@ -11,11 +11,12 @@
  */
 
 import cron from 'node-cron';
+import { KREDI_AYARLARI } from '../config/piyasa-kaynak.js';
 import { query } from '../database.js';
 import logger from '../utils/logger.js';
 import { syncHalFiyatlari } from './hal-scraper.js';
 import { parseProductName, searchMarketPrices } from './market-scraper.js';
-import { isTavilyConfigured, tavilySearch } from './tavily-service.js';
+import { isTavilyConfigured, tavilyPiyasaAra, tavilySearch } from './tavily-service.js';
 
 // ─── ARAMA TERİMİ OPTİMİZASYONU ──────────────────────────
 
@@ -72,8 +73,8 @@ const CONFIG = {
   // Cron: 08:00, 13:00, 18:00 her gün
   cronExpressions: ['0 8 * * *', '0 13 * * *', '0 18 * * *'],
 
-  // Rate limiting: camgoz.net'i ezmemek için
-  delayBetweenRequests: 3000, // ms (3 saniye)
+  // Rate limiting: Tavily birincil (1s), Camgöz fallback (3s orijinal)
+  delayBetweenRequests: 1500, // ms (1.5 saniye - Tavily daha toleranslı)
 
   // Batch boyutu - tek seferde max kaç ürün işlenir
   maxProductsPerRun: 100,
@@ -177,16 +178,48 @@ class PiyasaSyncScheduler {
     const { id: urunKartId, ad, arama_terimi, varsayilan_birim, stok_kart_id } = product;
 
     try {
+      // Cache TTL kontrolü: son araştırma çok yakınsa atla
+      const cacheCheck = await query(
+        `SELECT MAX(arastirma_tarihi) as son FROM piyasa_fiyat_gecmisi WHERE urun_kart_id = $1`,
+        [urunKartId]
+      ).catch(() => ({ rows: [] }));
+
+      if (cacheCheck.rows[0]?.son) {
+        const sonArastirma = new Date(cacheCheck.rows[0].son);
+        const saatFark = (Date.now() - sonArastirma.getTime()) / (1000 * 60 * 60);
+        if (saatFark < KREDI_AYARLARI.cacheTtlSaat) {
+          return { success: true, urun: ad, reason: 'cache_valid', kayitSayisi: 0, saatFark: Math.round(saatFark) };
+        }
+      }
+
       // Akıllı arama terimleri türet
       const searchTerms = optimizeSearchTerms(arama_terimi, varsayilan_birim);
       if (searchTerms.length === 0) {
         return { success: false, urun: ad, reason: 'no_search_term' };
       }
 
-      // Camgöz'den fiyat ara (çoklu terim destekli)
-      const result = await searchMarketPrices(searchTerms, {
-        targetUnit: varsayilan_birim === 'lt' ? 'L' : varsayilan_birim === 'kg' ? 'kg' : null,
-      });
+      const targetUnit = varsayilan_birim === 'lt' ? 'L' : varsayilan_birim === 'kg' ? 'kg' : null;
+      let result = { success: false, fiyatlar: [] };
+      let kaynakTip = 'unknown';
+
+      // Katman 1: Tavily referans sitelerle ara (birincil)
+      if (isTavilyConfigured()) {
+        try {
+          const searchName = searchTerms[0]; // En iyi arama terimi
+          result = await tavilyPiyasaAra(searchName, { targetUnit });
+          if (result.success && result.fiyatlar?.length > 0) {
+            kaynakTip = 'tavily_referans';
+          }
+        } catch (tavilyErr) {
+          logger.warn('[PiyasaSync] Tavily referans hatası', { urun: ad, error: tavilyErr.message });
+        }
+      }
+
+      // Katman 2: Tavily başarısızsa Camgöz'de ara (fallback)
+      if (!result.success || result.fiyatlar.length === 0) {
+        result = await searchMarketPrices(searchTerms, { targetUnit });
+        if (result.success) kaynakTip = 'market';
+      }
 
       if (!result.success || !result.fiyatlar || result.fiyatlar.length === 0) {
         return { success: false, urun: ad, reason: 'no_results' };
@@ -238,10 +271,10 @@ class PiyasaSyncScheduler {
               JSON.stringify({
                 barkod: fiyat.barkod || null,
                 birimTipi: fiyat.birimTipi || null,
-                kaynak: 'auto-sync',
+                kaynak: kaynakTip,
               }),
               now,
-              fiyat.alaka || 0,
+              fiyat.alakaSkor || fiyat.alaka || 0,
               arama_terimi,
             ]
           );
@@ -283,6 +316,7 @@ class PiyasaSyncScheduler {
         min: result.min,
         max: result.max,
         toplamSonuc: result.toplam_sonuc,
+        kaynak: kaynakTip,
       };
     } catch (error) {
       logger.error('[PiyasaSync] Ürün sync hatası', { urun: ad, error: error.message });
@@ -567,7 +601,7 @@ class PiyasaSyncScheduler {
     );
     this.jobs.push(halJob);
 
-    // Mevzuat & İhale değişiklik takibi: Haftalık Pazartesi 10:00
+    // Mevzuat & İhale değişiklik takibi: Haftalık Pazartesi 10:00 (legacy)
     const mevzuatJob = cron.schedule(
       '0 10 * * 1',
       () => {
@@ -580,7 +614,50 @@ class PiyasaSyncScheduler {
     );
     this.jobs.push(mevzuatJob);
 
-    logger.info(`[PiyasaSync] Scheduler başlatıldı (Camgöz: 08:00/13:00/18:00, Hal: 09:00, Mevzuat: Pazartesi 10:00)`);
+    // ── Sektör Gündem Aggregator Cron Jobs ──────────────
+    // İhale gündem: günde 3 kez (08:30, 13:30, 18:30)
+    for (const expr of ['30 8 * * *', '30 13 * * *', '30 18 * * *']) {
+      const ihaleJob = cron.schedule(
+        expr,
+        async () => {
+          logger.info(`[SektorGundem] İhale gündem cron tetiklendi: ${expr}`);
+          try {
+            const { fetchIhaleGundem, writeCache } = await import('./sektor-gundem-aggregator.js');
+            const konular = await fetchIhaleGundem();
+            await writeCache('sektor_gundem_ihale', { konular });
+            logger.info(`[SektorGundem] İhale gündem cache güncellendi: ${konular.length} kategori`);
+          } catch (err) {
+            logger.error(`[SektorGundem] İhale gündem cron hatası: ${err.message}`);
+          }
+        },
+        { timezone: 'Europe/Istanbul' }
+      );
+      this.jobs.push(ihaleJob);
+    }
+
+    // İstihbarat gündem: günde 2 kez (09:30, 15:30)
+    for (const expr of ['30 9 * * *', '30 15 * * *']) {
+      const istJob = cron.schedule(
+        expr,
+        async () => {
+          logger.info(`[SektorGundem] İstihbarat gündem cron tetiklendi: ${expr}`);
+          try {
+            const { fetchIstihbaratGundem, writeCache } = await import('./sektor-gundem-aggregator.js');
+            const konular = await fetchIstihbaratGundem();
+            await writeCache('sektor_gundem_istihbarat', { konular });
+            logger.info(`[SektorGundem] İstihbarat gündem cache güncellendi: ${konular.length} kategori`);
+          } catch (err) {
+            logger.error(`[SektorGundem] İstihbarat gündem cron hatası: ${err.message}`);
+          }
+        },
+        { timezone: 'Europe/Istanbul' }
+      );
+      this.jobs.push(istJob);
+    }
+
+    logger.info(
+      `[PiyasaSync] Scheduler başlatıldı (Camgöz: 08:00/13:00/18:00, Hal: 09:00, Mevzuat: Pazartesi 10:00, SektorGundem-İhale: 08:30/13:30/18:30, SektorGundem-İstihbarat: 09:30/15:30)`
+    );
   }
 
   stop() {
