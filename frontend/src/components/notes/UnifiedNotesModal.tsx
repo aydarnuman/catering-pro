@@ -39,15 +39,20 @@ import {
   Stack,
   Text,
   TextInput,
+  Tooltip,
   useMantineColorScheme,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
+  IconCalculator,
   IconCheck,
+  IconDownload,
   IconNote,
   IconNotes,
   IconPlus,
   IconSearch,
+  IconSparkles,
+  IconTemplate,
   IconTrash,
   IconUser,
   IconX,
@@ -61,7 +66,11 @@ import { NoteAttachments } from './NoteAttachments';
 import { NoteCard } from './NoteCard';
 import { type ChecklistItem, NoteChecklist } from './NoteChecklist';
 import { NoteEditor } from './NoteEditor';
-import { NotesSidebar, type SidebarFilter } from './NotesSidebar';
+import { NotesSidebar, type SidebarFilter, type ToolType } from './NotesSidebar';
+import { AIHelpTool } from './tools/AIHelpTool';
+import { CalculatorTool } from './tools/CalculatorTool';
+import { ExportTool } from './tools/ExportTool';
+import { type NoteTemplate, TemplatesTool } from './tools/TemplatesTool';
 
 // Context type labels
 const CONTEXT_LABELS: Record<string, string> = {
@@ -135,6 +144,7 @@ export function UnifiedNotesModal() {
   const [noteMode, setNoteMode] = useState<'personal' | 'context'>('personal');
   const [sidebarFilter, setSidebarFilter] = useState<SidebarFilter>({ type: 'all' });
   const [editChecklist, setEditChecklist] = useState<ChecklistItem[]>([]);
+  const [activeTool, setActiveTool] = useState<ToolType | null>(null);
 
   // Reset on open
   useEffect(() => {
@@ -147,6 +157,7 @@ export function UnifiedNotesModal() {
         type: initialTab === 'pinned' ? 'pinned' : initialTab === 'tasks' ? 'tasks' : 'all',
       });
       setEditChecklist([]);
+      setActiveTool(null);
     }
   }, [opened, contextType, initialTab]);
 
@@ -338,6 +349,49 @@ export function UnifiedNotesModal() {
     setEditChecklist(Array.isArray(checklist) ? checklist : []);
   }, []);
 
+  // Template handler - sablon secildiginde notu olusturup notlar gorunumune don
+  const handleSelectTemplate = useCallback(
+    async (template: NoteTemplate) => {
+      const result = await createNote({
+        title: template.title,
+        content: template.content,
+        content_format: 'html',
+        is_task: template.isTask,
+        color: template.color as NoteColor,
+        tags: template.tags,
+      });
+      if (result) {
+        setActiveTool(null);
+        notifications.show({
+          message: `"${template.name}" sablonundan not olusturuldu`,
+          color: 'green',
+          icon: <IconCheck size={16} />,
+          autoClose: 2000,
+        });
+      }
+    },
+    [createNote]
+  );
+
+  // AI gorev cikarma handler - AI'dan gelen gorev maddelerini tek tek olustur
+  const handleCreateTasksFromAI = useCallback(
+    async (tasks: string[]) => {
+      for (const taskText of tasks) {
+        await createNote({
+          title: taskText,
+          content: '',
+          is_task: true,
+          color: 'orange',
+        });
+      }
+      setActiveTool(null);
+      setSidebarFilter({ type: 'tasks' });
+    },
+    [createNote]
+  );
+
+  const isToolView = activeTool !== null;
+
   // ── Context label ──
   const contextLabel = contextType
     ? `${CONTEXT_LABELS[contextType] || contextType}${contextTitle ? `: ${contextTitle}` : ''}`
@@ -386,7 +440,7 @@ export function UnifiedNotesModal() {
           borderBottom: `1px solid ${borderSubtl}`,
           background: surfaceBg,
         },
-        body: { padding: 0, background: surfaceBg, height: 'calc(100vh - 60px)' },
+        body: { padding: 0, background: surfaceBg, height: 'calc(100vh - 60px)', display: 'flex', flexDirection: 'column' },
         content: { background: surfaceBg },
       }}
     >
@@ -426,7 +480,7 @@ export function UnifiedNotesModal() {
       )}
 
       {/* ── Main Layout: Sidebar + Content ── */}
-      <Group align="stretch" gap={0} wrap="nowrap" style={{ height: '100%' }}>
+      <Group align="stretch" gap={0} wrap="nowrap" style={{ flex: 1, minHeight: 0 }}>
         {/* Sidebar */}
         <NotesSidebar
           notes={notes}
@@ -437,253 +491,367 @@ export function UnifiedNotesModal() {
 
         {/* Content area */}
         <Box style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          {/* Stats + Search bar */}
-          <Box px="lg" py="sm" style={{ borderBottom: `1px solid ${borderSubtl}` }}>
-            <Group justify="space-between" mb="xs">
-              <Group gap="md">
-                <Badge variant="light" color="blue" size="sm">
-                  {stats.total} not
-                </Badge>
-                {stats.pending > 0 && (
-                  <Badge variant="light" color="orange" size="sm">
-                    {stats.pending} bekleyen
-                  </Badge>
-                )}
-                {stats.completed > 0 && (
-                  <Badge variant="light" color="green" size="sm">
-                    {stats.completed} tamamlanan
-                  </Badge>
-                )}
-              </Group>
-              {stats.completed > 0 && (
-                <Button
-                  variant="subtle"
-                  color="red"
-                  size="xs"
-                  leftSection={<IconTrash size={14} />}
-                  onClick={handleDeleteCompleted}
-                >
-                  Tamamlananlari sil
-                </Button>
+          {isToolView ? (
+            /* ── Tool Content ── */
+            <ScrollArea style={{ flex: 1 }} p="lg">
+              {activeTool === 'calculator' && <CalculatorTool />}
+              {activeTool === 'templates' && (
+                <TemplatesTool onSelectTemplate={handleSelectTemplate} />
               )}
-            </Group>
-            <TextInput
-              placeholder="Notlarda ara..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.currentTarget.value)}
-              leftSection={<IconSearch size={16} />}
-              rightSection={
-                searchQuery ? (
-                  <ActionIcon variant="subtle" size="xs" onClick={() => setSearchQuery('')}>
-                    <IconX size={14} />
-                  </ActionIcon>
-                ) : null
-              }
-              size="sm"
-              radius="md"
-            />
-          </Box>
-
-          {/* ── Composer ── */}
-          <Box px="lg" py="sm">
-            {!composerOpen ? (
-              <Button
-                variant="light"
-                leftSection={<IconPlus size={16} />}
-                onClick={() => {
-                  setEditingNote(null);
-                  setComposerOpen(true);
-                }}
-                fullWidth
-                radius="md"
-                styles={{
-                  root: {
-                    background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
-                    border: `1px dashed ${borderSubtl}`,
-                    color: isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)',
-                    fontWeight: 500,
-                  },
-                }}
-              >
-                {isTaskView ? 'Yeni gorev ekle...' : 'Yeni not ekle...'}
-              </Button>
-            ) : (
-              <Collapse in={composerOpen}>
-                <Paper
-                  p="md"
-                  radius="md"
-                  withBorder
-                  style={{ borderColor: isTaskView ? 'var(--mantine-color-orange-3)' : 'var(--mantine-color-violet-3)' }}
-                >
-                  <Group justify="space-between" mb="sm">
-                    <Text size="sm" fw={600} c={isTaskView ? 'orange' : 'violet'}>
-                      {isTaskView ? 'Yeni Gorev' : 'Yeni Not'}
-                    </Text>
-                    <ActionIcon variant="subtle" size="sm" onClick={() => setComposerOpen(false)}>
-                      <IconX size={16} />
-                    </ActionIcon>
+              {activeTool === 'ai-help' && (
+                <AIHelpTool notes={notes} onCreateTasksFromAI={handleCreateTasksFromAI} />
+              )}
+              {activeTool === 'export' && <ExportTool notes={notes} />}
+            </ScrollArea>
+          ) : (
+            <>
+              {/* Stats + Search bar */}
+              <Box px="lg" py="sm" style={{ borderBottom: `1px solid ${borderSubtl}` }}>
+                <Group justify="space-between" mb="xs">
+                  <Group gap="md">
+                    <Badge variant="light" color="blue" size="sm">
+                      {stats.total} not
+                    </Badge>
+                    {stats.pending > 0 && (
+                      <Badge variant="light" color="orange" size="sm">
+                        {stats.pending} bekleyen
+                      </Badge>
+                    )}
+                    {stats.completed > 0 && (
+                      <Badge variant="light" color="green" size="sm">
+                        {stats.completed} tamamlanan
+                      </Badge>
+                    )}
                   </Group>
-                  <NoteEditor
-                    onSave={handleCreateNote}
-                    onCancel={() => setComposerOpen(false)}
-                    compact
-                    taskMode={isTaskView}
-                    showTaskToggle={!isTaskView}
-                    initialIsTask={isTaskView}
-                    initialColor={isTaskView ? 'orange' : 'blue'}
-                  />
-                </Paper>
-              </Collapse>
-            )}
-          </Box>
+                  {stats.completed > 0 && (
+                    <Button
+                      variant="subtle"
+                      color="red"
+                      size="xs"
+                      leftSection={<IconTrash size={14} />}
+                      onClick={handleDeleteCompleted}
+                    >
+                      Tamamlananlari sil
+                    </Button>
+                  )}
+                </Group>
+                <TextInput
+                  placeholder="Notlarda ara..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                  leftSection={<IconSearch size={16} />}
+                  rightSection={
+                    searchQuery ? (
+                      <ActionIcon variant="subtle" size="xs" onClick={() => setSearchQuery('')}>
+                        <IconX size={14} />
+                      </ActionIcon>
+                    ) : null
+                  }
+                  size="sm"
+                  radius="md"
+                />
+              </Box>
 
-          {/* ── Notes list ── */}
-          <ScrollArea style={{ flex: 1 }} px="lg" pb="md">
-            {isLoading ? (
-              <Center h={200}>
-                <Stack align="center" gap="xs">
-                  <Loader size="md" color="violet" />
-                  <Text size="sm" c="dimmed">
-                    Notlar yukleniyor...
-                  </Text>
-                </Stack>
-              </Center>
-            ) : filteredNotes.length === 0 ? (
-              <Center h={200}>
-                <Stack align="center" gap="xs">
+              {/* ── Composer ── */}
+              <Box px="lg" py="sm">
+                {!composerOpen ? (
+                  <Button
+                    variant="light"
+                    leftSection={<IconPlus size={16} />}
+                    onClick={() => {
+                      setEditingNote(null);
+                      setComposerOpen(true);
+                    }}
+                    fullWidth
+                    radius="md"
+                    styles={{
+                      root: {
+                        background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                        border: `1px dashed ${borderSubtl}`,
+                        color: isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)',
+                        fontWeight: 500,
+                      },
+                    }}
+                  >
+                    {isTaskView ? 'Yeni gorev ekle...' : 'Yeni not ekle...'}
+                  </Button>
+                ) : (
+                  <Collapse in={composerOpen}>
+                    <Paper
+                      p="md"
+                      radius="md"
+                      withBorder
+                      style={{
+                        borderColor: isTaskView
+                          ? 'var(--mantine-color-orange-3)'
+                          : 'var(--mantine-color-violet-3)',
+                      }}
+                    >
+                      <Group justify="space-between" mb="sm">
+                        <Text size="sm" fw={600} c={isTaskView ? 'orange' : 'violet'}>
+                          {isTaskView ? 'Yeni Gorev' : 'Yeni Not'}
+                        </Text>
+                        <ActionIcon
+                          variant="subtle"
+                          size="sm"
+                          onClick={() => setComposerOpen(false)}
+                        >
+                          <IconX size={16} />
+                        </ActionIcon>
+                      </Group>
+                      <NoteEditor
+                        onSave={handleCreateNote}
+                        onCancel={() => setComposerOpen(false)}
+                        compact
+                        taskMode={isTaskView}
+                        showTaskToggle={!isTaskView}
+                        initialIsTask={isTaskView}
+                        initialColor={isTaskView ? 'orange' : 'blue'}
+                      />
+                    </Paper>
+                  </Collapse>
+                )}
+              </Box>
+
+              {/* ── Notes list ── */}
+              <ScrollArea style={{ flex: 1 }} px="lg" pb="md">
+                {isLoading ? (
+                  <Center h={200}>
+                    <Stack align="center" gap="xs">
+                      <Loader size="md" color="violet" />
+                      <Text size="sm" c="dimmed">
+                        Notlar yukleniyor...
+                      </Text>
+                    </Stack>
+                  </Center>
+                ) : filteredNotes.length === 0 ? (
+                  <Center h={200}>
+                    <Stack align="center" gap="xs">
+                      <Box
+                        style={{
+                          width: 64,
+                          height: 64,
+                          borderRadius: 16,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                        }}
+                      >
+                        <IconNotes size={32} color="gray" opacity={0.4} />
+                      </Box>
+                      <Text c="dimmed" size="sm" fw={500}>
+                        {searchQuery
+                          ? 'Aramanizla eslesen not bulunamadi'
+                          : sidebarFilter.type === 'pinned'
+                            ? 'Sabitlenen not yok'
+                            : sidebarFilter.type === 'tasks'
+                              ? 'Gorev yok'
+                              : sidebarFilter.type === 'tag'
+                                ? `"${sidebarFilter.tagName}" etiketi ile not yok`
+                                : 'Henuz not eklenmemis'}
+                      </Text>
+                      {!searchQuery && sidebarFilter.type === 'all' && !composerOpen && (
+                        <Button
+                          variant="light"
+                          size="xs"
+                          color="violet"
+                          leftSection={<IconPlus size={14} />}
+                          onClick={() => setComposerOpen(true)}
+                        >
+                          Ilk notunu ekle
+                        </Button>
+                      )}
+                    </Stack>
+                  </Center>
+                ) : (
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={filteredNotes.map((n) => n.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <Stack gap="xs">
+                        {filteredNotes.map((note) => (
+                          <Stack key={note.id} gap={4}>
+                            <SortableNoteCard
+                              note={note}
+                              onToggleComplete={handleToggleComplete}
+                              onTogglePin={handleTogglePin}
+                              onDelete={handleDeleteNote}
+                              onEdit={handleEditNote}
+                              onColorChange={handleColorChange}
+                            />
+                            {/* Inline attachments preview */}
+                            {note.attachments && note.attachments.length > 0 && (
+                              <Box ml={28}>
+                                <NoteAttachments
+                                  noteId={note.id}
+                                  attachments={note.attachments}
+                                  onUpdate={refresh}
+                                />
+                              </Box>
+                            )}
+                            {/* Inline checklist preview */}
+                            {Array.isArray((note.metadata as Record<string, unknown>)?.checklist) &&
+                              (
+                                (note.metadata as Record<string, unknown>)
+                                  .checklist as ChecklistItem[]
+                              ).length > 0 && (
+                                <Box ml={28}>
+                                  <NoteChecklist
+                                    items={
+                                      (note.metadata as Record<string, unknown>)
+                                        .checklist as ChecklistItem[]
+                                    }
+                                    onChange={() => {}}
+                                    readonly
+                                  />
+                                </Box>
+                              )}
+                          </Stack>
+                        ))}
+                      </Stack>
+                    </SortableContext>
+                  </DndContext>
+                )}
+
+                {/* ── Not Ici Gorevler (only in tasks view) ── */}
+                {isTaskView && inlineChecklist.length > 0 && (
+                  <Box mt="lg">
+                    <Divider
+                      label={
+                        <Text size="xs" fw={600} c="dimmed">
+                          Not Ici Gorevler ({inlineChecklist.filter((i) => i.done).length}/
+                          {inlineChecklist.length})
+                        </Text>
+                      }
+                      labelPosition="left"
+                      mb="sm"
+                    />
+                    <Stack gap={4}>
+                      {inlineChecklist.map((item) => (
+                        <Group key={`${item.noteId}-${item.id}`} gap="xs" wrap="nowrap">
+                          <Checkbox
+                            checked={item.done}
+                            size="xs"
+                            radius="xl"
+                            readOnly
+                            styles={{ input: { cursor: 'default' } }}
+                          />
+                          <Text
+                            size="xs"
+                            style={{
+                              flex: 1,
+                              textDecoration: item.done ? 'line-through' : 'none',
+                              opacity: item.done ? 0.5 : 1,
+                            }}
+                          >
+                            {item.text}
+                          </Text>
+                          <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                            {item.noteTitle}
+                          </Text>
+                        </Group>
+                      ))}
+                    </Stack>
+                  </Box>
+                )}
+              </ScrollArea>
+            </>
+          )}
+        </Box>
+      </Group>
+
+      {/* ── Bottom Dock (Araclar) ── */}
+      <Box
+        style={{
+          padding: '12px 0 14px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <Box
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '8px 20px',
+            borderRadius: 20,
+            background: isDark
+              ? 'rgba(255,255,255,0.06)'
+              : 'rgba(0,0,0,0.04)',
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+            backdropFilter: 'blur(12px)',
+          }}
+        >
+          {([
+            { key: 'calculator' as ToolType, icon: <IconCalculator size={22} />, label: 'Hesap Makinasi', color: 'teal' },
+            { key: 'templates' as ToolType, icon: <IconTemplate size={22} />, label: 'Sablonlar', color: 'violet' },
+            { key: 'ai-help' as ToolType, icon: <IconSparkles size={22} />, label: 'AI Yardim', color: 'blue' },
+            { key: 'export' as ToolType, icon: <IconDownload size={22} />, label: 'Disa Aktar', color: 'orange' },
+          ]).map((tool) => {
+            const isActive = activeTool === tool.key;
+            return (
+              <Tooltip key={tool.key} label={tool.label} position="top" withArrow>
+                <Box
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 4,
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => setActiveTool(isActive ? null : tool.key)}
+                >
                   <Box
                     style={{
-                      width: 64,
-                      height: 64,
-                      borderRadius: 16,
+                      width: 48,
+                      height: 48,
+                      borderRadius: 14,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                      background: isActive
+                        ? `var(--mantine-color-${tool.color}-${isDark ? '8' : '1'})`
+                        : isDark
+                          ? 'rgba(255,255,255,0.05)'
+                          : 'rgba(0,0,0,0.03)',
+                      border: isActive
+                        ? `1.5px solid var(--mantine-color-${tool.color}-${isDark ? '6' : '3'})`
+                        : `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}`,
+                      color: isActive
+                        ? `var(--mantine-color-${tool.color}-${isDark ? '4' : '7'})`
+                        : isDark
+                          ? 'rgba(255,255,255,0.5)'
+                          : 'rgba(0,0,0,0.4)',
+                      transition: 'all 0.2s ease',
+                      transform: isActive ? 'scale(1.08)' : 'scale(1)',
                     }}
                   >
-                    <IconNotes size={32} color="gray" opacity={0.4} />
+                    {tool.icon}
                   </Box>
-                  <Text c="dimmed" size="sm" fw={500}>
-                    {searchQuery
-                      ? 'Aramanizla eslesen not bulunamadi'
-                      : sidebarFilter.type === 'pinned'
-                        ? 'Sabitlenen not yok'
-                        : sidebarFilter.type === 'tasks'
-                          ? 'Gorev yok'
-                          : sidebarFilter.type === 'tag'
-                            ? `"${sidebarFilter.tagName}" etiketi ile not yok`
-                            : 'Henuz not eklenmemis'}
-                  </Text>
-                  {!searchQuery && sidebarFilter.type === 'all' && !composerOpen && (
-                    <Button
-                      variant="light"
-                      size="xs"
-                      color="violet"
-                      leftSection={<IconPlus size={14} />}
-                      onClick={() => setComposerOpen(true)}
-                    >
-                      Ilk notunu ekle
-                    </Button>
-                  )}
-                </Stack>
-              </Center>
-            ) : (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={filteredNotes.map((n) => n.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <Stack gap="xs">
-                    {filteredNotes.map((note) => (
-                      <Stack key={note.id} gap={4}>
-                        <SortableNoteCard
-                          note={note}
-                          onToggleComplete={handleToggleComplete}
-                          onTogglePin={handleTogglePin}
-                          onDelete={handleDeleteNote}
-                          onEdit={handleEditNote}
-                          onColorChange={handleColorChange}
-                        />
-                        {/* Inline attachments preview */}
-                        {note.attachments && note.attachments.length > 0 && (
-                          <Box ml={28}>
-                            <NoteAttachments
-                              noteId={note.id}
-                              attachments={note.attachments}
-                              onUpdate={refresh}
-                            />
-                          </Box>
-                        )}
-                        {/* Inline checklist preview */}
-                        {Array.isArray((note.metadata as Record<string, unknown>)?.checklist) &&
-                          ((note.metadata as Record<string, unknown>).checklist as ChecklistItem[])
-                            .length > 0 && (
-                            <Box ml={28}>
-                              <NoteChecklist
-                                items={
-                                  (note.metadata as Record<string, unknown>)
-                                    .checklist as ChecklistItem[]
-                                }
-                                onChange={() => {}}
-                                readonly
-                              />
-                            </Box>
-                          )}
-                      </Stack>
-                    ))}
-                  </Stack>
-                </SortableContext>
-              </DndContext>
-            )}
-
-            {/* ── Not Ici Gorevler (only in tasks view) ── */}
-            {isTaskView && inlineChecklist.length > 0 && (
-              <Box mt="lg">
-                <Divider
-                  label={
-                    <Text size="xs" fw={600} c="dimmed">
-                      Not Ici Gorevler ({inlineChecklist.filter((i) => i.done).length}/{inlineChecklist.length})
-                    </Text>
-                  }
-                  labelPosition="left"
-                  mb="sm"
-                />
-                <Stack gap={4}>
-                  {inlineChecklist.map((item) => (
-                    <Group key={`${item.noteId}-${item.id}`} gap="xs" wrap="nowrap">
-                      <Checkbox
-                        checked={item.done}
-                        size="xs"
-                        radius="xl"
-                        readOnly
-                        styles={{ input: { cursor: 'default' } }}
-                      />
-                      <Text
-                        size="xs"
-                        style={{
-                          flex: 1,
-                          textDecoration: item.done ? 'line-through' : 'none',
-                          opacity: item.done ? 0.5 : 1,
-                        }}
-                      >
-                        {item.text}
-                      </Text>
-                      <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
-                        {item.noteTitle}
-                      </Text>
-                    </Group>
-                  ))}
-                </Stack>
-              </Box>
-            )}
-          </ScrollArea>
+                  <Box
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: '50%',
+                      background: isActive
+                        ? `var(--mantine-color-${tool.color}-5)`
+                        : 'transparent',
+                      transition: 'background 0.2s ease',
+                    }}
+                  />
+                </Box>
+              </Tooltip>
+            );
+          })}
         </Box>
-      </Group>
+      </Box>
 
       {/* ── Edit Note Modal ── */}
       <Modal

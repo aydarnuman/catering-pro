@@ -33,6 +33,8 @@ interface NotesSidebarProps {
   tags: NoteTag[];
 }
 
+export type ToolType = 'calculator' | 'templates' | 'ai-help' | 'export';
+
 export interface SidebarFilter {
   type: 'all' | 'pinned' | 'tasks' | 'tag';
   tagId?: number;
